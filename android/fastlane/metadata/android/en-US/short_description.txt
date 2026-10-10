@@ -1,1 +1,1 @@
-Klipper touchscreen UI — monitor and control your 3D printer on Android.
+Klipper touchscreen UI: monitor and control your 3D printer on Android.

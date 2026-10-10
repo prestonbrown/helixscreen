@@ -4,6 +4,7 @@
 #include "ui_temperature_utils.h"
 
 #include "app_globals.h"
+#include "config.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
@@ -359,6 +360,56 @@ std::string heater_keypad_title(HeaterType type) {
         return lv_tr("Chamber");
     }
     return {};
+}
+
+std::string build_cooldown_gcode(const std::string& macro_gcode,
+                                 const std::vector<std::string>& extruder_names,
+                                 const std::string& chamber_heater_name) {
+    if (!helix::is_default_cooldown_gcode(macro_gcode)) {
+        return macro_gcode;
+    }
+
+    // The default macro already names the primary extruder.
+    std::vector<std::string> extra_extruders;
+    for (const auto& name : extruder_names) {
+        if (name != "extruder") {
+            extra_extruders.push_back(name);
+        }
+    }
+    // Shorter first, so extruder2 precedes extruder10.
+    std::sort(extra_extruders.begin(), extra_extruders.end(),
+              [](const std::string& a, const std::string& b) {
+                  return a.size() != b.size() ? a.size() < b.size() : a < b;
+              });
+    extra_extruders.erase(std::unique(extra_extruders.begin(), extra_extruders.end()),
+                          extra_extruders.end());
+
+    std::string gcode = macro_gcode;
+    char line[128];
+    auto append_off = [&](const std::string& heater) {
+        if (build_heater_off_gcode(heater, line, sizeof(line))) {
+            gcode += "\n";
+            gcode += line;
+        }
+    };
+    for (const auto& name : extra_extruders) {
+        append_off(name);
+    }
+    append_off(chamber_heater_name);
+    return gcode;
+}
+
+std::string resolve_cooldown_gcode(const helix::PrinterTemperatureState& temps) {
+    auto* cfg = helix::Config::get_instance();
+    helix::MacroConfig default_cooldown{"Cool Down", helix::kDefaultCooldownGcode};
+    const auto cooldown = cfg->get_macro("cooldown", default_cooldown);
+
+    std::vector<std::string> extruder_names;
+    extruder_names.reserve(temps.extruders().size());
+    for (const auto& [name, info] : temps.extruders()) {
+        extruder_names.push_back(name);
+    }
+    return build_cooldown_gcode(cooldown.gcode, extruder_names, temps.chamber_heater_name());
 }
 
 } // namespace temperature

@@ -1758,11 +1758,26 @@ ExamplePanel::show_loading();
 
 ```cpp
 // ✅ CORRECT - Name-based (resilient)
-lv_obj_t* w = lv_obj_find_by_name(parent, "temperature_display");
+lv_obj_t* w = helix::ui::find_required(parent, "temperature_display", "TempPanel");
 
 // ❌ WRONG - Index-based (fragile)
 lv_obj_t* w = lv_obj_get_child(parent, 3);
 ```
+
+App code looks widgets up through the two helpers in `include/ui/ui_widget_helpers.h`
+rather than calling `lv_obj_find_by_name()` directly:
+
+- `find_required(root, name, owner)` is for a widget the component's XML must contain. A
+  missing name is a breached contract: it logs once per (owner, name) and returns nullptr in a
+  release build, and aborts under `--test` and in unit tests (`set_strict_ui_checks()`), so a
+  rename in XML fails the run where the C++ disagrees instead of shipping a dead control.
+  `scripts/check_required_names.py` (in the commit hook) checks each literal name against
+  every layout variant of the component the calling file creates.
+- `find_optional(root, name)` is for a widget that may legitimately be absent: inside an
+  `<if>`, omitted by one layout variant, or in plugin-supplied XML. It never reports.
+
+Both return nullptr silently for a null root, so a lookup nested under a failed one does not
+report twice.
 
 ### Component Names Required
 

@@ -20,7 +20,7 @@
  * the aggregate can no longer disagree.
  *
  * Fixture values follow the K2 Plus box shape documented in
- * CREALITY_K2_SUPPORT.md: per-unit `vender`/`remain_len`/`material_type`/
+ * CREALITY_CFS_K2_INTERNALS.md: per-unit `vender`/`remain_len`/`material_type`/
  * `color_value` arrays of 4, and the active-lane letter in `T{n}.filament`.
  */
 

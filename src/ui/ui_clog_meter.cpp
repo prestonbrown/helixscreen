@@ -5,6 +5,7 @@
 
 #include "ui_progress_arc.h"
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 
 #include "clog_meter_geometry.h"
 #include "lvgl/lvgl.h"
@@ -72,9 +73,9 @@ UiClogMeter::~UiClogMeter() {
     UpdateQueue::instance().drain();
 
     // Remove SIZE_CHANGED callback to prevent dangling this pointer
-    lv_obj_t* card = root_ ? lv_obj_get_parent(root_) : nullptr;
-    if (card) {
-        lv_obj_remove_event_cb_with_user_data(card, on_card_size_changed, this);
+    // The card is reached through root_, so root_ must still be alive to ask.
+    if (root_ && lv_is_initialized() && lv_obj_is_valid(root_)) {
+        helix::ui::remove_event_cb_if_alive(lv_obj_get_parent(root_), on_card_size_changed, this);
     }
 
     // Before the widget pointers below are cleared: its callback calls apply(),

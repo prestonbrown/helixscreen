@@ -17,6 +17,11 @@ TEST_CASE("CFS status parse classifies a box frame by the keys it carries", "[cf
     CHECK(top.has_top_level);
     CHECK_FALSE(top.has_unit_data);
 
+    // The box resends the auto-refill bit alone when it changes.
+    const auto refill = cfs::classify_box_frame(json{{"auto_refill", 0}});
+    CHECK(refill.has_top_level);
+    CHECK_FALSE(refill.has_unit_data);
+
     const auto unit = cfs::classify_box_frame(json{{"T3", json::object()}});
     CHECK_FALSE(unit.has_top_level);
     CHECK(unit.has_unit_data);

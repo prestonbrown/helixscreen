@@ -336,7 +336,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         if (fail == "stall") {
             belt_failure_ = BeltMockFailure::STALL;
         } else if (fail == "nofile") {
-            belt_failure_ = BeltMockFailure::NOFILE;
+            belt_failure_ = BeltMockFailure::NO_FILE;
         } else if (fail == "multichip") {
             belt_failure_ = BeltMockFailure::MULTICHIP;
         } else if (fail == "error") {

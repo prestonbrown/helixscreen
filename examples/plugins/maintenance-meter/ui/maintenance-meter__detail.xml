@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<component>
+  <!-- Detail overlay: one card per meter, hidden when its interval is 0.
+       Each card repeats the dial pattern (ring canvas full-bleed, hours
+       label centered over it), the bound strings, and its own reset
+       button; a reset discards accrued hours, so Lua asks first. -->
+  <view extends="overlay_panel" title="Maintenance" bg_color="#card_bg">
+    <lv_obj name="maintenance-meter__detail_content"
+            width="100%" flex_grow="1" style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column"
+            scrollable="false">
+      <ui_card name="maintenance-meter__row1"
+               width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+               style_flex_cross_place="center">
+        <bind_flag_if_eq subject="maintenance-meter__m1_on" flag="hidden" ref_value="0"/>
+        <lv_obj name="maintenance-meter__dial1"
+                width="56" height="56" scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0">
+          <plugin_canvas name="maintenance-meter__ring1" width="100%" height="100%"/>
+          <lv_label name="maintenance-meter__m1_left"
+                    bind_text="maintenance-meter__m1_left" align="center" style_text_font="#font_xs"
+                    style_text_color="#text"/>
+        </lv_obj>
+        <lv_obj flex_flow="column"
+                flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0" style_border_width="0">
+          <lv_label name="maintenance-meter__m1_name"
+                    text="HEPA filter" style_text_font="#font_body" style_text_color="#text"/>
+          <lv_label name="maintenance-meter__m1_line"
+                    bind_text="maintenance-meter__m1_line" style_text_font="#font_body" style_text_color="#text_muted"/>
+          <lv_label name="maintenance-meter__m1_note"
+                    bind_text="maintenance-meter__m1_note" style_text_font="#font_small" style_text_color="#text_muted"/>
+        </lv_obj>
+        <lv_button name="maintenance-meter__btn_filter" height="content" style_pad_all="#space_xs">
+          <event_cb trigger="clicked" callback="plugin_event" user_data="maintenance-meter__reset:filter"/>
+          <lv_label text="Reset" style_text_font="#font_small" style_text_color="#text"/>
+        </lv_button>
+      </ui_card>
+      <ui_card name="maintenance-meter__row2"
+               width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+               style_flex_cross_place="center">
+        <bind_flag_if_eq subject="maintenance-meter__m2_on" flag="hidden" ref_value="0"/>
+        <lv_obj name="maintenance-meter__dial2"
+                width="56" height="56" scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0">
+          <plugin_canvas name="maintenance-meter__ring2" width="100%" height="100%"/>
+          <lv_label name="maintenance-meter__m2_left"
+                    bind_text="maintenance-meter__m2_left" align="center" style_text_font="#font_xs"
+                    style_text_color="#text"/>
+        </lv_obj>
+        <lv_obj flex_flow="column"
+                flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0" style_border_width="0">
+          <lv_label name="maintenance-meter__m2_name"
+                    text="Nozzle" style_text_font="#font_body" style_text_color="#text"/>
+          <lv_label name="maintenance-meter__m2_line"
+                    bind_text="maintenance-meter__m2_line" style_text_font="#font_body" style_text_color="#text_muted"/>
+          <lv_label name="maintenance-meter__m2_note"
+                    bind_text="maintenance-meter__m2_note" style_text_font="#font_small" style_text_color="#text_muted"/>
+        </lv_obj>
+        <lv_button name="maintenance-meter__btn_nozzle" height="content" style_pad_all="#space_xs">
+          <event_cb trigger="clicked" callback="plugin_event" user_data="maintenance-meter__reset:nozzle"/>
+          <lv_label text="Reset" style_text_font="#font_small" style_text_color="#text"/>
+        </lv_button>
+      </ui_card>
+      <ui_card name="maintenance-meter__row3"
+               width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+               style_flex_cross_place="center">
+        <bind_flag_if_eq subject="maintenance-meter__m3_on" flag="hidden" ref_value="0"/>
+        <lv_obj name="maintenance-meter__dial3"
+                width="56" height="56" scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0">
+          <plugin_canvas name="maintenance-meter__ring3" width="100%" height="100%"/>
+          <lv_label name="maintenance-meter__m3_left"
+                    bind_text="maintenance-meter__m3_left" align="center" style_text_font="#font_xs"
+                    style_text_color="#text"/>
+        </lv_obj>
+        <lv_obj flex_flow="column"
+                flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0" style_border_width="0">
+          <lv_label name="maintenance-meter__m3_name"
+                    text="linear rails" style_text_font="#font_body" style_text_color="#text"/>
+          <lv_label name="maintenance-meter__m3_line"
+                    bind_text="maintenance-meter__m3_line" style_text_font="#font_body" style_text_color="#text_muted"/>
+          <lv_label name="maintenance-meter__m3_note"
+                    bind_text="maintenance-meter__m3_note" style_text_font="#font_small" style_text_color="#text_muted"/>
+        </lv_obj>
+        <lv_button name="maintenance-meter__btn_rails" height="content" style_pad_all="#space_xs">
+          <event_cb trigger="clicked" callback="plugin_event" user_data="maintenance-meter__reset:rails"/>
+          <lv_label text="Reset" style_text_font="#font_small" style_text_color="#text"/>
+        </lv_button>
+      </ui_card>
+      <text_small name="maintenance-meter__total" bind_text="maintenance-meter__total_line"/>
+    </lv_obj>
+  </view>
+</component>

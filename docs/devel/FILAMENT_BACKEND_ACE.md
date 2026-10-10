@@ -169,7 +169,7 @@ manager's `current_index` is the only seat signal.
 | `ace_instances` | Unit count (1 on the captured rig) |
 | `endless_spool_enabled`, `endless_spool_match_mode` | Endless-spool config (`false` / `"exact"` captured) |
 | `ace_pro_enabled` | Master switch; presence is the capability |
-| `toolhead_sensor`, `rdm_sensor` | Path sensors (toolhead, hub). With nothing seated, or during a driver-started swap, they place the strand: toolhead made = `TOOLHEAD`, hub only = `OUTPUT` (`#get_filament_segment`). A seated tool outside a swap answers `NOZZLE` |
+| `toolhead_sensor`, `rdm_sensor` | Path sensors (toolhead, hub). With nothing seated, or during a driver-started swap, they place the strand: toolhead made = `TOOLHEAD`, hub only = `OUTPUT` (`#get_filament_segment`). A seated tool outside a swap answers `NOZZLE` once `target_index` is `-1` or the toolhead sensor is made; while the driver still targets it short of the toolhead (a retried feed keeps `target_index` on the current tool) the sensors place the strand. The driver persists `target_index` and can leave it latched on a loaded tool, which is why the toolhead sensor alone ends the retry. A seated tool with both sensors clear is a feed the driver paused on: `current_tool`/`current_slot` keep naming it, but it is published as not loaded and its slot is not stamped LOADED (`#path_empty_under_seat_locked`) |
 
 **Unit — `ace_instance_N.get_status()`** (the captured rig exposes `ace_instance_0`):
 
@@ -184,7 +184,9 @@ manager's `current_index` is the only seat signal.
 **How the backend reads it** (`src/printer/ams_backend_ace.cpp#on_started`,
 `#handle_status`): the slot-bearing `ace_instance_N` object is parsed first
 (`select_ace_object`), then a manager-shaped `ace` riding the same query response
-or notify frame is parsed after it — slots land first, the seat stamps onto them. A
+or notify frame is parsed after it — slots land first, the seat stamps onto them. Any
+non-empty `ace` without slots counts as the manager, since its deltas name `current_index`
+only when the seat moved (`#manager_ace_object`). A
 manager-only notify frame (e.g. `current_index` flipping to `-1` on a TR) is parsed on its
 own and clears the seat. Notify frames carry per-object deltas: a frame carrying any
 `ace_instance_N` key resolves to the lowest such instance (the one the display is

@@ -19,13 +19,11 @@ namespace helix {
  * loaded once behind a `loaded_` guard, a map keyed by panel/page, a lazily-built list —
  * keeps serving the PREVIOUS printer's data until something explicitly drops it.
  *
- * That is what #804 was: `PanelWidgetManager` cached one `PanelWidgetConfig` per panel and
- * `load()` became a no-op once loaded, so Home rendered the old printer's widget layout
- * after a switch. The fix was a single hardcoded `clear_all_panel_configs()` call in
- * `PrinterSession::switch_printer()` — which fixed that one component and left every future
- * one to be remembered by hand.
+ * Each component that memoizes `df()`-derived state (`PanelWidgetManager`'s per-panel
+ * `PanelWidgetConfig` cache, #804) would otherwise keep serving the previous printer's data
+ * after a switch.
  *
- * This registry makes the invalidation structural instead. A component that caches
+ * This registry makes the invalidation structural. A component that caches
  * `df()`-derived state self-registers a callback that drops it; every active-printer change
  * fires all of them.
  *

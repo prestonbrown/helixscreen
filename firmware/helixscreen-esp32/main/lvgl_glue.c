@@ -72,8 +72,8 @@ static void (*s_ui_tick)(void);
 #define FB_STRIDE ((size_t)BOARD_LCD_H_RES * FB_BPP)
 #define SHADOW_BYTES ((size_t)BOARD_LCD_V_RES * FB_STRIDE)
 
-// Two-hop staging band, INTERNAL DRAM. UI_BAND_LINES full-width rows (mirrors
-// the 10-line RGB bounce granularity). Allocated at display init AFTER the two
+// Two-hop staging band, INTERNAL DRAM. UI_BAND_LINES full-width rows, half the
+// 20-line RGB bounce buffer (board_display.c). Allocated at display init AFTER the two
 // boot heap gates (40KB UI stack, 32KB bounce) have already passed, so it can't
 // threaten them; a failed alloc falls back to the direct PSRAM->PSRAM blit.
 // Drop to 8 lines if internal DRAM proves tight.

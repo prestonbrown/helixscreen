@@ -25,7 +25,7 @@
 #   ./scripts/yocto-docker.sh bash                      # interactive shell
 #
 # On first run, also write build/conf/auto.conf in $YOCTO_COSMOS — see
-# docs/devel/YOCTO_BUILD.md for the contents.
+# docs/devel/printers/ELEGOO_CENTAURI_CARBON_YOCTO.md for the contents.
 
 set -euo pipefail
 
@@ -34,13 +34,13 @@ HELIX_SRC="${HELIX_SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 if [[ ! -d "$YOCTO_COSMOS/poky" ]]; then
     echo "error: $YOCTO_COSMOS does not look like a cosmos checkout (no poky/)." >&2
-    echo "  See docs/devel/YOCTO_BUILD.md for setup." >&2
+    echo "  See docs/devel/printers/ELEGOO_CENTAURI_CARBON_YOCTO.md for setup." >&2
     exit 1
 fi
 
 if [[ ! -f "$YOCTO_COSMOS/build/conf/auto.conf" ]]; then
     echo "error: $YOCTO_COSMOS/build/conf/auto.conf missing." >&2
-    echo "  See docs/devel/YOCTO_BUILD.md for the contents." >&2
+    echo "  See docs/devel/printers/ELEGOO_CENTAURI_CARBON_YOCTO.md for the contents." >&2
     exit 1
 fi
 

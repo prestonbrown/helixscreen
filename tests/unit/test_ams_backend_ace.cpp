@@ -994,6 +994,98 @@ TEST_CASE("ACE mid-print toolchange draws the old lane retracting, then the new 
     }
 }
 
+// A feed that never reaches the hub: the driver pauses the print and names
+// the tool it was feeding as current, with both path sensors clear. The frames
+// are the reporter's capture, as the notify deltas Klipper sends.
+TEST_CASE("ACE paused failed feed does not draw the named tool at the nozzle",
+          "[ams][ace][segment][1678]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    AceTestAccess::parse_ace(helper, make_kobra_instance_object());
+    json seated = make_kobra_manager_object(0);
+    seated["target_index"] = 3;
+    AceTestAccess::parse_ace(helper, seated); // 13:26:55 cur0 tgt3 rdm1 th1
+    REQUIRE(helper.get_filament_segment() == PathSegment::TOOLHEAD);
+
+    notify_ace(helper, {{"toolhead_sensor", false}}); // 13:27:08
+    CHECK(helper.get_filament_segment() == PathSegment::OUTPUT);
+
+    notify_ace(helper, {{"rdm_sensor", false}}); // 13:27:26
+    CHECK(helper.get_filament_segment() == PathSegment::NONE);
+
+    // 13:27:42: paused, T3 named current, nothing on the path
+    notify_ace(helper, {{"current_index", 3}});
+    auto info = helper.get_test_system_info();
+    CHECK(info.current_tool == 3);
+    CHECK(info.current_slot == 3);
+    CHECK_FALSE(info.filament_loaded);
+    CHECK(info.units[0].slots[3].status != SlotStatus::LOADED);
+    CHECK_FALSE(helper.slot_is_actively_loaded(3));
+    CHECK(helper.get_filament_segment() == PathSegment::NONE);
+    CHECK(helper.get_slot_filament_segment(3) != PathSegment::NOZZLE);
+
+    // 13:31:14: the retry reaches the hub
+    notify_ace(helper, {{"rdm_sensor", true}});
+    CHECK(helper.get_filament_segment() == PathSegment::OUTPUT);
+    CHECK(helper.get_slot_filament_segment(3) != PathSegment::NOZZLE);
+
+    notify_ace(helper, {{"toolhead_sensor", true}}); // 13:31:34
+    CHECK(helper.get_filament_segment() == PathSegment::NOZZLE);
+
+    notify_ace(helper, {{"target_index", -1}}); // 13:31:45
+    info = helper.get_test_system_info();
+    CHECK(info.filament_loaded);
+    CHECK(info.current_slot == 3);
+    CHECK(info.units[0].slots[3].status == SlotStatus::LOADED);
+    CHECK(helper.slot_is_actively_loaded(3));
+    CHECK(helper.get_filament_segment() == PathSegment::NOZZLE);
+    CHECK(helper.get_slot_filament_segment(3) == PathSegment::NOZZLE);
+}
+
+// The driver persists target_index and leaves it set when a toolchange raises,
+// so it can name the seated tool indefinitely. The toolhead sensor ends it.
+TEST_CASE("ACE latched target_index on a seated tool still reads at the nozzle",
+          "[ams][ace][segment][1678]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    AceTestAccess::parse_ace(helper, make_kobra_instance_object());
+    json latched = make_kobra_manager_object(3);
+    latched["target_index"] = 3;
+    AceTestAccess::parse_ace(helper, latched); // cur3 tgt3 rdm1 th1
+
+    for (int frame = 0; frame < 3; ++frame) {
+        notify_ace(helper, {{"rdm_sensor", true}, {"toolhead_sensor", true}});
+        const auto info = helper.get_test_system_info();
+        CHECK(info.filament_loaded);
+        CHECK(info.action == AmsAction::IDLE);
+        CHECK(info.units[0].slots[3].status == SlotStatus::LOADED);
+        CHECK(helper.slot_is_actively_loaded(3));
+        CHECK(helper.get_filament_segment() == PathSegment::NOZZLE);
+        CHECK(helper.get_slot_filament_segment(3) == PathSegment::NOZZLE);
+    }
+}
+
+TEST_CASE("ACE REST bridge publishes a seat with an empty path as not loaded", "[ams][ace][1678]") {
+    AmsBackendAceTestHelper helper;
+    helper.test_parse_slots_response({{"slots",
+                                       {{{"index", 0}, {"status", "ready"}},
+                                        {{"index", 1}, {"status", "ready"}},
+                                        {{"index", 2}, {"status", "ready"}},
+                                        {{"index", 3}, {"status", "ready"}}}}});
+    json status = make_kobra_rest_status_result();
+    status["ace_manager"] = make_kobra_manager_object(3);
+    REQUIRE(helper.test_parse_status_response(status));
+    REQUIRE(helper.get_test_system_info().filament_loaded);
+
+    status["ace_manager"]["rdm_sensor"] = false;
+    status["ace_manager"]["toolhead_sensor"] = false;
+    CHECK(helper.test_parse_status_response(status));
+    auto info = helper.get_test_system_info();
+    CHECK(info.current_slot == 3);
+    CHECK_FALSE(info.filament_loaded);
+    CHECK(helper.get_filament_segment() == PathSegment::NONE);
+}
+
 TEST_CASE("ACE target_index leaves an error and a screen-started load alone", "[ams][ace][1678]") {
     AmsBackendAceTestHelper helper;
     helper.set_running(true);
@@ -2941,6 +3033,74 @@ TEST_CASE("ACE endless spool groups follow the match mode", "[ams][ace][endless]
         auto groups = endless_groups(helper);
         REQUIRE(groups.size() == 1);
         CHECK(groups[0] == std::vector<int>{0, 1, 2});
+    }
+}
+
+// A ValgACE `ace` delta with no slots array is read as the manager half of the
+// frame; it is still the primary object and must land once, leaving the slots.
+TEST_CASE("ACE slotless ValgACE delta keeps the slots and applies its fields", "[ams][ace][1679]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    notify_ace(helper, make_ace_slot_payload("ready", 0xFF5500, "PLA"));
+    REQUIRE(helper.get_slot_info(0).status == SlotStatus::AVAILABLE);
+
+    notify_ace(helper, {{"status", "ready"}, {"temp", 41}});
+    const auto slot = helper.get_slot_info(0);
+    CHECK(slot.status == SlotStatus::AVAILABLE);
+    CHECK(slot.color_rgb == 0xFF5500u);
+    CHECK(slot.material == "PLA");
+    CHECK(helper.get_test_system_info().action == AmsAction::IDLE);
+    CHECK(helper.get_test_system_info().total_slots == 1);
+    CHECK(helper.get_test_dryer_info().current_temp_c == Catch::Approx(41.0f));
+}
+
+// Klipper batches every object that changed into one notify frame, so a
+// manager delta naming no current_index rides beside an instance delta (#1679).
+TEST_CASE_METHOD(LVGLTestFixture, "ACE endless spool changes at runtime reach AmsState",
+                 "[ams][ace][endless][1679]") {
+    using helix::printer::EndlessSpoolStatusKind;
+    auto& ams = helix::AmsState::instance();
+    ams.init_subjects(true);
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> reg;
+    AmsBackendAceTestHelper& helper = *reg;
+    helper.set_running(true);
+
+    auto send = [&](const json& frame) {
+        helper.test_handle_status_update({{"params", json::array({frame, 4242.0})}});
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    auto endless_kind = [&] {
+        return static_cast<EndlessSpoolStatusKind>(
+            lv_subject_get_int(ams.get_endless_state_subject()));
+    };
+
+    send({{"ace_instance_0", make_kobra_instance_object()},
+          {"ace", kobra_manager_with_endless(true, "exact")}});
+    REQUIRE(endless_kind() == EndlessSpoolStatusKind::OnWithoutBackup);
+
+    SECTION("a match mode change beside an instance delta") {
+        send({{"ace_instance_0", {{"temp", 35}}},
+              {"ace", {{"endless_spool_match_mode", "material"}}}});
+        CHECK(endless_kind() == EndlessSpoolStatusKind::On);
+        CHECK(endless_groups(helper) == std::vector<std::vector<int>>{{0, 3}, {1, 2}});
+    }
+
+    SECTION("a match mode change on its own") {
+        send({{"ace", {{"endless_spool_match_mode", "material"}}}});
+        CHECK(endless_kind() == EndlessSpoolStatusKind::On);
+    }
+
+    SECTION("the switch turned off beside an instance delta") {
+        send({{"ace_instance_0", {{"temp", 35}}}, {"ace", {{"endless_spool_enabled", false}}}});
+        CHECK(endless_kind() == EndlessSpoolStatusKind::Off);
+    }
+
+    SECTION("a slot reloaded with a matching spool") {
+        json slots = make_kobra_slots_array();
+        slots[3]["color"] = json::array({0, 230, 118}); // green PLA, as slot 0
+        send({{"ace_instance_0", {{"slots", slots}}}});
+        CHECK(endless_kind() == EndlessSpoolStatusKind::On);
+        CHECK(endless_groups(helper) == std::vector<std::vector<int>>{{0, 3}});
     }
 }
 

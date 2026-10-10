@@ -156,6 +156,7 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: can_modify_gcode",
         CHECK(manager.can_modify_gcode());
 
         mock_printer.api.transfers_mock().mock_no_local_copies();
+        manager.set_dependencies(&mock_printer.api, &printer_state); // asks the transport
         CHECK_FALSE(manager.can_modify_gcode());
         manager.set_dependencies(nullptr, nullptr);
     }
@@ -172,6 +173,130 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: can_modify_gcode",
         CHECK(manager.can_modify_gcode());
         manager.set_cached_file_size(1000ULL * 1024 * 1024 * 1024);
         CHECK(manager.can_modify_gcode());
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: dropped modifications name the device, not the plugin, "
+                 "when the transport keeps no copy",
+                 "[print_preparation][safety]") {
+    lv_init_safe();
+    MockPrinter mock_printer;
+    PrintPreparationManager manager;
+    manager.set_dependencies(&mock_printer.api, &mock_printer.state);
+    mock_printer.state.set_helix_plugin_installed(true);
+    helix::ui::UpdateQueue::instance().drain();
+
+    std::vector<std::string> shown;
+    set_test_notification_warning_hook([&shown](const std::string& m) { shown.push_back(m); });
+    struct HookReset {
+        ~HookReset() {
+            set_test_notification_warning_hook(nullptr);
+        }
+    } reset;
+    auto warned = [&manager, &shown]() {
+        shown.clear();
+        manager.warn_modifications_dropped({});
+        return shown.size() == 1 ? shown[0] : std::string();
+    };
+
+    SECTION("a transport without local copies") {
+        mock_printer.api.transfers_mock().mock_no_local_copies();
+        manager.set_dependencies(&mock_printer.api, &mock_printer.state);
+        REQUIRE(manager.gcode_rewrite_block() == helix::GcodeRewriteBlock::NoLocalCopies);
+        CHECK(warned() ==
+              "Modifying G-code is not available on this device. Printing original file.");
+    }
+    SECTION("a missing plugin, for contrast") {
+        mock_printer.state.set_helix_plugin_installed(false);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(warned() == "Modifying G-code needs the HelixPrint plugin. Printing original file.");
+    }
+    manager.set_dependencies(nullptr, nullptr);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: rewrite-gated macro rows do not show the options card "
+                 "on a transport without local copies",
+                 "[print_preparation][safety]") {
+    lv_init_safe();
+    MockPrinter mock_printer;
+    PrinterState& state = mock_printer.state;
+    PrintPreparationManager manager;
+    manager.set_dependencies(&mock_printer.api, &state);
+    state.set_helix_plugin_installed(true);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // A generic profile whose PRINT_START offers one skip, a MacroParam with no
+    // pre-start block: disabling it rewrites the job.
+    PrintStartAnalysis analysis;
+    analysis.found = true;
+    analysis.macro_name = "PRINT_START";
+    PrintStartOperation op;
+    op.name = "BED_MESH_CALIBRATE";
+    op.category = PrintStartOpCategory::BED_MESH;
+    op.has_skip_param = true;
+    op.skip_param_name = "SKIP_BED_MESH";
+    op.param_semantic = ParameterSemantic::OPT_OUT;
+    analysis.operations.push_back(op);
+
+    auto card = [&state]() {
+        // The plugin lands through the queue and its observer queues the count.
+        for (int i = 0; i < 4; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+        return lv_subject_get_int(
+            state.composite_visibility_state().get_has_any_preprint_options_subject());
+    };
+
+    manager.set_macro_analysis(analysis);
+    REQUIRE(card() == 1);
+
+    // The row hides on this transport, so the card has nothing to show.
+    mock_printer.api.transfers_mock().mock_no_local_copies();
+    manager.set_dependencies(&mock_printer.api, &state);
+    CHECK(card() == 0);
+
+    // The plugin changing republishes the count too.
+    mock_printer.api.transfers_mock().mock_no_local_copies(false);
+    manager.set_dependencies(&mock_printer.api, &state);
+    state.set_helix_plugin_installed(false);
+    CHECK(card() == 0);
+    state.set_helix_plugin_installed(true);
+    CHECK(card() == 1);
+    manager.set_dependencies(nullptr, nullptr);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a queued plugin change after the API is freed reads "
+                 "nothing of it",
+                 "[print_preparation][preparation][lifecycle]") {
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto device = std::make_unique<MockPrinter>();
+    PrintPreparationManager manager;
+    manager.set_dependencies(&device->api, &state);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The plugin answer lands through the queue, and its observer queues the
+    // option-count publish behind it. The owner frees the API in between.
+    state.set_helix_plugin_installed(true);
+    helix::ui::UpdateQueue::instance().drain();
+    device.reset();
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK(manager.gcode_rewrite_block() == helix::GcodeRewriteBlock::None);
+
+    // Clearing the dependencies drops the observer, so a later change queues
+    // nothing for this manager.
+    manager.set_dependencies(nullptr, nullptr);
+    state.set_helix_plugin_installed(false);
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
     }
 }
 

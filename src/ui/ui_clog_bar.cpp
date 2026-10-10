@@ -4,6 +4,7 @@
 #include "ui_clog_bar.h"
 
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 
 #include "clog_meter_geometry.h"
 #include "lvgl/lvgl.h"
@@ -51,9 +52,7 @@ UiClogBar::~UiClogBar() {
     auto freeze = UpdateQueue::instance().scoped_freeze();
     UpdateQueue::instance().drain();
 
-    if (track_) {
-        lv_obj_remove_event_cb_with_user_data(track_, on_track_size_changed, this);
-    }
+    helix::ui::remove_event_cb_if_alive(track_, on_track_size_changed, this);
 
     // Before the widget pointers below are cleared: its callback calls
     // relayout(), which reads them.

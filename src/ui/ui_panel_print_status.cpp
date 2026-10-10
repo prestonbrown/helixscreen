@@ -43,6 +43,7 @@
 #include "gcode_parser.h"
 #include "gcode_preview_fetcher.h"
 #include "gcode_preview_setup.h"
+#include "gcode_render_mode_policy.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
 #include "layout_manager.h"
@@ -439,15 +440,17 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
     gcode_render_mode_observer_ = observe<int>(
         DisplaySettingsManager::instance().subject_gcode_render_mode(), this,
         [](PrintStatusPanel* self, int mode) {
-            // A command-line override outranks the saved setting (cmdline > env > settings,
-            // as applied below in on_activate). Without this guard the observer fires once
-            // at startup with the persisted value and silently overwrites --render-2d /
-            // --render-3d about 16ms after they were applied, so the flags appeared to do
-            // nothing.
+            // A command-line mode or HELIX_GCODE_MODE outranks the saved setting, so a
+            // settings change (including the one the subject fires at startup with the
+            // persisted value) must not reach the viewer while either is set.
             const auto* rt_config = get_runtime_config();
-            if (rt_config && rt_config->gcode_render_mode >= 0) {
-                spdlog::debug("[{}] Ignoring settings render mode {} - command line pinned {}",
-                              self->get_name(), mode, rt_config->gcode_render_mode);
+            const auto decision = helix::gcode_viewer::decide_preview_mode(
+                rt_config ? rt_config->gcode_render_mode : -1,
+                std::getenv("HELIX_GCODE_MODE") != nullptr, mode);
+            if (decision.source == helix::gcode_viewer::PreviewModeSource::CommandLine ||
+                decision.source == helix::gcode_viewer::PreviewModeSource::Environment) {
+                spdlog::debug("[{}] Ignoring settings render mode {} - pinned above settings",
+                              self->get_name(), mode);
                 return;
             }
             spdlog::info("[{}] G-code render mode changed from settings: {}", self->get_name(),
@@ -1223,15 +1226,10 @@ void PrintStatusPanel::on_activate() {
     crash_handler::breadcrumb::note("pstat_act", "btn_states");
     update_button_states();
 
-    // Restore render mode from settings before showing the viewer.
-    // The render mode observer only fires when is_active_, so settings
-    // changed while the panel was hidden must be applied here.
-    int render_mode_val = DisplaySettingsManager::instance().get_gcode_render_mode();
-    bool thumbnail_only = !helix::ui::preview_viewer_enabled();
-    if (gcode_viewer_ && !thumbnail_only) {
-        auto render_mode = static_cast<GcodeViewerRenderMode>(render_mode_val);
-        ui_gcode_viewer_set_render_mode(gcode_viewer_, render_mode);
-    }
+    // Re-apply the render-mode ladder before showing the viewer. The settings observer
+    // only fires while the panel is active, so a setting changed while it was hidden
+    // lands here.
+    bool thumbnail_only = !helix::ui::apply_preview_render_mode(gcode_viewer_, get_name());
 
     // Restore G-code viewer state based on current print conditions.
     // Thumbnail Only mode forces the viewer off regardless of gcode state.
@@ -1414,6 +1412,9 @@ void PrintStatusPanel::on_root_deleted(lv_event_t* e) {
 
 void PrintStatusPanel::forget_cached_widgets() {
     preview_.detach_widgets();
+    if (exclude_manager_) {
+        exclude_manager_->detach_gcode_viewer();
+    }
     overlay_root_ = nullptr;
     progress_bar_ = nullptr;
     preparing_progress_bar_ = nullptr;

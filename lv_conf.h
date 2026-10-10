@@ -908,12 +908,13 @@
 #define LV_USE_TJPGD 1
 
 /* libjpeg-turbo decoder library.
- * Disabled — we use TJPGD (built-in) for LVGL image decoding and
- * stb_image (lib/stb) for camera JPEG frames. No external deps needed. */
+ * Disabled: LVGL image decoding uses TJPGD (built-in). Camera frames
+ * decode outside LVGL, see the camera block below. */
 #define LV_USE_LIBJPEG_TURBO 0
 
 /* Camera support — enabled on platforms with networking and enough RAM.
- * Camera uses stb_image for JPEG decoding (header-only, zero deps). */
+ * Camera JPEG frames decode via libturbojpeg when it is present at runtime
+ * (dlopen), otherwise via stb_image (header-only, zero deps). */
 #if !defined(HELIX_PLATFORM_AD5M) && !defined(HELIX_PLATFORM_CC1) && \
     !defined(HELIX_PLATFORM_MIPS) && !defined(HELIX_PLATFORM_K1) && \
     !defined(HELIX_PLATFORM_AD5X) && !defined(HELIX_PLATFORM_K2) && \

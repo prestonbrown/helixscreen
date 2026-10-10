@@ -30,6 +30,7 @@
 #include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 
 #include "ams_backend.h"
 #include "ams_remap.h"
@@ -56,6 +57,7 @@
 #include "print_lifecycle_state.h" // job_holds_machine()
 #include "print_start_analyzer.h"
 #include "printer_state.h"
+#include "published_hold.h"
 #include "queued_job_options.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"
@@ -175,14 +177,12 @@ PrintSelectPanel::~PrintSelectPanel() {
     // CRITICAL: During static destruction (app exit), LVGL may already be gone.
     // We check if LVGL is still initialized before calling any LVGL functions.
     if (lv_is_initialized()) {
-        // Remove scroll event callbacks to prevent use-after-free
-        if (card_view_container_) {
-            lv_obj_remove_event_cb(card_view_container_, on_scroll_static);
-            lv_obj_remove_event_cb(card_view_container_, on_card_container_resized_static);
-        }
-        if (list_rows_container_) {
-            lv_obj_remove_event_cb(list_rows_container_, on_scroll_static);
-        }
+        // The containers can outlive this panel, or die before it; the callbacks
+        // carrying `this` must not outlive the panel.
+        helix::ui::remove_event_cb_if_alive(card_view_container_, on_scroll_static, this);
+        helix::ui::remove_event_cb_if_alive(card_view_container_, on_card_container_resized_static,
+                                            this);
+        helix::ui::remove_event_cb_if_alive(list_rows_container_, on_scroll_static, this);
 
         // Delete pending timers
         if (refresh_timer_) {
@@ -256,6 +256,7 @@ void PrintSelectPanel::init_subjects() {
     // overlay creation doesn't hit LVGL's empty-buffer warning path (#990).
     lv_subject_set_pointer(&selected_detail_thumbnail_subject_,
                            thumbnail_subject_value(selected_detail_thumbnail_buffer_));
+    UI_MANAGED_SUBJECT_INT(selected_has_thumbnail_subject_, 0, "selected_has_thumbnail", subjects_);
 
     UI_MANAGED_SUBJECT_STRING(selected_print_time_subject_, selected_print_time_buffer_, "",
                               "selected_print_time", subjects_);
@@ -525,7 +526,9 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
             const bool retry_missing = panel->retry_missing_thumbnails_on_refresh_;
             panel->retry_missing_thumbnails_on_refresh_ = false;
-            helix::carry_forward_print_file_metadata(panel->file_list_, previous, retry_missing);
+            helix::carry_forward_print_file_metadata(
+                panel->file_list_, previous, retry_missing,
+                helix::ui::PrintPreparationManager::keeps_local_copies(panel->api_));
 
             panel->apply_sort();
 
@@ -724,15 +727,13 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (connection_subject) {
         connection_observer_ = observe<int>(
             connection_subject, this,
-            [](PrintSelectPanel* self, int state) {
+            [previous = -1](PrintSelectPanel* self, int state) mutable {
+                const bool reconnected = helix::connection_change_should_refresh(previous, state);
+                previous = state;
                 if (state == static_cast<int>(ConnectionState::CONNECTED)) {
-                    // Always refresh on (re)connect to pick up files uploaded while
-                    // disconnected. The previous guard (file_list_.empty()) silently
-                    // skipped refresh after reconnects on unreliable hardware like
-                    // CB1, leaving newly-uploaded files invisible (#577).
                     bool is_printer_source =
                         !self->usb_source_ || !self->usb_source_->is_usb_active();
-                    if (is_printer_source) {
+                    if (is_printer_source && reconnected) {
                         spdlog::info(
                             "[{}] Connection (re)established, refreshing file list (existing={})",
                             self->get_name(), self->file_list_.size());
@@ -1505,12 +1506,10 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
                                                                            : file.filament_name;
                                             t->panel->set_selected_file(
                                                 file.filename.c_str(), file.thumbnail_path.c_str(),
-                                                file.original_thumbnail_url.c_str(),
                                                 file.print_time_str.c_str(),
                                                 file.filament_str.c_str(),
                                                 file.layer_count_str.c_str(),
                                                 file.print_height_str.c_str(),
-                                                file.modified_timestamp,
                                                 file.layer_height_str.c_str(),
                                                 filament_display.c_str());
                                             spdlog::debug(
@@ -1614,12 +1613,11 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
                 // Use filament_name if available, otherwise filament_type
                 const std::string& filament_display =
                     !d->filament_name.empty() ? d->filament_name : d->filament_type;
-                self->set_selected_file(
-                    d->filename.c_str(), self->file_list_[d->index].thumbnail_path.c_str(),
-                    self->file_list_[d->index].original_thumbnail_url.c_str(),
-                    d->print_time_str.c_str(), d->filament_str.c_str(), d->layer_count_str.c_str(),
-                    d->print_height_str.c_str(), self->file_list_[d->index].modified_timestamp,
-                    d->layer_height_str.c_str(), filament_display.c_str());
+                self->set_selected_file(d->filename.c_str(),
+                                        self->file_list_[d->index].thumbnail_path.c_str(),
+                                        d->print_time_str.c_str(), d->filament_str.c_str(),
+                                        d->layer_count_str.c_str(), d->print_height_str.c_str(),
+                                        d->layer_height_str.c_str(), filament_display.c_str());
             }
         };
         apply(d_owned.get());
@@ -1823,6 +1821,8 @@ void PrintSelectPanel::repopulate() {
 void PrintSelectPanel::on_activate() {
 #if defined(HELIX_PLATFORM_ESP32)
     esp_kept_for_detail_ = false;
+    // Back from the detail view: its image goes, its card keeps its own.
+    release_esp_detail_thumbnail();
 #endif
     // "Print Last" flow: suppress panel flash while detail view is pending/open
     if (return_to_home_on_close_) {
@@ -2019,11 +2019,9 @@ void PrintSelectPanel::navigate_up() {
 }
 
 void PrintSelectPanel::set_selected_file(const char* filename, const char* thumbnail_src,
-                                         const char* original_url, const char* print_time,
-                                         const char* filament_weight, const char* layer_count,
-                                         const char* print_height, time_t modified_timestamp,
+                                         const char* print_time, const char* filament_weight,
+                                         const char* layer_count, const char* print_height,
                                          const char* layer_height, const char* filament_type) {
-    // The thumbnail toggles below act on the detail view's widgets.
     create_detail_view();
     lv_subject_copy_string(&selected_filename_subject_, filename);
 
@@ -2037,82 +2035,33 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
     selected_thumbnail_buffer_[sizeof(selected_thumbnail_buffer_) - 1] = '\0';
     lv_subject_set_pointer(&selected_thumbnail_subject_, selected_thumbnail_buffer_);
 
-    // Detail view thumbnail source selection.
-    //
-    // The pre-scaled card .bin (thumbnail_src) is the AUTHORITATIVE source: it is
-    // the exact image the file-browser card renders successfully, so if it exists
-    // the detail view is guaranteed to show something. The full-resolution PNG is
-    // only an upscaling-quality ENHANCEMENT, and it is fragile: it may have been
-    // evicted while the .bin survives, or may fail to decode at the large detail
-    // size on memory-constrained 2D-only devices (Snapmaker U1, AD5M). On those
-    // platforms the detail preview is the ONLY render (no 3D viewer to mask a
-    // failed thumbnail), so a missing/undecodable PNG showed as an all-black
-    // preview even though the card .bin was right there.
-    //
-    // Resolution order: (1) proven card .bin if present, (2) cached PNG when no
-    // .bin exists yet, (3) nullptr sentinel handled by the has_real block below.
+    // Detail view thumbnail source: the pre-scaled card .bin (thumbnail_src), the
+    // exact image the file-browser card renders successfully. The full-res PNG is
+    // not offered in its place: it may have been evicted while the .bin survives,
+    // or fail to decode at the large detail size on memory-constrained 2D-only
+    // devices (Snapmaker U1, AD5M), where the preview is the only render and a
+    // failed decode shows nothing at all. Without a .bin the placeholder shows.
     const bool have_bin = thumbnail_src && thumbnail_src[0] != '\0' &&
                           !helix::ui::PrintSelectCardView::is_placeholder_thumbnail(thumbnail_src);
-    std::string detail_src;
-    if (have_bin) {
-        detail_src = thumbnail_src;
-        spdlog::debug("[{}] Using pre-scaled .bin for detail view: {}", get_name(), detail_src);
-    } else if (original_url && original_url[0] != '\0') {
-        // No card .bin yet — fall back to the cached full-res PNG so the detail
-        // view still shows the model. FullPng is load-bearing here: a pre-scaled
-        // lookup would answer "not cached" in exactly the case this branch
-        // exists for. Pass modification timestamp to invalidate stale entries.
-        ThumbnailRequest req;
-        req.key = original_url;
-        req.source_modified = modified_timestamp;
-        req.format = ThumbnailRequest::ThumbnailFormat::FullPng;
-        detail_src = get_thumbnail_cache().get_if_cached(req);
-        if (!detail_src.empty()) {
-            spdlog::debug("[{}] No .bin yet — using cached PNG for detail view: {}", get_name(),
-                          detail_src);
-        }
-    }
-    strncpy(selected_detail_thumbnail_buffer_, detail_src.c_str(),
+    strncpy(selected_detail_thumbnail_buffer_, have_bin ? thumbnail_src : "",
             sizeof(selected_detail_thumbnail_buffer_) - 1);
     selected_detail_thumbnail_buffer_[sizeof(selected_detail_thumbnail_buffer_) - 1] = '\0';
     // Publish nullptr for the no-thumbnail sentinel: an empty buffer is misread by
-    // LVGL as a VARIABLE image source and warns/fails to decode (#990). The
-    // has_real block below handles the placeholder-icon/gradient UI toggle.
+    // LVGL as a VARIABLE image source and warns/fails to decode (#990).
     lv_subject_set_pointer(&selected_detail_thumbnail_subject_,
                            thumbnail_subject_value(selected_detail_thumbnail_buffer_));
-
-    // Toggle thumbnail image, no-thumbnail placeholder icon, and gradient background in detail view
-    if (detail_view_ && detail_view_->get_widget()) {
-        lv_obj_t* thumb_img = lv_obj_find_by_name(detail_view_->get_widget(), "detail_thumbnail");
-        lv_obj_t* no_thumb =
-            lv_obj_find_by_name(detail_view_->get_widget(), "detail_no_thumbnail_icon");
-        lv_obj_t* gradient = lv_obj_find_by_name(detail_view_->get_widget(), "gradient_bg");
-        bool has_real = thumbnail_src && thumbnail_src[0] != '\0' &&
-                        !helix::ui::PrintSelectCardView::is_placeholder_thumbnail(thumbnail_src);
-        if (has_real) {
-            if (thumb_img)
-                lv_obj_remove_flag(thumb_img, LV_OBJ_FLAG_HIDDEN);
-            if (no_thumb)
-                lv_obj_add_flag(no_thumb, LV_OBJ_FLAG_HIDDEN);
-            if (gradient)
-                lv_obj_set_style_image_opa(gradient, LV_OPA_COVER, 0);
-        } else {
-            // Hide the lv_image so nothing renders behind the cube icon,
-            // and clear the buffer so LVGL doesn't hold a stale src reference.
-            if (thumb_img)
-                lv_obj_add_flag(thumb_img, LV_OBJ_FLAG_HIDDEN);
-            if (no_thumb)
-                lv_obj_remove_flag(no_thumb, LV_OBJ_FLAG_HIDDEN);
-            // Notify with nullptr, not the buffer: lv_image_src_get_type
-            // classifies a buffer whose byte[0]<0x20 as LV_IMAGE_SRC_VARIABLE,
-            // and decoders then read the leftover bytes past the cleared first
-            // byte as if they were lv_image_dsc_t fields (SEGV in is_jpg).
-            selected_detail_thumbnail_buffer_[0] = '\0';
-            lv_subject_set_pointer(&selected_detail_thumbnail_subject_, nullptr);
-            if (gradient)
-                lv_obj_set_style_image_opa(gradient, LV_OPA_TRANSP, 0);
-        }
+    bool has_image = have_bin;
+#if defined(HELIX_PLATFORM_ESP32)
+    // No disk cache here: the card's decoded image is the only one there is.
+    has_image = has_image || show_esp_detail_thumbnail(filename);
+    if (!has_image) {
+        release_esp_detail_thumbnail();
     }
+#endif
+    // The placeholder glyph and the gradient behind the image bind to this in
+    // print_file_detail.xml, so a detail view rebuilt after it was freed on close
+    // shows the same thing as one that was already up.
+    lv_subject_set_int(&selected_has_thumbnail_subject_, has_image ? 1 : 0);
 
     lv_subject_copy_string(&selected_print_time_subject_, print_time);
     lv_subject_copy_string(&selected_filament_weight_subject_, filament_weight);
@@ -2202,6 +2151,10 @@ void PrintSelectPanel::hide_detail_view() {
             detail_view_->hide();
         }
     }
+#if defined(HELIX_PLATFORM_ESP32)
+    // After the hide, so the closing view does not flash the placeholder.
+    release_esp_detail_thumbnail();
+#endif
 }
 
 void PrintSelectPanel::show_delete_confirmation() {
@@ -2775,9 +2728,8 @@ void PrintSelectPanel::apply_file_selection(const PrintFileData& file) {
     std::string filament_display =
         file.filament_name.empty() ? file.filament_type : file.filament_name;
     set_selected_file(file.filename.c_str(), file.thumbnail_path.c_str(),
-                      file.original_thumbnail_url.c_str(), file.print_time_str.c_str(),
-                      file.filament_str.c_str(), file.layer_count_str.c_str(),
-                      file.print_height_str.c_str(), file.modified_timestamp,
+                      file.print_time_str.c_str(), file.filament_str.c_str(),
+                      file.layer_count_str.c_str(), file.print_height_str.c_str(),
                       file.layer_height_str.c_str(), filament_display.c_str());
     selected_filament_type_ = file.filament_type;
     selected_filament_colors_ = file.filament_colors;
@@ -3792,6 +3744,16 @@ PrintSelectPanel::fetch_esp_thumbnail(size_t index, const std::string& filename,
                               if (card_view_) {
                                   card_view_->update_thumbnail(index, file_list_[index]);
                               }
+                              // A detail view opened before its card's image
+                              // arrived shows it now.
+                              // Visibility, not detail_view_open_: Back pops the
+                              // overlay without clearing that flag.
+                              if (detail_view_ && detail_view_->is_visible() &&
+                                  lv_subject_get_int(&selected_has_thumbnail_subject_) == 0 &&
+                                  filename == selected_filename_buffer_ &&
+                                  show_esp_detail_thumbnail(filename.c_str())) {
+                                  lv_subject_set_int(&selected_has_thumbnail_subject_, 1);
+                              }
                           }
                           sync_esp_thumbnails(esp_window_first_, esp_window_end_);
                       });
@@ -3847,7 +3809,35 @@ void PrintSelectPanel::cancel_esp_fetch(PrintFileData& f) {
     }
 }
 
+void PrintSelectPanel::publish_esp_detail_thumbnail(
+    std::shared_ptr<helix::ui::EspPsramThumbnail> next) {
+    helix::republish_held(esp_detail_thumbnail_, std::move(next),
+                          [this](const std::shared_ptr<helix::ui::EspPsramThumbnail>& thumb) {
+                              lv_subject_set_pointer(
+                                  &selected_detail_thumbnail_subject_,
+                                  thumb ? const_cast<lv_image_dsc_t*>(thumb->dsc()) : nullptr);
+                          });
+}
+
+bool PrintSelectPanel::show_esp_detail_thumbnail(const char* filename) {
+    for (const PrintFileData& f : file_list_) {
+        if (f.esp_thumbnail && f.filename == filename) {
+            publish_esp_detail_thumbnail(f.esp_thumbnail);
+            return true;
+        }
+    }
+    return false;
+}
+
+void PrintSelectPanel::release_esp_detail_thumbnail() {
+    if (esp_detail_thumbnail_) {
+        lv_subject_set_int(&selected_has_thumbnail_subject_, 0);
+        publish_esp_detail_thumbnail(nullptr);
+    }
+}
+
 void PrintSelectPanel::release_esp_card_thumbnails() {
+    release_esp_detail_thumbnail();
     esp_window_first_ = 0;
     esp_window_end_ = 0;
     for (PrintFileData& f : file_list_) {

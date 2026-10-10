@@ -96,7 +96,7 @@ endif
 			echo "$(YELLOW)$(BOLD)⚠️  'make -j' (unlimited) detected - auto-fixing to -j$$j$(RESET)"; \
 			echo ""; \
 		fi; \
-		exec $(MAKE) _PARALLEL_CHECKED=1 -j$$j $(MAKECMDGOALS); \
+		exec $(MAKE) _PARALLEL_CHECKED=1 -j"$$j" $(MAKECMDGOALS); \
 	fi
 else
 # Phase 2: Actual build (only runs when _PARALLEL_CHECKED is set)

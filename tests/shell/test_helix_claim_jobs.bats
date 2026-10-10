@@ -260,3 +260,34 @@ reinvoke() {
     contains "SUBMAKE _PARALLEL_CHECKED=1 -j5 all" "$output"
     [ ! -e "$FAKE_LOG" ]
 }
+
+# The Makefile's JOBS_QUERY shell text, run in a scratch tree whose
+# scripts/helix-claim prints $1 (a printf format) and exits $2.
+jobs_query_with() {
+    local dir="$BATS_TEST_TMPDIR/query" q
+    mkdir -p "$dir/scripts"
+    printf '#!/bin/sh\nprintf '\''%s'\''\nexit %s\n' "$1" "$2" > "$dir/scripts/helix-claim"
+    chmod +x "$dir/scripts/helix-claim"
+    q=$(cd "$REPO" && env PATH="$(path_without_jobpool)" make --no-print-directory -n \
+        --eval 'jq-show: ; $(info JOBS_QUERY:$(JOBS_QUERY))' jq-show 2>/dev/null |
+        sed -n 's/^JOBS_QUERY://p')
+    [ -n "$q" ]
+    (cd "$dir" && sh -c "$q")
+}
+
+@test "the Makefile takes helix-claim's -j only when it is one positive integer" {
+    local cores
+    cores=$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+    run jobs_query_with '7\n' 0
+    [ "$output" = "7" ]
+    # A number and then a failure, as from a script its shell cannot parse:
+    # a second word after -jN is a goal to make.
+    run jobs_query_with '7\n' 1
+    [ "$output" = "$cores" ]
+    run jobs_query_with '7\n7\n' 0
+    [ "$output" = "$cores" ]
+    run jobs_query_with '' 1
+    [ "$output" = "$cores" ]
+    run jobs_query_with '0\n' 0
+    [ "$output" = "$cores" ]
+}

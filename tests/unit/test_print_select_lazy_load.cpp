@@ -77,6 +77,38 @@ TEST_CASE_METHOD(UnvisitedPrintSelectFixture,
 }
 
 TEST_CASE_METHOD(UnvisitedPrintSelectFixture,
+                 "A detail view reopened after closing still shows the no-thumbnail placeholder",
+                 "[print_select][lazy]") {
+    // Closing frees the overlay's widgets, and the next selection lands before
+    // they are rebuilt: the placeholder has to come from the binding.
+    PlantedGcode file("lazy_nothumb_reopen.gcode");
+    REQUIRE(file.on_disk());
+    NavigationManager::instance().set_active(PanelId::PrintSelect);
+    drain();
+
+    for (int open = 0; open < 2; ++open) {
+        CAPTURE(open);
+        REQUIRE(panel_->select_file_by_name(file.name()));
+        drain();
+        REQUIRE(PrintSelectPanelTestAccess::detail_view_visible(*panel_));
+        lv_obj_t* icon = lv_obj_find_by_name(test_screen(), "detail_no_thumbnail_icon");
+        REQUIRE(icon != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+        // Cards carry a gradient_bg too; this is the preview's.
+        lv_obj_t* preview = lv_obj_find_by_name(test_screen(), "detail_preview_clear_area");
+        REQUIRE(preview != nullptr);
+        lv_obj_t* gradient = lv_obj_find_by_name(preview, "gradient_bg");
+        REQUIRE(gradient != nullptr);
+        CHECK(lv_obj_has_flag(gradient, LV_OBJ_FLAG_HIDDEN));
+
+        NavigationManager::instance().go_back();
+        drain();
+        lv_timer_handler();
+        drain();
+    }
+}
+
+TEST_CASE_METHOD(UnvisitedPrintSelectFixture,
                  "Opening print-select starts building cards and leaving stops it",
                  "[print_select][lazy]") {
     const auto* cards = PrintSelectPanelTestAccess::card_view(*panel_);

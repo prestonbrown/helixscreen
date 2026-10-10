@@ -324,7 +324,7 @@ Community open-source K1 firmwares (Guilouz, Simple AF, Guppy Mod) do not bundle
 For the firmware side — what each `BOX_*` command actually does, the tn_data.json
 persistence contract, and the deferred-failure/resume traps that make a successful-looking
 gcode sequence do nothing — see
-[CREALITY_CFS_INTERNALS.md](../CREALITY_CFS_INTERNALS.md). **Read it before changing anything
+[CREALITY_CFS_K1_INTERNALS.md](../printer-research/CREALITY_CFS_K1_INTERNALS.md). **Read it before changing anything
 the CFS backend emits on K1.**
 
 ## Known Limitations

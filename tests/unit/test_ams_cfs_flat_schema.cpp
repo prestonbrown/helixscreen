@@ -123,7 +123,7 @@ json make_stock_box_json() {
 //
 // Schema must be decided from the PAYLOAD, never from PrinterDetector. The
 // affected printer is a K2 Plus by every model signal — model detection cannot
-// see the firmware swap. See docs/devel/printers/CREALITY_K2_SUPPORT.md
+// see the firmware swap. See docs/devel/printer-research/CREALITY_CFS_K2_INTERNALS.md
 // § "Box schema variants".
 
 TEST_CASE("CFS schema detection", "[ams][cfs][flat]") {

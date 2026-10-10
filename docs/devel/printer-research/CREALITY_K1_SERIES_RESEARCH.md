@@ -1,7 +1,10 @@
 # Creality K1C and K1 Max Research
 
 **Date**: 2026-02-02
-**Status**: Comprehensive research complete
+**Status**: Pre-support research. The K1 series is supported; the platform (build, deploy,
+firmware prerequisites, measured hardware) is documented in
+[`../printers/CREALITY_K1_SUPPORT.md`](../printers/CREALITY_K1_SUPPORT.md), which supersedes this page where they
+disagree. The CFS upgrade's firmware internals are in [`CREALITY_CFS_K1_INTERNALS.md`](CREALITY_CFS_K1_INTERNALS.md).
 
 ## Executive Summary
 
@@ -221,46 +224,7 @@ ssh root@<printer_ip>
 
 ---
 
-## 8. HelixScreen Compatibility Analysis
-
-### Feasibility: HIGH
-
-GuppyScreen's success proves custom LVGL-based UIs work.
-
-### Requirements
-
-1. **MIPS Cross-Compilation**
-   - Target: MIPS32r2 with nan2008
-   - Toolchain: Ingenic Buildroot or compatible GCC
-
-2. **Display Driver**
-   - Framebuffer: `/dev/fb0`
-   - Resolution: 480 x 400
-   - Direct framebuffer rendering (no X11)
-
-3. **Touch Input**
-   - evdev-based touch input
-   - May need calibration
-
-4. **Moonraker Dependency**
-   - Must be installed via Guilouz script or Guppy Mod
-   - WebSocket API on port 7125
-
-5. **Memory Constraints**
-   - Only 256 MB RAM total
-   - HelixScreen needs to be memory-efficient
-
-### Potential Challenges
-
-| Challenge | Mitigation |
-|-----------|------------|
-| MIPS nan2008 ABI | Use Ingenic's Buildroot toolchain |
-| 256 MB RAM limit | Optimize memory, disable unused features |
-| 480x400 resolution | May need UI layout adjustments |
-
----
-
-## 9. Community Resources
+## 8. Community Resources
 
 ### GitHub Repositories
 
@@ -276,16 +240,3 @@ GuppyScreen's success proves custom LVGL-based UIs work.
 - **Reddit**: r/crealityk1
 - **Creality Forum**: forum.creality.com
 - **Guilouz Wiki**: guilouz.github.io/Creality-Helper-Script-Wiki/
-
----
-
-## Conclusion
-
-The Creality K1C and K1 Max are highly suitable targets for HelixScreen. Key requirements:
-1. MIPS32r2 cross-compilation support
-2. Direct framebuffer rendering to `/dev/fb0`
-3. evdev touch input handling
-4. Moonraker WebSocket API integration
-5. Memory-efficient operation within 256 MB RAM
-
-The official root access and active modding community provide excellent infrastructure for development.

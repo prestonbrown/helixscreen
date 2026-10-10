@@ -334,7 +334,7 @@ display**, pinned by version and SHA in its installer. Community ports are not
 only a compatibility burden — some of them are downstream distributors, and a
 parser gap here surfaced as an empty panel on every one of their installs.
 
-Details and the full field mapping: `../printers/CREALITY_K2_SUPPORT.md`
+Details and the full field mapping: `CREALITY_CFS_K2_INTERNALS.md`
 § "Community Kalico port".
 
 ---

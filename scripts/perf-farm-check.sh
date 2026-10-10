@@ -40,6 +40,10 @@
 # ---------------------------------------------------------------------------
 # Constraints worth knowing before editing
 # ---------------------------------------------------------------------------
+# * Which binary a phase measures: idle cost is measured on release binaries,
+#   which are what users run; print-load cost on dev cross builds, because a
+#   HELIX_PACKAGING=1 release leaves the mock backends out and cannot drive the
+#   simulated print.
 # * Mocks are compiled out of the CC1 build (mk/cross.mk, ENABLE_MOCKS := no), so
 #   CC1 can only be measured idle. Any device may join it; the probe checks.
 # * assets/test_gcodes/ is stripped from release payloads, so HELIX_MOCK_AUTO_PRINT

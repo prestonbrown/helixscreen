@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<component>
+  <!-- Home tile. The dial row holds the ring canvas with the value label
+       centered over it and the name label at the bottom; the meter list
+       joins the dial row at two cols wide, and the bars strip appears at
+       two rows tall. The inner value hides below a radius floor and the
+       number moves to the bottom line instead. -->
+  <view extends="lv_obj"
+        width="100%" height="100%" clickable="true" style_pad_all="#space_sm" style_pad_gap="#space_xs"
+        flex_flow="column" scrollable="false">
+    <event_cb trigger="clicked" callback="plugin_event" user_data="maintenance-meter__open"/>
+    <lv_obj name="maintenance-meter__header"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+      <bind_flag_if_eq subject="maintenance-meter__compact" flag="hidden" ref_value="1"/>
+      <icon name="maintenance-meter__glyph" src="wrench" size="sm" variant="secondary"/>
+      <text_small name="maintenance-meter__title" text="Maintenance"/>
+    </lv_obj>
+    <lv_obj name="maintenance-meter__body"
+            width="100%" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+            scrollable="false" style_bg_opa="0" style_border_width="0">
+      <lv_obj name="maintenance-meter__dial_row"
+              width="100%" flex_grow="1" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false"
+              style_bg_opa="0" style_border_width="0">
+        <lv_obj name="maintenance-meter__dial_zone"
+                height="100%" flex_grow="1" scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0">
+          <plugin_canvas name="maintenance-meter__gauge" width="100%" height="100%"/>
+          <lv_label name="maintenance-meter__big"
+                    bind_text="maintenance-meter__big_value" align="center" style_text_font="#font_body_bold"
+                    style_text_color="#text">
+            <bind_flag_if_eq subject="maintenance-meter__inner" flag="hidden" ref_value="0"/>
+          </lv_label>
+          <lv_label name="maintenance-meter__name"
+                    bind_text="maintenance-meter__big_name" align="bottom_mid" style_text_font="#font_xs"
+                    style_text_color="#text_muted"/>
+        </lv_obj>
+        <lv_obj name="maintenance-meter__list_zone"
+                height="100%" flex_flow="column" flex_grow="2" style_pad_all="0" style_pad_gap="#space_xxs"
+                style_flex_main_place="space_around" scrollable="false" style_bg_opa="0" style_border_width="0">
+          <bind_flag_if_eq subject="maintenance-meter__list_zone" flag="hidden" ref_value="0"/>
+          <lv_obj width="100%"
+                  height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                  scrollable="false" style_bg_opa="0" style_border_width="0">
+            <bind_flag_if_eq subject="maintenance-meter__m1_on" flag="hidden" ref_value="0"/>
+            <text_xs name="maintenance-meter__l1_name" bind_text="maintenance-meter__l1_name"/>
+            <lv_label name="maintenance-meter__l1_hours"
+                      bind_text="maintenance-meter__l1_hours" style_text_font="#font_small" style_text_color="#text"/>
+          </lv_obj>
+          <lv_obj width="100%"
+                  height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                  scrollable="false" style_bg_opa="0" style_border_width="0">
+            <bind_flag_if_eq subject="maintenance-meter__m2_on" flag="hidden" ref_value="0"/>
+            <text_xs name="maintenance-meter__l2_name" bind_text="maintenance-meter__l2_name"/>
+            <lv_label name="maintenance-meter__l2_hours"
+                      bind_text="maintenance-meter__l2_hours" style_text_font="#font_small" style_text_color="#text"/>
+          </lv_obj>
+          <lv_obj width="100%"
+                  height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                  scrollable="false" style_bg_opa="0" style_border_width="0">
+            <bind_flag_if_eq subject="maintenance-meter__m3_on" flag="hidden" ref_value="0"/>
+            <text_xs name="maintenance-meter__l3_name" bind_text="maintenance-meter__l3_name"/>
+            <lv_label name="maintenance-meter__l3_hours"
+                      bind_text="maintenance-meter__l3_hours" style_text_font="#font_small" style_text_color="#text"/>
+          </lv_obj>
+        </lv_obj>
+      </lv_obj>
+      <lv_obj name="maintenance-meter__bars_zone"
+              width="100%" height="30" scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0">
+        <bind_flag_if_eq subject="maintenance-meter__bars" flag="hidden" ref_value="0"/>
+        <plugin_canvas name="maintenance-meter__bars" width="100%" height="100%"/>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

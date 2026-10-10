@@ -191,12 +191,12 @@ class PrintStatusPanel : public OverlayBase {
      * @brief Drop every cached raw widget pointer, including overlay_root_
      *
      * Idempotent. Called from on_ui_destroyed() (explicit teardown) and
-     * on_root_deleted() (the tree died some other way). Does NOT touch the
-     * owned sub-objects (side list, map view, exclude manager) — those need a
-     * live tree to tear down and must never run from inside LVGL's delete
-     * event. Also does not touch delete_hook_root_: that member tracks where
-     * the delete hook is installed and is cleared only by the hook firing, the
-     * explicit teardown, or the destructor.
+     * on_root_deleted() (the tree died some other way). Does NOT tear down
+     * the owned sub-objects (side list, map view, exclude manager) — those
+     * need a live tree to tear down and must never run from inside LVGL's
+     * delete event; the exclude manager only forgets its viewer pointer. Also does not touch
+     * delete_hook_root_: that member tracks where the delete hook is installed and is cleared only
+     * by the hook firing, the explicit teardown, or the destructor.
      */
     void forget_cached_widgets();
 

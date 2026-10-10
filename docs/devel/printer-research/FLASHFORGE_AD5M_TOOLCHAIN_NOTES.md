@@ -1,5 +1,8 @@
 # AD5M Toolchain & glibc Compatibility Notes
 
+Why the `ad5m` target links fully static, and the toolchains that were ruled out. Build and
+deploy commands live in [`../printers/FLASHFORGE_AD5M_SUPPORT.md`](../printers/FLASHFORGE_AD5M_SUPPORT.md).
+
 ## Target Hardware Specs
 - **CPU**: Cortex-A7 (armv7-a hard-float)
 - **Display**: 800x480 framebuffer
@@ -19,9 +22,7 @@ with these toolchains, the resulting binary requires newer glibc symbols than AD
 
 ---
 
-## ✅ SOLUTION: Fully Static Build
-
-**Status**: ✅ WORKING (tested 2024-12-05)
+## Solution: Fully Static Build
 
 **Approach**: Link everything statically with `-static` flag using ARM GCC 10.3
 
@@ -31,7 +32,7 @@ TARGET_LDFLAGS := -Wl,--gc-sections -flto -static
 ```
 
 **Results**:
-- Binary size: 2.7MB helix-screen, 419KB helix-splash (smaller than expected!)
+- Binary size: 2.7MB helix-screen, 419KB helix-splash when the survey was run; the binary has grown with the app since
 - glibc dependency: NONE (fully self-contained)
 - Compatibility: ✅ Tested and working on AD5M with glibc 2.25
 - Test command on AD5M: `/tmp/helix-screen-static --help` runs correctly
@@ -47,7 +48,7 @@ TARGET_LDFLAGS := -Wl,--gc-sections -flto -static
 
 ## Approaches Researched
 
-### 1. ARM GCC 10.3-2021.07 (Current Docker Toolchain)
+### 1. ARM GCC 10.3-2021.07 (the Docker toolchain)
 - **URL**: https://developer.arm.com/downloads/-/gnu-a
 - **Sysroot glibc**: 2.33
 - **Status**: ✅ WORKS with `-static` flag
@@ -122,62 +123,6 @@ $(Q)$(CXX) $(SPLASH_OBJ) -Wl,--whole-archive $(DISPLAY_LIB) -Wl,--no-whole-archi
 **Root Cause**: Toolchain sysroot has glibc 2.33, AD5M system has glibc 2.25
 **Solution**: Static linking with `-static` flag eliminates all glibc dependencies
 
-### Issue 4: rsync'd Repo Build Failures (thelio)
-**Symptom**: Build fails with `fatal: not in a git directory` errors
-
-**Status**: ✅ FIXED
-**Root Cause**: rsync'd submodules have `.git` pointer files pointing to non-existent
-worktree paths on the remote machine. Submodule Makefiles run git commands that fail.
-
-**Fix**:
-```bash
-# Remove broken .git pointers from all submodules
-ssh thelio.local "cd ~/Code/Printing/helixscreen-memory-opt && find lib -maxdepth 2 -name '.git' -type f -exec rm {} \;"
-# Fix permissions from previous root-owned Docker builds
-ssh thelio.local "sudo chown -R $(whoami) lib/tinygl lib/wpa_supplicant"
-```
-
----
-
-## Files Modified
-
-| File | Change | Status |
-|------|--------|--------|
-| `mk/deps.mk` | wpa_supplicant LTO fix | ✅ Done |
-| `mk/cross.mk` | `-static` flag for AD5M | ✅ Done |
-| `mk/splash.mk` | --whole-archive for DisplayBackend | ✅ Done |
-
----
-
-## Build Commands
-
-```bash
-# Build AD5M via remote build server (recommended)
-make remote-ad5m
-
-# Or build locally via Docker (slower)
-make ad5m-docker
-
-# Package release archive (includes binaries + assets + ui_xml + config)
-make release-ad5m
-# Creates: releases/helixscreen-ad5m.zip
-
-# Copy to AD5M
-scp releases/helixscreen-ad5m.zip root@192.168.1.67:/tmp/
-
-# Install on AD5M (BusyBox unzip)
-ssh root@192.168.1.67 "cd /opt && unzip -q /tmp/helixscreen-ad5m.zip"
-
-# Install SysV init script (AD5M uses BusyBox init, NOT systemd)
-ssh root@192.168.1.67 "cp /opt/helixscreen/config/helixscreen.init /etc/init.d/S90helixscreen && chmod +x /etc/init.d/S90helixscreen"
-
-# Start HelixScreen
-ssh root@192.168.1.67 "/etc/init.d/S90helixscreen start"
-
-# Test on AD5M
-ssh root@192.168.1.67 "/opt/helixscreen/bin/helix-screen --help"
-```
-
 ---
 
 ## Verification Commands
@@ -190,7 +135,7 @@ file build/ad5m/bin/helix-screen    # Should show "statically linked"
 ldd build/ad5m/bin/helix-screen     # Should show "not a dynamic executable"
 
 # Check binary size
-ls -lh build/ad5m/bin/              # helix-screen ~2.7MB, helix-splash ~419KB
+ls -lh build/ad5m/bin/
 ```
 
 ---
@@ -198,8 +143,7 @@ ls -lh build/ad5m/bin/              # helix-screen ~2.7MB, helix-splash ~419KB
 ## Lessons Learned
 
 1. **Static linking is simpler** than hunting for perfectly matching toolchains
-2. **Binary size is acceptable** - 2.7MB is reasonable for an embedded UI
+2. **Binary size is acceptable** for an embedded UI
 3. **The getaddrinfo warning is harmless** - we only connect to local Moonraker IPs
-4. **rsync'd repos need cleanup** - remove `.git` pointers from submodules
-5. **Permission issues** - always use `-u $(id -u):$(id -g)` with Docker to avoid root-owned files
-6. **SKIP_OPTIONAL_DEPS=1** is required for cross-compilation (no npm/clang-format in Docker)
+4. **Permission issues** - always use `-u $(id -u):$(id -g)` with Docker to avoid root-owned files
+5. **SKIP_OPTIONAL_DEPS=1** is required for cross-compilation (no npm/clang-format in Docker)

@@ -3,7 +3,11 @@
 
 #include "ui_temperature_utils.h"
 
+#include "config.h"
 #include "moonraker_types.h"
+
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -747,4 +751,67 @@ TEST_CASE("Temperature Utils: keypad titles are the heater's short name", "[temp
     CHECK(heater_keypad_title(HeaterType::Nozzle) == "Nozzle");
     CHECK(heater_keypad_title(HeaterType::Bed) == "Bed");
     CHECK(heater_keypad_title(HeaterType::Chamber) == "Chamber");
+}
+
+// ============================================================================
+// build_cooldown_gcode() Tests (#1768)
+// ============================================================================
+
+TEST_CASE("Temperature Utils: default cooldown turns off every extruder heater",
+          "[temp_utils][cooldown]") {
+    using helix::kDefaultCooldownGcode;
+    using helix::ui::temperature::build_cooldown_gcode;
+
+    SECTION("a six-tool printer gets one off line per extruder, in tool order") {
+        // Unordered on purpose: PrinterTemperatureState keeps extruders in a hash map.
+        const std::vector<std::string> extruders = {"extruder3", "extruder",  "extruder5",
+                                                    "extruder1", "extruder4", "extruder2"};
+        CHECK(build_cooldown_gcode(kDefaultCooldownGcode, extruders, "") ==
+              std::string(kDefaultCooldownGcode) +
+                  "\nSET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0"
+                  "\nSET_HEATER_TEMPERATURE HEATER=extruder2 TARGET=0"
+                  "\nSET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0"
+                  "\nSET_HEATER_TEMPERATURE HEATER=extruder4 TARGET=0"
+                  "\nSET_HEATER_TEMPERATURE HEATER=extruder5 TARGET=0");
+    }
+
+    SECTION("extruder10 sorts after extruder9") {
+        const std::vector<std::string> extruders = {"extruder10", "extruder9", "extruder"};
+        CHECK(build_cooldown_gcode(kDefaultCooldownGcode, extruders, "") ==
+              std::string(kDefaultCooldownGcode) +
+                  "\nSET_HEATER_TEMPERATURE HEATER=extruder9 TARGET=0"
+                  "\nSET_HEATER_TEMPERATURE HEATER=extruder10 TARGET=0");
+    }
+
+    SECTION("a single-extruder printer sends the default text unchanged") {
+        CHECK(build_cooldown_gcode(kDefaultCooldownGcode, {"extruder"}, "") ==
+              kDefaultCooldownGcode);
+        CHECK(build_cooldown_gcode(kDefaultCooldownGcode, {}, "") == kDefaultCooldownGcode);
+    }
+
+    SECTION("the primary extruder is never named twice") {
+        const std::string out =
+            build_cooldown_gcode(kDefaultCooldownGcode, {"extruder", "extruder1"}, "");
+        const std::string line = "HEATER=extruder TARGET=0";
+        CHECK(out.find(line) != std::string::npos);
+        CHECK(out.find(line, out.find(line) + 1) == std::string::npos);
+    }
+
+    SECTION("the resolved chamber heater is still appended, after the extruders") {
+        CHECK(build_cooldown_gcode(kDefaultCooldownGcode, {"extruder", "extruder1"},
+                                   "heater_generic chamber") ==
+              std::string(kDefaultCooldownGcode) +
+                  "\nSET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0"
+                  "\nSET_HEATER_TEMPERATURE HEATER=chamber TARGET=0");
+        CHECK(build_cooldown_gcode(kDefaultCooldownGcode, {"extruder"}, "heater_generic chamber") ==
+              std::string(kDefaultCooldownGcode) +
+                  "\nSET_HEATER_TEMPERATURE HEATER=chamber TARGET=0");
+    }
+
+    SECTION("a customized macro runs exactly as written") {
+        CHECK(build_cooldown_gcode("MY_COOLDOWN", {"extruder", "extruder1", "extruder2"},
+                                   "heater_generic chamber") == "MY_COOLDOWN");
+        const std::string edited = std::string(kDefaultCooldownGcode) + "\nM107";
+        CHECK(build_cooldown_gcode(edited, {"extruder", "extruder1"}, "") == edited);
+    }
 }

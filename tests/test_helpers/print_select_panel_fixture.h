@@ -73,6 +73,11 @@ enum class PrintSelectVisit { Immediate, Deferred };
 /// record uploads instead of needing an HTTP server.
 enum class PrintSelectApi { Real, Mock };
 
+/// What the connection-state subject says when setup() registers the panel's
+/// observer. Connected is a first visit on a platform that builds the panel on
+/// demand; Unset leaves whatever the subjects were initialized to.
+enum class PrintSelectConnectionAtSetup { Unset, Connected };
+
 /// The real panel over the real NavigationManager: mock client connected,
 /// MoonrakerAPI on top of it, print_select_panel XML built, and the navigation
 /// stack seeded the way the app has it (panel_stack_[0] = the active main
@@ -83,7 +88,8 @@ class PrintSelectPanelFixture : public LVGLUITestFixture {
     explicit PrintSelectPanelFixture(
         PrintSelectFilelistHandler handler = PrintSelectFilelistHandler::Unregistered,
         PrintSelectVisit visit = PrintSelectVisit::Immediate,
-        PrintSelectApi api = PrintSelectApi::Real)
+        PrintSelectApi api = PrintSelectApi::Real,
+        PrintSelectConnectionAtSetup connection = PrintSelectConnectionAtSetup::Unset)
         : mock_client_(MoonrakerClientMock::PrinterType::VORON_24, /*speedup_factor=*/100.0) {
         animations_were_enabled_ = DisplaySettingsManager::instance().get_animations_enabled();
         DisplaySettingsManager::instance().set_animations_enabled(false);
@@ -100,6 +106,11 @@ class PrintSelectPanelFixture : public LVGLUITestFixture {
 
         panel_ = std::make_unique<PrintSelectPanel>(get_printer_state(), api_.get());
         panel_->init_subjects();
+        if (connection == PrintSelectConnectionAtSetup::Connected) {
+            lv_subject_set_int(
+                get_printer_state().network_state().get_printer_connection_state_subject(),
+                static_cast<int>(ConnectionState::CONNECTED));
+        }
         panel_obj_ =
             static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "print_select_panel", nullptr));
         REQUIRE(panel_obj_ != nullptr);

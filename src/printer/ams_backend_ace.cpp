@@ -265,18 +265,33 @@ PathTopology AmsBackendAce::get_topology() const {
     return PathTopology::HUB;
 }
 
+bool AmsBackendAce::seat_at_nozzle_locked() const {
+    // Caller holds mutex_. A seated tool outranks the sensors: both are still
+    // made with filament in the nozzle. Not while the driver swaps it out (the
+    // seat stands until the new tool is in), and not while a feed it is
+    // retrying keeps target_index on the seated tool short of the toolhead
+    // sensor. The sensor ends that, because the driver persists target_index
+    // and can leave it set on a tool that is loaded.
+    return system_info_.filament_loaded && !driver_action_ &&
+           !(path_sensors_seen_ && target_index_ >= 0 && !toolhead_sensor_);
+}
+
+bool AmsBackendAce::path_empty_under_seat_locked() const {
+    // Caller holds mutex_. A driver that paused on a failed feed keeps the
+    // tool it was feeding as current, with nothing on the path to show for it
+    // (prestonbrown/helixscreen#1678).
+    return seat_loaded_ && !driver_action_ && path_sensors_seen_ && !rdm_sensor_ &&
+           !toolhead_sensor_;
+}
+
 PathSegment AmsBackendAce::get_filament_segment() const {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    // A seated tool is the whole answer, and outranks the sensors: both are
-    // still made with filament in the nozzle. Not while the driver swaps it
-    // out, though: the seat stands until the new tool is in, so only the
-    // sensors say where the strand on the path has got to.
-    if (system_info_.filament_loaded && !driver_action_) {
+    if (seat_at_nozzle_locked()) {
         return PathSegment::NOZZLE;
     }
 
-    // Nothing seated, so anything the sensors see is a strand in flight.
+    // Nothing at the nozzle, so anything the sensors see is a strand in flight.
     if (path_sensors_seen_) {
         if (toolhead_sensor_) {
             return PathSegment::TOOLHEAD;
@@ -303,8 +318,7 @@ PathSegment AmsBackendAce::get_slot_filament_segment(int slot_index) const {
 
     const auto& slot = unit.slots[static_cast<size_t>(slot_index)];
 
-    if (system_info_.filament_loaded && system_info_.current_slot == slot_index &&
-        !driver_action_) {
+    if (system_info_.current_slot == slot_index && seat_at_nozzle_locked()) {
         return PathSegment::NOZZLE;
     }
 
@@ -618,7 +632,7 @@ AmsError AmsBackendAce::enable_bypass() {
         // fire-and-forget and reports success before Klipper answers, so a
         // refusal there would reach the user as a toast contradicting a success
         // already shown.
-        if (system_info_.filament_loaded) {
+        if (seat_loaded_) {
             return AmsError(AmsResult::WRONG_STATE, "Unload filament first",
                             lv_tr("Filament is still loaded. Unload it before enabling bypass."),
                             "");
@@ -774,22 +788,27 @@ void AmsBackendAce::clear_seated_slot_stamp_locked() {
     seated_stamp_prev_ = SlotStatus::UNKNOWN;
 }
 
-void AmsBackendAce::apply_seated_slot_stamp_locked() {
+bool AmsBackendAce::apply_seated_slot_stamp_locked() {
     // Caller holds mutex_.
     clear_seated_slot_stamp_locked();
 
+    const bool prev_loaded = system_info_.filament_loaded;
+    system_info_.filament_loaded = seat_loaded_ && !path_empty_under_seat_locked();
+    const bool changed = system_info_.filament_loaded != prev_loaded;
+
     if (!system_info_.filament_loaded || system_info_.current_slot < 0) {
-        return;
+        return changed;
     }
 
     SlotInfo* slot = mutable_slot_locked(system_info_.current_slot);
     if (slot == nullptr) {
-        return;
+        return changed;
     }
 
     seated_stamp_slot_ = system_info_.current_slot;
     seated_stamp_prev_ = slot->status;
     slot->status = SlotStatus::LOADED;
+    return changed;
 }
 
 void AmsBackendAce::apply_path_sensors_locked(const json& data) {
@@ -898,7 +917,7 @@ bool AmsBackendAce::apply_target_index_locked(const json& data) {
             swap_hub_cleared_ = true;
         }
         const bool retracting =
-            system_info_.filament_loaded && path_sensors_seen_ && rdm_sensor_ && !swap_hub_cleared_;
+            seat_loaded_ && path_sensors_seen_ && rdm_sensor_ && !swap_hub_cleared_;
         // Only an idle hub, or one this target already moved, is driven: an
         // error, or a LOADING this backend set for its own command, already
         // says more than the target does.
@@ -928,9 +947,9 @@ bool AmsBackendAce::seat_from_global_index_locked(int current_index) {
             // Loaded in a unit this backend does not display: state the tool,
             // mark no slot. Idempotent — the REST poll restates the index
             // every cycle.
-            const bool changed = system_info_.current_tool != current_index ||
-                                 !system_info_.filament_loaded || system_info_.current_slot != -1;
-            system_info_.filament_loaded = true;
+            const bool changed = system_info_.current_tool != current_index || !seat_loaded_ ||
+                                 system_info_.current_slot != -1;
+            seat_loaded_ = true;
             system_info_.current_tool = current_index;
             system_info_.current_slot = -1;
             return changed;
@@ -943,14 +962,14 @@ bool AmsBackendAce::seat_from_local_index_locked(int slot_index) {
     // Caller holds mutex_.
     const int prev_slot = system_info_.current_slot;
     const int prev_tool = system_info_.current_tool;
-    const bool prev_loaded = system_info_.filament_loaded;
+    const bool prev_loaded = seat_loaded_;
 
-    system_info_.filament_loaded = (slot_index >= 0);
+    seat_loaded_ = (slot_index >= 0);
     system_info_.current_slot = slot_index;
     system_info_.current_tool = slot_index;
 
     return system_info_.current_slot != prev_slot || system_info_.current_tool != prev_tool ||
-           system_info_.filament_loaded != prev_loaded;
+           seat_loaded_ != prev_loaded;
 }
 
 void AmsBackendAce::parse_ace_object(const json& data) {
@@ -1331,19 +1350,20 @@ AmsBackendAce::lowest_ace_instance_key(const json& status,
 }
 
 const json* AmsBackendAce::manager_ace_object(const json& status) {
-    // The fork's manager carries current_index and nothing parseable beyond
-    // it; anything else shaped like this (an `ace` with no slots and no
-    // current_index) has nothing the seat logic could read, so it is not
-    // worth a parse pass.
+    // Any slotless `ace` is the manager's half of the frame. A notify delta
+    // carries only the fields that changed, so one stating just the endless
+    // spool mode, a sensor or target_index names no current_index, and it
+    // arrives beside whatever instance delta Klipper batched with it
+    // (prestonbrown/helixscreen#1679).
     if (!status.is_object() || !status.contains("ace") || !status["ace"].is_object()) {
         return nullptr;
     }
     const json& ace = status["ace"];
+    if (ace.empty()) {
+        return nullptr;
+    }
     if (ace.contains("slots") && ace["slots"].is_array() && !ace["slots"].empty()) {
         return nullptr; // slot-bearing ValgACE `ace` — the primary, not a manager
-    }
-    if (!ace.contains("current_index") || !ace["current_index"].is_number_integer()) {
-        return nullptr;
     }
     return &ace;
 }
@@ -1740,7 +1760,7 @@ bool AmsBackendAce::parse_status_response(const json& data) {
     // /status owns loaded_slot but never touches the slot vector; /slots owns
     // the slot vector but carries no seated field. Both ends re-derive the
     // stamp so whichever polled last leaves the two consistent.
-    apply_seated_slot_stamp_locked();
+    changed |= apply_seated_slot_stamp_locked();
 
     return changed;
 }

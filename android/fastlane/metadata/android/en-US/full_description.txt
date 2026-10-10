@@ -1,14 +1,14 @@
-HelixScreen is a full-featured touch interface for Klipper 3D printers. Connect to your printer over your local network and get the same powerful UI that runs on dedicated touchscreens — right on your phone or tablet.
+HelixScreen is a full-featured touch interface for Klipper 3D printers. Connect to your printer over your local network and get the same UI that runs on dedicated touchscreens, right on your phone or tablet.
 
 Features:
 - 30+ panels: dashboard, temperature graphs, motion control, bed mesh 3D view, console, macros, and more
-- Multi-material support for AFC, Happy Hare, ACE, AD5X IFS, CFS, and tool changers
-- Exclude objects mid-print — tap the failing part on an overhead map
-- 70+ printer models auto-detected with first-run wizard
+- Multi-material support for AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1 and tool changers
+- Exclude objects mid-print: tap the failing part on an overhead map
+- 70+ printer models auto-detected with a first-run wizard
 - Calibration suite: input shaper, PID tuning, Z-offset, firmware retraction
 - 17 themes with light/dark mode
 - 9 languages
 
-Requirements: A 3D printer running Klipper + Moonraker on the same local network.
+Requirements: a 3D printer running Klipper + Moonraker on the same local network.
 
-Open source (GPL v3) — no accounts, no cloud, no tracking.
+Open source (GPL v3). No accounts and no cloud. Anonymous usage telemetry is off unless you turn it on.

@@ -101,6 +101,9 @@ PrintSelectDetailView::~PrintSelectDetailView() {
 
     spdlog::trace("[DetailView] Destroyed");
 
+    // The tree can outlive this view; its delete event must not reach a freed `this`.
+    uninstall_root_delete_hook();
+
     // Cancel the pre-flight readiness safety timer if still armed (LVGL is known
     // initialized here — checked above).
     if (preflight_ready_timeout_timer_) {
@@ -114,6 +117,13 @@ PrintSelectDetailView::~PrintSelectDetailView() {
     cancel_progress_timer();
 
     disarm_viewer_callbacks();
+
+    // A tree deleted externally leaves overlay_root_ naming freed memory.
+    if (tree_deleted_) {
+        helix::nav::clear_on_close(overlay_root_);
+        helix::nav::unregister_overlay(overlay_root_);
+        overlay_root_ = nullptr;
+    }
 
     // Unregister from NavigationManager (fallback if cleanup() wasn't called)
     if (overlay_root_) {
@@ -194,6 +204,8 @@ void PrintSelectDetailView::init_subjects() {
     // FilamentMappingCard::should_show() after each update(); XML binds
     // via bind_flag_if_eq in print_file_detail.xml.
     UI_MANAGED_SUBJECT_INT(filament_mapping_visible_, 0, "filament_mapping_visible", subjects_);
+    UI_MANAGED_SUBJECT_INT(gcode_rewrite_available_, -1, "detail_gcode_rewrite_available",
+                           subjects_); // SUBJECT_OK: option rows bind it via the renderer lookup
 
     // Whether a tap on the filament card opens the remap picker (0=no,
     // 1=yes). Binds the card's chevron AND its clickable flag in
@@ -237,7 +249,10 @@ void PrintSelectDetailView::init_subjects() {
     // Without these the card keeps whatever it decided before either was known.
     plugin_installed_observer_ = observe<int>(
         get_printer_state().plugin_status_state().get_helix_plugin_installed_subject(), this,
-        [](PrintSelectDetailView* self, int /*state*/) { self->publish_card_visibility(); },
+        [](PrintSelectDetailView* self, int /*state*/) {
+            self->publish_rewrite_availability();
+            self->publish_card_visibility();
+        },
         get_printer_state().get_subjects_lifetime());
     moonraker_degraded_observer_ = observe<int>(
         get_printer_state().versions_state().get_moonraker_history_degraded_subject(), this,
@@ -261,6 +276,7 @@ void PrintSelectDetailView::init_subjects() {
         get_printer_state().get_subjects_lifetime());
 
     subjects_initialized_ = true;
+    publish_rewrite_availability();
     spdlog::debug("[DetailView] Initialized pre-print option subjects");
 }
 
@@ -284,6 +300,13 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         NOTIFY_ERROR(lv_tr("Failed to load file details"));
         return nullptr;
     }
+
+    // A rebuilt view can reach here with the hook still on its previous root,
+    // whose deletion is deferred; take it off before tracking the new one.
+    uninstall_root_delete_hook();
+    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
+    lv_obj_add_event_cb(overlay_root_, on_root_deleted, LV_EVENT_DELETE, this);
+    delete_hook_root_ = overlay_root_;
 
     // Set responsive padding for content area
     lv_obj_t* content_container = find_required(overlay_root_, "content_container", get_name());
@@ -432,6 +455,7 @@ void PrintSelectDetailView::set_analysis_dependencies(IMoonrakerAPI* api,
     api_ = api;
     gcode_fetcher_.set_api(api);
     printer_state_ = printer_state;
+    publish_rewrite_availability(); // the transport is half the answer
 
     // Not tied to the widget tree: the panel wires dependencies at setup, before
     // any file opens, so the PRINT_START analysis starts on connect, and the
@@ -470,6 +494,8 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
                                  const std::vector<std::string>& filament_materials,
                                  size_t file_size_bytes, time_t modified_timestamp,
                                  uint64_t gcode_end_byte, const std::string& local_path) {
+    reclaim_deleted_tree();
+
     // Lazy re-create widget tree if it was destroyed by destroy-on-close
     if (!overlay_root_ && parent_screen_) {
         spdlog::info("[DetailView] Re-creating widget tree (destroy-on-close recovery)");
@@ -630,6 +656,7 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
 }
 
 void PrintSelectDetailView::hide() {
+    reclaim_deleted_tree();
     if (!overlay_root_) {
         return;
     }
@@ -967,6 +994,7 @@ void PrintSelectDetailView::disarm_viewer_callbacks() {
 
 void PrintSelectDetailView::cleanup() {
     spdlog::debug("[DetailView] cleanup()");
+    reclaim_deleted_tree();
 
     // Pause viewer before subject cleanup to avoid rendering with freed subjects.
     if (gcode_viewer_) {
@@ -1015,8 +1043,70 @@ void PrintSelectDetailView::cleanup() {
 // Destroy-on-close support
 // ============================================================================
 
+void PrintSelectDetailView::on_root_deleted(lv_event_t* e) {
+    auto* self = static_cast<PrintSelectDetailView*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+    // A replaced root is deleted after create() has pointed the view at its
+    // successor; clearing the pointers then would blank a live tree.
+    if (lv_event_get_current_target(e) != self->delete_hook_root_) {
+        return;
+    }
+    self->delete_hook_root_ = nullptr;
+    self->tree_deleted_ = true;
+    self->forget_cached_widgets();
+}
+
+void PrintSelectDetailView::reclaim_deleted_tree() {
+    if (!tree_deleted_) {
+        return;
+    }
+    tree_deleted_ = false;
+    spdlog::debug("[DetailView] Widget tree was deleted externally - releasing it");
+    helix::nav::clear_on_close(overlay_root_);
+    helix::nav::unregister_overlay(overlay_root_);
+    overlay_root_ = nullptr;
+    on_ui_destroyed();
+}
+
+void PrintSelectDetailView::forget_cached_widgets() {
+    print_button_ = nullptr;
+    gcode_viewer_ = nullptr;
+
+    // Pre-print option checkboxes (kept as inert fields; see create()).
+    bed_mesh_checkbox_ = nullptr;
+    qgl_checkbox_ = nullptr;
+    z_tilt_checkbox_ = nullptr;
+    nozzle_clean_checkbox_ = nullptr;
+    purge_line_checkbox_ = nullptr;
+    timelapse_checkbox_ = nullptr;
+
+    pre_print_options_container_ = nullptr;
+    // The scroll area, the preview card and the content container (whose
+    // LAYOUT_CHANGED feeds fit_portrait_preview) are children of overlay_root_;
+    // their event callbacks die with them.
+    options_scroll_ = nullptr;
+    detail_card_ = nullptr;
+
+    filament_mapping_card_.on_ui_destroyed();
+
+    history_status_row_ = nullptr;
+    history_status_icon_ = nullptr;
+    history_status_label_ = nullptr;
+}
+
+void PrintSelectDetailView::uninstall_root_delete_hook() {
+    helix::ui::remove_event_cb_if_alive(delete_hook_root_, on_root_deleted, this);
+    delete_hook_root_ = nullptr;
+}
+
 void PrintSelectDetailView::on_ui_destroyed() {
     spdlog::debug("[DetailView] on_ui_destroyed() - nulling widget pointers");
+
+    // The base class only condemns the tree; its delete event comes later and
+    // must not reach a view that may be gone by then.
+    uninstall_root_delete_hook();
 
     // Its widgets live in the tree being torn down.
     exclude_mode_.hide();
@@ -1058,33 +1148,16 @@ void PrintSelectDetailView::on_ui_destroyed() {
         reclaim_download(canonical_gcode_path());
     }
 
-    // Null all child widget pointers (widget tree already deleted by base class)
     // Note: parent_screen_ is NOT nulled — it's the parent screen (not a child
     // widget) and is needed for lazy re-creation in show().
     confirmation_dialog_widget_ = nullptr;
-    print_button_ = nullptr;
-    gcode_viewer_ = nullptr;
-
-    // Pre-print option checkboxes (kept as inert fields; see create()).
-    bed_mesh_checkbox_ = nullptr;
-    qgl_checkbox_ = nullptr;
-    z_tilt_checkbox_ = nullptr;
-    nozzle_clean_checkbox_ = nullptr;
-    purge_line_checkbox_ = nullptr;
-    timelapse_checkbox_ = nullptr;
+    forget_cached_widgets();
 
     // The dynamic option rows were children of overlay_root_, which has been
     // destroyed by the base class. Drop the renderer's row state and force a
     // rebuild on next show(). Subjects inside the renderer are heap-owned —
     // their observers were attached to the now-deleted row widgets, so
     // dropping the subjects here is safe.
-    pre_print_options_container_ = nullptr;
-    // The scroll area, the preview card and the content container (whose
-    // LAYOUT_CHANGED feeds fit_portrait_preview) were children of
-    // overlay_root_, already destroyed by the base class; their event
-    // callbacks died with them.
-    options_scroll_ = nullptr;
-    detail_card_ = nullptr;
     // The invalidate above drops a queued fit without running it; the flag
     // must not survive into the next create() cycle.
     fit_pending_ = false;
@@ -1096,14 +1169,6 @@ void PrintSelectDetailView::on_ui_destroyed() {
     if (prep_manager_) {
         prep_manager_->set_option_state_provider(nullptr);
     }
-
-    // Filament mapping card
-    filament_mapping_card_.on_ui_destroyed();
-
-    // History status display
-    history_status_row_ = nullptr;
-    history_status_icon_ = nullptr;
-    history_status_label_ = nullptr;
 
     // Note: prep_manager_ is NOT reset — it holds no widget references and
     // retains its callbacks (scan_complete, macro_analysis) set by PrintSelectPanel.
@@ -1159,7 +1224,7 @@ void PrintSelectDetailView::hide_delete_confirmation() {
 // ============================================================================
 
 void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
-    if (!overlay_root_ || !parent_screen) {
+    if (!tree_alive() || !parent_screen) {
         return;
     }
 
@@ -1348,7 +1413,7 @@ void PrintSelectDetailView::show_gcode_viewer(bool show) {
     // no-thumbnail placeholder glyph must not sit on top of it. (When the
     // viewer is inactive the print-select panel's has-thumbnail logic owns
     // whether the placeholder shows.)
-    if (mode > 0 && overlay_root_) {
+    if (mode > 0 && tree_alive()) {
         lv_obj_t* no_thumb =
             helix::ui::find_required(overlay_root_, "detail_no_thumbnail_icon", get_name());
         if (no_thumb) {
@@ -1784,9 +1849,22 @@ helix::printer::RemapBlock PrintSelectDetailView::current_remap_block() const {
     if (backend == nullptr) {
         return helix::printer::RemapBlock::NoStrategy;
     }
-    return helix::printer::remap_block(
-        *backend, get_printer_state().plugin_status_state().helix_plugin_state(),
-        static_cast<int>(get_used_tool_info().size()));
+    return helix::printer::remap_block(*backend, rewrite_block(),
+                                       static_cast<int>(get_used_tool_info().size()));
+}
+
+helix::GcodeRewriteBlock PrintSelectDetailView::rewrite_block() const {
+    // Before set_analysis_dependencies() the view reads the app's printer, as
+    // the rest of the card's remap answer does.
+    return PrintPreparationManager::gcode_rewrite_block_for(
+        printer_state_ ? printer_state_ : &get_printer_state(), api_);
+}
+
+void PrintSelectDetailView::publish_rewrite_availability() {
+    if (!subjects_initialized_) {
+        return; // init_subjects() publishes once the subject exists
+    }
+    lv_subject_set_int(&gcode_rewrite_available_, helix::gcode_rewrite_available(rewrite_block()));
 }
 
 void PrintSelectDetailView::on_color_card_clicked() {
@@ -1977,7 +2055,7 @@ void PrintSelectDetailView::toggle_exclude_mode() {
         exclude_mode_.hide();
         return;
     }
-    if (!overlay_root_) {
+    if (!tree_alive()) {
         return;
     }
     helix::ui::ExcludeModeTargets targets;
@@ -2536,6 +2614,10 @@ void PrintSelectDetailView::load_gcode_for_preview() {
 }
 
 void PrintSelectDetailView::begin_viewer_load(const std::string& path) {
+    // Reached from a download callback, after which the tree may have died.
+    if (!gcode_viewer_) {
+        return;
+    }
     viewer_file_ = current_filename_;
     // Set up the (single) load callback, then load the file. The body was
     // identical in the former cached-file and post-download paths.
@@ -2647,8 +2729,8 @@ static void update_prep_time_label() {
 //
 // Per-row visibility: the renderer's `VisibilitySubjectLookup` callback is
 // invoked for each option; returning nullptr leaves the row unconditionally
-// visible. Today only the plugin-gated predicate returns a non-null subject
-// (the helix_plugin_installed tri-state); macro-gated options are filtered
+// visible. Only the rewrite-gated predicate returns a non-null subject
+// (gcode_rewrite_available_, a tri-state); macro-gated options are filtered
 // out of the set BEFORE populate() is called (see
 // filter_macro_gated_options), so the lookup never sees them.
 
@@ -2708,12 +2790,12 @@ void PrintSelectDetailView::populate_option_rows() {
                       option_set.options.size() - rendered.options.size(), current_type);
     }
 
-    // Plugin-gated visibility: HIDE a toggle only when DISABLING it would
-    // require the HelixPrint plugin (see
+    // Rewrite-gated visibility: HIDE a toggle only when DISABLING it would
+    // require rewriting the job (see
     // PrintPreparationManager::disabling_option_requires_plugin). For those
-    // options we bind the row to the helix_plugin_installed tri-state subject;
-    // the renderer hides the row when it reads 0 (plugin confirmed absent) and
-    // keeps it visible at -1 (still checking, startup window) and 1 (present).
+    // options we bind the row to gcode_rewrite_available_; the renderer hides
+    // the row when it reads 0 (no plugin, or a transport that keeps no local
+    // copy) and keeps it visible at -1 (still checking, startup window) and 1.
     //
     // CAUTION — do NOT hide options the printer handles natively without the
     // plugin. K2 Plus bed_mesh is a MacroParam whose START_PRINT/PRINT_PREPARED
@@ -2726,7 +2808,7 @@ void PrintSelectDetailView::populate_option_rows() {
         }
         const PrePrintOption* opt = rendered.find(id);
         if (opt && prep_manager_->disabling_option_requires_plugin(*opt)) {
-            return printer_state_->plugin_status_state().get_helix_plugin_installed_subject();
+            return &gcode_rewrite_available_;
         }
         return nullptr; // Not plugin-dependent: always visible for declared options.
     };

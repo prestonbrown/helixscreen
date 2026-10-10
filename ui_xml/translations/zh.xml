@@ -773,6 +773,7 @@
   <translation tag="Customize Macro Button" zh="自定义宏按钮"/>
   <translation tag="Customize preset temperatures" zh="自定义预设温度"/>
   <translation tag="Customize your home screen" zh="自定义主屏幕"/>
+  <translation tag="Cut &amp; retract" zh="切断并回抽"/>
   <translation tag="Cut Distance" zh="切割距离"/>
   <translation tag="Cut filament" zh="切断耗材"/>
   <translation tag="Cut position saved: {}" zh="切割位置已保存: {}"/>
@@ -1274,6 +1275,7 @@
   <translation tag="Forget Network?" zh="忘记网络？"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." zh="忘记网络 &apos;{}&apos;？重新连接时需要密码。"/>
   <translation tag="Form tip" zh="成型尖端"/>
+  <translation tag="Form tip &amp; retract" zh="成型尖端并回抽"/>
   <translation tag="Forming Tip" zh="形成尖端"/>
   <translation tag="Forming tip..." zh="正在成型尖端..."/>
   <translation tag="Forward Multiplier" zh="正向倍率"/>

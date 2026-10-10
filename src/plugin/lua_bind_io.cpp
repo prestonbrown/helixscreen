@@ -259,6 +259,25 @@ int settings_on_change(lua_State* L) {
     return 0;
 }
 
+int settings_set(lua_State* L) {
+    auto& ctx = context(L);
+    std::string key = luaL_checkstring(L, 1);
+    const SettingDecl* d = find_decl(ctx.manifest, key);
+    if (!d)
+        return luaL_error(L, "helix.settings.set: '%s' is not declared in manifest.json",
+                          key.c_str());
+    if (d->type == SettingType::Action || d->type == SettingType::Info)
+        return luaL_error(L, "helix.settings.set: '%s' is a read-only row", key.c_str());
+    // fits() inside set_plugin_setting is the single acceptance rule, so the
+    // generated settings rows and this call agree on every value.
+    json value = to_json(L, 2);
+    if (!set_plugin_setting(ctx, key, value))
+        return luaL_error(
+            L, "helix.settings.set: value rejected for '%s' (wrong type or out of range)",
+            key.c_str());
+    return 0;
+}
+
 } // namespace
 
 std::string plugin_storage_path(const std::string& settings_path, const std::string& id) {
@@ -312,8 +331,10 @@ void install_io_bindings(PluginContext& ctx) {
         {"get", &http_get}, {"post", &http_post}, {nullptr, nullptr}};
     static const luaL_Reg storage_fns[] = {
         {"get", &storage_get}, {"set", &storage_set}, {nullptr, nullptr}};
-    static const luaL_Reg settings_fns[] = {
-        {"get", &settings_get}, {"on_change", &settings_on_change}, {nullptr, nullptr}};
+    static const luaL_Reg settings_fns[] = {{"get", &settings_get},
+                                            {"set", &settings_set},
+                                            {"on_change", &settings_on_change},
+                                            {nullptr, nullptr}};
     lua_getglobal(L, "helix");
     for (auto [name, fns] : {std::pair{"http", http_fns}, std::pair{"storage", storage_fns},
                              std::pair{"settings", settings_fns}}) {

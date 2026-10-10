@@ -1,0 +1,26 @@
+{
+  "id": "maintenance-meter",
+  "name": "Maintenance Meters",
+  "version": "0.2.0",
+  "author": "HelixScreen",
+  "description": "Hour meters for consumables (filter, nozzle, rails) as an adaptive home tile. Elapsed hours accrue from print time and persist on the screen.",
+  "permissions": ["storage"],
+  "widgets": [
+    {
+      "id": "maintenance-meter__tile",
+      "name": "Maintenance",
+      "icon": "wrench",
+      "description": "Consumable hour meters; grows a ring per meter as the tile grows",
+      "component": "maintenance-meter__tile",
+      "colspan": 1,
+      "rowspan": 1,
+      "max_colspan": 4,
+      "max_rowspan": 2
+    }
+  ],
+  "settings": [
+    { "key": "filter_interval_h", "type": "int", "label": "HEPA filter interval (h)", "min": 0, "max": 2000, "default": 200 },
+    { "key": "nozzle_interval_h", "type": "int", "label": "Nozzle interval (h)", "min": 0, "max": 2000, "default": 500 },
+    { "key": "rails_interval_h", "type": "int", "label": "Linear rails interval (h)", "min": 0, "max": 2000, "default": 300 }
+  ]
+}

@@ -24,6 +24,7 @@
 #include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 
 #include "app_globals.h"
 #include "bed_mesh_calibration_plan.h"
@@ -120,11 +121,9 @@ BedMeshPanel::~BedMeshPanel() {
         // content_ with user_data=this. StaticPanelRegistry::destroy_all() runs
         // BEFORE lv_deinit() and before a soft restart's explicit widget-tree
         // deletion, so `this` is freed while overlay_content is still live;
-        // the registration has to go with it. lv_obj_remove_event_cb() removes
-        // every registration of the callback, however many accumulated.
-        if (content_) {
-            lv_obj_remove_event_cb(content_, on_content_size_changed);
-        }
+        // the registration has to go with it, every one of them however many
+        // accumulated. content_ may also have died before this panel.
+        helix::ui::remove_event_cb_if_alive(content_, on_content_size_changed, this);
     }
 
     // Clear widget pointers (LVGL owns the objects)

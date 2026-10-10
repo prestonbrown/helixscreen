@@ -247,7 +247,7 @@ A stock OTA update **disables** ZMOD while preserving data; re-enable afterwards
 
 The AD5X has exactly one mod: ZMOD (ghzserg). Forge-X (DrA1ex/ff5m) is AD5M/Pro-only
 and states AD5X support is unlikely ever; xblax's klipper-mod
-(`xblax/flashforge_ad5m_klipper_mod` — see `docs/devel/AD5M_KMOD_VARIANT.md`) has been
+(`xblax/flashforge_ad5m_klipper_mod` — see [FLASHFORGE_AD5M_SUPPORT.md](FLASHFORGE_AD5M_SUPPORT.md#ad5m-br-building-inside-klipper-mod)) has been
 dormant since 2025-09. The three variants are mutually incompatible at the macro and
 binary level. FlashForge stock firmware has shipped no changelogs since mid-2025, and
 there is no AD5X GPL source drop. [upstream-doc]

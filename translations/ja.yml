@@ -796,6 +796,7 @@ translations:
   Customize Macro Button: マクロボタンをカスタマイズ
   Customize preset temperatures: プリセット温度をカスタマイズ
   Customize your home screen: ホーム画面をカスタマイズ
+  Cut & retract: '切断して引き戻し'
   Cut Distance: 'カット距離'
   Cut filament: フィラメントを切断
   'Cut position saved: {}': '切断位置を保存しました: {}'
@@ -1317,6 +1318,7 @@ translations:
   Forget Network?: ネットワークを登録解除しますか？
   Forget network '{}'? You will need the password to reconnect.: ネットワーク '{}' を登録解除しますか？再接続にはパスワードが必要です。
   Form tip: '先端を成形'
+  Form tip & retract: '先端を成形して引き戻し'
   Forming Tip: チップ形成中
   Forming tip...: チップを形成中...
   Forward Multiplier: '順方向倍率'

@@ -29,6 +29,23 @@ SettingDecl step_decl() {
     d.default_value = 5;
     return d;
 }
+
+SettingDecl flag_decl() {
+    SettingDecl d;
+    d.key = "flag";
+    d.label = "Flag";
+    d.type = SettingType::Bool;
+    d.default_value = false;
+    return d;
+}
+
+SettingDecl act_decl() {
+    SettingDecl d;
+    d.key = "fire";
+    d.label = "Fire";
+    d.type = SettingType::Action;
+    return d;
+}
 } // namespace
 
 TEST_CASE("storage path sits beside settings.json", "[plugin][bindings][io]") {
@@ -225,6 +242,47 @@ TEST_CASE_METHOD(LVGLTestFixture, "set_plugin_setting validates, saves and notif
     CHECK(b.t.global("v") == "9");
     CHECK(b.t.global("c") == "9");
     CHECK(b.saves == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "helix.settings.set writes through, notifies and refuses bad values",
+                 "[plugin][bindings][io]") {
+    BoundRuntime b({&install_io_bindings}, {}, {step_decl(), flag_decl(), act_decl()});
+    REQUIRE(b.t.run(R"(
+        changes = {}
+        helix.settings.on_change("step", function(v) changes[#changes + 1] = v end)
+        helix.settings.set("step", 7)
+        v = helix.settings.get("step")
+        c = table.concat(changes, ",")
+    )"));
+    CHECK(b.t.global("v") == "7");
+    CHECK(b.t.global("c") == "7");
+    CHECK(b.saves == 1);
+
+    // Out of range, wrong type, undeclared key and a read-only action row all
+    // refuse; a refusal neither saves nor notifies. Each refusal is a Lua
+    // error, so they run under pcall: the third uncaught error in 60 s would
+    // fault the runtime, which is not what this case is about.
+    REQUIRE(b.t.run(R"(
+        r1 = pcall(helix.settings.set, "step", 99)
+        r2 = pcall(helix.settings.set, "step", "9")
+        r3 = pcall(helix.settings.set, "nope", 1)
+        r4 = pcall(helix.settings.set, "fire", nil)
+        v = helix.settings.get("step")
+        c = table.concat(changes, ",")
+    )"));
+    CHECK(b.t.global("r1") == "false");
+    CHECK(b.t.global("r2") == "false");
+    CHECK(b.t.global("r3") == "false");
+    CHECK(b.t.global("r4") == "false");
+    CHECK(b.saves == 1);
+    CHECK(b.t.global("v") == "7");
+    CHECK(b.t.global("c") == "7");
+
+    // A bool row takes true and false, and each accepted write saves.
+    REQUIRE(b.t.run(R"(helix.settings.set("flag", true); v2 = helix.settings.get("flag"))"));
+    CHECK(b.t.global("v2") == "true");
+    CHECK(b.saves == 2);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

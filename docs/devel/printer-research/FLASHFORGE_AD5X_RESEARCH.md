@@ -2,7 +2,11 @@
 
 **Date**: 2026-02-02
 **Updated**: 2026-08-24 (ecosystem verification + first-party rig; see final section)
-**Status**: Comprehensive research complete
+**Status**: Pre-support research. Support has shipped: the platform is documented in
+[`../printers/FLASHFORGE_AD5X_SUPPORT.md`](../printers/FLASHFORGE_AD5X_SUPPORT.md) and the IFS backend in
+[`../FILAMENT_BACKEND_AD5X_IFS.md`](../FILAMENT_BACKEND_AD5X_IFS.md). The live-device runtime environment is in
+[`FLASHFORGE_AD5X_PLATFORM_NOTES.md`](FLASHFORGE_AD5X_PLATFORM_NOTES.md), which also corrects the hardware table
+below (800x480 display, 485 MB RAM), and the IFS protocol in [`FLASHFORGE_AD5X_IFS_ANALYSIS.md`](FLASHFORGE_AD5X_IFS_ANALYSIS.md).
 
 ## Executive Summary
 
@@ -206,45 +210,7 @@ echo 4 > /sys/class/graphics/fb0/blank
 
 ---
 
-## 9. HelixScreen Compatibility Assessment
-
-### Major Challenges
-
-| Challenge | Severity | Notes |
-|-----------|----------|-------|
-| **Architecture** | CRITICAL | MIPS, not ARM - full toolchain rebuild |
-| **Toolchain** | CRITICAL | Cannot reuse AD5M Docker environment |
-| **No Forge-X** | HIGH | Our AD5M support relies on Forge-X |
-| **ZMOD Integration** | MEDIUM | Need to integrate with ZMOD instead |
-| **IFS System** | MEDIUM | Multi-color workflow needs UI |
-
-### What Would Be Needed
-
-1. **New Toolchain**
-   - Rebuild Buildroot for MIPS architecture
-   - New Docker build environment
-   - Test static linking
-
-2. **ZMOD Integration**
-   - Replace Forge-X-specific paths
-   - Adapt installer for ZMOD structure
-   - Test with `DISPLAY_OFF` mode
-
-3. **Display Compatibility**
-   - Same resolution concept as AD5M (720x480)
-   - Same framebuffer interface
-
-4. **IFS Support**
-   - UI for multi-color workflow
-   - Current filament/color status
-   - Filament change prompts
-
-### Estimated Effort
-**HIGH** - This is a new platform port, not a minor variant.
-
----
-
-## 10. Comparison: AD5X vs AD5M Pro
+## 9. Comparison: AD5X vs AD5M Pro
 
 | Feature | AD5X | AD5M Pro |
 |---------|------|----------|
@@ -266,7 +232,7 @@ echo 4 > /sys/class/graphics/fb0/blank
 
 ---
 
-## 11. Community Resources
+## 10. Community Resources
 
 ### GitHub
 
@@ -284,32 +250,6 @@ echo 4 > /sys/class/graphics/fb0/blank
 ### Documentation
 - [ZMOD Wiki](https://github.com/ghzserg/zmod/wiki)
 - [ZMOD AD5X Page](https://github.com/ghzserg/zmod/wiki/AD5X_en)
-
----
-
-## Recommendations
-
-### Short Term
-1. ~~**Do NOT prioritize AD5X support**~~ *[superseded 2026-08: support shipped — MIPS
-   build, ZMOD integration, and the IFS backend are all in tree; see
-   `FILAMENT_BACKEND_AD5X_IFS.md`]*
-2. **Monitor ZMOD development** - if they produce ARM binaries, reassess
-3. ~~**Verify architecture claims**~~ *[resolved: Ingenic XBurst II MIPS32r2/r5,
-   per the April live capture in `FLASHFORGE_AD5X_PLATFORM_NOTES.md` — which also
-   corrects this doc's early hardware table: 800x480 display, 485 MB RAM]~
-
-### Medium Term (if demand justifies)
-1. ~~Acquire AD5X unit for development~~ *[done 2026-08-23 — first-party rig,
-   commissioned; see PLATFORM_NOTES "Helix Rig Observations"]~
-2. ~~Create MIPS Buildroot environment~~ *[shipped - `make ad5x-docker`]~
-3. ~~Develop ZMOD integration layer~~ *[shipped]~
-4. ~~Design IFS multi-color UI~~ *[shipped - `ams_backend_ad5x_ifs`]~
-
----
-
-## Conclusion
-
-The AD5X is essentially a **new platform** requiring significant effort to support - different architecture than AD5M, no Forge-X support, and a unique multi-color system (IFS). Wait for clearer architecture info or community MIPS tooling before investing in support.
 
 ---
 

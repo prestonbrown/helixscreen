@@ -55,8 +55,7 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     // The long-press chain minus its private trampolines: selection state,
     // confirmation modal (which does NOT need the detail view), then the
     // confirm handler's body. The detail overlay is never shown or pushed.
-    panel_->set_selected_file(file.name().c_str(), "", "", "1h", "10 g", "--", "--", time(nullptr),
-                              "0.2 mm", "PLA");
+    panel_->set_selected_file(file.name().c_str(), "", "1h", "10 g", "--", "--", "0.2 mm", "PLA");
     panel_->show_delete_confirmation();
     panel_->delete_file();
     drain();

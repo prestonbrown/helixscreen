@@ -711,7 +711,7 @@ else ifeq ($(PLATFORM_TARGET),yocto)
     # --march, security, and optimization flags. We add nothing that could
     # conflict — the recipe's DEPENDS supplies every vendored library we'd
     # otherwise build from submodule (libhv, spdlog, fmt, alsa-lib, libdrm,
-    # libusb, libnl, wpa-supplicant, etc.). See docs/devel/YOCTO_BUILD.md.
+    # libusb, libnl, wpa-supplicant, etc.). See docs/devel/printers/ELEGOO_CENTAURI_CARBON_YOCTO.md.
     # -------------------------------------------------------------------------
     # Bitbake passes CROSS_COMPILE=yocto- as a sentinel; clear it so the
     # prefix-based CC/CXX override below does not run (bitbake's CC already

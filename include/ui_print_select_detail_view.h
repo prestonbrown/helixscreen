@@ -673,6 +673,54 @@ class PrintSelectDetailView : public OverlayBase {
   private:
     friend class ::PrintSelectDetailViewTestAccess;
 
+    /**
+     * @brief LV_EVENT_DELETE hook on the detail root: the only notice this view
+     *        gets when the tree is deleted by anything other than
+     *        destroy_overlay_ui()
+     *
+     * Queued observers, timers and load callbacks would otherwise reach the
+     * freed children through the cached pointers. Drops them via
+     * forget_cached_widgets() and marks the tree dead; the teardown proper
+     * waits for reclaim_deleted_tree(), outside LVGL's delete event.
+     */
+    static void on_root_deleted(lv_event_t* e);
+
+    /**
+     * @brief Finish the teardown of a tree on_root_deleted() marked dead
+     *
+     * Drops the navigation registration and overlay_root_, then runs
+     * on_ui_destroyed(), so the next show() re-creates the tree. A no-op while
+     * the tree is alive. show(), hide() and cleanup() call it first.
+     */
+    void reclaim_deleted_tree();
+
+    /// overlay_root_ is set and still names a live tree.
+    [[nodiscard]] bool tree_alive() const {
+        return overlay_root_ != nullptr && !tree_deleted_;
+    }
+
+    /**
+     * @brief Drop every cached pointer to a child of the detail tree
+     *
+     * Idempotent, and touches no LVGL object, so it is safe from inside LVGL's
+     * delete event. Called by on_root_deleted() and on_ui_destroyed(). Leaves
+     * overlay_root_ alone: reclaim_deleted_tree() needs it to drop the
+     * navigation registration keyed on it.
+     */
+    void forget_cached_widgets();
+
+    /// Take the delete hook off delete_hook_root_, if that widget is still alive.
+    void uninstall_root_delete_hook();
+
+    /// The root on_root_deleted() is installed on. Cleared only by the hook firing
+    /// or by uninstall_root_delete_hook(), so a replaced root's late delete event
+    /// is told apart from the live tree's.
+    lv_obj_t* delete_hook_root_ = nullptr;
+
+    /// Set by on_root_deleted(): overlay_root_ names freed memory until
+    /// reclaim_deleted_tree() runs.
+    bool tree_deleted_ = false;
+
     // === Dependencies ===
     IMoonrakerAPI* api_ = nullptr;
     PrinterState* printer_state_ = nullptr;
@@ -860,6 +908,10 @@ class PrintSelectDetailView : public OverlayBase {
     // the copy is chosen when the icon is tapped, not when it is published.
     lv_subject_t color_card_remap_help_visible_{};
     lv_subject_t empty_tools_warning_{}; // 1 = at least one used tool's slot is empty
+    // Whether a job rewrite can run, in the tri-state the pre-print option rows
+    // that need one bind their visibility to: 1 yes, 0 no, -1 not known yet.
+    // Published by publish_rewrite_availability().
+    lv_subject_t gcode_rewrite_available_{};
     // Cached backend-agnostic pre-flight validation result for the current file.
     // Computed in try_extract_gcode_colors() once the gcode is parsed; the single
     // source of truth driving filament_mismatch_ + empty_tools_warning_ (works
@@ -1226,6 +1278,9 @@ class PrintSelectDetailView : public OverlayBase {
      * backfill, a fresh used-tool set) must run `update()` BEFORE this.
      */
     void publish_card_visibility();
+    /// Why a job rewrite cannot run right now, or None.
+    [[nodiscard]] helix::GcodeRewriteBlock rewrite_block() const;
+    void publish_rewrite_availability();
 
     /**
      * @brief Render the authoritative chip state for a known used-tool set.

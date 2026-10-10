@@ -24,11 +24,25 @@ git submodule update --init --recursive
 
 ### macOS (Homebrew)
 ```bash
-brew install cmake bear imagemagick python3 node shellcheck bats-core
+brew install cmake bear imagemagick python3 node shellcheck bats-core make bash coreutils
 npm install         # lv_font_conv and lv_img_conv
 make venv-setup     # Python venv with pypng/lz4
 ```
 **Minimum:** macOS 10.15 (Catalina) for CoreWLAN/CoreLocation WiFi APIs.
+
+`make`, `bash` and `coreutils` replace Apple's stock versions, which are too
+old for this tree: the build's parallel re-invoke needs GNU make 4+ (Apple
+ships 3.81), `scripts/helix-claim` needs bash 4+ (Apple ships 3.2), and the
+build scripts call `nproc`/`timeout` from coreutils. Homebrew installs GNU
+make as `gmake`; put its gnubin directory first on PATH so plain `make`
+resolves to it:
+
+```bash
+export PATH="/opt/homebrew/opt/make/libexec/gnubin:$PATH"
+```
+
+The git hooks and `scripts/` inherit that PATH, so the pre-commit build and
+`helix-claim` run under the same toolchain.
 
 ### Debian/Ubuntu
 ```bash
@@ -104,7 +118,7 @@ Before your first change, get the whole-app picture: one pattern everywhere —
 subsystem" table. It lives in one place, the router:
 
 → **[ARCHITECTURE.md](ARCHITECTURE.md)** — the 15-minute model, routing into the
-15-chapter [architecture guide](architecture/README.md).
+17-chapter [architecture guide](architecture/README.md).
 
 ## Workflow Tips
 
@@ -124,7 +138,7 @@ subsystem" table. It lives in one place, the router:
   — an annotated walkthrough of a real settings overlay, plus a pattern tour for
   bigger features.
 - **Rather explore by subsystem?** → [architecture/README.md](architecture/README.md)
-  — the "I want to work on..." index into the 15-chapter architecture guide.
+  — the "I want to work on..." index into the 17-chapter architecture guide.
 - **Looking for an issue?** Browse the [open issues](https://github.com/prestonbrown/helixscreen/issues)
   and pick one that looks approachable. Debug/fix work is a fast way to get familiar
   with the codebase and its patterns — no specific ticket required, just find

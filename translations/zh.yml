@@ -794,6 +794,7 @@ translations:
   Customize Macro Button: 自定义宏按钮
   Customize preset temperatures: 自定义预设温度
   Customize your home screen: 自定义主屏幕
+  Cut & retract: '切断并回抽'
   Cut Distance: '切割距离'
   Cut filament: 切断耗材
   'Cut position saved: {}': '切割位置已保存: {}'
@@ -1313,6 +1314,7 @@ translations:
   Forget Network?: 忘记网络？
   Forget network '{}'? You will need the password to reconnect.: 忘记网络 '{}'？重新连接时需要密码。
   Form tip: '成型尖端'
+  Form tip & retract: '成型尖端并回抽'
   Forming Tip: 形成尖端
   Forming tip...: 正在成型尖端...
   Forward Multiplier: '正向倍率'

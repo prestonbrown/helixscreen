@@ -167,7 +167,7 @@ TEST_CASE_METHOD(BeltApiFixture, "missing and multi-chip files become errors", "
         pump_until(failed);
         CHECK(failed);
     };
-    expect_error_containing(BeltMockFailure::NOFILE, "printer's own computer");
+    expect_error_containing(BeltMockFailure::NO_FILE, "printer's own computer");
     expect_error_containing(BeltMockFailure::MULTICHIP, "More than one accelerometer");
 }
 

@@ -123,14 +123,10 @@ FanDial::~FanDial() {
 
     // Remove event callbacks to prevent stale 'this' dispatch if events
     // are still pending in the LVGL event queue after widget deletion
-    if (arc_) {
-        lv_obj_remove_event_cb(arc_, on_arc_value_changed);
-        lv_obj_remove_event_cb(arc_, on_arc_released);
-    }
-    if (onoff_switch_)
-        lv_obj_remove_event_cb(onoff_switch_, on_switch_changed);
-    if (fan_icon_)
-        lv_obj_remove_event_cb(fan_icon_, on_icon_clicked);
+    helix::ui::remove_event_cb_if_alive(arc_, on_arc_value_changed, this);
+    helix::ui::remove_event_cb_if_alive(arc_, on_arc_released, this);
+    helix::ui::remove_event_cb_if_alive(onoff_switch_, on_switch_changed, this);
+    helix::ui::remove_event_cb_if_alive(fan_icon_, on_icon_clicked, this);
 
     spdlog::trace("[FanDial] Destroyed '{}'", name_);
 }

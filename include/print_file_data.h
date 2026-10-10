@@ -184,29 +184,37 @@ UsbCopyTarget choose_usb_copy_target(const std::string& filename, uint64_t size,
  * - Only candidates are entries whose previous fetch claimed success
  *   (metadata_fetched == true). Everything else needs a fresh fetch anyway.
  * - Drop the cache if the file was re-sliced (size changed).
- * - Drop the cache on panel activation if the entry has no thumbnail_path. This
+ * - Drop the cache on panel activation if the entry has no thumbnail. This
  *   self-heals files whose upload-time metadata extraction failed transiently in
- *   Moonraker (JSON-RPC -32601 "Metadata not available"): without this one-shot
- *   retry, metadata_fetched stays true forever and the card shows the placeholder
- *   permanently even after Moonraker recovers.
+ *   Moonraker (JSON-RPC -32601 "Metadata not available"), and a card thumbnail
+ *   whose download failed: without this one-shot retry, metadata_fetched stays
+ *   true forever and the card shows the placeholder permanently even after
+ *   Moonraker recovers. What counts as having one follows the transport: one
+ *   that keeps local copies holds the thumbnail as a local thumbnail_path; one
+ *   that keeps none never sets that path, so its original_thumbnail_url is the
+ *   thumbnail, and dropping those entries throws away the images they hold.
  *
  * @param old_entry Cached entry from previous file_list_
  * @param new_file_size File size from the fresh Moonraker listing
  * @param retry_missing_thumbnails True on panel activation: drop cached entries
- *                                 whose thumbnail_path is empty so they get one
- *                                 retry this visit
+ *                                 with no thumbnail so they get one retry this
+ *                                 visit
+ * @param keeps_local_copies ITransfersAPI::supports_local_copies()
  * @return true to carry forward cached metadata, false to let it re-fetch fresh
  */
 inline bool should_carry_forward_print_file_metadata(const PrintFileData& old_entry,
                                                      size_t new_file_size,
-                                                     bool retry_missing_thumbnails) {
+                                                     bool retry_missing_thumbnails,
+                                                     bool keeps_local_copies) {
     if (!old_entry.metadata_fetched) {
         return false;
     }
     if (new_file_size != old_entry.file_size_bytes) {
         return false;
     }
-    if (retry_missing_thumbnails && old_entry.thumbnail_path.empty()) {
+    const bool has_thumbnail = keeps_local_copies ? !old_entry.thumbnail_path.empty()
+                                                  : !old_entry.original_thumbnail_url.empty();
+    if (retry_missing_thumbnails && !has_thumbnail) {
         return false;
     }
     return true;
@@ -224,11 +232,13 @@ inline bool should_carry_forward_print_file_metadata(const PrintFileData& old_en
  * @param files Fresh listing, updated in place
  * @param previous Previous file list; its entries are moved from
  * @param retry_missing_thumbnails See should_carry_forward_print_file_metadata
+ * @param keeps_local_copies See should_carry_forward_print_file_metadata
  */
 namespace helix {
 inline void carry_forward_print_file_metadata(std::vector<PrintFileData>& files,
                                               std::vector<PrintFileData>& previous,
-                                              bool retry_missing_thumbnails) {
+                                              bool retry_missing_thumbnails,
+                                              bool keeps_local_copies) {
     std::unordered_map<std::string, PrintFileData> cached;
     for (auto& f : previous) {
         if (f.metadata_fetched) {
@@ -242,7 +252,8 @@ inline void carry_forward_print_file_metadata(std::vector<PrintFileData>& files,
         }
         const time_t modified = f.modified_timestamp;
         const size_t size = f.file_size_bytes;
-        if (should_carry_forward_print_file_metadata(it->second, size, retry_missing_thumbnails)) {
+        if (should_carry_forward_print_file_metadata(it->second, size, retry_missing_thumbnails,
+                                                     keeps_local_copies)) {
 #if defined(HELIX_PLATFORM_ESP32)
             // A re-upload of the same size is a different picture.
             if (it->second.modified_timestamp != modified) {

@@ -335,6 +335,19 @@ inline void invalidate_all_recursive(lv_obj_t* obj) {
 }
 
 /**
+ * @brief Remove @p owner's registrations of @p cb from @p obj if @p obj is still alive
+ *
+ * For an owner's destructor whose cached widget may be gone: its tree can die
+ * first, or LVGL can already be deinitialised. lv_obj_is_valid() walks the
+ * live tree and never dereferences @p obj, so a freed pointer is skipped.
+ */
+inline void remove_event_cb_if_alive(lv_obj_t* obj, lv_event_cb_t cb, void* owner) {
+    if (obj && lv_is_initialized() && lv_obj_is_valid(obj)) {
+        lv_obj_remove_event_cb_with_user_data(obj, cb, owner);
+    }
+}
+
+/**
  * @brief Comprehensively safe deletion of a whole widget subtree
  *
  * Makes an LVGL layout pass (grid_update / flex_update) on a being-deleted

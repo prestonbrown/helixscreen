@@ -4,6 +4,7 @@
 #include "ui_preflight_check_modal.h"
 
 #include "ui_icon.h"
+#include "ui_print_preparation_manager.h"
 #include "ui_swatch.h"
 #include "ui_utils.h"
 
@@ -77,14 +78,16 @@ void PreflightCheckModal::on_show() {
 
     // Remap is only offered when a remap can actually be carried out, which is
     // more than the backend's declared route: a route it has not discovered yet
-    // (AD5X IFS before `_IFS_VARS`), a job with no tools, or a rewrite with no
-    // HelixPrint plugin all end in a refusal the opener would have to deliver.
+    // (AD5X IFS before `_IFS_VARS`), a job with no tools, or a rewrite that
+    // cannot run (no HelixPrint plugin, or a transport that keeps no local copy)
+    // all end in a refusal the opener would have to deliver.
     // One tool check per tool, so checks.size() is this job's tool count.
     auto block = helix::printer::RemapBlock::NoStrategy;
     if (auto* backend = AmsState::instance().get_backend()) {
-        block = helix::printer::remap_block(
-            *backend, get_printer_state().plugin_status_state().helix_plugin_state(),
-            static_cast<int>(result_.checks.size()));
+        block = helix::printer::remap_block(*backend,
+                                            PrintPreparationManager::gcode_rewrite_block_for(
+                                                &get_printer_state(), get_moonraker_api()),
+                                            static_cast<int>(result_.checks.size()));
     }
     const bool remap_supported = block == helix::printer::RemapBlock::None;
     if (auto* remap_btn = find_widget("btn_tertiary")) {

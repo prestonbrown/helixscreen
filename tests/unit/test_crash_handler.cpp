@@ -1452,6 +1452,10 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: a stack overflow still writes the cra
     REQUIRE(result.contains("memory_map"));
 }
 
+// TSan refuses to start a thread in a child forked from a multi-threaded
+// process, so under it the worker never runs. Both spellings of the guard are
+// required: GCC defines __SANITIZE_THREAD__, clang answers only __has_feature.
+#if !defined(__SANITIZE_THREAD__) && !(defined(__has_feature) && __has_feature(thread_sanitizer))
 TEST_CASE_METHOD(CrashTestFixture,
                  "Crash: a stack overflow on a make_thread worker still writes the crash file",
                  "[telemetry][crash][subprocess]") {
@@ -1480,6 +1484,7 @@ TEST_CASE_METHOD(CrashTestFixture,
     REQUIRE(result.contains("stack_dump"));
     REQUIRE(result.contains("memory_map"));
 }
+#endif
 
 #if defined(__linux__)
 #include <cstddef>

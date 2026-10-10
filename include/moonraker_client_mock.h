@@ -58,7 +58,7 @@ enum class BeltMockFailure { // NAMESPACE_OK: sits beside MoonrakerClientMock, t
                              // global-scope mock API
     NONE,                    ///< Normal sweep: console lines plus a written CSV
     STALL,                   ///< Sweep dies at its midpoint; no file is ever reported
-    NOFILE,                  ///< Terminal line names a path that was never written
+    NO_FILE,                 ///< Terminal line names a path that was never written
     MULTICHIP,               ///< CSV carries per-chip columns instead of a summed psd_xyz
     ERROR,                   ///< Sweep dies after 3 lines with an adxl345 id mismatch
     KALICO,                  ///< Kalico dialect: two-part axis names, extra accel_per_hz column

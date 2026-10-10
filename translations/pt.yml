@@ -865,6 +865,7 @@ translations:
   Customize Macro Button: Personalizar Botão de Macro
   Customize preset temperatures: Personalizar temperaturas predefinidas
   Customize your home screen: Personalize sua tela inicial
+  Cut & retract: 'Cortar e retrair'
   Cut Distance: 'Distância de corte'
   Cut filament: Cortar filamento
   'Cut position saved: {}': 'Posição de corte salva: {}'
@@ -1406,6 +1407,7 @@ translations:
   Forget Network?: Esquecer Rede?
   Forget network '{}'? You will need the password to reconnect.: Esquecer a rede '{}'? Você precisará da senha para reconectar.
   Form tip: 'Formar a ponta'
+  Form tip & retract: 'Formar a ponta e retrair'
   Forming Tip: Formando ponta
   Forming tip...: Formando ponta...
   Forward Multiplier: 'Multiplicador de avanço'

@@ -494,4 +494,4 @@ codebase is organized the same way — one subsystem per chapter, about an hour
 each to read. Find yours:
 
 → **[architecture/README.md](architecture/README.md)** — the "I want to work
-on..." index into the 15-chapter architecture guide.
+on..." index into the 17-chapter architecture guide.

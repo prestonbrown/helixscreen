@@ -95,10 +95,12 @@ config HELIX_MOCK_PRINTER
     bool "Compile the mock Moonraker client into the app core"
     default n
     help
-        Adds the mock client/API sources to the helixapp component and defines
-        HELIX_ENABLE_MOCKS=1, so the UI can be driven from synthetic printer
-        state with no live Moonraker. Off by default: production firmware talks
-        to a real printer over EspMoonrakerClient. Development-only.
+        Adds ams_backend_mock.cpp to the helixapp component and runs a
+        firmware-local synthetic printer driver (app_boot.cpp) instead of the
+        real connection, so the UI can be driven from synthetic printer state
+        with no live Moonraker. HELIX_ENABLE_MOCKS is never defined on ESP32.
+        Off by default: production firmware talks to a real printer over
+        EspMoonrakerClient. Development-only.
 
 config HELIX_AMS_HTTP_POLL_BACKENDS
     bool "Enable HTTP-polling AMS backends (ACE, AD5X IFS)"

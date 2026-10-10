@@ -832,6 +832,7 @@ translations:
   Customize Macro Button: Customize Macro Button
   Customize preset temperatures: Customize preset temperatures
   Customize your home screen: Customize your home screen
+  Cut & retract: Cut & retract
   Cut Distance: Cut Distance
   Cut filament: Cut filament
   'Cut position saved: {}': 'Cut position saved: {}'
@@ -1358,6 +1359,7 @@ translations:
   Forget Network?: Forget Network?
   Forget network '{}'? You will need the password to reconnect.: Forget network '{}'? You will need the password to reconnect.
   Form tip: Form tip
+  Form tip & retract: Form tip & retract
   Forming Tip: Forming Tip
   Forming tip...: Forming tip...
   Forward Multiplier: Forward Multiplier

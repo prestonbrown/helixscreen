@@ -4,6 +4,7 @@
 #include "panel_factory.h"
 
 #include "ui_component_keypad.h"
+#include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_advanced.h"
 #include "ui_panel_common.h"
@@ -126,6 +127,31 @@ void PanelFactory::build_deferred_panel(int panel_id) {
 #endif
 }
 
+void IdlePrebuilder::start(Hooks hooks) {
+    hooks_ = std::move(hooks);
+    gate_ = IdlePrebuildGate{};
+    timer_.reset(lv_timer_create(on_timer, kPeriodMs, this));
+}
+
+void IdlePrebuilder::on_timer(lv_timer_t* timer) {
+    static_cast<IdlePrebuilder*>(lv_timer_get_user_data(timer))->tick();
+}
+
+void IdlePrebuilder::tick() {
+    if (!running()) {
+        return;
+    }
+    if (hooks_.built()) {
+        timer_.reset(); // a visit built it first
+        return;
+    }
+    if (!gate_.tick(hooks_.sample())) {
+        return;
+    }
+    hooks_.build();
+    timer_.reset();
+}
+
 void PanelFactory::setup_panels(lv_obj_t* screen) {
     m_screen = screen; // setup() target for eager + deferred panels
     // Register panels with navigation system
@@ -141,6 +167,29 @@ void PanelFactory::setup_panels(lv_obj_t* screen) {
     setup_one_panel(static_cast<int>(PanelId::Home));
     NavigationManager::instance().activate_initial_panel();
     spdlog::debug("[PanelFactory] Home panel set up; 5 panels deferred to first navigation");
+    // Print Files is the panel a session visits first and most. Its build is a
+    // fraction of a second, so it is paid at an idle moment instead of on the
+    // tap; the others stay on first navigation.
+    constexpr int kPrintSelect = static_cast<int>(PanelId::PrintSelect);
+    m_idle_prebuilder.start({
+        [this] { return m_panels[kPrintSelect] != nullptr; },
+        [] {
+            IdlePrebuildInputs in;
+            in.connected =
+                lv_subject_get_int(
+                    get_printer_state().network_state().get_printer_connection_state_subject()) ==
+                static_cast<int>(ConnectionState::CONNECTED);
+            in.inactive_ms = lv_display_get_inactive_time(nullptr);
+            in.busy = is_wizard_active() || Modal::any_visible() ||
+                      NavigationManager::instance().has_open_overlays();
+            return in;
+        },
+        [this] {
+            spdlog::info("[PanelFactory] Building '{}' while idle, ahead of its first visit",
+                         PANEL_NAMES[kPrintSelect]);
+            build_deferred_panel(kPrintSelect);
+        },
+    });
     return;
 #endif
 

@@ -101,7 +101,7 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
 
 # Real v1 Core+AMS gate set (the plan's compile definitions). Excluded
 # subsystems compile out via these; kept files that touch them see the #else
-# no-op branch. HELIX_ENABLE_MOCKS is added only when CONFIG_HELIX_MOCK_PRINTER.
+# no-op branch. HELIX_ENABLE_MOCKS is never defined here (see the NOTE below).
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HELIX_VERSION="0.0.0-esp32"
     HELIX_VERSION_MAJOR=0 HELIX_VERSION_MINOR=0 HELIX_VERSION_PATCH=0

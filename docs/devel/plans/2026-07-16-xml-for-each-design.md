@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-16
 **Status:** DRAFT — motivation + approaches captured; the core "collection model" decision is OPEN and MUST be confirmed before an implementation plan. **Do not implement from this doc as-is.**
-**Scope:** MAJOR, and the highest-effort of the three parser enhancements — depending on the chosen model it touches the LVGL subject core. Feature 3 of `docs/devel/plans/2026-07-16-xml-parser-enhancements-design.md`. Feature 1 (`${expr}`) and Feature 2 (`<if>/<else>`) are SHIPPED.
+**Scope:** MAJOR, and the highest-effort of the three parser enhancements — depending on the chosen model it touches the LVGL subject core. Feature 3 of the parser-enhancements design. Feature 1 (`${expr}`) and Feature 2 (`<if>/<else>`) are SHIPPED.
 
 ## The question this feature must answer first
 

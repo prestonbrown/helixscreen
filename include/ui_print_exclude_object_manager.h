@@ -137,6 +137,16 @@ class PrintExcludeObjectManager {
      */
     void set_gcode_viewer(lv_obj_t* gcode_viewer);
 
+    /**
+     * @brief Forget the gcode viewer without touching it
+     *
+     * For a viewer whose tree is being deleted: its long-press callback dies
+     * with it, and deinit() must not reach it afterwards.
+     */
+    void detach_gcode_viewer() {
+        gcode_viewer_ = nullptr;
+    }
+
     //
     // === Testing API ===
     //

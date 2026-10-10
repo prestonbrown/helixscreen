@@ -101,9 +101,7 @@ class ConsolePanel : public OverlayBase {
     /// been pruned from the buffer, which is the normal outcome for a tap that races
     /// a burst of incoming responses. Callers must handle nullptr; it is not an error.
     ///
-    /// Static and container-taking so it is testable without constructing a panel
-    /// (see the lifetime trap in
-    /// docs/devel/specs/2026-07-20-print-status-panel-test-isolation.md).
+    /// Static and container-taking so it is testable without constructing a panel.
     [[nodiscard]] static const GcodeEntry* find_entry_by_id(const std::deque<GcodeEntry>& entries,
                                                             uint64_t id);
 

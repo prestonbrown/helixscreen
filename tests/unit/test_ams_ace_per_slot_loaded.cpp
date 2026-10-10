@@ -24,6 +24,7 @@
 
 #include "ams_backend_ace.h"
 #include "ams_types.h"
+#include "test_helpers/ace_test_access.h"
 
 #include <json.hpp> // nlohmann/json from libhv
 #include <string>
@@ -59,9 +60,7 @@ class AcePerSlotLoadedHelper : public helix::AmsBackendAce {
     }
 
     void force_aggregate(int slot, bool loaded) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        system_info_.current_slot = slot;
-        system_info_.filament_loaded = loaded;
+        helix::AceTestAccess::set_seat(*this, slot, loaded);
     }
 };
 

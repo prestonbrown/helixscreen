@@ -2,7 +2,7 @@
 
 Developer reference for the QIDI Box's PTC filament-drying heater. Documents Klipper object schema, G-code command surfaces, firmware variants, and HelixScreen's integration points. Written to preserve findings that required significant research so the next developer doesn't start from scratch.
 
-**See also**: [FILAMENT_MANAGEMENT.md § Dryer / Box-Heater Control](FILAMENT_MANAGEMENT.md#dryer--box-heater-control)
+**See also**: [FILAMENT_MANAGEMENT.md § Dryer / Box-Heater Control](../FILAMENT_MANAGEMENT.md#dryer--box-heater-control)
 
 ---
 

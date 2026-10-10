@@ -2134,7 +2134,7 @@ Declared in `include/ams_backend.h`. The command virtuals default to `supported=
 
 The QIDI Box dryer uses the printer's standard `heater_generic heater_box<N>` Klipper object — the same safety system (temperature limits, watchdog) that applies to any Klipper heater. The active session timer is tracked via `box_extras.box_drying_state.box<N>` (fields `dry_state` and `end_time`). Remaining time is computed as `(end_time - now) / 60` since there is no native remaining-minutes field.
 
-See [QIDI_BOX_HEATER.md](QIDI_BOX_HEATER.md) for full reverse-engineering details: Klipper object schema, firmware command variants, config key spellings, and per-material drying tables.
+See [QIDI_BOX_HEATER.md](printer-research/QIDI_BOX_HEATER.md) for full reverse-engineering details: Klipper object schema, firmware command variants, config key spellings, and per-material drying tables.
 
 ### Happy Hare Specifics
 

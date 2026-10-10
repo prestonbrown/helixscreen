@@ -5,10 +5,13 @@ add home-panel tiles, overlays and settings without compiling anything: an autho
 text editor and the plugin folder, nothing else. This guide is the contract; every rule in
 it is enforced by code, cited so it can be verified against the source.
 
-Two complete plugins ship in the repository:
+Three complete plugins ship in the repository:
 
 - `examples/plugins/temp-spark` - a heater sparkline tile. No permissions.
 - `examples/plugins/led-effects` - an LED effect toggle. The `gcode` permission.
+- `examples/plugins/maintenance-meter` - consumable hour meters as an adaptive
+  tile. The `storage` permission; the step-by-step build of it is
+  `docs/devel/PLUGIN_TUTORIAL.md`.
 
 ## 1. What a plugin is
 
@@ -29,7 +32,7 @@ memory cap, and repeated errors disable the plugin while the app keeps running
 
 Deliberately out of scope: plugin-implemented capability backends (the binding design
 leaves room; none is built), multi-instance plugin widgets, plugin-to-plugin calls, raw
-`lv_obj` access, nav bar panels, and a plugin catalog, signing or install-from-URL.
+`lv_obj` access, nav bar panels, and a plugin catalog, signing or install-from-URL (§3 covers sharing).
 
 ## 2. Quick start
 
@@ -73,6 +76,12 @@ Settings > Plugins (`src/application/printer_session.cpp#on_plugin_sync`).
 A plugin over a sync limit is skipped whole and keeps its previous installed version
 (`include/plugin_source.h`): at most 128 files, 8 MB per plugin, 4 MB per file, and 32
 plugins in one listing.
+
+To share a plugin, or to find ones other people wrote, use the `#plugin-showcase` channel
+on the [HelixScreen Discord](https://discord.gg/RZCT2StKhr). Plugins posted there come from
+the community and are not reviewed by the HelixScreen project: read a plugin's
+`manifest.json` permissions and its Lua before you enable it. There is no in-app catalog
+(prestonbrown/helixscreen#1771).
 
 ## 4. Naming
 
@@ -147,9 +156,14 @@ becomes one row of the plugin's settings screen
 
 In Lua, `helix.settings.get(key)` returns the stored value if it still fits the
 declaration, else the default (`src/plugin/lua_bind_io.cpp#effective_setting`).
-`helix.settings.on_change(key, fn)` calls `fn(value)` after each accepted change; several
-handlers per key are allowed. An `action` row reaches its handler through the same path
-as a `plugin_event`.
+`helix.settings.set(key, value)` writes one of the plugin's own declared settings
+through the same validation, persistence and `on_change` notification the generated
+settings screen uses, so a plugin's own overlay can be the control surface; an
+undeclared key, a read-only `action`/`info` row, or a value the declaration rejects
+(min/max, enum membership, string size) raises.
+`helix.settings.on_change(key, fn)` calls `fn(value)` after each accepted change, from
+either path; several handlers per key are allowed. An `action` row reaches its handler
+through the same path as a `plugin_event`.
 
 Enable state and settings are shared across printers: enabling a plugin once enables it
 on every printer that ships it, under the same permission check.

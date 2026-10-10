@@ -52,6 +52,14 @@ class AceTestAccess {
         return true;
     }
 
+    /// State the driver's seat and publish it, without a frame.
+    static void set_seat(AmsBackendAce& b, int slot, bool loaded) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.system_info_.current_slot = slot;
+        b.seat_loaded_ = loaded;
+        b.system_info_.filament_loaded = loaded;
+    }
+
     /// Seed a running dry cycle so an update has elapsed time to preserve.
     static void set_dryer_run(AmsBackendAce& b, float target_c, int duration_min,
                               int remaining_min) {

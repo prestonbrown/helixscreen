@@ -30,6 +30,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/snapshot_backdrops_mode.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -289,6 +290,98 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     REQUIRE(nav.is_panel_in_stack(home_widget_));
     REQUIRE_FALSE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
     REQUIRE(lv_obj_has_flag(controls_widget_, LV_OBJ_FLAG_HIDDEN));
+}
+
+TEST_CASE_METHOD(OverlayActivationFixture,
+                 "set_active puts the new panel on screen before activating it",
+                 "[navigation][lifecycle]") {
+    auto& nav = NavigationManager::instance();
+    controls_panel_.activates = 0;
+
+    nav.set_active(PanelId::Controls);
+
+    // Nothing drained: a switch that paints before it returns (the ESP32 loading
+    // pill lifts with a forced refresh) must find the new panel already shown,
+    // not wait for the queued active_panel observer to un-hide it.
+    REQUIRE(controls_panel_.activates == 1);
+    REQUIRE(controls_panel_.visible_on_last_activate);
+    REQUIRE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+}
+
+namespace {
+int count_of(const std::string& text, const std::string& needle) {
+    int n = 0;
+    for (size_t at = text.find(needle); at != std::string::npos;
+         at = text.find(needle, at + needle.size())) {
+        ++n;
+    }
+    return n;
+}
+
+std::string last_line_with(const std::string& text, const std::string& needle) {
+    const size_t at = text.rfind(needle);
+    if (at == std::string::npos) {
+        return {};
+    }
+    const size_t start = text.rfind('\n', at);
+    const size_t end = text.find('\n', at);
+    return text.substr(start == std::string::npos ? 0 : start + 1,
+                       end == std::string::npos ? std::string::npos : end - start - 1);
+}
+} // namespace
+
+// The trace is process-wide, so a line still pending from an earlier case may
+// land first; the assertions read the last line and count deltas.
+TEST_CASE_METHOD(OverlayActivationFixture,
+                 "Switch trace names the frame after the switch, or says none rendered",
+                 "[navigation][lifecycle][switch_trace]") {
+    auto& nav = NavigationManager::instance();
+    helix::TextLogCapture log;
+
+    // No refresh between the two switches: the first one's line, written when
+    // the second starts, must not report a frame.
+    nav.set_active(PanelId::Controls);
+    nav.set_active(PanelId::Home);
+    const std::string no_frame = last_line_with(log.get_captured(), "Panel switch to 2 took");
+    REQUIRE(no_frame.find("no frame rendered after the switch") != std::string::npos);
+    REQUIRE(no_frame.find("next frame +") == std::string::npos);
+
+    // A refresh after the switch is its frame: one line per switch, however
+    // many switches have hooked the display before.
+    const int lines_before = count_of(log.get_captured(), "Panel switch to 2 took");
+    const int frames_before = count_of(log.get_captured(), "start-to-frame");
+    nav.set_active(PanelId::Controls);
+    lv_refr_now(nullptr);
+    lv_refr_now(nullptr);
+    REQUIRE(count_of(log.get_captured(), "Panel switch to 2 took") == lines_before + 1);
+    REQUIRE(count_of(log.get_captured(), "start-to-frame") == frames_before + 1);
+    REQUIRE(last_line_with(log.get_captured(), "Panel switch to 2 took").find("start-to-frame") !=
+            std::string::npos);
+}
+
+TEST_CASE_METHOD(OverlayActivationFixture, "Switch trace splits each switch path into its phases",
+                 "[navigation][lifecycle][switch_trace]") {
+    auto& nav = NavigationManager::instance();
+    helix::TextLogCapture log;
+
+    nav.set_active(PanelId::Controls);
+    lv_refr_now(nullptr);
+    const std::string direct = last_line_with(log.get_captured(), "Panel switch to 2 took");
+    for (const char* phase : {" build=", " deactivate=", " show=", " activate="}) {
+        CAPTURE(phase, direct);
+        REQUIRE(direct.find(phase) != std::string::npos);
+    }
+
+    // The navbar path clears overlays first and charges set_active's phases to
+    // its own line.
+    REQUIRE(nav.request_panel(PanelId::Home, NavigationManager::SwitchDispatch::Inline) ==
+            NavigationManager::PanelRequest::Switched);
+    nav.set_active(PanelId::Controls); // writes the Home switch's line
+    const std::string navbar = last_line_with(log.get_captured(), "Panel switch to 0 took");
+    for (const char* phase : {" build=", " overlays=", " deactivate=", " show=", " activate="}) {
+        CAPTURE(phase, navbar);
+        REQUIRE(navbar.find(phase) != std::string::npos);
+    }
 }
 
 // ============================================================================

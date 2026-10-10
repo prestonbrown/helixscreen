@@ -1,6 +1,6 @@
 # ESP32 Native Port Feasibility Audit — Results
 
-**Scope:** Phase 0 of the ESP32 display program. This report is the deliverable; the audit scaffolding it measured has been retired.
+**Scope:** Phase 0 of the ESP32 display program. This report is the deliverable. The measurement harness it describes (the `firmware/native-audit/` tree and its scripts and stubs) was throwaway and is not in the repository; file names below refer to that harness, not to anything you can open.
 **Hardware:** BTT K-Touch (ESP32-S3R8, 8MB octal PSRAM, 16MB flash, 800×480 RGB panel — see `printer-research/BTT_K_TOUCH_HARDWARE.md`)
 **Toolchain:** ESP-IDF v5.5 (release branch), `-Os`, C++ exceptions on
 **Constraint (2026-07-13):** S3 is the fixed target — no P4 escape hatch. BTT wants broader appeal for existing stock. Feature gates are the expected design.
@@ -161,7 +161,7 @@ BTT's stock K-Touch app: 2.25MB image in 4.5MB OTA A/B slots + 7MB SPIFFS assets
 Per-file compile of all 468 `.cpp` under `src/printer/ src/system/ src/ui/` (plus
 `src/application/static_subject_registry.cpp` for the vertical slice) against the
 ESP-IDF v5.5 Xtensa toolchain, `-std=gnu++17`, exceptions on, RTTI off (IDF default).
-Runner: `firmware/native-audit/sweep.py`; raw data: `audit_sweep_results.csv` (pass 1)
+Runner: the harness's sweep.py; raw data: `audit_sweep_results.csv` (pass 1)
 and `audit_sweep_results_pass2.csv` (pass 2). Zero unclassified rows in either pass.
 
 **Headline: the app core is ~90% shim-portable.** 420/468 files compile with nothing
@@ -305,7 +305,7 @@ OTA A/B scheme, and fonts remain the headline Phase 2 trim.
    `std::this_thread::get_id()` (`ui_notification_init`, main-thread
    detectors, spdlog); ESP-IDF's gthread shim routes it to `pthread_self()`,
    which `assert()`s from any task not created via pthread — including the
-   `main` task. Fix: `audit_main.c` runs the whole app phase (init + render
+   `main` task. Fix: the harness's audit_main.c runs the whole app phase (init + render
    loop) on a pthread with a 32KB stack. **Phase 2 rule: every task that can
    touch app code must be pthread-created.**
 2. **No working directory on ESP-IDF VFS → every relative asset path fails.**
@@ -313,7 +313,7 @@ OTA A/B scheme, and fonts remain the headline Phase 2 trim.
    auto-discovery (`opendir("ui_xml")`) silently found nothing → all `space_*`
    / `font_*` / `nav_width` tokens unregistered → `ui_text` hard-aborts on
    missing `font_small` (boot loop). Config-dir creation fails the same way
-   (harmless here). Fix: `overrides/theme_manager.cpp` points discovery at
+   (harmless here). Fix: the harness's overrides/theme_manager.cpp points discovery at
    `/littlefs/ui_xml`. **Phase 2 needs a real asset-root abstraction.**
 3. **Token discovery I/O is pathological on flash filesystems.** ~25 scan
    passes (px/string/color × up to 7 breakpoint suffixes), each re-reading
@@ -327,7 +327,7 @@ OTA A/B scheme, and fonts remain the headline Phase 2 trim.
    `font_small` path as (2). Also: 12 faces referenced by `asset_manager.cpp`
    aren't in the tier-6 audit set (`source_code_pro` family, `mdi_icons_80/96/128`,
    `noto_sans_8` — `mdi_icons_128.c` alone is 7.2MB of source); they're
-   alias-stubbed to `noto_sans_16` in `audit_stubs.cpp`. Only
+   alias-stubbed to `noto_sans_16` in the harness's audit_stubs.cpp. Only
    `source_code_pro_10..16` can actually be selected at 480px and render as
    the alias face — acceptable for a structure audit.
 5. **800×480 selects breakpoint tier `_medium`** (480 > `UI_BREAKPOINT_SMALL_MAX`),
@@ -339,8 +339,8 @@ OTA A/B scheme, and fonts remain the headline Phase 2 trim.
 
 ### Slice mechanics (delta over Task 2)
 
-- `link_loop.py` grew `app_srcs.txt` to 486 sources using a Linux-build symbol
-  index (regen command in `resolve_undefined.py` header); stubs documented in
+- The harness's link_loop.py grew `app_srcs.txt` to 486 sources using a Linux-build symbol
+  index (regen command in the harness's resolve_undefined.py header); stubs documented in
   `audit_{stubs,moonraker_stub,platform_stubs2,fake_typeinfo,stb_impl}.*`.
 - `overrides/` audit-tree copies (never `src/` edits): 10 files — Xtensa
   `int32_t`=long casts, `timegm`, `statvfs`, `ifaddrs`, `<thread>`, and now
@@ -464,7 +464,7 @@ keeps CjkFontManager's `->fallback` wiring but points it at const compiled
 fonts (no lv_binfont_create, no load/unload, no heap).** The subset is baked
 at firmware build time from the translation YAMLs — same regen trigger the
 desktop uses, different output format (`--format lvgl` vs `bin`). Test
-scaffolding: `main/noto_sans_cjk_16_compiled.c` (generated via lv_font_conv
+scaffolding: main/noto_sans_cjk_16_compiled.c in the harness (generated via lv_font_conv
 with the manifest codepoints) + `cjk_experiment()` in audit_main.c.
 
 ## Remaining tasks

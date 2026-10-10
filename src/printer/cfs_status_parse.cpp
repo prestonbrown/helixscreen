@@ -9,7 +9,8 @@ namespace helix::cfs {
 
 BoxFrameShape classify_box_frame(const nlohmann::json& box) {
     BoxFrameShape shape;
-    shape.has_top_level = box.contains("filament") || box.contains("map");
+    shape.has_top_level =
+        box.contains("filament") || box.contains("map") || box.contains("auto_refill");
     shape.has_unit_data =
         box.contains("T1") || box.contains("T2") || box.contains("T3") || box.contains("T4");
     return shape;

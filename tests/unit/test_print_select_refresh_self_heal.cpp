@@ -55,3 +55,48 @@ TEST_CASE("dir_error_should_reset_to_root: match is case-insensitive",
     REQUIRE(dir_error_should_reset_to_root("DIRECTORY DOES NOT EXIST (/x)",
                                            /*at_root=*/false) == true);
 }
+
+// ============================================================================
+// connection_change_should_refresh: re-list on a reconnect, not on registration.
+//
+// The connection observer's first notification fires when it is registered and
+// reports the state the panel was built in. On the K-Touch the panel is built on
+// its first visit, already connected, and on_activate() lists right after; a
+// forced refresh here supersedes that request and the first fill waits for a
+// second listing.
+// ============================================================================
+
+namespace {
+constexpr int kNoneYet = -1;
+constexpr int state(helix::ConnectionState s) {
+    return static_cast<int>(s);
+}
+} // namespace
+
+TEST_CASE("connection_change_should_refresh: registration while connected does not refresh",
+          "[print_select][refresh]") {
+    REQUIRE_FALSE(helix::connection_change_should_refresh(
+        kNoneYet, state(helix::ConnectionState::CONNECTED)));
+}
+
+TEST_CASE("connection_change_should_refresh: every way back to CONNECTED refreshes",
+          "[print_select][refresh]") {
+    using helix::ConnectionState;
+    for (auto from : {ConnectionState::DISCONNECTED, ConnectionState::CONNECTING,
+                      ConnectionState::RECONNECTING, ConnectionState::FAILED}) {
+        CAPTURE(static_cast<int>(from));
+        REQUIRE(helix::connection_change_should_refresh(state(from),
+                                                        state(ConnectionState::CONNECTED)));
+    }
+}
+
+TEST_CASE("connection_change_should_refresh: anything but arriving at CONNECTED does not",
+          "[print_select][refresh]") {
+    using helix::ConnectionState;
+    REQUIRE_FALSE(helix::connection_change_should_refresh(state(ConnectionState::CONNECTED),
+                                                          state(ConnectionState::CONNECTED)));
+    REQUIRE_FALSE(helix::connection_change_should_refresh(state(ConnectionState::CONNECTED),
+                                                          state(ConnectionState::RECONNECTING)));
+    REQUIRE_FALSE(
+        helix::connection_change_should_refresh(kNoneYet, state(ConnectionState::DISCONNECTED)));
+}

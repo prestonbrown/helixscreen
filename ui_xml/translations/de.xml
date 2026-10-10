@@ -773,6 +773,7 @@
   <translation tag="Customize Macro Button" de="Makro-Schaltfläche anpassen"/>
   <translation tag="Customize preset temperatures" de="Voreingestellte Temperaturen anpassen"/>
   <translation tag="Customize your home screen" de="Startbildschirm anpassen"/>
+  <translation tag="Cut &amp; retract" de="Schneiden &amp; einziehen"/>
   <translation tag="Cut Distance" de="Schnittweg"/>
   <translation tag="Cut filament" de="Filament schneiden"/>
   <translation tag="Cut position saved: {}" de="Schnittposition gespeichert: {}"/>
@@ -1274,6 +1275,7 @@
   <translation tag="Forget Network?" de="Netzwerk vergessen?"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." de="Netzwerk &apos;{}&apos; vergessen? Sie benötigen das Passwort zum erneuten Verbinden."/>
   <translation tag="Form tip" de="Spitze formen"/>
+  <translation tag="Form tip &amp; retract" de="Spitze formen &amp; einziehen"/>
   <translation tag="Forming Tip" de="Spitze formen"/>
   <translation tag="Forming tip..." de="Spitze wird geformt..."/>
   <translation tag="Forward Multiplier" de="Vorwärtsmultiplikator"/>

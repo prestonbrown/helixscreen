@@ -15,6 +15,7 @@
 #include "test_helpers/moonraker_client_mock_test_access.h"
 #include "test_helpers/update_queue_test_access.h"
 
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <functional>
@@ -159,23 +160,35 @@ TEST_CASE("The k2 persona pushes a box script's frames before it answers",
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS);
     mock.connect("ws://mock/websocket", [] {}, [] {});
 
+    // The mock's periodic frames arrive on its simulation thread.
+    std::mutex events_mutex;
     std::vector<std::string> events;
-    mock.register_notify_update([&events](const json& n) {
+    auto record = [&events_mutex, &events](const char* event) {
+        std::lock_guard<std::mutex> lock(events_mutex);
+        events.emplace_back(event);
+    };
+    mock.register_notify_update([&record](const json& n) {
         const auto& params = n["params"];
         if (params.is_array() && !params.empty() && params[0].contains("box") &&
             loaded_bay(params[0]) == "A") {
-            events.push_back("frame");
+            record("frame");
         }
     });
     mock.send_jsonrpc(
         "printer.gcode.script",
         {{"script",
           helix::printer::AmsBackendCfs::load_gcode(0, helix::printer::CfsMacroVariant::K2)}},
-        [&events](const json&) { events.push_back("ack"); }, [](const MoonrakerError&) {});
-
-    // The loaded bay is out before the answer, as on the wire.
-    CHECK(events == std::vector<std::string>{"frame", "ack"});
+        [&record](const json&) { record("ack"); }, [](const MoonrakerError&) {});
     mock.disconnect();
+
+    // The loaded bay is out before the answer, as on the wire. A periodic
+    // frame can land on either side of the answer, so only the order of the
+    // first frame and the answer is pinned.
+    std::lock_guard<std::mutex> lock(events_mutex);
+    INFO("events: " << json(events).dump());
+    REQUIRE(std::count(events.begin(), events.end(), "ack") == 1);
+    const auto ack = std::find(events.begin(), events.end(), "ack");
+    CHECK(std::find(events.begin(), ack, "frame") != ack);
 }
 
 // The k2 mock answers a box script inside the same call that pushes its frames,

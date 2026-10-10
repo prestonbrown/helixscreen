@@ -1,7 +1,6 @@
 # Commit SHAs cited in comments, per file. Ratchet: may fall, never rise.
 # Lower one by deleting the citation, then re-run with --write-baseline.
 1 include/ams_backend.h
-1 include/ams_backend_ad5x_ifs.h
 1 include/ams_backend_qidi.h
 1 include/ams_lane_state.h
 2 include/ams_subscription_backend.h
@@ -12,7 +11,7 @@
 1 include/rpc_error_policy.h
 1 include/system/debug_bundle_collector.h
 1 include/thumbnail_write_journal.h
-2 mk/patches.mk
+1 mk/patches.mk
 1 scripts/check_doc_refs.py
 1 scripts/check_panel_widget_scrollable.py
 2 scripts/check_subscription_null_safety.py
@@ -25,21 +24,16 @@
 1 src/printer/ams_backend_cfs.cpp
 1 src/printer/print_start_checks.cpp
 1 src/printer/printer_fan_state.cpp
-1 src/rendering/gcode_gles_renderer.cpp
 1 src/system/panel_widget_config.cpp
 1 src/ui/panel_widgets/active_spool_widget.h
 2 src/ui/panel_widgets/fan_stack_widget.h
 1 src/ui/panel_widgets/heater_temp_widget.h
-1 src/ui/panel_widgets/led_widget.h
 1 src/ui/panel_widgets/nozzle_temps_widget.h
 1 src/ui/panel_widgets/thermistor_widget.h
 1 src/ui/panel_widgets/tool_switcher_widget.h
-2 src/ui/ui_ams_slot.cpp
 1 src/ui/ui_emergency_stop.cpp
 2 src/ui/ui_filament_catalog_selector.cpp
-1 src/ui/ui_overlay_network_settings.cpp
 1 src/ui/ui_panel_filament.cpp
-1 src/ui/ui_panel_print_select.cpp
 2 src/ui/ui_print_select_detail_view.cpp
 1 tests/shell/test_code_lint.bats
 1 tests/shell/test_forgex_boot.bats
@@ -73,8 +67,6 @@
 1 tests/unit/test_filament_panel_dispatch_wiring.cpp
 1 tests/unit/test_footer_read_need.cpp
 4 tests/unit/test_moonraker_client_robustness.cpp
-1 tests/unit/test_moonraker_mock_behavior.cpp
-1 tests/unit/test_network_settings_teardown_uaf.cpp
 2 tests/unit/test_observer_cleanup_ordering.cpp
 1 tests/unit/test_operation_patterns.cpp
 1 tests/unit/test_panel_widget_config.cpp

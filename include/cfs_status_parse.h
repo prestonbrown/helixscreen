@@ -16,11 +16,11 @@
  */
 namespace helix::cfs {
 
-/// What kind of `box` frame this is. Full frames carry `filament`/`map` or a
-/// per-unit `T1`..`T4`; anything else (a bare measuring_wheel tick) changes no
-/// state.
+/// What kind of `box` frame this is. Full frames carry `filament`/`map`/
+/// `auto_refill` or a per-unit `T1`..`T4`; anything else (a bare
+/// measuring_wheel tick) changes no state.
 struct BoxFrameShape {
-    bool has_top_level = false; ///< `filament` or `map`
+    bool has_top_level = false; ///< `filament`, `map` or `auto_refill`
     bool has_unit_data = false; ///< `T1`..`T4`
 };
 

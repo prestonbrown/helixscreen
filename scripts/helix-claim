@@ -188,6 +188,34 @@ describe() {
     return 0
 }
 
+# The script `resources` runs on the test host: $1 is the container, $2 the
+# lock directory. It stays out of the $(...) that runs it, because bash 3.2
+# (a Mac's /bin/bash) ends a command substitution at the first `)` inside a
+# here-document, case patterns included, and then runs the rest as this script.
+# shellcheck disable=SC2016  # the script body expands on the test host
+test_host_probe() {
+    cat <<'HOST'
+read -r l1 l5 l15 _ < /proc/loadavg
+printf '%.1fGB available, load %s %s %s on %s cpus\n' \
+    "$(awk '/^MemAvailable:/{print $2/1048576}' /proc/meminfo)" "$l1" "$l5" "$l15" "$(nproc)"
+jobs=0
+# The --commit lock keeps the zeus-run.sh name; the global lock names no job.
+for lock in "$2"/helix-test-host-run*.lock "$2"/helix-zeus-run-*.lock; do
+    case "$lock" in *.global.lock) continue ;; esac
+    [ -e "$lock" ] || continue
+    flock -n "$lock" true 2>/dev/null && continue
+    printf '  test-host-run job: %s\n' "$(tail -n 1 "$lock")"; jobs=$((jobs + 1))
+done
+if [ "$jobs" -gt 0 ]; then
+    :
+elif sudo -n docker exec "$1" pgrep -x -r R,S,D make >/dev/null 2>&1; then
+    printf '  test-host-run job: none, but a make is running in %s\n' "$1"
+else
+    printf '  test-host-run job: none\n'
+fi
+HOST
+}
+
 # The live jobpool's target, or exit 1 when there is none. `jobpool target`
 # takes no lock and moves no tokens, so this is safe on every make and under a
 # timeout. JOBPOOL=0 is jobpool's own bypass, so it bypasses here too.
@@ -501,29 +529,9 @@ resources)
     . "$(dirname "${BASH_SOURCE[0]}")/lib/build_hosts.sh"
     thost=${HELIX_TEST_HOST:-}
     [ -n "$thost" ] || exit 0
-    # shellcheck disable=SC2016  # the script body expands on the test host
-    tline=$(timeout 8 ssh -o ConnectTimeout=3 -o BatchMode=yes "$thost" bash -s -- \
-            "${HELIX_TEST_CONTAINER:-helix-test}" "${HELIX_TEST_LOCK_DIR:-/tmp}" 2>/dev/null <<'HOST'
-read -r l1 l5 l15 _ < /proc/loadavg
-printf '%.1fGB available, load %s %s %s on %s cpus\n' \
-    "$(awk '/^MemAvailable:/{print $2/1048576}' /proc/meminfo)" "$l1" "$l5" "$l15" "$(nproc)"
-jobs=0
-# The --commit lock keeps the zeus-run.sh name; the global lock names no job.
-for lock in "$2"/helix-test-host-run*.lock "$2"/helix-zeus-run-*.lock; do
-    case "$lock" in *.global.lock) continue ;; esac
-    [ -e "$lock" ] || continue
-    flock -n "$lock" true 2>/dev/null && continue
-    printf '  test-host-run job: %s\n' "$(tail -n 1 "$lock")"; jobs=$((jobs + 1))
-done
-if [ "$jobs" -gt 0 ]; then
-    :
-elif sudo -n docker exec "$1" pgrep -x -r R,S,D make >/dev/null 2>&1; then
-    printf '  test-host-run job: none, but a make is running in %s\n' "$1"
-else
-    printf '  test-host-run job: none\n'
-fi
-HOST
-    ) && [ -n "$tline" ] || { printf 'test host (%s): unreachable\n' "$thost"; exit 0; }
+    tline=$(test_host_probe | timeout 8 ssh -o ConnectTimeout=3 -o BatchMode=yes "$thost" \
+            bash -s -- "${HELIX_TEST_CONTAINER:-helix-test}" "${HELIX_TEST_LOCK_DIR:-/tmp}" 2>/dev/null) &&
+        [ -n "$tline" ] || { printf 'test host (%s): unreachable\n' "$thost"; exit 0; }
     printf 'test host %s: %s\n' "$thost" "$tline"
     ;;
 held-by-other)

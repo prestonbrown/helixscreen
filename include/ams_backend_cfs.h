@@ -101,7 +101,7 @@ class CfsErrorDecoder {
 /// replaces Creality's closed one. `T<n>` and `BOX_UNLOAD` are high-level and
 /// self-contained: box.py owns the whole feed/purge/park sequence, so
 /// HelixScreen sends no stock envelope. Detected by `api_version` in the box
-/// payload. See docs/devel/printers/CREALITY_K2_SUPPORT.md §
+/// payload. See docs/devel/printer-research/CREALITY_CFS_K2_INTERNALS.md §
 /// "Community Kalico port".
 enum class CfsMacroVariant {
     K2,
@@ -527,7 +527,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// acceptance therefore proves only that Klipper parsed our text. The
     /// toolhead filament switch is the one independent physical witness, and
     /// this is the rule that reads it. See
-    /// docs/devel/CREALITY_CFS_INTERNALS.md § "Failures are deferred".
+    /// docs/devel/printer-research/CREALITY_CFS_K1_INTERNALS.md § "Failures are deferred".
     ///
     /// Pure: no locking, no member access, so the policy is testable on its
     /// own. `op` is the latched intent (`PhaseTracker::intent`), never
@@ -569,7 +569,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// every `key8xx` code (including key840's "Reset CFS" action) exactly as
     /// before — that separation is what stops a runout double-surfacing.
     ///
-    /// See docs/devel/printers/CREALITY_K2_SUPPORT.md § "Runout and auto-refill"
+    /// See docs/devel/printer-research/CREALITY_CFS_K2_INTERNALS.md § "Runout and auto-refill"
     /// for the firmware sequence these strings come from.
     [[nodiscard]] std::optional<helix::ErrorEvent>
     classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
@@ -653,8 +653,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// readings; takes mutex_ itself.
     void file_box_readings(const AmsSystemInfo& new_info);
     void apply_box_frame_locked(BoxFrame& frame);
-    /// Replaces the unit list, tool map and endless-spool state with the parse.
+    /// Applies the endless-spool enable bit, then replaces the unit list, tool
+    /// map and grouping with the parse.
     void apply_box_units_locked(BoxFrame& frame);
+    /// Records a BOX_ENABLE_AUTO_REFILL Klipper completed as the current state
+    /// and announces it. Takes mutex_ itself; main thread.
+    void record_auto_refill_sent(bool enable);
     /// Bypass capability and the cross-UI drop of a stale declaration.
     void converge_box_bypass_locked(BoxFrame& frame);
     /// The runout latch; true when the frame carried the field.
@@ -924,6 +928,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// omitting `runout` keeps it, an explicit null clears it, a stock frame
     /// clears it. Guarded by mutex_.
     std::optional<std::vector<int>> flat_backup_edges_;
+
+    /// True once a frame carried the auto-refill enable bit, so
+    /// AmsSystemInfo::endless_spool_enabled holds the firmware's answer rather
+    /// than its constructed default. Guarded by mutex_.
+    bool endless_spool_enable_reported_ = false;
 
     /// The slot number a command names for @p bay. A bay's global index is the
     /// firmware's own slot number on every dialect; -1 for a bay in an absent

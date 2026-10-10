@@ -1,6 +1,6 @@
 # Derive AmsAction from the backend's phase model
 
-**Status:** not started. Target branch: `main`.
+**Status:** steps 1-3 on main (the phase vocabulary, `OperationStep` `coarse` projection, and the U1 / AD5X IFS / tool changer migration; see "Step 3: done"). Steps 4 and 5 are open.
 **Precursor:** `f6e866600` (`fix(toolchanger): show a step bar that matches a hotend changer`), on main.
 
 ## Why

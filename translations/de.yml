@@ -869,6 +869,7 @@ translations:
   Customize Macro Button: Makro-Schaltfläche anpassen
   Customize preset temperatures: Voreingestellte Temperaturen anpassen
   Customize your home screen: Startbildschirm anpassen
+  Cut & retract: 'Schneiden & einziehen'
   Cut Distance: 'Schnittweg'
   Cut filament: Filament schneiden
   'Cut position saved: {}': 'Schnittposition gespeichert: {}'
@@ -1416,6 +1417,7 @@ translations:
   Forget Network?: Netzwerk vergessen?
   Forget network '{}'? You will need the password to reconnect.: Netzwerk '{}' vergessen? Sie benötigen das Passwort zum erneuten Verbinden.
   Form tip: 'Spitze formen'
+  Form tip & retract: 'Spitze formen & einziehen'
   Forming Tip: Spitze formen
   Forming tip...: Spitze wird geformt...
   Forward Multiplier: 'Vorwärtsmultiplikator'

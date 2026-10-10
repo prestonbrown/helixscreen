@@ -17,6 +17,21 @@
 using namespace helix::plugin;
 using helix::plugin::test::TestRuntime;
 
+namespace {
+
+// Sanitizer builds instrument the interpreter itself, which runs tens of times
+// slower, so work sized to fit the default budget needs a scaled one there.
+// Both spellings: GCC defines __SANITIZE_*__, clang answers only __has_feature.
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__) ||                               \
+    (defined(__has_feature) &&                                                                     \
+     (__has_feature(address_sanitizer) || __has_feature(thread_sanitizer)))
+constexpr int kSanitizerSlowdown = 20;
+#else
+constexpr int kSanitizerSlowdown = 1;
+#endif
+
+} // namespace
+
 TEST_CASE("runtime runs code and exposes an empty helix table", "[plugin][lua_runtime]") {
     TestRuntime t;
     REQUIRE(t.run("x = 6 * 7; kind = type(helix)"));
@@ -266,7 +281,10 @@ TEST_CASE("string.rep of an empty string returns at once however large the count
 }
 
 TEST_CASE("work inside the budget is untouched", "[plugin][lua_runtime][lua_budget]") {
-    TestRuntime t;
+    LuaRuntime::Limits limits;
+    limits.time_budget *= kSanitizerSlowdown;
+    limits.wall_ceiling *= kSanitizerSlowdown;
+    TestRuntime t(limits);
     REQUIRE(t.run("s = 0 for i = 1, 200000 do s = s + i end"));
     CHECK(t.global("s") == "20000100000");
     CHECK_FALSE(t.rt->faulted());

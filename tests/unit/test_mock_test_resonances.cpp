@@ -93,7 +93,7 @@ TEST_CASE_METHOD(BeltMockFixture, "mock failure modes", "[belt][mock]") {
         CHECK(parse_resonance_csv(*path).error == ResonanceCsvError::MULTI_CHIP);
     }
     SECTION("nofile") {
-        mock.set_belt_failure(BeltMockFailure::NOFILE);
+        mock.set_belt_failure(BeltMockFailure::NO_FILE);
         auto path = run("TEST_RESONANCES AXIS=1,-1 OUTPUT=resonances NAME=helix_belt_a");
         REQUIRE(path);
         CHECK(parse_resonance_csv(*path).error == ResonanceCsvError::MISSING);

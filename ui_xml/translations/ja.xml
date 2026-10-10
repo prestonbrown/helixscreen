@@ -773,6 +773,7 @@
   <translation tag="Customize Macro Button" ja="マクロボタンをカスタマイズ"/>
   <translation tag="Customize preset temperatures" ja="プリセット温度をカスタマイズ"/>
   <translation tag="Customize your home screen" ja="ホーム画面をカスタマイズ"/>
+  <translation tag="Cut &amp; retract" ja="切断して引き戻し"/>
   <translation tag="Cut Distance" ja="カット距離"/>
   <translation tag="Cut filament" ja="フィラメントを切断"/>
   <translation tag="Cut position saved: {}" ja="切断位置を保存しました: {}"/>
@@ -1274,6 +1275,7 @@
   <translation tag="Forget Network?" ja="ネットワークを登録解除しますか？"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." ja="ネットワーク &apos;{}&apos; を登録解除しますか？再接続にはパスワードが必要です。"/>
   <translation tag="Form tip" ja="先端を成形"/>
+  <translation tag="Form tip &amp; retract" ja="先端を成形して引き戻し"/>
   <translation tag="Forming Tip" ja="チップ形成中"/>
   <translation tag="Forming tip..." ja="チップを形成中..."/>
   <translation tag="Forward Multiplier" ja="順方向倍率"/>

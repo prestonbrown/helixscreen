@@ -1,8 +1,8 @@
 # Seven new home-panel widgets
 
 Date: 2026-08-12
-Branch: `feature/home-widgets`, based on `fix/grid-cell-metrics`
-Status: approved design, not yet implemented
+Status: approved design. Batch 0 (the DRY refactors) is on main; none of the seven widgets
+(batches 1-3) is built, and no branch carries them.
 
 ## Goal
 
@@ -517,9 +517,7 @@ the seven depend on one of its extractions.
 
 # Batch 0 outcome and inputs to later batches
 
-Batch 0 (the DRY refactors) is complete: 13 commits on `feature/home-widgets`,
-branched from `fix/grid-cell-metrics`. Plan:
-`docs/devel/plans/2026-08-12-home-widgets-batch0-dry.md`.
+Batch 0 (the DRY refactors) is complete and on main.
 
 ## What Batch 0 delivered
 

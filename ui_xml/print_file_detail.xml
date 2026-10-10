@@ -90,8 +90,9 @@
           <preview_stack name="detail_preview_clear_area"
                          gradient_name="gradient_bg" viewer_name="detail_gcode_viewer" thumbnail_name="detail_thumbnail"
                          hint_name="detail_rotate_hint" thumbnail_src="selected_detail_thumbnail"
-                         thumbnail_offset_y="#preview_offset_y" viewer_hidden="detail_viewer_hidden eq 1"
-                         thumbnail_hidden="detail_viewer_first_frame eq 1" hint_hidden="detail_gcode_viewer_mode ne 1"/>
+                         gradient_hidden="selected_has_thumbnail eq 0" thumbnail_offset_y="#preview_offset_y"
+                         viewer_hidden="detail_viewer_hidden eq 1" thumbnail_hidden="detail_viewer_first_frame eq 1"
+                         hint_hidden="detail_gcode_viewer_mode ne 1"/>
           <!-- Top-left of the preview: the skip-objects button (same component and
                corner as print status) and, beside it, the loading pill, shown while
                G-code downloads/indexes. The corner keeps the thumbnail readable, toasts
@@ -123,7 +124,9 @@
              Uses icon_font_hero so the cube scales with the breakpoint (96px micro → 128px large+). -->
           <lv_label name="detail_no_thumbnail_icon"
                     text="#icon_cube_outline" style_text_font="#icon_font_hero" style_text_color="#tertiary"
-                    align="center" style_translate_y="-20" hidden="true"/>
+                    align="center" style_translate_y="-20" hidden="true">
+            <bind_flag_if_eq subject="selected_has_thumbnail" flag="hidden" ref_value="1"/>
+          </lv_label>
           <!-- Metadata clip - content-sized, hides top rounded corners of inner overlay -->
           <lv_obj name="detail_metadata_clip"
                   width="100%" height="content" style_radius="0" style_pad_all="0" align="bottom_mid" scrollable="false">

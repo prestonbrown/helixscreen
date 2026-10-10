@@ -28,8 +28,9 @@ class TileSizing;
 /// user_2 for <bind_flag_if_*>, so USER_3 is the one XML cannot reach.
 constexpr lv_obj_flag_t PANEL_WIDGET_TILE_FLAG = LV_OBJ_FLAG_USER_3;
 
-/// Base class for home widgets that need C++ behavioral wiring.
-/// Widgets that are pure XML binding (filament, probe, humidity, etc.) don't need this.
+/// Base class for home widget instances: behavior, sizing and lifecycle hooks.
+/// A def with no factory (ams) is created as pure XML with no instance; tiles
+/// without a class of their own get a sizing-only TileWidget.
 class PanelWidget {
   public:
     virtual ~PanelWidget();

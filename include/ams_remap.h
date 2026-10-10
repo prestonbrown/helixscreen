@@ -4,6 +4,7 @@
 
 #include "ams_backend.h"
 #include "filament_mapper.h"
+#include "gcode_rewrite_block.h"
 #include "gcode_tool_remapper.h"
 
 #include <cstdint>
@@ -69,19 +70,21 @@ namespace printer {
  * @brief Why an explicit tool->lane pick cannot be offered, or None if it can.
  *
  * can_remap() answers the backend's half. The two terms that decide the rest
- * live outside the backend - whether the service-side helper a GcodeRewrite
- * needs is installed, and whether this job has tools worth mapping - so they
+ * live outside the backend - whether a GcodeRewrite can run at all (the
+ * service-side helper, a transport that keeps a local copy), and whether this
+ * job has tools worth mapping - so they
  * belong here too, where every surface offering the pick reads the same answer.
  * Held apart from can_remap() because that one is a pure backend question with
  * callers who have neither term to hand.
  */
 enum class RemapBlock : uint8_t {
-    None,           ///< The pick can be offered.
-    Probing,        ///< Plugin presence not established yet; ask again shortly.
-    NoStrategy,     ///< Backend has no routing mechanism at all.
-    NotReady,       ///< Backend has a route that is not usable yet.
-    NeedsPlugin,    ///< GcodeRewrite without the HelixPrint plugin.
-    NothingToRemap, ///< This job uses no tools worth mapping.
+    None,            ///< The pick can be offered.
+    Probing,         ///< Plugin presence not established yet; ask again shortly.
+    NoStrategy,      ///< Backend has no routing mechanism at all.
+    NotReady,        ///< Backend has a route that is not usable yet.
+    NeedsPlugin,     ///< GcodeRewrite without the HelixPrint plugin.
+    NothingToRemap,  ///< This job uses no tools worth mapping.
+    NotOnThisDevice, ///< GcodeRewrite on a transport that keeps no local copy.
 };
 
 /// Stable spelling for logs and bundles. Not user-facing: a reason a user reads
@@ -100,6 +103,8 @@ enum class RemapBlock : uint8_t {
         return "needs-plugin";
     case RemapBlock::NothingToRemap:
         return "nothing-to-remap";
+    case RemapBlock::NotOnThisDevice:
+        return "not-on-this-device";
     }
     return "unknown";
 }
@@ -107,14 +112,14 @@ enum class RemapBlock : uint8_t {
 /**
  * @brief The whole availability question, for a given backend and job.
  *
- * @param plugin_installed Tri-state, as the helix_plugin_installed subject
- *        publishes it: -1 not probed yet, 0 absent, 1 present. Only GcodeRewrite
- *        consults it. -1 answers Probing rather than NeedsPlugin because the
- *        probe completes after first paint, and a card that cannot tell those
- *        apart shows its refusal on every boot before withdrawing it.
+ * @param rewrite Whether a job rewrite can run (PrintPreparationManager::
+ *        gcode_rewrite_block()). Only GcodeRewrite consults it. Probing stays
+ *        Probing rather than NeedsPlugin because the plugin probe completes after
+ *        first paint, and a card that cannot tell those apart shows its refusal
+ *        on every boot before withdrawing it.
  * @param mappable_tools How many tools this job actually uses.
  */
-[[nodiscard]] inline RemapBlock remap_block(const AmsBackend& backend, int plugin_installed,
+[[nodiscard]] inline RemapBlock remap_block(const AmsBackend& backend, GcodeRewriteBlock rewrite,
                                             int mappable_tools) {
     const auto strategy = backend.get_remap_strategy();
     if (strategy == AmsBackend::RemapStrategy::None) {
@@ -130,11 +135,15 @@ enum class RemapBlock : uint8_t {
         return RemapBlock::NothingToRemap;
     }
     if (strategy == AmsBackend::RemapStrategy::GcodeRewrite) {
-        if (plugin_installed < 0) {
+        switch (rewrite) {
+        case GcodeRewriteBlock::None:
+            break;
+        case GcodeRewriteBlock::Probing:
             return RemapBlock::Probing;
-        }
-        if (plugin_installed != 1) {
+        case GcodeRewriteBlock::NeedsPlugin:
             return RemapBlock::NeedsPlugin;
+        case GcodeRewriteBlock::NoLocalCopies:
+            return RemapBlock::NotOnThisDevice;
         }
     }
     return RemapBlock::None;

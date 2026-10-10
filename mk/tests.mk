@@ -73,7 +73,7 @@ SLOW_ORDER ?= --order rand --rng-seed 1
 # also run in batches of three, each batch holding one pool token for its whole
 # life, so every sweep on the box together runs at most three shards per token
 # and shares the tokens with compiles. Asked once, when a sweep starts.
-SHARD_CONCURRENCY ?= $(eval SHARD_CONCURRENCY := $(shell j=$$(scripts/helix-claim jobs 2>/dev/null) && echo $$((j * 3)) || echo $(NPROCS)))$(SHARD_CONCURRENCY)
+SHARD_CONCURRENCY ?= $(eval SHARD_CONCURRENCY := $(shell echo $$(($(JOBS_CLAIMED) * 3))))$(SHARD_CONCURRENCY)
 
 # Run tests in parallel using Catch2 sharding
 # Args: $(1) = test filter (e.g., "~[.] ~[slow]"), $(2) = shard count (default NPROCS),
@@ -917,7 +917,7 @@ $(TEST_BIN): FORCE
 			printf '\033[1;33m⚠️  make -j (unlimited) detected - auto-fixing to -j%s\033[0m\n' "$$j"; \
 			echo ""; \
 		fi; \
-		exec $(MAKE) _PARALLEL_GUARD=1 --no-print-directory -j$$j $@; \
+		exec $(MAKE) _PARALLEL_GUARD=1 --no-print-directory -j"$$j" $@; \
 	fi
 else
 # $(LIBHV_LIB) and $(LIBHV_JSON_HEADER) are prerequisites for the same reason
@@ -1105,8 +1105,14 @@ TSAN_OBJ_DIR := $(BUILD_DIR)/obj-tsan
 # stable means $(TEST_ASAN_BIN) resolves to the same path in both makes.
 ASAN_MAKE_OVERRIDES := OBJ_DIR=$(ASAN_OBJ_DIR) \
 	CXXFLAGS='$(CXXFLAGS) $(ASAN_FLAGS)' LDFLAGS='$(LDFLAGS) $(ASAN_FLAGS)'
+# TSan also instruments the submodules. LVGL's draw-task handshake is C atomics in
+# lv_draw.c and lv_draw_sw.c; left uninstrumented, TSan sees none of that ordering
+# but still sees the memcpy and free interceptors either side of it, and reports
+# the render thread's read of a task against the main thread freeing it.
 TSAN_MAKE_OVERRIDES := OBJ_DIR=$(TSAN_OBJ_DIR) \
-	CXXFLAGS='$(CXXFLAGS) $(TSAN_FLAGS)' LDFLAGS='$(LDFLAGS) $(TSAN_FLAGS)'
+	CXXFLAGS='$(CXXFLAGS) $(TSAN_FLAGS)' LDFLAGS='$(LDFLAGS) $(TSAN_FLAGS)' \
+	SUBMODULE_CFLAGS='$(SUBMODULE_CFLAGS) $(TSAN_FLAGS)' \
+	SUBMODULE_CXXFLAGS='$(SUBMODULE_CXXFLAGS) $(TSAN_FLAGS)'
 
 # Patterns that mean "the sanitizer reported something". Kept as variables so
 # the four sanitizer recipes share one definition. No commas — these are passed

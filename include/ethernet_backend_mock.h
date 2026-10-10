@@ -5,6 +5,7 @@
 
 #include "ethernet_backend.h"
 
+#include <atomic>
 #include <string>
 
 /**
@@ -51,5 +52,6 @@ class EthernetBackendMock : public EthernetBackend {
   private:
     std::string real_mac_; ///< Real MAC from system for realistic demo display
     static inline bool default_connected_ = true;
-    bool connected_ = default_connected_;
+    /// Set by tests on the main thread, read by get_info() on executor threads.
+    std::atomic<bool> connected_{default_connected_};
 };

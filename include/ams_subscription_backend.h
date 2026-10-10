@@ -371,8 +371,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// @warning Answering false is what turns request_resync()'s reload path
     ///          on, and that path refreshes the LANE only. A backend's own
     ///          `overrides_` map keeps whatever it loaded at start. Today that
-    ///          is harmless because ToolChanger is the only backend answering
-    ///          false and it reads `overrides_` for nothing but persistence.
+    ///          is harmless because the backends answering false (ToolChanger,
+    ///          OpenAMS) touch `overrides_` only on the user-edit and
+    ///          persistence paths.
     ///          A backend that reads `overrides_` to DECIDE something, as CFS
     ///          does in three places, would start deciding from a map the
     ///          resync did not refresh. Check that before changing this answer

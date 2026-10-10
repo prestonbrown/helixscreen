@@ -101,7 +101,7 @@ Deliverable: written report in `docs/devel/` with go/no-go recommendation and th
 
 **⚑ PHASE 0 RESULT (2026-07-13): 🟡 YELLOW — Phase 2 proceeds on S3 with
 explicit feature gates.** Full report + measurements + the gate list:
-`docs/devel/plans/ESP32_NATIVE_AUDIT.md`. Highlights: LVGL + helix-xml unmodified,
+`docs/devel/ESP32_NATIVE_AUDIT.md`. Highlights: LVGL + helix-xml unmodified,
 app core ~90% shim-portable (one real seam: libhv WS/HTTP), full 6-panel
 shell renders on the K-Touch, 26-30 FPS realistic / 5 FPS full-screen worst
 case, CJK viable via compiled per-tier XIP subsets (~0.9MB flash, zero RAM),

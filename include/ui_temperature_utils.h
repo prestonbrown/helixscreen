@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstddef>
 #include <string>
+#include <vector>
 
 /**
  * @file ui_temperature_utils.h
@@ -602,6 +603,27 @@ inline const char* build_heater_off_gcode(const std::string& heater_full_name, c
                                           size_t buffer_size) {
     return build_heater_gcode(heater_full_name, 0, buffer, buffer_size);
 }
+
+/**
+ * @brief The gcode Cool Down sends for @p macro_gcode on this printer
+ *
+ * The shared default macro names only `extruder` and `heater_bed`: its text is
+ * fixed at install time and shared by machines with different tool counts and
+ * chamber heaters. So when @p macro_gcode is exactly that default, this
+ * appends an off command for every other extruder in @p extruder_names (in
+ * tool order, extruder2 before extruder10) and then for @p chamber_heater_name
+ * when it is non-empty. A customized macro, or a single-model preset's own
+ * hardcoded chamber line, is returned unchanged and runs exactly as written.
+ */
+std::string build_cooldown_gcode(const std::string& macro_gcode,
+                                 const std::vector<std::string>& extruder_names,
+                                 const std::string& chamber_heater_name);
+
+/**
+ * @brief The configured Cool Down macro, completed by build_cooldown_gcode()
+ *        with the extruders and chamber heater @p temps has discovered
+ */
+std::string resolve_cooldown_gcode(const helix::PrinterTemperatureState& temps);
 
 /**
  * @brief Keypad header title for a heater: its short name

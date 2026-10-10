@@ -38,6 +38,7 @@ using helix::AmsBackend;
 using helix::AmsBackendMock;
 using helix::AmsError;
 using helix::AmsErrorHelper;
+using helix::GcodeRewriteBlock;
 
 using helix::Ad5xIfsTestAccess;
 
@@ -503,14 +504,14 @@ TEST_CASE("remap_block answers the backend's half before anything else", "[ams][
 
     SECTION("a backend with no route is blocked whatever the job or plugin say") {
         backend.set_remap_strategy(AmsBackend::RemapStrategy::None);
-        CHECK(remap_block(backend, 1, 4) == RemapBlock::NoStrategy);
-        CHECK(remap_block(backend, -1, 0) == RemapBlock::NoStrategy);
+        CHECK(remap_block(backend, GcodeRewriteBlock::None, 4) == RemapBlock::NoStrategy);
+        CHECK(remap_block(backend, GcodeRewriteBlock::Probing, 0) == RemapBlock::NoStrategy);
     }
 
     SECTION("a route that is not up yet outranks the job and plugin terms") {
         backend.set_remap_strategy(AmsBackend::RemapStrategy::Native);
         backend.set_remap_ready(false);
-        CHECK(remap_block(backend, 1, 4) == RemapBlock::NotReady);
+        CHECK(remap_block(backend, GcodeRewriteBlock::None, 4) == RemapBlock::NotReady);
     }
 }
 
@@ -523,15 +524,16 @@ TEST_CASE("remap_block names the job before it names the plugin", "[ams][strateg
     // Installing the plugin would not make a toolless job mappable, so the
     // plugin must not be the reason offered for one.
     SECTION("no tools reads as NothingToRemap even with the plugin absent") {
-        CHECK(remap_block(backend, 0, 0) == RemapBlock::NothingToRemap);
+        CHECK(remap_block(backend, GcodeRewriteBlock::NeedsPlugin, 0) ==
+              RemapBlock::NothingToRemap);
     }
 
     SECTION("no tools reads as NothingToRemap even while the probe is in flight") {
-        CHECK(remap_block(backend, -1, 0) == RemapBlock::NothingToRemap);
+        CHECK(remap_block(backend, GcodeRewriteBlock::Probing, 0) == RemapBlock::NothingToRemap);
     }
 
     SECTION("a negative count is treated as none, not as a mappable job") {
-        CHECK(remap_block(backend, 1, -1) == RemapBlock::NothingToRemap);
+        CHECK(remap_block(backend, GcodeRewriteBlock::None, -1) == RemapBlock::NothingToRemap);
     }
 }
 
@@ -542,30 +544,56 @@ TEST_CASE("Only GcodeRewrite consults the plugin", "[ams][strategy][block]") {
 
     SECTION("GcodeRewrite without the plugin is blocked") {
         backend.set_remap_strategy(AmsBackend::RemapStrategy::GcodeRewrite);
-        CHECK(remap_block(backend, 0, 4) == RemapBlock::NeedsPlugin);
+        CHECK(remap_block(backend, GcodeRewriteBlock::NeedsPlugin, 4) == RemapBlock::NeedsPlugin);
     }
 
     SECTION("GcodeRewrite with the plugin is available") {
         backend.set_remap_strategy(AmsBackend::RemapStrategy::GcodeRewrite);
-        CHECK(remap_block(backend, 1, 4) == RemapBlock::None);
+        CHECK(remap_block(backend, GcodeRewriteBlock::None, 4) == RemapBlock::None);
     }
 
     SECTION("an unprobed plugin is Probing, never NeedsPlugin") {
         // The probe lands after first paint. Reading -1 as absent is what makes
         // a card show its refusal on every boot and then withdraw it.
         backend.set_remap_strategy(AmsBackend::RemapStrategy::GcodeRewrite);
-        CHECK(remap_block(backend, -1, 4) == RemapBlock::Probing);
+        CHECK(remap_block(backend, GcodeRewriteBlock::Probing, 4) == RemapBlock::Probing);
     }
 
     SECTION("routes that write firmware state ignore the plugin entirely") {
         for (auto strategy :
              {AmsBackend::RemapStrategy::Native, AmsBackend::RemapStrategy::PrePrintSend}) {
             backend.set_remap_strategy(strategy);
-            CHECK(remap_block(backend, 0, 4) == RemapBlock::None);
-            CHECK(remap_block(backend, -1, 4) == RemapBlock::None);
-            CHECK(remap_block(backend, 1, 4) == RemapBlock::None);
+            CHECK(remap_block(backend, GcodeRewriteBlock::NeedsPlugin, 4) == RemapBlock::None);
+            CHECK(remap_block(backend, GcodeRewriteBlock::Probing, 4) == RemapBlock::None);
+            CHECK(remap_block(backend, GcodeRewriteBlock::None, 4) == RemapBlock::None);
+            CHECK(remap_block(backend, GcodeRewriteBlock::NoLocalCopies, 4) == RemapBlock::None);
         }
     }
+
+    SECTION("GcodeRewrite on a transport without local copies is not offered on this device") {
+        backend.set_remap_strategy(AmsBackend::RemapStrategy::GcodeRewrite);
+        CHECK(remap_block(backend, GcodeRewriteBlock::NoLocalCopies, 4) ==
+              RemapBlock::NotOnThisDevice);
+        // A job with nothing to map still says so first.
+        CHECK(remap_block(backend, GcodeRewriteBlock::NoLocalCopies, 0) ==
+              RemapBlock::NothingToRemap);
+    }
+}
+
+TEST_CASE("gcode_rewrite_block: the transport outranks the plugin", "[ams][strategy][block]") {
+    using helix::gcode_rewrite_available;
+    using helix::gcode_rewrite_block;
+    CHECK(gcode_rewrite_block(1, true) == GcodeRewriteBlock::None);
+    CHECK(gcode_rewrite_block(0, true) == GcodeRewriteBlock::NeedsPlugin);
+    CHECK(gcode_rewrite_block(-1, true) == GcodeRewriteBlock::Probing);
+    for (int plugin : {-1, 0, 1}) {
+        CHECK(gcode_rewrite_block(plugin, false) == GcodeRewriteBlock::NoLocalCopies);
+    }
+    // A pending probe keeps a gated row visible; every refusal hides it.
+    CHECK(gcode_rewrite_available(GcodeRewriteBlock::None) == 1);
+    CHECK(gcode_rewrite_available(GcodeRewriteBlock::Probing) == -1);
+    CHECK(gcode_rewrite_available(GcodeRewriteBlock::NeedsPlugin) == 0);
+    CHECK(gcode_rewrite_available(GcodeRewriteBlock::NoLocalCopies) == 0);
 }
 
 TEST_CASE("remap_block agrees with can_remap wherever can_remap has an opinion",
@@ -583,7 +611,7 @@ TEST_CASE("remap_block agrees with can_remap wherever can_remap has an opinion",
         for (bool ready : {false, true}) {
             backend.set_remap_strategy(strategy);
             backend.set_remap_ready(ready);
-            const auto block = remap_block(backend, 1, 4);
+            const auto block = remap_block(backend, GcodeRewriteBlock::None, 4);
             const bool backend_side_block =
                 block == RemapBlock::NoStrategy || block == RemapBlock::NotReady;
             CHECK(can_remap(backend) == !backend_side_block);
@@ -596,8 +624,9 @@ TEST_CASE("remap_block_name covers every rung", "[ams][strategy][block]") {
     using helix::printer::RemapBlock;
     // A name falling through to "unknown" means a rung was added without a
     // spelling, and every log line about it would then be indistinguishable.
-    for (auto block : {RemapBlock::None, RemapBlock::Probing, RemapBlock::NoStrategy,
-                       RemapBlock::NotReady, RemapBlock::NeedsPlugin, RemapBlock::NothingToRemap}) {
+    for (auto block :
+         {RemapBlock::None, RemapBlock::Probing, RemapBlock::NoStrategy, RemapBlock::NotReady,
+          RemapBlock::NeedsPlugin, RemapBlock::NothingToRemap, RemapBlock::NotOnThisDevice}) {
         CHECK(std::string(remap_block_name(block)) != "unknown");
     }
 }

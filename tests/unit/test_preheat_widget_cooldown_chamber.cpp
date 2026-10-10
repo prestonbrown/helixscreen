@@ -190,3 +190,22 @@ TEST_CASE_METHOD(
     CHECK(h.sent("MY_CUSTOM_COOLDOWN_MACRO"));
     CHECK_FALSE(h.sent("HEATER="));
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "PreheatWidget Cool Down on a toolchanger turns off every extruder heater",
+                 "[preheat][cooldown][presets]") {
+    K2PreheatCooldownHarness h;
+    helix::PreheatWidget widget(get_printer_state());
+
+    h.discover("auto", {"extruder", "extruder1", "extruder2", "heater_bed"});
+    auto& temps = get_printer_state().temperature_state();
+    temps.init_extruders({"extruder", "extruder1", "extruder2", "heater_bed"});
+    TA::handle_cooldown(widget);
+
+    CHECK(h.sent("HEATER=extruder TARGET=0"));
+    CHECK(h.sent("HEATER=extruder1 TARGET=0"));
+    CHECK(h.sent("HEATER=extruder2 TARGET=0"));
+    CHECK(h.sent("HEATER=heater_bed TARGET=0"));
+
+    temps.init_extruders({"extruder"});
+}

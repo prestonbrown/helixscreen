@@ -16,7 +16,7 @@ carries its protocol, data sources, G-code commands, topology and capability tab
 
 - `AmsState` never names a backend; vendor knowledge stays inside its `AmsBackend*`
   class (`.claude/rules/vendor-abstraction.md`).
-- **CFS on K1:** read `docs/devel/CREALITY_CFS_INTERNALS.md` first. `BOX_*` command
+- **CFS on K1:** read `docs/devel/printer-research/CREALITY_CFS_K1_INTERNALS.md` first. `BOX_*` command
   semantics, deferred-failure and resume traps, staged loading, serial timeouts.
 - **MedusaHC is not a backend.** It is a klipper-toolchanger printer plus dock sensors
   that outrank `toolchanger.tool_number` and a servo feeder:

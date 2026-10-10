@@ -1,19 +1,19 @@
-# Creality CFS Wrapper Internals (K1 family)
+# Creality CFS Internals (K1 family)
 
-Reverse-engineering reference for the **K1-family CFS box wrapper** — the Python/C-extension
+Reverse-engineering reference for the **K1-family CFS box wrapper**: the Python/C-extension
 module (`box_wrapper.cpython-38-mipsel-linux-gnu.so`) that Creality's official CFS upgrade
 firmware loads on K1, K1C, K1 Max, K1 SE, K2 SE, GS-01 and GS-02.
 
 This is the *firmware side*. For how HelixScreen talks to it, see
-[FILAMENT_BACKEND_CFS.md](FILAMENT_BACKEND_CFS.md#cfs-creality-filament-system); for the
-platform, see [printers/CREALITY_K1_SUPPORT.md](printers/CREALITY_K1_SUPPORT.md).
+[FILAMENT_BACKEND_CFS.md](../FILAMENT_BACKEND_CFS.md#cfs-creality-filament-system); for the
+platform, see [CREALITY_K1_SUPPORT.md](../printers/CREALITY_K1_SUPPORT.md).
 
 > **Scope: K1 family only.** The K2 series ships a *different generation* of the module
 > (`box_wrapper.cpython-39.so`, Python 3.9, ARM) exposing `CR_BOX_*` commands. A name it
 > shares with K1, such as `BOX_CUT_MATERIAL` (which the K2's own `box.cfg` calls, and which
 > HelixScreen's K2 cut uses), is a separate implementation. Nothing on this page may be
-> assumed to hold for K2. That
-> cross-family inference is what produced #968 in the first place.
+> assumed to hold for K2 (#968); the K2 module has its own reference,
+> [CREALITY_CFS_K2_INTERNALS.md](CREALITY_CFS_K2_INTERNALS.md).
 
 ---
 
@@ -724,8 +724,9 @@ tn_data.json field names present verbatim: `base_data` `color_value` `last_cmd`
 
 ## Related
 
-- [FILAMENT_BACKEND_CFS.md](FILAMENT_BACKEND_CFS.md#cfs-creality-filament-system) — HelixScreen's backend, dialect table, schema detection
-- [printers/CREALITY_K1_SUPPORT.md](printers/CREALITY_K1_SUPPORT.md) — K1 platform, firmware prerequisites
-- [printers/CREALITY_K2_SUPPORT.md](printers/CREALITY_K2_SUPPORT.md) — K2 series and the community Kalico port
-- [#968](https://github.com/prestonbrown/helixscreen/issues/968) — K1/K1C CFS compatibility
-- [#1278](https://github.com/prestonbrown/helixscreen/issues/1278) — K1 sequence divergences
+- [FILAMENT_BACKEND_CFS.md](../FILAMENT_BACKEND_CFS.md#cfs-creality-filament-system) - HelixScreen's backend, dialect table, schema detection
+- [CREALITY_K1_SUPPORT.md](../printers/CREALITY_K1_SUPPORT.md) - K1 platform, firmware prerequisites
+- [CREALITY_CFS_K2_INTERNALS.md](CREALITY_CFS_K2_INTERNALS.md) - the K2 generation of the module and the community Kalico port
+- [CREALITY_K2_SUPPORT.md](../printers/CREALITY_K2_SUPPORT.md) - K2 platform
+- [#968](https://github.com/prestonbrown/helixscreen/issues/968) - K1/K1C CFS compatibility
+- [#1278](https://github.com/prestonbrown/helixscreen/issues/1278) - K1 sequence divergences

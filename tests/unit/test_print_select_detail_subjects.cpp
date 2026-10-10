@@ -31,6 +31,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/mock_bypass.h"
+#include "../test_helpers/mock_printer.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_portrait_layout.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -268,6 +269,70 @@ TEST_CASE_METHOD(LVGLUITestFixture, "rows come from the macro analysis when the 
     const auto states = view.collect_option_states();
     REQUIRE(states.count("qgl") == 1);
     CHECK(states.at("qgl") == true);
+}
+
+// A row whose skip rewrites the job hides when no rewrite can run, and the
+// transport alone can be the reason.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a rewrite-gated row hides on a transport that keeps no local copy",
+                 "[print_select][detail_view][pre_print_options][macro_rows]") {
+    CacheDirGuard guard;
+
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
+    });
+
+    const bool local_copies = GENERATE(true, false);
+    CAPTURE(local_copies);
+    // The view answers for the printer it was handed, not the app's: the
+    // app's reads plugin-absent here, the injected one plugin-present.
+    MockPrinter device;
+    device.api.transfers_mock().mock_no_local_copies(!local_copies);
+    PrinterStateTestAccess::set_option_set(device.state, PrePrintOptionSet{});
+    device.state.set_helix_plugin_installed(true);
+    get_printer_state().set_helix_plugin_installed(false);
+    helix::ui::UpdateQueue::instance().drain();
+
+    helix::ui::PrintSelectDetailView view;
+    view.set_dependencies(&device.api, &device.state);
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+
+    struct CloseOnExit {
+        helix::ui::PrintSelectDetailView& v;
+        ~CloseOnExit() {
+            v.hide();
+            helix::ui::UpdateQueue::instance().drain();
+            lv_timer_handler(); // the close callback runs on the next tick
+            v.set_dependencies(nullptr, &get_printer_state());
+        }
+    } closer{view};
+
+    // A MacroParam skip with no pre-start block: disabling it rewrites the job.
+    helix::PrintStartAnalysis analysis;
+    analysis.found = true;
+    analysis.macro_name = "PRINT_START";
+    helix::PrintStartOperation qgl;
+    qgl.name = "QUAD_GANTRY_LEVEL";
+    qgl.category = helix::PrintStartOpCategory::QGL;
+    qgl.has_skip_param = true;
+    qgl.skip_param_name = "SKIP_QGL";
+    analysis.operations.push_back(qgl);
+    REQUIRE(view.get_prep_manager() != nullptr);
+    view.get_prep_manager()->set_macro_analysis(analysis);
+
+    view.show("wrapped.gcode", "", "PLA");
+    helix::ui::UpdateQueue::instance().drain();
+
+    lv_obj_t* const row = lv_obj_find_by_name(root, "option_tile_qgl");
+    REQUIRE(row != nullptr);
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) == !local_copies);
 }
 
 // An open view follows the analysis as it lands, adding rows and dropping stale ones.
@@ -1044,6 +1109,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         CHECK(lv_subject_get_int(help_visible) == 0);
     }
 
+    SECTION("GcodeRewrite on a transport without local copies is simply not offered") {
+        // The plugin is installed, so nothing here can be fixed by the user:
+        // no greyed card, no Set up, no help icon, and the rewrite-gated option
+        // rows read the same refusal.
+        MockPrinter device;
+        device.api.transfers_mock().mock_no_local_copies();
+        view.set_analysis_dependencies(&device.api, &get_printer_state());
+        ams.backend->set_remap_strategy(helix::AmsBackend::RemapStrategy::GcodeRewrite);
+        get_printer_state().set_helix_plugin_installed(true);
+        helix::ui::UpdateQueue::instance().drain();
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        CHECK(view.current_remap_block() == helix::printer::RemapBlock::NotOnThisDevice);
+        CHECK(lv_subject_get_int(remappable) == 0);
+        CHECK(lv_subject_get_int(needs_setup) == 0);
+        CHECK(lv_subject_get_int(help_visible) == 0);
+        lv_subject_t* const rewrite = lv_xml_get_subject(nullptr, "detail_gcode_rewrite_available");
+        REQUIRE(rewrite != nullptr);
+        CHECK(lv_subject_get_int(rewrite) == 0);
+
+        device.api.transfers_mock().mock_no_local_copies(false);
+        view.set_analysis_dependencies(&device.api, &get_printer_state());
+        CHECK(lv_subject_get_int(rewrite) == 1);
+        view.hide();
+        helix::ui::UpdateQueue::instance().drain();
+        view.set_analysis_dependencies(nullptr, &get_printer_state());
+    }
+
     SECTION("an unfinished plugin probe greys nothing") {
         // -1 is what the subject holds until discovery answers, which is after
         // first paint. Treating it as absent would grey the card on every boot
@@ -1303,6 +1396,9 @@ class PrintSelectDetailViewTestAccess {
   public:
     static void begin_viewer_load(helix::ui::PrintSelectDetailView& view, const std::string& path) {
         view.begin_viewer_load(path);
+    }
+    static lv_obj_t* gcode_viewer(const helix::ui::PrintSelectDetailView& view) {
+        return view.gcode_viewer_;
     }
 };
 
@@ -1872,4 +1968,57 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A scan answering after cleanup never reache
     d.view.get_prep_manager()->scan_file_for_operations("other.gcode", "", "");
     OpenDetail::settle();
     CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
+}
+
+// A tree deleted by anything but destroy_overlay_ui() must not leave queued
+// observers or cleanup() reaching a freed viewer.
+TEST_CASE_METHOD(LVGLUITestFixture, "cleanup after the tree is deleted forgets the dead viewer",
+                 "[print_select][detail_view]") {
+    CacheDirGuard guard;
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
+    });
+
+    helix::ui::PrintSelectDetailView view;
+    view.set_dependencies(nullptr, &get_printer_state());
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+    REQUIRE(PrintSelectDetailViewTestAccess::gcode_viewer(view) != nullptr);
+
+    lv_obj_delete(root);
+    CHECK(PrintSelectDetailViewTestAccess::gcode_viewer(view) == nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    view.cleanup();
+}
+
+// The detail view's own show() is the only path back after a tree deleted
+// outside destroy_overlay_ui(): it must build a fresh tree, with exclude mode's
+// side list and viewer gone along with the old one.
+TEST_CASE_METHOD(LVGLUITestFixture, "show after the tree is deleted externally re-creates it",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    process_lvgl(50);
+    REQUIRE(d.view.is_exclude_mode_open());
+
+    lv_obj_delete(d.view.get_widget());
+    OpenDetail::settle();
+    CHECK_FALSE(d.view.is_exclude_mode_open());
+
+    d.view.show("parts.gcode", "", "PLA");
+    OpenDetail::settle();
+    lv_obj_t* const root = d.view.get_widget();
+    REQUIRE(root != nullptr);
+    CHECK(lv_obj_is_valid(root));
+    CHECK(lv_obj_find_by_name(root, "print_button") != nullptr);
+    CHECK(PrintSelectDetailViewTestAccess::gcode_viewer(d.view) != nullptr);
 }

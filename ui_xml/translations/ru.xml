@@ -773,6 +773,7 @@
   <translation tag="Customize Macro Button" ru="Настроить кнопку макроса"/>
   <translation tag="Customize preset temperatures" ru="Настройка пресетов температур"/>
   <translation tag="Customize your home screen" ru="Настройте главный экран"/>
+  <translation tag="Cut &amp; retract" ru="Обрезка и ретракция"/>
   <translation tag="Cut Distance" ru="Расстояние реза"/>
   <translation tag="Cut filament" ru="Обрезать филамент"/>
   <translation tag="Cut position saved: {}" ru="Позиция реза сохранена: {}"/>
@@ -1274,6 +1275,7 @@
   <translation tag="Forget Network?" ru="Забыть сеть?"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." ru="Забыть сеть «{}»? Для повторного подключения потребуется пароль."/>
   <translation tag="Form tip" ru="Формирование кончика"/>
+  <translation tag="Form tip &amp; retract" ru="Формирование кончика и ретракция"/>
   <translation tag="Forming Tip" ru="Формирование кончика"/>
   <translation tag="Forming tip..." ru="Формирование кончика..."/>
   <translation tag="Forward Multiplier" ru="Множитель прямого хода"/>

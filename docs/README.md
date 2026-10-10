@@ -31,7 +31,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Your First Contribution**](devel/YOUR_FIRST_CONTRIBUTION.md) | Annotated walkthrough of a real settings overlay, plus pattern tour of a full subsystem |
 | [**Contributor Gotchas**](devel/CONTRIBUTOR_GOTCHAS.md) | "If you see X, you forgot Y" — symptom-indexed troubleshooting for common traps |
 | [**Plugin Development**](devel/PLUGIN_DEVELOPMENT.md) | Writing a Lua plugin: manifest, XML rules, the helix.* API, permissions, limits, debugging |
-| [**Architecture**](devel/ARCHITECTURE.md) | Whole-app model + routing to the 15-chapter guide (`devel/architecture/`) |
+| [**Architecture**](devel/ARCHITECTURE.md) | Whole-app model + routing to the 17-chapter guide (`devel/architecture/`) |
 | [**Build System**](devel/BUILD_SYSTEM.md) | Makefile, cross-compilation, patches |
 | [**Testing**](devel/TESTING.md) | Test infrastructure and Catch2 usage |
 | [**Changelog Style**](devel/CHANGELOG_STYLE.md) | How `CHANGELOG.md` entries are written: user-facing voice, separator, issue links, daily vs milestone shapes |
@@ -72,7 +72,8 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Filament Management**](devel/FILAMENT_MANAGEMENT.md) | Shared filament-system architecture: multi-backend, dispatch ladder, slot metadata, endless spool, dryer, device ops |
 | **Filament Backend Leaves** | Per-backend docs: [AFC](devel/FILAMENT_BACKEND_AFC.md), [Happy Hare](devel/FILAMENT_BACKEND_HAPPY_HARE.md), [ACE](devel/FILAMENT_BACKEND_ACE.md), [Tool Changer](devel/FILAMENT_BACKEND_TOOLCHANGER.md), [AD5X IFS](devel/FILAMENT_BACKEND_AD5X_IFS.md), [CFS](devel/FILAMENT_BACKEND_CFS.md), [QIDI Box](devel/FILAMENT_BACKEND_QIDI_BOX.md), [Snapmaker U1](devel/FILAMENT_BACKEND_SNAPMAKER_U1.md), [MedusaHC](devel/FILAMENT_BACKEND_MEDUSAHC.md) |
 | [**Filament Slot Metadata (internal)**](devel/FILAMENT_SLOT_METADATA.md) | `FilamentSlotOverrideStore` implementation: per-backend hooks, hardware-event clearing, cache, migration |
-| [**Creality CFS Internals**](devel/CREALITY_CFS_INTERNALS.md) | K1-family CFS box-wrapper RE reference: `BOX_*` semantics, the printer-side tn_data.json userdata, deferred-failure/resume traps |
+| [**Creality CFS Internals (K1)**](devel/printer-research/CREALITY_CFS_K1_INTERNALS.md) | K1-family CFS box-wrapper RE reference: `BOX_*` semantics, the printer-side tn_data.json userdata, deferred-failure/resume traps |
+| [**Creality CFS Internals (K2)**](devel/printer-research/CREALITY_CFS_K2_INTERNALS.md) | K2 CFS module RE reference: `box` schema variants, command surface, error codes, runout, the community Kalico port |
 | [**Filament Slots Spec (public)**](specs/filament_slots.md) | Wire-format convention for the `lane_data` Moonraker DB namespace — readable by any third party |
 | [**Input Shaper & PID**](devel/INPUT_SHAPER.md) | Calibration, frequency response charts, CSV parser |
 | [**Belt Tension**](devel/BELT_TENSION.md) | Resonance-sweep belt path comparison: gate, collector, provisional verdicts, mock knobs |
@@ -100,11 +101,19 @@ Welcome to the HelixScreen documentation. Choose your path:
 | Document | Description |
 |----------|-------------|
 | [**Installer**](devel/INSTALLER.md) | Installation system, KIAUH, platforms, shell tests |
+| [**Printer Support Index**](devel/printers/README.md) | One page per printer family; lists shipped targets that still lack one |
+| [**Printer Research**](devel/printer-research/README.md) | Reverse-engineering notes and the overview matrix of every printer's target and status |
+| [**FlashForge AD5M Support**](devel/printers/FLASHFORGE_AD5M_SUPPORT.md) | FlashForge Adventurer 5M / Pro (Forge-X, Klipper Mod, ZMOD; `ad5m` and buildroot `ad5m-br` targets) |
+| [**Creality K1 Support**](devel/printers/CREALITY_K1_SUPPORT.md) | Creality K1 series platform guide |
 | [**QIDI Support**](devel/printers/QIDI_SUPPORT.md) | QIDI 3-series / 4-series platform guide (Q2, Max 4) |
 | [**Snapmaker U1 Support**](devel/printers/SNAPMAKER_U1_SUPPORT.md) | Snapmaker U1 toolchanger platform guide |
 | [**Creality K2 Support**](devel/printers/CREALITY_K2_SUPPORT.md) | Creality K2 series platform guide |
 | [**FlashForge AD5X Support**](devel/printers/FLASHFORGE_AD5X_SUPPORT.md) | FlashForge Adventurer 5X (MIPS, ZMOD) |
 | [**FlashForge Creator 5 Support**](devel/printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md) | FlashForge Creator 5 and Creator 5 Pro (Ingenic X2000 MIPS, unified `mips` target) |
+| [**Elegoo Centauri Carbon (Yocto)**](devel/printers/ELEGOO_CENTAURI_CARBON_YOCTO.md) | Centauri Carbon `cc1` / `yocto` targets and the OpenCentauri COSMOS Yocto dev loop |
+| [**ESP32 Firmware Architecture**](devel/architecture/17-esp32-firmware.md) | The BTT K-Touch (ESP32-S3) firmware: source subset, memory model, tasks, boot order, rendering, networking, storage, OTA |
+| [**ESP32 Port**](devel/ESP32_PORT.md) | Building, flashing and debugging the K-Touch firmware, and the rules a shared change must follow |
+| [**ESP32 Native Audit**](devel/ESP32_NATIVE_AUDIT.md) | The feasibility measurements behind the ESP32 port's feature gates |
 
 ---
 
@@ -154,12 +163,12 @@ docs/
 │   ├── CLAUDE.md             # Full developer doc index
 │   ├── DEVELOPMENT.md        # Developer setup, contributing
 │   ├── ARCHITECTURE.md       # Architecture router (whole-app model)
-│   ├── architecture/         # 15-chapter architecture guide
+│   ├── architecture/         # 17-chapter architecture guide
 │   ├── BUILD_SYSTEM.md       # Build internals
 │   ├── TESTING.md            # Test infrastructure
 │   ├── plans/                # In-flight plans and specs (single home)
-│   ├── printers/             # Platform guides (K1, K2, QIDI, U1, AD5X)
-│   ├── printer-research/     # Reverse-engineering notes
+│   ├── printers/             # Per-printer support guides (index: printers/README.md)
+│   ├── printer-research/     # Reverse-engineering notes + printer status matrix
 │   └── ...                   # 70+ more dev docs (index: devel/CLAUDE.md)
 │
 ├── specs/                    # PUBLIC, VENDOR-NEUTRAL CONVENTION SPECS

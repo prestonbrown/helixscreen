@@ -39,6 +39,9 @@ class SoundSequencer {
 
     /// Set an external tick callback. When set, the sequencer loop calls this
     /// instead of its own step logic. Used by SoundManager for TrackerPlayer.
+    /// Returns only once no call to the previous callback is in flight, so the
+    /// caller may then free whatever it captured. A call from inside the
+    /// callback is refused (logged and ignored) rather than deadlocking.
     void set_external_tick(std::function<void(float dt_ms)> fn);
 
   private:
@@ -116,5 +119,11 @@ class SoundSequencer {
     // Signaled by stop() to halt current playback
     std::atomic<bool> stop_requested_{false};
 
+    /// Guards external_tick_ and is held for the whole of each call to it.
+    /// Never taken while holding queue_mutex_ except by has_external_tick().
+    std::mutex external_tick_mutex_;
+    std::atomic<std::thread::id> loop_thread_id_{};
     std::function<void(float)> external_tick_;
+
+    bool has_external_tick();
 };

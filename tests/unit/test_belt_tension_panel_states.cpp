@@ -334,7 +334,7 @@ TEST_CASE("Re-test A keeps B and ghosts the old A", "[belt][panel][chart]") {
 TEST_CASE("each mock failure reaches ERROR", "[belt][panel]") {
     BeltPanelFixture fx;
     for (const BeltMockFailure failure :
-         {BeltMockFailure::ERROR, BeltMockFailure::NOFILE, BeltMockFailure::MULTICHIP}) {
+         {BeltMockFailure::ERROR, BeltMockFailure::NO_FILE, BeltMockFailure::MULTICHIP}) {
         fx.mock().set_belt_failure(failure);
         REQUIRE(fx.wait_gate_open());
         fx.panel().handle_start_clicked();

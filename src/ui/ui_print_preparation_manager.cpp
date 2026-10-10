@@ -172,6 +172,12 @@ PrePrintOptionState PrintPreparationManager::get_option_state(const std::string&
 void PrintPreparationManager::set_dependencies(IMoonrakerAPI* api, PrinterState* printer_state) {
     api_ = api;
     printer_state_ = printer_state;
+    // Answered now, while the API is known alive: a queued observer handler can
+    // run after its owner has freed it.
+    keeps_local_copies_ = keeps_local_copies(api);
+    if (!printer_state_) {
+        plugin_observer_.reset(); // nothing left to publish to
+    }
 
     if (printer_state_) {
         connection_observer_ = helix::ui::observe<int>(
@@ -187,6 +193,12 @@ void PrintPreparationManager::set_dependencies(IMoonrakerAPI* api, PrinterState*
             [](PrintPreparationManager* self, int) { self->reset_pending_skips(); },
             printer_state_->get_subjects_lifetime());
         printer_state_->set_skip_pending_handler([this]() { reset_pending_skips(); });
+        // Whether rewrite-gated macro rows render turns on the plugin and the
+        // transport. Observing fires once now, which covers a new transport.
+        plugin_observer_ = helix::ui::observe<int>(
+            printer_state_->plugin_status_state().get_helix_plugin_installed_subject(), this,
+            [](PrintPreparationManager* self, int) { self->publish_macro_option_count(); },
+            printer_state_->get_subjects_lifetime());
     }
 }
 
@@ -535,9 +547,19 @@ void PrintPreparationManager::publish_macro_option_count() {
     if (!printer_state_) {
         return;
     }
-    const size_t displayed = displayed_options().options.size();
-    const size_t declared = get_cached_options().options.size();
-    printer_state_->set_macro_option_count(displayed - declared);
+    const PrePrintOptionSet displayed = displayed_options();
+    const PrePrintOptionSet& declared = get_cached_options();
+    size_t macro_rows = displayed.options.size() - declared.options.size();
+    // A row the detail view hides for want of a rewrite never renders, so it
+    // cannot be what makes the options card worth showing.
+    if (helix::gcode_rewrite_available(gcode_rewrite_block()) == 0) {
+        for (const auto& opt : displayed.options) {
+            if (!declared.find(opt.id) && disabling_option_requires_plugin(opt)) {
+                --macro_rows;
+            }
+        }
+    }
+    printer_state_->set_macro_option_count(macro_rows);
 }
 
 void PrintPreparationManager::set_cached_scan_result(const gcode::ScanResult& scan,
@@ -736,19 +758,37 @@ std::string PrintPreparationManager::get_temp_directory() const {
 }
 
 bool PrintPreparationManager::can_modify_gcode() const {
+    return gcode_rewrite_block() == GcodeRewriteBlock::None;
+}
+
+GcodeRewriteBlock PrintPreparationManager::gcode_rewrite_block() const {
+    return rewrite_block_with(printer_state_, keeps_local_copies_);
+}
+
+GcodeRewriteBlock PrintPreparationManager::gcode_rewrite_block_for(PrinterState* printer_state,
+                                                                   IMoonrakerAPI* api) {
+    return rewrite_block_with(printer_state, keeps_local_copies(api));
+}
+
+GcodeRewriteBlock PrintPreparationManager::rewrite_block_with(PrinterState* printer_state,
+                                                              bool local_copies) {
     // Pre-print modifications rewrite the job file, and the plugin is what puts
     // the original filename back in Moonraker's history afterwards. Without it
     // finished jobs are listed as ".helix_temp/modified_1766807545p_name.gcode",
-    // so we decline rather than clutter the history. The rewrite also streams
-    // through a local copy, which some transports cannot keep.
-    return printer_state_ != nullptr &&
-           printer_state_->plugin_status_state().service_has_helix_plugin() &&
-           transport_keeps_local_copies();
+    // so we decline rather than clutter the history. No printer state reads as
+    // the plugin absent.
+    const int plugin =
+        printer_state ? printer_state->plugin_status_state().helix_plugin_state() : 0;
+    return helix::gcode_rewrite_block(plugin, local_copies);
+}
+
+bool PrintPreparationManager::keeps_local_copies(IMoonrakerAPI* api) {
+    // No API is refused where a download would start, not here.
+    return api == nullptr || api->transfers().supports_local_copies();
 }
 
 bool PrintPreparationManager::transport_keeps_local_copies() const {
-    // No API is refused where a download would start, not here.
-    return api_ == nullptr || api_->transfers().supports_local_copies();
+    return keeps_local_copies_;
 }
 
 // ============================================================================
@@ -1092,7 +1132,7 @@ void PrintPreparationManager::warn_modifications_dropped(
     // Name the features being dropped: "Cannot modify G-code" alone leaves the
     // user guessing which of the print dialog's controls it refers to (#1269).
     const std::string dropped = describe_dropped_modifications(ops_to_disable);
-    if (!transport_keeps_local_copies()) {
+    if (gcode_rewrite_block() == GcodeRewriteBlock::NoLocalCopies) {
         // Installing the plugin would change nothing here, so it goes unnamed.
         spdlog::warn("[PrintPreparationManager] Transport keeps no local copy - skipping "
                      "modification, printing original file");

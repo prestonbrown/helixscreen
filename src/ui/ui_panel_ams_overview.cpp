@@ -1444,12 +1444,9 @@ void AmsOverviewPanel::on_system_path_size_changed(lv_event_t* e) {
 
 void AmsOverviewPanel::detach_widget_hooks() {
     // These widgets can outlive this panel; their callbacks must not.
-    if (cards_row_ && lv_obj_is_valid(cards_row_))
-        lv_obj_remove_event_cb_with_user_data(cards_row_, &AmsOverviewPanel::on_cards_row_scrolled,
-                                              this);
-    if (system_path_ && lv_obj_is_valid(system_path_))
-        lv_obj_remove_event_cb_with_user_data(system_path_,
-                                              &AmsOverviewPanel::on_system_path_size_changed, this);
+    helix::ui::remove_event_cb_if_alive(cards_row_, &AmsOverviewPanel::on_cards_row_scrolled, this);
+    helix::ui::remove_event_cb_if_alive(system_path_,
+                                        &AmsOverviewPanel::on_system_path_size_changed, this);
 }
 
 AmsOverviewPanel::~AmsOverviewPanel() {

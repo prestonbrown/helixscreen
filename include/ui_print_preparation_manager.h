@@ -9,6 +9,7 @@
 #include "capability_matrix.h"
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"
+#include "gcode_rewrite_block.h"
 #include "i_moonraker_api.h"
 #include "operation_timeout_guard.h"
 #include "preprint_predictor.h"
@@ -328,6 +329,14 @@ class PrintPreparationManager {
      */
     [[nodiscard]] bool can_modify_gcode() const;
 
+    /// Why a rewrite cannot run right now, or None: the one answer behind
+    /// can_modify_gcode(), the pre-print option rows and the remap pick.
+    [[nodiscard]] GcodeRewriteBlock gcode_rewrite_block() const;
+
+    /// The same answer for a caller with no manager to hand.
+    [[nodiscard]] static GcodeRewriteBlock gcode_rewrite_block_for(PrinterState* printer_state,
+                                                                   IMoonrakerAPI* api);
+
     /**
      * @brief Get the temp directory path for streaming operations
      *
@@ -465,6 +474,9 @@ class PrintPreparationManager {
 
     /// Whether the transport can write the local copy a rewrite streams through.
     [[nodiscard]] bool transport_keeps_local_copies() const;
+    [[nodiscard]] static bool keeps_local_copies(IMoonrakerAPI* api);
+    [[nodiscard]] static GcodeRewriteBlock rewrite_block_with(PrinterState* printer_state,
+                                                              bool local_copies);
 
     /**
      * @brief Get the pre-print time estimate subject (seconds)
@@ -501,7 +513,9 @@ class PrintPreparationManager {
     [[nodiscard]] bool is_print_in_progress() const;
 
   private:
-    /// Tell PrinterState how many rows the macro analysis adds to displayed_options().
+    /// Tell PrinterState how many of the rows the macro analysis adds to
+    /// displayed_options() will render: rewrite-gated rows hide while a rewrite
+    /// cannot run.
     void publish_macro_option_count();
 
     friend class ::PrintPreparationManagerTestAccess;
@@ -585,6 +599,9 @@ class PrintPreparationManager {
     /// a frame landing after the release or a reconnect still clears it and
     /// the next print, started from anywhere, runs every step.
     ObserverGuard job_holds_observer_;
+    ObserverGuard plugin_observer_;
+    /// keeps_local_copies(api_), answered by set_dependencies().
+    bool keeps_local_copies_ = true;
     bool skip_reset_sent_ = false; ///< One reset per pending skip, until it reads clear
     void reset_pending_skips();
 

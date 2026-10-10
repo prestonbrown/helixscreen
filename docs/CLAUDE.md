@@ -11,6 +11,7 @@
 | Understand modal patterns | `devel/MODAL_SYSTEM.md` |
 | Work on a screensaver | `devel/SCREENSAVERS.md` |
 | Check a feature's architecture | `devel/ARCHITECTURE.md` → the right chapter in `devel/architecture/` |
+| Work on one printer's support | `devel/printers/README.md` (build target, deploy, quirks); reverse-engineering and the status matrix in `devel/printer-research/README.md` |
 | See what's planned/complete | [GitHub issues](https://github.com/prestonbrown/helixscreen/issues) |
 | Find in-flight plans/specs | `devel/plans/` (tracked, deleted when the work ships) or `superpowers/` (local scratch) |
 | Update the doc index | `README.md` + this file + relevant `CLAUDE.md` |

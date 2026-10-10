@@ -771,7 +771,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
         tip_method = info.tip_method;
         supports_purge = info.supports_purge;
     }
-    const char* tip_step_label = tip_method_step_label(tip_method);
+    const char* tip_step_label = lv_tr(tip_method_step_label(tip_method));
 
     // Backends that neither cut nor form a tip (TipMethod::NONE — e.g. the
     // Snapmaker U1) have no discrete tip phase; omit that step from the

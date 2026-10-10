@@ -432,9 +432,7 @@ TEST_CASE("Console: parse_html_spans() quoted class attribute", "[ui][html_parse
 // Tap-to-Paste: entry id resolution
 //
 // These exercise the REAL ConsolePanel::find_entry_by_id, not a replica. The
-// function is static and takes the container, so no panel instance is built —
-// see docs/devel/specs/2026-07-20-print-status-panel-test-isolation.md for why
-// constructing a panel in a test is unsafe.
+// function is static and takes the container, so no panel instance is built.
 // ============================================================================
 
 namespace {

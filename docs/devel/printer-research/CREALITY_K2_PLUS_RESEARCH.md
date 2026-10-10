@@ -277,7 +277,7 @@ Verified on a K2 Plus (2026-09-08, read-only SSH), board `CR0CN240110C10`, firmw
 | Virtual framebuffer | `480,1600` - two stacked 480x800 buffers for page flipping, not a taller panel |
 | Framebuffer depth / stride | 32 bpp, 1920 bytes (480 x 4) |
 | Presented orientation | Landscape, by software rotation 270 degrees |
-| DPI | 218.2, from `src/application/display_metrics.cpp#kKnownPanels` (`{"k2", {480, 800, 108.6}}`) |
+| DPI | 218.2, from the known-panel table read by `src/application/display_metrics.cpp#known_panel` (`{"k2", {480, 800, 108.6}}`) |
 | Touch controller | Goodix `gt9xxnew_ts`, I2C (`Bus=0018`), sole node `/dev/input/event0` |
 | Touch modules on disk | `gt9xxnew_ts.ko`, `tlsc6x.ko` - two variants for different hardware revisions |
 | Framebuffer device | `/dev/fb0`; no DRM (`/dev/dri` absent) |
@@ -541,7 +541,7 @@ make k2-ssh K2_HOST=192.168.1.100          # SSH into the printer
 
 | Component | Notes |
 |-----------|-------|
-| CFS reimplementation | Protocol reverse-engineered from `box_wrapper.cpython-39.so`; see the CFS reference in [CREALITY_K2_SUPPORT.md](../printers/CREALITY_K2_SUPPORT.md) |
+| CFS reimplementation | Protocol reverse-engineered from `box_wrapper.cpython-39.so`; see [CREALITY_CFS_K2_INTERNALS.md](CREALITY_CFS_K2_INTERNALS.md) |
 | K2, K2 Pro, K2 SE validation | Database entries exist for K2 Plus and K2 Pro; only the K2 Plus has been run by us. A K2 SE is a K1-family MIPS board despite the name - see the routing trap in `src/printer/ams_backend_cfs.cpp` |
 
 ---

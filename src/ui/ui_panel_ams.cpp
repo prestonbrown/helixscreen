@@ -621,8 +621,7 @@ void AmsPanel::on_path_canvas_size_changed(lv_event_t* e) {
 
 void AmsPanel::detach_path_canvas_hooks() {
     // The canvas can outlive this panel; its callback must not.
-    if (path_canvas_ && lv_obj_is_valid(path_canvas_))
-        lv_obj_remove_event_cb_with_user_data(path_canvas_, on_path_canvas_size_changed, this);
+    helix::ui::remove_event_cb_if_alive(path_canvas_, on_path_canvas_size_changed, this);
 }
 
 AmsPanel::~AmsPanel() {
