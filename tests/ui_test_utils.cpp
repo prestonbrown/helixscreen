@@ -257,6 +257,20 @@ bool press_at(int32_t x, int32_t y) {
     return true;
 }
 
+bool move_to(int32_t x, int32_t y) {
+    if (!virtual_indev) {
+        spdlog::error("[UITest] Input device not initialized - call init() first");
+        return false;
+    }
+
+    spdlog::debug("[UITest] Simulating move to ({}, {})", x, y);
+    last_data.point.x = x;
+    last_data.point.y = y;
+    lv_indev_read(virtual_indev);
+    wait_ms(50);
+    return true;
+}
+
 bool release() {
     if (!virtual_indev) {
         spdlog::error("[UITest] Input device not initialized - call init() first");

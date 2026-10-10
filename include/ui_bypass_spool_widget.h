@@ -124,6 +124,12 @@ void bypass_spool_set_active(BypassSpoolWidgets& w, bool active);
 /// coordinates. The material label is placed above, the "Bypass" label below.
 void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy);
 
+/// Bring the whole overlay in line with AmsState: shown only where the bypass node
+/// belongs on the path, wearing the external spool's color, fill and material, and the
+/// active ring while bypass is engaged. The caller repositions it afterwards, since the
+/// material label's visibility changes what sits above the box.
+void bypass_spool_sync_from_state(BypassSpoolWidgets& w);
+
 /// Show or hide the whole bypass overlay — card, spool and both labels. Used
 /// when the bypass node does not belong on the path at all; see
 /// bypass_node_visible().

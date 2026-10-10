@@ -142,6 +142,7 @@ Writes are change-gated: every value is compared before `lv_subject_set_*` fires
 | Toolchange narration | `toolchange_visible`, `ams_current_toolchange`, `ams_number_of_toolchanges`, `toolchange_text` | Print-status toolchange banner |
 | Path canvas feed | `path_topology`, `path_filament_segment` | Filament-path canvas ([`../FILAMENT_PATH_CANVAS.md`](../FILAMENT_PATH_CANVAS.md)) |
 | Dryer / environment | `dryer_*`, per-unit `ams_unit_<i>_*` and `ams_env_ind_<i>_*` | AMS unit card badges, environment detail overlay |
+| Unit paging | `ams_unit_view_active`, `ams_page_count`, `ams_page_current`, `ams_page_has_prev`, `ams_page_has_next`, `ams_page_unit_name`, `ams_page_unit_logo`; `ams_units_dryer_version` | The overview's unit view: header, arrows and dots |
 | Buffer / clog | `buffer_*`, `clog_meter_*` | Filament Buffer widget and modal, clog bar |
 | Endless spool | `ams_endless_state`, `ams_endless_text` | Endless-spool status line |
 

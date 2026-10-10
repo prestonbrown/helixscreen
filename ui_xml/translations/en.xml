@@ -15,6 +15,7 @@
   <translation tag="%d slots" en="%d slots"/>
   <translation tag="%d toolheads" en="%d toolheads"/>
   <translation tag="%d tools" en="%d tools"/>
+  <translation tag="%d units" en="%d units"/>
   <translation tag="%d-%d" en="%d-%d"/>
   <translation tag="%d-%d°C" en="%d-%d°C"/>
   <translation tag="%d:%02d left" en="%d:%02d left"/>
@@ -72,6 +73,7 @@
   <translation tag="1 min ago" en="1 min ago"/>
   <translation tag="1 minute" en="1 minute"/>
   <translation tag="1 more tap to {} beta features" en="1 more tap to {} beta features"/>
+  <translation tag="1 unit" en="1 unit"/>
   <translation tag="1. Printer homes all axes (~1 minute)" en="1. Printer homes all axes (~1 minute)"/>
   <translation tag="1. Printer homes and probes the bed" en="1. Printer homes and probes the bed"/>
   <translation tag="1. Printer will home and probe each screw" en="1. Printer will home and probe each screw"/>

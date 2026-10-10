@@ -2,6 +2,12 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <styles>
+    <!-- Page dots: every dot the foreground color, the current page's the accent.
+         The color lives in the bound styles, never inline, or it would override them. -->
+    <style name="page_dot_idle" bg_color="#text"/>
+    <style name="page_dot_current" bg_color="#primary"/>
+  </styles>
   <!-- Right sidebar width comes from `#ams_right_col_w` (defined in
        ams_panel.xml). theme_manager scans every ui_xml file for responsive
        px tokens and registers the bare base name in the globals scope, so
@@ -15,7 +21,8 @@
     <!-- Left section: header + content (column) -->
     <lv_obj name="overview_content"
             height="100%" flex_grow="3" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="false">
-      <!-- Header Bar - left-column width only, with unit logo + name in detail mode -->
+      <!-- Header Bar - left-column width only. The overview titles it; the unit view names the
+           unit on its page. -->
       <lv_obj name="overlay_header"
               width="100%" height="#header_height" style_pad_left="#space_xs" style_pad_right="#space_sm"
               style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row" style_flex_main_place="start"
@@ -27,27 +34,49 @@
                 style_flex_track_place="center" flex_flow="row" style_pad_gap="#space_xs">
           <event_cb trigger="clicked" callback="on_ams_overview_back_clicked"/>
           <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
-          <!-- Overview mode title (hidden in detail mode) -->
+          <!-- Overview title (hidden in the unit view) -->
           <text_heading name="header_title"
                         text="Multi-Filament Overview" text_transform="uppercase" long_mode="dots"
-                        style_text_align="left" clickable="false" event_bubble="true" scrollable="false"/>
-          <!-- Detail mode: unit logo + name (hidden in overview mode) -->
-          <lv_image name="detail_logo"
-                    width="#ams_logo_size" height="#ams_logo_size" inner_align="contain" hidden="true" clickable="false"
-                    event_bubble="true"/>
-          <text_heading name="detail_unit_name"
-                        text="" hidden="true" text_transform="uppercase" long_mode="dots" clickable="false"
-                        event_bubble="true" scrollable="false"/>
-          <ams_disconnected_chip name="detail_disconnected_chip" disconnected="ams_viewed_unit_disconnected"/>
+                        style_text_align="left" clickable="false" event_bubble="true" scrollable="false">
+            <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="1"/>
+          </text_heading>
+          <!-- Unit view title; below SMALL it and the ":" give way, so the unit's logo and name stay -->
+          <text_heading name="header_title_unit_view"
+                        text="Multi-Filament" text_transform="uppercase" long_mode="dots" style_max_width="100%"
+                        style_text_align="left" clickable="false" event_bubble="true" scrollable="false">
+            <bind_flag_if cond="ams_unit_view_active eq 0 or ui_breakpoint lt 2" flag="hidden"/>
+          </text_heading>
+          <!-- ":" + logo + name of the unit on this page. width="1"+flex_grow: the suffix takes
+               what the title and the chip leave, and its name ellipsizes inside that, so the
+               title keeps priority. -->
+          <lv_obj name="header_backend_suffix"
+                  width="1" height="100%" flex_grow="1" style_pad_all="0" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" clickable="false"
+                  event_bubble="true">
+            <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="0"/>
+            <text_heading name="header_colon" text=":" clickable="false" event_bubble="true" scrollable="false">
+              <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
+            </text_heading>
+            <lv_image name="detail_logo"
+                      width="#ams_header_logo_size" height="#ams_header_logo_size" bind_src="ams_page_unit_logo"
+                      inner_align="contain" clickable="false" event_bubble="true" style_image_recolor="#text"
+                      style_image_recolor_opa="255"/>
+            <text_heading name="detail_unit_name"
+                          width="1" flex_grow="1" bind_text="ams_page_unit_name" text_transform="uppercase"
+                          long_mode="dots" style_max_height="100%" clickable="false" event_bubble="true"
+                          scrollable="false"/>
+          </lv_obj>
         </lv_obj>
+        <!-- Outside the back button so a long unit name cannot push it off the header -->
+        <ams_disconnected_chip name="detail_disconnected_chip" disconnected="ams_viewed_unit_disconnected"/>
       </lv_obj>
-      <!-- Left column content (cards + canvas OR detail slot view) -->
+      <!-- Left column content (cards + canvas OR the unit view) -->
       <lv_obj name="left_column"
               width="100%" flex_grow="1" style_pad_all="#space_sm" style_pad_top="0" style_pad_gap="#space_sm"
               flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" scrollable="false">
         <!-- Disable content when printer not connected or klippy not ready -->
         <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-        <!-- === Overview Mode (visible by default) === -->
+        <!-- === Overview Mode (visible by default, hidden in the unit view) === -->
         <!-- Unit Cards Row - horizontal layout for unit summary cards -->
         <!-- style_pad_bottom reserves a lane for the active scrollbar; without it
              the bar is drawn straight through each card's "N slots" line while
@@ -58,17 +87,23 @@
                 width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_pad_gap="#space_md"
                 flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start" scrollable="true"
                 scrollbar_mode="active">
+          <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="1"/>
           <!-- Unit cards created dynamically by AmsOverviewPanel::create_unit_cards() -->
         </lv_obj>
         <!-- System Path Area - shows unit outputs → hub → toolhead + bypass path -->
         <lv_obj name="system_path_area" width="100%" flex_grow="1" style_pad_all="0" scrollable="false">
+          <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="1"/>
           <!-- Path canvas created programmatically with status text drawn to left of nozzle -->
         </lv_obj>
-        <!-- === Detail Mode (hidden by default, shown when unit card clicked) === -->
+        <!-- === Unit view: the unit on one page, its path to the toolhead, the page dots ===
+             Shown when a unit card is tapped. It takes the swipe that pages: every child
+             passes its gestures up, and this one is where they stop (a gesture goes to the
+             first ancestor that does not bubble), so a swipe over the overview pages nothing. -->
         <lv_obj name="unit_detail_container"
-                width="100%" hidden="true" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column"
-                style_flex_main_place="start" style_flex_cross_place="center" scrollable="false">
-          <!-- Slot grid card (populated dynamically with ams_slot widgets) -->
+                width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column"
+                style_flex_main_place="start" style_flex_cross_place="center" scrollable="false" gesture_bubble="false">
+          <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="0"/>
+          <!-- Spool box (populated dynamically with ams_slot widgets) -->
           <ui_card name="detail_unit_card"
                    width="100%" height="content" style_radius="4" style_pad_all="#space_sm" style_border_width="0"
                    scrollable="false">
@@ -77,11 +112,60 @@
               <ams_unit_detail name="detail_unit_detail"/>
             </lv_obj>
           </ui_card>
-          <!-- Path Canvas - shows filament routing from slots through hub to nozzle -->
+          <!-- Path canvas: filament routing from the unit's slots through the hub to the nozzle.
+               The paging arrows float over its left and right edges; C++ places them level with
+               the hub box, which the canvas measures.
+               SIZE_OK: -8 tucks the canvas under the spool box's front edge, where the lanes
+               enter it; the same pull ams_panel.xml's path_container makes. -->
           <lv_obj name="detail_path_container"
-                  width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="start"
-                  overflow_visible="true" scrollable="false">
+                  width="100%" flex_grow="1" style_pad_all="0" style_margin_top="-8" flex_flow="column"
+                  overflow_visible="true" style_flex_main_place="start" style_flex_cross_place="center"
+                  scrollable="false">
             <filament_path_canvas name="detail_path_canvas" width="100%" flex_grow="1"/>
+            <lv_obj name="page_prev_button"
+                    width="#ams_page_arrow_hit" height="#ams_page_arrow_hit" floating="true" clickable="true"
+                    scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0" style_radius="9999">
+              <bind_flag_if_eq subject="ams_page_has_prev" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_ams_page_prev_clicked"/>
+              <style name="styles.press_wash" selector="pressed"/>
+              <lv_obj name="page_prev_disc"
+                      width="#ams_page_arrow_size" height="#ams_page_arrow_size" align="center" style_radius="9999"
+                      style_bg_color="#elevated_bg" style_bg_opa="255" style_border_width="0" style_pad_all="0"
+                      flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" scrollable="false"
+                      clickable="false" event_bubble="true">
+                <icon src="chevron_left" size="md" variant="text" clickable="false" event_bubble="true"/>
+              </lv_obj>
+            </lv_obj>
+            <lv_obj name="page_next_button"
+                    width="#ams_page_arrow_hit" height="#ams_page_arrow_hit" floating="true" clickable="true"
+                    scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0" style_radius="9999">
+              <bind_flag_if_eq subject="ams_page_has_next" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_ams_page_next_clicked"/>
+              <style name="styles.press_wash" selector="pressed"/>
+              <lv_obj name="page_next_disc"
+                      width="#ams_page_arrow_size" height="#ams_page_arrow_size" align="center" style_radius="9999"
+                      style_bg_color="#elevated_bg" style_bg_opa="255" style_border_width="0" style_pad_all="0"
+                      flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" scrollable="false"
+                      clickable="false" event_bubble="true">
+                <icon src="chevron_right" size="md" variant="text" clickable="false" event_bubble="true"/>
+              </lv_obj>
+            </lv_obj>
+          </lv_obj>
+          <!-- Page dots: one per page, centered; hidden with a single page. The repeat is
+               the only child of its container, as a subject-bound repeat must be. -->
+          <lv_obj name="page_dots"
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+                  style_flex_cross_place="center" style_pad_column="#space_sm" scrollable="true" scroll_dir="hor"
+                  scrollbar_mode="off" clickable="false">
+            <bind_flag_if_lt subject="ams_page_count" flag="hidden" ref_value="2"/>
+            <repeat count="ams_page_count">
+              <lv_obj width="#ams_page_dot_size"
+                      height="#ams_page_dot_size" style_radius="9999" style_bg_opa="255" style_border_width="0"
+                      style_pad_all="0" scrollable="false" clickable="false">
+                <bind_style_if_not_eq name="page_dot_idle" subject="ams_page_current" ref_value="$i"/>
+                <bind_style_if_eq name="page_dot_current" subject="ams_page_current" ref_value="$i"/>
+              </lv_obj>
+            </repeat>
           </lv_obj>
         </lv_obj>
       </lv_obj>

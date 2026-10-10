@@ -108,10 +108,8 @@ void ams_detail_update_badges(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int
  * @param canvas     The filament_path_canvas widget
  * @param slot_grid  The slot grid (for sizing sync) — may be nullptr
  * @param unit_index Backend unit index (-1 = whole backend)
- * @param hub_only   If true, only draw slots → hub (skip downstream)
  */
-void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,
-                                  bool hub_only);
+void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index);
 
 /**
  * @brief Pre-show environment indicator if backend has environment sensors

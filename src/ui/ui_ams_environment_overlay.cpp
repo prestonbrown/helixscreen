@@ -388,7 +388,17 @@ void AmsEnvironmentOverlay::on_activate() {
         }
     };
 
-    if (auto* s = ams.get_env_ind_temp_text_subject(acting_unit_index())) {
+    // A unit past the per-unit subjects is the one the overview's unit view shows, and the
+    // env chip there mirrors it.
+    const int unit = acting_unit_index();
+    lv_subject_t* temp_subject = ams.get_env_ind_temp_text_subject(unit);
+    if (!temp_subject)
+        temp_subject = ams.get_env_ind_detail_temp_text_subject();
+    lv_subject_t* humidity_subject = ams.get_env_ind_humidity_text_subject(unit);
+    if (!humidity_subject)
+        humidity_subject = ams.get_env_ind_detail_humidity_text_subject();
+
+    if (auto* s = temp_subject) {
         env_temp_observer_ = observe<const char*>(
             s, this,
             [refresh_if_visible](AmsEnvironmentOverlay* self, const char*) {
@@ -396,7 +406,7 @@ void AmsEnvironmentOverlay::on_activate() {
             },
             ams.get_subjects_lifetime());
     }
-    if (auto* s = ams.get_env_ind_humidity_text_subject(acting_unit_index())) {
+    if (auto* s = humidity_subject) {
         env_humidity_observer_ = observe<const char*>(
             s, this,
             [refresh_if_visible](AmsEnvironmentOverlay* self, const char*) {

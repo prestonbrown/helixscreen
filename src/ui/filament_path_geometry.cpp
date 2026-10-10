@@ -360,11 +360,12 @@ void route_polyline_filleted(FilamentPath& out, const PathPoint* pts, int n, flo
 
 float merge_fan_width(const MergeLaneIn* lanes, int n, float hub_cx, float hub_top, float min_width,
                       float max_width, float entry_margin, float fillet_r, float max_slope,
-                      float min_separation) {
+                      float min_separation, int reserve_each_side) {
     max_width = std::max(min_width, max_width);
     if (!lanes || n < 2 || min_separation <= 0)
         return min_width;
     const int count = std::min(n, FilamentPath::MAX_SEGS);
+    const int reserve = std::max(0, reserve_each_side);
     float deepest_start = lanes[0].start_y;
     for (int i = 1; i < count; ++i)
         deepest_start = std::max(deepest_start, lanes[i].start_y);
@@ -372,11 +373,11 @@ float merge_fan_width(const MergeLaneIn* lanes, int n, float hub_cx, float hub_t
 
     auto clearance = [&](float width) {
         float usable = std::max(0.0f, width - 2.0f * entry_margin);
-        float step = usable / (count - 1);
+        float step = usable / (count - 1 + 2 * reserve);
         float max_dx[2] = {0, 0};
         int side_count[2] = {0, 0};
         for (int i = 0; i < count; ++i) {
-            float entry = hub_cx - usable / 2 + step * i;
+            float entry = hub_cx - usable / 2 + step * (i + reserve);
             int side = entry <= hub_cx ? 0 : 1;
             ++side_count[side];
             max_dx[side] = std::max(max_dx[side], std::fabs(entry - lanes[i].slot_x));
@@ -406,7 +407,8 @@ float merge_fan_width(const MergeLaneIn* lanes, int n, float hub_cx, float hub_t
 }
 
 void build_merge_fan(const MergeLaneIn* lanes, int n, float hub_cx, float hub_top, float hub_w,
-                     float entry_margin, float fillet_r, float max_slope, MergeLaneOut* out) {
+                     float entry_margin, float fillet_r, float max_slope, MergeLaneOut* out,
+                     int reserve_each_side, MergeFanInfo* info) {
     if (!lanes || !out || n <= 0)
         return;
 
@@ -428,12 +430,14 @@ void build_merge_fan(const MergeLaneIn* lanes, int n, float hub_cx, float hub_to
     if (usable < 0.0f)
         usable = 0.0f;
     float left_end = hub_cx - usable * 0.5f;
-    float entry_step = (n > 1) ? usable / (float)(n - 1) : 0.0f;
+    const int reserve = std::max(0, reserve_each_side);
+    const int positions = n + 2 * reserve;
+    float entry_step = (positions > 1) ? usable / (float)(positions - 1) : 0.0f;
 
     float entry_x[FilamentPath::MAX_SEGS];
     int count = std::min(n, FilamentPath::MAX_SEGS);
     for (int i = 0; i < count; ++i)
-        entry_x[i] = (n == 1) ? hub_cx : (left_end + entry_step * (float)i);
+        entry_x[i] = (positions == 1) ? hub_cx : (left_end + entry_step * (float)(i + reserve));
 
     // The bends must sit below every lane's sensor/clearance: take the lowest
     // (largest-y) start_y as the ceiling so a bend never rises above its source.
@@ -498,6 +502,60 @@ void build_merge_fan(const MergeLaneIn* lanes, int n, float hub_cx, float hub_to
         out[i].pts[2] = {ex, approach_y};
         out[i].pts[3] = {ex, hub_top};
     }
+
+    if (info) {
+        info->approach_y = approach_y;
+        info->min_bend_y = min_bend_y;
+        info->slope_left = m_left;
+        info->slope_right = m_right;
+        info->entry_step = entry_step;
+        info->entry_left = (positions > 1) ? left_end + entry_step * (float)(reserve - 1) : hub_cx;
+        info->entry_right = (positions > 1) ? left_end + entry_step * (float)(n + reserve) : hub_cx;
+    }
+}
+
+std::vector<DashPiece> dash_polyline(const PathPoint* pts, int n, float dash_len, float gap_len) {
+    std::vector<DashPiece> out;
+    if (!pts || n < 2 || dash_len <= 0.0f)
+        return out;
+    const bool solid = gap_len <= 0.0f;
+
+    int dash = 0;
+    bool on = true;
+    float left = dash_len; // length remaining in the current dash or gap
+    for (int i = 0; i + 1 < n; ++i) {
+        const float dx = pts[i + 1].x - pts[i].x;
+        const float dy = pts[i + 1].y - pts[i].y;
+        const float seg_len = std::sqrt(dx * dx + dy * dy);
+        if (seg_len <= 1e-6f)
+            continue;
+        float at = 0.0f; // distance along this segment
+        while (at < seg_len) {
+            const float step = std::min(left, seg_len - at);
+            if (on) {
+                const float t0 = at / seg_len;
+                const float t1 = (at + step) / seg_len;
+                out.push_back({{pts[i].x + dx * t0, pts[i].y + dy * t0},
+                               {pts[i].x + dx * t1, pts[i].y + dy * t1},
+                               dash});
+            }
+            at += step;
+            left -= step;
+            if (left <= 1e-6f) {
+                if (on && !solid) {
+                    on = false;
+                    left = gap_len;
+                    ++dash;
+                } else if (!on) {
+                    on = true;
+                    left = dash_len;
+                } else {
+                    left = dash_len; // solid: the dash simply continues
+                }
+            }
+        }
+    }
+    return out;
 }
 
 } // namespace pathgeo

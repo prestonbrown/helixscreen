@@ -778,8 +778,7 @@ void ams_detail_update_badges(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int
     spdlog::debug("[AmsDetail] Moved {} badges to overlay layer", slot_count);
 }
 
-void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,
-                                  bool hub_only) {
+void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index) {
     if (!canvas)
         return;
 
@@ -789,8 +788,6 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
 
     helix::AmsSystemInfo info = backend->get_system_info();
 
-    // Hub-only mode: slots -> hub and its output stub, skip downstream
-    ui_filament_path_canvas_set_hub_only(canvas, hub_only);
     // A unit-scoped view asks its own unit; the all-units view any unit.
     if (unit_index >= 0 && unit_index < static_cast<int>(info.units.size())) {
         const auto& unit = info.units[unit_index];
@@ -962,8 +959,7 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
         ui_filament_path_canvas_set_bypass_color(canvas, ext_spool->color_rgb);
     }
 
-    spdlog::debug("[AmsDetail] Path canvas configured: slots={}, unit={}, hub_only={}", slot_count,
-                  unit_index, hub_only);
+    spdlog::debug("[AmsDetail] Path canvas configured: slots={}, unit={}", slot_count, unit_index);
 }
 
 void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index) {

@@ -67,6 +67,37 @@ TEST_CASE_METHOD(LVGLTestFixture, "Dryer scalar subjects mirror the selected uni
     ams.deinit_subjects();
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Per-unit dryer fan-out: the dryer version moves with the set of drying boxes",
+                 "[ams][dryer][multi-unit][fanout]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto owned = make_two_box_qidi_one_drying();
+    AmsBackendQidi* backend = owned.get();
+    ams.set_backend(std::move(owned));
+    ams.sync_from_backend();
+
+    lv_subject_t* version = ams.get_units_dryer_version_subject();
+    REQUIRE(version != nullptr);
+    const int with_box1 = lv_subject_get_int(version);
+    CHECK(with_box1 > 0);
+
+    // The same boxes drying: nothing to announce.
+    ams.sync_from_backend();
+    CHECK(lv_subject_get_int(version) == with_box1);
+
+    // Box 1 stops and box 2 starts: the count of drying boxes is still one, but a unit on
+    // another page needs to hear that it is a different one.
+    QidiBoxTestAccess::apply_box_extras(
+        *backend,
+        json{{"box_drying_state", json{{"box1", json{{"end_time", 0}}},
+                                       {"box2", json{{"end_time", 1'000'000 + 30 * 60}}}}}});
+    ams.sync_from_backend();
+    CHECK(lv_subject_get_int(version) != with_box1);
+
+    ams.deinit_subjects();
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "Detail env subjects mirror the selected detail unit",
                  "[ams][dryer][multi-unit][detail]") {
     auto& ams = AmsState::instance();

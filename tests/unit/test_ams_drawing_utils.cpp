@@ -416,6 +416,30 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::apply_logo with unit fallback", "[a
     REQUIRE(lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN));
 }
 
+TEST_CASE("ams_draw::unit_logo_path: the unit's own name first, then the system's",
+          "[ams_draw][logo]") {
+    AmsUnit unit;
+    AmsSystemInfo info;
+
+    // Neither name has a logo: none.
+    unit.name = "NonExistent";
+    info.type_name = "AlsoNonExistent";
+    CHECK(ams_draw::unit_logo_path(unit, info) == nullptr);
+
+    // The system's logo stands in for a unit that has none of its own.
+    info.type_name = "Happy Hare";
+    const char* system_logo = helix::AmsState::get_logo_path("Happy Hare");
+    REQUIRE(system_logo != nullptr);
+    CHECK(std::string(ams_draw::unit_logo_path(unit, info)) == system_logo);
+
+    // A unit with its own logo keeps it over the system's.
+    unit.name = "Box Turtle 1";
+    const char* unit_logo = helix::AmsState::get_logo_path("Box Turtle 1");
+    REQUIRE(unit_logo != nullptr);
+    REQUIRE(std::string(unit_logo) != std::string(system_logo));
+    CHECK(std::string(ams_draw::unit_logo_path(unit, info)) == unit_logo);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: shows 1-based number", "[ui][ams][badge]") {
     lv_obj_t* host = lv_obj_create(test_screen());
     lv_obj_t* badge = ams_draw::create_lane_badge(host, 3, 16);

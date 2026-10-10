@@ -21,12 +21,14 @@
 #include "printer_state.h"
 #include "test_helpers/openams_test_access.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_env.h"
 #include "test_helpers/seeded_override.h"
 #include "ui/ams_drawing_utils.h"
 
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <set>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -1543,4 +1545,46 @@ TEST_CASE_METHOD(HelixTestFixture,
         legacy.feed(shared_manager(0));
         CHECK(legacy.get_system_info().units[0].slots[0].extruder_name.empty());
     }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS fleet mock publishes twelve units on two hubs",
+                 "[ams][openams][mock][fleet]") {
+    helix::ScopedEnv ams("HELIX_MOCK_AMS", "openams");
+    helix::ScopedEnv units("HELIX_MOCK_OPENAMS_UNITS", "fleet");
+    helix::ScopedEnv api("HELIX_MOCK_OPENAMS_API", nullptr);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::GENERIC_COREXY);
+
+    OpenAmsHarness backend;
+    backend.feed(client.openams_status_json());
+
+    const auto info = backend.get_system_info();
+    REQUIRE(info.units.size() == 12);
+    CHECK(info.total_slots == 45);
+    CHECK(info.units[0].slot_count == 1);
+    for (size_t u = 1; u < info.units.size(); ++u) {
+        CHECK(info.units[u].slot_count == 4);
+    }
+
+    std::set<std::string> hubs;
+    for (size_t u = 0; u < info.units.size(); ++u) {
+        hubs.insert(info.units[u].hub_id);
+        CHECK(info.units[u].hub_id == (u < 10 ? "fps" : "fps2"));
+        REQUIRE(info.units[u].environment.has_value());
+    }
+    CHECK(hubs.size() == 2);
+
+    // Readings differ unit to unit, so a page showing the wrong unit is visible.
+    CHECK(info.units[1].environment->humidity_pct != info.units[2].environment->humidity_pct);
+
+    // One bay loaded, on the third unit; one unit mid-dryer-cycle.
+    CHECK(info.current_slot == 5);
+    CHECK(info.units[2].slots[0].status == SlotStatus::LOADED);
+    for (size_t u = 0; u < info.units.size(); ++u) {
+        INFO("unit " << u);
+        CHECK(backend.get_dryer_info(static_cast<int>(u)).active == (u == 5));
+    }
+    CHECK(backend.get_dryer_info(5).remaining_min > 0);
+
+    // A group per bay: T0..T44.
+    CHECK(backend.get_tool_mapping().size() == 45);
 }

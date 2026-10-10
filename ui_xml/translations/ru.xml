@@ -15,6 +15,7 @@
   <translation tag="%d slots" ru="%d слотов"/>
   <translation tag="%d toolheads" ru="%d печатающих головок"/>
   <translation tag="%d tools" ru="%d инструментов"/>
+  <translation tag="%d units" ru="%d ед."/>
   <translation tag="%d-%d" ru="%d-%d"/>
   <translation tag="%d-%d°C" ru="%d-%d°C"/>
   <translation tag="%d:%02d left" ru="осталось %d:%02d"/>
@@ -72,6 +73,7 @@
   <translation tag="1 min ago" ru="1 мин. назад"/>
   <translation tag="1 minute" ru="1 минута"/>
   <translation tag="1 more tap to {} beta features" ru="1 нажатие до {} бета-функций"/>
+  <translation tag="1 unit" ru="1 ед."/>
   <translation tag="1. Printer homes all axes (~1 minute)" ru="1. Принтер ищет ноль по всем осям (~1 минута)"/>
   <translation tag="1. Printer homes and probes the bed" ru="1. Принтер паркуется и зондирует стол"/>
   <translation tag="1. Printer will home and probe each screw" ru="1. Принтер запаркуется и проверит каждый винт"/>

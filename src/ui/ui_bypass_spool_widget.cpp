@@ -7,6 +7,7 @@
 
 #include "ams_backend.h"
 #include "ams_bypass_policy.h"
+#include "ams_state.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
@@ -23,6 +24,31 @@ bool bypass_node_visible_for(const AmsBackend* backend) {
         helix::bypass_available_for(backend->get_system_info().supports_bypass),
         backend->is_bypass_active(), backend->bypass_is_virtual(),
         SettingsManager::instance().get_ams_always_show_bypass_spool());
+}
+
+void bypass_spool_sync_from_state(BypassSpoolWidgets& w) {
+    if (!w.valid()) {
+        return;
+    }
+    auto& ams = AmsState::instance();
+    // On AFC the node is removed entirely while bypass is disengaged (#1229).
+    const bool show = bypass_node_visible_for(ams.get_backend());
+    bypass_spool_set_visible(w, show);
+    if (!show) {
+        return;
+    }
+    if (auto ext = ams.get_external_spool_info()) {
+        bypass_spool_set_color(w, ext->color_rgb);
+        bypass_spool_set_has_spool(w, true);
+        bypass_spool_set_material(w, ext->material.c_str());
+    } else {
+        bypass_spool_set_color(w, 0x505050);
+        bypass_spool_set_has_spool(w, false);
+        bypass_spool_set_material(w, "");
+    }
+    // Same ring a lane slot wears when it is the active node - bypass IS a node
+    // on the path, and while it is engaged it is the one feeding the toolhead.
+    bypass_spool_set_active(w, lv_subject_get_int(ams.get_bypass_active_subject()) != 0);
 }
 
 void bypass_spool_set_visible(BypassSpoolWidgets& w, bool visible) {

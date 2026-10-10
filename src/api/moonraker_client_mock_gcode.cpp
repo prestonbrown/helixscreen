@@ -166,7 +166,8 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
             return std::atof(gcode.c_str() + pos + std::strlen(key));
         };
         const auto idx = field("OAMS=");
-        if (!openams_plugin_units() || !idx || *idx < 1 || *idx > openams_unit_count()) {
+        if (!openams_plugin_units() || !idx || *idx < 1 || *idx > openams_unit_count() ||
+            *idx != std::floor(*idx)) {
             return std::nullopt;
         }
         OpenAmsDryerSim& sim = openams_dryers_[static_cast<int>(*idx) - 1];

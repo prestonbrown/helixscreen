@@ -148,6 +148,8 @@ struct ThemeCache {
     lv_color_t color_text;
     lv_color_t color_bg;        // Canvas background (for hollow tube bore)
     lv_color_t color_success;   // Success color (cached for draw callbacks)
+    lv_color_t color_warning;   // Dryer glyph on an off-page stub
+    lv_color_t color_muted;     // Off-page stub label
     lv_color_t color_accent;    // Active route walls and halo ("primary")
     lv_color_t color_buffer[3]; // Buffer box by ClogMeterStatus: text_muted, warning, danger
 
@@ -158,7 +160,6 @@ struct ThemeCache {
     int32_t hub_width = 60;
     int32_t border_radius = 6;
     int32_t extruder_scale = 10; // Scale unit for extruder (based on space_md)
-    int32_t stub_length = 40;    // hub_only output stub (space_xl * 2)
 
     const lv_font_t* label_font = nullptr;
 
@@ -229,7 +230,7 @@ struct LayerState {
 // what was drawn, wherever the widget has moved since. The LINEAR selector's Y
 // is butted against the prep sensors and its width spans the slot row; the
 // buffer box internally clamps its size; the bypass rect tracks the visibility
-// gate (!hub_only && show_bypass). Any re-derivation in the click handler
+// gate (show_bypass). Any re-derivation in the click handler
 // would drift from the visible geometry. Single source of truth: render
 // writes, click reads. valid flags reset each render.
 struct HitRects {
@@ -305,10 +306,24 @@ struct FilamentPathData {
     bool bypass_has_spool = false;    // true when external spool is assigned
     bool show_bypass = true; // false = hide bypass path/spool entirely (e.g. tool changers)
 
-    // Rendering mode
-    bool hub_only = false; // true = stop rendering at hub (skip downstream)
-    // The unit's hub (or selector) output sensor. In hub_only mode it decides
-    // the output stub's band and whether the stub carries filament.
+    // Paging: units of this hub shown on other pages, before and after the one
+    // on screen (0 = none). The hub draws each side's as one dashed stub.
+    int offpage_before = 0;
+    int offpage_after = 0;
+    bool offpage_before_drying = false;
+    bool offpage_after_drying = false;
+    // Columns kept clear at both ends of the widget (controls overlaid there), over the
+    // rows keepout_y0..keepout_y1 (absolute); an empty range means every row.
+    int32_t edge_reserve = 0;
+    int32_t keepout_y0 = 0;
+    int32_t keepout_y1 = 0;
+    // A hub that stays put: when > 0 the hub, buffer and toolhead stand on the widget's
+    // center line and the hub box is sized for this many lanes, whatever the unit shown.
+    int fixed_hub_lanes = 0;
+    // The lane pitch of that widest unit, 0 to take the shown unit's own.
+    int32_t fixed_hub_pitch = 0;
+
+    // The unit's hub (or selector) output sensor.
     bool has_hub_sensor = false;
     bool hub_sensor_triggered = false;
     // Hub co-located with the toolhead: the merge box sits just above the

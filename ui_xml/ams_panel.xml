@@ -43,8 +43,9 @@
             <!-- System logo (bound to ams_system_logo subject). The logos are white
                  marks, recolored to the heading text so they read in both modes. -->
             <lv_image name="system_logo"
-                      width="20" height="20" bind_src="ams_system_logo" inner_align="contain" clickable="false"
-                      event_bubble="true" style_image_recolor="#text" style_image_recolor_opa="255"/>
+                      width="#ams_header_logo_size" height="#ams_header_logo_size" bind_src="ams_system_logo"
+                      inner_align="contain" clickable="false" event_bubble="true" style_image_recolor="#text"
+                      style_image_recolor_opa="255"/>
             <!-- System name (bound to ams_system_name subject) -->
             <text_heading name="system_name_label"
                           width="1" flex_grow="1" bind_text="ams_system_name" text_transform="uppercase"

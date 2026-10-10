@@ -74,8 +74,8 @@
          from the box, so the row reserves box, gap and readout and the unit
          centers as one. When hidden, slot_container gets full width via flex_grow. -->
     <ams_environment_indicator name="env_indicator"
-                               style_margin_left="#space_md" temp_text="ams_env_ind_detail_temp_text"
-                               humidity_text="ams_env_ind_detail_humidity_text"
+                               style_margin_left="#space_md" style_min_width="#ams_env_chip_min_w"
+                               temp_text="ams_env_ind_detail_temp_text" humidity_text="ams_env_ind_detail_humidity_text"
                                humidity_status="ams_env_ind_detail_humidity_status"
                                humidity_visible="ams_env_ind_detail_humidity_visible"
                                visible="ams_env_ind_detail_visible" drying_active="ams_env_ind_detail_drying_active"

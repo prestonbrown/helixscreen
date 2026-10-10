@@ -19,7 +19,29 @@
 
 #include "ui_filament_path_internal.h"
 
+#include <string>
+
 namespace helix::ui::fpath {
+
+// One off-page stub: the hub's suggestion of the other units of its hub that sit on
+// other pages. It is a lane that is only hinted at: a short run outward, a diagonal
+// parallel to the outermost real lane on its side, and a drop into the hub's top.
+struct OffpageStub {
+    bool present = false;
+    int count = 0;        ///< units it stands for
+    bool drying = false;  ///< one of them is drying
+    bool labeled = false; ///< the label has room; without it the stub is drawn bare
+    /// Outer end of the run, start of the diagonal, its end where the drop begins,
+    /// and where the drop meets the hub's top edge.
+    pg::PathPoint pts[4];
+    int32_t label_x = 0;  ///< left edge of the label block (glyph, then text)
+    int32_t label_cy = 0; ///< center line of the label block
+    int32_t label_w = 0;  ///< block width, glyph included
+    int32_t glyph_w = 0;  ///< the drying glyph's width, 0 when there is none
+};
+
+/// The label an off-page stub carries: "N units", "1 unit" for one.
+std::string offpage_label_text(int count);
 
 // Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
 // colors, filament/error state and the HUB merge-fan plan.
@@ -61,9 +83,16 @@ struct LinearHubFrame {
     // On-toolhead mode: the passthrough selector keeps the unit's position
     // while the hub box moves down to hug the toolhead.
     int32_t selector_y = 0;
+    // Off-page stubs: [0] left of the hub, [1] right. The hub is widened to hold their
+    // entries whenever either side has one.
+    OffpageStub stubs[2];
 
     SlotRenderStates states;
 };
+
+/// Width the hub or selector box is drawn at: the frame's fitted width for a HUB, the
+/// slot span for a LINEAR selector. Its center is (center_x, hub_y).
+int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g, const LinearHubFrame& f);
 
 /// @p glyph_top is the toolhead glyph's topmost drawn Y (toolhead_top_y()):
 /// a HUB with the bypass hidden stacks its hub and buffer above it.
@@ -114,7 +143,6 @@ struct SpanStyle {
     lv_color_t bore;     // filament color, or the background when empty
     bool filled = false; // filament is in this span
     bool painted = true; // false inside an opaque box: recorded, never stroked
-    uint8_t fade = 0;    // 0..255 toward the background; ignored under reduced effects
 };
 bool operator==(const SpanStyle& a, const SpanStyle& b);
 
@@ -245,6 +273,11 @@ void paint_tubes(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal
                  bool simple = reduced_effects());
 /// The bands on a hub/selector edge; called after the boxes are drawn.
 void paint_box_bands(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal);
+
+/// The frame's off-page stubs: a dashed polyline in the idle tube color, then the label
+/// (a drying glyph before it when one of the units is drying). Called before the hub box
+/// so the box covers the end of each drop.
+void draw_offpage_stubs(const RenderCtx& ctx, const LinearHubFrame& f);
 
 // Clamp band: a short rounded bar across the tube.
 inline constexpr int32_t BAND_EXTRA = 10;    // band length = gauge + BAND_EXTRA

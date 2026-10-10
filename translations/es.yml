@@ -17,6 +17,7 @@ translations:
   '%d slots': '%d ranuras'
   '%d toolheads': '%d cabezales'
   '%d tools': '%d herramientas'
+  '%d units': '%d unidades'
   '%d:%02d left': 'quedan %d:%02d'
   '%dh': '%d h'
   '%dh %02dm': '%d h %02d min'
@@ -73,6 +74,7 @@ translations:
   1 min ago: hace 1 min
   1 minute: 1 minuto
   1 more tap to {} beta features: 1 toque más para {} funciones beta
+  '1 unit': '1 unidad'
   1. Printer homes all axes (~1 minute): 1. La impresora referencia todos los ejes (~1 minuto)
   1. Printer homes and probes the bed: 1. La impresora hace origen y sondea la cama
   1. Printer will home and probe each screw: 1. La impresora hará origen y sondeará

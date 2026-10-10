@@ -178,8 +178,11 @@ becomes each slot's `extruder_name`, so the toolhead is badged by its extruder; 
 the badge is the toolhead's position. Only `units[].lane`, `groups[].lane` and `lanes[]` are
 needed for the drawing, so klipper_openams (which publishes nothing else) draws the same.
 
-The unit detail inside the overview is hub-only by design: it draws the slots down to the
-hub, and the trunk below (FPS, nozzle) is the overview's.
+The overview's unit view pages through the units: those units are consecutive pages of one
+hub group, and paging swaps the unit and its lanes while the hub, the lane's FPS box and the
+toolhead stay where they are. The group's other units show as dashed stubs ("N units", with a
+dryer glyph when one is drying) on either side of the hub. See "The unit view" in
+`FILAMENT_MANAGEMENT.md` for the page model.
 
 ## Slot identity
 

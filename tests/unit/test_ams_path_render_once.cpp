@@ -64,7 +64,7 @@ TEST_CASE_METHOD(XMLTestFixture, "AmsPanel open paints the filament path once",
     SECTION("a backend push that changes nothing paints nothing") {
         // What every path observer the panel holds does on each notification.
         ams_detail_setup_path_canvas(canvas, lv_obj_find_by_name(panel.get_panel(), "slot_grid"),
-                                     -1, false);
+                                     -1);
         process_lvgl(100);
         CHECK(data->layers.render_count == 1);
     }

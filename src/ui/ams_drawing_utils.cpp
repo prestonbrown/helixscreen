@@ -291,15 +291,20 @@ SlotColumn create_slot_column(lv_obj_t* parent, int32_t bar_width, int32_t bar_h
 // Logo Helpers
 // ============================================================================
 
+const char* unit_logo_path(const helix::AmsUnit& unit, const helix::AmsSystemInfo& info) {
+    const char* path = helix::AmsState::get_logo_path(unit.name);
+    if (!path || !path[0]) {
+        path = helix::AmsState::get_logo_path(info.type_name);
+    }
+    return path;
+}
+
 void apply_logo(lv_obj_t* image, const helix::AmsUnit& unit, const helix::AmsSystemInfo& info) {
     if (!image) {
         return;
     }
 
-    const char* path = helix::AmsState::get_logo_path(unit.name);
-    if (!path || !path[0]) {
-        path = helix::AmsState::get_logo_path(info.type_name);
-    }
+    const char* path = unit_logo_path(unit, info);
 
     if (path && path[0]) {
         lv_image_set_src(image, path);

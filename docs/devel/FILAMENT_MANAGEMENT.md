@@ -1148,15 +1148,17 @@ drawing is `src/ui/ui_ams_detail.cpp`.
 
 ### AMS Overview Panel (`ui_panel_ams_overview`)
 
-Grid of unit cards showing all units across the system. Each card is a miniature visualization of the unit's slots. Clicking a card transitions inline to a detail view of that unit's slots.
+Grid of unit cards showing all units across the system, above the system path canvas. Each card is a miniature visualization of the unit's slots. Clicking a card zooms inline into the **unit view**, which pages through the units starting on the tapped one (see "The unit view" below). Back from the unit view returns to the cards; Back from the cards leaves the panel, and reopening the panel opens the cards.
 
 Key files:
 | File | Purpose |
 |------|---------|
-| `include/ui_panel_ams_overview.h` | Class with detail view state |
-| `src/ui/ui_panel_ams_overview.cpp` | Card creation, inline detail view, slot layout |
-| `ui_xml/ams_overview_panel.xml` | Two-column layout: cards/detail left, loaded info right |
+| `include/ui_panel_ams_overview.h` | Class with the overview's cards and the unit view's page state |
+| `src/ui/ui_panel_ams_overview.cpp` | Card creation, the unit view, paging, slot layout |
+| `ui_xml/ams_overview_panel.xml` | Two-column layout: cards and system path, or the unit view, on the left; loaded info right |
 | `ui_xml/ams_unit_card.xml` | Mini unit card with slot bars and hub sensor dot |
+| `include/ams_unit_pages.h`, `src/ui/ams_unit_pages.cpp` | The page model: `build_unit_pages()`, `page_of_unit()`, `initial_unit_page()`. Pure data, no LVGL |
+| `src/ui/ui_filament_path_plan.cpp` | Off-page stub geometry (`layout_offpage_stub`), widened hub |
 
 **The one model**: every overview draws chains of `units -> hub -> buffer -> toolhead`. A hub joins the paths of every unit on it (units naming the same non-empty `AmsUnit::hub_id`; a unit with none is a hub of its own). A hub has at most one buffer (the FPS of an OpenAMS lane), and a buffer belongs to exactly one hub. `ams_draw::compute_system_tool_layout()` computes `SystemToolLayout::hub_groups` (each hub's units and toolhead). The one-toolhead drawing is the one-chain case: every unit joins one combiner hub. The several-toolhead drawing places one hub box per hub group, with its buffer box between the hub and its toolhead. A hub's buffer box is the box the unit view shows for the hub's first unit (`ams_detail_buffer_box()`, same label and tint); the one-toolhead drawing shows the system reading's box the same way. A toolhead badge names the extruder (`E<n>`), or its position when the backend publishes no extruder, never a filament group. Bypass stays system-level in the one-toolhead drawing.
 
@@ -1191,6 +1193,106 @@ calls `open_environment_for_unit(unit)`, which resolves that unit's environment
 **zones** and picks the detail view, a tab strip or the list from their shape - a unit
 whose lanes each have their own box opens a list of boxes, not one card.
 [FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md) has the model.
+
+#### The unit view: one unit per page
+
+Tapping a unit card zooms into the unit view (the container `unit_detail_container`; the
+cards row and the system path hide while it shows). It shows **one unit per page**: the
+unit's spool box above the filament path drawn the whole way, lanes through the hub and
+buffer to the toolhead, as `AmsPanel` draws it. Paging swaps the unit and its lanes and
+leaves everything downstream where it is. The overview itself is unchanged by it:
+`AmsState::set_unit_view_active()` (`ams_unit_view_active`) is the one switch between
+the two, and the header, the cards row, the system path area and the unit view bind it.
+
+**Pages.** `build_unit_pages(info, is_drying)` turns the backend's units into pages. Units
+naming the same non-empty `AmsUnit::hub_id` are consecutive pages (one group per hub, in
+the order of each group's first unit); a unit with no `hub_id` is a group of one. Only
+`AmsBackendOpenAms` publishes a `hub_id` (from the unit's FPS lane), so every other
+backend gets one page per unit and no stubs: that is the honest picture, and generic code
+never invents a hub. Absent units (an address held for a box not on the bus) get no page.
+So the cards (in nozzle order) and the pages (grouped by hub) can list the units
+differently; a card names its unit, and the view opens on that unit's page.
+`UnitPage::unit_index` is the unit's **position** in `AmsSystemInfo::units`; the unit's own
+number (`AmsUnit::unit_index`, which some backends never assign) is what
+`AmsState::set_viewed_unit()` and `set_detail_env_unit()` are keyed on, so the panel
+converts explicitly. A page is recognised across a rebuild by its unit's name (its first
+slot when it has none), since neither a unit's position nor its first slot survives a
+backend that sorts its units.
+
+**Opening and updating.** The view opens on the page of the tapped card's unit and never
+jumps pages on later state changes: when the system changes shape (units appear late, one
+goes absent) the pages are rebuilt, the shown unit stays shown while it still has a page,
+and the page number is clamped when it does not. A panel covered by an overlay and
+reactivated keeps its page; closing the panel returns it to the overview. A closed panel's
+observers skip everything; the next open syncs once. The drying flag on the stubs follows
+`AmsState::get_units_dryer_version_subject()`, which bumps whenever the *set* of units with
+a running dryer changes (a unit on another page has no subject of its own to watch).
+
+**Declarative surface.** `AmsState` publishes `ams_page_count`, `ams_page_current`
+(0-based), `ams_page_has_prev`, `ams_page_has_next` (1 only when a neighboring page
+exists), `ams_page_unit_name` and `ams_page_unit_logo` through `set_unit_page()` and
+`set_unit_page_header()`. The arrows hide with `bind_flag_if_eq` on the has-prev/has-next
+subjects and click through `on_ams_page_prev_clicked` / `on_ams_page_next_clicked`; the
+dots are `<repeat count="ams_page_count">` in their own container, each styled by
+`bind_style_if_eq ... ref_value="$i"` against `ams_page_current` (white from the text
+token, the current page's in the accent). An action that is unavailable is hidden, never
+disabled. The header reads "Multi-Filament", a colon, the unit's logo and its name; below
+the SMALL breakpoint the title and the colon give way to the logo and name.
+
+**A hub that holds still.** `ui_filament_path_canvas_set_fixed_hub(canvas, lanes)` stands
+the hub, buffer and toolhead on the canvas's own center line instead of the center of the
+shown unit's spools, and sizes the hub box for the widest unit of the hub (the panel passes
+the largest `slot_count` in the page's group), so a one-bay unit and a four-bay unit sit
+over the same hub. The env chip beside the box has a floor width (`ams_env_chip_min_w`, its
+passive reading at each breakpoint), so a dryer starting or a page with a longer reading does
+not shift the spool box. The hub box's *width* still follows the lanes' geometry (a unit
+with fewer lanes leaves it narrower); its position does not move.
+
+**Measured layout (C++).** The arrows are 48 px touch targets at every breakpoint
+(`ams_page_arrow_hit`, with a smaller disc drawn inside where room is tight). They float
+over the path canvas's left and right edges, level with the hub box, which only the canvas
+knows (`ui_filament_path_canvas_get_hub_box()`); the panel repositions them on every page
+and whenever the canvas resizes. On a canvas so narrow that the hub box leaves no room for
+an arrow beside it (480x272 and 480x320, where the hub spans the spools) they sit just
+below the box, either side of the trunk, and the stubs get the room the arrows no longer
+claim. The dot pitch starts at `space_sm` and closes toward a
+floor of `space_xxs` as pages are added, so the row keeps fitting. Past the floor the row
+keeps that pitch and scrolls to keep the current page's dot in view.
+
+**Swipe.** A horizontal swipe anywhere over the unit view pages: left is next, right is
+previous, ignored where that arrow is hidden. `unit_detail_container` is declared
+`gesture_bubble="false"` because LVGL sends a gesture to the first ancestor that does not
+bubble it; every child bubbles by default, so taps on spools, the env chip and the canvas
+are untouched. Only the unit view listens: a swipe over the overview pages nothing, and the
+cards row scrolls as before. The plain swipe direction (`lv_indev_get_gesture_dir`) does not need
+`LV_USE_GESTURE_RECOGNITION`, which gates only the multi-touch recognizers. The handler
+calls `lv_indev_wait_release()` so the release that ends a swipe is not a click on the spool
+it began on.
+
+**Off-page stubs.** When other units of the shown unit's hub lie on earlier pages the hub
+draws one dashed stub on its left; units on later pages draw one on its right. Each stub is
+a lane that is only suggested: a short run outward (about 5/6 of the hub width, shrinking to
+a floor so it and its label stay clear of the arrows), a diagonal at the slope of the
+outermost real lane on that side, and a drop into the top of the hub box like the lanes'.
+It ends in a label, `N units` (`1 unit`), with the dryer glyph the env chip uses before it
+while one of those units is drying. A canvas with no room for the label beside the diagonal
+(the smallest screens) draws the stub bare, a dashed hint without its count. The canvas takes the counts through
+`ui_filament_path_canvas_set_offpage_units()`. While either stub exists the merge fan
+reserves one entry beside its outermost lanes on **both** sides (`reserve_each_side` in
+`pathgeo::build_merge_fan()`), so the hub box is a fixed width across a hub's pages and the
+real lanes do not move when a page has one stub or two. LINEAR, MIXED, PARALLEL and
+on-toolhead hubs draw no stub.
+
+**Bypass.** The bypass spool floats beside the path as on `AmsPanel`
+(`bypass_spool_sync_from_state()` is the shared state push); the canvas draws the
+connecting tube. The overview keeps its own overlay on the system path canvas.
+
+**The environment chip follows the unit on screen.** The chip beside the spool box binds
+the `ams_env_ind_detail_*` subjects, which `AmsState::set_detail_env_unit()` points at one
+unit and re-mirrors on every sync. The mirror is computed straight from that unit's data
+(`compute_unit_env_indicator`), so it is right for any unit number, including those past
+`AmsState::MAX_UNITS` that have no per-unit subjects. The environment overlay watches the
+unit's per-unit subjects and, for a unit without them, the same mirror.
 
 ### Filament Mapping Card (`ui_filament_mapping_card`)
 

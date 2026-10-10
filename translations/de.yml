@@ -17,6 +17,7 @@ translations:
   '%d slots': '%d Slots'
   '%d toolheads': '%d Werkzeugköpfe'
   '%d tools': '%d Werkzeuge'
+  '%d units': '%d Einheiten'
   '%d:%02d left': 'noch %d:%02d'
   '%dh': '%d Std'
   '%dh %02dm': '%d Std %02d Min'
@@ -74,6 +75,7 @@ translations:
   1 min ago: vor 1 Min.
   1 minute: 1 Minute
   1 more tap to {} beta features: 1 weiteres Mal tippen, um Beta-Funktionen zu {}
+  '1 unit': '1 Einheit'
   1. Printer homes all axes (~1 minute): 1. Drucker referenziert alle Achsen (~1 Minute)
   1. Printer homes and probes the bed: 1. Drucker referenziert und prüft das Bett
   1. Printer will home and probe each screw: 1. Drucker referenziert und prüft jede

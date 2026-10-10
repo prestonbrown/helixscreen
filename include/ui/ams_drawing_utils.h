@@ -192,6 +192,10 @@ SlotColumn create_slot_column(lv_obj_t* parent, int32_t bar_width, int32_t bar_h
 // Logo Helpers
 // ============================================================================
 
+/** The logo image path for a unit: its own name first, then the system's type name.
+ *  Null when neither has one. */
+const char* unit_logo_path(const helix::AmsUnit& unit, const helix::AmsSystemInfo& info);
+
 /** Apply logo to image widget: try unit name -> type name -> hide */
 void apply_logo(lv_obj_t* image, const helix::AmsUnit& unit, const helix::AmsSystemInfo& info);
 

@@ -17,6 +17,7 @@ translations:
   '%d slots': '%d slots'
   '%d toolheads': '%d toolheads'
   '%d tools': '%d tools'
+  '%d units': '%d units'
   '%d:%02d left': '%d:%02d left'
   '%dh': '%dh'
   '%dh %02dm': '%dh %02dm'
@@ -72,6 +73,7 @@ translations:
   1 min ago: 1 min ago
   1 minute: 1 minute
   1 more tap to {} beta features: 1 more tap to {} beta features
+  1 unit: 1 unit
   1. Printer homes all axes (~1 minute): 1. Printer homes all axes (~1 minute)
   1. Printer homes and probes the bed: 1. Printer homes and probes the bed
   1. Printer will home and probe each screw: 1. Printer will home and probe each screw

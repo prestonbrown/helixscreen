@@ -261,16 +261,6 @@ TEST_CASE_METHOD(HubStackFixture, "HUB with the bypass shown keeps the ratio lay
     CHECK(center_y(c.data->hits.buffer) == Catch::Approx(ratio_y(c, BUFFER_Y_RATIO)).margin(1));
 }
 
-TEST_CASE_METHOD(HubStackFixture, "HUB in hub_only mode keeps the ratio layout",
-                 "[filament-path][hub-stack]") {
-    auto c = make(false, false);
-    ui_filament_path_canvas_set_hub_only(c.obj, true);
-    load(c, static_cast<int>(helix::PathSegment::HUB));
-    render(c);
-    REQUIRE(c.data->hits.hub_valid);
-    CHECK(center_y(c.data->hits.hub) == Catch::Approx(ratio_y(c, HUB_Y_RATIO)).margin(1));
-}
-
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
                  "[filament-path][hub-stack]") {
     auto c = make(true, false);

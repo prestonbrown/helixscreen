@@ -17,6 +17,7 @@ translations:
   '%d slots': '%d emplacements'
   '%d toolheads': '%d têtes d''outil'
   '%d tools': '%d outils'
+  '%d units': '%d unités'
   '%d:%02d left': '%d:%02d restantes'
   '%dh': '%d h'
   '%dh %02dm': '%d h %02d min'
@@ -74,6 +75,7 @@ translations:
   1 minute: 1 minute
   1 more tap to {} beta features: 1 appui supplémentaire pour {} les fonctionnalités
     bêta
+  '1 unit': '1 unité'
   1. Printer homes all axes (~1 minute): 1. L'imprimante prend l'origine de tous les axes (~1 minute)
   1. Printer homes and probes the bed: 1. L'imprimante fait l'origine et palpe le
     plateau

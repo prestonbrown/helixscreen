@@ -438,6 +438,23 @@ void AmsState::init_subjects(bool register_xml) {
             helix::xml::register_subject_in_current_scope(name_buf, &env_ind_drying_text_[i]);
     }
 
+    INIT_SUBJECT_INT(ams_unit_view_active, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_page_count, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_page_current, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_page_has_prev, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_page_has_next, 0, subjects_, register_xml);
+    lv_subject_init_string(&ams_page_unit_name_, page_unit_name_buf_, nullptr,
+                           sizeof(page_unit_name_buf_), "");
+    subjects_.register_subject(&ams_page_unit_name_, register_xml ? "ams_page_unit_name" : nullptr);
+    if (register_xml)
+        helix::xml::register_subject_in_current_scope("ams_page_unit_name", &ams_page_unit_name_);
+    // Pointer subject like ams_system_logo: null until a unit with a logo is shown.
+    lv_subject_init_pointer(&ams_page_unit_logo_, nullptr);
+    subjects_.register_subject(&ams_page_unit_logo_, register_xml ? "ams_page_unit_logo" : nullptr);
+    if (register_xml)
+        helix::xml::register_subject_in_current_scope("ams_page_unit_logo", &ams_page_unit_logo_);
+    INIT_SUBJECT_INT(ams_units_dryer_version, 0, subjects_, register_xml);
+
     lv_subject_init_int(&viewed_unit_disconnected_, 0);
     subjects_.register_subject(&viewed_unit_disconnected_,
                                register_xml ? "ams_viewed_unit_disconnected" : nullptr);
@@ -757,6 +774,15 @@ void AmsState::register_xml_subject_names() {
     }
     helix::xml::register_subject_in_current_scope("ams_viewed_unit_disconnected",
                                                   &viewed_unit_disconnected_);
+    helix::xml::register_subject_in_current_scope("ams_unit_view_active", &ams_unit_view_active_);
+    helix::xml::register_subject_in_current_scope("ams_page_count", &ams_page_count_);
+    helix::xml::register_subject_in_current_scope("ams_page_current", &ams_page_current_);
+    helix::xml::register_subject_in_current_scope("ams_page_has_prev", &ams_page_has_prev_);
+    helix::xml::register_subject_in_current_scope("ams_page_has_next", &ams_page_has_next_);
+    helix::xml::register_subject_in_current_scope("ams_page_unit_name", &ams_page_unit_name_);
+    helix::xml::register_subject_in_current_scope("ams_page_unit_logo", &ams_page_unit_logo_);
+    helix::xml::register_subject_in_current_scope("ams_units_dryer_version",
+                                                  &ams_units_dryer_version_);
     helix::xml::register_subject_in_current_scope("ams_all_units_disconnected",
                                                   &all_units_disconnected_);
 

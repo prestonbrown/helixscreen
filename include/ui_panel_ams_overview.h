@@ -13,6 +13,7 @@
 
 #include "ams_state.h"
 #include "ams_types.h"
+#include "ams_unit_pages.h"
 #include "async_lifetime_guard.h"
 #include "display_numbering.h"
 
@@ -41,12 +42,17 @@ inline bool lane_bars_stale(const LaneBarsGeometry& built, const LaneBarsGeometr
 
 /**
  * @file ui_panel_ams_overview.h
- * @brief Multi-unit AMS system overview panel with inline detail view
+ * @brief Multi-unit AMS system overview panel with a paging unit view
  *
- * Shows a zoomed-out view of all AMS units as compact cards.
- * Each card displays slot color bars (reusing ams_mini_status visual pattern).
- * Clicking a unit card swaps the left column to show that unit's slot detail
- * inline (no separate overlay panel needed).
+ * Overview mode shows a zoomed-out view of all AMS units as compact cards above the system
+ * path canvas. Each card displays slot color bars (reusing ams_mini_status visual pattern).
+ *
+ * Tapping a unit card zooms into the unit view: one unit per page, its spool box above the
+ * filament path drawn the whole way from its lanes through the hub and buffer to the
+ * toolhead. Paging (arrows, a horizontal swipe, page dots) swaps the unit and its lanes and
+ * leaves everything downstream where it is. Units that feed the same hub are consecutive
+ * pages, and the hub shows the ones on other pages as dashed stubs (see ams_unit_pages.h for
+ * the grouping). Back returns to the overview; Back from the overview leaves the panel.
  *
  * Only shown for multi-unit setups (2+ units). Single-unit setups
  * skip this and go directly to the AMS detail panel.
@@ -95,8 +101,8 @@ class AmsOverviewPanel : public PanelBase {
      */
     void clear_panel_reference();
 
-    /// The overlay was closed. Stops the sidebar and frees the detail path canvas
-    /// buffer; the widget tree stays for the next open.
+    /// The overlay was closed. Stops the sidebar, returns to the overview and frees the unit
+    /// view's path canvas buffer; the widget tree stays for the next open.
     void on_closed();
 
     /// The close callback every open registers: runs on_closed() on the instance.
@@ -106,20 +112,35 @@ class AmsOverviewPanel : public PanelBase {
     bool rebuild() override;
 
     /**
-     * @brief Show detail view for a specific unit (inline, no overlay)
+     * @brief Zoom from the overview into the unit view, open on the page of unit @p unit_index
+     * @param unit_index position in AmsSystemInfo::units
      */
-    void show_unit_detail(int unit_index);
+    void show_unit_view(int unit_index);
 
     /**
-     * @brief Return from detail view to overview cards
+     * @brief Return from the unit view to the overview cards
      */
     void show_overview();
 
     /**
-     * @brief Check if currently in detail (zoomed) mode
+     * @brief Check if the unit view (rather than the overview) is on screen
      */
-    [[nodiscard]] bool is_in_detail_mode() const {
-        return detail_unit_index_ >= 0;
+    [[nodiscard]] bool is_in_unit_view() const {
+        return unit_view_active_;
+    }
+
+    // === Paging (unit view) ===
+
+    /// Step one page. False, and nothing changes, at the last (first) page.
+    bool next_page();
+    bool prev_page();
+
+    /// The page on screen, or -1 with no pages.
+    [[nodiscard]] int page() const {
+        return page_;
+    }
+    [[nodiscard]] int page_count() const {
+        return static_cast<int>(pages_.size());
     }
 
   private:
@@ -151,20 +172,36 @@ class AmsOverviewPanel : public PanelBase {
     helix::ui::BypassSpoolWidgets bypass_widgets_{};
     void update_bypass_widgets_position();
 
-    // === Detail View State ===
-    static constexpr int MAX_DETAIL_SLOTS = 16;
-    int detail_unit_index_ = -1;             ///< Currently shown unit (-1 = overview mode)
-    lv_obj_t* detail_container_ = nullptr;   ///< Detail view root container
-    AmsDetailWidgets detail_widgets_;        ///< Shared widget pointers for detail view
+    // === Unit view state ===
+    static constexpr int MAX_DETAIL_SLOTS = AMS_DETAIL_MAX_SLOTS;
+    bool unit_view_active_ = false;        ///< The unit view is on screen, not the overview
+    lv_obj_t* detail_container_ = nullptr; ///< Unit view root container (takes the swipe)
+    lv_obj_t* path_container_ = nullptr;
+    lv_obj_t* prev_button_ = nullptr;
+    lv_obj_t* next_button_ = nullptr;
+    lv_obj_t* page_dots_ = nullptr;
+    AmsDetailWidgets detail_widgets_;        ///< Shared widget pointers for the spool box
     lv_obj_t* detail_path_canvas_ = nullptr; ///< Filament path visualization
     lv_obj_t* detail_slot_widgets_[MAX_DETAIL_SLOTS] = {nullptr};
     int detail_slot_count_ = 0;
+    int shown_unit_pos_ = -1; ///< Position in AmsSystemInfo::units of the unit on screen
+
+    // === Pages ===
+    std::vector<helix::ui::UnitPage> pages_;
+    /// Per page, the unit's identity: how a page is recognised again after the system
+    /// changes shape (a unit's position in the backend's list is not stable).
+    std::vector<std::string> page_units_;
+    int page_ = -1;
+    std::string shown_unit_key_; ///< identity of the unit on screen
+    int pages_refreshes_ = 0;    ///< sync_pages() runs, for tests
 
     // === Observers ===
     ObserverGuard slots_version_observer_;
     ObserverGuard current_slot_observer_;   ///< Reactive highlight update when active slot changes
     ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
     ObserverGuard bypass_active_observer_;  ///< Active ring follows bypass engage/disengage
+    ObserverGuard dryer_version_observer_;  ///< The stubs' drying glyph follows other units' dryers
+    ObserverGuard page_count_observer_;     ///< The dots refit when pages come or go
     bool units_rebuild_pending_ = false; ///< Coalesces rapid slots_version observer notifications
     bool open_ = false;       ///< Pushed and not yet closed; a closed panel's card observers wait
     int units_refreshes_ = 0; ///< refresh_units() runs, for tests
@@ -190,12 +227,34 @@ class AmsOverviewPanel : public PanelBase {
     /// Publish ams_cards_compact from the measured narrowest card width.
     void publish_cards_compact(int32_t narrowest_card_w);
 
-    // === Detail View Helpers ===
-    void refresh_detail_if_needed(); ///< Lightweight refresh — only rebuilds on structural change
-    void create_detail_slots(const helix::AmsUnit& unit);
+    /// A slot, current-slot or dryer change: resync the unit view's pages, or refresh the
+    /// overview's cards on the next tick.
+    void on_state_changed(const char* tag);
+
+    // === Unit view helpers ===
+    /// Rebuild the pages from the backend. @p reopen lays the screen out afresh;
+    /// @p focus_unit (a position in AmsSystemInfo::units) picks that unit's page, otherwise
+    /// the unit on screen stays on screen while it still has a page, and the page number is
+    /// clamped when it does not. Re-targets the screen only when the page set or the shown
+    /// page changed; every call refreshes what is drawn.
+    void sync_pages(bool reopen, int focus_unit = -1);
+    /// Point the screen at pages_[page_]: header, spool box, path canvas, viewed unit.
+    /// @p relayout rebuilds the spool box even when the unit and its slot count are unchanged.
+    void show_current_page(const helix::AmsSystemInfo& info, bool relayout);
+    void step_page(int delta);
+    /// Drop the unit view's state and show the overview cards, without animation.
+    void reset_to_overview();
+    void create_detail_slots(const helix::AmsSystemInfo& info, int unit_pos);
     void destroy_detail_slots();
-    void setup_detail_path_canvas(const helix::AmsUnit& unit, const helix::AmsSystemInfo& info);
-    void update_detail_header(const helix::AmsUnit& unit, const helix::AmsSystemInfo& info);
+    void update_path_canvas();
+    /// Level the paging arrows with the hub box and tell the canvas how much edge to leave.
+    void layout_paging_controls();
+    /// Fit the page dots into their row: the nominal pitch, closing to a floor.
+    void layout_page_dots();
+    void scroll_current_dot_into_view();
+    static void on_path_layout_changed(lv_event_t* e);
+    static void on_page_dots_resized(lv_event_t* e);
+    static void on_unit_view_gesture(lv_event_t* e);
 
     // === Slot Interaction ===
     std::unique_ptr<helix::ui::AmsContextMenu> context_menu_; ///< Slot context menu (lazy init)
@@ -204,8 +263,14 @@ class AmsOverviewPanel : public PanelBase {
     void show_detail_context_menu(int slot_index, lv_obj_t* near_widget, lv_point_t click_pt);
 
     // === Bypass Spool Interaction ===
+    // The overview's overlay sits on the system path canvas, the unit view's on its own
+    // path canvas; both follow the same AmsState subjects.
+    helix::ui::BypassSpoolWidgets page_bypass_widgets_{};
+    void update_page_bypass_widgets_position();
     void handle_bypass_click();
     void refresh_bypass_display();
+    void refresh_system_bypass();
+    void refresh_page_bypass();
     static void on_bypass_spool_clicked(lv_event_t* e);
 
     // === Sidebar ===

@@ -17,6 +17,7 @@ translations:
   '%d slots': '%d слотов'
   '%d toolheads': '%d печатающих головок'
   '%d tools': '%d инструментов'
+  '%d units': '%d ед.'
   '%d:%02d left': 'осталось %d:%02d'
   '%dh': '%d ч'
   '%dh %02dm': '%d ч %02d мин'
@@ -73,6 +74,7 @@ translations:
   1 min ago: 1 мин. назад
   1 minute: 1 минута
   1 more tap to {} beta features: 1 нажатие до {} бета-функций
+  '1 unit': '1 ед.'
   1. Printer homes all axes (~1 minute): 1. Принтер ищет ноль по всем осям (~1 минута)
   1. Printer homes and probes the bed: 1. Принтер паркуется и зондирует стол
   1. Printer will home and probe each screw: 1. Принтер запаркуется и проверит каждый

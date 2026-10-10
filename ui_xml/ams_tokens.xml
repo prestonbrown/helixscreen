@@ -30,6 +30,39 @@
     <px name="ams_right_col_w_large" value="240"/>
 
     <!-- ===================================================================== -->
+    <!-- Unit paging (the overview's unit view, ams_overview_panel.xml)         -->
+    <!-- ===================================================================== -->
+    <!-- Touch target of a paging arrow: 48 at every size. The disc drawn inside it
+         may be smaller where room is tight. -->
+    <px name="ams_page_arrow_hit_small" value="48"/>
+    <px name="ams_page_arrow_hit_medium" value="48"/>
+    <px name="ams_page_arrow_hit_large" value="48"/>
+    <px name="ams_page_arrow_size_small" value="36"/>
+    <px name="ams_page_arrow_size_medium" value="44"/>
+    <px name="ams_page_arrow_size_large" value="48"/>
+    <!-- Page dot diameter -->
+    <px name="ams_page_dot_size_small" value="8"/>
+    <px name="ams_page_dot_size_medium" value="10"/>
+    <px name="ams_page_dot_size_large" value="12"/>
+
+    <!-- Least width of the environment chip beside a spool box: its passive reading (icon
+         and "30C" over icon and "25%") at each size. The drying readout is narrower, and
+         without this floor the box beside it moves by the difference as the dryer starts
+         and stops, or as a screen pages from one unit to the next. -->
+    <px name="ams_env_chip_min_w_micro" value="42"/>
+    <px name="ams_env_chip_min_w_tiny" value="52"/>
+    <px name="ams_env_chip_min_w_small" value="58"/>
+    <px name="ams_env_chip_min_w_medium" value="68"/>
+    <px name="ams_env_chip_min_w_large" value="78"/>
+    <px name="ams_env_chip_min_w_xlarge" value="90"/>
+    <px name="ams_env_chip_min_w_xxlarge" value="110"/>
+
+    <!-- Unit / system logo in the AMS screens' headers -->
+    <px name="ams_header_logo_size_small" value="20"/>
+    <px name="ams_header_logo_size_medium" value="20"/>
+    <px name="ams_header_logo_size_large" value="20"/>
+
+    <!-- ===================================================================== -->
     <!-- Slot Widget Dimensions (consumed by ams_slot_view.xml + ui_ams_slot.cpp) -->
     <!-- ===================================================================== -->
     <!-- Spool circle size. Previously space_lg*4 which collapsed to 32px at

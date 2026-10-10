@@ -223,6 +223,14 @@ bool click_at(int32_t x, int32_t y);
 bool press_at(int32_t x, int32_t y);
 
 /**
+ * @brief Move the pointer while a press started by press_at() is held
+ *
+ * One read per call, so a single large jump is one sample: past the indev's gesture
+ * distance it is a swipe. Pair with press_at() and release().
+ */
+bool move_to(int32_t x, int32_t y);
+
+/**
  * @brief Release the current press started by press_at()
  */
 bool release();

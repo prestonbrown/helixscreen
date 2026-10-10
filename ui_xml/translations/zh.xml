@@ -15,6 +15,7 @@
   <translation tag="%d slots" zh="%d 个槽位"/>
   <translation tag="%d toolheads" zh="%d 个工具头"/>
   <translation tag="%d tools" zh="%d 个工具"/>
+  <translation tag="%d units" zh="%d 个单元"/>
   <translation tag="%d-%d" zh="%d-%d"/>
   <translation tag="%d-%d°C" zh="%d-%d°C"/>
   <translation tag="%d:%02d left" zh="剩余 %d:%02d"/>
@@ -72,6 +73,7 @@
   <translation tag="1 min ago" zh="1分钟前"/>
   <translation tag="1 minute" zh="1 分钟"/>
   <translation tag="1 more tap to {} beta features" zh="再点击 1 次以{}测试功能"/>
+  <translation tag="1 unit" zh="1 个单元"/>
   <translation tag="1. Printer homes all axes (~1 minute)" zh="1. 打印机全部轴归零（约1分钟）"/>
   <translation tag="1. Printer homes and probes the bed" zh="1. 打印机归位并探测热床"/>
   <translation tag="1. Printer will home and probe each screw" zh="1. 打印机将归位并探测每个螺丝位置"/>

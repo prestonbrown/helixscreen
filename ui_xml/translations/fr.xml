@@ -15,6 +15,7 @@
   <translation tag="%d slots" fr="%d emplacements"/>
   <translation tag="%d toolheads" fr="%d têtes d&apos;outil"/>
   <translation tag="%d tools" fr="%d outils"/>
+  <translation tag="%d units" fr="%d unités"/>
   <translation tag="%d-%d" fr="%d-%d"/>
   <translation tag="%d-%d°C" fr="%d-%d°C"/>
   <translation tag="%d:%02d left" fr="%d:%02d restantes"/>
@@ -72,6 +73,7 @@
   <translation tag="1 min ago" fr="il y a 1 min"/>
   <translation tag="1 minute" fr="1 minute"/>
   <translation tag="1 more tap to {} beta features" fr="1 appui supplémentaire pour {} les fonctionnalités bêta"/>
+  <translation tag="1 unit" fr="1 unité"/>
   <translation tag="1. Printer homes all axes (~1 minute)" fr="1. L&apos;imprimante prend l&apos;origine de tous les axes (~1 minute)"/>
   <translation tag="1. Printer homes and probes the bed" fr="1. L&apos;imprimante fait l&apos;origine et palpe le plateau"/>
   <translation tag="1. Printer will home and probe each screw" fr="1. L&apos;imprimante fera l&apos;origine et palpera chaque vis"/>

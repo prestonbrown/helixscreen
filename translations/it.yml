@@ -17,6 +17,7 @@ translations:
   '%d slots': '%d slot'
   '%d toolheads': '%d testine'
   '%d tools': '%d strumenti'
+  '%d units': '%d unità'
   '%d:%02d left': '%d:%02d rimanenti'
   '%dh': '%d h'
   '%dh %02dm': '%d h %02d min'
@@ -73,6 +74,7 @@ translations:
   1 min ago: 1 min fa
   1 minute: 1 minuto
   1 more tap to {} beta features: 1 tocco per {} funzioni beta
+  '1 unit': '1 unità'
   1. Printer homes all axes (~1 minute): 1. La stampante azzererà tutti gli assi (~1 minuto)
   1. Printer homes and probes the bed: 1. La stampante esegue homing e sonda il piano
   1. Printer will home and probe each screw: 1. La stampante eseguirà homing e sonderà

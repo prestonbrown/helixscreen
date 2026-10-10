@@ -69,6 +69,14 @@ pid                navigate advanced; click row_pid_tuning
 # Filament / AMS (the filament panel's AMS row no-ops without a configured
 # backend, so the dedicated management panel is reached via demo)
 ams                demo ams
+# The multi-unit overview (any backend with two or more units; the 12-unit
+# HELIX_MOCK_OPENAMS_UNITS=fleet mock fills the cards row and shows both stubs and the drying
+# glyph in the unit view). Tapping a unit card zooms into the unit view on that unit's page:
+# ams-pages taps the third card, ams-pages-next steps one page forward with the right arrow,
+# ams-pages-last pages to the end, where the right arrow is gone.
+ams-pages          demo ams; wait_idle; click ams_unit_card[2]
+ams-pages-next     demo ams; wait_idle; click ams_unit_card[2]; wait_idle; click page_next_button
+ams-pages-last     demo ams; wait_idle; click ams_unit_card[2]; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button
 # ams-cycle loads lane 2 from its context menu and unloads it from the sidebar,
 # waiting out each operation, so --repeat drives the AMS sync paths under a
 # sanitizer (make tsan-app RECIPE=ams-cycle). reset first: a second demo ams

@@ -8,7 +8,9 @@
 // See ui_filament_path_internal.h for the widget architecture.
 
 #include "ui_filament_path_internal.h"
+#include "ui_filament_path_plan.h"
 #include "ui_fonts.h"
+#include "ui_icon_codepoints.h"
 
 #include "nozzle_renderer_dispatch.h"
 #include "settings_manager.h"
@@ -138,6 +140,63 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
         lv_draw_label(layer, &gear_dsc, &gear_area);
     }
     return width;
+}
+
+void draw_offpage_stubs(const RenderCtx& ctx, const LinearHubFrame& f) {
+    const ThemeCache& theme = ctx.data->theme;
+    for (const OffpageStub& stub : f.stubs) {
+        if (!stub.present)
+            continue;
+
+        lv_draw_line_dsc_t line;
+        lv_draw_line_dsc_init(&line);
+        line.color = theme.color_idle;
+        line.width = theme.line_width_idle;
+        line.opa = LV_OPA_COVER;
+        // LVGL's software renderer dashes only horizontal and vertical lines, so the dashes
+        // are cut here: one phase runs the whole stub, through both bends.
+        for (const pg::DashPiece& piece :
+             pg::dash_polyline(stub.pts, 4, (float)(theme.line_width_idle * 3),
+                               (float)(theme.line_width_idle * 2))) {
+            line.p1.x = piece.a.x;
+            line.p1.y = piece.a.y;
+            line.p2.x = piece.b.x;
+            line.p2.y = piece.b.y;
+            lv_draw_line(ctx.layer, &line);
+        }
+
+        const lv_font_t* font = theme.label_font;
+        if (!font || !stub.labeled)
+            continue;
+        int32_t x = stub.label_x;
+        if (stub.glyph_w > 0) {
+            const lv_font_t* icon_font = theme_manager_get_font("icon_font_sm");
+            const char* glyph = helix::ui::icon::lookup_codepoint("heat_wave");
+            if (icon_font && glyph) {
+                lv_draw_label_dsc_t glyph_dsc;
+                lv_draw_label_dsc_init(&glyph_dsc);
+                glyph_dsc.color = theme.color_warning;
+                glyph_dsc.font = icon_font;
+                glyph_dsc.text = glyph;
+                const int32_t h = lv_font_get_line_height(icon_font);
+                lv_area_t area = {x, stub.label_cy - h / 2, x + stub.glyph_w,
+                                  stub.label_cy + h / 2};
+                lv_draw_label(ctx.layer, &glyph_dsc, &area);
+            }
+            x += stub.glyph_w + (f.sensor_r + 2);
+        }
+        const std::string text = offpage_label_text(stub.count);
+        lv_draw_label_dsc_t label_dsc;
+        lv_draw_label_dsc_init(&label_dsc);
+        label_dsc.color = theme.color_muted;
+        label_dsc.font = font;
+        label_dsc.text = text.c_str();
+        label_dsc.text_local = true;
+        const int32_t h = lv_font_get_line_height(font);
+        lv_area_t area = {x, stub.label_cy - h / 2, stub.label_x + stub.label_w + 4,
+                          stub.label_cy + h / 2};
+        lv_draw_label(ctx.layer, &label_dsc, &area);
+    }
 }
 
 // The buffer box's border in the buffer bands' token (neutral on target,

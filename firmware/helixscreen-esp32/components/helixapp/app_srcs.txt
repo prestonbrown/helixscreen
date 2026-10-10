@@ -306,6 +306,7 @@ src/temperature/thermal_rate_model.cpp
 src/ui/action_prompt_manager.cpp
 src/ui/ams_drawing_utils.cpp
 src/ui/ams_tray_projection.cpp
+src/ui/ams_unit_pages.cpp
 src/ui/backdrop_blur.cpp
 src/ui/bed_coord_mapper.cpp
 src/ui/bed_mesh_profile_name.cpp

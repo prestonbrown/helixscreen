@@ -1824,9 +1824,6 @@
         },
         "show_bypass": {
           "type": "bool"
-        },
-        "hub_only": {
-          "type": "bool"
         }
       },
       "inherits": "lv_obj"
@@ -2940,6 +2937,18 @@
     "ams_context_dropdown_w_micro",
     "ams_context_dropdown_w_small",
     "ams_context_dropdown_w_tiny",
+    "ams_env_chip_min_w",
+    "ams_env_chip_min_w_large",
+    "ams_env_chip_min_w_medium",
+    "ams_env_chip_min_w_micro",
+    "ams_env_chip_min_w_small",
+    "ams_env_chip_min_w_tiny",
+    "ams_env_chip_min_w_xlarge",
+    "ams_env_chip_min_w_xxlarge",
+    "ams_header_logo_size",
+    "ams_header_logo_size_large",
+    "ams_header_logo_size_medium",
+    "ams_header_logo_size_small",
     "ams_hub",
     "ams_hub_border",
     "ams_logo_size",
@@ -2948,6 +2957,18 @@
     "ams_logo_size_small",
     "ams_logo_size_xlarge",
     "ams_logo_size_xxlarge",
+    "ams_page_arrow_hit",
+    "ams_page_arrow_hit_large",
+    "ams_page_arrow_hit_medium",
+    "ams_page_arrow_hit_small",
+    "ams_page_arrow_size",
+    "ams_page_arrow_size_large",
+    "ams_page_arrow_size_medium",
+    "ams_page_arrow_size_small",
+    "ams_page_dot_size",
+    "ams_page_dot_size_large",
+    "ams_page_dot_size_medium",
+    "ams_page_dot_size_small",
     "ams_right_col_w",
     "ams_right_col_w_large",
     "ams_right_col_w_medium",

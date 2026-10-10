@@ -193,8 +193,42 @@ class AmsState {
     [[nodiscard]] static std::string unit_disconnected_subject_name(int unit_index);
 
     /// Name the unit a per-unit view is showing (-1: none), so
-    /// `ams_viewed_unit_disconnected` describes it. Main thread only.
+    /// `ams_viewed_unit_disconnected` describes it. Works for any unit index,
+    /// not only those below MAX_UNITS. Main thread only.
     void set_viewed_unit(int unit_index);
+
+    /// @name Unit paging
+    /// What the overview's unit view shows: which page of how many, and the unit on it.
+    /// Published for its XML as ams_unit_view_active (1 while the unit view is on screen),
+    /// ams_page_count, ams_page_current (0-based), ams_page_has_prev / ams_page_has_next
+    /// (1 only when a neighboring page exists), ams_page_unit_name and ams_page_unit_logo.
+    /// Main thread only.
+    /// @{
+    /// @p current is clamped into [0, count - 1]; with no pages everything reads 0.
+    void set_unit_page(int count, int current);
+    /// The shown unit's display name and logo image path (null or empty: no logo).
+    void set_unit_page_header(const std::string& name, const char* logo_path);
+    /// Whether the overview shows its unit view instead of its unit cards.
+    void set_unit_view_active(bool active);
+    lv_subject_t* get_ams_unit_view_active_subject() {
+        return &ams_unit_view_active_;
+    }
+    lv_subject_t* get_ams_page_count_subject() {
+        return &ams_page_count_;
+    }
+    lv_subject_t* get_ams_page_current_subject() {
+        return &ams_page_current_;
+    }
+    lv_subject_t* get_ams_page_has_prev_subject() {
+        return &ams_page_has_prev_;
+    }
+    lv_subject_t* get_ams_page_has_next_subject() {
+        return &ams_page_has_next_;
+    }
+    lv_subject_t* get_ams_page_unit_name_subject() {
+        return &ams_page_unit_name_;
+    }
+    /// @}
 
     /// @name Dryer Constants
     /// @{
@@ -1505,6 +1539,15 @@ class AmsState {
     [[nodiscard]] lv_subject_t* get_env_ind_detail_temp_text_subject() {
         return &env_ind_detail_temp_text_;
     }
+    [[nodiscard]] lv_subject_t* get_env_ind_detail_humidity_text_subject() {
+        return &env_ind_detail_humidity_text_;
+    }
+
+    /// Bumps whenever the set of units with a running dryer changes. The unit view's
+    /// off-page stubs read it: a unit on another page has no subject of its own to watch.
+    [[nodiscard]] lv_subject_t* get_units_dryer_version_subject() {
+        return &ams_units_dryer_version_;
+    }
 
     // ========================================================================
     // Direct State Update (called by backend event handler)
@@ -2252,7 +2295,22 @@ class AmsState {
     // int: 1 = units exist and every present one is disconnected
     lv_subject_t all_units_disconnected_{};
     int viewed_unit_ = -1;
-    void publish_viewed_unit_disconnected();
+    void publish_viewed_unit_disconnected(const AmsSystemInfo* info);
+
+    // Unit paging (set_unit_page)
+    lv_subject_t ams_unit_view_active_{};
+    lv_subject_t ams_page_count_{};
+    lv_subject_t ams_page_current_{};
+    lv_subject_t ams_page_has_prev_{};
+    lv_subject_t ams_page_has_next_{};
+    lv_subject_t ams_page_unit_name_{};
+    char page_unit_name_buf_[48]{};
+    lv_subject_t ams_page_unit_logo_{};
+    char page_unit_logo_buf_[64]{};
+
+    /// Which units' dryers ran at the last sync, one character per unit position.
+    std::string units_drying_signature_;
+    lv_subject_t ams_units_dryer_version_{};
 
     // Per-unit environment indicator display subjects (formatted text for XML binding)
     static constexpr int ENV_IND_TEXT_BUF_SIZE = 16;
@@ -2288,10 +2346,26 @@ class AmsState {
     char env_ind_detail_drying_text_buf_[ENV_IND_DRYING_BUF_SIZE]{};
     int detail_env_unit_ = 0;
 
-    /// Mirror the detail_env_unit_'s per-unit env indicator subjects into the
-    /// dedicated ams_env_ind_detail_* subjects consumed by the statically
-    /// embedded detail-view indicator (see Task 9 brief).
-    void mirror_detail_env_subjects();
+    /// One unit's environment indicator, ready to publish.
+    struct UnitEnvIndicator {
+        std::string temp_text;
+        std::string humidity_text;
+        int humidity_status = 0; // 0=ok, 1=warn, 2=danger
+        bool humidity_visible = false;
+        bool visible = false;
+        bool drying_active = false;
+        std::string drying_text;
+    };
+
+    /// The single computation behind both the per-unit ams_env_ind_<n>_* subjects
+    /// and the detail mirror.
+    static UnitEnvIndicator compute_unit_env_indicator(AmsBackend* backend, const AmsUnit& unit);
+    void publish_unit_env_indicator(int idx, const UnitEnvIndicator& indicator);
+
+    /// Publish the detail_env_unit_'s indicator into the ams_env_ind_detail_*
+    /// subjects, computed from @p info directly so any unit index works. A null
+    /// backend or info publishes the empty indicator.
+    void mirror_detail_env_subjects(AmsBackend* backend, const AmsSystemInfo* info);
 };
 
 } // namespace helix

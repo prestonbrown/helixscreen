@@ -120,36 +120,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "PARALLEL detail canvas renders pixels (harnes
     REQUIRE(pixels > 200);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "MIXED detail canvas renders pixels (hub_only=true)",
+TEST_CASE_METHOD(LVGLTestFixture, "MIXED detail canvas renders pixels",
                  "[filament-path][canvas][mixed][regression]") {
     lv_obj_t* w = ui_filament_path_canvas_create(test_screen());
     REQUIRE(w != nullptr);
     lv_obj_set_size(w, 400, 240);
 
     configure_mixed(w);
-    ui_filament_path_canvas_set_hub_only(w, true);
-
-    // Let the async canvas refresh + render pass run.
-    FORCE_RENDER();
-
-    lv_obj_t* overlay = overlay_canvas_of(w);
-    REQUIRE(overlay != nullptr);
-
-    long pixels = count_opaque_pixels(overlay);
-    INFO("hub_only=true opaque overlay pixels: " << pixels);
-    // A populated MIXED panel paints lanes, sensor dots, the hub box, and
-    // nozzles — hundreds of pixels minimum. Blank canvas (the bug) is 0.
-    REQUIRE(pixels > 200);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "MIXED detail canvas renders pixels (hub_only=false)",
-                 "[filament-path][canvas][mixed][regression]") {
-    lv_obj_t* w = ui_filament_path_canvas_create(test_screen());
-    REQUIRE(w != nullptr);
-    lv_obj_set_size(w, 400, 240);
-
-    configure_mixed(w);
-    ui_filament_path_canvas_set_hub_only(w, false);
 
     FORCE_RENDER();
 
@@ -157,7 +134,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "MIXED detail canvas renders pixels (hub_only=
     REQUIRE(overlay != nullptr);
 
     long pixels = count_opaque_pixels(overlay);
-    INFO("hub_only=false opaque overlay pixels: " << pixels);
+    INFO("opaque overlay pixels: " << pixels);
     REQUIRE(pixels > 200);
 }
 
@@ -177,7 +154,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_set_size(w, 400, 240);
 
     configure_mixed(w);
-    ui_filament_path_canvas_set_hub_only(w, true);
 
     // Drain the create-time async while the widget still has zero layout size
     // (width is 0 until lv_obj_update_layout runs). The refresh bails on its

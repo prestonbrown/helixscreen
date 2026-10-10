@@ -858,3 +858,113 @@ TEST_CASE("merge fans on the measured detail canvases clear tube, halo and bands
     CHECK(clearance >= SEPARATION - 0.1f);
     CHECK(entry_step >= BAND_STEP);
 }
+
+// ---------------------------------------------------------------------------
+// dash_polyline: one dash phase along the whole path
+// ---------------------------------------------------------------------------
+
+namespace {
+
+float dash_length(const std::vector<DashPiece>& pieces, int dash) {
+    float len = 0.0f;
+    for (const DashPiece& p : pieces)
+        if (p.dash == dash)
+            len += dist(p.a, p.b);
+    return len;
+}
+
+int dash_count(const std::vector<DashPiece>& pieces) {
+    return pieces.empty() ? 0 : pieces.back().dash + 1;
+}
+
+// Arc length from the path's start to @p q, a point on one of its segments.
+float arc_length_at(const PathPoint* pts, int n, const PathPoint& q) {
+    float before = 0.0f;
+    for (int i = 0; i + 1 < n; ++i) {
+        const float seg_len = dist(pts[i], pts[i + 1]);
+        if (dist(pts[i], q) + dist(q, pts[i + 1]) <= seg_len + 1e-3f)
+            return before + dist(pts[i], q);
+        before += seg_len;
+    }
+    return -1.0f;
+}
+
+} // namespace
+
+TEST_CASE("dash_polyline an L cuts dashes of the set length and clips the last at the end",
+          "[filament-path][geometry][dash]") {
+    const PathPoint pts[3] = {{0, 0}, {43, 0}, {43, 47}}; // 43 across then 47 down
+    const auto d = dash_polyline(pts, 3, 6.0f, 4.0f);
+    // Period 10 over 90 of path: dashes start at 0,10,...,80; the last is 6 long and ends at 86.
+    REQUIRE(dash_count(d) == 9);
+    for (int i = 0; i < 9; ++i) {
+        CAPTURE(i);
+        CHECK(dash_length(d, i) == Catch::Approx(6.0f));
+    }
+    // The dash that straddles the corner (40..46, the corner at 43) is two pieces meeting there.
+    int straddling = 0;
+    for (const DashPiece& p : d)
+        straddling += p.dash == 4 ? 1 : 0;
+    CHECK(straddling == 2);
+}
+
+TEST_CASE("dash_polyline the last dash is clipped where the path ends",
+          "[filament-path][geometry][dash]") {
+    const PathPoint pts[3] = {{0, 0}, {50, 0}, {50, 34}}; // 84: the ninth dash covers 80..84
+    const auto d = dash_polyline(pts, 3, 6.0f, 4.0f);
+    REQUIRE(dash_count(d) == 9);
+    CHECK(dash_length(d, 8) == Catch::Approx(4.0f));
+    CHECK(d.back().b.x == Catch::Approx(50.0f));
+    CHECK(d.back().b.y == Catch::Approx(34.0f));
+}
+
+TEST_CASE("dash_polyline the phase carries across every bend of a three-segment path",
+          "[filament-path][geometry][dash]") {
+    const PathPoint pts[4] = {{0, 0}, {13, 0}, {13, 21}, {40, 21}}; // 13 + 21 + 27 = 61
+    const auto d = dash_polyline(pts, 4, 5.0f, 3.0f);
+    // Dash k covers [8k, 8k+5] by arc length: every piece's ends sit on that pattern, so no
+    // gap restarts at a corner.
+    REQUIRE(dash_count(d) == 8); // 0..56 starts, the last (56..61) ends with the path
+    for (const DashPiece& p : d) {
+        const float s0 = arc_length_at(pts, 4, p.a);
+        const float s1 = arc_length_at(pts, 4, p.b);
+        CAPTURE(p.dash);
+        REQUIRE(s0 >= 0.0f);
+        REQUIRE(s1 >= 0.0f);
+        CHECK(s0 >= 8.0f * (float)p.dash - 1e-3f);
+        CHECK(s1 <= 8.0f * (float)p.dash + 5.0f + 1e-3f);
+    }
+    for (int i = 0; i < 8; ++i)
+        CHECK(dash_length(d, i) == Catch::Approx(5.0f));
+    // The gap that spans the first bend (13) is 3 long, not restarted: dash 1 spans 8..13 and
+    // dash 2 starts at 16, 3 down the second segment.
+    bool found = false;
+    for (const DashPiece& p : d)
+        if (p.dash == 2) {
+            CHECK(p.a.x == Catch::Approx(13.0f));
+            CHECK(p.a.y == Catch::Approx(3.0f));
+            found = true;
+            break;
+        }
+    CHECK(found);
+}
+
+TEST_CASE("dash_polyline a path shorter than one dash yields one partial dash",
+          "[filament-path][geometry][dash]") {
+    const PathPoint pts[2] = {{10, 10}, {10, 13}};
+    const auto d = dash_polyline(pts, 2, 6.0f, 4.0f);
+    REQUIRE(d.size() == 1);
+    CHECK(d[0].a.x == Catch::Approx(10.0f));
+    CHECK(d[0].a.y == Catch::Approx(10.0f));
+    CHECK(d[0].b.y == Catch::Approx(13.0f));
+}
+
+TEST_CASE("dash_polyline degenerate input gives nothing", "[filament-path][geometry][dash]") {
+    const PathPoint one[1] = {{0, 0}};
+    const PathPoint same[2] = {{5, 5}, {5, 5}};
+    const PathPoint two[2] = {{0, 0}, {10, 0}};
+    CHECK(dash_polyline(one, 1, 6.0f, 4.0f).empty());
+    CHECK(dash_polyline(same, 2, 6.0f, 4.0f).empty());
+    CHECK(dash_polyline(two, 2, 0.0f, 4.0f).empty());
+    CHECK(dash_polyline(nullptr, 2, 6.0f, 4.0f).empty());
+}

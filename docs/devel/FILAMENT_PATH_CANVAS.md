@@ -505,6 +505,44 @@ costs only the DRAW_POST repaint, not a topology re-render.
 
 ---
 
+## Off-page stubs
+
+The overview's unit view shows one unit of a hub at a time; the other units of that hub
+are suggested on the hub box itself (`ui_filament_path_canvas_set_offpage_units(obj, before,
+before_drying, after, after_drying)`, fed from `UnitPage::{same_hub_before, same_hub_after,
+drying_before, drying_after}`). `compute_linear_hub_frame()` lays one `OffpageStub` out per
+side that has units, in `LinearHubFrame::stubs[0]` (left) and `[1]` (right); the topology
+renderer draws them through `draw_offpage_stubs()` just before the hub box.
+
+- **Geometry.** A stub is a polyline of four points: the outer end of a horizontal run, the
+  start of a diagonal, the point where the final vertical begins, and the hub's top edge. The
+  diagonal takes the slope the fan gives the outermost real lane on that side
+  (`pathgeo::MergeFanInfo::slope_left` / `slope_right`), so the two stay parallel. The run is
+  about 5/6 of the hub width, shortened toward a floor to keep the label and the run inside
+  `FilamentPathData::edge_reserve` columns at both edges, on the rows a control there shares
+  with them (`ui_filament_path_canvas_set_edge_reserve(obj, px, y_top, y_bottom)`; the paging
+  arrows live there, and a stub above their rows keeps the whole width).
+- **Widened hub.** While either side has a stub, `pathgeo::merge_fan_width()` and
+  `build_merge_fan()` are told `reserve_each_side = 1`: the entries spread over the lanes
+  plus one empty position at each end, and the stubs take those. The reservation is
+  symmetric, so the hub width and the real lanes are identical on every page of a hub.
+- **Label and glyph.** `N units`, `1 unit` for one (`offpage_label_text()`; two `lv_tr` keys,
+  the pack carries no plural forms), in the canvas's label font and `text_muted`. A drying
+  unit puts the `heat_wave` glyph in the `warning` color just before it.
+- **Bare stubs.** When the run and the label do not both fit between the diagonal and the
+  edge columns, the stub is drawn without its label (`OffpageStub::labeled`). With
+  `edge_reserve` 0 the label gets the whole width beside the diagonal.
+- **Fixed hub.** `ui_filament_path_canvas_set_fixed_hub(obj, lanes)` makes the hub, buffer
+  and toolhead stand on the widget's center line and sizes the hub box for `lanes` lanes
+  (`FilamentPathData::fixed_hub_lanes`), so a screen that pages through units of one hub
+  moves none of them. The stubs then land at the ends of the entry row for any unit.
+- **Where there is no stub.** LINEAR (selector), MIXED, PARALLEL and on-toolhead hubs.
+- **The hub box.** `ui_filament_path_canvas_get_hub_box()` computes the box from the same
+  frame the renderer draws, so a caller can place something level with it before the first
+  paint.
+
+---
+
 ## Extending the Renderer
 
 **Add a setter / new state input.** Add the C setter in
@@ -546,7 +584,7 @@ use the LVGL test fixture.
 |-----------|------|--------|
 | `tests/unit/test_filament_path_geometry.cpp` | `[filament-path][geometry]` | `seg_length`, `path_length`, `path_point_at`, `route_orthogonal`, `route_polyline_filleted`, `build_merge_fan` — pure math, no LVGL |
 | `tests/unit/test_filament_path_mixed_render.cpp` | `[filament-path][mixed][topology]`, `[filament-path][parallel][topology]` | MIXED/PARALLEL produce opaque overlay pixels once laid out; `SIZE_CHANGED` reschedules the async refresh post-layout |
-| `tests/unit/test_filament_path_plan.cpp` | `[filament-path][plan]`, `[filament-path][plan][hits]` | LINEAR/HUB frame, route plan (contiguity, ownership, span styles, bands, coalesce), and the hub/buffer/bypass hit rects of a rendered canvas |
+| `tests/unit/test_filament_path_plan.cpp` | `[filament-path][plan]`, `[filament-path][plan][hits]`, `[filament-path][plan][offpage]` | LINEAR/HUB frame, route plan (contiguity, ownership, span styles, bands, coalesce), the hub/buffer/bypass hit rects of a rendered canvas, and the off-page stubs' geometry |
 | `tests/unit/test_toolhead_badge.cpp` | `[toolhead_badge]` | Glyph bounds against drawn pixels per style; the badge corner clears the tube |
 | `tests/unit/test_system_path_plan.cpp` | `[system_path]` | The overview's plan: continuous unit routes, hub bands in all four states, dumb hubs, idle trunk, bypass merge, toolchanger routes |
 | `tests/unit/test_filament_path_canvas.cpp` | `[canvas][hit_test]`, `[filament-path][canvas]` | Hit-rect tests (hub box dead-center / argument order), SIZE_CHANGED handler |
