@@ -3281,6 +3281,81 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: fingerprint-less 4-extruder FlashForge is a Creator 5",
+                 "[printer][heuristics][creator5][ad5x]") {
+    // The Creator 5's two Klipper firmwares (Reforge's ff_* extras, Z-Mod's
+    // grab buttons) each publish a fingerprint this database keys on at 95+.
+    // A third-party or trimmed config publishes neither, leaving four
+    // extruders as the machine's only model-specific fact. A bare AD5X has
+    // ONE extruder - four heaters exist on that platform only through the
+    // IFS, whose own objects (zmod_ifs, ifs_materials, SET_EXTRUDER_SLOT)
+    // carry a stronger identification than any tool count - so the 4-extruder
+    // signal must name the head-changer, and the FlashForge family generics
+    // (flashforge hostname, spool weight sensors) must not outvote it.
+    SECTION("FlashForge family generics, no firmware fingerprint") {
+        PrinterHardwareData hardware{
+            .heaters = {"extruder", "extruder1", "extruder2", "extruder3", "heater_bed"},
+            .sensors = {"weightValue", "weight"},
+            .fans = {},
+            .leds = {},
+            .hostname = "flashforge",
+            .printer_objects = {},
+            .steppers = {},
+            .kinematics = "corexy",
+            .cpu_arch = "MIPS Ingenic X2600",
+            .objects_reported = true};
+
+        auto result = PrinterDetector::detect(hardware);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name == "FlashForge Creator 5");
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+    }
+
+    SECTION("Generic hostname, no FlashForge signals at all") {
+        PrinterHardwareData hardware{
+            .heaters = {"extruder", "extruder1", "extruder2", "extruder3", "heater_bed"},
+            .sensors = {},
+            .fans = {},
+            .leds = {},
+            .hostname = "workbench",
+            .printer_objects = {},
+            .steppers = {},
+            .kinematics = "corexy",
+            .objects_reported = true};
+
+        auto result = PrinterDetector::detect(hardware);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name == "FlashForge Creator 5");
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+    }
+
+    SECTION("One extruder keeps FlashForge generics off the Creator 5") {
+        PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                     .sensors = {"weightValue", "weight"},
+                                     .fans = {},
+                                     .leds = {},
+                                     .hostname = "flashforge",
+                                     .printer_objects = {},
+                                     .steppers = {},
+                                     .kinematics = "corexy"};
+
+        auto result = PrinterDetector::detect(hardware);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+
+        // Four extruders are the only signal that names a Creator 5 here;
+        // family generics on a single-extruder machine must never.
+        REQUIRE(result.type_name.find("Creator 5") == std::string::npos);
+    }
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: a chamber heater alone is not a Creator 5 Pro",
                  "[printer][heuristics][creator5]") {
     // 'heater_generic chamber_heater' is a config name any enclosed printer can
