@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<translations languages="de">
+  <!-- Event words the app catalog already carries (Started, Paused, Completed,
+       Cancelled, Failed) are not repeated here: t() falls through this pack to
+       the app's, so only plugin-specific strings live below. -->
+  <translation tag="Resumed" de="Fortgesetzt"/>
+  <translation tag="armed" de="aktiv"/>
+  <translation tag="muted" de="stumm"/>
+  <translation tag="sent" de="gesendet"/>
+  <translation tag="bad dest" de="Ziel ungültig"/>
+  <translation tag="destination not set" de="Ziel nicht gesetzt"/>
+  <translation tag="not a Discord webhook URL" de="Keine Discord-Webhook-URL"/>
+  <translation tag="want token@chatid" de="token@chatid erwartet"/>
+  <translation tag="want an http(s) URL" de="Eine http(s)-URL angeben"/>
+  <translation tag="unknown service" de="Unbekannter Dienst"/>
+  <translation tag="no answer" de="keine Antwort"/>
+  <translation tag="(not set)" de="(nicht gesetzt)"/>
+  <translation tag="No events yet" de="Noch keine Ereignisse"/>
+  <translation tag="Notifications" de="Benachrichtigungen"/>
+  <translation tag="Events" de="Ereignisse"/>
+  <translation tag="Destination" de="Ziel"/>
+  <translation tag="Recent" de="Verlauf"/>
+  <translation tag="Send test notification" de="Testbenachrichtigung senden"/>
+  <translation tag="Muting stops every send; the switches below pick the events."
+               de="Stummschalten stoppt jede Sendung; die Schalter darunter wählen die Ereignisse."/>
+  <translation tag="A topic name (my-printer), or a full URL to a self-hosted server"
+               de="Ein Topic-Name (my-printer) oder eine vollständige URL zu einem eigenen Server"/>
+  <translation tag="A webhook URL: https://discord.com/api/webhooks/..."
+               de="Eine Webhook-URL: https://discord.com/api/webhooks/..."/>
+  <translation tag="Bot token and chat id as token@chatid" de="Bot-Token und Chat-ID als token@chatid"/>
+  <translation tag="Any http(s) URL that accepts a JSON POST" de="Eine http(s)-URL, die JSON-POST akzeptiert"/>
+  <translation tag="Print Watcher test" de="Print-Watcher-Test"/>
+  <translation tag="Print event notifications to ntfy, Discord, Telegram or a webhook, as an adaptive home tile."
+               de="Druckereignisse an ntfy, Discord, Telegram oder einen Webhook melden, als anpassungsfähige Startkachel."/>
+  <translation tag="Service" de="Dienst"/>
+  <translation tag="Muted (no notifications)" de="Stumm (keine Benachrichtigungen)"/>
+  <translation tag="Notify on start" de="Beim Start benachrichtigen"/>
+  <translation tag="Notify on resume" de="Beim Fortsetzen benachrichtigen"/>
+  <translation tag="Notify on pause" de="Bei Pause benachrichtigen"/>
+  <translation tag="Notify on completion" de="Bei Abschluss benachrichtigen"/>
+  <translation tag="Notify on cancel" de="Bei Abbruch benachrichtigen"/>
+  <translation tag="Notify on failure" de="Bei Fehler benachrichtigen"/>
+  <translation tag="Include filename" de="Dateinamen einschließen"/>
+</translations>

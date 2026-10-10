@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+<component>
+  <!-- Home tile. One adaptive widget: the 1x1 tier is the bell glyph with
+       the armed/muted word and the delivery line; two columns add the last
+       event beside it; two rows replace the glance with the recent-events
+       list; four columns add the destination line. The status footer's icon
+       carries the severity color; muted swaps the glyph to volume_off.
+       Every label that can carry a filename is bounded and ellipsized, so a
+       long name dots off instead of running under the text beside it. -->
+  <view extends="lv_obj"
+        width="100%" height="100%" clickable="true" style_pad_all="#space_sm" style_pad_gap="#space_xs"
+        flex_flow="column" scrollable="false">
+    <event_cb trigger="clicked" callback="plugin_event" user_data="print-watcher__open"/>
+
+    <lv_obj name="print-watcher__header"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_flex_cross_place="center" style_flex_main_place="space_between" scrollable="false" style_bg_opa="0"
+            style_border_width="0">
+      <bind_flag_if_eq subject="print-watcher__compact" flag="hidden" ref_value="1"/>
+      <lv_obj height="content"
+              flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs" style_flex_cross_place="center"
+              scrollable="false" style_bg_opa="0" style_border_width="0">
+        <icon name="print-watcher__glyph_header" src="bell" size="sm" variant="secondary">
+          <bind_flag_if_eq subject="print-watcher__log_zone" flag="hidden" ref_value="0"/>
+        </icon>
+        <text_small name="print-watcher__title" text="Print Watcher"/>
+      </lv_obj>
+      <text_small name="print-watcher__word_header" bind_text="print-watcher__word" style_text_color="#text_muted"/>
+    </lv_obj>
+
+    <lv_obj name="print-watcher__glance_row"
+            width="100%" flex_grow="1" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false"
+            style_bg_opa="0" style_border_width="0">
+      <bind_flag_if_eq subject="print-watcher__log_zone" flag="hidden" ref_value="1"/>
+      <lv_obj name="print-watcher__glance_zone"
+              height="100%" flex_grow="1" scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0">
+        <lv_obj name="print-watcher__glyph_wrap"
+                width="100%" height="100%" scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0">
+          <icon name="print-watcher__glyph" src="bell" size="lg" variant="secondary" align="center">
+            <bind_flag_if_eq subject="print-watcher__muted" flag="hidden" ref_value="1"/>
+          </icon>
+          <icon name="print-watcher__glyph_muted" src="volume_off" size="lg" variant="muted" align="center">
+            <bind_flag_if_eq subject="print-watcher__muted" flag="hidden" ref_value="0"/>
+          </icon>
+        </lv_obj>
+        <lv_label name="print-watcher__word"
+                  bind_text="print-watcher__word" align="bottom_mid" style_text_font="#font_body_bold"
+                  style_text_color="#text">
+          <bind_flag_if_eq subject="print-watcher__word_vis" flag="hidden" ref_value="0"/>
+        </lv_label>
+      </lv_obj>
+      <lv_obj name="print-watcher__event_zone"
+              height="100%" flex_grow="2" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+              style_flex_main_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+        <bind_flag_if_eq subject="print-watcher__event_zone" flag="hidden" ref_value="0"/>
+        <text_small name="print-watcher__empty_event" text="No events yet" translation_tag="No events yet">
+          <bind_flag_if_eq subject="print-watcher__has_events" flag="hidden" ref_value="1"/>
+        </text_small>
+        <lv_label name="print-watcher__last_event"
+                  width="100%" bind_text="print-watcher__last_event" long_mode="scroll" style_text_font="#font_small"
+                  style_text_color="#text"/>
+        <text_xs name="print-watcher__last_file" width="100%%" bind_text="print-watcher__last_file" long_mode="scroll">
+          <bind_flag_if_eq subject="print-watcher__room" flag="hidden" ref_value="0"/>
+        </text_xs>
+      </lv_obj>
+    </lv_obj>
+
+    <lv_obj name="print-watcher__log_zone"
+            width="100%" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_flex_main_place="space_around" scrollable="false" style_bg_opa="0" style_border_width="0">
+      <bind_flag_if_eq subject="print-watcher__log_zone" flag="hidden" ref_value="0"/>
+      <text_small name="print-watcher__empty_log" text="No events yet">
+        <bind_flag_if_eq subject="print-watcher__has_events" flag="hidden" ref_value="1"/>
+      </text_small>
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+              style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+        <bind_flag_if_eq subject="print-watcher__log1_on" flag="hidden" ref_value="0"/>
+        <text_xs name="print-watcher__log1_ev" bind_text="print-watcher__log1_ev"/>
+        <text_xs name="print-watcher__log1_det" bind_text="print-watcher__log1_det" flex_grow="1" long_mode="scroll"/>
+      </lv_obj>
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+              style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+        <bind_flag_if_eq subject="print-watcher__log2_on" flag="hidden" ref_value="0"/>
+        <text_xs name="print-watcher__log2_ev" bind_text="print-watcher__log2_ev"/>
+        <text_xs name="print-watcher__log2_det" bind_text="print-watcher__log2_det" flex_grow="1" long_mode="scroll"/>
+      </lv_obj>
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+              style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+        <bind_flag_if_eq subject="print-watcher__log3_on" flag="hidden" ref_value="0"/>
+        <text_xs name="print-watcher__log3_ev" bind_text="print-watcher__log3_ev"/>
+        <text_xs name="print-watcher__log3_det" bind_text="print-watcher__log3_det" flex_grow="1" long_mode="scroll"/>
+      </lv_obj>
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+              style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+        <bind_flag_if_eq subject="print-watcher__log4_on" flag="hidden" ref_value="0"/>
+        <text_xs name="print-watcher__log4_ev" bind_text="print-watcher__log4_ev"/>
+        <text_xs name="print-watcher__log4_det" bind_text="print-watcher__log4_det" flex_grow="1" long_mode="scroll"/>
+      </lv_obj>
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+              style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+        <bind_flag_if_eq subject="print-watcher__log5_on" flag="hidden" ref_value="0"/>
+        <text_xs name="print-watcher__log5_ev" bind_text="print-watcher__log5_ev"/>
+        <text_xs name="print-watcher__log5_det" bind_text="print-watcher__log5_det" flex_grow="1" long_mode="scroll"/>
+      </lv_obj>
+    </lv_obj>
+
+    <lv_obj name="print-watcher__dest_row"
+            width="100%" height="content" flex_flow="row" scrollable="false" style_pad_all="0" style_bg_opa="0"
+            style_border_width="0">
+      <bind_flag_if_eq subject="print-watcher__dest_row_on" flag="hidden" ref_value="0"/>
+      <text_xs name="print-watcher__dest_line" width="100%" bind_text="print-watcher__dest_line" long_mode="scroll"/>
+    </lv_obj>
+
+    <lv_obj name="print-watcher__status_row"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_flex_cross_place="center" style_flex_main_place="center" scrollable="false" style_bg_opa="0"
+            style_border_width="0">
+      <bind_flag_if_eq subject="print-watcher__sev" flag="hidden" ref_value="0"/>
+      <icon name="print-watcher__ok_icon" src="check_circle" size="xs" variant="success">
+        <bind_flag_if_eq subject="print-watcher__sev" flag="hidden" ref_value="2"/>
+      </icon>
+      <icon name="print-watcher__fail_icon" src="alert" size="xs" variant="danger">
+        <bind_flag_if_eq subject="print-watcher__sev" flag="hidden" ref_value="1"/>
+      </icon>
+      <text_xs name="print-watcher__status" bind_text="print-watcher__status_text"/>
+    </lv_obj>
+  </view>
+</component>

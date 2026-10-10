@@ -559,8 +559,10 @@ worst-meter ring re-picks among the meters that remain.
 The full API - permissions, limits, the sandbox, debugging - is
 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md). The second example,
 `examples/plugins/led-effects`, shows the `gcode` permission and live
-Klipper subscriptions driving a toggle tile; and the temperature sparkline
-in `examples/plugins/temp-spark` is the canvas deep-dive. Beyond that:
-`helix.http` reaches companion services on the network, and
+Klipper subscriptions driving a toggle tile; the temperature sparkline
+in `examples/plugins/temp-spark` is the canvas deep-dive; and
+`examples/plugins/print-watcher` shows `helix.http` notifications, an
+overlay that controls its own settings through `helix.settings.set`, and a
+translation pack under `i18n/`. Beyond that:
 `helix.moonraker.on_agent_event` is the channel to a companion process on
 the printer itself.

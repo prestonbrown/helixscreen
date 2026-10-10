@@ -1,0 +1,35 @@
+{
+  "id": "print-watcher",
+  "name": "Print Watcher",
+  "version": "0.1.0",
+  "author": "HelixScreen",
+  "description": "Print event notifications to ntfy, Discord, Telegram or a webhook, as an adaptive home tile.",
+  "permissions": ["http"],
+  "widgets": [
+    {
+      "id": "print-watcher__tile",
+      "name": "Print Watcher",
+      "icon": "bell",
+      "description": "Notify your phone or chat when a print starts, ends or fails",
+      "component": "print-watcher__tile",
+      "colspan": 1,
+      "rowspan": 1,
+      "max_colspan": 4,
+      "max_rowspan": 2
+    }
+  ],
+  "settings": [
+    { "key": "service", "type": "enum", "label": "Service",
+      "options": ["ntfy", "Discord", "Telegram", "Webhook"], "default": "ntfy" },
+    { "key": "dest", "type": "string", "label": "Destination", "default": "" },
+    { "key": "muted", "type": "bool", "label": "Muted (no notifications)", "default": false },
+    { "key": "ev_started", "type": "bool", "label": "Notify on start", "default": true },
+    { "key": "ev_resumed", "type": "bool", "label": "Notify on resume", "default": true },
+    { "key": "ev_paused", "type": "bool", "label": "Notify on pause", "default": true },
+    { "key": "ev_completed", "type": "bool", "label": "Notify on completion", "default": true },
+    { "key": "ev_cancelled", "type": "bool", "label": "Notify on cancel", "default": true },
+    { "key": "ev_failed", "type": "bool", "label": "Notify on failure", "default": true },
+    { "key": "include_filename", "type": "bool", "label": "Include filename", "default": true },
+    { "key": "test", "type": "action", "label": "Send test notification", "callback": "print-watcher__test" }
+  ]
+}

@@ -5,13 +5,17 @@ add home-panel tiles, overlays and settings without compiling anything: an autho
 text editor and the plugin folder, nothing else. This guide is the contract; every rule in
 it is enforced by code, cited so it can be verified against the source.
 
-Three complete plugins ship in the repository:
+Four complete plugins ship in the repository:
 
 - `examples/plugins/temp-spark` - a heater sparkline tile. No permissions.
 - `examples/plugins/led-effects` - an LED effect toggle. The `gcode` permission.
 - `examples/plugins/maintenance-meter` - consumable hour meters as an adaptive
   tile. The `storage` permission; the step-by-step build of it is
   `docs/devel/PLUGIN_TUTORIAL.md`.
+- `examples/plugins/print-watcher` - print-event notifications to ntfy,
+  Discord, Telegram or a webhook. The `http` permission; the worked example
+  for `helix.settings.set` as a control surface and for `i18n/` translation
+  packs.
 
 ## 1. What a plugin is
 
@@ -106,6 +110,11 @@ proves a name belongs to a plugin, and a plugin can reach only its own names.
 
 Parsed by `src/plugin/plugin_manifest.cpp#parse_manifest`. Any error in one field rejects
 the whole manifest; Settings > Plugins shows the reasons.
+
+Every user-facing string in the manifest - `name`, `description`, settings
+`label`s, widget `name`/`description` - is English source: the file stays
+English and the render sites translate it through the plugin's `i18n/` pack
+(§13 Translations), falling back to the literal text.
 
 | Field | Type | Default | Rules |
 |---|---|---|---|
@@ -424,7 +433,16 @@ memory cap comes back as an error.
 | Call | Returns | Notes |
 |---|---|---|
 | `helix.settings.get(key)` | value | the key must be declared in the manifest; returns the stored value if it fits the declaration, else the default |
-| `helix.settings.on_change(key, fn)` | | `fn(value)` after each accepted change |
+| `helix.settings.set(key, value)` | | writes one of the plugin's own declared keys through the same validation, persistence and `on_change` path as the generated settings screen; undeclared keys, `action`/`info` rows and rejected values raise |
+| `helix.settings.on_change(key, fn)` | | `fn(value)` after each accepted change, from either path |
+
+### helix.i18n (`src/plugin/lua_bind_core.cpp`)
+
+| Call | Returns | Notes |
+|---|---|---|
+| `helix.i18n.t(s)` | string | resolves the English source through the plugin's `i18n/` pack, then the app catalog, then returns `s` unchanged |
+| `helix.i18n.locale()` | string | the active language code (`"en"`, `"de"`, ...) |
+| `helix.i18n.on_change(fn)` | | `fn(code)` after a language change, once the formatting tables are updated; several handlers allowed |
 
 ### helix.timer, helix.sleep, helix.json (`src/plugin/lua_bind_core.cpp`)
 

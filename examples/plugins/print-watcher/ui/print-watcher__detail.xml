@@ -1,0 +1,146 @@
+<?xml version="1.0"?>
+<component>
+  <!-- Detail overlay and control surface. The toggles are switches bound to
+       setting mirrors: a tap fires plugin_event, Lua flips the setting
+       through helix.settings.set, and on_change pushes the mirror back so
+       the switch snaps to the persisted truth. Text and enum rows (service,
+       destination) stay in the generated settings screen: a plugin cannot
+       read widget state, so free-form input has no path back to Lua. -->
+  <view extends="overlay_panel" title="Print Watcher" bg_color="#card_bg">
+    <lv_obj name="print-watcher__detail_content"
+            width="100%" flex_grow="1" style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column"
+            scrollable="true">
+      <ui_card name="print-watcher__status_card"
+               width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+               style_flex_cross_place="center">
+        <lv_obj flex_flow="column"
+                flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0" style_border_width="0">
+          <lv_label text="Notifications"
+                    translation_tag="Notifications" style_text_font="#font_body" style_text_color="#text"/>
+          <lv_label text="Muting stops every send; the switches below pick the events."
+                    translation_tag="Muting stops every send; the switches below pick the events."
+                    style_text_font="#font_small" style_text_color="#text_muted"/>
+        </lv_obj>
+        <lv_switch name="print-watcher__mute_switch">
+          <bind_state_if_eq subject="print-watcher__muted" state="checked" ref_value="1"/>
+          <event_cb trigger="value_changed" callback="plugin_event" user_data="print-watcher__flip:muted"/>
+        </lv_switch>
+      </ui_card>
+
+      <ui_card name="print-watcher__events_card"
+               width="100%" height="content" flex_flow="column" style_pad_all="#space_sm" style_pad_gap="#space_xxs">
+        <lv_label text="Events" translation_tag="Events" style_text_font="#font_body" style_text_color="#text"/>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small text="Started"/>
+          <lv_switch>
+            <bind_state_if_eq subject="print-watcher__ev_started" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="plugin_event" user_data="print-watcher__flip:ev_started"/>
+          </lv_switch>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small text="Resumed"/>
+          <lv_switch>
+            <bind_state_if_eq subject="print-watcher__ev_resumed" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="plugin_event" user_data="print-watcher__flip:ev_resumed"/>
+          </lv_switch>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small text="Paused"/>
+          <lv_switch>
+            <bind_state_if_eq subject="print-watcher__ev_paused" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="plugin_event" user_data="print-watcher__flip:ev_paused"/>
+          </lv_switch>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small text="Completed"/>
+          <lv_switch>
+            <bind_state_if_eq subject="print-watcher__ev_completed" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="plugin_event" user_data="print-watcher__flip:ev_completed"/>
+          </lv_switch>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small text="Cancelled"/>
+          <lv_switch>
+            <bind_state_if_eq subject="print-watcher__ev_cancelled" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="plugin_event" user_data="print-watcher__flip:ev_cancelled"/>
+          </lv_switch>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small text="Failed"/>
+          <lv_switch>
+            <bind_state_if_eq subject="print-watcher__ev_failed" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="plugin_event" user_data="print-watcher__flip:ev_failed"/>
+          </lv_switch>
+        </lv_obj>
+      </ui_card>
+
+      <ui_card name="print-watcher__dest_card"
+               width="100%" height="content" flex_flow="column" style_pad_all="#space_sm" style_pad_gap="#space_xxs">
+        <lv_label text="Destination" translation_tag="Destination" style_text_font="#font_body" style_text_color="#text"/>
+        <text_muted name="print-watcher__dest_echo" width="100%" bind_text="print-watcher__dest_line" long_mode="scroll"/>
+        <text_xs name="print-watcher__dest_hint" width="100%" bind_text="print-watcher__dest_hint" long_mode="scroll"/>
+      </ui_card>
+
+      <ui_card name="print-watcher__recent_card"
+               width="100%" height="content" flex_flow="column" style_pad_all="#space_sm" style_pad_gap="#space_xxs">
+        <lv_label text="Recent" translation_tag="Recent" style_text_font="#font_body" style_text_color="#text"/>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small name="print-watcher__dlog1_ev" bind_text="print-watcher__log1_ev"/>
+          <text_small name="print-watcher__dlog1_det"
+                      bind_text="print-watcher__log1_det" flex_grow="1" long_mode="scroll"/>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small name="print-watcher__dlog2_ev" bind_text="print-watcher__log2_ev"/>
+          <text_small name="print-watcher__dlog2_det"
+                      bind_text="print-watcher__log2_det" flex_grow="1" long_mode="scroll"/>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small name="print-watcher__dlog3_ev" bind_text="print-watcher__log3_ev"/>
+          <text_small name="print-watcher__dlog3_det"
+                      bind_text="print-watcher__log3_det" flex_grow="1" long_mode="scroll"/>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small name="print-watcher__dlog4_ev" bind_text="print-watcher__log4_ev"/>
+          <text_small name="print-watcher__dlog4_det"
+                      bind_text="print-watcher__log4_det" flex_grow="1" long_mode="scroll"/>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
+                scrollable="false" style_bg_opa="0" style_border_width="0">
+          <text_small name="print-watcher__dlog5_ev" bind_text="print-watcher__log5_ev"/>
+          <text_small name="print-watcher__dlog5_det"
+                      bind_text="print-watcher__log5_det" flex_grow="1" long_mode="scroll"/>
+        </lv_obj>
+      </ui_card>
+
+      <lv_button name="print-watcher__test_btn" width="100%" height="content" style_pad_all="#space_sm">
+        <event_cb trigger="clicked" callback="plugin_event" user_data="print-watcher__test"/>
+        <lv_label text="Send test notification"
+                  translation_tag="Send test notification" style_text_font="#font_body" style_text_color="#text"/>
+      </lv_button>
+
+      <text_small name="print-watcher__detail_status"
+                  bind_text="print-watcher__status_text" style_text_color="#text_muted"/>
+    </lv_obj>
+  </view>
+</component>
