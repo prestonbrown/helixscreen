@@ -89,11 +89,21 @@ write_manifest() {
 @test "regen_text_fonts fails when the charset extractor fails" {
     # paste always exits 0, so a piped capture hides a failed scan: the bake
     # then skips on the empty set and the script still prints Done over stale
-    # fonts. python3 has exactly one call in the script, so a failing shim
-    # isolates the extractor, and the script exits before any bake or font
-    # download runs.
+    # fonts. The script cds to its own parent, so it runs from a fixture tree
+    # with placeholder fonts: the Latin and CJK fonts exist, so nothing is
+    # downloaded, and the real assets/fonts is never written. python3 has
+    # exactly one call before the bake, so a failing shim isolates the
+    # extractor and the script exits before any bake runs.
+    local RTF="$BATS_TEST_TMPDIR/regen_fixture"
+    mkdir -p "$RTF/scripts" "$RTF/assets/fonts"
+    cp scripts/regen_text_fonts.sh "$RTF/scripts/"
+    : > "$RTF/assets/fonts/NotoSans-Regular.ttf"
+    : > "$RTF/assets/fonts/NotoSans-Light.ttf"
+    : > "$RTF/assets/fonts/NotoSans-Bold.ttf"
+    : > "$RTF/assets/fonts/NotoSansCJKsc-Regular.otf"
+    : > "$RTF/assets/fonts/NotoSansCJKjp-Regular.otf"
     mock_command_fail "python3"
-    run bash scripts/regen_text_fonts.sh
+    run bash "$RTF/scripts/regen_text_fonts.sh"
     [ "$status" -ne 0 ]
     grep -q "cjk_charset.py failed" <<<"$output"
     refute_sh 'grep -q "Done!" <<<"'"$output"'"'
