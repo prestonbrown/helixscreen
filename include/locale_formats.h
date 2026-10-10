@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <cstdint>
+#include <functional>
 #include <string>
 
 struct tm;
@@ -13,6 +15,18 @@ namespace helix::ui {
 /// new language and probes strftime. Caches whether system locale is active
 /// or fallback tables are needed.
 void locale_set_language(const std::string& lang_code);
+
+/** @brief The active language code ("en", "de", ...), as last set */
+std::string locale_current_language();
+
+/**
+ * @brief Subscribe to language changes; the id removes the listener
+ *
+ * Listeners run at the end of locale_set_language, after the active language
+ * and the formatting tables are updated, with the new code.
+ */
+uint64_t locale_add_language_listener(std::function<void(const std::string&)> fn);
+void locale_remove_language_listener(uint64_t id);
 
 /// Format a date string using locale-appropriate order and translated names.
 /// Uses cached locale state from locale_set_language().

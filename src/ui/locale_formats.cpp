@@ -15,6 +15,8 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <functional>
+#include <map>
 #include <string>
 #include <unordered_map>
 
@@ -163,7 +165,29 @@ static std::string get_month_name(const struct tm* tm_info) {
 // Public API
 // ---------------------------------------------------------------------------
 
-void locale_set_language(const std::string& lang_code) {
+std::string locale_current_language() {
+    return s_current_lang;
+}
+
+namespace {
+std::map<uint64_t, std::function<void(const std::string&)>>& language_listeners() {
+    static std::map<uint64_t, std::function<void(const std::string&)>> s;
+    return s;
+}
+} // namespace
+
+uint64_t locale_add_language_listener(std::function<void(const std::string&)> fn) {
+    static uint64_t next_id = 1;
+    language_listeners()[next_id] = std::move(fn);
+    return next_id++;
+}
+
+void locale_remove_language_listener(uint64_t id) {
+    language_listeners().erase(id);
+}
+
+namespace {
+void apply_locale(const std::string& lang_code) {
     helix::format::set_translator(lv_translation_get);
     s_current_lang = lang_code;
     s_use_system_locale = false;
@@ -207,6 +231,13 @@ void locale_set_language(const std::string& lang_code) {
     s_use_system_locale = true;
     spdlog::info("locale: system locale active for lang='{}' (locale='{}', probe='{}' for Monday)",
                  lang_code, it->second, buf);
+}
+} // namespace
+
+void locale_set_language(const std::string& lang_code) {
+    apply_locale(lang_code);
+    for (auto& [id, fn] : language_listeners())
+        fn(lang_code);
 }
 
 std::string format_localized_date(const struct tm* tm_info) {

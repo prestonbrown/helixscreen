@@ -15,6 +15,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <lvgl.h>
 #include <utility>
 
 namespace helix::plugin {
@@ -58,8 +59,9 @@ void PluginsOverlay::populate_rows() {
     if (!host)
         return;
     for (const PluginInfo& info : host->plugins()) {
-        const std::string& label =
-            info.manifest && !info.manifest->name.empty() ? info.manifest->name : info.dir_name;
+        const std::string& label = info.manifest && !info.manifest->name.empty()
+                                       ? lv_tr(info.manifest->name.c_str())
+                                       : info.dir_name;
         std::string desc = lv_tr(plugin_status_name(info.status));
         if (!info.reason.empty())
             desc += ": " + info.reason;
@@ -134,7 +136,7 @@ void PluginsOverlay::activate(const std::string& id) {
     case PluginStatus::Loaded: {
         const auto tok = object_lifetime_.token();
         PluginHost* h = host;
-        const std::string name = m.name.empty() ? id : m.name;
+        const std::string name = m.name.empty() ? id : lv_tr(m.name.c_str());
         // Only the Disable button disables: dismissing the dialog (backdrop,
         // ESC) leaves the plugin running, so no on_dismiss action exists.
         helix::ui::ConfirmOptions opts;

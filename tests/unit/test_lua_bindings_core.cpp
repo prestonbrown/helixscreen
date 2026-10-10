@@ -7,12 +7,50 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/plugin_test_support.h"
+#include "helix-xml/src/xml/lv_xml_translation.h"
+#include "locale_formats.h"
 #include "lua_bindings.h"
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::plugin;
 using namespace helix::plugin::test;
+
+TEST_CASE_METHOD(LVGLTestFixture, "helix.i18n.t resolves, falls back and tracks the locale",
+                 "[plugin][bindings][core]") {
+    BoundRuntime b;
+    REQUIRE(lv_xml_register_translation_from_data(
+                "<translations languages=\"de\">"
+                "<translation tag=\"core bindings test greeting\" de=\"Hallo Test\"/>"
+                "</translations>") == LV_RESULT_OK);
+    // A real switch flips LVGL's table and the formatting locale together
+    // (SystemSettingsManager::set_language); the test does both by hand.
+    lv_translation_set_language("de");
+    helix::ui::locale_set_language("de");
+    REQUIRE(b.t.run(R"(
+        v = helix.i18n.t("core bindings test greeting")
+        missing = helix.i18n.t("core bindings test nothing")
+        loc = helix.i18n.locale()
+    )"));
+    CHECK(b.t.global("v") == "Hallo Test");
+    CHECK(b.t.global("missing") == "core bindings test nothing");
+    CHECK(b.t.global("loc") == "de");
+    lv_translation_set_language("en");
+    helix::ui::locale_set_language("en");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "helix.i18n.on_change fires per language change",
+                 "[plugin][bindings][core]") {
+    BoundRuntime b;
+    REQUIRE(b.t.run(R"(
+        codes = {}
+        helix.i18n.on_change(function(code) codes[#codes + 1] = code end)
+    )"));
+    helix::ui::locale_set_language("de");
+    helix::ui::locale_set_language("en");
+    REQUIRE(b.t.run(R"(c = table.concat(codes, ","))"));
+    CHECK(b.t.global("c") == "de,en");
+}
 
 TEST_CASE_METHOD(LVGLTestFixture, "helix.json round-trips", "[plugin][bindings][core]") {
     BoundRuntime b;

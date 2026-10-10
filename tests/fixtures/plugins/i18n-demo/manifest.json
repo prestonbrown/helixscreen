@@ -1,0 +1,7 @@
+{
+  "id": "i18n-demo",
+  "name": "I18n Demo",
+  "version": "1.0.0",
+  "description": "Registers a translation pack from its i18n folder.",
+  "settings": []
+}

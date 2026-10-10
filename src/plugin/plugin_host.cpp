@@ -13,6 +13,7 @@
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
+#include "helix-xml/src/xml/lv_xml_translation.h"
 #include "lua_panel_widget.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget_manager.h"
@@ -249,6 +250,33 @@ void PluginHost::consider(PluginInfo& info) {
     info.status = load(info) ? PluginStatus::Loaded : info.status;
 }
 
+namespace {
+
+// An i18n/ folder of LVGL translation packs registers into the global table
+// LVGL already resolves every string through (app packs, then identity
+// English). Packs cannot be removed, so a path registers once and a plugin
+// re-enable or hot reload reuses what is already loaded.
+void register_plugin_translations(const std::filesystem::path& root) {
+    std::error_code ec;
+    std::vector<std::string> files;
+    for (const auto& e : std::filesystem::directory_iterator(root / "i18n", ec)) {
+        if (e.is_regular_file(ec) && e.path().extension() == ".xml")
+            files.push_back("A:" + e.path().string());
+    }
+    std::sort(files.begin(), files.end());
+    static std::set<std::string> registered;
+    for (const auto& path : files) {
+        if (registered.count(path))
+            continue;
+        if (lv_xml_register_translation_from_file(path.c_str()) == LV_RESULT_OK) {
+            registered.insert(path);
+            spdlog::info("[PluginHost] translations registered: {}", path);
+        }
+    }
+}
+
+} // namespace
+
 bool PluginHost::load(PluginInfo& info) {
     sweep_retired_subjects();
     const Manifest& m = *info.manifest;
@@ -352,6 +380,7 @@ bool PluginHost::load(PluginInfo& info) {
     };
     l.ui.close = [this](int handle) { overlays_.close(handle); };
     l.ctx->ui = &l.ui;
+    register_plugin_translations(root);
     for (Installer install :
          {&install_core_bindings, &install_ui_bindings, &install_printer_bindings,
           &install_moonraker_bindings, &install_io_bindings, &install_widget_bindings,

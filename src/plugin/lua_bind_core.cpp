@@ -5,11 +5,13 @@
 
 #include "ui_timer_guard.h"
 
+#include "locale_formats.h"
 #include "lua_bindings.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <lvgl.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -21,6 +23,7 @@ namespace {
 
 const char kContextKey = 0;
 const char kTimersKey = 0;
+const char kI18nKey = 0;
 const char kTimerMeta[] = "helix.timer";
 constexpr size_t kMaxLiveTimers = 64;
 
@@ -337,6 +340,55 @@ json to_json(lua_State* L, int index) {
     return to_json_impl(L, index, 0, seen);
 }
 
+// ---- helix.i18n ----
+
+// Per-plugin i18n state: on_change handler refs plus one language listener
+// that fans each change out to them. t() needs no state: it resolves through
+// LVGL's global table, where the plugin's own pack, the app's packs and the
+// identity English key all live in lookup order.
+struct I18nState {
+    LuaRuntime* rt = nullptr;
+    std::vector<int> on_change;
+    uint64_t listener = 0;
+};
+
+I18nState& i18n_state(lua_State* L) {
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &kI18nKey);
+    auto* st = static_cast<I18nState*>(lua_touserdata(L, -1));
+    lua_pop(L, 1);
+    return *st;
+}
+
+int i18n_t(lua_State* L) {
+    const char* key = luaL_checkstring(L, 1);
+    lua_pushstring(L, lv_tr(key));
+    return 1;
+}
+
+int i18n_locale(lua_State* L) {
+    std::string lang = helix::ui::locale_current_language();
+    lua_pushlstring(L, lang.data(), lang.size());
+    return 1;
+}
+
+int i18n_on_change(lua_State* L) {
+    auto& ctx = context(L);
+    luaL_checktype(L, 1, LUA_TFUNCTION);
+    I18nState& st = i18n_state(L);
+    if (st.listener == 0) {
+        st.listener = helix::ui::locale_add_language_listener([&st](const std::string& code) {
+            for (int ref : st.on_change) {
+                st.rt->invoke(ref, [&code](lua_State* co) {
+                    lua_pushlstring(co, code.data(), code.size());
+                    return 1;
+                });
+            }
+        });
+    }
+    st.on_change.push_back(ctx.rt.ref_value(L, 1));
+    return 0;
+}
+
 PluginContext& context(lua_State* L) {
     lua_rawgetp(L, LUA_REGISTRYINDEX, &kContextKey);
     auto* ctx = static_cast<PluginContext*>(lua_touserdata(L, -1));
@@ -358,6 +410,15 @@ void install_core_bindings(PluginContext& ctx) {
         delete reg;
     });
 
+    auto* i18n = new I18nState{&ctx.rt};
+    lua_pushlightuserdata(L, i18n);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &kI18nKey);
+    ctx.rt.on_close([i18n] {
+        if (i18n->listener != 0)
+            helix::ui::locale_remove_language_listener(i18n->listener);
+        delete i18n;
+    });
+
     luaL_newmetatable(L, kTimerMeta);
     lua_newtable(L);
     lua_pushcfunction(L, &timer_cancel);
@@ -372,8 +433,13 @@ void install_core_bindings(PluginContext& ctx) {
                                        {nullptr, nullptr}};
     static const luaL_Reg json_fns[] = {
         {"encode", &json_encode}, {"decode", &json_decode}, {nullptr, nullptr}};
+    static const luaL_Reg i18n_fns[] = {{"t", &i18n_t},
+                                        {"locale", &i18n_locale},
+                                        {"on_change", &i18n_on_change},
+                                        {nullptr, nullptr}};
     static const luaL_Reg timer_fns[] = {
         {"after", &timer_after}, {"every", &timer_every}, {nullptr, nullptr}};
+    add_module(L, "i18n", i18n_fns);
     add_module(L, "log", log_fns);
     add_module(L, "json", json_fns);
     add_module(L, "timer", timer_fns);

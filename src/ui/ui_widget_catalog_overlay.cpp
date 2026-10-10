@@ -259,7 +259,12 @@ lv_obj_t* WidgetCatalogOverlay::create_row(lv_obj_t* parent, const char* name, c
                                            bool already_placed, bool unavailable) {
     const bool dimmed = already_placed || unavailable;
     const bool has_icon = icon && icon[0] != '\0';
-    const bool has_desc = description && description[0] != '\0';
+    // Core widget names come from the app's catalog, plugin names from the
+    // manifest; both are English-source and resolve through the translation
+    // table, which covers a plugin's own pack as well.
+    const char* const tr_name = lv_tr(name);
+    const char* const tr_desc = lv_tr(description ? description : "");
+    const bool has_desc = tr_desc[0] != '\0';
 
     char size_text[16];
     snprintf(size_text, sizeof(size_text), "%sx%s", format_track_span(colspan).c_str(),
@@ -282,8 +287,8 @@ lv_obj_t* WidgetCatalogOverlay::create_row(lv_obj_t* parent, const char* name, c
         return nullptr;
     }
     // Widget names and descriptions can come from a Lua plugin.
-    helix::ui::set_row_label_text(row, "row_name", name);
-    helix::ui::set_row_label_text(row, "row_desc", has_desc ? description : "");
+    helix::ui::set_row_label_text(row, "row_name", tr_name);
+    helix::ui::set_row_label_text(row, "row_desc", has_desc ? tr_desc : "");
     return row;
 }
 

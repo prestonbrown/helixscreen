@@ -13,6 +13,7 @@
 #include "../test_helpers/scope_exit.h"
 #include "config.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
+#include "helix-xml/src/xml/lv_xml_translation.h"
 #include "misc/lv_timer_private.h"
 #include "panel_widget.h"
 #include "panel_widget_config.h"
@@ -38,6 +39,20 @@ TEST_CASE_METHOD(LVGLTestFixture, "plugins are disabled until enabled", "[plugin
     CHECK(rig.info("hello")->status == PluginStatus::Disabled);
     CHECK(rig.info("require-test") == nullptr); // no manifest: not a plugin
     CHECK(lv_xml_get_subject(nullptr, "hello__status") == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a plugin i18n pack registers on load", "[plugin][host]") {
+    HostRig rig(enabled("i18n-demo", {}));
+    rig.host->load_from("tests/fixtures/plugins");
+    REQUIRE(rig.info("i18n-demo"));
+    REQUIRE(rig.info("i18n-demo")->status == PluginStatus::Loaded);
+
+    // The pack is global from load on; the unique tag cannot collide with any
+    // app string, so its German value is proof the plugin's file registered.
+    lv_translation_set_language("de");
+    CHECK(std::string(lv_tr("i18n-demo only string")) == "Nur auf Deutsch");
+    lv_translation_set_language("en");
+    CHECK(std::string(lv_tr("i18n-demo only string")) == "i18n-demo only string");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "an enabled plugin loads, binds and reacts", "[plugin][host]") {

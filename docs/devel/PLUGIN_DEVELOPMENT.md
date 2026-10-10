@@ -669,3 +669,47 @@ helix.widget("tile", { on_size = function(cols) wide:set(cols >= 2 and 1 or 0) e
 
 The maintainer's view of the same system - the sync pipeline, the sandbox internals, the
 subscription union - is `docs/devel/architecture/12-system-services.md`.
+
+## 13. Translations
+
+A plugin's user-facing strings are English by default and translate through the
+same machinery the app uses. Ship an optional `i18n/` folder beside `main.lua`
+with one or more LVGL translation packs:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<translations languages="de">
+  <translation tag="No events yet" de="Noch keine Ereignisse"/>
+</translations>
+```
+
+The host registers every `i18n/*.xml` when the plugin loads. Packs cannot be
+unregistered (LVGL keeps them until the app exits), so a reload reuses what is
+already loaded, and two plugins mapping the same English string differently is
+last-registered-wins - keep translations faithful to the source.
+
+English is the identity locale: `lv_tr()` returns the key itself when nothing
+translates it, so an English-only plugin ships no `i18n/` at all, and a pack
+with a missing entry simply falls back. Lookup order is the plugin's pack, then
+the app's own catalog - words the app already says (`Started`, `Paused`,
+`Completed`, `Cancelled`, `Failed`, common settings vocabulary) translate for
+free and should not be duplicated in a plugin pack.
+
+Where strings resolve:
+
+- **manifest.json** `name`, `description`, settings `label`s and widget
+  `name`/`description` translate at render time (the Plugins screen, the
+  generated settings rows, the widget catalog). The file stays English.
+- **XML** static text: add `translation_tag="English text"` to a widget; the
+  engine resolves and hot-reloads it on a language change like any app string.
+- **Lua**: `helix.i18n.t("English text")` resolves through the same table.
+  `helix.i18n.locale()` returns the active code (`"en"`, `"de"`, ...), and
+  `helix.i18n.on_change(fn)` calls `fn(code)` after a language change so
+  subject-carried strings re-render. Anything the plugin sends outward (a
+  notification payload, a toast) follows the screen's language by translating
+  through `t()` at send time.
+
+`print-watcher` is the worked example: its `i18n/de.xml` carries only the
+strings the app catalog does not already say.
+
+
