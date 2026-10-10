@@ -2013,7 +2013,9 @@ translations:
     prend plus de temps.
   Motion: Mouvement
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': 'Capteur de mouvement bloqué : le filament est toujours dans l''alimentateur. Reprenez pour l''alimenter.'
+  Motion timed out: Délai de mouvement dépassé
   Motor controller error: Erreur du contrôleur de moteur
+  Motor drive fault: Défaut du pilote moteur
   Motor parameter setup failed: Échec de la configuration des paramètres moteur
   Motor speeds and acceleration: 'Vitesses moteur et accélération'
   Motors: Moteurs

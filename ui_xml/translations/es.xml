@@ -1805,7 +1805,9 @@
   <translation tag="More points = more accurate, but takes longer." es="Más puntos = más preciso, pero tarda más."/>
   <translation tag="Motion" es="Movimiento"/>
   <translation tag="Motion sensor stuck: filament is still at the feeder. Resume to feed it." es="Sensor de movimiento atascado: el filamento sigue en el alimentador. Reanuda para alimentarlo."/>
+  <translation tag="Motion timed out" es="Tiempo de espera del movimiento agotado"/>
   <translation tag="Motor controller error" es="Error del controlador del motor"/>
+  <translation tag="Motor drive fault" es="Fallo del controlador del motor"/>
   <translation tag="Motor parameter setup failed" es="Falló la configuración de los parámetros del motor"/>
   <translation tag="Motor speeds and acceleration" es="Velocidades del motor y aceleración"/>
   <translation tag="Motors" es="Motores"/>

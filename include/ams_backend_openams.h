@@ -110,7 +110,7 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// Each unit's own temperature and humidity ride AmsUnit::environment; the
     /// dryer is the unit's own heater (openams only: klipper_openams publishes no
     /// `devices`, so neither exists there). A unit offers it when it reports the
-    /// dryer capability and advertises both dryer_start and dryer_stop. Start
+    /// dryer capability and advertises dryer_start or dryer_stop, either one being enough. Start
     /// clamps to the unit's published range and sends
     /// `OAMS_DRYER_START OAMS=<idx> TARGET=<C> DURATION=<s>`.
     [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;

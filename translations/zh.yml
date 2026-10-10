@@ -1865,7 +1865,9 @@ translations:
   More points = more accurate, but takes longer.: 点数越多越精确，但耗时更长。
   Motion: 运动
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': '运动传感器卡住：耗材仍在送料器中。继续即可送入。'
+  Motion timed out: 运动超时
   Motor controller error: 电机控制器错误
+  Motor drive fault: 电机驱动器故障
   Motor parameter setup failed: 电机参数设置失败
   Motor speeds and acceleration: '电机速度与加速度'
   Motors: 电机

@@ -103,10 +103,10 @@ bool command_name_is_safe(const std::string& command) {
 /// A fault code in plain words; an unfamiliar code reads as the unit's own text.
 std::string describe_fault(const std::string& code, const std::string& text) {
     if (code == "motor_drive_fault") {
-        return "Motor drive fault"; // i18n: do not translate - firmware fault name
+        return lv_tr("Motor drive fault");
     }
     if (code == "motion_timeout") {
-        return "Motion timed out"; // i18n: do not translate - firmware fault name
+        return lv_tr("Motion timed out");
     }
     return !text.empty() ? text
                          : (!code.empty() ? code : std::string(lv_tr("Filament System Error")));

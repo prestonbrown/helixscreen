@@ -2008,7 +2008,9 @@ translations:
     länger.
   Motion: Bewegung
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': 'Bewegungssensor hängt: Filament liegt noch an der Zuführung. Fortsetzen, um es einzuziehen.'
+  Motion timed out: Zeitüberschreitung bei der Bewegung
   Motor controller error: Fehler der Motorsteuerung
+  Motor drive fault: Motortreiberfehler
   Motor parameter setup failed: Einrichten der Motorparameter fehlgeschlagen
   Motor speeds and acceleration: 'Motorgeschwindigkeiten und Beschleunigung'
   Motors: Motoren

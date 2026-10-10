@@ -1805,7 +1805,9 @@
   <translation tag="More points = more accurate, but takes longer." ja="ポイント数が多いほど精度が上がりますが、時間がかかります。"/>
   <translation tag="Motion" ja="動作"/>
   <translation tag="Motion sensor stuck: filament is still at the feeder. Resume to feed it." ja="モーションセンサーが固着: フィラメントはまだフィーダーにあります。再開すると送り込みます。"/>
+  <translation tag="Motion timed out" ja="動作がタイムアウトしました"/>
   <translation tag="Motor controller error" ja="モーターコントローラーのエラー"/>
+  <translation tag="Motor drive fault" ja="モータードライバーの異常"/>
   <translation tag="Motor parameter setup failed" ja="モーターパラメーターの設定に失敗しました"/>
   <translation tag="Motor speeds and acceleration" ja="モーター速度と加速度"/>
   <translation tag="Motors" ja="モーター"/>

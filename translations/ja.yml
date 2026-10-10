@@ -1871,7 +1871,9 @@ translations:
   More points = more accurate, but takes longer.: ポイント数が多いほど精度が上がりますが、時間がかかります。
   Motion: 動作
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': 'モーションセンサーが固着: フィラメントはまだフィーダーにあります。再開すると送り込みます。'
+  Motion timed out: 動作がタイムアウトしました
   Motor controller error: モーターコントローラーのエラー
+  Motor drive fault: モータードライバーの異常
   Motor parameter setup failed: モーターパラメーターの設定に失敗しました
   Motor speeds and acceleration: 'モーター速度と加速度'
   Motors: モーター

@@ -1979,7 +1979,9 @@ translations:
   More points = more accurate, but takes longer.: Больше точек — точнее, но дольше.
   Motion: Движение
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': 'Датчик движения застрял: филамент всё ещё в фидере. Продолжите, чтобы подать его.'
+  Motion timed out: Время ожидания движения истекло
   Motor controller error: Ошибка контроллера двигателя
+  Motor drive fault: Неисправность драйвера двигателя
   Motor parameter setup failed: Не удалась настройка параметров двигателя
   Motor speeds and acceleration: 'Скорости моторов и ускорение'
   Motors: Двигатели

@@ -1939,7 +1939,9 @@ translations:
     takes longer.
   Motion: Motion
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': 'Motion sensor stuck: filament is still at the feeder. Resume to feed it.'
+  Motion timed out: Motion timed out
   Motor controller error: Motor controller error
+  Motor drive fault: Motor drive fault
   Motor parameter setup failed: Motor parameter setup failed
   Motor speeds and acceleration: Motor speeds and acceleration
   Motors: Motors

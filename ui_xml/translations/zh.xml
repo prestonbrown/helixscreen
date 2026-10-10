@@ -1805,7 +1805,9 @@
   <translation tag="More points = more accurate, but takes longer." zh="点数越多越精确，但耗时更长。"/>
   <translation tag="Motion" zh="运动"/>
   <translation tag="Motion sensor stuck: filament is still at the feeder. Resume to feed it." zh="运动传感器卡住：耗材仍在送料器中。继续即可送入。"/>
+  <translation tag="Motion timed out" zh="运动超时"/>
   <translation tag="Motor controller error" zh="电机控制器错误"/>
+  <translation tag="Motor drive fault" zh="电机驱动器故障"/>
   <translation tag="Motor parameter setup failed" zh="电机参数设置失败"/>
   <translation tag="Motor speeds and acceleration" zh="电机速度与加速度"/>
   <translation tag="Motors" zh="电机"/>

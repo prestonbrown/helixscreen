@@ -1805,7 +1805,9 @@
   <translation tag="More points = more accurate, but takes longer." ru="Больше точек — точнее, но дольше."/>
   <translation tag="Motion" ru="Движение"/>
   <translation tag="Motion sensor stuck: filament is still at the feeder. Resume to feed it." ru="Датчик движения застрял: филамент всё ещё в фидере. Продолжите, чтобы подать его."/>
+  <translation tag="Motion timed out" ru="Время ожидания движения истекло"/>
   <translation tag="Motor controller error" ru="Ошибка контроллера двигателя"/>
+  <translation tag="Motor drive fault" ru="Неисправность драйвера двигателя"/>
   <translation tag="Motor parameter setup failed" ru="Не удалась настройка параметров двигателя"/>
   <translation tag="Motor speeds and acceleration" ru="Скорости моторов и ускорение"/>
   <translation tag="Motors" ru="Двигатели"/>
