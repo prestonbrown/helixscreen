@@ -109,14 +109,17 @@ disables only its own action**; status and the other actions keep working.
 
 | Action | Command (v1) | Without the command |
 |--------|--------------|---------------------|
-| Load slot | `OPENAMS_LOAD GROUP=<group> SLOT=<id>` | Load and tool change refuse with NOT_SUPPORTED |
-| Unload | `OPENAMS_UNLOAD` | `can_unload_from_toolhead()` answers false, so Unload is not offered |
+| Load slot | `<commands.load> GROUP=<group> SLOT=<id>` | Load and tool change refuse with NOT_SUPPORTED |
+| Unload | `<commands.unload> FPS=<lane id>` | `can_unload_from_toolhead()` answers false, so Unload is not offered |
 | Cancel | `OAMSM_LOAD_FILAMENT_CANCEL` | refuses with NOT_SUPPORTED; Abort is disabled |
 | Reset / recover | `OAMSM_CLEAR_ERRORS` | refuses with NOT_SUPPORTED |
 
-The manager advertises load and unload only once the user has merged the updated
-`oams_macros.cfg` macros, so an install with the new manager and old macros shows status
-and can reset, but cannot load. While `ready` is false, every action is refused.
+The command names are the manager's to choose: klipper_openams advertises
+`OPENAMS_LOAD` / `OPENAMS_UNLOAD` (its macros accept and ignore `FPS`), the openams plugin
+advertises `OAMSM_LOAD_TO_TOOLHEAD` / `OAMSM_UNLOAD_FROM_TOOLHEAD`. The parameters are the
+same for both: `SLOT` is the global slot id and `FPS` is `lanes[].id`. A manager that
+advertises no load or unload command shows status and can reset, but cannot load or
+unload. While `ready` is false, every action is refused.
 
 - **Tool change** resolves group `T<n>` to a slot: the member already loaded, otherwise
   the first member with a spool ready. A group with no ready member is refused before
@@ -127,7 +130,14 @@ and can reset, but cannot load. While `ready` is false, every action is refused.
   `clear_fault()`. The macro's own error reaches the user through the G-code error
   stream, so the dispatch passes `caller_surfaces_errors=false` and only unwinds. Both
   callbacks hop to the main thread through the lifetime token.
-- **Unload with several lanes loaded** is refused: the v1 command names no lane.
+- **Unload** names the lane the loaded slot sits on (`FPS=<lane id>`), so it empties the
+  lane the user acted on even with several lanes loaded. A caller naming no loaded slot
+  gets the current slot, else the one lane that is loaded.
+- **Load over a loaded lane** is a swap. The manager's load does not clear a lane that
+  already holds another slot, so the backend sends `<unload> FPS=<lane>` and the load as
+  one two-line script, and the action reads as one LOADING operation. A load into an empty
+  lane, or of the slot already loaded, is the single load line. `needs_unload_before_load()`
+  answers per lane for the same rule, so slots on other lanes never plan an unload.
 - **Cancel** reaches only a load the manager is running on its own, such as a runout
   reload. `OAMSM_LOAD_FILAMENT_CANCEL` is ordinary G-code: while a load started from the
   screen runs, `OPENAMS_LOAD` holds Klipper's G-code queue, and the cancel could not run
@@ -137,6 +147,39 @@ and can reset, but cannot load. While `ready` is false, every action is refused.
   manager's `openams/cancel_load` webhook can interrupt a load, but Moonraker does not
   expose it.
 - **Homing** is the macro's job, so none is added (`skip_homing`).
+
+## Unit faults
+
+The openams plugin publishes `oams_manager.devices.<unit>.faults[]` (severity, code, text,
+bay, actions); klipper_openams publishes no `devices`, so it never raises one. The
+subscription asks for `devices` and ignores it when absent. A `stop` or `pause` fault
+puts the system in `AmsAction::ERROR`, marks the unit's slots (the one bay for a bay
+fault) with a `SlotError`, and fills `operation_detail`, so the overview shows the unit's
+error dot and the sidebar text. `current_error()` (channel B of the AMS error model)
+turns it into the recovery dialog with one **Reset** action. Codes read in plain
+words (`motor_drive_fault`, `motion_timeout`); any other code reads as the unit's own text.
+
+Reset, the recovery dialog and `clear_fault()` send one script: `OAMS_CLEAR_FAULT
+OAMS=<unit id>` for each unit that has a fault advertising `clear_fault`, in unit order,
+then `commands.reset`. A firmware fault is not cleared by `OAMSM_CLEAR_ERRORS`, and while
+it is latched the unit refuses all motion. With no unit fault the script is `commands.reset`
+alone, as before.
+
+## Shared hub
+
+`units[].lane` is the unit's hub: units naming the same lane feed one hub, one FPS and one
+toolhead. The backend copies it to `AmsUnit::hub_id`, and `compute_system_tool_layout()`
+folds units with the same non-empty `hub_id` onto one nozzle, so the overview draws the
+overview model: unit columns merging into one **Hub**, the lane's **FPS** box
+(`ui_system_path_canvas_set_buffer()` / `set_unit_hub()`) and one toolhead per lane. Groups
+`T<n>` are filament groups and never toolheads. Units on different lanes are different hubs on
+different toolheads, so two lanes draw two chains. The openams plugin's `lanes_by_fps[<lane>].extruder`
+becomes each slot's `extruder_name`, so the toolhead is badged by its extruder; without it
+the badge is the toolhead's position. Only `units[].lane`, `groups[].lane` and `lanes[]` are
+needed for the drawing, so klipper_openams (which publishes nothing else) draws the same.
+
+The unit detail inside the overview is hub-only by design: it draws the slots down to the
+hub, and the trunk below (FPS, nozzle) is the overview's.
 
 ## Slot identity
 
@@ -152,6 +195,11 @@ OpenAMS reports no colour, material or spool identity, so identity is HelixScree
   store, so a resync re-reads what other `lane_data` writers changed. A repaint between
   frames takes identity from the lane alone: `overrides_` is what the store persists and
   a resync does not refresh it, so nothing is decided from it;
+- a spool link written after start is picked up from `notify_openams_spoolman_status` (sent
+  by the openams `[openams_spoolman]` Moonraker component whenever it updates
+  `lane_data`): the store re-reads the namespace without blocking, the records are filed
+  onto the lanes (every source except a person's own edit, which stands) and the slots are
+  repainted. A manager without the component never sends it;
 - a spool inserted into a slot last seen empty is, under the insert rule
   (`docs/specs/filament_slots.md` §6), always "no evidence": the record stays and
   the "same spool?" notice offers Clear. The first frame after start is a baseline, and
@@ -167,8 +215,22 @@ OpenAMS reports no colour, material or spool identity, so identity is HelixScree
 | Bypass | No |
 | Endless spool | Not exposed |
 | Runout surface | No error hook, so the generic runout modal and toast remain (`runtime_config.cpp`) |
-| Environment sensors | No |
+| Environment sensors | Per unit from `devices.<unit>.environment` (`temp_c`, `rh_pct`), into `AmsUnit::environment`; openams only |
+| Dryer | Per unit, see below; openams only |
 | Filament pressure | Per lane, from `lanes[].pressure` and `set_point`; drawn as the FPS box with bias tint and the buffer slider |
+
+## Dryer
+
+A unit offers drying when `devices.<unit>.capabilities.dryer` is true and
+`supported_actions` holds both `dryer_start` and `dryer_stop`; `get_dryer_info(unit)` then
+reports the unit's range (`dryer_target_min_c` / `dryer_target_max_c`), whether it is running
+(any `dryer.state` other than off, idle or fault), its target, the time left, the chamber
+temperature (`telemetry.dryer.chamber_c`) and the fan. The generic environment indicator and
+overlay drive it per unit. Start clamps the target to the unit's range and the duration to
+1 s - 7 days and sends `OAMS_DRYER_START OAMS=<units[].id> TARGET=<C> DURATION=<s>`; stop sends
+`OAMS_DRYER_STOP OAMS=<idx>`. A unit with `dryer_requires_unloaded` (the AMS 2 Pro) refuses
+to start while any of its bays is loaded. klipper_openams publishes no `devices`, so it shows
+no climate readout and no dryer.
 
 ## Tests
 

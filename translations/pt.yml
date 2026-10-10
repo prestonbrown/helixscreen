@@ -987,6 +987,8 @@ translations:
 
   Dry spools on the heated bed: Secar carretéis na mesa aquecida
 
+  Dryer already running: 'O secador já está em funcionamento'
+  Dryer is not running: 'O secador não está em funcionamento'
   Drying: Secando
   Drying is already running: A secagem já está em andamento
 
@@ -3219,6 +3221,7 @@ translations:
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Parar a impressão de \"{}\"?\n\nIsso não pode ser desfeito após 5 segundos."
   Stop the check?: Parar a verificação?
+  Stop the running cycle before starting another: 'Pare o ciclo em andamento antes de iniciar outro'
   Stopped: Parado
   Stopped between Hub and Toolhead: Parado entre o Hub e o cabeçote
   Stopped between Lane and Hub: Parado entre a Lane e o Hub
@@ -3433,6 +3436,7 @@ translations:
   Theme changes apply after restart.: Alterações de tema aplicam após reiniciar.
   Theme reset to defaults: Tema redefinido para os padrões
   'Theme: ': 'Tema: '
+  There is no cycle to stop: 'Não há ciclo para parar'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "Não há memória livre suficiente para este teste. A análise do Klipper ficaria sem memória e deixaria a impressora travada até ser desligada e ligada."
   'These tools have a different filament grade loaded:': 'Estas ferramentas têm um grau de filamento diferente carregado:'
@@ -3458,6 +3462,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : Este dispositivo tem muito pouca RAM. A calibração de ressonância consome muita memória e pode causar um erro "Timer Too Close". Continuar mesmo assim?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Isto não corresponde ao carretel do Spoolman vinculado. Adicionar como um novo carretel ou atualizar o vinculado para corresponder?
+  This dryer cannot run while filament from the unit is loaded: 'Este secador não pode funcionar enquanto houver filamento da unidade carregado'
   This feature requires different hardware or configuration: Este recurso requer hardware ou configuração diferentes
   This filament system does not report buffer or flow data.: Este sistema de filamento não reporta dados de buffer ou de fluxo.
   This file was sliced for {} but {} is loaded.: Este arquivo foi fatiado para {}
@@ -3668,6 +3673,7 @@ translations:
   Unload from toolhead first: 'Descarregue primeiro do cabeçote'
   Unload macro not configured: Macro de descarga não configurado
   Unload the CFS filament before enabling bypass: 'Descarregue o filamento do CFS antes de ativar o bypass'
+  Unload this unit first: 'Descarregue primeiro esta unidade'
   Unload...: Descarregar...
   Unloaded: 'Descarregado'
   Unloading: Descarregando

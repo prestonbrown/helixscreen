@@ -133,18 +133,72 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_cfs(const std::strin
 // OPENAMS_UNLOAD / OPENAMS_LOAD GROUP=<name>: flip the lane to the requested
 // group's first ready bay (bays 2 and 3 hold spools; T0 = {0,3}, T1 = {1},
 // T2 = {2}).
-MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams(const std::string& gcode) {
+MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams(const std::string& script) {
+    // A script runs its lines in order, as Klipper does.
+    GcodeResult result = std::nullopt;
+    size_t start = 0;
+    while (start <= script.size()) {
+        size_t end = script.find('\n', start);
+        if (end == std::string::npos) {
+            end = script.size();
+        }
+        if (auto r = gcode_openams_line(script.substr(start, end - start))) {
+            result = r;
+        }
+        start = end + 1;
+    }
+    return result;
+}
+
+MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const std::string& gcode) {
     const size_t token_end = gcode.find_first_of(" \t");
     const std::string cmd = gcode.substr(0, token_end);
-    if (cmd == "OPENAMS_UNLOAD") {
+    if (cmd == "OAMS_CLEAR_FAULT") {
+        openams_fault_active_ = false;
+        return 0;
+    }
+    if (cmd == "OAMS_DRYER_START" || cmd == "OAMS_DRYER_STOP") {
+        auto field = [&gcode](const char* key) -> std::optional<double> {
+            const size_t pos = gcode.find(key);
+            if (pos == std::string::npos) {
+                return std::nullopt;
+            }
+            return std::atof(gcode.c_str() + pos + std::strlen(key));
+        };
+        const auto idx = field("OAMS=");
+        if (!openams_plugin_units() || !idx || *idx < 1 || *idx > openams_unit_count()) {
+            return std::nullopt;
+        }
+        OpenAmsDryerSim& sim = openams_dryers_[static_cast<int>(*idx) - 1];
+        if (cmd == "OAMS_DRYER_STOP") {
+            sim.target_c = 0.0;
+            sim.remaining_s = 0.0;
+            return 0;
+        }
+        // Clamped to the unit's range and to 1 s .. 7 days, as the plugin does.
+        const double max_c =
+            openams_device_json(static_cast<int>(*idx) - 1)["capabilities"]["dryer_target_max_c"];
+        sim.target_c = std::clamp(field("TARGET=").value_or(45.0), 45.0, max_c);
+        sim.remaining_s = std::clamp(field("DURATION=").value_or(3600.0), 1.0, 604800.0);
+        return 0;
+    }
+    if (cmd == "OPENAMS_UNLOAD" || cmd == "OAMSM_UNLOAD_FROM_TOOLHEAD") {
         openams_loaded_slot_ = -1;
         return 0;
     }
-    if (cmd == "OPENAMS_LOAD") {
+    if (cmd == "OPENAMS_LOAD" || cmd == "OAMSM_LOAD_TO_TOOLHEAD") {
         const size_t pos = gcode.find("GROUP=");
         const std::string group =
             pos == std::string::npos ? "" : gcode.substr(pos + 6, gcode.find(' ', pos) - pos - 6);
-        if (group == "T0") {
+        if (openams_plugin_units()) {
+            // Group Tn is slot n on the plugin shapes.
+            char* end = nullptr;
+            const long slot = group.size() > 1 ? std::strtol(group.c_str() + 1, &end, 10) : -1;
+            if (group[0] == 'T' && end && *end == '\0' && slot >= 0 &&
+                slot < openams_slot_count()) {
+                openams_loaded_slot_ = static_cast<int>(slot);
+            }
+        } else if (group == "T0") {
             openams_loaded_slot_ = 3;
         } else if (group == "T2") {
             openams_loaded_slot_ = 2;

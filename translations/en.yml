@@ -951,6 +951,8 @@ translations:
   Dry Filament: Dry Filament
   Dry Filament on the Bed: Dry Filament on the Bed
   Dry spools on the heated bed: Dry spools on the heated bed
+  Dryer already running: Dryer already running
+  Dryer is not running: Dryer is not running
   Drying: Drying
   Drying is already running: Drying is already running
   Drying on the bed: Drying on the bed
@@ -3119,6 +3121,7 @@ translations:
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   Stop the check?: Stop the check?
+  Stop the running cycle before starting another: Stop the running cycle before starting another
   Stopped: Stopped
   Stopped between Hub and Toolhead: Stopped between Hub and Toolhead
   Stopped between Lane and Hub: Stopped between Lane and Hub
@@ -3322,6 +3325,7 @@ translations:
   Theme changes apply after restart.: Theme changes apply after restart.
   Theme reset to defaults: Theme reset to defaults
   'Theme: ': 'Theme: '
+  There is no cycle to stop: There is no cycle to stop
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   'These tools have a different filament grade loaded:': 'These tools have a different filament grade loaded:'
@@ -3347,6 +3351,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?
+  This dryer cannot run while filament from the unit is loaded: This dryer cannot run while filament from the unit is loaded
   This feature requires different hardware or configuration: This feature requires different hardware or configuration
   This filament system does not report buffer or flow data.: This filament system does not report buffer or flow data.
   This file was sliced for {} but {} is loaded.: This file was sliced for {} but {}
@@ -3554,6 +3559,7 @@ translations:
   Unload from toolhead first: Unload from toolhead first
   Unload macro not configured: Unload macro not configured
   Unload the CFS filament before enabling bypass: Unload the CFS filament before enabling bypass
+  Unload this unit first: Unload this unit first
   Unload...: Unload...
   Unloaded: Unloaded
   Unloading: Unloading

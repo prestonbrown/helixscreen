@@ -888,6 +888,8 @@
   <translation tag="Dry Filament" en="Dry Filament"/>
   <translation tag="Dry Filament on the Bed" en="Dry Filament on the Bed"/>
   <translation tag="Dry spools on the heated bed" en="Dry spools on the heated bed"/>
+  <translation tag="Dryer already running" en="Dryer already running"/>
+  <translation tag="Dryer is not running" en="Dryer is not running"/>
   <translation tag="Drying" en="Drying"/>
   <translation tag="Drying is already running" en="Drying is already running"/>
   <translation tag="Drying on the bed" en="Drying on the bed"/>
@@ -2896,6 +2898,7 @@
   <translation tag="Stop failed" en="Stop failed"/>
   <translation tag="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds." en="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds."/>
   <translation tag="Stop the check?" en="Stop the check?"/>
+  <translation tag="Stop the running cycle before starting another" en="Stop the running cycle before starting another"/>
   <translation tag="Stopped" en="Stopped"/>
   <translation tag="Stopped between Hub and Toolhead" en="Stopped between Hub and Toolhead"/>
   <translation tag="Stopped between Lane and Hub" en="Stopped between Lane and Hub"/>
@@ -3067,6 +3070,7 @@
   <translation tag="Theme changes apply after restart." en="Theme changes apply after restart."/>
   <translation tag="Theme reset to defaults" en="Theme reset to defaults"/>
   <translation tag="Theme: " en="Theme: "/>
+  <translation tag="There is no cycle to stop" en="There is no cycle to stop"/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." en="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled."/>
   <translation tag="These tools have a different filament grade loaded:" en="These tools have a different filament grade loaded:"/>
   <translation tag="These tools have incompatible materials loaded:" en="These tools have incompatible materials loaded:"/>
@@ -3085,6 +3089,7 @@
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" en="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" en="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" en="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?"/>
+  <translation tag="This dryer cannot run while filament from the unit is loaded" en="This dryer cannot run while filament from the unit is loaded"/>
   <translation tag="This feature requires different hardware or configuration" en="This feature requires different hardware or configuration"/>
   <translation tag="This filament system does not report buffer or flow data." en="This filament system does not report buffer or flow data."/>
   <translation tag="This file was sliced for {} but {} is loaded." en="This file was sliced for {} but {} is loaded."/>
@@ -3261,6 +3266,7 @@
   <translation tag="Unload from toolhead first" en="Unload from toolhead first"/>
   <translation tag="Unload macro not configured" en="Unload macro not configured"/>
   <translation tag="Unload the CFS filament before enabling bypass" en="Unload the CFS filament before enabling bypass"/>
+  <translation tag="Unload this unit first" en="Unload this unit first"/>
   <translation tag="Unload..." en="Unload..."/>
   <translation tag="Unloaded" en="Unloaded"/>
   <translation tag="Unloading" en="Unloading"/>

@@ -7,6 +7,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -58,11 +59,21 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
-        return kTraits;
+        BackendTraits t = kTraits;
+        // The unit views show their climate readout only where a unit reports
+        // one or offers a dryer (openams only, never klipper_openams).
+        t.has_environment_sensors = has_unit_climate_;
+        return t;
     }
 
     /// Unload is offered only where the manager advertises a command for it.
     [[nodiscard]] bool can_unload_from_toolhead(int slot_index) const override;
+    [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
+
+    /// A load needs the lane cleared only when another slot on the TARGET's
+    /// lane is loaded; slots on other lanes share nothing with it.
+    [[nodiscard]] bool needs_unload_before_load(const AmsSystemInfo& info,
+                                                int target_slot) const override;
 
     AmsError recover() override;
     AmsError reset() override;
@@ -96,6 +107,16 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
         return true;
     }
 
+    /// Each unit's own temperature and humidity ride AmsUnit::environment; the
+    /// dryer is the unit's own heater (openams only: klipper_openams publishes no
+    /// `devices`, so neither exists there). A unit offers it when it reports the
+    /// dryer capability and advertises both dryer_start and dryer_stop. Start
+    /// clamps to the unit's published range and sends
+    /// `OAMS_DRYER_START OAMS=<idx> TARGET=<C> DURATION=<s>`.
+    [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;
+    AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
+    AmsError stop_drying(int unit = 0) override;
+
     AmsError enable_bypass() override;
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override {
@@ -109,6 +130,7 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     AmsError do_change_tool(int tool_number) override;
 
     void on_started() override;
+    void on_stopping() override;
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS OpenAMS]";
@@ -136,12 +158,55 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
   private:
     friend class OpenAmsTestAccess;
 
+    /// One entry of a unit's published fault list.
+    struct UnitFault {
+        std::string severity; ///< "stop", "pause", ...
+        std::string code;
+        std::string text;
+        int bay = -1;           ///< unit-local bay, -1 for the whole unit
+        bool clearable = false; ///< the unit advertises clear_fault for it
+    };
+
     /// One `groups[]` entry, with its members as global slot indices.
     struct Group {
         std::string name;
         std::string lane;
         std::vector<int> slots;
     };
+
+    /// Re-read the lane_data records and file what they say onto the lanes.
+    /// The read never blocks and never holds the backend mutex; the filing
+    /// runs on the main thread. A spool link written after start (by the
+    /// openams_spoolman component, or by another tool) shows up through this.
+    void refresh_lane_records();
+    void apply_lane_records(int backend_block,
+                            const std::unordered_map<int, helix::ams::LaneDataRecord>& records);
+
+    /// What a unit publishes about its dryer. Parallel to system_info_.units.
+    struct UnitDryer {
+        bool offered = false;           ///< capability plus dryer_start or dryer_stop
+        bool can_start = false;         ///< dryer_start is advertised now
+        bool can_stop = false;          ///< dryer_stop is advertised now
+        bool requires_unloaded = false; ///< no bay may be loaded while it runs
+        std::optional<EnvironmentData> environment;
+        DryerInfo info;
+    };
+
+    /// Parallel to system_info_.units.
+    std::vector<std::vector<UnitFault>> unit_faults_;
+    std::vector<UnitDryer> unit_dryers_;
+    std::atomic<bool> has_unit_climate_{false};
+    /// Length of the cycle this screen started, per unit index: the unit
+    /// reports only the time left.
+    std::unordered_map<int, int> requested_dry_min_;
+    std::vector<int> unit_oams_idx_; ///< `units[].id` as a number, -1 when it is not one
+
+    /// The gcode that clears everything the manager and the units hold: a
+    /// firmware fault clear for each unit that offers one, then the manager's
+    /// own reset. Empty when there is nothing to send. Caller holds mutex_.
+    [[nodiscard]] std::string clear_script_locked() const;
+    [[nodiscard]] bool has_clearable_fault_locked() const;
+    [[nodiscard]] std::string fault_detail_locked() const;
 
     void parse_snapshot_locked();
     void present_nothing_locked();
@@ -155,9 +220,17 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// The advertised command for @p action ("load", "unload", "cancel",
     /// "reset"), or empty when the manager does not offer it.
     [[nodiscard]] std::string command_locked(const char* action) const;
+    /// The slot loaded on @p lane, or -1.
+    [[nodiscard]] int loaded_slot_on_lane_locked(const std::string& lane) const;
+    /// The load for @p slot_index. When another slot on the same lane is
+    /// loaded, the lane is unloaded first in the same script, so the manager
+    /// sees one operation.
     [[nodiscard]] AmsError load_gcode_locked(int slot_index, std::string& gcode) const;
     [[nodiscard]] bool slot_loadable_locked(int slot_index) const;
     [[nodiscard]] int loaded_lane_count_locked() const;
+    /// The lane id the unload command names for @p slot_index, or empty when
+    /// that slot is not the one loaded on any lane.
+    [[nodiscard]] std::string loaded_lane_of_slot_locked(int slot_index) const;
     [[nodiscard]] static AmsAction action_from_lane_state(const std::string& state);
 
     /// Last full view of oams_manager: status updates carry only the fields
@@ -168,6 +241,11 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     PathTopology topology_ = PathTopology::HUB;
     AmsAction reported_action_ = AmsAction::IDLE;
     std::vector<std::string> lane_states_;
+    /// Per lane (parallel to lane_states_): its id and the global slot it holds.
+    std::vector<std::string> lane_ids_;
+    std::vector<int> lane_loaded_slots_;
+    /// The lane each global slot's unit feeds; empty when the unit names none.
+    std::vector<std::string> slot_lanes_;
     /// Whether each manager slot id held a spool on the last frame; the
     /// baseline an insert is judged against.
     std::unordered_map<int, bool> present_by_slot_id_;

@@ -1312,6 +1312,12 @@ struct AmsUnit {
     /// -1 means "use min(mapped_tool) from lanes" (the default/PARALLEL behavior).
     int hub_tool_label = -1;
 
+    /// Identity of the hub (and so the filament lane and nozzle) this unit
+    /// feeds, when the backend knows it. Units that name the same non-empty
+    /// hub converge into ONE hub and feed ONE toolhead; empty means the unit's
+    /// hub is its own as far as the backend can tell.
+    std::string hub_id;
+
     /// Per-lane hub routing flag. true = lane routes through hub, false = direct to extruder.
     /// Empty vector means routing info unavailable (treat as uniform topology).
     std::vector<bool> lane_is_hub_routed;

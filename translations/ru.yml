@@ -974,6 +974,8 @@ translations:
 
   Dry spools on the heated bed: Сушка катушек на нагреваемом столе
 
+  Dryer already running: 'Сушилка уже работает'
+  Dryer is not running: 'Сушилка не работает'
   Drying: Сушка
   Drying is already running: Сушка уже идёт
 
@@ -3184,6 +3186,7 @@ translations:
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Остановить печать \"{}\"?\n\nЭто нельзя будет отменить через 5 секунд."
   Stop the check?: Остановить проверку?
+  Stop the running cycle before starting another: 'Остановите текущий цикл, прежде чем запускать новый'
   Stopped: Остановлено
   Stopped between Hub and Toolhead: Остановка между хабом и печатающей головкой
   Stopped between Lane and Hub: Остановка между каналом и хабом
@@ -3394,6 +3397,7 @@ translations:
   Theme changes apply after restart.: Изменения темы применяются после перезапуска.
   Theme reset to defaults: Тема сброшена к настройкам по умолчанию
   'Theme: ': 'Тема: '
+  There is no cycle to stop: 'Нет цикла для остановки'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "Для этого теста недостаточно свободной памяти. Анализу Klipper не хватит памяти, и принтер зависнет, пока его не выключат и снова не включат."
   'These tools have a different filament grade loaded:': 'В этих инструментах загружен филамент другой марки:'
@@ -3419,6 +3423,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : На этом устройстве очень мало ОЗУ. Калибровка резонансов требует много памяти и может вызвать ошибку "Timer Too Close". Всё равно продолжить?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Это не совпадает с привязанной катушкой Spoolman. Добавить как новую катушку или обновить привязанную?
+  This dryer cannot run while filament from the unit is loaded: 'Сушилка не может работать, пока загружен филамент из этого узла'
   This feature requires different hardware or configuration: Для этой функции требуется другое оборудование или конфигурация
   This filament system does not report buffer or flow data.: Эта система филамента не сообщает данные буфера и потока.
   This file was sliced for {} but {} is loaded.: Файл нарезан для {}, но загружен
@@ -3625,6 +3630,7 @@ translations:
   Unload from toolhead first: 'Сначала выгрузите из печатающей головки'
   Unload macro not configured: Макрос выгрузки не настроен
   Unload the CFS filament before enabling bypass: 'Выгрузите филамент CFS перед включением обхода'
+  Unload this unit first: 'Сначала выгрузите этот узел'
   Unload...: Выгрузить...
   Unloaded: 'Выгружен'
   Unloading: Выгрузка

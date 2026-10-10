@@ -329,3 +329,242 @@ TEST_CASE("Overview plan: a MIXED unit's hub lanes pass through its box to the t
     CHECK(plan.bands[0].on_box_edge);
     CHECK(plan.bands[0].state == BandState::Active);
 }
+
+// ============================================================================
+// Several toolheads: one hub box per hub, with its buffer between hub and nozzle
+// ============================================================================
+
+namespace {
+
+// Three HUB units over two toolheads on a 400x400 frame: units 0 and 1 feed
+// toolhead 0 (one shared hub when @p shared, else two hubs of their own) and unit 2
+// feeds toolhead 1.
+std::unique_ptr<SystemPathData> two_toolheads(bool shared) {
+    auto d = multi();
+    d->unit_count = 3;
+    d->unit_x_positions[0] = 60;
+    d->unit_x_positions[1] = 140;
+    d->unit_x_positions[2] = 320;
+    for (int u = 0; u < 3; u++) {
+        d->unit_topology[u] = 1;
+        d->unit_tool_count[u] = 1;
+        d->unit_has_hub_sensor[u] = false;
+        d->unit_first_tool[u] = u == 2 ? 1 : 0;
+        d->unit_hub_group[u] = (shared && u < 2) ? 1 : 0;
+    }
+    d->total_tools = 2;
+    d->active_unit = -1;
+    d->filament_loaded = false;
+    d->filament_segment = PathSegment::NONE;
+    d->unit_hub_triggered[0] = false;
+    return d;
+}
+
+struct Planned {
+    SysLayout L;
+    PathPlan plan;
+    OverviewBoxes boxes;
+};
+
+std::unique_ptr<Planned> plan_boxes(const SystemPathData& d) {
+    auto p = std::make_unique<Planned>();
+    p->L = compute_sys_layout(d, AREA);
+    plan_overview(d, p->L, p->plan, p->boxes);
+    return p;
+}
+
+// Routes whose last segment ends at (x, y).
+int routes_ending_at(const PathPlan& plan, float x, float y) {
+    int n = 0;
+    for (int i = 0; i < plan.route_count; i++) {
+        const Route& r = plan.routes[i];
+        n += near(seg_end(r.path.segs[r.path.count - 1]), x, y, 0.5f);
+    }
+    return n;
+}
+
+} // namespace
+
+TEST_CASE("Overview plan: units on one hub draw one hub box where their lanes join",
+          "[system_path][filament_path][hub_groups]") {
+    auto d = two_toolheads(true);
+    const auto p = plan_boxes(*d);
+    REQUIRE(p->plan.dropped == 0);
+    const float nozzle_top = (float)(p->L.tools_y - small_tool_scale(*d) * 2);
+
+    // One box for units 0 and 1, recorded at the first; unit 2 keeps its own.
+    REQUIRE(p->boxes.hubs[0].valid);
+    CHECK_FALSE(p->boxes.hubs[1].valid);
+    REQUIRE(p->boxes.hubs[2].valid);
+    const HubInfo& hub = p->boxes.hubs[0];
+    const int32_t tool_x = calc_tool_x(0, 2, p->L.x_off, p->L.width);
+    CHECK(hub.hub_x == tool_x);
+    CHECK(hub.tool_x == tool_x);
+    CHECK(hub.mini_hub_w >= p->boxes.hubs[2].mini_hub_w);
+
+    // Both lanes reach the box top, inside its width, as continuous routes.
+    const float top = (float)(hub.mini_hub_y - hub.mini_hub_h / 2);
+    for (int u = 0; u < 2; u++) {
+        CAPTURE(u);
+        bool at_top = false;
+        for (int i = 0; i < p->plan.route_count; i++) {
+            const Route& r = p->plan.routes[i];
+            if (!near(seg_start(r.path.segs[0]), (float)d->unit_x_positions[u], p->L.entry_y, 0.5f))
+                continue;
+            CHECK(contiguous(r.path));
+            for (int k = 0; k < r.path.count; k++) {
+                const pg::PathPoint e = seg_end(r.path.segs[k]);
+                at_top |= std::fabs(e.y - top) < 0.5f && std::fabs(e.x - (float)hub.hub_x) <=
+                                                             (float)hub.mini_hub_w / 2;
+            }
+        }
+        CHECK(at_top);
+    }
+
+    // One outlet leaves the box for the nozzle; unit 2's own hub has its own.
+    CHECK(routes_ending_at(p->plan, (float)tool_x, nozzle_top) == 1);
+    CHECK(p->plan.route_count == 3);
+
+    SECTION("separate hubs when nothing is shared") {
+        auto separate = two_toolheads(false);
+        const auto q = plan_boxes(*separate);
+        CHECK(q->boxes.hubs[0].valid);
+        CHECK(q->boxes.hubs[1].valid);
+        CHECK(q->boxes.hubs[0].hub_x != q->boxes.hubs[1].hub_x);
+        CHECK(routes_ending_at(q->plan, (float)q->boxes.hubs[0].hub_x, nozzle_top) +
+                  routes_ending_at(q->plan, (float)q->boxes.hubs[1].hub_x, nozzle_top) ==
+              0); // both hubs sit beside the nozzle and angle in
+    }
+}
+
+TEST_CASE("Overview plan: a hub of one unit is unchanged by its neighbors sharing a hub",
+          "[system_path][filament_path][hub_groups]") {
+    auto grouped = two_toolheads(true);
+    auto alone = two_toolheads(false);
+    const auto g = plan_boxes(*grouped);
+    const auto a = plan_boxes(*alone);
+
+    const HubInfo& hg = g->boxes.hubs[2];
+    const HubInfo& ha = a->boxes.hubs[2];
+    CHECK(hg.hub_x == ha.hub_x);
+    CHECK(hg.tool_x == ha.tool_x);
+    CHECK(hg.mini_hub_y == ha.mini_hub_y);
+    CHECK(hg.mini_hub_w == ha.mini_hub_w);
+    CHECK(hg.mini_hub_h == ha.mini_hub_h);
+    CHECK(hg.buffer_h == 0);
+    CHECK(ha.buffer_h == 0);
+
+    // Its route is the same polyline in both plans.
+    const float nozzle_top = (float)(g->L.tools_y - small_tool_scale(*grouped) * 2);
+    const float x = (float)hg.tool_x;
+    REQUIRE(routes_ending_at(g->plan, x, nozzle_top) == 1);
+    REQUIRE(routes_ending_at(a->plan, x, nozzle_top) == 1);
+    const Route *rg = nullptr, *ra = nullptr;
+    for (int i = 0; i < g->plan.route_count; i++)
+        if (near(seg_start(g->plan.routes[i].path.segs[0]), 320.0f, g->L.entry_y, 0.5f))
+            rg = &g->plan.routes[i];
+    for (int i = 0; i < a->plan.route_count; i++)
+        if (near(seg_start(a->plan.routes[i].path.segs[0]), 320.0f, a->L.entry_y, 0.5f))
+            ra = &a->plan.routes[i];
+    REQUIRE((rg && ra));
+    REQUIRE(rg->path.count == ra->path.count);
+    for (int k = 0; k < rg->path.count; k++) {
+        const pg::PathPoint e = seg_end(ra->path.segs[k]);
+        CHECK(near(seg_end(rg->path.segs[k]), e.x, e.y, 0.01f));
+    }
+}
+
+TEST_CASE("Overview plan: a hub's buffer box sits between the hub and its nozzle",
+          "[system_path][filament_path][hub_groups]") {
+    auto d = two_toolheads(true);
+
+    SECTION("no buffer, no box") {
+        const auto p = plan_boxes(*d);
+        for (int u = 0; u < 3; u++)
+            CHECK(p->boxes.hubs[u].buffer_h == 0);
+    }
+
+    SECTION("the shared hub's first unit decides") {
+        d->unit_has_buffer[1] = true;
+        CHECK(plan_boxes(*d)->boxes.hubs[0].buffer_h == 0);
+        d->unit_has_buffer[0] = true;
+        const auto p = plan_boxes(*d);
+        const HubInfo& hub = p->boxes.hubs[0];
+        REQUIRE(hub.buffer_h > 0);
+        const int32_t hub_bottom = hub.mini_hub_y + hub.mini_hub_h / 2;
+        const int32_t nozzle_top = p->L.tools_y - small_tool_scale(*d) * 2;
+        CHECK(hub.buffer_y - hub.buffer_h / 2 > hub_bottom);
+        CHECK(hub.buffer_y + hub.buffer_h / 2 < nozzle_top);
+        // The hub with none draws none.
+        CHECK(p->boxes.hubs[2].buffer_h == 0);
+    }
+
+    SECTION("a hub of one unit gets its box by the same rule") {
+        d->unit_has_buffer[2] = true;
+        const auto p = plan_boxes(*d);
+        const HubInfo& hub = p->boxes.hubs[2];
+        REQUIRE(hub.buffer_h > 0);
+        CHECK(hub.buffer_y > hub.mini_hub_y + hub.mini_hub_h / 2);
+        CHECK(p->boxes.hubs[0].buffer_h == 0);
+    }
+
+    SECTION("a hub beside a shared nozzle drops past its buffer, then angles in") {
+        auto beside = two_toolheads(false);
+        beside->unit_first_tool[1] = 0;
+        beside->unit_has_buffer[0] = true;
+        const auto p = plan_boxes(*beside);
+        const HubInfo& hub = p->boxes.hubs[0];
+        REQUIRE(hub.buffer_h > 0);
+        REQUIRE(hub.hub_x != hub.tool_x);
+        const float buffer_bottom = (float)(hub.buffer_y + hub.buffer_h / 2);
+        CHECK(routes_ending_at(p->plan, (float)hub.tool_x,
+                               (float)(p->L.tools_y - small_tool_scale(*beside) * 2)) >= 1);
+        bool drops_to_buffer = false;
+        for (int i = 0; i < p->plan.route_count; i++) {
+            const Route& r = p->plan.routes[i];
+            for (int k = 0; k < r.path.count; k++)
+                drops_to_buffer |= near(seg_end(r.path.segs[k]), (float)hub.hub_x, buffer_bottom,
+                                        0.5f);
+        }
+        CHECK(drops_to_buffer);
+    }
+}
+
+TEST_CASE("Overview plan: a shared hub is tinted when a member carries filament to it",
+          "[system_path][filament_path][hub_groups]") {
+    auto d = two_toolheads(true);
+    const auto idle = plan_boxes(*d);
+    CHECK(lv_color_eq(idle->boxes.hubs[0].hub_bg_color, d->color_hub_bg));
+
+    d->active_unit = 1;
+    d->filament_loaded = true;
+    d->active_tool = 0;
+    d->filament_segment = PathSegment::NOZZLE;
+    const auto loaded = plan_boxes(*d);
+    CHECK_FALSE(lv_color_eq(loaded->boxes.hubs[0].hub_bg_color, d->color_hub_bg));
+    CHECK(lv_color_eq(loaded->boxes.hubs[2].hub_bg_color, d->color_hub_bg));
+    CHECK(loaded->plan.active_route >= 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the buffer setters carry label and severity",
+                 "[system_path][filament_path][hub_groups]") {
+    lv_obj_t* canvas = ui_system_path_canvas_create(lv_screen_active());
+    REQUIRE(canvas != nullptr);
+    const SystemPathData* data = system_path_data(canvas);
+    REQUIRE(data != nullptr);
+
+    helix::ui::ui_system_path_canvas_set_buffer(canvas, true, 2, "BUF");
+    CHECK(data->has_buffer);
+    CHECK(data->buffer_fault == 2);
+    CHECK(std::string(data->buffer_label) == "BUF");
+    helix::ui::ui_system_path_canvas_set_buffer(canvas, false, 0, "");
+    CHECK_FALSE(data->has_buffer);
+
+    helix::ui::ui_system_path_canvas_set_unit_hub(canvas, 3, 2, true, 1, "FPS");
+    CHECK(data->unit_hub_group[3] == 2);
+    CHECK(data->unit_has_buffer[3]);
+    CHECK(data->unit_buffer_fault[3] == 1);
+    CHECK(std::string(data->unit_buffer_label[3]) == "FPS");
+    CHECK_FALSE(data->unit_has_buffer[2]);
+    lv_obj_delete(canvas);
+}

@@ -19,6 +19,21 @@ class AmsBackend; // Forward declaration for compute_system_tool_layout()
  * Consolidates duplicated drawing code used by ui_ams_mini_status,
  * ui_panel_ams_overview, ui_ams_slot, and ui_spool_canvas.
  */
+namespace helix::ui {
+/**
+ * @brief One hub: the units whose lanes join before one path to a toolhead
+ *
+ * Units naming the same non-empty AmsUnit::hub_id form one group; a unit with
+ * an empty hub_id is a group of its own. A hub feeds exactly one physical
+ * toolhead, and a toolhead may be fed by several hubs.
+ */
+struct HubGroup {
+    int physical_tool = -1; ///< The toolhead this hub feeds
+    std::string hub_id;     ///< Empty for a unit that is its own hub
+    std::vector<int> units; ///< Member unit indices, in backend order
+};
+} // namespace helix::ui
+
 namespace ams_draw {
 
 // ============================================================================
@@ -201,6 +216,12 @@ struct UnitToolLayout {
     /// units naming the same extruder feed one nozzle — that is string
     /// identity, so it holds for names no numbering scheme can parse.
     std::string extruder_identity;
+    /// The unit's AmsUnit::hub_id. Units naming the same non-empty hub share
+    /// one nozzle.
+    std::string hub_id;
+    /// Index into SystemToolLayout::hub_groups of the hub this unit's lanes
+    /// join; -1 for a unit that has none (an absent box, PARALLEL or MIXED).
+    int hub_group = -1;
 };
 
 /**
@@ -213,6 +234,9 @@ struct UnitToolLayout {
 struct SystemToolLayout {
     std::vector<UnitToolLayout> units;
     int total_physical_tools = 0;
+
+    /// Every hub of the system, in the order their first unit appears.
+    std::vector<helix::ui::HubGroup> hub_groups;
 
     /// Unit indices in the overview's left-to-right card order: by first nozzle,
     /// so the card row is monotonic with the toolhead row and lanes only cross
@@ -296,3 +320,22 @@ SystemToolLayout compute_system_tool_layout(const helix::AmsSystemInfo& info,
                                             const helix::AmsBackend* backend);
 
 } // namespace ams_draw
+
+namespace helix::ui {
+
+/// The number the overview canvas tags @p unit's hub with: 0 for a unit on a hub
+/// of its own (or none), else 1 + its index in SystemToolLayout::hub_groups for a
+/// hub shared by several units.
+[[nodiscard]] int overview_hub_group(const ams_draw::SystemToolLayout& layout, int unit);
+
+/// The unit whose view's buffer box the overview draws under @p unit's hub: the
+/// first unit on the hub, so every unit of a hub reads one buffer. -1 for a unit
+/// with no hub.
+[[nodiscard]] int overview_buffer_unit(const ams_draw::SystemToolLayout& layout, int unit);
+
+/// Indices into SystemToolLayout::hub_groups of the hubs that feed physical
+/// toolhead @p physical_tool, in group order.
+[[nodiscard]] std::vector<int> hub_groups_of_tool(const ams_draw::SystemToolLayout& layout,
+                                                  int physical_tool);
+
+} // namespace helix::ui

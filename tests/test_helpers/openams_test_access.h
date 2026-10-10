@@ -23,6 +23,14 @@ class OpenAmsTestAccess {
         b.override_store_ = std::move(s);
     }
 
+    static void start(AmsBackendOpenAms& b) {
+        b.on_started();
+    }
+
+    static void refresh_lane_records(AmsBackendOpenAms& b) {
+        b.refresh_lane_records();
+    }
+
     static void seed_override(AmsBackendOpenAms& b, int slot_index,
                               const helix::ams::FilamentSlotOverride& ovr) {
         std::lock_guard<std::mutex> lock(b.mutex_);

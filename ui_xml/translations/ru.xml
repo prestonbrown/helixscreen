@@ -888,6 +888,8 @@
   <translation tag="Dry Filament" ru="Сушка филамента"/>
   <translation tag="Dry Filament on the Bed" ru="Сушка филамента на столе"/>
   <translation tag="Dry spools on the heated bed" ru="Сушка катушек на нагреваемом столе"/>
+  <translation tag="Dryer already running" ru="Сушилка уже работает"/>
+  <translation tag="Dryer is not running" ru="Сушилка не работает"/>
   <translation tag="Drying" ru="Сушка"/>
   <translation tag="Drying is already running" ru="Сушка уже идёт"/>
   <translation tag="Drying on the bed" ru="Сушка на столе"/>
@@ -2896,6 +2898,7 @@
   <translation tag="Stop failed" ru="Ошибка остановки"/>
   <translation tag="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds." ru="Остановить печать &quot;{}&quot;?&#10;&#10;Это нельзя будет отменить через 5 секунд."/>
   <translation tag="Stop the check?" ru="Остановить проверку?"/>
+  <translation tag="Stop the running cycle before starting another" ru="Остановите текущий цикл, прежде чем запускать новый"/>
   <translation tag="Stopped" ru="Остановлено"/>
   <translation tag="Stopped between Hub and Toolhead" ru="Остановка между хабом и печатающей головкой"/>
   <translation tag="Stopped between Lane and Hub" ru="Остановка между каналом и хабом"/>
@@ -3067,6 +3070,7 @@
   <translation tag="Theme changes apply after restart." ru="Изменения темы применяются после перезапуска."/>
   <translation tag="Theme reset to defaults" ru="Тема сброшена к настройкам по умолчанию"/>
   <translation tag="Theme: " ru="Тема: "/>
+  <translation tag="There is no cycle to stop" ru="Нет цикла для остановки"/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." ru="Для этого теста недостаточно свободной памяти. Анализу Klipper не хватит памяти, и принтер зависнет, пока его не выключат и снова не включат."/>
   <translation tag="These tools have a different filament grade loaded:" ru="В этих инструментах загружен филамент другой марки:"/>
   <translation tag="These tools have incompatible materials loaded:" ru="В этих инструментах загружены несовместимые материалы:"/>
@@ -3085,6 +3089,7 @@
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" ru="На этом устройстве всего {} МБ ОЗУ. Калибровка резонансов требует много памяти и может привести к тому, что прошивка принтера сообщит об ошибке &quot;Timer Too Close&quot; или перезапустится во время теста. Всё равно продолжить?"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" ru="На этом устройстве очень мало ОЗУ. Калибровка резонансов требует много памяти и может вызвать ошибку &quot;Timer Too Close&quot;. Всё равно продолжить?"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" ru="Это не совпадает с привязанной катушкой Spoolman. Добавить как новую катушку или обновить привязанную?"/>
+  <translation tag="This dryer cannot run while filament from the unit is loaded" ru="Сушилка не может работать, пока загружен филамент из этого узла"/>
   <translation tag="This feature requires different hardware or configuration" ru="Для этой функции требуется другое оборудование или конфигурация"/>
   <translation tag="This filament system does not report buffer or flow data." ru="Эта система филамента не сообщает данные буфера и потока."/>
   <translation tag="This file was sliced for {} but {} is loaded." ru="Файл нарезан для {}, но загружен {}."/>
@@ -3261,6 +3266,7 @@
   <translation tag="Unload from toolhead first" ru="Сначала выгрузите из печатающей головки"/>
   <translation tag="Unload macro not configured" ru="Макрос выгрузки не настроен"/>
   <translation tag="Unload the CFS filament before enabling bypass" ru="Выгрузите филамент CFS перед включением обхода"/>
+  <translation tag="Unload this unit first" ru="Сначала выгрузите этот узел"/>
   <translation tag="Unload..." ru="Выгрузить..."/>
   <translation tag="Unloaded" ru="Выгружен"/>
   <translation tag="Unloading" ru="Выгрузка"/>

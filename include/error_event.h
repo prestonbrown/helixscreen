@@ -20,7 +20,8 @@ enum class ErrorSource {
     HAPPY_HARE,
     SNAPMAKER,
     ACE,
-    TOOLCHANGER
+    TOOLCHANGER,
+    OPENAMS
 };
 
 /// A one-tap fix offered alongside an error, rendered as a button by

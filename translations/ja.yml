@@ -917,6 +917,8 @@ translations:
 
   Dry spools on the heated bed: 加熱ベッドでスプールを乾燥
 
+  Dryer already running: '乾燥機はすでに動作中です'
+  Dryer is not running: '乾燥機は動作していません'
   Drying: 乾燥中
   Drying is already running: 乾燥はすでに実行中です
 
@@ -3014,6 +3016,7 @@ translations:
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "\"{}\" の印刷を停止しますか？\n\n5秒後は取り消せません。"
   Stop the check?: チェックを停止しますか？
+  Stop the running cycle before starting another: '新しく開始する前に、実行中のサイクルを停止してください'
   Stopped: 停止しました
   Stopped between Hub and Toolhead: ハブとツールヘッドの間で停止
   Stopped between Lane and Hub: レーンとハブの間で停止
@@ -3206,6 +3209,7 @@ translations:
   Theme changes apply after restart.: テーマの変更は再起動後に適用されます。
   Theme reset to defaults: テーマをデフォルトにリセットしました
   'Theme: ': 'テーマ: '
+  There is no cycle to stop: '停止するサイクルがありません'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "このテストを実行するための空きメモリが足りません。Klipperの解析でメモリが不足し、電源を入れ直すまでプリンターが停止したままになります。"
   'These tools have a different filament grade loaded:': '次のツールには異なるフィラメントグレードが装填されています:'
@@ -3229,6 +3233,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : このデバイスの RAM は非常に少ないです。共振キャリブレーションはメモリを大量に消費し、"Timer Too Close" エラーを引き起こす可能性があります。それでも続行しますか？
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: リンクされた Spoolman のスプールと一致しません。新しいスプールとして追加しますか、それともリンク先を一致するよう更新しますか？
+  This dryer cannot run while filament from the unit is loaded: 'このユニットのフィラメントが装填されている間は乾燥機を動作できません'
   This feature requires different hardware or configuration: この機能には別のハードウェアまたは設定が必要です
   This filament system does not report buffer or flow data.: このフィラメントシステムはバッファーやフローのデータを報告しません。
   This file was sliced for {} but {} is loaded.: このファイルは {} 用にスライスされていますが、{} がロードされています。
@@ -3420,6 +3425,7 @@ translations:
   Unload from toolhead first: '先にツールヘッドから取り出してください'
   Unload macro not configured: アンロードマクロが未設定です
   Unload the CFS filament before enabling bypass: 'バイパスを有効にする前に CFS のフィラメントを取り出してください'
+  Unload this unit first: '先にこのユニットを排出してください'
   Unload...: 排出...
   Unloaded: '排出済み'
   Unloading: アンロード中

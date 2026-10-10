@@ -398,7 +398,21 @@ Select the mock AMS topology/type.
 | `cfs` | 1 | **Creality CFS, K1 stock dialect - mock HARDWARE, real backend.** The stock `box` status object plus the calibration command surface. Alias: `cfs-k1`. See below |
 | `openams` | 1 | **OpenAMS hub - mock HARDWARE, real backend.** Lists and pushes the `oams_manager` status object (4-bay hub unit, FPS lane, groups T0/T1/T2, slot 4 loaded) so real discovery claims OpenAMS and the production `AmsBackendOpenAms` runs. Slots 3 and 4 get ASA identity seeded into `lane_data`; `OPENAMS_UNLOAD` / `OPENAMS_LOAD GROUP=Tn` flip the loaded slot |
 
+`HELIX_MOCK_AMS=openams` takes more knobs (all read by `MoonrakerClientMock`):
+
+| Variable | Value | Effect |
+|----------|-------|--------|
+| `HELIX_MOCK_OPENAMS_UNITS` | `shared` | An AMS HT (1 bay, slot 0) and an AMS 2 Pro (4 bays, slots 1-4) on ONE `fps` lane, groups `T0`-`T4` one slot each, slot 0 loaded: the shape of the reference printer. The overview draws one hub, one FPS and one toolhead. Advertises `OAMSM_LOAD_TO_TOOLHEAD` / `OAMSM_UNLOAD_FROM_TOOLHEAD` and adds the openams plugin's `lanes_by_fps` and `topology` |
+| `HELIX_MOCK_OPENAMS_UNITS` | `two_lanes` | `shared`'s pair on lane `fps` (extruder), plus two AMS 2 Pro (`ams2b`, `ams2c`, slots 5-12) on lane `fps2` (`extruder1`, which the mock printer also reports). Groups `T0`-`T12`, one slot each; slot 0 loaded. The overview draws two chains, each a hub, an FPS and a toolhead. Takes the same `HELIX_MOCK_OPENAMS_API` / fault / dryer behavior as `shared` |
+| `HELIX_MOCK_OPENAMS_API` | `legacy` | With `shared`: the klipper_openams shape. Only `api_version`, `schema`, `ready`, `commands` (`OPENAMS_LOAD` / `OPENAMS_UNLOAD`), `lanes`, `units`, `groups` |
+| `HELIX_MOCK_OPENAMS_FAULT` | fault code, e.g. `motor_drive_fault` | With `shared` (not `legacy`): the AMS HT publishes that unit fault in `devices.ams_ht.faults[]` until `OAMS_CLEAR_FAULT OAMS=1` is sent |
+| (no variable) | with `shared`, not `legacy` | Both units publish `devices.<unit>.environment` (temperature, humidity), `capabilities` (dryer range: AMS HT 45-80 C, AMS 2 Pro 45-65 C and `dryer_requires_unloaded`), `dryer` and `supported_actions`. `OAMS_DRYER_START OAMS=<1\|2> TARGET=<C> DURATION=<s>` heats the unit (state `heating`, then `holding`, counting down) and `OAMS_DRYER_STOP OAMS=<n>` returns it to `off`; both clamp like the plugin. `legacy` publishes none of it |
+| `HELIX_MOCK_OPENAMS_LATE_LINKS` | any | With `shared`: ~10s after start, the spool links of slots 3 and 4 are written to `lane_data` and `notify_openams_spoolman_status` is sent, exercising the late refresh |
+
 ```bash
+# Two OpenAMS units on one lane, klipper_openams shape
+HELIX_MOCK_AMS=openams HELIX_MOCK_OPENAMS_UNITS=shared HELIX_MOCK_OPENAMS_API=legacy ./build/bin/helix-screen --test
+
 # Simulate AFC Box Turtle
 HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test
 

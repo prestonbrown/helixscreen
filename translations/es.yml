@@ -987,6 +987,8 @@ translations:
 
   Dry spools on the heated bed: Secar bobinas en la cama caliente
 
+  Dryer already running: 'El secador ya está en marcha'
+  Dryer is not running: 'El secador no está en marcha'
   Drying: Secando
   Drying is already running: El secado ya está en marcha
 
@@ -3214,6 +3216,7 @@ translations:
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "¿Detener la impresión de \"{}\"?\n\nEsto no se puede deshacer después de 5 segundos."
   Stop the check?: ¿Detener la comprobación?
+  Stop the running cycle before starting another: 'Detenga el ciclo en curso antes de iniciar otro'
   Stopped: Detenido
   Stopped between Hub and Toolhead: Detenido entre el Hub y el cabezal
   Stopped between Lane and Hub: Detenido entre el carril y el Hub
@@ -3428,6 +3431,7 @@ translations:
   Theme changes apply after restart.: Los cambios de tema se aplican después de reiniciar.
   Theme reset to defaults: Tema restablecido a valores predeterminados
   'Theme: ': 'Tema: '
+  There is no cycle to stop: 'No hay ningún ciclo que detener'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "No hay suficiente memoria libre para esta prueba. El análisis de Klipper se quedaría sin memoria y dejaría la impresora bloqueada hasta apagarla y encenderla."
   'These tools have a different filament grade loaded:': 'Estas herramientas tienen cargado un filamento de grado diferente:'
@@ -3454,6 +3458,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : Este dispositivo tiene muy poca RAM. La calibración de resonancia consume mucha memoria y puede causar un error "Timer Too Close". ¿Continuar de todos modos?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Esto no coincide con la bobina de Spoolman vinculada. ¿Añadirla como bobina nueva o actualizar la vinculada para que coincida?
+  This dryer cannot run while filament from the unit is loaded: 'Este secador no puede funcionar mientras haya filamento de la unidad cargado'
   This feature requires different hardware or configuration: Esta función requiere otro hardware u otra configuración
   This filament system does not report buffer or flow data.: Este sistema de filamento no informa datos de búfer ni de flujo.
   This file was sliced for {} but {} is loaded.: Este archivo fue laminado para {}
@@ -3664,6 +3669,7 @@ translations:
   Unload from toolhead first: 'Descargue primero desde el cabezal'
   Unload macro not configured: Macro de descarga no configurado
   Unload the CFS filament before enabling bypass: 'Descargue el filamento del CFS antes de activar el bypass'
+  Unload this unit first: 'Descargue primero esta unidad'
   Unload...: Descargar...
   Unloaded: 'Descargado'
   Unloading: Descargando

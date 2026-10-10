@@ -888,6 +888,8 @@
   <translation tag="Dry Filament" pt="Secar filamento"/>
   <translation tag="Dry Filament on the Bed" pt="Secar filamento na mesa"/>
   <translation tag="Dry spools on the heated bed" pt="Secar carretéis na mesa aquecida"/>
+  <translation tag="Dryer already running" pt="O secador já está em funcionamento"/>
+  <translation tag="Dryer is not running" pt="O secador não está em funcionamento"/>
   <translation tag="Drying" pt="Secando"/>
   <translation tag="Drying is already running" pt="A secagem já está em andamento"/>
   <translation tag="Drying on the bed" pt="Secando na mesa"/>
@@ -2896,6 +2898,7 @@
   <translation tag="Stop failed" pt="Falha ao parar"/>
   <translation tag="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds." pt="Parar a impressão de &quot;{}&quot;?&#10;&#10;Isso não pode ser desfeito após 5 segundos."/>
   <translation tag="Stop the check?" pt="Parar a verificação?"/>
+  <translation tag="Stop the running cycle before starting another" pt="Pare o ciclo em andamento antes de iniciar outro"/>
   <translation tag="Stopped" pt="Parado"/>
   <translation tag="Stopped between Hub and Toolhead" pt="Parado entre o Hub e o cabeçote"/>
   <translation tag="Stopped between Lane and Hub" pt="Parado entre a Lane e o Hub"/>
@@ -3067,6 +3070,7 @@
   <translation tag="Theme changes apply after restart." pt="Alterações de tema aplicam após reiniciar."/>
   <translation tag="Theme reset to defaults" pt="Tema redefinido para os padrões"/>
   <translation tag="Theme: " pt="Tema: "/>
+  <translation tag="There is no cycle to stop" pt="Não há ciclo para parar"/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." pt="Não há memória livre suficiente para este teste. A análise do Klipper ficaria sem memória e deixaria a impressora travada até ser desligada e ligada."/>
   <translation tag="These tools have a different filament grade loaded:" pt="Estas ferramentas têm um grau de filamento diferente carregado:"/>
   <translation tag="These tools have incompatible materials loaded:" pt="Estas ferramentas têm materiais incompatíveis carregados:"/>
@@ -3085,6 +3089,7 @@
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" pt="Este dispositivo tem apenas {} MB de RAM. A calibração de ressonância consome muita memória e pode fazer o firmware da impressora reportar um erro &quot;Timer Too Close&quot; ou reiniciar durante o teste. Continuar mesmo assim?"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" pt="Este dispositivo tem muito pouca RAM. A calibração de ressonância consome muita memória e pode causar um erro &quot;Timer Too Close&quot;. Continuar mesmo assim?"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" pt="Isto não corresponde ao carretel do Spoolman vinculado. Adicionar como um novo carretel ou atualizar o vinculado para corresponder?"/>
+  <translation tag="This dryer cannot run while filament from the unit is loaded" pt="Este secador não pode funcionar enquanto houver filamento da unidade carregado"/>
   <translation tag="This feature requires different hardware or configuration" pt="Este recurso requer hardware ou configuração diferentes"/>
   <translation tag="This filament system does not report buffer or flow data." pt="Este sistema de filamento não reporta dados de buffer ou de fluxo."/>
   <translation tag="This file was sliced for {} but {} is loaded." pt="Este arquivo foi fatiado para {} mas {} está carregado."/>
@@ -3261,6 +3266,7 @@
   <translation tag="Unload from toolhead first" pt="Descarregue primeiro do cabeçote"/>
   <translation tag="Unload macro not configured" pt="Macro de descarga não configurado"/>
   <translation tag="Unload the CFS filament before enabling bypass" pt="Descarregue o filamento do CFS antes de ativar o bypass"/>
+  <translation tag="Unload this unit first" pt="Descarregue primeiro esta unidade"/>
   <translation tag="Unload..." pt="Descarregar..."/>
   <translation tag="Unloaded" pt="Descarregado"/>
   <translation tag="Unloading" pt="Descarregando"/>
