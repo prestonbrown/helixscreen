@@ -153,8 +153,9 @@ void write_filament_fields(SlotInfo& slot, const SlotInfo& info) {
 json AmsBackendOpenAms::required_status_objects(const PrinterDiscovery& hw) {
     json objects = json::object();
     if (hw.mmu_type() == AmsType::OPENAMS) {
-        objects[openams::kManagerObject] = json::array(
-            {"api_version", "schema", "ready", "commands", "lanes", "units", "groups", "devices"});
+        objects[openams::kManagerObject] =
+            json::array({"api_version", "schema", "ready", "commands", "lanes", "units", "groups",
+                         "devices", "lanes_by_fps"});
     }
     return objects;
 }
