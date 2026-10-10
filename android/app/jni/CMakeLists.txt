@@ -25,7 +25,26 @@ set(WITH_OPENSSL OFF CACHE BOOL "" FORCE)
 set(WITH_NGHTTP2 OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory(${LIBHV_DIR} libhv)
+
+# libhv's CMakeLists writes its generated hconfig.h (and the include/hv copies)
+# into its own SOURCE directory, the same files the desktop build's ./configure
+# writes with WITH_OPENSSL on. Configuring it in place makes the two builds
+# overwrite each other's config, and an Android build that follows a native one
+# compiles libhv's OpenSSL backend against headers the NDK does not have.
+# Configure a staging directory instead: every libhv entry is a symlink back to
+# the real tree except hconfig.h and include/, which are generated here, so the
+# source tree is read but never written and edits still show up live.
+set(LIBHV_STAGE_DIR "${CMAKE_CURRENT_BINARY_DIR}/libhv-src")
+file(MAKE_DIRECTORY "${LIBHV_STAGE_DIR}")
+file(GLOB _libhv_entries RELATIVE "${LIBHV_DIR}" "${LIBHV_DIR}/*")
+foreach(_entry IN LISTS _libhv_entries)
+    if(_entry STREQUAL "hconfig.h" OR _entry STREQUAL "include")
+        continue()
+    endif()
+    file(REMOVE "${LIBHV_STAGE_DIR}/${_entry}")
+    file(CREATE_LINK "${LIBHV_DIR}/${_entry}" "${LIBHV_STAGE_DIR}/${_entry}" SYMBOLIC)
+endforeach()
+add_subdirectory(${LIBHV_STAGE_DIR} libhv)
 
 # ============================================================================
 # libjpeg-turbo (shared — dlopen'd at runtime by CameraStream)
@@ -226,9 +245,9 @@ target_include_directories(main PRIVATE
     "${PROJECT_ROOT}/lib"                   # For lvgl/lvgl.h, spdlog/spdlog.h etc.
     "${PROJECT_ROOT}/lib/lvgl"              # For direct lvgl includes
     "${PROJECT_ROOT}/lib/lvgl/src"          # For drivers/sdl/lv_sdl_window.h etc.
-    "${PROJECT_ROOT}/lib/libhv/include"
-    "${PROJECT_ROOT}/lib/libhv/cpputil"     # For json.hpp (nlohmann)
-    "${PROJECT_ROOT}/lib/libhv"             # For hv/ includes
+    "${LIBHV_STAGE_DIR}/include"            # Android's own generated hv/hconfig.h
+    "${LIBHV_STAGE_DIR}/cpputil"            # For json.hpp (nlohmann)
+    "${LIBHV_STAGE_DIR}"                    # For hv/ includes
     "${PROJECT_ROOT}/lib/spdlog/include"
     "${PROJECT_ROOT}/lib/stb" # For stb_image.h
     "${PROJECT_ROOT}/lib/glm"
