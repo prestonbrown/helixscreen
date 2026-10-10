@@ -1029,7 +1029,14 @@ BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index) 
         box.present = true;
         box.label = "FPS"; // i18n: do not translate - hardware abbreviation
     }
-    if (reading.has_slider) {
+    if (reading.is_fill()) {
+        // One-sided pressure: only the rails tint, and there is no bias to
+        // interpolate a color from.
+        box.fault = std::max(box.fault, static_cast<int>(reading.status));
+        if (box.fault == 0) {
+            box.fault = -1; // regulating: nothing to color
+        }
+    } else if (reading.has_slider) {
         box.bias = reading.bias;
         box.fault = std::max(box.fault, static_cast<int>(reading.status));
     } else if (reading.source == BufferSource::Fps && box.fault == 0) {

@@ -159,6 +159,7 @@
   <translation tag="Aborting AFC operation..." it="Interruzione operazione AFC..."/>
   <translation tag="Aborting..." it="Interruzione..."/>
   <translation tag="About" it="Info"/>
+  <translation tag="Above target" it="Sopra il target"/>
   <translation tag="Accel to Decel" it="Accel. a Decel."/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" it="Limite accelerazione a decelerazione (mm/s²)"/>
   <translation tag="Accelerometer" it="Accelerometro"/>
@@ -252,6 +253,7 @@
   <translation tag="Assisted Retract" it="Retrazione assistita"/>
   <translation tag="Assisting" it="Assistenza"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" it="Almeno {} righe di helixscreen.env sono state ignorate"/>
+  <translation tag="At target" it="Sul target"/>
   <translation tag="At {}°C, about {} minutes." it="A {}°C, circa {} minuti."/>
   <translation tag="Authentication failed" it="Autenticazione fallita"/>
   <translation tag="Auto" it="Auto"/>
@@ -329,6 +331,7 @@
   <translation tag="Bed temp must be 0-%d°C" it="La temperatura del piano deve essere 0-%d°C"/>
   <translation tag="Bed warming timed out" it="Riscaldamento piano — tempo scaduto"/>
   <translation tag="Before starting" it="Prima di iniziare"/>
+  <translation tag="Below target" it="Sotto il target"/>
   <translation tag="Belt Tension" it="Tensione cinghia"/>
   <translation tag="Belt Tension Check" it="Controllo tensione cinghia"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." it="La tensione cinghia richiede una stampante CoreXY. Questa è {}."/>
@@ -3510,6 +3513,7 @@
   <translation tag="invalid" it="non valido"/>
   <translation tag="just now" it="proprio ora"/>
   <translation tag="last 60 s · LOOSE up, TIGHT down" it="ultimi 60 s · ALLENTATO in alto, TESO in basso"/>
+  <translation tag="last 60 s · pressure, target dashed" it="ultimi 60 s · pressione, target tratteggiato"/>
   <translation tag="layers" it="layer"/>
   <translation tag="left" it="rimanente"/>
   <translation tag="loaded" it="caricato"/>

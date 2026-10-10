@@ -29,7 +29,7 @@
             height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
             style_pad_bottom="#space_lg" flex_flow="row" style_pad_gap="#space_lg">
 
-      <!-- Drawn by UiBufferSlider; hidden for a reading with no set point to centre on. -->
+      <!-- Drawn by UiBufferSlider; hidden for a reading with no gauge (a bias reading needs a set point to center on). -->
       <lv_obj name="buf_slider"
               width="#buffer_slider_tall_w" height="#buffer_graph_h" style_pad_all="0" scrollable="false">
         <bind_flag_if_eq subject="buf_show_meter" flag="hidden" ref_value="0"/>
@@ -61,7 +61,7 @@
           <style name="styles.buffer_trace_area"/>
           <bind_flag_if_eq subject="buf_show_meter" flag="hidden" ref_value="0"/>
         </lv_obj>
-        <text_tiny name="buf_trace_caption" text="last 60 s · LOOSE up, TIGHT down" style_text_color="#text_muted">
+        <text_tiny name="buf_trace_caption" bind_text="buf_trace_caption" style_text_color="#text_muted">
           <bind_flag_if_eq subject="buf_show_meter" flag="hidden" ref_value="0"/>
         </text_tiny>
 

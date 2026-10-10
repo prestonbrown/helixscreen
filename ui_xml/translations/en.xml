@@ -159,6 +159,7 @@
   <translation tag="Aborting AFC operation..." en="Aborting AFC operation..."/>
   <translation tag="Aborting..." en="Aborting..."/>
   <translation tag="About" en="About"/>
+  <translation tag="Above target" en="Above target"/>
   <translation tag="Accel to Decel" en="Accel to Decel"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" en="Acceleration to deceleration limit (mm/s²)"/>
   <translation tag="Accelerometer" en="Accelerometer"/>
@@ -252,6 +253,7 @@
   <translation tag="Assisted Retract" en="Assisted Retract"/>
   <translation tag="Assisting" en="Assisting"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" en="At least {} lines in helixscreen.env were ignored"/>
+  <translation tag="At target" en="At target"/>
   <translation tag="At {}°C, about {} minutes." en="At {}°C, about {} minutes."/>
   <translation tag="Authentication failed" en="Authentication failed"/>
   <translation tag="Auto" en="Auto"/>
@@ -329,6 +331,7 @@
   <translation tag="Bed temp must be 0-%d°C" en="Bed temp must be 0-%d°C"/>
   <translation tag="Bed warming timed out" en="Bed warming timed out"/>
   <translation tag="Before starting" en="Before starting"/>
+  <translation tag="Below target" en="Below target"/>
   <translation tag="Belt Tension" en="Belt Tension"/>
   <translation tag="Belt Tension Check" en="Belt Tension Check"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." en="Belt Tension needs a CoreXY printer. This one is {}."/>
@@ -3510,6 +3513,7 @@
   <translation tag="invalid" en="invalid"/>
   <translation tag="just now" en="just now"/>
   <translation tag="last 60 s · LOOSE up, TIGHT down" en="last 60 s · LOOSE up, TIGHT down"/>
+  <translation tag="last 60 s · pressure, target dashed" en="last 60 s · pressure, target dashed"/>
   <translation tag="layers" en="layers"/>
   <translation tag="left" en="left"/>
   <translation tag="loaded" en="loaded"/>

@@ -268,6 +268,12 @@ void AmsState::init_subjects(bool register_xml) {
                      register_xml); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
     INIT_SUBJECT_INT(buffer_status, 0, subjects_,
                      register_xml); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    INIT_SUBJECT_INT(buffer_gauge, 0, subjects_,
+                     register_xml); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    INIT_SUBJECT_INT(buffer_value_pct, 0, subjects_,
+                     register_xml); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    INIT_SUBJECT_INT(buffer_target_pct, -1, subjects_,
+                     register_xml); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
     INIT_SUBJECT_STRING(buffer_label, "", subjects_, register_xml);
     INIT_SUBJECT_STRING(buffer_value_text, "", subjects_,
                         register_xml); // SUBJECT_OK: the 2x1 widget binds it
@@ -694,6 +700,15 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope(
         "buffer_status",
         &buffer_status_); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    helix::xml::register_subject_in_current_scope(
+        "buffer_gauge",
+        &buffer_gauge_); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    helix::xml::register_subject_in_current_scope(
+        "buffer_value_pct",
+        &buffer_value_pct_); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    helix::xml::register_subject_in_current_scope(
+        "buffer_target_pct",
+        &buffer_target_pct_); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
     helix::xml::register_subject_in_current_scope("buffer_label", &buffer_label_);
     helix::xml::register_subject_in_current_scope(
         "buffer_value_text",

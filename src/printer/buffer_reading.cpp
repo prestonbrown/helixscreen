@@ -25,7 +25,14 @@ BufferReading buffer_reading(const AmsSystemInfo& info, int unit) {
         r.source = BufferSource::Fps;
         r.unit = sensor;
         r.value_pct = std::clamp(static_cast<int>(std::lround(fps.smoothed_fps * 100.0f)), 0, 100);
-        if (fps.has_fps()) {
+        if (fps.compression_only) {
+            r.gauge = BufferGauge::Fill;
+            r.has_slider = true;
+            if (fps.has_fps()) {
+                r.target_pct = static_cast<int>(std::lround(fps.fps_set_point * 100.0f));
+            }
+            r.status = ui::fill_pressure_status(r.value_pct, fps.filament_loaded);
+        } else if (fps.has_fps()) {
             r.has_slider = true;
             r.target_pct = static_cast<int>(std::lround(fps.fps_set_point * 100.0f));
             r.bias = fps.fps_to_bias();
@@ -36,7 +43,7 @@ BufferReading buffer_reading(const AmsSystemInfo& info, int unit) {
         r.bias = std::clamp(info.sync_feedback_bias, -1.0f, 1.0f);
         r.value_pct = static_cast<int>(std::lround(r.bias * 100.0f));
     }
-    if (r.has_slider) {
+    if (r.has_slider && !r.is_fill()) {
         r.status = ui::pressure_status_of_bias(r.bias);
     }
     return r;
@@ -69,7 +76,7 @@ std::string buffer_short_text(const BufferReading& r) {
 }
 
 std::string buffer_value_text(const BufferReading& r) {
-    if (r.present() && !r.has_slider) {
+    if (r.text_only()) {
         return fmt::format("{} {}", lv_tr("Pressure:"), buffer_short_text(r));
     }
     return buffer_short_text(r);
@@ -86,6 +93,20 @@ const char* buffer_lean_text(const BufferReading& r) {
     if (!r.has_slider) {
         return "";
     }
+    if (r.is_fill()) {
+        if (r.target_pct < 0) {
+            return "";
+        }
+        switch (ui::pressure_target_side(r.value_pct, r.target_pct)) {
+        case ui::PressureTargetSide::Above:
+            return lv_tr("Above target");
+        case ui::PressureTargetSide::Below:
+            return lv_tr("Below target");
+        case ui::PressureTargetSide::At:
+            break;
+        }
+        return lv_tr("At target");
+    }
     switch (ui::buffer_lean(r.bias)) {
     case ui::BufferLean::Tight:
         return lv_tr("Running tight");
@@ -97,6 +118,11 @@ const char* buffer_lean_text(const BufferReading& r) {
     return lv_tr("Balanced");
 }
 
+const char* buffer_trace_caption(const BufferReading& r) {
+    return r.is_fill() ? lv_tr("last 60 s · pressure, target dashed")
+                       : lv_tr("last 60 s · LOOSE up, TIGHT down");
+}
+
 int64_t buffer_clock_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::steady_clock::now().time_since_epoch())
@@ -104,16 +130,42 @@ int64_t buffer_clock_ms() {
 }
 
 void BufferTrace::record(int64_t now_ms, bool valid, float bias) {
+    BufferTracePoint p;
+    p.t_ms = now_ms;
+    p.valid = valid;
+    p.bias = valid ? bias : 0.0f;
+    push(now_ms, p);
+}
+
+void BufferTrace::record(int64_t now_ms, const BufferReading& reading) {
+    BufferTracePoint p;
+    p.t_ms = now_ms;
+    p.valid = reading.has_slider;
+    if (p.valid) {
+        p.gauge = reading.gauge;
+        if (reading.is_fill()) {
+            p.fill_pct = reading.value_pct;
+            p.status = reading.status;
+        } else {
+            p.bias = reading.bias;
+        }
+    }
+    push(now_ms, p);
+}
+
+void BufferTrace::push(int64_t now_ms, const BufferTracePoint& point) {
     if (!points_.empty() && now_ms < points_.back().t_ms) {
         points_.clear();
     }
     if (!points_.empty()) {
         const BufferTracePoint& last = points_.back();
-        if (last.valid == valid && (!valid || last.bias == bias)) {
+        if (last.valid == point.valid &&
+            (!point.valid || (last.gauge == point.gauge && last.bias == point.bias &&
+                              last.fill_pct == point.fill_pct && last.status == point.status))) {
             return;
         }
     }
-    points_.push_back({now_ms, valid ? bias : 0.0f, valid});
+    points_.push_back(point);
     // One point at or before the window's start stays: it is the value held
     // into the window.
     while (points_.size() >= 2 && points_[1].t_ms <= now_ms - kWindowMs) {
@@ -132,7 +184,9 @@ std::vector<BufferTracePoint> BufferTrace::window(int64_t now_ms) const {
             break;
         }
         if (p.t_ms <= start) {
-            out.assign(1, BufferTracePoint{start, p.bias, p.valid});
+            BufferTracePoint held = p;
+            held.t_ms = start;
+            out.assign(1, held);
         } else {
             out.push_back(p);
         }

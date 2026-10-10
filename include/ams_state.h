@@ -1068,6 +1068,18 @@ class AmsState {
     lv_subject_t* get_buffer_status_subject() {
         return &buffer_status_;
     }
+    /// BufferGauge of the reading: 0 two-ended bias, 1 one-sided fill.
+    lv_subject_t* get_buffer_gauge_subject() {
+        return &buffer_gauge_;
+    }
+    /// Pressure 0..100 of a fill reading; 0 for a bias reading.
+    lv_subject_t* get_buffer_value_pct_subject() {
+        return &buffer_value_pct_;
+    }
+    /// Set point 0..100 of a fill reading; -1 without one or for a bias reading.
+    lv_subject_t* get_buffer_target_pct_subject() {
+        return &buffer_target_pct_;
+    }
     lv_subject_t* get_buffer_label_subject() {
         return &buffer_label_;
     }
@@ -1076,6 +1088,9 @@ class AmsState {
     }
     lv_subject_t* get_buffer_short_text_subject() {
         return &buffer_short_text_;
+    }
+    lv_subject_t* get_buffer_lean_text_subject() {
+        return &buffer_lean_text_;
     }
     lv_subject_t* get_buffer_target_text_subject() {
         return &buffer_target_text_;
@@ -2152,17 +2167,21 @@ class AmsState {
     /// Buffer reading traces, keyed by unit position, -1 for the system-level reading.
     std::map<int, BufferTrace> buffer_traces_;
 
-    lv_subject_t buffer_present_{};  // 0/1: a proportional reading exists (widget gate)
-    lv_subject_t buffer_slider_{};   // 0/1: it has a set point, so the slider draws
-    lv_subject_t buffer_bias_pct_{}; // -100 tight .. +100 loose
-    lv_subject_t buffer_status_{};   // ClogMeterStatus of the bias
-    lv_subject_t buffer_label_{};    // "FPS" / "Sync"
+    lv_subject_t buffer_present_{};    // 0/1: a proportional reading exists (widget gate)
+    lv_subject_t buffer_slider_{};     // 0/1: it has a set point, so the slider draws
+    lv_subject_t buffer_bias_pct_{};   // -100 tight .. +100 loose; 0 for a fill gauge
+    lv_subject_t buffer_status_{};     // ClogMeterStatus of the reading
+    lv_subject_t buffer_gauge_{};      // BufferGauge: 0 bias, 1 fill
+    lv_subject_t buffer_value_pct_{};  // fill gauge: the pressure, 0..100
+    lv_subject_t buffer_target_pct_{}; // fill gauge: the set point, -1 without one
+    lv_subject_t buffer_label_{};      // "FPS" / "Sync"
     char buffer_label_buf_[16]{};
     lv_subject_t buffer_value_text_{}; // "32%", "-45%", "Pressure: 32%"
     char buffer_value_text_buf_[48]{};
     lv_subject_t buffer_short_text_{}; // "32%", "-45%": the number alone, for narrow surfaces
     char buffer_short_text_buf_[16]{};
-    lv_subject_t buffer_lean_text_{}; // "Running tight" / "Running loose" / "Balanced"
+    lv_subject_t
+        buffer_lean_text_{}; // "Running tight" / "Balanced", or "At target" / "Above target"
     char buffer_lean_text_buf_[48]{};
     lv_subject_t buffer_target_text_{}; // "target 50%" where a set point is known
     char buffer_target_text_buf_[48]{};

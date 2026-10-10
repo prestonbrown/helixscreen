@@ -178,3 +178,94 @@ TEST_CASE("buffer_trace_unrecorded_x: the minute not yet recorded", "[buffer][tr
     CHECK(buffer_trace_unrecorded_x({{now - 10000, 0.1f, true}}, now, 120) == 20);
     CHECK(buffer_trace_unrecorded_x({{now - 60000, 0.1f, true}}, now, 120) == 120);
 }
+
+// Fill gauge in the same 24 x 114 box: housing y 7..107, the track it fills is
+// y 9..105 (96 px), 0% at y = 105 and 100% at y = 9.
+TEST_CASE("buffer_fill_geometry: the fill rises from the bottom in proportion",
+          "[buffer][slider][geometry][fill]") {
+    const auto g0 = buffer_fill_geometry(0, -1, kW, kH);
+    const auto g50 = buffer_fill_geometry(50, -1, kW, kH);
+    const auto g100 = buffer_fill_geometry(100, -1, kW, kH);
+    const int bottom = g0.track.y + g0.track.h;
+
+    CHECK(g0.fill.h == 0);
+    CHECK(g50.fill.h == g50.track.h / 2);
+    CHECK(g100.fill.h == g100.track.h);
+    for (const auto& g : {g0, g50, g100}) {
+        CHECK(g.fill.y + g.fill.h == bottom); // anchored at the bottom
+        CHECK(g.fill.x == g.track.x);
+        CHECK(g.fill.w == g.track.w);
+    }
+    CHECK(g100.fill.y == g100.track.y);
+    CHECK(g50.fill.h > buffer_fill_geometry(25, -1, kW, kH).fill.h);
+}
+
+TEST_CASE("buffer_fill_geometry: the fill stays in the housing and clamps",
+          "[buffer][slider][geometry][fill]") {
+    const auto over = buffer_fill_geometry(250, -1, kW, kH);
+    CHECK(over.fill.h == over.track.h);
+    CHECK(buffer_fill_geometry(-40, -1, kW, kH).fill.h == 0);
+    const auto g = buffer_fill_geometry(100, -1, kW, kH);
+    CHECK(g.track.y >= g.housing.y);
+    CHECK(g.track.y + g.track.h <= g.housing.y + g.housing.h);
+    CHECK(g.housing.w == kW);
+    // The same footprint the slider's housing has.
+    const auto slider = buffer_slider_geometry(0.0f, kW, kH);
+    CHECK(g.housing.y == slider.housing.y);
+    CHECK(g.housing.h == slider.housing.h);
+}
+
+TEST_CASE("buffer_fill_geometry: a tick at the set point, none without one",
+          "[buffer][slider][geometry][fill]") {
+    const auto g = buffer_fill_geometry(30, 50, kW, kH);
+    REQUIRE(g.has_target);
+    const int center = g.target.y + g.target.h / 2;
+    CHECK(center == g.track.y + g.track.h - g.track.h / 2);
+    CHECK(g.target.w > g.track.w - 1); // crosses the housing
+    // Moves with the set point, and is independent of the reading.
+    CHECK(buffer_fill_geometry(90, 50, kW, kH).target.y == g.target.y);
+    CHECK(buffer_fill_geometry(30, 80, kW, kH).target.y < g.target.y);
+
+    CHECK_FALSE(buffer_fill_geometry(30, -1, kW, kH).has_target);
+    CHECK(buffer_fill_geometry(30, 0, kW, kH).has_target);
+    const auto top = buffer_fill_geometry(30, 400, kW, kH);
+    CHECK(top.target.y + top.target.h / 2 == top.track.y);
+}
+
+TEST_CASE("buffer_fill_geometry: empty boxes lay out nothing", "[buffer][slider][geometry][fill]") {
+    CHECK(buffer_fill_geometry(50, 50, 0, 100).fill.h == 0);
+    CHECK_FALSE(buffer_fill_geometry(50, 50, 24, 0).has_target);
+}
+
+TEST_CASE("buffer_fill_trace_y: 100 at the top row, 0 at the bottom",
+          "[buffer][trace][geometry][fill]") {
+    CHECK(buffer_fill_trace_y(100, 101) == 0);
+    CHECK(buffer_fill_trace_y(50, 101) == 50);
+    CHECK(buffer_fill_trace_y(0, 101) == 100);
+    CHECK(buffer_fill_trace_y(-5, 101) == 100);
+    CHECK(buffer_fill_trace_y(180, 101) == 0);
+    CHECK(buffer_fill_trace_y(50, 0) == 0);
+}
+
+TEST_CASE("buffer_trace_polylines: a fill point plots pressure with its own severity",
+          "[buffer][trace][geometry][fill]") {
+    BufferTracePoint older;
+    older.t_ms = 40000;
+    older.valid = true;
+    older.gauge = BufferGauge::Fill;
+    older.fill_pct = 20;
+    BufferTracePoint newer = older;
+    newer.t_ms = 70000;
+    newer.fill_pct = 97;
+    newer.status = ClogMeterStatus::Fault;
+
+    const auto lines = buffer_trace_polylines({older, newer}, 100000, 120, 101);
+    REQUIRE(lines.size() == 1);
+    const auto& l = lines[0];
+    REQUIRE(l.size() == 4);
+    CHECK(l[0].y == buffer_fill_trace_y(97, 101));
+    CHECK(l[0].status == ClogMeterStatus::Fault);
+    CHECK(l[2].y == buffer_fill_trace_y(20, 101));
+    // Pressure 20 would be a Fault on the bias scale; here it is Ok.
+    CHECK(l[2].status == ClogMeterStatus::Ok);
+}

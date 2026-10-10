@@ -42,6 +42,28 @@ struct BufferSliderGeometry {
     int grip_x2 = 0;
 };
 
+/// Pixel layout of the upright pressure gauge for a compression-only reading,
+/// in the same footprint as the slider: 0% at the bottom, 100% at the top, the
+/// fill rising from the bottom to the reading and a tick at the set point.
+struct BufferFillGeometry {
+    BufferBox housing; ///< Full width, inset top and bottom as the slider's is
+    int housing_radius = 0;
+    BufferBox track; ///< The band inside the housing the fill rises in
+    BufferBox fill;  ///< Bottom-anchored; zero height at 0%
+    int radius = 0;
+    bool has_target = false;
+    BufferBox target; ///< A thin tick across the housing at the set point
+};
+
+/// Layout of the fill gauge for @p value_pct (clamped 0..100) and @p target_pct
+/// (clamped; negative means no set point, so no tick) in a box width x height.
+/// A zero width or height lays out nothing.
+BufferFillGeometry buffer_fill_geometry(int value_pct, int target_pct, int width, int height);
+
+/// y of @p pct (clamped 0..100) in a trace @p height tall: 100 at the top row,
+/// 0 at the bottom row.
+int buffer_fill_trace_y(int pct, int height);
+
 /// Centre y of the block for @p bias (-1 tight .. +1 loose, clamped; NaN reads
 /// as 0) in a slider @p height tall.
 int buffer_slider_y(float bias, int height);

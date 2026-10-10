@@ -168,6 +168,7 @@ translations:
   Aborting AFC operation...: Annulation de l'opération AFC...
   Aborting...: Annulation...
   About: À propos
+  Above target: Au-dessus de la cible
   Accel to Decel: Accél. à Décél.
   Acceleration to deceleration limit (mm/s²): Limite d'accélération à décélération
     (mm/s²)
@@ -282,6 +283,7 @@ translations:
   Assisted Retract: 'Rétraction assistée'
   Assisting: Assistance
   At least {} lines in helixscreen.env were ignored: 'Au moins {} lignes de helixscreen.env ont été ignorées'
+  At target: Sur la cible
   At {}°C, about {} minutes.: 'À {}°C, environ {} minutes.'
   Authentication failed: Échec de l'authentification
   Auto: Auto
@@ -363,6 +365,7 @@ translations:
   Bed temp must be 0-%d°C: La température du plateau doit être entre 0 et %d°C
   Bed warming timed out: Préchauffage du plateau — délai dépassé
   Before starting: 'Avant de commencer'
+  Below target: Sous la cible
   Belt Tension: Tension de courroie
   Belt Tension Check: Vérification de tension de courroie
   Belt Tension needs a CoreXY printer. This one is {}.: 'La tension de courroie nécessite une imprimante CoreXY. Celle-ci est {}.'
@@ -3966,6 +3969,7 @@ translations:
   invalid: non valide
   just now: à l'instant
   last 60 s · LOOSE up, TIGHT down: '60 dernières s · DÉTENDU en haut, TENDU en bas'
+  last 60 s · pressure, target dashed: 60 dernières s · pression, cible en pointillés
   layers: couches
   left: restant
   loaded: 'chargé'

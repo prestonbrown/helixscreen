@@ -157,9 +157,10 @@ struct BufferBoxState {
     int state = 0;             ///< Coil shape: 0 neutral, 1 compressed, 2 tension
     const char* label = "BUF"; ///< "FPS" for a filament pressure sensor
     /// ClogMeterStatus: the AFC fault distance or the buffer bands, worse wins;
-    /// -1 for a pressure reading with no set point, which draws untinted.
+    /// -1 for a pressure reading with nothing to judge it against (no set
+    /// point, or a one-sided gauge inside its rails), which draws untinted.
     int fault = 0;
-    float bias = -2.0f; ///< The reading's bias, or -2 with no proportional reading
+    float bias = -2.0f; ///< The reading's bias, or -2 with none (a one-sided gauge has no bias)
 };
 
 /// The buffer box for @p unit_index; -1 is the whole-backend view, which shows

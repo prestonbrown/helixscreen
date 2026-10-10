@@ -61,34 +61,46 @@ units, no action and no error.
 
 Each lane may carry `pressure` and `set_point` (klipper_openams
 [UI_API.md](https://github.com/OpenAMSOrg/klipper_openams/blob/master/docs/UI_API.md)).
-`pressure` is the lane's FPS reading, 0.0 to 1.0. `set_point` is the reading the
-feeding unit's hub motor regulates to: below it the extruder is pulling harder
-than the hub feeds (filament pulling tight), above it the hub is overfeeding
-(filament loose).
+`pressure` is the lane's FPS reading, 0.0 (no pressure) to 1.0 (fully compressed).
+The sensor has one spring: it measures compression and never tension, so a reading
+below the target is less compression, not filament pulling tight. `set_point` is the
+compression the feeding unit's hub motor regulates to (often 0.5).
 
 The backend puts the reading on every unit of that lane as its `BufferHealth`
-(`fps_value`, `fps_set_point`, `fps_reported`). It writes no `sync_feedback_bias`:
-that field is Happy Hare's. Everything draws through `helix::buffer_reading()`
-(`include/buffer_reading.h`), so:
+(`fps_value`, `fps_set_point`, `fps_reported`) and sets two capability flags:
+`compression_only` (the sensor is one-sided) and `filament_loaded` (the lane's
+`current_slot` resolved to a slot). It writes no `sync_feedback_bias`: that field is
+Happy Hare's, and a compression-only sensor never reaches `BufferHealth::fps_to_bias()`
+or `AmsSystemInfo::pressure_sensor_bias()`. Everything draws through
+`helix::buffer_reading()` (`include/buffer_reading.h`), which turns a
+`compression_only` sensor into a **fill** reading (`BufferGauge::Fill`) and leaves AFC
+`FPS_PSF` and Happy Hare as two-ended **bias** readings; generic code asks the gauge
+kind, never which backend produced it. So:
 
-- `BufferHealth::fps_to_bias()` maps the pressure onto the -1..+1 bias around the
-  set point, and the one colour rule (grey below 0.3, amber, red from 0.7) applies;
+- a fill reading is drawn as a one-sided upright gauge, filled from the bottom (0%) up to
+  the pressure, with a tick at the set point; the 60 s trace beside it plots the same
+  0..100 axis with the set point as a dashed line;
+- it is worded against the target: "At target" within 5 points either way
+  (`kPressureTargetDeadbandPct`), otherwise "Above target" or "Below target";
+- color appears only near the rails (`include/clog_meter_geometry.h`): 85% and up
+  warning, 95% and up danger, 5% and under warning while the lane has filament loaded
+  (the feed is not engaging). Regulating anywhere else, however far from the target, is
+  neutral;
 - the Filament Buffer widget, the loaded-spool card and the Buffer Status modal read
   the lane feeding the current slot, else the first unit with a sensor (with several
   lanes loaded there is no current slot); the path canvas draws the unit's own lane;
 - the path canvas draws the buffer box labelled **FPS** because the buffer reports
-  pressure (`ui_ams_detail.cpp`), tinted live; any buffer that reports pressure gets
-  the same label;
-- tapping it opens the Buffer Status modal: the slider, "FPS 62%" and "target 50%",
-  the lean in words and the last minute as a trace line.
+  pressure (`ui_ams_detail.cpp`), tinted only by the rail status and passing no bias;
+- tapping it opens the Buffer Status modal: the gauge, "FPS 62%" and "target 50%",
+  the word against the target and the last minute as a trace line.
 
 OpenAMS has a buffer reading and no clog detection: klipper_openams publishes none, so
 the Clog Detection widget has nothing to show. See
 [Filament buffer reading](FILAMENT_MANAGEMENT.md#filament-buffer-reading).
 
-A lane with no `set_point` cannot be placed either side of its target, so it
-gets the pressure reading as text alone ("Pressure: N%"), with no slider, trace or tint. A manager that
-publishes no `pressure` gets no buffer box.
+A lane with no `set_point` has no target to place the reading against, so the gauge
+draws with no tick, the pressure reads "Pressure: N%" with no word beside it, and only
+the rails tint. A manager that publishes no `pressure` gets no buffer box.
 
 ## Operations
 

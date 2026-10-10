@@ -345,6 +345,10 @@ void AmsPanel::init_subjects() {
                                            path_handler, ams_state.get_subjects_lifetime());
     buffer_bias_observer_ = observe<int>(ams_state.get_buffer_bias_pct_subject(), this,
                                          path_handler, ams_state.get_subjects_lifetime());
+    buffer_status_observer_ = observe<int>(ams_state.get_buffer_status_subject(), this,
+                                           path_handler, ams_state.get_subjects_lifetime());
+    buffer_gauge_observer_ = observe<int>(ams_state.get_buffer_gauge_subject(), this, path_handler,
+                                          ams_state.get_subjects_lifetime());
 
     // Backend count observer for multi-backend selector
     backend_count_observer_ = observe<int>(
@@ -666,6 +670,8 @@ void AmsPanel::clear_panel_reference() {
     buffer_present_observer_.reset();
     buffer_slider_observer_.reset();
     buffer_bias_observer_.reset();
+    buffer_status_observer_.reset();
+    buffer_gauge_observer_.reset();
     slot_path_observers_.clear();
     print_state_observer_.reset();
     backend_count_observer_.reset();

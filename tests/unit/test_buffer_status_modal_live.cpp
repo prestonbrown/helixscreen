@@ -44,6 +44,16 @@ void set_pressure(AmsBackendMock& mock, float pressure) {
     mock.set_unit_buffer_health(0, fps);
 }
 
+void set_compression_only(AmsBackendMock& mock, float pressure, float set_point = 0.5f) {
+    BufferHealth fps;
+    fps.fps_value = fps.smoothed_fps = pressure;
+    fps.fps_set_point = set_point;
+    fps.fps_reported = true;
+    fps.compression_only = true;
+    fps.filament_loaded = true;
+    mock.set_unit_buffer_health(0, fps);
+}
+
 /// What a backend event does: sync, then announce it.
 void land_backend_update() {
     AmsState::instance().sync_from_backend();
@@ -131,6 +141,82 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Buffer Status modal trace keeps scrolling w
     lv_timer_set_repeat_count(modal.slider()->timer_for_test(), 100);
     process_lvgl(2100);
     CHECK(modal.slider()->trace_ticks() == 2);
+
+    modal.hide();
+    ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Buffer Status modal words a one-sided pressure against its target",
+                 "[modals][buffer_status][live][fill]") {
+    AmsState::instance().init_subjects(true);
+    test::RegisteredBackend<AmsBackendMock> mock(4);
+    mock->set_tool_changer_mode(true);
+    set_compression_only(*mock, 0.32f);
+    land_backend_update();
+
+    BufferStatusModalProbe modal;
+    REQUIRE(modal.show(test_screen()));
+    ui::UpdateQueue::instance().drain();
+
+    REQUIRE(subject_int("buf_type") == 3);
+    CHECK(subject_int("buf_show_meter") == 1);
+    CHECK(subject_text("buf_value") == "FPS 32%");
+    CHECK(subject_text("buf_target") == "target 50%");
+    CHECK(subject_text("buf_description") == "Below target");
+    CHECK(subject_text("buf_trace_caption") == "last 60 s · pressure, target dashed");
+    CHECK(subject_int("buf_status") == static_cast<int>(ui::ClogMeterStatus::Ok));
+    REQUIRE(modal.slider() != nullptr);
+    CHECK(modal.slider()->gauge() == BufferGauge::Fill);
+    CHECK(modal.slider()->value_pct() == 32);
+    CHECK(modal.slider()->bias() == 0.0f);
+
+    SECTION("on target") {
+        set_compression_only(*mock, 0.52f);
+        land_backend_update();
+        CHECK(subject_text("buf_description") == "At target");
+    }
+    SECTION("above target") {
+        set_compression_only(*mock, 0.71f);
+        land_backend_update();
+        CHECK(subject_text("buf_description") == "Above target");
+        CHECK(subject_int("buf_status") == static_cast<int>(ui::ClogMeterStatus::Ok));
+    }
+    SECTION("near full is a fault") {
+        set_compression_only(*mock, 0.97f);
+        land_backend_update();
+        CHECK(subject_int("buf_status") == static_cast<int>(ui::ClogMeterStatus::Fault));
+    }
+    SECTION("no set point: the pressure alone, still a gauge") {
+        set_compression_only(*mock, 0.53f, -1.0f);
+        land_backend_update();
+        CHECK(subject_text("buf_value") == "Pressure: 53%");
+        CHECK(subject_text("buf_description").empty());
+        CHECK(subject_text("buf_target").empty());
+        CHECK(subject_int("buf_show_meter") == 1);
+    }
+
+    modal.hide();
+    ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Buffer Status modal keeps the slider and its caption for a two-ended sensor",
+                 "[modals][buffer_status][live][fill]") {
+    AmsState::instance().init_subjects(true);
+    test::RegisteredBackend<AmsBackendMock> mock(4);
+    mock->set_tool_changer_mode(true);
+    set_pressure(*mock, 0.32f);
+    land_backend_update();
+
+    BufferStatusModalProbe modal;
+    REQUIRE(modal.show(test_screen()));
+    ui::UpdateQueue::instance().drain();
+
+    CHECK(subject_text("buf_trace_caption") == "last 60 s · LOOSE up, TIGHT down");
+    CHECK(subject_text("buf_description") == "Running tight");
+    REQUIRE(modal.slider() != nullptr);
+    CHECK(modal.slider()->gauge() == BufferGauge::Bias);
 
     modal.hide();
     ui::UpdateQueue::instance().drain();

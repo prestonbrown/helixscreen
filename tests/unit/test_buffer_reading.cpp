@@ -171,3 +171,101 @@ TEST_CASE_METHOD(LVGLTestFixture, "buffer reading words", "[buffer][reading][tex
         CHECK(buffer_short_text(r).empty());
     }
 }
+
+namespace {
+/// One compression-only lane (as OpenAMS reports) at @p pressure.
+BufferReading fill_reading(float pressure, float set_point = 0.5f, bool loaded = true) {
+    return buffer_reading(test::fps_units({pressure}, set_point, -1, true, loaded), -1);
+}
+} // namespace
+
+TEST_CASE("buffer_reading: a compression-only sensor is a fill gauge, not a bias",
+          "[buffer][reading][fill]") {
+    const BufferReading r = fill_reading(0.32f);
+    CHECK(r.source == BufferSource::Fps);
+    CHECK(r.gauge == BufferGauge::Fill);
+    CHECK(r.is_fill());
+    CHECK(r.has_slider);
+    CHECK(r.value_pct == 32);
+    CHECK(r.target_pct == 50);
+    CHECK(r.bias == 0.0f);
+    // Below the set point is less compression, not tension.
+    CHECK(r.status == ClogMeterStatus::Ok);
+
+    SECTION("an AFC FPS_PSF sensor is still a two-ended bias") {
+        const BufferReading afc = buffer_reading(test::fps_units({0.32f}), -1);
+        CHECK(afc.gauge == BufferGauge::Bias);
+        CHECK_FALSE(afc.is_fill());
+        CHECK(afc.bias == Catch::Approx(-0.36f));
+        CHECK(afc.status == ClogMeterStatus::Warning);
+    }
+    SECTION("Happy Hare sync feedback is still a two-ended bias") {
+        AmsSystemInfo info;
+        info.sync_feedback_bias = -0.45f;
+        CHECK(buffer_reading(info, -1).gauge == BufferGauge::Bias);
+    }
+}
+
+TEST_CASE("buffer_reading: a fill gauge is only colored near its rails",
+          "[buffer][reading][fill]") {
+    CHECK(fill_reading(0.84f).status == ClogMeterStatus::Ok);
+    CHECK(fill_reading(0.85f).status == ClogMeterStatus::Warning);
+    CHECK(fill_reading(0.94f).status == ClogMeterStatus::Warning);
+    CHECK(fill_reading(0.95f).status == ClogMeterStatus::Fault);
+    CHECK(fill_reading(1.2f).status == ClogMeterStatus::Fault);
+
+    SECTION("regulating around the set point, however far from it, is neutral") {
+        CHECK(fill_reading(0.20f, 0.5f).status == ClogMeterStatus::Ok);
+        CHECK(fill_reading(0.80f, 0.5f).status == ClogMeterStatus::Ok);
+        CHECK(fill_reading(0.50f, 0.5f).status == ClogMeterStatus::Ok);
+    }
+    SECTION("near empty warns only while filament is loaded") {
+        CHECK(fill_reading(0.05f, 0.5f, true).status == ClogMeterStatus::Warning);
+        CHECK(fill_reading(0.06f, 0.5f, true).status == ClogMeterStatus::Ok);
+        CHECK(fill_reading(0.05f, 0.5f, false).status == ClogMeterStatus::Ok);
+        CHECK(fill_reading(0.0f, 0.5f, true).status == ClogMeterStatus::Warning);
+    }
+    SECTION("the rails do not need a set point") {
+        CHECK(fill_reading(0.97f, -1.0f).status == ClogMeterStatus::Fault);
+        CHECK(fill_reading(0.03f, -1.0f, true).status == ClogMeterStatus::Warning);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "buffer reading words: a fill gauge against its target",
+                 "[buffer][reading][fill][text]") {
+    auto lean = [](float pressure) {
+        return std::string(buffer_lean_text(fill_reading(pressure)));
+    };
+
+    // Target 50: the deadband is +/-5 points, inclusive.
+    CHECK(lean(0.50f) == "At target");
+    CHECK(lean(0.45f) == "At target");
+    CHECK(lean(0.55f) == "At target");
+    CHECK(lean(0.44f) == "Below target");
+    CHECK(lean(0.56f) == "Above target");
+    CHECK(lean(0.10f) == "Below target");
+    CHECK(lean(0.90f) == "Above target");
+
+    SECTION("with the number and the target") {
+        const BufferReading r = fill_reading(0.53f);
+        CHECK(std::string(buffer_label(r)) == "FPS");
+        CHECK(buffer_value_text(r) == "53%");
+        CHECK(buffer_target_text(r) == "target 50%");
+        CHECK_FALSE(r.text_only());
+    }
+    SECTION("no set point: the number alone, no verdict") {
+        const BufferReading r = fill_reading(0.53f, -1.0f);
+        CHECK(r.has_slider);
+        CHECK(r.target_pct == -1);
+        CHECK(r.text_only());
+        CHECK(buffer_value_text(r) == "Pressure: 53%");
+        CHECK(std::string(buffer_lean_text(r)).empty());
+        CHECK(buffer_target_text(r).empty());
+    }
+    SECTION("the trace caption names the pressure axis") {
+        CHECK(std::string(buffer_trace_caption(fill_reading(0.5f))) ==
+              "last 60 s · pressure, target dashed");
+        CHECK(std::string(buffer_trace_caption(buffer_reading(test::fps_units({0.5f}), -1))) ==
+              "last 60 s · LOOSE up, TIGHT down");
+    }
+}

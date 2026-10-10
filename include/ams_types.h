@@ -889,13 +889,24 @@ struct BufferHealth {
     /// meter exactly then.
     bool fps_reported = false;
 
+    /// The sensor has one spring and measures compression only: 0 is no
+    /// pressure, 1 is fully compressed, and a reading below the set point is
+    /// less compression rather than tension. Such a sensor is shown as a
+    /// one-sided gauge, never through fps_to_bias()'s two-ended scale.
+    bool compression_only = false;
+
+    /// Filament is loaded on the lane this sensor serves. A compression-only
+    /// sensor near zero only means the feed is not engaging while there is
+    /// filament to feed.
+    bool filament_loaded = false;
+
     /// Whether this buffer publishes a proportional pressure reading at all.
     /// False for the switched TurtleNeck every BoxTurtle ships with.
     [[nodiscard]] bool has_fps() const {
         return fps_reported && fps_set_point > 0.0f;
     }
 
-    /// Map a filament-pressure reading onto the -1..+1 sync-feedback bias
+    /// Map a two-ended filament-pressure reading onto the -1..+1 sync-feedback bias
     /// Happy Hare publishes directly, so one bias feeds every buffer surface.
     ///
     /// Sign follows the existing convention: negative is tension (filament
@@ -1834,10 +1845,13 @@ struct AmsSystemInfo {
     }
 
     /// System-level bias from feeding_pressure_unit(): -1.5 when that sensor has no set
-    /// point, or when no unit reports pressure.
+    /// point, measures compression only, or when no unit reports pressure.
     [[nodiscard]] float pressure_sensor_bias() const {
         const int pos = feeding_pressure_unit();
-        return pos >= 0 ? units[static_cast<size_t>(pos)].buffer_health->fps_to_bias() : -1.5f;
+        if (pos < 0 || units[static_cast<size_t>(pos)].buffer_health->compression_only) {
+            return -1.5f; // a one-sided gauge has no place on the two-ended scale
+        }
+        return units[static_cast<size_t>(pos)].buffer_health->fps_to_bias();
     }
 
     /// Which clog-meter sources this snapshot can feed. The meter's source

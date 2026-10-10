@@ -10,7 +10,9 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/buffer_infos.h"
 #include "ams_state.h"
+#include "buffer_reading.h"
 
 #include <memory>
 
@@ -79,5 +81,76 @@ TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider follows the system-level readi
     AmsStateTestAccess::sync_buffer(ams, AmsSystemInfo{}, 0);
     CHECK(slider.bias() == Catch::Approx(0.0f));
     CHECK(slider.status() == ClogMeterStatus::Ok);
+    AmsStateTestAccess::clear_buffer_traces(ams);
+}
+
+namespace {
+/// Paint the screen so the slider's draw hook runs.
+void paint(lv_obj_t* screen) {
+    lv_obj_update_layout(screen);
+    lv_obj_invalidate(screen);
+    lv_refr_now(nullptr);
+}
+
+BufferReading pressure(float value, bool loaded = true) {
+    return buffer_reading(test::fps_units({value}, 0.5f, -1, true, loaded), -1);
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider paints a fill reading as the fill gauge",
+                 "[buffer][slider][fill]") {
+    UiBufferSlider slider(box(test_screen(), 24, 120));
+    slider.set_reading(pressure(0.6f));
+    CHECK(slider.gauge() == BufferGauge::Fill);
+    CHECK(slider.value_pct() == 60);
+    CHECK(slider.target_pct() == 50);
+    paint(test_screen());
+    REQUIRE(slider.has_painted());
+    CHECK(slider.painted_gauge() == BufferGauge::Fill);
+
+    SECTION("a bias reading paints the slider again") {
+        slider.set_reading(-0.4f, ClogMeterStatus::Warning);
+        CHECK(slider.gauge() == BufferGauge::Bias);
+        paint(test_screen());
+        CHECK(slider.painted_gauge() == BufferGauge::Bias);
+        CHECK(slider.bias() == Catch::Approx(-0.4f));
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "UiBufferSlider paints an AFC or Happy Hare reading as the slider",
+                 "[buffer][slider][fill]") {
+    UiBufferSlider slider(box(test_screen(), 24, 120));
+    slider.set_reading(buffer_reading(test::fps_units({0.32f}), -1));
+    CHECK(slider.gauge() == BufferGauge::Bias);
+    CHECK(slider.bias() == Catch::Approx(-0.36f));
+    paint(test_screen());
+    REQUIRE(slider.has_painted());
+    CHECK(slider.painted_gauge() == BufferGauge::Bias);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider follows a system-level fill reading",
+                 "[buffer][slider][fill]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    UiBufferSlider slider(box(test_screen(), 24, 120));
+    slider.follow_system_reading();
+
+    AmsStateTestAccess::sync_buffer(
+        ams, test::fps_units({0.97f}, 0.5f, -1, /*compression_only=*/true, true), 0);
+    CHECK(slider.gauge() == BufferGauge::Fill);
+    CHECK(slider.value_pct() == 97);
+    CHECK(slider.target_pct() == 50);
+    CHECK(slider.status() == ClogMeterStatus::Fault);
+    CHECK(slider.bias() == 0.0f);
+
+    SECTION("and back to a bias reading") {
+        AmsSystemInfo hh;
+        hh.sync_feedback_bias = -0.45f;
+        AmsStateTestAccess::sync_buffer(ams, hh, 1000);
+        CHECK(slider.gauge() == BufferGauge::Bias);
+        CHECK(slider.bias() == Catch::Approx(-0.45f));
+    }
+    AmsStateTestAccess::sync_buffer(ams, AmsSystemInfo{}, 2000);
     AmsStateTestAccess::clear_buffer_traces(ams);
 }

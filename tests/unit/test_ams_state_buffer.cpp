@@ -154,3 +154,50 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes the clog meter note",
     CHECK(subject_int(ams.get_clog_meter_note_kind_subject()) == 0);
     CHECK(text_of(ams.get_clog_meter_note_text_subject()).empty());
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes a fill reading with no bias",
+                 "[ams][buffer][subjects][fill]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ResetBuffer reset{ams};
+
+    AmsSystemInfo info = test::fps_units({0.62f}, 0.5f, -1, /*compression_only=*/true,
+                                         /*filament_loaded=*/true);
+    AmsStateTestAccess::sync_buffer(ams, info, 1000);
+
+    CHECK(subject_int(ams.get_buffer_present_subject()) == 1);
+    CHECK(subject_int(ams.get_buffer_slider_subject()) == 1);
+    CHECK(subject_int(ams.get_buffer_gauge_subject()) == static_cast<int>(BufferGauge::Fill));
+    CHECK(subject_int(ams.get_buffer_value_pct_subject()) == 62);
+    CHECK(subject_int(ams.get_buffer_target_pct_subject()) == 50);
+    // Nothing leans: no tight or loose reaches a bias surface.
+    CHECK(subject_int(ams.get_buffer_bias_pct_subject()) == 0);
+    CHECK(subject_int(ams.get_buffer_status_subject()) == 0);
+    CHECK(text_of(ams.get_buffer_label_subject()) == "FPS");
+    CHECK(text_of(ams.get_buffer_value_text_subject()) == "62%");
+    CHECK(text_of(ams.get_buffer_target_text_subject()) == "target 50%");
+    CHECK(text_of(ams.get_buffer_lean_text_subject()) == "Above target");
+
+    const auto w = ams.buffer_trace(-1).window(1000);
+    REQUIRE_FALSE(w.empty());
+    CHECK(w.back().gauge == BufferGauge::Fill);
+    CHECK(w.back().fill_pct == 62);
+
+    SECTION("a rail reading changes the status subject") {
+        info.units[0].buffer_health->smoothed_fps = 0.97f;
+        AmsStateTestAccess::sync_buffer(ams, info, 2000);
+        CHECK(subject_int(ams.get_buffer_status_subject()) ==
+              static_cast<int>(ui::ClogMeterStatus::Fault));
+        CHECK(subject_int(ams.get_buffer_value_pct_subject()) == 97);
+    }
+
+    SECTION("a bias reading afterwards resets the fill subjects") {
+        AmsSystemInfo hh;
+        hh.sync_feedback_bias = -0.45f;
+        AmsStateTestAccess::sync_buffer(ams, hh, 3000);
+        CHECK(subject_int(ams.get_buffer_gauge_subject()) == static_cast<int>(BufferGauge::Bias));
+        CHECK(subject_int(ams.get_buffer_value_pct_subject()) == 0);
+        CHECK(subject_int(ams.get_buffer_target_pct_subject()) == -1);
+        CHECK(subject_int(ams.get_buffer_bias_pct_subject()) == -45);
+    }
+}

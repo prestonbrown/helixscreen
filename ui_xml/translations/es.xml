@@ -159,6 +159,7 @@
   <translation tag="Aborting AFC operation..." es="Cancelando operación AFC..."/>
   <translation tag="Aborting..." es="Cancelando..."/>
   <translation tag="About" es="Acerca de"/>
+  <translation tag="Above target" es="Por encima del objetivo"/>
   <translation tag="Accel to Decel" es="Acel a Desacel"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" es="Límite de aceleración a desaceleración (mm/s²)"/>
   <translation tag="Accelerometer" es="Acelerómetro"/>
@@ -252,6 +253,7 @@
   <translation tag="Assisted Retract" es="Retracción asistida"/>
   <translation tag="Assisting" es="Asistiendo"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" es="Al menos {} líneas de helixscreen.env fueron ignoradas"/>
+  <translation tag="At target" es="En el objetivo"/>
   <translation tag="At {}°C, about {} minutes." es="A {}°C, unos {} minutos."/>
   <translation tag="Authentication failed" es="Error de autenticación"/>
   <translation tag="Auto" es="Automático"/>
@@ -329,6 +331,7 @@
   <translation tag="Bed temp must be 0-%d°C" es="La temperatura de la cama debe ser 0-%d°C"/>
   <translation tag="Bed warming timed out" es="Calentamiento de cama — tiempo de espera agotado"/>
   <translation tag="Before starting" es="Antes de empezar"/>
+  <translation tag="Below target" es="Por debajo del objetivo"/>
   <translation tag="Belt Tension" es="Tensión de correa"/>
   <translation tag="Belt Tension Check" es="Verificación de tensión de correa"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." es="La tensión de correa necesita una impresora CoreXY. Esta es {}."/>
@@ -3510,6 +3513,7 @@
   <translation tag="invalid" es="no válido"/>
   <translation tag="just now" es="justo ahora"/>
   <translation tag="last 60 s · LOOSE up, TIGHT down" es="últimos 60 s · SUELTO arriba, TENSO abajo"/>
+  <translation tag="last 60 s · pressure, target dashed" es="últimos 60 s · presión, objetivo discontinuo"/>
   <translation tag="layers" es="capas"/>
   <translation tag="left" es="restante"/>
   <translation tag="loaded" es="cargado"/>

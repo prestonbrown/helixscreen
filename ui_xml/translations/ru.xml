@@ -159,6 +159,7 @@
   <translation tag="Aborting AFC operation..." ru="Прерывание операции AFC..."/>
   <translation tag="Aborting..." ru="Прерывание..."/>
   <translation tag="About" ru="О программе"/>
+  <translation tag="Above target" ru="Выше цели"/>
   <translation tag="Accel to Decel" ru="Ускорение к торможению"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" ru="Предел ускорения к торможению (мм/с²)"/>
   <translation tag="Accelerometer" ru="Акселерометр"/>
@@ -252,6 +253,7 @@
   <translation tag="Assisted Retract" ru="Ретракция с поддержкой"/>
   <translation tag="Assisting" ru="Помощь"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ru="В helixscreen.env проигнорировано не менее {} строк"/>
+  <translation tag="At target" ru="Цель достигнута"/>
   <translation tag="At {}°C, about {} minutes." ru="При {}°C около {} минут."/>
   <translation tag="Authentication failed" ru="Ошибка аутентификации"/>
   <translation tag="Auto" ru="Авто"/>
@@ -329,6 +331,7 @@
   <translation tag="Bed temp must be 0-%d°C" ru="Температура стола должна быть 0-%d°C"/>
   <translation tag="Bed warming timed out" ru="Нагрев стола — время ожидания истекло"/>
   <translation tag="Before starting" ru="Перед началом"/>
+  <translation tag="Below target" ru="Ниже цели"/>
   <translation tag="Belt Tension" ru="Натяжение ремня"/>
   <translation tag="Belt Tension Check" ru="Проверка натяжения ремня"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." ru="Для натяжения ремня нужен принтер CoreXY. Этот принтер: {}."/>
@@ -3510,6 +3513,7 @@
   <translation tag="invalid" ru="недопустим"/>
   <translation tag="just now" ru="только что"/>
   <translation tag="last 60 s · LOOSE up, TIGHT down" ru="последние 60 с · вверху ОСЛАБЛЕН, внизу НАТЯНУТ"/>
+  <translation tag="last 60 s · pressure, target dashed" ru="последние 60 с · давление, цель пунктиром"/>
   <translation tag="layers" ru="слои"/>
   <translation tag="left" ru="осталось"/>
   <translation tag="loaded" ru="загружен"/>

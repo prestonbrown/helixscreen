@@ -358,3 +358,32 @@ TEST_CASE("clog_meter_note: a trip reason outranks tangle prevention, which outr
     CHECK(clog_meter_note(true, false, false, false) == ClogNote::None);
     CHECK(clog_meter_note(false, false, false, false) == ClogNote::None);
 }
+
+TEST_CASE("fill_pressure_status: only the rails color a compression-only reading",
+          "[clog-meter][buffer][fill]") {
+    using helix::ui::ClogMeterStatus;
+    using helix::ui::fill_pressure_status;
+    using namespace helix::ui;
+    CHECK(kPressureFullWarningPct == 85);
+    CHECK(kPressureFullFaultPct == 95);
+    CHECK(kPressureEmptyWarningPct == 5);
+    CHECK(fill_pressure_status(50, true) == ClogMeterStatus::Ok);
+    CHECK(fill_pressure_status(84, true) == ClogMeterStatus::Ok);
+    CHECK(fill_pressure_status(85, false) == ClogMeterStatus::Warning);
+    CHECK(fill_pressure_status(94, false) == ClogMeterStatus::Warning);
+    CHECK(fill_pressure_status(95, false) == ClogMeterStatus::Fault);
+    CHECK(fill_pressure_status(5, true) == ClogMeterStatus::Warning);
+    CHECK(fill_pressure_status(6, true) == ClogMeterStatus::Ok);
+    CHECK(fill_pressure_status(5, false) == ClogMeterStatus::Ok);
+}
+
+TEST_CASE("pressure_target_side: a deadband of five points either way",
+          "[clog-meter][buffer][fill]") {
+    using helix::ui::pressure_target_side;
+    using helix::ui::PressureTargetSide;
+    CHECK(pressure_target_side(50, 50) == PressureTargetSide::At);
+    CHECK(pressure_target_side(45, 50) == PressureTargetSide::At);
+    CHECK(pressure_target_side(55, 50) == PressureTargetSide::At);
+    CHECK(pressure_target_side(44, 50) == PressureTargetSide::Below);
+    CHECK(pressure_target_side(56, 50) == PressureTargetSide::Above);
+}

@@ -159,6 +159,7 @@ translations:
   Aborting AFC operation...: 正在中止AFC操作...
   Aborting...: 正在中止...
   About: 关于
+  Above target: 高于目标
   Accel to Decel: 加速到减速
   Acceleration to deceleration limit (mm/s²): 加速到减速限制 (mm/s²)
   Accelerometer: 加速度传感器
@@ -255,6 +256,7 @@ translations:
   Assisted Retract: '辅助回抽'
   Assisting: 辅助中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env 中至少有 {} 行被忽略'
+  At target: 在目标值
   At {}°C, about {} minutes.: '在 {}°C 下约需 {} 分钟。'
   Authentication failed: 认证失败
   Auto: 自动
@@ -333,6 +335,7 @@ translations:
   Bed temp must be 0-%d°C: 热床温度必须为 0-%d°C
   Bed warming timed out: 热床加热超时
   Before starting: '开始之前'
+  Below target: 低于目标
   Belt Tension: 皮带张力
   Belt Tension Check: 皮带张力检查
   Belt Tension needs a CoreXY printer. This one is {}.: '皮带张力需要 CoreXY 打印机。此打印机为{}。'
@@ -3665,6 +3668,7 @@ translations:
   invalid: 无效
   just now: 刚刚
   last 60 s · LOOSE up, TIGHT down: '最近 60 秒 · 上松下紧'
+  last 60 s · pressure, target dashed: 最近 60 秒 · 压力，目标为虚线
   layers: 层
   left: 剩余
   loaded: '已加载'

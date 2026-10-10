@@ -93,6 +93,26 @@ ClogNote clog_meter_note(bool tripped, bool has_reason, bool tangle_active, bool
 constexpr int kPressureWarningPct = 30;
 constexpr int kPressureFaultPct = 70;
 
+/// Bands a compression-only pressure reading (0..100) is judged against.
+/// Regulating around the set point is never colored: only a reading near the
+/// full rail warns (kPressureFullWarningPct) or faults (kPressureFullFaultPct),
+/// and one at or under kPressureEmptyWarningPct warns while filament is loaded.
+constexpr int kPressureFullWarningPct = 85;
+constexpr int kPressureFullFaultPct = 95;
+constexpr int kPressureEmptyWarningPct = 5;
+
+/// How far a compression-only reading may sit from its set point, in points
+/// either way, and still read as on target.
+constexpr int kPressureTargetDeadbandPct = 5;
+
+/// Severity of a compression-only reading (0..100). @p loaded is whether the
+/// lane has filament, which is what makes an empty gauge a problem.
+ClogMeterStatus fill_pressure_status(int pct, bool loaded);
+
+/// Where a compression-only reading sits against its set point.
+enum class PressureTargetSide : int { At, Above, Below };
+PressureTargetSide pressure_target_side(int pct, int target_pct);
+
 /// Severity of a buffer reading, `bias * 100` (-100..+100), by magnitude.
 ClogMeterStatus pressure_status(int pct);
 

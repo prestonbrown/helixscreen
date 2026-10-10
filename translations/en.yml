@@ -161,6 +161,7 @@ translations:
   Aborting AFC operation...: Aborting AFC operation...
   Aborting...: Aborting...
   About: About
+  Above target: Above target
   Accel to Decel: Accel to Decel
   Acceleration to deceleration limit (mm/s²): Acceleration to deceleration limit (mm/s²)
   Accelerometer: Accelerometer
@@ -268,6 +269,7 @@ translations:
   Assisted Retract: Assisted Retract
   Assisting: Assisting
   At least {} lines in helixscreen.env were ignored: At least {} lines in helixscreen.env were ignored
+  At target: At target
   At {}°C, about {} minutes.: 'At {}°C, about {} minutes.'
   Authentication failed: Authentication failed
   Auto: Auto
@@ -346,6 +348,7 @@ translations:
   Bed temp must be 0-%d°C: Bed temp must be 0-%d°C
   Bed warming timed out: Bed warming timed out
   Before starting: Before starting
+  Below target: Below target
   Belt Tension: Belt Tension
   Belt Tension Check: Belt Tension Check
   Belt Tension needs a CoreXY printer. This one is {}.: Belt Tension needs a CoreXY printer. This one is {}.
@@ -3819,6 +3822,7 @@ translations:
   invalid: invalid
   just now: just now
   last 60 s · LOOSE up, TIGHT down: last 60 s · LOOSE up, TIGHT down
+  last 60 s · pressure, target dashed: last 60 s · pressure, target dashed
   layers: layers
   left: left
   loaded: loaded

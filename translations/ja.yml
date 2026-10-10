@@ -160,6 +160,7 @@ translations:
   Aborting AFC operation...: AFC操作を中止中...
   Aborting...: 中止中...
   About: バージョン情報
+  Above target: 目標より高い
   Accel to Decel: 加速から減速
   Acceleration to deceleration limit (mm/s²): 加速から減速の制限値 (mm/s²)
   Accelerometer: 加速度センサー
@@ -256,6 +257,7 @@ translations:
   Assisted Retract: 'アシスト付き引き戻し'
   Assisting: アシスト中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env の少なくとも{}行が無視されました'
+  At target: 目標どおり
   At {}°C, about {} minutes.: '{}°C で約{}分です。'
   Authentication failed: 認証に失敗しました
   Auto: 自動
@@ -334,6 +336,7 @@ translations:
   Bed temp must be 0-%d°C: ベッド温度は 0〜%d°C にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
   Before starting: '開始前に'
+  Below target: 目標より低い
   Belt Tension: ベルトテンション
   Belt Tension Check: ベルトテンション確認
   Belt Tension needs a CoreXY printer. This one is {}.: 'ベルトテンションには CoreXY プリンターが必要です。このプリンターは{}です。'
@@ -3675,6 +3678,7 @@ translations:
   invalid: 不正
   just now: たった今
   last 60 s · LOOSE up, TIGHT down: '直近60秒 · 上が緩み、下が張り'
+  last 60 s · pressure, target dashed: 直近60秒 · 圧力、目標は破線
   layers: レイヤー
   left: 残り
   loaded: '装填済み'

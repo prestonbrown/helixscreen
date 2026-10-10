@@ -57,12 +57,37 @@ void UiBufferSlider::follow_system_reading() {
     // Immediate: the handlers only store the reading and invalidate.
     bias_observer_ = observe<int>(
         ams.get_buffer_bias_pct_subject(), this,
-        [](UiBufferSlider* self, int pct) { self->set_reading(pct / 100.0f, self->status_); },
+        [](UiBufferSlider* self, int pct) {
+            self->bias_ = pct / 100.0f;
+            self->invalidate();
+        },
         lifetime, Dispatch::Immediate);
     status_observer_ = observe<int>(
         ams.get_buffer_status_subject(), this,
         [](UiBufferSlider* self, int status) {
-            self->set_reading(self->bias_, static_cast<ClogMeterStatus>(status));
+            self->status_ = static_cast<ClogMeterStatus>(status);
+            self->invalidate();
+        },
+        lifetime, Dispatch::Immediate);
+    gauge_observer_ = observe<int>(
+        ams.get_buffer_gauge_subject(), this,
+        [](UiBufferSlider* self, int gauge) {
+            self->gauge_ = static_cast<BufferGauge>(gauge);
+            self->invalidate();
+        },
+        lifetime, Dispatch::Immediate);
+    value_observer_ = observe<int>(
+        ams.get_buffer_value_pct_subject(), this,
+        [](UiBufferSlider* self, int pct) {
+            self->value_pct_ = pct;
+            self->invalidate();
+        },
+        lifetime, Dispatch::Immediate);
+    target_observer_ = observe<int>(
+        ams.get_buffer_target_pct_subject(), this,
+        [](UiBufferSlider* self, int pct) {
+            self->target_pct_ = pct;
+            self->invalidate();
         },
         lifetime, Dispatch::Immediate);
 }
@@ -70,6 +95,9 @@ void UiBufferSlider::follow_system_reading() {
 UiBufferSlider::~UiBufferSlider() {
     bias_observer_.reset();
     status_observer_.reset();
+    gauge_observer_.reset();
+    value_observer_.reset();
+    target_observer_.reset();
     trace_timer_.reset();
     for (lv_obj_t* obj : {slider_obj_, trace_obj_}) {
         if (obj) {
@@ -80,8 +108,24 @@ UiBufferSlider::~UiBufferSlider() {
 }
 
 void UiBufferSlider::set_reading(float bias, ClogMeterStatus status) {
+    gauge_ = BufferGauge::Bias;
     bias_ = bias;
     status_ = status;
+    value_pct_ = 0;
+    target_pct_ = -1;
+    invalidate();
+}
+
+void UiBufferSlider::set_reading(const BufferReading& reading) {
+    gauge_ = reading.gauge;
+    bias_ = reading.bias;
+    status_ = reading.status;
+    value_pct_ = reading.is_fill() ? reading.value_pct : 0;
+    target_pct_ = reading.is_fill() ? reading.target_pct : -1;
+    invalidate();
+}
+
+void UiBufferSlider::invalidate() {
     for (lv_obj_t* obj : {slider_obj_, trace_obj_}) {
         if (obj) {
             lv_obj_invalidate(obj);
@@ -134,6 +178,12 @@ void UiBufferSlider::draw_slider(lv_layer_t* layer) const {
     if (w <= 0 || h <= 0) {
         return;
     }
+    painted_ = true;
+    if (gauge_ == BufferGauge::Fill) {
+        draw_fill_gauge(layer, a);
+        return;
+    }
+    painted_gauge_ = BufferGauge::Bias;
     const BufferSliderGeometry g = buffer_slider_geometry(bias_, w, h);
     const lv_color_t ground = theme_manager_get_color("screen_bg");
     const lv_color_t muted = theme_manager_get_color("text_muted");
@@ -204,6 +254,42 @@ void UiBufferSlider::draw_slider(lv_layer_t* layer) const {
     }
 }
 
+void UiBufferSlider::draw_fill_gauge(lv_layer_t* layer, const lv_area_t& a) const {
+    const BufferFillGeometry g = buffer_fill_geometry(
+        value_pct_, target_pct_, lv_area_get_width(&a), lv_area_get_height(&a));
+    painted_gauge_ = BufferGauge::Fill;
+    const lv_color_t ground = theme_manager_get_color("screen_bg");
+
+    lv_draw_fill_dsc_t fill;
+    lv_draw_fill_dsc_init(&fill);
+    fill.color = ground;
+    fill.opa = LV_OPA_COVER;
+    fill.radius = g.housing_radius;
+    const lv_area_t housing = area(a, g.housing);
+    lv_draw_fill(layer, &fill, &housing);
+
+    if (g.fill.h > 0) {
+        fill.color = theme_manager_get_color(buffer_status_token(status_));
+        fill.radius = g.radius;
+        const lv_area_t level = area(a, g.fill);
+        lv_draw_fill(layer, &fill, &level);
+    }
+
+    lv_draw_border_dsc_t stroke;
+    lv_draw_border_dsc_init(&stroke);
+    stroke.color = theme_manager_get_color("text_subtle");
+    stroke.width = 1;
+    stroke.radius = g.housing_radius;
+    lv_draw_border(layer, &stroke, &housing);
+
+    if (g.has_target) {
+        fill.color = theme_manager_get_color("text");
+        fill.radius = 0;
+        const lv_area_t tick = area(a, g.target);
+        lv_draw_fill(layer, &fill, &tick);
+    }
+}
+
 void UiBufferSlider::draw_trace(lv_layer_t* layer) const {
     lv_area_t a;
     lv_obj_get_content_coords(trace_obj_, &a);
@@ -220,7 +306,11 @@ void UiBufferSlider::draw_trace(lv_layer_t* layer) const {
     // The target line is dashed where the minute is recorded and dotted where
     // it is not yet, so the area always spans the full window.
     const int32_t unrecorded_x = buffer_trace_unrecorded_x(window, now, w);
-    const int32_t target_y = a.y1 + buffer_trace_y(0.0f, h);
+    const bool fill_trace = gauge_ == BufferGauge::Fill;
+    // A Fill trace draws the set point where it is, and nothing without one.
+    const bool has_target_line = !fill_trace || target_pct_ >= 0;
+    const int32_t target_y =
+        a.y1 + (fill_trace ? buffer_fill_trace_y(target_pct_, h) : buffer_trace_y(0.0f, h));
     lv_draw_line_dsc_t line;
     lv_draw_line_dsc_init(&line);
     line.color = muted;
@@ -228,12 +318,12 @@ void UiBufferSlider::draw_trace(lv_layer_t* layer) const {
     line.width = 1;
     line.dash_width = 4;
     line.dash_gap = 3;
-    if (unrecorded_x > 0) {
+    if (has_target_line && unrecorded_x > 0) {
         line.p1 = point(a.x1, target_y);
         line.p2 = point(a.x1 + unrecorded_x, target_y);
         lv_draw_line(layer, &line);
     }
-    if (unrecorded_x < w) {
+    if (has_target_line && unrecorded_x < w) {
         line.dash_width = 1;
         line.dash_gap = 3;
         line.p1 = point(a.x1 + unrecorded_x, target_y);

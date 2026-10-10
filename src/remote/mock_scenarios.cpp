@@ -104,13 +104,22 @@ static void clear_clog_sources(AmsBackendMock& mock) {
 /// A filament pressure sensor on unit 0 reading `pressure` against
 /// `set_point` (-1: none published), and nothing else measuring. Read as such
 /// by every simulated type but Happy Hare, whose buffer is system-level.
-static void set_fps(AmsBackendMock& mock, float pressure, float set_point = 0.5f) {
+static void set_fps(AmsBackendMock& mock, float pressure, float set_point = 0.5f,
+                    bool compression_only = false, bool filament_loaded = false) {
     clear_clog_sources(mock);
     BufferHealth h;
     h.fps_value = h.smoothed_fps = pressure;
     h.fps_set_point = set_point;
     h.fps_reported = true;
+    h.compression_only = compression_only;
+    h.filament_loaded = filament_loaded;
     mock.set_unit_buffer_health(0, h);
+}
+
+/// A compression-only pressure sensor (0 none .. 1 full), drawn as a one-sided gauge.
+static void set_pressure(AmsBackendMock& mock, float pressure, float set_point = 0.5f,
+                         bool filament_loaded = true) {
+    set_fps(mock, pressure, set_point, /*compression_only=*/true, filament_loaded);
 }
 
 static std::vector<MockScenario> clog_scenarios() {
@@ -240,6 +249,33 @@ static std::vector<MockScenario> clog_scenarios() {
 
     s.push_back({"buffer_fps_no_target", "Filament pressure sensor with no set point",
                  []() { apply_clog_state([](AmsBackendMock& m) { set_fps(m, 0.32f, -1.0f); }); }});
+
+    s.push_back({"buffer_pressure_on_target", "Compression-only pressure sensor on its set point",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_pressure(m, 0.52f); }); }});
+
+    s.push_back({"buffer_pressure_below", "Compression-only pressure sensor below its set point",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_pressure(m, 0.32f); }); }});
+
+    s.push_back({"buffer_pressure_above", "Compression-only pressure sensor above its set point",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_pressure(m, 0.71f); }); }});
+
+    s.push_back({"buffer_pressure_full", "Compression-only pressure sensor near full: danger",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_pressure(m, 0.97f); }); }});
+
+    s.push_back({"buffer_pressure_empty_loaded",
+                 "Compression-only pressure sensor near empty with filament loaded: warning",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_pressure(m, 0.03f); }); }});
+
+    s.push_back({"buffer_pressure_empty_unloaded",
+                 "Compression-only pressure sensor near empty with no filament: neutral", []() {
+                     apply_clog_state([](AmsBackendMock& m) {
+                         set_pressure(m, 0.03f, 0.5f, /*filament_loaded=*/false);
+                     });
+                 }});
+
+    s.push_back(
+        {"buffer_pressure_no_target", "Compression-only pressure sensor with no set point",
+         []() { apply_clog_state([](AmsBackendMock& m) { set_pressure(m, 0.53f, -1.0f); }); }});
 
     s.push_back({"buffer_fps_with_clog",
                  "Filament pressure sensor and AFC fault detection both reporting", []() {

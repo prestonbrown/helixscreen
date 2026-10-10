@@ -159,6 +159,7 @@
   <translation tag="Aborting AFC operation..." fr="Annulation de l&apos;opération AFC..."/>
   <translation tag="Aborting..." fr="Annulation..."/>
   <translation tag="About" fr="À propos"/>
+  <translation tag="Above target" fr="Au-dessus de la cible"/>
   <translation tag="Accel to Decel" fr="Accél. à Décél."/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" fr="Limite d&apos;accélération à décélération (mm/s²)"/>
   <translation tag="Accelerometer" fr="Accéléromètre"/>
@@ -252,6 +253,7 @@
   <translation tag="Assisted Retract" fr="Rétraction assistée"/>
   <translation tag="Assisting" fr="Assistance"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" fr="Au moins {} lignes de helixscreen.env ont été ignorées"/>
+  <translation tag="At target" fr="Sur la cible"/>
   <translation tag="At {}°C, about {} minutes." fr="À {}°C, environ {} minutes."/>
   <translation tag="Authentication failed" fr="Échec de l&apos;authentification"/>
   <translation tag="Auto" fr="Auto"/>
@@ -329,6 +331,7 @@
   <translation tag="Bed temp must be 0-%d°C" fr="La température du plateau doit être entre 0 et %d°C"/>
   <translation tag="Bed warming timed out" fr="Préchauffage du plateau — délai dépassé"/>
   <translation tag="Before starting" fr="Avant de commencer"/>
+  <translation tag="Below target" fr="Sous la cible"/>
   <translation tag="Belt Tension" fr="Tension de courroie"/>
   <translation tag="Belt Tension Check" fr="Vérification de tension de courroie"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." fr="La tension de courroie nécessite une imprimante CoreXY. Celle-ci est {}."/>
@@ -3510,6 +3513,7 @@
   <translation tag="invalid" fr="non valide"/>
   <translation tag="just now" fr="à l&apos;instant"/>
   <translation tag="last 60 s · LOOSE up, TIGHT down" fr="60 dernières s · DÉTENDU en haut, TENDU en bas"/>
+  <translation tag="last 60 s · pressure, target dashed" fr="60 dernières s · pression, cible en pointillés"/>
   <translation tag="layers" fr="couches"/>
   <translation tag="left" fr="restant"/>
   <translation tag="loaded" fr="chargé"/>

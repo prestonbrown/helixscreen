@@ -95,6 +95,43 @@ BufferSliderGeometry buffer_slider_geometry(float bias, int width, int height) {
     return g;
 }
 
+BufferFillGeometry buffer_fill_geometry(int value_pct, int target_pct, int width, int height) {
+    BufferFillGeometry g;
+    if (width <= 0 || height <= 0) {
+        return g;
+    }
+    g.housing = {0, overhang(height), width, height - 2 * overhang(height)};
+    g.housing_radius = std::max(2, width / 6);
+    g.radius = std::max(1, width / 12);
+
+    const int pad_x = std::max(2, width / 10);
+    const int top = inner_top(height);
+    const int track_h = inner_height(height);
+    g.track = {pad_x, top, std::max(0, width - 2 * pad_x), track_h};
+
+    auto rise = [track_h](int pct) {
+        return static_cast<int>(std::lround(std::clamp(pct, 0, 100) * track_h / 100.0));
+    };
+    const int fill_h = rise(value_pct);
+    g.fill = {g.track.x, top + track_h - fill_h, g.track.w, fill_h};
+
+    if (target_pct >= 0) {
+        constexpr int kTickH = 2;
+        const int tick_x = std::max(1, width / 12);
+        g.has_target = true;
+        g.target = {tick_x, top + track_h - rise(target_pct) - kTickH / 2, width - 2 * tick_x,
+                    kTickH};
+    }
+    return g;
+}
+
+int buffer_fill_trace_y(int pct, int height) {
+    if (height <= 0) {
+        return 0;
+    }
+    return static_cast<int>(std::lround((100 - std::clamp(pct, 0, 100)) * (height - 1) / 100.0));
+}
+
 int buffer_trace_y(float bias, int height) {
     if (height <= 0) {
         return 0;
@@ -122,8 +159,10 @@ buffer_trace_polylines(const std::vector<BufferTracePoint>& window, int64_t now_
     for (auto it = window.rbegin(); it != window.rend(); ++it) {
         const int older_x = x_of(it->t_ms);
         if (it->valid) {
-            const int y = buffer_trace_y(it->bias, height);
-            const auto status = pressure_status_of_bias(it->bias);
+            const bool fill = it->gauge == BufferGauge::Fill;
+            const int y =
+                fill ? buffer_fill_trace_y(it->fill_pct, height) : buffer_trace_y(it->bias, height);
+            const auto status = fill ? it->status : pressure_status_of_bias(it->bias);
             run.push_back({newer_x, y, status});
             run.push_back({older_x, y, status});
         } else if (!run.empty()) {

@@ -164,6 +164,7 @@ translations:
   Aborting AFC operation...: Прерывание операции AFC...
   Aborting...: Прерывание...
   About: О программе
+  Above target: Выше цели
   Accel to Decel: Ускорение к торможению
   Acceleration to deceleration limit (mm/s²): Предел ускорения к торможению (мм/с²)
   Accelerometer: Акселерометр
@@ -272,6 +273,7 @@ translations:
   Assisted Retract: 'Ретракция с поддержкой'
   Assisting: Помощь
   At least {} lines in helixscreen.env were ignored: 'В helixscreen.env проигнорировано не менее {} строк'
+  At target: Цель достигнута
   At {}°C, about {} minutes.: 'При {}°C около {} минут.'
   Authentication failed: Ошибка аутентификации
   Auto: Авто
@@ -353,6 +355,7 @@ translations:
   Bed temp must be 0-%d°C: Температура стола должна быть 0-%d°C
   Bed warming timed out: Нагрев стола — время ожидания истекло
   Before starting: 'Перед началом'
+  Below target: Ниже цели
   Belt Tension: Натяжение ремня
   Belt Tension Check: Проверка натяжения ремня
   Belt Tension needs a CoreXY printer. This one is {}.: 'Для натяжения ремня нужен принтер CoreXY. Этот принтер: {}.'
@@ -3890,6 +3893,7 @@ translations:
   invalid: недопустим
   just now: только что
   last 60 s · LOOSE up, TIGHT down: 'последние 60 с · вверху ОСЛАБЛЕН, внизу НАТЯНУТ'
+  last 60 s · pressure, target dashed: последние 60 с · давление, цель пунктиром
   layers: слои
   left: осталось
   loaded: 'загружен'

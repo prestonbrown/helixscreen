@@ -97,3 +97,69 @@ TEST_CASE("BufferTrace: memory is bounded", "[buffer][trace]") {
     }
     CHECK(t.size() == BufferTrace::kMaxPoints);
 }
+
+namespace {
+BufferReading fill(int pct, ui::ClogMeterStatus status = ui::ClogMeterStatus::Ok) {
+    BufferReading r;
+    r.source = BufferSource::Fps;
+    r.gauge = BufferGauge::Fill;
+    r.has_slider = true;
+    r.value_pct = pct;
+    r.target_pct = 50;
+    r.status = status;
+    return r;
+}
+} // namespace
+
+TEST_CASE("BufferTrace: a fill reading records its pressure, not a bias", "[buffer][trace][fill]") {
+    BufferTrace t;
+    t.record(0, fill(32));
+    t.record(10000, fill(97, ui::ClogMeterStatus::Fault));
+
+    const auto w = t.window(20000);
+    REQUIRE(w.size() == 2);
+    CHECK(w[0].gauge == BufferGauge::Fill);
+    CHECK(w[0].fill_pct == 32);
+    CHECK(w[0].bias == 0.0f);
+    CHECK(w[1].fill_pct == 97);
+    CHECK(w[1].status == ui::ClogMeterStatus::Fault);
+}
+
+TEST_CASE("BufferTrace: a fill repeat adds nothing, a new severity does", "[buffer][trace][fill]") {
+    BufferTrace t;
+    t.record(0, fill(50));
+    t.record(500, fill(50));
+    CHECK(t.size() == 1);
+    // The same pressure that turns into a warning (the lane finished loading) is a new point.
+    t.record(900, fill(50, ui::ClogMeterStatus::Warning));
+    CHECK(t.size() == 2);
+}
+
+TEST_CASE("BufferTrace: a bias point and a fill point at the same number differ",
+          "[buffer][trace][fill]") {
+    BufferTrace t;
+    t.record(0, true, 0.0f);
+    t.record(100, fill(0));
+    CHECK(t.size() == 2);
+}
+
+TEST_CASE("BufferTrace: a reading with no gauge is a gap for a fill history too",
+          "[buffer][trace][fill]") {
+    BufferTrace t;
+    t.record(0, fill(40));
+    t.record(1000, BufferReading{});
+    const auto w = t.window(2000);
+    REQUIRE(w.size() == 2);
+    CHECK_FALSE(w.back().valid);
+}
+
+TEST_CASE("BufferTrace: the value held into the window keeps its gauge", "[buffer][trace][fill]") {
+    BufferTrace t;
+    t.record(0, fill(77, ui::ClogMeterStatus::Warning));
+    const auto w = t.window(200000);
+    REQUIRE(w.size() == 1);
+    CHECK(w[0].t_ms == 200000 - BufferTrace::kWindowMs);
+    CHECK(w[0].gauge == BufferGauge::Fill);
+    CHECK(w[0].fill_pct == 77);
+    CHECK(w[0].status == ui::ClogMeterStatus::Warning);
+}

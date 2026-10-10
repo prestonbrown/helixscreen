@@ -289,36 +289,64 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS reports each lane's FPS as its units
     }
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes its FPS as a sync-feedback bias",
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes its FPS as a one-sided pressure",
                  "[ams][openams]") {
     OpenAmsHarness backend;
-    auto feed_pressure = [&](float pressure, json set_point) {
-        json m = manager(json::array({lane("loaded", "T1", 2)}));
+    auto feed_pressure = [&](float pressure, json set_point, bool loaded = true) {
+        json m = loaded ? manager(json::array({lane("loaded", "T1", 2)}))
+                        : manager(json::array({lane("unloaded")}));
         m["lanes"][0]["pressure"] = pressure;
         m["lanes"][0]["set_point"] = set_point;
         backend.feed(m);
         return backend.get_system_info();
     };
 
-    SECTION("above set_point the hub is overfeeding: compression") {
+    SECTION("the sensor is compression only and never reaches the two-ended scale") {
         const auto info = feed_pressure(0.62f, 0.5);
-        CHECK(helix::buffer_reading(info, -1).bias == Catch::Approx(0.24f));
-        CHECK(helix::buffer_reading(info, 0).bias == Catch::Approx(0.24f));
-        CHECK(helix::buffer_reading(info, -1).has_slider);
+        const auto& fps = *info.units[0].buffer_health;
+        CHECK(fps.compression_only);
+        CHECK(fps.filament_loaded);
+        CHECK(info.pressure_sensor_bias() <= -1.5f);
     }
 
-    SECTION("below set_point the extruder is pulling: tension") {
-        const auto info = feed_pressure(0.3f, 0.5);
-        CHECK(helix::buffer_reading(info, -1).bias == Catch::Approx(-0.4f));
-        CHECK(helix::buffer_reading(info, -1).has_slider);
+    SECTION("above set_point is more compression, not slack") {
+        const auto info = feed_pressure(0.62f, 0.5);
+        for (int unit : {-1, 0}) {
+            const auto r = helix::buffer_reading(info, unit);
+            CHECK(r.is_fill());
+            CHECK(r.has_slider);
+            CHECK(r.value_pct == 62);
+            CHECK(r.target_pct == 50);
+            CHECK(r.bias == 0.0f);
+            CHECK(std::string(helix::buffer_lean_text(r)) == "Above target");
+        }
     }
 
-    SECTION("no set_point leaves the reading unplaceable: no bias") {
+    SECTION("below set_point is less compression, not tension") {
+        const auto r = helix::buffer_reading(feed_pressure(0.3f, 0.5), -1);
+        CHECK(r.is_fill());
+        CHECK(r.bias == 0.0f);
+        CHECK(r.status == helix::ui::ClogMeterStatus::Ok);
+        CHECK(std::string(helix::buffer_lean_text(r)) == "Below target");
+    }
+
+    SECTION("no set_point is a gauge with no tick and no verdict") {
         const auto info = feed_pressure(0.62f, nullptr);
         CHECK(info.units[0].buffer_health->fps_reported);
-        CHECK(info.pressure_sensor_bias() <= -1.5f);
-        CHECK_FALSE(helix::buffer_reading(info, 0).has_slider);
-        CHECK_FALSE(helix::buffer_reading(info, -1).has_slider);
+        const auto r = helix::buffer_reading(info, 0);
+        CHECK(r.is_fill());
+        CHECK(r.target_pct == -1);
+        CHECK(r.text_only());
+        CHECK(std::string(helix::buffer_lean_text(r)).empty());
+        CHECK(helix::buffer_value_text(r) == "Pressure: 62%");
+    }
+
+    SECTION("an empty gauge warns only while the lane holds filament") {
+        CHECK(helix::buffer_reading(feed_pressure(0.03f, 0.5, true), 0).status ==
+              helix::ui::ClogMeterStatus::Warning);
+        const auto idle = feed_pressure(0.03f, 0.5, false);
+        CHECK_FALSE(idle.units[0].buffer_health->filament_loaded);
+        CHECK(helix::buffer_reading(idle, 0).status == helix::ui::ClogMeterStatus::Ok);
     }
 
     SECTION("several lanes: the one feeding the current slot wins") {
@@ -341,10 +369,11 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes its FPS as a sync-feedback
         const auto info = backend.get_system_info();
         REQUIRE(info.units.size() == 2);
         REQUIRE(info.current_slot == 4);
-        CHECK(helix::buffer_reading(info, -1).bias == Catch::Approx(-0.4f));
+        CHECK(helix::buffer_reading(info, -1).value_pct == 30);
         // Each unit's own view draws its own lane.
-        CHECK(helix::buffer_reading(info, 0).bias == Catch::Approx(0.8f));
-        CHECK(helix::buffer_reading(info, 1).bias == Catch::Approx(-0.4f));
+        CHECK(helix::buffer_reading(info, 0).value_pct == 90);
+        CHECK(helix::buffer_reading(info, 0).status == helix::ui::ClogMeterStatus::Warning);
+        CHECK(helix::buffer_reading(info, 1).value_pct == 30);
     }
 }
 

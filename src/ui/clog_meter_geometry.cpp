@@ -103,6 +103,23 @@ ClogMeterStatus pressure_status(int pct) {
     return ClogMeterStatus::Ok;
 }
 
+ClogMeterStatus fill_pressure_status(int pct, bool loaded) {
+    if (pct >= kPressureFullFaultPct) {
+        return ClogMeterStatus::Fault;
+    }
+    if (pct >= kPressureFullWarningPct || (loaded && pct <= kPressureEmptyWarningPct)) {
+        return ClogMeterStatus::Warning;
+    }
+    return ClogMeterStatus::Ok;
+}
+
+PressureTargetSide pressure_target_side(int pct, int target_pct) {
+    if (std::abs(pct - target_pct) <= kPressureTargetDeadbandPct) {
+        return PressureTargetSide::At;
+    }
+    return pct > target_pct ? PressureTargetSide::Above : PressureTargetSide::Below;
+}
+
 const char* buffer_status_token(ClogMeterStatus s) {
     switch (s) {
     case ClogMeterStatus::Warning:

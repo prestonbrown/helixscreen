@@ -1233,12 +1233,19 @@ Mock scenarios that put a filament buffer reading on the Filament Buffer widget,
 
 | Scenario | Reading |
 |----------|---------|
-| `buffer_fps` | Pressure 32%, below the set point: running tight, amber |
+| `buffer_fps` | Two-ended pressure (as an AFC `FPS_PSF` reports) 32%, below the set point: running tight, amber |
 | `buffer_fps_loose` | Pressure 71%, above the set point: running loose, red |
 | `buffer_fps_on_target` | Pressure 52%: balanced, neutral grey |
 | `buffer_fps_danger` | Pressure 8%, pinned near the tight end: red |
 | `buffer_fps_no_target` | Pressure 32% with no set point: "Pressure: 32%" as text, no slider |
 | `buffer_fps_with_clog` | Pressure 32% plus AFC fault detection reporting, so the buffer reading and the clog arc show together |
+| `buffer_pressure_on_target` | One-sided pressure 52% (compression only, as OpenAMS reports): "At target", neutral |
+| `buffer_pressure_below` | One-sided pressure 32%: "Below target", neutral (less compression is not a fault) |
+| `buffer_pressure_above` | One-sided pressure 71%: "Above target", neutral |
+| `buffer_pressure_full` | One-sided pressure 97%: danger (jammed or the toolhead is not taking it) |
+| `buffer_pressure_empty_loaded` | One-sided pressure 3% with filament loaded: warning (feed not engaging) |
+| `buffer_pressure_empty_unloaded` | One-sided pressure 3% with no filament: neutral |
+| `buffer_pressure_no_target` | One-sided pressure 53% with no set point: the gauge with no tick, "Pressure: 53%" |
 | `sync_feedback_tight` | Happy Hare sync feedback at -45%, leaning to tension; labelled "Sync" |
 
 The trace holds each reading as a step, so a scenario change shows as a step in the last minute.

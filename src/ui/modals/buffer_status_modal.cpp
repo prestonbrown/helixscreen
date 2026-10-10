@@ -35,6 +35,8 @@ lv_subject_t BufferStatusModal::value_subject_;
 char BufferStatusModal::value_buf_[64]{};
 lv_subject_t BufferStatusModal::target_subject_;
 char BufferStatusModal::target_buf_[48]{};
+lv_subject_t BufferStatusModal::trace_caption_subject_;
+char BufferStatusModal::trace_caption_buf_[64]{};
 lv_subject_t BufferStatusModal::espooler_value_subject_;
 char BufferStatusModal::espooler_buf_[128]{};
 lv_subject_t BufferStatusModal::gear_sync_value_subject_;
@@ -74,6 +76,8 @@ void BufferStatusModal::init_subjects() {
     lv_subject_init_int(&show_reading_subject_, 0);
     lv_subject_init_string(&value_subject_, value_buf_, nullptr, sizeof(value_buf_), "");
     lv_subject_init_string(&target_subject_, target_buf_, nullptr, sizeof(target_buf_), "");
+    lv_subject_init_string(&trace_caption_subject_, trace_caption_buf_, nullptr,
+                           sizeof(trace_caption_buf_), "");
     lv_subject_init_string(&unsupported_subject_, unsupported_buf_, nullptr,
                            sizeof(unsupported_buf_), "");
     lv_subject_init_string(&espooler_value_subject_, espooler_buf_, nullptr, sizeof(espooler_buf_),
@@ -96,6 +100,7 @@ void BufferStatusModal::init_subjects() {
     lv_xml_register_subject(nullptr, "buf_status", &status_subject_);
     lv_xml_register_subject(nullptr, "buf_value", &value_subject_);
     lv_xml_register_subject(nullptr, "buf_target", &target_subject_);
+    lv_xml_register_subject(nullptr, "buf_trace_caption", &trace_caption_subject_);
     lv_xml_register_subject(nullptr, "buf_unsupported", &unsupported_subject_);
     lv_xml_register_subject(nullptr, "buf_espooler_value", &espooler_value_subject_);
     lv_xml_register_subject(nullptr, "buf_gear_sync_value", &gear_sync_value_subject_);
@@ -120,10 +125,12 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
     lv_subject_set_int(&status_subject_, static_cast<int>(r.status));
     lv_subject_copy_string(&description_subject_, helix::buffer_lean_text(r));
     const std::string value =
-        r.has_slider ? fmt::format("{} {}", helix::buffer_label(r), helix::buffer_value_text(r))
-                     : helix::buffer_value_text(r);
+        (r.has_slider && !r.text_only())
+            ? fmt::format("{} {}", helix::buffer_label(r), helix::buffer_value_text(r))
+            : helix::buffer_value_text(r);
     lv_subject_copy_string(&value_subject_, value.c_str());
     lv_subject_copy_string(&target_subject_, helix::buffer_target_text(r).c_str());
+    lv_subject_copy_string(&trace_caption_subject_, helix::buffer_trace_caption(r));
 
     if (info.type == helix::AmsType::HAPPY_HARE) {
         lv_subject_set_int(&type_subject_, 1);
@@ -267,7 +274,7 @@ void BufferStatusModal::refresh() {
     const auto info = backend ? backend->get_system_info() : helix::AmsSystemInfo{};
     const helix::BufferReading r = populate(info, effective_unit_);
     if (slider_) {
-        slider_->set_reading(r.bias, r.status);
+        slider_->set_reading(r);
     }
 }
 

@@ -159,6 +159,7 @@
   <translation tag="Aborting AFC operation..." zh="正在中止AFC操作..."/>
   <translation tag="Aborting..." zh="正在中止..."/>
   <translation tag="About" zh="关于"/>
+  <translation tag="Above target" zh="高于目标"/>
   <translation tag="Accel to Decel" zh="加速到减速"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" zh="加速到减速限制 (mm/s²)"/>
   <translation tag="Accelerometer" zh="加速度传感器"/>
@@ -252,6 +253,7 @@
   <translation tag="Assisted Retract" zh="辅助回抽"/>
   <translation tag="Assisting" zh="辅助中"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" zh="helixscreen.env 中至少有 {} 行被忽略"/>
+  <translation tag="At target" zh="在目标值"/>
   <translation tag="At {}°C, about {} minutes." zh="在 {}°C 下约需 {} 分钟。"/>
   <translation tag="Authentication failed" zh="认证失败"/>
   <translation tag="Auto" zh="自动"/>
@@ -329,6 +331,7 @@
   <translation tag="Bed temp must be 0-%d°C" zh="热床温度必须为 0-%d°C"/>
   <translation tag="Bed warming timed out" zh="热床加热超时"/>
   <translation tag="Before starting" zh="开始之前"/>
+  <translation tag="Below target" zh="低于目标"/>
   <translation tag="Belt Tension" zh="皮带张力"/>
   <translation tag="Belt Tension Check" zh="皮带张力检查"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." zh="皮带张力需要 CoreXY 打印机。此打印机为{}。"/>
@@ -3510,6 +3513,7 @@
   <translation tag="invalid" zh="无效"/>
   <translation tag="just now" zh="刚刚"/>
   <translation tag="last 60 s · LOOSE up, TIGHT down" zh="最近 60 秒 · 上松下紧"/>
+  <translation tag="last 60 s · pressure, target dashed" zh="最近 60 秒 · 压力，目标为虚线"/>
   <translation tag="layers" zh="层"/>
   <translation tag="left" zh="剩余"/>
   <translation tag="loaded" zh="已加载"/>

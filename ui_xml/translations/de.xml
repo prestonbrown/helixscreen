@@ -159,6 +159,7 @@
   <translation tag="Aborting AFC operation..." de="AFC-Vorgang wird abgebrochen..."/>
   <translation tag="Aborting..." de="Wird abgebrochen..."/>
   <translation tag="About" de="Info"/>
+  <translation tag="Above target" de="Über dem Ziel"/>
   <translation tag="Accel to Decel" de="Beschl. zu Verzög."/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" de="Beschleunigung zu Verzögerung Limit (mm/s²)"/>
   <translation tag="Accelerometer" de="Beschleunigungssensor"/>
@@ -252,6 +253,7 @@
   <translation tag="Assisted Retract" de="Unterstützter Einzug"/>
   <translation tag="Assisting" de="Unterstützend"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" de="Mindestens {} Zeilen in helixscreen.env wurden ignoriert"/>
+  <translation tag="At target" de="Am Ziel"/>
   <translation tag="At {}°C, about {} minutes." de="Bei {}°C etwa {} Minuten."/>
   <translation tag="Authentication failed" de="Authentifizierung fehlgeschlagen"/>
   <translation tag="Auto" de="Automatisch"/>
@@ -329,6 +331,7 @@
   <translation tag="Bed temp must be 0-%d°C" de="Betttemperatur muss 0-%d°C betragen"/>
   <translation tag="Bed warming timed out" de="Bettaufheizung Zeitüberschreitung"/>
   <translation tag="Before starting" de="Vor dem Start"/>
+  <translation tag="Below target" de="Unter dem Ziel"/>
   <translation tag="Belt Tension" de="Riemenspannung"/>
   <translation tag="Belt Tension Check" de="Riemenspannungsprüfung"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." de="Die Riemenspannung benötigt einen CoreXY-Drucker. Dieser Drucker ist {}."/>
@@ -3510,6 +3513,7 @@
   <translation tag="invalid" de="ungültig"/>
   <translation tag="just now" de="gerade eben"/>
   <translation tag="last 60 s · LOOSE up, TIGHT down" de="letzte 60 s · LOCKER oben, STRAFF unten"/>
+  <translation tag="last 60 s · pressure, target dashed" de="letzte 60 s · Druck, Ziel gestrichelt"/>
   <translation tag="layers" de="Schichten"/>
   <translation tag="left" de="übrig"/>
   <translation tag="loaded" de="geladen"/>
