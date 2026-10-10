@@ -1169,9 +1169,10 @@ Key files:
 Every unit card binds its temperature/humidity badge to a set of seven per-unit
 subjects named `ams_env_ind_<unit>_{temp_text, humidity_text, humidity_status,
 humidity_visible, visible, drying_active, drying_text}`. `AmsState` allocates
-those statically, one set per unit, up to `AmsState::MAX_UNITS` - **8**, matching
-the widest rig the AMS system-path canvas draws, so every unit the path shows also
-has a badge to bind.
+those statically, one set per unit, up to `AmsState::MAX_UNITS` - **16**. That value is
+`helix::AMS_MAX_UNITS` (`include/ams_types.h`), which also sizes
+`SystemPathData::MAX_UNITS`, so the widest rig the path canvas draws always has a
+badge to bind. Each unit adds 11 registered subjects and 64 bytes of text buffers.
 
 Cards are created for **every** unit the backend reports, cap or no cap.
 `AmsState::env_indicator_subject_names(unit_index)` is the single place that
@@ -1184,7 +1185,7 @@ all still render - and `create_unit_cards()` logs one line naming the cap.
 the cap would then bind seven names nothing has registered: seven `No subject was
 found` parser warnings each, plus a permanently dark badge with nothing in the log
 explaining it. `AmsState` owns the cap and the registrations, so it owns the naming
-as well; raising `MAX_UNITS` stays a one-constant change.
+as well; raising the cap stays a one-constant change (`AMS_MAX_UNITS`).
 
 The badge is per **unit** because a unit card is; what it opens is not. Tapping it
 calls `open_environment_for_unit(unit)`, which resolves that unit's environment
