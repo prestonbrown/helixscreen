@@ -658,7 +658,8 @@
           "field": "heaters",
           "pattern": "tool_count_4",
           "confidence": 85,
-          "reason": "4-extruder IFS tool changer"
+          "corroborating": true,
+          "reason": "Supports an IFS identification, never establishes one: a bare AD5X has one extruder, and the four-heater form exists only through the IFS, whose own objects (zmod_ifs, ifs_materials, SET_EXTRUDER_SLOT) name the machine at 95+"
         },
         {
           "type": "sensor_match",
@@ -672,7 +673,8 @@
           "field": "cpu_arch",
           "pattern": "mips",
           "confidence": 70,
-          "reason": "MIPS host architecture (Ingenic X2600)"
+          "corroborating": true,
+          "reason": "MIPS host architecture (Ingenic X2600) - shared with the Creator 5 line (X2000), so it supports a FlashForge identification and never establishes the model"
         },
         {
           "type": "sensor_match",
@@ -731,8 +733,8 @@
           "type": "tool_count",
           "field": "heaters",
           "pattern": "tool_count_4",
-          "confidence": 70,
-          "reason": "4 extruders"
+          "confidence": 92,
+          "reason": "Four heads are the machine's definition on every firmware; the only other 4-heater FlashForge is an IFS AD5X, excluded here by SET_EXTRUDER_SLOT/zmod_ifs, so a fingerprint-less 4-extruder machine names a Creator 5"
         },
         {
           "type": "macro_exclude",
@@ -793,8 +795,8 @@
           "type": "tool_count",
           "field": "heaters",
           "pattern": "tool_count_4",
-          "confidence": 70,
-          "reason": "4 extruders"
+          "confidence": 92,
+          "reason": "Four heads are the machine's definition on every firmware; the only other 4-heater FlashForge is an IFS AD5X, excluded here by SET_EXTRUDER_SLOT/zmod_ifs, so a fingerprint-less 4-extruder machine names a Creator 5"
         },
         {
           "type": "macro_exclude",
