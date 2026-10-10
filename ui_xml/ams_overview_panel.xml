@@ -60,7 +60,9 @@
             <lv_image name="detail_logo"
                       width="#ams_header_logo_size" height="#ams_header_logo_size" bind_src="ams_page_unit_logo"
                       inner_align="contain" clickable="false" event_bubble="true" style_image_recolor="#text"
-                      style_image_recolor_opa="255"/>
+                      style_image_recolor_opa="255">
+              <bind_flag_if_eq subject="ams_page_has_logo" flag="hidden" ref_value="0"/>
+            </lv_image>
             <text_heading name="detail_unit_name"
                           width="1" flex_grow="1" bind_text="ams_page_unit_name" text_transform="uppercase"
                           long_mode="dots" style_max_height="100%" clickable="false" event_bubble="true"

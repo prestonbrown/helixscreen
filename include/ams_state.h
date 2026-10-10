@@ -201,7 +201,8 @@ class AmsState {
     /// What the overview's unit view shows: which page of how many, and the unit on it.
     /// Published for its XML as ams_unit_view_active (1 while the unit view is on screen),
     /// ams_page_count, ams_page_current (0-based), ams_page_has_prev / ams_page_has_next
-    /// (1 only when a neighboring page exists), ams_page_unit_name and ams_page_unit_logo.
+    /// (1 only when a neighboring page exists), ams_page_unit_name, ams_page_unit_logo and
+    /// ams_page_has_logo (1 while the shown unit has a logo; XML hides the image on 0).
     /// Main thread only.
     /// @{
     /// @p current is clamped into [0, count - 1]; with no pages everything reads 0.
@@ -227,6 +228,9 @@ class AmsState {
     }
     lv_subject_t* get_ams_page_unit_name_subject() {
         return &ams_page_unit_name_;
+    }
+    lv_subject_t* get_ams_page_has_logo_subject() {
+        return &ams_page_has_logo_;
     }
     /// @}
 
@@ -2307,6 +2311,7 @@ class AmsState {
     char page_unit_name_buf_[48]{};
     lv_subject_t ams_page_unit_logo_{};
     char page_unit_logo_buf_[64]{};
+    lv_subject_t ams_page_has_logo_{};
 
     /// Which units' dryers ran at the last sync, one character per unit position.
     std::string units_drying_signature_;

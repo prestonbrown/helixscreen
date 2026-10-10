@@ -1012,6 +1012,7 @@ void AmsState::set_unit_page_header(const std::string& name, const char* logo_pa
         page_unit_logo_buf_[sizeof(page_unit_logo_buf_) - 1] = '\0';
         lv_subject_set_pointer(&ams_page_unit_logo_,
                                page_unit_logo_buf_[0] ? page_unit_logo_buf_ : nullptr);
+        lv_subject_set_int(&ams_page_has_logo_, page_unit_logo_buf_[0] ? 1 : 0);
     }
 }
 

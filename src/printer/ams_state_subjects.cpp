@@ -443,6 +443,7 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(ams_page_current, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_page_has_prev, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_page_has_next, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_page_has_logo, 0, subjects_, register_xml);
     lv_subject_init_string(&ams_page_unit_name_, page_unit_name_buf_, nullptr,
                            sizeof(page_unit_name_buf_), "");
     subjects_.register_subject(&ams_page_unit_name_, register_xml ? "ams_page_unit_name" : nullptr);
@@ -779,6 +780,7 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope("ams_page_current", &ams_page_current_);
     helix::xml::register_subject_in_current_scope("ams_page_has_prev", &ams_page_has_prev_);
     helix::xml::register_subject_in_current_scope("ams_page_has_next", &ams_page_has_next_);
+    helix::xml::register_subject_in_current_scope("ams_page_has_logo", &ams_page_has_logo_);
     helix::xml::register_subject_in_current_scope("ams_page_unit_name", &ams_page_unit_name_);
     helix::xml::register_subject_in_current_scope("ams_page_unit_logo", &ams_page_unit_logo_);
     helix::xml::register_subject_in_current_scope("ams_units_dryer_version",

@@ -993,6 +993,24 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState: the page subjects hold a page insid
     ams.set_unit_page_header("", nullptr);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState: the header's has-logo flag follows the logo path",
+                 "[ams][pages][subjects][logo]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    auto has_logo = [&] { return subject_value(ams.get_ams_page_has_logo_subject()); };
+
+    ams.set_unit_page_header("Box 7", "A:/logo.png");
+    CHECK(has_logo() == 1);
+    // A unit without a logo clears the flag, so XML hides the image instead of leaving a gap.
+    ams.set_unit_page_header("Box 7", nullptr);
+    CHECK(has_logo() == 0);
+    ams.set_unit_page_header("Box 7", "A:/logo.png");
+    CHECK(has_logo() == 1);
+    ams.set_unit_page_header("Box 7", "");
+    CHECK(has_logo() == 0);
+    ams.set_unit_page_header("", nullptr);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Bypass spool follows AmsState: hidden with the node, painted with the spool",
                  "[ams][bypass][spool_widget]") {
