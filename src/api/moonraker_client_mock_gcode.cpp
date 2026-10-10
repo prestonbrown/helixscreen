@@ -166,10 +166,8 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
             return std::atof(gcode.c_str() + pos + std::strlen(key));
         };
         const auto idx = field("OAMS=");
-        const int max_idx = openams_fleet_lane_units()    ? kOpenAmsFleetUnits
-                            : openams_shared_lane_units() ? 2
-                                                          : 0;
-        if (!idx || *idx < 1 || *idx > max_idx || *idx != std::floor(*idx)) {
+        if (!openams_plugin_units() || !idx || *idx < 1 || *idx > openams_unit_count() ||
+            *idx != std::floor(*idx)) {
             return std::nullopt;
         }
         OpenAmsDryerSim& sim = openams_dryers_[static_cast<int>(*idx) - 1];
@@ -179,7 +177,8 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
             return 0;
         }
         // Clamped to the unit's range and to 1 s .. 7 days, as the plugin does.
-        const double max_c = *idx == 1 ? 80.0 : 65.0;
+        const double max_c =
+            openams_device_json(static_cast<int>(*idx) - 1)["capabilities"]["dryer_target_max_c"];
         sim.target_c = std::clamp(field("TARGET=").value_or(45.0), 45.0, max_c);
         sim.remaining_s = std::clamp(field("DURATION=").value_or(3600.0), 1.0, 604800.0);
         return 0;
@@ -192,15 +191,13 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
         const size_t pos = gcode.find("GROUP=");
         const std::string group =
             pos == std::string::npos ? "" : gcode.substr(pos + 6, gcode.find(' ', pos) - pos - 6);
-        if (openams_shared_lane_units() || openams_fleet_lane_units()) {
-            // Group Tn is slot n on the multi-unit shapes.
-            const int max_slot = openams_fleet_lane_units() ? 44 : 4;
-            if (group.size() >= 2 && group[0] == 'T' &&
-                group.find_first_not_of("0123456789", 1) == std::string::npos) {
-                const int slot = std::atoi(group.c_str() + 1);
-                if (slot <= max_slot) {
-                    openams_loaded_slot_ = slot;
-                }
+        if (openams_plugin_units()) {
+            // Group Tn is slot n on the plugin shapes.
+            char* end = nullptr;
+            const long slot = group.size() > 1 ? std::strtol(group.c_str() + 1, &end, 10) : -1;
+            if (group[0] == 'T' && end && *end == '\0' && slot >= 0 &&
+                slot < openams_slot_count()) {
+                openams_loaded_slot_ = static_cast<int>(slot);
             }
         } else if (group == "T0") {
             openams_loaded_slot_ = 3;

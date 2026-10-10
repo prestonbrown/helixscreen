@@ -229,7 +229,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     // OpenAMS reads no identity off its spools: color and material come from the
     // override store, which reads the shared lane_data namespace (laneN keys,
     // N = 1-based global slot; inner "lane" is 0-based).
-    if (is_mock_openams() && openams_shared_lane_units()) {
+    if (is_mock_openams() && openams_plugin_units() && !openams_fleet_lane_units()) {
         openams_loaded_slot_ = 0;
         openams_fault_active_ = std::getenv("HELIX_MOCK_OPENAMS_FAULT") != nullptr;
         // Every spool is known to the override store as it would be on a real
@@ -249,7 +249,8 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     } else if (is_mock_openams() && openams_fleet_lane_units()) {
         // One bay loaded, on the third unit (slot 5); its spool is known to the store.
         openams_loaded_slot_ = 5;
-        for (int i = 0; i < kOpenAmsFleetUnits; ++i) {
+        openams_fault_active_ = std::getenv("HELIX_MOCK_OPENAMS_FAULT") != nullptr;
+        for (int i = 0; i < kOpenAmsMaxUnits; ++i) {
             openams_dryers_[i].chamber_c = openams_ambient_c(i);
         }
         // The sixth unit is mid-cycle: 55 C, 3 h 25 min left.
@@ -972,6 +973,10 @@ void MoonrakerClientMock::populate_capabilities() {
     // Add common objects
     mock_objects.push_back("heater_bed");
     mock_objects.push_back("extruder");
+    // The second hub lane feeds a second extruder.
+    if (is_mock_openams() && (openams_two_lane_units() || openams_fleet_lane_units())) {
+        mock_objects.push_back("extruder1");
+    }
     mock_objects.push_back("bed_mesh");
 
     // Add capabilities for UI testing (speaker for M300, firmware retraction for G10/G11)
@@ -1670,6 +1675,57 @@ bool MoonrakerClientMock::is_mock_openams() const {
     return effective_mock_ams_env() == "openams";
 }
 
+namespace {
+
+// One unit of the openams plugin shape: its hub lane and what its family is.
+struct OpenAmsUnitSpec {
+    const char* name;
+    const char* display_name;
+    const char* family;
+    const char* lane;
+    int bays;
+    double dryer_max_c;
+    bool dryer_requires_unloaded;
+};
+
+constexpr OpenAmsUnitSpec kAmsHt{"ams_ht", "AMS HT", "ams_ht", "fps", 1, 80.0, false};
+constexpr OpenAmsUnitSpec kAms2{"ams2", "AMS 2 Pro", "ams2", "fps", 4, 65.0, true};
+constexpr OpenAmsUnitSpec kAms2b{"ams2b", "AMS 2 Pro", "ams2", "fps2", 4, 65.0, true};
+constexpr OpenAmsUnitSpec kAms2c{"ams2c", "AMS 2 Pro", "ams2", "fps2", 4, 65.0, true};
+
+std::vector<OpenAmsUnitSpec> openams_unit_specs() {
+    const char* units = std::getenv("HELIX_MOCK_OPENAMS_UNITS");
+    const std::string shape = units ? units : "";
+    if (shape == "two_lanes") {
+        return {kAmsHt, kAms2, kAms2b, kAms2c};
+    }
+    if (shape == "shared") {
+        return {kAmsHt, kAms2};
+    }
+    if (shape == "fleet") {
+        // An AMS HT then eleven AMS 2 Pro: units 1-10 feed lane `fps`, the last two `fps2`.
+        static constexpr const char* kNames[] = {"ams_ht", "ams2_1", "ams2_2",  "ams2_3",
+                                                 "ams2_4", "ams2_5", "ams2_6",  "ams2_7",
+                                                 "ams2_8", "ams2_9", "ams2_10", "ams2_11"};
+        std::vector<OpenAmsUnitSpec> fleet = {kAmsHt};
+        for (std::size_t i = 1; i < std::size(kNames); ++i) {
+            OpenAmsUnitSpec spec = kAms2;
+            spec.name = kNames[i];
+            spec.lane = i < 10 ? "fps" : "fps2";
+            fleet.push_back(spec);
+        }
+        return fleet;
+    }
+    return {};
+}
+
+// The extruder each lane feeds; the lane's position in the plugin's lane list.
+const char* openams_lane_extruder(const std::string& lane) {
+    return lane == "fps2" ? "extruder1" : "extruder";
+}
+
+} // namespace
+
 bool MoonrakerClientMock::openams_shared_lane_units() {
     const char* units = std::getenv("HELIX_MOCK_OPENAMS_UNITS");
     return units && std::string(units) == "shared";
@@ -1684,48 +1740,55 @@ double MoonrakerClientMock::openams_ambient_c(int unit) {
     return openams_fleet_lane_units() ? 24.0 + 1.5 * (unit % 5) : 27.7;
 }
 
-nlohmann::json MoonrakerClientMock::openams_shared_status_json() const {
-    return openams_manager_status_json({{"ams_ht", "1", "fps", 0, 1}, {"ams2", "2", "fps", 1, 4}});
+bool MoonrakerClientMock::openams_two_lane_units() {
+    const char* units = std::getenv("HELIX_MOCK_OPENAMS_UNITS");
+    return units && std::string(units) == "two_lanes";
 }
 
-nlohmann::json MoonrakerClientMock::openams_fleet_status_json() const {
-    // An AMS HT then eleven AMS 2 Pro: 45 bays. Units 1-10 feed lane `fps`, the last
-    // two feed `fps2`; both lanes sit on the one mock extruder.
-    std::vector<OpenAmsUnitSpec> units = {{"ams_ht", "1", "fps", 0, 1}};
-    int first_slot = 1;
-    for (int i = 1; i < kOpenAmsFleetUnits; ++i) {
-        units.push_back({"ams2_" + std::to_string(i), std::to_string(i + 1),
-                         i < 10 ? "fps" : "fps2", first_slot, 4});
-        first_slot += 4;
+bool MoonrakerClientMock::openams_plugin_units() {
+    return openams_shared_lane_units() || openams_two_lane_units() || openams_fleet_lane_units();
+}
+
+int MoonrakerClientMock::openams_unit_count() {
+    return static_cast<int>(openams_unit_specs().size());
+}
+
+int MoonrakerClientMock::openams_slot_count() {
+    int slots = 0;
+    for (const auto& spec : openams_unit_specs()) {
+        slots += spec.bays;
     }
-    return openams_manager_status_json(units);
+    return slots;
 }
 
-nlohmann::json
-MoonrakerClientMock::openams_manager_status_json(const std::vector<OpenAmsUnitSpec>& specs) const {
-    // One slot per bay, ids global in unit order. Groups T<n> name slot n each; they
-    // are filament groups, not toolheads. Only the loaded slot's lane is "loaded".
+nlohmann::json MoonrakerClientMock::openams_shared_status_json() const {
+    // Units spread over one or two hub lanes (an AMS HT and AMS 2 Pro on `fps`, and
+    // with two_lanes two AMS 2 Pro on `fps2`): each lane is one hub, one FPS and one
+    // extruder. Groups T0-Tn name a slot each; they are filament groups, not
+    // toolheads.
+    const auto specs = openams_unit_specs();
     const int loaded = openams_loaded_slot_.load();
+
     std::vector<std::string> lane_ids;
-    std::string loaded_lane;
     nlohmann::json units = nlohmann::json::array();
     nlohmann::json groups = nlohmann::json::array();
-    for (const OpenAmsUnitSpec& spec : specs) {
+    std::vector<std::string> slot_lane;
+    int next_slot = 0;
+    for (std::size_t u = 0; u < specs.size(); ++u) {
+        const auto& spec = specs[u];
         if (std::find(lane_ids.begin(), lane_ids.end(), spec.lane) == lane_ids.end()) {
             lane_ids.push_back(spec.lane);
         }
         nlohmann::json slots = nlohmann::json::array();
         for (int b = 0; b < spec.bays; ++b) {
-            const int id = spec.first_slot + b;
+            const int id = next_slot++;
             slots.push_back({{"id", id}, {"bay", b}, {"ready", true}, {"loaded", id == loaded}});
-            const std::string group_name =
+            slot_lane.push_back(spec.lane);
+            const std::string name =
                 "T" + std::to_string(id); // DISPLAY_NUMBERING_OK: OpenAMS group id
-            groups.push_back({{"name", group_name}, {"lane", spec.lane}, {"slots", {id}}});
-            if (id == loaded) {
-                loaded_lane = spec.lane;
-            }
+            groups.push_back({{"name", name}, {"lane", spec.lane}, {"slots", {id}}});
         }
-        units.push_back({{"id", spec.id},
+        units.push_back({{"id", std::to_string(u + 1)},
                          {"name", spec.name},
                          {"kind", "oams"},
                          {"topology", "hub"},
@@ -1733,19 +1796,17 @@ MoonrakerClientMock::openams_manager_status_json(const std::vector<OpenAmsUnitSp
                          {"connected", true},
                          {"slots", slots}});
     }
+
+    const bool loaded_valid = loaded >= 0 && loaded < static_cast<int>(slot_lane.size());
     nlohmann::json lanes = nlohmann::json::array();
-    for (const std::string& id : lane_ids) {
-        const bool is_loaded = loaded >= 0 && id == loaded_lane;
-        nlohmann::json lane = {{"id", id},
-                               {"state", is_loaded ? "loaded" : "unloaded"},
-                               {"following", is_loaded},
-                               {"direction", 1},
-                               {"pressure", 0.79},
-                               {"set_point", 0.5}};
-        if (is_loaded) {
-            const std::string group =
+    for (const auto& id : lane_ids) {
+        const bool here = loaded_valid && slot_lane[loaded] == id;
+        nlohmann::json lane = {{"id", id},          {"state", here ? "loaded" : "unloaded"},
+                               {"following", here}, {"direction", 1},
+                               {"pressure", 0.79},  {"set_point", 0.5}};
+        if (here) {
+            lane["current_group"] =
                 "T" + std::to_string(loaded); // DISPLAY_NUMBERING_OK: OpenAMS group id
-            lane["current_group"] = group;
             lane["current_slot"] = loaded;
         } else {
             lane["current_group"] = nullptr;
@@ -1785,28 +1846,40 @@ MoonrakerClientMock::openams_manager_status_json(const std::vector<OpenAmsUnitSp
             }
             status["devices"][specs[i].name] = device;
         }
-        status["lanes_by_fps"] = nlohmann::json::object();
+        status["devices"]["ams_ht"].update(openams_device_json(0));
+        for (std::size_t u = 1; u < specs.size(); ++u) {
+            status["devices"][specs[u].name] = openams_device_json(static_cast<int>(u));
+            if (!status["devices"][specs[u].name].contains("faults")) {
+                status["devices"][specs[u].name]["faults"] = nlohmann::json::array();
+            }
+        }
+        nlohmann::json by_fps = nlohmann::json::object();
+        nlohmann::json fps_ids = nlohmann::json::array();
+        for (const auto& id : lane_ids) {
+            const bool here = loaded_valid && slot_lane[loaded] == id;
+            by_fps[id] = {{"op", here ? "loaded" : "idle"},
+                          {"pressure", 0.79},
+                          {"set_point", 0.5},
+                          {"extruder", openams_lane_extruder(id)}};
+            fps_ids.push_back(id);
+        }
+        status["lanes_by_fps"] = by_fps;
         nlohmann::json oams = nlohmann::json::object();
-        for (const std::string& id : lane_ids) {
-            const bool is_loaded = loaded >= 0 && id == loaded_lane;
-            status["lanes_by_fps"][id] = {{"op", is_loaded ? "loaded" : "idle"},
-                                          {"pressure", 0.79},
-                                          {"set_point", 0.5},
-                                          {"extruder", "extruder"}};
+        for (std::size_t u = 0; u < specs.size(); ++u) {
+            oams[specs[u].name] = {
+                {"idx", static_cast<int>(u) + 1}, {"lane", specs[u].lane}, {"bays", specs[u].bays}};
         }
-        for (const OpenAmsUnitSpec& spec : specs) {
-            oams[spec.name] = {
-                {"idx", std::stoi(spec.id)}, {"lane", spec.lane}, {"bays", spec.bays}};
-        }
-        status["topology"] = {{"schema_version", 1}, {"fps", lane_ids}, {"oams", oams}};
+        status["topology"] = {{"schema_version", 1}, {"fps", fps_ids}, {"oams", oams}};
     }
     return status;
 }
 
 nlohmann::json MoonrakerClientMock::openams_device_json(int unit) const {
     // What the openams plugin publishes per unit: capabilities, the environment
-    // sensor, the dryer and the actions the unit advertises. The AMS 2 Pro's
-    // dryer needs every bay unloaded and tops out at 65 C.
+    // sensor, the dryer and the actions the unit advertises. An AMS 2 Pro's dryer
+    // needs every bay unloaded and tops out at 65 C.
+    const auto specs = openams_unit_specs();
+    const OpenAmsUnitSpec& spec = specs.at(static_cast<std::size_t>(unit));
     const bool ht = unit == 0;
     const OpenAmsDryerSim& sim = openams_dryers_[unit];
     const double target = sim.target_c.load();
@@ -1814,18 +1887,18 @@ nlohmann::json MoonrakerClientMock::openams_device_json(int unit) const {
     const double chamber = sim.chamber_c.load();
     const bool running = remaining > 0.0 && target > 0.0;
     const char* state = !running ? "off" : (chamber < target - 1.0 ? "heating" : "holding");
-    const int bays = ht ? 1 : 4;
+    const int bays = spec.bays;
     nlohmann::json device = {
         {"oams_idx", unit + 1},
         {"connected", true},
         {"capabilities",
-         {{"family", ht ? "ams_ht" : "ams2"},
-          {"display_name", ht ? "AMS HT" : "AMS 2 Pro"},
+         {{"family", spec.family},
+          {"display_name", spec.display_name},
           {"bays", bays},
           {"dryer", true},
           {"dryer_target_min_c", 45.0},
-          {"dryer_target_max_c", ht ? 80.0 : 65.0},
-          {"dryer_requires_unloaded", !ht},
+          {"dryer_target_max_c", spec.dryer_max_c},
+          {"dryer_requires_unloaded", spec.dryer_requires_unloaded},
           {"heater_count", 1},
           {"fan_count", 1}}},
         {"environment",
@@ -1858,7 +1931,7 @@ nlohmann::json MoonrakerClientMock::openams_device_json(int unit) const {
 
 void MoonrakerClientMock::service_openams_dryers(double dt_s) {
     constexpr double kRateCPerS = 0.5;
-    for (int unit = 0; unit < kOpenAmsFleetUnits; ++unit) {
+    for (int unit = 0; unit < kOpenAmsMaxUnits; ++unit) {
         OpenAmsDryerSim& sim = openams_dryers_[unit];
         const double kAmbientC = openams_ambient_c(unit);
         const double remaining = sim.remaining_s.load();
@@ -1878,11 +1951,8 @@ void MoonrakerClientMock::service_openams_dryers(double dt_s) {
 }
 
 nlohmann::json MoonrakerClientMock::openams_status_json() const {
-    if (openams_shared_lane_units()) {
+    if (openams_plugin_units()) {
         return openams_shared_status_json();
-    }
-    if (openams_fleet_lane_units()) {
-        return openams_fleet_status_json();
     }
     // One hub unit, four bays, one FPS lane. Only bays 2 and 3 hold spools;
     // the lane's current slot follows openams_loaded_slot_.
@@ -4473,7 +4543,7 @@ void MoonrakerClientMock::service_openams_late_links(uint32_t tick) {
     // ~10s after start, the way openams_spoolman writes lane_data and announces
     // it once a Spoolman lookup finishes.
     static constexpr uint32_t kLateTick = 20;
-    if (tick != kLateTick || !is_mock_openams() || !openams_shared_lane_units() ||
+    if (tick != kLateTick || !is_mock_openams() || !openams_plugin_units() ||
         !std::getenv("HELIX_MOCK_OPENAMS_LATE_LINKS")) {
         return;
     }

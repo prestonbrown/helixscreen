@@ -775,6 +775,17 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
             const auto& utl = tool_layout.units[i];
             ui_system_path_canvas_set_unit_tools(system_path_, i, utl.tool_count,
                                                  utl.first_physical_tool);
+
+            // The unit's hub and the buffer under it: the box the unit view shows
+            // for the hub's first unit. Units on one hub get one group number.
+            const int buffer_unit = helix::ui::overview_buffer_unit(tool_layout, i);
+            helix::ui::BufferBoxState buffer;
+            if (buffer_unit >= 0) {
+                buffer = helix::ui::ams_detail_buffer_box(info, buffer_unit);
+            }
+            helix::ui::ui_system_path_canvas_set_unit_hub(
+                system_path_, i, helix::ui::overview_hub_group(tool_layout, i), buffer.present,
+                buffer.fault, buffer.label);
         }
     }
 
@@ -807,11 +818,12 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
         }
     }
 
-    // The feeding lane's pressure sensor, on the output line (single toolhead).
+    // The buffer on the output line (single toolhead): the unit view's box for the
+    // system reading.
     {
-        const helix::ui::BufferBoxState fps_box = helix::ui::ams_detail_buffer_box(info, -1);
-        helix::ui::ui_system_path_canvas_set_fps(
-            system_path_, fps_box.present && std::strcmp(fps_box.label, "FPS") == 0, fps_box.fault);
+        const helix::ui::BufferBoxState box = helix::ui::ams_detail_buffer_box(info, -1);
+        helix::ui::ui_system_path_canvas_set_buffer(system_path_, box.present, box.fault,
+                                                    box.label);
     }
 
     // Filament reach, error and the toolhead sensor

@@ -496,6 +496,20 @@ SystemToolLayout compute_system_tool_layout(const helix::AmsSystemInfo& info,
             }
             utl.tool_count = 1;
 
+            // The unit's hub: the group of an earlier unit naming the same
+            // non-empty hub_id, else a group of its own.
+            for (size_t g = 0; g < result.hub_groups.size() && !unit.hub_id.empty(); ++g) {
+                if (result.hub_groups[g].hub_id == unit.hub_id) {
+                    utl.hub_group = static_cast<int>(g);
+                    break;
+                }
+            }
+            if (utl.hub_group < 0) {
+                utl.hub_group = static_cast<int>(result.hub_groups.size());
+                result.hub_groups.push_back({utl.first_physical_tool, unit.hub_id, {}});
+            }
+            result.hub_groups[static_cast<size_t>(utl.hub_group)].units.push_back(i);
+
             // Map all virtual tool numbers from this unit to this physical nozzle
             int phys = utl.first_physical_tool;
             for (const auto& slot : unit.slots) {
@@ -685,6 +699,17 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
             out.numbers[active_physical_tool] = active_slot_info->mapped_tool;
         }
     }
+
+    // With several toolheads, one fed by a named hub (OpenAMS lane) is badged by
+    // its position: the lane's filament groups are not toolheads.
+    if (layout.total_physical_tools > 1) {
+        for (const auto& group : layout.hub_groups) {
+            if (!group.hub_id.empty() && group.physical_tool >= 0 &&
+                group.physical_tool < static_cast<int>(out.numbers.size())) {
+                out.numbers[group.physical_tool] = helix::ui::lane_number(group.physical_tool);
+            }
+        }
+    }
     return out;
 }
 
@@ -731,3 +756,34 @@ void set_lane_badge_active(lv_obj_t* badge, bool active) {
 }
 
 } // namespace ams_draw
+
+namespace helix::ui {
+
+int overview_hub_group(const ams_draw::SystemToolLayout& layout, int unit) {
+    if (unit < 0 || unit >= static_cast<int>(layout.units.size())) {
+        return 0;
+    }
+    const int group = layout.units[static_cast<size_t>(unit)].hub_group;
+    return group >= 0 && layout.hub_groups[static_cast<size_t>(group)].units.size() > 1 ? group + 1
+                                                                                        : 0;
+}
+
+int overview_buffer_unit(const ams_draw::SystemToolLayout& layout, int unit) {
+    if (unit < 0 || unit >= static_cast<int>(layout.units.size())) {
+        return -1;
+    }
+    const int group = layout.units[static_cast<size_t>(unit)].hub_group;
+    return group >= 0 ? layout.hub_groups[static_cast<size_t>(group)].units.front() : -1;
+}
+
+std::vector<int> hub_groups_of_tool(const ams_draw::SystemToolLayout& layout, int physical_tool) {
+    std::vector<int> groups;
+    for (size_t g = 0; g < layout.hub_groups.size(); ++g) {
+        if (layout.hub_groups[g].physical_tool == physical_tool) {
+            groups.push_back(static_cast<int>(g));
+        }
+    }
+    return groups;
+}
+
+} // namespace helix::ui

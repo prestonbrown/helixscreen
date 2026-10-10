@@ -135,22 +135,26 @@ static void draw_hub_box(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t widt
     }
 }
 
-// The lane's filament pressure sensor, a labeled box on the output line
-// between the hub and the nozzle, tinted by the buffer severity.
-static void draw_fps_box(lv_layer_t* layer, const SystemPathData* data, const SysLayout& L) {
-    const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
-    const int32_t nozzle_top = L.nozzle_y - data->extruder_scale * 2;
-    const int32_t box_w = data->hub_width * 2 / 3;
-    const int32_t box_h = L.hub_h * 2 / 3;
-    const int32_t box_y = hub_bottom + (nozzle_top - hub_bottom) / 2;
+// A hub's buffer: a labeled box on the output line between the hub and the
+// nozzle, tinted by the buffer severity.
+static void draw_buffer_box(lv_layer_t* layer, const SystemPathData* data, int32_t cx, int32_t cy,
+                            int32_t box_w, int32_t box_h, int fault, const char* label) {
     lv_color_t bg = data->color_hub_bg;
-    if (data->fps_fault > 0) {
-        const auto status = static_cast<helix::ui::ClogMeterStatus>(std::min(data->fps_fault, 2));
+    if (fault > 0) {
+        const auto status = static_cast<helix::ui::ClogMeterStatus>(std::min(fault, 2));
         bg = lv_color_mix(theme_manager_get_color(helix::ui::buffer_status_token(status)), bg, 85);
     }
-    draw_hub_box(layer, L.center_x, box_y, box_w, box_h, bg, data->color_hub_border,
-                 data->color_text, data->label_font, data->border_radius,
-                 "FPS"); // i18n: do not translate - hardware abbreviation
+    draw_hub_box(layer, cx, cy, box_w, box_h, bg, data->color_hub_border, data->color_text,
+                 data->label_font, data->border_radius, label);
+}
+
+// The single-toolhead layout's buffer, halfway down the trunk.
+static void draw_trunk_buffer(lv_layer_t* layer, const SystemPathData* data, const SysLayout& L) {
+    const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
+    const int32_t nozzle_top = L.nozzle_y - data->extruder_scale * 2;
+    draw_buffer_box(layer, data, L.center_x, hub_bottom + (nozzle_top - hub_bottom) / 2,
+                    data->hub_width * 2 / 3, L.hub_h * 2 / 3, data->buffer_fault,
+                    data->buffer_label);
 }
 
 // ============================================================================
@@ -196,7 +200,8 @@ static void draw_status_beside_nozzle(lv_layer_t* layer, SystemPathData* data, c
     lv_draw_label(layer, &status_dsc, &status_area);
 }
 
-// Multi-tool mini hubs: "H" on a MIXED unit's stem, "Hub" on a HUB unit's.
+// Multi-tool hubs: "H" on a MIXED unit's stem, "Hub" on a HUB unit's, each HUB
+// hub with its buffer box below it.
 static void draw_mini_hubs(lv_layer_t* layer, const SystemPathData* data,
                            const OverviewBoxes& boxes) {
     for (int i = 0; i < data->unit_count && i < SystemPathData::MAX_UNITS; i++) {
@@ -207,6 +212,10 @@ static void draw_mini_hubs(lv_layer_t* layer, const SystemPathData* data,
         draw_hub_box(layer, hi.hub_x, hi.mini_hub_y, hi.mini_hub_w, hi.mini_hub_h, hi.hub_bg_color,
                      data->color_hub_border, data->color_text, data->label_font,
                      data->border_radius, hub_label);
+        if (hi.buffer_h > 0) {
+            draw_buffer_box(layer, data, hi.hub_x, hi.buffer_y, hi.buffer_w, hi.buffer_h,
+                            data->unit_buffer_fault[i], data->unit_buffer_label[i]);
+        }
     }
 }
 
@@ -282,8 +291,8 @@ static void system_path_draw_cb(lv_event_t* e) {
         draw_hub_box(layer, L.center_x, L.hub_y, data->hub_width, L.hub_h, boxes.combiner_bg,
                      data->color_hub_border, data->color_text, data->label_font,
                      data->border_radius, "Hub");
-        if (data->has_fps)
-            draw_fps_box(layer, data, L);
+        if (data->has_buffer)
+            draw_trunk_buffer(layer, data, L);
         fpath::paint_box_bands(layer, plan, pal);
         draw_single_nozzle(layer, data, L);
         draw_status_beside_nozzle(layer, data, L);
@@ -518,14 +527,41 @@ void ui_system_path_canvas_set_unit_hub_sensor(lv_obj_t* obj, int unit_index, bo
 }
 
 namespace helix::ui {
-void ui_system_path_canvas_set_fps(lv_obj_t* obj, bool present, int fault) {
+static void copy_label(char* dst, size_t cap, const char* label) {
+    snprintf(dst, cap, "%s", label ? label : "");
+}
+
+void ui_system_path_canvas_set_buffer(lv_obj_t* obj, bool present, int fault, const char* label) {
     auto* data = get_data(obj);
     if (!data)
         return;
-    if (data->has_fps == present && data->fps_fault == fault)
+    char text[sizeof(data->buffer_label)];
+    copy_label(text, sizeof(text), label);
+    if (data->has_buffer == present && data->buffer_fault == fault &&
+        strcmp(data->buffer_label, text) == 0)
         return;
-    data->has_fps = present;
-    data->fps_fault = fault;
+    data->has_buffer = present;
+    data->buffer_fault = fault;
+    memcpy(data->buffer_label, text, sizeof(text));
+    lv_obj_invalidate(obj);
+}
+
+void ui_system_path_canvas_set_unit_hub(lv_obj_t* obj, int unit_index, int hub_group, bool present,
+                                        int fault, const char* label) {
+    auto* data = get_data(obj);
+    if (!data || unit_index < 0 || unit_index >= SystemPathData::MAX_UNITS)
+        return;
+    char text[sizeof(data->unit_buffer_label[0])];
+    copy_label(text, sizeof(text), label);
+    if (data->unit_hub_group[unit_index] == hub_group &&
+        data->unit_has_buffer[unit_index] == present &&
+        data->unit_buffer_fault[unit_index] == fault &&
+        strcmp(data->unit_buffer_label[unit_index], text) == 0)
+        return;
+    data->unit_hub_group[unit_index] = hub_group;
+    data->unit_has_buffer[unit_index] = present;
+    data->unit_buffer_fault[unit_index] = fault;
+    memcpy(data->unit_buffer_label[unit_index], text, sizeof(text));
     lv_obj_invalidate(obj);
 }
 } // namespace helix::ui

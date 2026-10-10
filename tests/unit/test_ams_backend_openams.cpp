@@ -1508,6 +1508,13 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS fleet mock publishes twelve units on
     }
     CHECK(hubs.size() == 2);
 
+    // Each hub's lane feeds its own extruder.
+    for (size_t u = 0; u < info.units.size(); ++u) {
+        for (const auto& slot : info.units[u].slots) {
+            CHECK(slot.extruder_name == (u < 10 ? "extruder" : "extruder1"));
+        }
+    }
+
     // Readings differ unit to unit, so a page showing the wrong unit is visible.
     CHECK(info.units[1].environment->humidity_pct != info.units[2].environment->humidity_pct);
 
@@ -1522,4 +1529,40 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS fleet mock publishes twelve units on
 
     // A group per bay: T0..T44.
     CHECK(backend.get_tool_mapping().size() == 45);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "OpenAMS names each lane's extruder from the plugin's lanes_by_fps",
+                 "[ams][openams][shared_hub]") {
+    OpenAmsHarness backend;
+    json m = shared_manager(0, all_commands(), true);
+    m["units"][1]["lane"] = "fps2";
+    for (auto& g : m["groups"]) {
+        if (g["name"] != "T0") {
+            g["lane"] = "fps2";
+        }
+    }
+    json second = lane("unloaded");
+    second["id"] = "fps2";
+    m["lanes"].push_back(second);
+    m["lanes_by_fps"]["fps2"] = {{"op", "idle"}, {"extruder", "extruder1"}};
+    backend.feed(m);
+
+    const auto info = backend.get_system_info();
+    REQUIRE(info.units.size() == 2);
+    CHECK(info.units[0].slots[0].extruder_name == "extruder");
+    for (const auto& slot : info.units[1].slots) {
+        CHECK(slot.extruder_name == "extruder1");
+    }
+
+    // Two lanes are two toolheads, each badged by its extruder.
+    const auto layout = ams_draw::compute_system_tool_layout(info, &backend);
+    CHECK(layout.total_physical_tools == 2);
+    CHECK(layout.physical_to_extruder_name == std::vector<std::string>{"extruder", "extruder1"});
+
+    SECTION("a manager without lanes_by_fps names none") {
+        OpenAmsHarness legacy;
+        legacy.feed(shared_manager(0));
+        CHECK(legacy.get_system_info().units[0].slots[0].extruder_name.empty());
+    }
 }

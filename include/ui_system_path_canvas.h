@@ -181,18 +181,33 @@ void ui_system_path_canvas_set_unit_lane(lv_obj_t* obj, int unit_index, int segm
                                          uint32_t color);
 
 /**
- * @brief Set the filament pressure sensor (FPS) on the output line
+ * @brief Set the buffer on the output line (single-toolhead layout)
  *
- * Single-toolhead layout only: a box labeled FPS sits between the hub and the
- * nozzle. @p fault tints it like the detail view's buffer box (0 or -1 neutral,
- * 1 warning, 2 danger).
+ * A box between the hub and the nozzle, drawn with the label and tint the unit
+ * view's buffer box has: BufferBoxState::label and ::fault of
+ * ams_detail_buffer_box(info, -1).
  *
  * @param obj The system_path_canvas widget
- * @param present Whether the system's feeding lane has a pressure sensor
- * @param fault Buffer severity, see ams_detail_buffer_box()
+ * @param present Whether the system reading has a buffer
+ * @param fault Severity: -1 untinted, 0 neutral, 1 warning, 2 danger
+ * @param label Box label ("FPS", "BUF")
  */
 namespace helix::ui {
-void ui_system_path_canvas_set_fps(lv_obj_t* obj, bool present, int fault);
+void ui_system_path_canvas_set_buffer(lv_obj_t* obj, bool present, int fault, const char* label);
+
+/**
+ * @brief Set a unit's hub and the buffer under it (several-toolhead layout)
+ *
+ * Units given the same non-zero @p hub_group draw one hub box where their
+ * lanes join; 0 is a unit on a hub of its own. The buffer box under a shared
+ * hub is the one set on its lowest unit.
+ *
+ * @param present Whether the hub has a buffer
+ * @param fault Severity as in ui_system_path_canvas_set_buffer()
+ * @param label Box label
+ */
+void ui_system_path_canvas_set_unit_hub(lv_obj_t* obj, int unit_index, int hub_group, bool present,
+                                        int fault, const char* label);
 } // namespace helix::ui
 
 /**
