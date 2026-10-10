@@ -145,6 +145,9 @@ local function service_target()
 end
 
 local function message_for(e)
+    -- A composed event reads "Event: file (pct)"; the test button's message
+    -- already says what it is, so it carries no event-word prefix.
+    if e.raw then return t(e.raw) end
     local file = helix.settings.get("include_filename") ~= false and e.file or ""
     local what = t(e.title)
     if file ~= "" then what = what .. ": " .. file end
@@ -268,7 +271,8 @@ helix.ui.on("open", function()
 end)
 
 helix.ui.on("test", function()
-    enqueue({ key = "test", title = "Test", file = "Print Watcher test", pct = nil })
+    enqueue({ key = "test", title = "Test", file = "Print Watcher test",
+              raw = "Print Watcher test", pct = nil })
 end)
 
 -- A language change re-renders every subject-carried string; XML literals

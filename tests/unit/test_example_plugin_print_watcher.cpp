@@ -260,6 +260,18 @@ TEST_CASE_METHOD(XMLTestFixture, "a disabled event drops its edge, others still 
     CHECK(http_count(rig) == 2); // completed still sends
 }
 
+TEST_CASE_METHOD(XMLTestFixture, "the test button sends its message without an event prefix",
+                 "[plugin][example]") {
+    reset_printer("benchy.gcode");
+    HostRig rig(watcher_block(ntfy_settings()));
+    rig.host->load_from("examples/plugins");
+    rig.host->dispatch_event("print-watcher__test");
+    drain();
+    REQUIRE(http_count(rig) == 1);
+    CHECK(last_http(rig)->c == "Print Watcher test");
+    CHECK(last_http(rig)->params.value("X-Title", "") == "Test");
+}
+
 TEST_CASE_METHOD(XMLTestFixture, "payloads follow the screen language", "[plugin][example]") {
     reset_printer("benchy.gcode");
     HostRig rig(watcher_block(ntfy_settings()));
