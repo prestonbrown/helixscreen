@@ -235,10 +235,17 @@ int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L
                          mhh,
                          hub_fill(data, hub_has_filament),
                          hub_route.tool_idx,
+                         true,
                          true};
         hub_route.end_y = mhy - mhh / 2;
     }
     return n;
+}
+
+// Clear space between neighboring hub boxes. The fan-out pitch and the row
+// solver must agree on it, or a row that already fits gets moved.
+int32_t hub_box_gap(const SystemPathData& data) {
+    return LV_MAX(4, data.tube_gauge);
 }
 
 // The buffer box on a hub's outlet, between the hub and its nozzle, when the
@@ -289,7 +296,7 @@ int collect_hub_route(const SystemPathData& data, const SysLayout& L, int i, Glo
     int hub_rank = 0;
     int hub_group = 1;
     hub_group_position(data, i, &hub_rank, &hub_group);
-    int32_t hub_pitch = box_w + LV_MAX(4, data.tube_gauge);
+    int32_t hub_pitch = box_w + hub_box_gap(data);
     int32_t hub_x = tool_x + (2 * hub_rank - (hub_group - 1)) * hub_pitch / 2;
 
     // HUB stems drop to a shorter merge point, leaving room between hub routes
@@ -311,6 +318,205 @@ int collect_hub_route(const SystemPathData& data, const SysLayout& L, int i, Glo
                      first_tool, true};
     place_hub_buffer(data, L, i, boxes.hubs[i]);
     return n;
+}
+
+// ---- Mini-hub row ----------------------------------------------------------
+// Every HUB unit's box wants to sit on its toolhead, but toolheads can sit
+// closer together than a box is wide, and units sharing a nozzle fan out
+// around it. The row is solved as one problem: boxes keep their order, stay
+// inside the canvas, keep a gap from each other and stay clear of the vertical
+// runs of routes that drop to nozzles through the same band.
+
+constexpr int HUB_ROW_MAX = SystemPathData::MAX_UNITS;
+
+struct HubRow {
+    int unit[HUB_ROW_MAX];
+    int32_t pref[HUB_ROW_MAX]; // preferred center
+    int32_t w[HUB_ROW_MAX];    // box width
+    int32_t x[HUB_ROW_MAX];    // solved center
+    int n = 0;
+};
+
+// Center-to-center distance that leaves `gap` between boxes i-1 and i.
+int32_t row_pitch(const HubRow& row, int i, int32_t gap) {
+    return row.w[i - 1] / 2 + row.w[i] / 2 + gap;
+}
+
+struct HubRowSpace {
+    int32_t left, right; // box edges must stay inside [left, right]
+    int32_t gap;         // clear space between neighbors
+    int32_t obstacle_half;
+    int32_t obstacles[SystemPathData::MAX_TOOLS];
+    int obstacle_count = 0;
+};
+
+// Nearest box centers on either side of an obstacle that clear it.
+bool hits_obstacle(const HubRowSpace& sp, int32_t x, int32_t w, int32_t* clear_right,
+                   int32_t* clear_left) {
+    for (int k = 0; k < sp.obstacle_count; ++k) {
+        const int32_t reach = w / 2 + sp.obstacle_half;
+        if (LV_ABS(x - sp.obstacles[k]) < reach) {
+            *clear_right = sp.obstacles[k] + reach;
+            *clear_left = sp.obstacles[k] - reach;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Least-squares placement of ordered boxes at their minimum pitch: each run of
+// colliding boxes moves together about its members' mean preference.
+void spread_row(HubRow& row, int32_t gap) {
+    struct Cluster {
+        int first, count;
+        int64_t sum;
+        int64_t mean;
+    };
+    Cluster stack[HUB_ROW_MAX];
+    int top = 0;
+    int64_t offset[HUB_ROW_MAX]; // box i's distance from box 0 when packed tight
+    auto mean_of = [](const Cluster& c) { return (int64_t)std::llround((double)c.sum / c.count); };
+    for (int i = 0; i < row.n; ++i) {
+        offset[i] = i == 0 ? 0 : offset[i - 1] + row_pitch(row, i, gap);
+        stack[top] = {i, 1, (int64_t)row.pref[i] - offset[i], 0};
+        stack[top].mean = mean_of(stack[top]);
+        ++top;
+        while (top > 1 && stack[top - 1].mean < stack[top - 2].mean) {
+            Cluster& a = stack[top - 2];
+            a.count += stack[top - 1].count;
+            a.sum += stack[top - 1].sum;
+            a.mean = mean_of(a);
+            --top;
+        }
+    }
+    for (int c = 0; c < top; ++c)
+        for (int k = 0; k < stack[c].count; ++k) {
+            const int i = stack[c].first + k;
+            row.x[i] = (int32_t)(stack[c].mean + offset[i]);
+        }
+}
+
+// Spread, then settle against the canvas edges and the obstacles. True when the
+// result is collision-free.
+bool solve_row(HubRow& row, const HubRowSpace& sp) {
+    spread_row(row, sp.gap);
+    int32_t cr, cl;
+    for (int i = 0; i < row.n; ++i) {
+        const int32_t w = row.w[i];
+        int32_t lo = sp.left + w / 2;
+        if (i > 0)
+            lo = LV_MAX(lo, row.x[i - 1] + row_pitch(row, i, sp.gap));
+        row.x[i] = LV_MAX(row.x[i], lo);
+        while (hits_obstacle(sp, row.x[i], w, &cr, &cl))
+            row.x[i] = cr;
+    }
+    for (int i = row.n - 1; i >= 0; --i) {
+        const int32_t w = row.w[i];
+        int32_t hi = sp.right - w / 2;
+        if (i + 1 < row.n)
+            hi = LV_MIN(hi, row.x[i + 1] - row_pitch(row, i + 1, sp.gap));
+        row.x[i] = LV_MIN(row.x[i], hi);
+        while (hits_obstacle(sp, row.x[i], w, &cr, &cl))
+            row.x[i] = cl;
+    }
+    for (int i = 0; i < row.n; ++i) {
+        const int32_t w = row.w[i];
+        if (row.x[i] - w / 2 < sp.left || row.x[i] + w / 2 > sp.right)
+            return false;
+        if (i > 0 && row.x[i] - row.x[i - 1] < row_pitch(row, i, sp.gap))
+            return false;
+        if (hits_obstacle(sp, row.x[i], w, &cr, &cl))
+            return false;
+    }
+    return true;
+}
+
+// Places the HUB units' boxes (preferred centers are in boxes.hubs[u].hub_x)
+// and re-aims their routes. A row that fits keeps its preferred positions and
+// full widths; one that does not first narrows the single-unit boxes, then
+// labels them "H". A box shared by several units keeps its width, which its
+// lanes need to enter side by side. A hub's buffer box narrows with its hub.
+void resolve_hub_row(const SystemPathData& data, const SysLayout& L, GlobalRoute* routes, int n,
+                     OverviewBoxes& boxes) {
+    HubRow row;
+    bool shared[HUB_ROW_MAX] = {};
+    for (int u = 0; u < data.unit_count && u < SystemPathData::MAX_UNITS; ++u) {
+        if (!boxes.hubs[u].valid || data.unit_topology[u] == TOPO_MIXED)
+            continue;
+        int members[SystemPathData::MAX_UNITS];
+        int leader = u;
+        shared[row.n] = shared_hub_members(data, u, members, &leader) > 1;
+        row.unit[row.n] = u;
+        row.pref[row.n] = boxes.hubs[u].hub_x;
+        row.w[row.n] = boxes.hubs[u].mini_hub_w;
+        ++row.n;
+    }
+    if (row.n == 0)
+        return;
+    // Stable in unit order, so units sharing a nozzle keep their rank order.
+    for (int i = 1; i < row.n; ++i)
+        for (int j = i; j > 0 && row.pref[j] < row.pref[j - 1]; --j) {
+            std::swap(row.pref[j], row.pref[j - 1]);
+            std::swap(row.unit[j], row.unit[j - 1]);
+            std::swap(row.w[j], row.w[j - 1]);
+            std::swap(shared[j], shared[j - 1]);
+        }
+    int32_t full_w[HUB_ROW_MAX];
+    for (int i = 0; i < row.n; ++i)
+        full_w[i] = row.w[i];
+
+    HubRowSpace sp;
+    sp.left = L.x_off;
+    sp.right = L.x_off + L.width;
+    sp.gap = hub_box_gap(data);
+    sp.obstacle_half = (data.tube_gauge + HALO_WIDTH_EXTRA) / 2 + sp.gap / 2;
+    for (int r = 0; r < n && sp.obstacle_count < SystemPathData::MAX_TOOLS; ++r)
+        if (!routes[r].is_hub)
+            sp.obstacles[sp.obstacle_count++] = routes[r].end_x;
+
+    // Width tiers for single-unit boxes: full, narrow, then short ("H").
+    const int32_t tier_cap[] = {INT32_MAX, data.hub_width / 2, data.hub_width * 2 / 5};
+    int tier = 2;
+    bool fits = false;
+    for (int k = 0; k < 3 && !fits; ++k) {
+        tier = k;
+        for (int i = 0; i < row.n; ++i)
+            row.w[i] = shared[i] ? full_w[i] : LV_MIN(full_w[i], tier_cap[k]);
+        fits = solve_row(row, sp);
+    }
+    if (!fits) {
+        // Even "H" boxes do not fit beside the drops: give the single-unit boxes
+        // an equal share of what the shared ones leave, and let them cover the
+        // drops. Below (n - 1) * gap of canvas they still overlap.
+        int32_t fixed = (row.n - 1) * sp.gap;
+        int singles = 0;
+        for (int i = 0; i < row.n; ++i) {
+            if (shared[i])
+                fixed += full_w[i];
+            else
+                ++singles;
+        }
+        const int32_t share =
+            singles > 0 ? (sp.right - sp.left - fixed) / singles : (sp.right - sp.left);
+        for (int i = 0; i < row.n; ++i)
+            if (!shared[i])
+                row.w[i] = LV_MAX(1, LV_MIN(row.w[i], share));
+        sp.obstacle_count = 0;
+        solve_row(row, sp);
+    }
+
+    for (int i = 0; i < row.n; ++i) {
+        const int u = row.unit[i];
+        boxes.hubs[u].hub_x = row.x[i];
+        boxes.hubs[u].mini_hub_w = row.w[i];
+        boxes.hubs[u].short_label = tier == 2 && !shared[i];
+        boxes.hubs[u].buffer_w = LV_MIN(boxes.hubs[u].buffer_w, row.w[i]);
+        for (int r = 0; r < n; ++r)
+            if (routes[r].is_hub && routes[r].unit_idx == u) {
+                routes[r].end_x = row.x[i];
+                routes[r].dist = LV_ABS(routes[r].start_x - row.x[i]);
+            }
+    }
 }
 
 // PARALLEL by end_x ascending (leftmost tool first → bottom horizontal); HUB
@@ -361,6 +567,7 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
         else
             n = collect_hub_route(data, L, i, routes, n, boxes);
     }
+    resolve_hub_row(data, L, routes, n, boxes);
     sort_routes(routes, n);
 
     const float nozzle_top = (float)(L.tools_y - small_tool_scale(data) * 2);

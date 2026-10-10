@@ -208,7 +208,7 @@ static void draw_mini_hubs(lv_layer_t* layer, const SystemPathData* data,
         const HubInfo& hi = boxes.hubs[i];
         if (!hi.valid)
             continue;
-        const char* hub_label = (data->unit_topology[i] == 3) ? "H" : "Hub";
+        const char* hub_label = hi.short_label ? "H" : "Hub";
         draw_hub_box(layer, hi.hub_x, hi.mini_hub_y, hi.mini_hub_w, hi.mini_hub_h, hi.hub_bg_color,
                      data->color_hub_border, data->color_text, data->label_font,
                      data->border_radius, hub_label);

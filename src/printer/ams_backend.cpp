@@ -609,6 +609,9 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         } else if (ams_type == "torture") {
             mock->set_torture_mode(true);
             spdlog::info("[AMS Backend] Mock torture profile enabled (5 units / 16 lanes)");
+        } else if (ams_type == "stealth") {
+            mock->set_stealth_mode(true);
+            spdlog::info("[AMS Backend] Mock stealth profile enabled (5 units / 7 toolheads)");
         } else if (ams_type == "vivid") {
             mock->set_vivid_mixed_mode(true);
             spdlog::info("[AMS Backend] Mock ViViD mixed mode enabled");

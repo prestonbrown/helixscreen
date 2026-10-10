@@ -14,6 +14,9 @@
 
 namespace helix {
 
+struct AfcMockLane;
+struct AfcMockUnit;
+
 /**
  * @file ams_backend_mock.h
  * @brief Mock AMS backend for development and testing
@@ -604,6 +607,16 @@ class AmsBackendMock : public AmsBackend {
     void set_torture_mode(bool enabled);
 
     /**
+     * @brief Enable the StealthChanger-style AFC toolchanger profile
+     * (HELIX_MOCK_AMS=stealth).
+     *
+     * Five units / 18 lanes / 7 toolheads: an ACE unit straight to T0-T3 and
+     * four hub units on T4-T6, two of them sharing T6. The toolheads sit close
+     * together, so the overview's mini hubs have to share the row.
+     */
+    void set_stealth_mode(bool enabled);
+
+    /**
      * @brief Check if multi-unit mode is active
      */
     [[nodiscard]] bool is_multi_unit_mode() const;
@@ -778,6 +791,11 @@ class AmsBackendMock : public AmsBackend {
     AmsError apply_endless_spool_backup(int slot_index, int backup_slot) override;
 
   private:
+    void disable_afc_profile_locked();
+    /// Installs a table-driven AFC rig: units, lanes, tool map and loaded tool.
+    void apply_afc_profile_locked(const AfcMockLane* lanes, int lane_count,
+                                  const AfcMockUnit* units, int unit_count, const char* type_name,
+                                  int current_tool);
     /**
      * @brief Initialize mock state with sample data
      */
@@ -1035,7 +1053,7 @@ class AmsBackendMock : public AmsBackend {
     bool vivid_mixed_mode_ = false;      ///< Simulate 2x BoxTurtle + 1x ViViD
     bool ifs_mode_ = false;              ///< Simulate AD5X IFS (4 slots, LINEAR)
     bool htlf_toolchanger_mode_ = false; ///< Simulate HTLF + Toolchanger mixed topology
-    bool torture_mode_ = false;          ///< Simulate 5 units / 16 lanes / 4 shared extruders
+    bool torture_mode_ = false;          ///< A table-driven AFC rig profile (torture, stealth)
     bool snapmaker_mode_ = false; ///< Simulate Snapmaker U1 (4 slots, PARALLEL, non-editable)
     /// Declared remap route outside Snapmaker mode. Native by default: every
     /// non-Snapmaker mode stands in for a table-owning backend.

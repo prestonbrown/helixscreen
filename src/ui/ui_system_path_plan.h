@@ -156,6 +156,7 @@ struct HubInfo {
     int32_t buffer_y = 0;
     int32_t buffer_w = 0;
     int32_t buffer_h = 0;
+    bool short_label = false; // too narrow for "Hub": draw "H"
 };
 
 // What the canvas draws on top of the planned tubes.
