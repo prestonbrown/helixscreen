@@ -1417,6 +1417,35 @@ TEST_CASE("GCodeParser - a T with parameters is not a tool change", "[gcode][par
     CHECK(file.tools_used_indices == std::set<int>{0});
 }
 
+TEST_CASE("tool_index_for_line - a T with Klipper macro parameters is a tool change",
+          "[gcode][parser]") {
+    using helix::gcode::tool_index_for_line;
+    std::pair<size_t, size_t> digits;
+    const std::string line = "T12 PURGE_LENGTH=121.399 NEW_EXTRUDER_TEMP=222";
+    CHECK(tool_index_for_line(line, &digits) == 12);
+    CHECK(line.substr(digits.first, digits.second - digits.first) == "12");
+
+    CHECK(tool_index_for_line("  T3 PURGE_LENGTH=0 ; change") == 3);
+    CHECK(tool_index_for_line("T0 X1") == -1);
+    CHECK(tool_index_for_line("T0X1") == -1);
+    CHECK(tool_index_for_line("T0 =5") == -1);
+    CHECK(tool_index_for_line("T0 PURGE_LENGTH=1 X1") == -1);
+    CHECK(tool_index_for_line("TURN_OFF_HEATERS") == -1);
+}
+
+TEST_CASE("GCodeParser - parameterised tool changes count as used tools", "[gcode][parser]") {
+    // Slicer change_filament templates for AFC write every change this way.
+    const std::string body = "T1\nG1 X1 E1\nT0 PURGE_LENGTH=121.4 NEW_EXTRUDER_TEMP=222\n"
+                             "T3 PURGE_LENGTH=191.2 NEW_EXTRUDER_TEMP=222\nG1 X2 E1\n";
+    GCodeParser parser;
+    std::istringstream in(body);
+    for (std::string l; std::getline(in, l);) {
+        parser.parse_line(l);
+    }
+    CHECK(parser.finalize().tools_used_indices == std::set<int>{0, 1, 3});
+    CHECK(helix::gcode::scan_tools_used_from_content(body) == std::set<int>{0, 1, 3});
+}
+
 TEST_CASE("get_best_thumbnail - real file picks the largest block", "[gcode][thumbnail]") {
     // 3DBenchy embeds a 48x48 and a 300x300 thumbnail, in that order
     const std::string test_file = "assets/test_gcodes/3DBenchy.gcode";

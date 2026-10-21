@@ -986,12 +986,14 @@ std::set<int> scan_tools_used_from_content(const std::string& content,
                                            std::set<int> early_exit_full_set = {});
 
 /**
- * @brief Tool index of a standalone `Tn` line, or -1 when the line is not one.
+ * @brief Tool index of a `Tn` tool-change line, or -1 when the line is not one.
  *
  * The single T-parse shared by every scan in the tree: the full parser, the
  * streaming layer index, the tools-used scans and the tool remapper. Strip a
  * trailing `;` comment, trim surrounding whitespace, then require exactly `T`
- * followed by one or more digits. `  T2 ; change` is a tool change; `T0 X1`,
+ * followed by one or more digits, optionally followed by Klipper macro
+ * parameters (`KEY=VALUE` words). `  T2 ; change` and
+ * `T0 PURGE_LENGTH=121.4 NEW_EXTRUDER_TEMP=222` are tool changes; `T0 X1`,
  * `TURN_OFF_HEATERS` and a `Tn` inside a comment are not. Scans disagreeing
  * about what a tool change is put the streamed and full-load previews on
  * different tool sets, and leave a remapped file on the original tool.

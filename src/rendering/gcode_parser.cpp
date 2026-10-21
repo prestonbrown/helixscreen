@@ -1952,17 +1952,42 @@ int tool_index_for_line(const std::string& raw, std::pair<size_t, size_t>* digit
         return -1;
     }
 
-    // Every remaining character must be a digit (standalone Tn only — "T0 X1"
-    // and "TURN" are rejected, matching the full parser).
-    for (size_t i = 1; i < sv.length(); ++i) {
-        if (!std::isdigit(static_cast<unsigned char>(sv[i]))) {
+    // The tool number: one or more digits straight after the T.
+    size_t num_end = 1;
+    while (num_end < sv.length() && std::isdigit(static_cast<unsigned char>(sv[num_end]))) {
+        ++num_end;
+    }
+    if (num_end == 1) {
+        return -1; // "TURN_OFF_HEATERS", "T X1"
+    }
+    // Anything after the number must be Klipper macro parameters: whitespace,
+    // then KEY=VALUE words. Slicer change_filament templates emit
+    // "T0 PURGE_LENGTH=121.4 NEW_EXTRUDER_TEMP=222". "T0X1" and "T0 X1" are not
+    // tool changes.
+    if (num_end < sv.length()) {
+        if (!std::isspace(static_cast<unsigned char>(sv[num_end]))) {
             return -1;
+        }
+        size_t i = num_end;
+        while (i < sv.length()) {
+            while (i < sv.length() && std::isspace(static_cast<unsigned char>(sv[i]))) {
+                ++i;
+            }
+            const size_t word = i;
+            while (i < sv.length() && !std::isspace(static_cast<unsigned char>(sv[i]))) {
+                ++i;
+            }
+            const std::string_view w = sv.substr(word, i - word);
+            const size_t eq = w.find('=');
+            if (eq == std::string_view::npos || eq == 0) {
+                return -1;
+            }
         }
     }
 
-    // sv[1..] is all digits; parse it. Guard against overflow on absurd input.
+    // Guard against overflow on absurd input.
     long value = 0;
-    for (size_t i = 1; i < sv.length(); ++i) {
+    for (size_t i = 1; i < num_end; ++i) {
         value = value * 10 + (sv[i] - '0');
         if (value > 100000) {
             return -1; // implausible tool index — ignore rather than overflow
@@ -1970,7 +1995,7 @@ int tool_index_for_line(const std::string& raw, std::pair<size_t, size_t>* digit
     }
     if (digits) {
         const size_t begin = static_cast<size_t>(sv.data() - raw.data()) + 1;
-        *digits = {begin, begin + sv.length() - 1};
+        *digits = {begin, begin + num_end - 1};
     }
     return static_cast<int>(value);
 }
