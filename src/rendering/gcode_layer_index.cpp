@@ -539,13 +539,13 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
         //
         // Cheap pre-filter first: tool_index_for_line() scans for a ';' across
         // the whole line, and this loop runs over every line of a 10MB+ file.
-        // A standalone tool change is 'T' after at most leading whitespace.
+        // A standalone tool change is 'T' or 't' after at most leading whitespace.
         {
             size_t lead = 0;
             while (lead < line_len && (line[lead] == ' ' || line[lead] == '\t')) {
                 ++lead;
             }
-            if (lead < line_len && line[lead] == 'T') {
+            if (lead < line_len && (line[lead] == 'T' || line[lead] == 't')) {
                 const int tool = tool_index_for_line(line);
                 // Clamp to what StreamingLayerEntry::start_tool can hold. Real
                 // tool indices are single digits; tool_index_for_line already

@@ -109,19 +109,17 @@ std::set<int> tools_in_layer(GCodeStreamingController& ctrl, size_t layer) {
 
 TEST_CASE("Layer index: a standalone T survives leading whitespace",
           "[gcode][toolchanger][layer_index]") {
-    // The index used to hand-roll its T parse as `line[0] == 'T'`, which is
-    // looser than the canonical tool_index_for_line() in two directions: it
-    // misses an indented tool change and accepts "T0 X1" (not a tool change at
-    // all). Both now go through the one parser the full-file path uses.
+    // The index and the full-file path share one T parser: an indented tool
+    // change counts, and a command glued to its T number ("T0X1") does not.
     TempGCodeFile file(R"(G28
-T0 X1
+T0X1
   T2 ; indented tool change
 G1 Z0.3 F1000
 G1 X10 Y10 E1
 )");
     GCodeLayerIndex index;
     REQUIRE(index.build_from_file(file.path()));
-    // "T0 X1" is not a standalone tool change; the indented T2 is.
+    // "T0X1" is not a standalone tool change; the indented T2 is.
     REQUIRE(index.get_stats().initial_tool_index == 2);
 }
 

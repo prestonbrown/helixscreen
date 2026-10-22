@@ -1406,18 +1406,20 @@ TEST_CASE("get_best_thumbnail_from_content - Real-world format variations", "[gc
     }
 }
 
-TEST_CASE("GCodeParser - a T with parameters is not a tool change", "[gcode][parser]") {
+TEST_CASE("GCodeParser - a T with arguments is a tool change", "[gcode][parser]") {
     // Same rule as tool_index_for_line(), so the full parse and the streaming
-    // index agree on the tool set.
+    // index agree on the tool set. Klipper runs "T1 Y0" as T1 with an ignored
+    // argument; Marlin and RepRapFirmware take arguments after Tn too.
     GCodeParser parser;
     parser.parse_line("T0");
     parser.parse_line("T1 X5");
+    parser.parse_line("T0X2");
     parser.parse_line("G1 X10 Y10 E1");
     auto file = parser.finalize();
-    CHECK(file.tools_used_indices == std::set<int>{0});
+    CHECK(file.tools_used_indices == std::set<int>{0, 1});
 }
 
-TEST_CASE("tool_index_for_line - a T with Klipper macro parameters is a tool change",
+TEST_CASE("tool_index_for_line - T or t, a tool number, then anything after whitespace",
           "[gcode][parser]") {
     using helix::gcode::tool_index_for_line;
     std::pair<size_t, size_t> digits;
@@ -1426,24 +1428,37 @@ TEST_CASE("tool_index_for_line - a T with Klipper macro parameters is a tool cha
     CHECK(line.substr(digits.first, digits.second - digits.first) == "12");
 
     CHECK(tool_index_for_line("  T3 PURGE_LENGTH=0 ; change") == 3);
-    CHECK(tool_index_for_line("T0 X1") == -1);
-    CHECK(tool_index_for_line("T0X1") == -1);
-    CHECK(tool_index_for_line("T0 =5") == -1);
-    CHECK(tool_index_for_line("T0 PURGE_LENGTH=1 X1") == -1);
+    CHECK(tool_index_for_line("T0 PURGE_LENGTH = 100") == 0);
+    CHECK(tool_index_for_line("T1 Y0") == 1);
+    CHECK(tool_index_for_line("T1 S1 L0 D0") == 1);
+    CHECK(tool_index_for_line("T0 P0") == 0);
+    CHECK(tool_index_for_line("t3") == 3);
+    CHECK(tool_index_for_line("\tt2 PURGE_LENGTH=1") == 2);
+
+    // Not tool changes: no number, or something glued to the T or the number.
     CHECK(tool_index_for_line("TURN_OFF_HEATERS") == -1);
+    CHECK(tool_index_for_line("turn_off_heaters") == -1);
+    CHECK(tool_index_for_line("T PURGE_LENGTH=100") == -1);
+    CHECK(tool_index_for_line("T 3") == -1);
+    CHECK(tool_index_for_line("T12.123") == -1);
+    CHECK(tool_index_for_line("T01_801") == -1);
+    CHECK(tool_index_for_line("T0X1") == -1);
+    CHECK(tool_index_for_line("_T0") == -1);
+    CHECK(tool_index_for_line("M104 T1 S220") == -1);
+    CHECK(tool_index_for_line("; T1") == -1);
 }
 
 TEST_CASE("GCodeParser - parameterised tool changes count as used tools", "[gcode][parser]") {
     // Slicer change_filament templates for AFC write every change this way.
     const std::string body = "T1\nG1 X1 E1\nT0 PURGE_LENGTH=121.4 NEW_EXTRUDER_TEMP=222\n"
-                             "T3 PURGE_LENGTH=191.2 NEW_EXTRUDER_TEMP=222\nG1 X2 E1\n";
+                             "T3 PURGE_LENGTH=191.2 NEW_EXTRUDER_TEMP=222\nG1 X2 E1\nt4\n";
     GCodeParser parser;
     std::istringstream in(body);
     for (std::string l; std::getline(in, l);) {
         parser.parse_line(l);
     }
-    CHECK(parser.finalize().tools_used_indices == std::set<int>{0, 1, 3});
-    CHECK(helix::gcode::scan_tools_used_from_content(body) == std::set<int>{0, 1, 3});
+    CHECK(parser.finalize().tools_used_indices == std::set<int>{0, 1, 3, 4});
+    CHECK(helix::gcode::scan_tools_used_from_content(body) == std::set<int>{0, 1, 3, 4});
 }
 
 TEST_CASE("get_best_thumbnail - real file picks the largest block", "[gcode][thumbnail]") {

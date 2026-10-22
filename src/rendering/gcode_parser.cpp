@@ -209,7 +209,7 @@ void GCodeParser::parse_line(const std::string& line) {
         return;
     }
 
-    if (trimmed[0] == 'T') {
+    if (trimmed[0] == 'T' || trimmed[0] == 't') {
         parse_tool_change_command(trimmed);
     }
 
@@ -1947,42 +1947,24 @@ int tool_index_for_line(const std::string& raw, std::pair<size_t, size_t>* digit
     }
     sv = sv.substr(start, end - start);
 
-    // Must start with 'T' and have at least one following character.
-    if (sv.length() < 2 || sv[0] != 'T') {
+    // A tool change is T (or t) followed directly by the tool number, then the
+    // end of the line or whitespace. Whatever follows the whitespace is the
+    // firmware's business: Klipper macro parameters ("T0 PURGE_LENGTH=121.4"),
+    // Marlin ("T1 S1"), RepRapFirmware ("T0 P0") all still change tools.
+    // Anything glued to the T or the number is a different command:
+    // "TURN_OFF_HEATERS", "T12.123", "T0X1", and "T PURGE_LENGTH=1" has no tool.
+    if (sv.length() < 2 || (sv[0] != 'T' && sv[0] != 't')) {
         return -1;
     }
-
-    // The tool number: one or more digits straight after the T.
     size_t num_end = 1;
     while (num_end < sv.length() && std::isdigit(static_cast<unsigned char>(sv[num_end]))) {
         ++num_end;
     }
     if (num_end == 1) {
-        return -1; // "TURN_OFF_HEATERS", "T X1"
+        return -1;
     }
-    // Anything after the number must be Klipper macro parameters: whitespace,
-    // then KEY=VALUE words. Slicer change_filament templates emit
-    // "T0 PURGE_LENGTH=121.4 NEW_EXTRUDER_TEMP=222". "T0X1" and "T0 X1" are not
-    // tool changes.
-    if (num_end < sv.length()) {
-        if (!std::isspace(static_cast<unsigned char>(sv[num_end]))) {
-            return -1;
-        }
-        size_t i = num_end;
-        while (i < sv.length()) {
-            while (i < sv.length() && std::isspace(static_cast<unsigned char>(sv[i]))) {
-                ++i;
-            }
-            const size_t word = i;
-            while (i < sv.length() && !std::isspace(static_cast<unsigned char>(sv[i]))) {
-                ++i;
-            }
-            const std::string_view w = sv.substr(word, i - word);
-            const size_t eq = w.find('=');
-            if (eq == std::string_view::npos || eq == 0) {
-                return -1;
-            }
-        }
+    if (num_end < sv.length() && !std::isspace(static_cast<unsigned char>(sv[num_end]))) {
+        return -1;
     }
 
     // Guard against overflow on absurd input.

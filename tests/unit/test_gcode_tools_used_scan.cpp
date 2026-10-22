@@ -83,11 +83,10 @@ TEST_CASE("scan_tools_used_from_content - comment and false-positive handling",
         REQUIRE(scan_tools_used_from_content(g) == expect);
     }
 
-    SECTION("Tn with parameters on the same line is NOT a tool change") {
-        // "T0 X1" style is a different command form; mirror the full parser which
-        // only treats standalone Tn as a tool change.
+    SECTION("Tn with arguments on the same line is a tool change") {
+        // Mirrors the full parser: arguments after whitespace are the firmware's.
         const std::string g = "T0 P1 S210\nG1 X1 E1\n";
-        REQUIRE(scan_tools_used_from_content(g).empty());
+        REQUIRE(scan_tools_used_from_content(g) == std::set<int>{0});
     }
 
     SECTION("Word starting with T is not a tool change") {

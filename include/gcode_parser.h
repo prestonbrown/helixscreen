@@ -956,8 +956,8 @@ GCodeHeaderMetadata extract_header_metadata_from_content(const std::string& cont
  * @brief Lightweight, memory-safe scan for the set of distinct tool indices a
  *        G-code body references.
  *
- * Matches standalone tool-change commands (bare `Tn`, possibly indented, with a
- * trailing comment) over the WHOLE content — tool changes occur throughout a
+ * Matches standalone tool-change commands (`Tn` as tool_index_for_line() reads
+ * it, possibly indented, with arguments or a trailing comment) over the WHOLE content — tool changes occur throughout a
  * multi-color print body, so a header-only / partial scan is insufficient. This
  * retains ONLY the integer set; it never builds a geometry model, so it is safe
  * to run on memory-constrained devices (AD5M / 2D-only platforms) where the full
@@ -986,20 +986,24 @@ std::set<int> scan_tools_used_from_content(const std::string& content,
                                            std::set<int> early_exit_full_set = {});
 
 /**
- * @brief Tool index of a `Tn` tool-change line, or -1 when the line is not one.
+ * @brief Tool index of a standalone `Tn` tool-change line, or -1 when the line
+ *        is not one.
  *
  * The single T-parse shared by every scan in the tree: the full parser, the
  * streaming layer index, the tools-used scans and the tool remapper. Strip a
- * trailing `;` comment, trim surrounding whitespace, then require exactly `T`
- * followed by one or more digits, optionally followed by Klipper macro
- * parameters (`KEY=VALUE` words). `  T2 ; change` and
- * `T0 PURGE_LENGTH=121.4 NEW_EXTRUDER_TEMP=222` are tool changes; `T0 X1`,
- * `TURN_OFF_HEATERS` and a `Tn` inside a comment are not. Scans disagreeing
+ * trailing `;` comment, trim surrounding whitespace, then require `T` or `t`
+ * followed directly by one or more digits, then the end of the line or
+ * whitespace. Standalone means `Tn` is the command itself, as opposed to a `Tn`
+ * parameter of another command such as `M104 T1 S220`. Arguments after the
+ * whitespace are ignored, whatever the firmware's syntax: `  T2 ; change`,
+ * `t3`, `T0 PURGE_LENGTH=121.4 NEW_EXTRUDER_TEMP=222`, `T1 S1` and `T0 P0` are
+ * tool changes; `TURN_OFF_HEATERS`, `T12.123`, `T0X1`, `T PURGE_LENGTH=1` and a
+ * `Tn` inside a comment are not. Scans disagreeing
  * about what a tool change is put the streamed and full-load previews on
  * different tool sets, and leave a remapped file on the original tool.
  *
  * Callers on a hot per-line path should pre-filter (first non-blank character
- * is `T`) before calling: this scans for `;` across the whole line.
+ * is `T` or `t`) before calling: this scans for `;` across the whole line.
  *
  * @param raw One raw G-code line, with or without a trailing `\r`.
  * @param digits When non-null and @p raw is a tool change, receives the
