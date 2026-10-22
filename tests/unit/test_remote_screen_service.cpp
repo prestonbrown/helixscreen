@@ -290,7 +290,7 @@ struct WakeTouchFixture : TouchFixture {
         DisplayManagerTestAccess::set_display_sleeping(display, !dimmed);
         DisplayManagerTestAccess::set_display_dimmed(display, dimmed);
         display.check_display_sleep();
-        REQUIRE(display.is_display_sleeping() || display.is_display_dimmed());
+        REQUIRE((display.is_display_sleeping() || display.is_display_dimmed()));
     }
 
     void settle_release() {
