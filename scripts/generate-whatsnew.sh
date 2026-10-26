@@ -1,33 +1,35 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Extract the current version's CHANGELOG section into a Play Store "What's new"
-# file: android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt
+# Write the Play Store "What's new" file for the current version:
+# android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt
 #
 # The Play Store "What's new" field is per-versionCode and capped at 500 chars
 # (UTF-16 code units).
 #
-# Two sources, in order of preference:
+# Sources:
 #
-#   1. An explicit `<!-- whatsnew ... -->` block inside the version's CHANGELOG
-#      section. Used verbatim. This is the intended path: CHANGELOG prose is
-#      user-facing (docs/devel/CHANGELOG_STYLE.md), and What's New is that same
-#      audience at a 500-char budget - a hand-picked distillation, because a
-#      full release section does not fit and mechanical summarization is lossy
-#      by construction. An over-length block is a hard error rather than a
-#      silent truncation: hand-authored text that does not fit should be
-#      edited by its author, not chopped by a script.
+#   1. android/whatsnew/<version>.txt, hand-written for every release that ships
+#      to Google Play (android/whatsnew/README.md). Used verbatim. CHANGELOG
+#      prose is written for a reader with the whole section in front of them;
+#      What's New is the same audience at a 500-char budget, a hand-picked
+#      distillation that mechanical summarization cannot produce. An over-length
+#      file is a hard error rather than a silent truncation: hand-authored text
+#      that does not fit should be edited by its author, not chopped by a script.
 #
-#   2. Failing that, the section body with markdown stripped, truncated on a
-#      sentence boundary. A fallback, not the design: it produces whatever the
-#      changelog happens to open with, which for a release whose section starts
-#      with release-process prose is not what a Play Store user wants to read.
+#   2. A prerelease (-alpha/-beta/-rc) with no such file gets the version's
+#      CHANGELOG section with markdown stripped, truncated on a sentence
+#      boundary. Prereleases never reach Play, so this only has to give the
+#      release workflow a file to carry; a note on stderr says it happened.
+#
+#   A stable version with no file is an error naming the file to write.
 #
 # Usage:
 #   scripts/generate-whatsnew.sh                    # writes to default path
 #   scripts/generate-whatsnew.sh /tmp/whatsnew.txt  # writes to given path
 #
-# Exit 0 on success, non-zero if CHANGELOG has no entry for the version.
+# Exit 0 on success; non-zero for a stable version with no whatsnew file, an
+# over-length file, or a prerelease with no CHANGELOG entry to fall back on.
 
 set -euo pipefail
 
@@ -42,22 +44,6 @@ version_code="$("$repo_root/scripts/android-version-code.sh" "$version")"
 
 out_path="${1:-$repo_root/android/fastlane/metadata/android/en-US/changelogs/$version_code.txt}"
 mkdir -p "$(dirname "$out_path")"
-
-# Extract the section for this version from CHANGELOG.md.
-# Matches a "## [version]" heading and prints lines until the next "## [" heading.
-section="$(awk -v ver="$version" '
-    /^## \[/ {
-        if (found) exit
-        if (index($0, "[" ver "]")) { found=1; next }
-        next
-    }
-    found { print }
-' "$repo_root/CHANGELOG.md")"
-
-if [ -z "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
-    echo "error: no CHANGELOG.md entry for version $version" >&2
-    exit 1
-fi
 
 limit=500
 
@@ -76,35 +62,49 @@ utf16_len() {
     fi
 }
 
-# Preferred source: an explicit `<!-- whatsnew ... -->` block in the section.
-# Taken verbatim, so what lands in the Play Store is exactly what was reviewed
-# in the release diff. The reader drains its input instead of exiting at the
-# closing marker: under pipefail, an early exit while printf is still writing a
-# long section is a SIGPIPE that kills the script with no message.
-explicit="$(printf '%s\n' "$section" | awk '
-    done                       { next }
-    /<!--[[:space:]]*whatsnew/ { inblock=1; next }
-    inblock && /-->/           { done=1; next }
-    inblock                    { print }
-')"
-# Trim leading/trailing blank lines. The `\n` matters: `tac` reverses whole
-# lines, and an unterminated final line gets folded into its neighbour, which
-# silently reorders and concatenates the last two bullets.
-explicit="$(printf '%s\n' "$explicit" | sed -e '/./,$!d' | tac | sed -e '/./,$!d' | tac)"
+whatsnew_rel="android/whatsnew/$version.txt"
+whatsnew_file="$repo_root/$whatsnew_rel"
 
-if [ -n "$(printf '%s' "$explicit" | tr -d '[:space:]')" ]; then
-    explicit_len="$(utf16_len "$explicit")"
-    if [ "$explicit_len" -gt "$limit" ]; then
-        echo "error: the <!-- whatsnew --> block for $version is $explicit_len chars," \
+if [ -f "$whatsnew_file" ]; then
+    # Verbatim, so what lands in the Play Store is exactly what was reviewed in
+    # the release diff. Command substitution drops only the trailing newlines.
+    text="$(cat "$whatsnew_file")"
+    if [ -z "$(printf '%s' "$text" | tr -d '[:space:]')" ]; then
+        echo "error: $whatsnew_rel is empty." >&2
+        exit 1
+    fi
+    text_len="$(utf16_len "$text")"
+    if [ "$text_len" -gt "$limit" ]; then
+        echo "error: $whatsnew_rel is $text_len chars," \
              "over the Play Store limit of $limit." >&2
-        echo "       Edit the block in CHANGELOG.md — it is used verbatim and is" \
+        echo "       Edit the file - it is used verbatim and is" \
              "deliberately not truncated." >&2
         exit 1
     fi
-    printf '%s\n' "$explicit" > "$out_path"
+    printf '%s\n' "$text" > "$out_path"
     echo "Wrote $(wc -c < "$out_path") bytes to $out_path" \
-         "(version $version, versionCode $version_code, explicit block)"
+         "(version $version, versionCode $version_code, $whatsnew_rel)"
     exit 0
+fi
+
+case "$version" in
+    *-alpha*|*-beta*|*-rc*) ;;
+    *)
+        echo "error: $whatsnew_rel is missing. A stable release ships to Google Play," \
+             "and its \"What's new\" text is hand-written there" \
+             "(at most $limit chars; android/whatsnew/README.md)." >&2
+        exit 1
+        ;;
+esac
+
+echo "note: no $whatsnew_rel; $version is a prerelease (never sent to Play)," \
+     "so the CHANGELOG.md section is distilled instead." >&2
+
+section="$("$repo_root/scripts/changelog-section.sh" "$version" "$repo_root/CHANGELOG.md")"
+
+if [ -z "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
+    echo "error: no CHANGELOG.md entry for version $version" >&2
+    exit 1
 fi
 
 # Strip markdown: drop "### Added/Fixed/Changed/..." subheadings, flatten
@@ -121,12 +121,9 @@ cleaned="$(printf '%s' "$section" | awk '
     s/\[([^]]+)\]\([^)]+\)/\1/g
 ' | awk 'BEGIN{blank=0} /^[[:space:]]*$/ { if (blank) next; blank=1; print; next } { blank=0; print }')"
 
-# Trim leading/trailing blank lines.
-# Same `tac` trap as the explicit-block trim above: `printf '%s'` leaves the
-# final line unterminated, so `tac` folds it into its neighbour and the last two
-# bullets come out swapped and concatenated. Here it hid for longer, because a
-# section long enough to reach the truncation branch usually loses the folded
-# line to the 500-char cut anyway — but any section under the cap shipped it.
+# Trim leading/trailing blank lines. The `\n` matters: `tac` reverses whole
+# lines, and an unterminated final line gets folded into its neighbour, which
+# swaps and concatenates the last two bullets.
 cleaned="$(printf '%s\n' "$cleaned" | sed -e '/./,$!d' | tac | sed -e '/./,$!d' | tac)"
 
 # Truncate to the cap on a sentence or line boundary.

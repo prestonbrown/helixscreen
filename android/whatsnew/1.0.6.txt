@@ -1,0 +1,5 @@
+- No more frozen screen when Wi-Fi hangs, and fixes for crashes on reprint and camera stop
+- Filament systems recover from a Klipper restart instead of sticking on busy
+- Snapmaker U1, K2 Plus CFS, ACE and AFC fixes: resume, tool changes, box readings
+- Runout recovery heats the nozzle first; Cool Down turns off every toolhead
+- Updates and installs that failed on K1 and systemd printers now work, and say why

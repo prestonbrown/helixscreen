@@ -146,7 +146,7 @@ the store screenshots are landscape to match.
 ## Status snapshot — 2026-04-23
 
 **Done:**
-- In-repo automation (CI builds signed AAB, generates whatsnew from CHANGELOG, publishes to internal track when service-account secret is set).
+- In-repo automation (CI builds signed AAB, generates whatsnew from `android/whatsnew/`, publishes to internal track when service-account secret is set).
 - Upload keystore generated and backed up at `~/.android-keystore/helixscreen-upload.jks`; four keystore-related GitHub secrets set (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`).
 - Store assets committed: 8 phone screenshots, 1024×500 feature graphic, 512×512 store icon, title / short / full descriptions. Fastlane metadata at `android/fastlane/metadata/android/en-US/`.
 - Privacy policy published at `https://helixscreen.org/legal/privacy/` (platform-neutral; applies to Android as-is).
@@ -187,7 +187,8 @@ Once the upload lands on the internal track, you promote it to open testing or p
 | `android/fastlane/metadata/android/en-US/images/icon.png` | Store icon (512×512, symlinked to `docs/store/android/icon-512.png`) |
 | `android/fastlane/metadata/android/en-US/images/featureGraphic.png` | Feature graphic (1024×500, symlinked to `docs/store/android/`) |
 | `android/fastlane/metadata/android/en-US/images/phoneScreenshots/*.png` | Phone screenshots (symlinked to `docs/store/android/`) |
-| `android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` | "What's new" per release. **Generated, not maintained** — `scripts/generate-whatsnew.sh` writes it from `CHANGELOG.md` at release time and `release.yml` reads it straight back. Nothing is committed here; the source of truth is the `CHANGELOG.md` section for the version. (One stale file, 9943.txt, was committed under the retired `major*10000` packing and has been removed — it would have read as the naming convention.) |
+| `android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` | "What's new" per release. **Generated, not maintained** — `scripts/generate-whatsnew.sh` writes it at release time and `release.yml` reads it straight back. Nothing is committed here. |
+| `android/whatsnew/<version>.txt` | The source of that text for a stable release: plain text, at most 500 characters, hand-written and committed in the release commit (`android/whatsnew/README.md`). Used verbatim; over-length or missing fails the release. A prerelease needs none: it never reaches Play, and the script distills its `CHANGELOG.md` section instead. |
 
 The listing text (title / descriptions / screenshots) is **not** synced by the workflow — `r0adkll/upload-google-play` only handles the AAB + whatsnew. Updates to those files are version-controlled here so the Play Console listing can be kept in sync by hand, with this tree as the canonical record. If we ever need full metadata sync, switch to `fastlane supply` (see "Future work").
 
@@ -304,10 +305,9 @@ Regenerate the whatsnew file locally to inspect what CI will upload:
 ```bash
 scripts/generate-whatsnew.sh /tmp/whatsnew-preview.txt
 cat /tmp/whatsnew-preview.txt
-wc -m /tmp/whatsnew-preview.txt   # must be ≤500 chars for Play Store
 ```
 
-The script reads the section for `VERSION.txt`'s current version from `CHANGELOG.md`, strips markdown, and truncates on a sentence boundary with an ellipsis if it would exceed 500 characters.
+For a stable version the script copies `android/whatsnew/<version>.txt` verbatim and fails if it is missing or over 500 characters (UTF-16 code units, as Play counts them). For a prerelease with no such file it reads the version's `CHANGELOG.md` section, drops HTML comments and markdown, and truncates on a sentence boundary.
 
 To test the full upload path without touching production, point the action at a sandbox app: create a second Play Console app (e.g. `org.helixscreen.app.dev`), invite the same service account, and override `packageName` in a temporary workflow branch. Not currently set up — only add this if we need to debug the uploader itself.
 
@@ -335,4 +335,4 @@ To test the full upload path without touching production, point the action at a 
 
 - `docs/user/PRIVACY_POLICY.md` — privacy policy text (to be published at helixscreen.org/privacy)
 - `scripts/generate-upload-keystore.sh` — one-time upload keystore generation
-- `scripts/generate-whatsnew.sh` — per-release whatsnew extraction from CHANGELOG.md
+- `scripts/generate-whatsnew.sh` — writes the per-release whatsnew file from `android/whatsnew/<version>.txt`

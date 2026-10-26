@@ -35,7 +35,6 @@ candidate, a theme with several chapters), expand:
 2. Bold sub-group headers inside categories when a category spans unrelated areas
    (`**Printer identification**`, `**Crashes**`) - so a reader can scan past what they
    do not care about.
-3. A `<!-- whatsnew ... -->` block at the top of the section (see below).
 
 ## Voice: symptom and consequence, never machinery
 
@@ -76,16 +75,14 @@ not appear as an explanation of something else.
   (settings moved, defaults flipped, config format bumped). One or two sentences, then
   on with the entry. Not for ordinary fixes.
 
-## The What's New block
+## Play Store "What's New" lives outside this file
 
-The Play Store "What's New" field is a different surface with a 500-character budget;
-`scripts/generate-whatsnew.sh` extracts it. An explicit `<!-- whatsnew ... -->` block at
-the top of the section is used verbatim; without one, the script falls back to stripping
-the section body - fine for a short daily entry, wrong for a milestone whose section
-opens with prose. That is why the whatsnew block belongs to the milestone shape: write
-it when the entry is too long or too structured to distill mechanically, and respect the
-500-char budget when you do (over-length is a hard error by design - edit the text, do
-not truncate it).
+The Play Store "What's New" field is a different surface with a 500-character budget. Its
+text is not in `CHANGELOG.md`: a stable release writes it by hand in
+`android/whatsnew/<version>.txt` (`android/whatsnew/README.md`), and
+`scripts/generate-whatsnew.sh` uses that file verbatim. New entries carry no
+`<!-- whatsnew -->` block; the blocks in older entries stay as they were written, and
+every tool that publishes a section strips HTML comments from it.
 
 ## Never change these
 
@@ -98,7 +95,7 @@ Three parts of the file are load-bearing for things that are not human readers:
 - The compare-link footer at the bottom of the file
   (`[X.Y.Z]: https://github.com/prestonbrown/helixscreen/compare/vA...vB`).
 
-The 500-char whatsnew budget in `scripts/generate-whatsnew.sh` likewise stays.
+The 500-char What's New budget in `scripts/generate-whatsnew.sh` likewise stays.
 
 ## Past entries stay as they are
 

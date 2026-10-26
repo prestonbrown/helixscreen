@@ -887,18 +887,11 @@ jobs:
         VERSION="${GITHUB_REF_NAME}"
         RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${VERSION}"
 
-        # Extract changelog entry from CHANGELOG.md
+        # This version's CHANGELOG.md section, HTML comments removed.
         PLAIN_VERSION="${VERSION#v}"
         CHANGELOG=""
         if [ -f CHANGELOG.md ]; then
-          CHANGELOG=$(awk -v ver="$PLAIN_VERSION" '
-            /^## \[/ {
-              if (found) exit
-              if (index($0, "[" ver "]")) found=1
-              next
-            }
-            found { print }
-          ' CHANGELOG.md)
+          CHANGELOG=$(scripts/changelog-section.sh "$PLAIN_VERSION")
         fi
 
         # The embed description holds 4096 chars. A longer entry is cut at the
@@ -1012,17 +1005,9 @@ jobs:
       run: |
         VERSION="${{ steps.version.outputs.version }}"
 
-        # Extract the section for this version from CHANGELOG.md
-        # Matches from "## [VERSION]" to the next "## [" or end of file
+        # This version's CHANGELOG.md section, HTML comments removed.
         if [ -f CHANGELOG.md ]; then
-          NOTES=$(awk -v ver="$VERSION" '
-            /^## \[/ {
-              if (found) exit
-              if (index($0, "[" ver "]")) found=1
-              next
-            }
-            found { print }
-          ' CHANGELOG.md)
+          NOTES=$(scripts/changelog-section.sh "$VERSION")
         fi
 
         if [ -z "$NOTES" ]; then

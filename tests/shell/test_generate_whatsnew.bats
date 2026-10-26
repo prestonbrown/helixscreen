@@ -1,34 +1,17 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Tests for scripts/generate-whatsnew.sh — the Play Store "What's new" text.
+# Tests for scripts/generate-whatsnew.sh, the Play Store "What's new" text, and
+# scripts/changelog-section.sh, which it reads its fallback through.
 #
-# Nothing tested this script, and three separate bugs shipped in it silently:
-#
-#   1. The sentence-boundary search ran inside awk. awk is line-oriented, so a
-#      backward scan for "." over `$0` only ever saw the FIRST line of the
-#      truncated text, and `head -1` took that line's answer. The index landed
-#      below the 100-char floor every time, so the sentence branch never once
-#      fired and every release fell through to a crude word-chop plus an
-#      ellipsis. The 1.0 release candidate's What's New ended mid-clause on
-#      "...because the wrong…".
-#
-#   2. A trim pipeline fed `printf '%s'` (no trailing newline) into `tac`, which
-#      folds an unterminated final line into its neighbour — silently reordering
-#      AND concatenating the last two bullets. `printf 'a\nb\nc' | tac` is
-#      "cb\na\n", not "c\nb\na\n".
-#
-#   3. The truncation preferred whichever of (last period, last newline) was
-#      LONGER. Hard-wrapped prose breaks wherever the column ran out, so the
-#      longest-wins rule picks a mid-sentence line break over a real sentence
-#      end sitting just behind it.
-#
-# Every fixture below builds a throwaway repo root — the script resolves
-# VERSION.txt and CHANGELOG.md relative to its own BASH_SOURCE, so copying it
-# (plus android-version-code.sh, which it shells out to) into a temp dir is the
-# only way to drive it without touching the real ones.
+# Every fixture builds a throwaway repo root: the script resolves VERSION.txt,
+# android/whatsnew/ and CHANGELOG.md relative to its own BASH_SOURCE, so copying
+# it (plus the two scripts it shells out to) into a temp dir is the only way to
+# drive it without touching the real ones. VERSION.txt defaults to a prerelease,
+# which takes the changelog fallback; `stable` switches a test to 1.2.3.
 
 load helpers
+bats_require_minimum_version 1.5.0
 
 SCRIPT="scripts/generate-whatsnew.sh"
 
@@ -39,8 +22,18 @@ setup() {
     OUT="$TEST_DIR/whatsnew.txt"
     mkdir -p "$REPO/scripts"
     cp "$SCRIPT" "$REPO/scripts/"
-    cp scripts/android-version-code.sh "$REPO/scripts/"
+    cp scripts/android-version-code.sh scripts/changelog-section.sh "$REPO/scripts/"
+    printf '1.2.3-beta.1\n' > "$REPO/VERSION.txt"
+}
+
+stable() {
     printf '1.2.3\n' > "$REPO/VERSION.txt"
+}
+
+# Write android/whatsnew/<VERSION.txt>.txt from stdin.
+whatsnew_file() {
+    mkdir -p "$REPO/android/whatsnew"
+    cat > "$REPO/android/whatsnew/$(cat "$REPO/VERSION.txt").txt"
 }
 
 teardown() {
@@ -76,16 +69,13 @@ gen() {
     local emoji_block="" i
     for i in $(seq 1 250); do emoji_block+="🎉"; done
 
-    {
-        printf '# Changelog\n\n## [1.2.3] - 2026-08-15\n\n<!-- whatsnew\n'
-        printf '%sX\n' "$emoji_block"
-        printf -- '-->\n\n## [1.2.2] - 2026-08-01\n\n- old\n'
-    } > "$REPO/CHANGELOG.md"
+    stable
+    printf '%sX\n' "$emoji_block" | whatsnew_file
 
     rm -f "$OUT"
     gen "$OUT"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"501 chars"* ]]
+    contains "501 chars" "$output"
     refute test -e "$OUT"
 }
 
@@ -98,62 +88,179 @@ gen() {
 }
 
 # ---------------------------------------------------------------------------
-# The explicit <!-- whatsnew --> block
+# android/whatsnew/<version>.txt
 # ---------------------------------------------------------------------------
 
-@test "an explicit whatsnew block is emitted verbatim and the prose is not" {
+@test "the whatsnew file is emitted verbatim and the changelog is not read" {
+    stable
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
 ## [1.2.3] - 2026-08-15
 
-### Added
-
-<!-- whatsnew
-Filament runout recovery now resumes the print by itself.
-Bed mesh calibration shows live probe progress.
--->
-
 This paragraph is written for somebody reading the repository and has no
 business appearing in the Play Store listing at all.
-
-## [1.2.2] - 2026-08-01
-
-- old stuff
+EOF
+    whatsnew_file <<'EOF'
+Filament runout recovery now resumes the print by itself.
+Bed mesh calibration shows live probe progress.
 EOF
     gen "$OUT"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"explicit block"* ]]
+    contains "android/whatsnew/1.2.3.txt" "$output"
 
     local expected
     expected="Filament runout recovery now resumes the print by itself.
 Bed mesh calibration shows live probe progress."
     [ "$(cat "$OUT")" = "$expected" ]
-
-    # The surrounding prose, the subheading, and the comment delimiters must
-    # all be absent — the block is the whole output, not a prefix of it.
     refute_grep 'repository' "$OUT"
-    refute_grep 'Added' "$OUT"
-    refute_grep 'whatsnew' "$OUT"
-    refute_grep 'old stuff' "$OUT"
 }
 
-@test "a five-bullet block keeps its order with nothing concatenated" {
-    # Bug 2. `tac` on an unterminated final line folds the last two lines
-    # together, so this must assert the EXACT multi-line output — a substring
-    # check for "- Alpha first" passes happily on a reordered result.
+@test "a stable release needs no CHANGELOG.md at all when its file exists" {
+    stable
+    printf 'One short line.\n' | whatsnew_file
+    gen "$OUT"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$OUT")" = "One short line." ]
+}
+
+@test "a multi-line file keeps its order and interior blank lines" {
+    stable
+    whatsnew_file <<'EOF'
+- Alpha first
+- Bravo second
+
+- Charlie third
+- Delta fourth
+- Echo fifth
+EOF
+    gen "$OUT"
+    [ "$status" -eq 0 ]
+    if ! cmp -s "$OUT" "$REPO/android/whatsnew/1.2.3.txt"; then
+        echo "expected:" >&2; cat "$REPO/android/whatsnew/1.2.3.txt" >&2
+        echo "actual:" >&2; cat "$OUT" >&2
+        return 1
+    fi
+}
+
+@test "a prerelease with its own file uses it over the changelog" {
+    cat > "$REPO/CHANGELOG.md" <<'EOF'
+# Changelog
+
+## [1.2.3-beta.1] - 2026-08-15
+
+Prose line that would otherwise be summarized into the listing.
+EOF
+    printf 'One short line.\n' | whatsnew_file
+    gen "$OUT"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$OUT")" = "One short line." ]
+    lacks "note:" "$output"
+}
+
+@test "an over-length file is a hard error naming the actual length" {
+    stable
+    local i
+    for i in $(seq 1 12); do
+        printf -- '- Bullet number %d padded out with plenty of words to exceed the cap\n' "$i"
+    done | whatsnew_file
+
+    rm -f "$OUT"
+    gen "$OUT"
+    [ "$status" -ne 0 ]
+    # The message must carry the measured length, not just "too long": the
+    # author needs to know how much to cut.
+    contains "818 chars" "$output"
+    contains "limit of 500" "$output"
+    contains "android/whatsnew/1.2.3.txt" "$output"
+    # And it must not have written a truncated file behind the error.
+    refute test -e "$OUT"
+}
+
+@test "a file of exactly 500 chars is accepted" {
+    # The limit is >500, not >=500. An off-by-one here rejects text that fits
+    # and sends the release author chasing a phantom.
+    stable
+    head -c 500 < /dev/zero | tr '\0' 'x' | whatsnew_file
+    gen "$OUT"
+    [ "$status" -eq 0 ]
+    # 500 chars + the trailing newline printf adds = 501 bytes on disk.
+    [ "$(wc -c < "$OUT")" -eq 501 ]
+}
+
+@test "a file of 501 chars is rejected" {
+    stable
+    head -c 501 < /dev/zero | tr '\0' 'x' | whatsnew_file
+    rm -f "$OUT"
+    gen "$OUT"
+    [ "$status" -ne 0 ]
+    contains "501 chars" "$output"
+    refute test -e "$OUT"
+}
+
+@test "an empty file is an error, not an empty listing" {
+    stable
+    printf '\n\n' | whatsnew_file
+    rm -f "$OUT"
+    gen "$OUT"
+    [ "$status" -ne 0 ]
+    contains "android/whatsnew/1.2.3.txt is empty" "$output"
+    refute test -e "$OUT"
+}
+
+@test "a stable release with no file fails naming the file, even with a changelog entry" {
+    stable
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
 ## [1.2.3] - 2026-08-15
 
+- A perfectly good changelog entry that must not be distilled for Play.
+EOF
+    rm -f "$OUT"
+    gen "$OUT"
+    [ "$status" -ne 0 ]
+    contains "android/whatsnew/1.2.3.txt is missing" "$output"
+    refute test -e "$OUT"
+}
+
+@test "a prerelease with no file falls back to the changelog with a note" {
+    cat > "$REPO/CHANGELOG.md" <<'EOF'
+# Changelog
+
+## [1.2.3-beta.1] - 2026-08-15
+
+Filament runout recovery resumes the print by itself now.
+EOF
+    run --separate-stderr bash "$REPO/scripts/generate-whatsnew.sh" "$OUT"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$OUT")" = "Filament runout recovery resumes the print by itself now." ]
+    contains "note: no android/whatsnew/1.2.3-beta.1.txt" "$stderr"
+    lacks "note:" "$output"
+}
+
+@test "every prerelease kind takes the fallback" {
+    local v
+    for v in 1.2.3-alpha.2 1.2.3-beta.1 1.2.3-rc.3; do
+        printf '%s\n' "$v" > "$REPO/VERSION.txt"
+        printf '# Changelog\n\n## [%s] - 2026-08-15\n\n- Built.\n' "$v" > "$REPO/CHANGELOG.md"
+        gen "$OUT"
+        [ "$status" -eq 0 ] || fail "$v: $output"
+        [ "$(cat "$OUT")" = "- Built." ] || fail "$v: $(cat "$OUT")"
+    done
+}
+
+@test "the fallback drops HTML comments, including an old whatsnew block" {
+    cat > "$REPO/CHANGELOG.md" <<'EOF'
+# Changelog
+
+## [1.2.3-beta.1] - 2026-08-15
+
 <!-- whatsnew
-- Alpha first
-- Bravo second
-- Charlie third
-- Delta fourth
-- Echo fifth
+Text meant for an old pipeline.
 -->
+
+The beta's own prose. <!-- an editor's aside --> It carries on.
 
 ## [1.2.2] - 2026-08-01
 
@@ -161,122 +268,11 @@ Bed mesh calibration shows live probe progress."
 EOF
     gen "$OUT"
     [ "$status" -eq 0 ]
-
-    local expected
-    expected="- Alpha first
-- Bravo second
-- Charlie third
-- Delta fourth
-- Echo fifth"
-    if [ "$(cat "$OUT")" != "$expected" ]; then
-        echo "expected:" >&2; printf '%s\n' "$expected" >&2
-        echo "actual:" >&2; cat "$OUT" >&2
-        return 1
-    fi
-
-    # Belt and braces: five lines, each a whole bullet.
-    [ "$(wc -l < "$OUT")" -eq 5 ]
-    refute_grep 'fifth- Delta' "$OUT"
-}
-
-@test "blank lines around the block are trimmed but interior ones are kept" {
-    cat > "$REPO/CHANGELOG.md" <<'EOF'
-# Changelog
-
-## [1.2.3] - 2026-08-15
-
-<!-- whatsnew
-
-- First
-
-- Second
-
--->
-EOF
-    gen "$OUT"
-    [ "$status" -eq 0 ]
-
-    local expected
-    expected="- First
-
-- Second"
-    [ "$(cat "$OUT")" = "$expected" ]
-}
-
-@test "an over-length block is a hard error naming the actual length" {
-    local i
-    {
-        printf '# Changelog\n\n## [1.2.3] - 2026-08-15\n\n<!-- whatsnew\n'
-        for i in $(seq 1 12); do
-            printf -- '- Bullet number %d padded out with plenty of words to exceed the cap\n' "$i"
-        done
-        printf -- '-->\n\n## [1.2.2] - 2026-08-01\n\n- old\n'
-    } > "$REPO/CHANGELOG.md"
-
-    rm -f "$OUT"
-    gen "$OUT"
-    [ "$status" -ne 0 ]
-    # The message must carry the measured length, not just "too long" — the
-    # author needs to know how much to cut.
-    [[ "$output" == *"818 chars"* ]]
-    [[ "$output" == *"limit of 500"* ]]
-    # And it must not have written a truncated file behind the error.
-    refute test -e "$OUT"
-}
-
-@test "a block of exactly 500 chars is accepted" {
-    # The limit is >500, not >=500. An off-by-one here rejects a block that
-    # fits and sends the release author chasing a phantom.
-    local body
-    body="$(head -c 499 < /dev/zero | tr '\0' 'x')"
-    printf '# Changelog\n\n## [1.2.3] - 2026-08-15\n\n<!-- whatsnew\n%s\n-->\n' "$body" \
-        > "$REPO/CHANGELOG.md"
-    gen "$OUT"
-    [ "$status" -eq 0 ]
-    # 499 body chars + the trailing newline printf adds = 500 bytes on disk.
-    [ "$(wc -c < "$OUT")" -eq 500 ]
-}
-
-@test "a block of 501 chars is rejected" {
-    local body
-    body="$(head -c 501 < /dev/zero | tr '\0' 'x')"
-    printf '# Changelog\n\n## [1.2.3] - 2026-08-15\n\n<!-- whatsnew\n%s\n-->\n' "$body" \
-        > "$REPO/CHANGELOG.md"
-    rm -f "$OUT"
-    gen "$OUT"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"501 chars"* ]]
-    refute test -e "$OUT"
-}
-
-@test "the block wins even when the section prose is far longer" {
-    # The point of the explicit path: the fallback must not get a look in.
-    {
-        printf '# Changelog\n\n## [1.2.3] - 2026-08-15\n\n'
-        printf 'Prose line %d that would otherwise be summarized into the listing.\n' 1 2 3 4 5 6 7 8 9 10
-        printf '\n<!-- whatsnew\nOne short line.\n-->\n'
-    } > "$REPO/CHANGELOG.md"
-    gen "$OUT"
-    [ "$status" -eq 0 ]
-    [ "$(cat "$OUT")" = "One short line." ]
-    refute_grep 'Prose line' "$OUT"
-}
-
-@test "a block ending early in a section larger than a pipe buffer still exits 0" {
-    # Under pipefail, a reader that stops at the block's closing marker while the
-    # section is still being written into the pipe kills the script with SIGPIPE
-    # (exit 141) and no message. 200KB of prose after the block is far past any
-    # pipe buffer, so an early-exiting reader fails this every run.
-    {
-        printf '# Changelog\n\n## [1.2.3] - 2026-08-15\n\n'
-        printf '<!-- whatsnew\nOne short line.\n-->\n\n'
-        for _ in $(seq 1 3000); do
-            printf 'Prose line that follows the block and fills the pipe well past its buffer.\n'
-        done
-    } > "$REPO/CHANGELOG.md"
-    gen "$OUT"
-    [ "$status" -eq 0 ]
-    [ "$(cat "$OUT")" = "One short line." ]
+    [ "$(cat "$OUT")" = "The beta's own prose.  It carries on." ]
+    refute_grep '<!--' "$OUT"
+    refute_grep -- '-->' "$OUT"
+    refute_grep 'old pipeline' "$OUT"
+    refute_grep 'aside' "$OUT"
 }
 
 # ---------------------------------------------------------------------------
@@ -293,7 +289,7 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 The release notes open with a long hard-wrapped paragraph of prose that
 was written for somebody reading the repository, not for somebody
@@ -326,7 +322,7 @@ rather than where a sentence ended, which is exactly the trap."
     fi
 
     # Restated as the properties that matter, so a failure says which one broke.
-    [[ "$(cat "$OUT")" == *. ]]
+    [[ "$(cat "$OUT")" == *. ]] || fail "summary does not end in a full stop"
     refute_grep 'exceeds the$' "$OUT"   # the mid-sentence line break (bug 3)
     refute_grep '…' "$OUT"              # the word-chop fallback (bug 1)
     [ "$(wc -c < "$OUT")" -le 501 ]     # content + the one trailing newline
@@ -338,7 +334,7 @@ rather than where a sentence ended, which is exactly the trap."
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 - Filament runout detection now recovers without dropping the print job
 - Bed mesh calibration reports its progress while the probe is running
@@ -384,7 +380,7 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 Filament runout recovery resumes the print by itself now.
 
@@ -402,7 +398,7 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 ### Fixed
 
@@ -410,7 +406,7 @@ EOF
 EOF
     gen "$OUT"
     [ "$status" -eq 0 ]
-    [[ "$(cat "$OUT")" == *"Bold and italic and code and a link all flatten."* ]]
+    contains "Bold and italic and code and a link all flatten." "$(cat "$OUT")"
     refute_grep '\*\*' "$OUT"
     refute_grep 'https://' "$OUT"
     refute_grep '###' "$OUT"
@@ -428,7 +424,7 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 ### Fixed
 
@@ -471,7 +467,7 @@ EOF
     rm -f "$OUT"
     gen "$OUT"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"no CHANGELOG.md entry for version 1.2.3"* ]]
+    contains "no CHANGELOG.md entry for version 1.2.3-beta.1" "$output"
     refute test -e "$OUT"
 }
 
@@ -481,7 +477,7 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 ## [1.2.2] - 2026-08-01
 
@@ -502,7 +498,7 @@ EOF
 
 - unreleased future work
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 - ours and only ours
 
@@ -525,7 +521,7 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 - Something happened.
 EOF
@@ -543,12 +539,12 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 - Something happened.
 EOF
     local code expected
-    code="$("$REPO/scripts/android-version-code.sh" 1.2.3)"
+    code="$("$REPO/scripts/android-version-code.sh" 1.2.3-beta.1)"
     expected="$REPO/android/fastlane/metadata/android/en-US/changelogs/$code.txt"
     gen
     [ "$status" -eq 0 ]
@@ -561,7 +557,7 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 - Something happened.
 EOF
@@ -575,7 +571,7 @@ EOF
     cat > "$REPO/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [1.2.3] - 2026-08-15
+## [1.2.3-beta.1] - 2026-08-15
 
 - Resolved from BASH_SOURCE.
 EOF
