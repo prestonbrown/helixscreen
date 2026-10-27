@@ -3,6 +3,7 @@
 
 #include "gcode_layer_cache.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -136,6 +137,38 @@ TEST_CASE("GCodeLayerCache LRU eviction", "[gcode][cache]") {
         // Evicting non-existent layer returns false
         REQUIRE_FALSE(cache.evict(999));
     }
+}
+
+TEST_CASE("GCodeLayerCache holds a requested layer larger than its budget alone",
+          "[gcode][cache]") {
+    // A single layer can outgrow a small board's whole budget (an 81k-segment
+    // multiboard layer against the CC1's 2MB). A caller that needs it must get it,
+    // and must not pay a fresh parse each time it asks: the renderer re-requests
+    // the current layer every frame until it has it.
+    GCodeLayerCache cache(5 * 1024);
+    std::vector<size_t> loaded;
+
+    cache.get_or_load(1, tracking_loader(loaded, 50));
+    REQUIRE(cache.is_cached(1));
+
+    auto first = cache.get_or_load(7, tracking_loader(loaded, 1000));
+    REQUIRE(first.segments);
+    CHECK_FALSE(first.load_failed);
+    CHECK(first.segments->size() == 1000);
+
+    auto second = cache.get_or_load(7, tracking_loader(loaded, 1000));
+    REQUIRE(second.segments);
+    CHECK(second.was_hit);
+    CHECK(std::count(loaded.begin(), loaded.end(), size_t{7}) == 1);
+
+    // It sits alone: everything else made way for it.
+    CHECK_FALSE(cache.is_cached(1));
+
+    // And it is evicted like any other layer once a normal one needs the room.
+    cache.get_or_load(2, tracking_loader(loaded, 50));
+    CHECK_FALSE(cache.is_cached(7));
+    CHECK(cache.is_cached(2));
+    CHECK(cache.memory_usage_bytes() <= cache.memory_budget_bytes());
 }
 
 TEST_CASE("GCodeLayerCache memory tracking", "[gcode][cache]") {
