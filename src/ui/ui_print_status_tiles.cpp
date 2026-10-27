@@ -438,7 +438,6 @@ void PrintStatusTiles::update_now() {
     if (!subjects_ready_) {
         return;
     }
-    refresh_checklist();
 
     auto contents = decide_chips(false, true);
     // The same chips with their labels left off, for a layout that sheds them.

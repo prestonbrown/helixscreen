@@ -703,6 +703,29 @@ TEST_CASE_METHOD(Landscape800, "the pre-print elapsed tick re-reads the checklis
     UpdateQueue::instance().drain();
 }
 
+// Heater readings arrive with every status update, idle or not, and reading the
+// checklist asks the collector's predictor for its phase durations, which
+// falls back to a printer-database lookup when there is no history.
+TEST_CASE_METHOD(Landscape800, "a heater reading does not re-read the checklist",
+                 "[print_status]") {
+    int reads = 0;
+    tiles().set_checklist_source([&reads]() -> std::optional<PreprintChecklistInput> {
+        ++reads;
+        return PreprintChecklistInput{};
+    });
+
+    auto& temps = state().temperature_state();
+    for (int deci = 250; deci < 260; ++deci) {
+        set_int(temps.get_bed_temp_subject(), deci);
+        set_int(temps.get_active_extruder_temp_subject(), deci);
+        UpdateQueue::instance().drain();
+        process_lvgl(50); // the coalesced chip update runs on its own timer
+    }
+    settle();
+
+    CHECK(reads == 0);
+}
+
 TEST_CASE_METHOD(Landscape800, "a fan spinning up mid-print does not change the mode",
                  "[print_status]") {
     size_printer_area(root_, 200, 280);
