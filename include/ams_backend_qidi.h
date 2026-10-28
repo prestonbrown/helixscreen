@@ -14,6 +14,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -299,12 +300,46 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     /// don't pollute SlotInfo with backend-specific fields. Resolution to
     /// material/color/brand happens via the officiall_filas_list.cfg lookup
     /// (separate cycle). 0 = unknown.
+    ///
+    /// Box firmware 02.03.01.21 and later also saves a string product id
+    /// (`filament_slot<N> = 'QFA90'`) and a colour list
+    /// (`color_slot<N> = ['228332']`). Those land in filament_code and
+    /// color_rgb with the matching row id at 0, and the tables cannot resolve
+    /// a product id: multi_color_controller's slot info does.
     struct QidiSlotRfid {
-        int filament_id = 0; ///< 1-99, index into officiall_filas_list.cfg
-        int color_id = 0;    ///< 1-24, palette index
-        int vendor_id = 0;   ///< Always 1 in the wild so far
+        int filament_id = 0;                    ///< 1-99, index into officiall_filas_list.cfg
+        int color_id = 0;                       ///< 1-24, palette index
+        int vendor_id = 0;                      ///< Always 1 in the wild so far
+        std::string filament_code;              ///< String product id, in place of filament_id
+        std::optional<std::uint32_t> color_rgb; ///< Colour list's RGB, in place of color_id
+
+        /// The fields as fingerprint components: the row id, or the string
+        /// form when the Box saved one ("QFA90", "#228332").
+        [[nodiscard]] std::string filament_token() const;
+        [[nodiscard]] std::string color_token() const;
     };
     std::vector<QidiSlotRfid> slot_rfid_;
+
+    /// What multi_color_controller publishes for a slot, already resolved by
+    /// the firmware: `box.box<B>_filament_info_<I>_*`. The source for a slot
+    /// whose save_variables hold a string product id. Indexed by global slot.
+    struct ControllerSlotInfo {
+        std::string filament_type;
+        std::string vendor;
+        int min_temp = 0;
+        int max_temp = 0;
+        bool operator==(const ControllerSlotInfo&) const = default;
+    };
+    std::vector<ControllerSlotInfo> controller_slots_;
+
+    /// Every filament/color/vendor_slot key save_variables has stated, merged.
+    /// Replayed through parse_save_variables() when controller info changes
+    /// on its own, so a string id resolves without waiting for the next save.
+    nlohmann::json identity_vars_ = nlohmann::json::object();
+
+    /// Fold a multi_color_controller status (deltas included) into
+    /// controller_slots_. True when a slot's info changed. Caller holds mutex_.
+    bool apply_controller_status_locked(const nlohmann::json& controller);
 
     /// Each slot's tag reading, folded frame by frame from the resolved ids so
     /// a field our own write replaced keeps the tag's value. Under mutex_.
@@ -387,16 +422,17 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     [[nodiscard]] helix::ams::SpoolEvidence
     fingerprint_evidence_locked(const std::string& fingerprint) const;
 
-    /// Cross-product the per-field id lists into the fingerprint set the slot
+    /// Cross-product the per-field token lists into the fingerprint set the slot
     /// may report while our own SAVE_VARIABLEs echo back one field at a time,
     /// and register it with rfid_tracker_ so each echo reads as OwnWriteEcho
     /// instead of a spool swap. The vendor write needs no composite of its
     /// own: the fingerprint does not count the vendor id. Returns the staged
     /// values, for a forget_expected() release when none of the writes
     /// dispatch. Caller must hold mutex_.
-    std::vector<std::string> expect_own_write_echoes_locked(int slot_index, const std::string& base,
-                                                            const std::vector<int>& fila_vals,
-                                                            const std::vector<int>& color_vals);
+    std::vector<std::string>
+    expect_own_write_echoes_locked(int slot_index, const std::string& base,
+                                   const std::vector<std::string>& fila_tokens,
+                                   const std::vector<std::string>& color_tokens);
 
     /// Blanks everything the slot showed, material and colour included, so it
     /// reads as no identity the moment the clear lands; the parse restates

@@ -46,7 +46,8 @@ All control runs through Klipper gcode macros and `SAVE_VARIABLE` — **no dedic
 | `save_variables` | `value_t<N>` = `"slot<M>"` | Tool N prints from slot M (the tool map, one direction only) |
 | `save_variables` | `last_load_slot` (`"slot-1"` = nothing) | Aggregate loaded pointer |
 | `save_variables` | `is_tool_change` | `AmsAction::LOADING` while the box is busy |
-| `save_variables` | `filament_slot<N>` / `color_slot<N>` / `vendor_slot<N>` | RFID row indices resolved via `officiall_filas_list.cfg`; a quoted `VALUE="5"` (Qidi Studio's spelling) parses the same as a bare int |
+| `save_variables` | `filament_slot<N>` / `color_slot<N>` / `vendor_slot<N>` | RFID row indices resolved via `officiall_filas_list.cfg`; a quoted `VALUE="5"` (Qidi Studio's spelling) parses the same as a bare int. Box firmware 02.03.01.21 and later may save a string product id (`'QFA90'`) and a colour list (`['228332']`) instead (§ String product ids) |
+| `multi_color_controller` (field `box` only) | `box<B>_filament_info_<I>_{filament_type, vendor_str, min_temp, max_temp}` | The firmware's own resolution of each slot (Box B+1, slot I); the only source for a string product id. Updates carry only the keys that changed |
 | `heater_generic heater_box<N>` | `temperature`, `target`, `power` | Per-box dryer heater |
 | `aht20_f heater_box<N>` | `temperature`, `humidity` | Per-box environment |
 | `box_extras` | `box_drying_state.box<N>.{dry_state, end_time}` | Drying countdown |
@@ -132,6 +133,31 @@ next insert, boot or RFID read. Vendor is the one field where 0 is a real row
 (`vendor_list` row 0 = Generic), so user edits write vendor 0 legitimately;
 the clear's zeros still read as no identity because all three fields land on
 0 together.
+
+### String product ids
+
+Box firmware 02.03.01.21 (shipped with Q2 01.01.03.01, and seen under Plus 5
+printer firmware 01.01.02.01) saves what its own screen picks in a second form:
+`filament_slot<N> = 'QFA90'`, a product id shaped like Bambu Studio's `GF*` codes
+with a `QF` prefix, and `color_slot<N> = ['228332']`, a list of RGB strings with
+no `#`. `vendor_slot<N>` is left as it was. Numeric writes still work, and every
+write HelixScreen makes stays numeric.
+
+- A colour list paints its RGB directly; the palette is not consulted.
+- A product id names no `officiall_filas_list.cfg` row. Material, nozzle range
+  and brand come from `multi_color_controller`'s `box` field instead, folded per
+  slot as deltas arrive; controller info that lands after the ids repaints the
+  slot from the last ids stated. The stale `vendor_slot<N>` is ignored for such a
+  slot.
+- The swap fingerprint takes either form per component (`QFA90|#228332`,
+  `11|2`, `QFA90|2`), so a spool change between product ids clears an override
+  and our own numeric write over a product id echoes as our write
+  (`src/printer/ams_backend_qidi.cpp#expect_own_write_echoes_locked`).
+- A numeric id keeps the Box tables as its source even when controller info is
+  present.
+
+Field names come from QIDI Studio's `QDSDeviceManager.cpp` and runtime
+observation on a Max 4 (01.01.07.01). Not yet seen on our own Box hardware.
 
 ### Do NOT Confuse With
 

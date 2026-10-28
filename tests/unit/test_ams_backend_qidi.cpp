@@ -2898,3 +2898,157 @@ TEST_CASE("QIDI Box explains an unavailable eject", "[ams][qidi_box]") {
         CHECK(mock.eject_unavailable_reason(1).empty());
     }
 }
+
+// =====================================================================
+// String filament ids and colour lists (Box firmware 02.03.01.21 and later)
+// =====================================================================
+//
+// The stock screen saves `filament_slot<N> = 'QFA90'` and
+// `color_slot<N> = ['228332']`, and multi_color_controller publishes each
+// slot already resolved under `box.box<B>_filament_info_<I>_*`.
+
+static json make_controller_slot_notification(int box, int slot_in_box, const json& fields) {
+    json box_obj = json::object();
+    const std::string prefix =
+        "box" + std::to_string(box) + "_filament_info_" + std::to_string(slot_in_box) + "_";
+    for (auto it = fields.begin(); it != fields.end(); ++it) {
+        box_obj[prefix + it.key()] = it.value();
+    }
+    return json{{"multi_color_controller", json{{"box", box_obj}}}};
+}
+
+static const json kControllerGenericPla{
+    {"filament_id", "QFA90"},  {"filament_type", "PLA"},
+    {"vendor_str", "Generic"}, {"color_rgb_str", json::array({"228332"})},
+    {"min_temp", 190},         {"max_temp", 240}};
+
+TEST_CASE("QIDI Box a colour list paints its RGB without the palette",
+          "[ams][qidi_box][qidi_string_ids]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    // No officiall_filas_list yet: the list spells the colour itself.
+    QidiBoxTestAccess::parse_vars(backend, json{{"color_slot0", json::array({"228332"})}});
+    CHECK(backend.get_slot_info(0).color_rgb == 0x228332u);
+
+    QidiBoxTestAccess::parse_vars(backend, json{{"color_slot0", json::array({"#fafafa"})}});
+    CHECK(backend.get_slot_info(0).color_rgb == 0xFAFAFAu);
+
+    // An empty list states no colour, the same as a zero row id.
+    AmsBackendQidi zero_row(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(zero_row, json{{"color_slot0", 0}});
+    QidiBoxTestAccess::parse_vars(backend, json{{"color_slot0", json::array()}});
+    CHECK(backend.get_slot_info(0).color_rgb != 0xFAFAFAu);
+    CHECK(backend.get_slot_info(0).color_rgb == zero_row.get_slot_info(0).color_rgb);
+}
+
+TEST_CASE("QIDI Box a string filament id resolves from the controller's slot info",
+          "[ams][qidi_box][qidi_string_ids]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+
+    SECTION("controller info and save_variables in one notification") {
+        json status = make_controller_slot_notification(0, 1, kControllerGenericPla);
+        status["save_variables"] =
+            json{{"variables",
+                  json{{"filament_slot1", "QFA90"}, {"color_slot1", json::array({"228332"})}}}};
+        QidiBoxTestAccess::handle_status(backend, status);
+    }
+    SECTION("controller info after save_variables") {
+        QidiBoxTestAccess::parse_vars(
+            backend, json{{"filament_slot1", "QFA90"}, {"color_slot1", json::array({"228332"})}});
+        CHECK(backend.get_slot_info(1).material.empty());
+        QidiBoxTestAccess::handle_status(
+            backend, make_controller_slot_notification(0, 1, kControllerGenericPla));
+    }
+
+    const auto s = backend.get_slot_info(1);
+    CHECK(s.material == "PLA");
+    CHECK(s.brand == "Generic");
+    CHECK(s.color_rgb == 0x228332u);
+    CHECK(s.nozzle_temp_min == 190);
+    CHECK(s.nozzle_temp_max == 240);
+}
+
+TEST_CASE("QIDI Box a partial controller update keeps the slot's other fields",
+          "[ams][qidi_box][qidi_string_ids]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(backend, json{{"filament_slot2", "QFA90"}});
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(0, 2, kControllerGenericPla));
+    REQUIRE(backend.get_slot_info(2).material == "PLA");
+
+    // Subscription updates carry only the keys that changed.
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(0, 2, json{{"max_temp", 230}}));
+    const auto s = backend.get_slot_info(2);
+    CHECK(s.material == "PLA");
+    CHECK(s.brand == "Generic");
+    CHECK(s.nozzle_temp_max == 230);
+}
+
+TEST_CASE("QIDI Box a numeric id keeps the Box tables over controller info",
+          "[ams][qidi_box][qidi_string_ids]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    json status = make_controller_slot_notification(0, 0, kControllerGenericPla);
+    status["save_variables"] =
+        json{{"variables", json{{"filament_slot0", 11}, {"color_slot0", 18}, {"vendor_slot0", 2}}}};
+    QidiBoxTestAccess::handle_status(backend, status);
+
+    const auto s = backend.get_slot_info(0);
+    CHECK(s.material == "ABS");
+    CHECK(s.brand == "eSUN");
+    CHECK(s.color_rgb == 0xFF362Du);
+}
+
+TEST_CASE("QIDI Box string ids and colour lists fingerprint the spool",
+          "[ams][qidi_box][qidi_string_ids]") {
+    MockPrinter mock_printer;
+    helix::test::RegisteredBackend<AmsBackendQidi> harness(&mock_printer.api, nullptr);
+    AmsBackendQidi& backend = *harness;
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spoolman_id = 42;
+    QidiBoxTestAccess::seed_override(backend, 0, ovr);
+
+    const json tag{{"filament_slot0", "QFA90"}, {"color_slot0", json::array({"228332"})}};
+    QidiBoxTestAccess::parse_vars(backend, tag);
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFA90|#228332");
+
+    // The same spool re-observed keeps the edit.
+    QidiBoxTestAccess::parse_vars(backend, tag);
+    REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+
+    // A different spool clears it.
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", "QFL30"}, {"color_slot0", json::array({"228332"})}});
+    CHECK(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFL30|#228332");
+    CHECK_FALSE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+}
+
+TEST_CASE("QIDI Box our edit's echo over string ids is not a swap",
+          "[ams][qidi_box][qidi_string_ids]") {
+    helix::test::RegisteredBackend<RecordingQidiBackend> harness;
+    RecordingQidiBackend& backend = *harness;
+
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", "QFA90"}, {"color_slot0", json::array({"228332"})}});
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFA90|#228332");
+
+    auto info = backend.get_slot_info(0);
+    info.material = "ABS";
+    info.brand = "eSUN";
+    info.color_rgb = 0x060606u;
+    helix::test::edit_slot_as_user(backend, 0, info);
+    REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+
+    // The filament write lands before the colour write.
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", 11}, {"color_slot0", json::array({"228332"})}});
+    CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
+
+    QidiBoxTestAccess::parse_vars(backend, json{{"filament_slot0", 11}, {"color_slot0", 2}});
+    CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
+    CHECK(backend.get_slot_info(0).material == "ABS");
+}

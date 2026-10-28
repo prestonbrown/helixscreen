@@ -82,10 +82,12 @@ TEST_CASE("each backend's required_status_objects matches its own printer and is
         CHECK(keys(objects) == std::set<std::string>{"box", "motor_control"});
     }
 
-    SECTION("QIDI subscribes box_extras and save_variables") {
+    SECTION("QIDI subscribes box_extras, save_variables and the controller's box field") {
         const json objects =
             AmsBackendQidi::required_status_objects(discover({"box_stepper slot0", "box_extras"}));
-        CHECK(keys(objects) == std::set<std::string>{"box_extras", "save_variables"});
+        CHECK(keys(objects) ==
+              std::set<std::string>{"box_extras", "multi_color_controller", "save_variables"});
+        CHECK(objects["multi_color_controller"] == json::array({"box"}));
     }
 
     SECTION("ACE subscribes every detected object name") {
@@ -156,7 +158,7 @@ TEST_CASE("the dispatcher merges every backend", "[ams][ams_status_objects]") {
         CHECK(keys(AmsBackend::required_status_objects(discover({"box"}))) ==
               std::set<std::string>{"box", "motor_control"});
         CHECK(keys(AmsBackend::required_status_objects(discover({"box_stepper slot0"}))) ==
-              std::set<std::string>{"box_extras", "save_variables"});
+              std::set<std::string>{"box_extras", "multi_color_controller", "save_variables"});
         CHECK(keys(AmsBackend::required_status_objects(discover({"ace"}))) ==
               std::set<std::string>{"ace"});
     }
