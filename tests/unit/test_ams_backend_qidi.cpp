@@ -3006,6 +3006,12 @@ TEST_CASE("QIDI Box string ids and colour lists fingerprint the spool",
     helix::test::RegisteredBackend<AmsBackendQidi> harness(&mock_printer.api, nullptr);
     AmsBackendQidi& backend = *harness;
 
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(0, 0, kControllerGenericPla));
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(
+                     0, 3, json{{"filament_id", "QFB10"}, {"filament_type", "ABS"}}));
+
     helix::ams::FilamentSlotOverride ovr;
     ovr.brand = "Polymaker";
     ovr.spoolman_id = 42;
@@ -3021,8 +3027,8 @@ TEST_CASE("QIDI Box string ids and colour lists fingerprint the spool",
 
     // A different spool clears it.
     QidiBoxTestAccess::parse_vars(
-        backend, json{{"filament_slot0", "QFL30"}, {"color_slot0", json::array({"228332"})}});
-    CHECK(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFL30|#228332");
+        backend, json{{"filament_slot0", "QFB10"}, {"color_slot0", json::array({"228332"})}});
+    CHECK(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFB10|#228332");
     CHECK_FALSE(QidiBoxTestAccess::get_override(backend, 0).has_value());
 }
 
@@ -3032,6 +3038,8 @@ TEST_CASE("QIDI Box our edit's echo over string ids is not a swap",
     RecordingQidiBackend& backend = *harness;
 
     QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(0, 0, kControllerGenericPla));
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", "QFA90"}, {"color_slot0", json::array({"228332"})}});
     REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFA90|#228332");
@@ -3108,4 +3116,64 @@ TEST_CASE("QIDI Box controller info for another product id paints nothing",
             json{{"filament_id", "QFL30"}, {"filament_type", "PLA"}, {"vendor_str", "Bambu"}}));
     CHECK(backend.get_slot_info(0).material == "PLA");
     CHECK(backend.get_slot_info(0).brand == "Bambu");
+}
+
+TEST_CASE("QIDI Box a product id the controller has not described defers the swap check",
+          "[ams][qidi_box][qidi_string_ids]") {
+    MockPrinter mock_printer;
+    helix::test::RegisteredBackend<AmsBackendQidi> harness(&mock_printer.api, nullptr);
+    AmsBackendQidi& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spoolman_id = 42;
+    QidiBoxTestAccess::seed_override(backend, 0, ovr);
+    QidiBoxTestAccess::parse_vars(backend, json{{"filament_slot0", 1}, {"color_slot0", 1}});
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|1");
+
+    // QFA90 arrives before anything has said what it is.
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", "QFA90"}, {"color_slot0", json::array({"FAFAFA"})}});
+    CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
+
+    SECTION("the same material: the same spool") {
+        QidiBoxTestAccess::handle_status(
+            backend, make_controller_slot_notification(
+                         0, 0, json{{"filament_id", "QFA90"}, {"filament_type", "PLA"}}));
+        CHECK(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFA90|#FAFAFA");
+        CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
+    }
+    SECTION("another material: a different spool") {
+        QidiBoxTestAccess::handle_status(
+            backend, make_controller_slot_notification(
+                         0, 0, json{{"filament_id", "QFA90"}, {"filament_type", "PETG"}}));
+        CHECK(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFA90|#FAFAFA");
+        CHECK_FALSE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+    }
+}
+
+TEST_CASE("QIDI Box a controller delta without both id and type pairs nothing",
+          "[ams][qidi_box][qidi_string_ids]") {
+    MockPrinter mock_printer;
+    helix::test::RegisteredBackend<AmsBackendQidi> harness(&mock_printer.api, nullptr);
+    AmsBackendQidi& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(
+                     0, 3, json{{"filament_id", " QFA90 "}, {"filament_type", "PLA"}}));
+    // A type-only delta names no id: it must not re-pair QFA90.
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(0, 3, json{{"filament_type", "PETG"}}));
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spoolman_id = 42;
+    QidiBoxTestAccess::seed_override(backend, 0, ovr);
+    QidiBoxTestAccess::parse_vars(backend, json{{"filament_slot0", 1}, {"color_slot0", 1}});
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", "QFA90"}, {"color_slot0", json::array({"FAFAFA"})}});
+    CHECK(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFA90|#FAFAFA");
+    CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
 }

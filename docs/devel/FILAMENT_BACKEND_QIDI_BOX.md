@@ -155,7 +155,12 @@ write HelixScreen makes stays numeric.
   and our own numeric write over a product id echoes as our write
   (`src/printer/ams_backend_qidi.cpp#expect_own_write_echoes_locked`). A product
   id decodes to the material the controller paired it with, so the same spool
-  restated by product id instead of row id is still the same spool.
+  restated by product id instead of row id is still the same spool. A pairing
+  is learned only from a controller update carrying both the id and the type,
+  and a product id no update has described yet defers the swap judgment until
+  one does. This rests on the controller's `filament_type` spelling a material
+  the way `officiall_filas_list.cfg`'s `type` does (compared ignoring case),
+  which no Box of ours has confirmed.
 - Only the shape the firmware accepts reads as a product id: two to four
   capital letters, then two or three digits. Anything else is ignored and the
   slot keeps its last ids.

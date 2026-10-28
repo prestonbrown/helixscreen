@@ -565,7 +565,8 @@ bool AmsBackendQidi::apply_controller_status_locked(const nlohmann::json& contro
     }
     constexpr std::string_view kInfo = "_filament_info_";
     bool changed = false;
-    std::vector<size_t> touched;
+    // Per slot, which of the pairing fields this delta itself carried.
+    std::map<size_t, std::pair<bool, bool>> carried;
     for (auto it = box_it->begin(); it != box_it->end(); ++it) {
         // box<B>_filament_info_<I>_<field>: Box B+1, slot I within it.
         const std::string& key = it.key();
@@ -599,11 +600,12 @@ bool AmsBackendQidi::apply_controller_status_locked(const nlohmann::json& contro
         const ControllerSlotInfo before = info;
         const std::string_view field(key.data() + field_sep + 1, key.size() - field_sep - 1);
         const auto& val = it.value();
-        touched.push_back(global);
         if (field == "filament_id" && val.is_string()) {
-            info.filament_id = val.get<std::string>();
+            info.filament_id = read_filament_code(val).value_or(std::string{});
+            carried[global].first = true;
         } else if (field == "filament_type" && val.is_string()) {
             info.filament_type = val.get<std::string>();
+            carried[global].second = true;
         } else if (field == "vendor_str" && val.is_string()) {
             info.vendor = val.get<std::string>();
         } else if (field == "min_temp" && val.is_number()) {
@@ -613,11 +615,12 @@ bool AmsBackendQidi::apply_controller_status_locked(const nlohmann::json& contro
         }
         changed |= !(info == before);
     }
-    // Recorded once the whole delta is folded, so an id and its type that
-    // change together are paired with each other, not with the previous spool.
-    for (const size_t global : touched) {
+    // Paired only from a delta that carried both fields: one carrying either
+    // alone may pair the new spool's half with the previous spool's other half.
+    for (const auto& [global, fields] : carried) {
         const ControllerSlotInfo& info = controller_slots_[global];
-        if (!info.filament_id.empty() && !info.filament_type.empty()) {
+        if (fields.first && fields.second && !info.filament_id.empty() &&
+            !info.filament_type.empty()) {
             product_types_[info.filament_id] = info.filament_type;
         }
     }
@@ -1095,7 +1098,13 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
         // shows the new tag's identity in this same pass. The verdict feeds
         // the insert notice below, so it is computed here and read there.
         helix::ams::InsertVerdict verdict = helix::ams::InsertVerdict::NoEvidence;
-        check_hardware_event_clear(*slot, i, fingerprint, &verdict);
+        // A product id nothing has described yet cannot be judged against
+        // the last spool: the judgment waits for the controller to describe
+        // it, and the replay that info triggers makes it. Our own writes are
+        // numeric, so no echo of ours waits here.
+        if (rfid.filament_code.empty() || product_types_.count(rfid.filament_code) != 0) {
+            check_hardware_event_clear(*slot, i, fingerprint, &verdict);
+        }
 
         // The saved ids name rows in the Box's own tables, which makes a row
         // that resolves the reading and an id that resolves against nothing no
