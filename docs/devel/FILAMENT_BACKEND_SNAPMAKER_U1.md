@@ -99,7 +99,7 @@ parse keys off whatever objects the frame carries:
 
 | Klipper object | Fields used | Meaning |
 |----------------|-------------|---------|
-| `extruder`, `extruder1`-`extruder3` | `state`, `park_pin`, `active_pin`, `activating_move`, `extruder_offset`, `switch_count`, `retry_count`, `error_count` | Per-tool toolchanger state (`ExtruderToolState`) |
+| `extruder`, `extruder1`-`extruder3` | `state`, `park_pin`, `active_pin`, `activating_move`, `extruder_offset`, `switch_count`, `retry_count`, `error_count`, `nozzle_diameter`, `nozzle_volume_type` | Per-tool toolchanger state and fitted nozzle (`ExtruderToolState`) |
 | `toolhead` | `extruder` | Which extruder the carriage holds — authority for the active tool |
 | `filament_detect` | `info` (per-channel RFID array), `state` (`[int x4]`) | Spool metadata per channel; `state` is the entrance/tag reading, which reads 0 once filament is fed through to the toolhead — it is not a lane-presence signal |
 | `filament_feed left` / `filament_feed right` | per-`extruder{N}`: `filament_detected`, `channel_state`, `channel_error` | Port/buffer presence, the feed state machine, per-channel errors |
@@ -192,6 +192,7 @@ picks survives the next read (`src/printer/ams_backend_snapmaker.cpp#record_tag_
 | `SET_PRINT_PREFERENCES END_UNLOAD_FILAMENT=[...]` | The saved unload-at-end choice, ahead of every print start (`src/printer/ams_backend_snapmaker.cpp#end_unload_gcode`; see [`SET_PRINT_PREFERENCES`](#set_print_preferences)) |
 | `AUTO_FEEDING_BATCH ACTION=START / DOING EXTRUDER=<n> / END` | Batch load/unload when the firmware macro is present (see Batch Load/Unload) |
 | `SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=<head> VENDOR=… FILAMENT_TYPE=… FILAMENT_SUBTYPE=…` + `FILAMENT_COLOR_RGBA=…` | The head's `print_task_config` record, which RESUME requires (below) |
+| JSON-RPC `printer.control.nozzle_properties` `{extruder, diameter \| volume_type}` | A head's fitted nozzle, from the Nozzle rows (`src/printer/ams_backend_snapmaker.cpp#send_nozzle_change`; see [Fitted Nozzles](#fitted-nozzles)) |
 
 The firmware refuses RESUME with `e<N> not edit filament` while a head the task uses has
 no `print_task_config.filament_type`. An RFID spool or `SET_PRINT_FILAMENT_CONFIG` fills it.
@@ -679,6 +680,14 @@ The U1's heads take swappable nozzles, and the firmware keeps each head's fitted
 
 HelixScreen subscribes both extruder fields for every printer (stock Klipper has neither and answers null), and the fit check prefers them to the config's (`src/printer/print_start_inputs.cpp#current_fit_machine`, `fit_machine_with_live_nozzles()`); the plugin queries the same fields before it checks a slicer's upload-and-print. The file's flow types come from Orca's `; nozzle_volume_type = Standard,High Flow,...` config comment, else from the `filament_volume_type` list Snapmaker's Moonraker adds to the metadata, beside `nozzle_diameter_list`. File tool i is compared with head i; a Filament Mapping remap is not followed. The mock persona reports 0.4 mm `standard` on all four heads.
 
+#### Changing a Head's Nozzle
+
+The firmware takes a nozzle change through the webhook `control/nozzle_properties` (`_handle_control_nozzle_properties` in `<klipper>/klippy/kinematics/extruder.py`), which Moonraker proxies as `printer.control.nozzle_properties` with `{"extruder": <head>, "diameter": <mm>, "volume_type": "standard" | "high_flow"}`, either field optional. It refuses while `print_stats.state` is `printing` or `paused`, and accepts only the diameters 0.2, 0.4, 0.6 and 0.8 and the two flow types, compared exactly. A refusal is not a JSON-RPC error: the reply is a successful one whose result is `{"state": "error", "message": "..."}`, so `{"state": "success"}` is the only answer that means the change was made. Setting 0.2 mm on a head whose loaded filament the firmware will not print through that nozzle clears the head's `print_task_config` filament info (`_set_nozzle_diameter`, `FilamentParameters.is_allow_to_print` in `<klipper>/klippy/extras/filament_parameters.py`: a type starting `PA` or `PC`, TPU, PVA, PEBA, any `-CF` or `-GF` type, or the Glow, Marble and Wood sub-types).
+
+The Multi-Filament settings show a **Toolhead** section (`toolhead`, described as "Nozzle size and flow type per head") once any head reports either field, with a **Nozzle diameter** and a **Nozzle flow** dropdown per head for each field that head reports (`src/printer/ams_backend_snapmaker.cpp#get_device_actions`). The rows are disabled with "Finish or cancel the print first" while a print is printing or paused. A pick sends only the field that differs from what the head reports, and a pick of the reported value sends nothing (`snapmaker::nozzle::change_params` in `src/printer/snapmaker_nozzle_properties.cpp`). The 0.2 mm option asks for confirmation first (`DeviceAction::with_option_confirm`). The reply is read by `snapmaker::nozzle::read_reply`; a refusal, an unrecognised reply or a failed send shows "Nozzle not changed: ..." and emits `EVENT_STATE_CHANGED`, so the open section redraws from what the head still reports. An accepted change moves the row when the firmware's extruder status update arrives.
+
+Mock: `MoonrakerClientMock::set_nozzle_properties` keeps the firmware's checks and their order (a bad flow type is refused after a good diameter in the same call is already applied, as the firmware does in memory), stores the result per head, pushes it as an extruder status update and reports it in the objects query. It does not model the 0.2 mm filament-info reset. Other personas answer "Method not found".
+
 ### Key Files
 
 | File | Purpose |
@@ -691,6 +700,7 @@ HelixScreen subscribes both extruder fields for every printer (stock Klipper has
 | `include/ui_snapmaker_nozzle_offset_overlay.h` + `src/ui/ui_snapmaker_nozzle_offset_overlay.cpp` | The guided flow's overlay, registered by `src/ui/ui_snapmaker_device_flows.cpp` |
 | `include/batch_feed_reconcile.h` | Connect-time cleanup of a firmware batch left in the `doing` state |
 | `include/snapmaker_print_preferences.h` | `PrintPreferences` read/write model for the firmware prefs surfaced as device actions, plus each head's `filament_soft` |
+| `include/snapmaker_nozzle_properties.h` + `src/printer/snapmaker_nozzle_properties.cpp` | The Nozzle rows' options, the `nozzle_properties` params a pick sends, and the reading of its reply |
 | `include/filament_temperature_source.h` + `src/printer/filament_temperature_source.cpp` | Per-filament load/unload temperature capture (see above) |
 | [Firmware API: `print_task_config`](#firmware-api-print_task_config) | The firmware-native remap/feed-gate API this backend's pre-print path emits, in this file |
 | `tests/unit/test_ams_backend_snapmaker.cpp` | 54 cases: parsers, status handling, latch, overrides |
@@ -738,6 +748,15 @@ HelixScreen subscribes both extruder fields for every printer (stock Klipper has
 5. Batch load/unload (both script shapes, the dispatch-id END recovery, and
    `batch_feed_reconcile`) and the per-filament temperature capture are source-derived only -
    none of it has run on the rig yet.
+6. The Nozzle rows are source-derived and mock-tested only: the reply shape through
+   Moonraker's proxy, the refusal while printing, and the extruder status update after a
+   change have not been checked on the rig.
+7. The discovery subscription lists only `temperature`, `target`, `power`,
+   `pressure_advance`, `nozzle_diameter` and `nozzle_volume_type` for each extruder
+   (`src/api/moonraker_discovery_sequence.cpp`), so the toolchanger fields in the status
+   table above (`state`, `park_pin`, `active_pin`, `activating_move`, `extruder_offset`,
+   `switch_count`, `retry_count`, `error_count`) are not subscribed. Which frames still
+   carry them has not been checked, and the subscription is not changed here.
 
 ---
 
