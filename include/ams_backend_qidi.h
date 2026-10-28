@@ -329,7 +329,13 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
         std::string vendor;
         int min_temp = 0;
         int max_temp = 0;
-        bool operator==(const ControllerSlotInfo&) const = default;
+        bool operator==(const ControllerSlotInfo& o) const {
+            return filament_id == o.filament_id && filament_type == o.filament_type &&
+                   vendor == o.vendor && min_temp == o.min_temp && max_temp == o.max_temp;
+        }
+        bool operator!=(const ControllerSlotInfo& o) const {
+            return !(*this == o);
+        }
     };
     std::vector<ControllerSlotInfo> controller_slots_;
 

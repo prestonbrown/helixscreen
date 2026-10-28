@@ -167,7 +167,7 @@ write HelixScreen makes stays numeric.
 - A numeric id keeps the Box tables as its source even when controller info is
   present.
 
-Field names come from QIDI Studio's `QDSDeviceManager.cpp` and runtime
+Field names come from QIDI Studio's QDSDeviceManager source and runtime
 observation on a Max 4 (01.01.07.01). Not yet seen on our own Box hardware.
 
 ### Do NOT Confuse With
