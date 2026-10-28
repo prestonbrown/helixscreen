@@ -9,13 +9,14 @@ setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
 }
 
-# The one file under src/ or include/ matching an ERE only a symbol's definition
-# matches, so a check follows the code when it moves between files instead of
-# reading a path that no longer holds it. Prints why and fails on none or
-# several, so a check never runs against the wrong file or none.
+# The one source file under src/ or include/ matching an ERE only a symbol's
+# definition matches, so a check follows the code when it moves between files
+# instead of reading a path that no longer holds it. Prints why and fails on none
+# or several, so a check never runs against the wrong file or none. Only .cpp/.h
+# count: a stray .orig or editor backup beside the real file is not a second one.
 locate_by_symbol() {
     local pattern="$1" hits count
-    hits=$(git grep --untracked -lE -e "$pattern" -- src include 2>/dev/null || true)
+    hits=$(git grep --untracked -lE -e "$pattern" -- 'src/*.cpp' 'src/*.h' 'include/*.h' 2>/dev/null || true)
     count=$(printf '%s\n' "$hits" | grep -c . || true)
     if [ "$count" -ne 1 ]; then
         echo "locate_by_symbol: '$pattern' matches $count file(s) under src/ and include/, expected 1:" >&2
