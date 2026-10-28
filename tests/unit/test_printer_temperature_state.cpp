@@ -453,3 +453,43 @@ TEST_CASE("PrinterTemperatureState: pressure advance is tracked per extruder and
 
     state.deinit_subjects();
 }
+
+TEST_CASE("PrinterTemperatureState: the fitted nozzle an extruder reports is kept per extruder",
+          "[core][temperature][plugin_fitcheck]") {
+    lv_init_safe();
+    PrinterTemperatureState state;
+    state.init_subjects(false);
+    state.init_extruders({"extruder", "extruder1"});
+
+    const auto& info = [&state](const char* name) -> const ExtruderInfo& {
+        return state.extruders().at(name);
+    };
+    CHECK(info("extruder").nozzle_diameter == 0.0);
+    CHECK(info("extruder").nozzle_volume_type.empty());
+
+    state.update_from_status(
+        {{"extruder", {{"nozzle_diameter", 0.2}, {"nozzle_volume_type", "standard"}}},
+         {"extruder1", {{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "high_flow"}}}});
+    CHECK(info("extruder").nozzle_diameter == Catch::Approx(0.2));
+    CHECK(info("extruder").nozzle_volume_type == "standard");
+    CHECK(info("extruder1").nozzle_diameter == Catch::Approx(0.6));
+    CHECK(info("extruder1").nozzle_volume_type == "high_flow");
+
+    // Stock Klipper answers null for both; a frame without them leaves them alone.
+    state.update_from_status(
+        {{"extruder", {{"nozzle_diameter", nullptr}, {"nozzle_volume_type", nullptr}}},
+         {"extruder1", {{"temperature", 210.0}}}});
+    CHECK(info("extruder").nozzle_diameter == Catch::Approx(0.2));
+    CHECK(info("extruder").nozzle_volume_type == "standard");
+    CHECK(info("extruder1").nozzle_diameter == Catch::Approx(0.6));
+
+    // A diameter that is not a positive number says nothing about the nozzle.
+    state.update_from_status(
+        {{"extruder", {{"nozzle_diameter", 0.0}}}, {"extruder1", {{"nozzle_diameter", "0.4"}}}});
+    CHECK(info("extruder").nozzle_diameter == Catch::Approx(0.2));
+    CHECK(info("extruder1").nozzle_diameter == Catch::Approx(0.6));
+    state.update_from_status({{"extruder", {{"nozzle_diameter", -0.4}}}});
+    CHECK(info("extruder").nozzle_diameter == Catch::Approx(0.2));
+
+    state.deinit_subjects();
+}
