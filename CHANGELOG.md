@@ -5,6 +5,93 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-10-28
+
+1.0.7 is a maintenance release of fixes ported from 1.1. The main themes:
+
+- **Stopping a print that is still preparing.** Stop during heating, homing or probing
+  now cancels the print on the printer instead of only on the screen.
+- **Filament mapping that follows your printer.** A print you did not remap keeps the
+  lane mapping your filament system already has, and print start changes the mapping only
+  for a pick you made.
+- **Fixes on specific printers.** AD5X IFS unloads, Z-Mod, the Creality CC1, the QIDI Q2,
+  K2 updates and screws tilt.
+
+### Fixed
+
+**Printing**
+
+- **Stop during preparing cancels the print** (#1890) - tapping Stop while the printer was
+  still heating, homing or probing turned the heaters off but left the print running. The
+  printer now gets the cancel once it has accepted the start.
+- **No timeout over a print that started** (#1451) - a print-start macro that heats a cold
+  machine before answering no longer shows a start timeout while the print runs, and a slow
+  answer can no longer start the same print twice.
+- **Z-Mod's material prompt is not a started print** - on an AD5X with Z-Mod, the status
+  card no longer goes idle while Z-Mod's material picker is still open.
+- **Chamber presets heat** - where the chamber macro uses M141 only for an exhaust fan, the
+  presets now set the chamber heater itself.
+
+**Filament systems**
+
+- **AD5X IFS: Unload picks the loaded lane** (#1897) - after a restart, Unload could target
+  a lane remembered from earlier instead of the one the IFS module reports loaded. Unloading
+  a loaded lane with no material set now heats the nozzle first.
+- **An unremapped print keeps your printer's lane mapping** - on AFC, Happy Hare and CFS, a
+  tool you had moved to another lane on the printer was moved back at print start, and the
+  pre-print check could call its lane empty. Print start now changes the mapping only for a
+  lane you picked, or a match from auto color mapping.
+- **Z-Mod on AD5X: no remap error on every print** - Z-Mod maps tools in its own material
+  prompt, and HelixScreen no longer tries to as well.
+- **Load and swap home the printer without asking** - a filament load or swap on an unhomed
+  printer homes and goes ahead, instead of waiting on a question while the time limit ran.
+- **Spoolman** - reloading the same spool is tracked again for the next print, the spool
+  picker on a remapped lane shows that lane's own spool, Spoolman features turn on when
+  Spoolman starts after Moonraker (seen on the CC1), and an unlinked external spool keeps
+  its entry.
+
+**Screws tilt**
+
+- **Tighten or Loosen, correctly** - the word now comes from each corner's measured height,
+  so it no longer contradicts the arrow, and the arrows show the same direction as Klipper's
+  console. Every probe homes first, so a re-probe after turning a screw measures against a
+  fresh reference.
+
+**Screen and controls**
+
+- **USB drives appear when plugged in** (#1924) - a drive inserted while HelixScreen runs
+  shows the USB tab within a second, including FAT drives with short 8.3 file names.
+- **Crashes on 32-bit Raspberry Pi OS** (#1601) - closing a screen from one of its own
+  buttons could crash on 32-bit Pi builds.
+- **One-line text fields on large screens** no longer bounce while you type.
+- **Label printer settings** pick and show the right printer, and the address fields fit
+  the row.
+- **Settings rows** with a dropdown and no description center their label.
+- **The Documentation QR codes** open pages that exist.
+
+**Power and network**
+
+- **Reboot and Shut Down on the Creality CC1 and other hosts without systemd** (#1869) -
+  they work from the screen, and the last frame no longer shows on the next boot.
+- **Wi-Fi on the QIDI Q2** - turning Wi-Fi back on no longer snaps the switch off.
+- **Wi-Fi permission problems are reported** as permission problems, instead of
+  "WiFi system not ready".
+
+**Updates and installing**
+
+- **K2 self-updates on a full storage overlay** keep the boot entry and the service script
+  intact.
+- **QIDI Q2 install keeps makerbase-tuning running** (#1854) when it stops the stock screen.
+- **The docs' one-line installer** points at https://releases.helixscreen.org/install.sh.
+
+**Android**
+
+- **https cameras** (#1891) - cameras with https snapshot or stream addresses are found and
+  shown, and the QR scanner says why when a camera fails instead of spinning.
+- **Screensaver crash** (#1591) - the starfield and pipes screensavers no longer crash at
+  some window widths.
+- **Telemetry and crash reports** name the platform as Android instead of Raspberry Pi.
+
 ## [1.0.6] - 2026-10-21
 
 <!-- whatsnew
@@ -7127,6 +7214,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.7]: https://github.com/prestonbrown/helixscreen/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/prestonbrown/helixscreen/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/prestonbrown/helixscreen/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/prestonbrown/helixscreen/compare/v1.0.3...v1.0.4

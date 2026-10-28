@@ -1,0 +1,6 @@
+- Stop during print preparation really cancels the print
+- Filament mapping follows your printer's own lane remap
+- AD5X IFS unloads the lane that is actually loaded
+- Screws tilt says Tighten or Loosen correctly
+- USB drives show up when plugged in, no restart needed
+- https cameras work on Android
