@@ -3052,3 +3052,60 @@ TEST_CASE("QIDI Box our edit's echo over string ids is not a swap",
     CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
     CHECK(backend.get_slot_info(0).material == "ABS");
 }
+
+TEST_CASE("QIDI Box the same spool restated as a product id keeps the edit",
+          "[ams][qidi_box][qidi_string_ids]") {
+    MockPrinter mock_printer;
+    helix::test::RegisteredBackend<AmsBackendQidi> harness(&mock_printer.api, nullptr);
+    AmsBackendQidi& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+
+    // The firmware has told us QFA90 is PLA.
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(
+                     0, 3, json{{"filament_id", "QFA90"}, {"filament_type", "PLA"}}));
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spoolman_id = 42;
+    QidiBoxTestAccess::seed_override(backend, 0, ovr);
+
+    // fila row 1 is PLA, palette row 1 is #FAFAFA.
+    QidiBoxTestAccess::parse_vars(backend, json{{"filament_slot0", 1}, {"color_slot0", 1}});
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|1");
+
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", "QFA90"}, {"color_slot0", json::array({"FAFAFA"})}});
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "QFA90|#FAFAFA");
+    CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
+
+    // A product id of a different material is a different spool.
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(
+                     0, 3, json{{"filament_id", "QFB10"}, {"filament_type", "ABS"}}));
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", "QFB10"}, {"color_slot0", json::array({"FAFAFA"})}});
+    CHECK_FALSE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+}
+
+TEST_CASE("QIDI Box controller info for another product id paints nothing",
+          "[ams][qidi_box][qidi_string_ids]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::handle_status(
+        backend, make_controller_slot_notification(0, 0, kControllerGenericPla));
+    QidiBoxTestAccess::parse_vars(backend, json{{"filament_slot0", "QFA90"}});
+    REQUIRE(backend.get_slot_info(0).material == "PLA");
+
+    // The new id lands before the controller restates the slot.
+    QidiBoxTestAccess::parse_vars(backend, json{{"filament_slot0", "QFL30"}});
+    CHECK(backend.get_slot_info(0).material.empty());
+    CHECK(backend.get_slot_info(0).brand.empty());
+
+    QidiBoxTestAccess::handle_status(
+        backend,
+        make_controller_slot_notification(
+            0, 0,
+            json{{"filament_id", "QFL30"}, {"filament_type", "PLA"}, {"vendor_str", "Bambu"}}));
+    CHECK(backend.get_slot_info(0).material == "PLA");
+    CHECK(backend.get_slot_info(0).brand == "Bambu");
+}

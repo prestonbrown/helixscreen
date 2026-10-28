@@ -324,6 +324,7 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     /// the firmware: `box.box<B>_filament_info_<I>_*`. The source for a slot
     /// whose save_variables hold a string product id. Indexed by global slot.
     struct ControllerSlotInfo {
+        std::string filament_id; ///< The product id this info describes
         std::string filament_type;
         std::string vendor;
         int min_temp = 0;
@@ -331,6 +332,11 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
         bool operator==(const ControllerSlotInfo&) const = default;
     };
     std::vector<ControllerSlotInfo> controller_slots_;
+
+    /// Product id -> material, from every controller slot that has stated
+    /// both. Product ids are global, so a fingerprint naming one decodes to
+    /// its material wherever it was seen.
+    std::map<std::string, std::string> product_types_;
 
     /// Every filament/color/vendor_slot key save_variables has stated, merged.
     /// Replayed through parse_save_variables() when controller info changes

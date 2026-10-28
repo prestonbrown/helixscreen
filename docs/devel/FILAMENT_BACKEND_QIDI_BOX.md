@@ -147,12 +147,18 @@ write HelixScreen makes stays numeric.
 - A product id names no `officiall_filas_list.cfg` row. Material, nozzle range
   and brand come from `multi_color_controller`'s `box` field instead, folded per
   slot as deltas arrive; controller info that lands after the ids repaints the
-  slot from the last ids stated. The stale `vendor_slot<N>` is ignored for such a
-  slot.
+  slot from the last ids stated. Info naming a different product id is the
+  previous spool's and paints nothing. The stale `vendor_slot<N>` is ignored for
+  such a slot.
 - The swap fingerprint takes either form per component (`QFA90|#228332`,
   `11|2`, `QFA90|2`), so a spool change between product ids clears an override
   and our own numeric write over a product id echoes as our write
-  (`src/printer/ams_backend_qidi.cpp#expect_own_write_echoes_locked`).
+  (`src/printer/ams_backend_qidi.cpp#expect_own_write_echoes_locked`). A product
+  id decodes to the material the controller paired it with, so the same spool
+  restated by product id instead of row id is still the same spool.
+- Only the shape the firmware accepts reads as a product id: two to four
+  capital letters, then two or three digits. Anything else is ignored and the
+  slot keeps its last ids.
 - A numeric id keeps the Box tables as its source even when controller info is
   present.
 

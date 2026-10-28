@@ -565,6 +565,7 @@ bool AmsBackendQidi::apply_controller_status_locked(const nlohmann::json& contro
     }
     constexpr std::string_view kInfo = "_filament_info_";
     bool changed = false;
+    std::vector<size_t> touched;
     for (auto it = box_it->begin(); it != box_it->end(); ++it) {
         // box<B>_filament_info_<I>_<field>: Box B+1, slot I within it.
         const std::string& key = it.key();
@@ -598,7 +599,10 @@ bool AmsBackendQidi::apply_controller_status_locked(const nlohmann::json& contro
         const ControllerSlotInfo before = info;
         const std::string_view field(key.data() + field_sep + 1, key.size() - field_sep - 1);
         const auto& val = it.value();
-        if (field == "filament_type" && val.is_string()) {
+        touched.push_back(global);
+        if (field == "filament_id" && val.is_string()) {
+            info.filament_id = val.get<std::string>();
+        } else if (field == "filament_type" && val.is_string()) {
             info.filament_type = val.get<std::string>();
         } else if (field == "vendor_str" && val.is_string()) {
             info.vendor = val.get<std::string>();
@@ -608,6 +612,14 @@ bool AmsBackendQidi::apply_controller_status_locked(const nlohmann::json& contro
             info.max_temp = static_cast<int>(val.get<double>());
         }
         changed |= !(info == before);
+    }
+    // Recorded once the whole delta is folded, so an id and its type that
+    // change together are paired with each other, not with the previous spool.
+    for (const size_t global : touched) {
+        const ControllerSlotInfo& info = controller_slots_[global];
+        if (!info.filament_id.empty() && !info.filament_type.empty()) {
+            product_types_[info.filament_id] = info.filament_type;
+        }
     }
     return changed;
 }
@@ -1102,10 +1114,16 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
         std::optional<int> profile_nozzle_max;
         // A string product id names no table row: the firmware resolves it
         // and publishes the result as the slot's controller info.
+        // Info naming another product id describes the previous spool: the
+        // new id landed before the controller restated the slot.
         const ControllerSlotInfo* controller =
             !rfid.filament_code.empty() && static_cast<size_t>(i) < controller_slots_.size()
                 ? &controller_slots_[static_cast<size_t>(i)]
                 : nullptr;
+        if (controller && !controller->filament_id.empty() &&
+            controller->filament_id != rfid.filament_code) {
+            controller = nullptr;
+        }
         if (!rfid.filament_code.empty()) {
             slot->material.clear();
             slot->nozzle_temp_min = 0;
@@ -2169,23 +2187,28 @@ AmsBackendQidi::fingerprint_evidence_locked(const std::string& fingerprint) cons
     evidence.tag_read_complete = true;
     const auto fila_row = fila_profiles_.find(fila_id);
     const auto color_row = color_palette_.find(color_id);
-    const bool fila_decoded = fila_row != fila_profiles_.end() && !fila_row->second.type.empty();
+    const auto product = fila_is_code ? product_types_.find(fila_token) : product_types_.end();
+    const bool product_decoded = product != product_types_.end() && !product->second.empty();
+    const bool fila_decoded =
+        product_decoded || (fila_row != fila_profiles_.end() && !fila_row->second.type.empty());
     const bool color_decoded = listed_color
                                    ? helix::ams::is_declarable_color(*listed_color)
                                    : color_row != color_palette_.end() &&
                                          helix::ams::is_declarable_color(color_row->second);
     // The tables come from an async officiall_filas_list.cfg fetch that can
-    // land late or fail, and a product id names no row at all. An id nothing
-    // here decodes is still a stable identity the Box chose, so fall back to
-    // the raw tokens: a differing composite stays a swap instead of decoding
-    // to empty on both sides and reading as no evidence, which would keep the
-    // override forever.
-    if (fila_is_code || (fila_id > 0 && !fila_decoded) ||
+    // land late or fail, and a product id decodes only once the controller has
+    // described it. An id nothing here decodes is still a stable identity the
+    // Box chose, so fall back to the raw tokens: a differing composite stays a
+    // swap instead of decoding to empty on both sides and reading as no
+    // evidence, which would keep the override forever.
+    if ((fila_is_code && !product_decoded) || (fila_id > 0 && !fila_decoded) ||
         ((color_id > 0 || listed_color) && !color_decoded)) {
         evidence.tag_uid = fmt::format("fila#{}|color#{}", fila_token, color_token);
         return evidence;
     }
-    if (fila_decoded) {
+    if (product_decoded) {
+        evidence.material = product->second;
+    } else if (fila_decoded) {
         evidence.material = fila_row->second.type;
     }
     if (color_decoded) {
