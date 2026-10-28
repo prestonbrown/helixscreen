@@ -711,6 +711,51 @@ TEST_CASE("Layer tracking: Z-height derivation for non-reporting slicer",
     }
 }
 
+TEST_CASE("Layer tracking: a Z-hop does not bump the height-derived layer",
+          "[layer_tracking][zheight][zhop]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    // 0.13mm layers with a 0.4mm hop: the hop reads three layers up.
+    state.update_from_status({{"print_stats", {{"state", "printing"}, {"print_duration", 100.0}}}});
+    state.print_state().set_print_layer_total(104);
+    state.print_state().set_print_layer_heights(0.13, 0.13);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    auto at = [&](double t, double z) {
+        state.update_from_status({{"print_stats", {{"print_duration", t}}},
+                                  {"gcode_move", {{"gcode_position", {10.0, 10.0, z, 0.0}}}}});
+        return lv_subject_get_int(state.print_state().get_print_layer_current_subject());
+    };
+
+    // Layer 38 sits at 0.13 + 37 * 0.13 = 4.94mm; the first reading shows at once.
+    REQUIRE(at(100.0, 4.94) == 38);
+
+    SECTION("a hop and its return leave the layer alone") {
+        REQUIRE(at(100.3, 5.34) == 38);
+        REQUIRE(at(100.9, 5.34) == 38);
+        REQUIRE(at(101.2, 4.94) == 38);
+        // Z back down well past the hop's start: nothing pending applies.
+        REQUIRE(at(103.0, 4.94) == 38);
+    }
+
+    SECTION("the next layer shows once Z has held it for the dwell") {
+        REQUIRE(at(110.0, 5.07) == 38);
+        REQUIRE(at(110.0 + kHeightLayerDwellSeconds - 0.25, 5.07) == 38);
+        REQUIRE(at(110.0 + kHeightLayerDwellSeconds, 5.07) == 39);
+    }
+
+    SECTION("a hop held through a pause never becomes a layer") {
+        // A pause park lifts Z, and print_duration stands still while paused.
+        REQUIRE(at(120.0, 15.0) == 38);
+        REQUIRE(at(120.0, 15.0) == 38);
+        REQUIRE(at(120.0, 15.0) == 38);
+    }
+}
+
 TEST_CASE("Layer tracking: real info.current_layer still wins over Z derivation",
           "[layer_tracking][zheight]") {
     lv_init_safe();
