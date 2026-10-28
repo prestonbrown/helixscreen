@@ -1063,12 +1063,12 @@ An inline `style_text_font` attribute still outranks both.
 **Adding Icons:**
 1. Find icon at [Pictogrammers MDI](https://pictogrammers.com/library/mdi/)
 2. Add codepoint to `include/ui_icon_codepoints.h`
-3. Add to `scripts/regen_mdi_fonts.sh`
-4. Run `make regen-fonts`
+3. Run `make regen-fonts` (the font list is generated from that header)
 
 A mark MDI does not have (a brand logo such as Spoolman's) is drawn as a single-path
 24x24 SVG in `assets/fonts/custom_icons/`, compiled into `assets/fonts/helix-custom-icons.ttf`
-by `scripts/build_custom_icon_font.py`, and listed in `CUSTOM_ICONS` instead of `MDI_ICONS`.
+by `scripts/build_custom_icon_font.py`, and given a codepoint in the custom block (0xFE000 and up)
+in `include/ui_icon_codepoints.h`; the generator routes those to the custom font.
 It then lands in the same faces and is used like any other `<icon src="...">`.
 
 ### Semantic Typography

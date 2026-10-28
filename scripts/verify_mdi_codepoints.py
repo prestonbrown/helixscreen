@@ -4,7 +4,7 @@
 Verify MDI icon codepoints against the official Pictogrammers metadata.
 
 This script:
-1. Parses regen_mdi_fonts.sh to extract codepoints and their claimed names
+1. Reads the icon fonts' codepoints and claimed names from mdi_icon_codepoints.py
 2. Loads MDI metadata from local cache (assets/mdi-icon-metadata.json.gz)
 3. Compares each entry and reports mismatches
 
@@ -17,8 +17,12 @@ Exit codes:
 import gzip
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
+
+# The custom block helix-custom-icons.ttf serves (mdi_icon_codepoints.py).
+CUSTOM_BLOCK_START = 0xFE000
 
 # Cached MDI metadata (compressed)
 MDI_CACHE_FILE = Path(__file__).parent.parent / "assets" / "mdi-icon-metadata.json.gz"
@@ -53,37 +57,39 @@ def build_codepoint_lookup(mdi_data):
     return lookup
 
 
-def parse_regen_script(script_path):
-    """Parse regen_mdi_fonts.sh to extract codepoints and claimed names."""
+def parse_icon_table(script_dir):
+    """The icon fonts' codepoints and their claimed names, from mdi_icon_codepoints.py."""
+    result = subprocess.run(
+        [sys.executable, str(script_dir / "mdi_icon_codepoints.py"), "--table"],
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stderr.strip())
+        sys.exit(1)
     entries = []
-
-    # Pattern: MDI_ICONS+=",0xFxxxx"    # comment
-    pattern = re.compile(r'MDI_ICONS\+?=.*"?,?(0x[A-Fa-f0-9]+)"?\s*#\s*(.+)')
-
-    with open(script_path, 'r') as f:
-        for line_num, line in enumerate(f, 1):
-            match = pattern.search(line)
-            if match:
-                codepoint = match.group(1).upper().replace('0X', '')
-                comment = match.group(2).strip()
-                entries.append({
-                    'line': line_num,
-                    'codepoint': codepoint,
-                    'comment': comment,
-                    'raw': line.strip()
-                })
-
+    for line_num, line in enumerate(result.stdout.splitlines(), 1):
+        cp_text, _, comment = line.partition(" ")
+        cp = int(cp_text, 16)
+        if cp >= CUSTOM_BLOCK_START:
+            continue  # helix-custom-icons.ttf glyphs: not MDI's to verify
+        entries.append({
+            'line': line_num,
+            'codepoint': f"{cp:X}",
+            'comment': comment.strip(),
+            'raw': line.strip()
+        })
     return entries
 
 
 def extract_icon_name_from_comment(comment):
     """Extract the presumed icon name from the comment."""
-    # Comments are like: "arrow-up-down (bidirectional vertical)"
-    # or: "home" or: "check-circle-outline (check-circle)"
+    # Comments are like: "arrow-up-down (bidirectional vertical)", "home",
+    # "check-circle-outline (check-circle)" or "cog/settings" (MDI name, then
+    # the name the UI knows it by)
 
-    # Take the first word/phrase before any parenthesis or dash description
+    # Take the first word/phrase before any parenthesis, dash or slash description
     name = comment.split('(')[0].strip()
     name = name.split(' - ')[0].strip()  # Handle "close (xmark)" style
+    name = name.split('/')[0].strip()
 
     # Normalize: comments use dashes, we want to match MDI names
     return name.lower().strip()
@@ -91,11 +97,6 @@ def extract_icon_name_from_comment(comment):
 
 def main():
     script_dir = Path(__file__).parent
-    regen_script = script_dir / "regen_mdi_fonts.sh"
-
-    if not regen_script.exists():
-        print(f"ERROR: Cannot find {regen_script}")
-        sys.exit(1)
 
     # Fetch official MDI data
     mdi_data = fetch_mdi_metadata()
@@ -105,8 +106,8 @@ def main():
     name_to_cp = {v: k for k, v in cp_to_name.items()}
 
     # Parse our script
-    print(f"\nParsing {regen_script}...")
-    entries = parse_regen_script(regen_script)
+    print("\nReading the icon codepoints...")
+    entries = parse_icon_table(script_dir)
     print(f"  Found {len(entries)} icon entries\n")
 
     # Verify each entry

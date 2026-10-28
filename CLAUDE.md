@@ -409,7 +409,7 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **RAII widgets** | `lv_malloc()` / `lv_free()` | `lvgl_make_unique<T>()` + `release()` |
 | **Class-based** | `ui_panel_*_init()` functions | Classes: `MotionPanel`, `WiFiManager` |
 | **Observer factory** | Static callback + `lv_observer_get_user_data()` | `observe<int>()` from `observer_factory.h` |
-| **Icon sync** | Add icon, forget fonts | TWO hand-kept lists: `include/ui_icon_codepoints.h` (name -> codepoint) AND `scripts/regen_mdi_fonts.sh` `MDI_ICONS` (what the font contains) + `make regen-fonts` (regenerates the ESP32 firmware's twins too) + rebuild. `validate_icon_fonts.sh` fails the build if either font set is missing an icon |
+| **Icon sync** | Add icon, forget fonts | One list: add the glyph to `include/ui_icon_codepoints.h` (or an `ICON_*` macro in `include/ui_fonts.h` for C++), then `make regen-fonts` and rebuild. `scripts/mdi_icon_codepoints.py` builds the fonts' codepoint list from both headers, desktop and ESP32 faces alike; `validate_icon_fonts.sh` fails the build if a named icon is missing from a font |
 | **Formatting** | Manual formatting | Let pre-commit hook (clang-format) fix |
 | **Doc citations** | A line number (`src/printer/printer_state.cpp:638`), or a bare `:NNN` with no path | A place: `` `src/printer/printer_state.cpp#update_from_status` `` - path, then a `#` fragment naming the enclosing scopes. `scripts/doc_anchors.py` resolves it to a line on demand (`make check-doc-anchors`, advisory), so code that moves rots nothing. A RENAMED symbol is the one case you fix by hand, because the sentence around it may no longer be true |
 | **No auto-mock** | `if(!start()) return Mock()` | Check `RuntimeConfig::should_mock_*()` |

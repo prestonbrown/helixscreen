@@ -111,19 +111,12 @@ UNICODE_RANGES+=",0x2026"        # Ellipsis
 UNICODE_RANGES+=",0x20AC"        # Euro sign
 UNICODE_RANGES+=",0x2122"        # Trademark
 
-# MDI icon codepoints (0xF0000 range): read from regen_mdi_fonts.sh, the list
-# the desktop fonts and include/ui_icon_codepoints.h are validated against, so
-# a glyph added there reaches the firmware faces on the next regen.
-MDI_ICONS="$(sed -n 's/^MDI_ICONS+\?="\([^"]*\)".*/\1/p' scripts/regen_mdi_fonts.sh | tr -d '\n')"
-if [ -z "$MDI_ICONS" ]; then
-    echo "ERROR: no MDI_ICONS read from scripts/regen_mdi_fonts.sh" >&2
-    exit 1
-fi
-CUSTOM_ICONS="$(sed -n 's/^CUSTOM_ICONS+\?="\([^"]*\)".*/\1/p' scripts/regen_mdi_fonts.sh | tr -d '\n')"
-if [ -z "$CUSTOM_ICONS" ]; then
-    echo "ERROR: no CUSTOM_ICONS read from scripts/regen_mdi_fonts.sh" >&2
-    exit 1
-fi
+# Icon codepoints: the same list the desktop faces carry (regen_mdi_fonts.sh),
+# computed from include/ui_icon_codepoints.h and the ICON_* macros in
+# include/ui_fonts.h, so a glyph added there reaches the firmware faces on the
+# next regen. The generator fails rather than print an empty list.
+MDI_ICONS="$(python3 scripts/mdi_icon_codepoints.py --mdi)"
+CUSTOM_ICONS="$(python3 scripts/mdi_icon_codepoints.py --custom)"
 
 # --- Const-strip helper (Linux sed) ------------------------------------------
 # Applied ONLY to the Noto text faces, matching regen_text_fonts.sh and the

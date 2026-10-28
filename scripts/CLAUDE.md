@@ -44,7 +44,7 @@ what each script is for; the script's own header carries the reasoning behind it
 ### Asset Generation (`make regen-*`)
 | Script | Purpose |
 |--------|---------|
-| `regen_mdi_fonts.sh` | Regenerate MDI icon fonts from codepoints. Run after adding icons |
+| `regen_mdi_fonts.sh` | Regenerate MDI icon fonts from the list `mdi_icon_codepoints.py` computes. Run after adding icons |
 | `regen_text_fonts.sh` | Regenerate Noto Sans text fonts for LVGL |
 | `regen_images.sh` | Pre-render splash screen images to LVGL binary format |
 | `regen_placeholder_images.sh` | Generate placeholder/fallback images |
@@ -59,6 +59,7 @@ what each script is for; the script's own header carries the reasoning behind it
 | Script | Purpose |
 |--------|---------|
 | `build_custom_icon_font.py` | `assets/fonts/custom_icons/*.svg` → `assets/fonts/helix-custom-icons.ttf`, the glyphs MDI lacks (brand marks) that `regen_mdi_fonts.sh` merges into every icon face (`CUSTOM_ICONS`). Needs `fonttools` + `skia-pathops`; the TTF is checked in |
+| `mdi_icon_codepoints.py` | The icon fonts' codepoint list: every glyph `include/ui_icon_codepoints.h` or an `ICON_*` macro in `include/ui_fonts.h` names, read from the UTF-8 bytes. `--mdi` / `--custom` (0xFE000 block) feed `regen_mdi_fonts.sh` and `esp32_regen_compressed_fonts.sh`; `--table` feeds `verify_mdi_codepoints.py`. Fails on a comment that disagrees with its bytes, a non-glyph, or an empty list. Tests: `tests/python/test_mdi_icon_codepoints.py` |
 | `gen_icon_consts.py` | `include/ui_icon_codepoints.h` → `ui_xml/globals.xml` icon string constants |
 | `generate_icon_header.py` | Embed PNG icon data into C headers |
 | `validate_icon_fonts.sh` | Bidirectional check: codepoints ↔ fonts ↔ XML usage |
@@ -172,7 +173,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_old_toolchain.py` | Re-parses every `src/` translation unit's own flags from `compile_commands.json` with `-fsyntax-only` against an older compiler (default `g++-10`, matching the AD5M/Pi/K1/K2/CC1 cross toolchains' libstdc++), catching a construct the CI runner's newer clang accepts and an older libstdc++ rejects (`std::from_chars<float>`, absent before GCC 11) before it reaches a cross build or a device. Runs in `.github/workflows/nightly.yml`'s `build` job, right after the native build produces the compile database; a failure fails the nightly run through `nightly-status`, without skipping the jobs that need `build`. `--compiler`, `--jobs`, or specific files to narrow it |
 | `perf-farm-check.sh` | Pre-release CPU budget check across the physical test farm (run from zeus): idle, a mock print with a LONG filename, and the same with animations off, each on a fresh instance (#1440). Budgets in `config/perf_budgets.json`. Refuses a printer that is printing. Exit 0 in budget, 1 over, 2 no usable sample (not a pass) |
 | `format-xml.py` | XML formatter: 2-space indent, attribute wrapping at ~120 chars. Skips generator-owned `ui_xml/translations/` and foreign `android/` XML; LVGL state selectors (`style_bg_opa:checked`) round-trip through a sentinel. A file it cannot parse is an ERROR, never "formatted". `--check` / `--diff`. Meta-tests: `tests/shell/test_format_xml_gate.bats` |
-| `verify_mdi_codepoints.py` | Verify MDI codepoint mappings are correct |
+| `verify_mdi_codepoints.py` | Verify each icon's claimed name (from `mdi_icon_codepoints.py --table`) against MDI's own metadata cache |
 
 ### Screenshots & Testing
 Screenshots drive a freshly booted instance with `helix-screen ctl` (`docs/devel/HELIXCTL.md`);

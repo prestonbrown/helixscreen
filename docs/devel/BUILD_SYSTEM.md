@@ -1527,10 +1527,10 @@ The build system uses `lv_font_conv` to convert TrueType fonts into LVGL-compati
 ### Font Types
 
 **Material Design Icons (MDI):**
-- Source: `scripts/regen_mdi_fonts.sh` (single source of truth)
+- Source: `scripts/regen_mdi_fonts.sh`, fed the codepoint list by `scripts/mdi_icon_codepoints.py`
 - Font: `assets/fonts/materialdesignicons-webfont.ttf`
 - Output: `mdi_icons_16.c`, `mdi_icons_24.c`, `mdi_icons_32.c`, `mdi_icons_48.c`, `mdi_icons_64.c`
-- Codepoint mapping: `include/ui_icon_codepoints.h`
+- Codepoint mapping: `include/ui_icon_codepoints.h` (name -> glyph) and the `ICON_*` macros in `include/ui_fonts.h` (glyphs C++ writes directly). Together they are the font's glyph list: nothing else names one
 
 **Noto Sans Text Fonts:**
 - Source: `package.json` npm scripts
@@ -1558,15 +1558,13 @@ To add new Material Design Icons:
 
 1. **Find the icon** at https://pictogrammers.com/library/mdi/
 2. **Get the codepoint** (e.g., `wifi-strength-4` = `0xF0928`)
-3. **Edit `scripts/regen_mdi_fonts.sh`** and add the codepoint:
-   ```bash
-   MDI_ICONS+=",0xF0928"    # wifi-strength-4
-   ```
-4. **Add to codepoints header** (`include/ui_icon_codepoints.h`):
+3. **Add to codepoints header** (`include/ui_icon_codepoints.h`, kept sorted by name):
    ```cpp
    {"wifi_strength_4",    "\xF3\xB0\xA4\xA8"},  // F0928 wifi-strength-4
    ```
-5. **Regenerate fonts:**
+   The comment's codepoint must match the bytes: `scripts/mdi_icon_codepoints.py`,
+   which turns both headers into the font list, refuses a mismatch.
+4. **Regenerate fonts** (the desktop faces and the ESP32 firmware's twins):
    ```bash
    make regen-fonts
    make -j
