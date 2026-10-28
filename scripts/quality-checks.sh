@@ -1642,7 +1642,7 @@ SECTION_START=$(date +%s)
 echo -n "ð«¥ Checking bats assertions bash 3.2 swallows..."
 
 if [ -f "scripts/check_bats_inert_assertions.py" ]; then
-  if python3 scripts/check_bats_inert_assertions.py --max-allowed 259 >/tmp/bats_inert.out 2>&1; then
+  if python3 scripts/check_bats_inert_assertions.py --max-allowed 251 >/tmp/bats_inert.out 2>&1; then
     section_time $SECTION_START
     echo ""
     cat /tmp/bats_inert.out
