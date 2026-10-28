@@ -147,11 +147,9 @@ void PrintSelectFileProvider::refresh_files(const std::string& current_path,
                     file_list.push_back(PrintFileData::make_directory(
                         file.filename, PrintSelectCardView::FOLDER_ICON, false));
                 } else {
-                    // Only show printable files (.gcode, .gco, .g, .3mf)
-                    using helix::gcode::ends_with_ci;
-                    const std::string& name = file.filename;
-                    if (!ends_with_ci(name, ".gcode") && !ends_with_ci(name, ".gco") &&
-                        !ends_with_ci(name, ".g") && !ends_with_ci(name, ".3mf")) {
+                    // Only show printable files: the same predicate the USB
+                    // stick scanner uses.
+                    if (!helix::gcode::has_printable_extension(file.filename)) {
                         continue;
                     }
 

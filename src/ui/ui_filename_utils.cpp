@@ -29,6 +29,16 @@ std::string get_filename_basename(const std::string& path) {
     return path.substr(last_sep + 1);
 }
 
+bool has_printable_extension(const std::string& filename) {
+    static const std::vector<std::string> extensions = {".gcode", ".gco", ".g", ".3mf"};
+    for (const auto& ext : extensions) {
+        if (filename.size() > ext.size() && ends_with_ci(filename, ext)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string strip_gcode_extension(const std::string& filename) {
     // A QIDI print file is "Name.gcode.3mf": the whole double extension goes.
     if (filename.size() > 4 && is_3mf(filename)) {

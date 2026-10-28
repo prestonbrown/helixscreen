@@ -7,10 +7,58 @@
 
 #include "../catch_amalgamated.hpp"
 
+using helix::gcode::has_printable_extension;
 using helix::gcode::is_native_3mf_shadow;
 using helix::gcode::qidi_3mf_extract_name;
 using helix::gcode::resolve_gcode_filename;
 using helix::gcode::thumbnail_source_describes;
+
+// =============================================================================
+// has_printable_extension() - the one printable-extension list
+// =============================================================================
+//
+// The Moonraker file list and the USB stick scanner decide "is this a
+// printable file" through this predicate. A FAT stick mounted without
+// long-filename support hands the scanner 8.3 upper-case names like
+// 3DBENC~1.GCO, so case-insensitivity and the short extensions are not
+// cosmetic.
+
+TEST_CASE("has_printable_extension() accepts every printable extension",
+          "[filename_utils][printable]") {
+    REQUIRE(has_printable_extension("benchy.gcode"));
+    REQUIRE(has_printable_extension("benchy.gco"));
+    REQUIRE(has_printable_extension("benchy.g"));
+    REQUIRE(has_printable_extension("plate.3mf"));
+}
+
+TEST_CASE("has_printable_extension() is case-insensitive", "[filename_utils][printable]") {
+    // 8.3 short name a no-LFN FAT mount produces for 3DBenchy.gcode
+    REQUIRE(has_printable_extension("3DBENC~1.GCO"));
+    REQUIRE(has_printable_extension("BENCHY.GCODE"));
+    REQUIRE(has_printable_extension("Job.G"));
+    REQUIRE(has_printable_extension("PLATE.3MF"));
+}
+
+TEST_CASE("has_printable_extension() accepts names shorter than six characters",
+          "[filename_utils][printable]") {
+    REQUIRE(has_printable_extension("a.g"));
+    REQUIRE(has_printable_extension("a.gco"));
+}
+
+TEST_CASE("has_printable_extension() rejects non-printable and malformed names",
+          "[filename_utils][printable]") {
+    REQUIRE_FALSE(has_printable_extension("notes.txt"));
+    REQUIRE_FALSE(has_printable_extension("firmware.bin"));
+    // Klipper cannot execute these, so listing them would offer a file that
+    // fails the moment it is selected.
+    REQUIRE_FALSE(has_printable_extension("job.bgcode"));
+    REQUIRE_FALSE(has_printable_extension("package.ufp"));
+    REQUIRE_FALSE(has_printable_extension(""));
+    REQUIRE_FALSE(has_printable_extension("gcode"));
+    // A name that is nothing but the extension is a hidden dotfile.
+    REQUIRE_FALSE(has_printable_extension(".gcode"));
+    REQUIRE_FALSE(has_printable_extension(".g"));
+}
 
 // =============================================================================
 // is_native_3mf_shadow() - QIDI native-3MF shadow G-code detection

@@ -36,6 +36,22 @@ std::string get_filename_basename(const std::string& path);
 std::string join_gcode_path(const std::string& dir, const std::string& filename);
 
 /**
+ * @brief Does this filename carry an extension we treat as printable?
+ *
+ * The one list of printable extensions (.gcode, .gco, .g, .3mf,
+ * case-insensitive), shared by the Moonraker file list and the USB stick
+ * scanner. FAT mounts without long-filename support yield 8.3 upper-case
+ * names (3DBENC~1.GCO), so the match must be case-insensitive down to ".g".
+ *
+ * A name consisting solely of the extension (".gcode") is a hidden dotfile,
+ * not a printable file.
+ *
+ * @param filename Bare filename or path
+ * @return true if the name ends in a printable extension
+ */
+bool has_printable_extension(const std::string& filename);
+
+/**
  * @brief Strip G-code file extensions for display
  *
  * Removes common G-code extensions (.gcode, .g, .gco, .3mf, case-insensitive)
