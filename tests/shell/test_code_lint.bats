@@ -9,6 +9,40 @@ setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
 }
 
+# The one file under src/ or include/ matching an ERE only a symbol's definition
+# matches, so a check follows the code when it moves between files instead of
+# reading a path that no longer holds it. Prints why and fails on none or
+# several, so a check never runs against the wrong file or none.
+locate_by_symbol() {
+    local pattern="$1" hits count
+    hits=$(git grep --untracked -lE -e "$pattern" -- src include 2>/dev/null || true)
+    count=$(printf '%s\n' "$hits" | grep -c . || true)
+    if [ "$count" -ne 1 ]; then
+        echo "locate_by_symbol: '$pattern' matches $count file(s) under src/ and include/, expected 1:" >&2
+        [ -n "$hits" ] && printf '  %s\n' $hits >&2
+        return 1
+    fi
+    printf '%s\n' "$hits"
+}
+
+@test "locate_by_symbol names the one file a definition lives in" {
+    run locate_by_symbol '^bool PrinterSwitchFlow::switch_printer\('
+    [ "$status" -eq 0 ]
+    [ "$output" = "src/application/printer_switch_flow.cpp" ]
+}
+
+@test "locate_by_symbol fails on a symbol nothing defines" {
+    run locate_by_symbol '^void NoSuchClass::no_such_method\('
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"matches 0 file(s)"* ]]
+}
+
+@test "locate_by_symbol fails on a pattern several files match" {
+    run locate_by_symbol '^#pragma once'
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"expected 1"* ]]
+}
+
 # --- No _for_testing methods in production code ---
 # Test-only methods belong in test files via friend class TestAccess pattern.
 # See commit removing these for the migration pattern.
@@ -306,7 +340,9 @@ check_switch_printer_clears_caches() {
 }
 
 @test "switch_printer invalidates every registered per-printer cache before teardown" {
-    run check_switch_printer_clears_caches src/application/printer_switch_flow.cpp
+    local file
+    file=$(locate_by_symbol '^bool PrinterSwitchFlow::switch_printer\(')
+    run check_switch_printer_clears_caches "$file"
     [ "$status" -eq 0 ]
 }
 
@@ -1379,7 +1415,9 @@ check_deinit_all_does_not_log() {
 }
 
 @test "SubjectManager::deinit_all() makes no spdlog calls" {
-    run check_deinit_all_does_not_log include/subject_managed_panel.h
+    local file
+    file=$(locate_by_symbol 'void deinit_all\(\) \{')
+    run check_deinit_all_does_not_log "$file"
     [ "$status" -eq 0 ]
 }
 
@@ -1518,7 +1556,9 @@ check_observer_guard_move_clears_cleanup() {
 }
 
 @test "ObserverGuard's move paths clear the moved-from cleanup" {
-    run check_observer_guard_move_clears_cleanup src/ui/ui_observer_guard.cpp
+    local file
+    file=$(locate_by_symbol '^ObserverGuard::ObserverGuard\(ObserverGuard&& other\)')
+    run check_observer_guard_move_clears_cleanup "$file"
     [ "$status" -eq 0 ]
 }
 
@@ -1585,12 +1625,16 @@ check_friend_list() {
 }
 
 @test "AmsBackendAfc befriends exactly one test shim" {
-    run check_friend_list include/ams_backend_afc.h "friend class AfcTestAccess;"
+    local file
+    file=$(locate_by_symbol '^class AmsBackendAfc[[:space:]]*:')
+    run check_friend_list "$file" "friend class AfcTestAccess;"
     [ "$status" -eq 0 ]
 }
 
 @test "AmsBackendHappyHare befriends exactly one test shim" {
-    run check_friend_list include/ams_backend_happy_hare.h "friend class HappyHareTestAccess;"
+    local file
+    file=$(locate_by_symbol '^class AmsBackendHappyHare[[:space:]]*:')
+    run check_friend_list "$file" "friend class HappyHareTestAccess;"
     [ "$status" -eq 0 ]
 }
 
@@ -2018,7 +2062,9 @@ check_weight_poll_is_weight_only() {
 }
 
 @test "the Spoolman weight poll does not write whole SlotInfo structs" {
-    run check_weight_poll_is_weight_only src/printer/spoolman_manager.cpp
+    local file
+    file=$(locate_by_symbol '^void SpoolmanManager::refresh_spoolman_weights\(\)')
+    run check_weight_poll_is_weight_only "$file"
     [ "$status" -eq 0 ]
 }
 
@@ -2055,7 +2101,9 @@ LANE_STORE_FRIENDS_EXPECTED="friend void ingest(LaneId, const Observation&);
 friend void commit_slot_edit(LaneId, const Observation&);"
 
 @test "the lane source store names exactly its two funnels as friends" {
-    run check_friend_list include/lane_source_store.h "$LANE_STORE_FRIENDS_EXPECTED"
+    local file
+    file=$(locate_by_symbol '^class LaneSourceStore[[:space:]]*\{')
+    run check_friend_list "$file" "$LANE_STORE_FRIENDS_EXPECTED"
     [ "$status" -eq 0 ]
 }
 
@@ -2099,7 +2147,9 @@ check_lane_store_write_declared() {
 }
 
 @test "the lane store's guarded write() is declared as the friend list expects" {
-    run check_lane_store_write_declared include/lane_source_store.h
+    local file
+    file=$(locate_by_symbol '^class LaneSourceStore[[:space:]]*\{')
+    run check_lane_store_write_declared "$file"
     [ "$status" -eq 0 ]
 }
 
@@ -2213,7 +2263,9 @@ check_lane_store_write_is_private() {
 }
 
 @test "the lane store's write() is declared private" {
-    run check_lane_store_write_is_private include/lane_source_store.h
+    local file
+    file=$(locate_by_symbol '^class LaneSourceStore[[:space:]]*\{')
+    run check_lane_store_write_is_private "$file"
     [ "$status" -eq 0 ]
 }
 
@@ -2294,7 +2346,9 @@ check_mock_publishes_lane_readings_once() {
 }
 
 @test "the mock files its lane readings from exactly one call site" {
-    run check_mock_publishes_lane_readings_once src/printer/ams_backend_mock.cpp
+    local file
+    file=$(locate_by_symbol '^void AmsBackendMock::publish_lane_observations\(\)')
+    run check_mock_publishes_lane_readings_once "$file"
     [ "$status" -eq 0 ]
 }
 
