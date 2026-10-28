@@ -147,6 +147,7 @@
   <translation tag="= Loosen" de="= Lösen"/>
   <translation tag="= Tighten" de="= Anziehen"/>
   <translation tag="A" de="A"/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." de="Eine 0,2-mm-Düse kann manche Filamente nicht drucken: PA, PC und PCTG, TPU, PVA, PEBA, kohle- oder glasfaserverstärkte, Glow, Marble und Wood. Ist eines davon in diesem Werkzeugkopf geladen, löscht der Drucker dessen Filamentangaben und Sie müssen sie neu einstellen."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." de="Ein Summer oder Lautsprecher für Warnungen und Töne. Lege in den Soundeinstellungen fest, was abgespielt wird."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." de="Eine Kamera, die Moonraker streamt. Füge das Kamera-Widget zum Startbildschirm hinzu, um sie anzusehen, auch während eines Drucks."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." de="Ein Lüfter, der die Luft im Gehäuse durch einen Filter zieht. Steuere ihn im Kammertemperatur-Bildschirm."/>
@@ -2463,9 +2464,14 @@
   <translation tag="Nozzle Temps" de="Düsentemperaturen"/>
   <translation tag="Nozzle clean complete" de="Düsenreinigung abgeschlossen"/>
   <translation tag="Nozzle clog detected" de="Verstopfte Düse erkannt"/>
+  <translation tag="Nozzle diameter" de="Düsendurchmesser"/>
   <translation tag="Nozzle did not reach {}°C — {} canceled" de="Düse erreichte {}°C nicht — {} abgebrochen"/>
+  <translation tag="Nozzle flow" de="Düsendurchfluss"/>
   <translation tag="Nozzle interval" de="Intervall Düse"/>
   <translation tag="Nozzle min cannot exceed max" de="Düse min darf max nicht überschreiten"/>
+  <translation tag="Nozzle not changed: the printer did not confirm it" de="Düse nicht geändert: der Drucker hat es nicht bestätigt"/>
+  <translation tag="Nozzle not changed: {}" de="Düse nicht geändert: {}"/>
+  <translation tag="Nozzle size and flow type per head" de="Düsengröße und Durchflusstyp je Werkzeugkopf"/>
   <translation tag="Nozzle target set to {}°C" de="Düsen-Zieltemperatur auf {}°C gesetzt"/>
   <translation tag="Nozzle temp must be 100-%d°C" de="Düsentemperatur muss 100-%d°C betragen"/>
   <translation tag="Nozzle, bed, and chamber in one widget" de="Düse, Bett und Kammer in einem Widget"/>

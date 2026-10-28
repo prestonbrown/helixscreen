@@ -14,6 +14,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_guided_device_flow.h"
+#include "ui_modal.h"
 #include "ui_slider_scale.h"
 #include "ui_text.h"
 #include "ui_utils.h"
@@ -714,16 +715,84 @@ void AmsDeviceSectionDetailOverlay::on_dropdown_changed(lv_event_t* e) {
         lv_dropdown_set_text(dropdown, nullptr);
         const uint32_t selected = lv_dropdown_get_selected(dropdown);
         if (selected < action->options.size()) {
-            const std::string& choice = action->options[selected];
+            const std::string choice = action->options[selected];
             spdlog::debug("[AmsDeviceSectionDetailOverlay] Dropdown changed: {} = '{}'", action->id,
                           choice);
-            if (overlay.execute(*action, std::any(choice)).success()) {
-                NOTIFY_INFO(lv_tr("{} set to {}"), device_action_label(*action), choice);
+            const auto* shown = std::any_cast<std::string>(&action->current_value);
+            const auto* confirm = action->option_confirm_for(choice);
+            if (confirm && !(shown && *shown == choice)) {
+                overlay.confirm_dropdown_choice(*action, choice, *confirm);
+            } else {
+                const helix::printer::DeviceAction picked = *action;
+                overlay.apply_dropdown_choice(picked, choice);
             }
         }
     }
 
     LVGL_SAFE_EVENT_CB_END();
+}
+
+void AmsDeviceSectionDetailOverlay::apply_dropdown_choice(
+    const helix::printer::DeviceAction& action, const std::string& choice) {
+    // The row may have been rebuilt since the pick (a confirmation was open),
+    // so it is set to the choice it is about to send.
+    if (lv_obj_t* row = row_for(action.id)) {
+        // required-names: setting_dropdown_row
+        if (lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name())) {
+            const auto it = std::find(action.options.begin(), action.options.end(), choice);
+            if (it != action.options.end()) {
+                lv_dropdown_set_text(dropdown, nullptr);
+                lv_dropdown_set_selected(dropdown,
+                                         static_cast<uint32_t>(it - action.options.begin()));
+            }
+        }
+    }
+    if (execute(action, std::any(choice)).success()) {
+        NOTIFY_INFO(lv_tr("{} set to {}"), device_action_label(action), choice);
+    } else {
+        // The backend kept its value; so does the row.
+        refresh();
+    }
+}
+
+void AmsDeviceSectionDetailOverlay::confirm_dropdown_choice(
+    const helix::printer::DeviceAction& action, const std::string& choice,
+    const helix::printer::DeviceAction::OptionConfirm& confirm) {
+    const std::string id = action.id;
+    const std::string title = device_action_label(action);
+    // Cancelled or dismissed, the row goes back to the value the backend reports.
+    ConfirmOptions opts;
+    opts.on_cancel = [] { get_ams_device_section_detail_overlay().refresh(); };
+    opts.on_dismiss = [] { get_ams_device_section_detail_overlay().refresh(); };
+    opts.owner_token = lifetime_.token();
+    modal_confirm(
+        title.c_str(), lv_tr(confirm.message.c_str()), ModalSeverity::Warning,
+        lv_tr(confirm.confirm_label.c_str()),
+        [id, choice] { get_ams_device_section_detail_overlay().on_choice_confirmed(id, choice); },
+        opts);
+}
+
+void AmsDeviceSectionDetailOverlay::on_choice_confirmed(const std::string& action_id,
+                                                        const std::string& choice) {
+    for (const auto& action : cached_actions_) {
+        if (action.id != action_id) {
+            continue;
+        }
+        // A refresh while the confirmation was open can have made it unavailable.
+        if (!action.enabled || std::find(action.options.begin(), action.options.end(), choice) ==
+                                   action.options.end()) {
+            spdlog::info("[AmsDeviceSectionDetailOverlay] Confirmed '{}' for '{}' dropped: {}",
+                         choice, action_id, action.disable_reason);
+            refresh();
+            return;
+        }
+        const helix::printer::DeviceAction picked = action;
+        apply_dropdown_choice(picked, choice);
+        return;
+    }
+    spdlog::warn("[AmsDeviceSectionDetailOverlay] Confirmed choice for vanished action '{}'",
+                 action_id);
+    refresh();
 }
 
 } // namespace helix::ui

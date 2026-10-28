@@ -197,6 +197,8 @@ translations:
   = Loosen: = Ослабить
   = Tighten: = Затянуть
   A: A
+  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
+  : "Сопло 0,2 мм не может печатать некоторые филаменты: PA, PC и PCTG, TPU, PVA, PEBA, с углеволокном или стекловолокном, Glow, Marble и Wood. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Зуммер или динамик для оповещений и звуков. Что воспроизводится, настраивается в настройках звука.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Камера, которую транслирует Moonraker. Добавьте виджет камеры на главный экран, чтобы смотреть ее, в том числе во время печати.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры.'
@@ -2732,9 +2734,14 @@ translations:
   Nozzle Temps: Темп. сопел
   Nozzle clean complete: Очистка сопла завершена
   Nozzle clog detected: Обнаружено засорение сопла
+  Nozzle diameter: "Диаметр сопла"
   Nozzle did not reach {}°C — {} canceled: Сопло не нагрелось до {}°C — «{}» отменено
+  Nozzle flow: "Поток сопла"
   Nozzle interval: 'Интервал сопла'
   Nozzle min cannot exceed max: Минимум сопла не может превышать максимум
+  'Nozzle not changed: the printer did not confirm it': "Сопло не изменено: принтер не подтвердил"
+  'Nozzle not changed: {}': "Сопло не изменено: {}"
+  Nozzle size and flow type per head: "Размер сопла и тип потока для каждой печатающей головки"
   Nozzle target set to {}°C: Целевая температура сопла {}°C
   Nozzle temp must be 100-%d°C: Температура сопла должна быть 100-%d°C
   Nozzle, bed, and chamber in one widget: Сопло, стол и камера в одном виджете

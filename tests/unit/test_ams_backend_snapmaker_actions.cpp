@@ -456,3 +456,211 @@ TEST_CASE("an auto-replenish change announces a state change and a repeat does n
     SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", true}}));
     CHECK(changes == 1);
 }
+
+namespace {
+/// An extruder status object for head @p head (0-based), filed the way the
+/// firmware names them: extruder, extruder1, ...
+nlohmann::json head_frame(int head, const nlohmann::json& fields) {
+    nlohmann::json p = nlohmann::json::object();
+    p[head == 0 ? std::string("extruder") : "extruder" + std::to_string(head)] = fields;
+    return p;
+}
+const nlohmann::json kStandard04{{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}};
+std::any pick(const char* option) {
+    return std::any(std::string(option));
+}
+} // namespace
+
+TEST_CASE("a head offers nozzle rows only for the fields it reports",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    SECTION("nothing reported: no rows and no section") {
+        for (const auto& a : backend.get_device_actions()) {
+            CHECK(a.section != "toolhead");
+        }
+        for (const auto& s : backend.get_device_sections()) {
+            CHECK(s.id != "toolhead");
+        }
+    }
+    SECTION("one head reporting both fields gets both rows, the others none") {
+        SnapmakerTestAccess::handle_status(backend, head_frame(1, kStandard04));
+        const auto actions = backend.get_device_actions();
+        REQUIRE(find_action(actions, "snapmaker_nozzle_diameter_t1") != nullptr);
+        REQUIRE(find_action(actions, "snapmaker_nozzle_flow_t1") != nullptr);
+        CHECK(find_action(actions, "snapmaker_nozzle_diameter_t0") == nullptr);
+        CHECK(find_action(actions, "snapmaker_nozzle_flow_t2") == nullptr);
+
+        const auto sections = backend.get_device_sections();
+        auto it = std::find_if(sections.begin(), sections.end(),
+                               [](const DeviceSection& s) { return s.id == "toolhead"; });
+        REQUIRE(it != sections.end());
+        CHECK_FALSE(it->description.empty());
+    }
+    SECTION("a head reporting only its diameter gets only that row") {
+        SnapmakerTestAccess::handle_status(backend, head_frame(2, {{"nozzle_diameter", 0.6}}));
+        const auto actions = backend.get_device_actions();
+        CHECK(find_action(actions, "snapmaker_nozzle_diameter_t2") != nullptr);
+        CHECK(find_action(actions, "snapmaker_nozzle_flow_t2") == nullptr);
+    }
+}
+
+TEST_CASE("nozzle rows show the reported value among the firmware's options",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    SnapmakerTestAccess::handle_status(
+        backend, head_frame(3, {{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "high_flow"}}));
+    const auto actions = backend.get_device_actions();
+
+    const DeviceAction* d = find_action(actions, "snapmaker_nozzle_diameter_t3");
+    REQUIRE(d != nullptr);
+    CHECK(d->type == ActionType::DROPDOWN);
+    CHECK(d->label == "Nozzle diameter");
+    CHECK(d->section == "toolhead");
+    CHECK(d->tool_index == 3);
+    CHECK(d->slot_index == 3);
+    CHECK(d->enabled);
+    CHECK(d->options == std::vector<std::string>{"0.2 mm", "0.4 mm", "0.6 mm", "0.8 mm"});
+    CHECK(std::any_cast<std::string>(d->current_value) == "0.6 mm");
+
+    const DeviceAction* f = find_action(actions, "snapmaker_nozzle_flow_t3");
+    REQUIRE(f != nullptr);
+    CHECK(f->label == "Nozzle flow");
+    CHECK(f->options == std::vector<std::string>{"Standard", "High Flow"});
+    CHECK(std::any_cast<std::string>(f->current_value) == "High Flow");
+    CHECK(f->option_confirms.empty());
+}
+
+TEST_CASE("a nozzle value no option names reads as unknown, not as an option",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    SnapmakerTestAccess::handle_status(
+        backend, head_frame(0, {{"nozzle_diameter", 0.25}, {"nozzle_volume_type", "hardened"}}));
+    const auto actions = backend.get_device_actions();
+    REQUIRE(find_action(actions, "snapmaker_nozzle_diameter_t0") != nullptr);
+    CHECK_FALSE(find_action(actions, "snapmaker_nozzle_diameter_t0")->current_value.has_value());
+    REQUIRE(find_action(actions, "snapmaker_nozzle_flow_t0") != nullptr);
+    CHECK_FALSE(find_action(actions, "snapmaker_nozzle_flow_t0")->current_value.has_value());
+}
+
+TEST_CASE("picking a 0.2 mm nozzle asks first, other diameters do not",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    SnapmakerTestAccess::handle_status(backend, head_frame(0, kStandard04));
+    const auto actions = backend.get_device_actions();
+    const DeviceAction* d = find_action(actions, "snapmaker_nozzle_diameter_t0");
+    REQUIRE(d != nullptr);
+    const auto* confirm = d->option_confirm_for("0.2 mm");
+    REQUIRE(confirm != nullptr);
+    CHECK(confirm->message.find("PCTG") != std::string::npos);
+    CHECK(confirm->confirm_label == "Change");
+    CHECK(d->option_confirm_for("0.4 mm") == nullptr);
+    CHECK(d->option_confirm_for("0.6 mm") == nullptr);
+    CHECK(d->option_confirm_for("0.8 mm") == nullptr);
+}
+
+TEST_CASE("nozzle rows are disabled with a reason while a print is in progress",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    SnapmakerTestAccess::handle_status(backend, head_frame(1, kStandard04));
+    int changes = 0;
+    backend.set_event_callback([&](const std::string& ev, const std::string&) {
+        if (ev == AmsBackend::EVENT_STATE_CHANGED) {
+            ++changes;
+        }
+    });
+
+    const auto rows_disabled = [&](bool expect_disabled) {
+        const auto actions = backend.get_device_actions();
+        for (const char* id : {"snapmaker_nozzle_diameter_t1", "snapmaker_nozzle_flow_t1"}) {
+            const DeviceAction* a = find_action(actions, id);
+            REQUIRE(a != nullptr);
+            CHECK(a->enabled == !expect_disabled);
+            if (expect_disabled) {
+                CHECK(a->disable_reason == "Finish or cancel the print first");
+            }
+        }
+    };
+
+    rows_disabled(false);
+    SnapmakerTestAccess::handle_status(backend, {{"print_stats", {{"state", "printing"}}}});
+    rows_disabled(true);
+    // The rows' availability changed, so the overlay is told to redraw.
+    CHECK(changes >= 1);
+    // The device-action gate refuses a disabled row before the backend.
+    CHECK(backend.execute_device_action("snapmaker_nozzle_diameter_t1", pick("0.6 mm")).result ==
+          AmsResult::WRONG_STATE);
+
+    SnapmakerTestAccess::handle_status(backend, {{"print_stats", {{"state", "paused"}}}});
+    rows_disabled(true);
+
+    SnapmakerTestAccess::handle_status(backend, {{"print_stats", {{"state", "complete"}}}});
+    rows_disabled(false);
+}
+
+TEST_CASE("a reported nozzle change announces a state change and a repeat does not",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    SnapmakerTestAccess::handle_status(backend, head_frame(0, kStandard04));
+    int changes = 0;
+    backend.set_event_callback([&](const std::string& ev, const std::string&) {
+        if (ev == AmsBackend::EVENT_STATE_CHANGED) {
+            ++changes;
+        }
+    });
+    SnapmakerTestAccess::handle_status(backend, head_frame(0, {{"nozzle_diameter", 0.6}}));
+    CHECK(changes == 1);
+    SnapmakerTestAccess::handle_status(backend, head_frame(0, {{"nozzle_diameter", 0.6}}));
+    CHECK(changes == 1);
+}
+
+TEST_CASE("a nozzle pick changes only the field that differs from the report",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    SnapmakerTestAccess::handle_status(backend, head_frame(2, kStandard04));
+
+    SECTION("a new diameter carries the diameter alone") {
+        const auto c = backend.build_nozzle_change("snapmaker_nozzle_diameter_t2", pick("0.6 mm"));
+        REQUIRE(c.valid);
+        REQUIRE(c.params);
+        CHECK(*c.params == nlohmann::json{{"extruder", 2}, {"diameter", 0.6}});
+    }
+    SECTION("a new flow type carries the flow type alone") {
+        const auto c = backend.build_nozzle_change("snapmaker_nozzle_flow_t2", pick("High Flow"));
+        REQUIRE(c.valid);
+        REQUIRE(c.params);
+        CHECK(*c.params == nlohmann::json{{"extruder", 2}, {"volume_type", "high_flow"}});
+    }
+    SECTION("the reported value sends nothing") {
+        const auto d = backend.build_nozzle_change("snapmaker_nozzle_diameter_t2", pick("0.4 mm"));
+        CHECK(d.valid);
+        CHECK_FALSE(d.params);
+        const auto f = backend.build_nozzle_change("snapmaker_nozzle_flow_t2", pick("Standard"));
+        CHECK(f.valid);
+        CHECK_FALSE(f.params);
+        // Nothing to send is success, and needs no client.
+        CHECK(backend.execute_device_action("snapmaker_nozzle_diameter_t2", pick("0.4 mm"))
+                  .success());
+    }
+    SECTION("an unlisted option, a head without the field, or a bad value is refused") {
+        CHECK_FALSE(
+            backend.build_nozzle_change("snapmaker_nozzle_diameter_t2", pick("0.5 mm")).valid);
+        CHECK_FALSE(
+            backend.build_nozzle_change("snapmaker_nozzle_diameter_t0", pick("0.6 mm")).valid);
+        CHECK_FALSE(backend.build_nozzle_change("snapmaker_nozzle_flow_t2", std::any(true)).valid);
+        CHECK_FALSE(
+            backend.build_nozzle_change("snapmaker_nozzle_flow_t9", pick("Standard")).valid);
+        CHECK_FALSE(backend.build_nozzle_change("snapmaker_nozzle_flow_t", pick("Standard")).valid);
+    }
+    SECTION("a real change with no client is reported, not dropped") {
+        CHECK_FALSE(backend.execute_device_action("snapmaker_nozzle_diameter_t2", pick("0.6 mm"))
+                        .success());
+    }
+}

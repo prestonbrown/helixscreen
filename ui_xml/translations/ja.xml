@@ -147,6 +147,7 @@
   <translation tag="= Loosen" ja="= 緩める"/>
   <translation tag="= Tighten" ja="= 締める"/>
   <translation tag="A" ja="A"/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." ja="0.2 mmノズルでは一部のフィラメントを印刷できません: PA、PCおよびPCTG、TPU、PVA、PEBA、カーボンファイバー・グラスファイバー入り、Glow、Marble、Wood。このツールヘッドにそのいずれかが装填されている場合、プリンターはフィラメント情報を消去するため、再設定が必要です。"/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." ja="アラートやサウンド用のブザーまたはスピーカー。再生内容はサウンド設定で選べます。"/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." ja="Moonrakerが配信するカメラ。ホーム画面にカメラウィジェットを追加すると、印刷中も映像を確認できます。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ja="チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。"/>
@@ -2463,9 +2464,14 @@
   <translation tag="Nozzle Temps" ja="ノズル温度"/>
   <translation tag="Nozzle clean complete" ja="ノズル清掃完了"/>
   <translation tag="Nozzle clog detected" ja="ノズルの詰まりを検出しました"/>
+  <translation tag="Nozzle diameter" ja="ノズル径"/>
   <translation tag="Nozzle did not reach {}°C — {} canceled" ja="ノズルが{}°Cに達しませんでした — {}を中止しました"/>
+  <translation tag="Nozzle flow" ja="ノズルフロー"/>
   <translation tag="Nozzle interval" ja="ノズルの間隔"/>
   <translation tag="Nozzle min cannot exceed max" ja="ノズル温度の最小値は最大値を超えられません"/>
+  <translation tag="Nozzle not changed: the printer did not confirm it" ja="ノズルは変更されていません: プリンターが確認しませんでした"/>
+  <translation tag="Nozzle not changed: {}" ja="ノズルは変更されていません: {}"/>
+  <translation tag="Nozzle size and flow type per head" ja="ツールヘッドごとのノズルサイズとフロータイプ"/>
   <translation tag="Nozzle target set to {}°C" ja="ノズル目標温度を {}°C に設定しました"/>
   <translation tag="Nozzle temp must be 100-%d°C" ja="ノズル温度は 100〜%d°C にしてください"/>
   <translation tag="Nozzle, bed, and chamber in one widget" ja="ノズル、ベッド、チャンバーをまとめて表示"/>

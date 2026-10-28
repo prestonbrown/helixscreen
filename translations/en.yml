@@ -148,6 +148,8 @@ translations:
   = Loosen: = Loosen
   = Tighten: = Tighten
   A: A
+  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
+  : "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.
@@ -2631,9 +2633,14 @@ translations:
   Nozzle Temps: Nozzle Temps
   'Nozzle clean complete': 'Nozzle clean complete'
   Nozzle clog detected: Nozzle clog detected
+  Nozzle diameter: Nozzle diameter
   Nozzle did not reach {}°C — {} canceled: Nozzle did not reach {}°C — {} canceled
+  Nozzle flow: Nozzle flow
   Nozzle interval: Nozzle interval
   Nozzle min cannot exceed max: Nozzle min cannot exceed max
+  'Nozzle not changed: the printer did not confirm it': 'Nozzle not changed: the printer did not confirm it'
+  'Nozzle not changed: {}': 'Nozzle not changed: {}'
+  Nozzle size and flow type per head: Nozzle size and flow type per head
   Nozzle target set to {}°C: Nozzle target set to {}°C
   Nozzle temp must be 100-%d°C: Nozzle temp must be 100-%d°C
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
