@@ -28,6 +28,14 @@
       "weight": 10
     },
     {
+      "pattern": "\\[NOZZLE_CLEAR\\] START",
+      "case_sensitive": true,
+      "phase": "CLEANING",
+      "message": "Cleaning Nozzle...",
+      "weight": 5,
+      "owns": ["PURGING"]
+    },
+    {
       "pattern": "NOZZLE_CLEAR|BOX_NOZZLE_CLEAN|nozzle.?clean",
       "phase": "CLEANING",
       "message": "Cleaning Nozzle...",

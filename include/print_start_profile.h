@@ -47,6 +47,9 @@ class PrintStartProfile {
         /// The 0-100 progress the text itself reports, from a pattern's
         /// progress_group; -1 when it reports none.
         int reported_percent = -1;
+        /// Phases whose signals belong to the step this text begins, for as
+        /// long as it runs (see the pattern's `owns`); empty for most text.
+        std::vector<helix::PrintStartPhase> owns;
     };
 
     /**
@@ -75,6 +78,9 @@ class PrintStartProfile {
         /// Capture group holding a progress value the text reports (see
         /// percent_from_report()); 0 when the pattern declares none.
         int progress_group = 0;
+        /// Phases the step this text begins emits signals for on its own,
+        /// such as a nozzle clean that parks at the purge position
+        std::vector<helix::PrintStartPhase> owns;
     };
 
     /**

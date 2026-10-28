@@ -476,6 +476,7 @@ void PrintStartCollector::reset_run_locked() {
     last_position_activity_ = helix::PositionActivity::NONE;
     leveling_descents_.reset();
     purge_flow_.reset();
+    owning_step_ = {};
     position_clock_start_ = printing_state_start_;
 }
 
@@ -654,6 +655,9 @@ void PrintStartCollector::check_purge_shape() {
                             .count();
         evidence.stationary_flow =
             purge_flow_.note_sample(static_cast<uint64_t>(ms), forward, x, y, z);
+        if (owning_step_.judge(PrintStartPhase::PURGING) == helix::OwningStep::Verdict::Absorb) {
+            return; // the running step's own flow
+        }
     }
     if (phase == PrintStartPhase::PURGING || phase == PrintStartPhase::COMPLETE ||
         !helix::is_purge(evidence)) {
@@ -1601,6 +1605,9 @@ void PrintStartCollector::apply_profile_match(const PrintStartProfile::MatchResu
     } else {
         note_inferred_activity();
     }
+    if (absorbed_by_owning_step(match.phase)) {
+        return;
+    }
     // match.message arrives already translated: the profile matchers
     // resolve the template through the loaded pack before substituting
     // $1 capture groups.
@@ -1622,6 +1629,9 @@ void PrintStartCollector::apply_profile_match(const PrintStartProfile::MatchResu
     bool should_update = false;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
+        if (!match.owns.empty()) {
+            owning_step_ = {match.phase, match.owns};
+        }
         if (detected_phases_.find(match.phase) == detected_phases_.end()) {
             detected_phases_.insert(match.phase);
             should_update = true;
@@ -1649,6 +1659,24 @@ void PrintStartCollector::apply_profile_match(const PrintStartProfile::MatchResu
         }
         spdlog::debug("[PrintStartCollector] Detected phase: {}", static_cast<int>(match.phase));
     }
+}
+
+bool PrintStartCollector::absorbed_by_owning_step(PrintStartPhase phase) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    switch (owning_step_.judge(phase)) {
+    case helix::OwningStep::Verdict::Absorb:
+        spdlog::debug("[PrintStartCollector] phase {} signal belongs to the running {} step",
+                      static_cast<int>(phase), static_cast<int>(owning_step_.phase));
+        return true;
+    case helix::OwningStep::Verdict::Ends:
+        spdlog::debug("[PrintStartCollector] phase {} signal ends the {} step's ownership",
+                      static_cast<int>(phase), static_cast<int>(owning_step_.phase));
+        owning_step_ = {};
+        return false;
+    case helix::OwningStep::Verdict::Pass:
+        return false;
+    }
+    return false;
 }
 
 void PrintStartCollector::apply_leveling_phase(helix::PrintStartPhase phase) {
@@ -1911,6 +1939,9 @@ bool PrintStartCollector::check_tag_signal(const std::string& line) {
         return false;
     }
     real_signal_seen_.store(true, std::memory_order_relaxed);
+    if (absorbed_by_owning_step(match.phase)) {
+        return true;
+    }
     if (match.reported_percent >= 0) {
         update_phase(match.phase, fmt::format("{} — {}%", match.message, match.reported_percent),
                      match.reported_percent);
@@ -2709,6 +2740,9 @@ int PrintStartCollector::get_current_phase_elapsed_seconds() const {
 }
 
 void PrintStartCollector::enter_phase_locked(PrintStartPhase phase) {
+    if (owning_step_.judge(phase) == helix::OwningStep::Verdict::Ends) {
+        owning_step_ = {};
+    }
     if (phase != current_phase_) {
         if (std::find(phases_left_.begin(), phases_left_.end(), current_phase_) ==
             phases_left_.end()) {

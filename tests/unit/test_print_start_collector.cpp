@@ -8695,6 +8695,150 @@ TEST_CASE_METHOD(PurgeShapeFixture,
 }
 
 // ============================================================================
+// K2 nozzle clear owns its own purge
+//
+// With the bed-mesh pre-print option on, a K2 heats the bed to print
+// temperature and the nozzle to 140, runs NOZZLE_CLEAR (prtouch_v3), homes Z,
+// meshes, and only then heats to print temperature and purges. NOZZLE_CLEAR
+// parks at the CFS extrude position and pushes filament to check flow before
+// it wipes, so its BOX_GO_TO_EXTRUDE_POS echo and its stationary extrusion
+// look exactly like the real purge.
+// ============================================================================
+
+namespace {
+
+class K2NozzleClearFixture : public PurgeShapeFixture {
+  public:
+    K2NozzleClearFixture() {
+        auto profile = PrintStartProfile::load("creality_k2");
+        REQUIRE(profile != nullptr);
+        REQUIRE(profile->name().find("K2") != std::string::npos);
+        collector().set_profile(std::move(profile));
+    }
+
+    /// Bed at print temperature, nozzle at the mesh's 140.
+    void start_mesh_heated() {
+        set_all_temps(600, 600, 1400, 1400);
+        collector().start();
+        drain_async_updates();
+        collector().enable_fallbacks();
+        client().dispatch_status_update(
+            {{"heater_bed", {{"temperature", 60.0}, {"target", 60.0}}},
+             {"extruder", {{"temperature", 140.0}, {"target", 140.0}}}});
+        drain_async_updates();
+    }
+
+    /// The clear's flow check over the chute: the head holds still while the
+    /// extruder pushes forward for longer than a purge needs to show.
+    void flow_check_at_chute() {
+        head(133, 378, 10);
+        extruder(4.0);
+        eta_tick();
+        extruder(0.0);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(K2NozzleClearFixture,
+                 "K2: the nozzle clear's purge position and flow check are not the purge",
+                 "[print][collector][k2][purge]") {
+    start_mesh_heated();
+
+    send_gcode_response("// [NOZZLE_CLEAR] START NOZZLE_CLEAR COUNT:0");
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+
+    SECTION("echoed park at the extrude position") {
+        send_gcode_response("// [GCODE]BOX_GO_TO_EXTRUDE_POS");
+    }
+    SECTION("silent flow check over the chute") {
+        flow_check_at_chute();
+    }
+    SECTION("box extrude progress") {
+        send_gcode_response("// num: 0, velocity: 575.000000, percent 1.000000");
+    }
+    SECTION("the clear heats for its wipe in between") {
+        send_gcode_response("// [GCODE]TEMPERATURE_WAIT SENSOR=extruder MINIMUM=175 MAXIMUM=185");
+        send_gcode_response("// [GCODE]BOX_GO_TO_EXTRUDE_POS");
+        flow_check_at_chute();
+    }
+    CHECK(get_current_phase() != PrintStartPhase::PURGING);
+    send_gcode_response("// [NOZZLE_CLEAR] FINISH NOZZLE_CLEAR");
+
+    // NEXT_HOMEZ_NACCU + G28 Z, then the mesh.
+    send_gcode_response("// [DEBUG]_handle_home_rails_begin");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    send_gcode_response("// exist_points[81], config_points[81]");
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+
+    // START_PRINT: print temperatures, then the real purge position.
+    send_gcode_response("// [GCODE]BOX_GO_TO_EXTRUDE_POS");
+    CHECK(get_current_phase() == PrintStartPhase::PURGING);
+
+    // The checklist reads clean, homing, mesh, then the purge running now.
+    const auto in = collector().checklist_input();
+    CHECK(in.current == PrintStartPhase::PURGING);
+    const auto& done = in.done_in_order;
+    const auto at = [&](PrintStartPhase p) { return std::find(done.begin(), done.end(), p); };
+    CHECK(at(PrintStartPhase::PURGING) == done.end());
+    REQUIRE(at(PrintStartPhase::CLEANING) != done.end());
+    REQUIRE(at(PrintStartPhase::HOMING) != done.end());
+    REQUIRE(at(PrintStartPhase::BED_MESH) != done.end());
+    CHECK(at(PrintStartPhase::CLEANING) < at(PrintStartPhase::HOMING));
+    CHECK(at(PrintStartPhase::HOMING) < at(PrintStartPhase::BED_MESH));
+}
+
+TEST_CASE_METHOD(K2NozzleClearFixture, "K2: the next step ends the clear's hold on purge",
+                 "[print][collector][k2][purge]") {
+    start_mesh_heated();
+    send_gcode_response("// [NOZZLE_CLEAR] START NOZZLE_CLEAR COUNT:0");
+    SECTION("homing, with no finish line") {
+        // START_PRINT without the mesh option: G28 Z, then the purge position.
+        send_gcode_response("// [DEBUG]_handle_home_rails_begin");
+        REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    }
+    SECTION("a mesh entered from its probe lines alone") {
+        for (int i = 0; i < 6; ++i) {
+            char line[128];
+            std::snprintf(line, sizeof(line), "// probe at %.3f,50.000 is z=-0.031000",
+                          20.0 + i * 30.0);
+            send_gcode_response(line);
+        }
+        drain_async_updates();
+        REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    }
+    flow_check_at_chute();
+    CHECK(get_current_phase() == PrintStartPhase::PURGING);
+}
+
+TEST_CASE_METHOD(K2NozzleClearFixture,
+                 "K2: the box nozzle clean owns nothing, so the purge after it shows",
+                 "[print][collector][k2][purge]") {
+    start_mesh_heated();
+    send_gcode_response("// [GCODE]BOX_NOZZLE_CLEAN");
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+    send_gcode_response("// [GCODE]BOX_GO_TO_EXTRUDE_POS");
+    CHECK(get_current_phase() == PrintStartPhase::PURGING);
+}
+
+TEST_CASE_METHOD(PurgeShapeFixture,
+                 "Purge shape: a blob purge right after a brush wipe still shows PURGING",
+                 "[print][collector][purge]") {
+    // The default profile declares no owning step, so a clean followed by a
+    // stationary purge reads as the purge it is.
+    start_hot();
+    send_gcode_response("CLEAN_NOZZLE");
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+    head(4, 10, 2.0);
+    extruder(3.0);
+    for (int i = 1; i <= 8; ++i) {
+        wait(500);
+        head(4, 10, 2.0 + 0.2 * i);
+    }
+    CHECK(get_current_phase() == PrintStartPhase::PURGING);
+}
+
+// ============================================================================
 // checklist_input
 // ============================================================================
 

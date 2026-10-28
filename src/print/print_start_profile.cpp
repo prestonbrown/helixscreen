@@ -243,6 +243,7 @@ bool PrintStartProfile::match_pattern_list(const std::vector<ResponsePattern>& p
             result.narrates = rp.narrates;
             result.counts_probes = rp.counts_probes;
             result.reported_percent = -1;
+            result.owns = rp.owns;
             if (rp.progress_group > 0 && static_cast<size_t>(rp.progress_group) < match.size()) {
                 if (auto value = helix::text_io::parse_double(match[rp.progress_group].view)) {
                     result.reported_percent = percent_from_report(*value);
@@ -650,6 +651,33 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
                 spdlog::warn("[PrintStartProfile] Ignoring progress_group for {} '{}' in {}: "
                              "not a capture group of the pattern",
                              kind, pattern_str, source_path);
+            }
+        }
+
+        // Phases the step this text begins emits signals for (optional)
+        if (rp_json.contains("owns")) {
+            const auto& owns = rp_json["owns"];
+            if (!owns.is_array()) {
+                spdlog::warn("[PrintStartProfile] Ignoring non-array owns for {} '{}' in {}", kind,
+                             pattern_str, source_path);
+            } else {
+                for (const auto& name : owns) {
+                    std::optional<PrintStartPhase> phase;
+                    if (name.is_string()) {
+                        phase = helix::print_start_phase_from_name(
+                            helix::text_io::to_upper(name.get<std::string>()));
+                    }
+                    // A step cannot own itself, nothing, or the print starting.
+                    if (!phase || *phase == rp.phase || *phase == PrintStartPhase::IDLE ||
+                        *phase == PrintStartPhase::COMPLETE) {
+                        spdlog::warn("[PrintStartProfile] Ignoring owns entry {} for {} '{}' in {}",
+                                     name.dump(), kind, pattern_str, source_path);
+                        continue;
+                    }
+                    if (std::find(rp.owns.begin(), rp.owns.end(), *phase) == rp.owns.end()) {
+                        rp.owns.push_back(*phase);
+                    }
+                }
             }
         }
 

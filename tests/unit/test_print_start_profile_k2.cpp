@@ -41,6 +41,24 @@ TEST_CASE("PrintStartProfile: creality_k2 matches captured narration", "[profile
     SECTION("Box nozzle clean") {
         REQUIRE(profile->try_match_pattern("[GCODE]BOX_NOZZLE_CLEAN", result));
         REQUIRE(result.phase == PrintStartPhase::CLEANING);
+        // It runs right after the print-temperature purge position, so it
+        // owns nothing: the purge around it is the real one.
+        REQUIRE(result.owns.empty());
+    }
+
+    SECTION("The pre-mesh nozzle clear owns its own purge") {
+        // NOZZLE_CLEAR (prtouch_v3) parks at the CFS extrude position and
+        // pushes filament to check flow before it wipes, so the
+        // BOX_GO_TO_EXTRUDE_POS and the extrusion inside it are the clean's.
+        REQUIRE(profile->try_match_pattern("[NOZZLE_CLEAR] START NOZZLE_CLEAR COUNT:0", result));
+        REQUIRE(result.phase == PrintStartPhase::CLEANING);
+        REQUIRE(result.owns == std::vector<PrintStartPhase>{PrintStartPhase::PURGING});
+    }
+
+    SECTION("The clear's finish line opens no step") {
+        REQUIRE(profile->try_match_pattern("[NOZZLE_CLEAR] FINISH NOZZLE_CLEAR", result));
+        REQUIRE(result.phase == PrintStartPhase::CLEANING);
+        REQUIRE(result.owns.empty());
     }
 
     SECTION("Pre-wipe nozzle heat uses TEMPERATURE_WAIT, not M109") {

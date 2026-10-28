@@ -1135,6 +1135,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   not report layers, the current layer is worked out from the nozzle height, and each Z-hop
   bumped it up a few layers and back. A new layer now shows once the nozzle has stayed at
   that height for a moment, so the count steps forward only when the print really moves up.
+- **K2 pre-print steps** - the Creality K2's preparing checklist no longer marks Purge done
+  while the nozzle is being cleaned. The nozzle clean parks over the purge chute and pushes a
+  little filament to check flow, which read as the purge; the checklist now keeps it under
+  Cleaning nozzle and shows Purge once, after the bed mesh, when the real purge runs.
 - **Closing the printer type warning keeps your type** (#1881) - tapping X on the "printer
   type mismatch" warning now counts as keeping the saved type, like Review > Keep current,
   so it stops coming back on every restart.

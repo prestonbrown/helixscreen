@@ -1535,6 +1535,28 @@ TEST_CASE("PrintStartProfile: a pattern may say its probes are not mesh points",
     CHECK(result.counts_probes);
 }
 
+TEST_CASE("PrintStartProfile: a pattern may own the phases its step emits",
+          "[profile][print][owns]") {
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"own","response_patterns":[)"
+        R"({"pattern":"^clear$","phase":"CLEANING","owns":["PURGING","purging"]},)"
+        R"({"pattern":"^wipe$","phase":"CLEANING"},)"
+        R"({"pattern":"^odd$","phase":"CLEANING","owns":"PURGING"},)"
+        R"({"pattern":"^bad$","phase":"CLEANING","owns":["NOT_A_PHASE",3,"CLEANING","IDLE"]}]})"));
+    REQUIRE(profile != nullptr);
+    PrintStartProfile::MatchResult result;
+    REQUIRE(profile->try_match_pattern("clear", result));
+    CHECK(result.owns == std::vector<PrintStartPhase>{PrintStartPhase::PURGING});
+    REQUIRE(profile->try_match_pattern("wipe", result));
+    CHECK(result.owns.empty());
+    // Not an array: ignored whole.
+    REQUIRE(profile->try_match_pattern("odd", result));
+    CHECK(result.owns.empty());
+    // Unknown names, non-strings, the step's own phase and IDLE own nothing.
+    REQUIRE(profile->try_match_pattern("bad", result));
+    CHECK(result.owns.empty());
+}
+
 TEST_CASE("PrintStartProfile: a malformed context field drops the phase object",
           "[profile][print][phase_object]") {
     for (const char* cf : {R"("")", "3", "null", R"(["context_types"])"}) {
