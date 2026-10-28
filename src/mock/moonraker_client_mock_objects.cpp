@@ -673,8 +673,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
 
             // The U1 reports each head's calibrated offset and its fitted nozzle
-            // (stock: 0.4 mm standard, kept outside the config) on its extruder,
-            // and the offset calibration state on machine_state_manager.
+            // (kept outside the config; printer.control.nozzle_properties changes
+            // it) on its extruder, and the offset calibration state on
+            // machine_state_manager.
             if (self->get_printer_type() == MoonrakerClientMock::PrinterType::SNAPMAKER_U1) {
                 if (objects.contains("machine_state_manager")) {
                     status_obj["machine_state_manager"]["main_state"] =
@@ -688,8 +689,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     if (objects.contains(name)) {
                         const auto o = self->nozzle_offset(head);
                         status_obj[name]["extruder_offset"] = {o[0], o[1], o[2]};
-                        status_obj[name]["nozzle_diameter"] = 0.4;
-                        status_obj[name]["nozzle_volume_type"] = "standard";
+                        const auto [diameter, volume_type] = self->nozzle_properties(head);
+                        status_obj[name]["nozzle_diameter"] = diameter;
+                        status_obj[name]["nozzle_volume_type"] = volume_type;
                     }
                 }
             }
@@ -818,6 +820,20 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"power", target > 0 ? 0.5 : 0.0},
                         {"pressure_advance", self->pressure_advance_for(ext).advance},
                         {"smooth_time", self->pressure_advance_for(ext).smooth_time}};
+                }
+            }
+
+            // The U1 reports each head's fitted nozzle on its extruder, here as
+            // in the objects query: the app reads it from this snapshot.
+            if (self->get_printer_type() == MoonrakerClientMock::PrinterType::SNAPMAKER_U1) {
+                for (int head = 0; head < 4; ++head) {
+                    const std::string name =
+                        head == 0 ? std::string("extruder") : "extruder" + std::to_string(head);
+                    if (objects.contains(name)) {
+                        const auto [diameter, volume_type] = self->nozzle_properties(head);
+                        status_obj[name]["nozzle_diameter"] = diameter;
+                        status_obj[name]["nozzle_volume_type"] = volume_type;
+                    }
                 }
             }
 
