@@ -19,6 +19,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_param_cache.h"
 #include "observer_factory.h"
+#include "pa_result_store.h"
 #include "preset_materials.h"
 #include "print_start_analyzer.h"
 #include "printer_state.h"
@@ -31,7 +32,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <ctime>
 #include <map>
 #include <set>
 #include <string>
@@ -48,15 +48,6 @@ float ramp_step(helix::pa::ExtruderKind kind) {
 /// Outer clearance the tower needs on each side of its centre: the wall, the
 /// brim, and a margin from the bed edge.
 constexpr float kBedMarginMm = 10.0f;
-
-std::string utc_now_iso() {
-    const std::time_t now = std::time(nullptr);
-    std::tm tm{};
-    gmtime_r(&now, &tm);
-    char buf[32];
-    std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm);
-    return buf;
-}
 
 int user_int(lv_event_t* e) {
     return helix::ui::event_user_int(e).value_or(0);
@@ -808,57 +799,36 @@ void PaTuningOverlay::show_result() {
     active_spool_.reset();
 
     if (!api_) {
-        publish_to_moonraker(*k);
         return;
     }
     // The tuned tool's own spool when the printer assigns spools per tool;
     // Spoolman's single active spool otherwise.
     const auto& tools = helix::ToolState::instance().tools();
-    if (tuned_tool_ >= 0 && tuned_tool_ < static_cast<int>(tools.size()) &&
-        tools[static_cast<size_t>(tuned_tool_)].spoolman_id > 0) {
-        fetch_result_spool(tools[static_cast<size_t>(tuned_tool_)].spoolman_id);
-        return;
-    }
-    api_->spoolman().get_spoolman_status(
-        object_lifetime_.bg_cb("PaTuningOverlay::spoolman_status",
-                               [this](bool connected, int spool_id) {
-                                   if (!connected || spool_id <= 0) {
-                                       lv_subject_copy_string(&spoolman_text_,
-                                                              lv_tr("No active Spoolman spool."));
-                                       publish_to_moonraker(session_.result().value_or(0.0f));
-                                       return;
-                                   }
-                                   fetch_result_spool(spool_id);
-                               }),
-        object_lifetime_.bg_cb(
-            "PaTuningOverlay::spoolman_status_failed", [this](const MoonrakerError&) {
-                lv_subject_copy_string(&spoolman_text_, lv_tr("Spoolman is not available."));
-                publish_to_moonraker(session_.result().value_or(0.0f));
-            }));
-}
-
-void PaTuningOverlay::fetch_result_spool(int spool_id) {
-    api_->spoolman().get_spoolman_spool(
-        spool_id,
+    const int tool_spool = tuned_tool_ >= 0 && tuned_tool_ < static_cast<int>(tools.size())
+                               ? tools[static_cast<size_t>(tuned_tool_)].spoolman_id
+                               : 0;
+    helix::pa::find_result_spool(
+        *api_, tool_spool,
         object_lifetime_.bg_cb(
             "PaTuningOverlay::result_spool",
-            [this](const std::optional<SpoolInfo>& spool) {
+            [this](helix::pa::SpoolLookup found, const std::optional<SpoolInfo>& spool) {
                 active_spool_ = spool;
-                if (spool && spool->filament_id > 0) {
+                switch (found) {
+                case helix::pa::SpoolLookup::Found:
                     lv_subject_copy_string(
                         &spoolman_text_,
                         fmt::format(fmt::runtime(lv_tr("Active spool: {}")), spool->display_name())
                             .c_str());
                     lv_subject_set_int(&can_save_spool_, 1);
-                } else {
+                    break;
+                case helix::pa::SpoolLookup::NoSpool:
                     lv_subject_copy_string(&spoolman_text_, lv_tr("No active Spoolman spool."));
+                    break;
+                case helix::pa::SpoolLookup::Unavailable:
+                    lv_subject_copy_string(&spoolman_text_, lv_tr("Spoolman is not available."));
+                    break;
                 }
-                publish_to_moonraker(session_.result().value_or(0.0f));
-            }),
-        object_lifetime_.bg_cb(
-            "PaTuningOverlay::result_spool_failed", [this](const MoonrakerError&) {
-                lv_subject_copy_string(&spoolman_text_, lv_tr("No active Spoolman spool."));
-                publish_to_moonraker(session_.result().value_or(0.0f));
+                publish_result();
             }));
 }
 
@@ -875,8 +845,8 @@ void PaTuningOverlay::save_to_spool() {
     lv_subject_set_int(&can_save_spool_, 0);
     const int filament_id = active_spool_->filament_id;
     const std::string name = active_spool_->display_name();
-    api_->spoolman().set_spoolman_filament_extra_number(
-        filament_id, kSpoolmanPaExtraKey, lv_tr("Pressure advance"), *k,
+    helix::pa::save_to_filament(
+        *api_, filament_id, *k, lv_tr("Pressure advance"),
         object_lifetime_.bg_cb(
             "PaTuningOverlay::spool_saved",
             [this, name]() {
@@ -894,33 +864,18 @@ void PaTuningOverlay::save_to_spool() {
             }));
 }
 
-void PaTuningOverlay::publish_to_moonraker(float k) {
-    if (!api_) {
+void PaTuningOverlay::publish_result() {
+    const auto k = session_.result();
+    if (!api_ || !k) {
         return;
     }
     helix::pa::SavedK saved;
-    saved.k = k;
+    saved.k = *k;
     saved.extruder = extruder_;
     saved.material = helix::presets::name(selected_preset_);
     saved.nozzle_temp = nozzle_temp_;
-    saved.updated = utc_now_iso();
-    if (active_spool_) {
-        saved.spool_id = active_spool_->id;
-        saved.filament_id = active_spool_->filament_id;
-        saved.filament_name = active_spool_->display_name();
-    }
-    // Read-modify-write so results for other filaments and extruders survive.
-    auto post = [api = api_, saved](const nlohmann::json& existing) {
-        api->database_post_item(
-            helix::pa::kMoonrakerNamespace, helix::pa::kMoonrakerKey,
-            helix::pa::merge_moonraker_record(existing, saved),
-            []() { spdlog::debug("[PA Tuning] Result published to Moonraker"); },
-            [](const MoonrakerError& err) {
-                spdlog::warn("[PA Tuning] Could not publish to Moonraker: {}", err.message);
-            });
-    };
-    api_->database_get_item(helix::pa::kMoonrakerNamespace, helix::pa::kMoonrakerKey, post,
-                            [post](const MoonrakerError&) { post(nullptr); });
+    saved.updated = helix::pa::utc_now_iso();
+    helix::pa::publish_result(*api_, helix::pa::with_spool(saved, active_spool_));
 }
 
 void PaTuningOverlay::close_session() {

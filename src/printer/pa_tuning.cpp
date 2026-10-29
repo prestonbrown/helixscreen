@@ -580,6 +580,10 @@ void TuningSession::abandon() {
     state_ = State::Idle;
 }
 
+std::string measured_source(const std::string& provider_id) {
+    return "measured:" + provider_id;
+}
+
 nlohmann::json merge_moonraker_record(const nlohmann::json& existing, const SavedK& saved) {
     nlohmann::json out = existing.is_object() ? existing : nlohmann::json::object();
     nlohmann::json entry = {{"k", std::round(saved.k * 10000.0f) / 10000.0},
@@ -589,7 +593,8 @@ nlohmann::json merge_moonraker_record(const nlohmann::json& existing, const Save
                             {"spool_id", saved.spool_id},
                             {"filament_id", saved.filament_id},
                             {"filament_name", saved.filament_name},
-                            {"updated", saved.updated}};
+                            {"updated", saved.updated},
+                            {"source", saved.source}};
     out["version"] = 1;
     out["last"] = entry;
     if (!out.contains("extruders") || !out["extruders"].is_object()) {

@@ -314,7 +314,12 @@ class TuningSession {
 inline constexpr const char* kMoonrakerNamespace = "helix-screen";
 inline constexpr const char* kMoonrakerKey = "pressure_advance";
 
-/// One tuned result, as published.
+inline constexpr const char* kSourceTuned = "tuned";
+
+/// The `source` of a K the printer measured with `provider_id`'s procedure.
+std::string measured_source(const std::string& provider_id);
+
+/// One result, as published.
 struct SavedK {
     float k = 0.0f;
     std::string extruder;
@@ -326,6 +331,9 @@ struct SavedK {
     std::string filament_name;
     /// ISO 8601 UTC.
     std::string updated;
+    /// How the value was found: kSourceTuned for a tower the user judged,
+    /// measured_source(provider id) for a printer that measured it.
+    std::string source = kSourceTuned;
 };
 
 /// `existing` (the key's current value, or null) with `saved` recorded as the

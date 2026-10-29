@@ -155,6 +155,7 @@ src/printer/detection_source_table.cpp  # not in the v1 Core+AMS cut
 src/printer/lan_client_authorization.cpp  # not in the v1 Core+AMS cut
 src/printer/macro_fan_analyzer.cpp  # not in the v1 Core+AMS cut
 src/printer/macro_manager.cpp  # not in the v1 Core+AMS cut
+src/printer/pa_result_store.cpp  # not in the v1 Core+AMS cut
 src/printer/print_photos_controller.cpp  # built only with HELIX_HAS_CAMERA; the firmware has no camera
 src/printer/screws_tilt_share_text.cpp  # not in the v1 Core+AMS cut
 src/printer/spoolman_active_spool_sync.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget

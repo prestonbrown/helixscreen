@@ -216,15 +216,14 @@ class PaTuningOverlay : public OverlayBase {
     void apply_pick();
     void show_result();
     void save_to_spool();
-    /// Show @p spool_id as the spool Save to Spool writes to.
-    void fetch_result_spool(int spool_id);
     /// Whether sending K now is ours to do: always during our print, otherwise
     /// only while no job holds the machine.
     bool may_send() const;
     void send_k(float k);
     /// What the user calls the tuned extruder ("Tool 2", or "the extruder").
     std::string extruder_label() const;
-    void publish_to_moonraker(float k);
+    /// Record the result for other clients, naming the spool when there is one.
+    void publish_result();
     void close_session();
 
     void set_stage(Stage s);

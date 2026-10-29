@@ -17,6 +17,10 @@ namespace {
 struct Provider {
     const char* name;
 
+    /// Stable identifier, recorded with a saved result as "measured:<id>".
+    /// Never shown and never translated; renaming one orphans saved records.
+    const char* id;
+
     /// Macro whose presence identifies the firmware. This is evidence, not a
     /// guess: a printer that does not define it cannot run the procedure, and
     /// the capability is reported absent rather than attempted and refused.
@@ -90,6 +94,7 @@ constexpr SaneRange kDirectDrive{0.02f, 0.08f, "direct drive"};
 // § Pre-Print Flow Calibration.
 constexpr Provider SNAPMAKER_U1{
     "Snapmaker U1 flow calibrator",
+    "snapmaker_u1",
     /*detect_macro=*/nullptr,
     "filament_parameters",
     "FLOW_CALIBRATE TEMP={temp}",
@@ -128,6 +133,7 @@ constexpr SaneRange kFfCandidateSpan{0.01f, 0.04f, "direct drive"};
 
 constexpr Provider kFlashforgeEboard{
     "FlashForge eBoard PA calibrator",
+    "flashforge_eboard",
     /*detect_macro=*/nullptr,
     "ff_pa",
     "FF_PA_CALIBRATE TOOL={tool}",
@@ -158,6 +164,7 @@ constexpr SaneRange kGaugeSweepSpan{0.02f, 0.14f, "direct drive"};
 
 constexpr Provider kHelixGauge{
     "HelixPrint nozzle force gauge",
+    "helix_gauge",
     /*detect_macro=*/nullptr,
     "helix_pa_gauge",
     "HELIX_PA_CALIBRATE TEMP={temp}",
@@ -214,6 +221,7 @@ std::optional<Procedure> procedure_for(const PrinterDiscovery& hw, int tool_inde
 
     Procedure proc;
     proc.provider = p->name;
+    proc.provider_id = p->id;
     proc.start_gcode =
         fmt::format(fmt::runtime(p->gcode), fmt::arg("tool", tool_index), fmt::arg("temp", temp_c));
     proc.result_pattern = p->result_pattern;

@@ -37,6 +37,9 @@ struct Procedure {
     /// Human-readable firmware name, for logs and the panel's provenance line.
     std::string provider;
 
+    /// Stable identifier for the firmware, recorded with a saved result.
+    std::string provider_id;
+
     /// The fully-formed command to send, tool index already substituted.
     std::string start_gcode;
 
