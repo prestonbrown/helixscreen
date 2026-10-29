@@ -839,6 +839,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   one printer's screen never lists it among another printer's webcams. With Add to
   Mainsail/Fluidd Webcams off the screen stays shared at its browser address but no webcam
   entry is added. A beta that had sharing on keeps it on for the printer that was selected.
+- **WiFi country** - Network Settings shows and sets the radio's country under the WiFi
+  switch, so 5 GHz networks show up in scans before the first connection. The United States,
+  United Kingdom, Germany, Canada, Australia and France are listed first. A country the
+  printer's own system set is remembered, so when a firmware update resets the radio to the
+  restricted worldwide mode, HelixScreen sets it again at the next start and 5 GHz networks
+  reconnect on their own.
 - **Find your printer by searching** (#1028) - first-run printer selection replaces the
   scroll through about 105 machines with a search box, a grid of vendors and a list per
   vendor.

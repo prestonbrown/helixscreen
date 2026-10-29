@@ -220,6 +220,11 @@ This is different from `sounds_enabled` — that toggle mutes playback but still
 **Values:** a two-letter ISO 3166 country code such as `"US"`, `"DE"` or `"GB"`, or `""`
 **Description:** The Wi-Fi country HelixScreen applies at every start. Without one the radio stays in a restricted worldwide mode and usually can't find 5 GHz networks until it has joined a 2.4 GHz one. Empty leaves the country to your printer's system. Change via Settings > Connection > Network Settings > Country.
 
+### `wifi_country_last_seen`
+**Type:** string
+**Default:** `""`
+**Description:** The last country the Wi-Fi radio itself reported, recorded by HelixScreen. When `wifi_country` is empty and the radio starts in the restricted worldwide mode, for example after a firmware update reset it, HelixScreen sets this country again. A country the radio already reports is never changed. Not something you normally edit.
+
 ### `language`
 **Type:** string
 **Default:** `"en"`
