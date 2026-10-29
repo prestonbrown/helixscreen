@@ -7,6 +7,7 @@
 #include "ui_spool_canvas.h"
 #include "ui_update_queue.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_slot_override_store_test_access.h"
@@ -6547,6 +6548,42 @@ TEST_CASE("CFS decides nothing on an empty bus until printer.cfg has answered",
         CfsTestAccess::expire_unit_settle(cfs);
         CHECK(cfs.get_system_info().external_spool_only);
     }
+}
+
+TEST_CASE("CFS with no registered unit stays single-spool across Refresh RFID and Comm test",
+          "[ams][cfs][bypass][1904][1933]") {
+    // Both actions re-query the box; neither is a new session, so neither may
+    // reopen the settle window or fetch the configfile again.
+    struct Rig : AmsBackendCfs {
+        explicit Rig(helix::IMoonrakerClient* c) : AmsBackendCfs(nullptr, c) {}
+        AmsError execute_gcode(const std::string& gcode) override {
+            captured.push_back(gcode);
+            return AmsErrorHelper::success();
+        }
+        std::vector<std::string> captured;
+    };
+    helix::test::FakeMoonrakerClient client;
+    Rig cfs(&client);
+    auto configfile_queries = [&client] {
+        return std::count_if(client.rpc_calls.begin(), client.rpc_calls.end(), [](const auto& c) {
+            return c.params.contains("objects") && c.params["objects"].contains("configfile");
+        });
+    };
+
+    CfsTestAccess::call_on_started(cfs);
+    REQUIRE(configfile_queries() == 1);
+    CfsTestAccess::answer_unit_registration(cfs, no_unit_settings());
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
+    REQUIRE(cfs.get_system_info().external_spool_only);
+
+    for (const char* action : {"refresh_rfid", "comm_test"}) {
+        CAPTURE(action);
+        REQUIRE(cfs.execute_device_action(action, std::any{}).result == AmsResult::SUCCESS);
+        // The re-query's answer arrives as a full box frame.
+        CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
+        CHECK(cfs.get_system_info().external_spool_only);
+    }
+    CHECK(configfile_queries() == 1);
 }
 
 TEST_CASE("CFS keeps a unit it has seen when a later frame drops it", "[ams][cfs][bypass][1904]") {

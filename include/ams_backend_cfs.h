@@ -759,7 +759,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     const char* backend_log_tag() const override {
         return "[AMS CFS]";
     }
+    /// A new session: resets the merged frames, restores persisted state,
+    /// starts the unit settle window and queries the box.
     void on_started() override;
+    /// Queries box, motor, sensor and extruder state; the answer is applied as
+    /// a status frame. Not a new session.
+    void query_box_state();
     SlotInfo* cached_slot_locked(int slot_index) override;
     /// The attached bay count, or the whole TNN alphabet while the box size
     /// is still unknown. Caller holds mutex_.

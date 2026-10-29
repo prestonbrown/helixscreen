@@ -488,6 +488,10 @@ void AmsBackendCfs::on_started() {
 
     // Query initial state explicitly since the subscription response may have
     // arrived before this backend registered its callback
+    query_box_state();
+}
+
+void AmsBackendCfs::query_box_state() {
     nlohmann::json objects_to_query = nlohmann::json::object();
     objects_to_query["box"] = nullptr;
     objects_to_query["motor_control"] = nullptr;
@@ -4905,7 +4909,7 @@ AmsError AmsBackendCfs::do_execute_device_action(const std::string& action_id,
         }
         // Re-query box state so the freshly-probed RFID/length values land in the
         // UI. The box module publishes the updated `box` object after the scan.
-        on_started();
+        query_box_state();
         return AmsErrorHelper::success();
     }
 
@@ -4915,7 +4919,7 @@ AmsError AmsBackendCfs::do_execute_device_action(const std::string& action_id,
 
     if (action_id == "comm_test") {
         // Query box state as a connectivity test
-        on_started();
+        query_box_state();
         return AmsErrorHelper::success();
     }
 
