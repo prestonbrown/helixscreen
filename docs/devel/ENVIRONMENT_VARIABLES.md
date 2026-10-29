@@ -1158,6 +1158,23 @@ Audible floor for one theme note on the PWM sysfs buzzer backend (ad5m/ad5m-br, 
 HELIX_PWM_MIN_NOTE_MS=35 ./build/bin/helix-screen
 ```
 
+### `HELIX_PCM_PLAYER`
+
+The player the PCM pipe backend streams through (unified MIPS and k1-dynamic builds: a static binary that cannot open the K1's ALSA codec itself, so a child `aplay` reads raw S16 mono from a pipe). Unset, the backend takes the first executable of `/usr/bin/aplay`, `/usr/local/bin/aplay`, `/bin/aplay`, `/usr/sbin/aplay` and additionally requires a playback node (`pcmC*D*p`) under `/dev/snd`; a named path skips the `/dev/snd` check. Read once at backend probe (`SoundManager::create_backend()`) — relaunch to change it.
+
+| Property | Value |
+|----------|-------|
+| **Values** | a path to an `aplay`-compatible player; `0`, `off` or `no` disables the backend |
+| **Default** | unset |
+| **File** | `src/system/pcm_pipe_sound_backend.cpp` (`PcmPipeSoundBackend::find_player`) |
+
+```bash
+# K1: play through a wrapper script instead of the stock aplay
+HELIX_PCM_PLAYER=/usr/data/aplay-wrapper.sh ./helix-screen
+# Keep the Sound row hidden even though aplay exists
+HELIX_PCM_PLAYER=0 ./helix-screen
+```
+
 ### `HELIX_ALSA_KEEPALIVE`
 
 Overrides the ALSA backend's idle-clock detection. Detection keeps the card clock running while idle on HDMI, iec958 and S/PDIF devices, because those hand the clock to a receiver that has to re-acquire it before emitting anything; every other device parks the clock when idle. Set `1` to force keep-alive, `0` to force parking, on a device the detection classifies wrong.

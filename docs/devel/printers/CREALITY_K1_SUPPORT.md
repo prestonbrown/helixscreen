@@ -332,6 +332,18 @@ gcode sequence do nothing — see
 [CREALITY_CFS_K1_INTERNALS.md](../printer-research/CREALITY_CFS_K1_INTERNALS.md). **Read it before changing anything
 the CFS backend emits on K1.**
 
+## Sound
+
+The board has an ALSA codec (`card 0: icodecsoundcard`, `/dev/snd/pcmC0D0p`) and the
+rootfs ships alsa-utils, but the static musl binary links no libasound and cannot dlopen
+the device's `libasound.so.2`. The `mips` build therefore reaches the card through the PCM
+pipe backend: a child `/usr/bin/aplay -t raw -f S16_LE -c 1 -r 44100 -` per sound burst,
+fed from the same in-process synthesis the Pi's ALSA backend uses
+(`docs/devel/SOUND_SYSTEM.md` § Backend Auto-Detection). The Settings > Sound row appears
+only when `aplay` is executable and a playback node exists under `/dev/snd`;
+`HELIX_PCM_PLAYER` names another player or disables the backend. Klipper on the K1 has no
+`M300` handler, so forcing the speaker capability override on is not a substitute.
+
 ## Known Limitations
 
 ### Memory

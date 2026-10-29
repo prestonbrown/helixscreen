@@ -82,8 +82,20 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 | 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware |
 | 3 | JzPwm | `#ifdef HELIX_HAS_JZ_PWM` (unified MIPS build) + the board row says it has the piezo (AD5X, Creator 5, Creator 5 Pro) + `/dev/jz_pwm` exists and fx-pwm is executable | FlashForge MIPS boards' piezo (on-rig install) |
 | 4 | PWM | ad5m/ad5m-br builds only, unnamed: `pwmchip0/pwm6`, auto-exported by `initialize()` | AD5M hardware buzzer |
-| 5 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
-| 6 | None | All above failed | Sounds silently disabled |
+| 5 | PcmPipe | `#ifdef HELIX_HAS_PCM_PIPE` (unified MIPS + k1-dynamic builds) + an executable `aplay` (`/usr/bin/aplay` and friends, or `HELIX_PCM_PLAYER`) + a playback node `pcmC*D*p` under `/dev/snd` | Creality K1 series: an ALSA codec the static musl binary cannot open itself |
+| 6 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
+| 7 | None | All above failed | Sounds silently disabled |
+
+PcmPipe is the same in-process VoiceSlot synthesis as SDL/ALSA with a child
+`aplay -t raw -f S16_LE -c 1 -r 44100 -` as the sink (`src/system/pcm_pipe_sound_backend.cpp`).
+One child per sound burst, not per note: `resume()` spawns it (or reuses one still
+alive from the 1.5 s idle grace), `suspend()` feeds silence through the grace and
+then closes the pipe so the player drains and exits. The render thread paces
+itself `kLeadMs` ahead of wall time, so the pipe and the player's buffer never hold
+more than that and a note published mid-sound lands at most that late. A player
+that fails three bursts in a row disables the backend for the run. It sits after
+JzPwm so the AD5X piezo keeps winning on FlashForge boards, which have no
+playback node and so never match the probe anyway.
 
 On the AD5X rig both JzPwm and M300 can reach the same transducer; JzPwm wins
 the eager ladder (its probe succeeds first), which is the desired shape: the
@@ -131,6 +143,7 @@ The sequencer adapts to what the backend can do. Features not supported by the b
 | PWM     | no*       | yes       | no     | no        | 20.0        | Tone mode: waveform approximation via duty cycle ratios, sequencer per-tick. 20 ms is the audible floor (HELIX_PWM_MIN_NOTE_MS, clamped 10-100) — every theme step sounds at least that long. Tones only: [buzzers play no music](#buzzers-play-no-music-pwm-m300) |
 | M300    | no        | no        | no     | no        | 50.0        | Frequency only, 100-10000 Hz, deduplicates commands; sequencer drives per-tick |
 | JzPwm   | yes       | yes       | no     | yes       | 20.0        | AD5X piezo: full per-sample synthesis (ADSR/sweep/LFO/waveforms via VoiceSlot), 4-voice chords, one duty-encoded buffer per theme step; tracker PC-speaker mode drives it through set_voice (mods on the piezo) |
+| PcmPipe | yes       | yes       | yes    | yes       | 1.0         | Same synthesis as ALSA, S16 mono 44.1 kHz piped to a child `aplay`; render source supported (tracker PCM) |
 
 *PWM `supports_waveforms()` returns `false`, but `set_waveform()` stores the waveform internally to adjust the duty cycle ratio: Square=50%, Saw=25%, Triangle=35%, Sine=40%. This gives perceptually different timbres even on a single-pin buzzer.
 
@@ -638,6 +651,7 @@ if (SoundManager::instance().is_available()) {
 | `include/sound_synthesis.h` | Shared synthesis: waveform generation, biquad filter, `BiquadFilter` struct |
 | `include/jz_pwm_sound_backend.h` | AD5X jz_pwm DMA backend (one-shot duty-encoded buffers) |
 | `include/pwm_sound_backend.h` | PWM sysfs backend (AD5M buzzer) |
+| `include/pcm_pipe_sound_backend.h` | PCM through a child `aplay` over a pipe (K1 series); owns `VoiceSlot voice_slots_[kMaxVoices]` (`#ifdef HELIX_HAS_PCM_PIPE`) |
 | `include/m300_sound_backend.h` | M300 G-code backend (Klipper via Moonraker) |
 | `src/system/sound_theme.cpp` | Theme JSON parsing, note-to-freq, musical duration conversion |
 | `src/system/sound_sequencer.cpp` | Sequencer thread + tick loop, LFO/sweep math; `publish_note_for_step()` for PCM backends |
@@ -647,6 +661,7 @@ if (SoundManager::instance().is_available()) {
 | `src/system/alsa_sound_backend.cpp` | ALSA render thread, per-sample envelope, biquad filter |
 | `src/system/jz_pwm_sound_backend.cpp` | AD5X piezo backend: NoteEvent render → duty-encoded words → `fx-pwm serve` daemon socket |
 | `src/system/pwm_sound_backend.cpp` | PWM sysfs writes (period, duty_cycle, enable) + PCM render thread (SCHED_IDLE pacing, silence auto-park, channel auto-export) |
+| `src/system/pcm_pipe_sound_backend.cpp` | Player probe (`aplay`, `/dev/snd`), posix_spawn per sound burst, self-paced render thread writing S16 over the pipe, idle grace, failure latch |
 | `src/system/m300_sound_backend.cpp` | M300 G-code formatting, frequency deduplication |
 | `config/sounds/default.json` | Default theme (13 sounds, balanced) |
 | `config/sounds/minimal.json` | Minimal theme (7 sounds, event/alarm only) |
@@ -657,6 +672,7 @@ if (SoundManager::instance().is_available()) {
 | `tests/unit/test_sound_sequencer.cpp` | Sequencer tests |
 | `tests/unit/test_sdl_sound_backend.cpp` | SDL backend tests |
 | `tests/unit/test_pwm_sound_backend.cpp` | PWM backend tests |
+| `tests/unit/test_pcm_pipe_sound_backend.cpp` | PcmPipe backend tests against a fake `aplay` script |
 | `tests/unit/test_m300_sound_backend.cpp` | M300 backend tests |
 
 ---

@@ -330,6 +330,10 @@ TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pwm_sound_backend.o)
 # the host. The gate decides what SHIPS, not what is testable - same
 # treatment as the sysfs PWM backend above.
 TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/jz_pwm_sound_backend.o)
+# The PCM pipe backend ships in the MIPS builds only, but
+# tests/unit/test_pcm_pipe_sound_backend.cpp drives it against a fake player
+# on the host - same treatment again.
+TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pcm_pipe_sound_backend.o)
 
 # ============================================================================
 # Test Targets

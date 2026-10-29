@@ -530,6 +530,17 @@ else
     APP_SRCS := $(filter-out $(SRC_DIR)/system/jz_pwm_sound_backend.cpp,$(APP_SRCS))
 endif
 
+# PCM piped to the rootfs player (aplay) for boards whose binary cannot reach
+# libasound (static musl) but whose userland ships alsa-utils and a card: the
+# Creality K1 series. Probed at runtime, after JzPwm: the player must be
+# executable and /dev/snd must list a playback stream, so a FlashForge board
+# without a card falls through to the M300 gate as before.
+ifneq (,$(filter mips k1 ad5x k1-dynamic,$(PLATFORM_TARGET)))
+    PCM_PIPE_CXXFLAGS := -DHELIX_HAS_PCM_PIPE
+else
+    APP_SRCS := $(filter-out $(SRC_DIR)/system/pcm_pipe_sound_backend.cpp,$(APP_SRCS))
+endif
+
 ifneq ($(ENABLE_MOCKS),yes)
     APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/api/*_mock*.cpp),$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/printer/ams_backend_mock.cpp,$(APP_SRCS))
@@ -1033,7 +1044,8 @@ CXXFLAGS += $(SYSTEMD_CXXFLAGS)
 
 # ALSA audio backend — real waveform synthesis on Linux targets with libasound2
 # Enabled for: Pi (all variants), x86 SBCs
-# Not available on: macOS (no ALSA), AD5M (no sound card), K1/K2/MIPS (musl, no ALSA)
+# Not available on: macOS (no ALSA), AD5M (no sound card), K1/K2/MIPS (musl, no ALSA;
+# the K1's card is reached through the PCM pipe backend above instead)
 ALSA_LIBS :=
 ALSA_CXXFLAGS :=
 ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both,$(PLATFORM_TARGET)))
@@ -1155,7 +1167,7 @@ else ifneq (,$(filter native x86-desktop,$(PLATFORM_TARGET)))
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
 endif
-CXXFLAGS +=$(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS)
+CXXFLAGS +=$(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS) $(PCM_PIPE_CXXFLAGS)
 
 # Feature gates. include/helix_features.h holds every gate's default; each one becomes a
 # make variable here so mk/cross.mk can turn it off for a platform and make logic (the
