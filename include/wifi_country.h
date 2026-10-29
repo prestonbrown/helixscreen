@@ -39,12 +39,17 @@ std::string normalize(const std::string& code);
 /// True for "" and "00": no country, the world regulatory domain.
 bool is_world(const std::string& code);
 
+/// Number of common countries listed first in the dropdown, right after the
+/// not-set row.
+size_t pinned_count();
+
 /// Dropdown option string: @p not_set_label, then "Name (CC)" per country,
-/// newline-separated.
+/// newline-separated: the pinned countries first, then every other country
+/// alphabetically. Each country appears once.
 std::string dropdown_options(const std::string& not_set_label);
 
 /// Dropdown index for @p code: 0 (the not-set row) for world or unknown,
-/// else 1 + its table index.
+/// else the one row that lists it.
 int dropdown_index(const std::string& code);
 
 /// The code a dropdown index selects: "" for 0 or out of range.
@@ -78,12 +83,16 @@ struct Plan {
 };
 
 /// Startup and on-change policy. @p stored is the user's saved choice
-/// ("" = never chosen); @p system is what the radio reports now.
+/// ("" = never chosen); @p system is what the radio reports now;
+/// @p last_seen is the last real country the radio reported ("" = none).
 ///
 /// A saved choice wins and is sent only when the radio disagrees. With no
-/// saved choice the radio is left alone: a country the device's own
-/// configuration set is shown as current, never overwritten.
-Plan plan(const std::string& stored, const std::string& system);
+/// saved choice a country the radio reports is shown as current, never
+/// overwritten. With no saved choice and the radio in the world domain, the
+/// last country it reported is sent back: a firmware update that wipes the
+/// device's own setting leaves the radio at world. The display stays what the
+/// radio reports until it takes that country.
+Plan plan(const std::string& stored, const std::string& system, const std::string& last_seen);
 
 /// Whether WiFi settings should explain that a country unlocks 5 GHz: the
 /// adapter can use 5 GHz, but the radio runs in the world domain.

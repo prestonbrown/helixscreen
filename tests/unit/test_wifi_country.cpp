@@ -20,6 +20,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <set>
@@ -43,22 +44,57 @@ TEST_CASE("country table is ISO 3166 alpha-2, unique and round-trips the dropdow
           "[wifi][wifi_country]") {
     REQUIRE(country::table_size() == 249);
     std::set<std::string> codes;
+    std::set<int> rows;
     for (size_t i = 0; i < country::table_size(); ++i) {
         const std::string code = country::table_entry(i).code;
         CHECK(code.size() == 2);
         CHECK(codes.insert(code).second);
-        // Index 0 is the not-set row, so the table starts at 1.
-        CHECK(country::dropdown_index(code) == static_cast<int>(i) + 1);
-        CHECK(country::code_at_dropdown_index(static_cast<int>(i) + 1) == code);
+        // Every country has exactly one row, after the not-set row at 0.
+        const int row = country::dropdown_index(code);
+        CHECK(row >= 1);
+        CHECK(row <= static_cast<int>(country::table_size()));
+        CHECK(rows.insert(row).second);
+        CHECK(country::code_at_dropdown_index(row) == code);
     }
     CHECK(country::dropdown_index("") == 0);
     CHECK(country::dropdown_index("00") == 0);
     CHECK(country::code_at_dropdown_index(0).empty());
+    CHECK(country::code_at_dropdown_index(-1).empty());
     CHECK(country::code_at_dropdown_index(static_cast<int>(country::table_size()) + 1).empty());
 
     const std::string options = country::dropdown_options("Not set");
     CHECK(options.rfind("Not set\n", 0) == 0);
     CHECK(options.find("\nUnited States (US)") != std::string::npos);
+}
+
+TEST_CASE("country dropdown lists the common countries first, once each", "[wifi][wifi_country]") {
+    const char* const pinned[] = {"US", "GB", "DE", "CA", "AU", "FR"};
+    REQUIRE(country::pinned_count() == std::size(pinned));
+    for (size_t i = 0; i < std::size(pinned); ++i) {
+        CAPTURE(pinned[i]);
+        CHECK(country::dropdown_index(pinned[i]) == static_cast<int>(i) + 1);
+        CHECK(country::code_at_dropdown_index(static_cast<int>(i) + 1) == pinned[i]);
+    }
+    CHECK(country::dropdown_index("us") == 1);
+
+    // Then the rest alphabetically: Afghanistan leads, and the pinned ones are
+    // not listed a second time.
+    const int first_rest = static_cast<int>(country::pinned_count()) + 1;
+    CHECK(country::code_at_dropdown_index(first_rest) == "AF");
+    CHECK(country::dropdown_index("AT") < country::dropdown_index("BE"));
+    CHECK(country::code_at_dropdown_index(static_cast<int>(country::table_size())) == "ZW");
+
+    const std::string options = country::dropdown_options("Nicht festgelegt");
+    CHECK(options.rfind("Nicht festgelegt\nUnited States (US)\nUnited Kingdom (GB)\n"
+                        "Germany (DE)\nCanada (CA)\nAustralia (AU)\nFrance (FR)\n"
+                        "Afghanistan (AF)\n",
+                        0) == 0);
+    size_t lines = 0;
+    for (const char c : options) {
+        lines += c == '\n';
+    }
+    CHECK(lines == country::table_size());
+    CHECK(options.find("(US)") == options.rfind("(US)"));
 }
 
 TEST_CASE("country normalize accepts table codes in any case and nothing else",
@@ -100,22 +136,42 @@ TEST_CASE("country parsers read wpa GET, iw reg get and REGDOM-CHANGE", "[wifi][
 TEST_CASE("country plan applies a saved choice and never overrides the system's own",
           "[wifi][wifi_country]") {
     SECTION("saved, radio disagrees: apply it") {
-        const auto p = country::plan("DE", "");
+        const auto p = country::plan("DE", "", "");
         CHECK(p.apply == "DE");
         CHECK(p.display == "DE");
     }
     SECTION("saved, radio already agrees: nothing to send") {
-        const auto p = country::plan("de", "DE");
+        const auto p = country::plan("de", "DE", "");
         CHECK(p.apply.empty());
         CHECK(p.display == "DE");
     }
+    SECTION("saved beats remembered") {
+        const auto p = country::plan("DE", "00", "US");
+        CHECK(p.apply == "DE");
+        CHECK(p.display == "DE");
+    }
     SECTION("nothing saved, system set a country: show it, leave it") {
-        const auto p = country::plan("", "GB");
+        const auto p = country::plan("", "GB", "");
         CHECK(p.apply.empty());
         CHECK(p.display == "GB");
     }
-    SECTION("nothing saved, world: not set") {
-        const auto p = country::plan("", "00");
+    SECTION("nothing saved, system set a country other than the remembered one: leave it") {
+        const auto p = country::plan("", "GB", "US");
+        CHECK(p.apply.empty());
+        CHECK(p.display == "GB");
+    }
+    SECTION("nothing saved, world, a country remembered: send it back") {
+        const auto p = country::plan("", "00", "us");
+        CHECK(p.apply == "US");
+        CHECK(p.display.empty()); // still world until the radio takes it
+    }
+    SECTION("nothing saved, world, nothing remembered: not set") {
+        const auto p = country::plan("", "00", "");
+        CHECK(p.apply.empty());
+        CHECK(p.display.empty());
+    }
+    SECTION("nothing saved, world, junk remembered: not set") {
+        const auto p = country::plan("", "", "XX");
         CHECK(p.apply.empty());
         CHECK(p.display.empty());
     }
@@ -192,6 +248,7 @@ struct CountryFixture : LVGLTestFixture {
     CountryFixture() {
         Config::get_instance();
         SystemSettingsManager::instance().set_wifi_country("");
+        SystemSettingsManager::instance().set_wifi_country_last_seen("");
         HttpExecutor::fast().start();
     }
 
@@ -213,6 +270,7 @@ struct CountryFixture : LVGLTestFixture {
         }
         helix::ui::UpdateQueue::instance().drain();
         SystemSettingsManager::instance().set_wifi_country("");
+        SystemSettingsManager::instance().set_wifi_country_last_seen("");
     }
 };
 
@@ -284,6 +342,61 @@ TEST_CASE_METHOD(CountryFixture, "with nothing saved, the system's country is sh
     CHECK(got->stored.empty());
     CHECK(got->system == "GB");
     CHECK(got->display == "GB");
+}
+
+TEST_CASE_METHOD(CountryFixture, "the radio's own country is remembered at startup",
+                 "[wifi][wifi_country]") {
+    start("GB");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(SystemSettingsManager::instance().get_wifi_country_last_seen() == "GB");
+    CHECK(SystemSettingsManager::instance().get_wifi_country().empty());
+    CHECK(backend->set_country_calls() == 0);
+}
+
+TEST_CASE_METHOD(CountryFixture, "a radio wiped to world gets its remembered country back",
+                 "[wifi][wifi_country]") {
+    SystemSettingsManager::instance().set_wifi_country_last_seen("US");
+    start("");
+    CHECK(radio_country(*backend) == "US");
+    CHECK(backend->set_country_calls() == 1);
+    // A restore is not a choice: Not set still defers to the system.
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(SystemSettingsManager::instance().get_wifi_country().empty());
+}
+
+TEST_CASE_METHOD(CountryFixture, "a remembered country never overwrites one the radio reports",
+                 "[wifi][wifi_country]") {
+    SystemSettingsManager::instance().set_wifi_country_last_seen("US");
+    start("CA");
+    CHECK(radio_country(*backend) == "CA");
+    CHECK(backend->set_country_calls() == 0);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(SystemSettingsManager::instance().get_wifi_country_last_seen() == "CA");
+}
+
+TEST_CASE_METHOD(CountryFixture, "a world radio with nothing saved or remembered is left alone",
+                 "[wifi][wifi_country]") {
+    start("");
+    CHECK(radio_country(*backend).empty());
+    CHECK(backend->set_country_calls() == 0);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(SystemSettingsManager::instance().get_wifi_country_last_seen().empty());
+}
+
+TEST_CASE_METHOD(CountryFixture, "a regulatory domain change remembers a real country only",
+                 "[wifi][wifi_country]") {
+    start("");
+    WiFiManagerTestAccess::fire_regdom_change(
+        *wm, "<3>CTRL-EVENT-REGDOM-CHANGE init=COUNTRY_IE type=COUNTRY alpha2=AU");
+    REQUIRE(WiFiManagerTestAccess::settle(*wm));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(SystemSettingsManager::instance().get_wifi_country_last_seen() == "AU");
+
+    WiFiManagerTestAccess::fire_regdom_change(
+        *wm, "<3>CTRL-EVENT-REGDOM-CHANGE init=CORE type=WORLD alpha2=00");
+    REQUIRE(WiFiManagerTestAccess::settle(*wm));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(SystemSettingsManager::instance().get_wifi_country_last_seen() == "AU");
 }
 
 TEST_CASE_METHOD(CountryFixture, "a regulatory domain change rescans an open scan session",

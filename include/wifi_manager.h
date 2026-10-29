@@ -296,10 +296,11 @@ class WiFiManager {
     bool supports_country();
 
     struct CountryState {
-        bool read_ok = false; ///< The radio answered; false keeps `system` empty
-        std::string system;   ///< What the radio reports ("" = world)
-        std::string stored;   ///< The saved choice ("" = never chosen)
-        std::string display;  ///< What the UI shows as current (country::plan())
+        bool read_ok = false;  ///< The radio answered; false keeps `system` empty
+        std::string system;    ///< What the radio reports ("" = world)
+        std::string stored;    ///< The saved choice ("" = never chosen)
+        std::string last_seen; ///< The last real country the radio reported
+        std::string display;   ///< What the UI shows as current (country::plan())
     };
 
     /**
@@ -545,12 +546,18 @@ class WiFiManager {
     void handle_disconnected(const std::string& event_data);
     void handle_auth_failed(const std::string& event_data);
     void handle_init_failed(bool silent, const std::string& msg);
-    // LVGL thread: logs the change and rescans while a scan session is open,
-    // since the new domain can enable channels the last scan could not use.
+    // LVGL thread: logs the change, remembers a real country, and rescans
+    // while a scan session is open, since the new domain can enable channels
+    // the last scan could not use.
     void handle_regdom_change(const std::string& event_data);
-    // LVGL thread, once the backend is READY: sends the saved country when the
-    // radio disagrees with it. With nothing saved the radio is left alone.
+    // LVGL thread, once the backend is READY: sends the country
+    // country::plan() picks: the saved one when the radio disagrees, else the
+    // remembered one when the radio is at world. A country the radio reports
+    // without a saved choice is left alone.
     void apply_stored_country();
+    // Any thread: saves @p system as the last real country the radio
+    // reported, on the LVGL thread. World and junk are ignored.
+    void remember_radio_country(const std::string& system);
 
     // Registers SCAN_COMPLETE/CONNECTED/DISCONNECTED/AUTH_FAILED/INIT_FAILED/READY
     // handlers on the current backend_. Called once from the constructor and
