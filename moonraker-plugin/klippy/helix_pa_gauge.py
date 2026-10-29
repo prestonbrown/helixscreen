@@ -95,6 +95,7 @@ def profile_from_settings(settings, own):
             "goto": ["BOX_GO_TO_EXTRUDE_POS"],
             "feed_start": ["BOX_START_PRINT"], "feed_stop": ["BOX_END_PRINT"],
             "wipe": ["BOX_NOZZLE_CLEAN"], "park": ["BOX_MOVE_TO_SAFE_POS"],
+            "preflight": "creality_cfs",
         }, None
     px, py = _num(own.get("purge_x", "")), _num(own.get("purge_y", ""))
     if px is None or py is None:
@@ -108,6 +109,25 @@ def profile_from_settings(settings, own):
         "feed_start": split("feed_start_gcode"), "feed_stop": split("feed_stop_gcode"),
         "wipe": split("wipe_gcode"), "park": split("park_gcode"),
     }, None
+
+
+def preflight(profile, status_of):
+    """Why the routine cannot start now, or None. `status_of(name)` returns a
+    printer object's status dict, or None."""
+    if profile.get("preflight") != "creality_cfs":
+        return None
+    # The K2 keeps initialising its closed-loop motors after Klipper reports
+    # ready; a homing move in that window breaks the motor bus.
+    if not (status_of("motor_control") or {}).get("motor_ready"):
+        return "the motors are still initialising, try again in a moment"
+    # With no lane on record BOX_START_PRINT feeds nothing, and the extruder
+    # grinds the filament against the box's take-up within seconds.
+    box = status_of("box") or {}
+    known = [unit.get("filament") for name, unit in box.items()
+             if name[:1] == "T" and isinstance(unit, dict)]
+    if not any(f not in (None, "", "None") for f in known):
+        return "the CFS has no lane on record as loaded: load the filament through the CFS first"
+    return None
 
 
 def warmup_gcode(profile, slow=2.0, fast=12.0):
@@ -457,6 +477,14 @@ class HelixPaGauge:
         self._require(gcmd)
         if self.running:
             raise gcmd.error("HELIX_PA: a calibration is already running")
+        now = self.reactor.monotonic()
+
+        def status_of(name):
+            obj = self.printer.lookup_object(name, None)
+            return obj.get_status(now) if obj is not None and hasattr(obj, "get_status") else None
+        blocked = preflight(self.profile, status_of)
+        if blocked:
+            raise gcmd.error("HELIX_PA: no result: %s" % blocked)
         heaters = self.printer.lookup_object("heaters")
         extruder = self.printer.lookup_object("toolhead").get_extruder()
         target = extruder.get_heater().get_status(self.reactor.monotonic())["target"]

@@ -203,6 +203,43 @@ def test_generic_profile_needs_a_purge_position():
     assert profile["wiggle"] == (5.0, 25.0)
 
 
+# --- preflight --------------------------------------------------------------
+
+LOADED_BOX = {"state": "connect", "T1": {"filament": "A"}, "T2": {"filament": "None"}}
+
+
+def _statuses(**objects):
+    return lambda name: objects.get(name)
+
+
+def test_creality_preflight_passes_with_motors_ready_and_a_known_lane():
+    profile, _ = gauge.profile_from_settings({"box": K2_BOX}, {})
+    status = _statuses(motor_control={"motor_ready": True}, box=LOADED_BOX)
+    assert gauge.preflight(profile, status) is None
+
+
+def test_creality_preflight_waits_for_motor_init():
+    # The K2 keeps initialising its closed-loop motors after Klipper reports
+    # ready; a homing move in that window breaks the motor bus.
+    profile, _ = gauge.profile_from_settings({"box": K2_BOX}, {})
+    status = _statuses(motor_control={"motor_ready": False}, box=LOADED_BOX)
+    assert "motors" in gauge.preflight(profile, status)
+
+
+def test_creality_preflight_needs_the_cfs_to_know_the_loaded_lane():
+    # With no lane on record BOX_START_PRINT feeds nothing, and the extruder
+    # grinds the filament against the box's take-up within seconds.
+    profile, _ = gauge.profile_from_settings({"box": K2_BOX}, {})
+    unknown = {"state": "connect", "T1": {"filament": "None"}, "T2": {"filament": "None"}}
+    status = _statuses(motor_control={"motor_ready": True}, box=unknown)
+    assert "load" in gauge.preflight(profile, status)
+
+
+def test_generic_profile_has_no_preflight():
+    profile, _ = gauge.profile_from_settings({}, {"purge_x": "5", "purge_y": "5"})
+    assert gauge.preflight(profile, _statuses()) is None
+
+
 # --- sweep G-code -----------------------------------------------------------
 
 def test_sweep_marks_every_pa_value_the_fit_reads():
