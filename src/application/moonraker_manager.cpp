@@ -725,7 +725,7 @@ void MoonrakerManager::init_print_start_collector() {
     // A retarget keeps the client: the previous printer's collector must not stay hooked
     // to it.
     release_print_start_collector();
-    m_print_start_collector = std::make_shared<PrintStartCollector>(*m_client, get_printer_state());
+    m_print_start_collector = PrintStartCollector::create(*m_client, get_printer_state());
 
     // Load print start profile based on detected printer type
     std::string printer_type = get_printer_state().profile_state().printer_type();

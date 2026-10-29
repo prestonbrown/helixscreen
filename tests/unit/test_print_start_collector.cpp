@@ -22,6 +22,7 @@
 #include <iterator>
 #include <regex>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -604,7 +605,7 @@ class PrintStartCollectorHeaterFixture : public LVGLTestFixture {
         // Mark print as active so set_print_start_state() accepts phase updates
         lv_subject_set_int(state_.print_state().get_print_active_subject(), 1);
         client_ = std::make_unique<MoonrakerClientMock>();
-        collector_ = std::make_shared<PrintStartCollector>(*client_, state_);
+        collector_ = PrintStartCollector::create(*client_, state_);
         collector_->set_profile(PrintStartProfile::load_default());
     }
 
@@ -1032,6 +1033,57 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 
         REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
     }
+}
+
+// ============================================================================
+// Lifetime: the last reference may drop on a network thread
+// ============================================================================
+
+namespace {
+/// Live LVGL timers whose user_data is @p p. Compares pointers only, so it is
+/// safe to ask about an object already destroyed.
+int lvgl_timers_pointing_at(const void* p) {
+    int n = 0;
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        if (lv_timer_get_user_data(t) == p) {
+            n++;
+        }
+    }
+    return n;
+}
+} // namespace
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: a last reference dropped off the main thread is "
+                 "destroyed on the main thread",
+                 "[print][collector][lifetime]") {
+    auto collector = PrintStartCollector::create(client(), state());
+    collector->set_profile(PrintStartProfile::load_default());
+    collector->start();
+    drain_async_updates();
+    const void* addr = collector.get();
+    const int armed = lvgl_timers_pointing_at(addr);
+    REQUIRE(armed >= 1);
+
+    // A network callback's capture is the only reference left when it runs.
+    PrintStartCollectorTestAccess::drop_client_references(*collector);
+    std::weak_ptr<PrintStartCollector> watch = collector;
+    std::thread network([held = std::move(collector)]() mutable { held.reset(); });
+    network.join();
+    REQUIRE(watch.expired());
+
+    // The ETA timer is untouched off the main thread: it is still armed, and
+    // firing it before the destruction runs reaches nothing freed.
+    CHECK(lvgl_timers_pointing_at(addr) == armed);
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        if (lv_timer_get_user_data(t) == addr) {
+            lv_timer_ready(t);
+        }
+    }
+    lv_timer_handler();
+
+    drain_async_updates();
+    CHECK(lvgl_timers_pointing_at(addr) == armed - 1);
 }
 
 // ============================================================================
@@ -1997,7 +2049,7 @@ class PrintStartCollectorSequentialFixture : public LVGLTestFixture {
         // Mark print as active so set_print_start_state() accepts phase updates
         lv_subject_set_int(state_.print_state().get_print_active_subject(), 1);
         client_ = std::make_unique<MoonrakerClientMock>();
-        collector_ = std::make_shared<PrintStartCollector>(*client_, state_);
+        collector_ = PrintStartCollector::create(*client_, state_);
         auto profile =
             PrintStartProfileTestAccess::parse(nlohmann::json::parse(kSequentialStateProfile));
         REQUIRE(profile != nullptr);

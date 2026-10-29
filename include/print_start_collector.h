@@ -106,11 +106,17 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     [[nodiscard]] int get_current_phase_elapsed_seconds() const;
 
     /**
-     * @brief Construct a PrintStartCollector
+     * @brief Create a PrintStartCollector
+     *
+     * Network callbacks hold references, so the last one can drop on any
+     * thread. Destruction always runs on the main thread, because the
+     * destructor deletes an LVGL timer.
+     *
      * @param client helix::IMoonrakerClient for registering callbacks
      * @param state helix::PrinterState to update with phase progress
      */
-    PrintStartCollector(helix::IMoonrakerClient& client, helix::PrinterState& state);
+    static std::shared_ptr<PrintStartCollector> create(helix::IMoonrakerClient& client,
+                                                       helix::PrinterState& state);
 
     ~PrintStartCollector();
 
@@ -387,6 +393,8 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     heater_waited_on(const helix::WaitLine& line, const std::string& chamber_heater);
 
   private:
+    PrintStartCollector(helix::IMoonrakerClient& client, helix::PrinterState& state);
+
     /**
      * @brief Handle incoming G-code response
      */

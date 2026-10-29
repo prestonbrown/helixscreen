@@ -119,6 +119,15 @@ PrintStartCollector::PrintStartCollector(IMoonrakerClient& client, PrinterState&
     spdlog::debug("[PrintStartCollector] Constructed");
 }
 
+std::shared_ptr<PrintStartCollector> PrintStartCollector::create(IMoonrakerClient& client,
+                                                                 PrinterState& state) {
+    return std::shared_ptr<PrintStartCollector>(
+        new PrintStartCollector(client, state), [](PrintStartCollector* collector) {
+            helix::ui::run_on_main("PrintStartCollector::destroy",
+                                   [collector]() { delete collector; });
+        });
+}
+
 PrintStartCollector::~PrintStartCollector() {
     // Don't call stop() here - it uses client_ and state_ references which may
     // already be destroyed during static destruction order. Callers should
@@ -295,7 +304,9 @@ void PrintStartCollector::start() {
         eta_timer_ = lv_timer_create(
             [](lv_timer_t* timer) {
                 auto* collector = static_cast<PrintStartCollector*>(lv_timer_get_user_data(timer));
-                if (collector) {
+                // An unowned collector is waiting for its queued destruction:
+                // shared_from_this() would throw.
+                if (collector && !collector->weak_from_this().expired()) {
                     collector->update_eta_display();
                     collector->check_purge_shape();
                     collector->check_fallback_completion();
@@ -2419,8 +2430,6 @@ void PrintStartCollector::request_start_block(uint64_t run, std::string filename
         }
         start_block_cancel_ = cancel;
     }
-    // The answer lands on the transfer's thread, which must not hold the last
-    // reference: the destructor deletes an LVGL timer.
     std::weak_ptr<PrintStartCollector> weak = weak_from_this();
     api->transfers().download_file_range(
         "gcodes", filename, 0, helix::kStartBlockHeadBytes,
@@ -2446,9 +2455,6 @@ void PrintStartCollector::request_start_block(uint64_t run, std::string filename
             if (step) {
                 self->apply_start_block_step(*step, run);
             }
-            // The weak_ptr's lock may be the last reference; hand it to the
-            // main thread so the destructor runs there.
-            helix::ui::queue_update("PrintStartCollector::start_block_read", [self]() {});
         },
         [filename](const MoonrakerError& e) {
             spdlog::debug("[PrintStartCollector] Start block of {} not read: {}", filename,

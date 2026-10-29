@@ -203,4 +203,12 @@ class PrintStartCollectorTestAccess {
         std::lock_guard<std::mutex> lock(c.state_mutex_);
         return c.phase_overrides_;
     }
+
+    /// Drop the client's references to a running collector and leave its ETA
+    /// timer armed, so whoever holds the collector holds the last reference.
+    static void drop_client_references(PrintStartCollector& c) {
+        c.client_.unregister_method_callback("notify_gcode_response", c.handler_name_);
+        c.handler_name_.clear();
+        c.client_.unsubscribe_notify_update(c.macro_subscription_id_.exchange(0));
+    }
 };
