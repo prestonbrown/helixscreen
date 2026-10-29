@@ -48,4 +48,12 @@ parse_filament_sensor(const nlohmann::json& params);
 [[nodiscard]] std::optional<ExtruderTempDelta> parse_extruder(const nlohmann::json& params);
 [[nodiscard]] std::optional<MotorControlDelta> parse_motor_control(const nlohmann::json& params);
 
+/// Whether printer.cfg's saved RS-485 address table names a unit. The K2 keeps
+/// it in the SAVE_CONFIG block as `[auto_addr] mb_addr_table_uniids`, one entry
+/// per address (`[0]` for an empty one, the unit's uuid otherwise), and it is
+/// readable from configfile.settings before the bus discovery that confirms
+/// it. Accepts the table parsed or as its config string; false when the
+/// section or option is absent or unreadable.
+[[nodiscard]] bool has_registered_unit(const nlohmann::json& configfile_settings);
+
 } // namespace helix::cfs

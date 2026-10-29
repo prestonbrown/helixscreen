@@ -90,7 +90,7 @@ Everything from here to "Disconnected Units" describes the **stock** schema. The
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `state` | string | Connection state: `"connect"`, or `"disconnect"` on a K2 with no CFS attached (debug bundle, #1904). What a K2 with a CFS reports here before its unit answers at boot is unrecorded (#1933) |
+| `state` | string | Bus state: `"None"` at Klipper startup, then `"disconnect"` while no unit answers and `"connect"` once one does. A K2 with a CFS reads `"disconnect"` for about 30 s at every boot; see [Boot sequence and the address table](#boot-sequence-and-the-address-table) |
 | `filament` | int | Filament loaded flag (1 = loaded) |
 | `enable` | int | CFS enabled for printing |
 | `auto_refill` | int | Auto-refill (backup spool) enabled |
@@ -183,6 +183,31 @@ So the serial and reserved fields do reach Klipper's `box` object, and every Moo
 #### Disconnected Units
 
 Units that are not connected report all fields as `"None"` or `"-1"`.
+
+#### Boot sequence and the address table
+
+Measured on a K2 Plus with one CFS, polling `box` every 0.2 s across a reboot (#1933),
+times from Klipper's `webhooks` reaching `ready`:
+
+| Time | `box.state` | Units |
+|------|-------------|-------|
+| startup (-3 s) | `"None"` | all `"None"`, `sn` `"-1"`, `uuid` `"None"` |
+| ready (0 s) | `"None"` | all `"None"` |
+| +7 s | `"disconnect"` | all `"None"` |
+| +38 s | `"disconnect"` | `T1` `"connect"`, `sn` and `uuid` filled |
+| +39 s | `"connect"` | `T1` `"connect"` |
+
+So for about 30 s a K2 with a CFS publishes exactly the frame a K2 without one does
+(`"disconnect"`, every address `"None"`, debug bundle on #1904): the frames alone cannot
+tell them apart. RS-485 discovery (`auto_addr`) is what ends the window.
+
+What does tell them apart is persisted: discovery saves the uuid of each address it
+assigns in printer.cfg's SAVE_CONFIG block, readable at boot through Moonraker as
+`configfile.settings.auto_addr.mb_addr_table_uniids`. On the machine above it reads
+`[[19, 103, 59, 72, 36, 34, 176, 3, 54, 53, 52, 52], [0], [0], [0]]`: one entry per
+address, `[0]` for an empty one, and entry 1 equals `T1.uuid` once the unit answers. It
+records the units last saved, not the units on the bus now, so a CFS unplugged since keeps
+its entry.
 
 ### Community Kalico port
 

@@ -362,13 +362,23 @@ the parse finds no unit (#1904). The backend
 still runs, because it owns the external-spool load and unload, and it reports the
 machine through `AmsSystemInfo::external_spool_only`:
 
-- `apply_box_units_locked()` sets it when a stock frame finds no unit, none has been
-  seen this session, and the box's `state` (from the merged frames) is `"disconnect"`.
-  Every address reading `"None"` is also a K2 with a CFS at boot, before its unit answers,
-  so that alone decides nothing (#1933); a bare `state` delta counts as a full frame so the
-  verdict follows it. A unit seen once keeps its place in the list when a later frame
-  drops it, so the flag cannot return on a unit that went briefly quiet. A unit coming
-  online clears it, and clears a `-2` the declaration does not hold.
+- `converge_external_spool_only_locked()` sets it when no unit has been seen this
+  session and the box's `state` (from the merged frames) is `"disconnect"`, provided the
+  bus has settled. A K2 with a CFS publishes that same frame for about 30 s at every boot,
+  until discovery reaches its unit (§ Boot sequence and the address table in
+  `printer-research/CREALITY_CFS_K2_INTERNALS.md`, #1933). So at start and on every
+  Klipper restart the backend reads printer.cfg's address table
+  (`configfile.settings.auto_addr.mb_addr_table_uniids`, `cfs::has_registered_unit`):
+  - no registered unit, or no table: settled, so `"disconnect"` decides at once (#1904);
+  - a registered unit: unsettled until it reports or `kRegisteredUnitSettle` (90 s, more
+    than twice the measured 38 s) has passed since the start, so a CFS unplugged since
+    printer.cfg last saved it still ends single-spool;
+  - query not answered yet: unsettled, with the same 90 s bound.
+
+  A bare `state` delta counts as a full frame so the verdict follows it. A unit seen once
+  keeps its place in the list when a later frame drops it, so the flag cannot return on a
+  unit that went briefly quiet. A unit coming online clears it, and clears a `-2` the
+  declaration does not hold.
 - `supports_bypass` stays false (the toggle would have no other side), and
   `is_bypass_active()` is true. Load therefore falls through to `LOAD_MATERIAL` and
   unload stays on the backend's bypass script, `QUIT_MATERIAL` plus the long retract

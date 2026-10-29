@@ -232,5 +232,21 @@ class CfsTestAccess {
     static void call_on_started(helix::printer::AmsBackendCfs& b) {
         b.on_started();
     }
+
+    /// The configfile query's answer, as configfile.settings.
+    static void answer_unit_registration(helix::printer::AmsBackendCfs& b,
+                                         const nlohmann::json& settings) {
+        b.apply_unit_registration(helix::cfs::has_registered_unit(settings)
+                                      ? helix::printer::AmsBackendCfs::UnitRegistration::Registered
+                                      : helix::printer::AmsBackendCfs::UnitRegistration::None);
+    }
+    /// The configfile query sent and not yet answered.
+    static void await_unit_registration(helix::printer::AmsBackendCfs& b) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.unit_registration_ = helix::printer::AmsBackendCfs::UnitRegistration::Unknown;
+    }
+    static void expire_unit_settle(helix::printer::AmsBackendCfs& b) {
+        b.finish_unit_settle();
+    }
 };
 } // namespace helix
