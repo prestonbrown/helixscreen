@@ -53,11 +53,13 @@ void CameraView::reap_off_main_thread(std::unique_ptr<CameraStream> stream) {
         return;
     }
     // The join can take seconds on a wedged connection, so it runs on the
-    // pool whenever the pool is up to take it.
+    // pool whenever the pool is up to take it. The job must hold the only
+    // reference: a copy left here would be the last one whenever the worker
+    // finishes first, and dropping it would run the join on this thread.
     auto owner = reaping_owner(std::move(stream));
     auto& pool = http::HttpExecutor::fast();
     if (pool.running()) {
-        pool.submit([owner]() mutable { owner.reset(); });
+        pool.submit([owner = std::move(owner)]() mutable { owner.reset(); });
     }
 }
 
