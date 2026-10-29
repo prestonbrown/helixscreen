@@ -42,6 +42,7 @@ Record (schema 1); a field the file does not answer is null, never a guess:
       },
       "layers": {"count": 412, "index": ".helix_index/sub/part.gcode.layers.jsonl" | null},
       "pauses": 0,                  # M600 / M601 / PAUSE / M0 lines
+      "sets_pressure_advance": false,  # a SET_PRESSURE_ADVANCE with ADVANCE=
       "thumbnail": {"relative_path": "sub/.thumbs/part-300x300.png", "width": 300,
                     "height": 300, "generated": true} | null
     }
@@ -969,6 +970,10 @@ def analyze_file(
         "objects": collector.objects(),
         "layers": {"count": len(collector.layer_starts), "index": index_rel},
         "pauses": collector.pauses,
+        # A slicer profile with pressure advance on sets it for the whole job,
+        # over any value measured or saved before the print.
+        "sets_pressure_advance": any(
+            "advance" in entry for entry in result.state_at_head.pressure_advance.values()),
         "thumbnail": None,
     }
     return AnalysisOutput(record, png)

@@ -1036,3 +1036,27 @@ async def test_startup_prunes_stale_indexes_but_not_the_ones_recovery_uses(gc):
     await settle(comp)
     assert not os.path.exists(stale)
     assert os.path.exists(used)
+
+
+# ============================================================================
+# Pressure advance set by the file
+# ============================================================================
+
+class TestSetsPressureAdvance:
+    """A slicer filament profile with pressure advance enabled sends
+    SET_PRESSURE_ADVANCE itself, which replaces a measured value for the job."""
+
+    def _write(self, gc, name, body):
+        (gc / name).write_text("G28\nG1 X10 Y10 F3000\n" + body + "G1 X20 E1 F1200\n")
+        return run(gc, name).record
+
+    def test_a_file_that_sets_advance(self, gc):
+        r = self._write(gc, "pa.gcode", "SET_PRESSURE_ADVANCE ADVANCE=0.045\n")
+        assert r["sets_pressure_advance"] is True
+
+    def test_smooth_time_alone_is_not_an_advance(self, gc):
+        r = self._write(gc, "smooth.gcode", "SET_PRESSURE_ADVANCE SMOOTH_TIME=0.04\n")
+        assert r["sets_pressure_advance"] is False
+
+    def test_a_file_that_leaves_it_alone(self, gc):
+        assert self._write(gc, "plain.gcode", "")["sets_pressure_advance"] is False
