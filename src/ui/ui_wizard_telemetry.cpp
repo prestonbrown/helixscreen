@@ -35,7 +35,13 @@ WizardTelemetryStep* get_wizard_telemetry_step() {
 void WizardTelemetryStep::init_subjects() {
     spdlog::debug("[{}] Initializing subjects", get_name());
 
-    // Telemetry info modal content (same text as summary step)
+    init_info_text_subject();
+
+    subjects_initialized_ = true;
+    spdlog::debug("[{}] Subjects initialized", get_name());
+}
+
+void WizardTelemetryStep::init_info_text_subject() {
     static const char* telemetry_info_md =
         "**HelixScreen is a free, open-source project** built by a tiny team. "
         "Anonymous telemetry helps us understand how the app is actually used "
@@ -59,9 +65,6 @@ void WizardTelemetryStep::init_subjects() {
         "Telemetry Data anytime.**";
     UI_SUBJECT_INIT_AND_REGISTER_STRING(telemetry_info_text_, telemetry_info_text_buffer_,
                                         telemetry_info_md, "telemetry_info_text");
-
-    subjects_initialized_ = true;
-    spdlog::debug("[{}] Subjects initialized", get_name());
 }
 
 // ============================================================================
