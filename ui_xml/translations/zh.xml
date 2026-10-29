@@ -43,6 +43,7 @@
   <translation tag="%s needs filament in %s, which is empty — this print will run out." zh="%s 需要耗材，但 %s 为空 —— 此次打印将会耗尽耗材。"/>
   <translation tag="%s unsaved" zh="%s 未保存"/>
   <translation tag="%s uses %s, which has filament but no material set — the printer will not start until you set it." zh="%s 使用 %s，该位置有耗材但未设置材料 — 设置后打印机才会开始。"/>
+  <translation tag="%s uses %s, which has filament but no material set. A calibration this print runs needs it." zh="%s 使用 %s，该位置有耗材但未设置材料。本次打印的校准需要它。"/>
   <translation tag="%s: %.0fg of %.0fg needed" zh="%s：%.0fg / 需要 %.0fg"/>
   <translation tag="%u layers" zh="%u 层"/>
   <translation tag="%zu events queued" zh="%zu 个事件已排队"/>
@@ -899,6 +900,7 @@
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" zh="无法将网格保存为 &apos;{}&apos;：{}"/>
   <translation tag="Could not save the printer image tags" zh="保存打印机图片标记失败"/>
   <translation tag="Could not set the WiFi country" zh="无法设置 WiFi 地区"/>
+  <translation tag="Could not set the material: {}" zh="无法设置材料：{}"/>
   <translation tag="Could not skip {}" zh="无法跳过 {}"/>
   <translation tag="Could not start Bluetooth discovery" zh="无法启动蓝牙发现"/>
   <translation tag="Could not turn the heaters off" zh="无法关闭加热"/>
@@ -3316,6 +3318,7 @@
   <translation tag="Session Duration" zh="会话时长"/>
   <translation tag="Session Start" zh="会话开始"/>
   <translation tag="Set " zh="设置 "/>
+  <translation tag="Set %s to %s" zh="将 %s 设置为 %s"/>
   <translation tag="Set Active" zh="设为活动"/>
   <translation tag="Set PIN" zh="设置 PIN"/>
   <translation tag="Set and watch the bed temperature" zh="设置并监控热床温度"/>

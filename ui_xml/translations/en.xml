@@ -43,6 +43,7 @@
   <translation tag="%s needs filament in %s, which is empty — this print will run out." en="%s needs filament in %s, which is empty — this print will run out."/>
   <translation tag="%s unsaved" en="%s unsaved"/>
   <translation tag="%s uses %s, which has filament but no material set — the printer will not start until you set it." en="%s uses %s, which has filament but no material set — the printer will not start until you set it."/>
+  <translation tag="%s uses %s, which has filament but no material set. A calibration this print runs needs it." en="%s uses %s, which has filament but no material set. A calibration this print runs needs it."/>
   <translation tag="%s: %.0fg of %.0fg needed" en="%s: %.0fg of %.0fg needed"/>
   <translation tag="%u layers" en="%u layers"/>
   <translation tag="%zu events queued" en="%zu events queued"/>
@@ -899,6 +900,7 @@
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" en="Could not save the mesh as &apos;{}&apos;: {}"/>
   <translation tag="Could not save the printer image tags" en="Could not save the printer image tags"/>
   <translation tag="Could not set the WiFi country" en="Could not set the WiFi country"/>
+  <translation tag="Could not set the material: {}" en="Could not set the material: {}"/>
   <translation tag="Could not skip {}" en="Could not skip {}"/>
   <translation tag="Could not start Bluetooth discovery" en="Could not start Bluetooth discovery"/>
   <translation tag="Could not turn the heaters off" en="Could not turn the heaters off"/>
@@ -3316,6 +3318,7 @@
   <translation tag="Session Duration" en="Session Duration"/>
   <translation tag="Session Start" en="Session Start"/>
   <translation tag="Set " en="Set "/>
+  <translation tag="Set %s to %s" en="Set %s to %s"/>
   <translation tag="Set Active" en="Set Active"/>
   <translation tag="Set PIN" en="Set PIN"/>
   <translation tag="Set and watch the bed temperature" en="Set and watch the bed temperature"/>

@@ -43,6 +43,7 @@
   <translation tag="%s needs filament in %s, which is empty — this print will run out." ja="%s は %s のフィラメントを必要としますが、空です — この印刷は途中で切れます。"/>
   <translation tag="%s unsaved" ja="%s 未保存"/>
   <translation tag="%s uses %s, which has filament but no material set — the printer will not start until you set it." ja="%s は %s を使用しますが、フィラメントはあるのに材料が設定されていません。設定するまでプリンターは開始しません。"/>
+  <translation tag="%s uses %s, which has filament but no material set. A calibration this print runs needs it." ja="%s は %s を使用しますが、フィラメントはあるのに材料が設定されていません。この印刷のキャリブレーションに必要です。"/>
   <translation tag="%s: %.0fg of %.0fg needed" ja="%s: %.0fg（必要 %.0fg）"/>
   <translation tag="%u layers" ja="%uレイヤー"/>
   <translation tag="%zu events queued" ja="%zu 件のイベントを待機中"/>
@@ -899,6 +900,7 @@
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" ja="メッシュを &apos;{}&apos; として保存できませんでした: {}"/>
   <translation tag="Could not save the printer image tags" ja="プリンター画像のタグの保存に失敗しました"/>
   <translation tag="Could not set the WiFi country" ja="WiFi の地域を設定できませんでした"/>
+  <translation tag="Could not set the material: {}" ja="材料を設定できませんでした: {}"/>
   <translation tag="Could not skip {}" ja="{} をスキップできませんでした"/>
   <translation tag="Could not start Bluetooth discovery" ja="Bluetooth の検出を開始できませんでした"/>
   <translation tag="Could not turn the heaters off" ja="ヒーターを切れませんでした"/>
@@ -3316,6 +3318,7 @@
   <translation tag="Session Duration" ja="セッション継続時間"/>
   <translation tag="Session Start" ja="セッション開始"/>
   <translation tag="Set " ja="設定 "/>
+  <translation tag="Set %s to %s" ja="%s を %s に設定"/>
   <translation tag="Set Active" ja="アクティブに設定"/>
   <translation tag="Set PIN" ja="PIN を設定"/>
   <translation tag="Set and watch the bed temperature" ja="ベッド温度の設定と監視"/>

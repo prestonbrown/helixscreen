@@ -43,6 +43,7 @@ translations:
   '%s needs filament in %s, which is empty — this print will run out.': '%s nécessite du filament dans %s, qui est vide — cette impression manquera de filament.'
   '%s unsaved': '%s non enregistré'
   '%s uses %s, which has filament but no material set — the printer will not start until you set it.': '%s utilise %s, qui contient du filament mais aucun matériau défini — l''imprimante ne démarrera pas tant qu''il n''est pas défini.'
+  '%s uses %s, which has filament but no material set. A calibration this print runs needs it.': '%s utilise %s, qui contient du filament mais aucun matériau défini. Une calibration de cette impression en a besoin.'
   '%s: %.0fg of %.0fg needed': '%s : %.0fg sur %.0fg requis'
   '%u layers': '%u couches'
   '%zu events queued': '%zu événements en file'
@@ -1011,6 +1012,7 @@ translations:
   "Could not save the mesh as '{}': {}": "Impossible d'enregistrer le maillage sous '{}' : {}"
   Could not save the printer image tags: 'Échec de l''enregistrement des repères de l''image'
   Could not set the WiFi country: Impossible de définir le pays du WiFi
+  'Could not set the material: {}': 'Impossible de définir le matériau : {}'
   Could not skip {}: 'Impossible d''ignorer {}'
   Could not start Bluetooth discovery: Impossible de démarrer la découverte Bluetooth
   Could not update filaments: Impossible de mettre à jour les filaments
@@ -3639,6 +3641,7 @@ translations:
   Session Duration: Durée de la session
   Session Start: Début de la session
   'Set ': 'Définir '
+  Set %s to %s: 'Définir %s sur %s'
   Set Active: Définir actif
   Set PIN: Définir le PIN
   Set and watch the bed temperature: Régler et suivre la température du plateau

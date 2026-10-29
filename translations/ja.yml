@@ -43,6 +43,7 @@ translations:
   '%s needs filament in %s, which is empty — this print will run out.': '%s は %s のフィラメントを必要としますが、空です — この印刷は途中で切れます。'
   '%s unsaved': '%s 未保存'
   '%s uses %s, which has filament but no material set — the printer will not start until you set it.': '%s は %s を使用しますが、フィラメントはあるのに材料が設定されていません。設定するまでプリンターは開始しません。'
+  '%s uses %s, which has filament but no material set. A calibration this print runs needs it.': '%s は %s を使用しますが、フィラメントはあるのに材料が設定されていません。この印刷のキャリブレーションに必要です。'
   '%s: %.0fg of %.0fg needed': '%s: %.0fg（必要 %.0fg）'
   '%u layers': '%uレイヤー'
   '%zu events queued': '%zu 件のイベントを待機中'
@@ -938,6 +939,7 @@ translations:
   "Could not save the mesh as '{}': {}": "メッシュを '{}' として保存できませんでした: {}"
   Could not save the printer image tags: プリンター画像のタグの保存に失敗しました
   Could not set the WiFi country: WiFi の地域を設定できませんでした
+  'Could not set the material: {}': '材料を設定できませんでした: {}'
   Could not skip {}: '{} をスキップできませんでした'
   Could not start Bluetooth discovery: Bluetooth の検出を開始できませんでした
   Could not update filaments: フィラメントを更新できませんでした
@@ -3437,6 +3439,7 @@ translations:
   Session Duration: セッション継続時間
   Session Start: セッション開始
   'Set ': '設定 '
+  Set %s to %s: '%s を %s に設定'
   Set Active: アクティブに設定
   Set PIN: PIN を設定
   Set and watch the bed temperature: ベッド温度の設定と監視

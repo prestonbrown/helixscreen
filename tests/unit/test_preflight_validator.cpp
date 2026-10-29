@@ -331,6 +331,33 @@ TEST_CASE("bypass still short-circuits an unidentified slot",
     CHECK_FALSE(r.has_block());
 }
 
+TEST_CASE("material_fix names the first unset slot the file gives a material",
+          "[preflight_validator][material_fix]") {
+    auto check = [](int tool, int slot, const char* material, Severity sev) {
+        helix::ToolCheck c;
+        c.tool_index = tool;
+        c.mapped_slot = slot;
+        c.intended_material = material;
+        c.severity = sev;
+        return c;
+    };
+    helix::PreflightResult r;
+    CHECK_FALSE(r.material_fix().has_value());
+
+    r.checks = {check(0, 0, "PLA", Severity::EmptySlot), check(1, 2, "", Severity::UnknownMaterial),
+                check(2, 3, "PETG", Severity::UnknownMaterial),
+                check(3, 1, "ASA", Severity::UnknownMaterial)};
+    const auto fix = r.material_fix();
+    REQUIRE(fix.has_value());
+    CHECK(fix->tool_index == 2);
+    CHECK(fix->slot == 3);
+    CHECK(fix->material == "PETG");
+
+    // A tool mapped to no slot has nowhere to write.
+    r.checks = {check(0, -1, "PLA", Severity::UnknownMaterial)};
+    CHECK_FALSE(r.material_fix().has_value());
+}
+
 TEST_CASE("an Auto mapping is judged against the lane its tool routes to",
           "[preflight_validator][preflight]") {
     std::vector<GcodeToolInfo> tools = {{1, 0xED1C24, "PLA"}};

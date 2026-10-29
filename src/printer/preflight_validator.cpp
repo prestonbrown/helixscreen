@@ -14,6 +14,16 @@ bool PreflightResult::has_block() const {
     });
 }
 
+std::optional<MaterialFix> PreflightResult::material_fix() const {
+    for (const ToolCheck& c : checks) {
+        if (c.severity == ToolCheck::Severity::UnknownMaterial && c.mapped_slot >= 0 &&
+            !c.intended_material.empty()) {
+            return MaterialFix{c.tool_index, c.mapped_slot, c.intended_material};
+        }
+    }
+    return std::nullopt;
+}
+
 bool PreflightResult::has_advisory() const {
     return std::any_of(checks.begin(), checks.end(), [](const ToolCheck& c) {
         return c.severity == ToolCheck::Severity::MaterialMismatch;

@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "preflight_validator.h"
+#include "subject_managed_panel.h"
 
 #include <functional>
 #include <vector>
@@ -39,6 +40,9 @@ namespace helix::ui {
 class PreflightCheckModal : public Modal {
   public:
     using Action = std::function<void()>;
+
+    PreflightCheckModal();
+    ~PreflightCheckModal() override;
 
     const char* get_name() const override {
         return "Preflight Check";
@@ -89,12 +93,24 @@ class PreflightCheckModal : public Modal {
     }
 
   private:
+    /// Write the file's material to the slot material_fix() names, then close:
+    /// the next Print checks again against what the slot now holds.
+    void apply_material_fix();
+    static void on_set_material_cb(lv_event_t* e);
+
     void build_rows(lv_obj_t* list);
     lv_obj_t* create_tool_row(lv_obj_t* list, const helix::ToolCheck& check,
                               const std::vector<helix::AvailableSlot>& slots);
 
     helix::PreflightResult result_;
     Action on_force_, on_remap_, on_closed_;
+
+    SubjectManager subjects_;
+    lv_subject_t fix_shown_subject_{};
+    lv_subject_t fix_text_subject_{};
+    char fix_text_buf_[96] = {0};
+    /// The shown modal the material-fix button acts on; one at a time.
+    static PreflightCheckModal* active_instance_;
 };
 
 } // namespace helix::ui

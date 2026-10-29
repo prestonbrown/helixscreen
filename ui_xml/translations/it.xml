@@ -43,6 +43,7 @@
   <translation tag="%s needs filament in %s, which is empty — this print will run out." it="%s richiede filamento e %s non ne ha — questa stampa lo esaurirà."/>
   <translation tag="%s unsaved" it="%s non salvato"/>
   <translation tag="%s uses %s, which has filament but no material set — the printer will not start until you set it." it="%s usa %s, che ha filamento ma nessun materiale impostato — la stampante non partirà finché non lo imposti."/>
+  <translation tag="%s uses %s, which has filament but no material set. A calibration this print runs needs it." it="%s usa %s, che ha filamento ma nessun materiale impostato. Una calibrazione di questa stampa ne ha bisogno."/>
   <translation tag="%s: %.0fg of %.0fg needed" it="%s: %.0fg di %.0fg necessari"/>
   <translation tag="%u layers" it="%u strati"/>
   <translation tag="%zu events queued" it="%zu eventi in coda"/>
@@ -899,6 +900,7 @@
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" it="Impossibile salvare la mesh come &apos;{}&apos;: {}"/>
   <translation tag="Could not save the printer image tags" it="Impossibile salvare i contrassegni dell&apos;immagine"/>
   <translation tag="Could not set the WiFi country" it="Impossibile impostare il paese del WiFi"/>
+  <translation tag="Could not set the material: {}" it="Impossibile impostare il materiale: {}"/>
   <translation tag="Could not skip {}" it="Impossibile saltare {}"/>
   <translation tag="Could not start Bluetooth discovery" it="Impossibile avviare la ricerca Bluetooth"/>
   <translation tag="Could not turn the heaters off" it="Impossibile spegnere i riscaldatori"/>
@@ -3316,6 +3318,7 @@
   <translation tag="Session Duration" it="Durata della sessione"/>
   <translation tag="Session Start" it="Inizio della sessione"/>
   <translation tag="Set " it="Imposta "/>
+  <translation tag="Set %s to %s" it="Imposta %s su %s"/>
   <translation tag="Set Active" it="Imposta attivo"/>
   <translation tag="Set PIN" it="Imposta PIN"/>
   <translation tag="Set and watch the bed temperature" it="Imposta e monitora la temperatura piano"/>

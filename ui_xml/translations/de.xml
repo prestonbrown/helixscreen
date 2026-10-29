@@ -43,6 +43,7 @@
   <translation tag="%s needs filament in %s, which is empty — this print will run out." de="%s benötigt Filament, aber %s ist leer — bei diesem Druck geht das Filament aus."/>
   <translation tag="%s unsaved" de="%s ungespeichert"/>
   <translation tag="%s uses %s, which has filament but no material set — the printer will not start until you set it." de="%s verwendet %s: dort liegt Filament, aber kein Material ist gesetzt — der Drucker startet erst, wenn Sie es setzen."/>
+  <translation tag="%s uses %s, which has filament but no material set. A calibration this print runs needs it." de="%s verwendet %s: dort liegt Filament, aber kein Material ist gesetzt. Eine Kalibrierung dieses Drucks braucht es."/>
   <translation tag="%s: %.0fg of %.0fg needed" de="%s: %.0fg von %.0fg benötigt"/>
   <translation tag="%u layers" de="%u Schichten"/>
   <translation tag="%zu events queued" de="%zu Ereignisse in Warteschlange"/>
@@ -899,6 +900,7 @@
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" de="Netz konnte nicht als &apos;{}&apos; gespeichert werden: {}"/>
   <translation tag="Could not save the printer image tags" de="Bildmarkierungen konnten nicht gespeichert werden"/>
   <translation tag="Could not set the WiFi country" de="WiFi-Land konnte nicht eingestellt werden"/>
+  <translation tag="Could not set the material: {}" de="Material konnte nicht gesetzt werden: {}"/>
   <translation tag="Could not skip {}" de="{} konnte nicht übersprungen werden"/>
   <translation tag="Could not start Bluetooth discovery" de="Bluetooth-Erkennung konnte nicht gestartet werden"/>
   <translation tag="Could not turn the heaters off" de="Die Heizungen konnten nicht ausgeschaltet werden"/>
@@ -3316,6 +3318,7 @@
   <translation tag="Session Duration" de="Sitzungsdauer"/>
   <translation tag="Session Start" de="Sitzungsbeginn"/>
   <translation tag="Set " de="Setzen "/>
+  <translation tag="Set %s to %s" de="%s auf %s setzen"/>
   <translation tag="Set Active" de="Aktiv setzen"/>
   <translation tag="Set PIN" de="PIN festlegen"/>
   <translation tag="Set and watch the bed temperature" de="Betttemperatur setzen und verfolgen"/>
