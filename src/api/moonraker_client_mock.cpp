@@ -6680,7 +6680,10 @@ void MoonrakerClientMock::dispatch_manual_probe_update() {
 bool MoonrakerClientMock::simulate_pa_calibration(
     const std::string& script, helix::SharedCallback<void(const nlohmann::json&)> success_cb,
     helix::SharedCallback<void(const MoonrakerError&)> error_cb) {
-    if (script.rfind("FLOW_CALIBRATE", 0) != 0) {
+    // FLOW_CALIBRATE is the U1's flow calibrator; HELIX_PA_CALIBRATE is the
+    // HelixPrint force gauge companion. Each answers in its own words.
+    const bool gauge = script.rfind("HELIX_PA_CALIBRATE", 0) == 0;
+    if (!gauge && script.rfind("FLOW_CALIBRATE", 0) != 0) {
         return false;
     }
     record_gcode_script(script);
@@ -6698,10 +6701,30 @@ bool MoonrakerClientMock::simulate_pa_calibration(
 
     if (should_fail) {
         due += std::chrono::milliseconds(kStepMs);
-        pending_pa_lines_.push_back({due, "!! [flow_calibrate] not edit filament info!", true,
-                                     std::move(success_cb), std::move(error_cb)});
-        spdlog::info("[MoonrakerClientMock] FLOW_CALIBRATE: simulating refusal"
-                     " (HELIX_MOCK_PA_FAIL)");
+        pending_pa_lines_.push_back({due,
+                                     gauge ? "!! HELIX_PA: no result: no loaded lane on record"
+                                           : "!! [flow_calibrate] not edit filament info!",
+                                     true, std::move(success_cb), std::move(error_cb)});
+        spdlog::info("[MoonrakerClientMock] {}: simulating refusal (HELIX_MOCK_PA_FAIL)",
+                     gauge ? "HELIX_PA_CALIBRATE" : "FLOW_CALIBRATE");
+        return true;
+    }
+
+    if (gauge) {
+        // The companion's sweep: one line per PA value, then the fitted result.
+        constexpr int kGaugeSteps = 7;
+        for (int i = 1; i <= kGaugeSteps; ++i) {
+            due += std::chrono::milliseconds(kStepMs);
+            pending_pa_lines_.push_back({due,
+                                         fmt::format("// HELIX_PA: step {}/{}", i, kGaugeSteps),
+                                         false, nullptr, nullptr});
+        }
+        due += std::chrono::milliseconds(kStepMs);
+        pending_pa_lines_.push_back({due,
+                                     "// HELIX_PA: measured K=0.0812 (signal/noise 14, 112 steps)",
+                                     true, std::move(success_cb), std::move(error_cb)});
+        spdlog::info("[MoonrakerClientMock] HELIX_PA_CALIBRATE: simulating {} steps (~{}s)",
+                     kGaugeSteps, ((kGaugeSteps + 1) * kStepMs) / 1000);
         return true;
     }
 
