@@ -1131,6 +1131,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   Moonraker refused every request from the screen. HelixScreen now sends the printer's
   `moonraker_api_key` setting to that printer's Moonraker, over the WebSocket and every HTTP
   request, and to nothing else.
+- **Print Status shows the chamber temperature with the chamber heater off** - the chamber
+  chip appeared only while the chamber heated or was above 50°C, so a QIDI Q2 printing PLA,
+  or a printer with only a chamber sensor, never showed it. It now shows whenever the
+  printer has a chamber.
 - **The layer count no longer jumps on every travel move** - on printers whose slicer does
   not report layers, the current layer is worked out from the nozzle height, and each Z-hop
   bumped it up a few layers and back. A new layer now shows once the nozzle has stayed at
