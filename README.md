@@ -46,10 +46,10 @@ Run it right on your printer, or on a separate device — a spare Pi, a mini PC,
 - **Customizable dashboard** — Multi-page grid with drag-to-reposition, edge resize, and 40+ widgets including temperature graphs, fan arcs, and power toggles
 - **Every feature at your fingertips** — 30+ panels, 20+ overlays, 20+ modals, 300+ XML layouts
 - **~15MB RAM on embedded targets, ~75MB disk** — sips memory on a Creality K1 or Flashforge AD5M; a few times more on 64-bit Pi, still well under what other touchscreen UIs need. Your printer's onboard SoC or an older Pi is plenty — no need to buy new hardware.
-- **80+ printers in the database** — Auto-detects your hardware and configures itself
-- **Multi-material ready** — AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers (incl. MedusaHC hotend changers), Spoolman
+- **Over 100 printers in the database** — Auto-detects your hardware and configures itself
+- **Multi-material ready** — 10 filament systems: AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, QIDI Box, OpenAMS, Bondtech INDX (early support), and tool changers including MedusaHC hotend changers, all with Spoolman
 - **Exclude objects** — Tap-to-exclude overhead map view with object outlines during prints
-- **Looks great** — Light/dark themes with 17 presets, responsive layouts, GPU-accelerated blur
+- **Looks great** — Light/dark themes with 18 presets, responsive layouts, GPU-accelerated blur
 - **First-run wizard** — Guided setup discovers your printer's capabilities
 - **9 languages** — English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese
 
@@ -62,8 +62,8 @@ Run it right on your printer, or on a separate device — a spare Pi, a mini PC,
 | Declarative UI | Full XML with reactive bindings | C only | Python only |
 | RAM Usage | ~15MB (32-bit) | ~15-20MB | ~50MB |
 | Disk Size | ~75-115MB | ~60-80MB | ~50MB |
-| Multi-Material | 7 backends | Limited | Basic |
-| Printer Database | 80+ models | — | Manual config |
+| Multi-Material | 10 filament systems | Limited | Basic |
+| Printer Database | 100+ models | — | Manual config |
 | Display Layouts | Auto-detecting (480x320 to 1024x600, plus ultrawide and portrait) | Fixed | Configurable |
 | Internationalization | 9 languages | — | 40+ languages |
 | Status | Pre-1.0, actively developed | Inactive | Mature (maintenance) |
@@ -116,7 +116,7 @@ See [docs/devel/GALLERY.md](docs/devel/GALLERY.md) for the full gallery.
 
 **Printer Control** — Print management with G-code preview, motion controls, temperature presets with per-material overrides, multi-fan control, Z-offset, speed/flow tuning, live filament consumption tracking, power device management.
 
-**Multi-Material** — 7 filament system backends: AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers — including MedusaHC hotend changers, whose dock sensors and filament feeder are driven on top of klipper-toolchanger. Multi-unit and multi-backend support. Full Spoolman integration with spool creation wizard.
+**Multi-Material** — 10 filament systems: AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition, and with ACE Pro units through multiACE), QIDI Box, OpenAMS, Bondtech INDX (early support), and tool changers, including MedusaHC hotend changers, whose dock sensors and filament feeder are driven on top of klipper-toolchanger. Multi-unit and multi-backend support. Full Spoolman integration with spool creation wizard.
 
 **Visualization** — 3D G-code layer preview with memory-aware geometry budgets, 3D bed mesh with async rendering, print thumbnails, frequency response charts, unified temperature graph.
 
@@ -124,9 +124,9 @@ See [docs/devel/GALLERY.md](docs/devel/GALLERY.md) for the full gallery.
 
 **Integrations** — HelixPrint plugin, power devices with quick-toggle, print history, timelapse (Moonraker plugin), exclude objects with tap-to-exclude map view, LED control (5 backends), sound alerts (SDL/PWM/M300), Bluetooth label printing (Brother QL/PT, Niimbot, MakeID).
 
-**Display** — Auto-detecting layout system (480x320 through 1024x600, plus ultrawide and portrait — see below), display rotation (0/90/180/270) with auto-detection, light/dark themes with 17 presets and live theme editor, GPU-accelerated backdrop blur, screensavers.
+**Display** — Auto-detecting layout system (480x320 through 1024x600, plus ultrawide and portrait — see below), display rotation (0/90/180/270) with auto-detection, light/dark themes with 18 presets and live theme editor, GPU-accelerated backdrop blur, screensavers.
 
-**System** — First-run wizard with guided hardware discovery, 80+ printer models with auto-detection, 9 languages, opt-in crash reporting with debug bundles, KIAUH installer, versioned config migration.
+**System** — First-run wizard with guided hardware discovery, over 100 printer models with auto-detection, 9 languages, opt-in crash reporting with debug bundles, KIAUH installer, versioned config migration.
 
 ## Supported Platforms
 
@@ -224,7 +224,7 @@ More features, far lower RAM use (~15MB on embedded targets vs ~50MB for Klipper
 Yes. Install it on any supported Linux device — a spare Pi, a mini PC, even your desktop — and enter your printer's IP in the wizard's Moonraker step. This is ideal when the printer is on the floor and you want the screen at your desk. Point it at Moonraker (port `7125`), not Mainsail/Fluidd. See [Remote screen setup](docs/user/INSTALL.md#remote-screen-setup-run-on-a-separate-device).
 
 **Which printers are supported?**
-Any Klipper + Moonraker printer. 80+ models in the auto-detection database spanning Voron, Creality, QIDI, Anycubic, Flashforge, Sovol, RatRig, FLSUN, Elegoo, Prusa, Snapmaker, and more. The wizard auto-discovers your printer's capabilities even if it's not in the database.
+Any Klipper + Moonraker printer. Over 100 models in the auto-detection database spanning Voron, Creality, QIDI, Anycubic, Flashforge, Sovol, RatRig, FLSUN, Elegoo, Prusa, Snapmaker, and more. The wizard auto-discovers your printer's capabilities even if it's not in the database.
 
 **What screen sizes are supported?**
 800x480 and 1024x600 are the well-tested landscape sizes; 480x320 runs but is tight in places. Display rotation (0/90/180/270) with auto-detection.
@@ -232,7 +232,7 @@ Any Klipper + Moonraker printer. 80+ models in the auto-detection database spann
 **Ultrawide (e.g. 1920x440) and portrait (e.g. 480x800) both work.** The layout engine detects either orientation, sizes the grid from the screen, and gives each its own home dashboard layout. Portrait also has dedicated layouts for Print Status, Print Tune, Motion, Bed Mesh and the temperature graph, while the app shell and navigation bar are single files that adapt via `ui_is_portrait`; ultrawide has nothing beyond the dashboard. Panels without a dedicated layout use the adaptive fallback, which is why landscape is still the most polished of the three. Both keep gaining per-panel work, and both are open for contributions that need only XML, not C++ — see the [UI Contributor Guide](docs/devel/UI_CONTRIBUTOR_GUIDE.md).
 
 **What multi-material systems work?**
-AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers (viesturz/klipper-toolchanger, including MedusaHC hotend changers). Full Spoolman integration for spool management.
+HelixScreen supports 10 filament systems: AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition, and with ACE Pro units through multiACE), QIDI Box, OpenAMS, Bondtech INDX (early support), and tool changers (viesturz/klipper-toolchanger, including MedusaHC hotend changers). Full Spoolman integration for spool management.
 
 See [docs/user/FAQ.md](docs/user/FAQ.md) for the full FAQ.
 

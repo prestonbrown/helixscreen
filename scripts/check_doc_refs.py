@@ -16,10 +16,12 @@
 #   - a lesson taught lv_xml_component_register_from_file(), a transposed name
 #     that exists nowhere
 #
-# Four checks:
+# Five checks:
 #   refs   — every backticked path in an agent-facing doc resolves
 #   links  — every markdown [text](target) link in a scanned doc resolves
 #   index  — every doc in docs/devel/ is listed in docs/devel/CLAUDE.md
+#   counts — README.md and docs/user/ state the shipped filament systems,
+#            theme presets and printer database size truthfully
 #   stale  — report-only: cites whose file changed after the doc last did
 #
 # A citation names a place — `src/printer/printer_state.cpp#update_from_status` —
@@ -48,6 +50,7 @@
 #                                # refs+links, plus the index check
 #   check_doc_refs.py --refs     # broken references only
 #   check_doc_refs.py --index    # index completeness only
+#   check_doc_refs.py --counts   # shipped-count claims in README.md + docs/user/ only
 #   check_doc_refs.py --list     # show what was scanned
 #   check_doc_refs.py --stale    # report-only: cites older than the code they
 #                                # describe (release-time re-verify list)
@@ -468,6 +471,126 @@ def check_index():
     return unindexed, sorted(present)
 
 
+# The public pages that state what HelixScreen ships, and where the truth lives.
+# The README is required: a counts check that finds nothing to check there has
+# been reworded out of existence, not satisfied.
+COUNTS_README = 'README.md'
+COUNTS_USER_DIR = 'docs/user'
+AMS_TYPES_HEADER = 'include/ams_types.h'
+PRINTER_DATABASE = 'assets/config/printer_database.json'
+THEME_PRESET_DIR = 'assets/config/themes/defaults'
+
+_AMS_TRAITS_RE = re.compile(r'kAmsTypeTraits\[\]\s*=\s*\{(.*?)\n\};', re.S)
+_AMS_ROW_RE = re.compile(r'\{AmsType::(\w+),\s*"([^"]+)"')
+
+# "10 filament systems", "10 multi-material backends". A count followed by a
+# list (`:` or `(`) claims to be the whole list, so every system must be named.
+_BACKEND_COUNT_RE = re.compile(
+    r'\b(\d+)\s+(?:filament systems|filament system backends|'
+    r'multi-material (?:backends|systems))\b(\s*[:(])?', re.I)
+# "18 presets" / "18 theme presets", on a line about themes.
+_THEME_COUNT_RE = re.compile(r'\b(\d+)\s+(?:theme\s+)?presets\b', re.I)
+# A floor claim: "over 100 printers", "100+ models".
+_PRINTER_FLOOR_RE = re.compile(
+    r'\b(?:(over)\s+(\d+)|(\d+)\+)\s+(?:printer models|printers|models)\b', re.I)
+
+# Printer floors are claimed in steps of this size, so a phrase like "over 100"
+# stays true across many database additions and goes stale only at the next step.
+PRINTER_FLOOR_STEP = 50
+
+
+def shipped_backends():
+    """Display names of the filament systems kAmsTypeTraits registers, NONE excluded."""
+    text = open(AMS_TYPES_HEADER, encoding='utf-8').read()
+    m = _AMS_TRAITS_RE.search(text)
+    if not m:
+        return []
+    return [name for kind, name in _AMS_ROW_RE.findall(m.group(1)) if kind != 'NONE']
+
+
+def listed_printer_count():
+    """Printers the wizard can offer: database entries not hidden from the list."""
+    import json
+    with open(PRINTER_DATABASE, encoding='utf-8') as fh:
+        printers = json.load(fh).get('printers', [])
+    return sum(1 for p in printers if p.get('show_in_list', True) is not False)
+
+
+def theme_preset_count():
+    return sum(1 for f in os.listdir(THEME_PRESET_DIR) if f.endswith('.json'))
+
+
+def names_backend(line, name):
+    """True when @p line names the system, singular or plural, in any case."""
+    return re.search(r'\b%ss?\b' % re.escape(name), line, re.I) is not None
+
+
+def count_targets():
+    targets = [COUNTS_README]
+    for root, dirs, files in os.walk(COUNTS_USER_DIR):
+        prune_dirs(root, dirs)
+        targets.extend(os.path.join(root, f) for f in files if f.endswith('.md'))
+    return sorted(set(t for t in targets if os.path.isfile(t)))
+
+
+def check_counts():
+    """Problems as (doc, line, message), plus how many claims were checked.
+
+    A tree with neither the README nor the filament system header is not this
+    repo (a meta-test fixture) and has nothing to check. Any other missing
+    source of truth is a failure, so moving one cannot switch the check off.
+    """
+    sources = (COUNTS_README, AMS_TYPES_HEADER, PRINTER_DATABASE, THEME_PRESET_DIR)
+    if not os.path.exists(COUNTS_README) and not os.path.exists(AMS_TYPES_HEADER):
+        return [], 0
+    missing = [(src, 0, 'missing') for src in sources if not os.path.exists(src)]
+    if missing:
+        return missing, 0
+    backends = shipped_backends()
+    printers = listed_printer_count()
+    themes = theme_preset_count()
+    printer_floor = printers - printers % PRINTER_FLOOR_STEP
+    problems = []
+    readme_backend_lists = 0
+    checked = 0
+    if not backends:
+        problems.append((AMS_TYPES_HEADER, 0, 'no kAmsTypeTraits rows found'))
+    for doc in count_targets():
+        with open(doc, encoding='utf-8', errors='ignore') as fh:
+            lines = fh.read().splitlines()
+        for n, line in enumerate(lines, 1):
+            for m in _BACKEND_COUNT_RE.finditer(line):
+                checked += 1
+                if int(m.group(1)) != len(backends):
+                    problems.append((doc, n, 'says %s filament systems; the registry has %d'
+                                     % (m.group(1), len(backends))))
+                if m.group(2):
+                    if doc == COUNTS_README:
+                        readme_backend_lists += 1
+                    listed = line[m.end():]
+                    missing = [b for b in backends if not names_backend(listed, b)]
+                    if missing:
+                        problems.append((doc, n, 'filament system list omits %s'
+                                         % ', '.join(missing)))
+            if 'theme' in line.lower():
+                for m in _THEME_COUNT_RE.finditer(line):
+                    checked += 1
+                    if int(m.group(1)) != themes:
+                        problems.append((doc, n, 'says %s theme presets; %s holds %d'
+                                         % (m.group(1), THEME_PRESET_DIR, themes)))
+            for m in _PRINTER_FLOOR_RE.finditer(line):
+                checked += 1
+                over = m.group(1) is not None
+                claim = int(m.group(2) or m.group(3))
+                too_high = claim >= printers if over else claim > printers
+                if too_high or claim < printer_floor:
+                    problems.append((doc, n, 'says "%s"; the database lists %d printers, '
+                                     'so write "over %d"' % (m.group(0), printers, printer_floor)))
+    if not readme_backend_lists:
+        problems.append((COUNTS_README, 0, 'no "<N> filament systems: <list>" line to check'))
+    return problems, checked
+
+
 def last_commit_dates(paths):
     """Newest commit date (ISO) per path, from ONE streaming `git log` walk.
 
@@ -564,6 +687,8 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--refs', action='store_true', help='Only check references resolve')
     ap.add_argument('--index', action='store_true', help='Only check index completeness')
+    ap.add_argument('--counts', action='store_true',
+                    help='Only check shipped-count claims in README.md and docs/user/')
     ap.add_argument('--devel', nargs='*', dest='devel_paths', metavar='PATH',
                     help='Check docs/devel/**/*.md (or only the given .md files '
                          'and directories): path refs and markdown links')
@@ -578,6 +703,7 @@ def main():
         targets = scan_devel_targets(args.devel_paths)
         do_refs = True
         do_index = False
+        do_counts = False
     else:
         # Default scope = agent-facing docs + the docs/devel target set. The
         # docs/devel half used to be opt-in via --devel; it flipped to default
@@ -587,8 +713,10 @@ def main():
         # devel=True enables the parent-dir resolution fallback for docs/devel
         # citations; for repo-root CLAUDE.md files it is a harmless no-op.
         devel = True
-        do_refs = args.refs or not args.index
-        do_index = args.index or not args.refs
+        selected = args.refs or args.index or args.counts
+        do_refs = args.refs or not selected
+        do_index = args.index or not selected
+        do_counts = args.counts or not selected
 
     if args.list:
         for t in targets:
@@ -682,6 +810,18 @@ def main():
             exit_code = 1
         else:
             print('✅ Doc index: all %d docs routed' % len(present))
+
+    if do_counts:
+        count_problems, checked = check_counts()
+        if count_problems:
+            print('❌ Shipped counts the docs get wrong:')
+            for doc, line, msg in count_problems:
+                print('   %s:%d: %s' % (doc, line, msg))
+            print('   The registry, %s and %s are the truth; fix the doc.'
+                  % (PRINTER_DATABASE, THEME_PRESET_DIR))
+            exit_code = 1
+        else:
+            print('✅ Doc counts: %d claims match what ships' % checked)
 
     return exit_code
 

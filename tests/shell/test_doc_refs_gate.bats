@@ -259,3 +259,96 @@ EOF
     contains "zz_modified_not_created.h" "$output"
     contains "zz_never_anywhere.h" "$output"
 }
+
+# A miniature tree holding the three sources of truth the counts check reads:
+# three filament systems, 101 listed printers (one hidden), two theme presets.
+make_counts_fixture() {
+    REPO="$BATS_TEST_TMPDIR/countsrepo"
+    mkdir -p "$REPO/include" "$REPO/assets/config/themes/defaults" "$REPO/docs/user"
+    cat > "$REPO/include/ams_types.h" <<'H'
+inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
+    {AmsType::NONE, "None", "", "unknown", "", AmsBufferRows::None, nullptr},
+    {AmsType::AFC, "AFC", "AFC (Armored Turtle)", "afc", "AFC", AmsBufferRows::UnitBuffer,
+     TR_NOOP("AFC buffer")},
+    {AmsType::QIDI_BOX, "QIDI Box", "QIDI Box", "qidi_box", "qidi_box", AmsBufferRows::None,
+     nullptr},
+    {AmsType::TOOL_CHANGER, "Tool Changer", "Tool Changer", "tool_changer", "toolchanger",
+     AmsBufferRows::None, nullptr},
+};
+H
+    python3 -c "
+import json
+p = [{'id': 'p%d' % i} for i in range(101)] + [{'id': 'hidden', 'show_in_list': False}]
+json.dump({'printers': p}, open('$REPO/assets/config/printer_database.json', 'w'))"
+    echo '{}' > "$REPO/assets/config/themes/defaults/a.json"
+    echo '{}' > "$REPO/assets/config/themes/defaults/b.json"
+    cat > "$REPO/README.md" <<'MD'
+- **Multi-material** — 3 filament systems: AFC, QIDI Box, and tool changers
+- Over 100 printers, light/dark themes with 2 presets
+| Multi-Material | 3 filament systems |
+MD
+    cd "$REPO"
+}
+
+@test "counts: a README that matches what ships passes" {
+    make_counts_fixture
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 0 ]
+    contains "4 claims match" "$output"
+}
+
+@test "counts: a filament system missing from the README's list fails" {
+    make_counts_fixture
+    sed -i.orig 's/AFC, QIDI Box, and/AFC and/' README.md
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 1 ]
+    contains "README.md:1: filament system list omits QIDI Box" "$output"
+}
+
+@test "counts: a stale filament system count fails, in docs/user too" {
+    make_counts_fixture
+    echo '- 2 multi-material backends with Spoolman' > docs/user/FAQ.md
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 1 ]
+    contains "docs/user/FAQ.md:1: says 2 filament systems; the registry has 3" "$output"
+}
+
+@test "counts: a wrong theme preset count fails" {
+    make_counts_fixture
+    sed -i.orig 's/with 2 presets/with 17 presets/' README.md
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 1 ]
+    contains "says 17 theme presets" "$output"
+}
+
+@test "counts: a printer floor below the current step or above the database fails" {
+    make_counts_fixture
+    printf -- '- 80+ printers\n- over 101 models\n- 100+ models\n' > docs/user/GUIDE.md
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 1 ]
+    contains 'GUIDE.md:1: says "80+ printers"; the database lists 101 printers' "$output"
+    contains 'GUIDE.md:2: says "over 101 models"' "$output"
+    lacks "GUIDE.md:3" "$output"
+}
+
+@test "counts: a README with no filament system list cannot pass by silence" {
+    make_counts_fixture
+    printf 'Supports many filament systems.\n' > README.md
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 1 ]
+    contains 'no "<N> filament systems: <list>" line' "$output"
+}
+
+@test "counts: the shipped README and docs/user agree with the tree" {
+    cd "$BATS_TEST_DIRNAME/../.."
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 0 ]
+}
+
+@test "counts: a source of truth that moves fails instead of going quiet" {
+    make_counts_fixture
+    rm assets/config/printer_database.json
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 1 ]
+    contains "assets/config/printer_database.json:0: missing" "$output"
+}

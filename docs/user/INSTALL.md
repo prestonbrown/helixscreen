@@ -379,7 +379,7 @@ The wizard will test the connection before proceeding.
 ### Step 5: Printer Identification
 HelixScreen will try to identify your printer from its configuration. You can:
 - Confirm the detected printer type
-- Select from a database of 90+ printers
+- Select from a database of over 100 printers
 - Enter custom settings
 
 ### Step 6: Heater Selection

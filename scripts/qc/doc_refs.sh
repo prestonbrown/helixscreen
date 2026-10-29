@@ -7,7 +7,8 @@
 # shellcheck disable=SC2034,SC2154
 
 # ====================================================================
-# Agent-facing docs: references resolve, doc index is complete
+# Agent-facing docs: references resolve, doc index is complete, and the
+# public docs state shipped counts truthfully
 # ====================================================================
 qc_doc_refs() {
   local EXIT_CODE=0
@@ -31,4 +32,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_doc_refs='\.md$|^scripts/check_doc_refs\.py$'
+QC_TRIGGER_qc_doc_refs='\.md$|^scripts/check_doc_refs\.py$|^include/ams_types\.h$|^assets/config/printer_database\.json$|^assets/config/themes/defaults/'
