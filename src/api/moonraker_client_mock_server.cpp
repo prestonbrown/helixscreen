@@ -6,6 +6,7 @@
 #include "json_utils.h"
 #include "mock_disk_usage.h"
 #include "moonraker_client_mock_internal.h"
+#include "pa_calibration.h"
 
 #include <spdlog/spdlog.h>
 
@@ -602,6 +603,17 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                 {"available", true},
                 {"enabled", fit_opt_in.is_boolean() && fit_opt_in.get<bool>()},
                 {"reason", nullptr}};
+            // pa_gauge heats and moves, so it is off until opted into, and the
+            // plugin only offers it on a printer with a nozzle force sensor.
+            const json gauge_opt_in = self->mock_db_get("helix-screen", "plugin_features.pa_gauge");
+            const bool has_sensor = helix::pacal::can_add_measuring(self->hardware());
+            response["result"]["features"]["pa_gauge"] = {
+                {"version", 1},
+                {"available", has_sensor},
+                {"enabled", has_sensor && gauge_opt_in.is_boolean() && gauge_opt_in.get<bool>()},
+                {"reason", has_sensor ? json(nullptr) : json("no_force_sensor")}};
+            response["result"]["features"]["klipper_companions"] = {
+                {"version", 1}, {"available", true}, {"enabled", true}, {"reason", nullptr}};
             // The rest of what the plugin ships, each on and running.
             for (const char* name : {"file_analysis", "server_edits", "config_edit", "storage"}) {
                 response["result"]["features"][name] = {

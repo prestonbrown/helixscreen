@@ -2031,6 +2031,8 @@ translations:
     мог зависнуть.
   Installed: 'Установлено'
   Installing...: Установка...
+  ? Installs a Klipper module that measures pressure advance with the nozzle's force sensor. It appears under Calibration after the next Klipper restart.
+  : 'Устанавливает модуль Klipper, который измеряет Pressure Advance датчиком усилия сопла. Он появится в разделе Калибровка после следующего перезапуска Klipper.'
   Intensity: Интенсивность
   Interactive calibration for all lanes: 'Интерактивная калибровка всех каналов'
   Interactive probe calibration: Интерактивная калибровка зонда
@@ -2125,6 +2127,7 @@ translations:
     разгоном или ошибкой конфигурации.
   Klipper has no [virtual_sdcard] section.: "В Klipper нет раздела [virtual_sdcard]."
   Klipper is halted — restart firmware to continue: Klipper остановлен — перезапустите прошивку, чтобы продолжить
+  Klipper modules: 'Модули Klipper'
   Klipper ready: Klipper готов
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper резервирует 'default' для новых калибровок. Выберите другое имя."
   Klipper restarting - macros activating: 'Перезапуск Klipper - активация макросов'
@@ -2427,6 +2430,7 @@ translations:
   Monitoring: Мониторинг
   Month: Месяц
   Moonraker: Moonraker
+  Moonraker doesn't say where Klipper is installed.: 'Moonraker не сообщает, где установлен Klipper.'
   Moonraker has no G-code folder.: "У Moonraker нет папки G-code."
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : 'Moonraker подключен к Spoolman, который учитывает ваши катушки и остаток филамента. Просматривайте их на экране Spoolman.'
@@ -2976,6 +2980,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
+  Pressure advance from the nozzle sensor: 'Pressure Advance по датчику сопла'
   'Pressure:': 'Давление:'
   Pressed: Нажата
   Pressure Adv.: 'Pressure Adv.'
@@ -4144,6 +4149,8 @@ translations:
   The plate finishes its current move, but drying will not start.: 'Стол завершит текущее перемещение, но сушка не начнётся.'
   The plugin can't reach the camera, so this screen takes the photos.: "Плагин не может подключиться к камере, поэтому фотографирует этот экран."
   The plugin can't save its recovery data to disk.: "Плагин не может сохранить данные для восстановления."
+  The plugin couldn't install its Klipper module.: 'Плагину не удалось установить свой модуль Klipper.'
+  The plugin couldn't remove its Klipper module.: 'Плагину не удалось удалить свой модуль Klipper.'
   The plugin is turned off in moonraker.conf.: "Плагин выключен в moonraker.conf."
   The print ended before any layer was printed. Nothing was changed.: Печать завершилась до первого слоя. Ничего не изменено.
   The print is canceled and you pick the best band from what has printed so far.: Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного.
@@ -4295,6 +4302,7 @@ translations:
   This printer has no IFS.: "У этого принтера нет IFS."
   This printer has no INDX LOAD_FILAMENT macro: "На этом принтере нет макроса INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
+  This printer has no nozzle force sensor.: 'У этого принтера нет датчика усилия на сопле.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
   "This printer's INDX macros are missing: {}": "В макросах INDX этого принтера отсутствует: {}"

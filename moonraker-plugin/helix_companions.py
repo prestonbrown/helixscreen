@@ -48,6 +48,8 @@ class Companion:
     feature: str
     # Installed only on a printer with at least one of these Klipper objects.
     needs_any: Tuple[str, ...]
+    # The feature's unavailability reason on a printer with none of them.
+    missing_reason: str
     version: int
 
 
@@ -57,6 +59,7 @@ COMPANIONS: Tuple[Companion, ...] = (
         files=("helix_pa_gauge.py", "helix_pa_fit.py"),
         feature="pa_gauge",
         needs_any=("prtouch_v3", "load_cell", "load_cell_probe"),
+        missing_reason="no_force_sensor",
         version=1,
     ),
 )
@@ -94,11 +97,14 @@ def plan_actions(
             continue
         if objects is None:
             continue
-        wanted = c.feature in enabled and any(o in objects for o in c.needs_any)
+        has_hardware = any(o in objects for o in c.needs_any)
+        wanted = c.feature in enabled and has_hardware
         if wanted and not (state.get("files") and state.get("cfg") and state.get("current")):
             actions += [("install", c.name), ("restart_pending", c.name)]
         elif not wanted and present:
             actions += [("remove", c.name), ("restart_pending", c.name)]
+        if not has_hardware:
+            actions.append(("unavailable", c.name, c.missing_reason))
     if repaired and not job_active:
         actions.append(("restart",))
     return actions
@@ -254,6 +260,7 @@ class CompanionManager:
         self.fs = fs or RealFs()
         self.state: Dict[str, Dict[str, Any]] = {}
         self._lock = asyncio.Lock()
+        self._seen_opt_ins: Optional[Dict[str, Any]] = None
 
     def start(self) -> None:
         server = self.helix.server
@@ -264,6 +271,18 @@ class CompanionManager:
     async def _handle_sync(self, web_request: Any) -> Dict[str, Any]:
         await self.sync()
         return self.status()
+
+    def note_opt_ins(self, opt_ins: Dict[str, Any]) -> Optional["asyncio.Task[None]"]:
+        """The feature switches as a screen's status read found them. A screen
+        reads the status right after it writes a switch, so a companion
+        feature switched since the last read starts a sync here, and the
+        module goes in or out without waiting for a Klippy event. Returns the
+        sync's task, or None when nothing changed."""
+        seen = {c.feature: opt_ins.get(c.feature) for c in COMPANIONS}
+        if seen == self._seen_opt_ins:
+            return None
+        self._seen_opt_ins = seen
+        return asyncio.get_event_loop().create_task(self.sync())
 
     def status(self) -> Dict[str, Any]:
         return {name: dict(entry) for name, entry in self.state.items()}
@@ -325,8 +344,9 @@ class CompanionManager:
                     self.state.setdefault(c.name, {"installed": False, "reason": None})
                     self.state[c.name]["restart_pending"] = True
                 elif kind == "unavailable":
-                    self.state[c.name] = {"installed": False, "restart_pending": False,
-                                          "reason": action[2]}
+                    entry = self.state.setdefault(c.name, {"installed": False,
+                                                           "restart_pending": False})
+                    entry["reason"] = action[2]
                 elif kind == "restart":
                     await self._restart()
             except OSError as e:
@@ -337,6 +357,10 @@ class CompanionManager:
         for c in COMPANIONS:
             self.state.setdefault(c.name, {"installed": bool(installed.get(c.name, {}).get("cfg")),
                                            "restart_pending": False, "reason": None})
+            # Hardware that has appeared since clears its absence.
+            if (objects is not None and self.state[c.name].get("reason") == c.missing_reason
+                    and any(o in objects for o in c.needs_any)):
+                self.state[c.name]["reason"] = None
         if self.status() != before:
             self.helix.notify_features_changed()
 

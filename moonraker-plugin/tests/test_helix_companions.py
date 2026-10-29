@@ -8,6 +8,7 @@ from booting, so the order is the safety property.
 Run with: pytest tests/test_helix_companions.py -v
 """
 
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -55,8 +56,19 @@ def test_disabled_feature_removes_an_installed_companion():
     assert actions[0] == ("remove", "helix_pa_gauge")
 
 
-def test_a_printer_without_the_sensor_gets_nothing():
-    assert _plan(objects=["extruder", "toolhead"]) == []
+def test_a_printer_without_the_sensor_gets_nothing_and_says_why():
+    assert _plan(objects=["extruder", "toolhead"]) == [
+        ("unavailable", "helix_pa_gauge", "no_force_sensor")]
+    # Said whether or not the feature is switched on, so no screen offers it.
+    assert _plan(enabled=set(), objects=["extruder"]) == [
+        ("unavailable", "helix_pa_gauge", "no_force_sensor")]
+
+
+def test_an_installed_companion_without_its_sensor_is_removed_then_reported():
+    actions = _plan(objects=["extruder"],
+                    installed={"helix_pa_gauge": {"files": True, "cfg": True, "current": True}})
+    assert actions == [("remove", "helix_pa_gauge"), ("restart_pending", "helix_pa_gauge"),
+                       ("unavailable", "helix_pa_gauge", "no_force_sensor")]
 
 
 @pytest.mark.parametrize("sensor", ["load_cell", "load_cell_probe", "prtouch_v3"])
@@ -208,6 +220,21 @@ async def test_sync_installs_on_a_printer_with_a_force_sensor(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_sync_reports_a_printer_without_a_force_sensor(tmp_path):
+    plugin, klipper, config = _tree(tmp_path)
+    apis = FakeApis({"klipper_path": str(klipper), "state": "ready"}, objects=["extruder"])
+    helix = FakeHelix(apis, {"pa_gauge"}, str(config))
+    manager = hc.CompanionManager(helix, plugin_dir=str(plugin))
+    await manager.sync()
+    assert manager.status()["helix_pa_gauge"]["reason"] == "no_force_sensor"
+    assert not (config / "helix_companions").exists()
+    # The sensor appears (a firmware swap, a config change): the reason goes.
+    apis.objects = FORCE
+    await manager.sync()
+    assert manager.status()["helix_pa_gauge"]["reason"] is None
+
+
+@pytest.mark.asyncio
 async def test_sync_repairs_and_restarts_klipper_stopped_on_our_section(tmp_path):
     plugin, klipper, config = _tree(tmp_path)
     (config / "helix_companions").mkdir()
@@ -265,3 +292,22 @@ def test_uninstall_with_nothing_installed_is_a_no_op(tmp_path):
     (tmp_path / "printer.cfg").write_text("[printer]\n")
     assert hc.uninstall_companions(tmp_path) is None
     assert (tmp_path / "printer.cfg").read_text() == "[printer]\n"
+
+
+@pytest.mark.asyncio
+async def test_a_switched_feature_syncs_when_the_status_is_next_read(tmp_path):
+    plugin, klipper, config = _tree(tmp_path)
+    apis = FakeApis({"klipper_path": str(klipper), "state": "ready"}, objects=FORCE)
+    helix = FakeHelix(apis, set(), str(config))
+    manager = hc.CompanionManager(helix, plugin_dir=str(plugin))
+    assert manager.note_opt_ins({}) is not None
+    await asyncio.sleep(0)
+    assert manager.note_opt_ins({"photos": True}) is None
+    # The user switches the gauge on: the screen writes the opt-in, then
+    # reads the status, and the companion goes in without a Klippy event.
+    helix._enabled = {"pa_gauge"}
+    task = manager.note_opt_ins({"pa_gauge": True})
+    assert task is not None
+    await task
+    assert (config / "helix_companions" / "helix_pa_gauge.cfg").exists()
+    assert manager.note_opt_ins({"pa_gauge": True}) is None

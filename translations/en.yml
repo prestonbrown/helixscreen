@@ -1939,6 +1939,8 @@ translations:
     may be stuck.
   Installed: Installed
   Installing...: Installing...
+  ? Installs a Klipper module that measures pressure advance with the nozzle's force sensor. It appears under Calibration after the next Klipper restart.
+  : Installs a Klipper module that measures pressure advance with the nozzle's force sensor. It appears under Calibration after the next Klipper restart.
   Intensity: Intensity
   Interactive calibration for all lanes: Interactive calibration for all lanes
   Interactive probe calibration: Interactive probe calibration
@@ -2031,6 +2033,7 @@ translations:
     or configuration error.
   Klipper has no [virtual_sdcard] section.: Klipper has no [virtual_sdcard] section.
   Klipper is halted — restart firmware to continue: Klipper is halted — restart firmware to continue
+  Klipper modules: Klipper modules
   Klipper ready: Klipper ready
   Klipper reserves 'default' for new calibrations. Choose another name.: Klipper reserves 'default' for new calibrations. Choose another name.
   Klipper restarting - macros activating: Klipper restarting - macros activating
@@ -2329,6 +2332,7 @@ translations:
   Monitoring: Monitoring
   Month: Month
   Moonraker: Moonraker
+  Moonraker doesn't say where Klipper is installed.: Moonraker doesn't say where Klipper is installed.
   Moonraker has no G-code folder.: Moonraker has no G-code folder.
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
@@ -2870,6 +2874,7 @@ translations:
   Pressure advance: Pressure advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
+  Pressure advance from the nozzle sensor: Pressure advance from the nozzle sensor
   'Pressure:': 'Pressure:'
   Pressed: Pressed
   Pressure Adv.: Pressure Adv.
@@ -4005,6 +4010,8 @@ translations:
   The plate finishes its current move, but drying will not start.: The plate finishes its current move, but drying will not start.
   The plugin can't reach the camera, so this screen takes the photos.: The plugin can't reach the camera, so this screen takes the photos.
   The plugin can't save its recovery data to disk.: The plugin can't save its recovery data to disk.
+  The plugin couldn't install its Klipper module.: The plugin couldn't install its Klipper module.
+  The plugin couldn't remove its Klipper module.: The plugin couldn't remove its Klipper module.
   The plugin is turned off in moonraker.conf.: The plugin is turned off in moonraker.conf.
   The print ended before any layer was printed. Nothing was changed.: The print ended before any layer was printed. Nothing was changed.
   The print is canceled and you pick the best band from what has printed so far.: The print is canceled and you pick the best band from what has printed so far.
@@ -4153,6 +4160,7 @@ translations:
   This printer has no IFS.: This printer has no IFS.
   This printer has no INDX LOAD_FILAMENT macro: This printer has no INDX LOAD_FILAMENT macro
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: This printer has no automatic unload. Cut the filament at the head and pull it out by hand.
+  This printer has no nozzle force sensor.: This printer has no nozzle force sensor.
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   "This printer's INDX macros are missing: {}": "This printer's INDX macros are missing: {}"

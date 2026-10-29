@@ -1809,6 +1809,7 @@
   <translation tag="Installation timed out. The script may be stuck." pt="A instalação — tempo esgotado. O script pode estar travado."/>
   <translation tag="Installed" pt="Instalado"/>
   <translation tag="Installing..." pt="Instalando..."/>
+  <translation tag="Installs a Klipper module that measures pressure advance with the nozzle&apos;s force sensor. It appears under Calibration after the next Klipper restart." pt="Instala um módulo do Klipper que mede o Pressure Advance com o sensor de força do bico. Ele aparece em Calibração após a próxima reinicialização do Klipper."/>
   <translation tag="Intensity" pt="Intensidade"/>
   <translation tag="Interactive calibration for all lanes" pt="Calibração interativa para todas as lanes"/>
   <translation tag="Interactive probe calibration" pt="Calibração interativa de sonda"/>
@@ -1890,6 +1891,7 @@
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." pt="O Klipper entrou em estado de desligamento. Isso pode ser devido a uma parada de emergência, fuga térmica ou erro de configuração."/>
   <translation tag="Klipper has no [virtual_sdcard] section." pt="O Klipper não tem uma seção [virtual_sdcard]."/>
   <translation tag="Klipper is halted — restart firmware to continue" pt="O Klipper está parado — reinicie o firmware para continuar"/>
+  <translation tag="Klipper modules" pt="Módulos do Klipper"/>
   <translation tag="Klipper ready" pt="Klipper pronto"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." pt="O Klipper reserva &apos;default&apos; para novas calibrações. Escolha outro nome."/>
   <translation tag="Klipper restarting - macros activating" pt="Reiniciando o Klipper - ativando macros"/>
@@ -2180,6 +2182,7 @@
   <translation tag="Month" pt="Mês"/>
   <translation tag="Moonraker" pt="Moonraker"/>
   <translation tag="Moonraker answered at {}." pt="O Moonraker respondeu em {}."/>
+  <translation tag="Moonraker doesn&apos;t say where Klipper is installed." pt="O Moonraker não informa onde o Klipper está instalado."/>
   <translation tag="Moonraker has no G-code folder." pt="O Moonraker não tem pasta de G-code."/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." pt="O Moonraker está conectado ao Spoolman, que registra seus carretéis e quanto filamento resta. Veja-os na tela Spoolman."/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." pt="O Moonraker não está respondendo em {}. Ele roda nesta impressora, então verifique se os serviços Klipper e Moonraker foram iniciados."/>
@@ -2689,6 +2692,7 @@
   <translation tag="Pressure Advance Tuning" pt="Ajuste de Pressure Advance"/>
   <translation tag="Pressure advance" pt="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." pt="O Pressure Advance sobe à medida que a torre cresce. Observe os cantos: toque em - ou + quando quiser e a rampa para, para você julgar seu próprio valor."/>
+  <translation tag="Pressure advance from the nozzle sensor" pt="Pressure Advance pelo sensor do bico"/>
   <translation tag="Pressure:" pt="Pressão:"/>
   <translation tag="Preview" pt="Pré-visualização"/>
   <translation tag="Preview Sounds" pt="Visualizar Sons"/>
@@ -3734,6 +3738,8 @@
   <translation tag="The plate finishes its current move, but drying will not start." pt="A mesa termina o movimento atual, mas a secagem não vai começar."/>
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." pt="O plugin não alcança a câmera, então esta tela tira as fotos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." pt="O plugin não consegue salvar seus dados de recuperação."/>
+  <translation tag="The plugin couldn&apos;t install its Klipper module." pt="O plugin não conseguiu instalar seu módulo do Klipper."/>
+  <translation tag="The plugin couldn&apos;t remove its Klipper module." pt="O plugin não conseguiu remover seu módulo do Klipper."/>
   <translation tag="The plugin is turned off in moonraker.conf." pt="O plugin está desligado no moonraker.conf."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." pt="A impressão terminou antes de qualquer camada ser impressa. Nada foi alterado."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." pt="A impressão é cancelada e você escolhe a melhor faixa do que foi impresso até agora."/>
@@ -3861,6 +3867,7 @@
   <translation tag="This printer has no IFS." pt="Esta impressora não tem IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" pt="Esta impressora não tem a macro LOAD_FILAMENT do INDX"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." pt="Esta impressora não tem descarga automática. Corte o filamento no cabeçote e retire-o à mão."/>
+  <translation tag="This printer has no nozzle force sensor." pt="Esta impressora não tem sensor de força no bico."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." pt="Esta impressora parece ser uma {} ({}% de confiança), mas está configurada como {}. Um tipo errado aplica opções de pré-impressão e predefinições incorretas."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" pt="Faltam nas macros do INDX desta impressora: {}"/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" pt="O serviço de rede desta impressora controla o rádio WiFi"/>

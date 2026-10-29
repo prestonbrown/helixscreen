@@ -4,6 +4,7 @@
 #include "filament_accounting.h"
 #include "fit_check.h"
 #include "helix_plugin_features.h"
+#include "pa_calibration.h"
 #include "plr_backend.h"
 #include "print_photos.h"
 #include "standing_print_options.h"
@@ -33,7 +34,7 @@ struct PluginSwitchFeature {
     const char* on_subject;
 };
 
-inline constexpr std::array<PluginSwitchFeature, 6> kPluginSwitchFeatures = {{
+inline constexpr std::array<PluginSwitchFeature, 7> kPluginSwitchFeatures = {{
     {kPlrFeatureName, kPlrFeatureMinVersion, false, true, "plugin_feature_mode_plr", nullptr},
     {kPrintHooksFeature, kPrintHooksMinVersion, true, true, "plugin_feature_mode_print_hooks",
      "plugin_feature_on_print_hooks"},
@@ -46,6 +47,8 @@ inline constexpr std::array<PluginSwitchFeature, 6> kPluginSwitchFeatures = {{
     {kFitCheckFeature, kFitCheckMinVersion, false, true,
      "plugin_feature_mode_fit_check_blocks_autostart",
      "plugin_feature_on_fit_check_blocks_autostart"},
+    {pacal::kPaGaugeFeature, pacal::kPaGaugeMinVersion, false, true, "plugin_feature_mode_pa_gauge",
+     "plugin_feature_on_pa_gauge"},
 }};
 
 /// helix_plugin_installed values once the probe has answered (-1 before). A

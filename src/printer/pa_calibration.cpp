@@ -208,6 +208,16 @@ std::string provider_name(const PrinterDiscovery& hw) {
     return p ? p->name : std::string{};
 }
 
+bool can_add_measuring(const PrinterDiscovery& hw) {
+    // The force sensors the plugin's helix_pa_gauge reads; it keeps the same
+    // list (COMPANIONS in moonraker-plugin/helix_companions.py).
+    constexpr const char* kForceSensors[] = {"prtouch_v3", "load_cell", "load_cell_probe"};
+    const auto& objects = hw.printer_objects();
+    return std::any_of(std::begin(kForceSensors), std::end(kForceSensors), [&](const char* s) {
+        return std::find(objects.begin(), objects.end(), s) != objects.end();
+    });
+}
+
 bool is_per_tool(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     return p && p->per_tool;

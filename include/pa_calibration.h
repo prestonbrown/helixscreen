@@ -90,6 +90,16 @@ std::string provider_name(const PrinterDiscovery& hw);
 /// silently do nothing.
 bool is_per_tool(const PrinterDiscovery& hw);
 
+/// The HelixPrint plugin feature that installs a measuring provider on a
+/// printer with a nozzle force sensor, so a printer the table does not match
+/// yet can still be offered one.
+inline constexpr const char* kPaGaugeFeature = "pa_gauge";
+inline constexpr int kPaGaugeMinVersion = 1;
+
+/// Whether this printer has the hardware kPaGaugeFeature measures with. True
+/// on a printer that already measures too, so its switch stays reachable.
+bool can_add_measuring(const PrinterDiscovery& hw);
+
 /// The procedure for calibrating `tool_index` at `temp_c` on this printer, or
 /// nullopt when the printer cannot do it. Firmware that calibrates the mounted
 /// tool ignores `tool_index`; the panel mounts the chosen tool before a run.

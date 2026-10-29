@@ -1877,6 +1877,8 @@ translations:
   Installation timed out. The script may be stuck.: 安装超时。脚本可能已卡住。
   Installed: '已安装'
   Installing...: 正在安装...
+  ? Installs a Klipper module that measures pressure advance with the nozzle's force sensor. It appears under Calibration after the next Klipper restart.
+  : '安装一个 Klipper 模块，用喷嘴的力传感器测量压力提前。下次重启 Klipper 后，它会出现在校准中。'
   Intensity: 强度
   Interactive calibration for all lanes: '所有耗材通道的交互式校准'
   Interactive probe calibration: 交互式探针校准
@@ -1966,6 +1968,7 @@ translations:
     已进入关机状态。这可能是由于紧急停止、热失控或配置错误引起的。
   Klipper has no [virtual_sdcard] section.: "Klipper 没有 [virtual_sdcard] 部分。"
   Klipper is halted — restart firmware to continue: Klipper 已停止 — 请重启固件以继续
+  Klipper modules: 'Klipper 模块'
   Klipper ready: Klipper就绪
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
   Klipper restarting - macros activating: '正在重启 Klipper - 正在启用宏'
@@ -2256,6 +2259,7 @@ translations:
   Monitoring: 监控中
   Month: 月
   Moonraker: Moonraker
+  Moonraker doesn't say where Klipper is installed.: 'Moonraker 未说明 Klipper 的安装位置。'
   Moonraker has no G-code folder.: "Moonraker 没有 G-code 文件夹。"
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : 'Moonraker 已连接 Spoolman,它会记录你的料盘和剩余耗材量。在 Spoolman 界面浏览。'
@@ -2786,6 +2790,7 @@ translations:
   Pressure advance: 压力提前
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : '压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。'
+  Pressure advance from the nozzle sensor: '通过喷嘴传感器测量压力提前'
   'Pressure:': '压力:'
   Pressed: 按下
   Pressure Adv.: '压力提前'
@@ -3877,6 +3882,8 @@ translations:
   The plate finishes its current move, but drying will not start.: '热床会完成当前移动,但烘干不会开始。'
   The plugin can't reach the camera, so this screen takes the photos.: "插件无法连接摄像头，因此由此屏幕拍照。"
   The plugin can't save its recovery data to disk.: "插件无法保存其恢复数据。"
+  The plugin couldn't install its Klipper module.: '插件无法安装其 Klipper 模块。'
+  The plugin couldn't remove its Klipper module.: '插件无法移除其 Klipper 模块。'
   The plugin is turned off in moonraker.conf.: "插件已在 moonraker.conf 中关闭。"
   The print ended before any layer was printed. Nothing was changed.: 打印在任何一层完成前就结束了。未做任何更改。
   The print is canceled and you pick the best band from what has printed so far.: 打印将被取消,你可以从已打印的部分中选择最佳区段。
@@ -4017,6 +4024,7 @@ translations:
   This printer has no IFS.: "此打印机没有 IFS。"
   This printer has no INDX LOAD_FILAMENT macro: "此打印机没有 INDX LOAD_FILAMENT 宏"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: 此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。
+  This printer has no nozzle force sensor.: '此打印机没有喷嘴力传感器。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : 此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。
   "This printer's INDX macros are missing: {}": "此打印机的 INDX 宏缺少：{}"

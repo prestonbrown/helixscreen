@@ -492,6 +492,29 @@ TEST_CASE("PrinterState: a post-init answer still wins over the latched one",
     CHECK_FALSE(state.is_spoolman_available());
 }
 
+TEST_CASE("PrinterCapabilitiesState: a force sensor offers pressure advance measuring",
+          "[printer_state][capabilities][pa_calibration]") {
+    lv_init_safe();
+    PrinterCapabilitiesState caps;
+    caps.init_subjects(false);
+    CapabilityOverrides overrides;
+
+    PrinterDiscovery plain;
+    plain.parse_objects(nlohmann::json::array({"extruder"}));
+    plain.set_printer_objects({"extruder"});
+    overrides.set_hardware(plain);
+    caps.set_hardware(plain, overrides);
+    CHECK(lv_subject_get_int(caps.subject(Capability::CanAddPaCal)) == 0);
+
+    PrinterDiscovery sensor;
+    sensor.parse_objects(nlohmann::json::array({"extruder", "load_cell_probe"}));
+    sensor.set_printer_objects({"extruder", "load_cell_probe"});
+    overrides.set_hardware(sensor);
+    caps.set_hardware(sensor, overrides);
+    CHECK(lv_subject_get_int(caps.subject(Capability::CanAddPaCal)) == 1);
+    CHECK(lv_subject_get_int(caps.subject(Capability::HasPaCal)) == 0);
+}
+
 TEST_CASE("PrinterCapabilitiesState: every setter's pre-init answer survives init",
           "[printer_state][capabilities]") {
     lv_init_safe();

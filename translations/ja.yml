@@ -1882,6 +1882,8 @@ translations:
   Installation timed out. The script may be stuck.: インストールがタイムアウトしました。スクリプトが停止している可能性があります。
   Installed: 'インストール済み'
   Installing...: インストール中...
+  ? Installs a Klipper module that measures pressure advance with the nozzle's force sensor. It appears under Calibration after the next Klipper restart.
+  : 'ノズルの力センサーで Pressure Advance を測定する Klipper モジュールをインストールします。次回の Klipper 再起動後、キャリブレーションに表示されます。'
   Intensity: 強度
   Interactive calibration for all lanes: '全レーンの対話式キャリブレーション'
   Interactive probe calibration: インタラクティブプローブキャリブレーション
@@ -1971,6 +1973,7 @@ translations:
     がシャットダウン状態になりました。緊急停止、熱暴走、または設定エラーが原因の可能性があります。
   Klipper has no [virtual_sdcard] section.: "Klipperに[virtual_sdcard]セクションがありません。"
   Klipper is halted — restart firmware to continue: Klipper が停止しています — 続行するにはファームウェアを再起動してください
+  Klipper modules: 'Klipper モジュール'
   Klipper ready: Klipper準備完了
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper は 'default' を新しいキャリブレーション用に予約しています。別の名前を選んでください。"
   Klipper restarting - macros activating: 'Klipper を再起動しています - マクロを有効化中'
@@ -2262,6 +2265,7 @@ translations:
   Monitoring: モニタリング
   Month: 月
   Moonraker: Moonraker
+  Moonraker doesn't say where Klipper is installed.: 'Moonraker が Klipper のインストール先を示していません。'
   Moonraker has no G-code folder.: "MoonrakerにG-codeフォルダーがありません。"
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : 'MoonrakerはSpoolmanに接続されており、スプールとフィラメントの残量を管理します。Spoolman画面で一覧を確認できます。'
@@ -2794,6 +2798,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。'
+  Pressure advance from the nozzle sensor: 'ノズルセンサーによる Pressure Advance'
   'Pressure:': '圧力:'
   Pressed: 押下
   Pressure Adv.: 'Pressure Adv.'
@@ -3886,6 +3891,8 @@ translations:
   The plate finishes its current move, but drying will not start.: 'ベッドは現在の移動を完了しますが、乾燥は開始しません。'
   The plugin can't reach the camera, so this screen takes the photos.: "プラグインがカメラに接続できないため、この画面が写真を撮ります。"
   The plugin can't save its recovery data to disk.: "プラグインが復帰データを保存できません。"
+  The plugin couldn't install its Klipper module.: 'プラグインが Klipper モジュールをインストールできませんでした。'
+  The plugin couldn't remove its Klipper module.: 'プラグインが Klipper モジュールを削除できませんでした。'
   The plugin is turned off in moonraker.conf.: "プラグインはmoonraker.confでオフになっています。"
   The print ended before any layer was printed. Nothing was changed.: レイヤーが印刷される前に印刷が終了しました。何も変更されていません。
   The print is canceled and you pick the best band from what has printed so far.: 印刷をキャンセルし、ここまで印刷された中から最適な区間を選びます。
@@ -4026,6 +4033,7 @@ translations:
   This printer has no IFS.: "このプリンターにはIFSがありません。"
   This printer has no INDX LOAD_FILAMENT macro: "このプリンターにはINDXのLOAD_FILAMENTマクロがありません"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
+  This printer has no nozzle force sensor.: 'このプリンターにはノズルの力センサーがありません。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。
   "This printer's INDX macros are missing: {}": "このプリンターのINDXマクロに不足があります: {}"

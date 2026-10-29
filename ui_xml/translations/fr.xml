@@ -1809,6 +1809,7 @@
   <translation tag="Installation timed out. The script may be stuck." fr="Installation — délai dépassé. Le script est peut-être bloqué."/>
   <translation tag="Installed" fr="Installé"/>
   <translation tag="Installing..." fr="Installation..."/>
+  <translation tag="Installs a Klipper module that measures pressure advance with the nozzle&apos;s force sensor. It appears under Calibration after the next Klipper restart." fr="Installe un module Klipper qui mesure le Pressure Advance avec le capteur de force de la buse. Il apparaît dans Calibration après le prochain redémarrage de Klipper."/>
   <translation tag="Intensity" fr="Intensité"/>
   <translation tag="Interactive calibration for all lanes" fr="Calibration interactive pour toutes les voies"/>
   <translation tag="Interactive probe calibration" fr="Calibration interactive de la sonde"/>
@@ -1890,6 +1891,7 @@
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." fr="Klipper est passé en état d&apos;arrêt. Cela peut être dû à un arrêt d&apos;urgence, à un emballement thermique ou à une erreur de configuration."/>
   <translation tag="Klipper has no [virtual_sdcard] section." fr="Klipper n&apos;a pas de section [virtual_sdcard]."/>
   <translation tag="Klipper is halted — restart firmware to continue" fr="Klipper est arrêté — redémarrez le firmware pour continuer"/>
+  <translation tag="Klipper modules" fr="Modules Klipper"/>
   <translation tag="Klipper ready" fr="Klipper prêt"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." fr="Klipper réserve &apos;default&apos; aux nouvelles calibrations. Choisissez un autre nom."/>
   <translation tag="Klipper restarting - macros activating" fr="Redémarrage de Klipper - activation des macros"/>
@@ -2180,6 +2182,7 @@
   <translation tag="Month" fr="Mois"/>
   <translation tag="Moonraker" fr="Moonraker"/>
   <translation tag="Moonraker answered at {}." fr="Moonraker a répondu à {}."/>
+  <translation tag="Moonraker doesn&apos;t say where Klipper is installed." fr="Moonraker n&apos;indique pas où Klipper est installé."/>
   <translation tag="Moonraker has no G-code folder." fr="Moonraker n&apos;a pas de dossier G-code."/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." fr="Moonraker est connecté à Spoolman, qui suit vos bobines et le filament restant. Parcourez-les sur l&apos;écran Spoolman."/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." fr="Moonraker ne répond pas à {}. Il tourne sur cette imprimante : vérifiez que les services Klipper et Moonraker ont démarré."/>
@@ -2689,6 +2692,7 @@
   <translation tag="Pressure Advance Tuning" fr="Réglage du Pressure Advance"/>
   <translation tag="Pressure advance" fr="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." fr="Le Pressure Advance augmente avec la hauteur de la tour. Observez les angles : touchez - ou + quand vous voulez et la rampe s&apos;arrête pour que vous jugiez votre propre valeur."/>
+  <translation tag="Pressure advance from the nozzle sensor" fr="Pressure Advance par le capteur de buse"/>
   <translation tag="Pressure:" fr="Pression :"/>
   <translation tag="Preview" fr="Aperçu"/>
   <translation tag="Preview Sounds" fr="Aperçu des sons"/>
@@ -3734,6 +3738,8 @@
   <translation tag="The plate finishes its current move, but drying will not start." fr="Le plateau termine son déplacement en cours, mais le séchage ne démarrera pas."/>
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." fr="Le plugin n&apos;atteint pas la caméra, cet écran prend donc les photos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." fr="Le plugin ne peut pas enregistrer ses données de reprise."/>
+  <translation tag="The plugin couldn&apos;t install its Klipper module." fr="Le plugin n&apos;a pas pu installer son module Klipper."/>
+  <translation tag="The plugin couldn&apos;t remove its Klipper module." fr="Le plugin n&apos;a pas pu retirer son module Klipper."/>
   <translation tag="The plugin is turned off in moonraker.conf." fr="Le plugin est désactivé dans moonraker.conf."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." fr="L&apos;impression s&apos;est terminée avant la première couche. Rien n&apos;a été modifié."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." fr="L&apos;impression est annulée et vous choisissez la meilleure bande parmi ce qui a été imprimé."/>
@@ -3861,6 +3867,7 @@
   <translation tag="This printer has no IFS." fr="Cette imprimante n&apos;a pas d&apos;IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" fr="Cette imprimante n&apos;a pas de macro INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." fr="Cette imprimante n&apos;a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main."/>
+  <translation tag="This printer has no nozzle force sensor." fr="Cette imprimante n&apos;a pas de capteur de force sur la buse."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." fr="Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" fr="Il manque aux macros INDX de cette imprimante : {}"/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" fr="Le service réseau de cette imprimante contrôle la radio WiFi"/>

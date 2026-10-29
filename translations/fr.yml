@@ -2004,6 +2004,8 @@ translations:
     Le script est peut-être bloqué.
   Installed: 'Installé'
   Installing...: Installation...
+  ? Installs a Klipper module that measures pressure advance with the nozzle's force sensor. It appears under Calibration after the next Klipper restart.
+  : 'Installe un module Klipper qui mesure le Pressure Advance avec le capteur de force de la buse. Il apparaît dans Calibration après le prochain redémarrage de Klipper.'
   Intensity: Intensité
   Interactive calibration for all lanes: 'Calibration interactive pour toutes les voies'
   Interactive probe calibration: Calibration interactive de la sonde
@@ -2098,6 +2100,7 @@ translations:
     thermique ou à une erreur de configuration.
   Klipper has no [virtual_sdcard] section.: "Klipper n'a pas de section [virtual_sdcard]."
   Klipper is halted — restart firmware to continue: Klipper est arrêté — redémarrez le firmware pour continuer
+  Klipper modules: 'Modules Klipper'
   Klipper ready: Klipper prêt
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper réserve 'default' aux nouvelles calibrations. Choisissez un autre nom."
   Klipper restarting - macros activating: 'Redémarrage de Klipper - activation des macros'
@@ -2401,6 +2404,7 @@ translations:
   Monitoring: Surveillance
   Month: Mois
   Moonraker: Moonraker
+  Moonraker doesn't say where Klipper is installed.: 'Moonraker n''indique pas où Klipper est installé.'
   Moonraker has no G-code folder.: "Moonraker n'a pas de dossier G-code."
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : 'Moonraker est connecté à Spoolman, qui suit vos bobines et le filament restant. Parcourez-les sur l''écran Spoolman.'
@@ -2952,6 +2956,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : "Le Pressure Advance augmente avec la hauteur de la tour. Observez les angles : touchez - ou + quand vous voulez et la rampe s'arrête pour que vous jugiez votre propre valeur."
+  Pressure advance from the nozzle sensor: 'Pressure Advance par le capteur de buse'
   'Pressure:': 'Pression :'
   Pressed: Appuyé
   Pressure Adv.: 'Pressure Adv.'
@@ -4120,6 +4125,8 @@ translations:
   The plate finishes its current move, but drying will not start.: 'Le plateau termine son déplacement en cours, mais le séchage ne démarrera pas.'
   The plugin can't reach the camera, so this screen takes the photos.: "Le plugin n'atteint pas la caméra, cet écran prend donc les photos."
   The plugin can't save its recovery data to disk.: "Le plugin ne peut pas enregistrer ses données de reprise."
+  The plugin couldn't install its Klipper module.: 'Le plugin n''a pas pu installer son module Klipper.'
+  The plugin couldn't remove its Klipper module.: 'Le plugin n''a pas pu retirer son module Klipper.'
   The plugin is turned off in moonraker.conf.: "Le plugin est désactivé dans moonraker.conf."
   The print ended before any layer was printed. Nothing was changed.: L'impression s'est terminée avant la première couche. Rien n'a été modifié.
   The print is canceled and you pick the best band from what has printed so far.: L'impression est annulée et vous choisissez la meilleure bande parmi ce qui a été imprimé.
@@ -4281,6 +4288,7 @@ translations:
   This printer has no IFS.: "Cette imprimante n'a pas d'IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Cette imprimante n'a pas de macro INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Cette imprimante n'a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main.
+  This printer has no nozzle force sensor.: 'Cette imprimante n''a pas de capteur de force sur la buse.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
   "This printer's INDX macros are missing: {}": "Il manque aux macros INDX de cette imprimante : {}"

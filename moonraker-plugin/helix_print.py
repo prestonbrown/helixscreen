@@ -695,6 +695,8 @@ class HelixPrint:
 
     async def _features_status(self) -> Dict[str, Any]:
         opt_ins = await self._plugin_feature_opt_ins()
+        if self.companions is not None:
+            self.companions.note_opt_ins(opt_ins)
         result: Dict[str, Any] = {}
         for name, feature in self.features.items():
             enabled = await self._feature_switch_value(feature, opt_ins)

@@ -111,6 +111,17 @@
                                    icon="play_circle"
                                    description="Sends your standing print options, such as unload at end, when a print starts from another app or the job queue."
                                    subject="plugin_feature_on_print_hooks" callback="on_plugin_feature_switch_changed"/>
+        <!-- PRESSURE ADVANCE FROM THE NOZZLE SENSOR: the plugin's pa_gauge feature,
+             only on a printer with a force sensor it can measure with -->
+        <lv_obj name="container_pa_gauge"
+                width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                scrollable="false">
+          <bind_flag_if_eq subject="printer_can_add_pa_cal" flag="hidden" ref_value="0"/>
+          <plugin_feature_toggle_row name="row_pa_gauge"
+                                     feature="pa_gauge" label="Pressure advance from the nozzle sensor" icon="gauge"
+                                     description="Installs a Klipper module that measures pressure advance with the nozzle's force sensor. It appears under Calibration after the next Klipper restart."
+                                     subject="plugin_feature_on_pa_gauge" callback="on_plugin_feature_switch_changed"/>
+        </lv_obj>
         <setting_action_row name="row_macro_buttons"
                             label="Macro Buttons" icon="script_text"
                             description="Configure quick buttons and standard macros"

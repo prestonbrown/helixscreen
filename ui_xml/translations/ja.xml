@@ -1809,6 +1809,7 @@
   <translation tag="Installation timed out. The script may be stuck." ja="インストールがタイムアウトしました。スクリプトが停止している可能性があります。"/>
   <translation tag="Installed" ja="インストール済み"/>
   <translation tag="Installing..." ja="インストール中..."/>
+  <translation tag="Installs a Klipper module that measures pressure advance with the nozzle&apos;s force sensor. It appears under Calibration after the next Klipper restart." ja="ノズルの力センサーで Pressure Advance を測定する Klipper モジュールをインストールします。次回の Klipper 再起動後、キャリブレーションに表示されます。"/>
   <translation tag="Intensity" ja="強度"/>
   <translation tag="Interactive calibration for all lanes" ja="全レーンの対話式キャリブレーション"/>
   <translation tag="Interactive probe calibration" ja="インタラクティブプローブキャリブレーション"/>
@@ -1890,6 +1891,7 @@
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." ja="Klipper がシャットダウン状態になりました。緊急停止、熱暴走、または設定エラーが原因の可能性があります。"/>
   <translation tag="Klipper has no [virtual_sdcard] section." ja="Klipperに[virtual_sdcard]セクションがありません。"/>
   <translation tag="Klipper is halted — restart firmware to continue" ja="Klipper が停止しています — 続行するにはファームウェアを再起動してください"/>
+  <translation tag="Klipper modules" ja="Klipper モジュール"/>
   <translation tag="Klipper ready" ja="Klipper準備完了"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ja="Klipper は &apos;default&apos; を新しいキャリブレーション用に予約しています。別の名前を選んでください。"/>
   <translation tag="Klipper restarting - macros activating" ja="Klipper を再起動しています - マクロを有効化中"/>
@@ -2180,6 +2182,7 @@
   <translation tag="Month" ja="月"/>
   <translation tag="Moonraker" ja="Moonraker"/>
   <translation tag="Moonraker answered at {}." ja="{} でMoonrakerが応答しました。"/>
+  <translation tag="Moonraker doesn&apos;t say where Klipper is installed." ja="Moonraker が Klipper のインストール先を示していません。"/>
   <translation tag="Moonraker has no G-code folder." ja="MoonrakerにG-codeフォルダーがありません。"/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." ja="MoonrakerはSpoolmanに接続されており、スプールとフィラメントの残量を管理します。Spoolman画面で一覧を確認できます。"/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." ja="{} の Moonraker が応答しません。Moonraker はこのプリンター上で動作しているため、Klipper と Moonraker のサービスが起動しているか確認してください。"/>
@@ -2689,6 +2692,7 @@
   <translation tag="Pressure Advance Tuning" ja="Pressure Advance調整"/>
   <translation tag="Pressure advance" ja="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ja="タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。"/>
+  <translation tag="Pressure advance from the nozzle sensor" ja="ノズルセンサーによる Pressure Advance"/>
   <translation tag="Pressure:" ja="圧力:"/>
   <translation tag="Preview" ja="プレビュー"/>
   <translation tag="Preview Sounds" ja="サウンドをプレビュー"/>
@@ -3734,6 +3738,8 @@
   <translation tag="The plate finishes its current move, but drying will not start." ja="ベッドは現在の移動を完了しますが、乾燥は開始しません。"/>
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." ja="プラグインがカメラに接続できないため、この画面が写真を撮ります。"/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." ja="プラグインが復帰データを保存できません。"/>
+  <translation tag="The plugin couldn&apos;t install its Klipper module." ja="プラグインが Klipper モジュールをインストールできませんでした。"/>
+  <translation tag="The plugin couldn&apos;t remove its Klipper module." ja="プラグインが Klipper モジュールを削除できませんでした。"/>
   <translation tag="The plugin is turned off in moonraker.conf." ja="プラグインはmoonraker.confでオフになっています。"/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." ja="レイヤーが印刷される前に印刷が終了しました。何も変更されていません。"/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." ja="印刷をキャンセルし、ここまで印刷された中から最適な区間を選びます。"/>
@@ -3861,6 +3867,7 @@
   <translation tag="This printer has no IFS." ja="このプリンターにはIFSがありません。"/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ja="このプリンターにはINDXのLOAD_FILAMENTマクロがありません"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ja="このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。"/>
+  <translation tag="This printer has no nozzle force sensor." ja="このプリンターにはノズルの力センサーがありません。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ja="このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ja="このプリンターのINDXマクロに不足があります: {}"/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" ja="このプリンターのネットワークサービスが WiFi 無線を制御しています"/>

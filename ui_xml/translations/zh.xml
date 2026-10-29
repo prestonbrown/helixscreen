@@ -1809,6 +1809,7 @@
   <translation tag="Installation timed out. The script may be stuck." zh="安装超时。脚本可能已卡住。"/>
   <translation tag="Installed" zh="已安装"/>
   <translation tag="Installing..." zh="正在安装..."/>
+  <translation tag="Installs a Klipper module that measures pressure advance with the nozzle&apos;s force sensor. It appears under Calibration after the next Klipper restart." zh="安装一个 Klipper 模块，用喷嘴的力传感器测量压力提前。下次重启 Klipper 后，它会出现在校准中。"/>
   <translation tag="Intensity" zh="强度"/>
   <translation tag="Interactive calibration for all lanes" zh="所有耗材通道的交互式校准"/>
   <translation tag="Interactive probe calibration" zh="交互式探针校准"/>
@@ -1890,6 +1891,7 @@
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." zh="Klipper 已进入关机状态。这可能是由于紧急停止、热失控或配置错误引起的。"/>
   <translation tag="Klipper has no [virtual_sdcard] section." zh="Klipper 没有 [virtual_sdcard] 部分。"/>
   <translation tag="Klipper is halted — restart firmware to continue" zh="Klipper 已停止 — 请重启固件以继续"/>
+  <translation tag="Klipper modules" zh="Klipper 模块"/>
   <translation tag="Klipper ready" zh="Klipper就绪"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." zh="Klipper 将 &apos;default&apos; 保留用于新的校准。请选择其他名称。"/>
   <translation tag="Klipper restarting - macros activating" zh="正在重启 Klipper - 正在启用宏"/>
@@ -2180,6 +2182,7 @@
   <translation tag="Month" zh="月"/>
   <translation tag="Moonraker" zh="Moonraker"/>
   <translation tag="Moonraker answered at {}." zh="Moonraker 在 {} 响应。"/>
+  <translation tag="Moonraker doesn&apos;t say where Klipper is installed." zh="Moonraker 未说明 Klipper 的安装位置。"/>
   <translation tag="Moonraker has no G-code folder." zh="Moonraker 没有 G-code 文件夹。"/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." zh="Moonraker 已连接 Spoolman,它会记录你的料盘和剩余耗材量。在 Spoolman 界面浏览。"/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." zh="Moonraker 在 {} 无响应。它运行在这台打印机上，请检查 Klipper 和 Moonraker 服务是否已启动。"/>
@@ -2689,6 +2692,7 @@
   <translation tag="Pressure Advance Tuning" zh="压力提前调校"/>
   <translation tag="Pressure advance" zh="压力提前"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." zh="压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。"/>
+  <translation tag="Pressure advance from the nozzle sensor" zh="通过喷嘴传感器测量压力提前"/>
   <translation tag="Pressure:" zh="压力:"/>
   <translation tag="Preview" zh="预览"/>
   <translation tag="Preview Sounds" zh="预览声音"/>
@@ -3734,6 +3738,8 @@
   <translation tag="The plate finishes its current move, but drying will not start." zh="热床会完成当前移动,但烘干不会开始。"/>
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." zh="插件无法连接摄像头，因此由此屏幕拍照。"/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." zh="插件无法保存其恢复数据。"/>
+  <translation tag="The plugin couldn&apos;t install its Klipper module." zh="插件无法安装其 Klipper 模块。"/>
+  <translation tag="The plugin couldn&apos;t remove its Klipper module." zh="插件无法移除其 Klipper 模块。"/>
   <translation tag="The plugin is turned off in moonraker.conf." zh="插件已在 moonraker.conf 中关闭。"/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." zh="打印在任何一层完成前就结束了。未做任何更改。"/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." zh="打印将被取消,你可以从已打印的部分中选择最佳区段。"/>
@@ -3861,6 +3867,7 @@
   <translation tag="This printer has no IFS." zh="此打印机没有 IFS。"/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" zh="此打印机没有 INDX LOAD_FILAMENT 宏"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." zh="此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。"/>
+  <translation tag="This printer has no nozzle force sensor." zh="此打印机没有喷嘴力传感器。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." zh="此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" zh="此打印机的 INDX 宏缺少：{}"/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" zh="此打印机的网络服务控制 WiFi 无线模块"/>

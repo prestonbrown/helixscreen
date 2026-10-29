@@ -55,6 +55,7 @@ enum class Capability : uint8_t {
     HasToolOffsetCal,            ///< automatic tool offset calibration
     HideManualZCalibration,      ///< tool offset calibration also sets the reference tool's Z
     HasPaCal,                    ///< firmware measures pressure advance
+    CanAddPaCal,                 ///< a plugin feature can add pressure advance measuring
     HasStepperResonanceCal,      ///< firmware calibrates stepper resonance (vertical artifacts)
     HasWebcam,                   ///< an enabled webcam is configured
     WebcamCount,                 ///< named webcams (what a picker can offer)

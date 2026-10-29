@@ -171,6 +171,7 @@ struct KnownPluginFeature {
 inline constexpr const char* kIfsAbsentReasons[] = {"no_adventurer_json", nullptr};
 inline constexpr const char* kAceAbsentReasons[] = {"no_ace_bridge", "ace_objects_carry_slots",
                                                     nullptr};
+inline constexpr const char* kForceSensorAbsentReasons[] = {"no_force_sensor", nullptr};
 
 /// Every feature this app can name. A feature the plugin reports that is not
 /// listed shows by its key, with no setting to lead to.
@@ -195,6 +196,9 @@ inline constexpr KnownPluginFeature kKnownPluginFeatures[] = {
      kIfsAbsentReasons},
     {"vendor_ace", TR_NOOP("ACE updates without polling"), "sync", PluginFeatureHome::None,
      kAceAbsentReasons},
+    {"klipper_companions", TR_NOOP("Klipper modules"), "puzzle_outline", PluginFeatureHome::None},
+    {"pa_gauge", TR_NOOP("Pressure advance from the nozzle sensor"), "gauge",
+     PluginFeatureHome::Printing, kForceSensorAbsentReasons},
 };
 
 /// What a reason code the plugin reports means, for the overview. Text is
@@ -230,6 +234,10 @@ inline constexpr PluginReasonText kPluginReasonTexts[] = {
     {"no_ace_bridge", TR_NOOP("No ACE unit was found.")},
     {"ace_objects_carry_slots", TR_NOOP("Klipper already reports the ACE slots.")},
     {"bridge_unreadable", TR_NOOP("The ACE state can't be read.")},
+    {"no_force_sensor", TR_NOOP("This printer has no nozzle force sensor.")},
+    {"klipper_path_unknown", TR_NOOP("Moonraker doesn't say where Klipper is installed.")},
+    {"install_failed", TR_NOOP("The plugin couldn't install its Klipper module.")},
+    {"remove_failed", TR_NOOP("The plugin couldn't remove its Klipper module.")},
 };
 
 /// The overview's text for @p reason: a code in kPluginReasonTexts, read up to

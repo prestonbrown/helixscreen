@@ -193,6 +193,17 @@ TEST_CASE("PA calibration recognises the nozzle force gauge companion by its obj
     REQUIRE(band.high == Catch::Approx(0.14f));
 }
 
+TEST_CASE("a nozzle force sensor makes measuring something the plugin can add",
+          "[pa_calibration]") {
+    for (const char* sensor : {"prtouch_v3", "load_cell", "load_cell_probe"}) {
+        INFO(sensor);
+        CHECK(pacal::can_add_measuring(with_objects({"extruder", sensor})));
+    }
+    CHECK_FALSE(pacal::can_add_measuring(with_objects({"extruder", "probe", "bltouch"})));
+    // Still addable once the companion runs, so its switch stays reachable.
+    CHECK(pacal::can_add_measuring(with_objects({"extruder", "prtouch_v3", "helix_pa_gauge"})));
+}
+
 TEST_CASE("Force gauge patterns match the companion's own lines", "[pa_calibration]") {
     const auto proc =
         pacal::procedure_for(with_objects({"extruder", "helix_pa_gauge"}), 0, 220).value();

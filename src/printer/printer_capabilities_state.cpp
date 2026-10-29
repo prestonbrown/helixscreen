@@ -72,6 +72,7 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HasToolOffsetCal, "printer_has_tool_offset_cal", 0},
     {Capability::HideManualZCalibration, "hide_manual_z_calibration", 0},
     {Capability::HasPaCal, "printer_has_pa_cal", 0},
+    {Capability::CanAddPaCal, "printer_can_add_pa_cal", 0},
     {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
     {Capability::HasWebcam, "printer_has_webcam", 0},
     {Capability::WebcamCount, "webcam_count", 0},
@@ -287,6 +288,7 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     // Automatic pressure advance calibration. Which firmwares can measure it,
     // and how, belongs to helix::pacal - this only asks whether one matched.
     set_capability(Capability::HasPaCal, helix::pacal::is_supported(hardware) ? 1 : 0);
+    set_capability(Capability::CanAddPaCal, helix::pacal::can_add_measuring(hardware) ? 1 : 0);
     set_capability(Capability::HasStepperResonanceCal,
                    helix::stepper_resonance_cal::resolve(hardware).present() ? 1 : 0);
 
