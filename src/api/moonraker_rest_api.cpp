@@ -313,23 +313,6 @@ void MoonrakerRestAPI::wled_get_strips(RestCallback on_success, ErrorCallback on
     });
 }
 
-void MoonrakerRestAPI::wled_get_status(RestCallback on_success, ErrorCallback on_error) {
-    spdlog::debug("[MoonrakerRestAPI] Fetching WLED status");
-
-    call_rest_get("/machine/wled/strips", [on_success, on_error](const RestResponse& resp) {
-        if (resp.success) {
-            if (on_success) {
-                on_success(resp);
-            }
-        } else {
-            spdlog::debug("[MoonrakerRestAPI] WLED get_status failed: {}", resp.error);
-            if (on_error) {
-                on_error(MoonrakerError::unknown(resp.error, "wled"));
-            }
-        }
-    });
-}
-
 void MoonrakerRestAPI::get_server_config(RestCallback on_success, ErrorCallback on_error) {
     spdlog::debug("[MoonrakerRestAPI] Fetching server config");
 

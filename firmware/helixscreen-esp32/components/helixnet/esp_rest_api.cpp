@@ -438,10 +438,6 @@ void MoonrakerRestAPI::wled_set_strip(const std::string&, const std::string&, in
     esp_rest_unimplemented_err("MoonrakerRestAPI::wled_set_strip", on_error);
 }
 
-void MoonrakerRestAPI::wled_get_status(RestCallback, ErrorCallback on_error) {
-    esp_rest_unimplemented_err("MoonrakerRestAPI::wled_get_status", on_error);
-}
-
 void MoonrakerRestAPI::get_server_config(RestCallback, ErrorCallback on_error) {
     esp_rest_unimplemented_err("MoonrakerRestAPI::get_server_config", on_error);
 }

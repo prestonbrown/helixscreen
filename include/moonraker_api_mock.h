@@ -219,7 +219,6 @@ class MoonrakerRestAPIMock : public MoonrakerRestAPI {
     void wled_get_strips(RestCallback on_success, ErrorCallback on_error) override;
     void wled_set_strip(const std::string& strip, const std::string& action, int brightness,
                         int preset, SuccessCallback on_success, ErrorCallback on_error) override;
-    void wled_get_status(RestCallback on_success, ErrorCallback on_error) override;
     void get_server_config(RestCallback on_success, ErrorCallback on_error) override;
 
     // ========================================================================
