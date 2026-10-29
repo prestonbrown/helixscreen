@@ -174,6 +174,54 @@ TEST_CASE("FlashForge result pattern skips the sweep's candidate echoes", "[pa_c
     REQUIRE(m[1].str() == "0.021667");
 }
 
+TEST_CASE("PA calibration recognises the nozzle force gauge companion by its object",
+          "[pa_calibration]") {
+    // HELIX_PA_CALIBRATE is registered by the [helix_pa_gauge] klippy extra the
+    // HelixPrint plugin installs, so it shows up as an object, not a macro.
+    const PrinterDiscovery hw = with_objects({"extruder", "prtouch_v3", "helix_pa_gauge"});
+    REQUIRE(pacal::is_supported(hw));
+    REQUIRE_FALSE(pacal::is_per_tool(hw));
+
+    const auto p = pacal::procedure_for(hw, 0, 220).value();
+    REQUIRE(p.start_gcode == "HELIX_PA_CALIBRATE TEMP=220");
+    REQUIRE(p.command_word == "HELIX_PA_CALIBRATE");
+    REQUIRE(p.applies_result);
+
+    // The sweep tests 0.02..0.14, so that is the band a result can land in.
+    const auto band = pacal::sane_range(hw);
+    REQUIRE(band.low == Catch::Approx(0.02f));
+    REQUIRE(band.high == Catch::Approx(0.14f));
+}
+
+TEST_CASE("Force gauge patterns match the companion's own lines", "[pa_calibration]") {
+    const auto proc =
+        pacal::procedure_for(with_objects({"extruder", "helix_pa_gauge"}), 0, 220).value();
+    const std::regex result_re(proc.result_pattern);
+    const std::regex attempt_re(proc.attempt_pattern);
+    const std::regex failure_re(proc.failure_pattern);
+    std::smatch m;
+
+    // Lines copied from moonraker-plugin/klippy/helix_pa_gauge.py.
+    const std::string step = "HELIX_PA: step 3/7";
+    REQUIRE(std::regex_search(step, m, attempt_re));
+    REQUIRE(m[1].str() == "3");
+    REQUIRE_FALSE(std::regex_search(step, result_re));
+
+    const std::string measured = "HELIX_PA: measured K=0.0812 (signal/noise 14, 112 steps)";
+    REQUIRE(std::regex_search(measured, m, result_re));
+    REQUIRE(m[1].str() == "0.0812");
+    const std::string saved = "HELIX_PA: measured K=0.0812 (saved for PLA|white)";
+    REQUIRE(std::regex_search(saved, m, result_re));
+
+    // The sweep echoes every candidate it installs; none is the result.
+    const std::string echo = "pressure_advance: 0.140000";
+    REQUIRE_FALSE(std::regex_search(echo, result_re));
+
+    const std::string failed = "HELIX_PA: no result: signal/noise 0.0 < 8";
+    REQUIRE(std::regex_search(failed, failure_re));
+    REQUIRE_FALSE(std::regex_search(measured, failure_re));
+}
+
 TEST_CASE("PA plausibility band brackets a healthy direct-drive value", "[pa_calibration]") {
     const PrinterDiscovery hw = u1();
 

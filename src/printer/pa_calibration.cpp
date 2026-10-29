@@ -142,8 +142,38 @@ constexpr Provider kFlashforgeEboard{
     /*timeout_ms=*/600000, // 10 min: up to 5 sweeps (~1 min each) plus heat-up
 };
 
+// --- HelixPrint nozzle force gauge ------------------------------------------
+//
+// HELIX_PA_CALIBRATE comes from the [helix_pa_gauge] klippy extra the HelixPrint
+// plugin installs on a printer whose nozzle has a force sensor (the stock
+// Creality K2 strain gauge, or a load cell). It logs nozzle force through flow
+// steps at 0.02..0.14, fits where the outflow follows the commanded flow, and
+// applies the result:
+//   HELIX_PA: step 3/7
+//   HELIX_PA: measured K=0.0812 (signal/noise 14, 112 steps)
+//   HELIX_PA: no result: <why>
+// It measures the filament loaded now, so it is not per tool. The result can
+// only land inside the sweep, so that span is the plausibility band.
+constexpr SaneRange kGaugeSweepSpan{0.02f, 0.14f, "direct drive"};
+
+constexpr Provider kHelixGauge{
+    "HelixPrint nozzle force gauge",
+    /*detect_macro=*/nullptr,
+    "helix_pa_gauge",
+    "HELIX_PA_CALIBRATE TEMP={temp}",
+    /*per_tool=*/false,
+    R"(HELIX_PA: measured K=([0-9]*\.?[0-9]+))",
+    R"(HELIX_PA: step (\d+)/\d+)",
+    R"(HELIX_PA: no result:)",
+    /*expected_attempts=*/7,
+    /*applies_result=*/true,
+    /*estimate_minutes=*/6, // measured on a K2 Plus: 5.7 min including homing and heat-up
+    kGaugeSweepSpan,
+    /*timeout_ms=*/1200000, // 20 min: homing, a cold heat-up and the full sweep
+};
+
 /// The table. One entry per firmware that can do this.
-constexpr const Provider* kProviders[] = {&SNAPMAKER_U1, &kFlashforgeEboard};
+constexpr const Provider* kProviders[] = {&SNAPMAKER_U1, &kFlashforgeEboard, &kHelixGauge};
 
 const Provider* match(const PrinterDiscovery& hw) {
     for (const Provider* p : kProviders) {
