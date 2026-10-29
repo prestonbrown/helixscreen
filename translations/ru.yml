@@ -60,6 +60,7 @@ translations:
     other: '%d инструмента'
   '%d units': '%d ед.'
   '%d:%02d left': 'осталось %d:%02d'
+  '%dd %dh': '%d д %d ч'
   '%dh': '%d ч'
   '%dh %02dm': '%d ч %02d мин'
   '%dh %dm': '%d ч %d мин'
@@ -4564,6 +4565,7 @@ translations:
   'Up next: {}': 'Далее: {}'
   'Up next: {} (+{})': 'Далее: {} (+{})'
   Up to date: Актуальная версия
+  'Up: %s': 'Время работы: %s'
   Update: Обновить
   Update Available: Доступно обновление
   Update Channel: Канал обновлений

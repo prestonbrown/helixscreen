@@ -28,6 +28,7 @@
   <translation tag="%d-%d" zh="%d-%d"/>
   <translation tag="%d-%d°C" zh="%d-%d°C"/>
   <translation tag="%d:%02d left" zh="剩余 %d:%02d"/>
+  <translation tag="%dd %dh" zh="%d天%d小时"/>
   <translation tag="%dh" zh="%d小时"/>
   <translation tag="%dh %02dm" zh="%d小时%02d分"/>
   <translation tag="%dh %dm" zh="%d小时%d分"/>
@@ -4102,6 +4103,7 @@
   <translation tag="Up next: {}" zh="下一个：{}"/>
   <translation tag="Up next: {} (+{})" zh="下一个：{}（+{}）"/>
   <translation tag="Up to date" zh="已是最新"/>
+  <translation tag="Up: %s" zh="运行时长：%s"/>
   <translation tag="Update" zh="更新"/>
   <translation tag="Update Available" zh="有可用更新"/>
   <translation tag="Update Channel" zh="更新通道"/>

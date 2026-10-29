@@ -758,7 +758,7 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
      * @brief Get REST API for generic REST endpoint and WLED operations
      *
      * All REST methods (call_rest_get, call_rest_post, wled_get_strips,
-     * wled_set_strip, wled_get_status, get_server_config) are available
+     * wled_set_strip, get_server_config) are available
      * through this accessor.
      *
      * @return Reference to MoonrakerRestAPI

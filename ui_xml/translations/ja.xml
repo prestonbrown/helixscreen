@@ -28,6 +28,7 @@
   <translation tag="%d-%d" ja="%d〜%d"/>
   <translation tag="%d-%d°C" ja="%d〜%d°C"/>
   <translation tag="%d:%02d left" ja="残り %d:%02d"/>
+  <translation tag="%dd %dh" ja="%d日%d時間"/>
   <translation tag="%dh" ja="%d時間"/>
   <translation tag="%dh %02dm" ja="%d時間%02d分"/>
   <translation tag="%dh %dm" ja="%d時間%d分"/>
@@ -4102,6 +4103,7 @@
   <translation tag="Up next: {}" ja="次の印刷：{}"/>
   <translation tag="Up next: {} (+{})" ja="次の印刷：{}（+{}）"/>
   <translation tag="Up to date" ja="最新の状態です"/>
+  <translation tag="Up: %s" ja="稼働時間: %s"/>
   <translation tag="Update" ja="更新"/>
   <translation tag="Update Available" ja="更新あり"/>
   <translation tag="Update Channel" ja="更新チャンネル"/>

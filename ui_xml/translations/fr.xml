@@ -28,6 +28,7 @@
   <translation tag="%d-%d" fr="%d-%d"/>
   <translation tag="%d-%d°C" fr="%d-%d°C"/>
   <translation tag="%d:%02d left" fr="%d:%02d restantes"/>
+  <translation tag="%dd %dh" fr="%d j %d h"/>
   <translation tag="%dh" fr="%d h"/>
   <translation tag="%dh %02dm" fr="%d h %02d min"/>
   <translation tag="%dh %dm" fr="%d h %d min"/>
@@ -4102,6 +4103,7 @@
   <translation tag="Up next: {}" fr="À suivre : {}"/>
   <translation tag="Up next: {} (+{})" fr="À suivre : {} (+{})"/>
   <translation tag="Up to date" fr="À jour"/>
+  <translation tag="Up: %s" fr="Temps de fonctionnement : %s"/>
   <translation tag="Update" fr="Mettre à jour"/>
   <translation tag="Update Available" fr="Mise à jour disponible"/>
   <translation tag="Update Channel" fr="Canal de mise à jour"/>

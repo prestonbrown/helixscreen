@@ -6,6 +6,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "system_settings_manager.h"
 #include "theme_manager.h"
 
 #include <cstring>
@@ -18,6 +19,7 @@ using helix::ui::format_file_size;
 using helix::ui::format_modified_date;
 using helix::ui::format_print_time;
 using helix::ui::format_relative_time;
+using helix::ui::format_uptime;
 
 // ============================================================================
 // format_print_time() Tests
@@ -207,6 +209,32 @@ TEST_CASE("UI Utils: format_relative_time", "[ui_utils][format][i18n]") {
         REQUIRE(format_relative_time(86400000) == "1 day ago");   // exactly 1 day
         REQUIRE(format_relative_time(172800000) == "2 days ago"); // 2 days
         REQUIRE(format_relative_time(604800000) == "7 days ago"); // 1 week
+    }
+}
+
+// ============================================================================
+// format_uptime() Tests
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: format_uptime", "[ui_utils][format][i18n][1939]") {
+    struct RestoreEnglish {
+        ~RestoreEnglish() {
+            helix::SystemSettingsManager::instance().set_language("en");
+        }
+    } restore_english;
+    helix::SystemSettingsManager::instance().set_language("en");
+
+    SECTION("English") {
+        CHECK(format_uptime(-1) == "Up: --");
+        CHECK(format_uptime(42 * 60) == "Up: 42m");
+        CHECK(format_uptime(3 * 3600 + 12 * 60) == "Up: 3h 12m");
+        CHECK(format_uptime(3 * 86400 + 14 * 3600 + 5 * 60) == "Up: 3d 14h");
+    }
+
+    SECTION("Translated") {
+        helix::SystemSettingsManager::instance().set_language("de");
+        CHECK(format_uptime(3 * 3600 + 12 * 60) == "Betriebszeit: 3 Std 12 Min");
+        CHECK(format_uptime(3 * 86400 + 14 * 3600) == "Betriebszeit: 3 Tg. 14 Std");
     }
 }
 

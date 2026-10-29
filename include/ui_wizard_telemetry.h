@@ -40,6 +40,17 @@ class WizardTelemetryStep : public helix::wizard::Step {
     }
     bool should_skip() const;
 
+    /**
+     * @brief Register the privacy text as the `telemetry_info_text` subject
+     *
+     * The one owner of that subject: the summary step's info modal binds to it
+     * too, so both steps call this before creating their screens.
+     */
+    void init_info_text_subject();
+    lv_subject_t* info_text_subject() {
+        return &telemetry_info_text_;
+    }
+
   private:
     lv_obj_t* root_ = nullptr;
 

@@ -9,6 +9,7 @@
 #include "ui_toast_manager.h"
 #include "ui_wizard.h"
 #include "ui_wizard_input_shaper.h"
+#include "ui_wizard_telemetry.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -58,7 +59,6 @@ WizardSummaryStep::WizardSummaryStep() {
     std::memset(filament_sensor_buffer_, 0, sizeof(filament_sensor_buffer_));
     std::memset(ams_type_buffer_, 0, sizeof(ams_type_buffer_));
     std::memset(input_shaper_buffer_, 0, sizeof(input_shaper_buffer_));
-    std::memset(telemetry_info_text_buffer_, 0, sizeof(telemetry_info_text_buffer_));
 
     spdlog::debug("[{}] Instance created", get_name());
 }
@@ -256,30 +256,8 @@ void WizardSummaryStep::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_INT(input_shaper_visible_, input_shaper_visible,
                                      "summary_input_shaper_visible");
 
-    // Telemetry info modal content
-    static const char* telemetry_info_md =
-        "**HelixScreen is a free, open-source project** built by a tiny team. "
-        "Anonymous telemetry helps us understand how the app is actually used "
-        "so we can focus on what matters.\n\n"
-        "## What we collect\n"
-        "- **App version** and platform (Pi model, screen size)\n"
-        "- **Printer type** (kinematics, build volume — NOT your printer name)\n"
-        "- **Print outcomes** (completed vs failed, duration, temps)\n"
-        "- **Crash reports** (stack traces to fix bugs)\n"
-        "- **Feature usage** (which panels you use, AMS, input shaper, etc.)\n\n"
-        "## What we NEVER collect\n"
-        "- Your name, location, or IP address\n"
-        "- File names or G-code content\n"
-        "- Camera images or thumbnails\n"
-        "- WiFi passwords or network details\n"
-        "- Anything that could identify you personally\n\n"
-        "## Why it matters\n"
-        "With just a few hundred users reporting anonymously, we can see which "
-        "printers crash most, which features nobody uses, and where to spend our "
-        "limited time. **You can view the exact data in Settings > System > View "
-        "Telemetry Data anytime.**";
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(telemetry_info_text_, telemetry_info_text_buffer_,
-                                        telemetry_info_md, "telemetry_info_text");
+    // The info modal's text belongs to the telemetry step; this step's modal binds to it.
+    get_wizard_telemetry_step()->init_info_text_subject();
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized with config values", get_name());

@@ -28,6 +28,7 @@ translations:
   '%d tools': '%d 个工具'
   '%d units': '%d 个单元'
   '%d:%02d left': '剩余 %d:%02d'
+  '%dd %dh': '%d天%d小时'
   '%dh': '%d小时'
   '%dh %02dm': '%d小时%02d分'
   '%dh %dm': '%d小时%d分'
@@ -4273,6 +4274,7 @@ translations:
   'Up next: {}': '下一个：{}'
   'Up next: {} (+{})': '下一个：{}（+{}）'
   Up to date: 已是最新
+  'Up: %s': '运行时长：%s'
   Update: 更新
   Update Available: 有可用更新
   Update Channel: 更新通道

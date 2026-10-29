@@ -1167,7 +1167,7 @@ void MoonrakerRestAPIMock::wled_get_strips(RestCallback on_success, ErrorCallbac
     }
     spdlog::info("[MoonrakerAPIMock] WLED get_strips (returning mock strips from tracked state)");
 
-    // Initialize defaults if not already set (same pattern as wled_get_status)
+    // Initialize defaults if not already set
     if (mock_wled_states_.find("printer_led") == mock_wled_states_.end()) {
         mock_wled_states_["printer_led"] = true;
     }
@@ -1238,60 +1238,6 @@ void MoonrakerRestAPIMock::wled_set_strip(const std::string& strip, const std::s
 
     if (on_success) {
         on_success();
-    }
-}
-
-void MoonrakerRestAPIMock::wled_get_status(RestCallback on_success, ErrorCallback /*on_error*/) {
-    spdlog::info("[MoonrakerAPIMock] WLED get_status");
-
-    // Initialize default states if not already set
-    if (mock_wled_states_.find("printer_led") == mock_wled_states_.end()) {
-        mock_wled_states_["printer_led"] = true;
-    }
-    if (mock_wled_states_.find("enclosure_led") == mock_wled_states_.end()) {
-        mock_wled_states_["enclosure_led"] = false;
-    }
-    // Default presets
-    if (mock_wled_presets_.find("printer_led") == mock_wled_presets_.end()) {
-        mock_wled_presets_["printer_led"] = 2;
-    }
-    if (mock_wled_presets_.find("enclosure_led") == mock_wled_presets_.end()) {
-        mock_wled_presets_["enclosure_led"] = -1;
-    }
-    // Default brightness
-    if (mock_wled_brightness_.find("printer_led") == mock_wled_brightness_.end()) {
-        mock_wled_brightness_["printer_led"] = 200;
-    }
-    if (mock_wled_brightness_.find("enclosure_led") == mock_wled_brightness_.end()) {
-        mock_wled_brightness_["enclosure_led"] = 128;
-    }
-
-    if (on_success) {
-        RestResponse resp;
-        resp.success = true;
-        resp.status_code = 200;
-        // Same endpoint as wled_get_strips(), same result.strips envelope.
-        resp.data = {{"result",
-                      {{"strips",
-                        {{"printer_led",
-                          {{"strip", "printer_led"},
-                           {"status", mock_wled_states_["printer_led"] ? "on" : "off"},
-                           {"chain_count", 30},
-                           {"preset", mock_wled_presets_["printer_led"]},
-                           {"brightness", mock_wled_brightness_["printer_led"]},
-                           {"intensity", -1},
-                           {"speed", -1},
-                           {"error", nullptr}}},
-                         {"enclosure_led",
-                          {{"strip", "enclosure_led"},
-                           {"status", mock_wled_states_["enclosure_led"] ? "on" : "off"},
-                           {"chain_count", 60},
-                           {"preset", mock_wled_presets_["enclosure_led"]},
-                           {"brightness", mock_wled_brightness_["enclosure_led"]},
-                           {"intensity", -1},
-                           {"speed", -1},
-                           {"error", nullptr}}}}}}}};
-        on_success(resp);
     }
 }
 

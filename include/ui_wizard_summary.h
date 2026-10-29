@@ -163,10 +163,6 @@ class WizardSummaryStep : public helix::wizard::Step {
     char ams_type_buffer_[64];
     char input_shaper_buffer_[128];
 
-    // Telemetry info modal text
-    lv_subject_t telemetry_info_text_{};
-    char telemetry_info_text_buffer_[2048];
-
     // Track initialization
     bool subjects_initialized_ = false;
 
