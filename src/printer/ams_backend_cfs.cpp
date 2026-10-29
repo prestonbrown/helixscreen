@@ -437,6 +437,9 @@ void AmsBackendCfs::on_started() {
         endless_spool_enable_reported_ = false;
         bus_reported_empty_ = false;
         tag_readings_.clear();
+        // A Klipper restart keeps the last answer until the new one lands; a
+        // start has none.
+        unit_registration_ = client_ ? UnitRegistration::Unknown : UnitRegistration::None;
     }
     begin_unit_settle();
 
@@ -2122,8 +2125,15 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
     }
 
     // Read from the merged frames: a delta omits the box state while unchanged.
-    bus_reported_empty_ =
-        !is_flat && helix::json_util::safe_string(*f.state, "state", "") == "disconnect";
+    // "None" is the box before discovery has run, as every Klipper start
+    // publishes it, so it says nothing about the bus and the last reading
+    // stands.
+    const std::string bus_state = helix::json_util::safe_string(*f.state, "state", "");
+    if (is_flat || bus_state == "connect") {
+        bus_reported_empty_ = false;
+    } else if (bus_state == "disconnect") {
+        bus_reported_empty_ = true;
+    }
 
     if (!new_info.units.empty()) {
         system_info_.units = std::move(new_info.units);
@@ -2205,7 +2215,8 @@ bool AmsBackendCfs::converge_external_spool_only_locked() {
     const bool bus_settled = unit_registration_ == UnitRegistration::None || unit_settle_expired_;
     const bool bus_empty = bus_reported_empty_ && system_info_.units.empty();
     const bool external_spool_only = bus_empty && bus_settled;
-    if (bus_empty && !bus_settled && !system_info_.external_spool_only) {
+    if (bus_empty && !bus_settled && !empty_bus_wait_logged_) {
+        empty_bus_wait_logged_ = true;
         spdlog::debug("[AMS CFS] Empty bus reported; waiting for {} unit",
                       unit_registration_ == UnitRegistration::Registered ? "the registered"
                                                                          : "printer.cfg on any");
@@ -2259,7 +2270,7 @@ void AmsBackendCfs::begin_unit_settle() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         unit_settle_expired_ = false;
-        unit_registration_ = client_ ? UnitRegistration::Unknown : UnitRegistration::None;
+        empty_bus_wait_logged_ = false;
     }
     // The guard cancels the timer when the backend is destroyed.
     if (lv_is_initialized()) {

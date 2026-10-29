@@ -373,7 +373,12 @@ machine through `AmsSystemInfo::external_spool_only`:
   - a registered unit: unsettled until it reports or `kRegisteredUnitSettle` (90 s, more
     than twice the measured 38 s) has passed since the start, so a CFS unplugged since
     printer.cfg last saved it still ends single-spool;
-  - query not answered yet: unsettled, with the same 90 s bound.
+  - query not answered yet at a start: unsettled, with the same 90 s bound. A Klipper
+    restart keeps the last answer until the new one lands, and opens a new 90 s window.
+
+  The box's `"None"` state, which every Klipper start publishes before discovery, leaves
+  the last `"disconnect"` or `"connect"` reading standing, so a K2 with no CFS stays
+  single-spool through a `FIRMWARE_RESTART` or `SAVE_CONFIG`.
 
   A bare `state` delta counts as a full frame so the verdict follows it. A unit seen once
   keeps its place in the list when a later frame drops it, so the flag cannot return on a
