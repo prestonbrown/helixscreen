@@ -346,8 +346,9 @@ ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
     const auto status = temperature::classify_heater_status(
         current, target, subject_int_or_zero(printer_state_.get_heater_power_subject(type)), mode);
     const bool printing = host_.printing && host_.printing();
+    // A chamber's temperature matters to the print whether or not its heater runs.
     return heater_chip(present, current, target, status, printing, show_power, badge,
-                       heat_start(chip, current, target));
+                       heat_start(chip, current, target), chip == PrintStatusChip::Chamber);
 }
 
 ChipContent PrintStatusTiles::fan(PrintStatusChip chip, bool labeled) {

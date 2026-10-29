@@ -36,10 +36,13 @@ struct ChipContent {
 /// `printing`: past pre-print, so leaving the band is Warn rather than Active.
 /// `badge` ("T1") prefixes the text on a multi-tool printer, empty otherwise.
 /// `start_deci` is the reading when heating began, for the progress bar.
-/// Not present, or off and cold: not shown.
+/// `reading_alone_shows`: an off, cold heater still shows its reading, for a
+/// chamber whose temperature matters while its heater is idle or absent.
+/// Not present, or off and cold without `reading_alone_shows`: not shown.
 [[nodiscard]] ChipContent heater_chip(bool present, int current_deci, int target_deci,
                                       const ui::temperature::HeaterStatus& status, bool printing,
-                                      bool show_power, std::string_view badge, int start_deci);
+                                      bool show_power, std::string_view badge, int start_deci,
+                                      bool reading_alone_shows = false);
 
 /// The text a heater chip is measured at when the layout picks its mode: its
 /// widest shape ("999 / 999°") after `badge` ("T1"), whatever it shows now, so

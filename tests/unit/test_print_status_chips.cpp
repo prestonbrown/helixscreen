@@ -53,6 +53,18 @@ TEST_CASE("off and cold heater hidden", "[print_status_chips]") {
             .shown);
 }
 
+TEST_CASE("a chamber reading with its heater off still shows", "[print_status_chips]") {
+    const auto idle = classify_heater_status(350, 0, 0);
+    auto c = heater_chip(true, 350, 0, idle, true, false, "", 300, true);
+    REQUIRE(c.shown);
+    CHECK(c.text == "35°");
+    CHECK_FALSE(c.glow);
+    CHECK(c.tone == ChipTone::Normal);
+    CHECK(c.progress_pct == -1);
+    CHECK_FALSE(heater_chip(true, 350, 0, idle, false, false, "", 300, false).shown);
+    CHECK_FALSE(heater_chip(false, 350, 0, idle, true, false, "", 300, true).shown);
+}
+
 TEST_CASE("heater_chip carries tool badge text", "[print_status_chips]") {
     CHECK(heater(2200, 2200, false, false, 0, "T1").text == "T1 220°");
 }

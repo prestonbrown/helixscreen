@@ -21,10 +21,11 @@ std::string heater_text(int current_deci, int target_deci) {
 
 ChipContent heater_chip(bool present, int current_deci, int target_deci,
                         const ui::temperature::HeaterStatus& status, bool printing, bool show_power,
-                        std::string_view badge, int start_deci) {
+                        std::string_view badge, int start_deci, bool reading_alone_shows) {
     using ui::temperature::HeaterStatusState;
     ChipContent c;
-    if (!present || (target_deci <= 0 && !ui::temperature::is_residual_hot(current_deci)))
+    if (!present || (target_deci <= 0 && !reading_alone_shows &&
+                     !ui::temperature::is_residual_hot(current_deci)))
         return c;
     c.shown = true;
     c.glow = target_deci > 0;
