@@ -81,6 +81,10 @@ struct AvailableSlot {
     /// ~200 aggregate initializers in the mapper tests stay valid.
     helix::ui::LaneNoun noun = helix::ui::LaneNoun::Slot;
 
+    /// SlotInfo::material_required: the printer will not print from this slot
+    /// until its material is set. Defaulted for the aggregate initializers.
+    bool material_required = false;
+
     /// Unique key for this slot across all backends
     SlotKey key() const {
         return {slot_index, backend_index};

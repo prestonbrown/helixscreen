@@ -148,6 +148,7 @@ lock-screen        demo lock-screen
 print-status       demo print-status
 print-tune         demo print-tune
 preflight-check    demo preflight-check
+preflight-material demo preflight-material
 color-mismatch     demo color-mismatch
 runout-modal       demo runout-modal
 leds               demo leds

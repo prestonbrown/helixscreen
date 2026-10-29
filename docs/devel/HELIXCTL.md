@@ -806,7 +806,7 @@ reads the resolved value, so it shows which one is really in effect.
 
 `demo` covers screens that only appear on a real printer event or configured
 state, constructed with representative sample data and the real lifecycle:
-`preflight-check`, `color-mismatch`, `runout-modal`, `lock-screen`,
+`preflight-check`, `preflight-material`, `color-mismatch`, `runout-modal`, `lock-screen`,
 `print-status`, `print-tune`, `ams`, `camera`, `ams-error-toast`,
 `type-mismatch-toast`, `type-mismatch-toast-model`, `type-mismatch-review`,
 `action-prompt-worst`, `action-prompt-many`, `action-prompt-hex`, `action-prompt-zmod`,

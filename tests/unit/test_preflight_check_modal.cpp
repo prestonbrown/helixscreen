@@ -281,3 +281,63 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK_FALSE(remap_button_offered(test_screen(), pump));
     }
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PreflightCheckModal sets an unset slot to the material the file names",
+                 "[preflight][modal][ui][material_fix]") {
+    ScopedAmsBackend ams(4);
+    auto pump = [this]() {
+        process_lvgl(50);
+        lv_obj_update_layout(test_screen());
+    };
+    auto show = [&](const helix::PreflightResult& pf) {
+        auto owned = std::make_unique<helix::ui::PreflightCheckModal>();
+        auto* modal = owned.get();
+        modal->set_checks(pf);
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+        pump();
+        return modal;
+    };
+
+    SECTION("the file names one: the button offers it and writes it") {
+        REQUIRE(ams.backend->get_slot_info(1).material != "PETG");
+        // A head with nothing set holds an unlinked spool; a Spoolman-linked
+        // slot takes its material from Spoolman and refuses the edit.
+        helix::SlotInfo unlinked = ams.backend->get_slot_info(1);
+        unlinked.spoolman_id = 0;
+        REQUIRE(ams.backend->sync_external_identity(1, unlinked).success());
+        helix::PreflightResult pf;
+        pf.checks = {
+            make_check(0, 0xF5A623, "PETG", 1, true, helix::ToolCheck::Severity::UnknownMaterial)};
+        show(pf);
+
+        lv_obj_t* row = lv_obj_find_by_name(test_screen(), "preflight_material_fix_row");
+        REQUIRE(row != nullptr);
+        REQUIRE_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        lv_obj_t* btn = lv_obj_find_by_name(row, "btn_set_material");
+        REQUIRE(btn != nullptr);
+        const std::string label =
+            lv_subject_get_string(lv_xml_get_subject(nullptr, "preflight_material_fix_text"));
+        CHECK(label.rfind("Set ", 0) == 0);
+        CHECK(label.find("2 to PETG") != std::string::npos);
+        CHECK(label.find("PETG") != std::string::npos);
+
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        pump();
+        CHECK(ams.backend->get_slot_info(1).material == "PETG");
+        CHECK(lv_obj_find_by_name(test_screen(), "btn_set_material") == nullptr);
+    }
+
+    SECTION("the file names none: no button") {
+        helix::PreflightResult pf;
+        pf.checks = {
+            make_check(0, 0xF5A623, "", 1, true, helix::ToolCheck::Severity::UnknownMaterial)};
+        auto* modal = show(pf);
+        lv_obj_t* row = lv_obj_find_by_name(test_screen(), "preflight_material_fix_row");
+        REQUIRE(row != nullptr);
+        CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        modal->hide();
+        pump();
+    }
+}

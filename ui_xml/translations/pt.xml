@@ -43,6 +43,7 @@
   <translation tag="%s needs filament in %s, which is empty — this print will run out." pt="%s precisa de filamento e %s não o tem — esta impressão vai acabar."/>
   <translation tag="%s unsaved" pt="%s não salvo"/>
   <translation tag="%s uses %s, which has filament but no material set — the printer will not start until you set it." pt="%s usa %s, que tem filamento mas nenhum material definido — a impressora não vai começar até você defini-lo."/>
+  <translation tag="%s uses %s, which has filament but no material set. A calibration this print runs needs it." pt="%s usa %s, que tem filamento mas nenhum material definido. Uma calibração desta impressão precisa dele."/>
   <translation tag="%s: %.0fg of %.0fg needed" pt="%s: %.0fg de %.0fg necessários"/>
   <translation tag="%u layers" pt="%u camadas"/>
   <translation tag="%zu events queued" pt="%zu eventos na fila"/>
@@ -899,6 +900,7 @@
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" pt="Não foi possível salvar a malha como &apos;{}&apos;: {}"/>
   <translation tag="Could not save the printer image tags" pt="Falha ao salvar as marcações da imagem"/>
   <translation tag="Could not set the WiFi country" pt="Não foi possível definir o país do WiFi"/>
+  <translation tag="Could not set the material: {}" pt="Não foi possível definir o material: {}"/>
   <translation tag="Could not skip {}" pt="Não foi possível pular {}"/>
   <translation tag="Could not start Bluetooth discovery" pt="Não foi possível iniciar a descoberta Bluetooth"/>
   <translation tag="Could not turn the heaters off" pt="Não foi possível desligar os aquecedores"/>
@@ -3316,6 +3318,7 @@
   <translation tag="Session Duration" pt="Duração da Sessão"/>
   <translation tag="Session Start" pt="Início da Sessão"/>
   <translation tag="Set " pt="Definir "/>
+  <translation tag="Set %s to %s" pt="Definir %s como %s"/>
   <translation tag="Set Active" pt="Definir Ativo"/>
   <translation tag="Set PIN" pt="Definir PIN"/>
   <translation tag="Set and watch the bed temperature" pt="Ajustar e acompanhar a temperatura da mesa"/>

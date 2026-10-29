@@ -1131,6 +1131,14 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   Moonraker refused every request from the screen. HelixScreen now sends the printer's
   `moonraker_api_key` setting to that printer's Moonraker, over the WebSocket and every HTTP
   request, and to nothing else.
+- **Pressure advance calibration on a Snapmaker U1 checks the heads first** - with
+  calibration on, a head holding filament with no material set made the printer pause two
+  minutes into the start. The filament check now stops the print before it heats, and
+  offers to set the head to the material the file names in one tap. With calibration off
+  the head prints as it is.
+- **Filament use on a Snapmaker U1 with multiACE comes off the right spool** - what a
+  nozzle fed from an ACE bay extruded was charged to the head's lane instead of the bay's
+  spool, so the bay's remaining weight never went down.
 - **Print Status shows the chamber temperature with the chamber heater off** - the chamber
   chip appeared only while the chamber heated or was above 50°C, so a QIDI Q2 printing PLA,
   or a printer with only a chamber sensor, never showed it. It now shows whenever the

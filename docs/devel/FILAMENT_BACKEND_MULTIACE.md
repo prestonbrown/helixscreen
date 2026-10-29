@@ -159,6 +159,12 @@ draws the upstream lane's name as a small caption on the fed head's column
 (`helix::ui::upstream_lane_caption`, "ACE 2" + middle dot + bay number), on the row a prep
 sensor would occupy - an ACE-fed head has no prep sensor of its own.
 
+Filament use follows the same rule. `slot_for_extruder(h)` is `head_source_slot(h)`, so
+what an ACE-fed nozzle extrudes comes off its routed bay's spool, re-read on every
+delta so a mid-print swap charges the bay now feeding; a head with several bays wired and
+none routed charges no slot. Bays appear with the first engine frame, after the backend
+is registered, and `AmsBackendRegistry::ensure_sinks()` gives them consumption sinks then.
+
 ## Bay identity
 
 A bay is edited the same way a head is: the editor opens on any bay, the edit

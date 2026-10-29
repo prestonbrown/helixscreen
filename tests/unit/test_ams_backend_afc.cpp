@@ -1939,7 +1939,7 @@ struct AfcPrintStartHarness {
     helix::PreflightResult preflight() const {
         return helix::PreflightValidator::validate(
             tools, AmsState::instance().collect_available_slots(), view.get_filament_mappings(),
-            AmsState::instance().collect_firmware_routing(), false);
+            AmsState::instance().collect_firmware_routing(), false, false);
     }
 };
 } // namespace
@@ -1984,7 +1984,7 @@ TEST_CASE("AFC lane remap is the routing an unremapped print runs with",
     CHECK(mappings[0].mapped_slot == 3);
 
     const auto preflight =
-        helix::PreflightValidator::validate(tools, slots, mappings, routing, false);
+        helix::PreflightValidator::validate(tools, slots, mappings, routing, false, false);
     CHECK_FALSE(preflight.has_block());
 
     // PrintStartController sends set_tool_mapping() (SET_MAP) for every mapping
@@ -3256,7 +3256,7 @@ TEST_CASE("Z-Mod's lane-picking shim leaves every lane to the print",
     REQUIRE(seed.size() == 1);
     CHECK(seed[0].is_auto);
     CHECK(seed[0].mapped_slot == -1);
-    CHECK_FALSE(helix::file_preflight({t0}, seed).has_block());
+    CHECK_FALSE(helix::file_preflight({t0}, seed, false).has_block());
 }
 
 TEST_CASE("AFC without the shim routes by its own lane map", "[ams][afc][tool_mapping]") {

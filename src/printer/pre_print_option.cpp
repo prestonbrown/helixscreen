@@ -111,6 +111,7 @@ std::optional<PrePrintOption> parse_pre_print_option(const nlohmann::json& j) {
     opt.default_enabled = helix::json_util::safe_bool(j, "default_enabled", false);
     opt.order = helix::json_util::safe_int(j, "order", 0);
     opt.requires_macro = helix::json_util::safe_string(j, "requires_macro");
+    opt.needs_material = helix::json_util::safe_bool(j, "needs_material", false);
 
     // category — defaults to Mechanical if absent or unknown (warned).
     if (j.contains("category") && j["category"].is_string()) {

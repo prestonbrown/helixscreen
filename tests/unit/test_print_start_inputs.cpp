@@ -7,7 +7,7 @@
  * Run with: ./build/bin/helix-tests "[print_start_inputs]"
  *
  * A queued job started from the home tile gets its tool info, mapping, remap
- * and empty-slot pre-flight from fill_file_context() and preflight_for(). The
+ * and empty-slot pre-flight from fill_file_context() and preflight_for(, false). The
  * parity case pins that they answer what an open PrintSelectDetailView answers
  * for the same file with no mapping edit; the loader cases pin the metadata,
  * footer and whole-file scan steps the file view shares.
@@ -157,7 +157,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fill_file_context matches the file view",
     CHECK(ctx.filament_materials == view.get_filament_materials());
     CHECK(ctx.available_slots.size() == view.get_available_slots().size());
 
-    const auto ours = helix::preflight_for(facts);
+    const auto ours = helix::preflight_for(facts, false);
     const auto theirs = view.preflight_result();
     REQUIRE(ours.checks.size() == theirs.checks.size());
     REQUIRE_FALSE(ours.checks.empty());

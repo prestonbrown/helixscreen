@@ -1128,6 +1128,33 @@ TEST_CASE_METHOD(MultiAceFixture, "a routed head's spool lives in its bay", "[mu
     CHECK_FALSE(plain.upstream_slot(0).has_value());
 }
 
+TEST_CASE_METHOD(MultiAceFixture, "a head's consumption lands on the bay feeding it",
+                 "[multiace][filament_tracker]") {
+    CapturingMultiAce b;
+    b.frame(ace_frame("head_mode_4ace.json"));
+    const AmsSystemInfo info = b.get_system_info();
+    REQUIRE(info.total_slots == 20);
+
+    // Head 0 is routed from ACE 1 bay 1 and head 2 from ACE 3 bay 4: what
+    // those nozzles extrude comes off the bays' spools.
+    CHECK(b.slot_for_extruder(0) == std::optional<int>{multiace::bay_global(0, 0)});
+    CHECK(b.slot_for_extruder(2) == std::optional<int>{multiace::bay_global(2, 3)});
+    for (int head = 0; head < 4; ++head) {
+        CHECK(b.slot_for_extruder(head) == b.head_source_slot(head, info));
+    }
+    // The U1 has four extruders however many bays the ACEs add.
+    for (int e = 4; e < info.total_slots; ++e) {
+        CHECK_FALSE(b.slot_for_extruder(e).has_value());
+    }
+
+    // Without the engine contract each head feeds itself.
+    CapturingMultiAce plain;
+    for (int head = 0; head < 4; ++head) {
+        CHECK(plain.slot_for_extruder(head) == std::optional<int>{head});
+    }
+    CHECK_FALSE(plain.slot_for_extruder(4).has_value());
+}
+
 TEST_CASE_METHOD(MultiAceFixture, "spool numbering counts a routed bay once", "[multiace]") {
     CapturingMultiAce b;
     b.frame(ace_frame("head_mode_4ace.json"));

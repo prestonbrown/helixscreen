@@ -7684,6 +7684,6 @@ TEST_CASE("Happy Hare TTG remap is the routing an unremapped print runs with",
     REQUIRE(seed.size() == 1);
     CHECK(seed[0].mapped_slot == live[1]);
     CHECK_FALSE(helix::PreflightValidator::validate(tools, slots, seed,
-                                                    ams.collect_firmware_routing(), false)
+                                                    ams.collect_firmware_routing(), false, false)
                     .has_block());
 }

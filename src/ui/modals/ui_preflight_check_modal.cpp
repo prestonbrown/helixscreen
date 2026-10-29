@@ -3,6 +3,7 @@
 
 #include "ui_preflight_check_modal.h"
 
+#include "ui_error_reporting.h"
 #include "ui_icon.h"
 #include "ui_print_preparation_manager.h"
 #include "ui_swatch.h"
@@ -63,9 +64,68 @@ const helix::AvailableSlot* find_seated_slot(const std::vector<helix::AvailableS
     return nullptr;
 }
 
+// The name the mapping chip and remap modal give @p slot_index: a seated
+// AvailableSlot carries its own unit and unit-local number, which the global
+// index does not on a multi-unit backend.
+std::string lane_text_for(const std::vector<helix::AvailableSlot>& slots, int slot_index) {
+    for (const auto& slot : slots) {
+        if (slot.slot_index == slot_index) {
+            return helix::ui::lane_label(slot.noun, slot.unit_display_name, slot.local_slot_index);
+        }
+    }
+    return helix::ui::lane_label(helix::ui::LaneNoun::Slot, slot_index);
+}
+
 } // namespace
 
+PreflightCheckModal* PreflightCheckModal::active_instance_ = nullptr;
+
+PreflightCheckModal::PreflightCheckModal() {
+    lv_subject_init_int(&fix_shown_subject_, 0);
+    lv_subject_init_string(&fix_text_subject_, fix_text_buf_, nullptr, sizeof(fix_text_buf_), "");
+    subjects_.publish("preflight_material_fix_shown", &fix_shown_subject_);
+    subjects_.publish("preflight_material_fix_text", &fix_text_subject_);
+    static bool callback_registered = false;
+    if (!callback_registered) {
+        lv_xml_register_event_cb(nullptr, "on_preflight_set_material", on_set_material_cb);
+        callback_registered = true;
+    }
+}
+
+PreflightCheckModal::~PreflightCheckModal() {
+    if (active_instance_ == this) {
+        active_instance_ = nullptr;
+    }
+    subjects_.deinit_all();
+}
+
+void PreflightCheckModal::on_set_material_cb(lv_event_t* /*e*/) {
+    if (active_instance_) {
+        active_instance_->apply_material_fix();
+    }
+}
+
+void PreflightCheckModal::apply_material_fix() {
+    const auto fix = result_.material_fix();
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!fix || !backend) {
+        hide();
+        return;
+    }
+    const SlotInfo original = backend->get_slot_info(fix->slot);
+    SlotInfo edited = original;
+    edited.material = fix->material;
+    spdlog::info("[PreflightCheckModal] Setting slot {} material to '{}' from the file for T{}",
+                 fix->slot, fix->material, fix->tool_index);
+    const AmsError err = AmsState::instance().commit_slot_edit(fix->slot, original, edited);
+    if (!err.success() && !err.partially_applied) {
+        NOTIFY_ERROR(lv_tr("Could not set the material: {}"), err.user_msg);
+    }
+    hide();
+}
+
 void PreflightCheckModal::on_show() {
+    active_instance_ = this;
     // Wire the three action buttons programmatically (mirrors the spaghetti /
     // runout-guidance modals). No XML callbacks on these buttons, so there's
     // no double-wiring.
@@ -112,14 +172,10 @@ void PreflightCheckModal::on_show() {
         for (const auto& check : result_.checks) {
             if (check.severity == helix::ToolCheck::Severity::UnknownMaterial) {
                 char buf[192];
-                const auto* seated = find_seated_slot(slots, check);
-                const std::string lane_text =
-                    seated ? helix::ui::lane_label(seated->noun, seated->unit_display_name,
-                                                   seated->local_slot_index)
-                           : helix::ui::lane_label(helix::ui::LaneNoun::Slot, check.mapped_slot);
+                const std::string lane_text = lane_text_for(slots, check.mapped_slot);
                 snprintf(buf, sizeof(buf),
-                         lv_tr("%s uses %s, which has filament but no material set — the "
-                               "printer will not start until you set it."),
+                         lv_tr("%s uses %s, which has filament but no material set. A "
+                               "calibration this print runs needs it."),
                          helix::ui::tool_label(check.tool_index).c_str(), lane_text.c_str());
                 text = buf;
                 break;
@@ -160,6 +216,18 @@ void PreflightCheckModal::on_show() {
         }
         lv_label_set_text(explain, text.c_str());
     }
+
+    // A material the file names for an unset slot is one tap away; the slot's
+    // name matches the explanation's.
+    const auto fix = result_.material_fix();
+    if (fix) {
+        const std::string lane_text =
+            lane_text_for(AmsState::instance().collect_available_slots(), fix->slot);
+        char buf[sizeof(fix_text_buf_)];
+        snprintf(buf, sizeof(buf), lv_tr("Set %s to %s"), lane_text.c_str(), fix->material.c_str());
+        lv_subject_copy_string(&fix_text_subject_, buf);
+    }
+    lv_subject_set_int(&fix_shown_subject_, fix ? 1 : 0);
 
     spdlog::debug("[PreflightCheckModal] Shown with {} checks, remap={}", result_.checks.size(),
                   helix::printer::remap_block_name(block));

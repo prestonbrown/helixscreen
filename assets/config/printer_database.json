@@ -7032,6 +7032,7 @@
             "order": 10,
             "default_enabled": false,
             "label_key": "Pressure Advance Calibration",
+            "needs_material": true,
             "strategy": "pre_start_gcode",
             "gcode_template": "SET_PRINT_PREFERENCES FLOW_CALIBRATE={value}",
             "emit_when_disabled": true

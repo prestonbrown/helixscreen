@@ -948,7 +948,8 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Picking Auto shows the lane the tool
     CHECK(chip_string(1, "_slot") == "2");
     CHECK(chip_int(1, "_slot_state") == 1);
     // The print-start gate judges the same lane and lets it print.
-    CHECK_FALSE(helix::file_preflight(card.get_tool_info(), card.get_mappings()).has_block());
+    CHECK_FALSE(
+        helix::file_preflight(card.get_tool_info(), card.get_mappings(), false).has_block());
     process_lvgl(100);
 }
 
@@ -969,7 +970,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     CHECK(chip_int(1, "_severity") == 2);
     CHECK(chip_int(1, "_slot_state") == 0);
     // The print-start gate reads the same mapping and blocks it.
-    CHECK(helix::file_preflight(card.get_tool_info(), card.get_mappings()).has_block());
+    CHECK(helix::file_preflight(card.get_tool_info(), card.get_mappings(), false).has_block());
     process_lvgl(100);
 }
 
@@ -1005,7 +1006,7 @@ TEST_CASE_METHOD(
     CHECK(seeded[0].mapped_slot == 0);
     CHECK(seeded[1].mapped_slot == 1);
 
-    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded);
+    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded, false);
     REQUIRE(preflight.checks.size() == 2);
     CHECK(preflight.checks[0].severity == helix::ToolCheck::Severity::EmptySlot);
     CHECK(preflight.has_block());
@@ -1052,7 +1053,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
           helix::printer::RemapBlock::NoStrategy);
 
     // Neither the empty lane 1 nor the PETG in lane 2 is held against a tool.
-    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded);
+    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded, false);
     CHECK(preflight.checks.empty());
     CHECK_FALSE(preflight.has_block());
     CHECK_FALSE(preflight.has_advisory());

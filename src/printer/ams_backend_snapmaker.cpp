@@ -2508,6 +2508,9 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
             // Base type only (e.g., "PLA") for compact display; firmware's
             // spelling of no type is no material.
             slot->material = task_field_value(ptc.filament_type[i]);
+            // Flow calibration and RESUME both stop on a head whose record
+            // names no type (`not edit filament info`).
+            slot->material_required = is_unset_task_field(*ptc.filament_type[i]);
             fx.changed = true;
         }
         if (ptc.filament_vendor[i]) {

@@ -1354,7 +1354,7 @@ void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int 
     case FileHistoryStatus::FAILED:
         lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
         helix::ui::icon::set_source(history_status_icon_, "alert");
-        helix::ui::icon::set_variant(history_status_icon_, "error");
+        helix::ui::icon::set_variant(history_status_icon_, "danger");
         lv_label_set_text(history_status_label_, lv_tr("Last print failed"));
         break;
 
@@ -1756,7 +1756,9 @@ void PrintSelectDetailView::recompute_preflight() {
     // Bypass short-circuits all of the above: the filament comes from the external
     // spool, not from any slot, so no mapping can satisfy a tool and every check
     // would report EmptySlot. Backend-agnostic — AFC and Happy Hare both report it.
-    preflight_result_ = helix::file_preflight(tools, effective_mappings());
+    preflight_result_ =
+        helix::file_preflight(tools, effective_mappings(),
+                              prep_manager_ && prep_manager_->enabled_options_need_material());
 
     // Log every severity separately: "advisory=false" alone cannot tell
     // "nothing was wrong" from "something was, and it was not material". These
@@ -2860,6 +2862,9 @@ void PrintSelectDetailView::populate_option_rows() {
                                        spdlog::debug("[DetailView] Option '{}' toggled: {}", id,
                                                      new_state);
                                        update_prep_time_label();
+                                       // An option can make a slot with no
+                                       // material set a block.
+                                       recompute_preflight();
                                        notify_print_readiness_changed();
                                    });
 

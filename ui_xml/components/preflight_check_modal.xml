@@ -30,6 +30,17 @@
                width="100%" long_mode="wrap" style_pad_left="#space_lg" style_pad_right="#space_lg"
                style_pad_top="#space_xs" style_pad_bottom="#space_md" style_text_color="#text_muted"/>
 
+    <!-- Writes the material the file names to a slot that has none set. -->
+    <lv_obj name="preflight_material_fix_row"
+            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+            style_pad_bottom="#space_md" style_border_width="0" style_bg_opa="0" scrollable="false" flex_flow="row"
+            style_flex_main_place="center">
+      <bind_flag_if_eq subject="preflight_material_fix_shown" flag="hidden" ref_value="0"/>
+      <ui_button name="btn_set_material" variant="secondary" bind_text="preflight_material_fix_text">
+        <event_cb trigger="clicked" callback="on_preflight_set_material"/>
+      </ui_button>
+    </lv_obj>
+
     <!-- Button row: Map Filament… (tertiary, optional), Cancel (secondary),
          Print Anyway (primary). Wired programmatically; no XML callbacks to
          avoid double-wiring. The tertiary button is hidden from C++ when the
