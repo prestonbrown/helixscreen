@@ -39,6 +39,11 @@ void set_credential(Credential credential);
 /// is the one that marked it, so the refusal is reported once.
 bool mark_unauthorized();
 
+/// The connected Moonraker accepted this client: a refusal fixed on the Moonraker side
+/// (trusted_clients, force_logins) clears without a new credential, and a later
+/// refusal is reported again.
+void mark_authorized();
+
 /// Whether the connected Moonraker has refused this client's login.
 [[nodiscard]] bool unauthorized();
 

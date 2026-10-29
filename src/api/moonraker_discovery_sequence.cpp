@@ -162,6 +162,7 @@ void MoonrakerDiscoverySequence::start(
                 spdlog::info("[Moonraker Client] Identified to Moonraker (connection_id: {})",
                              conn_id);
                 identified_.store(true);
+                helix::moonraker_auth::mark_authorized();
             } else if (identify_response.contains("error")) {
                 const MoonrakerError err = MoonrakerError::from_json_rpc(
                     identify_response["error"], "server.connection.identify");

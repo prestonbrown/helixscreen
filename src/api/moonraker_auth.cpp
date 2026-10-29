@@ -67,6 +67,10 @@ bool mark_unauthorized() {
     return !refused().exchange(true);
 }
 
+void mark_authorized() {
+    refused().store(false);
+}
+
 bool unauthorized() {
     return refused().load();
 }

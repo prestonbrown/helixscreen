@@ -593,12 +593,18 @@ void WizardConnectionStep::attempt_auto_probe() {
     // Clear timer reference (it's already fired)
     auto_probe_timer_ = nullptr;
 
+    // The probe runs unasked, so a key Test Connection would refuse is not sent either.
+    std::string probe_key = entered_api_key();
+    if (!api_key_problem(probe_key).empty()) {
+        probe_key.clear();
+    }
+
     // Store probe target for callbacks (thread-safe)
     {
         std::lock_guard<std::mutex> lock(saved_values_mutex_);
         saved_ip_ = probe_ip;
         saved_port_ = probe_port;
-        saved_api_key_ = entered_api_key();
+        saved_api_key_ = probe_key;
     }
 
     // Show subtle probing indicator
@@ -629,7 +635,7 @@ void WizardConnectionStep::attempt_auto_probe() {
             // Short: the probe runs unasked, so it gives up quickly.
             connect_confirmed(tok, true, 3000);
         },
-        entered_api_key());
+        probe_key);
 }
 
 void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok) {
@@ -1068,6 +1074,14 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
 
     if (picked) {
         const DiscoveredPrinter printer = *picked;
+
+        // A key belongs to the printer it was entered for, so another printer starts
+        // without one rather than being sent this one's.
+        const std::string previous_ip = lv_subject_get_string(&self->connection_ip_);
+        if (!text_io::equals_ignore_case(previous_ip, printer.ip_address)) {
+            lv_subject_copy_string(&self->connection_api_key_, "");
+            lv_subject_set_int(&self->connection_login_required_, 0);
+        }
 
         // Update IP input
         lv_subject_copy_string(&self->connection_ip_, printer.ip_address.c_str());

@@ -786,6 +786,43 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: picking another printer clears the key entered for this one",
+                 "[wizard][connection][api-key][lan_sweep]") {
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    step->init_subjects();
+    step->register_callbacks();
+    auto mock = std::make_unique<MockMdnsDiscovery>();
+    MockMdnsDiscovery* mdns = mock.get();
+    step->set_mdns_discovery(std::move(mock));
+    lv_obj_t* root = step->create(test_screen());
+    REQUIRE(root != nullptr);
+
+    lv_subject_t* key = lv_xml_get_subject(nullptr, "connection_api_key");
+    lv_subject_t* login = lv_xml_get_subject(nullptr, "connection_login_required");
+    REQUIRE(key != nullptr);
+    REQUIRE(login != nullptr);
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "192.168.1.20");
+    lv_subject_copy_string(key, "0123456789abcdef0123456789abcdef");
+    lv_subject_set_int(login, 1);
+
+    mdns->add_fake_printer("voron", "voron.local", "192.168.1.112", 7125);
+    mdns->simulate_discovery();
+    lv_obj_t* dropdown = lv_obj_find_by_name(root, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+
+    CHECK(std::string(lv_subject_get_string(key)).empty());
+    CHECK(lv_subject_get_int(login) == 0);
+    lv_subject_copy_string(key, "");
+    lv_subject_set_int(login, 0);
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "Connection step: editing the address drops a test still running",
                  "[wizard][connection][port_fallback]") {
     helix::test::FakeMoonrakerClient client;

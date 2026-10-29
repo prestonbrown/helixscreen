@@ -436,3 +436,23 @@ TEST_CASE("Discovery stops at a refused login and reports it once", "[discovery]
     CHECK(helix::moonraker_auth::unauthorized());
     helix::moonraker_auth::set_credential({});
 }
+
+TEST_CASE("A login fixed on the Moonraker side clears the refusal on the next identify",
+          "[discovery][api-key]") {
+    LVGLTestFixture fixture;
+    helix::moonraker_auth::set_credential({"printer.lan", 7125, ""});
+    TestDiscoveryClient client;
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    {
+        helix::ScopedEnv force_logins("HELIX_MOCK_FORCE_LOGINS", "1");
+        client.discover_printer_real([]() {}, [](const std::string&) {});
+        REQUIRE(helix::moonraker_auth::unauthorized());
+    }
+
+    // trusted_clients now admits the screen; the reconnect keeps the same credential.
+    bool completed = false;
+    client.discover_printer_real([&completed]() { completed = true; }, [](const std::string&) {});
+    CHECK(completed);
+    CHECK_FALSE(helix::moonraker_auth::unauthorized());
+    helix::moonraker_auth::set_credential({});
+}
