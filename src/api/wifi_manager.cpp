@@ -964,6 +964,8 @@ void WiFiManager::get_country_async(helix::LifetimeToken token,
     CountryState unread;
     unread.stored = helix::wifi::country::normalize(
         helix::SystemSettingsManager::instance().get_wifi_country());
+    unread.last_seen = helix::wifi::country::normalize(
+        helix::SystemSettingsManager::instance().get_wifi_country_last_seen());
     unread.display = unread.stored;
     if (!supports_country()) {
         on_done(unread);
@@ -974,7 +976,11 @@ void WiFiManager::get_country_async(helix::LifetimeToken token,
         [this, token, on_done, unread]() -> helix::Callback<void()> {
             CountryState state = unread;
             state.read_ok = backend_->get_country(state.system).success();
-            state.display = helix::wifi::country::plan(state.stored, state.system).display;
+            if (state.read_ok) {
+                remember_radio_country(state.system);
+            }
+            state.display =
+                helix::wifi::country::plan(state.stored, state.system, state.last_seen).display;
             return [token, on_done, state]() {
                 if (!token.expired()) {
                     on_done(state);
@@ -1039,30 +1045,53 @@ void WiFiManager::apply_stored_country() {
     if (!supports_country()) {
         return;
     }
-    const std::string stored = helix::wifi::country::normalize(
-        helix::SystemSettingsManager::instance().get_wifi_country());
-    if (stored.empty()) {
-        spdlog::debug("[WiFiManager] No WiFi country saved — leaving the radio's own setting");
-        return;
-    }
-    submit_control("apply_country", ControlKind::User, [this, stored]() {
+    const auto& settings = helix::SystemSettingsManager::instance();
+    const std::string stored = helix::wifi::country::normalize(settings.get_wifi_country());
+    const std::string last_seen =
+        helix::wifi::country::normalize(settings.get_wifi_country_last_seen());
+    // Submitted even with nothing saved, so the radio's own country is
+    // remembered for the start that finds it wiped.
+    submit_control("apply_country", ControlKind::User, [this, stored, last_seen]() {
         std::string system;
-        if (!backend_->get_country(system).success()) {
+        const bool read_ok = backend_->get_country(system).success();
+        if (!read_ok) {
             system.clear();
+            if (stored.empty()) {
+                // An unreadable radio may hold a country; never overwrite it.
+                spdlog::debug("[WiFiManager] Could not read the WiFi country — leaving it");
+                return;
+            }
         }
-        const auto plan = helix::wifi::country::plan(stored, system);
+        remember_radio_country(system);
+        const auto plan = helix::wifi::country::plan(stored, system, last_seen);
         if (plan.apply.empty()) {
-            spdlog::debug("[WiFiManager] WiFi country already {}", stored);
+            spdlog::debug("[WiFiManager] Leaving the WiFi country at {}",
+                          system.empty() ? "world" : system);
             return;
         }
         const WiFiError result = backend_->set_country(plan.apply);
-        if (result.success()) {
+        if (!result.success()) {
+            spdlog::warn("[WiFiManager] Could not apply {} WiFi country {}: {}",
+                         stored.empty() ? "last reported" : "saved", plan.apply,
+                         result.technical_msg);
+        } else if (stored.empty()) {
+            spdlog::info("[WiFiManager] Restored WiFi country {}: the radio came up at world "
+                         "with no saved choice, and {} is the last country it reported",
+                         plan.apply, plan.apply);
+        } else {
             spdlog::info("[WiFiManager] Applied saved WiFi country {} (radio had '{}')", plan.apply,
                          system.empty() ? "world" : system);
-        } else {
-            spdlog::warn("[WiFiManager] Could not apply saved WiFi country {}: {}", plan.apply,
-                         result.technical_msg);
         }
+    });
+}
+
+void WiFiManager::remember_radio_country(const std::string& system) {
+    const std::string clean = helix::wifi::country::normalize(system);
+    if (clean.empty()) {
+        return;
+    }
+    async_lifetime_.defer("WiFiManager::remember_country", [clean]() {
+        helix::SystemSettingsManager::instance().set_wifi_country_last_seen(clean);
     });
 }
 
@@ -1070,6 +1099,7 @@ void WiFiManager::handle_regdom_change(const std::string& event_data) {
     const std::string alpha2 = helix::wifi::country::parse_regdom_change_alpha2(event_data);
     spdlog::info("[WiFiManager] Regulatory domain changed (alpha2={}){}",
                  alpha2.empty() ? "?" : alpha2, scan_timer_ ? " — rescanning" : "");
+    remember_radio_country(alpha2);
     notify_state_observers(/*country_may_have_changed=*/true);
     if (scan_timer_) {
         request_scan(/*user_refresh=*/false);

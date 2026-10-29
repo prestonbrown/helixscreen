@@ -205,6 +205,12 @@ class WiFiManagerTestAccess {
     static void fire_scan_complete(WiFiManager& wm) {
         wm.handle_scan_complete("");
     }
+
+    /// handle_regdom_change() as the REGDOM_CHANGE event reaches it on the
+    /// LVGL thread.
+    static void fire_regdom_change(WiFiManager& wm, const std::string& event) {
+        wm.handle_regdom_change(event);
+    }
 };
 
 } // namespace helix

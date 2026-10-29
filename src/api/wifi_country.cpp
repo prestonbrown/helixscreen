@@ -8,6 +8,7 @@
 #include <cctype>
 #include <charconv>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 
 namespace helix::wifi::country {
@@ -270,6 +271,12 @@ constexpr Entry kCountries[] = {
 
 constexpr size_t kCountryCount = std::size(kCountries);
 
+// Listed first in the dropdown, in this order, so the most common choices
+// need no scrolling. Each must be in kCountries.
+constexpr const char* kPinned[] = {"US", "GB", "DE", "CA", "AU", "FR"};
+
+constexpr size_t kPinnedCount = std::size(kPinned);
+
 std::string upper2(const std::string& code) {
     if (code.size() != 2) {
         return {};
@@ -293,6 +300,31 @@ int table_index(const std::string& upper) {
     return -1;
 }
 
+int pinned_index(const char* code) {
+    for (size_t i = 0; i < kPinnedCount; ++i) {
+        if (std::strcmp(code, kPinned[i]) == 0) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+/// Calls @p visit(row, entry) for every country row of the dropdown in order
+/// (row 1 is the first after the not-set row) until it returns true.
+template <typename Visit> void for_each_row(Visit visit) {
+    int row = 1;
+    for (const char* code : kPinned) {
+        if (visit(row++, kCountries[table_index(code)])) {
+            return;
+        }
+    }
+    for (const auto& entry : kCountries) {
+        if (pinned_index(entry.code) < 0 && visit(row++, entry)) {
+            return;
+        }
+    }
+}
+
 } // namespace
 
 size_t table_size() {
@@ -312,28 +344,46 @@ bool is_world(const std::string& code) {
     return code.empty() || code == "00";
 }
 
+size_t pinned_count() {
+    return kPinnedCount;
+}
+
 std::string dropdown_options(const std::string& not_set_label) {
     std::string out = not_set_label;
-    for (const auto& entry : kCountries) {
+    for_each_row([&out](int, const Entry& entry) {
         out += '\n';
         out += entry.name;
         out += " (";
         out += entry.code;
         out += ')';
-    }
+        return false;
+    });
     return out;
 }
 
 int dropdown_index(const std::string& code) {
-    const int i = table_index(upper2(code));
-    return i < 0 ? 0 : i + 1;
+    const std::string upper = upper2(code);
+    int found = 0;
+    for_each_row([&](int row, const Entry& entry) {
+        if (upper == entry.code) {
+            found = row;
+            return true;
+        }
+        return false;
+    });
+    return found;
 }
 
 std::string code_at_dropdown_index(int index) {
-    if (index < 1 || static_cast<size_t>(index) > kCountryCount) {
-        return {};
-    }
-    return kCountries[index - 1].code;
+    std::string found;
+    for_each_row([&](int row, const Entry& entry) {
+        if (row == index) {
+            found = entry.code;
+            return true;
+        }
+        return false;
+    });
+    return found;
 }
 
 std::string parse_wpa_get_country(const std::string& reply) {
@@ -367,11 +417,14 @@ std::string parse_regdom_change_alpha2(const std::string& event) {
     return event.substr(pos + key.size(), end - pos - key.size());
 }
 
-Plan plan(const std::string& stored, const std::string& system) {
+Plan plan(const std::string& stored, const std::string& system, const std::string& last_seen) {
     const std::string want = normalize(stored);
     const std::string have = normalize(system);
     if (!want.empty()) {
         return {want == have ? std::string() : want, want};
+    }
+    if (have.empty()) {
+        return {normalize(last_seen), have};
     }
     return {std::string(), have};
 }

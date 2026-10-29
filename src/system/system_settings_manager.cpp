@@ -152,17 +152,33 @@ std::string SystemSettingsManager::get_language() const {
     return language_index_to_code(index);
 }
 
+namespace {
+
+void save_string_if_changed(const char* key, const std::string& value) {
+    Config* config = Config::get_instance();
+    if (config->get<std::string>(key, "") == value) {
+        return;
+    }
+    config->set(key, value);
+    config->save();
+}
+
+} // namespace
+
 std::string SystemSettingsManager::get_wifi_country() const {
     return Config::get_instance()->get<std::string>("/wifi_country", "");
 }
 
 void SystemSettingsManager::set_wifi_country(const std::string& code) {
-    Config* config = Config::get_instance();
-    if (config->get<std::string>("/wifi_country", "") == code) {
-        return;
-    }
-    config->set("/wifi_country", code);
-    config->save();
+    save_string_if_changed("/wifi_country", code);
+}
+
+std::string SystemSettingsManager::get_wifi_country_last_seen() const {
+    return Config::get_instance()->get<std::string>("/wifi_country_last_seen", "");
+}
+
+void SystemSettingsManager::set_wifi_country_last_seen(const std::string& code) {
+    save_string_if_changed("/wifi_country_last_seen", code);
 }
 
 void SystemSettingsManager::set_language(const std::string& lang) {

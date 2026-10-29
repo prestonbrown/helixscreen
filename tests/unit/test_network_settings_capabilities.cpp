@@ -49,6 +49,15 @@ class CapabilityFixture : public LVGLUITestFixture {
   protected:
     ScopedRuntimeConfig scoped_config;
 
+    // A radio country these tests set is remembered; it would be sent to the
+    // next test's world-domain mock radio.
+    CapabilityFixture() {
+        helix::SystemSettingsManager::instance().set_wifi_country_last_seen("");
+    }
+    ~CapabilityFixture() {
+        helix::SystemSettingsManager::instance().set_wifi_country_last_seen("");
+    }
+
     lv_obj_t* open_overlay(NetworkSettingsOverlay& overlay, std::unique_ptr<WifiBackend> backend) {
         get_runtime_config()->test_mode = true;
         get_runtime_config()->use_real_wifi = false;
