@@ -20,6 +20,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "pa_calibration.h"
+#include "pa_result_store.h"
 #include "pa_tuning.h"
 #include "preset_materials.h"
 #include "printer_state.h"
@@ -124,6 +125,8 @@ void PACalibrationPanel::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(prog_foot_, prog_foot_buf_, "", "pa_cal_prog_foot", subjects_);
         UI_MANAGED_SUBJECT_STRING(result_, result_buf_, "--", "pa_cal_result", subjects_);
         UI_MANAGED_SUBJECT_STRING(keep_note_, keep_note_buf_, "", "pa_cal_keep_note", subjects_);
+        UI_MANAGED_SUBJECT_STRING(spool_text_, spool_text_buf_, "", "pa_cal_spool_text", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_save_spool_, 0, "pa_cal_can_save_spool", subjects_);
         UI_MANAGED_SUBJECT_STRING(result_sanity_, result_sanity_buf_, "", "pa_cal_result_sanity",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(error_title_, error_title_buf_, "", "pa_cal_error_title",
@@ -151,6 +154,7 @@ void PACalibrationPanel::register_callbacks() {
              }
          }},
         {"on_pa_cal_start", [](lv_event_t*) { get_global_pa_cal_panel().confirm_and_start(); }},
+        {"on_pa_cal_save_spool", [](lv_event_t*) { get_global_pa_cal_panel().save_to_spool(); }},
         {"on_pa_cal_reset",
          [](lv_event_t*) {
              // Back to the setup screen, not straight into another run: after seeing a
@@ -597,7 +601,84 @@ void PACalibrationPanel::on_result(float k) {
     lv_subject_set_int(&progress_, 100);
     publish_last_result();
     set_state(COMPLETE);
+    store_result(proc ? proc->provider_id : std::string{});
     spdlog::info("[{}] Result K={:.4f} (plausible={})", get_name(), k, plausible);
+}
+
+void PACalibrationPanel::store_result(const std::string& provider_id) {
+    result_spool_.reset();
+    lv_subject_set_int(&can_save_spool_, 0);
+    lv_subject_copy_string(&spool_text_, "");
+    if (!api_) {
+        return;
+    }
+    lv_subject_copy_string(&spool_text_, lv_tr("Looking for the active spool..."));
+
+    helix::pa::SavedK saved;
+    saved.k = result_k_;
+    saved.extruder = selected_heater();
+    saved.material = result_material_;
+    saved.nozzle_temp = result_temp_;
+    saved.updated = helix::pa::utc_now_iso();
+    saved.source = helix::pa::measured_source(provider_id);
+
+    // The measured tool's own spool when the printer assigns spools per tool;
+    // Spoolman's single active spool otherwise.
+    const auto& tools = helix::ToolState::instance().tools();
+    const int tool_spool = result_tool_ >= 0 && result_tool_ < static_cast<int>(tools.size())
+                               ? tools[static_cast<size_t>(result_tool_)].spoolman_id
+                               : 0;
+    helix::pa::find_result_spool(
+        *api_, tool_spool,
+        object_lifetime_.bg_cb(
+            "PACalibrationPanel::result_spool",
+            [this, saved](helix::pa::SpoolLookup found, const std::optional<SpoolInfo>& spool) {
+                helix::pa::publish_result(*api_, helix::pa::with_spool(saved, spool));
+                // The screen may have moved on to another run since.
+                if (state_ != COMPLETE || saved.k != result_k_) {
+                    return;
+                }
+                result_spool_ = spool;
+                switch (found) {
+                case helix::pa::SpoolLookup::Found:
+                    lv_subject_copy_string(
+                        &spool_text_,
+                        fmt::format(fmt::runtime(lv_tr("Active spool: {}")), spool->display_name())
+                            .c_str());
+                    lv_subject_set_int(&can_save_spool_, 1);
+                    break;
+                case helix::pa::SpoolLookup::NoSpool:
+                    lv_subject_copy_string(&spool_text_, lv_tr("No active Spoolman spool."));
+                    break;
+                case helix::pa::SpoolLookup::Unavailable:
+                    lv_subject_copy_string(&spool_text_, "");
+                    break;
+                }
+            }));
+}
+
+void PACalibrationPanel::save_to_spool() {
+    if (state_ != COMPLETE || !api_ || !result_spool_ || result_spool_->filament_id <= 0) {
+        return;
+    }
+    lv_subject_set_int(&can_save_spool_, 0);
+    const std::string name = result_spool_->display_name();
+    helix::pa::save_to_filament(
+        *api_, result_spool_->filament_id, result_k_, lv_tr("Pressure advance"),
+        object_lifetime_.bg_cb(
+            "PACalibrationPanel::spool_saved",
+            [this, name]() {
+                lv_subject_copy_string(
+                    &spool_text_, fmt::format(fmt::runtime(lv_tr("Saved to {}. It applies whenever "
+                                                                 "this filament becomes active.")),
+                                              name)
+                                      .c_str());
+            }),
+        object_lifetime_.bg_cb(
+            "PACalibrationPanel::spool_save_failed", [this](const MoonrakerError& err) {
+                lv_subject_set_int(&can_save_spool_, 1);
+                helix::ui::notify_error_tr(TR_NOOP("Failed to save to Spoolman: {}"), err);
+            }));
 }
 
 void PACalibrationPanel::on_error(const std::string& message) {

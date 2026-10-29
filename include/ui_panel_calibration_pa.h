@@ -8,11 +8,13 @@
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_calibration.h"
+#include "spoolman_types.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
 #include <lvgl.h>
+#include <optional>
 #include <string>
 
 /**
@@ -42,13 +44,14 @@
  *   IDLE --(Start, confirmed)--> HEATING --(at target)--> MEASURING
  *        <-------------------- COMPLETE / ERROR <--------'
  *
- * ## Nothing is applied and nothing is saved
+ * ## What happens to the number
  *
- * The printer reports a number; this panel does not send SET_PRESSURE_ADVANCE
- * and does not SAVE_CONFIG. The value belongs in the user's slicer profile,
- * per filament - which is the only place it can be right for the next spool
- * too. That is why COMPLETE carries one quiet button (Re-measure) instead of
- * three unequal acts dressed as equals.
+ * This panel never sends SET_PRESSURE_ADVANCE or SAVE_CONFIG; whether the
+ * printer keeps the value is the firmware's own behaviour, stated on the
+ * result. The panel records it in Moonraker for other clients and, when
+ * Spoolman names the spool it belongs to, offers Save to Spool: the filament
+ * then carries its K to every printer that activates it. Re-measure stays the
+ * quiet button.
  *
  * ## Subject bindings
  *
@@ -63,6 +66,7 @@
  * - pa_cal_phase_state_N (int 0=pending,1=now,2=done), _phase_name_N,
  *   _phase_meta_N (string)
  * - pa_cal_result / _result_sanity (string), pa_cal_result_plausible (int)
+ * - pa_cal_spool_text (string), pa_cal_can_save_spool (int)
  * - pa_cal_error_title / _detail / _hint (string)
  * - pa_cal_action_text (string), pa_cal_action_is_stop (int)
  * - pa_cal_has_last (int), pa_cal_last_value / _last_context (string)
@@ -162,6 +166,9 @@ class PACalibrationPanel : public OverlayBase {
     void on_error_for_test(const std::string& message) {
         on_error(message);
     }
+    void save_to_spool_for_test() {
+        save_to_spool();
+    }
     int target_temp_for_test() const {
         return target_temp_;
     }
@@ -199,6 +206,10 @@ class PACalibrationPanel : public OverlayBase {
     void update_phase_rows();
     void update_progress_display();
     void publish_last_result();
+    /// Find the spool the result belongs to, record the result for other
+    /// clients, and offer Save to Spool when the spool can hold it.
+    void store_result(const std::string& provider_id);
+    void save_to_spool();
 
     /// Split a firmware refusal into a short title and the verbatim detail.
     /// The machine's own sentence is the most valuable text on the screen when
@@ -235,6 +246,8 @@ class PACalibrationPanel : public OverlayBase {
     int result_tool_ = 0;
     int result_temp_ = 0;
     std::string result_material_;
+    /// The spool the result belongs to, when Spoolman named one.
+    std::optional<SpoolInfo> result_spool_;
 
     /// Stops listening to the run in progress. Klipper cannot interrupt a
     /// running command, so a stop mid-measurement leaves the firmware to
@@ -305,6 +318,11 @@ class PACalibrationPanel : public OverlayBase {
 
     lv_subject_t action_text_{};
     char action_text_buf_[24] = {};
+
+    /// Where Save to Spool writes, or why it cannot.
+    lv_subject_t spool_text_{};
+    char spool_text_buf_[96] = {};
+    lv_subject_t can_save_spool_{};
 
     lv_subject_t last_value_{};
     char last_value_buf_[16] = {};

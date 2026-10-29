@@ -12,8 +12,8 @@
 <!-- the eye keeps its place across a long wait and only the stage repaints. -->
 <!-- -->
 <!-- The screen only MEASURES: whether the printer keeps the value is the -->
-<!-- firmware's own behaviour, stated on the result, so the result carries one -->
-<!-- quiet button (Re-measure) rather than three unequal acts dressed as equals. -->
+<!-- firmware's own behaviour, stated on the result. The one act offered on -->
+<!-- top of that is Save to Spool, and only when Spoolman names the spool. -->
 <component>
   <styles>
     <!-- Selected chips are a tint of #primary rather than a new token, so they
@@ -296,11 +296,24 @@
             <text_small name="pa_result_keep_note"
                         width="90%" bind_text="pa_cal_keep_note" style_text_color="#text_muted"
                         style_text_align="center" long_mode="wrap"/>
+            <text_small name="pa_result_spool"
+                        width="90%" bind_text="pa_cal_spool_text" style_text_color="#text_muted"
+                        style_text_align="center" long_mode="wrap"/>
           </lv_obj>
-          <ui_button name="pa_btn_remeasure"
-                     width="100%" height="#button_height" moves_machine="true" variant="ghost" text="Re-measure">
-            <event_cb trigger="clicked" callback="on_pa_cal_reset"/>
-          </ui_button>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" style_bg_opa="0"
+                  style_border_width="0" scrollable="false">
+            <ui_button name="pa_btn_remeasure"
+                       width="1" height="#button_height" flex_grow="1" moves_machine="true" variant="ghost"
+                       text="Re-measure">
+              <event_cb trigger="clicked" callback="on_pa_cal_reset"/>
+            </ui_button>
+            <ui_button name="pa_btn_save_spool"
+                       width="1" height="#button_height" flex_grow="1" icon="spoolman" text="Save to Spool">
+              <bind_flag_if_eq subject="pa_cal_can_save_spool" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_pa_cal_save_spool"/>
+            </ui_button>
+          </lv_obj>
         </lv_obj>
 
         <!-- G - refused. The machine's own sentence at full size, then what is
