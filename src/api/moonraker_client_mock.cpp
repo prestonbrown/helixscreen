@@ -2208,9 +2208,11 @@ nlohmann::json MoonrakerClientMock::cfs_box_status_json() const {
     })");
     // HELIX_MOCK_CFS_BOXES lists the box addresses on the bus ("1,2,4"); box 1
     // is always present, every other listed box is empty. "none" is a K2 with
-    // no CFS: the firmware still publishes `box`, every address reading "None".
+    // no CFS: the firmware still publishes `box`, every address reading "None"
+    // and the box itself "disconnect".
     const char* boxes = std::getenv("HELIX_MOCK_CFS_BOXES");
     if (boxes && std::string_view(boxes) == "none") {
+        box["state"] = "disconnect";
         box["map"] = nlohmann::json::object();
         for (const char* unit : {"T1", "T2", "T3", "T4"}) {
             box[unit] = {{"state", "None"},

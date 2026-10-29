@@ -2117,12 +2117,18 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
 
     // Stock K2 firmware publishes `box` whether or not a CFS is attached; with
     // none, every address reads "None" and the toolhead takes only the
-    // external spool (#1904). A unit seen this session keeps its place in the
-    // list below even when a later frame drops it, so the verdict cannot flip
-    // back on a unit that went briefly quiet. The flat schema is a module
-    // reporting its own slots, never this case.
+    // external spool (#1904). Every address reading "None" is also how a K2
+    // with a CFS boots, before its unit answers the RS-485 poll, so that alone
+    // decides nothing: the box's own state, read from the merged frames since
+    // a delta omits it while unchanged, must say "disconnect" (#1933). A unit
+    // seen this session keeps its place in the list below even when a later
+    // frame drops it, so the verdict cannot flip back on a unit that went
+    // briefly quiet. The flat schema is a module reporting its own slots,
+    // never this case.
+    const bool bus_reported_empty =
+        helix::json_util::safe_string(*f.state, "state", "") == "disconnect";
     const bool external_spool_only =
-        !is_flat && new_info.units.empty() && system_info_.units.empty();
+        !is_flat && bus_reported_empty && new_info.units.empty() && system_info_.units.empty();
     if (system_info_.external_spool_only != external_spool_only) {
         spdlog::info("[AMS CFS] external_spool_only {} -> {} ({})",
                      system_info_.external_spool_only, external_spool_only,

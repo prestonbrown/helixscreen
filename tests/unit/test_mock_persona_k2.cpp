@@ -297,6 +297,7 @@ TEST_CASE("The k2 persona with HELIX_MOCK_CFS_BOXES=none publishes an empty bus"
     };
 
     const json empty_bus = frame_for("none");
+    CHECK(empty_bus.value("state", "") == "disconnect");
     for (const char* unit : {"T1", "T2", "T3", "T4"}) {
         CAPTURE(unit);
         CHECK(empty_bus[unit].value("state", "") == "None");

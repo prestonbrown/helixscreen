@@ -90,7 +90,7 @@ Everything from here to "Disconnected Units" describes the **stock** schema. The
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `state` | string | Connection state: `"connect"`, `"None"` |
+| `state` | string | Connection state: `"connect"`, or `"disconnect"` on a K2 with no CFS attached (debug bundle, #1904). What a K2 with a CFS reports here before its unit answers at boot is unrecorded (#1933) |
 | `filament` | int | Filament loaded flag (1 = loaded) |
 | `enable` | int | CFS enabled for printing |
 | `auto_refill` | int | Auto-refill (backup spool) enabled |
