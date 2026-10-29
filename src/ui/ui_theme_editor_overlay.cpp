@@ -14,6 +14,7 @@
 #include "ui_toast_manager.h"
 
 #include "border_radius_sizes.h"
+#include "color_utils.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -550,16 +551,7 @@ void ThemeEditorOverlay::show_color_picker(int palette_index) {
 
     // Get current color hex from the active palette (dark or light based on mode)
     const std::string& current_hex = get_active_palette().at(palette_index);
-    uint32_t current_rgb = 0x808080; // Default gray if parsing fails
-
-    // Parse hex color (handle both "#RRGGBB" and "RRGGBB" formats)
-    if (!current_hex.empty()) {
-        const char* hex_ptr = current_hex.c_str();
-        if (hex_ptr[0] == '#') {
-            hex_ptr++;
-        }
-        current_rgb = static_cast<uint32_t>(std::strtoul(hex_ptr, nullptr, 16));
-    }
+    uint32_t current_rgb = helix::parse_hex_color(current_hex).value_or(0x808080);
 
     // Create color picker if not already created
     if (!color_picker_) {

@@ -6,6 +6,7 @@
 #include "ui_spool_canvas.h"
 #include "ui_virtual_list.h"
 
+#include "color_utils.h"
 #include "format_utils.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -16,31 +17,6 @@
 #include <cstdio>
 
 namespace helix::ui {
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/**
- * Parse a hex color string (with or without '#' prefix) into an lv_color_t.
- * Returns fallback_color if the string is empty or unparseable.
- */
-static lv_color_t parse_spool_color(const std::string& color_hex, lv_color_t fallback_color) {
-    if (color_hex.empty()) {
-        return fallback_color;
-    }
-
-    const char* hex = color_hex.c_str();
-    if (hex[0] == '#') {
-        hex++;
-    }
-
-    unsigned int color_val = 0;
-    if (sscanf(hex, "%x", &color_val) == 1) {
-        return lv_color_hex(color_val);
-    }
-    return fallback_color;
-}
 
 // ============================================================================
 // Destruction
@@ -200,10 +176,10 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
 
     // Update 3D spool canvas
     if (rw.canvas) {
-        lv_color_t color =
-            parse_spool_color(spool.color_hex, theme_manager_get_color("text_muted"));
-        helix::ui::spool_canvas_set_filament(rw.canvas, lv_color_to_u32(color) & 0xFFFFFF,
-                                             spool.multi_color_hexes,
+        uint32_t rgb =
+            helix::parse_hex_color(spool.color_hex)
+                .value_or(lv_color_to_u32(theme_manager_get_color("text_muted")) & 0xFFFFFF);
+        helix::ui::spool_canvas_set_filament(rw.canvas, rgb, spool.multi_color_hexes,
                                              helix::ui::swatch_finish(spool.finish()));
 
         // remaining_percent() reports 0 for an unweighed spool, which is honest for

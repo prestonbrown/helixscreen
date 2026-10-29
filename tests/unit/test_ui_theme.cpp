@@ -125,10 +125,14 @@ TEST_CASE("UI Theme: Handle invalid color strings", "[ui_theme][color][error]") 
 }
 
 TEST_CASE("UI Theme: Handle malformed hex strings", "[ui_theme][color][error]") {
-    SECTION("Too short") {
+    SECTION("Two digits is not a color") {
         lv_color_t color = theme_manager_parse_hex_color("#FF");
-        // Should parse as 0xFF (255)
-        REQUIRE(COLOR_RGB(color) == 0x0000FF);
+        REQUIRE(COLOR_RGB(color) == 0x000000);
+    }
+
+    SECTION("Trailing junk is not a color") {
+        lv_color_t color = theme_manager_parse_hex_color("#FF0000zz");
+        REQUIRE(COLOR_RGB(color) == 0x000000);
     }
 
     SECTION("Invalid hex characters") {
@@ -161,6 +165,16 @@ TEST_CASE("UI Theme: Color parsing edge cases", "[ui_theme][color][edge]") {
     SECTION("Leading zeros") {
         lv_color_t color = theme_manager_parse_hex_color("#000001");
         REQUIRE(COLOR_RGB(color) == 0x000001);
+    }
+
+    SECTION("8-digit #RRGGBBAA drops alpha, keeps hue") {
+        lv_color_t color = theme_manager_parse_hex_color("#FF0000FF");
+        REQUIRE(COLOR_RGB(color) == 0xFF0000);
+    }
+
+    SECTION("3-digit shorthand expands") {
+        lv_color_t color = theme_manager_parse_hex_color("#F80");
+        REQUIRE(COLOR_RGB(color) == 0xFF8800);
     }
 }
 

@@ -9,6 +9,7 @@
 #include "../tests/mocks/mock_printer_state.h"
 #include "app_globals.h"
 #include "chamber_heater_backend.h"
+#include "color_utils.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
 #include "hardware_object_table.h"
@@ -4282,18 +4283,7 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
             std::lock_guard<std::mutex> lock(active_gcode_tool_mutex_);
             active_gcode_tool_colors_.clear();
             for (const auto& hex : meta.tool_colors) {
-                // tool_colors come as "#RRGGBB" or "RRGGBB" — parse defensively.
-                const char* p = hex.c_str();
-                if (*p == '#') {
-                    ++p;
-                }
-                uint32_t rgb = 0;
-                try {
-                    rgb = static_cast<uint32_t>(std::stoul(p, nullptr, 16)) & 0xFFFFFF;
-                } catch (...) {
-                    rgb = 0;
-                }
-                active_gcode_tool_colors_.push_back(rgb);
+                active_gcode_tool_colors_.push_back(helix::parse_hex_color(hex).value_or(0));
             }
         }
 

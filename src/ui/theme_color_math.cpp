@@ -4,6 +4,7 @@
 // Pure colour arithmetic: hex parsing, brightness and saturation, and the WCAG
 // contrast helpers behind the readable-text accessors.
 
+#include "color_utils.h"
 #include "lvgl/lvgl.h"
 #include "theme_manager.h"
 
@@ -25,12 +26,12 @@ lv_color_t theme_manager_parse_hex_color(const char* hex_str) {
         spdlog::debug("[Theme] Empty hex color string, using black fallback");
         return lv_color_hex(0x000000);
     }
-    if (hex_str[0] != '#') {
+    uint32_t rgb = 0;
+    if (hex_str[0] != '#' || !helix::parse_hex_color(hex_str, rgb)) {
         spdlog::error("[Theme] Invalid hex color string: {}", hex_str);
         return lv_color_hex(0x000000);
     }
-    uint32_t hex = static_cast<uint32_t>(strtoul(hex_str + 1, nullptr, 16));
-    return lv_color_hex(hex);
+    return lv_color_hex(rgb);
 }
 
 /**

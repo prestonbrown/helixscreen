@@ -12,34 +12,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <cstdio>
 
 namespace helix::ui {
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/**
- * Parse a hex color string (with '#' prefix) into an lv_color_t.
- * Returns fallback_color if the string is empty or unparseable.
- */
-static lv_color_t parse_hex_color(const char* color_hex, lv_color_t fallback_color) {
-    if (!color_hex || color_hex[0] == '\0') {
-        return fallback_color;
-    }
-
-    const char* hex = color_hex;
-    if (hex[0] == '#') {
-        hex++;
-    }
-
-    unsigned int color_val = 0;
-    if (sscanf(hex, "%x", &color_val) == 1) {
-        return lv_color_hex(color_val);
-    }
-    return fallback_color;
-}
 
 // ============================================================================
 // Destruction
@@ -258,14 +232,14 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     lv_obj_t* status_label = helix::ui::find_required(row, "row_status", "HistoryListView");
     if (status_label) {
         lv_label_set_text(status_label, status_text);
-        lv_color_t color = parse_hex_color(status_color, theme_manager_get_color("text_muted"));
+        lv_color_t color = theme_manager_parse_hex_color(status_color);
         lv_obj_set_style_text_color(status_label, color, LV_PART_MAIN);
     }
 
     // Status bar color (left edge indicator)
     lv_obj_t* status_bar = helix::ui::find_required(row, "status_bar", "HistoryListView");
     if (status_bar) {
-        lv_color_t color = parse_hex_color(status_color, theme_manager_get_color("text_muted"));
+        lv_color_t color = theme_manager_parse_hex_color(status_color);
         lv_obj_set_style_bg_color(status_bar, color, LV_PART_MAIN);
     }
 
