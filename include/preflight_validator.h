@@ -14,6 +14,7 @@ struct ToolCheck {
     uint32_t intended_color = 0;
     std::string intended_material;
     int mapped_slot = -1;
+    int mapped_backend = 0; ///< Backend holding mapped_slot
     bool slot_present = false;
     bool color_ok = true;
     bool material_ok = true;
@@ -33,9 +34,10 @@ struct PreflightResult {
     std::vector<ToolCheck> checks;
     bool has_block() const;    // any EmptySlot or UnknownMaterial
     bool has_advisory() const; // any MaterialMismatch
-    /// The first UnknownMaterial check whose file names a material for its
-    /// tool. None when the file names none: guessing would calibrate and print
-    /// the slot at another material's settings.
+    /// The first UnknownMaterial check on the primary backend whose file names a
+    /// material for its tool. None when the file names none (guessing would
+    /// calibrate and print the slot at another material's settings), and for a
+    /// secondary backend's slot, which AmsState::commit_slot_edit cannot write.
     std::optional<MaterialFix> material_fix() const;
 };
 

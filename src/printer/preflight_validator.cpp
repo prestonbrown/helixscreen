@@ -17,7 +17,7 @@ bool PreflightResult::has_block() const {
 std::optional<MaterialFix> PreflightResult::material_fix() const {
     for (const ToolCheck& c : checks) {
         if (c.severity == ToolCheck::Severity::UnknownMaterial && c.mapped_slot >= 0 &&
-            !c.intended_material.empty()) {
+            c.mapped_backend == 0 && !c.intended_material.empty()) {
             return MaterialFix{c.tool_index, c.mapped_slot, c.intended_material};
         }
     }
@@ -97,8 +97,10 @@ PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& t
             // Auto prints from the lane the firmware routes the tool to.
             slot = FilamentMapper::resolve_printing_slot(*m, slots, routing);
             c.mapped_slot = slot != nullptr ? slot->slot_index : -1;
+            c.mapped_backend = slot != nullptr ? slot->backend_index : 0;
         } else {
             c.mapped_slot = m != nullptr ? m->mapped_slot : -1;
+            c.mapped_backend = m != nullptr ? m->mapped_backend : 0;
             slot =
                 c.mapped_slot >= 0 ? find_slot(c.mapped_slot, m->mapped_backend, slots) : nullptr;
         }

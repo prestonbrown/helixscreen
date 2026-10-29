@@ -356,6 +356,11 @@ TEST_CASE("material_fix names the first unset slot the file gives a material",
     // A tool mapped to no slot has nowhere to write.
     r.checks = {check(0, -1, "PLA", Severity::UnknownMaterial)};
     CHECK_FALSE(r.material_fix().has_value());
+
+    // A secondary backend's slot is not one the edit path can write.
+    r.checks = {check(0, 2, "PLA", Severity::UnknownMaterial)};
+    r.checks[0].mapped_backend = 1;
+    CHECK_FALSE(r.material_fix().has_value());
 }
 
 TEST_CASE("an Auto mapping is judged against the lane its tool routes to",
