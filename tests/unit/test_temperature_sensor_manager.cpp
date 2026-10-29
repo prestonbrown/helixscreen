@@ -648,6 +648,40 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
 }
 
 TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "TemperatureSensorManager - a humidity chip's temperature names its chip",
+                 "[temperature][display][humidity]") {
+    auto name_of = [this](const std::string& klipper_name) {
+        for (const auto& s : mgr().get_sensors()) {
+            if (s.klipper_name == klipper_name) {
+                return s.display_name;
+            }
+        }
+        return std::string("<missing>");
+    };
+
+    SECTION("A thermistor keeps its plain name") {
+        mgr().discover(helix::test::discovery_of({"temperature_sensor chamber"}));
+        CHECK(name_of("temperature_sensor chamber") == "Chamber Temperature");
+    }
+
+    SECTION("A chip alone still names its chip") {
+        mgr().discover(helix::test::discovery_of({"aht20_f box"}));
+        CHECK(name_of("aht20_f box") == "Box Temperature (AHT20-F)");
+    }
+
+    SECTION("A thermistor and a chip of one name read differently") {
+        mgr().discover(helix::test::discovery_of({"temperature_sensor chamber", "bme280 chamber"}));
+        CHECK(name_of("temperature_sensor chamber") == "Chamber Temperature");
+        CHECK(name_of("bme280 chamber") == "Chamber Temperature (BME280)");
+    }
+
+    SECTION("The Settings row carries the same name") {
+        mgr().discover(helix::test::discovery_of({"bme280 chamber"}));
+        CHECK(mgr().row(0).name == "Chamber Temperature (BME280)");
+    }
+}
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
                  "TemperatureSensorManager - a bme280 status frame updates its temperature",
                  "[temperature][state][humidity]") {
     mgr().discover(helix::test::discovery_of({"bme280 chamber"}));

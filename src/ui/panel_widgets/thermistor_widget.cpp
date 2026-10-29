@@ -57,11 +57,14 @@ using helix::ui::temperature::deci_to_degrees_f;
 using helix::ui::temperature::format_temperature_f;
 
 /// Strip redundant " Temperature" suffix — the widget context already implies it
+/// "Chamber Temperature" -> "Chamber", "Chamber Temperature (BME280)" -> "Chamber (BME280)".
 static void strip_temperature_suffix(std::string& name) {
-    const std::string suffix = " Temperature";
-    if (name.size() > suffix.size() &&
-        name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        name.erase(name.size() - suffix.size());
+    const std::string word = " Temperature";
+    const size_t chip =
+        name.size() > 0 && name.back() == ')' ? name.rfind(" (") : std::string::npos;
+    const size_t end = chip == std::string::npos ? name.size() : chip;
+    if (end > word.size() && name.compare(end - word.size(), word.size(), word) == 0) {
+        name.erase(end - word.size(), word.size());
     }
 }
 

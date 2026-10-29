@@ -13,6 +13,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
+#include "humidity_sensor_types.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -618,7 +619,7 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
             ch = ' ';
     }
 
-    return display;
+    return helix::sensors::with_humidity_chip_suffix(std::move(display), klipper_name);
 }
 
 void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {

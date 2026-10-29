@@ -4,6 +4,7 @@
 #include "temperature_sensor_manager.h"
 
 #include "device_display_name.h"
+#include "humidity_sensor_types.h"
 #include "spdlog/spdlog.h"
 #include "text_io.h"
 #include "unit_conversions.h"
@@ -85,11 +86,15 @@ TemperatureSensorConfig config_of(const SensorEntry& entry) {
     const TemperatureSensorType type = type_of(entry.klipper_name);
     TemperatureSensorConfig config(
         entry.klipper_name, entry.display_name,
-        // A heater is named as one ("Chamber Heater"), so it never reads the same as a
+        // A heater is named as one ("Chamber Heater") and a humidity chip carries its
+        // chip ("Chamber Temperature (BME280)"), so neither reads the same as a
         // thermistor of the same name.
-        helix::get_display_name(entry.display_name, type == TemperatureSensorType::HEATER_GENERIC
-                                                        ? DeviceType::HEATER
-                                                        : DeviceType::TEMP_SENSOR),
+        with_humidity_chip_suffix(
+            helix::get_display_name(entry.display_name,
+                                    type == TemperatureSensorType::HEATER_GENERIC
+                                        ? DeviceType::HEATER
+                                        : DeviceType::TEMP_SENSOR),
+            entry.klipper_name),
         type);
     config.role = static_cast<TemperatureSensorRole>(entry.role);
     config.enabled = entry.enabled;
