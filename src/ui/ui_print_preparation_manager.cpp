@@ -135,6 +135,20 @@ const PrePrintOptionSet& PrintPreparationManager::get_cached_options() const {
 // Option State Resolution (LT3)
 // ============================================================================
 
+bool PrintPreparationManager::enabled_options_need_material(
+    const OptionStateProvider& saved) const {
+    for (const PrePrintOption& opt : get_cached_options().options) {
+        if (!opt.needs_material) {
+            continue;
+        }
+        const int v = saved ? saved(opt.id) : -1;
+        if (v == 1 || (v != 0 && get_option_state(opt.id) == PrePrintOptionState::ENABLED)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 PrePrintOptionState PrintPreparationManager::get_option_state(const std::string& id) const {
     const auto& opts = get_cached_options();
 

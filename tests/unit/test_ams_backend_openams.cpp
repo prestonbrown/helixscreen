@@ -1830,7 +1830,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS judges a tool on the slot serving it
     CHECK(printing->slot_index == 1);
     CHECK(helix::chip_severity(t0, printing) != helix::ChipSeverity::Block);
 
-    const auto preflight = helix::file_preflight({t0}, seed);
+    const auto preflight = helix::file_preflight({t0}, seed, false);
     REQUIRE(preflight.checks.size() == 1);
     CHECK(preflight.checks[0].severity != helix::ToolCheck::Severity::EmptySlot);
     CHECK_FALSE(preflight.has_block());

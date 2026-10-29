@@ -196,6 +196,14 @@ class PrintPreparationManager {
      */
     [[nodiscard]] PrePrintOptionState get_option_state(const std::string& id) const;
 
+    /**
+     * @brief Whether this print enables an option that needs a material set on
+     *        every slot it prints from (PrePrintOption::needs_material).
+     * @param saved Asked first when set, as a queued job's saved options are;
+     *        any answer but 0/1 falls through to get_option_state().
+     */
+    [[nodiscard]] bool enabled_options_need_material(const OptionStateProvider& saved = {}) const;
+
     // === PRINT_START Macro Analysis ===
 
     /**

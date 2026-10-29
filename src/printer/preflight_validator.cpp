@@ -45,7 +45,8 @@ static const AvailableSlot* find_slot(int slot_index, int backend_index,
 PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& tools,
                                              const std::vector<AvailableSlot>& slots,
                                              const std::vector<ToolMapping>& mapping,
-                                             const FirmwareRouting& routing, bool bypass_active) {
+                                             const FirmwareRouting& routing, bool bypass_active,
+                                             bool material_needed) {
     PreflightResult out;
 
     // Bypass / external spool: the filament reaching the nozzle does not come from
@@ -94,15 +95,13 @@ PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& t
         if (slot == nullptr || slot->is_empty) {
             c.slot_present = false;
             c.severity = ToolCheck::Severity::EmptySlot;
-        } else if (slot->material == "NONE") {
-            // A Snapmaker U1 slot holding a spool it has no identity for. The
-            // filament is seated, so this is not an empty slot, but the
-            // firmware refuses RESUME for that extruder until a material is
-            // assigned -- starting anyway only defers the failure until after
-            // the heat, home and probe. An unreported material is the empty
-            // string and stays out of this arm: "not known" is not the same
-            // claim as "declared unusable", and blocking it would stop prints
-            // on every backend that reports no material at all.
+        } else if (material_needed && slot->material_required) {
+            // Filament is seated, so this is not an empty slot, but an option
+            // this print enables refuses it until a material is set: starting
+            // anyway only defers the failure until after the heat, home and
+            // probe. The slot prints fine with no such option on, and a material
+            // that is merely unreported stays out of this arm, or every backend
+            // that reports none would block every print.
             c.slot_present = true;
             c.color_ok = FilamentMapper::colors_match(t.color_rgb, slot->color_rgb);
             c.severity = ToolCheck::Severity::UnknownMaterial;

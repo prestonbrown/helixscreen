@@ -158,6 +158,11 @@ struct PrePrintOption {
     /// variants but not on the user's K2). Empty = no gate (always shown).
     std::string requires_macro;
 
+    /// Enabling this option makes the printer refuse a slot whose material is
+    /// not set (SlotInfo::material_required), so the pre-flight blocks such a
+    /// slot only while it is on. JSON: "needs_material".
+    bool needs_material = false;
+
     PrePrintStrategyKind strategy_kind = PrePrintStrategyKind::MacroParam;
     PrePrintStrategyPayload strategy{PrePrintStrategyMacroParam{}};
 

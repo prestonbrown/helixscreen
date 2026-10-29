@@ -84,13 +84,14 @@ std::map<int, int> effective_file_remap(const std::vector<ToolMapping>& mappings
 }
 
 PreflightResult file_preflight(const std::vector<GcodeToolInfo>& used_tool_info,
-                               const std::vector<ToolMapping>& mappings) {
+                               const std::vector<ToolMapping>& mappings, bool material_needed) {
     // Bypass short-circuits the slot checks: the filament comes from the
     // external spool, so no mapping can satisfy a tool and every check would
     // report EmptySlot.
     auto& ams = AmsState::instance();
     return PreflightValidator::validate(used_tool_info, ams.collect_available_slots(), mappings,
-                                        ams.collect_firmware_routing(), ams.any_bypass_active());
+                                        ams.collect_firmware_routing(), ams.any_bypass_active(),
+                                        material_needed);
 }
 
 namespace {
@@ -191,9 +192,10 @@ std::optional<FitMachine> current_fit_machine() {
         live_nozzles(state.temperature_state()));
 }
 
-PreflightResult preflight_for(const FileStartFacts& facts) {
+PreflightResult preflight_for(const FileStartFacts& facts, bool material_needed) {
     const auto tools = used_tool_info_for(facts);
-    return file_preflight(tools, effective_file_mappings(card_mapping_for(facts).mappings, tools));
+    return file_preflight(tools, effective_file_mappings(card_mapping_for(facts).mappings, tools),
+                          material_needed);
 }
 
 // ============================================================================

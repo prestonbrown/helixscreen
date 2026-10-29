@@ -1039,7 +1039,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE judges a tool on the slot the ACEPRO driv
     CHECK(printing->slot_index == 2);
     CHECK(helix::chip_severity(t0, printing) == helix::ChipSeverity::Block);
 
-    const auto preflight = helix::file_preflight({t0}, seed);
+    const auto preflight = helix::file_preflight({t0}, seed, false);
     REQUIRE(preflight.checks.size() == 1);
     CHECK(preflight.checks[0].severity == helix::ToolCheck::Severity::EmptySlot);
     CHECK(preflight.has_block());

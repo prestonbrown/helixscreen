@@ -1215,6 +1215,38 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: a U1 start sends no
     REQUIRE(line_containing(lines, "BED_LEVEL") == "SET_PRINT_PREFERENCES BED_LEVEL=1");
 }
 
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: U1 flow calibration needs every used slot's material",
+                 "[print_preparation][pre_print_options][snapmaker_u1][preflight]") {
+    lv_init_safe();
+
+    PrinterState& printer_state = get_printer_state();
+    PrinterStateTestAccess::reset(printer_state);
+    printer_state.init_subjects(false);
+    printer_state.set_printer_type_sync("Snapmaker U1");
+    const PrePrintOption* flow =
+        printer_state.profile_state().pre_print_option_set().find("flow_calibrate");
+    REQUIRE(flow != nullptr);
+    REQUIRE(flow->needs_material);
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(nullptr, &printer_state);
+    int flow_state = 1;
+    manager.set_option_state_provider(
+        [&flow_state](const std::string& id) { return id == "flow_calibrate" ? flow_state : 1; });
+    CHECK(manager.enabled_options_need_material());
+    flow_state = 0;
+    CHECK_FALSE(manager.enabled_options_need_material());
+
+    // A queued job's saved choice is asked first.
+    CHECK(manager.enabled_options_need_material([](const std::string&) { return 1; }));
+    flow_state = 1;
+    CHECK_FALSE(manager.enabled_options_need_material(
+        [](const std::string& id) { return id == "flow_calibrate" ? 0 : -1; }));
+    // A saved set that does not name the option falls through to the live state.
+    CHECK(manager.enabled_options_need_material([](const std::string&) { return -1; }));
+}
+
 // ============================================================================
 // T3b: build_pre_start_gcode_block — the actual join contract
 // ============================================================================

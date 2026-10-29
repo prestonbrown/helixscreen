@@ -1190,6 +1190,10 @@ struct SlotInfo {
     int nozzle_temp_min = 0; ///< Minimum nozzle temp (°C)
     int nozzle_temp_max = 0; ///< Maximum nozzle temp (°C)
     int bed_temp = 0;        ///< Recommended bed temp (°C)
+    /// The printer refuses to print from this slot until a material is set for
+    /// it: the firmware's own record names none, and it stops the job rather
+    /// than guess. A slot whose material is merely unreported stays false.
+    bool material_required = false;
 
     // Tool mapping
     int mapped_tool = -1;               ///< Which tool this slot maps to (-1=none)

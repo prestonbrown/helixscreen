@@ -39,11 +39,16 @@ class PreflightValidator {
      *        rather than the slot system, so no tool can be satisfied by a slot
      *        and the slot-based checks do not apply. Required rather than
      *        defaulted: a caller that forgets it re-introduces a false block.
+     * @param material_needed The print enables an option that refuses a slot
+     *        with no material set (PrePrintOption::needs_material), so such a
+     *        slot is a block (UnknownMaterial). Without one it prints as is.
+     *        Required for the same reason as @p bypass_active.
      */
     static PreflightResult validate(const std::vector<GcodeToolInfo>& tools,
                                     const std::vector<AvailableSlot>& slots,
                                     const std::vector<ToolMapping>& mapping,
-                                    const FirmwareRouting& routing, bool bypass_active);
+                                    const FirmwareRouting& routing, bool bypass_active,
+                                    bool material_needed);
 };
 
 } // namespace helix

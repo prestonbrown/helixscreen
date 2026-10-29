@@ -305,7 +305,10 @@ void QueuedJobStarter::run_checks(const Pending& pending, FileStartFacts facts) 
     };
 
     // A used tool mapped to an empty slot: the same modal a Print tap shows.
-    const PreflightResult preflight = preflight_for(facts);
+    const PreflightResult preflight =
+        preflight_for(facts, prep_->enabled_options_need_material([this](const std::string& id) {
+            return saved_option_state(saved_, id);
+        }));
     if (!preflight.has_block()) {
         start_gates();
         return;

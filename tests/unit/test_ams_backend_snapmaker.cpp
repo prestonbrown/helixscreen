@@ -29,6 +29,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "post_op_cooldown_manager.h"
+#include "preflight_validator.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "snapmaker_nozzle_offset.h"
@@ -2214,6 +2215,53 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker print_task_config type NONE is no 
     CHECK(backend.get_slot_info(1).material.empty());
     CHECK(backend.get_slot_info(2).material == "PETG");
     CHECK(backend.get_slot_info(3).material.empty());
+
+    // The firmware stops a print on a head whose record names no type.
+    CHECK_FALSE(backend.get_slot_info(0).material_required);
+    CHECK(backend.get_slot_info(1).material_required);
+    CHECK_FALSE(backend.get_slot_info(2).material_required);
+    CHECK(backend.get_slot_info(3).material_required);
+
+    SnapmakerTestAccess::handle_status(
+        backend, json{{"print_task_config",
+                       json{{"filament_type", json::array({"PLA", "PLA", "PETG", ""})}}}});
+    CHECK_FALSE(backend.get_slot_info(1).material_required);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "a U1 head with no material set blocks a print that calibrates it",
+                 "[ams][snapmaker][print_task_config][preflight]") {
+    helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(nullptr, nullptr);
+    AmsBackendSnapmaker& backend = *backend_reg;
+
+    SnapmakerTestAccess::handle_status(
+        backend, json{{"print_task_config",
+                       json{{"filament_type", json::array({"ASA", "NONE", "PC", "NONE"})},
+                            {"filament_exist", json::array({true, true, true, false})}}}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto slots = AmsState::instance().collect_available_slots();
+    const auto head1 = std::find_if(slots.begin(), slots.end(),
+                                    [](const AvailableSlot& s) { return s.slot_index == 1; });
+    REQUIRE(head1 != slots.end());
+    REQUIRE_FALSE(head1->is_empty);
+    CHECK(head1->material_required);
+
+    const std::vector<GcodeToolInfo> tools = {{0, 0xFFFFFF, "PLA"}};
+    const std::vector<ToolMapping> mapping = {
+        {0, 1, 0, false, false, ToolMapping::MatchReason::AUTO}};
+    const auto r = PreflightValidator::validate(tools, slots, mapping,
+                                                helix::FirmwareRouting::identity(), false,
+                                                /*material_needed=*/true);
+    REQUIRE(r.checks.size() == 1);
+    CHECK(r.checks[0].severity == ToolCheck::Severity::UnknownMaterial);
+    CHECK(r.has_block());
+
+    // With no option that needs the material, the head prints as it is.
+    CHECK_FALSE(PreflightValidator::validate(tools, slots, mapping,
+                                             helix::FirmwareRouting::identity(), false,
+                                             /*material_needed=*/false)
+                    .has_block());
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
