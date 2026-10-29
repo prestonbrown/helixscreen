@@ -28,6 +28,7 @@ translations:
   '%d tools': '%d ツール'
   '%d units': '%dユニット'
   '%d:%02d left': '残り %d:%02d'
+  '%dd %dh': '%d日%d時間'
   '%dh': '%d時間'
   '%dh %02dm': '%d時間%02d分'
   '%dh %dm': '%d時間%d分'
@@ -4267,6 +4268,7 @@ translations:
   'Up next: {}': '次の印刷：{}'
   'Up next: {} (+{})': '次の印刷：{}（+{}）'
   Up to date: 最新の状態です
+  'Up: %s': '稼働時間: %s'
   Update: 更新
   Update Available: 更新あり
   Update Channel: 更新チャンネル

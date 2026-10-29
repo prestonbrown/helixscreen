@@ -210,4 +210,22 @@ std::string format_relative_time(uint64_t elapsed_ms) {
     return buf;
 }
 
+std::string format_uptime(int total_seconds) {
+    constexpr int kSecondsPerDay = 24 * 60 * 60;
+    std::string span;
+    if (total_seconds < 0) {
+        span = "--";
+    } else if (total_seconds < kSecondsPerDay) {
+        span = helix::format::duration(total_seconds);
+    } else {
+        char days_buf[32];
+        snprintf(days_buf, sizeof(days_buf), lv_tr("%dd %dh"), total_seconds / kSecondsPerDay,
+                 (total_seconds % kSecondsPerDay) / 3600);
+        span = days_buf;
+    }
+    char buf[64];
+    snprintf(buf, sizeof(buf), lv_tr("Up: %s"), span.c_str());
+    return buf;
+}
+
 } // namespace helix::ui

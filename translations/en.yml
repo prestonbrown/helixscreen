@@ -28,6 +28,7 @@ translations:
   '%d tools': '%d tools'
   '%d units': '%d units'
   '%d:%02d left': '%d:%02d left'
+  '%dd %dh': '%dd %dh'
   '%dh': '%dh'
   '%dh %02dm': '%dh %02dm'
   '%dh %dm': '%dh %dm'
@@ -4410,6 +4411,7 @@ translations:
   'Up next: {}': 'Up next: {}'
   'Up next: {} (+{})': 'Up next: {} (+{})'
   Up to date: Up to date
+  'Up: %s': 'Up: %s'
   Update: Update
   Update Available: Update Available
   Update Channel: Update Channel

@@ -28,6 +28,7 @@ translations:
   '%d tools': '%d ferramentas'
   '%d units': '%d unidades'
   '%d:%02d left': 'restam %d:%02d'
+  '%dd %dh': '%d d %d h'
   '%dh': '%d h'
   '%dh %02dm': '%d h %02d min'
   '%dh %dm': '%d h %d min'
@@ -4513,6 +4514,7 @@ translations:
   'Up next: {}': 'A seguir: {}'
   'Up next: {} (+{})': 'A seguir: {} (+{})'
   Up to date: Atualizado
+  'Up: %s': 'Tempo Ativo: %s'
   Update: Atualizar
   Update Available: Atualização Disponível
   Update Channel: Canal de Atualização

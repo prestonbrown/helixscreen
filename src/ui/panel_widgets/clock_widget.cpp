@@ -34,35 +34,19 @@ static lv_subject_t s_date_subject;
 static char s_date_buffer[32];
 
 static lv_subject_t s_uptime_subject;
-static char s_uptime_buffer[32];
+static char s_uptime_buffer[64];
 
 static lv_subject_t s_size_mode_subject;
 
 static helix::WidgetSubjects s_subjects{"ClockWidgetSubjects"};
 
-/// Read system uptime from /proc/uptime and format as human-readable string
+/// Read system uptime from /proc/uptime and format it for the widget
 static void format_uptime(char* buf, size_t buf_size) {
     const std::optional<std::string> line = helix::text_io::read_first_line("/proc/uptime");
     const std::optional<double> parsed =
         line ? helix::text_io::parse_leading<double>(*line) : std::nullopt;
-    if (!parsed) {
-        std::snprintf(buf, buf_size, "Up: --");
-        return;
-    }
-    const double uptime_secs = *parsed;
-
-    auto total_minutes = static_cast<int>(uptime_secs / 60.0);
-    int days = total_minutes / (60 * 24);
-    int hours = (total_minutes / 60) % 24;
-    int minutes = total_minutes % 60;
-
-    if (days > 0) {
-        std::snprintf(buf, buf_size, "Up: %dd %dh", days, hours);
-    } else if (hours > 0) {
-        std::snprintf(buf, buf_size, "Up: %dh %dm", hours, minutes);
-    } else {
-        std::snprintf(buf, buf_size, "Up: %dm", minutes);
-    }
+    const int uptime_secs = parsed ? static_cast<int>(*parsed) : -1;
+    std::snprintf(buf, buf_size, "%s", helix::ui::format_uptime(uptime_secs).c_str());
 }
 
 static void clock_widget_init_subjects() {
@@ -285,7 +269,7 @@ void ClockWidget::update_clock() {
     }
 
     // Uptime from /proc/uptime
-    char uptime_buf[32];
+    char uptime_buf[64];
     format_uptime(uptime_buf, sizeof(uptime_buf));
     lv_subject_copy_string(&s_uptime_subject, uptime_buf);
 }

@@ -52,6 +52,7 @@
   <translation tag="%d-%d" de="%d-%d" en="%d-%d" es="%d-%d" fr="%d-%d" it="%d-%d" ja="%d〜%d" pt="%d-%d" ru="%d-%d" zh="%d-%d"/>
   <translation tag="%d-%d°C" de="%d-%d°C" en="%d-%d°C" es="%d-%d°C" fr="%d-%d°C" it="%d-%d°C" ja="%d〜%d°C" pt="%d-%d°C" ru="%d-%d°C" zh="%d-%d°C"/>
   <translation tag="%d:%02d left" de="noch %d:%02d" en="%d:%02d left" es="quedan %d:%02d" fr="%d:%02d restantes" it="%d:%02d rimanenti" ja="残り %d:%02d" pt="restam %d:%02d" ru="осталось %d:%02d" zh="剩余 %d:%02d"/>
+  <translation tag="%dd %dh" de="%d Tg. %d Std" en="%dd %dh" es="%d d %d h" fr="%d j %d h" it="%d g %d h" ja="%d日%d時間" pt="%d d %d h" ru="%d д %d ч" zh="%d天%d小时"/>
   <translation tag="%dh" de="%d Std" en="%dh" es="%d h" fr="%d h" it="%d h" ja="%d時間" pt="%d h" ru="%d ч" zh="%d小时"/>
   <translation tag="%dh %02dm" de="%d Std %02d Min" en="%dh %02dm" es="%d h %02d min" fr="%d h %02d min" it="%d h %02d min" ja="%d時間%02d分" pt="%d h %02d min" ru="%d ч %02d мин" zh="%d小时%02d分"/>
   <translation tag="%dh %dm" de="%d Std %d Min" en="%dh %dm" es="%d h %d min" fr="%d h %d min" it="%d h %d min" ja="%d時間%d分" pt="%d h %d min" ru="%d ч %d мин" zh="%d小时%d分"/>
@@ -4147,6 +4148,7 @@
   <translation tag="Up next: {}" de="Als Nächstes: {}" en="Up next: {}" es="Siguiente: {}" fr="À suivre : {}" it="Prossimo: {}" ja="次の印刷：{}" pt="A seguir: {}" ru="Далее: {}" zh="下一个：{}"/>
   <translation tag="Up next: {} (+{})" de="Als Nächstes: {} (+{})" en="Up next: {} (+{})" es="Siguiente: {} (+{})" fr="À suivre : {} (+{})" it="Prossimo: {} (+{})" ja="次の印刷：{}（+{}）" pt="A seguir: {} (+{})" ru="Далее: {} (+{})" zh="下一个：{}（+{}）"/>
   <translation tag="Up to date" de="Aktuell" en="Up to date" es="Actualizado" fr="À jour" it="Aggiornato" ja="最新の状態です" pt="Atualizado" ru="Актуальная версия" zh="已是最新"/>
+  <translation tag="Up: %s" de="Betriebszeit: %s" en="Up: %s" es="Tiempo de actividad: %s" fr="Temps de fonctionnement : %s" it="Tempo di attività: %s" ja="稼働時間: %s" pt="Tempo Ativo: %s" ru="Время работы: %s" zh="运行时长：%s"/>
   <translation tag="Update" de="Aktualisieren" en="Update" es="Actualizar" fr="Mettre à jour" it="Aggiorna" ja="更新" pt="Atualizar" ru="Обновить" zh="更新"/>
   <translation tag="Update Available" de="Update verfügbar" en="Update Available" es="Actualización disponible" fr="Mise à jour disponible" it="Aggiornamento Disponibile" ja="更新あり" pt="Atualização Disponível" ru="Доступно обновление" zh="有可用更新"/>
   <translation tag="Update Channel" de="Update-Kanal" en="Update Channel" es="Canal de actualización" fr="Canal de mise à jour" it="Canale Aggiornamenti" ja="更新チャンネル" pt="Canal de Atualização" ru="Канал обновлений" zh="更新通道"/>

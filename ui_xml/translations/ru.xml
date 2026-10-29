@@ -52,6 +52,7 @@
   <translation tag="%d-%d" ru="%d-%d"/>
   <translation tag="%d-%d°C" ru="%d-%d°C"/>
   <translation tag="%d:%02d left" ru="осталось %d:%02d"/>
+  <translation tag="%dd %dh" ru="%d д %d ч"/>
   <translation tag="%dh" ru="%d ч"/>
   <translation tag="%dh %02dm" ru="%d ч %02d мин"/>
   <translation tag="%dh %dm" ru="%d ч %d мин"/>
@@ -4147,6 +4148,7 @@
   <translation tag="Up next: {}" ru="Далее: {}"/>
   <translation tag="Up next: {} (+{})" ru="Далее: {} (+{})"/>
   <translation tag="Up to date" ru="Актуальная версия"/>
+  <translation tag="Up: %s" ru="Время работы: %s"/>
   <translation tag="Update" ru="Обновить"/>
   <translation tag="Update Available" ru="Доступно обновление"/>
   <translation tag="Update Channel" ru="Канал обновлений"/>
