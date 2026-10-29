@@ -78,7 +78,8 @@ class AmsContextMenu : public ContextMenu {
         PURGE,            ///< Purge the current filament through the nozzle
         TOGGLE_BYPASS,    ///< Engage or disengage bypass (external spool only)
         MOUNT,            ///< Mount the tool this slot feeds
-        PARK              ///< Put the mounted tool back in its dock
+        PARK,             ///< Put the mounted tool back in its dock
+        CALIBRATE_PA      ///< Measure pressure advance for the filament at the nozzle
     };
 
     using ActionCallback = std::function<void(MenuAction action, int slot_index)>;
@@ -143,6 +144,12 @@ class AmsContextMenu : public ContextMenu {
     // metadata is printed with and an edit aims a Spoolman write at the previous
     // spool. An empty lane's stale metadata is cosmetic.
     static bool should_show_clear_spool(const SlotInfo& slot);
+
+    // Pure: whether "Calibrate PA" is offered for this slot. The printer measures
+    // the filament at the nozzle, so only the slot feeding it qualifies, and
+    // only while nothing else holds the machine.
+    static bool decide_offers_pa_calibration(bool printer_measures_pa, bool filament_at_nozzle,
+                                             bool print_blocks_op, bool system_busy);
 
   protected:
     const char* xml_component_name() const override {
@@ -211,6 +218,8 @@ class AmsContextMenu : public ContextMenu {
     // 1 disabled, 2 enabled.
     static lv_subject_t slot_mount_subject_;
     static lv_subject_t slot_park_subject_;
+    // 1 when Calibrate PA is offered for the slot.
+    static lv_subject_t slot_pa_cal_subject_;
     static bool subjects_initialized_;
 
     // === Backend the menu's actions are gated on ===
@@ -243,6 +252,7 @@ class AmsContextMenu : public ContextMenu {
     void handle_preload();
     void handle_mount();
     void handle_park();
+    void handle_calibrate_pa();
     void handle_edit();
     void handle_clear_spool();
     void handle_purge();
@@ -376,6 +386,7 @@ class AmsContextMenu : public ContextMenu {
     static void on_preload_cb(lv_event_t* e);
     static void on_mount_cb(lv_event_t* e);
     static void on_park_cb(lv_event_t* e);
+    static void on_pa_cal_cb(lv_event_t* e);
     static void on_edit_cb(lv_event_t* e);
     static void on_clear_spool_cb(lv_event_t* e);
     static void on_purge_cb(lv_event_t* e);

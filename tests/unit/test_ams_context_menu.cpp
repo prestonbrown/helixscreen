@@ -687,6 +687,53 @@ class ScopedWireState {
 
 } // namespace
 
+TEST_CASE("AmsContextMenu::decide_offers_pa_calibration needs the filament at an idle nozzle",
+          "[ams][context_menu][pa_calibration]") {
+    CHECK(AmsContextMenu::decide_offers_pa_calibration(true, true, false, false));
+    CHECK_FALSE(AmsContextMenu::decide_offers_pa_calibration(false, true, false, false));
+    CHECK_FALSE(AmsContextMenu::decide_offers_pa_calibration(true, false, false, false));
+    CHECK_FALSE(AmsContextMenu::decide_offers_pa_calibration(true, true, true, false));
+    CHECK_FALSE(AmsContextMenu::decide_offers_pa_calibration(true, true, false, true));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AmsContextMenu: Calibrate PA shows on the loaded lane of a measuring printer",
+                 "[ui][ams][context_menu][pa_calibration]") {
+    auto backend = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(backend->slot_is_actively_loaded(0));
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
+    ScopedWireState idle(state(), helix::PrintJobState::STANDBY);
+
+    struct Hardware {
+        explicit Hardware(std::vector<std::string> objects) {
+            helix::PrinterDiscovery hw;
+            hw.parse_objects(objects);
+            hw.set_printer_objects(objects);
+            get_printer_state().set_hardware(hw);
+        }
+        ~Hardware() {
+            get_printer_state().set_hardware(helix::PrinterDiscovery{});
+        }
+    };
+    const auto offered = [&](int slot, bool loaded) {
+        AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), slot, test_screen(), loaded, backend.get()));
+        lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_pa_calibrate");
+        REQUIRE(btn != nullptr);
+        return !lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN);
+    };
+
+    SECTION("a printer that measures") {
+        Hardware hw({"extruder", "prtouch_v3", "helix_pa_gauge"});
+        CHECK(offered(0, true));
+        CHECK_FALSE(offered(1, false));
+    }
+    SECTION("a printer that cannot") {
+        Hardware hw({"extruder", "prtouch_v3"});
+        CHECK_FALSE(offered(0, true));
+    }
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "AmsContextMenu: Clear Spool greys out with a reason while its lane feeds the job",
                  "[ui][ams][context_menu][1661]") {

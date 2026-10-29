@@ -519,6 +519,7 @@
   <translation tag="Calibrate Encoder" fr="Calibrer l&apos;encodeur"/>
   <translation tag="Calibrate Gates" fr="Calibrer les gates"/>
   <translation tag="Calibrate Gear" fr="Calibrer l&apos;engrenage"/>
+  <translation tag="Calibrate PA" fr="Calibrer le PA"/>
   <translation tag="Calibrate Purge Chute" fr="Calibrer la goulotte de purge"/>
   <translation tag="Calibrate Toolhead" fr="Calibrer la tête d&apos;outil"/>
   <translation tag="Calibrate Toolhead Offsets" fr="Calibrer les offsets des têtes d&apos;outil"/>

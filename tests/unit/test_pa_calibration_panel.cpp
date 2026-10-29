@@ -107,3 +107,27 @@ TEST_CASE_METHOD(PanelFixture, "without Spoolman the result offers no spool to s
     drain();
     CHECK(client.spoolman_mock().filament_updates.size() == patches);
 }
+
+TEST_CASE("the measuring temperature follows the spool, then the material", "[pa_calibration]") {
+    // The middle of the spool's stated range, on the panel's 5-degree step.
+    CHECK(PACalibrationPanel::temp_for_filament("PLA", 200, 230) == 215);
+    CHECK(PACalibrationPanel::temp_for_filament("PLA", 200, 222) == 210);
+    // No range: the material's recommendation, inside the panel's limits.
+    const int pla = PACalibrationPanel::temp_for_filament("PLA", 0, 0);
+    CHECK(pla >= PACalibrationPanel::kTempMin);
+    CHECK(pla <= PACalibrationPanel::kTempMax);
+    CHECK(pla % PACalibrationPanel::kTempStep == 0);
+    CHECK(PACalibrationPanel::temp_for_filament("PLA", 0, 0) !=
+          PACalibrationPanel::temp_for_filament("PC", 0, 0));
+    CHECK(PACalibrationPanel::temp_for_filament("", 400, 450) == PACalibrationPanel::kTempMax);
+}
+
+TEST_CASE_METHOD(PanelFixture, "a slot's result names its filament", "[pa_calibration]") {
+    panel.prepare_for_filament("PETG-CF", 240, 260);
+    CHECK(panel.target_temp_for_test() == 250);
+    finish_run(0.06f);
+    const json rec = client.mock_db_get(pa::kMoonrakerNamespace, pa::kMoonrakerKey);
+    REQUIRE(rec.is_object());
+    CHECK(rec["last"]["material"] == "PETG-CF");
+    CHECK(rec["last"]["nozzle_temp"] == 250);
+}

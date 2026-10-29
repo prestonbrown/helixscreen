@@ -558,6 +558,7 @@
   <translation tag="Calibrate Encoder" ru="Калибровать энкодер"/>
   <translation tag="Calibrate Gates" ru="Калибровать шлюзы"/>
   <translation tag="Calibrate Gear" ru="Калибровать шестерню"/>
+  <translation tag="Calibrate PA" ru="Калибровать PA"/>
   <translation tag="Calibrate Purge Chute" ru="Калибровать жёлоб продувки"/>
   <translation tag="Calibrate Toolhead" ru="Калибровать печатающую головку"/>
   <translation tag="Calibrate Toolhead Offsets" ru="Калибровать смещения головок"/>

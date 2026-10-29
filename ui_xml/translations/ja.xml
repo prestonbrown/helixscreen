@@ -519,6 +519,7 @@
   <translation tag="Calibrate Encoder" ja="エンコーダーをキャリブレート"/>
   <translation tag="Calibrate Gates" ja="ゲートをキャリブレート"/>
   <translation tag="Calibrate Gear" ja="ギアをキャリブレート"/>
+  <translation tag="Calibrate PA" ja="PA をキャリブレート"/>
   <translation tag="Calibrate Purge Chute" ja="パージシュートをキャリブレート"/>
   <translation tag="Calibrate Toolhead" ja="ツールヘッドをキャリブレート"/>
   <translation tag="Calibrate Toolhead Offsets" ja="ツールヘッドオフセットをキャリブレート"/>

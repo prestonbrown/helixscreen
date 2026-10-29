@@ -526,6 +526,7 @@ translations:
   Calibrate Encoder: '校准编码器'
   Calibrate Gates: '校准通道'
   Calibrate Gear: '校准齿轮'
+  Calibrate PA: '校准压力提前'
   Calibrate Purge Chute: 校准排料口
   Calibrate Toolhead: '校准工具头'
   Calibrate Toolhead Offsets: 校准工具头偏移

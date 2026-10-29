@@ -148,6 +148,21 @@ class PACalibrationPanel : public OverlayBase {
         return result_k_;
     }
 
+    /// The nozzle temperature to measure a filament at: the middle of its
+    /// spool's range when the slot states one, else its material's
+    /// recommendation, on the panel's step and inside its limits.
+    static int temp_for_filament(const std::string& material, int nozzle_temp_min,
+                                 int nozzle_temp_max);
+
+    /// Ready the panel for the filament at the nozzle: its temperature, and
+    /// its material on the result. The run still starts from Start.
+    void prepare_for_filament(const std::string& material, int nozzle_temp_min,
+                              int nozzle_temp_max);
+    /// Opened for no filament in particular: the result names a preset or nothing.
+    void clear_filament() {
+        filament_material_.clear();
+    }
+
     /// Whether this printer can measure pressure advance at all. The Controls
     /// entry is bound to the same capability through `printer_has_pa_cal`.
     static bool printer_supports_calibration();
@@ -246,6 +261,9 @@ class PACalibrationPanel : public OverlayBase {
     int result_tool_ = 0;
     int result_temp_ = 0;
     std::string result_material_;
+    /// The material of the filament the panel was opened for, named on the
+    /// result when no preset chip is selected.
+    std::string filament_material_;
     /// The spool the result belongs to, when Spoolman named one.
     std::optional<SpoolInfo> result_spool_;
 
@@ -346,5 +364,9 @@ inline PACalibrationPanel& get_global_pa_cal_panel() {
 
 /// Open the PA calibration panel over @p parent_screen, wired to the active API.
 void open_pa_cal_panel(lv_obj_t* parent_screen);
+
+/// Open it ready to measure the filament at the nozzle (a slot's Calibrate PA).
+void open_pa_cal_panel_for_filament(lv_obj_t* parent_screen, const std::string& material,
+                                    int nozzle_temp_min, int nozzle_temp_max);
 
 } // namespace helix::ui

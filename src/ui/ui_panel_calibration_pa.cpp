@@ -197,6 +197,7 @@ void PACalibrationPanel::register_callbacks() {
                      const std::string name = helix::presets::name(slot);
                      if (!name.empty()) {
                          panel.selected_preset_ = slot;
+                         panel.filament_material_.clear();
                          panel.target_temp_ =
                              std::clamp(material_nozzle_temp(name), kTempMin, kTempMax);
                          panel.refresh_presets();
@@ -559,7 +560,8 @@ void PACalibrationPanel::on_result(float k) {
     have_result_ = true;
     result_tool_ = selected_tool_;
     result_temp_ = target_temp_;
-    result_material_ = selected_preset_ >= 0 ? helix::presets::name(selected_preset_) : "";
+    result_material_ =
+        selected_preset_ >= 0 ? helix::presets::name(selected_preset_) : filament_material_;
 
     // The nozzle has no more work to do.
     if (auto* controller = get_temperature_controller()) {
@@ -884,9 +886,46 @@ std::string PACalibrationPanel::selected_heater() const {
 // EVENT TRAMPOLINES
 // ============================================================================
 
+int PACalibrationPanel::temp_for_filament(const std::string& material, int nozzle_temp_min,
+                                          int nozzle_temp_max) {
+    int temp = nozzle_temp_min > 0 && nozzle_temp_max >= nozzle_temp_min
+                   ? (nozzle_temp_min + nozzle_temp_max) / 2
+                   : material_nozzle_temp(material);
+    temp = (temp + kTempStep / 2) / kTempStep * kTempStep;
+    return std::clamp(temp, kTempMin, kTempMax);
+}
+
+void PACalibrationPanel::prepare_for_filament(const std::string& material, int nozzle_temp_min,
+                                              int nozzle_temp_max) {
+    if (state_ == HEATING || state_ == MEASURING) {
+        return;
+    }
+    target_temp_ = temp_for_filament(material, nozzle_temp_min, nozzle_temp_max);
+    filament_material_ = material;
+    selected_preset_ = -1;
+    for (int i = 0; i < helix::presets::kPresetCount; ++i) {
+        if (!material.empty() && helix::presets::name(i) == material) {
+            selected_preset_ = i;
+        }
+    }
+    if (subjects_initialized_) {
+        refresh_presets();
+        update_temp_display();
+    }
+}
+
 void open_pa_cal_panel(lv_obj_t* parent_screen) {
     auto& panel = get_global_pa_cal_panel();
     panel.set_api(get_moonraker_api());
+    panel.clear_filament();
+    panel.show(parent_screen);
+}
+
+void open_pa_cal_panel_for_filament(lv_obj_t* parent_screen, const std::string& material,
+                                    int nozzle_temp_min, int nozzle_temp_max) {
+    auto& panel = get_global_pa_cal_panel();
+    panel.set_api(get_moonraker_api());
+    panel.prepare_for_filament(material, nozzle_temp_min, nozzle_temp_max);
     panel.show(parent_screen);
 }
 

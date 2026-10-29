@@ -519,6 +519,7 @@
   <translation tag="Calibrate Encoder" de="Encoder kalibrieren"/>
   <translation tag="Calibrate Gates" de="Gates kalibrieren"/>
   <translation tag="Calibrate Gear" de="Zahnrad kalibrieren"/>
+  <translation tag="Calibrate PA" de="PA kalibrieren"/>
   <translation tag="Calibrate Purge Chute" de="Entlüftungsrinne kalibrieren"/>
   <translation tag="Calibrate Toolhead" de="Werkzeugkopf kalibrieren"/>
   <translation tag="Calibrate Toolhead Offsets" de="Werkzeugkopf-Offsets kalibrieren"/>

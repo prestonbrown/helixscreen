@@ -83,6 +83,14 @@
                       width="100%" long_mode="wrap" bind_text="ams_slot_unload_hint" style_text_color="#text_muted">
             <bind_flag_if_eq subject="ams_slot_unload_hint_visible" flag="hidden" ref_value="0"/>
           </text_small>
+          <!-- Calibrate PA: the slot feeding the nozzle, on a printer that measures
+               pressure advance itself (decide_offers_pa_calibration()). -->
+          <ui_button name="btn_pa_calibrate"
+                     height="#button_height_sm" icon="gauge" text="Calibrate PA" variant="ghost" clickable="true"
+                     style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_pa_cal" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="ams_context_pa_cal_cb"/>
+          </ui_button>
           <!-- Check Slot Button (hidden unless backend supports slot check, e.g. Happy Hare MMU_CHECK_GATE) -->
           <ui_button name="btn_gate_check"
                      height="#button_height_sm" icon="refresh" text="Check Slot" variant="ghost" clickable="true"

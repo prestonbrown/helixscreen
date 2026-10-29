@@ -11,6 +11,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_overlay_qr_scanner.h"
+#include "ui_panel_calibration_pa.h"
 #include "ui_plugin_menu_rows.h"
 
 #include "ams_backend.h"
@@ -24,6 +25,7 @@
 #include "filament_variants.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
+#include "pa_calibration.h"
 #include "plugin_menu_context.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
@@ -57,6 +59,7 @@ HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_load_hint_visible_subject_;
 HELIX_PSRAM_BSS char AmsContextMenu::slot_load_hint_buf_[192];
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_mount_subject_;
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_park_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_pa_cal_subject_;
 
 // ============================================================================
 // Construction / Destruction
@@ -85,6 +88,7 @@ void AmsContextMenu::init_subjects() {
                            sizeof(slot_load_hint_buf_), "");
     lv_subject_init_int(&slot_mount_subject_, 0);
     lv_subject_init_int(&slot_park_subject_, 0);
+    lv_subject_init_int(&slot_pa_cal_subject_, 0);
 
     lv_xml_register_subject(nullptr, "ams_slot_is_loaded", &slot_is_loaded_subject_);
     lv_xml_register_subject(nullptr, "ams_slot_can_load", &slot_can_load_subject_);
@@ -105,6 +109,7 @@ void AmsContextMenu::init_subjects() {
                             &slot_load_hint_visible_subject_);
     lv_xml_register_subject(nullptr, "ams_slot_mount", &slot_mount_subject_);
     lv_xml_register_subject(nullptr, "ams_slot_park", &slot_park_subject_);
+    lv_xml_register_subject(nullptr, "ams_slot_pa_cal", &slot_pa_cal_subject_);
 
     subjects_initialized_ = true;
 }
@@ -245,6 +250,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         lv_subject_set_int(&slot_load_hint_visible_subject_, 0);
         lv_subject_set_int(&slot_mount_subject_, 0);
         lv_subject_set_int(&slot_park_subject_, 0);
+        lv_subject_set_int(&slot_pa_cal_subject_, 0);
         lv_subject_copy_string(&slot_eject_hint_subject_, "");
         lv_subject_set_int(&slot_eject_hint_visible_subject_, 0);
 
@@ -382,6 +388,18 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
 
     lv_subject_set_int(&slot_mount_subject_, acts.mount.visible ? (acts.mount.enabled ? 2 : 1) : 0);
     lv_subject_set_int(&slot_park_subject_, acts.park.visible ? (acts.park.enabled ? 2 : 1) : 0);
+
+#if defined(HELIX_PLATFORM_ESP32)
+    // The calibration screen is not in the v1 Core+AMS cut.
+    lv_subject_set_int(&slot_pa_cal_subject_, 0);
+#else
+    lv_subject_set_int(&slot_pa_cal_subject_,
+                       decide_offers_pa_calibration(
+                           helix::pacal::is_supported(get_printer_state().get_discovery()),
+                           ops.toolhead_unload, print_blocks_op, system_busy)
+                           ? 1
+                           : 0);
+#endif
 
     // A disabled button with no stated reason reads as a bug. The head's reason
     // comes first; otherwise the backend's, only when it has something
@@ -589,9 +607,19 @@ void AmsContextMenu::handle_park() {
     dispatch_ams_action(MenuAction::PARK);
 }
 
+void AmsContextMenu::handle_calibrate_pa() {
+    spdlog::info("[AmsContextMenu] Calibrate PA requested for slot {}", get_item_index());
+    dispatch_ams_action(MenuAction::CALIBRATE_PA);
+}
+
 void AmsContextMenu::handle_edit() {
     spdlog::info("[AmsContextMenu] Edit requested for slot {}", get_item_index());
     dispatch_ams_action(MenuAction::EDIT);
+}
+
+bool AmsContextMenu::decide_offers_pa_calibration(bool printer_measures_pa, bool filament_at_nozzle,
+                                                  bool print_blocks_op, bool system_busy) {
+    return printer_measures_pa && filament_at_nozzle && !print_blocks_op && !system_busy;
 }
 
 bool AmsContextMenu::should_show_clear_spool(const SlotInfo& slot) {
@@ -761,6 +789,7 @@ void AmsContextMenu::register_callbacks() {
         {"ams_context_preload_cb", on_preload_cb},
         {"ams_context_mount_cb", on_mount_cb},
         {"ams_context_park_cb", on_park_cb},
+        {"ams_context_pa_cal_cb", on_pa_cal_cb},
         {"ams_context_edit_cb", on_edit_cb},
         {"ams_context_clear_spool_cb", on_clear_spool_cb},
         {"ams_context_spoolman_cb", on_spoolman_cb},
@@ -815,6 +844,12 @@ void AmsContextMenu::on_mount_cb(lv_event_t* /*e*/) {
 void AmsContextMenu::on_park_cb(lv_event_t* /*e*/) {
     if (auto* self = get_active_instance()) {
         self->handle_park();
+    }
+}
+
+void AmsContextMenu::on_pa_cal_cb(lv_event_t* /*e*/) {
+    if (auto* self = get_active_instance()) {
+        self->handle_calibrate_pa();
     }
 }
 
@@ -992,6 +1027,16 @@ void dispatch_slot_menu_action(const SlotMenuHost& host, AmsContextMenu::MenuAct
 
     case MenuAction::SCAN_QR:
         scan_qr_into_slot(host, slot);
+        break;
+
+    case MenuAction::CALIBRATE_PA:
+#if !defined(HELIX_PLATFORM_ESP32)
+        if (backend) {
+            const SlotInfo info = backend->get_slot_info(slot);
+            open_pa_cal_panel_for_filament(host.parent_screen, info.material, info.nozzle_temp_min,
+                                           info.nozzle_temp_max);
+        }
+#endif
         break;
 
     default:

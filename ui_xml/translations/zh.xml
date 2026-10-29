@@ -519,6 +519,7 @@
   <translation tag="Calibrate Encoder" zh="校准编码器"/>
   <translation tag="Calibrate Gates" zh="校准通道"/>
   <translation tag="Calibrate Gear" zh="校准齿轮"/>
+  <translation tag="Calibrate PA" zh="校准压力提前"/>
   <translation tag="Calibrate Purge Chute" zh="校准排料口"/>
   <translation tag="Calibrate Toolhead" zh="校准工具头"/>
   <translation tag="Calibrate Toolhead Offsets" zh="校准工具头偏移"/>
