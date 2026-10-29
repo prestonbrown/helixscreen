@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Print status printer tile: the printer picture with a chip per heater, fan,
-     the light and speed/flow. PrintStatusTiles measures the chips and the
+     the light, speed/flow and the other heads of a multi-head printer. PrintStatusTiles measures the chips and the
      shared CalloutPresenter positions the image, chips, lines and glows inside
      ps_printer_area's content box; everything else is bound here.
      ps_callout_mode: 0 ImageOnly, 1 Pinned (compact chips on the picture),
@@ -124,6 +124,17 @@
           <event_cb trigger="clicked" callback="on_print_status_tune"/>
           <!-- The pill lays out row_reverse: the speed icon reads before the chip's text. -->
           <icon src="speed" size="xs">
+            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+          </icon>
+        </activity_chip>
+        <!-- Every head but the printing one. No tagged point, so no line or glow. -->
+        <activity_chip name="ps_chip_other_tools"
+                       text_subject="ps_chip_other_tools_text" shown_subject="ps_chip_other_tools_shown"
+                       compact_subject="ps_callout_mode" tone_subject="ps_chip_other_tools_tone"
+                       progress_subject="ps_chip_other_tools_progress">
+          <bind_flag_if cond="ps_chip_other_tools_shown eq 0" flag="hidden"/>
+          <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
+          <icon src="heater" size="xs">
             <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
           </icon>
         </activity_chip>

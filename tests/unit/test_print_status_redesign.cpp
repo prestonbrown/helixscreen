@@ -17,6 +17,7 @@
 #include "print_start_phase.h"
 #include "print_status_chips.h"
 #include "print_status_layout_fitter.h"
+#include "printer_discovery.h"
 #include "printer_image_manager.h"
 #include "printer_state.h"
 #include "theme_manager.h"
@@ -1052,4 +1053,46 @@ TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves t
     UpdateQueue::instance().drain();
     CHECK(subject_str("ps_printer_image_src") == source);
     std::filesystem::remove(cache_path, ec);
+}
+
+TEST_CASE_METHOD(Landscape800, "the other-tools chip lists every head but the printing one",
+                 "[print_status][print_status_other_tools]") {
+    const auto use_heads = [&](const std::vector<std::string>& extruders) {
+        state().temperature_state().init_extruders(extruders);
+        PrinterDiscovery hardware;
+        hardware.parse_objects(nlohmann::json(extruders));
+        ToolState::instance().init_tools(hardware);
+    };
+    use_heads({"extruder", "extruder1", "extruder2"});
+    REQUIRE(ToolState::instance().active_tool_index() == 0);
+    state().update_from_status({{"extruder", {{"temperature", 220.0}, {"target", 220.0}}},
+                                {"extruder1", {{"temperature", 150.0}, {"target", 150.0}}},
+                                {"extruder2", {{"temperature", 25.0}, {"target", 0.0}}}});
+    settle();
+
+    CHECK(subject_int("ps_chip_other_tools_shown") == 1);
+    CHECK(subject_str("ps_chip_other_tools_text") == "2 150° · 3 off");
+    CHECK(subject_int("ps_chip_other_tools_tone") == static_cast<int>(ChipTone::Normal));
+    CHECK(subject_int("ps_chip_other_tools_progress") == -1);
+    CHECK_FALSE(hidden(root_, "ps_chip_other_tools"));
+
+    // A parked head pre-heating leads, in the working tone, with its bar.
+    state().update_from_status({{"extruder2", {{"temperature", 30.0}, {"target", 220.0}}}});
+    settle();
+    state().update_from_status({{"extruder2", {{"temperature", 125.0}, {"target", 220.0}}}});
+    settle();
+    CHECK(subject_str("ps_chip_other_tools_text").rfind("3 125 / 220°", 0) == 0);
+    CHECK(subject_int("ps_chip_other_tools_tone") == static_cast<int>(ChipTone::Active));
+    CHECK(subject_int("ps_chip_other_tools_progress") == 50);
+    // It sits in a chip slot with no line to the picture.
+    for (const auto& c : tiles().last_layout().chips) {
+        if (c.kind == CalloutKind::OtherTools) {
+            CHECK_FALSE(c.has_line);
+        }
+    }
+
+    use_heads({"extruder"});
+    settle();
+    CHECK(subject_int("ps_chip_other_tools_shown") == 0);
+    CHECK(hidden(root_, "ps_chip_other_tools"));
 }

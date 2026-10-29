@@ -96,7 +96,12 @@
   <translation tag="+ Add Preset" ru="+ Добавить пресет"/>
   <translation tag="+ Add Printer" ru="+ Добавить принтер"/>
   <translation tag="+ New" ru="+ Новый"/>
+  <translation tag="+1 tool" ru="+1 инструмент"/>
   <translation tag="+{} more" ru="+ещё {}"/>
+  <translation tag="+{} tools" ru="+{} инструмента"/>
+  <translation tag="+{} tools_few" ru="+{} инструмента"/>
+  <translation tag="+{} tools_many" ru="+{} инструментов"/>
+  <translation tag="+{} tools_one" ru="+{} инструмент"/>
   <translation tag=", also {}" ru=", также {}"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" ru="- Проверьте блок [resonance_tester] в printer.cfg"/>
   <translation tag="- Ensure ADXL345 is connected" ru="- Убедитесь, что ADXL345 подключен"/>

@@ -96,7 +96,12 @@
   <translation tag="+ Add Preset" de="+ Voreinstellung" en="+ Add Preset" es="+ Agregar Preajuste" fr="+ Ajouter un préréglage" it="+ Aggiungi preset" ja="+ プリセットを追加" pt="+ Adicionar Predefinição" ru="+ Добавить пресет" zh="+ 添加预设"/>
   <translation tag="+ Add Printer" de="+ Drucker hinzufügen" en="+ Add Printer" es="+ Agregar Impresora" fr="+ Ajouter une imprimante" it="+ Aggiungi stampante" ja="+ プリンターを追加" pt="+ Adicionar Impressora" ru="+ Добавить принтер" zh="+ 添加打印机"/>
   <translation tag="+ New" de="+ Neu" en="+ New" es="+ Nuevo" fr="+ Nouveau" it="+ Nuovo" ja="+ 新規" pt="+ Novo" ru="+ Новый" zh="+ 新建"/>
+  <translation tag="+1 tool" de="+1 Werkzeug" en="+1 tool" es="+1 herramienta" fr="+1 outil" it="+1 strumento" ja="+1 ツール" pt="+1 ferramenta" ru="+1 инструмент" zh="+1 个工具"/>
   <translation tag="+{} more" de="+{} weitere" en="+{} more" es="+{} más" fr="+{} de plus" it="+{} altri" ja="他{}件" pt="+{} mais" ru="+ещё {}" zh="还有 {} 个"/>
+  <translation tag="+{} tools" de="+{} Werkzeuge" en="+{} tools" es="+{} herramientas" fr="+{} outils" it="+{} strumenti" ja="+{} ツール" pt="+{} ferramentas" ru="+{} инструмента" zh="+{} 个工具"/>
+  <translation tag="+{} tools_few" ru="+{} инструмента"/>
+  <translation tag="+{} tools_many" ru="+{} инструментов"/>
+  <translation tag="+{} tools_one" ru="+{} инструмент"/>
   <translation tag=", also {}" de=", auch {}" en=", also {}" es=", también {}" fr=", aussi {}" it=", anche {}" ja="、{}も" pt=", também {}" ru=", также {}" zh="，另有 {}"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" de="- Prüfen Sie [resonance_tester] in printer.cfg" en="- Check [resonance_tester] in printer.cfg" es="- Verifique [resonance_tester] en printer.cfg" fr="- Vérifiez [resonance_tester] dans printer.cfg" it="- Controllare [resonance_tester] in printer.cfg" ja="- printer.cfg の [resonance_tester] を確認してください" pt="- Verifique [resonance_tester] no printer.cfg" ru="- Проверьте блок [resonance_tester] в printer.cfg" zh="- 检查 printer.cfg 中的 [resonance_tester]"/>
   <translation tag="- Ensure ADXL345 is connected" de="- Stellen Sie sicher, dass der ADXL345 angeschlossen ist" en="- Ensure ADXL345 is connected" es="- Asegúrese de que el ADXL345 esté conectado" fr="- Assurez-vous que l&apos;ADXL345 est connecté" it="- Assicurarsi che ADXL345 sia collegato" ja="- ADXL345 が接続されていることを確認してください" pt="- Certifique-se de que o ADXL345 está conectado" ru="- Убедитесь, что ADXL345 подключен" zh="- 确保 ADXL345 已连接"/>

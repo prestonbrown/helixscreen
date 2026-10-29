@@ -63,7 +63,9 @@ translations:
   + Add Preset: + プリセットを追加
   + Add Printer: + プリンターを追加
   + New: + 新規
+  +1 tool: '+1 ツール'
   +{} more: '他{}件'
+  +{} tools: '+{} ツール'
   ', also {}': '、{}も'
   '- Check [resonance_tester] in printer.cfg': '- printer.cfg の [resonance_tester]
     を確認してください'

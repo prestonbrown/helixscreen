@@ -63,7 +63,9 @@ translations:
   + Add Preset: + Add Preset
   + Add Printer: + Add Printer
   + New: + New
+  +1 tool: +1 tool
   +{} more: +{} more
+  +{} tools: +{} tools
   ', also {}': ', also {}'
   '- Check [resonance_tester] in printer.cfg': '- Check [resonance_tester] in printer.cfg'
   '- Ensure ADXL345 is connected': '- Ensure ADXL345 is connected'

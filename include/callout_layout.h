@@ -30,9 +30,10 @@ enum class CalloutKind {
     Toolhead = 5,
     HotendFan = 6,
     AuxFan = 7,
-    SpeedFlow = 8
+    SpeedFlow = 8,
+    OtherTools = 9 ///< every head but the printing one, on a multi-head printer
 };
-inline constexpr size_t kCalloutKindCount = 9;
+inline constexpr size_t kCalloutKindCount = 10;
 
 /// The `printer_callout_mode` subject ints; XML ref_values read these.
 enum class CalloutMode { ImageOnly = 0, Pinned = 1, Docked = 2, BothSides = 3, OneSide = 4 };
@@ -123,6 +124,7 @@ struct CalloutLayout {
         return r.light;
     case CalloutKind::AuxFan:
     case CalloutKind::SpeedFlow:
+    case CalloutKind::OtherTools:
         return std::nullopt;
     }
     return std::nullopt;
@@ -278,6 +280,7 @@ inline int dock_rank(CalloutKind k) {
         return 0;
     case CalloutKind::Fan:
     case CalloutKind::SpeedFlow:
+    case CalloutKind::OtherTools:
         return 1;
     case CalloutKind::Chamber:
         return 2;

@@ -63,7 +63,9 @@ translations:
   + Add Preset: + 添加预设
   + Add Printer: + 添加打印机
   + New: + 新建
+  +1 tool: '+1 个工具'
   +{} more: '还有 {} 个'
+  +{} tools: '+{} 个工具'
   ', also {}': '，另有 {}'
   '- Check [resonance_tester] in printer.cfg': '- 检查 printer.cfg 中的 [resonance_tester]'
   '- Ensure ADXL345 is connected': '- 确保 ADXL345 已连接'
