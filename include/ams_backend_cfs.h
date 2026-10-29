@@ -18,6 +18,8 @@ namespace helix::printer {
 
 #if HELIX_HAS_CFS
 
+#include "ui_timer_guard.h"
+
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "cfs_status_parse.h"
@@ -27,6 +29,7 @@ namespace helix::printer {
 #include "lane_echo.h"
 
 #include <atomic>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <optional>
@@ -1116,6 +1119,40 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// AmsSystemInfo::endless_spool_enabled holds the firmware's answer rather
     /// than its constructed default. Guarded by mutex_.
     bool endless_spool_enable_reported_ = false;
+
+    /// How long after Klipper is ready a unit printer.cfg registers may stay
+    /// unreported before the bus is taken as empty. A K2 Plus booting with its
+    /// CFS reports the box "disconnect" with every address "None" from about
+    /// 7 s after ready until its unit answers at about 38 s.
+    static constexpr std::chrono::seconds kRegisteredUnitSettle{90};
+
+    /// What printer.cfg's saved address table says about the bus
+    /// (cfs::has_registered_unit). Unknown while the query is out.
+    enum class UnitRegistration { Unknown, None, Registered };
+    /// None with no query to make (no client), so the empty-bus verdict
+    /// follows the frames alone. Guarded by mutex_.
+    UnitRegistration unit_registration_ = UnitRegistration::None;
+    /// True once kRegisteredUnitSettle has passed this session without the
+    /// frames showing a unit. Guarded by mutex_.
+    bool unit_settle_expired_ = false;
+    /// The merged stock frames' box state reads "disconnect". Guarded by mutex_.
+    bool bus_reported_empty_ = false;
+    /// Fires finish_unit_settle(). Main thread.
+    helix::ui::LvglTimerGuard unit_settle_timer_;
+
+    /// Starts a settle window: the registration query and its timer. Main thread.
+    void begin_unit_settle();
+    void apply_unit_registration(UnitRegistration registration);
+    void finish_unit_settle();
+    /// Re-runs the empty-bus verdict outside a frame and announces a change.
+    /// Main thread; takes mutex_.
+    void refresh_external_spool_only();
+    /// Sets AmsSystemInfo::external_spool_only from the bus, the seen units
+    /// and the registration; true when it changed. **Caller must hold mutex_.**
+    bool converge_external_spool_only_locked();
+    /// supports_bypass for the stock dialect, which follows the empty bus.
+    /// **Caller must hold mutex_.**
+    void converge_stock_supports_bypass_locked();
 
     /// The slot number a command names for @p bay. A bay's global index is the
     /// firmware's own slot number on every dialect; -1 for a bay in an absent

@@ -61,3 +61,28 @@ TEST_CASE("CFS status parse reads the sibling objects only when present", "[cfs]
     CHECK_FALSE(cfs::parse_motor_control(json{{"motor_control", json{{"motor_ready", "yes"}}}})
                     ->motor_ready);
 }
+
+TEST_CASE("CFS status parse reads the registered units from printer.cfg's address table",
+          "[cfs][status_parse][1933]") {
+    // configfile.settings from a K2 Plus with one CFS at address 1.
+    const json k2_plus = json::parse(R"({"auto_addr": {"mb_addr_table_uniids":
+        [[19, 103, 59, 72, 36, 34, 176, 3, 54, 53, 52, 52], [0], [0], [0]]}})");
+    CHECK(cfs::has_registered_unit(k2_plus));
+
+    SECTION("the table as its config string") {
+        const json as_string =
+            json{{"auto_addr", {{"mb_addr_table_uniids", "\n[[19, 103, 59, 72], [0], [0], [0]]"}}}};
+        CHECK(cfs::has_registered_unit(as_string));
+    }
+    SECTION("every address empty") {
+        CHECK_FALSE(cfs::has_registered_unit(
+            json::parse(R"({"auto_addr": {"mb_addr_table_uniids": [[0], [0], [0], [0]]}})")));
+    }
+    SECTION("no table, no section, or one that does not parse") {
+        CHECK_FALSE(cfs::has_registered_unit(json::parse(R"({"auto_addr": {}})")));
+        CHECK_FALSE(cfs::has_registered_unit(json::parse(R"({"printer": {}})")));
+        CHECK_FALSE(
+            cfs::has_registered_unit(json{{"auto_addr", {{"mb_addr_table_uniids", "[[19, 103"}}}}));
+        CHECK_FALSE(cfs::has_registered_unit(json::array()));
+    }
+}

@@ -4,6 +4,7 @@
 #include "cfs_status_parse.h"
 
 #include "ams_status_json.h"
+#include "json_utils.h"
 
 namespace helix::cfs {
 
@@ -51,6 +52,33 @@ std::optional<MotorControlDelta> parse_motor_control(const nlohmann::json& param
         d.motor_ready = ams::read_field<bool>(*it, "motor_ready");
     }
     return d;
+}
+
+bool has_registered_unit(const nlohmann::json& configfile_settings) {
+    const nlohmann::json* section = json_util::find_member(configfile_settings, "auto_addr");
+    const nlohmann::json* option =
+        section ? json_util::find_member(*section, "mb_addr_table_uniids") : nullptr;
+    if (!option) {
+        return false;
+    }
+    const nlohmann::json table =
+        option->is_string()
+            ? nlohmann::json::parse(option->get_ref<const std::string&>(), nullptr, false)
+            : *option;
+    if (!table.is_array()) {
+        return false;
+    }
+    for (const auto& entry : table) {
+        if (!entry.is_array()) {
+            continue;
+        }
+        for (const auto& byte : entry) {
+            if (json_util::as_int64(byte) != 0) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 } // namespace helix::cfs

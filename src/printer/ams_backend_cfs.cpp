@@ -435,8 +435,10 @@ void AmsBackendCfs::on_started() {
         std::lock_guard<std::mutex> lock(mutex_);
         mirrors_sorted_ = false;
         endless_spool_enable_reported_ = false;
+        bus_reported_empty_ = false;
         tag_readings_.clear();
     }
+    begin_unit_settle();
 
     // Restore the persisted stock-dialect bypass declaration. The
     // BOX_ENABLE_CFS_PRINT ENABLE=0 sent when it was made survives in the
@@ -2115,33 +2117,9 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
         endless_spool_enable_reported_ = true;
     }
 
-    // Stock K2 firmware publishes `box` whether or not a CFS is attached; with
-    // none, every address reads "None" and the toolhead takes only the
-    // external spool (#1904). Every address reading "None" is also how a K2
-    // with a CFS boots, before its unit answers the RS-485 poll, so that alone
-    // decides nothing: the box's own state, read from the merged frames since
-    // a delta omits it while unchanged, must say "disconnect" (#1933). A unit
-    // seen this session keeps its place in the list below even when a later
-    // frame drops it, so the verdict cannot flip back on a unit that went
-    // briefly quiet. The flat schema is a module reporting its own slots,
-    // never this case.
-    const bool bus_reported_empty =
-        helix::json_util::safe_string(*f.state, "state", "") == "disconnect";
-    const bool external_spool_only =
-        !is_flat && bus_reported_empty && new_info.units.empty() && system_info_.units.empty();
-    if (system_info_.external_spool_only != external_spool_only) {
-        spdlog::info("[AMS CFS] external_spool_only {} -> {} ({})",
-                     system_info_.external_spool_only, external_spool_only,
-                     external_spool_only ? "no CFS unit on the bus" : "a CFS unit is connected");
-        system_info_.external_spool_only = external_spool_only;
-        // The sentinel stood for "the only path is loaded"; with a unit up it
-        // is the declaration's to claim, and nothing has declared it.
-        if (!external_spool_only && !bypass_declared_ &&
-            system_info_.current_slot == helix::ui::kExternalSpoolSlot) {
-            system_info_.current_slot = -1;
-            system_info_.current_tool = -1;
-        }
-    }
+    // Read from the merged frames: a delta omits the box state while unchanged.
+    bus_reported_empty_ =
+        !is_flat && helix::json_util::safe_string(*f.state, "state", "") == "disconnect";
 
     if (!new_info.units.empty()) {
         system_info_.units = std::move(new_info.units);
@@ -2207,6 +2185,141 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
             }
         }
     }
+
+    converge_external_spool_only_locked();
+}
+
+bool AmsBackendCfs::converge_external_spool_only_locked() {
+    // Stock K2 firmware publishes `box` whether or not a CFS is attached; with
+    // none, the box reads "disconnect", every address "None", and the toolhead
+    // takes only the external spool (#1904). A K2 with a CFS reports exactly
+    // that from shortly after Klipper is ready until bus discovery reaches its
+    // unit, so while printer.cfg registers a unit the frames alone decide
+    // nothing until kRegisteredUnitSettle has passed (#1933). A unit seen this
+    // session keeps its place in the list even when a later frame drops it, so
+    // the verdict cannot flip back on a unit that went briefly quiet.
+    const bool bus_settled = unit_registration_ == UnitRegistration::None || unit_settle_expired_;
+    const bool bus_empty = bus_reported_empty_ && system_info_.units.empty();
+    const bool external_spool_only = bus_empty && bus_settled;
+    if (bus_empty && !bus_settled && !system_info_.external_spool_only) {
+        spdlog::debug("[AMS CFS] Empty bus reported; waiting for {} unit",
+                      unit_registration_ == UnitRegistration::Registered ? "the registered"
+                                                                         : "printer.cfg on any");
+    }
+    if (system_info_.external_spool_only == external_spool_only) {
+        return false;
+    }
+    spdlog::info("[AMS CFS] external_spool_only {} -> {} ({})", system_info_.external_spool_only,
+                 external_spool_only,
+                 external_spool_only ? "no CFS unit on the bus" : "a CFS unit is connected");
+    system_info_.external_spool_only = external_spool_only;
+    // The sentinel stood for "the only path is loaded"; with a unit up it
+    // is the declaration's to claim, and nothing has declared it.
+    if (!external_spool_only && !bypass_declared_ &&
+        system_info_.current_slot == helix::ui::kExternalSpoolSlot) {
+        system_info_.current_slot = -1;
+        system_info_.current_tool = -1;
+    }
+    return true;
+}
+
+void AmsBackendCfs::converge_stock_supports_bypass_locked() {
+    if (system_info_.supports_bypass != system_info_.external_spool_only) {
+        return;
+    }
+    // With no unit there is nothing to bypass: the external spool is the
+    // only path, so the toggle would have no other side.
+    const bool stock_bypass = !system_info_.external_spool_only;
+    spdlog::info("[AMS CFS] supports_bypass -> {} (stock: {})", stock_bypass,
+                 stock_bypass ? "external holder + toolhead sensor rule"
+                              : "external spool only, no unit");
+    system_info_.supports_bypass = stock_bypass;
+}
+
+void AmsBackendCfs::refresh_external_spool_only() {
+    bool changed = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        changed = converge_external_spool_only_locked();
+        if (changed && schema_ != CfsSchema::Flat) {
+            converge_stock_supports_bypass_locked();
+            derive_stock_bypass_locked();
+        }
+    }
+    if (changed) {
+        emit_event(EVENT_STATE_CHANGED);
+    }
+}
+
+void AmsBackendCfs::begin_unit_settle() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        unit_settle_expired_ = false;
+        unit_registration_ = client_ ? UnitRegistration::Unknown : UnitRegistration::None;
+    }
+    // The guard cancels the timer when the backend is destroyed.
+    if (lv_is_initialized()) {
+        unit_settle_timer_.reset(lv_timer_create(
+            [](lv_timer_t* timer) {
+                static_cast<AmsBackendCfs*>(lv_timer_get_user_data(timer))->finish_unit_settle();
+            },
+            static_cast<uint32_t>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(kRegisteredUnitSettle)
+                    .count()),
+            this));
+        lv_timer_set_repeat_count(unit_settle_timer_.get(), 1);
+    }
+    if (!client_) {
+        return;
+    }
+    // configfile has no sub-field selector in Moonraker: this is the whole
+    // resolved config, once per settle window.
+    const nlohmann::json params = {
+        {"objects", nlohmann::json::object({{"configfile", nlohmann::json::array({"settings"})}})}};
+    client_->send_jsonrpc(
+        "printer.objects.query", params,
+        [this, token = lifetime_.token()](const nlohmann::json& response) {
+            // WS thread: parse only.
+            const nlohmann::json* settings = nullptr;
+            if (const auto* result = helix::json_util::find_member(response, "result")) {
+                if (const auto* status = helix::json_util::find_member(*result, "status")) {
+                    if (const auto* cfg = helix::json_util::find_member(*status, "configfile")) {
+                        settings = helix::json_util::find_member(*cfg, "settings");
+                    }
+                }
+            }
+            const UnitRegistration registration = settings && cfs::has_registered_unit(*settings)
+                                                      ? UnitRegistration::Registered
+                                                      : UnitRegistration::None;
+            token.defer("AmsBackendCfs::unit_registration",
+                        [this, registration]() { apply_unit_registration(registration); });
+        },
+        [this, token = lifetime_.token()](const MoonrakerError& err) {
+            spdlog::warn("[AMS CFS] configfile query failed, no registered unit assumed: {}",
+                         err.message);
+            token.defer("AmsBackendCfs::unit_registration_failed",
+                        [this]() { apply_unit_registration(UnitRegistration::None); });
+        });
+}
+
+void AmsBackendCfs::apply_unit_registration(UnitRegistration registration) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        unit_registration_ = registration;
+    }
+    spdlog::info("[AMS CFS] printer.cfg {} a CFS unit",
+                 registration == UnitRegistration::Registered ? "registers" : "registers no");
+    refresh_external_spool_only();
+}
+
+void AmsBackendCfs::finish_unit_settle() {
+    // Cancelling is safe from inside the timer's own callback.
+    unit_settle_timer_.reset();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        unit_settle_expired_ = true;
+    }
+    refresh_external_spool_only();
 }
 
 void AmsBackendCfs::converge_box_bypass_locked(BoxFrame& f) {
@@ -2240,14 +2353,8 @@ void AmsBackendCfs::converge_box_bypass_locked(BoxFrame& f) {
                          macro_variant_ == CfsMacroVariant::Fork, external_slot_index_);
             system_info_.supports_bypass = fork_bypass;
         }
-    } else if (system_info_.supports_bypass == system_info_.external_spool_only) {
-        // With no unit there is nothing to bypass: the external spool is the
-        // only path, so the toggle would have no other side.
-        const bool stock_bypass = !system_info_.external_spool_only;
-        spdlog::info("[AMS CFS] supports_bypass -> {} (stock: {})", stock_bypass,
-                     stock_bypass ? "external holder + toolhead sensor rule"
-                                  : "external spool only, no unit");
-        system_info_.supports_bypass = stock_bypass;
+    } else {
+        converge_stock_supports_bypass_locked();
     }
 
     // Cross-UI drift guard: has the CFS taken the feed back? The box
@@ -2823,6 +2930,9 @@ void AmsBackendCfs::on_klipper_restarted() {
         std::lock_guard<std::mutex> lock(mutex_);
         end_phase_tracking();
     }
+    // Discovery runs again on every Klipper start, and the address table may
+    // have changed with the SAVE_CONFIG that restarted it.
+    begin_unit_settle();
     AmsSubscriptionBackend::on_klipper_restarted();
 }
 
