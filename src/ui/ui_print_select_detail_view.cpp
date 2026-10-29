@@ -1354,7 +1354,7 @@ void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int 
     case FileHistoryStatus::FAILED:
         lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
         helix::ui::icon::set_source(history_status_icon_, "alert");
-        helix::ui::icon::set_variant(history_status_icon_, "error");
+        helix::ui::icon::set_variant(history_status_icon_, "danger");
         lv_label_set_text(history_status_label_, lv_tr("Last print failed"));
         break;
 
