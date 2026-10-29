@@ -604,18 +604,26 @@ def changed_files(root, base):
     diff has nothing to say about -- a binary asset, a submodule pointer, a mode
     change -- still reaches the report instead of vanishing between the two.
     """
-    r = run(['git', '-c', 'core.quotePath=false', 'diff', '--raw', base], cwd=root)
-    if r.returncode != 0:
-        sys.exit(f'git diff --raw failed:\n{r.stdout}')
-    out = []
-    for line in r.stdout.splitlines():
-        m = RAW_RE.match(line)
-        if not m:
-            continue
-        old_mode, new_mode, _status, paths = m.groups()
-        path = paths.split('\t')[-1]          # rename: destination is what exists now
-        out.append((path, '160000' in (old_mode, new_mode)))
-    return out
+    # Files: base against the working tree, so uncommitted edits count, but
+    # with submodules ignored: git refuses a submodule path that is a symlink
+    # in the working tree, which is how .githooks/pre-push's throwaway checkout
+    # carries lib/. Submodule pointers: base against HEAD, which never reads
+    # the working tree.
+    seen = {}
+    for args in (['--ignore-submodules=all', base], [base, 'HEAD']):
+        r = run(['git', '-c', 'core.quotePath=false', 'diff', '--raw', *args], cwd=root)
+        if r.returncode != 0:
+            sys.exit(f'git diff --raw failed:\n{r.stdout}')
+        for line in r.stdout.splitlines():
+            m = RAW_RE.match(line)
+            if not m:
+                continue
+            old_mode, new_mode, _status, paths = m.groups()
+            path = paths.split('\t')[-1]      # rename: destination is what exists now
+            gitlink = '160000' in (old_mode, new_mode)
+            if gitlink or args[0] != base:
+                seen.setdefault(path, gitlink)
+    return list(seen.items())
 
 
 def collect_hunks(root, base):
@@ -626,7 +634,8 @@ def collect_hunks(root, base):
     The diff is taken over the WHOLE tree; what may be mutated is decided by
     classify(), which reports what it declines rather than filtering it away.
     """
-    r = run(['git', '-c', 'core.quotePath=false', 'diff', '-U3', base], cwd=root)
+    r = run(['git', '-c', 'core.quotePath=false', 'diff', '-U3', '--ignore-submodules=all', base],
+            cwd=root)
     if r.returncode != 0:
         sys.exit(f'git diff failed:\n{r.stdout}')
     hunks, path, current, hdr_lines = [], None, None, []

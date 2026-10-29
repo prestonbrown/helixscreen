@@ -1474,3 +1474,35 @@ def test_a_mutant_breaking_another_files_setup_is_killed_past_a_baseline_red_one
                 "--python-tests", "")
     assert "setup_file failed in test_env.bats" in r.stdout
     assert "killed" in r.stdout and "SURVIVED" not in r.stdout, r.stdout
+
+
+def _symlinked_submodule_repo(tmp_path):
+    """A repo whose lib/sub is a gitlink moved between base and HEAD, with a
+    symlink in the working tree where the submodule's checkout would be: the
+    throwaway checkout .githooks/pre-push sweeps a pushed commit in."""
+    work = tmp_path / "repo"
+    (work / "src").mkdir(parents=True)
+    (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    _git(work, "init", "-q", "-b", "main")
+    _git(work, "config", "user.email", "t@t")
+    _git(work, "config", "user.name", "t")
+    _git(work, "add", ".")
+    _git(work, "update-index", "--add", "--cacheinfo", "160000," + "a" * 40 + ",lib/sub")
+    _git(work, "commit", "-qm", "base")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "src" / "feature.cpp").write_text(CHANGED)
+    _git(work, "add", "src/feature.cpp")
+    _git(work, "update-index", "--cacheinfo", "160000," + "b" * 40 + ",lib/sub")
+    _git(work, "commit", "-qm", "feature")
+    (tmp_path / "elsewhere").mkdir()
+    (work / "lib").mkdir(exist_ok=True)
+    os.symlink(tmp_path / "elsewhere", work / "lib" / "sub")
+    return work, base
+
+
+def test_a_symlinked_submodule_checkout_still_diffs(tmp_path):
+    work, base = _symlinked_submodule_repo(tmp_path)
+    files = dict(md.changed_files(str(work), base))
+    assert files == {"src/feature.cpp": False, "lib/sub": True}
+    hunks = md.collect_hunks(str(work), base)
+    assert {h["file"] for h in hunks} == {"src/feature.cpp"}
