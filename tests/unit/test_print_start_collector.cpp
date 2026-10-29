@@ -527,6 +527,7 @@ TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][ne
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/archive_transfers.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/preprint_config_scope.h"
 #include "../test_helpers/print_start_collector_test_access.h"
 #include "../test_helpers/print_start_profile_test_access.h"
@@ -8809,6 +8810,41 @@ TEST_CASE_METHOD(K2NozzleClearFixture, "K2: the next step ends the clear's hold 
     }
     flow_check_at_chute();
     CHECK(get_current_phase() == PrintStartPhase::PURGING);
+}
+
+TEST_CASE_METHOD(K2NozzleClearFixture, "K2: a clear left running does not outlive its run",
+                 "[print][collector][k2][purge]") {
+    start_mesh_heated();
+    send_gcode_response("// [NOZZLE_CLEAR] START NOZZLE_CLEAR COUNT:0");
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+    SECTION("reset") {
+        collector().reset();
+        drain_async_updates();
+    }
+    SECTION("a new start") {
+        collector().stop();
+        start_mesh_heated();
+    }
+    REQUIRE(get_current_phase() != PrintStartPhase::CLEANING);
+    flow_check_at_chute();
+    CHECK(get_current_phase() == PrintStartPhase::PURGING);
+}
+
+TEST_CASE_METHOD(K2NozzleClearFixture, "K2: the clear's flow check is not logged as a purge",
+                 "[print][collector][k2][purge]") {
+    // Debug bundles are how a K2 checklist report gets triaged, so a purge the
+    // display absorbs must not reach the log either.
+    start_mesh_heated();
+    send_gcode_response("// [NOZZLE_CLEAR] START NOZZLE_CLEAR COUNT:0");
+    {
+        helix::TextLogCapture log;
+        flow_check_at_chute();
+        CHECK_FALSE(log.contains("stationary purge"));
+    }
+    send_gcode_response("// [DEBUG]_handle_home_rails_begin");
+    helix::TextLogCapture log;
+    flow_check_at_chute();
+    CHECK(log.contains("stationary purge"));
 }
 
 TEST_CASE_METHOD(K2NozzleClearFixture,

@@ -656,7 +656,7 @@ void PrintStartCollector::check_purge_shape() {
         evidence.stationary_flow =
             purge_flow_.note_sample(static_cast<uint64_t>(ms), forward, x, y, z);
         if (owning_step_.judge(PrintStartPhase::PURGING) == helix::OwningStep::Verdict::Absorb) {
-            return; // the running step's own flow
+            return; // the running step's own flow is not logged as a purge
         }
     }
     if (phase == PrintStartPhase::PURGING || phase == PrintStartPhase::COMPLETE ||
