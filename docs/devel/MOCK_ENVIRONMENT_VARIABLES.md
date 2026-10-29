@@ -165,6 +165,22 @@ Make `server.files.metadata` and `server.files.metascan` fail with a 404, as Moo
 
 With metadata unavailable, the UI falls back to reading thumbnails and layer counts straight out of the gcode file, which is the per-file path that #1706 froze. This knob forces that fallback without needing a metadata-less server.
 
+### `HELIX_MOCK_FORCE_LOGINS`
+
+Make `server.connection.identify` fail with `401 Unauthorized`, as a Moonraker with `force_logins` does for a client whose credential it does not accept.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
+| **Default** | unset (identify succeeds) |
+| **File** | `src/api/moonraker_client_mock_server.cpp` |
+
+Discovery stops at the refused identify and the app shows its one Login Required message, with the button that opens the API key field.
+
+```bash
+HELIX_MOCK_FORCE_LOGINS=1 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_GCODE_DIR`
 
 Add a local directory to the mock printer's gcodes root for the whole run, beside `assets/test_gcodes`: listings, metadata and every transfer see its files.

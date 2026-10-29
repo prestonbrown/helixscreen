@@ -12,8 +12,10 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/scoped_env.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "moonraker_auth.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -406,4 +408,31 @@ TEST_CASE("Discovery reads the printer's fit-check limits from its config",
     REQUIRE(machine.has_value());
     CHECK_FALSE(machine->kinematics.empty());
     CHECK(machine->axis_max[0].value_or(0.0) > 0.0);
+}
+
+TEST_CASE("Discovery stops at a refused login and reports it once", "[discovery][api-key]") {
+    LVGLTestFixture fixture;
+    helix::ScopedEnv force_logins("HELIX_MOCK_FORCE_LOGINS", "1");
+    helix::moonraker_auth::set_credential({"printer.lan", 7125, ""});
+
+    TestDiscoveryClient client;
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    std::vector<MoonrakerEventType> events;
+    client.register_event_handler([&events](const MoonrakerEvent& e) { events.push_back(e.type); });
+
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        bool completed = false;
+        std::string error_reason;
+        client.discover_printer_real(
+            [&completed]() { completed = true; },
+            [&error_reason](const std::string& reason) { error_reason = reason; });
+        INFO("attempt " << attempt);
+        CHECK_FALSE(completed);
+        CHECK(error_reason == "Unauthorized");
+    }
+
+    // One report for the refusal, and no other error behind it: discovery asked nothing more.
+    CHECK(events == std::vector<MoonrakerEventType>{MoonrakerEventType::LOGIN_REFUSED});
+    CHECK(helix::moonraker_auth::unauthorized());
+    helix::moonraker_auth::set_credential({});
 }

@@ -128,6 +128,7 @@ translations:
 
   30 minutes: 30分
   30 seconds: 30秒
+  32 characters, 0-9 and a-f: '32文字、0-9とa-f'
   3D Maze: 3D迷路
   3D Pipes: 3Dパイプ
   3D View: 3Dビュー
@@ -202,6 +203,8 @@ translations:
   'AMS Active: ': 'AMS 有効: '
   AMS is busy: AMS はビジー状態です
   AMS/MMU system not detected: 'AMS/MMU システムが検出されません'
+  API Key: 'APIキー'
+  API Key (if Moonraker requires a login): 'APIキー（Moonrakerがログインを要求する場合）'
   API not available: APIが利用できません
   APPEARANCE: 外観
   AUTO FANS: 自動ファン
@@ -283,6 +286,7 @@ translations:
   Always show Android navigation bar instead of using gestures: ジェスチャーの代わりにAndroidナビゲーションバーを常に表示
   Ambient Transfer: 環境熱伝達
   AmsIdentify: AMSを識別
+  An API key is 32 characters, each 0-9 or a-f.: 'APIキーは32文字で、各文字は0-9またはa-fです。'
   An accelerometer was detected on your printer.: プリンターで加速度センサーが検出されました。
   An app on your network is asking to connect to this printer.: 'ネットワーク上のアプリがこのプリンターへの接続を求めています。'
   An error occurred during calibration.: キャリブレーション中にエラーが発生しました。
@@ -799,6 +803,7 @@ translations:
   Configure quick buttons and standard macros: クイックボタンと標準マクロを設定
   Configure timelapse recording: タイムラプス録画を設定
   Configure your printer's cooling fans: プリンターの冷却ファンを設定します
+  Configured: '設定済み'
   Configured LED strip not found: '設定済みのLEDストリップが見つかりません'
   Configured aux fan not found: '設定済みの補助ファンが見つかりません'
   Configured filament sensor not found: '設定済みのフィラメントセンサーが見つかりません'
@@ -1210,6 +1215,7 @@ translations:
   Endless Spool is turned off on this MMU: 'この MMU ではエンドレススプールが無効です'
   Endless Spool state unknown: エンドレススプールの状態は不明です
   Ensure Happy Hare or AFC is installed and configured: Happy Hare または AFC がインストールされ、設定されていることを確認してください
+  Enter API Key: 'APIキーを入力'
   Enter Current PIN: 現在の PIN を入力
   Enter G-code command...: G-code コマンドを入力...
   Enter New PIN: 新しい PIN を入力
@@ -2107,6 +2113,7 @@ translations:
   Lock the screen with your PIN: PIN で画面をロック
   Locked during print: 印刷中はロックされています
   Log Level: ログレベル
+  Login Required: 'ログインが必要です'
   Logs: ログ
   Long Press Time: '長押しの時間'
   'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': タイルを長押しして編集モードに入ります — ウィジェットの並べ替え、サイズ変更、削除、追加や、好みのレイアウトに合わせたページの追加ができます。
@@ -2262,11 +2269,14 @@ translations:
   Monitoring: モニタリング
   Month: 月
   Moonraker: Moonraker
+  Moonraker at {} rejected the API key.: '{} のMoonrakerがAPIキーを拒否しました。'
+  Moonraker at {} requires an API key.: '{} のMoonrakerはAPIキーを要求しています。'
   Moonraker has no G-code folder.: "MoonrakerにG-codeフォルダーがありません。"
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : 'MoonrakerはSpoolmanに接続されており、スプールとフィラメントの残量を管理します。Spoolman画面で一覧を確認できます。'
   Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: '{} の Moonraker が応答しません。Moonraker はこのプリンター上で動作しているため、Klipper と Moonraker のサービスが起動しているか確認してください。'
   Moonraker keeps a queue of prints to run one after another. View it in the job queue.: 'Moonrakerは印刷を順番に実行するキューを保持します。ジョブキューで確認できます。'
+  Moonraker refused the login: 'Moonrakerがログインを拒否しました'
   Moonraker restarted but Spoolman not connected. Check server.: Moonraker は再起動しましたが
     Spoolman に未接続です。サーバーを確認してください。
   ? "Moonraker restarting...\nWaiting for reconnection..."
@@ -4029,6 +4039,8 @@ translations:
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。
   "This printer's INDX macros are missing: {}": "このプリンターのINDXマクロに不足があります: {}"
+  This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'このプリンターのMoonrakerがAPIキーを拒否しました。設定 > 接続 でキーを確認してください。'
+  This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'このプリンターのMoonrakerはログインを要求しています。設定 > 接続 でAPIキーを追加してください。'
   This printer's network service controls the WiFi radio: このプリンターのネットワークサービスが WiFi 無線を制御しています
   This printer's network service manages saved WiFi networks: このプリンターのネットワークサービスが保存済みの WiFi ネットワークを管理しています
   This printer's screen has not shared a layout: "このプリンターの画面はレイアウトを共有していません"

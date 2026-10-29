@@ -37,6 +37,7 @@
 #include "moonraker_event_routing.h"
 #include "power_device_state.h"
 #include "printer_discovery_list.h"
+#include "printer_retarget.h"
 #include "sensor_state.h"
 #include "unit_conversions.h"
 #ifdef HELIX_ENABLE_MOCKS
@@ -581,6 +582,21 @@ void MoonrakerManager::present_event(const MoonrakerEvent& evt) {
     case helix::MoonrakerEventRoute::WarningToast:
         NOTIFY_WARNING("{}", text);
         return;
+
+    case helix::MoonrakerEventRoute::LoginRefusedPrompt:
+    case helix::MoonrakerEventRoute::LoginRefusedToast: {
+        const char* title = lv_tr(decision.title_tag);
+        const char* message = lv_tr(
+            helix::login_refused_message(!helix::active_printer_credential().api_key.empty()));
+        spdlog::error("[MoonrakerManager] {}: {}", title, message);
+        if (decision.route == helix::MoonrakerEventRoute::LoginRefusedToast) {
+            NOTIFY_ERROR_T(title, "{}", message);
+            return;
+        }
+        helix::ui::modal_confirm(title, message, ModalSeverity::Warning, lv_tr("Enter API Key"),
+                                 [] { helix::ui::show_change_host_modal(); });
+        return;
+    }
 
     case helix::MoonrakerEventRoute::SuccessToast:
         // Not ui_notification_*: every severity there writes a history row,

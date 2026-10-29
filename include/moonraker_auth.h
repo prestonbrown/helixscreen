@@ -22,8 +22,25 @@ struct Credential {
     std::string api_key; ///< Empty: this printer takes no key.
 };
 
-/// Records the active printer's credential, replacing the previous one.
+/// Records the active printer's credential, replacing the previous one. A new
+/// credential has not been refused yet, so this also clears unauthorized().
 void set_credential(Credential credential);
+
+/// A key as Moonraker issues one: exactly 32 hexadecimal digits. Moonraker
+/// refuses a wrong key outright, so anything else is never worth sending.
+[[nodiscard]] bool is_plausible_api_key(std::string_view key);
+
+/// Moonraker refusing a request for want of a login: JSON-RPC code 401, or its
+/// "Unauthorized" message where the code is missing.
+[[nodiscard]] bool is_unauthorized_error(int code, std::string_view message);
+
+/// The connected Moonraker refused this client's login. Every request fails the
+/// same way until set_credential() records the next attempt. True when this call
+/// is the one that marked it, so the refusal is reported once.
+bool mark_unauthorized();
+
+/// Whether the connected Moonraker has refused this client's login.
+[[nodiscard]] bool unauthorized();
 
 /// The key to send to @p host:@p port: the recorded key when that is the
 /// printer it belongs to, else empty. Hosts compare case-insensitively.

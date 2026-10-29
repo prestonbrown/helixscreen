@@ -311,8 +311,9 @@ sudo ufw allow 7125/tcp
 ### "Unauthorized" everywhere: Moonraker requires a login
 
 **Symptoms:**
-- HelixScreen connects but shows no files, no history and no printer status, and Klipper may read as shut down
-- Error toasts that say `Unauthorized`
+- A **Login Required** message saying the printer's Moonraker requires a login, or that it rejected the API key
+- HelixScreen connects but shows no files, no history and no printer status
+- In the setup wizard, Test Connection reports that Moonraker requires an API key
 - `moonraker.log` lists requests from HelixScreen refused with `401 ... Unauthorized, Force Logins Enabled`
 
 **Cause:** Moonraker has `force_logins: True` in its `[authorization]` section and at least one user account exists. Moonraker then refuses every request that carries no credential, including requests from the printer itself, even though `trusted_clients` lists it.
@@ -330,10 +331,11 @@ Give HelixScreen the printer's Moonraker API key. Moonraker accepts it whether o
    curl -s -H "Authorization: Bearer $TOKEN" http://localhost:7125/access/api_key
    ```
    The key is the 32-character value in `result`. A password or a shortened key does not work: Moonraker refuses a wrong key outright, even from a trusted address.
-2. Put the key in HelixScreen's `settings.json`, in your printer's entry, as `"moonraker_api_key": "THE_KEY"`. See [`moonraker_api_key`](CONFIGURATION.md#moonraker_api_key).
-3. Restart HelixScreen.
+2. Enter it on the screen: **Settings > Connection > API Key** (or the **Enter API Key** button on the Login Required message) opens the printer's host, port and key together. Type or paste the key, press **Test Connection**, then **Save**; HelixScreen reconnects with it at once. In the setup wizard, the key field appears beside the address as soon as Test Connection finds a printer that requires one.
 
-HelixScreen sends the key only to that printer's Moonraker address and port, never to a webcam, Spoolman or any other server.
+   Without the screen, put it in HelixScreen's `settings.json` instead, in your printer's entry, as `"moonraker_api_key": "THE_KEY"` (see [`moonraker_api_key`](CONFIGURATION.md#moonraker_api_key)), and restart HelixScreen.
+
+HelixScreen sends the key only to that printer's Moonraker address and port, never to a webcam, Spoolman or any other server. It is kept with that printer's entry, masked on screen until you reveal it, and left out of logs and debug bundles.
 
 If you do not need logins, the alternative is to remove `force_logins` from Moonraker's configuration and restart Moonraker.
 

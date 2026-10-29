@@ -89,6 +89,17 @@ moonraker_auth::Credential active_printer_credential(const std::string& default_
     return c;
 }
 
+void set_active_printer_api_key(const std::string& api_key) {
+    Config* config = Config::get_instance();
+    const std::string_view key = text_io::trim(api_key);
+    // false, not "": the shape a printer with no key has from its defaults.
+    if (key.empty()) {
+        config->set(config->df() + "moonraker_api_key", false);
+    } else {
+        config->set(config->df() + "moonraker_api_key", std::string(key));
+    }
+}
+
 bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,
                      const std::string& http_url) {
     // Before the connect: the WebSocket upgrade is the first request that needs it.

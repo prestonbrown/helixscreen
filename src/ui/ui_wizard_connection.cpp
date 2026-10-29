@@ -22,11 +22,14 @@
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "moonraker_auth.h"
 #include "platform_info.h"
 #include "printer_discovery.h"
 #include "printer_discovery_list.h"
+#include "printer_retarget.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"
+#include "text_io.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "utils/network_validation.h"
@@ -65,6 +68,7 @@ WizardConnectionStep::WizardConnectionStep() {
     std::memset(connection_port_buffer_, 0, sizeof(connection_port_buffer_));
     std::memset(connection_status_icon_buffer_, 0, sizeof(connection_status_icon_buffer_));
     std::memset(connection_status_text_buffer_, 0, sizeof(connection_status_text_buffer_));
+    std::memset(connection_api_key_buffer_, 0, sizeof(connection_api_key_buffer_));
     std::memset(mdns_status_buffer_, 0, sizeof(mdns_status_buffer_));
 
     // NOTE: mDNS discovery is created lazily in create() to avoid spawning
@@ -138,6 +142,11 @@ void WizardConnectionStep::init_subjects() {
 
         strncpy(connection_port_buffer_, default_port.c_str(), sizeof(connection_port_buffer_) - 1);
         connection_port_buffer_[sizeof(connection_port_buffer_) - 1] = '\0';
+
+        const std::string saved_key = active_printer_credential().api_key;
+        strncpy(connection_api_key_buffer_, saved_key.c_str(),
+                sizeof(connection_api_key_buffer_) - 1);
+        connection_api_key_buffer_[sizeof(connection_api_key_buffer_) - 1] = '\0';
     } else {
         spdlog::debug("[{}] Re-init: preserving buffer (IP='{}', Port='{}')", get_name(),
                       connection_ip_buffer_, connection_port_buffer_);
@@ -148,6 +157,7 @@ void WizardConnectionStep::init_subjects() {
     // an empty string, losing the seed. Seed from a copy.
     const std::string ip_seed = connection_ip_buffer_;
     const std::string port_seed = connection_port_buffer_;
+    const std::string key_seed = connection_api_key_buffer_;
     UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_ip_, connection_ip_buffer_, ip_seed.c_str(),
                                         "connection_ip");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_port_, connection_port_buffer_,
@@ -158,6 +168,10 @@ void WizardConnectionStep::init_subjects() {
                                         "connection_status_text");
     UI_SUBJECT_INIT_AND_REGISTER_INT(connection_testing_, 0, "connection_testing");
     UI_SUBJECT_INIT_AND_REGISTER_INT(connection_discovering_, 0, "connection_discovering");
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_api_key_, connection_api_key_buffer_,
+                                        key_seed.c_str(), "connection_api_key");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(connection_login_required_, key_seed.empty() ? 0 : 1,
+                                     "connection_login_required");
 
     // mDNS discovery subjects
     UI_SUBJECT_INIT_AND_REGISTER_STRING(mdns_status_, mdns_status_buffer_, lv_tr("Scanning..."),
@@ -198,6 +212,11 @@ void WizardConnectionStep::on_port_input_changed_static(lv_event_t* e) {
     if (self) {
         self->handle_port_input_changed();
     }
+}
+
+void WizardConnectionStep::on_api_key_input_changed_cb(lv_event_t* /*e*/) {
+    // A different key needs a new test, just as a different address does.
+    get_wizard_connection_step()->handle_ip_input_changed();
 }
 
 // ============================================================================
@@ -246,6 +265,13 @@ void WizardConnectionStep::handle_test_connection_clicked() {
         return;
     }
 
+    const std::string api_key = entered_api_key();
+    if (const std::string problem = api_key_problem(api_key); !problem.empty()) {
+        set_status("icon_close_circle", StatusVariant::Danger, problem.c_str());
+        spdlog::warn("[{}] API key is not 32 hex digits", get_name());
+        return;
+    }
+
     // Get MoonrakerClient instance
     IMoonrakerClient* client = get_moonraker_client();
     if (!client) {
@@ -269,6 +295,7 @@ void WizardConnectionStep::handle_test_connection_clicked() {
         std::lock_guard<std::mutex> lock(saved_values_mutex_);
         saved_ip_ = ip;
         saved_port_ = port_clean;
+        saved_api_key_ = api_key;
     }
 
     // Set UI to testing state
@@ -279,28 +306,36 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     // The HTTP check finds the port without touching the live client; the client then
     // connects to that one address, because the next steps need its hardware discovery.
-    connection_test_.start(ip, std::move(ports),
-                           [this, tok](const MoonrakerConnectionTest::Result& result) {
-                               if (!result.reached) {
-                                   tried_ports_ = result.tried;
-                                   show_connection_failure(result.failure);
-                                   return;
-                               }
-                               adopt_probed_port(result.port);
-                               tried_ports_ = {result.port};
-                               connect_confirmed(tok, false, 5000);
-                           });
+    const std::string host = ip;
+    connection_test_.start(
+        host, std::move(ports),
+        [this, tok, host](const MoonrakerConnectionTest::Result& result) {
+            if (!result.reached) {
+                tried_ports_ = result.tried;
+                show_connection_failure(result.failure);
+                return;
+            }
+            adopt_probed_port(result.port);
+            tried_ports_ = {result.port};
+            if (result.login_required) {
+                show_login_required(host, result);
+                return;
+            }
+            connect_confirmed(tok, false, 5000);
+        },
+        api_key);
 
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void WizardConnectionStep::connect_confirmed(const helix::LifetimeToken& tok, bool auto_probe,
                                              uint32_t timeout_ms) {
-    std::string ip, port;
+    std::string ip, port, api_key;
     {
         std::lock_guard<std::mutex> lock(saved_values_mutex_);
         ip = saved_ip_;
         port = saved_port_;
+        api_key = saved_api_key_;
     }
     IMoonrakerClient* client = get_moonraker_client();
     if (!client) {
@@ -310,6 +345,10 @@ void WizardConnectionStep::connect_confirmed(const helix::LifetimeToken& tok, bo
     }
     client->disconnect();
     client->set_connection_timeout(timeout_ms);
+    // The tested address is not saved yet, so its key is recorded here rather than read
+    // from the settings; it goes to this one host and port only.
+    moonraker_auth::set_credential(
+        {ip, text_io::parse_leading<int>(port).value_or(kDefaultMoonrakerPort), api_key});
     const std::string ws_url = "ws://" + ip + ":" + port + "/websocket";
     // One deferred body for both outcomes; it runs on the main thread, gated by tok.
     auto report = [this, tok, auto_probe](bool connected) {
@@ -349,19 +388,7 @@ void WizardConnectionStep::on_connection_success(const helix::LifetimeToken& tok
         port = saved_port_;
     }
 
-    // Persist config (safe on main thread)
-    Config* config = Config::get_instance();
-    try {
-        config->set(config->df() + helix::wizard::MOONRAKER_HOST, ip);
-        config->set(config->df() + helix::wizard::MOONRAKER_PORT, std::stoi(port));
-        if (config->save()) {
-            spdlog::debug("[Wizard Connection] Saved configuration: {}:{}", ip, port);
-        } else {
-            spdlog::error("[Wizard Connection] Failed to save configuration!");
-        }
-    } catch (const std::exception& e) {
-        spdlog::error("[Wizard Connection] Failed to save config: {}", e.what());
-    }
+    save_connection(ip, port);
 
     // Show "discovering" status - spinner shows via XML binding
     lv_subject_set_int(&connection_discovering_, 1);
@@ -444,6 +471,44 @@ void WizardConnectionStep::on_connection_failure(const helix::LifetimeToken& /*t
     } else {
         spdlog::debug("[Wizard Connection] Ignoring disconnect (not in testing mode)");
     }
+}
+
+void WizardConnectionStep::save_connection(const std::string& ip, const std::string& port) {
+    std::string api_key;
+    {
+        std::lock_guard<std::mutex> lock(saved_values_mutex_);
+        api_key = saved_api_key_;
+    }
+    Config* config = Config::get_instance();
+    try {
+        config->set(config->df() + helix::wizard::MOONRAKER_HOST, ip);
+        config->set(config->df() + helix::wizard::MOONRAKER_PORT, std::stoi(port));
+        set_active_printer_api_key(api_key);
+        if (config->save()) {
+            spdlog::debug("[Wizard Connection] Saved configuration: {}:{}", ip, port);
+        } else {
+            spdlog::error("[Wizard Connection] Failed to save configuration!");
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[Wizard Connection] Failed to save config: {}", e.what());
+    }
+}
+
+std::string WizardConnectionStep::entered_api_key() {
+    return std::string(text_io::trim(lv_subject_get_string(&connection_api_key_)));
+}
+
+void WizardConnectionStep::show_login_required(const std::string& ip,
+                                               const MoonrakerConnectionTest::Result& result) {
+    spdlog::warn("[Wizard Connection] Moonraker at {}:{} refused the test ({})", ip, result.port,
+                 result.key_sent ? "API key rejected" : "login required");
+    lv_subject_set_int(&connection_login_required_, 1);
+    set_status("icon_close_circle",
+               result.key_sent ? StatusVariant::Danger : StatusVariant::Warning,
+               connection_test_status(ip, result).c_str());
+    lv_subject_set_int(&connection_testing_, 0);
+    connection_validated_ = false;
+    lv_subject_set_int(&connection_test_passed, 0);
 }
 
 void WizardConnectionStep::show_connection_failure(ConnectFailureKind kind) {
@@ -533,6 +598,7 @@ void WizardConnectionStep::attempt_auto_probe() {
         std::lock_guard<std::mutex> lock(saved_values_mutex_);
         saved_ip_ = probe_ip;
         saved_port_ = probe_port;
+        saved_api_key_ = entered_api_key();
     }
 
     // Show subtle probing indicator
@@ -542,19 +608,28 @@ void WizardConnectionStep::attempt_auto_probe() {
     lv_subject_set_int(&connection_testing_, 1);
 
     // The same HTTP check as Test, then the live client on the one address that answered.
-    connection_test_.start(probe_ip, std::move(probe_ports),
-                           [this, tok](const MoonrakerConnectionTest::Result& result) {
-                               if (!result.reached) {
-                                   on_auto_probe_failure(tok);
-                                   return;
-                               }
-                               {
-                                   std::lock_guard<std::mutex> lock(saved_values_mutex_);
-                                   saved_port_ = std::to_string(result.port);
-                               }
-                               // Short: the probe runs unasked, so it gives up quickly.
-                               connect_confirmed(tok, true, 3000);
-                           });
+    connection_test_.start(
+        probe_ip, std::move(probe_ports),
+        [this, tok, probe_ip](const MoonrakerConnectionTest::Result& result) {
+            if (!result.reached) {
+                on_auto_probe_failure(tok);
+                return;
+            }
+            if (result.login_required) {
+                // Found, but it needs a key: the user finishes this one by hand.
+                on_auto_probe_failure(tok);
+                adopt_probed_port(result.port);
+                show_login_required(probe_ip, result);
+                return;
+            }
+            {
+                std::lock_guard<std::mutex> lock(saved_values_mutex_);
+                saved_port_ = std::to_string(result.port);
+            }
+            // Short: the probe runs unasked, so it gives up quickly.
+            connect_confirmed(tok, true, 3000);
+        },
+        entered_api_key());
 }
 
 void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok) {
@@ -579,17 +654,7 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
 
     auto_probe_state_.store(AutoProbeState::SUCCEEDED);
 
-    // Persist config (safe on main thread)
-    Config* config = Config::get_instance();
-    try {
-        config->set(config->df() + helix::wizard::MOONRAKER_HOST, ip);
-        config->set(config->df() + helix::wizard::MOONRAKER_PORT, std::stoi(port));
-        if (config->save()) {
-            spdlog::debug("[Wizard Connection] Auto-probe: Saved configuration");
-        }
-    } catch (const std::exception& e) {
-        spdlog::error("[Wizard Connection] Auto-probe: Failed to save config: {}", e.what());
-    }
+    save_connection(ip, port);
 
     // Update subjects with the successful connection target
     lv_subject_copy_string(&connection_ip_, ip.c_str());
@@ -772,6 +837,7 @@ void WizardConnectionStep::register_callbacks() {
         {"on_ip_input_changed", on_ip_input_changed_static},
         {"on_port_input_changed", on_port_input_changed_static},
         {"on_printer_selected", on_printer_selected_cb},
+        {"on_wizard_api_key_changed", on_api_key_input_changed_cb},
     });
 
     spdlog::debug("[{}] Event callbacks registered", get_name());

@@ -145,6 +145,8 @@ class ChangeHostModal : public Modal {
     SubjectManager subjects_;
     lv_subject_t host_ip_subject_{};
     lv_subject_t host_port_subject_{};
+    /// The active printer's Moonraker API key; the field is masked until revealed.
+    lv_subject_t api_key_subject_{};
     lv_subject_t testing_subject_{};
     lv_subject_t validated_subject_{};
     lv_subject_t adding_subject_{};
@@ -155,6 +157,7 @@ class ChangeHostModal : public Modal {
 
     char host_ip_buf_[256] = {0};
     char host_port_buf_[8] = {0};
+    char api_key_buf_[80] = {0};
     bool subjects_initialized_ = false;
 
     /// Where the port field's value came from; moonraker_ports_to_try() decides from it.
@@ -177,6 +180,7 @@ class ChangeHostModal : public Modal {
     // === Input change observers (reset validation on edit) ===
     ObserverGuard host_ip_observer_;
     ObserverGuard host_port_observer_;
+    ObserverGuard api_key_observer_;
 
     // === Internal methods ===
     void init_subjects();
@@ -189,6 +193,8 @@ class ChangeHostModal : public Modal {
     void set_status(const char* icon_name, const char* color_token, const char* text);
     /// Shows the reason and returns false when the host or port cannot be used.
     bool input_valid(const char* ip, const std::string& port_clean);
+    /// The API key field, trimmed; blank means the printer takes none.
+    std::string entered_api_key();
     void on_test_success(const std::string& host,
                          const helix::MoonrakerConnectionTest::Result& result);
     void on_test_failure(const helix::MoonrakerConnectionTest::Result& result);

@@ -125,6 +125,7 @@
   <translation tag="3. Save the position" fr="3. Enregistrez la position"/>
   <translation tag="30 minutes" fr="30 minutes"/>
   <translation tag="30 seconds" fr="30 secondes"/>
+  <translation tag="32 characters, 0-9 and a-f" fr="32 caractères, 0-9 et a-f"/>
   <translation tag="3D Maze" fr="Labyrinthe 3D"/>
   <translation tag="3D Pipes" fr="3D Pipes"/>
   <translation tag="3D View" fr="Vue 3D"/>
@@ -199,6 +200,8 @@
   <translation tag="AMS Active: " fr="AMS actif : "/>
   <translation tag="AMS is busy" fr="L&apos;AMS est occupé"/>
   <translation tag="AMS/MMU system not detected" fr="Système AMS/MMU non détecté"/>
+  <translation tag="API Key" fr="Clé API"/>
+  <translation tag="API Key (if Moonraker requires a login)" fr="Clé API (si Moonraker exige une connexion)"/>
   <translation tag="API not available" fr="API non disponible"/>
   <translation tag="APPEARANCE" fr="APPARENCE"/>
   <translation tag="AUTO FANS" fr="VENTILATEURS AUTO"/>
@@ -281,6 +284,7 @@
   <translation tag="Always show Android navigation bar instead of using gestures" fr="Toujours afficher la barre de navigation Android au lieu des gestes"/>
   <translation tag="Ambient Transfer" fr="Transfert ambiant"/>
   <translation tag="AmsIdentify" fr="Identifier l&apos;AMS"/>
+  <translation tag="An API key is 32 characters, each 0-9 or a-f." fr="Une clé API compte 32 caractères, chacun 0-9 ou a-f."/>
   <translation tag="An accelerometer was detected on your printer." fr="Un accéléromètre a été détecté sur votre imprimante."/>
   <translation tag="An app on your network is asking to connect to this printer." fr="Une application de votre réseau demande à se connecter à cette imprimante."/>
   <translation tag="An error occurred during calibration." fr="Une erreur s&apos;est produite pendant la calibration."/>
@@ -783,6 +787,7 @@
   <translation tag="Configure quick buttons and standard macros" fr="Configurer les boutons rapides et les macros standard"/>
   <translation tag="Configure timelapse recording" fr="Configurer l&apos;enregistrement timelapse"/>
   <translation tag="Configure your printer&apos;s cooling fans" fr="Configurer les ventilateurs de refroidissement de votre imprimante"/>
+  <translation tag="Configured" fr="Configurée"/>
   <translation tag="Configured LED strip not found" fr="Bandeau LED configuré introuvable"/>
   <translation tag="Configured aux fan not found" fr="Ventilateur auxiliaire configuré introuvable"/>
   <translation tag="Configured filament sensor not found" fr="Capteur de filament configuré introuvable"/>
@@ -1160,6 +1165,7 @@
   <translation tag="Endless Spool is turned off on this MMU" fr="La bobine infinie est désactivée sur ce MMU"/>
   <translation tag="Endless Spool state unknown" fr="État de la bobine infinie inconnu"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" fr="Vérifiez que Happy Hare ou AFC est installé et configuré"/>
+  <translation tag="Enter API Key" fr="Saisir la clé API"/>
   <translation tag="Enter Current PIN" fr="Saisissez le code PIN actuel"/>
   <translation tag="Enter G-code command..." fr="Entrez une commande G-code..."/>
   <translation tag="Enter New PIN" fr="Entrez le nouveau PIN"/>
@@ -2025,6 +2031,7 @@
   <translation tag="Lock the screen with your PIN" fr="Verrouiller l&apos;écran avec votre PIN"/>
   <translation tag="Locked during print" fr="Verrouillé pendant l&apos;impression"/>
   <translation tag="Log Level" fr="Niveau de log"/>
+  <translation tag="Login Required" fr="Connexion requise"/>
   <translation tag="Logs" fr="Journaux"/>
   <translation tag="Long Press Time" fr="Durée d&apos;appui long"/>
   <translation tag="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout." fr="Appui long sur n&apos;importe quelle tuile pour entrer en mode édition — réorganisez, redimensionnez, supprimez ou ajoutez des widgets, et ajoutez des pages supplémentaires pour votre disposition préférée."/>
@@ -2180,10 +2187,13 @@
   <translation tag="Month" fr="Mois"/>
   <translation tag="Moonraker" fr="Moonraker"/>
   <translation tag="Moonraker answered at {}." fr="Moonraker a répondu à {}."/>
+  <translation tag="Moonraker at {} rejected the API key." fr="Moonraker à {} a refusé la clé API."/>
+  <translation tag="Moonraker at {} requires an API key." fr="Moonraker à {} exige une clé API."/>
   <translation tag="Moonraker has no G-code folder." fr="Moonraker n&apos;a pas de dossier G-code."/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." fr="Moonraker est connecté à Spoolman, qui suit vos bobines et le filament restant. Parcourez-les sur l&apos;écran Spoolman."/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." fr="Moonraker ne répond pas à {}. Il tourne sur cette imprimante : vérifiez que les services Klipper et Moonraker ont démarré."/>
   <translation tag="Moonraker keeps a queue of prints to run one after another. View it in the job queue." fr="Moonraker tient une file d&apos;impressions à lancer l&apos;une après l&apos;autre. Consultez-la dans la file d&apos;impression."/>
+  <translation tag="Moonraker refused the login" fr="Moonraker a refusé la connexion"/>
   <translation tag="Moonraker restarted but Spoolman not connected. Check server." fr="Moonraker a redémarré mais Spoolman n&apos;est pas connecté. Vérifiez le serveur."/>
   <translation tag="Moonraker restarting...&#10;Waiting for reconnection..." fr="Redémarrage de Moonraker...&#10;En attente de reconnexion..."/>
   <translation tag="Moonraker&apos;s Python is too old for this feature." fr="Le Python de Moonraker est trop ancien pour cette fonction."/>
@@ -3863,6 +3873,8 @@
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." fr="Cette imprimante n&apos;a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." fr="Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" fr="Il manque aux macros INDX de cette imprimante : {}"/>
+  <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." fr="Le Moonraker de cette imprimante a refusé sa clé API. Vérifiez la clé dans Paramètres &gt; Connexion."/>
+  <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." fr="Le Moonraker de cette imprimante exige une connexion. Ajoutez sa clé API dans Paramètres &gt; Connexion."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" fr="Le service réseau de cette imprimante contrôle la radio WiFi"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" fr="Le service réseau de cette imprimante gère les réseaux WiFi enregistrés"/>
   <translation tag="This printer&apos;s screen has not shared a layout" fr="L&apos;écran de cette imprimante n&apos;a pas partagé de disposition"/>

@@ -5,6 +5,7 @@
 
 #include "text_io.h"
 
+#include <atomic>
 #include <mutex>
 #include <utility>
 
@@ -22,6 +23,11 @@ Credential& stored_credential() {
     return c;
 }
 
+std::atomic<bool>& refused() {
+    static std::atomic<bool> flag{false};
+    return flag;
+}
+
 /// Caller holds credential_mutex().
 const std::string* key_for_locked(std::string_view host, int port) {
     const Credential& c = stored_credential();
@@ -36,6 +42,33 @@ const std::string* key_for_locked(std::string_view host, int port) {
 void set_credential(Credential credential) {
     std::lock_guard<std::mutex> lock(credential_mutex());
     stored_credential() = std::move(credential);
+    refused().store(false);
+}
+
+bool is_plausible_api_key(std::string_view key) {
+    if (key.size() != 32) {
+        return false;
+    }
+    for (const char ch : key) {
+        const bool hex =
+            (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
+        if (!hex) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool is_unauthorized_error(int code, std::string_view message) {
+    return code == 401 || text_io::equals_ignore_case(message, "Unauthorized");
+}
+
+bool mark_unauthorized() {
+    return !refused().exchange(true);
+}
+
+bool unauthorized() {
+    return refused().load();
 }
 
 std::string key_for(std::string_view host, int port) {

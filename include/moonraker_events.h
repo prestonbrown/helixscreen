@@ -29,7 +29,8 @@ enum class MoonrakerEventType {
     KLIPPY_READY,        ///< Klipper firmware ready
     DISCOVERY_FAILED,    ///< Printer discovery failed (non-retryable — RPC/server error)
     DISCOVERY_DEFERRED,  ///< Discovery deferred waiting on Klippy (auto-retries on state change)
-    REQUEST_TIMEOUT      ///< JSON-RPC request timed out
+    REQUEST_TIMEOUT,     ///< JSON-RPC request timed out
+    LOGIN_REFUSED        ///< Moonraker requires a login this client's credential does not satisfy
 };
 
 namespace helix {
@@ -110,6 +111,12 @@ inline MoonrakerEvent rpc_failed(const std::string& method, const std::string& e
     return MoonrakerEvent::translatable(MoonrakerEventType::RPC_ERROR,
                                         TR_NOOP("Printer command '{}' failed: {}"), {method, error},
                                         true, method);
+}
+
+/// Moonraker refused this client's login at connect; reported once per credential.
+inline MoonrakerEvent login_refused() {
+    return MoonrakerEvent::translatable(MoonrakerEventType::LOGIN_REFUSED,
+                                        TR_NOOP("Moonraker refused the login"), {}, true);
 }
 
 inline MoonrakerEvent request_timed_out(const std::string& method, uint32_t timeout_ms) {

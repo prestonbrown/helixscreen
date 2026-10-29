@@ -2311,3 +2311,15 @@ TEST_CASE("DebugBundleCollector: the bundle names the board as platform_model", 
     CHECK(helix::DebugBundleCollector::platform_model_for(
               helix::platform::find("ad5m"), Board::Ad5m) == "FlashForge Adventurer 5M");
 }
+
+TEST_CASE("DebugBundleCollector: a printer's Moonraker API key never reaches a bundle",
+          "[debug-bundle][privacy][api-key]") {
+    json cfg = R"({
+        "printers": {"default": {"moonraker_host": "printer.lan",
+                                 "moonraker_api_key": "0123456789abcdef0123456789abcdef"}}
+    })"_json;
+
+    json out = helix::DebugBundleCollector::sanitize_json(cfg);
+    CHECK(out["printers"]["default"]["moonraker_api_key"].get<std::string>() == "[REDACTED]");
+    CHECK(out.dump().find("0123456789abcdef0123456789abcdef") == std::string::npos);
+}

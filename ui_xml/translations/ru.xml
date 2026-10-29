@@ -158,6 +158,7 @@
   <translation tag="3. Save the position" ru="3. Сохраните позицию"/>
   <translation tag="30 minutes" ru="30 минут"/>
   <translation tag="30 seconds" ru="30 секунд"/>
+  <translation tag="32 characters, 0-9 and a-f" ru="32 символа, 0-9 и a-f"/>
   <translation tag="3D Maze" ru="3D лабиринт"/>
   <translation tag="3D Pipes" ru="3D трубы"/>
   <translation tag="3D View" ru="3D вид"/>
@@ -232,6 +233,8 @@
   <translation tag="AMS Active: " ru="AMS активен: "/>
   <translation tag="AMS is busy" ru="AMS занят"/>
   <translation tag="AMS/MMU system not detected" ru="Система AMS/MMU не обнаружена"/>
+  <translation tag="API Key" ru="API-ключ"/>
+  <translation tag="API Key (if Moonraker requires a login)" ru="API-ключ (если Moonraker требует входа)"/>
   <translation tag="API not available" ru="API недоступен"/>
   <translation tag="APPEARANCE" ru="ВНЕШНИЙ ВИД"/>
   <translation tag="AUTO FANS" ru="АВТО ВЕНТИЛЯТОРЫ"/>
@@ -314,6 +317,7 @@
   <translation tag="Always show Android navigation bar instead of using gestures" ru="Всегда показывать панель навигации Android вместо жестов"/>
   <translation tag="Ambient Transfer" ru="Теплообмен с окружающей средой"/>
   <translation tag="AmsIdentify" ru="Определить AMS"/>
+  <translation tag="An API key is 32 characters, each 0-9 or a-f." ru="API-ключ состоит из 32 символов, каждый 0-9 или a-f."/>
   <translation tag="An accelerometer was detected on your printer." ru="На вашем принтере обнаружен акселерометр."/>
   <translation tag="An app on your network is asking to connect to this printer." ru="Приложение в вашей сети запрашивает подключение к этому принтеру."/>
   <translation tag="An error occurred during calibration." ru="Во время калибровки произошла ошибка."/>
@@ -825,6 +829,7 @@
   <translation tag="Configure quick buttons and standard macros" ru="Настроить быстрые кнопки и стандартные макросы"/>
   <translation tag="Configure timelapse recording" ru="Настроить запись таймлапса"/>
   <translation tag="Configure your printer&apos;s cooling fans" ru="Настройте вентиляторы охлаждения принтера"/>
+  <translation tag="Configured" ru="Задан"/>
   <translation tag="Configured LED strip not found" ru="Настроенная LED-лента не найдена"/>
   <translation tag="Configured aux fan not found" ru="Настроенный дополнительный вентилятор не найден"/>
   <translation tag="Configured filament sensor not found" ru="Настроенный датчик филамента не найден"/>
@@ -1202,6 +1207,7 @@
   <translation tag="Endless Spool is turned off on this MMU" ru="Бесконечная катушка отключена на этом MMU"/>
   <translation tag="Endless Spool state unknown" ru="Бесконечная катушка: состояние неизвестно"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" ru="Убедитесь, что Happy Hare или AFC установлен и настроен"/>
+  <translation tag="Enter API Key" ru="Ввести API-ключ"/>
   <translation tag="Enter Current PIN" ru="Введите текущий PIN"/>
   <translation tag="Enter G-code command..." ru="Введите команду G-code..."/>
   <translation tag="Enter New PIN" ru="Введите новый PIN"/>
@@ -2070,6 +2076,7 @@
   <translation tag="Lock the screen with your PIN" ru="Заблокировать экран PIN-кодом"/>
   <translation tag="Locked during print" ru="Заблокировано во время печати"/>
   <translation tag="Log Level" ru="Уровень журнала"/>
+  <translation tag="Login Required" ru="Требуется вход"/>
   <translation tag="Logs" ru="Журналы"/>
   <translation tag="Long Press Time" ru="Время долгого нажатия"/>
   <translation tag="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout." ru="Долгое нажатие на любую плитку переводит в режим редактирования — переставляйте, изменяйте размер, удаляйте или добавляйте виджеты, а также добавляйте дополнительные страницы под свой макет."/>
@@ -2225,10 +2232,13 @@
   <translation tag="Month" ru="Месяц"/>
   <translation tag="Moonraker" ru="Moonraker"/>
   <translation tag="Moonraker answered at {}." ru="Moonraker ответил по адресу {}."/>
+  <translation tag="Moonraker at {} rejected the API key." ru="Moonraker по адресу {} отклонил API-ключ."/>
+  <translation tag="Moonraker at {} requires an API key." ru="Moonraker по адресу {} требует API-ключ."/>
   <translation tag="Moonraker has no G-code folder." ru="У Moonraker нет папки G-code."/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." ru="Moonraker подключен к Spoolman, который учитывает ваши катушки и остаток филамента. Просматривайте их на экране Spoolman."/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." ru="Moonraker не отвечает по адресу {}. Он работает на этом принтере, поэтому проверьте, запущены ли службы Klipper и Moonraker."/>
   <translation tag="Moonraker keeps a queue of prints to run one after another. View it in the job queue." ru="Moonraker ведет очередь печатей, которые выполняются одна за другой. Смотрите ее в очереди заданий."/>
+  <translation tag="Moonraker refused the login" ru="Moonraker отклонил вход"/>
   <translation tag="Moonraker restarted but Spoolman not connected. Check server." ru="Moonraker перезапущен, но Spoolman не подключен. Проверьте сервер."/>
   <translation tag="Moonraker restarting...&#10;Waiting for reconnection..." ru="Moonraker перезапускается...&#10;Ожидание переподключения..."/>
   <translation tag="Moonraker&apos;s Python is too old for this feature." ru="Python в Moonraker слишком старый для этой функции."/>
@@ -3923,6 +3933,8 @@
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>
+  <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." ru="Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки &gt; Соединение."/>
+  <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." ru="Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки &gt; Соединение."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" ru="WiFi-модулем управляет сетевая служба этого принтера"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" ru="Сохранёнными сетями WiFi управляет сетевая служба этого принтера"/>
   <translation tag="This printer&apos;s screen has not shared a layout" ru="Экран этого принтера не поделился раскладкой"/>

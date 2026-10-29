@@ -29,6 +29,7 @@
 #include "macro_param_cache.h"
 #include "macro_patterns.h"
 #include "moonraker_api.h"
+#include "moonraker_auth.h"
 #include "moonraker_client.h"
 #include "moonraker_subscription_merge.h"
 #include "pause_descriptor.h"
@@ -162,6 +163,11 @@ void MoonrakerDiscoverySequence::start(
                              conn_id);
                 identified_.store(true);
             } else if (identify_response.contains("error")) {
+                const MoonrakerError err = MoonrakerError::from_json_rpc(
+                    identify_response["error"], "server.connection.identify");
+                if (stop_for_refused_login(err)) {
+                    return;
+                }
                 // Log but continue - older Moonraker versions may not support this
                 spdlog::warn("[Moonraker Client] Failed to identify: {}",
                              identify_response["error"].dump());
@@ -174,10 +180,29 @@ void MoonrakerDiscoverySequence::start(
             if (is_stale() || !is_current_sequence(seq))
                 return;
 
+            if (stop_for_refused_login(err)) {
+                return;
+            }
             // Log but continue - identify is not strictly required
             spdlog::warn("[Moonraker Client] Identify request failed: {}", err.message);
             continue_discovery(seq);
         });
+}
+
+bool MoonrakerDiscoverySequence::stop_for_refused_login(const MoonrakerError& err) {
+    if (!helix::moonraker_auth::is_unauthorized_error(err.code, err.message)) {
+        return false;
+    }
+    spdlog::warn("[Moonraker Client] Moonraker refused the login: {}", err.message);
+    if (helix::moonraker_auth::mark_unauthorized()) {
+        client_.emit_event(helix::moonraker_event::login_refused());
+    }
+    if (on_error_discovery_) {
+        auto cb = std::move(on_error_discovery_);
+        on_complete_discovery_ = nullptr;
+        cb(err.message);
+    }
+    return true;
 }
 
 void MoonrakerDiscoverySequence::discover_power_devices() {

@@ -96,6 +96,9 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
 
     lv_subject_copy_string(&host_ip_subject_, host.c_str());
     lv_subject_copy_string(&host_port_subject_, std::to_string(port).c_str());
+    // The key belongs to the active printer's entry; a printer being added has none yet.
+    const std::string api_key = adding ? std::string{} : active_printer_credential().api_key;
+    lv_subject_copy_string(&api_key_subject_, api_key.c_str());
 
     bool result = show(parent);
     if (result && dialog()) {
@@ -118,11 +121,18 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
             helix::ui::modal_register_keyboard(dialog(), port_input);
         }
 
+        // Named for the shared reveal button, which looks for its sibling by this name.
+        lv_obj_t* key_input = helix::ui::find_required(dialog(), "password_input", get_name());
+        if (key_input) {
+            helix::ui::modal_register_keyboard(dialog(), key_input);
+        }
+
         // Observe text input changes to invalidate validation when user edits.
         // Using ObserverGuard for RAII cleanup instead of lv_subject_add_observer_obj
         // which relies on widget deletion timing (unsafe during exit animation).
         host_ip_observer_ = ObserverGuard(&host_ip_subject_, on_input_changed_cb, nullptr);
         host_port_observer_ = ObserverGuard(&host_port_subject_, on_input_changed_cb, nullptr);
+        api_key_observer_ = ObserverGuard(&api_key_subject_, on_input_changed_cb, nullptr);
         // Adding an observer notifies it once; the field still holds the filled-in port.
         port_origin_ = helix::PortOrigin::FilledIn;
 
@@ -151,6 +161,7 @@ void ChangeHostModal::on_hide() {
     // widget is deleted after exit animation.
     host_ip_observer_.reset();
     host_port_observer_.reset();
+    api_key_observer_.reset();
 
     spdlog::debug("[ChangeHostModal] on_hide");
 }
@@ -166,6 +177,7 @@ void ChangeHostModal::init_subjects() {
     lv_subject_init_string(&host_ip_subject_, host_ip_buf_, nullptr, sizeof(host_ip_buf_), "");
     lv_subject_init_string(&host_port_subject_, host_port_buf_, nullptr, sizeof(host_port_buf_),
                            std::to_string(kDefaultMoonrakerPort).c_str());
+    lv_subject_init_string(&api_key_subject_, api_key_buf_, nullptr, sizeof(api_key_buf_), "");
     lv_subject_init_int(&testing_subject_, 0);
     lv_subject_init_int(&validated_subject_, 0);
     lv_subject_init_int(&adding_subject_, 0);
@@ -175,6 +187,7 @@ void ChangeHostModal::init_subjects() {
     // Register subjects for XML binding
     subjects_.publish("change_host_ip", &host_ip_subject_);
     subjects_.publish("change_host_port", &host_port_subject_);
+    subjects_.publish("change_host_api_key", &api_key_subject_);
     subjects_.publish("change_host_testing", &testing_subject_);
     subjects_.publish("change_host_validated", &validated_subject_);
     subjects_.publish("change_host_adding", &adding_subject_);
@@ -193,6 +206,7 @@ void ChangeHostModal::deinit_subjects() {
     // calling reset() (which does lv_observer_remove) on a dead subject = crash.
     host_ip_observer_.release();
     host_port_observer_.release();
+    api_key_observer_.release();
 
     subjects_.deinit_all();
 
@@ -222,14 +236,16 @@ void ChangeHostModal::handle_test_connection() {
 
     // The live client stays on the saved printer: only Save moves it.
     const std::string host(helix::text_io::trim(ip));
-    connection_test_.start(host, moonraker_ports_to_try(port_clean, port_origin_),
-                           [this, host](const MoonrakerConnectionTest::Result& result) {
-                               if (result.reached) {
-                                   on_test_success(host, result);
-                               } else {
-                                   on_test_failure(result);
-                               }
-                           });
+    connection_test_.start(
+        host, moonraker_ports_to_try(port_clean, port_origin_),
+        [this, host](const MoonrakerConnectionTest::Result& result) {
+            if (result.reached) {
+                on_test_success(host, result);
+            } else {
+                on_test_failure(result);
+            }
+        },
+        entered_api_key());
 }
 
 void ChangeHostModal::on_test_success(const std::string& host,
@@ -247,8 +263,14 @@ void ChangeHostModal::on_test_success(const std::string& host,
         port_set_by_app_ = false;
     }
 
-    set_status("icon_check_circle", "success", connection_test_status(host, result).c_str());
     lv_subject_set_int(&testing_subject_, 0);
+    if (result.login_required) {
+        // Saving an address Moonraker refuses would leave the screen empty.
+        set_status("icon_close_circle", result.key_sent ? "danger" : "warning",
+                   connection_test_status(host, result).c_str());
+        return;
+    }
+    set_status("icon_check_circle", "success", connection_test_status(host, result).c_str());
     lv_subject_set_int(&validated_subject_, 1);
     update_save_lock();
 
@@ -281,7 +303,15 @@ bool ChangeHostModal::input_valid(const char* ip, const std::string& port_clean)
         set_status("icon_close_circle", "danger", "Invalid port (must be 1-65535)");
         return false;
     }
+    if (const std::string problem = api_key_problem(entered_api_key()); !problem.empty()) {
+        set_status("icon_close_circle", "danger", problem.c_str());
+        return false;
+    }
     return true;
+}
+
+std::string ChangeHostModal::entered_api_key() {
+    return std::string(helix::text_io::trim(lv_subject_get_string(&api_key_subject_)));
 }
 
 void ChangeHostModal::handle_save() {
@@ -321,6 +351,7 @@ void ChangeHostModal::handle_save() {
     }
 
     // Save to config; the completion callback moves the client to it.
+    set_active_printer_api_key(entered_api_key());
     store_active_printer_address(host, port);
 
     // Close modal first — on_hide() removes observers and clears state
@@ -407,7 +438,7 @@ void ChangeHostModal::on_input_changed_cb(lv_observer_t* /*observer*/, lv_subjec
     if (active_instance_) {
         active_instance_->set_status(nullptr, nullptr, "");
     }
-    // Reset validation when user edits host or port after a successful test
+    // Reset validation when user edits the host, port or key after a successful test
     lv_subject_t* validated = lv_xml_get_subject(nullptr, "change_host_validated");
     if (validated && lv_subject_get_int(validated) != 0) {
         lv_subject_set_int(validated, 0);

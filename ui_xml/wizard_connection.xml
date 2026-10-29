@@ -57,6 +57,26 @@
         </lv_obj>
       </lv_obj>
       <!-- network address and port -->
+      <!-- API key: shown once the printer's Moonraker asks for a login, or when one is saved -->
+      <lv_obj name="api_key_section"
+              width="100%" height="content" scrollable="false" style_pad_all="0" style_pad_gap="#space_xs"
+              flex_flow="column">
+        <bind_flag_if_eq subject="connection_login_required" flag="hidden" ref_value="0"/>
+        <text_body width="100%" text="API Key"/>
+        <lv_obj width="100%"
+                height="#input_height" scrollable="false" flex_flow="row" style_pad_all="0" style_pad_gap="0">
+          <text_input name="password_input"
+                      height="100%" flex_grow="1" bind_text="connection_api_key"
+                      placeholder_text="32 characters, 0-9 and a-f" placeholder_tag="32 characters, 0-9 and a-f"
+                      password_mode="true">
+            <event_cb trigger="value_changed" callback="on_wizard_api_key_changed"/>
+          </text_input>
+          <ui_button name="eye_toggle"
+                     width="#input_height" height="100%" variant="ghost" icon="eye_off" click_focusable="false">
+            <event_cb trigger="clicked" callback="on_toggle_password_visibility"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
       <!-- Test connection button and status row -->
       <lv_obj width="100%"
               height="content" scrollable="false" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"

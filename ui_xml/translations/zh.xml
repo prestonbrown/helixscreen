@@ -125,6 +125,7 @@
   <translation tag="3. Save the position" zh="3. 保存位置"/>
   <translation tag="30 minutes" zh="30 分钟"/>
   <translation tag="30 seconds" zh="30 秒"/>
+  <translation tag="32 characters, 0-9 and a-f" zh="32 个字符，0-9 和 a-f"/>
   <translation tag="3D Maze" zh="3D 迷宫"/>
   <translation tag="3D Pipes" zh="3D 管道"/>
   <translation tag="3D View" zh="3D 视图"/>
@@ -199,6 +200,8 @@
   <translation tag="AMS Active: " zh="AMS 已激活: "/>
   <translation tag="AMS is busy" zh="AMS 正忙"/>
   <translation tag="AMS/MMU system not detected" zh="未检测到 AMS/MMU 系统"/>
+  <translation tag="API Key" zh="API 密钥"/>
+  <translation tag="API Key (if Moonraker requires a login)" zh="API 密钥（如果 Moonraker 要求登录）"/>
   <translation tag="API not available" zh="API 不可用"/>
   <translation tag="APPEARANCE" zh="外观"/>
   <translation tag="AUTO FANS" zh="自动风扇"/>
@@ -281,6 +284,7 @@
   <translation tag="Always show Android navigation bar instead of using gestures" zh="始终显示 Android 导航栏而不使用手势"/>
   <translation tag="Ambient Transfer" zh="环境传热"/>
   <translation tag="AmsIdentify" zh="识别 AMS"/>
+  <translation tag="An API key is 32 characters, each 0-9 or a-f." zh="API 密钥为 32 个字符，每个为 0-9 或 a-f。"/>
   <translation tag="An accelerometer was detected on your printer." zh="在您的打印机上检测到加速度计。"/>
   <translation tag="An app on your network is asking to connect to this printer." zh="网络中的某个应用请求连接到此打印机。"/>
   <translation tag="An error occurred during calibration." zh="校准过程中发生错误。"/>
@@ -783,6 +787,7 @@
   <translation tag="Configure quick buttons and standard macros" zh="配置快捷按钮和标准宏"/>
   <translation tag="Configure timelapse recording" zh="配置延时录像"/>
   <translation tag="Configure your printer&apos;s cooling fans" zh="配置打印机的冷却风扇"/>
+  <translation tag="Configured" zh="已设置"/>
   <translation tag="Configured LED strip not found" zh="未找到已配置的 LED 灯带"/>
   <translation tag="Configured aux fan not found" zh="未找到已配置的辅助风扇"/>
   <translation tag="Configured filament sensor not found" zh="未找到已配置的耗材传感器"/>
@@ -1160,6 +1165,7 @@
   <translation tag="Endless Spool is turned off on this MMU" zh="此 MMU 上的无限料盘已关闭"/>
   <translation tag="Endless Spool state unknown" zh="无限料盘状态未知"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" zh="请确保已安装并配置 Happy Hare 或 AFC"/>
+  <translation tag="Enter API Key" zh="输入 API 密钥"/>
   <translation tag="Enter Current PIN" zh="输入当前 PIN 码"/>
   <translation tag="Enter G-code command..." zh="输入 G-code 命令..."/>
   <translation tag="Enter New PIN" zh="输入新 PIN"/>
@@ -2025,6 +2031,7 @@
   <translation tag="Lock the screen with your PIN" zh="用 PIN 码锁定屏幕"/>
   <translation tag="Locked during print" zh="打印期间锁定"/>
   <translation tag="Log Level" zh="日志级别"/>
+  <translation tag="Login Required" zh="需要登录"/>
   <translation tag="Logs" zh="日志"/>
   <translation tag="Long Press Time" zh="长按时间"/>
   <translation tag="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout." zh="长按任意磁贴进入编辑模式 — 重新排列、调整大小、移除或添加小组件，并为您喜欢的布局添加额外页面。"/>
@@ -2180,10 +2187,13 @@
   <translation tag="Month" zh="月"/>
   <translation tag="Moonraker" zh="Moonraker"/>
   <translation tag="Moonraker answered at {}." zh="Moonraker 在 {} 响应。"/>
+  <translation tag="Moonraker at {} rejected the API key." zh="{} 上的 Moonraker 拒绝了 API 密钥。"/>
+  <translation tag="Moonraker at {} requires an API key." zh="{} 上的 Moonraker 需要 API 密钥。"/>
   <translation tag="Moonraker has no G-code folder." zh="Moonraker 没有 G-code 文件夹。"/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." zh="Moonraker 已连接 Spoolman,它会记录你的料盘和剩余耗材量。在 Spoolman 界面浏览。"/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." zh="Moonraker 在 {} 无响应。它运行在这台打印机上，请检查 Klipper 和 Moonraker 服务是否已启动。"/>
   <translation tag="Moonraker keeps a queue of prints to run one after another. View it in the job queue." zh="Moonraker 维护一个依次执行的打印队列。在任务队列中查看。"/>
+  <translation tag="Moonraker refused the login" zh="Moonraker 拒绝了登录"/>
   <translation tag="Moonraker restarted but Spoolman not connected. Check server." zh="Moonraker 已重启但 Spoolman 未连接。请检查服务器。"/>
   <translation tag="Moonraker restarting...&#10;Waiting for reconnection..." zh="Moonraker 重启中...&#10;等待重新连接..."/>
   <translation tag="Moonraker&apos;s Python is too old for this feature." zh="Moonraker 的 Python 版本太旧，无法使用此功能。"/>
@@ -3863,6 +3873,8 @@
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." zh="此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." zh="此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" zh="此打印机的 INDX 宏缺少：{}"/>
+  <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." zh="此打印机的 Moonraker 拒绝了其 API 密钥。请在 设置 &gt; 连接 中检查密钥。"/>
+  <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." zh="此打印机的 Moonraker 要求登录。请在 设置 &gt; 连接 中添加其 API 密钥。"/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" zh="此打印机的网络服务控制 WiFi 无线模块"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" zh="此打印机的网络服务管理已保存的 WiFi 网络"/>
   <translation tag="This printer&apos;s screen has not shared a layout" zh="此打印机的屏幕尚未共享布局"/>

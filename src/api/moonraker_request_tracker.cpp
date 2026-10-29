@@ -5,6 +5,7 @@
 
 #include "hv/WebSocketClient.h"
 #include "json_utils.h"
+#include "moonraker_auth.h"
 #include "rpc_error_correlation.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -211,8 +212,10 @@ bool MoonrakerRequestTracker::route_response(const json& msg,
 
     // Invoke callbacks outside the lock to avoid deadlock
     if (has_error) {
-        // Check if error toasts should be suppressed (e.g., during shutdown)
-        bool suppress_toast = suppress_error_toast && suppress_error_toast();
+        // Check if error toasts should be suppressed (e.g., during shutdown). A printer that
+        // refused our login fails every request; its one Login Required message says why.
+        bool suppress_toast =
+            (suppress_error_toast && suppress_error_toast()) || moonraker_auth::unauthorized();
 
         // Who reports this error is one decision with one implementation —
         // helix::rpc_error_policy::decide(), shared with the mock's inline gcode

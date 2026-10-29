@@ -18,6 +18,16 @@ MoonrakerEventDecision decide_moonraker_event(MoonrakerEventType type, bool is_e
         return {MoonrakerEventRoute::RecoveryShutdown, nullptr, MoonrakerEventSuppression::None};
     }
 
+    if (type == MoonrakerEventType::LOGIN_REFUSED) {
+        // The wizard's own connection test reports a refused login beside the key field.
+        if (wizard_active) {
+            return {MoonrakerEventRoute::Ignore, nullptr, MoonrakerEventSuppression::Wizard};
+        }
+        return {modal_active ? MoonrakerEventRoute::LoginRefusedToast
+                             : MoonrakerEventRoute::LoginRefusedPrompt,
+                TR_NOOP("Login Required"), MoonrakerEventSuppression::None};
+    }
+
     if (is_error) {
         // Deferred discovery = Klippy not yet in a gate-acceptable state. Always
         // transient: notify_klippy_ready/shutdown will retry, and the UI already
@@ -87,6 +97,13 @@ MoonrakerEventDecision decide_moonraker_event(MoonrakerEventType type, bool is_e
         return {MoonrakerEventRoute::SuccessToast, nullptr, MoonrakerEventSuppression::None};
     }
     return {MoonrakerEventRoute::WarningToast, nullptr, MoonrakerEventSuppression::None};
+}
+
+const char* login_refused_message(bool key_configured) {
+    return key_configured ? TR_NOOP("This printer's Moonraker rejected its API key. Check the key "
+                                    "in Settings > Connection.")
+                          : TR_NOOP("This printer's Moonraker requires a login. Add its API key in "
+                                    "Settings > Connection.");
 }
 
 } // namespace helix

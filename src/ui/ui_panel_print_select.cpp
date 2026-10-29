@@ -50,6 +50,7 @@
 #include "job_queue_state.h"
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "moonraker_auth.h"
 #include "observe_language.h"
 #include "observer_factory.h"
 #include "pre_start_exclude.h"
@@ -726,7 +727,10 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                     self->refresh_files(/*force=*/true);
                     return;
                 }
-                NOTIFY_ERROR(lv_tr("Failed to refresh file list"));
+                // A printer refusing our login says why in its own message.
+                if (!helix::moonraker_auth::unauthorized()) {
+                    NOTIFY_ERROR(lv_tr("Failed to refresh file list"));
+                }
             });
         });
 

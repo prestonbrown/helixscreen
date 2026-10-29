@@ -19,7 +19,9 @@ enum class MoonrakerEventRoute {
     ConnectionFailedModal, ///< Change-Address prompt (not a plain OK-only alert)
     ErrorToast,            ///< NOTIFY_ERROR_T with the decision's title
     WarningToast,          ///< NOTIFY_WARNING
-    SuccessToast           ///< Toast only, no notification-history row
+    SuccessToast,          ///< Toast only, no notification-history row
+    LoginRefusedPrompt,    ///< Says the printer needs an API key, with a way to enter it
+    LoginRefusedToast      ///< The same message as an error toast, when a modal is open
 };
 
 /// Why an event was suppressed. Only meaningful when route == Ignore; lets the
@@ -58,5 +60,9 @@ struct MoonrakerEventDecision {
  */
 MoonrakerEventDecision decide_moonraker_event(MoonrakerEventType type, bool is_error,
                                               bool wizard_active, bool modal_active = false);
+
+/// The untranslated message for a refused login: the printer needs an API key, or rejected
+/// the one configured for it.
+const char* login_refused_message(bool key_configured);
 
 } // namespace helix

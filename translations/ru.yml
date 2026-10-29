@@ -175,6 +175,7 @@ translations:
 
   30 minutes: 30 минут
   30 seconds: 30 секунд
+  32 characters, 0-9 and a-f: '32 символа, 0-9 и a-f'
   3D Maze: 3D лабиринт
   3D Pipes: 3D трубы
   3D View: 3D вид
@@ -250,6 +251,8 @@ translations:
   'AMS Active: ': 'AMS активен: '
   AMS is busy: AMS занят
   AMS/MMU system not detected: 'Система AMS/MMU не обнаружена'
+  API Key: 'API-ключ'
+  API Key (if Moonraker requires a login): 'API-ключ (если Moonraker требует входа)'
   API not available: API недоступен
   APPEARANCE: ВНЕШНИЙ ВИД
   AUTO FANS: АВТО ВЕНТИЛЯТОРЫ
@@ -338,6 +341,7 @@ translations:
     панель навигации Android вместо жестов
   Ambient Transfer: Теплообмен с окружающей средой
   AmsIdentify: Определить AMS
+  An API key is 32 characters, each 0-9 or a-f.: 'API-ключ состоит из 32 символов, каждый 0-9 или a-f.'
   An accelerometer was detected on your printer.: На вашем принтере обнаружен акселерометр.
   An app on your network is asking to connect to this printer.: 'Приложение в вашей сети запрашивает подключение к этому принтеру.'
   An error occurred during calibration.: Во время калибровки произошла ошибка.
@@ -905,6 +909,7 @@ translations:
     макросы
   Configure timelapse recording: Настроить запись таймлапса
   Configure your printer's cooling fans: Настройте вентиляторы охлаждения принтера
+  Configured: 'Задан'
   Configured LED strip not found: 'Настроенная LED-лента не найдена'
   Configured aux fan not found: 'Настроенный дополнительный вентилятор не найден'
   Configured filament sensor not found: 'Настроенный датчик филамента не найден'
@@ -1324,6 +1329,7 @@ translations:
   Endless Spool is turned off on this MMU: 'Бесконечная катушка отключена на этом MMU'
   Endless Spool state unknown: 'Бесконечная катушка: состояние неизвестно'
   Ensure Happy Hare or AFC is installed and configured: Убедитесь, что Happy Hare или AFC установлен и настроен
+  Enter API Key: 'Ввести API-ключ'
   Enter Current PIN: Введите текущий PIN
   Enter G-code command...: Введите команду G-code...
   Enter New PIN: Введите новый PIN
@@ -2267,6 +2273,7 @@ translations:
   Lock the screen with your PIN: Заблокировать экран PIN-кодом
   Locked during print: Заблокировано во время печати
   Log Level: Уровень журнала
+  Login Required: 'Требуется вход'
   Logs: Журналы
   Long Press Time: 'Время долгого нажатия'
   'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 'Долгое нажатие на любую плитку переводит в режим редактирования — переставляйте, изменяйте размер, удаляйте или добавляйте виджеты, а также добавляйте дополнительные страницы под свой макет.'
@@ -2427,11 +2434,14 @@ translations:
   Monitoring: Мониторинг
   Month: Месяц
   Moonraker: Moonraker
+  Moonraker at {} rejected the API key.: 'Moonraker по адресу {} отклонил API-ключ.'
+  Moonraker at {} requires an API key.: 'Moonraker по адресу {} требует API-ключ.'
   Moonraker has no G-code folder.: "У Moonraker нет папки G-code."
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : 'Moonraker подключен к Spoolman, который учитывает ваши катушки и остаток филамента. Просматривайте их на экране Spoolman.'
   Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: Moonraker не отвечает по адресу {}. Он работает на этом принтере, поэтому проверьте, запущены ли службы Klipper и Moonraker.
   Moonraker keeps a queue of prints to run one after another. View it in the job queue.: 'Moonraker ведет очередь печатей, которые выполняются одна за другой. Смотрите ее в очереди заданий.'
+  Moonraker refused the login: 'Moonraker отклонил вход'
   Moonraker restarted but Spoolman not connected. Check server.: Moonraker перезапущен,
     но Spoolman не подключен. Проверьте сервер.
   ? "Moonraker restarting...\nWaiting for reconnection..."
@@ -4298,6 +4308,8 @@ translations:
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
   "This printer's INDX macros are missing: {}": "В макросах INDX этого принтера отсутствует: {}"
+  This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки > Соединение.'
+  This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки > Соединение.'
   This printer's network service controls the WiFi radio: WiFi-модулем управляет сетевая служба этого принтера
   This printer's network service manages saved WiFi networks: Сохранёнными сетями WiFi управляет сетевая служба этого принтера
   This printer's screen has not shared a layout: "Экран этого принтера не поделился раскладкой"

@@ -414,7 +414,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Connection test: stops at the first port Moon
     std::vector<uint16_t> asked;
     HeldWorker worker;
     set_connection_test_seams_for_test(
-        [&asked](const std::string&, uint16_t port) {
+        [&asked](const std::string&, uint16_t port, const std::string&) {
             asked.push_back(port);
             MoonrakerProbe answer(port == 80);
             answer.klippy_state = port == 80 ? "ready" : "";
@@ -444,7 +444,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Connection test: a miss reports every port an
                  "[lan_sweep][connection_test]") {
     HeldWorker worker;
     set_connection_test_seams_for_test(
-        [](const std::string&, uint16_t port) {
+        [](const std::string&, uint16_t port, const std::string&) {
             MoonrakerProbe answer;
             answer.failure = port == 80 ? ConnectFailureKind::Timeout : ConnectFailureKind::Refused;
             return answer;
@@ -467,7 +467,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Connection test: cancel and a new start drop 
                  "[lan_sweep][connection_test]") {
     HeldWorker first;
     set_connection_test_seams_for_test(
-        [](const std::string&, uint16_t) { return MoonrakerProbe(true); }, first.starter());
+        [](const std::string&, uint16_t, const std::string&) { return MoonrakerProbe(true); },
+        first.starter());
     MoonrakerConnectionTest test;
     int old_answers = 0;
     test.start("10.9.9.1", {7125}, [&](const auto&) { ++old_answers; });
@@ -485,7 +486,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Connection test: cancel and a new start drop 
     SECTION("a second start") {
         HeldWorker second;
         set_connection_test_seams_for_test(
-            [](const std::string&, uint16_t) { return MoonrakerProbe(true); }, second.starter());
+            [](const std::string&, uint16_t, const std::string&) { return MoonrakerProbe(true); },
+            second.starter());
         // The first test has answered, and its answer is still on its way, when the second
         // starts.
         stale();
@@ -511,4 +513,84 @@ TEST_CASE("Connection test: /server/info gives Klipper's state", "[lan_sweep][co
     CHECK(probe.moonraker);
     CHECK(probe.klippy_state == "startup");
     CHECK(read_server_info_response("HTTP/1.1 200 OK\r\n\r\n<html></html>").klippy_state.empty());
+}
+
+// ============================================================================
+// Moonraker behind its login (prestonbrown/helixscreen#1929)
+// ============================================================================
+
+TEST_CASE("Connection test: a 401 from Moonraker is a login it requires", "[lan_sweep][api-key]") {
+    const MoonrakerProbe refused =
+        read_server_info_response("HTTP/1.1 401 Unauthorized\r\n\r\n"
+                                  R"({"error": {"code": 401, "message": "Unauthorized"}})");
+    CHECK(refused.moonraker);
+    CHECK(refused.login_required);
+
+    const MoonrakerProbe open = read_server_info_response(
+        "HTTP/1.1 200 OK\r\n\r\n"
+        R"({"result":{"klippy_state":"ready","components":[],"moonraker_version":"v1"}})");
+    CHECK(open.moonraker);
+    CHECK_FALSE(open.login_required);
+}
+
+TEST_CASE("Connection test: the request carries the key only when there is one",
+          "[lan_sweep][api-key]") {
+    const std::string bare = server_info_request("10.9.9.9", 7125);
+    CHECK(bare.rfind("GET /server/info HTTP/1.0\r\n", 0) == 0);
+    CHECK(bare.find("X-Api-Key") == std::string::npos);
+    CHECK(bare.substr(bare.size() - 4) == "\r\n\r\n");
+
+    const std::string keyed = server_info_request("10.9.9.9", 7125, "abc123");
+    CHECK(keyed.find("\r\nX-Api-Key: abc123\r\n") != std::string::npos);
+    CHECK(keyed.substr(keyed.size() - 4) == "\r\n\r\n");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Connection test: the key goes to the probe, the refusal comes back",
+                 "[lan_sweep][connection_test][api-key]") {
+    std::vector<std::string> keys;
+    HeldWorker worker;
+    set_connection_test_seams_for_test(
+        [&keys](const std::string&, uint16_t, const std::string& key) {
+            keys.push_back(key);
+            MoonrakerProbe answer(true);
+            answer.login_required = true;
+            return answer;
+        },
+        worker.starter());
+    MoonrakerConnectionTest test;
+    std::optional<MoonrakerConnectionTest::Result> got;
+
+    SECTION("with a key: rejected") {
+        test.start("10.9.9.9", {7125}, [&](const auto& r) { got = r; }, "k3y");
+        worker.body();
+        drain();
+        REQUIRE(got.has_value());
+        CHECK(keys == std::vector<std::string>{"k3y"});
+        CHECK(got->key_sent);
+        CHECK(connection_test_status("10.9.9.9", *got) ==
+              "Moonraker at 10.9.9.9:7125 rejected the API key.");
+    }
+    SECTION("without one: required") {
+        test.start("10.9.9.9", {7125}, [&](const auto& r) { got = r; });
+        worker.body();
+        drain();
+        REQUIRE(got.has_value());
+        CHECK(keys == std::vector<std::string>{""});
+        CHECK_FALSE(got->key_sent);
+        CHECK(connection_test_status("10.9.9.9", *got) ==
+              "Moonraker at 10.9.9.9:7125 requires an API key.");
+    }
+    set_connection_test_seams_for_test(nullptr, nullptr);
+    CHECK(got->reached);
+    CHECK(got->login_required);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "API key: blank or 32 hex digits, anything else is explained",
+                 "[lan_sweep][api-key]") {
+    CHECK(api_key_problem("").empty());
+    CHECK(api_key_problem("0123456789abcdef0123456789ABCDEF").empty());
+    CHECK_FALSE(api_key_problem("0123456789abcdef0123456789abcde").empty());   // 31
+    CHECK_FALSE(api_key_problem("0123456789abcdef0123456789abcdef0").empty()); // 33
+    CHECK_FALSE(api_key_problem("0123456789abcdef0123456789abcdeg").empty());  // not hex
 }
