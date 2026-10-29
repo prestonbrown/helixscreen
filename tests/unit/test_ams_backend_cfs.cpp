@@ -6439,7 +6439,7 @@ void check_not_single_spool(const AmsBackendCfs& cfs) {
 }
 
 /// The toolhead sensor reads filament, so a premature verdict would engage -2.
-void feed_toolhead_filament(CfsRemapHelper& cfs) {
+void feed_toolhead_filament(AmsBackendCfs& cfs) {
     CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
     CfsTestAccess::handle_status(cfs, json{{"params", json::array({json::object(), 0})}});
 }
@@ -6550,28 +6550,39 @@ TEST_CASE("CFS decides nothing on an empty bus until printer.cfg has answered",
     }
 }
 
+namespace {
+
+/// A CFS backend on a client that records its queries and answers none, so a
+/// test decides when the configfile answer lands.
+struct UnansweredClientCfs : AmsBackendCfs {
+    explicit UnansweredClientCfs(helix::IMoonrakerClient* c) : AmsBackendCfs(nullptr, c) {}
+    AmsError execute_gcode(const std::string& gcode) override {
+        captured.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
+    void mark_running() {
+        running_ = true;
+    }
+    std::vector<std::string> captured;
+};
+
+long configfile_queries(const helix::test::FakeMoonrakerClient& client) {
+    return std::count_if(client.rpc_calls.begin(), client.rpc_calls.end(), [](const auto& c) {
+        return c.params.contains("objects") && c.params["objects"].contains("configfile");
+    });
+}
+
+} // namespace
+
 TEST_CASE("CFS with no registered unit stays single-spool across Refresh RFID and Comm test",
           "[ams][cfs][bypass][1904][1933]") {
     // Both actions re-query the box; neither is a new session, so neither may
     // reopen the settle window or fetch the configfile again.
-    struct Rig : AmsBackendCfs {
-        explicit Rig(helix::IMoonrakerClient* c) : AmsBackendCfs(nullptr, c) {}
-        AmsError execute_gcode(const std::string& gcode) override {
-            captured.push_back(gcode);
-            return AmsErrorHelper::success();
-        }
-        std::vector<std::string> captured;
-    };
     helix::test::FakeMoonrakerClient client;
-    Rig cfs(&client);
-    auto configfile_queries = [&client] {
-        return std::count_if(client.rpc_calls.begin(), client.rpc_calls.end(), [](const auto& c) {
-            return c.params.contains("objects") && c.params["objects"].contains("configfile");
-        });
-    };
+    UnansweredClientCfs cfs(&client);
 
     CfsTestAccess::call_on_started(cfs);
-    REQUIRE(configfile_queries() == 1);
+    REQUIRE(configfile_queries(client) == 1);
     CfsTestAccess::answer_unit_registration(cfs, no_unit_settings());
     CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
     REQUIRE(cfs.get_system_info().external_spool_only);
@@ -6583,7 +6594,68 @@ TEST_CASE("CFS with no registered unit stays single-spool across Refresh RFID an
         CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
         CHECK(cfs.get_system_info().external_spool_only);
     }
-    CHECK(configfile_queries() == 1);
+    CHECK(configfile_queries(client) == 1);
+}
+
+TEST_CASE("CFS with no registered unit stays single-spool across a Klipper restart",
+          "[ams][cfs][bypass][1904][1933]") {
+    helix::test::FakeMoonrakerClient client;
+    UnansweredClientCfs cfs(&client);
+    cfs.mark_running();
+    CfsTestAccess::call_on_started(cfs);
+    CfsTestAccess::answer_unit_registration(cfs, no_unit_settings());
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
+    feed_toolhead_filament(cfs);
+    REQUIRE(cfs.get_system_info().external_spool_only);
+    REQUIRE(cfs.get_system_info().current_slot == helix::ui::kExternalSpoolSlot);
+
+    auto check_single_spool = [&cfs] {
+        const auto info = cfs.get_system_info();
+        CHECK(info.external_spool_only);
+        CHECK_FALSE(info.supports_bypass);
+        CHECK(info.current_slot == helix::ui::kExternalSpoolSlot);
+    };
+
+    // The configfile is asked again, and the frames of a Klipper start arrive
+    // before it answers: the box "None", then "disconnect".
+    cfs.on_klipper_restarted();
+    CHECK(configfile_queries(client) == 2);
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(k2_plus_startup_box()));
+    feed_toolhead_filament(cfs);
+    check_single_spool();
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(json{{"state", "disconnect"}}));
+    check_single_spool();
+
+    CfsTestAccess::answer_unit_registration(cfs, no_unit_settings());
+    check_single_spool();
+}
+
+TEST_CASE("CFS with a registered unit gets a new settle window on a Klipper restart",
+          "[ams][cfs][bypass][1904][1933]") {
+    helix::test::FakeMoonrakerClient client;
+    UnansweredClientCfs cfs(&client);
+    cfs.mark_running();
+    CfsTestAccess::call_on_started(cfs);
+    CfsTestAccess::answer_unit_registration(cfs, registered_unit_settings());
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
+    CfsTestAccess::expire_unit_settle(cfs);
+    REQUIRE(cfs.get_system_info().external_spool_only);
+
+    // A SAVE_CONFIG restart may come with the unit plugged back in.
+    cfs.on_klipper_restarted();
+    CHECK(configfile_queries(client) == 2);
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
+    CHECK_FALSE(cfs.get_system_info().external_spool_only);
+
+    SECTION("the unit answering ends the wait") {
+        CfsTestAccess::handle_status(cfs,
+                                     make_cfs_notification(json{{"T1", k2_plus_t1_connected()}}));
+        check_not_single_spool(cfs);
+    }
+    SECTION("the new window running out ends it single-spool again") {
+        CfsTestAccess::expire_unit_settle(cfs);
+        CHECK(cfs.get_system_info().external_spool_only);
+    }
 }
 
 TEST_CASE("CFS keeps a unit it has seen when a later frame drops it", "[ams][cfs][bypass][1904]") {

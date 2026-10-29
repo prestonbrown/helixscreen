@@ -1140,12 +1140,17 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// True once kRegisteredUnitSettle has passed this session without the
     /// frames showing a unit. Guarded by mutex_.
     bool unit_settle_expired_ = false;
-    /// The merged stock frames' box state reads "disconnect". Guarded by mutex_.
+    /// The merged stock frames' box state last read "disconnect" rather than
+    /// "connect". Guarded by mutex_.
     bool bus_reported_empty_ = false;
+    /// The wait for a registered unit has been logged this settle window.
+    /// Guarded by mutex_.
+    bool empty_bus_wait_logged_ = false;
     /// Fires finish_unit_settle(). Main thread.
     helix::ui::LvglTimerGuard unit_settle_timer_;
 
-    /// Starts a settle window: the registration query and its timer. Main thread.
+    /// Starts a settle window: the registration query and its timer. Keeps the
+    /// registration already known until the query answers. Main thread.
     void begin_unit_settle();
     void apply_unit_registration(UnitRegistration registration);
     void finish_unit_settle();
