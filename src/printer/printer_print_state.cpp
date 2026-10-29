@@ -1570,8 +1570,14 @@ void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) 
 }
 
 bool PrinterPrintState::hold_unanswered_start(int epoch, const MoonrakerError& error) {
-    if (!error.is_transport_loss() || epoch == 0 || epoch != preparing_epoch_counter_ ||
-        preparing_job_.empty()) {
+    if (epoch == 0 || epoch != preparing_epoch_counter_ || preparing_job_.empty()) {
+        return false;
+    }
+    // A dropped connection may also be a start that never left the screen, so
+    // only a Stop waiting to cancel it is reason to keep the job.
+    const bool held =
+        error.command_may_still_run() || (error.is_transport_loss() && preparing_cancel_requested_);
+    if (!held) {
         return false;
     }
     spdlog::warn("[PrinterPrintState] Start of '{}' lost its answer ({}){} - keeping the job "

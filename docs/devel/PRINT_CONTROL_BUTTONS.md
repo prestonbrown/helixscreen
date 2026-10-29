@@ -186,12 +186,14 @@ heating, possibly a bed mesh, and a purge line on the bed.
 `PrinterPrintState` tracks the preparing job's start hand-over
 (`PreparingStart`: `None` -> `InFlight` on send -> `Accepted` on an OK answer,
 or back to `None` on a refusal, or `Unanswered` when the answer is lost). A
-start that loses its answer (timeout, dropped connection) is held, not retired
-as failed (`hold_unanswered_start()`, every start path's one rule): a start
-sequence longer than the RPC ceiling is still running, and only the printer's
-own report settles the job: `Confirmed` once it reports the job, or the
-preparing watchdog (prestonbrown/helixscreen#1898). A cancel sent while it is held
-queues behind the start. `PrintControlButtons` tracks the cancel
+start whose RPC times out is held, not retired as failed
+(`hold_unanswered_start()`, every start path's one rule): a start sequence
+longer than the RPC ceiling is still running, and only the printer's own report
+settles the job: `Confirmed` once it reports the job, or the preparing watchdog
+(prestonbrown/helixscreen#1898). A dropped connection is held only while a
+cancel is requested, since a start refused for a link that is down never
+reached Moonraker; without one the start fails. A cancel sent while a start is
+held queues behind it. `PrintControlButtons` tracks the cancel
 (`CancelState`: `Idle`, `Requested`, `Sent`, `Answered`). Stop is disabled in
 every state but `Idle`.
 

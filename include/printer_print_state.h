@@ -471,16 +471,20 @@ class PrinterPrintState {
      *
      * The one rule every start site applies to a start error. A refusal
      * carries the printer's own answer: nothing is running, so the caller
-     * fails the job. A transport loss (an RPC timeout, a dropped connection)
-     * says nothing about the start, and a firmware that runs its print-start
-     * sequence inside SDCARD_PRINT_FILE answers only once that sequence ends,
-     * which can outlast the RPC ceiling. Such a start keeps its job, marked
-     * Unanswered so a Stop queues its cancel behind it, until the printer
-     * reports the job (reconcile_preparing) or the preparing watchdog retires
-     * it (prestonbrown/helixscreen#1898).
+     * fails the job. An RPC timeout says Klipper is still busy with the start:
+     * a firmware that runs its print-start sequence inside SDCARD_PRINT_FILE
+     * answers only once that sequence ends, which can outlast the RPC ceiling.
+     * Such a start keeps its job, marked Unanswered so a Stop queues its cancel
+     * behind it, until the printer reports the job (reconcile_preparing) or the
+     * preparing watchdog retires it (prestonbrown/helixscreen#1898).
+     *
+     * A dropped connection is also what a start that never reached Moonraker
+     * gets, so it holds the job only while a cancel is requested; otherwise
+     * the start fails and says so.
      *
      * Returns true when it held the job; the caller then skips its failure
-     * handling. False for a refusal, or once a different job is preparing.
+     * handling. False for a refusal, a dropped connection with no cancel
+     * waiting, or once a different job is preparing.
      */
     bool hold_unanswered_start(int epoch, const MoonrakerError& error);
 

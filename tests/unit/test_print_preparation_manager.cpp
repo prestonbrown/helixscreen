@@ -4347,8 +4347,9 @@ TEST_CASE_METHOD(HelixTestFixture,
             CHECK(api.transfers_mock().download_destinations().size() == downloads_before);
             CHECK(api.job_mock().modified_prints().size() == modified_before);
             CHECK(api.job_mock().started_prints().empty());
-            // A lost answer leaves the job for the printer to settle; a refusal fails it.
-            const bool lost_answer = c.error.is_transport_loss();
+            // A timeout leaves the job for the printer to settle; a dropped
+            // connection with no Stop waiting, like a refusal, fails it.
+            const bool lost_answer = c.error.command_may_still_run();
             CHECK(state.print_state().has_preparing_job() == lost_answer);
             CHECK(completed.has_value() == !lost_answer);
             if (completed) {

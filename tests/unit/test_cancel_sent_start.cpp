@@ -228,13 +228,27 @@ TEST_CASE_METHOD(SentStartFixture, "Only a lost answer holds the preparing job's
 }
 
 TEST_CASE_METHOD(SentStartFixture,
+                 "A dropped connection holds a start only while a cancel waits for it",
+                 "[print_control][preparing_cancel][1898]") {
+    // A start refused for a link that is down never reached Moonraker: with
+    // no Stop waiting, it fails rather than sit on Preparing.
+    const int epoch = arm_in_flight();
+    const MoonrakerError dropped = MoonrakerError::connection_lost("printer.print.start");
+    CHECK_FALSE(ps().hold_unanswered_start(epoch, dropped));
+    CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
+
+    stop();
+    CHECK(ps().hold_unanswered_start(epoch, dropped));
+    CHECK(ps().preparing_start() == helix::PreparingStart::Unanswered);
+}
+
+TEST_CASE_METHOD(SentStartFixture,
                  "A start that outlasts its RPC stays preparing with Stop able to cancel it",
                  "[print_control][preparing_cancel][1898]") {
     // The start sequence runs inside SDCARD_PRINT_FILE and outlives the RPC
     // ceiling: the printer is still working on the job.
     const int epoch = arm_in_flight();
-    REQUIRE(
-        ps().hold_unanswered_start(epoch, MoonrakerError::connection_lost("printer.print.start")));
+    REQUIRE(ps().hold_unanswered_start(epoch, MoonrakerError::timeout("printer.print.start", 1)));
     drain();
     CHECK(ps().has_preparing_job());
     CHECK(ps().preparing_start() == helix::PreparingStart::Unanswered);
