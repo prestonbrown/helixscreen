@@ -284,11 +284,16 @@ class PrtouchSource:
 
 
 class LoadCellSource:
-    """Upstream [load_cell]: a continuous stream of (time, grams, counts, tare)."""
+    """Upstream / Kalico load cell: a continuous stream of rows starting
+    (time, grams, counts, ...). A bare [load_cell] is its own object; one
+    inside [load_cell_probe] is reached through get_load_cell()."""
     name = "load_cell"
 
     def __init__(self, printer):
         self.cell = printer.lookup_object("load_cell", None)
+        probe = printer.lookup_object("load_cell_probe", None)
+        if self.cell is None and hasattr(probe, "get_load_cell"):
+            self.cell = probe.get_load_cell()
         if self.cell is None or not hasattr(self.cell, "add_client"):
             raise LookupError("no nozzle force sensor")
         self.printer = printer

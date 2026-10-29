@@ -168,6 +168,20 @@ def test_a_failing_handle_lookup_is_a_reason_not_a_crash():
     assert "start_prtouch_pres" in status["reason"]
 
 
+def test_a_load_cell_inside_a_load_cell_probe_is_a_source():
+    # Kalico's K2 config (CS1237 on the nozzle MCU) registers the cell inside
+    # [load_cell_probe], reachable only through get_load_cell().
+    cell = SimpleNamespace(add_client=lambda cb: None)
+    companion = _ready({
+        "load_cell_probe": SimpleNamespace(get_load_cell=lambda: cell),
+        "motion_report": _motion_report(),
+        "configfile": _configfile({}),
+    }, {"purge_x": "5", "purge_y": "5"})
+    status = companion.get_status(0.)
+    assert status["available"], status["reason"]
+    assert status["source"] == "load_cell"
+
+
 def test_upstream_load_cell_is_a_source():
     companion = _ready({
         "load_cell": SimpleNamespace(add_client=lambda cb: None),
