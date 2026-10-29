@@ -63,9 +63,22 @@ Proven on a stock K2 Plus (F008) on 2026-10-28: four runs, about 100k gauge samp
 no read errors, no MCU shutdown. Creality's own `AUTO_APAX` shuts down the nozzle MCU and
 leaves its stream running until the kernel OOM-kills klippy, so it is not used.
 
-- **Capability probe:** the `prtouch_v3` object exists and its `pres` member exposes `oid`,
-  `mcu`, `cmd_start`, `cmd_read`, `cmd_stop`; `motion_report` has an extruder trapq under
-  `dtrapqs` or `trapqs`.
+- **Force source is pluggable; the routine and the fit are not.** The fit needs timestamped
+  nozzle-force samples on Klipper's print-time axis and the extruder trapq, nothing else. Two
+  sources, one table, chosen by what the printer has:
+  - `prtouch`: stock Creality firmware. Creality's nozzle-MCU commands (`start_prtouch_pres`,
+    `read_prtouch_pres`, `stop_prtouch_pres`), read in 64-sample windows. Build our own
+    handles with `mcu.lookup_query_command` from the known formats and take only the channel
+    oid from `prtouch_v3`, so a Creality host update that renames its internals does not break
+    us. Never sample while `prtouch_v3` is probing.
+  - `load_cell`: upstream Klipper or Kalico `[load_cell]` (`add_client(callback)` streams
+    `{'data': [(print_time, counts, ...)]}`). This is the K2 on mainline MCU firmware (the
+    route Jacob10383's firmware is taking, with upstream's existing K2 load-cell support), and
+    any other printer with a load-cell nozzle probe. Continuous, so no window gaps.
+  Adding a third source is one row. The calibration routine's coordinates and its CFS feed
+  commands are per-printer data, not part of the source.
+- **Capability probe:** one force source answers (a `prtouch_v3` with a `pres` channel, or a
+  `load_cell` object), and `motion_report` has an extruder trapq under `dtrapqs` or `trapqs`.
 - **Klipper side (sampling only):** `HELIX_PA_LOG_START`, `HELIX_PA_LOG_MARK LABEL=`,
   `HELIX_PA_LOG_STOP NAME=` writing `<name>_{pressure,extruder,marks}.csv`. Contact thresholds
   raised out of reach (`min_hold 50000`, `max_hold 100000`) so a flow step never freezes the
