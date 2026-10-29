@@ -6264,10 +6264,10 @@ TEST_CASE("CFS drops the bypass declaration for a loaded bay even while stood do
 
 namespace {
 
-/// A stock `box` frame with nothing on the bus: every address reports the
-/// "None" state a K2 publishes for an empty one.
+/// A stock `box` frame with nothing on the bus, as a K2 without a CFS sends it:
+/// every address reports "None" and the box itself reports "disconnect".
 json make_empty_bus_box() {
-    json box = json::parse(R"({"state": "connect", "filament": 0, "enable": 1,
+    json box = json::parse(R"({"state": "disconnect", "filament": 0, "enable": 1,
                                "auto_refill": 0, "filament_useup": 1, "map": {}})");
     for (const char* unit : {"T1", "T2", "T3", "T4"}) {
         box[unit] = {{"state", "None"},
@@ -6338,6 +6338,60 @@ TEST_CASE("CFS with no unit on the bus feeds only the external spool", "[ams][cf
         CHECK_FALSE(cfs.is_bypass_active());
         CHECK(info.supports_bypass);
         CHECK(info.current_slot != helix::ui::kExternalSpoolSlot);
+    }
+}
+
+TEST_CASE("CFS boot frame with no unit answered yet is not an empty bus",
+          "[ams][cfs][bypass][1904][1933]") {
+    // A K2 with a CFS boots with its first full frame naming every address
+    // "None" (the units have not answered the RS-485 poll), while the box
+    // reports itself connected. The unit arrives later as a delta.
+    CfsRemapHelper cfs;
+    cfs.mark_running();
+    CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+
+    json boot = make_empty_bus_box();
+    boot["state"] = "connect";
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(boot));
+    REQUIRE(cfs.get_system_info().units.empty());
+
+    auto check_never_single_spool = [&] {
+        const auto info = cfs.get_system_info();
+        CHECK_FALSE(info.external_spool_only);
+        CHECK(info.presents_filament_system());
+        CHECK_FALSE(cfs.is_bypass_active());
+        CHECK(info.current_slot != helix::ui::kExternalSpoolSlot);
+    };
+    check_never_single_spool();
+
+    // A frame carrying only the toolhead sensor re-derives the loaded path.
+    CfsTestAccess::handle_status(cfs, json{{"params", json::array({json::object(), 0})}});
+    check_never_single_spool();
+
+    SECTION("the unit answering keeps it a filament system") {
+        json full =
+            make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+        CfsTestAccess::handle_status(cfs, make_cfs_notification(json{{"T1", full["T1"]}}));
+        REQUIRE_FALSE(cfs.get_system_info().units.empty());
+        check_never_single_spool();
+    }
+
+    SECTION("a box state without a value decides nothing") {
+        json bare = make_empty_bus_box();
+        bare.erase("state");
+        CfsRemapHelper fresh;
+        CfsTestAccess::handle_status(fresh, make_cfs_notification(bare));
+        CHECK_FALSE(fresh.get_system_info().external_spool_only);
+    }
+
+    SECTION("the box reporting disconnect settles it as an empty bus") {
+        CfsTestAccess::handle_status(cfs, make_cfs_notification(json{{"state", "disconnect"}}));
+        CHECK(cfs.get_system_info().external_spool_only);
+        CHECK(cfs.is_bypass_active());
+
+        // And back: the box reconnecting with no unit yet is undecided again.
+        CfsTestAccess::handle_status(cfs, make_cfs_notification(json{{"state", "connect"}}));
+        CHECK_FALSE(cfs.get_system_info().external_spool_only);
     }
 }
 

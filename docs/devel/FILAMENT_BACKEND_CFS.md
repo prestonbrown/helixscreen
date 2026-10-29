@@ -357,12 +357,16 @@ persisted flag re-clears idempotently on the next boot).
 ### No CFS on the bus
 
 Stock K2 firmware registers `box` whether or not a CFS is attached. With none, every
-address `T1`..`T4` reads `state: "None"`, so the parse finds no unit (#1904). The backend
+address `T1`..`T4` reads `state: "None"` and the box's own `state` reads `"disconnect"`, so
+the parse finds no unit (#1904). The backend
 still runs, because it owns the external-spool load and unload, and it reports the
 machine through `AmsSystemInfo::external_spool_only`:
 
-- `apply_box_units_locked()` sets it when a stock frame finds no unit and none has been
-  seen this session. A unit seen once keeps its place in the list when a later frame
+- `apply_box_units_locked()` sets it when a stock frame finds no unit, none has been
+  seen this session, and the box's `state` (from the merged frames) is `"disconnect"`.
+  Every address reading `"None"` is also a K2 with a CFS at boot, before its unit answers,
+  so that alone decides nothing (#1933); a bare `state` delta counts as a full frame so the
+  verdict follows it. A unit seen once keeps its place in the list when a later frame
   drops it, so the flag cannot return on a unit that went briefly quiet. A unit coming
   online clears it, and clears a `-2` the declaration does not hold.
 - `supports_bypass` stays false (the toggle would have no other side), and

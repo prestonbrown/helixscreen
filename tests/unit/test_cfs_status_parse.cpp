@@ -22,6 +22,11 @@ TEST_CASE("CFS status parse classifies a box frame by the keys it carries", "[cf
     CHECK(refill.has_top_level);
     CHECK_FALSE(refill.has_unit_data);
 
+    // The box's own bus state changes alone when a scan settles.
+    const auto bus = cfs::classify_box_frame(json{{"state", "disconnect"}});
+    CHECK(bus.has_top_level);
+    CHECK_FALSE(bus.has_unit_data);
+
     const auto unit = cfs::classify_box_frame(json{{"T3", json::object()}});
     CHECK_FALSE(unit.has_top_level);
     CHECK(unit.has_unit_data);
