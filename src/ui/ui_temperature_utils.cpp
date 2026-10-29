@@ -124,7 +124,7 @@ char* format_temperature_pair_f(float current, float target, char* buffer, size_
 
 char* format_target_or_off(int target, char* buffer, size_t buffer_size) {
     if (target <= 0) {
-        snprintf(buffer, buffer_size, "— °C");
+        snprintf(buffer, buffer_size, "—°C");
     } else {
         snprintf(buffer, buffer_size, "%d°C", target);
     }
@@ -236,6 +236,8 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci) {
     int target_deg = deci_to_degrees(target_deci);
 
     // Format temperature string
+    // Not format_temperature_pair(): a 0.1°C target is still commanded and reads
+    // "25 / 0°C", where the pair formatter takes a whole-degree 0 as off.
     char buf[32];
     if (target_deci > 0) {
         std::snprintf(buf, sizeof(buf), "%d / %d°C", current_deg, target_deg);

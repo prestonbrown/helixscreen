@@ -252,7 +252,7 @@ TEST_CASE_METHOD(DryerFixture, "dryer: drying draws the ring at Glance, Cell and
     CHECK_FALSE(shown(part(h, "dryer_ring_box")));
     CHECK(shown(part(h, "dryer_time")));
     CHECK(shown(part(h, "dryer_temp")));
-    CHECK(subject_text("home_dryer_temp_text") == "47/55\xC2\xB0"
+    CHECK(subject_text("home_dryer_temp_text") == "47 / 55\xC2\xB0"
                                                   "C");
 
     h.resize(1, 1, 55, 113);
@@ -275,6 +275,31 @@ TEST_CASE_METHOD(DryerFixture, "dryer: drying draws the ring at Glance, Cell and
     CHECK(shown(part(h, "dryer_rh_detail")));
     CHECK(shown(part(h, "dryer_end")));
     CHECK_FALSE(shown(part(h, "dryer_count")));
+}
+
+TEST_CASE_METHOD(DryerFixture, "dryer: the drying temperature fits its tile on one line",
+                 "[widget_size][dryer]") {
+    publish(one_box_drying());
+    PanelWidgetHarness<DryerWidget> h(test_screen());
+
+    for (const auto& b : {kGlance, kStrip, kColumn, kCell, kWide}) {
+        INFO(b.w << "x" << b.h);
+        h.resize(1, 1, b.w, b.h);
+        lv_obj_update_layout(test_screen());
+        lv_obj_t* temp = part(h, "dryer_temp");
+        if (!shown(temp)) {
+            continue;
+        }
+        INFO("text: " << lv_label_get_text(temp));
+        lv_area_t tile;
+        lv_area_t text;
+        lv_obj_get_coords(h.root(), &tile);
+        lv_obj_get_coords(temp, &text);
+        CHECK(text.x1 >= tile.x1);
+        CHECK(text.x2 <= tile.x2);
+        const lv_font_t* font = lv_obj_get_style_text_font(temp, LV_PART_MAIN);
+        CHECK(lv_obj_get_height(temp) <= lv_font_get_line_height(font));
+    }
 }
 
 TEST_CASE_METHOD(DryerFixture, "dryer: an unknown progress draws the time with no ring",

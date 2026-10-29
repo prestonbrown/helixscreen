@@ -833,6 +833,16 @@ TEST_CASE("Temperature Utils: default cooldown turns off every extruder heater",
     }
 }
 
+TEST_CASE("Temperature Utils: unset values read the one placeholder", "[temp_utils]") {
+    char buf[32];
+    CHECK(std::string(format_target_or_off(0, buf, sizeof(buf))) == "—°C");
+    CHECK(std::string(format_target_or_off(245, buf, sizeof(buf))) == "245°C");
+    CHECK(std::string(format_temperature_pair(210, 0, buf, sizeof(buf))) == "210 / —°C");
+    CHECK(std::string(format_temperature_pair(210, 245, buf, sizeof(buf))) == "210 / 245°C");
+    CHECK(heater_display(2100, 2450).temp == "210 / 245°C");
+    CHECK(heater_display(2100, 0).temp == "210°C");
+}
+
 TEST_CASE("Temperature Utils: format_target_or_off treats a negative target as unset",
           "[temp_utils]") {
     char buf[16];

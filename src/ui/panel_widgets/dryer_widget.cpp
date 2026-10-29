@@ -11,6 +11,7 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_subject_registry.h"
+#include "ui_temperature_utils.h"
 #include "ui_tile_rung.h"
 
 #include "display_numbering.h"
@@ -179,11 +180,13 @@ std::string source_name(const helix::DryerSource& s) {
                : std::string(lv_tr("Box"));
 }
 
-// "47/55°C", or the one temperature known. `current_only` drops the target for a rung too
+// "47 / 55°C", or the one temperature known. `current_only` drops the target for a rung too
 // narrow to carry both.
 std::string temp_text(const helix::DryerSource& s, bool current_only) {
+    char buf[32];
     if (s.current_c >= 0 && s.target_c > 0 && !current_only)
-        return fmt::format("{}/{}°C", s.current_c, s.target_c);
+        return helix::ui::temperature::format_temperature_pair(s.current_c, s.target_c, buf,
+                                                               sizeof(buf));
     if (s.current_c >= 0)
         return fmt::format("{}°C", s.current_c);
     if (s.target_c > 0)
