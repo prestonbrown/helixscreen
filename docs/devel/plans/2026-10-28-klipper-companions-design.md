@@ -92,6 +92,34 @@ leaves its stream running until the kernel OOM-kills klippy, so it is not used.
   A measured result and a by-eye result are the same record, with a `source` field telling
   them apart.
 
+### Print-time calibration (what Bambu calls flow dynamics calibration)
+
+An optional pre-print step, a toggle beside the bed-mesh and leveling toggles on the print
+start screen, plus a printer default:
+
+- **Where it runs:** inside the start sequence, right after the start loads and purges the
+  first filament. The head is already at the chute, hot and loaded, so the routine adds only
+  its own measuring time. The plugin's print hooks fire too late (history `added` means the
+  print already runs), so this is an in-Klipper command the companion registers
+  (`HELIX_PA_CALIBRATE SLOT=<lane> MODE=auto|always`), inserted by the same pre-print
+  machinery that wraps the leveling steps (`preprint_skip_wrappers.h`, `helix_skips.cfg`).
+  It blocks the start until it finishes, then the print continues.
+- **Which filaments:** the tools the file uses (file analysis already knows them). `auto`
+  measures only a filament with no saved measured value for this nozzle and temperature, so
+  most prints cost nothing; `always` measures every used filament, every print. Filaments
+  after the first need a load, measure, unload cycle each at start (about 2-3 minutes and a
+  purge each), which the toggle's hint states.
+- **Shorter routine:** a narrow sweep around the saved or material-default value (about 4 PA
+  values x 6 cycles, ~80 s and ~0.3 m per filament) instead of the 3.5-minute full sweep. A
+  result outside the sweep falls back to the full one. These numbers are targets: measure
+  them before the toggle's hint quotes any.
+- **Apply on every tool change, inside Klipper:** the plugin hands the job's per-lane table to
+  the companion at start (`HELIX_PA_TABLE LANE=<lane> PA=<k>`), and the companion applies the
+  lane's K on each CFS change. This keeps working when the screen is disconnected, which the
+  app's activation apply cannot.
+- **A failed or unreliable measurement never blocks the print:** it reports, keeps the saved
+  or default value, and the print continues.
+
 ### Open before shipping the PA feature
 
 - **Validation.** PLA at 220 measured 0.0865 and 0.0812 in two runs (stock 0.038). Calibrating
