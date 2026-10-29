@@ -113,6 +113,7 @@ callback:on_lp_usb_printer_selected
 callback:on_pa_cal_action
 callback:on_pa_cal_preset
 callback:on_pa_cal_reset
+callback:on_pa_cal_save_spool
 callback:on_pa_cal_start
 callback:on_pa_cal_temp_down
 callback:on_pa_cal_temp_up
@@ -392,6 +393,7 @@ subject:pa_cal_action_is_stop
 subject:pa_cal_action_text
 subject:pa_cal_big
 subject:pa_cal_big_sub
+subject:pa_cal_can_save_spool
 subject:pa_cal_error_detail
 subject:pa_cal_error_hint
 subject:pa_cal_error_title
@@ -408,6 +410,7 @@ subject:pa_cal_remaining
 subject:pa_cal_result
 subject:pa_cal_result_plausible
 subject:pa_cal_result_sanity
+subject:pa_cal_spool_text
 subject:pa_cal_state
 subject:pa_cal_temp_display
 subject:pa_cal_temp_note
