@@ -57,6 +57,34 @@ install button, version pinning, updater and uninstall it already has.
 7. **Feature-gated.** A companion exists only for an enabled feature whose capability probe
    passes. A printer that needs no Klipper-side code gets no file, no section and no restart.
 
+## Measured pressure advance is a capability, not a K2 feature
+
+The app asks one module "can this printer measure PA for a filament, and how", in the
+`zoffset` provider-table shape (`.claude/rules/vendor-abstraction.md`): one row per way a
+printer can measure, a detection predicate per row, and the capability questions as free
+functions over the table. Generic code (the slot sheet's Calibrate button, the print-start
+toggle, Save to Spool) never names a printer.
+
+| Provider | Detected by | Measure | Result | Applies itself |
+|---|---|---|---|---|
+| Snapmaker U1 firmware (inductance coil per toolhead, `flow_calibrator.py`) | `SM_PRINT_FLOW_CALIBRATE` registered | `SM_PRINT_FLOW_CALIBRATE EXTRUDER=<n>`; already in the U1's start G-code | `extruder<n>.pressure_advance` after it; `flow_calibrator.json` | yes |
+| HelixPrint `helix_pa_gauge`, `prtouch` source (stock Creality K2) | companion reports `available` with source `prtouch` | `HELIX_PA_CALIBRATE SLOT=<lane>` | companion status `last` (K, quality, source) | no: the plugin stores, the app applies |
+| HelixPrint `helix_pa_gauge`, `load_cell` source (K2 on mainline/Kalico MCU firmware, any load-cell nozzle) | companion reports `available` with source `load_cell` | same | same | no |
+| Upstream `[pa_tester]` (Dmitry Butyugin's load-cell branch), when it lands | `pa_tester` object present | its own command | its status | per its design |
+| Creality `AUTO_APAX` | never: it shuts the nozzle MCU down and leaves its stream running | - | - | - |
+
+Capability questions: `measurement_provider(hw)`, `measure_gcode(provider, tool, mode)`,
+`read_result(provider, status)` (K, quality verdict, source), `runs_at_print_start(provider)`
+(the U1 already does; the toggle then reflects the firmware's own behaviour rather than
+adding a second run), and `applies_itself(provider)`.
+
+**A slicer can silently override any of them.** A filament profile with pressure advance
+enabled injects `SET_PRESSURE_ADVANCE` after the start G-code and at every tool change,
+replacing the measured value for the whole job (documented for the U1 in
+`docs/devel/printers/SNAPMAKER_U1_SUPPORT.md` § Pre-Print Flow Calibration). File analysis
+already reads the file, so it flags a file that sets PA itself, and the print-start toggle
+says the measurement will not reach that print.
+
 ## First companion: `helix_pa_gauge` (K2 strain-gauge PA)
 
 Proven on a stock K2 Plus (F008) on 2026-10-28: four runs, about 100k gauge samples each,
