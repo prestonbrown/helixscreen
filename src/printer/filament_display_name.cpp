@@ -3,7 +3,6 @@
 
 #include "filament_display_name.h"
 
-#include "operation_patterns.h"
 #include "text_io.h"
 
 #include <cctype>
@@ -106,7 +105,7 @@ bool material_is_redundant(const std::string& name, const std::string& material)
             continue;
         }
         saw_token = true;
-        if (!contains_ci(name, material.substr(start, i - start))) {
+        if (!helix::text_io::contains_ignore_case(name, material.substr(start, i - start))) {
             return false;
         }
     }

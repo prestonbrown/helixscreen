@@ -7,6 +7,7 @@
 #include "humidity_sensor_types.h"
 #include "klipper_extruder_naming.h"
 #include "probe_sensor_types.h"
+#include "text_io.h"
 #include "width_sensor_types.h"
 
 #include <cctype>
@@ -148,11 +149,8 @@ bool row_matches(const Row& row, std::string_view name, std::string_view& instan
 /// Whether @p name contains any of @p words (lowercase), ignoring case.
 template <size_t N>
 bool contains_word_ci(std::string_view name, const std::string_view (&words)[N]) {
-    std::string lower(name);
-    for (char& ch : lower)
-        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
     for (const auto& w : words) {
-        if (lower.find(w) != std::string::npos)
+        if (text_io::contains_ignore_case(name, w))
             return true;
     }
     return false;

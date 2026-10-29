@@ -13,6 +13,7 @@
 #include "printer_state.h"
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
+#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>
@@ -23,14 +24,6 @@ namespace helix::sensors {
 namespace {
 
 constexpr uint8_t kDoor = static_cast<uint8_t>(InputSensorRole::DOOR);
-
-bool contains_ci(std::string_view haystack, std::string_view needle) {
-    return std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
-                       [](char a, char b) {
-                           return std::tolower(static_cast<unsigned char>(a)) ==
-                                  std::tolower(static_cast<unsigned char>(b));
-                       }) != haystack.end();
-}
 
 /// The words a row shows for an input's state: door wording for a Door input,
 /// switch wording for any other.
@@ -48,7 +41,7 @@ const char* state_text(InputSensorRole role, const InputReading& reading) {
 
 InputSensorRole default_input_role(std::string_view sensor_name) {
     for (const char* word : {"door", "lid", "cover"}) {
-        if (contains_ci(sensor_name, word)) {
+        if (helix::text_io::contains_ignore_case(sensor_name, word)) {
             return InputSensorRole::DOOR;
         }
     }

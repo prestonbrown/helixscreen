@@ -27,7 +27,6 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_param_cache.h"
 #include "moonraker_error.h"
-#include "operation_patterns.h" // helix::contains_ci
 #include "post_op_cooldown_manager.h"
 #include "print_lifecycle_state.h" // PrintState, job_holds_machine
 #include "printer_detector.h"
@@ -4523,14 +4522,15 @@ AmsBackendCfs::classify_error(const std::string& raw_line,
     // All four literals below were read directly out of
     // box_wrapper.cpython-38-mipsel-linux-gnu.so in CR4CU220812S11_ota_img_
     // V2.3.5.34, so these are the firmware's exact words, not guesses.
-    const bool no_matching_spool = helix::contains_ci(detail, "identical suppl");
+    const bool no_matching_spool = helix::text_io::contains_ignore_case(detail, "identical suppl");
     // Two spellings for "auto-refill did not run": the long-form
     // "disable material automatic refill" and the terse "no auto refill".
     // The latter shares no fragment with the former — it says "auto refill",
     // not "automatic refill", and never says "disab" — so it needs its own arm.
     const bool refill_disabled =
-        (helix::contains_ci(detail, "automatic refill") && helix::contains_ci(detail, "disab")) ||
-        helix::contains_ci(detail, "no auto refill");
+        (helix::text_io::contains_ignore_case(detail, "automatic refill") &&
+         helix::text_io::contains_ignore_case(detail, "disab")) ||
+        helix::text_io::contains_ignore_case(detail, "no auto refill");
     // Third give-up path. The wrapper HAS a same_material group for the
     // exhausted slot, but no member of it currently reports material at its
     // sensor — so there is nothing to switch to even though the printer is
@@ -4540,7 +4540,8 @@ AmsBackendCfs::classify_error(const std::string& raw_line,
     // Note this string contains none of the fragments above and not even
     // "refill", so before this branch existed it fell through every tier
     // including the weak one: the print paused with no modal at all.
-    const bool no_tray_available = helix::contains_ci(detail, "tray with ingredient");
+    const bool no_tray_available =
+        helix::text_io::contains_ignore_case(detail, "tray with ingredient");
 
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -4551,7 +4552,7 @@ AmsBackendCfs::classify_error(const std::string& raw_line,
     // filament_detected) and the job is paused. Weaker evidence, so it surfaces
     // the firmware's own words rather than a claim about which give-up path ran.
     const bool weak_refill_hint = !no_matching_spool && !refill_disabled && !no_tray_available &&
-                                  helix::contains_ci(detail, "refill") &&
+                                  helix::text_io::contains_ignore_case(detail, "refill") &&
                                   system_info_.filament_runout;
 
     if (!no_matching_spool && !refill_disabled && !no_tray_available && !weak_refill_hint) {

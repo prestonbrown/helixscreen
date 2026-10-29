@@ -20,7 +20,6 @@
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
-#include "operation_patterns.h"    // helix::contains_ci
 #include "print_lifecycle_state.h" // job_holds_machine
 #include "printer_discovery.h"
 #include "printer_state.h" // PrinterState: mid-print clear guard
@@ -1519,7 +1518,7 @@ AmsBackendHappyHare::classify_error(const std::string& raw_line,
 
     const std::string detail = display_reason(reason);
     return helix::make_ams_fault_event(helix::ErrorSource::HAPPY_HARE,
-                                       helix::contains_ci(detail, "runout")
+                                       helix::text_io::contains_ignore_case(detail, "runout")
                                            ? lv_tr("Filament runout")
                                            : lv_tr("Filament System Error"),
                                        detail, recovery_actions_locked(ctx.is_paused));

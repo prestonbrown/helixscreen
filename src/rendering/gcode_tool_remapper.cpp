@@ -149,28 +149,6 @@ bool try_temp(const std::string& line, const std::map<int, int>& remap, std::str
 // --- Family 4: "<KEY>=<digits>" tool parameters, whole key case-insensitive ---
 constexpr std::string_view kToolParamKeys[] = {"INITIAL_TOOL", "TOOL"};
 
-bool iequals(std::string_view a, std::string_view b) {
-    if (a.size() != b.size()) {
-        return false;
-    }
-    for (size_t i = 0; i < a.size(); ++i) {
-        if (std::toupper(static_cast<unsigned char>(a[i])) !=
-            std::toupper(static_cast<unsigned char>(b[i]))) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool icontains(std::string_view haystack, std::string_view needle) {
-    for (size_t i = 0; i + needle.size() <= haystack.size(); ++i) {
-        if (iequals(haystack.substr(i, needle.size()), needle)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 // Visits each whitespace-delimited KEY=VALUE token before any ';' comment.
 // `key_begin` is the token's offset in `line`.
 template <typename Visit> void for_each_param(std::string_view line, Visit&& visit) {
@@ -194,7 +172,7 @@ template <typename Visit> void for_each_param(std::string_view line, Visit&& vis
 
 bool is_tool_param_key(std::string_view key) {
     for (std::string_view tool_key : kToolParamKeys) {
-        if (iequals(key, tool_key)) {
+        if (helix::text_io::equals_ignore_case(key, tool_key)) {
             return true;
         }
     }
@@ -366,7 +344,9 @@ std::vector<std::string> GcodeToolRemapper::unremapped_tool_params(std::string_v
             ++after_digits;
         }
         const bool t_key = t_numbered && (after_digits == key.size() || key[after_digits] == '_');
-        if (t_key || iequals(key, "T") || icontains(key, "EXTRUDER") || icontains(key, "TOOL")) {
+        if (t_key || helix::text_io::equals_ignore_case(key, "T") ||
+            helix::text_io::contains_ignore_case(key, "EXTRUDER") ||
+            helix::text_io::contains_ignore_case(key, "TOOL")) {
             keys.emplace_back(key);
         }
     });

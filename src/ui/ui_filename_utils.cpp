@@ -3,6 +3,8 @@
 
 #include "ui_filename_utils.h"
 
+#include "text_io.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -27,17 +29,9 @@ const std::vector<std::string>& printable_extensions() {
 // Case-insensitive suffix match. A name exactly as long as the extension is a
 // hidden dotfile (".gcode"), not a printable file.
 bool ends_with_ci(const std::string& filename, const std::string& ext) {
-    if (filename.size() <= ext.size()) {
-        return false;
-    }
-    size_t pos = filename.size() - ext.size();
-    for (size_t i = 0; i < ext.size(); ++i) {
-        char c = static_cast<char>(std::tolower(static_cast<unsigned char>(filename[pos + i])));
-        if (c != ext[i]) {
-            return false;
-        }
-    }
-    return true;
+    return filename.size() > ext.size() &&
+           helix::text_io::equals_ignore_case(
+               std::string_view(filename).substr(filename.size() - ext.size()), ext);
 }
 
 } // namespace

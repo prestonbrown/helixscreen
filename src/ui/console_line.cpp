@@ -3,6 +3,8 @@
 
 #include "console_line.h"
 
+#include "text_io.h"
+
 #include <algorithm>
 #include <cctype>
 #include <utility>
@@ -41,15 +43,7 @@ bool is_console_error_message(const std::string& message) {
     }
 
     // Case-insensitive check for "error" at start (covers "Error:", "ERROR:", etc.)
-    if (message.size() >= 5) {
-        auto ci_eq = [](char a, char b) {
-            return std::tolower(static_cast<unsigned char>(a)) ==
-                   std::tolower(static_cast<unsigned char>(b));
-        };
-        return std::equal(message.begin(), message.begin() + 5, "error", ci_eq);
-    }
-
-    return false;
+    return helix::text_io::equals_ignore_case(std::string_view(message).substr(0, 5), "error");
 }
 
 bool is_console_temp_message(const std::string& message) {

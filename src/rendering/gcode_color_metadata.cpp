@@ -3,7 +3,7 @@
 
 #include "gcode_color_metadata.h"
 
-#include "operation_patterns.h"
+#include "text_io.h"
 
 #include <cctype>
 #include <cstring>
@@ -43,9 +43,10 @@ bool parse_filament_color_palette(std::string_view line, std::vector<std::string
         return false;
     }
     std::string_view key_part = line.substr(0, eq);
-    bool keyword_match =
-        contains_ci(key_part, "extruder_colour") || contains_ci(key_part, "extruder_color") ||
-        contains_ci(key_part, "filament_colour") || contains_ci(key_part, "filament_color");
+    bool keyword_match = helix::text_io::contains_ignore_case(key_part, "extruder_colour") ||
+                         helix::text_io::contains_ignore_case(key_part, "extruder_color") ||
+                         helix::text_io::contains_ignore_case(key_part, "filament_colour") ||
+                         helix::text_io::contains_ignore_case(key_part, "filament_color");
     if (!keyword_match) {
         return false;
     }

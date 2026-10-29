@@ -436,6 +436,144 @@ TEST_CASE("to_lower and to_upper map ASCII only", "[text_io]") {
     CHECK(to_upper("\xC3\xA9\xE9") == "\xC3\xA9\xE9");
 }
 
+TEST_CASE("contains_ignore_case", "[text_io]") {
+    SECTION("Finds exact match") {
+        REQUIRE(tio::contains_ignore_case("BED_MESH_CALIBRATE", "BED_MESH"));
+    }
+
+    SECTION("Case insensitive - finds lowercase in uppercase") {
+        REQUIRE(tio::contains_ignore_case("BED_MESH_CALIBRATE", "bed_mesh"));
+    }
+
+    SECTION("Case insensitive - finds uppercase in lowercase") {
+        REQUIRE(tio::contains_ignore_case("bed_mesh_calibrate", "BED_MESH"));
+    }
+
+    SECTION("Case insensitive - mixed case") {
+        REQUIRE(tio::contains_ignore_case("BeD_MeSh_CaLiBrAtE", "bed_MESH"));
+    }
+
+    SECTION("Returns false when not found") {
+        REQUIRE_FALSE(tio::contains_ignore_case("BED_MESH_CALIBRATE", "QGL"));
+    }
+
+    SECTION("Empty needle matches nothing") {
+        REQUIRE_FALSE(tio::contains_ignore_case("anything", ""));
+    }
+
+    SECTION("Empty haystack doesn't match non-empty needle") {
+        REQUIRE_FALSE(tio::contains_ignore_case("", "test"));
+    }
+
+    SECTION("Empty needle does not match an empty haystack either") {
+        // The empty-needle guard is checked before the size comparison, so this
+        // stays false rather than degenerating into std::string::find's
+        // "found at 0" convention.
+        REQUIRE_FALSE(tio::contains_ignore_case("", ""));
+    }
+
+    SECTION("Needle longer than haystack is rejected") {
+        REQUIRE_FALSE(tio::contains_ignore_case("BED", "BED_MESH"));
+    }
+
+    SECTION("Matches at both ends of the haystack") {
+        REQUIRE(tio::contains_ignore_case("bed_mesh_calibrate", "BED"));       // position 0
+        REQUIRE(tio::contains_ignore_case("bed_mesh_calibrate", "CALIBRATE")); // final byte
+        REQUIRE(tio::contains_ignore_case("G28", "g28"));                      // whole string
+    }
+
+    SECTION("Searches by length, not to the first NUL") {
+        // std::string_view carries its own size; an embedded NUL must not end
+        // the scan the way it would for a C string.
+        const std::string_view haystack("BED\0MESH", 8);
+        REQUIRE(tio::contains_ignore_case(haystack, std::string_view("\0mesh", 5)));
+        REQUIRE_FALSE(tio::contains_ignore_case(haystack, std::string_view("\0qgl", 4)));
+    }
+}
+
+// contains_ignore_case folds ONLY A-Z/a-z, by arithmetic, on raw bytes. These
+// cases pin the contract for bytes >= 0x80, the UTF-8 the AMS backends feed it,
+// so a locale-aware, unsigned-char or Unicode-aware fold cannot quietly alter
+// which macros and filament names match.
+
+TEST_CASE("contains_ignore_case folds ASCII only over real UTF-8", "[text_io][utf8]") {
+    SECTION("High bytes match byte-for-byte and are passed through unfolded") {
+        // "Düse" — the u-umlaut is C3 BC in UTF-8; the surrounding ASCII still folds.
+        REQUIRE(tio::contains_ignore_case("Düse wechseln", "düse"));
+        REQUIRE(tio::contains_ignore_case("AMS Löschen", "ms löschen"));
+        REQUIRE(tio::contains_ignore_case("Загрузка филамента", "филамента"));
+        REQUIRE(tio::contains_ignore_case("フィラメント交換", "交換"));
+    }
+
+    SECTION("No case folding happens above 0x7F") {
+        // U+00DC vs U+00FC differ in their second UTF-8 byte (9C vs BC). A
+        // Unicode-aware fold would call these equal; this one must not.
+        REQUIRE_FALSE(tio::contains_ignore_case("DÜSE", "düse"));
+        REQUIRE(tio::contains_ignore_case("DÜSE", "DÜSE"));
+
+        // Cyrillic upper/lower likewise stay distinct.
+        REQUIRE_FALSE(tio::contains_ignore_case("ФИЛАМЕНТ", "филамент"));
+        REQUIRE(tio::contains_ignore_case("ФИЛАМЕНТ", "ФИЛАМЕНТ"));
+    }
+
+    SECTION("Raw high bytes are compared, never folded") {
+        // 0xC0/0xE0 are A-with-grave and a-with-grave in Latin-1, i.e. exactly
+        // 0x20 apart the way 'A'/'a' are. The fold must not reach them —
+        // signed char makes them negative, unsigned char makes them > 'Z', so
+        // this holds on x86 and on ARM alike.
+        REQUIRE_FALSE(tio::contains_ignore_case("\xC0", "\xE0"));
+        REQUIRE(tio::contains_ignore_case("\xC0", "\xC0"));
+        REQUIRE(tio::contains_ignore_case("PLA\xFF_DRY", "\xFF_dry"));
+    }
+
+    SECTION("The A-Z window is exact at both edges") {
+        // '@' is 'A'-1 and '[' is 'Z'+1; folding either would make these match
+        // their +0x20 partners '`' and '{'.
+        REQUIRE_FALSE(tio::contains_ignore_case("@", "`"));
+        REQUIRE_FALSE(tio::contains_ignore_case("[", "{"));
+        // 'A' and 'Z' themselves are inside the window.
+        REQUIRE(tio::contains_ignore_case("@AZ[", "@az["));
+    }
+
+    SECTION("Real macro names with accented parameters still match their ASCII token") {
+        REQUIRE(
+            tio::contains_ignore_case("SET_FILAMENT_TYPE MATERIAL=Rot-Grün", "set_filament_type"));
+        REQUIRE(tio::contains_ignore_case("_UNLOAD_FILAMENT_ÜBERGABE", "unload_filament"));
+        REQUIRE_FALSE(tio::contains_ignore_case("SET_FILAMENT_TYPE MATERIAL=Rot-Grün", "grun"));
+    }
+}
+
+TEST_CASE("equals_ignore_case", "[text_io]") {
+    SECTION("Exact match") {
+        REQUIRE(tio::equals_ignore_case("SKIP_BED_MESH", "SKIP_BED_MESH"));
+    }
+
+    SECTION("Case insensitive match - different cases") {
+        REQUIRE(tio::equals_ignore_case("skip_bed_mesh", "SKIP_BED_MESH"));
+        REQUIRE(tio::equals_ignore_case("SKIP_BED_MESH", "skip_bed_mesh"));
+        REQUIRE(tio::equals_ignore_case("Skip_Bed_Mesh", "SKIP_BED_MESH"));
+    }
+
+    SECTION("Returns false for different strings") {
+        REQUIRE_FALSE(tio::equals_ignore_case("SKIP_BED_MESH", "SKIP_QGL"));
+    }
+
+    SECTION("Returns false for substrings") {
+        REQUIRE_FALSE(tio::equals_ignore_case("SKIP_BED_MESH", "SKIP_BED"));
+        REQUIRE_FALSE(tio::equals_ignore_case("SKIP_BED", "SKIP_BED_MESH"));
+    }
+
+    SECTION("Empty strings equal") {
+        REQUIRE(tio::equals_ignore_case("", ""));
+    }
+
+    SECTION("No case folding happens above 0x7F") {
+        REQUIRE_FALSE(tio::equals_ignore_case("DÜSE", "düse"));
+        REQUIRE_FALSE(tio::equals_ignore_case("\xC0", "\xE0"));
+        REQUIRE(tio::equals_ignore_case("Düse", "DüSE"));
+    }
+}
+
 TEST_CASE("utf8_first_codepoint takes the whole lead character", "[text_io]") {
     using helix::text_io::utf8_first_codepoint;
     CHECK(utf8_first_codepoint("").empty());

@@ -393,60 +393,8 @@ inline std::vector<std::string> get_all_perform_variations(OperationCategory cat
 }
 
 // ============================================================================
-// String Utilities (LT3)
+// Keyword Lookup (LT3)
 // ============================================================================
-
-/**
- * @brief Case-insensitive substring search (pure ASCII).
- *
- * Folds only A-Z/a-z, so it is locale-independent and leaves every other byte
- * (including high-bit-set and UTF-8 continuation bytes) untouched. That matches
- * the earlier ::toupper-based fold under the "C" locale this process keeps
- * (only LC_TIME is ever setlocale'd, so LC_CTYPE stays "C"), without the two
- * per-call std::string allocations or the ::toupper-on-negative-char UB.
- *
- * Empty needle returns false rather than the std::string::find "found at 0"
- * convention: every call site searches for a concrete token, and an empty
- * needle matching everything is a foot-gun the former local copies guarded
- * against explicitly. Verified equivalent over all real needles across every
- * byte 0x01-0xFF plus UTF-8 in de/fr/ru/ja.
- *
- * Accepts std::string_view, so std::string and string literals convert without
- * allocating.
- */
-inline bool contains_ci(std::string_view haystack, std::string_view needle) {
-    if (needle.empty() || needle.size() > haystack.size()) {
-        return false;
-    }
-    for (size_t i = 0; i + needle.size() <= haystack.size(); ++i) {
-        bool match = true;
-        for (size_t j = 0; j < needle.size(); ++j) {
-            char hc = haystack[i + j];
-            char nc = needle[j];
-            if (hc >= 'A' && hc <= 'Z') {
-                hc = static_cast<char>(hc + 32);
-            }
-            if (nc >= 'A' && nc <= 'Z') {
-                nc = static_cast<char>(nc + 32);
-            }
-            if (hc != nc) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * @brief Case-insensitive string equality
- */
-inline bool equals_ci(std::string_view a, std::string_view b) {
-    return helix::text_io::to_upper(a) == helix::text_io::to_upper(b);
-}
 
 /**
  * @brief Find keyword entry by pattern string (substring match, case-insensitive)
@@ -522,14 +470,14 @@ match_parameter_to_category(const std::string& param_name, bool include_slicer_p
 
         // Check perform variations (OPT_IN) first - they're more specific
         for (const auto& var : get_all_perform_variations(cat)) {
-            if (equals_ci(param_name, var)) {
+            if (helix::text_io::equals_ignore_case(param_name, var)) {
                 return ParamMatchResult{cat, ParameterSemantic::OPT_IN, std::string(var)};
             }
         }
 
         // Check skip variations (OPT_OUT)
         for (const auto& var : get_all_skip_variations(cat)) {
-            if (equals_ci(param_name, var)) {
+            if (helix::text_io::equals_ignore_case(param_name, var)) {
                 return ParamMatchResult{cat, ParameterSemantic::OPT_OUT, std::string(var)};
             }
         }
@@ -537,7 +485,7 @@ match_parameter_to_category(const std::string& param_name, bool include_slicer_p
         // Check slicer-style short params (OPT_IN semantics: value=1 means do it)
         if (include_slicer_params) {
             for (const auto& var : get_slicer_param_variations(cat)) {
-                if (equals_ci(param_name, var)) {
+                if (helix::text_io::equals_ignore_case(param_name, var)) {
                     return ParamMatchResult{cat, ParameterSemantic::OPT_IN, std::string(var)};
                 }
             }
