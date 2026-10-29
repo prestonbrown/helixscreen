@@ -317,6 +317,28 @@ TEST_CASE("An identity sync never remaps a tool", "[ams][toolchanger][slot_memor
     CHECK(h.get_slot_info(1).mapped_tool == mapped_before);
 }
 
+TEST_CASE("An identity sync carries multi-color, temperatures and the Spoolman vendor",
+          "[ams][toolchanger][slot_memory][1936]") {
+    helix::test::RegisteredBackend<SlotMemoryHelper> h_reg(4);
+    SlotMemoryHelper& h = *h_reg;
+
+    helix::SlotInfo info = blue_petg();
+    info.multi_color_hexes = "#1E5AA8,#F2C14E";
+    info.nozzle_temp_min = 230;
+    info.nozzle_temp_max = 250;
+    info.bed_temp = 80;
+    info.spoolman_vendor_id = 17;
+
+    REQUIRE(h.sync_external_identity(1, info).success());
+
+    const auto slot = h.get_slot_info(1);
+    CHECK(slot.multi_color_hexes == info.multi_color_hexes);
+    CHECK(slot.nozzle_temp_min == 230);
+    CHECK(slot.nozzle_temp_max == 250);
+    CHECK(slot.bed_temp == 80);
+    CHECK(slot.spoolman_vendor_id == 17);
+}
+
 TEST_CASE("An edit that also remaps a tool keeps both", "[ams][toolchanger][slot_memory]") {
     // apply_user_edit() does double duty: metadata AND an ASSIGN_TOOL remap when
     // mapped_tool changed. The remap path returns early, so a persist placed

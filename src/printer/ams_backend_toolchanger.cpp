@@ -2828,29 +2828,6 @@ bool AmsBackendToolChanger::can_cancel_operation() const {
 // Configuration Operations
 // ============================================================================
 
-namespace {
-
-/// Put @p info's filament fields on @p slot, so get_slot_info returns them at
-/// once.
-void write_filament_fields(SlotInfo& slot, const SlotInfo& info) {
-    slot.color_rgb = info.color_rgb;
-    slot.color_name = info.color_name;
-    slot.material = info.material;
-    slot.brand = info.brand;
-    // Carry the catalog product identity through a sync too: one that dropped
-    // it would make the editor snap back to a different variant on the next
-    // get_slot_info().
-    slot.catalog_id = info.catalog_id;
-    slot.product_name = info.product_name;
-    slot.spoolman_id = info.spoolman_id;
-    slot.spoolman_filament_id = info.spoolman_filament_id;
-    slot.spool_name = info.spool_name;
-    slot.remaining_weight_g = info.remaining_weight_g;
-    slot.total_weight_g = info.total_weight_g;
-}
-
-} // namespace
-
 AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& info,
                                                 const helix::ams::Observation& declared) {
     std::string physical_tool_name;
@@ -2906,7 +2883,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
             slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
             auto& slot = system_info_.units[0].slots[slot_index];
             const int old_mapped_tool = slot.mapped_tool;
-            write_filament_fields(slot, info);
+            slot.assign_filament_fields(info);
 
             // Tool mapping change: persist via ASSIGN_TOOL outside the lock.
             // slot.mapped_tool stores "which G-code tool number activates this physical
@@ -3011,7 +2988,7 @@ AmsError AmsBackendToolChanger::sync_external_identity(int slot_index, const Slo
         // the tool map, and moving it sends ASSIGN_TOOL.
         if (!system_info_.units.empty() &&
             slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
-            write_filament_fields(system_info_.units[0].slots[slot_index], info);
+            system_info_.units[0].slots[slot_index].assign_filament_fields(info);
         }
     }
 
