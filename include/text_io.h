@@ -261,20 +261,51 @@ inline std::string to_lower(std::string_view s) {
     return out;
 }
 
-/// Whether @p a and @p b are the same text under to_lower().
+namespace detail {
+inline char ascii_lower(char c) {
+    return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+}
+} // namespace detail
+
+// Case-insensitive matching folds A-Z/a-z only, like to_lower(): every other
+// byte, UTF-8 included, must match exactly, whatever the process locale.
+// These are the only case-insensitive comparisons app code should use.
+
+/// Whether @p a and @p b are the same text under to_lower(). Two empty
+/// strings are equal.
 inline bool equals_ignore_case(std::string_view a, std::string_view b) {
     if (a.size() != b.size()) {
         return false;
     }
     for (size_t i = 0; i < a.size(); ++i) {
-        const auto lower = [](char c) {
-            return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
-        };
-        if (lower(a[i]) != lower(b[i])) {
+        if (detail::ascii_lower(a[i]) != detail::ascii_lower(b[i])) {
             return false;
         }
     }
     return true;
+}
+
+/// Whether @p haystack contains @p needle under to_lower().
+///
+/// An empty needle matches NOTHING, not everything as std::string::find's
+/// "found at 0" would have it: a caller searching for an unset or blank term
+/// must not see every string match. A caller that wants "empty filter shows
+/// all" says so before calling.
+inline bool contains_ignore_case(std::string_view haystack, std::string_view needle) {
+    if (needle.empty() || needle.size() > haystack.size()) {
+        return false;
+    }
+    for (size_t i = 0; i + needle.size() <= haystack.size(); ++i) {
+        size_t j = 0;
+        while (j < needle.size() &&
+               detail::ascii_lower(haystack[i + j]) == detail::ascii_lower(needle[j])) {
+            ++j;
+        }
+        if (j == needle.size()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 inline std::string to_upper(std::string_view s) {

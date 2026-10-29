@@ -29,6 +29,10 @@
  * - `format_temperature()` - Single temp: "210°C"
  * - `format_temperature_pair()` - Current/target: "210 / 245°C"
  *
+ * Every current/target pair on screen reads "210 / 245°C" (spaced slash) and
+ * every unset value reads "—°C" (no space, like "245°C"). Build them with these
+ * functions rather than a format string of your own.
+ *
  * ## Color-Coding Function
  *
  * Use `get_heating_state_color()` for consistent 4-state thermal feedback:
@@ -235,9 +239,9 @@ char* format_temperature_pair(int current, int target, char* buffer, size_t buff
                               bool with_unit = true);
 
 /**
- * @brief Format a target temperature or "— °C" when off
+ * @brief Format a target temperature or "—°C" when off
  *
- * Formats as "245°C" when target > 0, or "— °C" when target is 0 (heater off).
+ * Formats as "245°C" when target > 0, or "—°C" when target <= 0 (heater off).
  *
  * @param target Target temperature in degrees (0 = heater off)
  * @param buffer Output buffer

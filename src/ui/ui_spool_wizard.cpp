@@ -1355,9 +1355,9 @@ void SpoolWizardOverlay::set_new_filament_color(const std::string& hex, const st
     lv_obj_t* search_root = create_filament_dialog_ ? create_filament_dialog_ : overlay_root_;
     if (search_root && !hex.empty()) {
         lv_obj_t* swatch = lv_obj_find_by_name(search_root, "filament_color_swatch");
-        if (swatch) {
-            uint32_t color_val = std::strtoul(hex.c_str(), nullptr, 16);
-            helix::ui::apply_swatch_color(swatch, color_val, "");
+        auto rgb = helix::parse_hex_color(hex);
+        if (swatch && rgb) {
+            helix::ui::apply_swatch_color(swatch, *rgb, "");
         }
     }
 
@@ -1394,10 +1394,10 @@ void SpoolWizardOverlay::populate_filament_list() {
 
         // Set color swatch
         lv_obj_t* swatch = helix::ui::find_required(row, "color_swatch", get_name());
-        if (swatch && !fil.color_hex.empty()) {
-            uint32_t color_val = std::strtoul(fil.color_hex.c_str(), nullptr, 16);
+        auto rgb = helix::parse_hex_color(fil.color_hex);
+        if (swatch && rgb) {
             helix::ui::apply_swatch_color(
-                swatch, color_val, fil.multi_color_hexes,
+                swatch, *rgb, fil.multi_color_hexes,
                 helix::ui::swatch_finish_from_variant(fil.material + " " + fil.name));
         }
 
@@ -1534,10 +1534,7 @@ void SpoolWizardOverlay::pick_filament_color() {
     });
 
     // Parse current color for initial value
-    uint32_t initial_color = 0x808080;
-    if (!new_filament_color_hex_.empty()) {
-        initial_color = std::strtoul(new_filament_color_hex_.c_str(), nullptr, 16);
-    }
+    uint32_t initial_color = helix::parse_hex_color(new_filament_color_hex_).value_or(0x808080);
 
     // Show color picker on the screen (it creates its own modal)
     lv_obj_t* parent = create_filament_dialog_

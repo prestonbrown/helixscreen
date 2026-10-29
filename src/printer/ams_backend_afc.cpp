@@ -22,7 +22,6 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "operation_patterns.h" // helix::contains_ci
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"
@@ -890,9 +889,10 @@ AmsBackendAfc::classify_error(const std::string& raw_line,
     std::string detail = helix::strip_bang_prefix(raw_line);
 
     // 1) Toolhead jam / break (handle_toolhead_runout signature).
-    const bool is_jam = helix::contains_ci(detail, "tool_end") &&
-                        (helix::contains_ci(detail, "jam") || helix::contains_ci(detail, "break") ||
-                         helix::contains_ci(detail, "runout detected"));
+    const bool is_jam = helix::text_io::contains_ignore_case(detail, "tool_end") &&
+                        (helix::text_io::contains_ignore_case(detail, "jam") ||
+                         helix::text_io::contains_ignore_case(detail, "break") ||
+                         helix::text_io::contains_ignore_case(detail, "runout detected"));
     if (is_jam) {
         return helix::make_ams_fault_event(helix::ErrorSource::AFC, lv_tr("Toolhead jam"), detail,
                                            build_recovery_actions());

@@ -1,22 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "pause_cause.h"
 
+#include "text_io.h"
+
 #include <algorithm>
 #include <cctype>
 
 namespace helix {
 namespace {
-
-bool icontains(const std::string& hay, const std::string& needle) {
-    if (needle.empty()) {
-        return false;
-    }
-    auto it = std::search(hay.begin(), hay.end(), needle.begin(), needle.end(), [](char a, char b) {
-        return std::tolower(static_cast<unsigned char>(a)) ==
-               std::tolower(static_cast<unsigned char>(b));
-    });
-    return it != hay.end();
-}
 
 // A matcher with no active criterion must never match (guards against an
 // all-wildcard {} matcher classifying every pause as Terminal).
@@ -29,7 +20,7 @@ bool matches(const PauseSignals& s, const TerminalMatcher& m) {
     if (!matcher_is_active(m)) {
         return false;
     }
-    if (!m.message_substr.empty() && !icontains(s.message, m.message_substr)) {
+    if (!m.message_substr.empty() && !text_io::contains_ignore_case(s.message, m.message_substr)) {
         return false;
     }
     if (m.exception_id >= 0 && s.exception_id != m.exception_id) {

@@ -14,6 +14,7 @@
 #include "ipp_print_modal.h"
 #include "label_printer_utils.h"
 #endif
+#include "color_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "spoolman_slot_saver.h"
@@ -26,31 +27,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-namespace {
-
-/**
- * Parse a hex color string (with or without '#' prefix) into an lv_color_t.
- * Returns fallback_color if the string is empty or unparseable.
- */
-lv_color_t parse_spool_color(const std::string& color_hex, lv_color_t fallback_color) {
-    if (color_hex.empty()) {
-        return fallback_color;
-    }
-
-    const char* hex = color_hex.c_str();
-    if (hex[0] == '#') {
-        hex++;
-    }
-
-    unsigned int color_val = 0;
-    if (sscanf(hex, "%x", &color_val) == 1) {
-        return lv_color_hex(color_val);
-    }
-    return fallback_color;
-}
-
-} // namespace
 
 namespace helix::ui {
 
@@ -328,10 +304,9 @@ void SpoolEditModal::update_spool_preview() {
     }
 
     // Set color from spool's hex color
-    lv_color_t color =
-        parse_spool_color(working_spool_.color_hex, theme_manager_get_color("text_muted"));
-    helix::ui::spool_canvas_set_filament(canvas, lv_color_to_u32(color) & 0xFFFFFF,
-                                         working_spool_.multi_color_hexes,
+    uint32_t rgb = helix::parse_hex_color(working_spool_.color_hex)
+                       .value_or(lv_color_to_u32(theme_manager_get_color("text_muted")) & 0xFFFFFF);
+    helix::ui::spool_canvas_set_filament(canvas, rgb, working_spool_.multi_color_hexes,
                                          helix::ui::swatch_finish(working_spool_.finish()));
 
     // Set fill level from remaining weight; an unweighed spool draws full, the
@@ -530,16 +505,7 @@ void SpoolEditModal::handle_save() {
 
 void SpoolEditModal::handle_color_clicked() {
     // Parse current color_hex to get initial RGB
-    uint32_t initial_color = 0x808080;
-    if (!working_spool_.color_hex.empty()) {
-        const char* hex = working_spool_.color_hex.c_str();
-        if (hex[0] == '#')
-            hex++;
-        unsigned int val = 0;
-        if (sscanf(hex, "%x", &val) == 1) {
-            initial_color = val;
-        }
-    }
+    uint32_t initial_color = helix::parse_hex_color(working_spool_.color_hex).value_or(0x808080);
 
     color_picker_.set_color_callback([this](uint32_t color_rgb, const std::string& color_name) {
         // Update working spool with new color

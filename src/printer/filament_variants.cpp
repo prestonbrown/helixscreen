@@ -110,20 +110,13 @@ constexpr FamilyOverride kFamilyOverrides[] = {
     {"PET", "PET"},
 };
 
-bool iequals(std::string_view a, std::string_view b) {
-    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char ca, char cb) {
-               return std::tolower(static_cast<unsigned char>(ca)) ==
-                      std::tolower(static_cast<unsigned char>(cb));
-           });
-}
-
 bool is_separator(char c) {
     return c == '-' || c == '_' || c == ' ';
 }
 
 const VariantAffix* find_variant_affix(std::string_view token) {
     for (const auto& affix : kVariantAffixes) {
-        if (iequals(token, affix.name)) {
+        if (helix::text_io::equals_ignore_case(token, affix.name)) {
             return &affix;
         }
     }
@@ -190,7 +183,7 @@ std::set<std::string> filled_affixes_of(std::string_view name);
 /// Explicit family override lookup, or empty if the name has no entry.
 std::string_view family_override(std::string_view name) {
     for (const auto& row : kFamilyOverrides) {
-        if (iequals(name, row.name)) {
+        if (helix::text_io::equals_ignore_case(name, row.name)) {
             return row.family;
         }
     }
@@ -393,7 +386,7 @@ const std::string* find_library_type(const std::string& candidate) {
     if (exact != g_orca_library_types.end())
         return &*exact;
     for (const auto& t : g_orca_library_types) {
-        if (iequals(t, candidate))
+        if (helix::text_io::equals_ignore_case(t, candidate))
             return &t;
     }
     return nullptr;
@@ -447,7 +440,7 @@ bool materials_compatible(std::string_view a, std::string_view b) {
     if (a.empty() != b.empty()) {
         return false;
     }
-    if (iequals(a, b)) {
+    if (helix::text_io::equals_ignore_case(a, b)) {
         return true;
     }
     return are_materials_compatible(extract_base_material(a), extract_base_material(b));
@@ -491,7 +484,7 @@ bool variant_leads_with_word(const std::string& label) {
     static const char* const k_leading[] = {"Silk", "Matte", "Wood", "Marble",  "Metal",
                                             "Glow", "AERO",  "LW",   "Recycled"};
     for (const char* word : k_leading) {
-        if (iequals(label, word)) {
+        if (helix::text_io::equals_ignore_case(label, word)) {
             return true;
         }
     }
@@ -511,13 +504,15 @@ std::string variant_label(std::string_view type, std::string_view family) {
     work = resolve_alias(work);
     const std::string fam = family.empty() ? display_family(work) : std::string(family);
 
-    if (iequals(work, fam)) {
+    if (helix::text_io::equals_ignore_case(work, fam)) {
         return "Basic";
     }
     std::string_view rem;
-    if (work.size() > fam.size() && iequals(work.substr(0, fam.size()), fam)) {
+    if (work.size() > fam.size() &&
+        helix::text_io::equals_ignore_case(work.substr(0, fam.size()), fam)) {
         rem = trim_separators(work.substr(fam.size()));
-    } else if (work.size() > fam.size() && iequals(work.substr(work.size() - fam.size()), fam)) {
+    } else if (work.size() > fam.size() &&
+               helix::text_io::equals_ignore_case(work.substr(work.size() - fam.size()), fam)) {
         rem = trim_separators(work.substr(0, work.size() - fam.size()));
     } else {
         // The reduction came from the override table or an alias; the whole
@@ -527,7 +522,7 @@ std::string variant_label(std::string_view type, std::string_view family) {
     if (rem.empty()) {
         return "Basic";
     }
-    if (iequals(rem, "r")) {
+    if (helix::text_io::equals_ignore_case(rem, "r")) {
         return "Recycled";
     }
     return std::string(rem);
@@ -598,7 +593,7 @@ void merge_user_orca_overrides(const std::map<std::string, std::string>& overrid
         // pick the winner, silently ignoring the user's override.
         bool replaced = false;
         for (auto it = g_orca_overrides.begin(); it != g_orca_overrides.end();) {
-            if (iequals(it->first, k)) {
+            if (helix::text_io::equals_ignore_case(it->first, k)) {
                 it = g_orca_overrides.erase(it);
                 replaced = true;
             } else {
@@ -622,7 +617,7 @@ std::string orca_match_type(std::string_view display_type) {
     // 1. Explicit override wins outright, including an intentional "" that
     //    means "this type must never be emitted".
     for (const auto& [k, v] : g_orca_overrides) {
-        if (iequals(k, work))
+        if (helix::text_io::equals_ignore_case(k, work))
             return v;
     }
     // 2. The type itself, if Orca's library carries it.
@@ -669,7 +664,7 @@ FilamentFinish filament_finish_of(std::string_view name) {
         }
         const std::string_view token = name.substr(i, end - i);
         for (const auto& w : kWords) {
-            if (filament::iequals(token, w.word)) {
+            if (helix::text_io::equals_ignore_case(token, w.word)) {
                 return w.finish;
             }
         }

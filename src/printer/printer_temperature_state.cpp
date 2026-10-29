@@ -915,6 +915,9 @@ void PrinterTemperatureState::publish_chamber_dryer() {
         return;
     }
     const int current_c = static_cast<int>(std::lround(lv_subject_get_int(&chamber_temp_) / 10.0));
+    // The compact "41/55°C" is deliberate: the chamber card's dryer row is one
+    // line beside a Stop button, and its longest readout ("59/60°C  12:00 left")
+    // ellipsizes at 480x320 with the spaced pair format_temperature_pair() draws.
     std::string text = chamber_dryer_target_c_ > 0
                            ? fmt::format("{}/{}°C", current_c, chamber_dryer_target_c_)
                            : fmt::format("{}°C", current_c);

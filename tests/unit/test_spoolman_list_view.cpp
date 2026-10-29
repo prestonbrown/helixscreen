@@ -3,6 +3,7 @@
 
 #include "ui_print_select_card_view.h"
 #include "ui_print_select_list_view.h"
+#include "ui_spool_canvas.h"
 #include "ui_spoolman_list_view.h"
 
 #include "../lvgl_test_fixture.h"
@@ -139,6 +140,28 @@ static lv_obj_t* find_row_for_spool(lv_obj_t* container, int spool_id) {
         }
     }
     return found;
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - an 8-digit spool color keeps its hue",
+                 "[spoolman_list_view][ui_integration][color]") {
+    SpoolmanListView view;
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 400, 600);
+    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+    view.setup(container);
+
+    // #RRGGBBAA, as slicers and Spoolman's multi-color entries write it.
+    auto spools = make_test_spools(1);
+    spools[0].color_hex = "#FF0000FF";
+    view.populate(spools, 0);
+    process_lvgl(50);
+
+    lv_obj_t* row = find_row_for_spool(container, 1);
+    REQUIRE(row != nullptr);
+    lv_obj_t* canvas = lv_obj_find_by_name(row, "spool_canvas");
+    REQUIRE(canvas != nullptr);
+    REQUIRE((lv_color_to_u32(ui_spool_canvas_get_color(canvas)) & 0xFFFFFF) == 0xFF0000);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - active indicator moves to the new spool",

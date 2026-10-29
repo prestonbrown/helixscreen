@@ -5,6 +5,7 @@
 
 #include "ui_animations_pref.h"
 
+#include "color_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
@@ -423,9 +424,9 @@ static void* ui_text_button_create(lv_xml_parser_state_t* state, const char** at
 
     // Default text color - will be overridden in apply if parent has colored bg
     const char* color_str = lv_xml_get_const(nullptr, "text");
-    if (color_str && color_str[0] == '#') {
-        uint32_t hex = static_cast<uint32_t>(strtoul(color_str + 1, nullptr, 16));
-        lv_obj_set_style_text_color(label, lv_color_hex(hex), 0);
+    uint32_t rgb = 0;
+    if (color_str && helix::parse_hex_color(color_str, rgb)) {
+        lv_obj_set_style_text_color(label, lv_color_hex(rgb), 0);
     }
 
     // Center the label within its parent (the button)
