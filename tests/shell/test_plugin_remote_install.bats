@@ -41,6 +41,7 @@ publish_release() {
     local dir="$RELEASE_ROOT/$1/moonraker-plugin"
     mkdir -p "$dir"
     for f in $(plugin_files); do
+        mkdir -p "$(dirname "$dir/$f")"
         cp "$REPO_ROOT/moonraker-plugin/$f" "$dir/$f"
     done
 }
@@ -100,8 +101,8 @@ run_wrapper() {
 @test "remote-install.sh fetches every plugin module the plugin ships" {
     local listed f name
     listed=" $(plugin_files) "
-    for f in "$REPO_ROOT"/moonraker-plugin/*.py; do
-        name=$(basename "$f")
+    for f in "$REPO_ROOT"/moonraker-plugin/*.py "$REPO_ROOT"/moonraker-plugin/klippy/*.py; do
+        name=${f#"$REPO_ROOT"/moonraker-plugin/}
         case "$listed" in
             *" $name "*) ;;
             *) echo "missing from PLUGIN_FILES: $name"; return 1 ;;
@@ -429,8 +430,9 @@ exec \"$BATS_TEST_TMPDIR/bin/$name.real\" \"\$@\""
     local listed shipped
     listed=$(sed -n 's/^PLUGIN_FILES="\(.*\)"$/\1/p' "$WRAPPER")
     [ -n "$listed" ] || fail "no PLUGIN_FILES in $WRAPPER"
-    for shipped in "$REPO_ROOT"/moonraker-plugin/*.py "$REPO_ROOT"/moonraker-plugin/*.sh; do
-        shipped=$(basename "$shipped")
+    for shipped in "$REPO_ROOT"/moonraker-plugin/*.py "$REPO_ROOT"/moonraker-plugin/*.sh \
+            "$REPO_ROOT"/moonraker-plugin/klippy/*.py; do
+        shipped=${shipped#"$REPO_ROOT"/moonraker-plugin/}
         [ "$shipped" = remote-install.sh ] && continue
         case " $listed " in
             *" $shipped "*) ;;

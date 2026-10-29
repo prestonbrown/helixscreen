@@ -529,6 +529,7 @@ uninstall() {
         # a failed uninstall.
         strip_phase_tracking_instrumentation "$config_dir" || exit_status=$EXIT_UNINSTALL_NEEDS_ATTENTION
         remove_plr_mesh_include "$config_dir" || exit_status=$EXIT_UNINSTALL_NEEDS_ATTENTION
+        remove_klipper_companions "$config_dir" || exit_status=$EXIT_UNINSTALL_NEEDS_ATTENTION
     fi
 
     printf '\n'
@@ -620,6 +621,25 @@ strip_phase_tracking_instrumentation() {
 # Moonraker like Forge-X's runs in. A printer.cfg without the lines, or a
 # missing printer.cfg, is the do-nothing case. Never aborts the rest of the
 # uninstall - a failure is reported and folds into "needs attention".
+# Run a plugin-module uninstall step: python code that puts the plugin's own
+# directory on sys.path (argv[1]) and takes the config directory (argv[2]). It
+# runs with the host's python3, or the python inside the chroot Moonraker runs
+# in, with both paths translated. Prints what the step printed; returns its
+# exit status, or 127 when no python can run it.
+run_uninstall_step() {
+    _us_code="$1"
+    _us_config="$2"
+    if command -v python3 > /dev/null 2>&1; then
+        python3 -c "$_us_code" "$SCRIPT_DIR" "$_us_config"
+    elif _us_py=$(chroot_python3) &&
+        _us_dir=$(moonraker_visible_path "$SCRIPT_DIR") &&
+        _us_cfg=$(moonraker_visible_path "$_us_config"); then
+        chroot "$(running_moonraker_root)" "$_us_py" -c "$_us_code" "$_us_dir" "$_us_cfg"
+    else
+        return 127
+    fi
+}
+
 remove_plr_mesh_include() {
     config_dir="$1"
     [ -n "$config_dir" ] || return 0
@@ -637,21 +657,46 @@ print(problem)
 sys.exit(2)
 '
     plr_status=0
-    problem=""
-    if command -v python3 > /dev/null 2>&1; then
-        problem=$(python3 -c "$plr_strip_code" "$SCRIPT_DIR" "$config_dir") || plr_status=$?
-    elif chroot_py=$(chroot_python3) &&
-        chroot_script_dir=$(moonraker_visible_path "$SCRIPT_DIR") &&
-        chroot_config_dir=$(moonraker_visible_path "$config_dir"); then
-        problem=$(chroot "$(running_moonraker_root)" "$chroot_py" -c "$plr_strip_code" \
-"$chroot_script_dir" "$chroot_config_dir") || plr_status=$?
-    else
+    problem=$(run_uninstall_step "$plr_strip_code" "$config_dir") || plr_status=$?
+    if [ "$plr_status" -eq 127 ]; then
         warn "python3 not found - could not remove the power-loss mesh include from printer.cfg"
         warn "If power-loss recovery added [include helix-plr/*.cfg] to it, remove those two lines and the helix-plr directory by hand"
         return "$EXIT_UNINSTALL_NEEDS_ATTENTION"
     fi
     if [ "$plr_status" -ne 0 ]; then
         warn "Could not remove the power-loss mesh include from printer.cfg${problem:+ - $problem}"
+        return "$EXIT_UNINSTALL_NEEDS_ATTENTION"
+    fi
+    return "$EXIT_UNINSTALL_OK"
+}
+
+# Klipper companions: the include line, the helix_companions directory and
+# every module file the plugin put into Klipper's extras.
+remove_klipper_companions() {
+    config_dir="$1"
+    [ -n "$config_dir" ] || return 0
+    [ -d "$config_dir/helix_companions" ] || return 0
+
+    comp_code='
+import pathlib
+import sys
+sys.path.insert(0, sys.argv[1])
+import helix_companions
+problem = helix_companions.uninstall_companions(pathlib.Path(sys.argv[2]))
+if problem is None:
+    sys.exit(0)
+print(problem)
+sys.exit(2)
+'
+    comp_status=0
+    problem=$(run_uninstall_step "$comp_code" "$config_dir") || comp_status=$?
+    if [ "$comp_status" -eq 127 ]; then
+        warn "python3 not found - could not remove the Klipper companions"
+        warn "Remove the [include helix_companions/*.cfg] lines from printer.cfg, the helix_companions directory, and the helix_*.py files HelixPrint added to Klipper's klippy/extras"
+        return "$EXIT_UNINSTALL_NEEDS_ATTENTION"
+    fi
+    if [ "$comp_status" -ne 0 ]; then
+        warn "Could not remove the Klipper companions${problem:+ - $problem}"
         return "$EXIT_UNINSTALL_NEEDS_ATTENTION"
     fi
     return "$EXIT_UNINSTALL_OK"
@@ -696,6 +741,7 @@ auto_uninstall() {
     if [ -n "$config_dir" ]; then
         strip_phase_tracking_instrumentation "$config_dir" || exit_status=$EXIT_UNINSTALL_NEEDS_ATTENTION
         remove_plr_mesh_include "$config_dir" || exit_status=$EXIT_UNINSTALL_NEEDS_ATTENTION
+        remove_klipper_companions "$config_dir" || exit_status=$EXIT_UNINSTALL_NEEDS_ATTENTION
     fi
 
     # Remove the plugin's sections from every file Moonraker reads them from:

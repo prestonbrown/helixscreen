@@ -26,6 +26,7 @@ from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 # helix_print.py loads its siblings into sys.modules in dependency order.
 import helix_gcode_reader
+import helix_printer_cfg
 import helix_plr_render
 import helix_plr_scan
 
@@ -810,42 +811,23 @@ def offer_verdict(i: OfferInputs) -> OfferVerdict:
 def mesh_include_present(text: str) -> bool:
     """True when printer.cfg's text carries the include line, whosever hand
     added it: a resume then reloads the saved mesh."""
-    return any(line.strip() == MESH_INCLUDE_LINE for line in text.splitlines())
+    return helix_printer_cfg.include_present(text, MESH_INCLUDE_LINE)
 
 
 def add_mesh_include(text: str) -> Optional[str]:
     """`text` with the marker and include appended, or None when the include
-    is already there. A marker left behind by a hand-removed include is
-    dropped first, so the file never carries two."""
-    if mesh_include_present(text):
-        return None
-    if any(line.strip() == MESH_INCLUDE_MARKER for line in text.splitlines()):
-        text, _ = strip_mesh_include(text)
-    prefix = text if text == "" or text.endswith("\n") else text + "\n"
-    return prefix + MESH_INCLUDE_MARKER + "\n" + MESH_INCLUDE_LINE + "\n"
+    is already there."""
+    return helix_printer_cfg.add_include(text, MESH_INCLUDE_MARKER, MESH_INCLUDE_LINE)
 
 
 def strip_mesh_include(text: str) -> Tuple[str, int]:
-    """`text` without the marker and include lines, and how many lines went.
-    Only a line whose stripped text is exactly one of ours is taken."""
-    lines = text.splitlines(True)
-    kept = [l for l in lines
-            if l.strip() not in (MESH_INCLUDE_MARKER, MESH_INCLUDE_LINE)]
-    return "".join(kept), len(lines) - len(kept)
+    """`text` without the marker and include lines, and how many lines went."""
+    return helix_printer_cfg.strip_include(text, MESH_INCLUDE_MARKER, MESH_INCLUDE_LINE)
 
 
 def write_mesh_include_change(path: Path, old_text: str, new_text: str,
                               replace: Callable[[str, str], None] = os.replace) -> None:
-    """Back `path` up to its single rolling .helixscreen-bak beside it, then
-    write `new_text` atomically. The backup is the text the caller read, so
-    it is the file as it stood; a failure at any point leaves `path` as it
-    was, and a half-written config never exists."""
-    backup = path.with_name(path.name + PRINTER_CFG_BACKUP_SUFFIX)
-    with open(str(backup), "wb") as f:
-        f.write(old_text.encode("utf-8"))
-        f.flush()
-        os.fsync(f.fileno())
-    helix_gcode_reader.atomic_write_text(str(path), new_text, replace=replace)
+    helix_printer_cfg.write_change(path, old_text, new_text, replace=replace)
 
 
 def uninstall_mesh_include(config_dir: Path) -> Optional[str]:
@@ -901,7 +883,7 @@ MESH_INCLUDE_MARKER = (
     "# Added by HelixScreen: lets a power-loss resume reload the print's bed mesh")
 MESH_INCLUDE_LINE = "[include helix-plr/*.cfg]"
 # printer.cfg's single rolling backup, beside the file.
-PRINTER_CFG_BACKUP_SUFFIX = ".helixscreen-bak"
+PRINTER_CFG_BACKUP_SUFFIX = helix_printer_cfg.BACKUP_SUFFIX
 
 # How long the switch's answer is reused by the 4 Hz status path.
 SWITCH_CACHE_S = 5.0

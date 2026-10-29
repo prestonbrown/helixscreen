@@ -18,14 +18,25 @@ restart the plugin sends unasked, and never during a job.
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 import os
 import shutil
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+
+import helix_printer_cfg
 
 COMPANIONS_FEATURE = "klipper_companions"
 COMPANIONS_FEATURE_VERSION = 1
 INCLUDE_DIR = "helix_companions"
+INCLUDE_MARKER = "# Added by HelixScreen: loads the Klipper modules HelixPrint features install"
+INCLUDE_LINE = "[include helix_companions/*.cfg]"
+# The module files this plugin put into Klipper's extras, so an uninstall can
+# take them away without knowing where Klipper lives.
+LINKS_FILE = ".links.json"
 
 Action = Tuple[str, ...]
 
@@ -150,6 +161,65 @@ def remove(c: Companion, fs: Any, *, klipper_path: str, config_dir: str) -> None
         fs.remove(os.path.join(extras_dir(klipper_path), name))
 
 
+def ensure_include(config_dir: str) -> bool:
+    """Add the include to printer.cfg (backed up first). True when it changed."""
+    cfg = Path(config_dir) / "printer.cfg"
+    text = read_text(cfg)
+    new_text = helix_printer_cfg.add_include(text, INCLUDE_MARKER, INCLUDE_LINE)
+    if new_text is None:
+        return False
+    helix_printer_cfg.write_change(cfg, text, new_text)
+    return True
+
+
+def read_text(path: Path) -> str:
+    with open(str(path), encoding="utf-8") as f:
+        return f.read()
+
+
+def _links_path(config_dir: str) -> Path:
+    return Path(config_dir) / INCLUDE_DIR / LINKS_FILE
+
+
+def record_links(config_dir: str, klipper_path: str, c: Companion, present: bool) -> None:
+    path = _links_path(config_dir)
+    try:
+        links = json.loads(path.read_text())
+    except (OSError, ValueError):
+        links = {}
+    files = set(links.get("files", []))
+    paths = {os.path.join(extras_dir(klipper_path), name) for name in c.files}
+    files = (files | paths) if present else (files - paths)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"files": sorted(files)}, indent=1))
+
+
+def uninstall_companions(config_dir: Path) -> Optional[str]:
+    """The uninstaller's whole companion step: the include out of printer.cfg,
+    the sections' directory gone, then every module file the plugin put into
+    Klipper. None on success, or the problem as a string."""
+    config_dir = Path(config_dir)
+    cfg = config_dir / "printer.cfg"
+    try:
+        if cfg.exists():
+            text = read_text(cfg)
+            new_text, removed = helix_printer_cfg.strip_include(text, INCLUDE_MARKER, INCLUDE_LINE)
+            if removed:
+                helix_printer_cfg.write_change(cfg, text, new_text)
+        try:
+            files = json.loads(_links_path(str(config_dir)).read_text()).get("files", [])
+        except (OSError, ValueError):
+            files = []
+        if (config_dir / INCLUDE_DIR).is_dir():
+            shutil.rmtree(str(config_dir / INCLUDE_DIR))
+        for f in files:
+            if os.path.lexists(f):
+                os.remove(f)
+    except (OSError, UnicodeDecodeError) as e:
+        return str(e)
+    return None
+
+
 def installed_state(c: Companion, *, plugin_dir: str, klipper_path: str,
                     config_dir: str) -> Dict[str, bool]:
     """What is on disk now: files present, section present, and whether each
@@ -169,3 +239,111 @@ def installed_state(c: Companion, *, plugin_dir: str, klipper_path: str,
             current = False
     return {"files": files, "cfg": os.path.exists(section_path(c, config_dir)),
             "current": current}
+
+
+# --- Moonraker side ---------------------------------------------------------
+
+class CompanionManager:
+    """Keeps the installed companions matching the enabled features. Syncs at
+    Klippy start and ready, and when a screen asks after the user switched a
+    feature (opt-ins are read lazily, so nothing else announces the change)."""
+
+    def __init__(self, helix: Any, plugin_dir: Optional[str] = None, fs: Any = None) -> None:
+        self.helix = helix
+        self.plugin_dir = plugin_dir or os.path.dirname(os.path.realpath(__file__))
+        self.fs = fs or RealFs()
+        self.state: Dict[str, Dict[str, Any]] = {}
+        self._lock = asyncio.Lock()
+
+    def start(self) -> None:
+        server = self.helix.server
+        for event in ("server:klippy_ready", "server:klippy_started"):
+            server.register_event_handler(event, self.sync)
+        server.register_endpoint("/server/helix/companions/sync", ["POST"], self._handle_sync)
+
+    async def _handle_sync(self, web_request: Any) -> Dict[str, Any]:
+        await self.sync()
+        return self.status()
+
+    def status(self) -> Dict[str, Any]:
+        return {name: dict(entry) for name, entry in self.state.items()}
+
+    async def _facts(self) -> Tuple[Optional[str], Optional[List[str]], str, bool]:
+        apis = self.helix.klippy_apis
+        try:
+            info = await apis.get_klippy_info()
+        except Exception:
+            info = {}
+        klipper_path = info.get("klipper_path") or None
+        error = info.get("state_message", "") if info.get("state") == "error" else ""
+        objects: Optional[List[str]] = None
+        job_active = False
+        if info.get("state") == "ready":
+            try:
+                objects = list(await apis.get_object_list())
+                stats = await apis.query_objects({"print_stats": ["state"]})
+                job_active = stats.get("print_stats", {}).get("state") in ("printing", "paused")
+            except Exception:
+                objects = None
+        return klipper_path, objects, error, job_active
+
+    async def sync(self, *_: Any) -> None:
+        async with self._lock:
+            await self._sync()
+
+    async def _sync(self) -> None:
+        klipper_path, objects, error, job_active = await self._facts()
+        config_dir = self.helix.file_manager.get_directory("config")
+        enabled = {c.feature for c in COMPANIONS if await self.helix.feature_enabled(c.feature)}
+        installed = {}
+        if klipper_path:
+            installed = {c.name: installed_state(c, plugin_dir=self.plugin_dir,
+                                                 klipper_path=klipper_path, config_dir=config_dir)
+                         for c in COMPANIONS}
+        actions = plan_actions(COMPANIONS, enabled=enabled, objects=objects, installed=installed,
+                               klipper_path=klipper_path, klippy_error=error,
+                               job_active=job_active)
+        by_name = {c.name: c for c in COMPANIONS}
+        before = self.status()
+        for action in actions:
+            kind = action[0]
+            c = by_name.get(action[1]) if len(action) > 1 else None
+            try:
+                if kind == "install":
+                    install(c, self.fs, plugin_dir=self.plugin_dir,
+                            klipper_path=klipper_path, config_dir=config_dir)
+                    record_links(config_dir, klipper_path, c, present=True)
+                    ensure_include(config_dir)
+                    self.state[c.name] = {"installed": True, "restart_pending": False,
+                                          "reason": None}
+                elif kind == "remove":
+                    remove(c, self.fs, klipper_path=klipper_path, config_dir=config_dir)
+                    record_links(config_dir, klipper_path, c, present=False)
+                    self.state[c.name] = {"installed": False, "restart_pending": False,
+                                          "reason": None}
+                elif kind == "restart_pending":
+                    self.state.setdefault(c.name, {"installed": False, "reason": None})
+                    self.state[c.name]["restart_pending"] = True
+                elif kind == "unavailable":
+                    self.state[c.name] = {"installed": False, "restart_pending": False,
+                                          "reason": action[2]}
+                elif kind == "restart":
+                    await self._restart()
+            except OSError as e:
+                logging.exception("HelixPrint: companion %s failed", action)
+                if c is not None:
+                    self.state[c.name] = {"installed": False, "restart_pending": False,
+                                          "reason": "%s_failed: %s" % (kind, e)}
+        for c in COMPANIONS:
+            self.state.setdefault(c.name, {"installed": bool(installed.get(c.name, {}).get("cfg")),
+                                           "restart_pending": False, "reason": None})
+        if self.status() != before:
+            self.helix.notify_features_changed()
+
+    async def _restart(self) -> None:
+        apis = self.helix.klippy_apis
+        do_restart = getattr(apis, "do_restart", None)
+        if do_restart is not None:
+            await do_restart("RESTART")
+        else:
+            await apis.run_gcode("RESTART")

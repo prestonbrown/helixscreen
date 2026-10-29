@@ -26,7 +26,7 @@ PLUGIN_DIR="${HELIX_PLUGIN_DIR:-$HOME/helix_print}"
 
 # Everything install.sh and the plugin need from moonraker-plugin/. A bats test
 # fails when a shipped .py or .sh is missing here.
-PLUGIN_FILES="install.sh helix_print_conf.sh helix_print.py helix_3mf.py helix_analysis.py helix_capabilities.py helix_config.py helix_edits.py helix_file_queue.py helix_filament.py helix_fitcheck.py helix_gcode_reader.py helix_journal.py helix_photos.py helix_plr.py helix_plr_qidi.py helix_plr_render.py helix_plr_scan.py helix_print_hooks.py helix_storage.py helix_vendor_ace.py helix_vendor_ad5x.py helix_vendor_push.py strip_phase_tracking.py"
+PLUGIN_FILES="install.sh helix_print_conf.sh helix_print.py helix_3mf.py helix_analysis.py helix_capabilities.py helix_companions.py helix_config.py helix_edits.py helix_file_queue.py helix_filament.py helix_fitcheck.py helix_gcode_reader.py helix_journal.py helix_photos.py helix_plr.py helix_plr_qidi.py helix_plr_render.py helix_plr_scan.py helix_print_hooks.py helix_printer_cfg.py helix_storage.py helix_vendor_ace.py helix_vendor_ad5x.py helix_vendor_push.py strip_phase_tracking.py klippy/helix_pa_fit.py klippy/helix_pa_gauge.py"
 
 info() { printf '[INFO] %s\n' "$1"; }
 error() {
@@ -135,6 +135,7 @@ release_ref() {
 # Fetch the plugin files of ref @1 into the empty directory @2.
 fetch_plugin() {
     for _fp_file in $PLUGIN_FILES; do
+        mkdir -p "$(dirname "$2/$_fp_file")" || error "Could not create the directory of $_fp_file"
         fetch_file "$PLUGIN_BASE_URL/$1/moonraker-plugin/$_fp_file" "$2/$_fp_file" ||
             error "Could not download $_fp_file of $1 from $PLUGIN_BASE_URL"
     done

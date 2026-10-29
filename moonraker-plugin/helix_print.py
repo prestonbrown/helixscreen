@@ -153,6 +153,8 @@ helix_file_queue = _load_sibling("helix_file_queue")
 helix_3mf = _load_sibling("helix_3mf")
 # Dependencies first: helix_plr imports the reader by name.
 helix_gcode_reader = _load_sibling("helix_gcode_reader")
+# Dependencies first: helix_plr and helix_companions import it by name.
+helix_printer_cfg = _load_sibling("helix_printer_cfg")
 helix_plr_scan = _load_sibling("helix_plr_scan")
 helix_plr_render = _load_sibling("helix_plr_render")
 helix_plr_qidi = _load_sibling("helix_plr_qidi")
@@ -163,6 +165,7 @@ helix_journal = _load_sibling("helix_journal")
 helix_config = _load_sibling("helix_config")
 helix_edits = _load_sibling("helix_edits")
 helix_print_hooks = _load_sibling("helix_print_hooks")
+helix_companions = _load_sibling("helix_companions")
 # Dependencies first: helix_storage imports helix_photos by name.
 helix_photos = _load_sibling("helix_photos")
 helix_storage = _load_sibling("helix_storage")
@@ -500,6 +503,7 @@ class HelixPrint:
         self.fit_check: Optional[Any] = None
         self.journal: Optional[Any] = None
         self.print_hooks: Optional[Any] = None
+        self.companions: Optional[Any] = None
         self.storage: Optional[Any] = None
         self.filament: Optional[Any] = None
         self.photos: Optional[Any] = None
@@ -836,6 +840,7 @@ class HelixPrint:
         await self._start_isolated("fit_check_blocks_autostart", True, self._start_fit_check)
         await self._start_isolated("vendor_ad5x", False, self._start_vendor_ad5x)
         await self._start_isolated("vendor_ace", False, self._start_vendor_ace)
+        await self._start_isolated("klipper_companions", False, self._start_companions)
 
         await self._load_job_markers()
         if self.plr is not None:
@@ -1030,6 +1035,31 @@ class HelixPrint:
             helix_print_hooks.PRINT_HOOKS_FEATURE_VERSION,
             acts=True,
         )
+
+    def _start_companions(self) -> None:
+        """Klipper companions (helix_companions.py): Klipper-side modules
+        installed for the features that need them. The installer itself
+        always runs; `pa_gauge` heats and moves, so it is opted into."""
+        if helix_companions is None:
+            reason = SIBLING_LOAD_ERRORS.get("helix_companions", "module_missing")
+            for name, acts in (("klipper_companions", False), ("pa_gauge", True)):
+                self.register_feature(name, 1, acts=acts, available=False, reason=reason)
+            return
+        self.companions = helix_companions.CompanionManager(self)
+        self.companions.start()
+
+        async def companions_extra() -> Dict[str, Any]:
+            return {"companions": self.companions.status()}
+
+        def pa_gauge_availability() -> Tuple[bool, Optional[str]]:
+            reason = self.companions.status().get("helix_pa_gauge", {}).get("reason")
+            return reason is None, reason
+
+        self.register_feature(
+            helix_companions.COMPANIONS_FEATURE, helix_companions.COMPANIONS_FEATURE_VERSION,
+            acts=False, switch=always_on, extra=companions_extra,
+        )
+        self.register_feature("pa_gauge", 1, acts=True, probe=pa_gauge_availability)
 
     def _start_storage(self) -> None:
         """Storage report, cleanup and free-space guard (helix_storage.py). The
