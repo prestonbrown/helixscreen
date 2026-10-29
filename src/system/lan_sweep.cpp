@@ -4,6 +4,7 @@
 #include "lan_sweep.h"
 
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "moonraker_auth.h"
 #include "moonraker_events.h"
 #include "platform_info.h"
 #include "printer_discovery_list.h"
@@ -175,8 +176,11 @@ MoonrakerProbe read_server_info_response(const std::string& http_response) {
     // full parse, keeps the check small enough for the firmware image.
     if (refused) {
         const size_t error = json_object_member(r, top, "error");
-        return error != std::string::npos && json_member(r, error, "code") != std::string::npos &&
-               json_member(r, error, "message") != std::string::npos;
+        MoonrakerProbe probe(error != std::string::npos &&
+                             json_member(r, error, "code") != std::string::npos &&
+                             json_member(r, error, "message") != std::string::npos);
+        probe.login_required = probe.moonraker;
+        return probe;
     }
     const size_t result = json_object_member(r, top, "result");
     if (result == std::string::npos) {
@@ -199,9 +203,21 @@ bool is_moonraker_server_info_response(const std::string& http_response) {
     return read_server_info_response(http_response).moonraker;
 }
 
+std::string server_info_request(const std::string& host, uint16_t port,
+                                const std::string& api_key) {
+    // HTTP/1.0 so the reply is not chunked and the server closes when done.
+    std::string request = "GET /server/info HTTP/1.0\r\nHost: " + host + ":" +
+                          std::to_string(port) + "\r\nAccept: application/json\r\n";
+    if (!api_key.empty()) {
+        request += std::string(moonraker_auth::kApiKeyHeader) + ": " + api_key + "\r\n";
+    }
+    return request + "\r\n";
+}
+
 MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
                                     std::chrono::milliseconds connect_timeout,
-                                    std::chrono::milliseconds total_timeout) {
+                                    std::chrono::milliseconds total_timeout,
+                                    const std::string& api_key) {
     using clock = std::chrono::steady_clock;
     const auto deadline = clock::now() + total_timeout;
     auto remaining_ms = [&deadline]() {
@@ -260,9 +276,7 @@ MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
         }
     }
 
-    // HTTP/1.0 so the reply is not chunked and the server closes when done.
-    const std::string request = "GET /server/info HTTP/1.0\r\nHost: " + host + ":" +
-                                std::to_string(port) + "\r\nAccept: application/json\r\n\r\n";
+    const std::string request = server_info_request(host, port, api_key);
     size_t sent = 0;
     while (sent < request.size()) {
         const ssize_t n = ::send(fd, request.data() + sent, request.size() - sent, MSG_NOSIGNAL);
@@ -508,7 +522,7 @@ void MoonrakerDiscovery::publish() {
 namespace {
 
 struct ConnectionTestSeams {
-    MoonrakerProbeFn probe;
+    KeyedMoonrakerProbeFn probe;
     StartWorkersFn start_workers;
 };
 
@@ -528,7 +542,7 @@ LanSweepLimits connection_test_limits() {
 
 } // namespace
 
-void set_connection_test_seams_for_test(MoonrakerProbeFn probe, StartWorkersFn start_workers) {
+void set_connection_test_seams_for_test(KeyedMoonrakerProbeFn probe, StartWorkersFn start_workers) {
     connection_test_seams() = {std::move(probe), std::move(start_workers)};
 }
 
@@ -540,7 +554,8 @@ struct MoonrakerConnectionTest::Run {
     MoonrakerConnectionTest* owner = nullptr;
     std::string host;
     std::vector<int> ports;
-    MoonrakerProbeFn probe; ///< A test's stand-in; empty for the real network
+    std::string api_key;
+    KeyedMoonrakerProbeFn probe; ///< A test's stand-in; empty for the real network
     LanSweepLimits limits;
     std::atomic<bool> cancelled{false};
     Result result; ///< Written by the worker, read on the main thread after the defer
@@ -555,12 +570,13 @@ void MoonrakerConnectionTest::run_on_worker(const std::shared_ptr<Run>& run) {
         result.tried.push_back(port);
         const auto p = static_cast<uint16_t>(port);
         const MoonrakerProbe answer =
-            run->probe ? run->probe(run->host, p)
+            run->probe ? run->probe(run->host, p, run->api_key)
                        : probe_moonraker_http(run->host, p, run->limits.connect_timeout,
-                                              run->limits.total_timeout);
+                                              run->limits.total_timeout, run->api_key);
         if (answer.moonraker) {
             result.reached = true;
             result.port = port;
+            result.login_required = answer.login_required;
             result.klippy_state = answer.klippy_state;
             break;
         }
@@ -575,8 +591,8 @@ MoonrakerConnectionTest::~MoonrakerConnectionTest() {
     cancel();
 }
 
-void MoonrakerConnectionTest::start(const std::string& host, std::vector<int> ports,
-                                    DoneFn on_done) {
+void MoonrakerConnectionTest::start(const std::string& host, std::vector<int> ports, DoneFn on_done,
+                                    const std::string& api_key) {
     cancel();
     on_done_ = std::move(on_done);
     running_ = true;
@@ -584,6 +600,8 @@ void MoonrakerConnectionTest::start(const std::string& host, std::vector<int> po
     run->owner = this;
     run->host = host;
     run->ports = std::move(ports);
+    run->api_key = api_key;
+    run->result.key_sent = !api_key.empty();
     run->limits = connection_test_limits();
     run_ = run;
     auto body = [run]() { run_on_worker(run); };
@@ -645,6 +663,12 @@ std::string connect_failure_status(ConnectFailureKind kind, const std::vector<in
 
 std::string connection_test_status(const std::string& host,
                                    const MoonrakerConnectionTest::Result& result) {
+    const std::string address = host + ":" + std::to_string(result.port);
+    if (result.login_required) {
+        return fill_placeholders(result.key_sent ? lv_tr("Moonraker at {} rejected the API key.")
+                                                 : lv_tr("Moonraker at {} requires an API key."),
+                                 {address});
+    }
     std::string text = fill_placeholders(lv_tr("Moonraker answered at {}."),
                                          {host + ":" + std::to_string(result.port)});
     if (!result.klippy_state.empty()) {
@@ -652,6 +676,13 @@ std::string connection_test_status(const std::string& host,
         text += fill_placeholders(lv_tr("Klipper: {}"), {result.klippy_state});
     }
     return text;
+}
+
+std::string api_key_problem(const std::string& api_key) {
+    if (api_key.empty() || moonraker_auth::is_plausible_api_key(api_key)) {
+        return {};
+    }
+    return lv_tr("An API key is 32 characters, each 0-9 or a-f.");
 }
 
 } // namespace helix

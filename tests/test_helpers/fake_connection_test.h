@@ -18,9 +18,15 @@ class ScopedFakeConnectionTest {
   public:
     ScopedFakeConnectionTest() {
         set_connection_test_seams_for_test(
-            [this](const std::string& host, uint16_t port) {
+            [this](const std::string& host, uint16_t port, const std::string& api_key) {
                 const std::string key = host + ":" + std::to_string(port);
                 asked.push_back(key);
+                keys_sent.push_back(api_key);
+                if (const auto it = accepted_keys.find(key); it != accepted_keys.end()) {
+                    MoonrakerProbe found(true);
+                    found.login_required = api_key != it->second;
+                    return found;
+                }
                 const auto it = answers.find(key);
                 if (it != answers.end()) {
                     return it->second;
@@ -47,9 +53,16 @@ class ScopedFakeConnectionTest {
         answers[address] = found;
     }
 
+    /// Moonraker behind its login at "host:port": it accepts only this key.
+    void require_key(const std::string& address, const std::string& key) {
+        accepted_keys[address] = key;
+    }
+
     std::map<std::string, MoonrakerProbe> answers;
+    std::map<std::string, std::string> accepted_keys;
     ConnectFailureKind failure = ConnectFailureKind::Unknown;
-    std::vector<std::string> asked; ///< "host:port", in order
+    std::vector<std::string> asked;     ///< "host:port", in order
+    std::vector<std::string> keys_sent; ///< The API key each ask carried, "" for none
 };
 
 } // namespace helix::test

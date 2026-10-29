@@ -126,6 +126,7 @@
   <translation tag="3. Save the position" en="3. Save the position"/>
   <translation tag="30 minutes" en="30 minutes"/>
   <translation tag="30 seconds" en="30 seconds"/>
+  <translation tag="32 characters, 0-9 and a-f" en="32 characters, 0-9 and a-f"/>
   <translation tag="3D Maze" en="3D Maze"/>
   <translation tag="3D Pipes" en="3D Pipes"/>
   <translation tag="3D View" en="3D View"/>
@@ -200,6 +201,8 @@
   <translation tag="AMS Active: " en="AMS Active: "/>
   <translation tag="AMS is busy" en="AMS is busy"/>
   <translation tag="AMS/MMU system not detected" en="AMS/MMU system not detected"/>
+  <translation tag="API Key" en="API Key"/>
+  <translation tag="API Key (if Moonraker requires a login)" en="API Key (if Moonraker requires a login)"/>
   <translation tag="API not available" en="API not available"/>
   <translation tag="APPEARANCE" en="APPEARANCE"/>
   <translation tag="AUTO FANS" en="AUTO FANS"/>
@@ -282,6 +285,7 @@
   <translation tag="Always show Android navigation bar instead of using gestures" en="Always show Android navigation bar instead of using gestures"/>
   <translation tag="Ambient Transfer" en="Ambient Transfer"/>
   <translation tag="AmsIdentify" en="AmsIdentify"/>
+  <translation tag="An API key is 32 characters, each 0-9 or a-f." en="An API key is 32 characters, each 0-9 or a-f."/>
   <translation tag="An accelerometer was detected on your printer." en="An accelerometer was detected on your printer."/>
   <translation tag="An app on your network is asking to connect to this printer." en="An app on your network is asking to connect to this printer."/>
   <translation tag="An error occurred during calibration." en="An error occurred during calibration."/>
@@ -784,6 +788,7 @@
   <translation tag="Configure quick buttons and standard macros" en="Configure quick buttons and standard macros"/>
   <translation tag="Configure timelapse recording" en="Configure timelapse recording"/>
   <translation tag="Configure your printer&apos;s cooling fans" en="Configure your printer&apos;s cooling fans"/>
+  <translation tag="Configured" en="Configured"/>
   <translation tag="Configured LED strip not found" en="Configured LED strip not found"/>
   <translation tag="Configured aux fan not found" en="Configured aux fan not found"/>
   <translation tag="Configured filament sensor not found" en="Configured filament sensor not found"/>
@@ -1162,6 +1167,7 @@
   <translation tag="Endless Spool is turned off on this MMU" en="Endless Spool is turned off on this MMU"/>
   <translation tag="Endless Spool state unknown" en="Endless Spool state unknown"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" en="Ensure Happy Hare or AFC is installed and configured"/>
+  <translation tag="Enter API Key" en="Enter API Key"/>
   <translation tag="Enter Current PIN" en="Enter Current PIN"/>
   <translation tag="Enter G-code command..." en="Enter G-code command..."/>
   <translation tag="Enter New PIN" en="Enter New PIN"/>
@@ -2027,6 +2033,7 @@
   <translation tag="Lock the screen with your PIN" en="Lock the screen with your PIN"/>
   <translation tag="Locked during print" en="Locked during print"/>
   <translation tag="Log Level" en="Log Level"/>
+  <translation tag="Login Required" en="Login Required"/>
   <translation tag="Logs" en="Logs"/>
   <translation tag="Long Press Time" en="Long Press Time"/>
   <translation tag="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout." en="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout."/>
@@ -2182,10 +2189,13 @@
   <translation tag="Month" en="Month"/>
   <translation tag="Moonraker" en="Moonraker"/>
   <translation tag="Moonraker answered at {}." en="Moonraker answered at {}."/>
+  <translation tag="Moonraker at {} rejected the API key." en="Moonraker at {} rejected the API key."/>
+  <translation tag="Moonraker at {} requires an API key." en="Moonraker at {} requires an API key."/>
   <translation tag="Moonraker has no G-code folder." en="Moonraker has no G-code folder."/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." en="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen."/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." en="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started."/>
   <translation tag="Moonraker keeps a queue of prints to run one after another. View it in the job queue." en="Moonraker keeps a queue of prints to run one after another. View it in the job queue."/>
+  <translation tag="Moonraker refused the login" en="Moonraker refused the login"/>
   <translation tag="Moonraker restarted but Spoolman not connected. Check server." en="Moonraker restarted but Spoolman not connected. Check server."/>
   <translation tag="Moonraker restarting...&#10;Waiting for reconnection..." en="Moonraker restarting...&#10;Waiting for reconnection..."/>
   <translation tag="Moonraker&apos;s Python is too old for this feature." en="Moonraker&apos;s Python is too old for this feature."/>
@@ -3866,6 +3876,8 @@
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." en="This printer has no automatic unload. Cut the filament at the head and pull it out by hand."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." en="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" en="This printer&apos;s INDX macros are missing: {}"/>
+  <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." en="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection."/>
+  <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." en="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" en="This printer&apos;s network service controls the WiFi radio"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" en="This printer&apos;s network service manages saved WiFi networks"/>
   <translation tag="This printer&apos;s screen has not shared a layout" en="This printer&apos;s screen has not shared a layout"/>

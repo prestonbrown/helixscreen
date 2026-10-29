@@ -133,6 +133,7 @@ translations:
 
   30 minutes: 30 minutos
   30 seconds: 30 segundos
+  32 characters, 0-9 and a-f: '32 caracteres, 0-9 y a-f'
   3D Maze: Laberinto 3D
   3D Pipes: 3D Pipes
   3D View: Vista 3D
@@ -209,6 +210,8 @@ translations:
   'AMS Active: ': 'AMS activo: '
   AMS is busy: El AMS está ocupado
   AMS/MMU system not detected: 'No se detectó el sistema AMS/MMU'
+  API Key: 'Clave API'
+  API Key (if Moonraker requires a login): 'Clave API (si Moonraker requiere inicio de sesión)'
   API not available: API no disponible
   APPEARANCE: APARIENCIA
   AUTO FANS: VENTILADORES AUTO
@@ -298,6 +301,7 @@ translations:
     barra de navegación de Android en lugar de usar gestos
   Ambient Transfer: Transferencia ambiente
   AmsIdentify: Identificar AMS
+  An API key is 32 characters, each 0-9 or a-f.: 'Una clave API tiene 32 caracteres, cada uno 0-9 o a-f.'
   An accelerometer was detected on your printer.: Se detectó un acelerómetro en su
     impresora.
   An app on your network is asking to connect to this printer.: 'Una aplicación de su red quiere conectarse a esta impresora.'
@@ -861,6 +865,7 @@ translations:
   Configure timelapse recording: Configurar grabación de timelapse
   Configure your printer's cooling fans: Configura los ventiladores de enfriamiento
     de tu impresora
+  Configured: 'Configurada'
   Configured LED strip not found: 'No se encontró la tira LED configurada'
   Configured aux fan not found: 'No se encontró el ventilador auxiliar configurado'
   Configured filament sensor not found: 'No se encontró el sensor de filamento configurado'
@@ -1283,6 +1288,7 @@ translations:
   Endless Spool is turned off on this MMU: 'La bobina infinita está desactivada en este MMU'
   Endless Spool state unknown: Estado de la bobina infinita desconocido
   Ensure Happy Hare or AFC is installed and configured: Asegúrese de que Happy Hare o AFC esté instalado y configurado
+  Enter API Key: 'Introducir clave API'
   Enter Current PIN: Introduce el PIN actual
   Enter G-code command...: Ingrese comando G-code...
   Enter New PIN: Ingrese Nuevo PIN
@@ -2227,6 +2233,7 @@ translations:
   Lock the screen with your PIN: Bloquear la pantalla con tu PIN
   Locked during print: Bloqueado durante impresión
   Log Level: Nivel de registro
+  Login Required: 'Inicio de sesión requerido'
   Logs: Registros
   Long Press Time: 'Tiempo de pulsación larga'
   'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 'Mantén pulsada cualquier casilla para entrar en modo edición — reorganiza, redimensiona, elimina o añade widgets, y añade páginas extra para tu distribución preferida.'
@@ -2388,11 +2395,14 @@ translations:
   Monitoring: Monitorizando
   Month: Mes
   Moonraker: Moonraker
+  Moonraker at {} rejected the API key.: 'Moonraker en {} rechazó la clave API.'
+  Moonraker at {} requires an API key.: 'Moonraker en {} requiere una clave API.'
   Moonraker has no G-code folder.: "Moonraker no tiene carpeta de G-code."
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : 'Moonraker está conectado a Spoolman, que registra tus bobinas y cuánto filamento queda. Consúltalas en la pantalla Spoolman.'
   Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: Moonraker no responde en {}. Se ejecuta en esta impresora, así que comprueba que los servicios de Klipper y Moonraker se hayan iniciado.
   Moonraker keeps a queue of prints to run one after another. View it in the job queue.: 'Moonraker mantiene una cola de impresiones para ejecutar una tras otra. Consúltala en la cola de trabajos.'
+  Moonraker refused the login: 'Moonraker rechazó el inicio de sesión'
   Moonraker restarted but Spoolman not connected. Check server.: Moonraker reiniciado
     pero Spoolman no conectado. Verifique el servidor.
   ? "Moonraker restarting...\nWaiting for reconnection..."
@@ -4259,6 +4269,8 @@ translations:
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Esta impresora parece una {} ({}% de confianza), pero está configurada como {}. Un tipo erróneo aplica opciones y preajustes de preimpresión incorrectos.
   "This printer's INDX macros are missing: {}": "A las macros de INDX de esta impresora les falta: {}"
+  This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'El Moonraker de esta impresora rechazó su clave API. Revisa la clave en Ajustes > Conexión.'
+  This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'El Moonraker de esta impresora requiere inicio de sesión. Añade su clave API en Ajustes > Conexión.'
   This printer's network service controls the WiFi radio: El servicio de red de esta impresora controla la radio WiFi
   This printer's network service manages saved WiFi networks: El servicio de red de esta impresora gestiona las redes WiFi guardadas
   This printer's screen has not shared a layout: "La pantalla de esta impresora no ha compartido un diseño"

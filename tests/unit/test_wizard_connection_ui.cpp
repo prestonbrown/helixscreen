@@ -16,6 +16,7 @@
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "misc/lv_timer_private.h" // timer_cb — assert the cancel neutered it
+#include "moonraker_auth.h"
 #include "moonraker_client.h"
 #include "platform_info.h"
 #include "printer_discovery_list.h"
@@ -794,7 +795,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // A worker that has not run yet when the user types.
     std::function<void()> pending;
     helix::set_connection_test_seams_for_test(
-        [](const std::string&, uint16_t) { return MoonrakerProbe(true); },
+        [](const std::string&, uint16_t, const std::string&) { return MoonrakerProbe(true); },
         [&pending](size_t, const LanSweepLimits&, std::function<void()> body) {
             pending = std::move(body);
             return LanSweepWorkers{nullptr, 1};
@@ -875,7 +876,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: leaving the step drops a t
     RestoreDefaultPortField restore{step};
     std::function<void()> pending;
     helix::set_connection_test_seams_for_test(
-        [](const std::string&, uint16_t) { return MoonrakerProbe(true); },
+        [](const std::string&, uint16_t, const std::string&) { return MoonrakerProbe(true); },
         [&pending](size_t, const LanSweepLimits&, std::function<void()> body) {
             pending = std::move(body);
             return LanSweepWorkers{nullptr, 1};
@@ -891,4 +892,76 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: leaving the step drops a t
     helix::set_connection_test_seams_for_test(nullptr, nullptr);
 
     CHECK(client.connect_urls.empty());
+}
+
+// ============================================================================
+// Moonraker behind its login (prestonbrown/helixscreen#1929)
+// ============================================================================
+
+namespace {
+
+constexpr const char* kWizardKey = "0123456789abcdef0123456789abcdef";
+
+/// Puts the saved key and the step's key field back the way a fresh install has them.
+struct RestoreApiKey {
+    Config* cfg = Config::get_instance();
+    std::string key_path = cfg->df() + "moonraker_api_key";
+    nlohmann::json saved =
+        cfg->try_get_json(key_path) ? *cfg->try_get_json(key_path) : nlohmann::json(false);
+    ~RestoreApiKey() {
+        cfg->set(key_path, saved);
+        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_api_key"), "");
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "connection_login_required"), 0);
+        helix::moonraker_auth::set_credential({});
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: a printer that requires a login asks for its API key",
+                 "[wizard][connection][api-key]") {
+    SavedMoonrakerAddress saved;
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    RestoreApiKey restore_key;
+    step->register_callbacks();
+
+    helix::test::ScopedFakeConnectionTest net;
+    net.require_key("10.9.9.9:7125", kWizardKey);
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    lv_obj_t* section = lv_obj_find_by_name(root, "api_key_section");
+    REQUIRE(section != nullptr);
+    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+
+    click_test(root);
+
+    // Refused: the field appears, the live client stays put, Next stays shut.
+    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
+    REQUIRE(status != nullptr);
+    CHECK(std::string(lv_label_get_text(status)).find("requires an API key") != std::string::npos);
+    CHECK(client.connect_urls.empty());
+    CHECK_FALSE(step->is_validated());
+
+    SECTION("a key that is not 32 hex digits is refused before any test") {
+        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_api_key"), "secret");
+        click_test(root);
+        CHECK(net.asked.size() == 1);
+        CHECK(std::string(lv_label_get_text(status)) == helix::api_key_problem("secret"));
+    }
+    SECTION("the right key connects with it and is saved with the printer") {
+        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_api_key"), kWizardKey);
+        click_test(root);
+        CHECK(net.keys_sent.back() == kWizardKey);
+        REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:7125/websocket"});
+        // The WebSocket upgrade to this printer carries it.
+        CHECK(helix::moonraker_auth::key_for("10.9.9.9", 7125) == kWizardKey);
+
+        REQUIRE(client.fire_connected());
+        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        CHECK(restore_key.cfg->get<std::string>(restore_key.key_path, "") == kWizardKey);
+    }
 }

@@ -32,6 +32,12 @@
                             label="Host" icon="lan" bind_description="printer_host_value"
                             callback="on_change_host_clicked"/>
         <!-- ================================================================== -->
+        <!-- API KEY (edited beside the host, in the same dialog) -->
+        <!-- ================================================================== -->
+        <setting_action_row name="row_printer_api_key"
+                            label="API Key" icon="lock" bind_description="printer_api_key_value"
+                            callback="on_change_host_clicked"/>
+        <!-- ================================================================== -->
         <!-- SCREEN SHARING (hidden where the firmware serves the screen itself) -->
         <!-- ================================================================== -->
         <lv_obj name="container_screen_sharing" width="100%" style_pad_all="0" scrollable="false">

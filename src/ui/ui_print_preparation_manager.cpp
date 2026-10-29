@@ -21,6 +21,7 @@
 #include "macro_param_cache.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
+#include "moonraker_auth.h"
 #include "moonraker_manager.h"
 #include "observer_factory.h"
 #include "operation_registry.h"
@@ -505,8 +506,11 @@ void PrintPreparationManager::analyze_print_start_macro_internal() {
                 spdlog::error(
                     "[PrintPreparationManager] PRINT_START analysis failed after {} attempts",
                     kMaxMacroAnalysisRetries + 1);
-                NOTIFY_ERROR(lv_tr("Could not analyze PRINT_START macro. Some print options may be "
-                                   "unavailable."));
+                // A printer refusing our login says why in its own message.
+                if (!helix::moonraker_auth::unauthorized()) {
+                    NOTIFY_ERROR(lv_tr("Could not analyze PRINT_START macro. Some print options "
+                                       "may be unavailable."));
+                }
 
                 // Set empty result
                 macro_analysis_in_progress_ = false;

@@ -173,19 +173,24 @@ class WizardConnectionStep : public helix::wizard::Step {
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
-    // Subjects (6 total)
+    // Subjects
     lv_subject_t connection_ip_{};
     lv_subject_t connection_port_{};
     lv_subject_t connection_status_icon_{};
     lv_subject_t connection_status_text_{};
     lv_subject_t connection_testing_{};
     lv_subject_t connection_discovering_{};
+    /// Moonraker API key, for a printer whose Moonraker requires a login.
+    lv_subject_t connection_api_key_{};
+    /// 1 shows the API key field: the printer refused a test for want of one, or has one saved.
+    lv_subject_t connection_login_required_{};
 
     // String buffers (must be persistent)
     char connection_ip_buffer_[128];
     char connection_port_buffer_[8];
     char connection_status_icon_buffer_[8];
     char connection_status_text_buffer_[256];
+    char connection_api_key_buffer_[80];
 
     // State tracking (main thread only)
     bool connection_validated_ = false;
@@ -214,8 +219,9 @@ class WizardConnectionStep : public helix::wizard::Step {
 
     // Saved values for async callback - protected by mutex for thread-safe access
     mutable std::mutex saved_values_mutex_;
-    std::string saved_ip_;   // Protected by saved_values_mutex_
-    std::string saved_port_; // Protected by saved_values_mutex_
+    std::string saved_ip_;      // Protected by saved_values_mutex_
+    std::string saved_port_;    // Protected by saved_values_mutex_
+    std::string saved_api_key_; // Protected by saved_values_mutex_
 
     // Where the port field's value came from (main thread only); moonraker_ports_to_try()
     // decides from it. Reset to FilledIn by cleanup().
@@ -232,6 +238,16 @@ class WizardConnectionStep : public helix::wizard::Step {
 
     /// A probe found Moonraker on @p port: record it and show it in the port field.
     void adopt_probed_port(int port);
+
+    /// The API key field, trimmed; blank means the printer takes none.
+    std::string entered_api_key();
+
+    /// Moonraker at @p ip answered the test but refused it: show the key field and why.
+    void show_login_required(const std::string& ip,
+                             const helix::MoonrakerConnectionTest::Result& result);
+
+    /// Writes the tested address and API key to the active printer's settings.
+    void save_connection(const std::string& ip, const std::string& port);
 
     // Event handler implementations
     void handle_test_connection_clicked();
@@ -324,6 +340,7 @@ class WizardConnectionStep : public helix::wizard::Step {
     static void on_test_connection_clicked_static(lv_event_t* e);
     static void on_ip_input_changed_static(lv_event_t* e);
     static void on_port_input_changed_static(lv_event_t* e);
+    static void on_api_key_input_changed_cb(lv_event_t* e);
     static void auto_probe_timer_cb(lv_timer_t* timer);
     static void discovery_watchdog_timer_cb(lv_timer_t* timer);
 

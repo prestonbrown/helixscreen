@@ -1138,6 +1138,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   Moonraker refused every request from the screen. HelixScreen now sends the printer's
   `moonraker_api_key` setting to that printer's Moonraker, over the WebSocket and every HTTP
   request, and to nothing else.
+- **Enter the Moonraker API key on the screen** - Settings > Connection has an API Key row,
+  and the Change Host dialog a masked key field beside the host and port; saving reconnects
+  with the key at once. The setup wizard shows the field when Test Connection finds a printer
+  that requires a login. A printer that refuses the login now says so once, with a button to
+  the key, instead of a toast for every request it refused.
 - **Pressure advance calibration on a Snapmaker U1 checks the heads first** - with
   calibration on, a head holding filament with no material set made the printer pause two
   minutes into the start. The filament check now stops the print before it heats, and

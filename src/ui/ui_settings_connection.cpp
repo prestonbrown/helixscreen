@@ -10,6 +10,7 @@
 #include "ui_settings_screen_sharing.h"
 
 #include "config.h"
+#include "printer_retarget.h"
 #include "utils/network_validation.h"
 
 #include <spdlog/spdlog.h>
@@ -31,12 +32,19 @@ std::string ConnectionSettingsOverlay::printer_host_display() {
     return host + ":" + std::to_string(port);
 }
 
+std::string ConnectionSettingsOverlay::printer_api_key_display() {
+    return active_printer_credential().api_key.empty() ? lv_tr("Not set") : lv_tr("Configured");
+}
+
 void ConnectionSettingsOverlay::init_subjects() {
     init_subjects_guarded([this]() {
         // Seeded from config so the first paint shows the current host:port
         // rather than waiting for ChangeHostModal's completion callback.
         UI_MANAGED_SUBJECT_STRING(printer_host_value_subject_, printer_host_value_buf_,
                                   printer_host_display().c_str(), "printer_host_value", subjects_);
+        UI_MANAGED_SUBJECT_STRING(printer_api_key_value_subject_, printer_api_key_value_buf_,
+                                  printer_api_key_display().c_str(), "printer_api_key_value",
+                                  subjects_);
     });
 }
 
@@ -85,6 +93,7 @@ void ConnectionSettingsOverlay::refresh_printer_host() {
         return;
     }
     lv_subject_copy_string(&printer_host_value_subject_, printer_host_display().c_str());
+    lv_subject_copy_string(&printer_api_key_value_subject_, printer_api_key_display().c_str());
 }
 
 } // namespace helix::settings

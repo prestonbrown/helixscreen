@@ -232,3 +232,29 @@ TEST_CASE("Routes that need no title report none", "[moonraker][routing][1219]")
         REQUIRE(needs_title == (d.title_tag != nullptr));
     }
 }
+
+TEST_CASE("A refused login gets its own prompt, a toast over a modal, nothing in the wizard",
+          "[moonraker][routing][api-key]") {
+    auto d = decide_moonraker_event(MoonrakerEventType::LOGIN_REFUSED, kIsError, kNoWizard);
+    CHECK(d.route == MoonrakerEventRoute::LoginRefusedPrompt);
+    REQUIRE(d.title_tag != nullptr);
+    CHECK(std::string(d.title_tag) == "Login Required");
+
+    d = decide_moonraker_event(MoonrakerEventType::LOGIN_REFUSED, kIsError, kNoWizard, kModalUp);
+    CHECK(d.route == MoonrakerEventRoute::LoginRefusedToast);
+
+    // The wizard's connection test says it beside the key field.
+    d = decide_moonraker_event(MoonrakerEventType::LOGIN_REFUSED, kIsError, kWizardUp);
+    CHECK(d.route == MoonrakerEventRoute::Ignore);
+    CHECK(d.suppressed_because == MoonrakerEventSuppression::Wizard);
+}
+
+TEST_CASE("A refused login says whether a key is missing or was rejected",
+          "[moonraker][routing][api-key]") {
+    const std::string missing = helix::login_refused_message(false);
+    const std::string rejected = helix::login_refused_message(true);
+    CHECK(missing.find("requires a login") != std::string::npos);
+    CHECK(rejected.find("rejected its API key") != std::string::npos);
+    CHECK(missing.find("Settings > Connection") != std::string::npos);
+    CHECK(rejected.find("Settings > Connection") != std::string::npos);
+}

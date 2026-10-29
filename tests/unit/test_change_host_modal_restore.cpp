@@ -25,6 +25,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "lan_sweep.h"
+#include "moonraker_auth.h"
 #include "moonraker_manager.h"
 #include "platform_info.h"
 #include "printer_discovery_list.h"
@@ -619,6 +620,174 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     lv_obj_t* dialog = Modal::get_top();
     REQUIRE(dialog != nullptr);
     lv_obj_t* section = lv_obj_find_by_name(dialog, "discovery_section");
+    REQUIRE(section != nullptr);
+    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+}
+
+// ============================================================================
+// The API key field (prestonbrown/helixscreen#1929)
+// ============================================================================
+
+namespace {
+
+constexpr const char* kGoodKey = "0123456789abcdef0123456789abcdef";
+
+/// Puts the active printer's saved key back, and records no credential for the next test.
+class SavedKeyGuard {
+  public:
+    SavedKeyGuard() {
+        Config* cfg = Config::get_instance();
+        key_path_ = cfg->df() + "moonraker_api_key";
+        if (const nlohmann::json* saved = cfg->try_get_json(key_path_)) {
+            saved_ = *saved;
+        }
+    }
+    ~SavedKeyGuard() {
+        Config::get_instance()->set(key_path_, saved_);
+        helix::moonraker_auth::set_credential({});
+    }
+
+  private:
+    std::string key_path_;
+    nlohmann::json saved_ = false;
+};
+
+void type_api_key(const char* key) {
+    lv_subject_t* subject = lv_xml_get_subject(nullptr, "change_host_api_key");
+    REQUIRE(subject != nullptr);
+    lv_subject_copy_string(subject, key);
+}
+
+std::string status_text(lv_obj_t* dialog) {
+    lv_obj_t* label = lv_obj_find_by_name(dialog, "status_text");
+    REQUIRE(label != nullptr);
+    return lv_label_get_text(label);
+}
+
+nlohmann::json saved_api_key() {
+    Config* cfg = Config::get_instance();
+    const nlohmann::json* key = cfg->try_get_json(cfg->df() + "moonraker_api_key");
+    return key ? *key : nlohmann::json();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host: the field shows the printer's saved key",
+                 "[change_host][api-key]") {
+    SavedKeyGuard guard;
+    Config::get_instance()->set(Config::get_instance()->df() + "moonraker_api_key",
+                                std::string(kGoodKey));
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* key_input = lv_obj_find_by_name(Modal::get_top(), "password_input");
+    REQUIRE(key_input != nullptr);
+
+    CHECK(std::string(lv_textarea_get_text(key_input)) == kGoodKey);
+    // Masked until the user reveals it.
+    CHECK(lv_textarea_get_password_mode(key_input));
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: a key that is not 32 hex digits is refused before any test",
+                 "[change_host][api-key]") {
+    SavedKeyGuard guard;
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    type_api_key("not-a-key");
+
+    click(dialog, "btn_test_connection");
+
+    CHECK(net_.asked.empty());
+    CHECK(status_text(dialog) == helix::api_key_problem("not-a-key"));
+    CHECK_FALSE(status_text(dialog).empty());
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: Test Connection carries the key and Save stores it with the printer",
+                 "[change_host][api-key]") {
+    SavedKeyGuard guard;
+    net_.require_key("10.9.9.9:7125", kGoodKey);
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    // Pasted with a stray space: the key is the 32 digits.
+    type_api_key((std::string(" ") + kGoodKey + " ").c_str());
+
+    click(dialog, "btn_test_connection");
+    REQUIRE(net_.keys_sent == std::vector<std::string>{kGoodKey});
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
+
+    click(dialog, "modal_save_btn");
+    UpdateQueue::instance().drain();
+
+    CHECK(saved_api_key() == kGoodKey);
+    // The reconnect recorded it for that printer, and only that printer.
+    CHECK(client_->get_last_url() == kTestedUrl);
+    CHECK(helix::moonraker_auth::key_for("10.9.9.9", 7125) == kGoodKey);
+    CHECK(helix::moonraker_auth::key_for(kSavedHost, 7125).empty());
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: a printer that refuses the test keeps Save shut and says why",
+                 "[change_host][api-key]") {
+    SavedKeyGuard guard;
+    net_.require_key("10.9.9.9:7125", kGoodKey);
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+
+    SECTION("no key: it needs one") {
+        click(dialog, "btn_test_connection");
+        CHECK(status_text(dialog).find("requires an API key") != std::string::npos);
+    }
+    SECTION("a wrong key: it was rejected") {
+        type_api_key("ffffffffffffffffffffffffffffffff");
+        click(dialog, "btn_test_connection");
+        CHECK(status_text(dialog).find("rejected the API key") != std::string::npos);
+    }
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 0);
+    lv_obj_t* save = lv_obj_find_by_name(dialog, "modal_save_btn");
+    REQUIRE(save != nullptr);
+    CHECK(lv_obj_has_state(save, LV_STATE_DISABLED));
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: clearing the key saves the printer with none",
+                 "[change_host][api-key]") {
+    SavedKeyGuard guard;
+    Config::get_instance()->set(Config::get_instance()->df() + "moonraker_api_key",
+                                std::string(kGoodKey));
+    net_.answer("10.9.9.9:7125");
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    type_api_key("");
+    click(dialog, "btn_test_connection");
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
+
+    click(dialog, "modal_save_btn");
+    UpdateQueue::instance().drain();
+
+    CHECK(saved_api_key() == false);
+    CHECK(helix::moonraker_auth::key_for("10.9.9.9", 7125).empty());
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture, "Add printer: the active printer's key is not offered",
+                 "[change_host][api-key][multi-printer]") {
+    SavedKeyGuard guard;
+    Config::get_instance()->set(Config::get_instance()->df() + "moonraker_api_key",
+                                std::string(kGoodKey));
+    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    UpdateQueue::instance().drain();
+
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_api_key")))
+              .empty());
+    lv_obj_t* section = lv_obj_find_by_name(Modal::get_top(), "api_key_section");
     REQUIRE(section != nullptr);
     CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
 }

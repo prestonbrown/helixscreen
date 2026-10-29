@@ -127,6 +127,7 @@ translations:
   3. Save the position: 3. Save the position
   30 minutes: 30 minutes
   30 seconds: 30 seconds
+  32 characters, 0-9 and a-f: 32 characters, 0-9 and a-f
   3D Maze: 3D Maze
   3D Pipes: 3D Pipes
   3D View: 3D View
@@ -204,6 +205,8 @@ translations:
   'AMS Active: ': 'AMS Active: '
   AMS is busy: AMS is busy
   AMS/MMU system not detected: AMS/MMU system not detected
+  API Key: API Key
+  API Key (if Moonraker requires a login): API Key (if Moonraker requires a login)
   API not available: API not available
   APPEARANCE: APPEARANCE
   AUTO FANS: AUTO FANS
@@ -293,6 +296,7 @@ translations:
     navigation bar instead of using gestures
   Ambient Transfer: Ambient Transfer
   AmsIdentify: AmsIdentify
+  An API key is 32 characters, each 0-9 or a-f.: An API key is 32 characters, each 0-9 or a-f.
   An accelerometer was detected on your printer.: An accelerometer was detected on
     your printer.
   An app on your network is asking to connect to this printer.: An app on your network is asking to connect to this printer.
@@ -836,6 +840,7 @@ translations:
     macros
   Configure timelapse recording: Configure timelapse recording
   Configure your printer's cooling fans: Configure your printer's cooling fans
+  Configured: Configured
   Configured LED strip not found: Configured LED strip not found
   Configured aux fan not found: Configured aux fan not found
   Configured filament sensor not found: Configured filament sensor not found
@@ -1244,6 +1249,7 @@ translations:
   Endless Spool is turned off on this MMU: Endless Spool is turned off on this MMU
   Endless Spool state unknown: Endless Spool state unknown
   Ensure Happy Hare or AFC is installed and configured: Ensure Happy Hare or AFC is installed and configured
+  Enter API Key: Enter API Key
   Enter Current PIN: Enter Current PIN
   Enter G-code command...: Enter G-code command...
   Enter New PIN: Enter New PIN
@@ -2171,6 +2177,7 @@ translations:
   Lock the screen with your PIN: Lock the screen with your PIN
   Locked during print: Locked during print
   Log Level: Log Level
+  Login Required: Login Required
   Logs: Logs
   Long Press Time: Long Press Time
   'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.'
@@ -2331,11 +2338,14 @@ translations:
   Monitoring: Monitoring
   Month: Month
   Moonraker: Moonraker
+  Moonraker at {} rejected the API key.: Moonraker at {} rejected the API key.
+  Moonraker at {} requires an API key.: Moonraker at {} requires an API key.
   Moonraker has no G-code folder.: Moonraker has no G-code folder.
   ? Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   : Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen.
   Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.
   Moonraker keeps a queue of prints to run one after another. View it in the job queue.: Moonraker keeps a queue of prints to run one after another. View it in the job queue.
+  Moonraker refused the login: Moonraker refused the login
   Moonraker restarted but Spoolman not connected. Check server.: Moonraker restarted
     but Spoolman not connected. Check server.
   ? "Moonraker restarting...\nWaiting for reconnection..."
@@ -4159,6 +4169,8 @@ translations:
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   "This printer's INDX macros are missing: {}": "This printer's INDX macros are missing: {}"
+  This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: This printer's Moonraker rejected its API key. Check the key in Settings > Connection.
+  This printer's Moonraker requires a login. Add its API key in Settings > Connection.: This printer's Moonraker requires a login. Add its API key in Settings > Connection.
   This printer's network service controls the WiFi radio: This printer's network service controls the WiFi radio
   This printer's network service manages saved WiFi networks: This printer's network service manages saved WiFi networks
   This printer's screen has not shared a layout: This printer's screen has not shared a layout

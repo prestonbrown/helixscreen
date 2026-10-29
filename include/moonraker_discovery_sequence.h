@@ -210,6 +210,11 @@ class MoonrakerDiscoverySequence {
     /** @brief Check if a captured sequence number matches the current discovery */
     bool is_current_sequence(uint64_t seq) const;
 
+    /// The identify failed because Moonraker refused the login: every later request would
+    /// fail the same way, so discovery stops and the refusal is reported once. False for
+    /// any other error, which discovery carries on past.
+    bool stop_for_refused_login(const MoonrakerError& err);
+
     /**
      * @brief Continue discovery after server.connection.identify
      *

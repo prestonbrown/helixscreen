@@ -185,6 +185,7 @@ callback:on_update_toggle_changelog
 callback:on_upgrade_banner_dismiss
 callback:on_upgrade_banner_update
 callback:on_wifi_toggle_changed
+callback:on_wizard_api_key_changed
 callback:on_wizard_printer_search_changed
 callback:on_wizard_summary_telemetry_changed
 callback:on_wizard_summary_telemetry_info
@@ -326,9 +327,11 @@ subject:cam_rot_270_active
 subject:cam_rot_90_active
 subject:cam_source_count
 subject:camera_status_text
+subject:connection_api_key
 subject:connection_discovering
 subject:connection_discovery_active
 subject:connection_ip
+subject:connection_login_required
 subject:connection_port
 subject:connection_status_icon
 subject:connection_status_text

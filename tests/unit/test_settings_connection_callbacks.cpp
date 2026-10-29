@@ -1,10 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The Connection page: its four rows carry their callbacks, and the Host row
-// shows the printer address from config. The XML names its callbacks by string
-// and silently skips one that is not registered, so a row whose callback went
-// missing stays on screen and does nothing.
+// The Connection page: its rows carry their callbacks, the Host row shows the
+// printer address from config, and the API Key row whether one is set. The XML names its callbacks
+// by string and silently skips one that is not registered, so a row whose callback went missing
+// stays on screen and does nothing.
 
 #include "ui_panel_settings.h"
 #include "ui_settings_connection.h"
@@ -88,6 +88,8 @@ TEST_CASE_METHOD(ConnectionCallbacksFixture, "Connection page: every row runs it
     CHECK(row_runs("row_network", "on_network_clicked"));
     CHECK(row_runs("row_printers", "on_printers_clicked"));
     CHECK(row_runs("row_printer_host", "on_change_host_clicked"));
+    // The key is edited beside the host, in the same dialog.
+    CHECK(row_runs("row_printer_api_key", "on_change_host_clicked"));
     CHECK(row_runs("row_screen_sharing", "on_screen_sharing_clicked"));
 }
 
@@ -100,4 +102,26 @@ TEST_CASE_METHOD(ConnectionCallbacksFixture,
     REQUIRE(description != nullptr);
 
     CHECK(std::string(lv_label_get_text(description)) == "10.0.0.7:7125");
+}
+
+TEST_CASE_METHOD(ConnectionCallbacksFixture,
+                 "Connection page: the API Key row says whether a key is set, never the key",
+                 "[settings][connection_callbacks][api-key]") {
+    const std::string key_path = config_->df() + "moonraker_api_key";
+    const nlohmann::json* before = config_->try_get_json(key_path);
+    const nlohmann::json saved = before ? *before : nlohmann::json(false);
+    lv_obj_t* row = lv_obj_find_by_name(root_, "row_printer_api_key");
+    REQUIRE(row != nullptr);
+    lv_obj_t* description = lv_obj_find_by_name(row, "status");
+    REQUIRE(description != nullptr);
+
+    config_->set(key_path, false);
+    helix::settings::get_connection_settings_overlay().on_activate();
+    CHECK(std::string(lv_label_get_text(description)) == "Not set");
+
+    config_->set(key_path, std::string("0123456789abcdef0123456789abcdef"));
+    helix::settings::get_connection_settings_overlay().on_activate();
+    CHECK(std::string(lv_label_get_text(description)) == "Configured");
+
+    config_->set(key_path, saved);
 }

@@ -255,7 +255,20 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     registry["server.connection.identify"] =
         [](MoonrakerClientMock* /*self*/, const json& params,
            helix::SharedCallback<void(const json&)> success_cb,
-           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
+        // HELIX_MOCK_FORCE_LOGINS=1: a Moonraker with force_logins, refusing a client
+        // that brought no credential it accepts.
+        if (helix::env_flag("HELIX_MOCK_FORCE_LOGINS")) {
+            if (error_cb) {
+                MoonrakerError err;
+                err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+                err.code = 401;
+                err.message = "Unauthorized";
+                err.method = "server.connection.identify";
+                error_cb(err);
+            }
+            return true;
+        }
         // Log the identification for debugging
         std::string client_name = params.value("client_name", "unknown");
         std::string version = params.value("version", "unknown");

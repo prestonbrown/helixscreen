@@ -25,6 +25,7 @@
 #include "ams_backend_afc.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api_mock.h"
+#include "moonraker_auth.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
 #include "moonraker_events.h"
@@ -193,6 +194,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Shared Moonraker client events carry translat
         {moonraker_event::request_timed_out("printer.info", 5000),
          MoonrakerEventType::REQUEST_TIMEOUT, false},
         {moonraker_event::subscribe_failed("{}"), MoonrakerEventType::DISCOVERY_FAILED, false},
+        {moonraker_event::login_refused(), MoonrakerEventType::LOGIN_REFUSED, true},
     };
 
     ScopedLanguage de("de");
@@ -235,4 +237,40 @@ TEST_CASE_METHOD(LVGLTestFixture, "MoonrakerManager presents an event in the act
 
     CHECK(shown.find("Druckerbefehl 'printer.objects.query' fehlgeschlagen: Klippy not ready") !=
           std::string::npos);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Tracker: a printer that refused the login raises no toast per request",
+                 "[api-error-i18n][api-key]") {
+    helix::AbortManagerTestAccess::reset(helix::AbortManager::instance());
+    MoonrakerRequestTracker tracker;
+    auto route_failure = [&tracker](uint64_t id) {
+        PendingRequest request;
+        request.id = id;
+        request.method = "server.files.list";
+        request.timeout_ms = 60000;
+        request.timestamp = std::chrono::steady_clock::now();
+        request.intent = helix::rpc_error_policy::CallerIntent{/*silent=*/false,
+                                                               /*surfaces_errors=*/false};
+        bool error_cb_fired = false;
+        request.error_callback = [&error_cb_fired](const MoonrakerError&) {
+            error_cb_fired = true;
+        };
+        std::vector<MoonrakerEvent> events;
+        MoonrakerRequestTrackerTestAccess::inject_request(tracker, id, request);
+        const json response = {{"jsonrpc", "2.0"},
+                               {"id", id},
+                               {"error", {{"code", 401}, {"message", "Unauthorized"}}}};
+        REQUIRE(tracker.route_response(
+            response, [&events](const MoonrakerEvent& e) { events.push_back(e); }));
+        // The caller still learns its request failed.
+        CHECK(error_cb_fired);
+        return events.size();
+    };
+
+    helix::moonraker_auth::set_credential({"printer.lan", 7125, ""});
+    CHECK(route_failure(5001) == 1);
+    helix::moonraker_auth::mark_unauthorized();
+    CHECK(route_failure(5002) == 0);
+    helix::moonraker_auth::set_credential({});
 }
