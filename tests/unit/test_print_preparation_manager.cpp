@@ -4110,13 +4110,11 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK_FALSE(*completed);
 }
 
-TEST_CASE_METHOD(
-    HelixTestFixture,
-    "PrintPreparationManager: a staged start that loses its answer while Stop waits is "
-    "held",
-    "[print_preparation][remap][preparing_cancel]") {
-    // A timeout means Klipper is busy running the start: the job is held for
-    // the cancel, not failed, and the copy it is printing is not deleted.
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a staged start that loses its answer stays preparing",
+                 "[print_preparation][remap][preparing_cancel][1898]") {
+    // A timeout means Klipper is busy running the start: the job stays
+    // preparing, Stop or no Stop, and the copy it is printing is not deleted.
     lv_init_safe();
     PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
@@ -4141,10 +4139,15 @@ TEST_CASE_METHOD(
         api.job_mock().mock_modified_print_error(lost);
     }
 
+    const bool stop_waiting = GENERATE(true, false);
+    CAPTURE(stop_waiting);
+
     PrintPreparationManager manager;
     manager.set_dependencies(&api, &state);
     state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
-    state.print_state().note_preparing_cancel_requested();
+    if (stop_waiting) {
+        state.print_state().note_preparing_cancel_requested();
+    }
     manager.set_cached_file_size(123456);
     std::optional<bool> completed;
     manager.modify_and_print_with_remap(
@@ -4344,9 +4347,13 @@ TEST_CASE_METHOD(HelixTestFixture,
             CHECK(api.transfers_mock().download_destinations().size() == downloads_before);
             CHECK(api.job_mock().modified_prints().size() == modified_before);
             CHECK(api.job_mock().started_prints().empty());
-            CHECK_FALSE(state.print_state().has_preparing_job());
-            REQUIRE(completed.has_value());
-            CHECK_FALSE(*completed);
+            // A lost answer leaves the job for the printer to settle; a refusal fails it.
+            const bool lost_answer = c.error.is_transport_loss();
+            CHECK(state.print_state().has_preparing_job() == lost_answer);
+            CHECK(completed.has_value() == !lost_answer);
+            if (completed) {
+                CHECK_FALSE(*completed);
+            }
         }
         state.print_state().retire_preparing(helix::PreparingExit::Failed);
     }

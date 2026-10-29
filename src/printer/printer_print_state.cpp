@@ -17,6 +17,7 @@
 #include "firmware_error_envelope.h"
 #include "format_utils.h"
 #include "json_utils.h"
+#include "moonraker_error.h"
 #include "pause_descriptor.h"
 #include "plr_backend.h"
 #include "print_lifecycle_state.h"
@@ -1568,14 +1569,15 @@ void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) 
     set_preparing_start(accepted ? PreparingStart::Accepted : PreparingStart::None);
 }
 
-bool PrinterPrintState::hold_for_requested_cancel(int epoch) {
-    if (!preparing_cancel_requested_ || epoch == 0 || epoch != preparing_epoch_counter_ ||
+bool PrinterPrintState::hold_unanswered_start(int epoch, const MoonrakerError& error) {
+    if (!error.is_transport_loss() || epoch == 0 || epoch != preparing_epoch_counter_ ||
         preparing_job_.empty()) {
         return false;
     }
-    spdlog::warn("[PrinterPrintState] Start of '{}' lost its answer with a cancel requested - "
-                 "holding the job for the cancel",
-                 preparing_job_.filename);
+    spdlog::warn("[PrinterPrintState] Start of '{}' lost its answer ({}){} - keeping the job "
+                 "until the printer reports it",
+                 preparing_job_.filename, error.message,
+                 preparing_cancel_requested_ ? " with a cancel requested" : "");
     set_preparing_start(PreparingStart::Unanswered);
     return true;
 }

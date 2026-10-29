@@ -1992,11 +1992,10 @@ void note_start_answered(helix::PrinterState* ps, int epoch, bool accepted) {
     });
 }
 
-/// Main thread. A start whose answer was lost while Stop waits to cancel it is
-/// held for that cancel rather than failed: the printer may well have it, and
-/// a timeout means Klipper is busy running it. True when held.
-bool held_for_cancel(helix::PrinterState* ps, int epoch, const MoonrakerError& error) {
-    return ps && error.is_transport_loss() && ps->print_state().hold_for_requested_cancel(epoch);
+/// Main thread. A start whose answer was lost stays preparing for the printer
+/// to settle (PrinterPrintState::hold_unanswered_start). True when held.
+bool held_unanswered(helix::PrinterState* ps, int epoch, const MoonrakerError& error) {
+    return ps && ps->print_state().hold_unanswered_start(epoch, error);
 }
 
 } // namespace
@@ -2450,7 +2449,7 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                            epoch](const MoonrakerError& error) {
         token.defer("PrintPreparationManager::start_print_error_cleanup",
                     [this, remote_temp_path, on_completion, ps, epoch, error]() {
-                        if (held_for_cancel(ps, epoch, error)) {
+                        if (held_unanswered(ps, epoch, error)) {
                             return;
                         }
                         queue_busy_hide();
@@ -2507,7 +2506,7 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                 // print the job twice.
                 token.defer("PrintPreparationManager::edit_unanswered",
                             [this, job, on_completion, ps, epoch, error]() {
-                                if (held_for_cancel(ps, epoch, error)) {
+                                if (held_unanswered(ps, epoch, error)) {
                                     return;
                                 }
                                 queue_busy_hide();
@@ -2715,7 +2714,7 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
             helix::ui::queue_update(
                 "PrintPreparationManager::start_failed",
                 [filename, on_completion, ps, epoch, error]() {
-                    if (held_for_cancel(ps, epoch, error)) {
+                    if (held_unanswered(ps, epoch, error)) {
                         return;
                     }
                     helix::ui::notify_error_tr(TR_NOOP("Failed to start print: {}"), error);

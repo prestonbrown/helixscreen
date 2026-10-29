@@ -126,14 +126,22 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send ne
           (withdraw ? PreparingStart::None : PreparingStart::Accepted));
 }
 
-TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start times out while Stop waits is held",
-                 "[preparing_cancel][preprint]") {
+TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start loses its answer stays preparing",
+                 "[preparing_cancel][preprint][1898]") {
+    // The printer may still be running its start sequence; only a refusal fails it.
+    const int kind = GENERATE(0, 1, 2); // timeout, timeout with Stop waiting, refusal
+    CAPTURE(kind);
+    const bool refused = kind == 2;
+    const MoonrakerError error =
+        refused ? MoonrakerError::from_json_rpc({{"code", 400}, {"message", "File not found"}},
+                                                "printer.print.start")
+                : MoonrakerError::timeout("printer.print.start", 600000);
     MoonrakerClientMockTestAccess::set_method_handler(
         client, "printer.print.start",
-        [](MoonrakerClientMock*, const nlohmann::json&,
-           helix::SharedCallback<void(const nlohmann::json&)>,
-           helix::SharedCallback<void(const MoonrakerError&)> err) -> bool {
-            err(MoonrakerError::timeout("printer.print.start", 600000));
+        [error](MoonrakerClientMock*, const nlohmann::json&,
+                helix::SharedCallback<void(const nlohmann::json&)>,
+                helix::SharedCallback<void(const MoonrakerError&)> err) -> bool {
+            err(error);
             return true;
         });
     MoonrakerAPI api{client, ps};
@@ -144,14 +152,26 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start times out while Stop waits
     bool errored = false;
     controller.initiate_reprint(
         "cal.gcode", "cal.gcode", {0}, []() {}, [&errored]() { errored = true; });
-    ps.print_state().note_preparing_cancel_requested();
+    if (kind == 1) {
+        ps.print_state().note_preparing_cancel_requested();
+    }
     for (int i = 0; i < 4; ++i) {
         helix::ui::UpdateQueue::instance().drain();
     }
 
-    CHECK(ps.print_state().has_preparing_job());
+    CHECK(errored == refused);
+    CHECK(ps.print_state().has_preparing_job() == !refused);
+    if (refused) {
+        CHECK(ps.print_state().last_preparing_exit() == PreparingExit::Failed);
+        return;
+    }
     CHECK(ps.print_state().preparing_start() == PreparingStart::Unanswered);
-    CHECK_FALSE(errored);
+
+    ps.update_from_status(
+        nlohmann::json{{"print_stats", {{"state", "printing"}, {"filename", "cal.gcode"}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(ps.print_state().has_preparing_job());
+    CHECK(ps.print_state().last_preparing_exit() == PreparingExit::Confirmed);
 }
 
 TEST_CASE_METHOD(U1StartFx,

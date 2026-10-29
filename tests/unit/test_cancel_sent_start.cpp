@@ -201,7 +201,8 @@ TEST_CASE_METHOD(SentStartFixture,
     // behind it. Failing the job instead would drop the cancel and print.
     const int epoch = arm_in_flight();
     stop();
-    REQUIRE(ps().hold_for_requested_cancel(epoch)); // what every start site does
+    // What every start site does with a lost answer.
+    REQUIRE(ps().hold_unanswered_start(epoch, MoonrakerError::timeout("printer.print.start", 1)));
     drain();
 
     CHECK(cancels == 1);
@@ -213,17 +214,48 @@ TEST_CASE_METHOD(SentStartFixture,
     CHECK(ps().last_preparing_exit() == helix::PreparingExit::EndedByPrinter);
 }
 
-TEST_CASE_METHOD(SentStartFixture, "Only a requested cancel holds a start that lost its answer",
-                 "[print_control][preparing_cancel]") {
+TEST_CASE_METHOD(SentStartFixture, "Only a lost answer holds the preparing job's start",
+                 "[print_control][preparing_cancel][1898]") {
+    // A refusal is the printer's answer: nothing runs, the caller fails it.
     const int epoch = arm_in_flight();
-    CHECK_FALSE(ps().hold_for_requested_cancel(epoch));
+    CHECK_FALSE(ps().hold_unanswered_start(
+        epoch, MoonrakerError::validation_error("printer.print.start", "Spools")));
     CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
-    stop();
-    CHECK_FALSE(ps().hold_for_requested_cancel(epoch + 1));
+    CHECK_FALSE(ps().hold_unanswered_start(0, MoonrakerError::timeout("printer.print.start", 1)));
+    CHECK_FALSE(
+        ps().hold_unanswered_start(epoch + 1, MoonrakerError::timeout("printer.print.start", 1)));
+    CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
 }
 
 TEST_CASE_METHOD(SentStartFixture,
-                 "A cancel requested on one job does not hold the next one's start",
+                 "A start that outlasts its RPC stays preparing with Stop able to cancel it",
+                 "[print_control][preparing_cancel][1898]") {
+    // The start sequence runs inside SDCARD_PRINT_FILE and outlives the RPC
+    // ceiling: the printer is still working on the job.
+    const int epoch = arm_in_flight();
+    REQUIRE(
+        ps().hold_unanswered_start(epoch, MoonrakerError::connection_lost("printer.print.start")));
+    drain();
+    CHECK(ps().has_preparing_job());
+    CHECK(ps().preparing_start() == helix::PreparingStart::Unanswered);
+    CHECK(cancels == 0);
+
+    const bool stop_first = GENERATE(true, false);
+    CAPTURE(stop_first);
+    if (stop_first) {
+        // The cancel queues behind the start the printer is running.
+        stop();
+        CHECK(cancels == 1);
+        report("cancelled", "part.gcode");
+        CHECK(ps().last_preparing_exit() == helix::PreparingExit::EndedByPrinter);
+        return;
+    }
+    report("printing", "part.gcode");
+    CHECK_FALSE(ps().has_preparing_job());
+    CHECK(ps().last_preparing_exit() == helix::PreparingExit::Confirmed);
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A cancel requested on one job does not carry to the next one",
                  "[print_control][preparing_cancel]") {
     ps().begin_preparing(helix::PrintJobRef{"a.gcode", "", ""});
     ps().note_preparing_cancel_requested();
@@ -234,7 +266,7 @@ TEST_CASE_METHOD(SentStartFixture,
     ps().note_preparing_start_sent();
     const int epoch = lv_subject_get_int(ps().get_preparing_epoch_subject());
     CHECK_FALSE(ps().preparing_cancel_requested());
-    CHECK_FALSE(ps().hold_for_requested_cancel(epoch));
+    CHECK(epoch != 0);
     CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
 }
 

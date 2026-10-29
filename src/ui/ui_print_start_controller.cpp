@@ -649,10 +649,9 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             },
             [tok, on_error, ps = &printer_state_, epoch](const MoonrakerError& err) mutable {
                 tok.defer("PrintStartController::reprint.err", [err, on_error, ps, epoch]() {
-                    // Held for a cancel Stop is waiting to send: the printer may
-                    // be running this start, so it is not a failed one.
-                    if (err.is_transport_loss() &&
-                        ps->print_state().hold_for_requested_cancel(epoch)) {
+                    // A lost answer: the printer may be running this start,
+                    // so only its own report settles the job.
+                    if (ps->print_state().hold_unanswered_start(epoch, err)) {
                         return;
                     }
                     ps->print_state().retire_preparing(helix::PreparingExit::Failed);

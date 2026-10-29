@@ -185,17 +185,19 @@ heating, possibly a bed mesh, and a purge line on the bed.
 
 `PrinterPrintState` tracks the preparing job's start hand-over
 (`PreparingStart`: `None` -> `InFlight` on send -> `Accepted` on an OK answer,
-or back to `None` on a refusal, or `Unanswered` when the answer is lost while
-a cancel is requested). A start that loses its answer (timeout, dropped
-connection) with a cancel requested is held, not retired as failed
-(`hold_for_requested_cancel()`): a timeout means Klipper is busy running it,
-so the cancel queues behind it. `PrintControlButtons` tracks the cancel
+or back to `None` on a refusal, or `Unanswered` when the answer is lost). A
+start that loses its answer (timeout, dropped connection) is held, not retired
+as failed (`hold_unanswered_start()`, every start path's one rule): a start
+sequence longer than the RPC ceiling is still running, and only the printer's
+own report settles the job: `Confirmed` once it reports the job, or the
+preparing watchdog (prestonbrown/helixscreen#1898). A cancel sent while it is held
+queues behind the start. `PrintControlButtons` tracks the cancel
 (`CancelState`: `Idle`, `Requested`, `Sent`, `Answered`). Stop is disabled in
 every state but `Idle`.
 
 | Cancel state | Event | Next | Action |
 |---|---|---|---|
-| `Idle` | Stop confirmed, start `Accepted` | `Sent` | send `printer.print.cancel`; notify "Cancel sent" |
+| `Idle` | Stop confirmed, start `Accepted` or `Unanswered` | `Sent` | send `printer.print.cancel`; notify "Cancel sent" |
 | `Idle` | Stop confirmed, start `InFlight` | `Requested` | notify "Cancel sent"; nothing goes to the printer yet |
 | `Requested` | start answers OK (`Accepted`) | `Sent` | send `printer.print.cancel` |
 | `Requested` | start loses its answer (`Unanswered`; job held) | `Sent` | send `printer.print.cancel`: it queues behind the start |
