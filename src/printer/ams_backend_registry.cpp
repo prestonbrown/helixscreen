@@ -33,22 +33,36 @@ int AmsBackendRegistry::add(std::unique_ptr<AmsBackend> backend, EventCallback o
         slot_count = b->get_system_info().total_slots;
     }
 
+    ensure_sinks(index, slot_count);
+    return index;
+}
+
+void AmsBackendRegistry::ensure_sinks(int index, int slot_count) {
+    int have = 0;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        have = static_cast<int>(sinks_[index].size());
+    }
+    if (slot_count <= have) {
+        return;
+    }
     // Outside the lock: a sink registered mid-print snapshots at once, and the
     // snapshot looks its backend up through get(). The tracker's gating
     // (unknown weight, Spoolman link, native tracking) decides per tick whether
     // each sink consumes deltas.
     std::vector<FilamentConsumptionTracker::SinkHandle> handles;
-    handles.reserve(slot_count);
+    handles.reserve(static_cast<size_t>(slot_count - have));
     auto& tracker = FilamentConsumptionTracker::instance();
-    for (int slot = 0; slot < slot_count; ++slot) {
+    for (int slot = have; slot < slot_count; ++slot) {
         handles.push_back(tracker.register_sink(std::make_unique<AmsSlotSink>(index, slot)));
     }
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        sinks_[index] = std::move(handles);
+        auto& registered = sinks_[index];
+        registered.insert(registered.end(), handles.begin(), handles.end());
     }
-    spdlog::debug("[AMS State] Registered {} consumption sinks for backend {}", slot_count, index);
-    return index;
+    spdlog::debug("[AMS State] Registered {} consumption sinks for backend {} (slots {}-{})",
+                  slot_count - have, index, have, slot_count - 1);
 }
 
 void AmsBackendRegistry::clear() {

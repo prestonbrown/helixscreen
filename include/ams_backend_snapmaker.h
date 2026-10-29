@@ -123,12 +123,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     [[nodiscard]] lv_subject_t* get_operation_step_index_subject(StepOperationType op) override;
 
     /// Snapmaker U1 has 4 independent extruders (extruder, extruder1, extruder2,
-    /// extruder3), one per tool. Tool N sources slot N directly — identity mapping.
+    /// extruder3), one per tool. Each extrudes from the slot feeding its head.
     [[nodiscard]] std::optional<int> slot_for_extruder(int extruder_idx) const override {
-        if (extruder_idx < 0 || extruder_idx >= static_cast<int>(get_system_info().total_slots)) {
-            return std::nullopt;
-        }
-        return extruder_idx;
+        return head_source_slot(extruder_idx, get_system_info());
     }
 
     // Path visualization (PARALLEL topology — each tool is independent)
