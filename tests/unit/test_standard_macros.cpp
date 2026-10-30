@@ -715,6 +715,7 @@ TEST_CASE("StandardMacros - the Centauri Carbon's screws tilt follows COSMOS's w
             resolve_macro_script(info, {.screws_tilt_builtin = "SCREWS_TILT_CALCULATE_BASE"});
         CHECK(r.script == "LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE\n"
                           "SCREWS_TILT_CALCULATE_BASE\n"
+                          "G90\n"
                           "G1 X128 Y220 Z20 F6000");
         CHECK(r.shipped);
         CHECK(r.self_prepares);
