@@ -399,7 +399,8 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
      */
     std::string map_event_to_callback(const std::string& event);
 
-    // 5GHz support — computed once during init, never changes
+    // 5GHz support: resolved once during init from the radio's frequency
+    // list, and raised by any scan that sees a 5 GHz network
     std::atomic<bool> supports_5ghz_cached_{false};
     std::atomic<bool> supports_5ghz_resolved_{false};
 

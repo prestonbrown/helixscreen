@@ -21,6 +21,7 @@
 #include "wifi_country.h"
 #include "wifi_manager.h"
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -43,6 +44,19 @@ class NoForgetNoToggleBackend : public WifiBackendMock {
     bool supports_country() const override {
         return false;
     }
+};
+
+/// A radio whose 5 GHz support is unknown until a scan proves it.
+class LateFiveGhzBackend : public WifiBackendMock {
+  public:
+    explicit LateFiveGhzBackend(std::shared_ptr<std::atomic<bool>> five_ghz)
+        : five_ghz_(std::move(five_ghz)) {}
+    bool supports_5ghz() const override {
+        return five_ghz_->load();
+    }
+
+  private:
+    std::shared_ptr<std::atomic<bool>> five_ghz_;
 };
 
 class CapabilityFixture : public LVGLUITestFixture {
@@ -300,4 +314,18 @@ TEST_CASE_METHOD(CapabilityFixture,
     CHECK_FALSE(hidden(root, "wifi_unresponsive_state"));
     // The rows above keep the last known state.
     CHECK_FALSE(hidden(root, "wifi_connected_state"));
+}
+
+TEST_CASE_METHOD(CapabilityFixture,
+                 "Network settings drops the 2.4 GHz-only label once a scan finds 5 GHz",
+                 "[network_settings][wifi_band]") {
+    auto five_ghz = std::make_shared<std::atomic<bool>>(false);
+    NetworkSettingsOverlay overlay;
+    open_overlay(overlay, std::make_unique<LateFiveGhzBackend>(five_ghz));
+    REQUIRE(lv_subject_get_int(&Access::wifi_only_24ghz(overlay)) == 1);
+
+    five_ghz->store(true);
+    Access::populate_network_list(overlay, {WiFiNetwork("Fast", 80, true, "WPA2", 5180)});
+
+    CHECK(lv_subject_get_int(&Access::wifi_only_24ghz(overlay)) == 0);
 }

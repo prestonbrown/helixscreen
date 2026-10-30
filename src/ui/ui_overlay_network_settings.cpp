@@ -344,11 +344,8 @@ void NetworkSettingsOverlay::on_activate() {
 
     // Backend capabilities: the 2.4GHz-only indicator, and the Forget and
     // radio-toggle controls, which are hidden where the backend cannot act.
+    refresh_band_capability();
     if (wifi_manager_) {
-        bool only_24ghz = !wifi_manager_->supports_5ghz();
-        lv_subject_set_int(&wifi_only_24ghz_, only_24ghz ? 1 : 0);
-        spdlog::debug("[NetworkSettingsOverlay] WiFi band capability: {}",
-                      only_24ghz ? "2.4GHz only" : "2.4GHz + 5GHz");
         lv_subject_set_int(&wifi_can_forget_, wifi_manager_->supports_forget() ? 1 : 0);
         lv_subject_set_int(&wifi_can_toggle_radio_, wifi_manager_->supports_radio_toggle() ? 1 : 0);
     }
@@ -444,6 +441,19 @@ void NetworkSettingsOverlay::refresh_transport_status() {
     update_wifi_status();
     update_ethernet_status();
     update_any_network_connected();
+}
+
+void NetworkSettingsOverlay::refresh_band_capability() {
+    if (!wifi_manager_) {
+        return;
+    }
+    const bool only_24ghz = !wifi_manager_->supports_5ghz();
+    if (lv_subject_get_int(&wifi_only_24ghz_) == (only_24ghz ? 1 : 0)) {
+        return;
+    }
+    lv_subject_set_int(&wifi_only_24ghz_, only_24ghz ? 1 : 0);
+    spdlog::debug("[NetworkSettingsOverlay] WiFi band capability: {}",
+                  only_24ghz ? "2.4GHz only" : "2.4GHz + 5GHz");
 }
 
 void NetworkSettingsOverlay::refresh_country() {
@@ -682,6 +692,7 @@ void NetworkSettingsOverlay::update_test_state(NetworkTester::TestState state,
 
 void NetworkSettingsOverlay::populate_network_list(const std::vector<WiFiNetwork>& networks) {
     cached_networks_ = networks;
+    refresh_band_capability();
     if (!wifi_manager_) {
         build_network_list(cached_networks_, WifiBackend::ConnectionStatus{});
         return;
