@@ -301,8 +301,186 @@ EOF
 }
 
 @test "a firmware file does not mask a native file the gate never checked" {
-    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" \
+    # An empty make root has no rule for the file, so nothing supplies its flags.
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
         src/printer/ams_state.cpp \
         firmware/helixscreen-esp32/components/helixapp/app_boot.cpp
     [ "$status" -ne 0 ]
+}
+
+# --- flags for a tree whose database cannot describe it --------------------
+#
+# A --no-build worktree carries a database copied from another tree, stamped
+# with another version, so every entry in it is stale. The gate asks make for
+# the command instead (scripts/compile_command.py). FIXTURE_DIR stands in for
+# the tree here: its Makefile prints the command a rule would run, and its
+# compile-prereqs leaves a mark, so these never run make in the tree under test.
+
+# $1 = the compile-prereqs recipe (default: leave a mark and succeed)
+write_fixture_makefile() {
+    local prereqs="${1:-@touch prereqs.made}"
+    printf '%s\n' \
+        'print-compile-command:' \
+        '	@for f in $(F); do echo "c++ -std=c++17 -DHELIX_HAS_FIXTURE_FEATURE=1 -c $$f"; done' \
+        'compile-prereqs:' \
+        "	$prereqs" > "$FIXTURE_DIR/Makefile"
+}
+
+@test "a stale database entry gives way to the command make prints" {
+    write_guarded_tu
+    write_fragment stale 0.99.1
+    write_fixture_makefile
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
+        "$FIXTURE_DIR/guarded.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ]
+    grep -qF "checked 1 TU(s): 1 clean" <<<"$output"
+    refute grep -qF "stale compile command" <<<"$output"
+    [ -f "$FIXTURE_DIR/prereqs.made" ] || fail "the make-derived command ran without its prerequisites"
+}
+
+# The red half: what clang rejects in that TU fails the gate. Narrowing a
+# non-constant inside braces is a warning under g++ and an error under clang.
+@test "a make-derived command fails the gate on code clang rejects" {
+    write_guarded_tu
+    cat >> "$FIXTURE_DIR/guarded.cpp" <<'EOF'
+void clang_only(double d) {
+    int narrowed[] = {d};
+    (void)narrowed;
+}
+EOF
+    write_fragment stale 0.99.1
+    write_fixture_makefile
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
+        "$FIXTURE_DIR/guarded.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -ne 0 ]
+    grep -qF "cannot be narrowed" <<<"$output"
+}
+
+@test "prerequisites make cannot produce stop the gate with the command that makes them" {
+    write_guarded_tu
+    write_fixture_makefile '@echo "libhv-build: no compiler" >&2; exit 1'
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
+        "$FIXTURE_DIR/guarded.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -ne 0 ]
+    grep -qF "libhv-build: no compiler" <<<"$output"
+    grep -qF "make compile-prereqs" <<<"$output"
+}
+
+@test "a TU no source can give flags is named, and the gate verified nothing" {
+    printf 'int fresh() { return 1; }\n' > "$FIXTURE_DIR/brand_new.cpp"
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
+        "$FIXTURE_DIR/brand_new.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -ne 0 ]
+    grep -qF "verified nothing" <<<"$output"
+    grep -qE "^ +[^ ]*brand_new\.cpp$" <<<"$output"
+}
+
+# --- which files a default run checks --------------------------------------
+#
+# The gate's default scope, and decl_ui's call (which passes no files), diff
+# against the branch's fork point. Measured against main, a branch cut from a
+# release branch is handed every file where the release and main differ.
+
+# A repo of its own: the gate takes its root from its own path, so it and the
+# modules it imports are copied in. src/rel.cpp is release-only work and
+# src/fix.cpp the branch's own change; with no database and no Makefile here,
+# every TU the gate selects is named as unchecked, which shows its scope.
+two_trunk_repo() {
+    WORK="$BATS_TEST_TMPDIR/repo"
+    mkdir -p "$WORK/scripts" "$WORK/src"
+    for f in check_clang_diagnostics.py compile_command.py diff_base.py \
+             merge_compile_commands.py syntax_check.py; do
+        cp "scripts/$f" "$WORK/scripts/"
+    done
+    cp VERSION.txt "$WORK/"
+    git -C "$WORK" init -q
+    git -C "$WORK" config user.email t@t
+    git -C "$WORK" config user.name t
+    printf 'int base() { return 0; }\n' > "$WORK/src/base.cpp"
+    git -C "$WORK" add -A
+    git -C "$WORK" commit -qm base
+    git -C "$WORK" branch -M main
+    git -C "$WORK" checkout -q -b release/1.0
+    printf 'int rel() { return 10; }\n' > "$WORK/src/rel.cpp"
+    git -C "$WORK" add src/rel.cpp
+    git -C "$WORK" commit -qm "release-only work"
+    git -C "$WORK" checkout -q main
+    printf 'int trunk() { return 1; }\n' > "$WORK/src/trunk.cpp"
+    git -C "$WORK" add src/trunk.cpp
+    git -C "$WORK" commit -qm "trunk work"
+    git -C "$WORK" checkout -q -b fix/on-release release/1.0
+    printf 'int fix() { return 2; }\n' > "$WORK/src/fix.cpp"
+    git -C "$WORK" add src/fix.cpp
+    git -C "$WORK" commit -qm "the branch's change"
+}
+
+@test "a branch off a release branch checks its own changes, not the release's" {
+    two_trunk_repo
+    run bash -c "cd '$WORK' && python3 scripts/check_clang_diagnostics.py"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    grep -qF "merge-base with release/1.0" <<<"$output"
+    grep -qE "^ +src/fix\.cpp$" <<<"$output"
+    refute grep -qF "src/rel.cpp" <<<"$output"
+}
+
+@test "decl_ui runs the gate in its default scope, from the fork point" {
+    two_trunk_repo
+    local call
+    call=$(grep -oE 'python3 scripts/check_clang_diagnostics\.py[^>]*' scripts/qc/decl_ui.sh)
+    [ -n "$call" ] || fail "scripts/qc/decl_ui.sh does not call the gate"
+    run bash -c "cd '$WORK' && $call"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    grep -qE "^ +src/fix\.cpp$" <<<"$output"
+    refute grep -qF "src/rel.cpp" <<<"$output"
+}
+
+# --- one answer for a file's flags -------------------------------------------
+#
+# syntax_check.py and the gate take a file's flags from the same helper, so a
+# file the database does not know gets make's command from both. The database
+# here knows only a neighbour, compiled without the define the file needs:
+# a tool that borrowed from it instead of asking make reports the #error.
+@test "syntax_check and the gate both take make's command for a file with no entry" {
+    two_trunk_repo
+    printf '%s\n' \
+        'print-compile-command:' \
+        '	@for f in $(F); do echo "c++ -std=c++17 -DPICKED_BY_MAKE=1 -c $$f"; done' \
+        'compile-prereqs:' \
+        '	@:' > "$WORK/Makefile"
+    printf '#ifndef PICKED_BY_MAKE\n#error flags did not come from make\n#endif\nint needs_make() { return 3; }\n' \
+        > "$WORK/src/needs_make.cpp"
+    printf '[{"directory": "%s", "file": "src/base.cpp", "command": "c++ -std=c++17 -DHELIX_VERSION=\\"%s\\" -c src/base.cpp"}]\n' \
+        "$WORK" "$(cat VERSION.txt)" > "$WORK/compile_commands.json"
+
+    run bash -c "cd '$WORK' && python3 scripts/check_clang_diagnostics.py src/needs_make.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ]
+    grep -qF "checked 1 TU(s): 1 clean" <<<"$output"
+
+    run bash -c "cd '$WORK' && python3 scripts/syntax_check.py src/needs_make.cpp"
+    [ "$status" -eq 0 ]
+    grep -qF "src/needs_make.cpp: ok" <<<"$output"
+    refute grep -qF "borrowed" <<<"$output"
 }

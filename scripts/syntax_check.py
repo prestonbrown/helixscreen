@@ -4,21 +4,24 @@
 """Compile one file the way the build compiles it, without building anything.
 
 `make test` re-links the whole test binary, so asking "does this file compile"
-costs minutes. This pulls the file's own flags out of compile_commands.json and
-runs the compiler with -fsyntax-only, which answers the same question in a few
-seconds. It proves nothing about behaviour: run the suite for that.
+costs minutes. This takes the file's own flags and runs the compiler with
+-fsyntax-only, which answers the same question in a few seconds. It proves
+nothing about behaviour: run the suite for that.
 
     scripts/syntax_check.py tests/unit/test_wifi_backend_netd.cpp
     scripts/syntax_check.py src/ui/*.cpp
 
-A file with no entry in the database (a file the build has never seen, which is
-every brand-new source) borrows the flags of a sibling in the same directory,
-and says so. A file no native build compiles at all - firmware/, android/ - is
-reported as skipped rather than failed: there are no flags to borrow, and the
-cross build in CI is what gates it.
+The flags come from scripts/compile_command.py, the helper the clang gate
+(check_clang_diagnostics.py) uses, so the two agree on every file: a current
+compile-database entry, else the command `make print-compile-command` prints for
+it (which needs no prior build; the first such file makes `compile-prereqs`),
+else, with no make rule, a neighbour's flags borrowed, which it says. An entry
+recorded by another version is the last resort and is named as stale. A file no
+native build compiles at all - firmware/, android/ - is reported as skipped
+rather than failed: there are no flags to borrow, and the cross build in CI is
+what gates it.
 """
 
-import json
 import os
 import pathlib
 import subprocess
@@ -26,9 +29,8 @@ import sys
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from merge_compile_commands import entry_argv  # noqa: E402
-
-DB_NAME = "compile_commands.json"
+from compile_command import SIBLING, STALE, PrereqsFailed, load_db, resolve  # noqa: E402
+from merge_compile_commands import entry_argv, recorded_version  # noqa: E402
 
 
 def flags_for(entry: dict) -> list[str]:
@@ -90,36 +92,37 @@ def main() -> int:
         ).stdout.strip()
         or "."
     )
-    db_path = root / DB_NAME
-    if not db_path.exists():
-        print(f"{DB_NAME} not found: run 'make compile_commands' (or a build) first", file=sys.stderr)
-        return 2
-
-    db = json.loads(db_path.read_text())
-    by_file = {os.path.relpath(e["file"], e.get("directory", root)): e for e in db}
-    by_dir: dict[str, dict] = {}
-    for rel, entry in by_file.items():
-        by_dir.setdefault(os.path.dirname(rel), entry)
-
+    db = load_db(str(root))
+    targets = {}
     failures = 0
-    checked = 0
-    skipped = 0
     for target in sys.argv[1:]:
         rel = os.path.relpath(os.path.abspath(target), root)
         if not os.path.exists(os.path.join(root, rel)):
             print(f"{rel}: no such file", file=sys.stderr)
             failures += 1
             continue
+        targets[rel] = os.path.realpath(os.path.join(root, rel))
+    try:
+        choices = resolve(sorted(set(targets.values())), db, str(root))
+    except PrereqsFailed as exc:
+        print(f"make compile-prereqs failed, so no make-derived command can run:\n{exc}",
+              file=sys.stderr)
+        return 2
 
-        entry = by_file.get(rel)
+    checked = 0
+    skipped = 0
+    for rel, real in targets.items():
+        choice = choices.get(real)
+        if choice is None:
+            print(f"{rel}: skipped, no native build compiles it")
+            skipped += 1
+            continue
+        entry = choice.entry
         borrowed = ""
-        if entry is None:
-            entry = by_dir.get(os.path.dirname(rel))
-            if entry is None:
-                print(f"{rel}: skipped, no native build compiles it")
-                skipped += 1
-                continue
-            borrowed = f" (flags borrowed from {os.path.relpath(entry['file'], root)})"
+        if choice.source == SIBLING:
+            borrowed = f" (flags borrowed from {choice.borrowed_from})"
+        elif choice.source == STALE:
+            borrowed = f" (stale compile command, recorded at {recorded_version(entry)})"
 
         flags = flags_for(entry)
         # A file wholly inside a guard the native build never defines would
