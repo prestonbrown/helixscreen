@@ -412,7 +412,7 @@ SaveVariables parse_save_variables(const json& vars, const std::string& known_pr
     // lessWaste keeps these kToolMapSize-entry and tool-indexed; bambufy's
     // legitimately hold 4 entries, and a non-array row is not ours to judge.
     if (p == "less_waste") {
-        for (const std::string key : {p + "_colors", p + "_types"}) {
+        for (const std::string& key : {p + "_colors", p + "_types"}) {
             const auto it = vars.find(key);
             if (it != vars.end() && it->is_array() &&
                 it->size() < static_cast<size_t>(kToolMapSize)) {
