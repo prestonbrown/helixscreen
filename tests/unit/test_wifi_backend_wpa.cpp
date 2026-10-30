@@ -462,4 +462,32 @@ TEST_CASE("wpa teardown detaches the monitor connection while it is still open",
     }
 }
 
+namespace {
+
+std::string scan_results(const std::vector<std::string>& rows) {
+    std::string raw = "bssid / frequency / signal level / flags / ssid\n";
+    for (const auto& row : rows) {
+        raw += row + "\n";
+    }
+    return raw;
+}
+
+} // namespace
+
+TEST_CASE("wpa scan results skip a hidden network shown as zero bytes",
+          "[network][wpa][hidden_ssid]") {
+    WpaFakeFixture fx;
+    fx.fake->set_reply("SCAN_RESULTS",
+                       scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[WPA2-PSK-CCMP][ESS]\tHome",
+                                     "aa:bb:cc:dd:ee:02\t2437\t-60\t[WPA2-PSK-CCMP][ESS]\t"
+                                     "\\x00\\x00\\x00\\x00\\x00\\x00"}));
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    std::vector<WiFiNetwork> networks;
+    REQUIRE(backend.get_scan_results(networks).success());
+    REQUIRE(networks.size() == 1);
+    CHECK(networks[0].ssid == "Home");
+}
+
 #endif // !__APPLE__

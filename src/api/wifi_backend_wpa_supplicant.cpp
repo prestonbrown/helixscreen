@@ -17,6 +17,8 @@
 #include "wifi_regdomain.h"
 #include "wifi_saved_config.h"
 
+#include <string_view>
+
 // find_network_id() is pure string parsing with no OS dependency, and its
 // declaration in the header sits outside the __APPLE__ guard so it can be
 // unit-tested on macOS — so its definition lives outside the guard too,
@@ -86,6 +88,15 @@ std::string validate_wpa_string(const std::string& input, const std::string& fie
         LOG_ERROR_INTERNAL("Invalid character in {}", field_name);
     }
     return "";
+}
+
+bool is_hidden_scan_ssid(const std::string& ssid) {
+    static constexpr std::string_view kNulEscape = "\\x00";
+    std::string_view rest = ssid;
+    while (rest.substr(0, kNulEscape.size()) == kNulEscape) {
+        rest.remove_prefix(kNulEscape.size());
+    }
+    return rest.empty();
 }
 } // namespace helix::wifi::detail
 
@@ -2243,8 +2254,8 @@ std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std:
         // SSID may be missing entirely for hidden networks
         std::string ssid = (fields.size() >= 5) ? fields[4] : "";
 
-        // Skip hidden networks (empty or missing SSID)
-        if (ssid.empty()) {
+        // Skip hidden networks (empty, missing or zero-byte SSID)
+        if (helix::wifi::detail::is_hidden_scan_ssid(ssid)) {
             spdlog::trace("[WifiBackend] Skipping hidden network: {}", helix::redact::mac(bssid));
             continue;
         }
