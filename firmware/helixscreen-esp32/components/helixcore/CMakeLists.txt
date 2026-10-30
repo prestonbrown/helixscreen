@@ -53,10 +53,11 @@ set(HELIX_FONT_SRCS
 
 # ESP32-S3 PIE SIMD blend/fill assembly (vendored esp_lvgl_port, Apache-2.0 —
 # see simd/esp_lvgl_port_lv_blend.h for provenance). The *_esp32s3.S files
-# define the generic lv_*_esp symbols the glue header's static inlines call
-# from inside LVGL's blend translation units; lv_macro_*.S are include-only
-# macro libraries the others pull in.
+# define the generic lv_*_esp symbols that esp_lvgl_port_lv_blend.c's wrappers
+# call for LVGL's blend translation units; lv_macro_*.S are include-only macro
+# libraries the others pull in.
 file(GLOB HELIX_SIMD_SRCS ${CMAKE_CURRENT_LIST_DIR}/simd/*_esp32s3.S)
+list(APPEND HELIX_SIMD_SRCS ${CMAKE_CURRENT_LIST_DIR}/simd/esp_lvgl_port_lv_blend.c)
 
 idf_component_register(
     SRCS ${LVGL_SRCS} ${HELIX_XML_SRCS} ${HELIX_FONT_SRCS} ${HELIX_SIMD_SRCS}
