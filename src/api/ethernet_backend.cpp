@@ -210,8 +210,8 @@ EthernetInfo select_interface(const std::vector<InterfaceState>& interfaces) {
     info.interface = selected.name;
     info.mac_address = selected.mac;
     info.connected = is_link_connected(has_ip(selected), selected.operstate);
-    info.ip_address = selected.ip;
     if (info.connected) {
+        info.ip_address = selected.ip;
         info.status = "Connected";
         spdlog::debug("[EthernetBackend] Ethernet connected: {} ({}, operstate: {})",
                       info.interface, info.ip_address, selected.operstate);
