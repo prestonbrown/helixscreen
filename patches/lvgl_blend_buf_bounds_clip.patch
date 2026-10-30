@@ -1,8 +1,8 @@
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend.c b/src/draw/sw/blend/lv_draw_sw_blend.c
-index 730fd9be4..35a5a03f4 100644
+index 2ef430213..b41e12285 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend.c
-@@ -86,6 +86,15 @@ void lv_draw_sw_blend(lv_draw_task_t * t, const lv_draw_sw_blend_dsc_t * blend_d
+@@ -85,6 +85,15 @@ void lv_draw_sw_blend(lv_draw_task_t * t, const lv_draw_sw_blend_dsc_t * dsc)
          LV_PROFILER_DRAW_END;
          return;
      }

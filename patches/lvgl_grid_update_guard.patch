@@ -1,17 +1,11 @@
 diff --git a/src/layouts/grid/lv_grid.c b/src/layouts/grid/lv_grid.c
-index e4115ca0b..1e533b1fd 100644
+index bcd9d2e1c..208b66fb6 100644
 --- a/src/layouts/grid/lv_grid.c
 +++ b/src/layouts/grid/lv_grid.c
-@@ -11,9 +11,32 @@
- #if LV_USE_GRID
- 
- #include "../../stdlib/lv_string.h"
-+#include "../../stdlib/lv_sprintf.h"
- #include "../lv_layout.h"
- #include "../../core/lv_obj_private.h"
-+#include "../../core/lv_obj_tree.h"
+@@ -15,6 +15,26 @@
  #include "../../core/lv_global.h"
-+
+ #include "../../core/lv_obj_style_internal.h"
+ 
 +/* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
 + * with backtrace + device context for remote crash diagnostics. */
 +extern void helix_lvgl_anomaly(const char * code, const char * context);
@@ -22,7 +16,7 @@ index e4115ca0b..1e533b1fd 100644
 + * never the offending lv_obj — this names it so the culprit grid can be found
 + * in the widget tree (bundle ET5ACW4S: unterminated row descriptor during a
 + * Change Host rebuild, container unidentifiable). `cont` MUST be a live obj —
-+ * every caller here runs after grid_update()'s lv_obj_is_valid(cont) gate. */
++ * every caller here runs after grid_update()'s lv_obj_is_in_widget_tree(cont) gate. */
 +static void grid_anomaly_ctx(char * buf, size_t bufsz, const char * prefix, lv_obj_t * cont)
 +{
 +    const char * nm = lv_obj_get_name(cont);
@@ -35,7 +29,7 @@ index e4115ca0b..1e533b1fd 100644
  /*********************
   *      DEFINES
   *********************/
-@@ -26,6 +49,14 @@
+@@ -27,6 +47,14 @@
  #define IS_CONTENT(x)  (x == LV_COORD_MAX - 101)
  #define GET_FR(x)      (x - (LV_COORD_MAX - 100))
  
@@ -50,53 +44,39 @@ index e4115ca0b..1e533b1fd 100644
  /**********************
   *      TYPEDEFS
   **********************/
-@@ -190,6 +221,17 @@ static void grid_update(lv_obj_t * cont, void * user_data)
+@@ -203,6 +231,18 @@ static void grid_update(lv_obj_t * cont, void * user_data)
      LV_LOG_INFO("update %p container", (void *)cont);
      LV_UNUSED(user_data);
  
 +    /* Guard against a freed grid container reaching this callback when a
 +     * relayout races teardown (modal close / panel rebuild during an AMS
 +     * update). cont->spec_attr is then freed garbage and the child loop below
-+     * reads a wild pointer -> SIGSEGV (#973). lv_obj_is_valid() compares the
-+     * pointer against live objects without dereferencing it, so it is safe to
-+     * call on a dangling pointer. */
-+    if(cont == NULL || !lv_obj_is_valid(cont)) {
++     * reads a wild pointer -> SIGSEGV (#973). lv_obj_is_in_widget_tree()
++     * searches down from the screens comparing pointers and never reads
++     * through the one it is given (lvgl_obj_is_valid_no_deref.patch), so it is
++     * safe to call on a dangling pointer. */
++    if(cont == NULL || !lv_obj_is_in_widget_tree(cont)) {
 +        helix_lvgl_anomaly("grid_update_invalid_cont", "grid_update: container freed/invalid");
 +        return;
 +    }
 +
      lv_grid_calc_t c;
      lv_result_t res = calc(cont, &c);
-     if(res != LV_RESULT_OK) return;
-@@ -207,6 +249,12 @@ static void grid_update(lv_obj_t * cont, void * user_data)
+     if(res != LV_RESULT_OK) {
+@@ -223,6 +263,12 @@ static void grid_update(lv_obj_t * cont, void * user_data)
      uint32_t i;
      for(i = 0; i < cont->spec_attr->child_cnt; i++) {
          lv_obj_t * item = cont->spec_attr->children[i];
 +        /* A child freed mid-relayout (async-deleted during teardown) can leave a
 +         * dangling entry here; item_repos() would dereference it -> SIGSEGV (#973). */
-+        if(item == NULL || !lv_obj_is_valid(item)) {
++        if(item == NULL || !lv_obj_is_in_widget_tree(item)) {
 +            helix_lvgl_anomaly("grid_update_invalid_item", "grid_update: child freed/invalid");
 +            continue;
 +        }
          item_repos(item, &c, &hint);
      }
      calc_free(&c);
-@@ -240,7 +288,13 @@ static lv_result_t calc(lv_obj_t * cont, lv_grid_calc_t * calc_out)
-         return LV_RESULT_INVALID;
-     }
-     if(calc_cols(cont, calc_out) == LV_RESULT_INVALID) {
--        /* Warning is already logged inside `calc_cols` */
-+        /* Warning is already logged inside `calc_cols`. calc_rows() has already
-+         * allocated the row tracks, and grid_update() does not call calc_free()
-+         * on a failed calc(), so release them here. */
-+        lv_free(calc_out->y);
-+        lv_free(calc_out->h);
-+        calc_out->y = NULL;
-+        calc_out->h = NULL;
-         return LV_RESULT_INVALID;
-     }
- 
-@@ -304,6 +358,30 @@ static lv_result_t calc_cols(lv_obj_t * cont, lv_grid_calc_t * c)
+@@ -331,6 +377,30 @@ static lv_result_t calc_cols(lv_obj_t * cont, lv_grid_calc_t * c)
      int32_t cont_w = lv_obj_get_content_width(cont);
  
      c->col_num = count_tracks(col_templ);
@@ -127,7 +107,7 @@ index e4115ca0b..1e533b1fd 100644
      c->x = lv_malloc(sizeof(int32_t) * c->col_num);
      c->w = lv_malloc(sizeof(int32_t) * c->col_num);
  
-@@ -316,6 +394,14 @@ static lv_result_t calc_cols(lv_obj_t * cont, lv_grid_calc_t * c)
+@@ -343,6 +413,14 @@ static lv_result_t calc_cols(lv_obj_t * cont, lv_grid_calc_t * c)
              uint32_t ci;
              for(ci = 0; ci < lv_obj_get_child_count(cont); ci++) {
                  lv_obj_t * item = lv_obj_get_child(cont, ci);
@@ -135,14 +115,14 @@ index e4115ca0b..1e533b1fd 100644
 +                 * dangling entry here. This calc() content-sizing pass runs before
 +                 * grid_update's item_repos guard, so the deref below is otherwise
 +                 * unprotected and SIGSEGVs on a page-returned object (#1001). */
-+                if(item == NULL || !lv_obj_is_valid(item)) {
++                if(item == NULL || !lv_obj_is_in_widget_tree(item)) {
 +                    helix_lvgl_anomaly("grid_update_invalid_calc_item", "calc_cols: child freed/invalid");
 +                    continue;
 +                }
-                 if(lv_obj_has_flag_any(item, LV_OBJ_FLAG_IGNORE_LAYOUT | LV_OBJ_FLAG_HIDDEN | LV_OBJ_FLAG_FLOATING)) continue;
+                 if((lv_obj_is_ignore_layout(item) || lv_obj_is_hidden(item) || lv_obj_is_floating(item))) continue;
                  uint32_t col_span = get_col_span(item);
                  if(col_span != 1) continue;
-@@ -395,6 +481,28 @@ static lv_result_t calc_rows(lv_obj_t * cont, lv_grid_calc_t * c)
+@@ -431,6 +509,28 @@ static lv_result_t calc_rows(lv_obj_t * cont, lv_grid_calc_t * c)
      }
  
      c->row_num = count_tracks(row_templ);
@@ -171,7 +151,7 @@ index e4115ca0b..1e533b1fd 100644
      c->y = lv_malloc(sizeof(int32_t) * c->row_num);
      c->h = lv_malloc(sizeof(int32_t) * c->row_num);
      /*Set sizes for CONTENT cells*/
-@@ -406,6 +514,14 @@ static lv_result_t calc_rows(lv_obj_t * cont, lv_grid_calc_t * c)
+@@ -442,6 +542,14 @@ static lv_result_t calc_rows(lv_obj_t * cont, lv_grid_calc_t * c)
              uint32_t ci;
              for(ci = 0; ci < lv_obj_get_child_count(cont); ci++) {
                  lv_obj_t * item = lv_obj_get_child(cont, ci);
@@ -179,14 +159,14 @@ index e4115ca0b..1e533b1fd 100644
 +                 * dangling entry here. This calc() content-sizing pass runs before
 +                 * grid_update's item_repos guard, so the deref below is otherwise
 +                 * unprotected and SIGSEGVs on a page-returned object (#1001). */
-+                if(item == NULL || !lv_obj_is_valid(item)) {
++                if(item == NULL || !lv_obj_is_in_widget_tree(item)) {
 +                    helix_lvgl_anomaly("grid_update_invalid_calc_item", "calc_rows: child freed/invalid");
 +                    continue;
 +                }
-                 if(lv_obj_has_flag_any(item, LV_OBJ_FLAG_IGNORE_LAYOUT | LV_OBJ_FLAG_HIDDEN | LV_OBJ_FLAG_FLOATING)) continue;
+                 if((lv_obj_is_ignore_layout(item) || lv_obj_is_hidden(item) || lv_obj_is_floating(item))) continue;
                  uint32_t row_span = get_row_span(item);
                  if(row_span != 1) continue;
-@@ -482,6 +598,29 @@ static void item_repos(lv_obj_t * item, lv_grid_calc_t * c, item_repos_hint_t *
+@@ -560,6 +668,30 @@ static void item_repos(lv_obj_t * item, lv_grid_calc_t * c, item_repos_hint_t *
      lv_grid_align_t col_align = get_cell_col_align(item);
      lv_grid_align_t row_align = get_cell_row_align(item);
  
@@ -197,8 +177,9 @@ index e4115ca0b..1e533b1fd 100644
 +     * was never set (read back as a huge default), or a position approved
 +     * against a larger logical grid than the live descriptor — and the c->x[...]
 +     * /c->y[...] reads below would then walk off the heap end -> SIGSEGV
-+     * (bundle P234RYCL, AD5X). lv_obj_is_valid() in grid_update() catches freed
-+     * children; this catches valid children with out-of-range cells. */
++     * (bundle P234RYCL, AD5X). lv_obj_is_in_widget_tree() in grid_update()
++     * catches freed children; this catches valid children with out-of-range
++     * cells. */
 +    if(col_pos >= c->col_num || row_pos >= c->row_num ||
 +       col_pos + col_span > c->col_num || row_pos + row_span > c->row_num) {
 +        /* Include the actual cell vs. track counts so the next bundle reveals
@@ -216,13 +197,14 @@ index e4115ca0b..1e533b1fd 100644
      int32_t col_x1 = 0;
      int32_t col_x2 = 0;
      int32_t col_w = 0;
-@@ -678,8 +817,11 @@ static int32_t grid_align(int32_t cont_size,  bool auto_size, lv_grid_align_t al
+@@ -757,9 +889,12 @@ static int32_t grid_align(int32_t cont_size,  bool auto_size, lv_grid_align_t al
  
  static uint32_t count_tracks(const int32_t * templ)
  {
 +    /* Bounded walk: stop at GRID_MAX_TRACKS even if no LV_GRID_TEMPLATE_LAST is
 +     * found, so a freed/garbage descriptor cannot run off the heap end. Callers
 +     * (calc_cols/calc_rows) treat a return of GRID_MAX_TRACKS as invalid. */
+     LV_ASSERT(templ != NULL);
      uint32_t i;
 -    for(i = 0; templ[i] != LV_GRID_TEMPLATE_LAST; i++);
 +    for(i = 0; i < GRID_MAX_TRACKS && templ[i] != LV_GRID_TEMPLATE_LAST; i++);

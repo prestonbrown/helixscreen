@@ -1,10 +1,12 @@
 diff --git a/src/indev/lv_indev.c b/src/indev/lv_indev.c
+index 18fc6981f..6a0c80b38 100644
 --- a/src/indev/lv_indev.c
 +++ b/src/indev/lv_indev.c
-@@ -1245,6 +1245,28 @@
+@@ -1287,6 +1287,28 @@ static int32_t indev_scroll_throw_decay(int32_t x, int32_t t)
+     return x * (512 - (512 * t) / 99) / 512;
  }
  
- /**
++/**
 + * HelixScreen: a history sample's share of the scroll throw vector.
 + * A sample covering more than one read period is split into period-long
 + * slices, each decayed by its own age, so a slow read cadence yields the same
@@ -26,11 +28,10 @@ diff --git a/src/indev/lv_indev.c b/src/indev/lv_indev.c
 +    return sum / span;
 +}
 +
-+/**
+ /**
   * Process the pressed state of LV_INDEV_TYPE_POINTER input devices
   * @param indev pointer to an input device 'proc'
-  */
-@@ -1365,9 +1387,14 @@
+@@ -1409,9 +1431,14 @@ static void indev_proc_press(lv_indev_t * indev)
      indev->pointer.scroll_throw_vect.x = 0;
      indev->pointer.scroll_throw_vect.y = 0;
      for(int i = 0; i < LV_INDEV_VECT_HIST_SIZE; i++) {
@@ -47,7 +48,7 @@ diff --git a/src/indev/lv_indev.c b/src/indev/lv_indev.c
      }
  
      indev->pointer.scroll_throw_vect_ori = indev->pointer.scroll_throw_vect;
-@@ -1950,5 +1977,7 @@
+@@ -2049,5 +2076,7 @@ static void indev_scroll_throw_anim_start(lv_indev_t * indev)
      lv_anim_set_deleted_cb(&a, indev_scroll_throw_anim_completed_cb);
      lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
  
@@ -56,10 +57,10 @@ diff --git a/src/indev/lv_indev.c b/src/indev/lv_indev.c
      indev->scroll_throw_anim = lv_anim_start(&a);
  }
 diff --git a/src/indev/lv_indev_private.h b/src/indev/lv_indev_private.h
-index 5ce041854..28c051b51 100644
+index 48837d659..18b112bb4 100644
 --- a/src/indev/lv_indev_private.h
 +++ b/src/indev/lv_indev_private.h
-@@ -95,6 +95,7 @@ struct _lv_indev_t {
+@@ -96,6 +96,7 @@ struct _lv_indev_t {
          lv_point_t scroll_sum; /*Count the dragged pixels to check LV_INDEV_DEF_SCROLL_LIMIT*/
          lv_point_t scroll_throw_vect;
          lv_point_t scroll_throw_vect_ori;
@@ -68,10 +69,10 @@ index 5ce041854..28c051b51 100644
          lv_obj_t * scroll_obj;   /*The object being scrolled*/
          lv_obj_t * last_pressed; /*The lastly pressed object*/
 diff --git a/src/indev/lv_indev_scroll.c b/src/indev/lv_indev_scroll.c
-index ae7d27537..bd0736525 100644
+index 61306bdf5..2bc2f7d1e 100644
 --- a/src/indev/lv_indev_scroll.c
 +++ b/src/indev/lv_indev_scroll.c
-@@ -30,6 +30,8 @@ static int32_t find_snap_point_y(const lv_obj_t * obj, int32_t min, int32_t max,
+@@ -31,6 +31,8 @@ static int32_t find_snap_point_y(const lv_obj_t * obj, int32_t min, int32_t max,
  static void scroll_limit_diff(lv_indev_t * indev, int32_t * diff_x, int32_t * diff_y);
  static int32_t elastic_diff(lv_obj_t * scroll_obj, int32_t diff, int32_t scroll_start, int32_t scroll_end,
                              lv_dir_t dir);
@@ -80,7 +81,7 @@ index ae7d27537..bd0736525 100644
  static void has_more_snap_points(lv_obj_t * scroll_obj, lv_dir_t dir, bool * has_start_snap, bool * has_end_snap);
  
  /**********************
-@@ -129,6 +131,14 @@ void lv_indev_scroll_throw_handler(lv_indev_t * indev)
+@@ -130,6 +132,14 @@ void lv_indev_scroll_throw_handler(lv_indev_t * indev)
  
      int32_t scroll_throw = indev->scroll_throw;
  
@@ -92,10 +93,10 @@ index ae7d27537..bd0736525 100644
 +    uint32_t steps = elapsed / LV_DEF_REFR_PERIOD;
 +    indev->pointer.scroll_throw_timestamp = now - elapsed % LV_DEF_REFR_PERIOD;
 +
-     if(lv_obj_has_flag(scroll_obj, LV_OBJ_FLAG_SCROLL_MOMENTUM) == false) {
+     if(lv_obj_is_scroll_momentum(scroll_obj) == false) {
          indev->pointer.scroll_throw_vect.y = 0;
          indev->pointer.scroll_throw_vect.x = 0;
-@@ -141,16 +151,13 @@ void lv_indev_scroll_throw_handler(lv_indev_t * indev)
+@@ -142,16 +152,13 @@ void lv_indev_scroll_throw_handler(lv_indev_t * indev)
          indev->pointer.scroll_throw_vect.x = 0;
          /*If no snapping "throw"*/
          if(align_y == LV_SCROLL_SNAP_NONE) {
@@ -115,7 +116,7 @@ index ae7d27537..bd0736525 100644
              if(indev->reset_query) return;
          }
          /*With snapping find the nearest snap point and scroll there*/
-@@ -167,16 +174,13 @@ void lv_indev_scroll_throw_handler(lv_indev_t * indev)
+@@ -168,16 +175,13 @@ void lv_indev_scroll_throw_handler(lv_indev_t * indev)
          indev->pointer.scroll_throw_vect.y = 0;
          /*If no snapping "throw"*/
          if(align_x == LV_SCROLL_SNAP_NONE) {
@@ -135,7 +136,7 @@ index ae7d27537..bd0736525 100644
              if(indev->reset_query) return;
          }
          /*With snapping find the nearest snap point and scroll there*/
-@@ -638,6 +642,28 @@ static void scroll_limit_diff(lv_indev_t * indev, int32_t * diff_x, int32_t * di
+@@ -644,6 +648,28 @@ static void scroll_limit_diff(lv_indev_t * indev, int32_t * diff_x, int32_t * di
      }
  }
  

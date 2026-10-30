@@ -1,8 +1,8 @@
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_a8.c b/src/draw/sw/blend/lv_draw_sw_blend_to_a8.c
-index 736fd9ecd..d495bbf8d 100644
+index d8459b0ac..858036f87 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_a8.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_a8.c
-@@ -176,6 +176,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
+@@ -164,6 +164,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
  
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_a8(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -14,10 +14,10 @@ index 736fd9ecd..d495bbf8d 100644
      int32_t h = dsc->dest_h;
      lv_opa_t opa = dsc->opa;
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_al88.c b/src/draw/sw/blend/lv_draw_sw_blend_to_al88.c
-index 749be4cea..eb9545938 100644
+index 4a5ad1a9a..de2a2e9f1 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_al88.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_al88.c
-@@ -196,6 +196,10 @@ static inline void /* LV_ATTRIBUTE_FAST_MEM */ lv_color_16a_16a_mix(lv_color16a_
+@@ -185,6 +185,10 @@ static inline void /* LV_ATTRIBUTE_FAST_MEM */ lv_color_16a_16a_mix(lv_color16a_
  
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_al88(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -29,10 +29,10 @@ index 749be4cea..eb9545938 100644
      int32_t h = dsc->dest_h;
      lv_opa_t opa = dsc->opa;
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_argb8888.c b/src/draw/sw/blend/lv_draw_sw_blend_to_argb8888.c
-index 5932f56f6..2d970f0cc 100644
+index f3644d215..ce0eb7065 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_argb8888.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_argb8888.c
-@@ -237,6 +237,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
+@@ -250,6 +250,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
  
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_argb8888(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -44,10 +44,10 @@ index 5932f56f6..2d970f0cc 100644
      int32_t h = dsc->dest_h;
      lv_opa_t opa = dsc->opa;
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_argb8888_premultiplied.c b/src/draw/sw/blend/lv_draw_sw_blend_to_argb8888_premultiplied.c
-index a74863a0f..fe3092bc2 100644
+index 92421f98a..e4b079e1f 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_argb8888_premultiplied.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_argb8888_premultiplied.c
-@@ -129,6 +129,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
+@@ -125,6 +125,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
   */
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_argb8888_premultiplied(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -59,10 +59,10 @@ index a74863a0f..fe3092bc2 100644
      int32_t h = dsc->dest_h;
      lv_opa_t opa = dsc->opa;
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_i1.c b/src/draw/sw/blend/lv_draw_sw_blend_to_i1.c
-index 7fe446cab..d38e3ff27 100644
+index b3e88f0eb..480f1a1a2 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_i1.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_i1.c
-@@ -226,6 +226,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
+@@ -215,6 +215,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
  
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_i1(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -74,10 +74,10 @@ index 7fe446cab..d38e3ff27 100644
      int32_t h = dsc->dest_h;
      lv_opa_t opa = dsc->opa;
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_l8.c b/src/draw/sw/blend/lv_draw_sw_blend_to_l8.c
-index 99b438deb..de365e3f2 100644
+index f7a676083..9d7418b9a 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_l8.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_l8.c
-@@ -188,6 +188,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
+@@ -177,6 +177,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
  
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_l8(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -89,10 +89,10 @@ index 99b438deb..de365e3f2 100644
      int32_t h = dsc->dest_h;
      lv_opa_t opa = dsc->opa;
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_rgb565.c b/src/draw/sw/blend/lv_draw_sw_blend_to_rgb565.c
-index a2bcacd33..5dacb3f56 100644
+index d3320762f..8bf635d82 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_rgb565.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_rgb565.c
-@@ -254,6 +254,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
+@@ -265,6 +265,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
   */
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_rgb565(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -104,10 +104,10 @@ index a2bcacd33..5dacb3f56 100644
      int32_t h = dsc->dest_h;
      uint16_t color16 = lv_color_to_u16(dsc->color);
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_rgb565_swapped.c b/src/draw/sw/blend/lv_draw_sw_blend_to_rgb565_swapped.c
-index 88845845c..0f30e326d 100644
+index 3760d5e07..948f37871 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_rgb565_swapped.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_rgb565_swapped.c
-@@ -250,6 +250,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
+@@ -275,6 +275,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
   */
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_rgb565_swapped(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -119,10 +119,10 @@ index 88845845c..0f30e326d 100644
      int32_t h = dsc->dest_h;
      uint16_t color16 = lv_color_to_u16(dsc->color); /* Normal color */
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c b/src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c
-index c92ce07df..35aff0b54 100644
+index 84b799368..6056d9dda 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c
-@@ -223,6 +223,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
+@@ -209,6 +209,10 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
  
  void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_rgb888(lv_draw_sw_blend_fill_dsc_t * dsc, uint32_t dest_px_size)
  {
@@ -134,10 +134,10 @@ index c92ce07df..35aff0b54 100644
      int32_t h = dsc->dest_h;
      lv_opa_t opa = dsc->opa;
 diff --git a/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c b/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c
-index 2b933e687..c1ab3ae82 100644
+index b63bafd0f..2f90e9498 100644
 --- a/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c
 +++ b/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c
-@@ -158,6 +158,10 @@ static inline uint32_t lv_color_16_16_mix_2_with_opa_mask(const uint16_t * c1, c
+@@ -156,6 +156,10 @@ static inline uint32_t lv_color_16_16_mix_2_with_opa_mask(const uint16_t * c1, c
  
  lv_result_t lv_draw_sw_blend_neon_color_to_rgb565(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -148,7 +148,7 @@ index 2b933e687..c1ab3ae82 100644
  
      LV_ASSERT(dsc->opa >= LV_OPA_MAX);
      LV_ASSERT(dsc->mask_buf == NULL);
-@@ -202,6 +206,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb565(lv_draw_sw_blend_fill_dsc_t *
+@@ -200,6 +204,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb565(lv_draw_sw_blend_fill_dsc_t *
  }
  lv_result_t lv_draw_sw_blend_neon_color_to_rgb565_with_opa(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -159,7 +159,7 @@ index 2b933e687..c1ab3ae82 100644
  
      LV_ASSERT(dsc->opa < LV_OPA_MAX);
      LV_ASSERT(dsc->mask_buf == NULL);
-@@ -251,6 +259,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb565_with_opa(lv_draw_sw_blend_fill
+@@ -249,6 +257,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb565_with_opa(lv_draw_sw_blend_fill
  }
  lv_result_t lv_draw_sw_blend_neon_color_to_rgb565_with_mask(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -170,7 +170,7 @@ index 2b933e687..c1ab3ae82 100644
      LV_ASSERT(dsc->opa >= LV_OPA_MAX);
      LV_ASSERT(dsc->mask_buf != NULL);
      const int32_t w              = dsc->dest_w;
-@@ -304,6 +316,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb565_with_mask(lv_draw_sw_blend_fil
+@@ -302,6 +314,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb565_with_mask(lv_draw_sw_blend_fil
  
  lv_result_t lv_draw_sw_blend_neon_color_to_rgb565_with_opa_mask(lv_draw_sw_blend_fill_dsc_t * dsc)
  {
@@ -182,10 +182,10 @@ index 2b933e687..c1ab3ae82 100644
      LV_ASSERT(dsc->mask_buf != NULL);
      const int32_t w              = dsc->dest_w;
 diff --git a/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c b/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c
-index 9c20c522a..53dfa6f10 100644
+index f7276d78e..ee828e94f 100644
 --- a/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c
 +++ b/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c
-@@ -84,6 +84,10 @@ static inline uint8x8x3_t rgb_mix_4_internal(uint8x8x3_t src, uint8x8x3_t dst, u
+@@ -82,6 +82,10 @@ static inline uint8x8x3_t rgb_mix_4_internal(uint8x8x3_t src, uint8x8x3_t dst, u
  
  lv_result_t lv_draw_sw_blend_neon_color_to_rgb888(lv_draw_sw_blend_fill_dsc_t * dsc, uint32_t dest_px_size)
  {
@@ -196,7 +196,7 @@ index 9c20c522a..53dfa6f10 100644
      LV_ASSERT(dest_px_size == 3 || dest_px_size == 4);
      LV_ASSERT(dsc->opa >= LV_OPA_MAX);
      LV_ASSERT(dsc->mask_buf == NULL);
-@@ -149,6 +153,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb888(lv_draw_sw_blend_fill_dsc_t *
+@@ -147,6 +151,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb888(lv_draw_sw_blend_fill_dsc_t *
  }
  lv_result_t lv_draw_sw_blend_neon_color_to_rgb888_with_opa(lv_draw_sw_blend_fill_dsc_t * dsc, uint32_t dest_px_size)
  {
@@ -207,7 +207,7 @@ index 9c20c522a..53dfa6f10 100644
      LV_ASSERT(dest_px_size == 3 || dest_px_size == 4);
      LV_ASSERT(dsc->opa < LV_OPA_MAX);
      LV_ASSERT(dsc->mask_buf == NULL);
-@@ -213,6 +221,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb888_with_opa(lv_draw_sw_blend_fill
+@@ -211,6 +219,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb888_with_opa(lv_draw_sw_blend_fill
  
  lv_result_t lv_draw_sw_blend_neon_color_to_rgb888_with_mask(lv_draw_sw_blend_fill_dsc_t * dsc, uint32_t dest_px_size)
  {
@@ -218,7 +218,7 @@ index 9c20c522a..53dfa6f10 100644
      LV_ASSERT(dest_px_size == 3 || dest_px_size == 4);
      LV_ASSERT(dsc->opa >= LV_OPA_MAX);
      LV_ASSERT_NULL(dsc->mask_buf);
-@@ -281,6 +293,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb888_with_mask(lv_draw_sw_blend_fil
+@@ -279,6 +291,10 @@ lv_result_t lv_draw_sw_blend_neon_color_to_rgb888_with_mask(lv_draw_sw_blend_fil
  lv_result_t lv_draw_sw_blend_neon_color_to_rgb888_with_opa_mask(lv_draw_sw_blend_fill_dsc_t * dsc,
                                                                  uint32_t dest_px_size)
  {

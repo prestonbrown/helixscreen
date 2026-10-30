@@ -1,9 +1,9 @@
 diff --git a/src/draw/lv_draw_buf.c b/src/draw/lv_draw_buf.c
-index 293f23d5e..060466159 100644
+index d33e8460b..bbbbc3522 100644
 --- a/src/draw/lv_draw_buf.c
 +++ b/src/draw/lv_draw_buf.c
-@@ -257,7 +257,6 @@ lv_draw_buf_t * lv_draw_buf_create_ex(const lv_draw_buf_handlers_t * handlers, u
- {
+@@ -281,7 +281,6 @@ lv_draw_buf_t * lv_draw_buf_create_ex(const lv_draw_buf_handlers_t * handlers, u
+ 
      LV_PROFILER_DRAW_BEGIN;
      lv_draw_buf_t * draw_buf = lv_malloc_zeroed(sizeof(lv_draw_buf_t));
 -    LV_ASSERT_MALLOC(draw_buf);

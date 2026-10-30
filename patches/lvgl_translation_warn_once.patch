@@ -1,8 +1,8 @@
 diff --git a/src/others/translation/lv_translation.c b/src/others/translation/lv_translation.c
-index 7d1407422..45498dc73 100644
+index 99ffddd81..45ca85377 100644
 --- a/src/others/translation/lv_translation.c
 +++ b/src/others/translation/lv_translation.c
-@@ -38,6 +38,16 @@ static lv_obj_tree_walk_res_t send_language_change_event(lv_obj_t * obj, void *
+@@ -32,6 +32,16 @@ static const char * get_translation(const char * tag);
   *  STATIC VARIABLES
   **********************/
  
@@ -19,7 +19,7 @@ index 7d1407422..45498dc73 100644
  /**********************
   *      MACROS
   **********************/
-@@ -50,6 +60,7 @@ void lv_translation_init(void)
+@@ -44,6 +54,7 @@ void lv_translation_init(void)
  {
      lv_ll_init(&packs_ll, sizeof(lv_translation_pack_t));
      selected_lang = NULL;
@@ -27,23 +27,23 @@ index 7d1407422..45498dc73 100644
  }
  
  void lv_translation_deinit(void)
-@@ -82,6 +93,7 @@ void lv_translation_deinit(void)
-     lv_ll_clear(&packs_ll);
+@@ -77,6 +88,7 @@ void lv_translation_deinit(void)
  
      lv_free((void *)selected_lang);
+     selected_lang = NULL;
 +    missing_lang_warned = false;
  }
  
  lv_translation_pack_t * lv_translation_add_static(const char * const languages[], const char * const tags[],
-@@ -131,6 +143,7 @@ void lv_translation_set_language(const char * lang)
- {
-     if(selected_lang) lv_free((void *)selected_lang);
-     selected_lang = lv_strdup(lang);
+@@ -135,6 +147,7 @@ void lv_translation_set_language(const char * lang)
+     }
+     lv_strcpy(new_lang, lang);
+     selected_lang = new_lang;
 +    missing_lang_warned = false;
      lv_obj_tree_walk(NULL, send_language_change_event, (void *)lang);
  }
  
-@@ -185,7 +198,9 @@ const char * lv_translation_get(const char * tag)
+@@ -311,7 +324,9 @@ static const char * get_translation(const char * tag)
      if(lang_found) {
          LV_LOG_WARN("`%s` tag is not found, using the tag as translation.", tag);
      }
