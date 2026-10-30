@@ -177,6 +177,44 @@ EOF
     contains "no fork point to measure from" "$output"
 }
 
+# The checkout CI makes for a pull request: its merge commit fetched at depth 2,
+# detached, with no branch of the base in the clone.
+pr_checkout() { # <dir>
+    local merge
+    merge=$(git -C "$REPO" commit-tree "$(git -C "$REPO" rev-parse HEAD^{tree})" \
+        -p main -p HEAD -m "Merge PR")
+    git -C "$REPO" update-ref refs/pull/1/merge "$merge"
+    git init -q "$1"
+    git -C "$1" fetch -q --depth 2 "file://$REPO" +refs/pull/1/merge:refs/remotes/pull/1/merge
+    git -C "$1" checkout -q --detach refs/remotes/pull/1/merge
+}
+
+@test "a shallow pull-request checkout refuses until its base is named, then measures the PR" {
+    echo "int more;" >> "$REPO/src/big.cpp"
+    commit_all "grow"
+    pr_checkout "$BATS_TEST_TMPDIR/pr"
+    run python3 "$GATE" --root "$BATS_TEST_TMPDIR/pr" --base auto
+    [ "$status" -eq 1 ]
+    contains "no fork point to measure from" "$output"
+    git -C "$BATS_TEST_TMPDIR/pr" update-ref refs/remotes/origin/main HEAD^1
+    run python3 "$GATE" --root "$BATS_TEST_TMPDIR/pr" --base auto
+    [ "$status" -eq 1 ]
+    contains "src/big.cpp is over the $CAP-line cap and grew" "$output"
+}
+
+@test "Code Quality gives every event a fork point: depth 2 plus the PR's base, full history for claude/**" {
+    run python3 -c "
+import yaml
+steps = yaml.safe_load(open('$BATS_TEST_DIRNAME/../../.github/workflows/quality.yml'))['jobs']['quality-checks']['steps']
+co = next(s for s in steps if str(s.get('uses', '')).startswith('actions/checkout'))
+depth = str(co.get('with', {}).get('fetch-depth', ''))
+assert \"'2'\" in depth and \"'0'\" in depth and 'refs/heads/claude/' in depth, depth
+names = [s.get('run', '') for s in steps if s.get('if') == \"github.event_name == 'pull_request'\"]
+assert any('refs/remotes/origin/\${{ github.base_ref }}\" HEAD^1' in r for r in names), names
+"
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
 @test "non-C++ files are not measured" {
     lines $((CAP + 1)) > "$REPO/src/table.txt"
     lines $((CAP + 1)) > "$REPO/include/generated.inc"
