@@ -268,6 +268,7 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
     if (country_dropdown_) {
         // The hint follows the radio; refresh_country() sets it once the radio answers.
         country_hint_5ghz_ = false;
+        radio_country_.reset();
         fill_country_options();
         // DECLARATIVE_OK: the options are C++-built data, rebuilt in the new language.
         lv_obj_add_event_cb(country_dropdown_, on_country_language_changed,
@@ -453,6 +454,16 @@ void NetworkSettingsOverlay::refresh_band_capability() {
     lv_subject_set_int(&wifi_only_24ghz_, only_24ghz ? 1 : 0);
     spdlog::debug("[NetworkSettingsOverlay] WiFi band capability: {}",
                   only_24ghz ? "2.4GHz only" : "2.4GHz + 5GHz");
+    if (radio_country_) {
+        apply_country_hint();
+    }
+}
+
+void NetworkSettingsOverlay::apply_country_hint() {
+    country_hint_5ghz_ =
+        wifi_manager_ && radio_country_ &&
+        helix::wifi::country::should_hint_5ghz(wifi_manager_->supports_5ghz(), *radio_country_);
+    show_country_choice(lv_subject_get_int(&wifi_country_index_), country_hint_5ghz_);
 }
 
 void NetworkSettingsOverlay::refresh_country() {
@@ -463,14 +474,12 @@ void NetworkSettingsOverlay::refresh_country() {
     }
     wifi_manager_->get_country_async(
         lifetime_.token(), [this](const WiFiManager::CountryState& state) {
-            const int index = helix::wifi::country::dropdown_index(state.display);
-            lv_subject_set_int(&wifi_country_index_, index);
+            lv_subject_set_int(&wifi_country_index_,
+                               helix::wifi::country::dropdown_index(state.display));
             // The hint follows the radio, not the saved choice: a saved
             // country the radio refused still leaves 5 GHz scanning off.
-            const std::string& effective = state.read_ok ? state.system : state.stored;
-            country_hint_5ghz_ = wifi_manager_ && helix::wifi::country::should_hint_5ghz(
-                                                      wifi_manager_->supports_5ghz(), effective);
-            show_country_choice(index, country_hint_5ghz_);
+            radio_country_ = state.read_ok ? state.system : state.stored;
+            apply_country_hint();
         });
 }
 

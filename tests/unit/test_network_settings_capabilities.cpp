@@ -329,3 +329,26 @@ TEST_CASE_METHOD(CapabilityFixture,
 
     CHECK(lv_subject_get_int(&Access::wifi_only_24ghz(overlay)) == 0);
 }
+
+TEST_CASE_METHOD(CapabilityFixture,
+                 "Network settings hints at 5 GHz once a scan finds it under a world domain",
+                 "[network_settings][wifi_band]") {
+    helix::SystemSettingsManager::instance().set_wifi_country("");
+    auto five_ghz = std::make_shared<std::atomic<bool>>(false);
+    NetworkSettingsOverlay overlay;
+    lv_obj_t* root = open_overlay(overlay, std::make_unique<LateFiveGhzBackend>(five_ghz));
+    lv_obj_t* dropdown = lv_obj_find_by_name(root, "wifi_country_dropdown");
+    REQUIRE(dropdown != nullptr);
+    auto shown = [dropdown] {
+        const char* text = lv_dropdown_get_text(dropdown);
+        return std::string(text ? text : "");
+    };
+    // A 2.4 GHz-only radio loses nothing in the world domain, so no hint.
+    REQUIRE(wait_until([&] { return Access::radio_country_read(overlay); }));
+    REQUIRE(shown() == "Not set");
+
+    five_ghz->store(true);
+    Access::populate_network_list(overlay, {WiFiNetwork("Fast", 80, true, "WPA2", 5180)});
+
+    CHECK(shown() == "2.4 GHz only");
+}
