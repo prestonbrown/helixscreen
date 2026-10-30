@@ -288,6 +288,14 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS keeps the snapshot across partial st
     const auto info = backend.get_system_info();
     CHECK(info.total_slots == 4);
     CHECK(info.action == AmsAction::UNLOADING);
+
+    // Units on different paths make the system MIXED; the backend applies what the
+    // snapshot read.
+    OpenAmsHarness mixed;
+    auto status = loaded_manager();
+    status["units"][1]["topology"] = "linear";
+    mixed.feed(status);
+    CHECK(mixed.get_topology() == PathTopology::MIXED);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS without a supported API presents nothing, not an error",

@@ -7626,10 +7626,8 @@ TEST_CASE("AFC version never gates behaviour", "[ams][afc][version]") {
 
     helper.feed_afc_state({{"version", "0.0.1"}});
 
-    // NOTE: apply_lane_data re-initializes the slot registry whenever the payload
-    // lane count differs from the current slot count, so a lane_data payload must
-    // carry EVERY lane. A single-lane payload silently collapses the registry to
-    // one slot and any get_slot_info(i>0) then reads a default-constructed slot.
+    // apply_lane_data only bootstraps an EMPTY slot registry, so these cases seed
+    // the slots from discovery first; the payload then names lanes that exist.
     nlohmann::json lanes;
     for (int i = 0; i < 4; ++i) {
         lanes["lane" + std::to_string(i)] = {{"color", "#FF5500"}, {"material", "PLA"}};
@@ -7650,9 +7648,7 @@ TEST_CASE("AFC lane_data reads vendor_name for the brand, with brand as fallback
     // Upstream is naming this vendor_name, NOT vendor, to match Happy Hare's
     // mmu_server.py so both backends share one spelling.
     //
-    // All four lanes in ONE payload: apply_lane_data re-initializes the registry
-    // when the lane count changes, so feeding lanes piecemeal would collapse it
-    // to a single slot and make these assertions read default-constructed slots.
+    // All four lanes in one payload, matching the slots discovery seeded.
     nlohmann::json lanes;
     lanes["lane0"] = {{"brand", "Prusament"}}; // legacy spelling
     lanes["lane1"] = {{"vendor_name", "Polymaker"},
@@ -7753,8 +7749,7 @@ TEST_CASE("AFC takes no weight from lane_data on any version (#805)", "[ams][afc
     // them apart — the only safe rule is to never source weight here.
     //
     // `remaining_weight` / `total_weight` are included too: no AFC version ever
-    // emitted either key, and readers for them used to sit in apply_lane_data.
-    // Deleting those readers must not be undone by someone "restoring" them.
+    // emits either key, so nothing should read them from lane_data.
     nlohmann::json lanes;
     for (int i = 0; i < 4; ++i) {
         lanes["lane" + std::to_string(i)] = {
