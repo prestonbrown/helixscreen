@@ -66,6 +66,32 @@ struct EthernetInfo {
         : connected(false), interface(""), ip_address(""), mac_address(""), status("Unknown") {}
 };
 
+namespace ethernet {
+
+/**
+ * @brief One Ethernet interface as the kernel reports it
+ */
+struct InterfaceState {
+    std::string name;      ///< Interface name (e.g. "eth0")
+    std::string ip;        ///< IPv4 address, "" when none
+    std::string mac;       ///< MAC address, "" when unknown
+    std::string operstate; ///< /sys/class/net/<name>/operstate, "" if unreadable
+};
+
+/**
+ * @brief Pick the interface to report and decide its connection status
+ *
+ * Preference: the first interface that is "up" with an address, then the
+ * first whose address and link make it connected (is_link_connected), then
+ * the first interface.
+ *
+ * @param interfaces Ethernet interfaces only, in kernel order
+ * @return status "No Ethernet interface" when @p interfaces is empty
+ */
+EthernetInfo select_interface(const std::vector<InterfaceState>& interfaces);
+
+} // namespace ethernet
+
 /**
  * @brief Abstract Ethernet backend interface
  *
