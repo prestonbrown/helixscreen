@@ -353,9 +353,10 @@ TEST_CASE("unpack565 widens each field by repeating its top bits, as PixelWriter
     CHECK(PixelWriter::unpack565(0xF800) == Rgb{255, 0, 0});
     CHECK(PixelWriter::unpack565(0x07E0) == Rgb{0, 255, 0});
     CHECK(PixelWriter::unpack565(0x001F) == Rgb{0, 0, 255});
-    // r5 = 0b10000 widens to 0b10000100, g6 = 0b100000 to 0b10000010.
+    // r5 = 0b10000 widens to 0b10000100, g6 = 0b100000 to 0b10000010, b5 like r5.
     CHECK(PixelWriter::unpack565(0x8000) == Rgb{132, 0, 0});
     CHECK(PixelWriter::unpack565(0x0400) == Rgb{0, 130, 0});
+    CHECK(PixelWriter::unpack565(0x0010) == Rgb{0, 0, 132});
 
     TestFrame frame(1, 1, 2, PixelFormat::RGB565);
     PixelWriter writer(frame.target);
