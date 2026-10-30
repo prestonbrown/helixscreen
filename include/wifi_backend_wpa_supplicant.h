@@ -40,6 +40,11 @@ bool wpa_string_is_valid(const std::string& input);
 /// Returns @p input unchanged on success, "" on failure. Exposed for unit
 /// testing.
 std::string validate_wpa_string(const std::string& input, const std::string& field_name);
+
+/// Whether a SCAN_RESULTS ssid field names no network: empty, or only the
+/// "\x00" escapes wpa_supplicant prints for a hidden network that broadcasts
+/// its SSID as zero bytes. Exposed for unit testing.
+bool is_hidden_scan_ssid(const std::string& ssid);
 } // namespace helix::wifi::detail
 
 #ifndef __APPLE__
