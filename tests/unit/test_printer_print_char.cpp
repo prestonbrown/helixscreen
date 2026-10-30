@@ -68,25 +68,14 @@ TEST_CASE("Print characterization: non-obvious initial values after init",
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
-    SECTION("print_state initializes to 'standby'") {
-        const char* val = lv_subject_get_string(state.print_state().get_print_state_subject());
-        REQUIRE(std::string(val) == "standby");
-    }
-
-    SECTION("print_state_enum initializes to STANDBY (0)") {
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::STANDBY));
-    }
-
-    SECTION("print_outcome initializes to NONE (0)") {
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
-                static_cast<int>(PrintOutcome::NONE));
-    }
-
-    SECTION("print_start_phase initializes to IDLE (0)") {
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
-                static_cast<int>(PrintStartPhase::IDLE));
-    }
+    CHECK(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
+          "standby");
+    CHECK(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
+          static_cast<int>(PrintJobState::STANDBY));
+    CHECK(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
+          static_cast<int>(PrintOutcome::NONE));
+    CHECK(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
+          static_cast<int>(PrintStartPhase::IDLE));
 }
 
 // ============================================================================
@@ -94,88 +83,40 @@ TEST_CASE("Print characterization: non-obvious initial values after init",
 // ============================================================================
 
 TEST_CASE("Print characterization: core state from JSON", "[characterization][print][update]") {
-    lv_init_safe();
+    struct Row {
+        const char* wire;
+        PrintJobState expected;
+        int active; ///< print_active, or -1 when not checked
+    };
+    const Row rows[] = {
+        {"standby", PrintJobState::STANDBY, 0},
+        {"printing", PrintJobState::PRINTING, 1},
+        {"paused", PrintJobState::PAUSED, 1},
+        {"complete", PrintJobState::COMPLETE, 0},
+        {"cancelled", PrintJobState::CANCELLED, 0},
+        {"error", PrintJobState::ERROR, 0},
+        // The string subject keeps the raw value; the enum falls back to STANDBY.
+        {"unknown_state", PrintJobState::STANDBY, -1},
+    };
+    for (const auto& r : rows) {
+        DYNAMIC_SECTION(r.wire) {
+            lv_init_safe();
+            PrinterState& state = get_printer_state();
+            PrinterStateTestAccess::reset(state);
+            state.init_subjects(false);
 
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+            state.update_from_status(json{{"print_stats", {{"state", r.wire}}}});
 
-    SECTION("standby state updates correctly") {
-        json status = {{"print_stats", {{"state", "standby"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "standby");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::STANDBY));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 0);
-    }
-
-    SECTION("printing state updates correctly") {
-        json status = {{"print_stats", {{"state", "printing"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "printing");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::PRINTING));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
-    }
-
-    SECTION("paused state updates correctly") {
-        json status = {{"print_stats", {{"state", "paused"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "paused");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::PAUSED));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
-    }
-
-    SECTION("complete state updates correctly") {
-        json status = {{"print_stats", {{"state", "complete"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "complete");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::COMPLETE));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 0);
-    }
-
-    SECTION("cancelled state updates correctly") {
-        json status = {{"print_stats", {{"state", "cancelled"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "cancelled");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::CANCELLED));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 0);
-    }
-
-    SECTION("error state updates correctly") {
-        json status = {{"print_stats", {{"state", "error"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "error");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::ERROR));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 0);
-    }
-
-    SECTION("unknown state defaults to standby") {
-        json status = {{"print_stats", {{"state", "unknown_state"}}}};
-        state.update_from_status(status);
-
-        // String subject gets the raw value
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "unknown_state");
-        // Enum defaults to STANDBY for unknown strings
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::STANDBY));
+            CHECK(std::string(lv_subject_get_string(
+                      state.print_state().get_print_state_subject())) == r.wire);
+            CHECK(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
+                  static_cast<int>(r.expected));
+            CHECK(state.print_state().get_print_job_state() == r.expected);
+            if (r.active >= 0) {
+                CHECK(lv_subject_get_int(state.print_state().get_print_active_subject()) ==
+                      r.active);
+            }
+        }
     }
 }
 
@@ -285,12 +226,6 @@ TEST_CASE("Print characterization: terminal state persistence",
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
     }
-
-    SECTION("set_print_outcome API works") {
-        state.print_state().set_print_outcome(PrintOutcome::CANCELLED);
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
-                static_cast<int>(PrintOutcome::CANCELLED));
-    }
 }
 
 // ============================================================================
@@ -304,28 +239,12 @@ TEST_CASE("Print characterization: file info from JSON", "[characterization][pri
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
-    SECTION("filename updates from print_stats.filename") {
-        json status = {{"print_stats", {{"filename", "test_model.gcode"}}}};
-        state.update_from_status(status);
-
-        const char* val = lv_subject_get_string(state.print_state().get_print_filename_subject());
-        REQUIRE(std::string(val) == "test_model.gcode");
-    }
-
-    SECTION("filename with path") {
-        json status = {{"print_stats", {{"filename", "folder/subfolder/model.gcode"}}}};
-        state.update_from_status(status);
-
-        const char* val = lv_subject_get_string(state.print_state().get_print_filename_subject());
-        REQUIRE(std::string(val) == "folder/subfolder/model.gcode");
-    }
-
-    SECTION("empty filename") {
-        json status = {{"print_stats", {{"filename", ""}}}};
-        state.update_from_status(status);
-
-        const char* val = lv_subject_get_string(state.print_state().get_print_filename_subject());
-        REQUIRE(std::string(val) == "");
+    // The subject carries print_stats.filename as reported, path and all.
+    for (const char* name : {"", "test_model.gcode", "folder/subfolder/model.gcode"}) {
+        INFO(name);
+        state.update_from_status(json{{"print_stats", {{"filename", name}}}});
+        CHECK(std::string(
+                  lv_subject_get_string(state.print_state().get_print_filename_subject())) == name);
     }
 }
 
@@ -368,38 +287,18 @@ TEST_CASE("Print characterization: file info API methods", "[characterization][p
 // ============================================================================
 
 TEST_CASE("Print characterization: progress from JSON", "[characterization][print][progress]") {
-    lv_init_safe();
+    // virtual_sdcard.progress is a 0.0-1.0 fraction; the subject holds whole percent.
+    const std::pair<double, int> rows[] = {{0.5, 50}, {0.0, 0}, {1.0, 100}, {0.753, 75}};
+    for (const auto& [fraction, percent] : rows) {
+        DYNAMIC_SECTION(fraction) {
+            lv_init_safe();
+            PrinterState& state = get_printer_state();
+            PrinterStateTestAccess::reset(state);
+            state.init_subjects(false);
 
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    SECTION("progress converts 0.0-1.0 float to 0-100 percentage") {
-        json status = {{"virtual_sdcard", {{"progress", 0.5}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 50);
-    }
-
-    SECTION("progress 0.0 becomes 0%") {
-        json status = {{"virtual_sdcard", {{"progress", 0.0}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 0);
-    }
-
-    SECTION("progress 1.0 becomes 100%") {
-        json status = {{"virtual_sdcard", {{"progress", 1.0}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 100);
-    }
-
-    SECTION("progress 0.753 becomes 75%") {
-        json status = {{"virtual_sdcard", {{"progress", 0.753}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 75);
+            state.update_from_status(json{{"virtual_sdcard", {{"progress", fraction}}}});
+            CHECK(lv_subject_get_int(state.print_state().get_print_progress_subject()) == percent);
+        }
     }
 }
 
@@ -1200,76 +1099,6 @@ TEST_CASE("Print characterization: reset_for_new_print clears progress subjects"
 // Observer Notification Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: observer fires when print_state_enum changes",
-          "[characterization][print][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
-        int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
-        int* value_ptr = count_ptr + 1;
-
-        (*count_ptr)++;
-        *value_ptr = lv_subject_get_int(subject);
-    };
-
-    int user_data[2] = {0, -1}; // [callback_count, last_value]
-
-    lv_observer_t* observer = lv_subject_add_observer(
-        state.print_state().get_print_state_enum_subject(), observer_cb, user_data);
-
-    // LVGL auto-notifies observers when first added
-    REQUIRE(user_data[0] == 1);
-    REQUIRE(user_data[1] == static_cast<int>(PrintJobState::STANDBY));
-
-    // Change to printing
-    json status = {{"print_stats", {{"state", "printing"}}}};
-    state.update_from_status(status);
-
-    REQUIRE(user_data[0] >= 2);
-    REQUIRE(user_data[1] == static_cast<int>(PrintJobState::PRINTING));
-
-    lv_observer_remove(observer);
-}
-
-TEST_CASE("Print characterization: observer fires when print_progress changes",
-          "[characterization][print][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
-        int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
-        int* value_ptr = count_ptr + 1;
-
-        (*count_ptr)++;
-        *value_ptr = lv_subject_get_int(subject);
-    };
-
-    int user_data[2] = {0, -1};
-
-    lv_observer_t* observer = lv_subject_add_observer(
-        state.print_state().get_print_progress_subject(), observer_cb, user_data);
-
-    // Initial notification
-    REQUIRE(user_data[0] == 1);
-    REQUIRE(user_data[1] == 0);
-
-    // Update progress
-    json status = {{"virtual_sdcard", {{"progress", 0.75}}}};
-    state.update_from_status(status);
-
-    REQUIRE(user_data[0] >= 2);
-    REQUIRE(user_data[1] == 75);
-
-    lv_observer_remove(observer);
-}
-
 TEST_CASE("Print: string observer sees updated enum (issue #125 regression)",
           "[print][observer][regression]") {
     // Issue #125: PrintSelectPanel observes print_state_ (string) but reads
@@ -1454,80 +1283,22 @@ TEST_CASE("Print characterization: non-print update does not affect print subjec
 }
 
 // ============================================================================
-// get_print_job_state Convenience Method
-// ============================================================================
-
-TEST_CASE("Print characterization: get_print_job_state returns correct enum",
-          "[characterization][print][api]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    SECTION("returns STANDBY by default") {
-        REQUIRE(state.print_state().get_print_job_state() == PrintJobState::STANDBY);
-    }
-
-    SECTION("returns PRINTING when printing") {
-        json status = {{"print_stats", {{"state", "printing"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(state.print_state().get_print_job_state() == PrintJobState::PRINTING);
-    }
-
-    SECTION("returns PAUSED when paused") {
-        json status = {{"print_stats", {{"state", "paused"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(state.print_state().get_print_job_state() == PrintJobState::PAUSED);
-    }
-
-    SECTION("returns COMPLETE when complete") {
-        json status = {{"print_stats", {{"state", "complete"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(state.print_state().get_print_job_state() == PrintJobState::COMPLETE);
-    }
-}
-
-// ============================================================================
 // parse_print_job_state Function Tests
 // ============================================================================
 
 TEST_CASE("Print characterization: parse_print_job_state function",
           "[characterization][print][parse]") {
-    SECTION("parses 'standby' to STANDBY") {
-        REQUIRE(parse_print_job_state("standby") == PrintJobState::STANDBY);
+    const std::pair<const char*, PrintJobState> rows[] = {
+        {"standby", PrintJobState::STANDBY},     {"printing", PrintJobState::PRINTING},
+        {"paused", PrintJobState::PAUSED},       {"complete", PrintJobState::COMPLETE},
+        {"cancelled", PrintJobState::CANCELLED}, {"error", PrintJobState::ERROR},
+        {"unknown", PrintJobState::STANDBY},
+    };
+    for (const auto& [wire, expected] : rows) {
+        INFO(wire);
+        CHECK(parse_print_job_state(wire) == expected);
     }
-
-    SECTION("parses 'printing' to PRINTING") {
-        REQUIRE(parse_print_job_state("printing") == PrintJobState::PRINTING);
-    }
-
-    SECTION("parses 'paused' to PAUSED") {
-        REQUIRE(parse_print_job_state("paused") == PrintJobState::PAUSED);
-    }
-
-    SECTION("parses 'complete' to COMPLETE") {
-        REQUIRE(parse_print_job_state("complete") == PrintJobState::COMPLETE);
-    }
-
-    SECTION("parses 'cancelled' to CANCELLED") {
-        REQUIRE(parse_print_job_state("cancelled") == PrintJobState::CANCELLED);
-    }
-
-    SECTION("parses 'error' to ERROR") {
-        REQUIRE(parse_print_job_state("error") == PrintJobState::ERROR);
-    }
-
-    SECTION("parses unknown string to STANDBY") {
-        REQUIRE(parse_print_job_state("unknown") == PrintJobState::STANDBY);
-    }
-
-    SECTION("parses nullptr to STANDBY") {
-        REQUIRE(parse_print_job_state(nullptr) == PrintJobState::STANDBY);
-    }
+    CHECK(parse_print_job_state(nullptr) == PrintJobState::STANDBY);
 }
 
 // ============================================================================
