@@ -1,7 +1,8 @@
 diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
+index fb0320261..bc470432d 100644
 --- a/src/misc/lv_event.c
 +++ b/src/misc/lv_event.c
-@@ -73,6 +73,15 @@
+@@ -67,6 +67,15 @@ void lv_event_desc_set_external_data(lv_event_dsc_t * dsc, void * data, void (*
  }
  #endif
  
@@ -17,7 +18,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
  void lv_event_push(lv_event_t * e)
  {
      /*Build a simple linked list from the objects used in the events
-@@ -80,12 +89,14 @@
+@@ -74,12 +83,14 @@ void lv_event_push(lv_event_t * e)
       *called from this `event_cb`.*/
      e->prev = event_head;
      event_head = e;
@@ -32,7 +33,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
  }
  
  /* HelixScreen: idempotent pop. Pops only if `e` is still the head of the
-@@ -97,6 +108,7 @@
+@@ -91,6 +102,7 @@ void lv_event_pop_if_head(lv_event_t * e)
  {
      if(event_head == e) {
          event_head = e->prev;
@@ -40,7 +41,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
      }
  }
  
-@@ -352,11 +364,73 @@
+@@ -375,11 +387,73 @@ void lv_event_mark_deleted(void * target)
       * sane depth and validate alignment at each step. On a runaway, log via
       * helix_lvgl_anomaly (which captures a backtrace) and zero out event_head
       * so subsequent dispatches get a clean slate. */
@@ -114,11 +115,10 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
          if(((uintptr_t)e & (sizeof(void *) - 1)) != 0u) {
              if(helix_lvgl_anomaly) {
                  char ctx[96];
-@@ -366,6 +440,16 @@
-             }
+@@ -390,6 +464,16 @@ void lv_event_mark_deleted(void * target)
              event_head = NULL;
              return;
-+        }
+         }
 +        if((uintptr_t)e < sp_low || (uintptr_t)e >= sp_high) {
 +            if(helix_lvgl_anomaly) {
 +                char ctx[96];
@@ -128,6 +128,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 +            }
 +            event_head = NULL;
 +            return;
-         }
++        }
          if(++depth > max_depth) {
              if(helix_lvgl_anomaly) {
+                 char ctx[96];

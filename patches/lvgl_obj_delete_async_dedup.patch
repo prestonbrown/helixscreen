@@ -1,60 +1,64 @@
 diff --git a/src/core/lv_obj_tree.c b/src/core/lv_obj_tree.c
-index 2dc7a024f..963e3c08b 100644
+index 9f9d8c9e5..b90528ac6 100644
 --- a/src/core/lv_obj_tree.c
 +++ b/src/core/lv_obj_tree.c
-@@ -138,9 +138,29 @@ void lv_obj_delete_anim_completed_cb(lv_anim_t * a)
-     lv_obj_delete(a->var);
- }
+@@ -14,6 +14,10 @@
+ #include "../misc/lv_anim_private.h"
+ #include "../core/lv_global.h"
  
 +/* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
 + * (double-schedule, UAF near-miss) via TelemetryManager::record_error. */
 +extern void helix_lvgl_anomaly(const char * code, const char * context);
 +
- void lv_obj_delete_async(lv_obj_t * obj)
+ /*********************
+  *      DEFINES
+  *********************/
+@@ -143,6 +147,21 @@ void lv_obj_delete_async(lv_obj_t * obj)
  {
-     LV_ASSERT_OBJ(obj, MY_CLASS);
+     if(obj == NULL) return;
+ 
 +    /* Dedup: cancel any previously-scheduled async delete for this obj to
 +     * prevent double-execution of lv_obj_delete_async_cb. The second
 +     * callback would run after the first freed the object, producing a
 +     * use-after-free crash inside lv_event_mark_deleted / obj_delete_core.
-+     * Log + phone home on the first duplicate so we can correlate with
-+     * device/panel context and track where the double-schedule comes from. */
-+    lv_result_t cancel_res = lv_async_call_cancel(lv_obj_delete_async_cb, obj);
-+    if(cancel_res == LV_RESULT_OK) {
++     * lv_async_call_cancel() cancels every matching entry. Log + phone home
++     * on a duplicate so we can correlate with device/panel context and track
++     * where the double-schedule comes from. */
++    if(lv_async_call_cancel(lv_obj_delete_async_cb, obj) == LV_RESULT_OK) {
 +        const char * cls_name = (obj->class_p && obj->class_p->name) ? obj->class_p->name : "?";
 +        LV_LOG_WARN("lv_obj_delete_async: duplicate schedule for %p (class=%s)",
 +                    (void *)obj, cls_name);
 +        char ctx[96];
 +        lv_snprintf(ctx, sizeof(ctx), "class=%s", cls_name);
 +        helix_lvgl_anomaly("obj_delete_async_dup", ctx);
-+        while(lv_async_call_cancel(lv_obj_delete_async_cb, obj) == LV_RESULT_OK) { }
 +    }
      lv_async_call(lv_obj_delete_async_cb, obj);
  }
  
-@@ -646,7 +666,17 @@ void lv_obj_dump_tree(lv_obj_t * start_obj)
+@@ -644,6 +663,19 @@ void lv_obj_dump_tree(lv_obj_t * start_obj)
  
  static void lv_obj_delete_async_cb(void * obj)
  {
--    LV_ASSERT_OBJ(obj, MY_CLASS);
 +    /* Guard against use-after-free: another code path may have already freed
 +     * this object (e.g., parent's obj_delete_core recursed into children
 +     * before the child's pending async delete could be cancelled, or a
-+     * duplicate schedule slipped through). lv_obj_is_valid walks the
-+     * display's screen tree and does not dereference `obj`, so it's safe
-+     * even if obj is a freed pointer. */
-+    if(!lv_obj_is_valid(obj)) {
++     * duplicate schedule slipped through). lv_obj_is_in_widget_tree() searches
++     * down from the display's screens comparing pointers and does not
++     * dereference `obj` (lvgl_obj_is_valid_no_deref.patch), so it's safe even
++     * if obj is a freed pointer. */
++    if(!lv_obj_is_in_widget_tree(obj)) {
 +        LV_LOG_WARN("lv_obj_delete_async_cb: skipping invalid obj %p", obj);
 +        helix_lvgl_anomaly("obj_delete_async_cb_invalid", "");
 +        return;
 +    }
- 
++
      lv_obj_delete(obj);
  }
-@@ -667,7 +697,7 @@ static void obj_indev_reset(lv_indev_t * indev, lv_obj_t * obj)
  
+@@ -664,7 +696,7 @@ static void obj_indev_reset(lv_indev_t * indev, lv_obj_t * obj)
  static void obj_delete_core(lv_obj_t * obj)
  {
+     LV_ASSERT(obj != NULL);
 -    if(obj->is_deleting)
 +    if(obj == NULL || obj->is_deleting)
          return;

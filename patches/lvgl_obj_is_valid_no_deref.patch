@@ -1,0 +1,66 @@
+lv_obj_is_in_widget_tree() (lv_obj_is_valid() through the v9.5 API map) answers
+by comparing pointers while searching down from every registered screen, and
+never reads through the object it is asked about. HelixScreen calls it as a
+use-after-free guard on pointers that may already be freed (the app's
+lv_obj_is_valid() call sites, lv_obj_delete_async_cb, lvgl_grid_update_guard),
+so a walk up obj->parent would itself read freed memory. Cost is O(widgets)
+per call; LV_USE_CHECK_OBJ_VALIDITY stays 0 so LV_CHECK_OBJ never calls it.
+
+diff --git a/src/core/lv_obj.c b/src/core/lv_obj.c
+index 1a9cd4982..ce323a920 100644
+--- a/src/core/lv_obj.c
++++ b/src/core/lv_obj.c
+@@ -79,6 +79,7 @@ static void call_delete_cb(lv_event_t * e);
+ 
+ static inline void set_state(lv_obj_t * obj, lv_state_t state,  bool value);
+ static inline bool has_state(const lv_obj_t * obj, lv_state_t state);
++static bool obj_tree_contains(const lv_obj_t * parent, const lv_obj_t * obj_to_find);
+ #if LV_USE_CHECK_OBJ_PARENT_LINK && LV_USE_ASSERT
+     static bool parent_contains_child(const lv_obj_t * parent, const lv_obj_t * child);
+ #endif
+@@ -1304,21 +1305,15 @@ bool lv_obj_is_in_widget_tree(const lv_obj_t * obj)
+ {
+     LV_CHECK_ARG(obj != NULL, return false);   /* Can't use LV_CHECK_OBJ here, it could cause an infinite recursion loop. */
+ 
+-    const lv_obj_t * current = obj;
+-
+-    while(current->parent != NULL) {
+-#if LV_USE_CHECK_OBJ_PARENT_LINK && LV_USE_ASSERT
+-        LV_ASSERT(parent_contains_child(current->parent, current));
+-#endif
+-        current = current->parent;
+-    }
+-
+-    /* current is now a screen (parent == NULL); verify it belongs to a display */
++    /* Search down from every registered screen comparing pointers, and never read
++     * through `obj` itself: callers ask this about pointers that may already be
++     * freed, where walking obj->parent would read freed memory. */
+     lv_display_t * disp = lv_display_get_next(NULL);
+     while(disp) {
+         uint32_t i;
+         for(i = 0; i < disp->screen_cnt; i++) {
+-            if(disp->screens[i] == current) return true;
++            if(disp->screens[i] == obj) return true;
++            if(obj_tree_contains(disp->screens[i], obj)) return true;
+         }
+         disp = lv_display_get_next(disp);
+     }
+@@ -2237,6 +2232,18 @@ static inline bool has_state(const lv_obj_t * obj, lv_state_t state)
+ }
+ 
+ 
++static bool obj_tree_contains(const lv_obj_t * parent, const lv_obj_t * obj_to_find)
++{
++    uint32_t child_cnt = parent->spec_attr ? parent->spec_attr->child_cnt : 0;
++    uint32_t i;
++    for(i = 0; i < child_cnt; i++) {
++        lv_obj_t * child = parent->spec_attr->children[i];
++        if(child == obj_to_find) return true;
++        if(obj_tree_contains(child, obj_to_find)) return true;
++    }
++    return false;
++}
++
+ #if LV_USE_CHECK_OBJ_PARENT_LINK && LV_USE_ASSERT
+ static bool parent_contains_child(const lv_obj_t * parent, const lv_obj_t * child)
+ {

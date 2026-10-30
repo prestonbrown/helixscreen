@@ -1,6 +1,8 @@
+diff --git a/src/core/lv_refr.c b/src/core/lv_refr.c
+index c718a7bbc..ffc0c7202 100644
 --- a/src/core/lv_refr.c
 +++ b/src/core/lv_refr.c
-@@ -839,7 +839,7 @@
+@@ -876,7 +876,7 @@ static void refr_invalid_areas(void)
   * Reshape the draw buffer if required
   * @param layer  pointer to a layer which will be drawn
   */
@@ -9,7 +11,7 @@
  {
      lv_draw_buf_t * ret = lv_draw_buf_reshape(
                                layer->draw_buf,
-@@ -849,6 +849,13 @@
+@@ -886,6 +886,13 @@ static void layer_reshape_draw_buf(lv_layer_t * layer, uint32_t stride)
                                stride);
      LV_UNUSED(ret);
      LV_ASSERT_NULL(ret);
@@ -23,7 +25,7 @@
  }
  
  /**
-@@ -868,7 +875,11 @@
+@@ -905,7 +912,11 @@ static void refr_area(const lv_area_t * area_p, int32_t y_offset)
      if(disp_refr->render_mode == LV_DISPLAY_RENDER_MODE_PARTIAL) {
          /*In partial mode render this area to the buffer*/
          layer->buf_area = *area_p;
@@ -36,7 +38,7 @@
      }
      else if(disp_refr->render_mode == LV_DISPLAY_RENDER_MODE_DIRECT ||
              disp_refr->render_mode == LV_DISPLAY_RENDER_MODE_FULL) {
-@@ -883,7 +894,11 @@
+@@ -921,7 +932,11 @@ static void refr_area(const lv_area_t * area_p, int32_t y_offset)
              layer->buf_area.x2 = lv_display_get_horizontal_resolution(disp_refr) - 1;
              layer->buf_area.y2 = lv_display_get_vertical_resolution(disp_refr) - 1;
          }

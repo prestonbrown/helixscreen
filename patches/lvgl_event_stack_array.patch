@@ -1,7 +1,8 @@
 diff --git a/src/core/lv_global.h b/src/core/lv_global.h
+index b736f8d86..c74182aec 100644
 --- a/src/core/lv_global.h
 +++ b/src/core/lv_global.h
-@@ -113,9 +113,22 @@
+@@ -101,9 +101,22 @@ typedef struct _lv_global_t {
      uint32_t memory_zero;
      uint32_t math_rand_seed;
  
@@ -26,9 +27,10 @@ diff --git a/src/core/lv_global.h b/src/core/lv_global.h
      lv_anim_state_t anim_state;
      lv_tick_state_t tick_state;
 diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
+index bc470432d..12133463f 100644
 --- a/src/misc/lv_event.c
 +++ b/src/misc/lv_event.c
-@@ -25,6 +25,16 @@
+@@ -22,6 +22,16 @@ extern void helix_lvgl_anomaly(const char * code, const char * context) __attrib
  #define event_head LV_GLOBAL_DEFAULT()->event_header
  #define event_last_id LV_GLOBAL_DEFAULT()->event_last_register_id
  
@@ -45,7 +47,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
  /**********************
   *      TYPEDEFS
   **********************/
-@@ -73,42 +83,71 @@
+@@ -67,42 +77,71 @@ void lv_event_desc_set_external_data(lv_event_dsc_t * dsc, void * data, void (*
  }
  #endif
  
@@ -134,7 +136,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
      }
  }
  
-@@ -350,29 +389,29 @@
+@@ -373,29 +412,29 @@ uint32_t lv_event_register_id(void)
  
  void lv_event_mark_deleted(void * target)
  {
@@ -186,13 +188,15 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
      if(event_head != NULL && event_dispatch_depth == 0) {
          if(helix_lvgl_anomaly) {
              char ctx[96];
-@@ -381,88 +420,54 @@
+@@ -404,88 +443,54 @@ void lv_event_mark_deleted(void * target)
              helix_lvgl_anomaly("event_head_stale_leak", ctx);
          }
          event_head = NULL;
 -        return;
--    }
--
++        /* Fall through to the array walk — those slots may still have valid
++         * events even if event_head got out of sync. */
+     }
+ 
 -    /* HelixScreen: stack-bounds check (corrective).
 -     * event_head must point at an active lv_event_t living on the call
 -     * stack. User stacks on aarch64/armhf/x86 grow DOWNWARD: a valid `e`
@@ -221,32 +225,13 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 -            }
 -            event_head = NULL;
 -            return;
--        }
-+        /* Fall through to the array walk — those slots may still have valid
-+         * events even if event_head got out of sync. */
-     }
- 
--    /* Capture stack bounds once for the loop's per-step check. Recomputing
--     * sp_now inside the loop wouldn't help — we never recurse here, so SP
--     * is stable for the whole walk. */
 +    /* Capture stack bounds for per-slot validation. User stacks grow
 +     * downward: a valid lv_event_t pointer must be at an address >= current
 +     * frame and within ~16 MB of it (Linux thread default is 8 MB). Slots
 +     * outside this range are stale or corrupt; skip them and surface
 +     * telemetry. */
-     void * sp_now = __builtin_frame_address(0);
--    const uintptr_t sp_low = (uintptr_t)sp_now;
--    const uintptr_t sp_high = sp_low + (16U << 20);
- 
--    lv_event_t * e = event_head;
--    unsigned depth = 0;
--    const unsigned max_depth = 256;            /* deepest plausible nested send chain */
--
--    while(e) {
--        /* Per-step stack-bounds check on `e` (and implicitly on the prev
--         * pointer that took us here). e->prev can be a stale stack address
--         * even when event_head itself was valid, if a frame deeper in the
--         * chain returned without popping. */
++    void * sp_now = __builtin_frame_address(0);
++
 +    /* Iterate the array. Bounded by event_stack_size (which we check against
 +     * LV_EVENT_STACK_MAX). Top-of-stack first to match the previous walk
 +     * order — outer dispatch frames mark first, innermost frames last —
@@ -258,10 +243,26 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 +            snprintf(ctx, sizeof(ctx), "size=%u target=%p (>max=%u)",
 +                     (unsigned)stack_size, target, LV_EVENT_STACK_MAX);
 +            helix_lvgl_anomaly("event_stack_size_oob", ctx);
-+        }
+         }
 +        stack_size = LV_EVENT_STACK_MAX;
-+    }
-+
+     }
+ 
+-    /* Capture stack bounds once for the loop's per-step check. Recomputing
+-     * sp_now inside the loop wouldn't help — we never recurse here, so SP
+-     * is stable for the whole walk. */
+-    void * sp_now = __builtin_frame_address(0);
+-    const uintptr_t sp_low = (uintptr_t)sp_now;
+-    const uintptr_t sp_high = sp_low + (16U << 20);
+-
+-    lv_event_t * e = event_head;
+-    unsigned depth = 0;
+-    const unsigned max_depth = 256;            /* deepest plausible nested send chain */
+-
+-    while(e) {
+-        /* Per-step stack-bounds check on `e` (and implicitly on the prev
+-         * pointer that took us here). e->prev can be a stale stack address
+-         * even when event_head itself was valid, if a frame deeper in the
+-         * chain returned without popping. */
 +    for(int32_t i = (int32_t)stack_size - 1; i >= 0; i--) {
 +        lv_event_t * e = event_stack[i];
 +        if(e == NULL) continue;
@@ -271,6 +272,16 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 -                snprintf(ctx, sizeof(ctx), "head=%p target=%p depth=%u (misaligned)",
 -                         (void *)e, target, depth);
 -                helix_lvgl_anomaly("event_head_misaligned", ctx);
+-            }
+-            event_head = NULL;
+-            return;
+-        }
+-        if((uintptr_t)e < sp_low || (uintptr_t)e >= sp_high) {
+-            if(helix_lvgl_anomaly) {
+-                char ctx[96];
+-                snprintf(ctx, sizeof(ctx), "e=%p sp=%p depth=%u (oob)",
+-                         (void *)e, sp_now, depth);
+-                helix_lvgl_anomaly("event_chain_stack_oob", ctx);
 +                snprintf(ctx, sizeof(ctx), "slot[%d]=%p target=%p (misaligned)",
 +                         (int)i, (void *)e, target);
 +                helix_lvgl_anomaly("event_slot_misaligned", ctx);
@@ -279,20 +290,10 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 -            return;
 +            continue;
          }
--        if((uintptr_t)e < sp_low || (uintptr_t)e >= sp_high) {
+-        if(++depth > max_depth) {
 +        if(!lv_event_addr_on_stack((uintptr_t)e, (uintptr_t)sp_now)) {
              if(helix_lvgl_anomaly) {
                  char ctx[96];
--                snprintf(ctx, sizeof(ctx), "e=%p sp=%p depth=%u (oob)",
--                         (void *)e, sp_now, depth);
--                helix_lvgl_anomaly("event_chain_stack_oob", ctx);
--            }
--            event_head = NULL;
--            return;
--        }
--        if(++depth > max_depth) {
--            if(helix_lvgl_anomaly) {
--                char ctx[96];
 -                snprintf(ctx, sizeof(ctx), "head=%p target=%p (chain >%u)",
 -                         (void *)event_head, target, max_depth);
 -                helix_lvgl_anomaly("event_head_runaway", ctx);
@@ -310,9 +311,10 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
  }
  
 diff --git a/src/misc/lv_event_private.h b/src/misc/lv_event_private.h
+index 40baab742..6458a71b4 100644
 --- a/src/misc/lv_event_private.h
 +++ b/src/misc/lv_event_private.h
-@@ -83,6 +83,18 @@
+@@ -90,6 +90,18 @@ lv_result_t lv_event_push_and_send(lv_event_list_t * event_list, lv_event_code_t
   */
  void lv_event_mark_deleted(void * target);
  

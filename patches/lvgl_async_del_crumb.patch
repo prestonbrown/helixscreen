@@ -1,9 +1,9 @@
 diff --git a/src/core/lv_obj_tree.c b/src/core/lv_obj_tree.c
-index d19f2ac..440a81e 100644
+index 9abf7425f..8207b159d 100644
 --- a/src/core/lv_obj_tree.c
 +++ b/src/core/lv_obj_tree.c
-@@ -20,6 +20,32 @@
-  * with backtrace + device context for remote crash diagnostics. */
+@@ -18,6 +18,32 @@
+  * (double-schedule, UAF near-miss) via TelemetryManager::record_error. */
  extern void helix_lvgl_anomaly(const char * code, const char * context);
  
 +/* Weak-extern hooks into crash_handler.cpp's breadcrumb ring. Record the
@@ -20,11 +20,11 @@ index d19f2ac..440a81e 100644
 + * sync crumb is suppressed on that path (async_d already named the root).
 + * LVGL is single-threaded — a plain int suffices for visibility. The
 + * __cleanup__-tagged guard below resets it on every scope exit including
-+ * C++ exception unwind through this C frame; -fexceptions is enabled on
-+ * this TU (mk/rules.mk:282) and lvgl_event_pop_unwind_safe.patch already
-+ * relies on it. Without the cleanup, a throwing event_cb inside the inner
-+ * lv_obj_delete() would leave the flag stuck at 1, silently suppressing
-+ * every subsequent sync_d crumb. */
++ * C++ exception unwind through this C frame; mk/rules.mk builds LVGL with
++ * -fexceptions and lvgl_event_pop_unwind_safe.patch relies on it too.
++ * Without the cleanup, a throwing event_cb inside the inner lv_obj_delete()
++ * would leave the flag stuck at 1, silently suppressing every subsequent
++ * sync_d crumb. */
 +static int helix_in_async_del = 0;
 +static void helix_async_del_guard_pop(int * unused)
 +{
@@ -35,9 +35,9 @@ index d19f2ac..440a81e 100644
  /*********************
   *      DEFINES
   *********************/
-@@ -62,6 +88,12 @@ void lv_obj_delete(lv_obj_t * obj)
-     if(obj->is_deleting)
-         return;
+@@ -60,6 +86,12 @@ void lv_obj_delete(lv_obj_t * obj)
+     if(obj == NULL) return;
+     if(obj->is_deleting) return;
  
 +    /* Crumb the sync-delete root (suppressed when re-entered from async_cb). */
 +    if(!helix_in_async_del && helix_crash_note_sync_del) {
@@ -46,9 +46,9 @@ index d19f2ac..440a81e 100644
 +    }
 +
      LV_LOG_TRACE("begin (delete %p)", (void *)obj);
-     LV_ASSERT_OBJ(obj, MY_CLASS);
      lv_obj_invalidate(obj);
-@@ -696,6 +728,18 @@ static void lv_obj_delete_async_cb(void * obj)
+ 
+@@ -689,6 +721,18 @@ static void lv_obj_delete_async_cb(void * obj)
          return;
      }
  

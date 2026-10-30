@@ -1,14 +1,44 @@
+diff --git a/src/core/lv_obj_tree.c b/src/core/lv_obj_tree.c
+index 8207b159d..ff890bb4e 100644
+--- a/src/core/lv_obj_tree.c
++++ b/src/core/lv_obj_tree.c
+@@ -13,6 +13,7 @@
+ #include "../display/lv_display_private.h"
+ #include "../misc/lv_anim_private.h"
+ #include "../core/lv_global.h"
++#include "../misc/lv_helix_thread_check.h"
+ 
+ /* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
+  * (double-schedule, UAF near-miss) via TelemetryManager::record_error. */
+@@ -83,6 +84,7 @@ static lv_obj_t * lv_obj_get_first_not_deleting_child(lv_obj_t * obj);
+ 
+ void lv_obj_delete(lv_obj_t * obj)
+ {
++    LV_HELIX_ASSERT_LVGL_THREAD();
+     if(obj == NULL) return;
+     if(obj->is_deleting) return;
+ 
+@@ -126,6 +128,7 @@ void lv_obj_delete(lv_obj_t * obj)
+ 
+ void lv_obj_clean(lv_obj_t * obj)
+ {
++    LV_HELIX_ASSERT_LVGL_THREAD();
+     LV_LOG_TRACE("begin (clean %p)", (void *)obj);
+     LV_CHECK_OBJ(obj, MY_CLASS, return);
+ 
+diff --git a/src/core/lv_observer.c b/src/core/lv_observer.c
+index 0aed30932..85e654bc0 100644
 --- a/src/core/lv_observer.c
 +++ b/src/core/lv_observer.c
-@@ -13,6 +13,7 @@
- #include "../lvgl.h"
+@@ -14,6 +14,7 @@
+ #include "../core/lv_global.h"
  #include "../core/lv_obj_private.h"
  #include "../misc/lv_event_private.h"
 +#include "../misc/lv_helix_thread_check.h"
  
  /* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
   * with backtrace + device context for remote crash diagnostics. */
-@@ -80,6 +81,7 @@
+@@ -87,6 +88,7 @@ static void obj_state_observer_cb(lv_observer_t * observer, lv_subject_t * subje
  static void obj_value_changed_event_cb(lv_event_t * e);
  
  static void lv_subject_notify_if_changed(lv_subject_t * subject);
@@ -16,7 +46,7 @@
  
  static void subject_set_string_free_user_data_event_cb(lv_event_t * e);
  
-@@ -121,6 +123,7 @@
+@@ -218,6 +220,7 @@ void lv_subject_init_int(lv_subject_t * subject, int32_t value)
  
  void lv_subject_set_int(lv_subject_t * subject, int32_t value)
  {
@@ -24,23 +54,23 @@
      if(subject == NULL) {
          LV_LOG_WARN("lv_subject_set_int: subject is NULL");
          helix_lvgl_anomaly("observer_null_subject", "lv_subject_set_int: subject is NULL");
-@@ -205,6 +208,7 @@
+@@ -288,6 +291,7 @@ void lv_subject_init_float(lv_subject_t * subject, float value)
  
  void lv_subject_set_float(lv_subject_t * subject, float value)
  {
 +    LV_HELIX_ASSERT_LVGL_THREAD();
-     if(subject->type != LV_SUBJECT_TYPE_FLOAT) {
-         LV_LOG_WARN("Subject type is not LV_SUBJECT_TYPE_FLOAT (ptr=%p, type=%d)", (void*)subject, subject->type);
-         return;
-@@ -276,6 +280,7 @@
+     LV_CHECK_ARG(subject != NULL, return);
+     LV_CHECK_ARG_FORMAT_MSG(subject->type == LV_SUBJECT_TYPE_FLOAT, return, "(ptr=%p, type=%d)",
+                             (void *)subject, (int)subject->type);
+@@ -366,6 +370,7 @@ void lv_subject_set_string_buffer_static(lv_subject_t * subject, char * buf, cha
  
- void lv_subject_copy_string(lv_subject_t * subject, const char * buf)
+ void lv_subject_set_string(lv_subject_t * subject, const char * buf)
  {
 +    LV_HELIX_ASSERT_LVGL_THREAD();
      if(subject == NULL) {
-         LV_LOG_WARN("lv_subject_copy_string: subject is NULL");
-         helix_lvgl_anomaly("observer_null_subject", "lv_subject_copy_string: subject is NULL");
-@@ -299,6 +304,7 @@
+         LV_LOG_WARN("lv_subject_set_string: subject is NULL");
+         helix_lvgl_anomaly("observer_null_subject", "lv_subject_set_string: subject is NULL");
+@@ -387,6 +392,7 @@ void lv_subject_set_string(lv_subject_t * subject, const char * buf)
  
  void lv_subject_snprintf(lv_subject_t * subject, const char * format, ...)
  {
@@ -48,37 +78,37 @@
      if(subject == NULL) {
          LV_LOG_WARN("lv_subject_snprintf: subject is NULL");
          helix_lvgl_anomaly("observer_null_subject", "lv_subject_snprintf: subject is NULL");
-@@ -367,6 +373,7 @@
+@@ -451,6 +457,7 @@ void lv_subject_init_pointer(lv_subject_t * subject, void * value)
  
  void lv_subject_set_pointer(lv_subject_t * subject, void * ptr)
  {
 +    LV_HELIX_ASSERT_LVGL_THREAD();
-     if(subject->type != LV_SUBJECT_TYPE_POINTER) {
-         LV_LOG_WARN("Subject type is not LV_SUBJECT_TYPE_POINTER (ptr=%p, type=%d)", (void*)subject, subject->type);
-         return;
-@@ -408,6 +415,7 @@
+     LV_CHECK_ARG(subject != NULL, return);
+     LV_CHECK_ARG_FORMAT_MSG(subject->type == LV_SUBJECT_TYPE_POINTER, return, "(ptr=%p, type=%d)",
+                             (void *)subject, (int)subject->type);
+@@ -490,6 +497,7 @@ void lv_subject_init_color(lv_subject_t * subject, lv_color_t color)
  
  void lv_subject_set_color(lv_subject_t * subject, lv_color_t color)
  {
 +    LV_HELIX_ASSERT_LVGL_THREAD();
-     if(subject->type != LV_SUBJECT_TYPE_COLOR) {
-         LV_LOG_WARN("Subject type is not LV_SUBJECT_TYPE_COLOR (ptr=%p, type=%d)", (void*)subject, subject->type);
-         return;
-@@ -650,6 +658,12 @@
+     LV_CHECK_ARG(subject != NULL, return);
+     LV_CHECK_ARG_FORMAT_MSG(subject->type == LV_SUBJECT_TYPE_COLOR, return, "(ptr=%p, type=%d)",
+                             (void *)subject, (int)subject->type);
+@@ -731,6 +739,12 @@ void * lv_observer_get_target(lv_observer_t * observer)
+ }
  
  void lv_subject_notify(lv_subject_t * subject)
- {
++{
 +    LV_HELIX_ASSERT_LVGL_THREAD();
 +    subject_notify(subject);
 +}
 +
 +static void subject_notify(lv_subject_t * subject)
-+{
+ {
      if(subject == NULL) {
          LV_LOG_WARN("lv_subject_notify: subject is NULL");
-         helix_lvgl_anomaly("observer_null_subject", "lv_subject_notify: subject is NULL");
-@@ -1043,7 +1057,7 @@
- {
+@@ -1433,7 +1447,7 @@ static void group_notify_cb(lv_observer_t * observer, lv_subject_t * subject)
+     LV_ASSERT(observer != NULL);
      LV_UNUSED(subject);
      lv_subject_t * subject_group = observer->user_data;
 -    lv_subject_notify(subject_group);
@@ -86,8 +116,8 @@
  }
  
  static void unsubscribe_on_delete_cb(lv_event_t * e)
-@@ -1155,30 +1169,30 @@
-             return;
+@@ -1554,30 +1568,30 @@ static void lv_subject_notify_if_changed(lv_subject_t * subject)
+     switch(subject->type) {
          case LV_SUBJECT_TYPE_INT :
              if(subject->value.num != subject->prev_value.num) {
 -                lv_subject_notify(subject);
@@ -121,59 +151,10 @@
 +                subject_notify(subject);
              }
              break;
-     }
---- a/src/core/lv_obj_tree.c
-+++ b/src/core/lv_obj_tree.c
-@@ -15,6 +15,7 @@
- #include "../misc/lv_anim_private.h"
- #include "../misc/lv_async.h"
- #include "../core/lv_global.h"
-+#include "../misc/lv_helix_thread_check.h"
- 
- /* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
-  * with backtrace + device context for remote crash diagnostics. */
-@@ -85,6 +86,7 @@
- 
- void lv_obj_delete(lv_obj_t * obj)
- {
-+    LV_HELIX_ASSERT_LVGL_THREAD();
-     if(obj->is_deleting)
-         return;
- 
-@@ -129,6 +131,7 @@
- 
- void lv_obj_clean(lv_obj_t * obj)
- {
-+    LV_HELIX_ASSERT_LVGL_THREAD();
-     LV_LOG_TRACE("begin (clean %p)", (void *)obj);
-     LV_ASSERT_OBJ(obj, MY_CLASS);
- 
---- a/src/misc/lv_timer.c
-+++ b/src/misc/lv_timer.c
-@@ -13,6 +13,7 @@
- #include "lv_assert.h"
- #include "lv_ll.h"
- #include "lv_profiler.h"
-+#include "lv_helix_thread_check.h"
- 
- /*********************
-  *      DEFINES
-@@ -164,6 +165,7 @@
- 
- lv_timer_t * lv_timer_create(lv_timer_cb_t timer_xcb, uint32_t period, void * user_data)
- {
-+    LV_HELIX_ASSERT_LVGL_THREAD();
-     lv_timer_t * new_timer = NULL;
- 
-     new_timer = lv_ll_ins_head(timer_ll_p);
-@@ -197,6 +199,7 @@
- 
- void lv_timer_delete(lv_timer_t * timer)
- {
-+    LV_HELIX_ASSERT_LVGL_THREAD();
-     lv_ll_remove(timer_ll_p, timer);
-     state.timer_deleted = true;
- 
+         case LV_SUBJECT_TYPE_INVALID :
+diff --git a/src/misc/lv_helix_thread_check.h b/src/misc/lv_helix_thread_check.h
+new file mode 100644
+index 000000000..af8e5d822
 --- /dev/null
 +++ b/src/misc/lv_helix_thread_check.h
 @@ -0,0 +1,41 @@
@@ -193,7 +174,7 @@
 +#ifndef LV_HELIX_THREAD_CHECK_H
 +#define LV_HELIX_THREAD_CHECK_H
 +
-+#include "../lv_conf_internal.h"
++#include "../lvgl_public.h"
 +
 +#ifndef LV_HELIX_THREAD_CHECK
 +    #define LV_HELIX_THREAD_CHECK 0
@@ -218,3 +199,31 @@
 +#endif
 +
 +#endif /*LV_HELIX_THREAD_CHECK_H*/
+diff --git a/src/misc/lv_timer.c b/src/misc/lv_timer.c
+index 0c3959208..9eceaae88 100644
+--- a/src/misc/lv_timer.c
++++ b/src/misc/lv_timer.c
+@@ -8,6 +8,7 @@
+ 
+ #include "lv_timer_private.h"
+ #include "../core/lv_global.h"
++#include "lv_helix_thread_check.h"
+ 
+ /*********************
+  *      DEFINES
+@@ -167,6 +168,7 @@ lv_timer_t * lv_timer_create_basic(void)
+ 
+ lv_timer_t * lv_timer_create(lv_timer_cb_t timer_xcb, uint32_t period, void * user_data)
+ {
++    LV_HELIX_ASSERT_LVGL_THREAD();
+     lv_timer_t * new_timer = NULL;
+ 
+     new_timer = lv_ll_ins_head(timer_ll_p);
+@@ -200,6 +202,7 @@ void lv_timer_set_cb(lv_timer_t * timer, lv_timer_cb_t timer_cb)
+ 
+ void lv_timer_delete(lv_timer_t * timer)
+ {
++    LV_HELIX_ASSERT_LVGL_THREAD();
+     if(timer == NULL) return;
+     lv_ll_remove(timer_ll_p, timer);
+     state.timer_deleted = true;

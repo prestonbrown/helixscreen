@@ -1,86 +1,23 @@
-diff --git a/src/core/lv_observer.h b/src/core/lv_observer.h
---- a/src/core/lv_observer.h
-+++ b/src/core/lv_observer.h
-@@ -70,6 +70,9 @@
+diff --git a/include/lvgl/core/lv_observer.h b/include/lvgl/core/lv_observer.h
+index 30bd43f24..4d67694a2 100644
+--- a/include/lvgl/core/lv_observer.h
++++ b/include/lvgl/core/lv_observer.h
+@@ -72,6 +72,10 @@ struct _lv_subject_t {
      uint32_t size                 : 24;  /**< String buffer size or group length */
      uint32_t notify_restart_query :  1;  /**< If an Observer was deleted during notification,
                                            * start notifying from the beginning. */
-+    uint32_t deinitialized        :  1;  /**< Set by lv_subject_deinit(), cleared by every init.
-+                                          * A deinitialized Subject refuses new Observers: the
-+                                          * next init would drop its list and orphan them. */
++    uint32_t deinitialized        :  1;  /**< Set by lv_subject_deinit(), cleared by every init
++                                          * (each one zeroes the Subject). A deinitialized
++                                          * Subject refuses new Observers: the next init would
++                                          * drop its list and orphan them. */
  };
  
  /**
-diff --git a/src/core/lv_observer.c b/src/core/lv_observer.c
---- a/src/core/lv_observer.c
-+++ b/src/core/lv_observer.c
-@@ -442,6 +442,7 @@
- {
-     group_subject->type = LV_SUBJECT_TYPE_GROUP;
-     group_subject->size = list_len;
-+    group_subject->deinitialized = 0;
-     lv_ll_init(&(group_subject->subs_ll), sizeof(lv_observer_t));
-     group_subject->value.pointer = list;
- 
-@@ -470,6 +471,7 @@
-     }
- 
-     lv_ll_clear(&subject->subs_ll);
-+    subject->deinitialized = 1;
- }
- 
- lv_subject_t * lv_subject_get_group_element(lv_subject_t * subject, int32_t index)
-@@ -506,6 +508,12 @@
-         LV_LOG_WARN("Subject not initialized yet");
-         return NULL;
-     }
-+    /* The next init drops the Observer list without freeing it, so an Observer added
-+     * now would be orphaned along with whatever its user_data owns. */
-+    if(subject->deinitialized) {
-+        LV_LOG_WARN("Subject is deinitialized; observer refused (ptr=%p, type=%d)", (void*)subject, subject->type);
-+        return NULL;
-+    }
-     lv_observer_t * observer = lv_ll_ins_tail(&(subject->subs_ll));
-     LV_ASSERT_MALLOC(observer);
-     if(observer == NULL) return NULL;
-@@ -540,6 +548,12 @@
-         LV_LOG_WARN("Subject not initialized yet");
-         return NULL;
-     }
-+    /* The next init drops the Observer list without freeing it, so an Observer added
-+     * now would be orphaned along with whatever its user_data owns. */
-+    if(subject->deinitialized) {
-+        LV_LOG_WARN("Subject is deinitialized; observer refused (ptr=%p, type=%d)", (void*)subject, subject->type);
-+        return NULL;
-+    }
-     lv_observer_t * observer = lv_ll_ins_tail(&(subject->subs_ll));
-     LV_ASSERT_MALLOC(observer);
-     if(observer == NULL) return NULL;
-@@ -918,6 +932,9 @@
-     lv_observer_t * observable = bind_to_bitfield(subject, obj, obj_state_observer_cb, LV_STATE_CHECKED, 0, true,
-                                                   FLAG_COND_EQ);
- 
-+    /* A refused bind must not write the widget's state back into a subject it does not observe. */
-+    if(observable == NULL) return NULL;
-+
-     lv_obj_add_event_cb(obj, obj_value_changed_event_cb, LV_EVENT_VALUE_CHANGED, subject);
- 
-     return observable;
-@@ -1058,6 +1075,10 @@
-     p->cond = cond;
- 
-     lv_observer_t * observable = lv_subject_add_observer_obj(subject, cb, obj, p);
-+    if(observable == NULL) {
-+        lv_free(p);
-+        return NULL;
-+    }
-     observable->auto_free_user_data = 1;
- 
-     return observable;
 diff --git a/src/core/lv_obj_style.c b/src/core/lv_obj_style.c
+index 4da93b41b..50dd9c821 100644
 --- a/src/core/lv_obj_style.c
 +++ b/src/core/lv_obj_style.c
-@@ -707,6 +707,13 @@
+@@ -963,6 +963,13 @@ lv_observer_t * lv_obj_bind_style(lv_obj_t * obj, const lv_style_t * style, lv_s
      p->value = ref_value;
  
      lv_observer_t * observable = lv_subject_add_observer_obj(subject, bind_style_observer_cb, obj, p);
@@ -94,7 +31,7 @@ diff --git a/src/core/lv_obj_style.c b/src/core/lv_obj_style.c
      observable->auto_free_user_data = 1;
      return observable;
  }
-@@ -734,6 +741,10 @@
+@@ -990,6 +997,10 @@ lv_observer_t * lv_obj_bind_style_prop(lv_obj_t * obj, lv_style_prop_t prop, lv_
      p->selector = selector;
  
      lv_observer_t * observable = lv_subject_add_observer_obj(subject, bind_style_prop_observer_cb, obj, p);
@@ -105,10 +42,70 @@ diff --git a/src/core/lv_obj_style.c b/src/core/lv_obj_style.c
      observable->auto_free_user_data = 1;
      return observable;
  }
+diff --git a/src/core/lv_observer.c b/src/core/lv_observer.c
+index e71b9a6ea..0aed30932 100644
+--- a/src/core/lv_observer.c
++++ b/src/core/lv_observer.c
+@@ -591,6 +591,12 @@ lv_observer_t * lv_subject_add_observer_obj(lv_subject_t * subject, lv_observer_
+     }
+     LV_CHECK_ARG(observer_cb != NULL, return NULL);
+     LV_CHECK_ARG(subject->type != LV_SUBJECT_TYPE_INVALID, return NULL);
++    /* The next init drops the Observer list without freeing it, so an Observer added
++     * now would be orphaned along with whatever its user_data owns. */
++    if(subject->deinitialized) {
++        LV_LOG_WARN("Subject is deinitialized; observer refused (ptr=%p, type=%d)", (void *)subject, (int)subject->type);
++        return NULL;
++    }
+ 
+     lv_observer_t * observer = lv_ll_ins_tail(&(subject->subs_ll));
+     LV_ASSERT_MALLOC(observer);
+@@ -624,6 +630,12 @@ lv_observer_t * lv_subject_add_observer_with_target(lv_subject_t * subject, lv_o
+     }
+     LV_CHECK_ARG(observer_cb != NULL, return NULL);
+     LV_CHECK_ARG(subject->type != LV_SUBJECT_TYPE_INVALID, return NULL);
++    /* The next init drops the Observer list without freeing it, so an Observer added
++     * now would be orphaned along with whatever its user_data owns. */
++    if(subject->deinitialized) {
++        LV_LOG_WARN("Subject is deinitialized; observer refused (ptr=%p, type=%d)", (void *)subject, (int)subject->type);
++        return NULL;
++    }
+ 
+     lv_observer_t * observer = lv_ll_ins_tail(&(subject->subs_ll));
+     LV_ASSERT_MALLOC(observer);
+@@ -1179,6 +1191,9 @@ lv_observer_t * lv_obj_bind_checked(lv_obj_t * obj, lv_subject_t * subject)
+     lv_observer_t * observable = bind_to_bitfield(subject, obj, obj_state_observer_cb, LV_STATE_CHECKED, 0, true,
+                                                   FLAG_COND_EQ);
+ 
++    /* A refused bind must not write the widget's state back into a subject it does not observe. */
++    if(observable == NULL) return NULL;
++
+     lv_obj_add_event_cb(obj, obj_value_changed_event_cb, LV_EVENT_VALUE_CHANGED, subject);
+ 
+     return observable;
+@@ -1322,6 +1337,7 @@ static void deinit(lv_subject_t * subject)
+ #endif
+ 
+     lv_ll_clear(&subject->subs_ll);
++    subject->deinitialized = 1;
+ }
+ 
+ static void subject_toggle_cb(lv_event_t * e)
+@@ -1447,6 +1463,10 @@ static lv_observer_t * bind_to_bitfield(lv_subject_t * subject, lv_obj_t * obj,
+     p->cond = cond;
+ 
+     lv_observer_t * observable = lv_subject_add_observer_obj(subject, cb, obj, p);
++    if(observable == NULL) {
++        lv_free(p);
++        return NULL;
++    }
+     observable->auto_free_user_data = 1;
+ 
+     return observable;
 diff --git a/src/widgets/span/lv_span.c b/src/widgets/span/lv_span.c
+index db7e53215..74c0b5ff2 100644
 --- a/src/widgets/span/lv_span.c
 +++ b/src/widgets/span/lv_span.c
-@@ -813,6 +813,10 @@
+@@ -824,6 +824,10 @@ lv_observer_t * lv_spangroup_bind_span_text(lv_obj_t * obj, lv_span_t * span, lv
      user_data->fmt = fmt;
  
      lv_observer_t * observer = lv_subject_add_observer_obj(subject, span_text_observer_cb, obj, user_data);

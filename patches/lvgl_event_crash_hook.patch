@@ -1,11 +1,11 @@
 diff --git a/src/core/lv_obj_event.c b/src/core/lv_obj_event.c
-index bbb44fbf4..df0abff8a 100644
+index 087a87950..200bea5e1 100644
 --- a/src/core/lv_obj_event.c
 +++ b/src/core/lv_obj_event.c
 @@ -13,6 +13,13 @@
- #include "../indev/lv_indev.h"
+ #include "lv_obj_private.h"
  #include "../indev/lv_indev_private.h"
-
+ 
 +/* HelixScreen crash diagnostic hook — records current event target/code so a
 + * signal handler can report what LVGL was dispatching when a crash occurred.
 + * Weak so non-HelixScreen builds (e.g. LVGL demos, tests) link without it. */
@@ -16,10 +16,10 @@ index bbb44fbf4..df0abff8a 100644
  /*********************
   *      DEFINES
   *********************/
-@@ -73,7 +80,12 @@ lv_result_t lv_obj_send_event(lv_obj_t * obj, lv_event_code_t event_code, void *
+@@ -72,6 +79,11 @@ lv_result_t lv_obj_send_event(lv_obj_t * obj, lv_event_code_t event_code, void *
      /*Remove this element from the list*/
      lv_event_pop(&e);
-
+ 
 +    /* HelixScreen: clear crash-diagnostic event target now that dispatch has
 +     * fully unwound. A later crash in unrelated code (timer, signal in BG
 +     * thread) must not report this widget pointer — it may be freed. */
@@ -27,12 +27,11 @@ index bbb44fbf4..df0abff8a 100644
 +
      return res;
  }
-
- lv_result_t lv_obj_event_base(const lv_obj_class_t * class_p, lv_event_t * e)
-@@ -368,6 +375,9 @@ static lv_result_t event_send_core(lv_event_t * e)
+ 
+@@ -351,6 +363,9 @@ static lv_result_t event_send_core(lv_event_t * e)
  {
      LV_TRACE_EVENT("Sending event %d to %p with %p param", e->code, (void *)e->original_target, e->param);
-
+ 
 +    /* HelixScreen: record innermost dispatch target for crash diagnosis. */
 +    if(helix_crash_note_event) helix_crash_note_event(e->current_target, e->original_target, (unsigned int)e->code);
 +

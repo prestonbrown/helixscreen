@@ -1,11 +1,11 @@
 diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
-index 39c17ffd1..353f19834 100644
+index 93fb1cad5..671753fd7 100644
 --- a/src/misc/lv_event.c
 +++ b/src/misc/lv_event.c
-@@ -12,6 +12,12 @@
- #include "lv_assert.h"
- #include "lv_types.h"
-
+@@ -9,6 +9,12 @@
+ #include "lv_event_private.h"
+ #include "../core/lv_global.h"
+ 
 +#include <stdio.h>
 +
 +/* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
@@ -15,8 +15,8 @@ index 39c17ffd1..353f19834 100644
  /*********************
   *      DEFINES
   *********************/
-@@ -317,9 +323,45 @@ uint32_t lv_event_register_id(void)
-
+@@ -340,9 +346,45 @@ uint32_t lv_event_register_id(void)
+ 
  void lv_event_mark_deleted(void * target)
  {
 +    /* HelixScreen: defensive bail on a corrupt event_head chain.
@@ -36,7 +36,7 @@ index 39c17ffd1..353f19834 100644
      lv_event_t * e = event_head;
 +    unsigned depth = 0;
 +    const unsigned max_depth = 256;            /* deepest plausible nested send chain */
-
+ 
      while(e) {
 +        if(((uintptr_t)e & (sizeof(void *) - 1)) != 0u) {
 +            if(helix_lvgl_anomaly) {

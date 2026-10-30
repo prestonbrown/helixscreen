@@ -1,28 +1,28 @@
 diff --git a/src/core/lv_obj.c b/src/core/lv_obj.c
-index 3ba67b92f..d3101751c 100644
+index ce323a920..dd84f7c56 100644
 --- a/src/core/lv_obj.c
 +++ b/src/core/lv_obj.c
-@@ -1115,6 +1115,7 @@ static void update_obj_state(lv_obj_t * obj, lv_state_t new_state)
+@@ -2077,6 +2077,7 @@ static void obj_transition_states(lv_obj_t * obj, lv_state_t prev_state, lv_stat
          lv_part_t part_act = lv_obj_style_get_selector_part(obj->styles[i].selector);
          if(state_act & (~new_state)) continue; /*Skip unrelated styles*/
          if(obj_style->is_trans) continue;
 +        if(obj_style->style == NULL) continue;
  
          lv_style_value_t v;
-         if(lv_style_get_prop_inlined(obj_style->style, LV_STYLE_TRANSITION, &v) != LV_STYLE_RES_FOUND) continue;
+         if(lv_style_get_prop_internal(obj_style->style, LV_STYLE_TRANSITION, &v) != LV_STYLE_RES_FOUND) continue;
 diff --git a/src/core/lv_obj_style.c b/src/core/lv_obj_style.c
-index bff861bea..cf73437c0 100644
+index de5a0a6d8..4da93b41b 100644
 --- a/src/core/lv_obj_style.c
 +++ b/src/core/lv_obj_style.c
-@@ -386,6 +386,7 @@ lv_style_res_t lv_obj_get_local_style_prop(lv_obj_t * obj, lv_style_prop_t prop,
+@@ -482,6 +482,7 @@ lv_style_res_t lv_obj_get_local_style_prop(lv_obj_t * obj, lv_style_prop_t prop,
      for(i = 0; i < obj->style_cnt; i++) {
          if(obj->styles[i].is_local &&
             obj->styles[i].selector == selector) {
 +            if(obj->styles[i].style == NULL) return LV_STYLE_RES_NOT_FOUND;
-             return lv_style_get_prop(obj->styles[i].style, prop, value);
+             return lv_style_get_prop_internal(obj->styles[i].style, prop, value);
          }
      }
-@@ -408,6 +409,7 @@ bool lv_obj_remove_local_style_prop(lv_obj_t * obj, lv_style_prop_t prop, lv_sty
+@@ -504,6 +505,7 @@ bool lv_obj_remove_local_style_prop(lv_obj_t * obj, lv_style_prop_t prop, lv_sty
  
      /*The style is not found*/
      if(i == obj->style_cnt) return false;
@@ -30,31 +30,31 @@ index bff861bea..cf73437c0 100644
  
      lv_result_t res = lv_style_remove_prop((lv_style_t *)obj->styles[i].style, prop);
      if(res == LV_RESULT_OK) {
-@@ -505,6 +507,7 @@ lv_style_state_cmp_t lv_obj_style_state_compare(lv_obj_t * obj, lv_state_t state
-         bool valid2 = state_act & (~state2) ? false : true;
-         if(valid1 != valid2) {
+@@ -615,6 +617,7 @@ lv_style_state_cmp_t lv_obj_style_state_compare(lv_obj_t * obj, lv_state_t state
+             }
+ 
              const lv_style_t * style = obj->styles[i].style;
 +            if(style == NULL) continue;
              lv_style_value_t v;
              /*If there is layout difference on the main part, return immediately. There is no more serious difference*/
              bool layout_diff = false;
-@@ -836,6 +839,7 @@ static lv_style_res_t get_prop_core(const lv_obj_t * obj, lv_style_selector_t se
+@@ -1119,6 +1122,7 @@ static lv_style_res_t get_prop_core(const lv_obj_t * obj, lv_style_selector_t se
          lv_part_t part_act = lv_obj_style_get_selector_part(obj->styles[i].selector);
  
          if(part_act != part) continue;
 +        if(obj_style->style == NULL) continue;
          if((obj_style->style->has_group & group) == 0) continue;
-         found = lv_style_get_prop_inlined(obj_style->style, prop, v);
+         found = lv_style_get_prop_internal(obj_style->style, prop, v);
          if(found == LV_STYLE_RES_FOUND) {
-@@ -844,6 +848,7 @@ static lv_style_res_t get_prop_core(const lv_obj_t * obj, lv_style_selector_t se
-     }
- 
+@@ -1130,6 +1134,7 @@ static lv_style_res_t get_prop_core(const lv_obj_t * obj, lv_style_selector_t se
+     const lv_state_t state = lv_obj_style_get_selector_state(selector);
+     const lv_state_t state_inv = ~state;
      for(; i < obj->style_cnt; i++) {
 +        if(obj->styles[i].style == NULL) continue;
          if((obj->styles[i].style->has_group & group) == 0) continue;
          if(obj->styles[i].is_disabled) continue;
          lv_obj_style_t * obj_style = &obj->styles[i];
-@@ -939,6 +944,7 @@ static bool trans_delete(lv_obj_t * obj, lv_part_t part, lv_style_prop_t prop, t
+@@ -1234,6 +1239,7 @@ static bool remove_trans_styles(lv_obj_t * obj, lv_part_t part, lv_style_prop_t
              uint32_t i;
              for(i = 0; i < obj->style_cnt; i++) {
                  if(obj->styles[i].is_trans && (part == LV_PART_ANY || obj->styles[i].selector == part)) {
@@ -62,15 +62,15 @@ index bff861bea..cf73437c0 100644
                      lv_style_remove_prop((lv_style_t *)obj->styles[i].style, tr->prop);
                  }
              }
-@@ -1006,6 +1012,7 @@ static void trans_anim_cb(void * _tr, int32_t v)
+@@ -1303,6 +1309,7 @@ static void trans_anim_cb(void * _tr, int32_t v)
  
+         /*Don't do anything is the prop didn't changed*/
          lv_style_value_t old_value = {0};
-         bool refr = true;
 +        if(obj->styles[i].style == NULL) break;
-         if(lv_style_get_prop(obj->styles[i].style, tr->prop, &old_value)) {
-             if(value_final.ptr == old_value.ptr && lv_color_eq(value_final.color, old_value.color) &&
-                value_final.num == old_value.num) {
-@@ -1069,6 +1076,7 @@ static void trans_anim_completed_cb(lv_anim_t * a)
+         if(lv_style_get_prop_internal(obj->styles[i].style, tr->prop, &old_value) == LV_STYLE_RES_FOUND) {
+             if(value_final.ptr == old_value.ptr &&
+                lv_color_eq(value_final.color, old_value.color) &&
+@@ -1400,6 +1407,7 @@ static void trans_anim_completed_cb(lv_anim_t * a)
                  lv_free(tr);
  
                  lv_obj_style_t * obj_style = &obj->styles[i];
@@ -78,19 +78,19 @@ index bff861bea..cf73437c0 100644
                  lv_style_remove_prop((lv_style_t *)obj_style->style, prop);
  
                  if(lv_style_is_empty(obj->styles[i].style)) {
-@@ -1107,6 +1115,7 @@ static void full_cache_refresh(lv_obj_t * obj, lv_part_t part)
+@@ -1473,6 +1481,7 @@ static void full_cache_refresh(lv_obj_t * obj, lv_part_t part)
              if(lv_obj_style_get_selector_part(obj->styles[i].selector) != LV_PART_MAIN) continue;
              if(obj->styles[i].is_disabled) continue;
              lv_style_t * style = (lv_style_t *)obj->styles[i].style;
 +            if(style == NULL) continue;
              uint32_t j;
-             if(lv_style_is_const(style)) {
+             if(lv_style_is_const_internal(style)) {
                  lv_style_const_prop_t * props = style->values_and_props;
-@@ -1129,6 +1138,7 @@ static void full_cache_refresh(lv_obj_t * obj, lv_part_t part)
+@@ -1495,6 +1504,7 @@ static void full_cache_refresh(lv_obj_t * obj, lv_part_t part)
              if(obj->styles[i].is_disabled) continue;
  
              lv_style_t * style = (lv_style_t *)obj->styles[i].style;
 +            if(style == NULL) continue;
              uint32_t j;
-             if(lv_style_is_const(style)) {
+             if(lv_style_is_const_internal(style)) {
                  lv_style_const_prop_t * props = style->values_and_props;

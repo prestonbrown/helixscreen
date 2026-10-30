@@ -1,10 +1,10 @@
 diff --git a/src/core/lv_obj_pos.c b/src/core/lv_obj_pos.c
-index 177b0fb5b..91dc1a8a8 100644
+index 7d0fcb235..fde2a6227 100644
 --- a/src/core/lv_obj_pos.c
 +++ b/src/core/lv_obj_pos.c
-@@ -17,6 +17,10 @@
- #include "lv_refr_private.h"
- #include "../core/lv_global.h"
+@@ -20,6 +20,10 @@
+ #include "lv_obj_style_internal.h"
+ #include "../misc/lv_style_private.h"
  
 +/* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
 + * with backtrace + device context for remote crash diagnostics. */
@@ -13,41 +13,7 @@ index 177b0fb5b..91dc1a8a8 100644
  /*********************
   *      DEFINES
   *********************/
-@@ -1040,6 +1044,10 @@ static lv_obj_tree_walk_res_t blur_walk_cb(lv_obj_t * obj, void * user_data)
-         for(i = 0; i < obj->style_cnt; i++) {
-             lv_obj_style_t * obj_style = &obj->styles[i];
-             if(obj_style->is_disabled) continue;
-+            if(obj_style->style == NULL) {
-+                helix_lvgl_anomaly("obj_pos_null_style", "blur_walk_cb: obj_style->style is NULL");
-+                continue;
-+            }
- 
-             lv_state_t state_style = lv_obj_style_get_selector_state(obj->styles[i].selector);
-             if((state_style & state_inv)) continue;
-@@ -1328,7 +1336,13 @@ static lv_result_t obj_invalidate_area_internal(const lv_display_t * disp, const
-     lv_result_t res = invalidate_area_core(obj, &area_tmp);
-     if(res == LV_RESULT_INVALID) return res;
- 
--    /*If this area is on a blurred widget, invalidate that widget too*/
-+    /*If this area is on a blurred widget, invalidate that widget too.
-+     *
-+     *Disabled unconditionally — HelixScreen never uses LV_STYLE_BLUR_RADIUS
-+     *or LV_STYLE_DROP_SHADOW_OPA.  The recursive O(n) tree walk on every
-+     *invalidation is pure overhead and crashes when any lv_obj_t in the
-+     *tree has corrupted style pointers (#820, #528, #417, #419, #420).*/
-+#if 0
-     blur_walk_data_t blur_walk_data;
-     blur_walk_data.requester_obj = obj;
-     blur_walk_data.inv_area = &area_tmp;
-@@ -1337,6 +1351,7 @@ static lv_result_t obj_invalidate_area_internal(const lv_display_t * disp, const
-     lv_obj_tree_walk(disp->sys_layer, blur_walk_cb, &blur_walk_data);
-     lv_obj_tree_walk(disp->top_layer, blur_walk_cb, &blur_walk_data);
-     lv_obj_tree_walk(disp->bottom_layer, blur_walk_cb, &blur_walk_data);
-+#endif
- 
-     return res;
- }
-@@ -1530,10 +1545,18 @@ static int32_t calc_content_height(lv_obj_t * obj)
+@@ -1557,10 +1561,18 @@ static int32_t calc_content_height(lv_obj_t * obj)
  
  static void layout_update_core(lv_obj_t * obj)
  {
@@ -66,3 +32,29 @@ index 177b0fb5b..91dc1a8a8 100644
          layout_update_core(child);
      }
  
+diff --git a/src/core/lv_obj_style.c b/src/core/lv_obj_style.c
+index e7c3ae7c7..de5a0a6d8 100644
+--- a/src/core/lv_obj_style.c
++++ b/src/core/lv_obj_style.c
+@@ -18,6 +18,10 @@
+ #include "lv_observer_private.h"
+ #include "lv_obj_style_internal.h"
+ 
++/* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
++ * with backtrace + device context for remote crash diagnostics. */
++extern void helix_lvgl_anomaly(const char * code, const char * context);
++
+ /*********************
+  *      DEFINES
+  *********************/
+@@ -1438,6 +1442,10 @@ static bool calculate_has_blur(lv_obj_t * obj)
+     for(i = 0; i < obj->style_cnt; i++) {
+         lv_obj_style_t * obj_style = &obj->styles[i];
+         if(obj_style->is_disabled) continue;
++        if(obj_style->style == NULL) {
++            helix_lvgl_anomaly("obj_pos_null_style", "calculate_has_blur: obj_style->style is NULL");
++            continue;
++        }
+ 
+         lv_state_t state_style = lv_obj_style_get_selector_state(obj->styles[i].selector);
+         if((state_style & state_inv)) continue;
