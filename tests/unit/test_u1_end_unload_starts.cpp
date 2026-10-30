@@ -24,6 +24,7 @@
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "static_panel_registry.h"
 
 #include <string>
 
@@ -49,6 +50,9 @@ struct U1StartFx : LVGLTestFixture {
         client.connect("ws://mock/websocket", []() {}, []() {});
     }
     ~U1StartFx() override {
+        // A restart builds the process-wide print-select panel around the
+        // case's own API, which dies with the case.
+        StaticPanelRegistry::instance().destroy_all();
         SettingsManager::instance().set_end_of_print_unload_tools(0);
         client.stop_temperature_simulation();
         client.disconnect();
