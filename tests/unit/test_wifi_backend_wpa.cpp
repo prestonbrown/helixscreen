@@ -490,6 +490,26 @@ TEST_CASE("wpa scan results skip a hidden network shown as zero bytes",
     CHECK(networks[0].ssid == "Home");
 }
 
+TEST_CASE("wpa learns 5 GHz support from a scan that sees a 5 GHz network",
+          "[network][wpa][wifi_band]") {
+    WpaFakeFixture fx;
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+    // The fake's frequency list names no 5 GHz channel and no iw is installed,
+    // so init leaves the radio at 2.4 GHz only.
+    REQUIRE_FALSE(backend.supports_5ghz());
+
+    std::vector<WiFiNetwork> networks;
+    fx.fake->set_reply("SCAN_RESULTS", scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[ESS]\tSlow"}));
+    REQUIRE(backend.get_scan_results(networks).success());
+    CHECK_FALSE(backend.supports_5ghz());
+
+    fx.fake->set_reply("SCAN_RESULTS", scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[ESS]\tSlow",
+                                                     "aa:bb:cc:dd:ee:02\t5180\t-70\t[ESS]\tFast"}));
+    REQUIRE(backend.get_scan_results(networks).success());
+    CHECK(backend.supports_5ghz());
+}
+
 TEST_CASE("wpa status reads the kernel's address when STATUS carries none",
           "[network][wpa][wifi_status_ip]") {
     WpaFakeFixture fx;

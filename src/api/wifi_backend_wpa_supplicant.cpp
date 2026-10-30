@@ -1480,6 +1480,15 @@ WiFiError WifiBackendWpaSupplicant::get_scan_results(std::vector<WiFiNetwork>& n
 
     try {
         std::vector<WiFiNetwork> parsed = parse_scan_results(raw);
+        // A 5 GHz network in the scan proves the radio receives the band,
+        // whatever its frequency list claimed at init.
+        if (!supports_5ghz_cached_ &&
+            std::any_of(parsed.begin(), parsed.end(), [](const WiFiNetwork& net) {
+                return (net.band_mask & WIFI_BAND_5GHZ) != 0;
+            })) {
+            supports_5ghz_cached_ = true;
+            spdlog::debug("[WifiBackend] 5GHz support detected from scan results");
+        }
         networks = wifi_merge_networks_by_ssid(parsed);
         if (networks.size() < parsed.size()) {
             spdlog::debug("[WifiBackend] Deduplicated {} networks to {} unique SSIDs",

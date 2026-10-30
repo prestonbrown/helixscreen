@@ -317,6 +317,9 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Reads the radio's country off the UI thread and applies it to the
     // country row: selection, visibility and the 5 GHz hint.
     void refresh_country();
+    // Sets the 2.4 GHz-only indicator from the radio's band support, which a
+    // scan can raise after the overlay opened.
+    void refresh_band_capability();
     // What the closed country dropdown reads for selection @p index.
     void show_country_choice(int index, bool hint_5ghz);
     // Fills the country list in the current language and re-shows the choice.
