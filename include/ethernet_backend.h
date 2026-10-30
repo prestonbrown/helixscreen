@@ -15,7 +15,7 @@
  * network-daemon reader) call these — two hand-maintained copies of this
  * rule would silently disagree about the same machine.
  */
-namespace ethernet {
+namespace helix::ethernet {
 
 /**
  * @brief Classify one interface name as physical Ethernet
@@ -50,7 +50,7 @@ std::vector<std::string> scan_sysfs_interfaces(const std::string& sysfs_root = "
  */
 bool is_link_connected(bool has_ip, const std::string& operstate);
 
-} // namespace ethernet
+} // namespace helix::ethernet
 
 /**
  * @brief Ethernet connection information
@@ -66,7 +66,7 @@ struct EthernetInfo {
         : connected(false), interface(""), ip_address(""), mac_address(""), status("Unknown") {}
 };
 
-namespace ethernet {
+namespace helix::ethernet {
 
 /**
  * @brief One Ethernet interface as the kernel reports it
@@ -91,7 +91,7 @@ struct InterfaceState {
  */
 EthernetInfo select_interface(const std::vector<InterfaceState>& interfaces);
 
-} // namespace ethernet
+} // namespace helix::ethernet
 
 /**
  * @brief Abstract Ethernet backend interface

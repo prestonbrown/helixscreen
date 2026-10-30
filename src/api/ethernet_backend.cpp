@@ -27,7 +27,7 @@
 
 namespace {
 
-// Shared classification tables — see ethernet::is_ethernet_interface.
+// Shared classification tables — see helix::ethernet::is_ethernet_interface.
 // Reject first (loopback is equality-matched by the caller), then accept.
 
 constexpr const char* const kRejectPrefixes[] = {
@@ -64,7 +64,7 @@ bool starts_with_any(const std::string& name, const char* const* prefixes, size_
 
 } // namespace
 
-namespace ethernet {
+namespace helix::ethernet {
 
 bool is_ethernet_interface(const std::string& name, const std::string& sysfs_root) {
     if (name.empty() || name == "lo")
@@ -120,7 +120,7 @@ std::vector<std::string> scan_sysfs_interfaces(const std::string& sysfs_root) {
     return ethernet_interfaces;
 }
 
-} // namespace ethernet
+} // namespace helix::ethernet
 #endif // !__APPLE__ && !__ANDROID__
 
 std::unique_ptr<EthernetBackend> EthernetBackend::create() {
@@ -176,7 +176,7 @@ std::unique_ptr<EthernetBackend> EthernetBackend::create() {
 #endif
 }
 
-namespace ethernet {
+namespace helix::ethernet {
 
 bool is_link_connected(bool has_ip, const std::string& operstate) {
     return has_ip && operstate != "down";
@@ -227,4 +227,4 @@ EthernetInfo select_interface(const std::vector<InterfaceState>& interfaces) {
     return info;
 }
 
-} // namespace ethernet
+} // namespace helix::ethernet
