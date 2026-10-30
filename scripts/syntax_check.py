@@ -29,7 +29,15 @@ import sys
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from compile_command import SIBLING, STALE, PrereqsFailed, load_db, resolve  # noqa: E402
+from compile_command import (  # noqa: E402
+    IGNORE_CLAIM_ENV,
+    SIBLING,
+    STALE,
+    PrereqsFailed,
+    PrereqsRefused,
+    load_db,
+    resolve,
+)
 from merge_compile_commands import entry_argv, recorded_version  # noqa: E402
 
 
@@ -104,6 +112,10 @@ def main() -> int:
         targets[rel] = os.path.realpath(os.path.join(root, rel))
     try:
         choices = resolve(sorted(set(targets.values())), db, str(root))
+    except PrereqsRefused as exc:
+        print(f"another session is building in this tree, so make compile-prereqs did not run "
+              f"(set {IGNORE_CLAIM_ENV}=1 to run it anyway):\n{exc}", file=sys.stderr)
+        return 2
     except PrereqsFailed as exc:
         print(f"make compile-prereqs failed, so no make-derived command can run:\n{exc}",
               file=sys.stderr)

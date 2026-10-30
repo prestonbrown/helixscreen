@@ -167,8 +167,40 @@ def make_commands(paths: list[str], make_root: str, make: str | None = None) -> 
     return found
 
 
+# Set to 1 to make the prerequisites while another session builds in the tree.
+IGNORE_CLAIM_ENV = "HELIX_PREREQS_IGNORE_CLAIM"
+
+
+def build_claim_holder(make_root: str) -> str | None:
+    """helix-claim's description of another session's live build claim on make_root.
+
+    None when the tree is free, held by this session, or has no helix-claim.
+    """
+    tool = os.path.join(make_root, "scripts", "helix-claim")
+    if not os.access(tool, os.X_OK):
+        return None
+    resource = "build:" + os.path.basename(os.path.realpath(make_root))
+    try:
+        proc = subprocess.run([tool, "held-by-other", resource], cwd=make_root,
+                              capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if proc.returncode != 0:
+        return None
+    return (proc.stdout + proc.stderr).strip() or resource
+
+
 def run_prereqs(make_root: str, make: str | None = None) -> tuple[bool, str]:
-    """(made, output) for ``make compile-prereqs`` in make_root."""
+    """(made, output) for ``make compile-prereqs`` in make_root.
+
+    Raises PrereqsRefused while another session holds the tree's build claim: a
+    second make in a tree that is building rewrites the stamps and headers under
+    its compilers.
+    """
+    if os.environ.get(IGNORE_CLAIM_ENV) != "1":
+        holder = build_claim_holder(make_root)
+        if holder:
+            raise PrereqsRefused(holder)
     make = make or make_program()
     if not make:
         return False, "no GNU make 4.2 or newer on PATH"
@@ -193,6 +225,10 @@ def _borrow(sibling: dict, path: str, root: str) -> dict:
 
 class PrereqsFailed(RuntimeError):
     """``make compile-prereqs`` failed, so no make-derived command can be replayed."""
+
+
+class PrereqsRefused(PrereqsFailed):
+    """Another session holds the tree's build claim, so compile-prereqs was not run."""
 
 
 def resolve(paths: list[str], db: dict[str, dict], root: str = REPO_ROOT,
