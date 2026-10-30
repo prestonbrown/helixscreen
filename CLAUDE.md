@@ -87,9 +87,11 @@ make dev-timing                      # What the dev loop costs, measured (ledger
 #   answered from data. Derived + gitignored; rebuilding it takes a few seconds.
 
 scripts/syntax_check.py <file>...    # "does this compile?" in seconds
-#   Takes the file's own flags from compile_commands.json and runs -fsyntax-only,
-#   instead of the minutes `make test` spends re-linking. Proves nothing about
-#   behaviour: run the tag for that. A brand-new file borrows a sibling's flags.
+#   Takes the file's own flags and runs -fsyntax-only, instead of the minutes
+#   `make test` spends re-linking. Proves nothing about behaviour: run the tag for
+#   that. Flags: a current database entry, else `make print-compile-command F=<file>`
+#   (works in an unbuilt tree), else a neighbour's (scripts/compile_command.py,
+#   shared with the clang gate).
 ./build/bin/helix-tests "[tag]"      # Run specific test tags
 make pi-test                         # Build on thelio + deploy + run
 
