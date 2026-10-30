@@ -260,3 +260,16 @@ TEST_CASE("Ethernet Manager: IP address and info consistency", "[network][integr
         REQUIRE(ip.empty());
     }
 }
+
+TEST_CASE("Ethernet link: an address on a down link is not connected", "[network][ethernet_link]") {
+    // The address outlives the cable; operstate is what says the link is gone.
+    CHECK_FALSE(ethernet::is_link_connected(true, "down"));
+    CHECK_FALSE(ethernet::is_link_connected(false, "down"));
+    CHECK_FALSE(ethernet::is_link_connected(false, "up"));
+
+    CHECK(ethernet::is_link_connected(true, "up"));
+    // Drivers that never report link state leave operstate at unknown or dormant.
+    CHECK(ethernet::is_link_connected(true, "unknown"));
+    CHECK(ethernet::is_link_connected(true, "dormant"));
+    CHECK(ethernet::is_link_connected(true, ""));
+}

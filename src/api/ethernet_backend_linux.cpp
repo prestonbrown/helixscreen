@@ -89,7 +89,7 @@ EthernetInfo EthernetBackendLinux::get_info() {
     // Strategy: Find first Ethernet interface with "up" operstate and valid IP
     // Preference order:
     // 1. First eth*/eno*/enp*/ens* with operstate "up" and valid IP
-    // 2. First eth*/eno*/enp*/ens* with valid IP (ignore operstate)
+    // 2. First eth*/eno*/enp*/ens* with valid IP whose link is not down
     // 3. First eth*/eno*/enp*/ens* interface found (even without IP)
 
     ifconfig_t* first_ethernet = nullptr;
@@ -111,12 +111,12 @@ EthernetInfo EthernetBackendLinux::get_info() {
 
         // Check if it has a valid IP
         bool has_ip = !ip.empty() && ip != "0.0.0.0" && ip != "127.0.0.1";
-        if (has_ip && !ip_ethernet) {
-            ip_ethernet = &iface;
-        }
 
         // Check operstate
         std::string operstate = read_operstate(name);
+        if (ethernet::is_link_connected(has_ip, operstate) && !ip_ethernet) {
+            ip_ethernet = &iface;
+        }
         if (operstate == "up" && has_ip) {
             up_ethernet = &iface;
             break; // Found best match, use it
@@ -171,7 +171,7 @@ EthernetInfo EthernetBackendLinux::get_info() {
         info.status = "Connected";
         spdlog::debug("[EthernetLinux] Ethernet connected: {} ({}, operstate: {})", info.interface,
                       info.ip_address, operstate);
-    } else if (has_ip) {
+    } else if (ethernet::is_link_connected(has_ip, operstate)) {
         info.connected = true;
         info.status = "Connected";
         spdlog::info("[EthernetLinux] Ethernet has IP: {} ({}, operstate: {})", info.interface,

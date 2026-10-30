@@ -37,6 +37,19 @@ bool is_ethernet_interface(const std::string& name, const std::string& sysfs_roo
  */
 std::vector<std::string> scan_sysfs_interfaces(const std::string& sysfs_root = "/sys");
 
+/**
+ * @brief Whether an interface's address and link state make it connected
+ *
+ * An address stays assigned after the cable is pulled, so an operstate of
+ * "down" is not connected even with one. Drivers that never report link
+ * state leave operstate at "unknown" (or "dormant") while the link works,
+ * so those count as connected when the interface has an address.
+ *
+ * @param has_ip True when the interface holds a usable IPv4 address
+ * @param operstate Contents of /sys/class/net/<iface>/operstate ("" if unreadable)
+ */
+bool is_link_connected(bool has_ip, const std::string& operstate);
+
 } // namespace ethernet
 
 /**
