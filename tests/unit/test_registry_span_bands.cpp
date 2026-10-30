@@ -155,79 +155,73 @@ TEST_CASE("registry spans: a whole-cell widget spans a whole number of cells",
 
 TEST_CASE("registry spans: authored spans land in the intended pixel band",
           "[widget_def][span_bands]") {
-    // {width band, height band} per widget, one entry per kGeometries row in
-    // order. Regenerated from the run, then pinned: an authored span that moves
-    // a widget across a threshold on ANY panel has to be an explicit edit here.
+    // {width band, height band} per widget. An authored span that moves a
+    // widget across a threshold has to be an explicit edit here.
     //
     // Keyed by registry id. Widgets compiled out on this build (camera, behind
     // HELIX_HAS_CAMERA) simply never get looked up.
     //
-    // Every row is uniform across the eight geometries, and that is the point
-    // of the mechanism rather than a coincidence: a track is half a cell,
-    // GridLayout::GRID_CELL keeps the cell growing with the type ladder, and
-    // the bands are scaled off that same ladder - so an authored span lands in
-    // one band, on every panel, in every orientation. A row that stops being
-    // uniform is a widget whose span reads as one layout on one panel and a
-    // different one elsewhere, which is exactly the surprise this file exists
-    // to catch.
-    using Bands = std::vector<std::pair<int, int>>;
-    const std::map<std::string, Bands> expected = {
-        {"printer_image", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"print_status", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"shutdown", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"lock", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"power_device", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"network", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"firmware_restart", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"tool_switcher", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"led", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"led_controls", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"fan_stack", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"fan", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"bypass", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"temperature", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"nozzle_temps", {{0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}}},
-        {"bed_temperature", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"chamber_temperature", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"temp_stack", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"thermistor", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"temp_graph", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"preheat", {{2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}}},
-        {"ams", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"active_spool", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"filament", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"humidity", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"width_sensor", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"favorite_macro", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"macros", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"motion", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"clock", {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}}},
-        {"control_buttons", {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}}},
-        {"speed_flow", {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}}},
-        {"dryer", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"z_offset", {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}}},
-        {"exclude_map", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"bed_mesh_tile", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"toolhead", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"host_health", {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}}},
-        {"job_queue", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"tips", {{2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1}}},
-        // 2x1 since #1017. Width band 1 (>= w_normal) on every geometry is the
-        // point of that change: the FlowGuard bar puts an end label either side
-        // of the scale, which is the same "room for two columns" threshold
-        // control_buttons sits at — and is what the one-cell arc never had.
-        {"clog_detection", {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}}},
-        {"filament_buffer", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"print_stats", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"display_message", {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}}},
-        {"maintenance", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
-        {"gcode_console", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"camera", {{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
-        {"notifications", {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}},
+    // One pair per widget, checked on all eight geometries: a track is half a
+    // cell, GridLayout::GRID_CELL keeps the cell growing with the type ladder,
+    // and the bands are scaled off that same ladder - so an authored span lands
+    // in one band, on every panel, in every orientation. A widget whose band
+    // differs on one geometry reads as one layout on one panel and a different
+    // one elsewhere, which is exactly the surprise this file exists to catch.
+    const std::map<std::string, std::pair<int, int>> expected = {
+        {"printer_image", {1, 1}},
+        {"print_status", {1, 1}},
+        {"shutdown", {0, 0}},
+        {"lock", {0, 0}},
+        {"power_device", {0, 0}},
+        {"network", {0, 0}},
+        {"firmware_restart", {0, 0}},
+        {"tool_switcher", {0, 0}},
+        {"led", {0, 0}},
+        {"led_controls", {0, 0}},
+        {"fan_stack", {0, 0}},
+        {"fan", {0, 0}},
+        {"bypass", {0, 0}},
+        {"temperature", {0, 0}},
+        {"nozzle_temps", {0, 1}},
+        {"bed_temperature", {0, 0}},
+        {"chamber_temperature", {0, 0}},
+        {"temp_stack", {0, 0}},
+        {"thermistor", {0, 0}},
+        {"temp_graph", {1, 1}},
+        {"preheat", {2, 0}},
+        {"ams", {0, 0}},
+        {"active_spool", {0, 0}},
+        {"filament", {0, 0}},
+        {"humidity", {0, 0}},
+        {"width_sensor", {0, 0}},
+        {"favorite_macro", {0, 0}},
+        {"macros", {0, 0}},
+        {"motion", {0, 0}},
+        {"clock", {1, 0}},
+        {"control_buttons", {1, 0}},
+        {"speed_flow", {1, 0}},
+        {"dryer", {0, 0}},
+        {"z_offset", {1, 0}},
+        {"exclude_map", {1, 1}},
+        {"bed_mesh_tile", {1, 1}},
+        {"toolhead", {1, 1}},
+        {"host_health", {1, 0}},
+        {"job_queue", {1, 1}},
+        {"tips", {2, 1}},
+        // 2x1 (#1017). Width band 1 (>= w_normal) is the point of the span:
+        // the FlowGuard bar puts an end label either side of the scale, which is
+        // the same "room for two columns" threshold control_buttons sits at.
+        {"clog_detection", {1, 0}},
+        {"filament_buffer", {0, 0}},
+        {"print_stats", {1, 1}},
+        {"display_message", {1, 0}},
+        {"maintenance", {0, 0}},
+        {"gcode_console", {1, 1}},
+        {"camera", {1, 1}},
+        {"notifications", {0, 0}},
     };
 
-    for (size_t gi = 0; gi < kGeometries.size(); ++gi) {
-        const auto& g = kGeometries[gi];
+    for (const auto& g : kGeometries) {
         const CellMetrics m = metrics_for(g);
 
         for (const auto& def : get_all_widget_defs()) {
@@ -240,11 +234,10 @@ TEST_CASE("registry spans: authored spans land in the intended pixel band",
             auto it = expected.find(def.id);
             INFO("widget " << def.id << " has no pinned bands");
             REQUIRE(it != expected.end());
-            REQUIRE(it->second.size() == kGeometries.size());
             INFO(g.name << " " << def.id << " span " << def.colspan << "x" << def.rowspan << " -> "
                         << w << "x" << h << "px");
-            CHECK(width_band(w, tier_of(g)) == it->second[gi].first);
-            CHECK(height_band(h, tier_of(g)) == it->second[gi].second);
+            CHECK(width_band(w, tier_of(g)) == it->second.first);
+            CHECK(height_band(h, tier_of(g)) == it->second.second);
         }
     }
 }

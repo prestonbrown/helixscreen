@@ -149,11 +149,10 @@ void PrintStatusWidget::init_static_subjects() {
 
     // Detailed-layout subjects
     lv_subject_init_int(&layout_effective_subject_, 0);
-    // Observed through layout_effective_subject_for_test() by
-    // tests/unit/test_print_status_widget_layout_gate.cpp, the width-gating guard.
+    // Observed through layout_effective_subject_for_test(), the width-gating guard.
     s_static_subjects.publish(
         "print_status_layout_effective",
-        &layout_effective_subject_); // SUBJECT_OK: read by the layout-gate test
+        &layout_effective_subject_); // SUBJECT_OK: read by test_widget_size_print_status
     lv_subject_init_int(&show_filament_active_subject_, 0);
     s_static_subjects.publish("print_status_show_filament_active", &show_filament_active_subject_);
     lv_subject_init_int(&multi_tool_subject_, 0);

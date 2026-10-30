@@ -33,6 +33,17 @@ int lvgl_timers_pointing_at(const void* p) {
     return n;
 }
 
+/// Live entries in LVGL's timer list. A coalesced request must cost one timer
+/// however often it is asked for: surplus timers fire into an empty callback
+/// slot, so a call count alone cannot see them.
+int live_timer_count() {
+    int n = 0;
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        n++;
+    }
+    return n;
+}
+
 } // namespace
 
 TEST_CASE_METHOD(LVGLTestFixture, "CoalescedTimer: single schedule fires callback once",
@@ -202,6 +213,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CoalescedTimer: schedule_once runs the FIRST 
     int call_count = 0;
     int value = 0;
     CoalescedTimer timer(10);
+    const int timers_before = live_timer_count();
 
     timer.schedule_once([&]() {
         call_count++;
@@ -217,6 +229,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "CoalescedTimer: schedule_once runs the FIRST 
     });
 
     REQUIRE(timer.pending());
+    // Three requests, one timer.
+    CHECK(live_timer_count() - timers_before == 1);
     process_lvgl(50);
 
     REQUIRE(call_count == 1);

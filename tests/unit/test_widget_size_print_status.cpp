@@ -29,16 +29,9 @@
  * coincidence — the same shape as the other `[widget_size]` files in this
  * migration (see test_widget_size_job_queue.cpp, test_widget_size_camera.cpp).
  *
- * `print_status_layout_effective` (the `:455` predicate) is migrated and
- * tested here like the other four, but has no XML consumer today —
- * `update_view_subject()` re-derives its own `use_detailed` independently
- * rather than reading this subject back, and `grep -rl
- * print_status_layout_effective ui_xml/` returns nothing. That's a
- * pre-existing condition (not introduced by this migration) matching the
- * `print_stats_show_title` class found in a sibling task; left in place
- * because four existing tests in test_print_status_widget_layout_gate.cpp
- * already assert it and the task brief requires migrating (not removing) it.
- * Flagged here for whoever picks it up next.
+ * `print_status_layout_effective` is tested here like the other four, but no
+ * XML reads it: `update_view_subject()` derives its own `use_detailed`
+ * instead of reading this subject back.
  *
  * Every harness instance is scoped in its own block so `~PanelWidgetHarness`
  * (which detaches and destroys the widget) runs BEFORE

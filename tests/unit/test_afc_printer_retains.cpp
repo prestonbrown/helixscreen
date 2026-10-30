@@ -17,9 +17,9 @@
  */
 
 #include "../lvgl_test_fixture.h"
-#include "test_helpers/afc_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
+#include "test_helpers/afc_test_access.h"
 
 #include <memory>
 #include <string>
@@ -95,8 +95,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(LVGLTestFixture, "printer_retains_spool_info base default is false",
                  "[ams][capabilities][spool-retention]") {
-    // Qualified call pins the BASE default (false), matching the
-    // printer_reports_spool_ids pattern in test_ams_firmware_persistence.cpp.
+    // Qualified call pins the BASE default (false).
     auto afc = std::make_unique<AmsBackendAfc>(nullptr, nullptr);
     CHECK_FALSE(afc->AmsBackend::printer_retains_spool_info());
 }

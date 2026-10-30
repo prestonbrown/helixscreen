@@ -464,6 +464,24 @@ TEST_CASE("ToolChanger apply_user_edit remap moves the lane badge with the map",
     CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=\"tool T1\" N=3");
 }
 
+TEST_CASE("ToolChanger apply_user_edit ignores the default mapped_tool (-1)",
+          "[ams][backend][slot-edit-remap]") {
+    // A Spoolman sync builds a default SlotInfo: no mapping is stated, so the
+    // live map stays and nothing is sent.
+    ToolChangerMapProbe backend(4);
+    REQUIRE(backend.get_slot_info(1).mapped_tool == 1);
+
+    helix::SlotInfo info; // mapped_tool defaults to -1
+    info.material = "PLA";
+    REQUIRE(helix::test::apply_edit(backend, 1, info).success());
+
+    for (const auto& g : backend.captured) {
+        CHECK(g.rfind("ASSIGN_TOOL ", 0) != 0);
+    }
+    CHECK(backend.get_slot_info(1).mapped_tool == 1);
+    require_symmetric(backend.get_system_info());
+}
+
 TEST_CASE("ToolChanger reset_tool_mappings restores identity in both directions",
           "[ams][toolchanger][tool_map]") {
     ToolChangerMapProbe backend(4);

@@ -147,6 +147,21 @@ TEST_CASE("Real kTraits keep the answers the UI branches on", "[ams][traits]") {
     CHECK(AmsBackendAce::kTraits.has_per_slot_loaded_authority);
     CHECK(AmsBackendAd5xIfs::kTraits.has_per_slot_loaded_authority);
     CHECK_FALSE(AmsBackendHappyHare::kTraits.has_per_slot_loaded_authority);
+    // Firmware that stores the spool id per lane; elsewhere ToolState persists
+    // the assignment in the Moonraker DB.
+    CHECK(AmsBackendHappyHare::kTraits.has_firmware_spool_persistence);
+    CHECK_FALSE(AmsBackendToolChanger::kTraits.has_firmware_spool_persistence);
+    CHECK_FALSE(AmsBackendAd5xIfs::kTraits.has_firmware_spool_persistence);
+    CHECK(AmsBackendAfc::kTraits.printer_reports_spool_ids);
+    CHECK(AmsBackendHappyHare::kTraits.printer_reports_spool_ids);
+    CHECK_FALSE(BackendTraits{}.printer_reports_spool_ids);
+}
+
+TEST_CASE("A U1 owns a spool per tool and has no bypass", "[ams][traits][spoolman]") {
+    // The Spoolman active-spool sync assigns per tool only where this holds.
+    AmsBackendSnapmaker u1(nullptr, nullptr);
+    CHECK(u1.supports_per_tool_spool_assignment());
+    CHECK_FALSE(u1.is_bypass_active());
 }
 
 TEST_CASE("The mock leaves spool persistence to ToolState in every persona",

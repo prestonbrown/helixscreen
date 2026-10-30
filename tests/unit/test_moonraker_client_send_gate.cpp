@@ -21,6 +21,8 @@
 #include "hv/EventLoopThread.h"
 
 #include <atomic>
+#include <stdexcept>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -96,4 +98,24 @@ TEST_CASE("send_jsonrpc with null error_cb refuses cleanly when not connected",
     auto id =
         u.client_->send_jsonrpc("printer.info", json(), [](const json&) { /* should not fire */ });
     REQUIRE(id == kInvalidRequestId);
+}
+
+TEST_CASE("a throwing error callback at the send gate does not escape send_jsonrpc",
+          "[connection][edge][lifecycle][priority5][eventloop][slow]") {
+    UnconnectedClient u;
+    int thrown = 0;
+
+    // Each refused send invokes its error callback inline; a throw from it must
+    // be absorbed so the caller's next send still runs and is refused the same way.
+    for (int i = 0; i < 5; i++) {
+        REQUIRE_NOTHROW(u.client_->send_jsonrpc(
+            "printer.info", json(), [](json) {},
+            [&thrown](const MoonrakerError& err) {
+                CHECK(err.type == MoonrakerErrorType::CONNECTION_LOST);
+                thrown++;
+                throw std::runtime_error("Test exception " + std::to_string(thrown));
+            }));
+    }
+
+    CHECK(thrown == 5);
 }

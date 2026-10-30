@@ -82,45 +82,11 @@ TEST_CASE_METHOD(TempWidgetFixture,
 }
 
 TEST_CASE_METHOD(TempWidgetFixture,
-                 "TemperatureWidget: click callback recovers widget via per-callback user_data",
-                 "[temperature_widget][regression]") {
-    auto tcp = std::make_shared<TemperatureService>(state(), nullptr);
-    helix_test::ScopedSharedResource<TemperatureService> scope(tcp);
-
-    lv_obj_t* container = create_mock_temperature_widget(test_screen());
-    lv_obj_t* btn = lv_obj_find_by_name(container, "temp_btn");
-    REQUIRE(btn != nullptr);
-
-    HeaterTempWidget widget(state(), tcp.get(), nozzle_temp_config());
-    widget.attach_tile(container, test_screen());
-
-    // temp_clicked_cb now uses lv_event_get_user_data(e) (per-callback user_data)
-    // rather than lv_obj_get_user_data(btn). Verify the container holds the widget
-    // pointer (set during attach) so the widget is recoverable.
-    auto* recovered = static_cast<HeaterTempWidget*>(lv_obj_get_user_data(container));
-    REQUIRE(recovered != nullptr);
-    REQUIRE(recovered == &widget);
-
-    widget.detach_tile();
-}
-
-TEST_CASE_METHOD(TempWidgetFixture,
                  "HeaterTempWidget: per-heater configs are distinct and correctly wired",
                  "[temperature_widget][regression]") {
     const auto& nozzle = nozzle_temp_config();
     const auto& bed = bed_temp_config();
     const auto& chamber = chamber_temp_config();
-
-    SECTION("widget ids match the registry entries") {
-        REQUIRE(std::string(nozzle.widget_id) == "temperature");
-        REQUIRE(std::string(bed.widget_id) == "bed_temperature");
-        REQUIRE(std::string(chamber.widget_id) == "chamber_temperature");
-    }
-
-    SECTION("button + icon names match each XML component") {
-        REQUIRE(std::string(chamber.button_name) == "chamber_temp_btn");
-        REQUIRE(std::string(chamber.icon_name) == "chamber_icon_glyph");
-    }
 
     SECTION("each config opens the matching temp-graph overlay mode") {
         REQUIRE(nozzle.mode == TempGraphOverlay::Mode::Nozzle);

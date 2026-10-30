@@ -17,7 +17,7 @@
 // printer; moving the other way makes a global preference reset itself every
 // time the user switches machines. Both are invisible to a round-trip test that
 // only ever has one printer configured, which is what the existing incidental
-// coverage (test_persisted_setting.cpp, test_hidden_macros_settings.cpp,
+// coverage (test_persisted_setting.cpp, test_ui_panel_macros_edit_mode.cpp,
 // test_page_scroll_setting.cpp) does.
 //
 // Two mechanisms are covered, because SettingsManager reads config two ways:
@@ -36,7 +36,7 @@
 //
 // Isolation note: SettingsManager and Config are process-wide singletons, and
 // HelixTestFixture::reset_all() does NOT clear SettingsManager's subjects (see
-// the same hazard documented at tests/unit/test_hidden_macros_settings.cpp:24).
+// the same hazard noted in test_ui_panel_macros_edit_mode.cpp's settings round trip).
 // The fixture therefore seeds config and rebuilds the subjects on entry, and
 // rebuilds them against a clean config on exit, so these tests neither depend
 // on nor disturb run order.

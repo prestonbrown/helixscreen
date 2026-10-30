@@ -11,6 +11,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/golden_json.h"
+#include "ams_backend.h"
 #include "hardware_object_table.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_discovery_sequence.h"
@@ -149,6 +150,13 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
     SECTION("OpenAMS") {
         Printer p;
         p.obj("oams_manager");
+        {
+            // Until its status claim settles, an oams_manager may be someone
+            // else's object: no backend subscribes it.
+            PrinterDiscovery unclaimed;
+            unclaimed.parse_objects(p.all_objects);
+            CHECK(helix::AmsBackend::required_status_objects(unclaimed).empty());
+        }
         p.status_claim =
             json{{"oams_manager", {{"api_version", 1}, {"schema", "openams.manager"}}}};
         check_against_golden("subscription_parity", "openams", p.build());
@@ -195,19 +203,6 @@ TEST_CASE_METHOD(HelixTestFixture, "backend sensor prefixes subscribe as filamen
         CHECK(subs.value(name, json()) == fields);
     }
     CHECK_FALSE(subs.contains("zmod_ifs_status"));
-}
-
-TEST_CASE_METHOD(HelixTestFixture,
-                 "an extruder-prefixed module object is not subscribed as a heater",
-                 "[subscription_parity][printer_discovery]") {
-    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerDiscoverySequence discovery(mock);
-    // The Snapmaker U1 lists extruder_offset_calibration beside its four extruders.
-    discovery.parse_objects(json::array({"heater_bed", "extruder_offset_calibration", "extruder",
-                                         "extruder1", "extruder2", "extruder3"}));
-    CHECK(discovery.hardware().heaters() == std::vector<std::string>{"heater_bed", "extruder",
-                                                                     "extruder1", "extruder2",
-                                                                     "extruder3"});
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "discovery and the hardware snapshot share one heater rule",

@@ -125,6 +125,7 @@ TEST_CASE_METHOD(HelixTestFixture, "hidden-macro save round-trips through settin
     helix::Config::get_instance()->reset_to_defaults(); // key-absent start (see prepare())
     auto& sm = helix::SettingsManager::instance();
     REQUIRE_FALSE(sm.hidden_macros_key_exists());
+    REQUIRE(sm.get_hidden_macros().empty());
 
     sm.set_hidden_macros({"CLEAN_NOZZLE", "_HOME_Z"});
     REQUIRE(sm.hidden_macros_key_exists());

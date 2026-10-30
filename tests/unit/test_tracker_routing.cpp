@@ -228,3 +228,87 @@ TEST_CASE_METHOD(LVGLTestFixture,
     ams.clear_backends();
     ams.clear_external_spool_info();
 }
+
+// ---------------------------------------------------------------------------
+// Gating through the tracker: the sink rules (test_consumption_sink_ams.cpp)
+// as the tracker's own loop applies them to routed per-extruder deltas.
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(TrackerRoutingFixture, "Gating: slot with spoolman_id != 0 not tracked",
+                 "[tracker][gating]") {
+    // Link slot 0 to Spoolman BEFORE any delta arrives so the tracker's
+    // per-tick re-gate (apply_delta top-of-loop) sees it and disables the
+    // sink without decrementing.
+    helix::SlotInfo info = mock->get_slot_info(0);
+    info.spoolman_id = 42;
+    mock->sync_external_identity(0, info);
+
+    auto& state = get_printer_state();
+    SubjectLifetime lt;
+    auto* e0 = state.print_state().get_extruder_filament_used_subject(0, lt);
+    REQUIRE(e0 != nullptr);
+
+    const float before = mock->get_slot_info(0).remaining_weight_g;
+    lv_subject_set_int(e0, 1000);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(mock->get_slot_info(0).remaining_weight_g == before);
+    // Siblings unaffected.
+    CHECK(mock->get_slot_info(1).remaining_weight_g == 1000.0f);
+}
+
+TEST_CASE_METHOD(TrackerRoutingFixture,
+                 "Gating: unknown weight becomes trackable when set mid-print",
+                 "[tracker][gating]") {
+    // Start slot 0 with unknown weight. The fixture's default snapshot at
+    // PRINTING-edge already ran with weight=1000, so we force a fresh
+    // snapshot cycle with the new -1 to land the sink in the inactive state.
+    helix::SlotInfo info = mock->get_slot_info(0);
+    info.remaining_weight_g = -1.0f;
+    mock->sync_external_identity(0, info);
+    FilamentConsumptionTrackerTestAccess::force_print_state(PrintJobState::COMPLETE);
+    FilamentConsumptionTrackerTestAccess::force_print_state(PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+
+    auto& state = get_printer_state();
+    SubjectLifetime lt;
+    auto* e0 = state.print_state().get_extruder_filament_used_subject(0, lt);
+    REQUIRE(e0 != nullptr);
+
+    // Push delta on an inactive slot → no write, still -1 (sentinel).
+    lv_subject_set_int(e0, 500);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(mock->get_slot_info(0).remaining_weight_g == -1.0f);
+
+    // User sets the weight mid-print. The inactive sink won't re-evaluate
+    // via apply_delta alone (snapshot() is the gate that checks weight>=0);
+    // the production path re-registers sinks on backend config churn. We
+    // simulate that by cycling print state, which re-snapshots all sinks.
+    info = mock->get_slot_info(0);
+    info.remaining_weight_g = 800.0f;
+    mock->sync_external_identity(0, info);
+
+    // Push another delta BEFORE re-snapshot — still inactive, no write.
+    lv_subject_set_int(e0, 1000);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(mock->get_slot_info(0).remaining_weight_g == 800.0f);
+
+    // Cycle print state → sink re-snapshots with the now-valid weight.
+    FilamentConsumptionTrackerTestAccess::force_print_state(PrintJobState::COMPLETE);
+    FilamentConsumptionTrackerTestAccess::force_print_state(PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Re-zero the extruder subject so the next push is a clean delta from
+    // the freshly-taken baseline. (PRINTING edge snapshots at the current
+    // aggregate mm; the per-extruder reset branch in apply_delta handles
+    // the mm going "backwards" on the first tick of the new cycle.)
+    lv_subject_set_int(e0, 0);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Third delta — slot should now decrement from 800 g.
+    lv_subject_set_int(e0, 1000);
+    helix::ui::UpdateQueue::instance().drain();
+    const float after = mock->get_slot_info(0).remaining_weight_g;
+    CHECK(after < 800.0f);
+    CHECK(after > 796.0f);
+}

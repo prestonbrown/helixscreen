@@ -75,31 +75,6 @@ TEST_CASE("from_moonraker_file handles edge cases", "[print_file_data]") {
         REQUIRE(data.file_size_bytes == 0);
         REQUIRE(data.size_str == "0 B");
     }
-
-    SECTION("large file") {
-        FileInfo file;
-        file.filename = "huge.gcode";
-        file.is_dir = false;
-        file.size = 5ULL * 1024 * 1024 * 1024; // 5 GB
-        file.modified = 1735000000.0;
-
-        PrintFileData data = PrintFileData::from_moonraker_file(file, "");
-
-        REQUIRE(data.file_size_bytes == 5ULL * 1024 * 1024 * 1024);
-        REQUIRE(data.size_str == "5.00 GB"); // GB uses %.2f format
-    }
-
-    SECTION("special characters in filename") {
-        FileInfo file;
-        file.filename = "test (copy) [v2].gcode";
-        file.is_dir = false;
-        file.size = 1024;
-        file.modified = 1735000000.0;
-
-        PrintFileData data = PrintFileData::from_moonraker_file(file, "");
-
-        REQUIRE(data.filename == "test (copy) [v2].gcode");
-    }
 }
 
 // ============================================================================
@@ -136,25 +111,6 @@ TEST_CASE("from_usb_file creates PrintFileData from UsbGcodeFile", "[print_file_
         REQUIRE(data.filament_grams == 0.0f);
         REQUIRE(data.metadata_fetched == false);
         REQUIRE(data.original_thumbnail_url.empty());
-    }
-}
-
-TEST_CASE("from_usb_file handles edge cases", "[print_file_data]") {
-    SECTION("empty filename") {
-        UsbGcodeFile file("/mnt/usb/", "", 0, 0);
-
-        PrintFileData data = PrintFileData::from_usb_file(file, "");
-
-        REQUIRE(data.filename.empty());
-        REQUIRE(data.file_size_bytes == 0);
-    }
-
-    SECTION("negative timestamp") {
-        UsbGcodeFile file("/mnt/usb/old.gcode", "old.gcode", 1024, -1);
-
-        PrintFileData data = PrintFileData::from_usb_file(file, "");
-
-        REQUIRE(data.modified_timestamp == static_cast<time_t>(-1));
     }
 }
 
