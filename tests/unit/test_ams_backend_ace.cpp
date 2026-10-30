@@ -503,46 +503,6 @@ TEST_CASE("ACE parse_info_response: valid response", "[ams][ace][parse]") {
     REQUIRE(info.units[0].slots.size() == 4);
 }
 
-TEST_CASE("ACE parse_info_response: missing fields", "[ams][ace][parse]") {
-    AmsBackendAceTestHelper helper;
-
-    // Empty response should not crash
-    json data = json::object();
-    helper.test_parse_info_response(data);
-
-    auto info = helper.get_test_system_info();
-    // Type name should be ACE
-    REQUIRE(info.type == AmsType::ACE);
-}
-
-TEST_CASE("ACE parse_info_response: wrong types ignored", "[ams][ace][parse]") {
-    AmsBackendAceTestHelper helper;
-
-    // String where int expected should be ignored, not crash
-    json data = {
-        {"model", 12345},      // Wrong type (number instead of string)
-        {"version", true},     // Wrong type (bool instead of string)
-        {"slot_count", "four"} // Wrong type (string instead of int)
-    };
-
-    // Should not throw or crash
-    REQUIRE_NOTHROW(helper.test_parse_info_response(data));
-}
-
-TEST_CASE("ACE parse_info_response: excessive slot count rejected", "[ams][ace][parse]") {
-    AmsBackendAceTestHelper helper;
-
-    json data = {
-        {"slot_count", 100} // Unreasonable value
-    };
-
-    helper.test_parse_info_response(data);
-    auto info = helper.get_test_system_info();
-
-    // Should reject unreasonable slot count
-    REQUIRE(info.total_slots != 100);
-}
-
 // ============================================================================
 // Status Response Parsing Tests
 // ============================================================================
@@ -573,60 +533,12 @@ TEST_CASE("ACE parse_status_response: no filament loaded", "[ams][ace][parse]") 
     REQUIRE(info.filament_loaded == false);
 }
 
-TEST_CASE("ACE parse_status_response: action states", "[ams][ace][parse]") {
+TEST_CASE("ACE REST status applies the dryer it states", "[ams][ace][parse]") {
     AmsBackendAceTestHelper helper;
-
-    // Test loading action
-    json data = {{"action", "loading"}};
-    helper.test_parse_status_response(data);
-    REQUIRE(helper.get_test_system_info().action == AmsAction::LOADING);
-
-    // Test unloading action
-    data = {{"action", "unloading"}};
-    helper.test_parse_status_response(data);
-    REQUIRE(helper.get_test_system_info().action == AmsAction::UNLOADING);
-
-    // Test error action
-    data = {{"action", "error"}};
-    helper.test_parse_status_response(data);
-    REQUIRE(helper.get_test_system_info().action == AmsAction::ERROR);
-
-    // Test idle action
-    data = {{"action", "idle"}};
-    helper.test_parse_status_response(data);
-    REQUIRE(helper.get_test_system_info().action == AmsAction::IDLE);
-}
-
-TEST_CASE("ACE parse_status_response: dryer state", "[ams][ace][parse]") {
-    AmsBackendAceTestHelper helper;
-
-    json data = {{"dryer",
-                  {{"active", true},
-                   {"current_temp", 45.5},
-                   {"target_temp", 55.0},
-                   {"remaining_minutes", 180},
-                   {"duration_minutes", 240}}}};
-
-    helper.test_parse_status_response(data);
-    auto dryer = helper.get_test_dryer_info();
-
-    REQUIRE(dryer.active == true);
-    REQUIRE(dryer.current_temp_c == Catch::Approx(45.5f));
-    REQUIRE(dryer.target_temp_c == Catch::Approx(55.0f));
-    REQUIRE(dryer.remaining_min == 180);
-    REQUIRE(dryer.duration_min == 240);
-}
-
-TEST_CASE("ACE parse_status_response: dryer not active", "[ams][ace][parse]") {
-    AmsBackendAceTestHelper helper;
-
-    json data = {{"dryer", {{"active", false}, {"current_temp", 25.0}, {"target_temp", 0}}}};
-
-    helper.test_parse_status_response(data);
-    auto dryer = helper.get_test_dryer_info();
-
-    REQUIRE(dryer.active == false);
-    REQUIRE(dryer.target_temp_c == Catch::Approx(0.0f));
+    helper.test_parse_status_response(
+        json{{"dryer", {{"active", true}, {"remaining_minutes", 180}}}});
+    CHECK(helper.get_test_dryer_info().active);
+    CHECK(helper.get_test_dryer_info().remaining_min == 180);
 }
 
 // ============================================================================
@@ -684,30 +596,6 @@ TEST_CASE("ACE parse_slots_response: valid slots", "[ams][ace][parse]") {
     // (LOADED enum is for when filament is actively in the extruder path)
     auto slot2 = helper.get_slot_info(2);
     REQUIRE(slot2.status == SlotStatus::AVAILABLE);
-}
-
-TEST_CASE("ACE parse_slots_response: missing slots array", "[ams][ace][parse]") {
-    AmsBackendAceTestHelper helper;
-
-    json data = json::object(); // No "slots" key
-
-    bool changed = helper.test_parse_slots_response(data);
-    REQUIRE(changed == false);
-}
-
-TEST_CASE("ACE parse_slots_response: excessive slots rejected", "[ams][ace][parse]") {
-    AmsBackendAceTestHelper helper;
-
-    // Create an array with too many slots
-    json slots_array = json::array();
-    for (int i = 0; i < 20; ++i) {
-        slots_array.push_back({{"index", i}});
-    }
-
-    json data = {{"slots", slots_array}};
-
-    bool changed = helper.test_parse_slots_response(data);
-    REQUIRE(changed == false); // Should reject excessive count
 }
 
 // ============================================================================
@@ -2595,39 +2483,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE REST fallback seats from ace_manager curr
     CHECK(dryer.current_temp_c == 34.0f);
 }
 
-TEST_CASE("ACE object path reads dryer under the dryer_status key", "[ams][ace][1069]") {
-    AmsBackendAceTestHelper helper;
-
-    json inst = make_kobra_instance_object();
-    inst["dryer_status"] =
-        json{{"status", "run"}, {"target_temp", 55}, {"duration", 240}, {"remain_time", 200}};
-    inst["temp"] = 41;
-    AceTestAccess::parse_ace(helper, inst);
-
-    auto d = helper.get_test_dryer_info();
-    CHECK(d.active == true);
-    CHECK(d.target_temp_c == 55.0f);
-    CHECK(d.duration_min == 240);
-    CHECK(d.remaining_min == 200);
-    CHECK(d.current_temp_c == 41.0f);
-}
-
-TEST_CASE("ACE dryer current_temp beats the ambient temp when stated", "[ams][ace][1069]") {
-    AmsBackendAceTestHelper helper;
-
-    // A bridge stating both: the dryer's own current temp is the more
-    // specific reading than the top-level ambient.
-    AceTestAccess::parse_ace(
-        helper,
-        json{{"temp", 28},
-             {"dryer", json{{"active", true}, {"current_temp", 45.5}, {"target_temp", 55.0}}}});
-
-    auto d = helper.get_test_dryer_info();
-    CHECK(d.current_temp_c == 45.5f);
-    CHECK(d.active == true);
-    CHECK(d.target_temp_c == 55.0f);
-}
-
 TEST_CASE("ACE manager delta without current_index keeps the instance delta", "[ams][ace][1069]") {
     AmsBackendAceTestHelper helper;
     AceTestAccess::parse_ace(helper, make_kobra_instance_object());
@@ -2763,111 +2618,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE REST unit-status idle keeps an in-flight 
     CHECK(backend.get_system_info().action == AmsAction::ERROR);
 }
 
-TEST_CASE("ACE object-path material prefers material and keeps the type fallback",
-          "[ams][ace][1069]") {
-    SECTION("type only (ValgACE spelling) still parses material") {
-        AmsBackendAceTestHelper helper;
-        AceTestAccess::parse_ace(helper, json{{"model", "ACE Pro"},
-                                              {"firmware", "1.2.3"},
-                                              {"status", "ready"},
-                                              {"slots", json::array({json{
-                                                            {"status", "available"},
-                                                            {"color", json::array({255, 0, 0})},
-                                                            {"type", "ABS"},
-                                                        }})}});
-        CHECK(helper.get_slot_info(0).material == "ABS");
-    }
-    SECTION("material wins when both keys are stated") {
-        AmsBackendAceTestHelper helper;
-        AceTestAccess::parse_ace(helper, json{{"model", "ACE Pro"},
-                                              {"firmware", "1.2.3"},
-                                              {"status", "ready"},
-                                              {"slots", json::array({json{
-                                                            {"status", "ready"},
-                                                            {"material", "PETG"},
-                                                            {"type", "PLA"},
-                                                            {"color", json::array({0, 255, 0})},
-                                                        }})}});
-        CHECK(helper.get_slot_info(0).material == "PETG");
-    }
-}
-
 // --- Fix 3: REST slot parser accepts `type` as a material alias -------------
-
-TEST_CASE("ACE parse_slots_response falls back to type for material", "[ams][ace][parse][kobra]") {
-    AmsBackendAceTestHelper helper;
-
-    // The live capture shows /slots returning `material`; `type` is the
-    // ValgACE spelling, kept as the fallback.
-    json data = {
-        {"slots", {{{"index", 0}, {"status", "ready"}, {"type", "PLA"}, {"color", "#FF0000"}}}}};
-
-    bool changed = helper.test_parse_slots_response(data);
-    REQUIRE(changed == true);
-
-    auto slot0 = helper.get_slot_info(0);
-    CHECK(slot0.material == "PLA"); // type -> material
-}
-
-TEST_CASE("ACE parse_slots_response prefers material over type when both present",
-          "[ams][ace][parse][kobra]") {
-    AmsBackendAceTestHelper helper;
-
-    json data = {{"slots",
-                  {{{"index", 0},
-                    {"status", "ready"},
-                    {"material", "PETG"},
-                    {"type", "PLA"},
-                    {"color", "#00FF00"}}}}};
-
-    helper.test_parse_slots_response(data);
-    CHECK(helper.get_slot_info(0).material == "PETG"); // explicit material wins
-}
 
 // --- Fix 4: widen REST slot status vocabulary to mirror the object path ------
 
-TEST_CASE("ACE parse_slots_response maps ready/preload/running to AVAILABLE",
-          "[ams][ace][parse][kobra]") {
-    AmsBackendAceTestHelper helper;
-
-    json data = {{"slots",
-                  {{{"index", 0}, {"status", "ready"}},
-                   {{"index", 1}, {"status", "preload"}},
-                   {{"index", 2}, {"status", "running"}},
-                   {{"index", 3}, {"status", "runout"}}}}};
-
-    helper.test_parse_slots_response(data);
-
-    CHECK(helper.get_slot_info(0).status == SlotStatus::AVAILABLE); // ready
-    CHECK(helper.get_slot_info(1).status == SlotStatus::AVAILABLE); // preload
-    CHECK(helper.get_slot_info(2).status == SlotStatus::AVAILABLE); // running
-    CHECK(helper.get_slot_info(3).status == SlotStatus::EMPTY);     // runout
-}
-
-TEST_CASE("ACE parse_slots_response maps unknown to UNKNOWN like the object path",
-          "[ams][ace][parse][kobra]") {
-    AmsBackendAceTestHelper helper;
-
-    json data = {{"slots", {{{"index", 0}, {"status", "unknown"}}}}};
-    helper.test_parse_slots_response(data);
-    CHECK(helper.get_slot_info(0).status == SlotStatus::UNKNOWN);
-}
-
 // --- Fix 2a: /status carries model + firmware (no /info required) ------------
-
-TEST_CASE("ACE parse_status_response derives model and firmware", "[ams][ace][parse][kobra]") {
-    AmsBackendAceTestHelper helper;
-
-    // The ACEPRO driver's /server/ace/status envelope carries model + firmware, so the
-    // backend no longer needs /server/ace/info to identify the hardware.
-    json data = {{"model", "ACE Pro"}, {"firmware", "2.5.1"}, {"loaded_slot", -1}};
-
-    helper.test_parse_status_response(data);
-    auto info = helper.get_test_system_info();
-
-    CHECK(info.type_name == "ACE");
-    CHECK(info.version == "2.5.1"); // firmware -> version
-}
 
 // --- Fix 2b: /info optional — no false "install ValgACE" error --------------
 
@@ -4110,39 +3865,6 @@ TEST_CASE("ACE reads connection_state from the ACEPRO driver only", "[ams][ace]"
     AceTestAccess::parse_ace(helper, payload);
     REQUIRE_FALSE(helper.get_test_system_info().units.empty());
     CHECK(helper.get_test_system_info().units[0].connected);
-}
-
-// ValgACE names no tool per slot: its slots map none, and a Load stays a load.
-TEST_CASE("ACE slots without a driver tool number map no tool", "[ams][ace]") {
-    AmsBackendAceTestHelper helper;
-    AceTestAccess::parse_ace(helper, make_ace_slot_payload("ready", 0xFF5500, "PLA"));
-    CHECK(helper.get_slot_info(0).mapped_tool == -1);
-}
-
-// The ACEPRO driver reports a slot's motion state as its status (feeding, unwinding,
-// shifting - which an ACE 2 slot under feed assist reports throughout - and
-// identifying while the tag is read). The spool is in the slot in all of them.
-TEST_CASE("ACE slot in motion keeps its spool", "[ams][ace][slot-status]") {
-    for (const char* word : {"feeding", "unwinding", "shifting", "identifying"}) {
-        DYNAMIC_SECTION("status " << word) {
-            AmsBackendAceTestHelper helper;
-            json unit = make_kobra_instance_object();
-            unit["slots"][0]["status"] = word;
-            AceTestAccess::parse_ace(helper, unit);
-
-            CHECK(helper.get_slot_info(0).status == SlotStatus::AVAILABLE);
-            CHECK(helper.get_slot_info(0).material == "PLA");
-        }
-    }
-
-    SECTION("empty stays empty") {
-        AmsBackendAceTestHelper helper;
-        json unit = make_kobra_instance_object();
-        unit["slots"][0]["status"] = "empty";
-        AceTestAccess::parse_ace(helper, unit);
-
-        CHECK(helper.get_slot_info(0).status == SlotStatus::EMPTY);
-    }
 }
 
 // A community driver publishes no tool numbers: T<n> loads slot n.

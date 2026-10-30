@@ -13,7 +13,7 @@
  * the add-on source on a live BoxTurtle (v1.1.0-4-g2921371).
  *
  * So these tests exercise a shape production never receives. They are kept
- * because `parse_afc_state()` still parses `system` and that parse is genuine on
+ * because `apply_afc_state()` still parses `system` and that parse is genuine on
  * the webhook surface — it carries per-extruder `lane_loaded`, `lanes` and
  * `tool_stn` distances a bare name array cannot — and because it stays
  * authoritative whenever it IS present. But nothing in this file is evidence

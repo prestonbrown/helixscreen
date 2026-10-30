@@ -64,7 +64,9 @@ TEST_CASE("AD5X GET_ZCOLOR parse counts only recognised lines as a response",
     CHECK(r.slots[1]->hex == "00FF00");
 
     CHECK_FALSE(ad5x::parse_zcolor_silent({"echo: random", "// 99: nonsense"}).saw_valid_response);
-    CHECK(ad5x::parse_zcolor_silent({"// Extruder: None (0) | IFS: True"}).saw_valid_response);
+    auto none = ad5x::parse_zcolor_silent({"// Extruder: None (0) | IFS: True"});
+    CHECK(none.saw_valid_response);
+    CHECK(none.current_channel == 0);
 }
 
 TEST_CASE("AD5X GET_ZCOLOR parse keeps the IFS_STATUS line from a prompt-dialog answer",
@@ -80,6 +82,18 @@ TEST_CASE("AD5X GET_ZCOLOR parse keeps the IFS_STATUS line from a prompt-dialog 
     CHECK(r.ifs_state == 4);
     REQUIRE(r.ifs_ports);
     CHECK(*r.ifs_ports == std::array<bool, 4>{false, true, true, true});
+}
+
+TEST_CASE("AD5X GET_ZCOLOR parse takes the first usable IFS_STATUS Chan and any line's Ports",
+          "[ad5x][status_parse]") {
+    auto r = ad5x::parse_zcolor_silent({R"(// {"Chan": 3, "Ports": [true, true)",
+                                        R"(// {"Chan": "x", "Ports": [true, false, true, false]})",
+                                        R"(// {"Chan": 2, "State": null})",
+                                        R"(// {"Chan": 4, "State": 1})"});
+    CHECK(r.ifs_chan == 2);
+    CHECK(r.ifs_state == -1);
+    REQUIRE(r.ifs_ports);
+    CHECK(*r.ifs_ports == std::array<bool, 4>{true, false, true, false});
 }
 
 TEST_CASE("AD5X IFS_STATUS object reads Chan and Ports independently, Ports all or nothing",
@@ -205,6 +219,7 @@ TEST_CASE("AD5X save_variables parse uses the known prefix and flags disagreeing
     CHECK_FALSE(known.prefix);
     CHECK(known.current_tool == 3);
     CHECK_FALSE(known.module_loaded);
+    CHECK(known.module_at_hub == 0);
 
     CHECK(ad5x::parse_save_variables(json{{"bambufy_tools", {4, 2}}, {"less_waste_tools", {2, 1}}},
                                      "")

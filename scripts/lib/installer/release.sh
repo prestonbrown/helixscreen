@@ -734,8 +734,12 @@ validate_archive() {
 
     # Releases should be >1MB — catch truncated downloads that nonetheless
     # parse as valid archives (e.g. an empty zip central directory).
-    local size_kb
-    size_kb=$(du -k "$archive" 2>/dev/null | cut -f1)
+    # Truncation is a question about the file's length, so measure bytes: du
+    # reports allocated blocks, which on ZFS read as one block for a file
+    # written seconds ago and stay small for a compressible one.
+    local size_bytes size_kb
+    size_bytes=$(wc -c < "$archive" 2>/dev/null)
+    size_kb=$(( ${size_bytes:-0} / 1024 ))
     if [ "${size_kb:-0}" -lt 1024 ]; then
         log_error "${context}file too small (${size_kb}KB). File may be incomplete."
         exit 1
@@ -1572,8 +1576,27 @@ validate_binary_architecture() {
 # and protects nothing; that is the failure mode where the install dies
 # mid-copy with ENOSPC having reported no problem at all.
 # Verified present on BusyBox 1.29.3 (AD5M) and 1.33.2 (K2).
+#
+# Reports the larger of the allocated and the apparent size. The copy this
+# sizes lands on another filesystem, where the tree takes at least its byte
+# length, while allocation on the source can read far lower: ZFS counts a file
+# written seconds ago as one block until its transaction group commits, and a
+# compressing filesystem stores runs of zeros in almost nothing. GNU du
+# measures apparent size with --apparent-size; BusyBox du has no such option,
+# so there the allocated figure stands alone.
 _tree_size_mb() {
-    du -ms "$1" 2>/dev/null | awk '{print $1}'
+    local allocated apparent
+    allocated=$(du -ms "$1" 2>/dev/null | awk '{print $1}')
+    [ -n "$allocated" ] || return 0
+    apparent=$(du -ms --apparent-size "$1" 2>/dev/null | awk '{print $1}')
+    case "$apparent" in
+        '' | *[!0-9]*) apparent=0 ;;
+    esac
+    if [ "$apparent" -gt "$allocated" ]; then
+        echo "$apparent"
+    else
+        echo "$allocated"
+    fi
 }
 
 # Decide whether the install swap can actually be performed.
@@ -1874,7 +1897,9 @@ extract_release() {
         esac
         extract_required_mb=$(( archive_mb + 20 ))
     else
-        archive_mb=$(du -m "$archive" 2>/dev/null | awk '{print $1}')
+        # Byte length, rounded up: allocated blocks (du) undercount a file
+        # that was just downloaded onto ZFS.
+        archive_mb=$(wc -c < "$archive" 2>/dev/null | awk '{print int(($1 + 1048575) / 1048576)}')
         [ -z "$archive_mb" ] && archive_mb=$(ls -l "$archive" | awk '{print int($5/1048576)}')
         extract_required_mb=$(( (archive_mb * 3) + 20 ))
     fi
@@ -2153,7 +2178,7 @@ extract_release() {
         # fails mid-write with ENOSPC. When tight, relocate the old install to a
         # roomy persistent partition first (option B) so the install fs has room.
         local new_install_mb install_parent install_free_mb swap_margin_mb
-        new_install_mb=$(du -ms "$new_install" 2>/dev/null | awk '{print $1}')
+        new_install_mb=$(_tree_size_mb "$new_install")
         [ -z "$new_install_mb" ] && new_install_mb=0
 
         install_parent=$(dirname "${INSTALL_DIR}")
