@@ -248,6 +248,12 @@ def resolve(paths: list[str], db: dict[str, dict], root: str = REPO_ROOT,
     out: dict[str, Choice | None] = {}
     need_make: list[str] = []
     for p in paths:
+        # A source deleted since the build that recorded it has no flags today: a
+        # rule would still print a command for its path, and replaying that
+        # reports the missing file as a finding.
+        if not os.path.isfile(p):
+            out[p] = None
+            continue
         entry = db.get(p)
         if entry is not None and not is_stale(entry, current):
             out[p] = Choice(entry, FRESH)

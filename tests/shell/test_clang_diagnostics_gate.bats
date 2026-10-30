@@ -544,3 +544,37 @@ write_fixture_claim() {
     [ "$status" -eq 0 ]
     [ -f "$FIXTURE_DIR/prereqs.made" ] || fail "an unheld tree skipped its prerequisites"
 }
+
+# --- sources deleted since the last build ------------------------------------
+#
+# .d files and database entries outlive the sources they name. A header's
+# fan-out must not hand a deleted dependent to make, whose rule prints a command
+# for any path, or to clang, which reports the missing file as a finding.
+
+@test "a header's dependent deleted since the last build is not checked" {
+    printf '#pragma once\n' > "$FIXTURE_DIR/feature.h"
+    printf '#include "feature.h"\nint live_entry() { return 0; }\n' > "$FIXTURE_DIR/live_dep.cpp"
+    for name in gone_dep live_dep; do
+        printf '%s: %s %s\n' "$FIXTURE_DIR/$name.o" "$FIXTURE_DIR/$name.cpp" \
+            "$FIXTURE_DIR/feature.h" > "$FIXTURE_DIR/$name.d"
+    done
+    write_fixture_makefile
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
+        "$FIXTURE_DIR/feature.h"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ] || fail "gate failed: $output"
+    refute grep -qF "gone_dep" <<<"$output"
+    grep -qF "checked 1 TU(s): 1 clean" <<<"$output"
+}
+
+@test "a deleted source named on the command line gets no flags from make" {
+    write_fixture_makefile
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
+        "$FIXTURE_DIR/gone.cpp"
+    refute grep -qF "no such file or directory" <<<"$output"
+    [ ! -f "$FIXTURE_DIR/prereqs.made" ] || fail "made prerequisites for a file that is gone"
+}
