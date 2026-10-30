@@ -41,6 +41,15 @@ with_driver() {
   contains "deferred: qc_test_tautology qc_test_widget_registry qc_vendor_branches qc_hold_ends_press" "$output"
 }
 
+# A branch may add a test in one commit and pay for it in the next, so the budget
+# is a branch-level verdict: measured at a single commit it would fail work in flight.
+@test "the test budget waits for the push" {
+  run with_driver true 'qc_wanted qc_test_budget && echo "RAN qc_test_budget"; echo "deferred:$QC_DEFERRED"'
+  [ "$status" -eq 0 ]
+  lacks "RAN " "$output"
+  contains "qc_test_budget" "$output"
+}
+
 # These are slow too, but a commit that fails them does not build or load.
 @test "the gates that keep a commit buildable still run at commit" {
   run with_driver true 'QC_STAGED_ALL="ui_xml/a.xml"; for g in qc_phase2 qc_xml_tools qc_xml_linter qc_design_pixels; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:[$QC_DEFERRED]"'

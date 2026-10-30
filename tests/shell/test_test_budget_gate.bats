@@ -109,3 +109,41 @@ budget() {
     [ "$status" -eq 0 ]
     contains "no committed work" "$output"
 }
+
+qc_budget() {
+    run bash -c '
+        STAGED_ONLY=false; QC_TMP="$(mktemp -d)"; QC_COUNTS="$QC_TMP/counts"
+        . "$1/scripts/qc/_lib.sh"
+        . "$1/scripts/qc/test_budget.sh"
+        cd "$2" && mkdir -p scripts && ln -sf "$1/scripts/check_test_budget.py" scripts/
+        qc_test_budget' _ "$BATS_TEST_DIRNAME/../.." "$REPO"
+}
+
+@test "the qc wrapper measures the branch from its fork point and fails on growth" {
+    printf 'TEST_CASE("b") {\n    CHECK(2 == 2);\n}\n' > "$REPO/tests/unit/test_b.cpp"
+    commit_all "add a test"
+    qc_budget
+    [ "$status" -eq 1 ]
+    contains "test lines grew by 3" "$output"
+}
+
+@test "the qc wrapper passes a branch that pays for what it adds" {
+    printf 'TEST_CASE("b") {\n    CHECK(2 == 2);\n}\n' > "$REPO/tests/unit/test_b.cpp"
+    rm "$REPO/tests/unit/test_a.cpp"
+    commit_all "replace a test"
+    qc_budget
+    [ "$status" -eq 0 ]
+    contains "Test budget" "$output"
+}
+
+@test "the qc wrapper triggers on C++ under tests, src and include and on its script" {
+    cd "$BATS_TEST_DIRNAME/../.." || return 1
+    re="$(qc_trigger test_budget)"
+    [ -n "$re" ]
+    for p in tests/unit/test_x.cpp src/ui/ui_x.cpp include/x.h scripts/check_test_budget.py; do
+        echo "$p" | grep -qE "$re" || fail "$p should trigger"
+    done
+    for p in docs/devel/README.md tests/shell/test_x.bats ui_xml/globals.xml; do
+        if echo "$p" | grep -qE "$re"; then fail "$p should not trigger"; fi
+    done
+}
