@@ -10,11 +10,10 @@
 #include "printer_state.h"
 #include "start_macro_injection.h"
 
-#include "hv/json.hpp"
-
 #include <memory>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::PrinterState;
 using helix::PrintStartPhase;
@@ -57,7 +56,7 @@ class StartMacroGateFixture : public LVGLTestFixture {
         state_.init_subjects(false);
         lv_subject_set_int(state_.print_state().get_print_active_subject(), 1);
         client_ = std::make_unique<MoonrakerClientMock>();
-        collector_ = std::make_shared<PrintStartCollector>(*client_, state_);
+        collector_ = PrintStartCollector::create(*client_, state_);
         collector_->set_profile(PrintStartProfile::load_default());
     }
 
