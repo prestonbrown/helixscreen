@@ -235,21 +235,8 @@ struct JobStartFx : LVGLTestFixture {
         ps.init_subjects(false);
         ps.set_klippy_state_sync(KlippyState::READY);
         client.connect("ws://mock/websocket", []() {}, []() {});
-        forget_notes();
-    }
-
-    /// The ledger is process-wide: drop what earlier cases noted.
-    static void forget_notes() {
-        while (screen_start_ledger().withdraw("benchy.gcode")) {
-        }
-        while (screen_start_ledger().withdraw_any()) {
-        }
-        while (screen_start_ledger().claim("")) {
-        }
     }
     ~JobStartFx() override {
-        screen_start_ledger().set_announce(false);
-        forget_notes();
         client.stop_temperature_simulation();
         client.disconnect();
     }
