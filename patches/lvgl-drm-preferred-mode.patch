@@ -1,18 +1,12 @@
-diff --git a/src/drivers/display/drm/lv_linux_drm.h b/src/drivers/display/drm/lv_linux_drm.h
---- a/src/drivers/display/drm/lv_linux_drm.h
-+++ b/src/drivers/display/drm/lv_linux_drm.h
-@@ -17,6 +17,7 @@
- #include "../../../display/lv_display.h"
-
- #if LV_USE_LINUX_DRM
-+#include <stdint.h>
- #include <xf86drmMode.h>
-
- /*********************
-@@ -69,6 +70,26 @@ lv_display_t * lv_linux_drm_create(void);
+diff --git a/include/lvgl/drivers/display/lv_linux_drm.h b/include/lvgl/drivers/display/lv_linux_drm.h
+index c936cb741..a7e40d0b6 100644
+--- a/include/lvgl/drivers/display/lv_linux_drm.h
++++ b/include/lvgl/drivers/display/lv_linux_drm.h
+@@ -71,6 +71,26 @@ lv_display_t * lv_linux_drm_create(void);
+  */
  lv_result_t lv_linux_drm_set_file(lv_display_t * disp, const char * file, int64_t connector_id);
-
- /**
+ 
++/**
 + * @brief Set a preferred mode (by hdisplay/vdisplay) before lv_linux_drm_set_file()
 + *
 + * When set to non-zero values, the DRM backend will search the connector's mode
@@ -32,14 +26,14 @@ diff --git a/src/drivers/display/drm/lv_linux_drm.h b/src/drivers/display/drm/lv
 + */
 +void lv_linux_drm_set_preferred_mode(lv_display_t * disp, uint32_t hdisplay, uint32_t vdisplay);
 +
-+/**
+ /**
   * @brief Automatically find a suitable DRM device path
   *
-  * Scans the system for available DRM devices and returns the path to a suitable
 diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv_linux_drm.c
+index f67b49bba..f295b0cd7 100644
 --- a/src/drivers/display/drm/lv_linux_drm.c
 +++ b/src/drivers/display/drm/lv_linux_drm.c
-@@ -79,6 +79,8 @@ typedef struct {
+@@ -76,6 +76,8 @@ typedef struct {
      drm_buffer_t drm_bufs[BUFFER_CNT];
      drm_buffer_t * act_buf;
      uint64_t plane_rotation; /* DRM_MODE_ROTATE_* bitmask, 0 = unset */
@@ -48,12 +42,10 @@ diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv
  #if LV_USE_LINUX_DRM_GBM_BUFFERS
      struct gbm_device * gbm_device;
  #endif
-@@ -259,6 +261,18 @@ void lv_linux_drm_set_mode_cb(lv_display_t * disp, lv_linux_drm_select_mode_cb_t
-     LV_UNUSED(disp);
-     LV_UNUSED(callback);
+@@ -260,6 +262,18 @@ void lv_linux_drm_set_mode_cb(lv_display_t * disp, lv_linux_drm_select_mode_cb_t
      LV_LOG_WARN("DRM without EGL support doesn't currently support setting a mode selection callback");
-+}
-+
+ }
+ 
 +void lv_linux_drm_set_preferred_mode(lv_display_t * disp, uint32_t hdisplay, uint32_t vdisplay)
 +{
 +    drm_dev_t * drm_dev = lv_display_get_driver_data(disp);
@@ -64,13 +56,15 @@ diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv
 +    drm_dev->preferred_hdisplay = hdisplay;
 +    drm_dev->preferred_vdisplay = vdisplay;
 +    LV_LOG_INFO("DRM preferred mode set to %ux%u", (unsigned)hdisplay, (unsigned)vdisplay);
- }
-
++}
++
  uint64_t lv_linux_drm_get_plane_rotation_mask(lv_display_t * disp)
-@@ -756,7 +770,31 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
+ {
+     drm_dev_t * drm_dev = lv_display_get_driver_data(disp);
+@@ -764,7 +778,31 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
      drm_dev->mmWidth = conn->mmWidth;
      drm_dev->mmHeight = conn->mmHeight;
-
+ 
 -    lv_memcpy(&drm_dev->mode, &conn->modes[0], sizeof(drmModeModeInfo));
 +    /* Default to the first mode; honor explicit preferred-mode override
 +     * from lv_linux_drm_set_preferred_mode if one matches (HelixScreen #766). */
@@ -97,17 +91,17 @@ diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv
 +    }
 +
 +    lv_memcpy(&drm_dev->mode, &conn->modes[selected_mode_idx], sizeof(drmModeModeInfo));
-
+ 
      if(drmModeCreatePropertyBlob(drm_dev->fd, &drm_dev->mode, sizeof(drm_dev->mode),
                                   &drm_dev->blob_id)) {
-@@ -764,8 +802,8 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
+@@ -772,8 +810,8 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
          goto free_res;
      }
-
+ 
 -    drm_dev->width = conn->modes[0].hdisplay;
 -    drm_dev->height = conn->modes[0].vdisplay;
 +    drm_dev->width = conn->modes[selected_mode_idx].hdisplay;
 +    drm_dev->height = conn->modes[selected_mode_idx].vdisplay;
-
+ 
      for(i = 0 ; i < res->count_encoders; i++) {
          enc = drmModeGetEncoder(drm_dev->fd, res->encoders[i]);

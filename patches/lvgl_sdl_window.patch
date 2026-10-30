@@ -1,8 +1,8 @@
 diff --git a/src/drivers/sdl/lv_sdl_window.c b/src/drivers/sdl/lv_sdl_window.c
-index 15a87ab12..fa7289751 100644
+index 21d1de0a9..87fd768d1 100644
 --- a/src/drivers/sdl/lv_sdl_window.c
 +++ b/src/drivers/sdl/lv_sdl_window.c
-@@ -21,6 +21,10 @@
+@@ -20,6 +20,10 @@
  #define SDL_MAIN_HANDLED /*To fix SDL's "undefined reference to WinMain" issue*/
  #include "lv_sdl_private.h"
  
@@ -13,7 +13,7 @@ index 15a87ab12..fa7289751 100644
  #if LV_COLOR_DEPTH == 1 && LV_SDL_RENDER_MODE != LV_DISPLAY_RENDER_MODE_PARTIAL
      #error SDL LV_COLOR_DEPTH 1 requires LV_SDL_RENDER_MODE LV_DISPLAY_RENDER_MODE_PARTIAL
  #endif
-@@ -42,6 +46,9 @@ static lv_result_t window_create(lv_display_t * disp);
+@@ -41,6 +45,9 @@ static lv_result_t window_create(lv_display_t * disp);
  static void sdl_event_handler(lv_timer_t * t);
  static void release_disp_cb(lv_event_t * e);
  static void res_chg_event_cb(lv_event_t * e);
@@ -23,7 +23,7 @@ index 15a87ab12..fa7289751 100644
  
  /**********************
   *  STATIC VARIABLES
-@@ -49,6 +56,18 @@ static void res_chg_event_cb(lv_event_t * e);
+@@ -48,6 +55,18 @@ static void res_chg_event_cb(lv_event_t * e);
  static bool inited = false;
  static lv_timer_t * event_handler_timer;
  
@@ -42,7 +42,7 @@ index 15a87ab12..fa7289751 100644
  /**********************
   *      MACROS
   **********************/
-@@ -83,17 +102,24 @@ lv_display_t * lv_sdl_window_create(int32_t hor_res, int32_t ver_res)
+@@ -83,18 +102,25 @@ lv_display_t * lv_sdl_window_create(int32_t hor_res, int32_t ver_res)
          return NULL;
      }
      lv_display_set_driver_data(disp, dsc);
@@ -52,6 +52,7 @@ index 15a87ab12..fa7289751 100644
 +     *triggers res_chg_event_cb and properly resizes the texture/framebuffer.*/
 +    lv_display_add_event_cb(disp, release_disp_cb, LV_EVENT_DELETE, disp);
 +    lv_display_add_event_cb(disp, res_chg_event_cb, LV_EVENT_RESOLUTION_CHANGED, NULL);
++    lv_display_add_event_cb(disp, res_chg_event_cb, LV_EVENT_COLOR_FORMAT_CHANGED, NULL);
 +
      lv_result_t res = window_create(disp);
      if(res != LV_RESULT_OK) {
@@ -67,25 +68,28 @@ index 15a87ab12..fa7289751 100644
  
 -    lv_display_add_event_cb(disp, release_disp_cb, LV_EVENT_DELETE, disp);
 -    lv_display_add_event_cb(disp, res_chg_event_cb, LV_EVENT_RESOLUTION_CHANGED, NULL);
+-    lv_display_add_event_cb(disp, res_chg_event_cb, LV_EVENT_COLOR_FORMAT_CHANGED, NULL);
 -
      /*Process the initial events*/
      sdl_event_handler(NULL);
  
-@@ -122,7 +148,13 @@ void lv_sdl_window_set_zoom(lv_display_t * disp, float zoom)
+@@ -129,9 +155,13 @@ void lv_sdl_window_set_zoom(lv_display_t * disp, float zoom)
  
  float lv_sdl_window_get_zoom(lv_display_t * disp)
  {
+-    LV_CHECK_ARG(disp != NULL, return 0.f);
 +    if(disp == NULL) {
 +        return 1.0f;
 +    }
      lv_sdl_window_t * dsc = lv_display_get_driver_data(disp);
+-    LV_CHECK_ARG_MSG(dsc != NULL, return 0.f, "Invalid display");
 +    if(dsc == NULL) {
 +        return 1.0f;
 +    }
      return dsc->zoom;
  }
  
-@@ -256,12 +288,79 @@ static void sdl_event_handler(lv_timer_t * t)
+@@ -263,12 +293,79 @@ static void sdl_event_handler(lv_timer_t * t)
                      lv_sdl_backend_ops.redraw(disp);
                      break;
                  case SDL_WINDOWEVENT_RESIZED:
@@ -170,7 +174,7 @@ index 15a87ab12..fa7289751 100644
                      break;
                  case SDL_WINDOWEVENT_CLOSE:
                      lv_display_delete(disp);
-@@ -271,15 +370,122 @@ static void sdl_event_handler(lv_timer_t * t)
+@@ -278,16 +375,123 @@ static void sdl_event_handler(lv_timer_t * t)
              }
          }
          if(event.type == SDL_QUIT) {
@@ -193,9 +197,9 @@ index 15a87ab12..fa7289751 100644
 +            extern void helix_notify_app_foregrounded(void);
 +            helix_notify_app_foregrounded();
 +        }
-+    }
-+}
-+
+     }
+ }
+ 
 +#ifdef __ANDROID__
 +/* Maximum logical width before we bump to the next integer scale.  Anything
 + * at or above this is considered "too dense" for the LVGL canvas — most
@@ -263,7 +267,7 @@ index 15a87ab12..fa7289751 100644
 +            scale = s;
 +            break;
 +        }
-     }
++    }
 +
 +    int32_t logical_w = native_w / scale;
 +    int32_t logical_h = native_h / scale;
@@ -291,12 +295,13 @@ index 15a87ab12..fa7289751 100644
 +    HELIX_ANDROID_LOG(ANDROID_LOG_INFO,
 +        "logical %dx%d -> %dx%d (native %dx%d, %.0f dpi, %dx integer)",
 +        prev_w, prev_h, logical_w, logical_h, native_w, native_h, (double)ddpi, scale);
- }
++}
 +#endif
- 
++
  static lv_result_t window_create(lv_display_t * disp)
  {
-@@ -294,24 +500,121 @@ static lv_result_t window_create(lv_display_t * disp)
+     LV_ASSERT(disp != NULL);
+@@ -303,24 +507,121 @@ static lv_result_t window_create(lv_display_t * disp)
  #if LV_SDL_FULLSCREEN
      flag |= SDL_WINDOW_FULLSCREEN;
  #endif
@@ -390,7 +395,7 @@ index 15a87ab12..fa7289751 100644
 +    }
 +
      if(!dsc->window) {
-         LV_LOG_ERROR("Failed to create SDL window");
+         LV_LOG_ERROR("Failed to create SDL window: '%s'", SDL_GetError());
          return LV_RESULT_INVALID;
      }
 +
@@ -420,15 +425,18 @@ index 15a87ab12..fa7289751 100644
      return LV_RESULT_OK;
  }
  
-@@ -333,16 +636,22 @@ static void res_chg_event_cb(lv_event_t * e)
+@@ -345,19 +646,24 @@ static void res_chg_event_cb(lv_event_t * e)
  
  static void release_disp_cb(lv_event_t * e)
  {
 -    if(lv_deinit_in_progress) {
 -        lv_sdl_quit();
 -    }
+     LV_ASSERT(e != NULL);
      lv_display_t * disp = (lv_display_t *) lv_event_get_user_data(e);
+     LV_ASSERT(disp != NULL);
      lv_sdl_window_t * dsc = lv_display_get_driver_data(disp);
+-    LV_ASSERT(dsc != NULL);
  
 -    lv_sdl_backend_ops.deinit_display(disp);
 -    SDL_DestroyWindow(dsc->window);
