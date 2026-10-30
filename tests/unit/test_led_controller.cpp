@@ -1010,113 +1010,82 @@ struct LedMockApiFixture : public HelixTestFixture {
 // https://github.com/prestonbrown/helixscreen#toggle-brightness-regression
 // ============================================================================
 
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) uses last_brightness not full white",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    ctrl.set_last_color(0xFFFFFF);
-    ctrl.set_last_brightness(50);
-
-    ctrl.set_power({kChamber}, true);
-    REQUIRE(chamber_on());
-
-    // With white color at 50% brightness, RGB should be 0.5 each (not 1.0)
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.5).margin(0.01));
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_power(on) uses saved color not just white",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Red color at 100% brightness
-    ctrl.set_last_color(0xFF0000);
-    ctrl.set_last_brightness(100);
-
-    ctrl.set_power({kChamber}, true);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(1.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_power(on) combines color and brightness",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Blue color (#0000FF) at 80% brightness → R=0, G=0, B=0.8
-    ctrl.set_last_color(0x0000FF);
-    ctrl.set_last_brightness(80);
-
-    ctrl.set_power({kChamber}, true);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.8).margin(0.01));
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: toggle_power uses saved brightness",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    ctrl.set_last_color(0xFFFFFF);
-    ctrl.set_last_brightness(50);
-
-    // Start off, toggle on
-    ctrl.set_power({kChamber}, false);
-    ctrl.toggle_power({kChamber});
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.5).margin(0.01));
+// The last look (color, white channel, brightness) is what power-on and a
+// brightness change send, scaled by the brightness; an all-zero look falls back
+// to full white so power-on never emits an off state.
+TEST_CASE_METHOD(LedMockApiFixture, "LedController: power-on and brightness send the saved look",
+                 "[led][controller][regression][rgbw]") {
+    enum class Op { PowerOn, Toggle, Brightness };
+    struct Row {
+        const char* label;
+        bool rgbw;
+        uint32_t color;
+        double white;   // < 0: left unset
+        int brightness; // < 0: left unset
+        Op op;
+        int op_brightness;
+        double r, g, b;
+        double w; // < 0: not checked
+    };
+    const Row rows[] = {
+        {"white at 50%", false, 0xFFFFFF, -1, 50, Op::PowerOn, 0, 0.5, 0.5, 0.5, -1},
+        {"red at 100%", false, 0xFF0000, -1, 100, Op::PowerOn, 0, 1.0, 0.0, 0.0, -1},
+        {"blue at 80%", false, 0x0000FF, -1, 80, Op::PowerOn, 0, 0.0, 0.0, 0.8, -1},
+        {"toggle on, white at 50%", false, 0xFFFFFF, -1, 50, Op::Toggle, 0, 0.5, 0.5, 0.5, -1},
+        {"gold at brightness 100", false, 0xFFD700, -1, -1, Op::Brightness, 100, 1.0, 0.843, 0.0,
+         -1},
+        {"red at brightness 50", false, 0xFF0000, -1, -1, Op::Brightness, 50, 0.5, 0.0, 0.0, -1},
+        {"RGBW white channel at 80%", true, 0x000000, 1.0, 80, Op::PowerOn, 0, 0.0, 0.0, 0.0, 0.8},
+        {"RGBW white channel at brightness 50", true, 0x000000, 1.0, -1, Op::Brightness, 50, 0.0,
+         0.0, 0.0, 0.5},
+        {"RGBW half white at 80%", true, 0x000000, 0.5, 80, Op::PowerOn, 0, 0.0, 0.0, 0.0, 0.4},
+        {"grey at 50%, no white", false, 0x808080, 0.0, 50, Op::PowerOn, 0, 0.25, 0.25, 0.25, 0.0},
+        {"all-zero look powers on full white", false, 0, 0.0, 0, Op::PowerOn, 0, 1.0, 1.0, 1.0, -1},
+        {"all-zero look at brightness 75", false, 0, 0.0, 50, Op::Brightness, 75, 0.75, 0.75, 0.75,
+         -1},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.label) {
+            if (row.rgbw) {
+                setup_controller_with_rgbw_strip();
+            } else {
+                setup_controller_with_strip();
+            }
+            auto& ctrl = helix::led::LedController::instance();
+            ctrl.set_last_color(row.color);
+            if (row.white >= 0) {
+                ctrl.set_last_white(row.white);
+            }
+            if (row.brightness >= 0) {
+                ctrl.set_last_brightness(row.brightness);
+            }
+            switch (row.op) {
+            case Op::PowerOn:
+                ctrl.set_power({kChamber}, true);
+                break;
+            case Op::Toggle:
+                ctrl.set_power({kChamber}, false);
+                ctrl.toggle_power({kChamber});
+                break;
+            case Op::Brightness:
+                ctrl.set_brightness({kChamber}, row.op_brightness);
+                break;
+            }
+            CHECK(chamber_on());
+            auto color = ctrl.native().get_strip_color("neopixel chamber");
+            CHECK(color.r == Catch::Approx(row.r).margin(0.01));
+            CHECK(color.g == Catch::Approx(row.g).margin(0.01));
+            CHECK(color.b == Catch::Approx(row.b).margin(0.01));
+            if (row.w >= 0) {
+                CHECK(color.w == Catch::Approx(row.w).margin(0.01));
+            }
+        }
+    }
 }
 
 // ============================================================================
 // Unit tests: set_brightness respects last_color
 // ============================================================================
-
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_brightness uses last_color not hardcoded white",
-                 "[led][controller]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Set color to yellow (#FFD700) and brightness to 100%
-    ctrl.set_last_color(0xFFD700);
-    ctrl.set_brightness({kChamber}, 100);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    // #FFD700 → R=1.0, G=0.843, B=0.0 at 100%
-    REQUIRE(color.r == Catch::Approx(1.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.843).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness scales color by brightness",
-                 "[led][controller]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Red at 50% → R=0.5, G=0, B=0
-    ctrl.set_last_color(0xFF0000);
-    ctrl.set_brightness({kChamber}, 50);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-}
 
 TEST_CASE_METHOD(LedMockApiFixture,
                  "LedController: apply_startup_preference uses startup_brightness with last_color",
@@ -1298,71 +1267,9 @@ TEST_CASE_METHOD(LedMockApiFixture,
 }
 
 // ============================================================================
-// RGBW support: white channel toggle and brightness (#737)
-// ============================================================================
-
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) restores white channel on RGBW strip",
-                 "[led][controller][rgbw]") {
-    setup_controller_with_rgbw_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // White-only mode: RGB=0, W=1.0 at 80% brightness
-    ctrl.set_last_color(0x000000);
-    ctrl.set_last_white(1.0);
-    ctrl.set_last_brightness(80);
-
-    ctrl.set_power({kChamber}, true);
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.w == Catch::Approx(0.8).margin(0.01)); // 1.0 * 80%
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness preserves white channel",
-                 "[led][controller][rgbw]") {
-    setup_controller_with_rgbw_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    ctrl.set_last_color(0x000000);
-    ctrl.set_last_white(1.0);
-    ctrl.set_brightness({kChamber}, 50);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.w == Catch::Approx(0.5).margin(0.01)); // 1.0 * 50%
-}
-
-// ============================================================================
 // Regression: set_power(ids, true) must never emit all-zero output (LED stuck off)
 // https://github.com/prestonbrown/helixscreen — "LEDs stay off" regression
 // ============================================================================
-
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) falls back to full white when state is all zero",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Poisoned state: everything zero (simulates overlay persisting an off LED)
-    ctrl.set_last_color(0);
-    ctrl.set_last_brightness(0);
-    ctrl.set_last_white(0.0);
-
-    ctrl.set_power({kChamber}, true);
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    // Must produce visible light — fall back to full white at 100%
-    REQUIRE(color.r == Catch::Approx(1.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(1.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(1.0).margin(0.01));
-}
 
 TEST_CASE_METHOD(LedMockApiFixture,
                  "LedController: last_white persists through save_config/load_config round-trip",
@@ -1382,53 +1289,6 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     ctrl.load_config();
     REQUIRE(ctrl.last_white() == Catch::Approx(0.5).margin(0.001));
-}
-
-// Test A: RGBW white-only strip — the actual user hardware scenario.
-// Saved state has RGB=0 but white channel set. The power-on look
-// must NOT treat this as "no saved color"; it should scale the white channel.
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) scales white-only RGBW saved state",
-                 "[led][controller][regression][rgbw]") {
-    setup_controller_with_rgbw_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    ctrl.set_last_color(0);       // No RGB
-    ctrl.set_last_white(0.5);     // White channel at half
-    ctrl.set_last_brightness(80); // 80% brightness
-
-    ctrl.set_power({kChamber}, true);
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-    // 0.5 * 0.8 = 0.4
-    REQUIRE(color.w == Catch::Approx(0.4).margin(0.01));
-}
-
-// Test B: set_brightness() shares set_power()'s fallback — dragging the
-// brightness slider with poisoned (all-zero) saved state must not output black.
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_brightness falls back to full white on zero saved state",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Poisoned state: no saved color at all
-    ctrl.set_last_color(0);
-    ctrl.set_last_white(0.0);
-    ctrl.set_last_brightness(50);
-
-    ctrl.set_brightness({kChamber}, 75);
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    // Fallback to full white, scaled by 75% brightness
-    REQUIRE(color.r == Catch::Approx(0.75).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.75).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.75).margin(0.01));
 }
 
 // Test C: load_config with a pre-RGBW config (missing last_white key)
@@ -1451,27 +1311,6 @@ TEST_CASE_METHOD(LedMockApiFixture,
     // Regardless, loading should produce a valid clamped value in [0, 1].
     REQUIRE(ctrl.last_white() >= 0.0);
     REQUIRE(ctrl.last_white() <= 1.0);
-}
-
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) normal path still scales color correctly",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Gray #808080 at 50% brightness, no white channel
-    ctrl.set_last_color(0x808080);
-    ctrl.set_last_brightness(50);
-    ctrl.set_last_white(0.0);
-
-    ctrl.set_power({kChamber}, true);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    // 0x80/255 ≈ 0.502, * 0.5 ≈ 0.251
-    REQUIRE(color.r == Catch::Approx(0.25).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.25).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.25).margin(0.01));
-    REQUIRE(color.w == Catch::Approx(0.0).margin(0.01));
 }
 
 // ============================================================================
