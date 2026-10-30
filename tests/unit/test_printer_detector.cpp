@@ -696,6 +696,52 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     }
 }
 
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a stock K2 without the mod's macros is its stock entry",
+                 "[printer][build_volume][k2][k2improvements]") {
+    // The mod entries score every other heuristic a stock K2 matches, so only
+    // their missing-_START_PRINT_VARS exclusion keeps them out of the tie, which
+    // database order would otherwise settle. Absence counts only once the
+    // objects list has been reported.
+    PrinterHardwareData hardware{
+        .heaters = {"extruder", "heater_bed", "heater_generic chamber_heater"},
+        .sensors = {"chamber_temp"},
+        .fans = {"chamber_fan"},
+        .leds = {},
+        .hostname = "creality-k2",
+        .printer_objects = {"box", "motor_control", "fan_feedback", "load_ai", "filament_rack",
+                            "heater_generic chamber_heater", "prtouch_v3"},
+        .steppers = {},
+        .kinematics = "corexy",
+        .build_volume = {}};
+
+    hardware.objects_reported = true;
+
+    auto detect_on_bed = [&hardware](float size) {
+        hardware.build_volume = {.declared_bed_x = size, .declared_bed_y = size};
+        return PrinterDetector::detect(hardware);
+    };
+
+    SECTION("a 300mm bed is the stock K2 Pro") {
+        const auto result = detect_on_bed(300);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        CHECK(result.type_name == "Creality K2 Pro");
+        CHECK(result.margin() >= PrinterDetector::kDetectMinMargin);
+        // The three stock K2 entries, and neither k2-improvements entry.
+        CHECK(result.tied_count == 3);
+    }
+    SECTION("a 350mm bed is the stock K2 Plus") {
+        const auto result = detect_on_bed(350);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        CHECK(result.type_name == "Creality K2 Plus");
+        CHECK(result.margin() >= PrinterDetector::kDetectMinMargin);
+        // The three stock K2 entries, and neither k2-improvements entry.
+        CHECK(result.tied_count == 3);
+    }
+}
+
 // A corexy printer with the Qidi Max 4 footprint detects as Qidi Max 4, but the
 // same footprint on a cartesian machine must NOT — kinematics_exclude encodes the
 // hard rule that every Qidi is corexy (telemetry-confirmed). Guards against build
