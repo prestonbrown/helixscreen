@@ -40,6 +40,11 @@ bool wpa_string_is_valid(const std::string& input);
 /// Returns @p input unchanged on success, "" on failure. Exposed for unit
 /// testing.
 std::string validate_wpa_string(const std::string& input, const std::string& field_name);
+
+/// Whether a SCAN_RESULTS ssid field names no network: empty, or only the
+/// "\x00" escapes wpa_supplicant prints for a hidden network that broadcasts
+/// its SSID as zero bytes. Exposed for unit testing.
+bool is_hidden_scan_ssid(const std::string& ssid);
 } // namespace helix::wifi::detail
 
 #ifndef __APPLE__
@@ -394,7 +399,8 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
      */
     std::string map_event_to_callback(const std::string& event);
 
-    // 5GHz support — computed once during init, never changes
+    // 5GHz support: resolved once during init from the radio's frequency
+    // list, and raised by any scan that sees a 5 GHz network
     std::atomic<bool> supports_5ghz_cached_{false};
     std::atomic<bool> supports_5ghz_resolved_{false};
 
@@ -473,6 +479,12 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     void reconcile_saved_networks();
 
   public:
+    /// Replace the kernel address lookup get_status() falls back on when
+    /// STATUS carries no ip_address. Call before start().
+    void set_ipv4_lookup_for_test(std::function<std::string(const std::string&)> lookup) {
+        ipv4_lookup_ = std::move(lookup);
+    }
+
     /// The resolved interface, or nullopt when resolution was inconclusive and
     /// callers must fall back to legacy first-match behaviour.
     std::optional<helix::wifi::WifiInterface> resolved_interface() const override;
@@ -482,6 +494,9 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     }
 
   private:
+    /// Routable IPv4 the kernel holds on a netdev, "" when none.
+    std::function<std::string(const std::string&)> ipv4_lookup_;
+
     // Last state requested via set_radio_enabled(). Defaults to true (radio on).
     std::atomic<bool> radio_enabled_{true};
 

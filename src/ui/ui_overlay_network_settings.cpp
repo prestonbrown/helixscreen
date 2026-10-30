@@ -268,6 +268,7 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
     if (country_dropdown_) {
         // The hint follows the radio; refresh_country() sets it once the radio answers.
         country_hint_5ghz_ = false;
+        radio_country_.reset();
         fill_country_options();
         // DECLARATIVE_OK: the options are C++-built data, rebuilt in the new language.
         lv_obj_add_event_cb(country_dropdown_, on_country_language_changed,
@@ -343,11 +344,8 @@ void NetworkSettingsOverlay::on_activate() {
 
     // Backend capabilities: the 2.4GHz-only indicator, and the Forget and
     // radio-toggle controls, which are hidden where the backend cannot act.
+    refresh_band_capability();
     if (wifi_manager_) {
-        bool only_24ghz = !wifi_manager_->supports_5ghz();
-        lv_subject_set_int(&wifi_only_24ghz_, only_24ghz ? 1 : 0);
-        spdlog::debug("[NetworkSettingsOverlay] WiFi band capability: {}",
-                      only_24ghz ? "2.4GHz only" : "2.4GHz + 5GHz");
         lv_subject_set_int(&wifi_can_forget_, wifi_manager_->supports_forget() ? 1 : 0);
         lv_subject_set_int(&wifi_can_toggle_radio_, wifi_manager_->supports_radio_toggle() ? 1 : 0);
     }
@@ -445,6 +443,29 @@ void NetworkSettingsOverlay::refresh_transport_status() {
     update_any_network_connected();
 }
 
+void NetworkSettingsOverlay::refresh_band_capability() {
+    if (!wifi_manager_) {
+        return;
+    }
+    const bool only_24ghz = !wifi_manager_->supports_5ghz();
+    if (lv_subject_get_int(&wifi_only_24ghz_) == (only_24ghz ? 1 : 0)) {
+        return;
+    }
+    lv_subject_set_int(&wifi_only_24ghz_, only_24ghz ? 1 : 0);
+    spdlog::debug("[NetworkSettingsOverlay] WiFi band capability: {}",
+                  only_24ghz ? "2.4GHz only" : "2.4GHz + 5GHz");
+    if (radio_country_) {
+        apply_country_hint();
+    }
+}
+
+void NetworkSettingsOverlay::apply_country_hint() {
+    country_hint_5ghz_ =
+        wifi_manager_ && radio_country_ &&
+        helix::wifi::country::should_hint_5ghz(wifi_manager_->supports_5ghz(), *radio_country_);
+    show_country_choice(lv_subject_get_int(&wifi_country_index_), country_hint_5ghz_);
+}
+
 void NetworkSettingsOverlay::refresh_country() {
     const bool supported = wifi_manager_ && wifi_manager_->supports_country();
     lv_subject_set_int(&wifi_can_set_country_, supported ? 1 : 0);
@@ -453,14 +474,12 @@ void NetworkSettingsOverlay::refresh_country() {
     }
     wifi_manager_->get_country_async(
         lifetime_.token(), [this](const WiFiManager::CountryState& state) {
-            const int index = helix::wifi::country::dropdown_index(state.display);
-            lv_subject_set_int(&wifi_country_index_, index);
+            lv_subject_set_int(&wifi_country_index_,
+                               helix::wifi::country::dropdown_index(state.display));
             // The hint follows the radio, not the saved choice: a saved
             // country the radio refused still leaves 5 GHz scanning off.
-            const std::string& effective = state.read_ok ? state.system : state.stored;
-            country_hint_5ghz_ = wifi_manager_ && helix::wifi::country::should_hint_5ghz(
-                                                      wifi_manager_->supports_5ghz(), effective);
-            show_country_choice(index, country_hint_5ghz_);
+            radio_country_ = state.read_ok ? state.system : state.stored;
+            apply_country_hint();
         });
 }
 
@@ -681,6 +700,7 @@ void NetworkSettingsOverlay::update_test_state(NetworkTester::TestState state,
 
 void NetworkSettingsOverlay::populate_network_list(const std::vector<WiFiNetwork>& networks) {
     cached_networks_ = networks;
+    refresh_band_capability();
     if (!wifi_manager_) {
         build_network_list(cached_networks_, WifiBackend::ConnectionStatus{});
         return;
