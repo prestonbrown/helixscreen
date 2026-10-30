@@ -8,6 +8,7 @@
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"
 #include "lane_echo.h"
+#include "qidi_status_parse.h"
 
 #include <cstdint>
 #include <ctime>
@@ -364,22 +365,11 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     std::function<std::time_t()> now_fn_ = [] { return std::time(nullptr); };
 
   public:
-    /// Temperature profile for a single fila entry from
-    /// officiall_filas_list.cfg. Public so test friend can return one.
-    struct FilaProfile {
-        std::string name; ///< Human label from `filament` (e.g. "PLA Rapido")
-        std::string type; ///< Material class from `type` (e.g. "PLA", "ABS-GF")
-        int nozzle_min = 0;
-        int nozzle_max = 0;
-        int box_min = 0;
-        int box_max = 0;
-    };
+    using FilaProfile = helix::qidi::FilaProfile;
 
   private:
-    /// Parse a ConfigParser-formatted officiall_filas_list.cfg payload and
-    /// populate fila_profiles_, color_palette_, and vendor_names_. Tolerant of
-    /// whitespace, blank lines, and `#` / `;` comments. Non-matching sections
-    /// (anything but `[fila<N>]`, `[colordict]`, `[vendor_list]`) are ignored.
+    /// Replace fila_profiles_, color_palette_ and vendor_names_ with what an
+    /// officiall_filas_list.cfg payload states (qidi::parse_filas_list).
     void apply_filas_list(const std::string& content);
 
     /// fila_id (1-99) → temperature profile, populated by apply_filas_list().

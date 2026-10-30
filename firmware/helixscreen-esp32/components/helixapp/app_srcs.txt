@@ -149,12 +149,14 @@ src/printer/afc_fault_position.cpp
 src/printer/ams_device_action_rows.cpp
 src/printer/fault_path_position.cpp
 src/printer/ace_slot_parse.cpp
+src/printer/ace_status_parse.cpp
 src/printer/ams_backend.cpp
 src/printer/ams_backend_registry.cpp
 src/printer/ams_backend_ace.cpp
 src/printer/ams_backend_ad5x_ifs.cpp
 src/printer/ad5x_status_parse.cpp
 src/printer/ams_backend_afc.cpp
+src/printer/afc_status_parse.cpp
 src/printer/ams_backend_cfs.cpp
 src/printer/ams_backend_happy_hare.cpp
 src/printer/ams_backend_indx.cpp
@@ -162,6 +164,7 @@ src/printer/ams_backend_multiace.cpp
 src/printer/ams_backend_openams.cpp
 src/printer/ams_bypass_policy.cpp
 src/printer/ams_backend_qidi.cpp
+src/printer/qidi_status_parse.cpp
 src/printer/ams_backend_snapmaker.cpp
 src/printer/ams_backend_toolchanger.cpp
 src/printer/ams_endless_spool.cpp
@@ -222,6 +225,7 @@ src/printer/macro_param_cache.cpp
 src/printer/macro_param_defaults.cpp
 src/printer/macro_params.cpp
 src/printer/mount_feed_sequence.cpp
+src/printer/openams_status_parse.cpp
 src/printer/pause_cause.cpp
 src/printer/printer_discovery.cpp
 src/printer/printer_discovery_parse.cpp

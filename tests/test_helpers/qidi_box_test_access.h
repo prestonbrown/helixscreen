@@ -65,12 +65,6 @@ class QidiBoxTestAccess {
             return std::nullopt;
         return it->second;
     }
-    static std::optional<std::string> get_vendor(const AmsBackendQidi& b, int vendor_id) {
-        auto it = b.vendor_names_.find(vendor_id);
-        if (it == b.vendor_names_.end())
-            return std::nullopt;
-        return it->second;
-    }
     static size_t color_count(const AmsBackendQidi& b) {
         return b.color_palette_.size();
     }

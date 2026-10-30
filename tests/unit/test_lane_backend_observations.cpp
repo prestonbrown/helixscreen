@@ -239,7 +239,7 @@ void init_afc_lanes(AmsBackendAfc& backend) {
 /// One AFC lane_data payload, the Moonraker DB snapshot, keyed by lane name.
 void feed_afc_lane_data(AmsBackendAfc& backend, const nlohmann::json& lane_data) {
     std::lock_guard<std::mutex> lock(AfcTestAccess::mutex(backend));
-    AfcTestAccess::parse_lane_data(backend, lane_data);
+    AfcTestAccess::apply_lane_data(backend, helix::afc::parse_lane_data(lane_data));
 }
 
 /// One AFC_stepper lane object, delivered the way Moonraker delivers it: a
