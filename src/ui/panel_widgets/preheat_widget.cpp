@@ -14,7 +14,7 @@
 #include "filament_database.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_executor.h"
 #include "material_settings_manager.h"
 #include "observe_language.h"

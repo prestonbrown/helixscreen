@@ -27,7 +27,7 @@
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "format_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_client_mock.h"
 
 #include <ctime>

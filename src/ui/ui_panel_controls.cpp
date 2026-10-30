@@ -29,7 +29,7 @@
 #include "format_utils.h"
 #include "hardware_role_registry.h"
 #include "i18n_plural.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "operation_timeout_guard.h"

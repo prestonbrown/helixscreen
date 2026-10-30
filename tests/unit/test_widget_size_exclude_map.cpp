@@ -28,7 +28,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "printer_excluded_objects_state.h"
 #include "printer_state.h"

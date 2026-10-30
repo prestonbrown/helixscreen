@@ -24,7 +24,7 @@
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_param_cache.h"
 #include "moonraker_error.h"
 #include "post_op_cooldown_manager.h"

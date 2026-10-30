@@ -10,8 +10,8 @@
 
 #include "helix/ui/text_metrics.h"
 #include "lua_bindings.h"
+#include "lvgl.h"
 #include "lvgl/src/misc/lv_text_private.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "plugin_canvas.h"
 #include "plugin_overlay_host.h"
 #include "plugin_xml_policy.h"

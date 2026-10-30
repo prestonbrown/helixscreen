@@ -3,7 +3,6 @@
 
 #include "ui_screws_tilt_share_modal.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "screws_tilt_share_text.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"

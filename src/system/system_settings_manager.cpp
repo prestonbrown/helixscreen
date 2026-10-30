@@ -8,7 +8,7 @@
 #include "config.h"
 #include "locale_formats.h"
 #include "logging_init.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"

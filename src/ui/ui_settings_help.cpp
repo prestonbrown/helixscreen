@@ -17,7 +17,7 @@
 
 #include "first_run_tour.h"
 #include "helix_version.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/spdlog.h>
 

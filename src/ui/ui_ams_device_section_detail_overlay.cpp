@@ -23,7 +23,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "display_numbering.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "static_panel_registry.h"

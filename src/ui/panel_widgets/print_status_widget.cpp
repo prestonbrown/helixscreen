@@ -33,7 +33,7 @@
 #include "i_moonraker_client.h"
 #include "job_queue_state.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api.h"
 #include "observe_language.h"
 #include "observer_factory.h"

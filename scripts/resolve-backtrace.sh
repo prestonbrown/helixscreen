@@ -98,7 +98,7 @@ is_garbage_symbol() {
 # Repo-relative path to LVGL's event enum, used to decode numeric event_code →
 # symbolic name (e.g. 53 → LV_EVENT_GET_SELF_SIZE) in the crash-context analysis.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly LV_EVENT_HEADER="${SCRIPT_DIR}/../lib/lvgl/src/misc/lv_event.h"
+readonly LV_EVENT_HEADER="${SCRIPT_DIR}/../lib/lvgl/include/lvgl/core/lv_event.h"
 
 # Decode an lv_event_code_t ordinal to its LV_EVENT_* name by parsing the enum
 # in lv_event.h. Manual counting is error-prone (the enum has comment-only lines

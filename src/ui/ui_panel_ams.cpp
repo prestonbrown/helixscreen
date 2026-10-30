@@ -36,7 +36,7 @@
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "overlay_base.h"
 #include "printer_detector.h"

@@ -36,7 +36,6 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "platform_info.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"

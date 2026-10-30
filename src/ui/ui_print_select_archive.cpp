@@ -9,7 +9,7 @@
 #include "ui_panel_print_select.h"
 #include "ui_update_queue.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "text_io.h"
 #include "three_mf_reader.h"
 #include "thumbnail_cache.h"

@@ -29,7 +29,7 @@
 #include "ams_types.h"
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"

@@ -6,7 +6,7 @@
 #include "ace_slot_parse.h"
 #include "ams_fault_event.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "snapmaker_exceptions.h"
 
 #include <spdlog/fmt/fmt.h>

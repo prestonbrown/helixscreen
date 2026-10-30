@@ -7,7 +7,7 @@
 
 #include "config.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_patterns.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"

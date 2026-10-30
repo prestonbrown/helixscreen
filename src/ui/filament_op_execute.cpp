@@ -17,7 +17,7 @@
 #include "filament_op_heater.h"
 #include "filament_op_router.h"
 #include "i_moonraker_client.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"

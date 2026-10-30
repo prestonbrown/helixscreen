@@ -13,7 +13,6 @@
 #include "app_globals.h"
 #include "job_queue_start.h"
 #include "job_queue_state.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

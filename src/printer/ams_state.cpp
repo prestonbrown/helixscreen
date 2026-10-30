@@ -35,7 +35,7 @@
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "lane_source_store.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_stop_reason.h"
 #include "printer_discovery.h"
 #include "printer_event_journal.h"

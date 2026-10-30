@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "settings_root_status.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/fmt/fmt.h>
 

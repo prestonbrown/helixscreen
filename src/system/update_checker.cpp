@@ -37,7 +37,7 @@
 #include "json_utils.h"
 #include "klipper_config_includes.h"
 #include "log_redact.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_config_manager.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"

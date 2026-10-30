@@ -9,7 +9,7 @@
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "locale_formats.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "screensaver_motion.h"
 #include "theme_manager.h"
 

@@ -30,7 +30,7 @@
 #include "filament_op_router.h"
 #include "filament_op_slot_resolver.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "panel_widget_size.h"

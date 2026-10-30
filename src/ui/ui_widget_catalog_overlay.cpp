@@ -15,7 +15,6 @@
 
 #include "grid_layout.h"
 #include "home_layout_sync.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"

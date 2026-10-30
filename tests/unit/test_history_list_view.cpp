@@ -11,7 +11,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "data_root_resolver.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "thumbnail_cache.h"
 #include "translation_loader.h"
 

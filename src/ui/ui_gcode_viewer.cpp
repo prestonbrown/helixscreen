@@ -27,7 +27,7 @@
 #include "gcode_viewer_state.h"
 #include "gcode_viewer_watchdog.h"
 #include "geometry_budget_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "memory_utils.h"
 #include "print_status_preview_decision.h"
 #include "system/crash_handler.h"

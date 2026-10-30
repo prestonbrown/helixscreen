@@ -4,7 +4,7 @@
 #include "ui_format_utils.h"
 
 #include "format_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <cstring>
 #include <ctime>

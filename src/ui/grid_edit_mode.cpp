@@ -12,7 +12,7 @@
 #include "app_globals.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"

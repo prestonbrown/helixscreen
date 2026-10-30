@@ -2,7 +2,7 @@
 
 #include "capability_chip_text.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>

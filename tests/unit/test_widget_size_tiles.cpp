@@ -23,7 +23,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "helix/ui/shared_font_style.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget.h"
 #include "panel_widget_registry.h"
 #include "settings_manager.h"

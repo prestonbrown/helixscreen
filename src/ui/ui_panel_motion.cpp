@@ -22,7 +22,7 @@
 #include "config.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "observe_language.h"
 #include "observer_factory.h"

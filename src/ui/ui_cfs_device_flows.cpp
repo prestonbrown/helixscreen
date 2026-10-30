@@ -13,7 +13,7 @@
 #include "ams_backend.h"
 #include "ams_backend_cfs.h"
 #include "ams_state.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "static_panel_registry.h"
 
 #include <spdlog/fmt/fmt.h>

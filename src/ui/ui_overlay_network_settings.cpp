@@ -17,7 +17,6 @@
 #include "data_root_resolver.h"
 #include "ethernet_manager.h"
 #include "log_redact.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "network_tester.h"
 #include "sort_small.h"
 #include "static_panel_registry.h"

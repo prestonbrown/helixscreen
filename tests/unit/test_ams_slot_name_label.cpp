@@ -25,7 +25,7 @@
 #include "ams_lane_state.h"
 #include "ams_state.h"
 #include "filament_display_name.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "utf8_validation.h"
 
 #include <memory>

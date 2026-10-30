@@ -22,7 +22,7 @@
 #include "env_knobs.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "layout_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "overlay_base.h"
 #include "overlay_class.h"

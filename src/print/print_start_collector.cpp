@@ -13,7 +13,7 @@
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "memory_monitor.h"
 #include "print_start_analyzer.h"
 #include "print_start_phase_label.h"

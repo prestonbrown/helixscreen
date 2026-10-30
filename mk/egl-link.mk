@@ -27,9 +27,9 @@
 EGL_VARIANT_DIR := $(BUILD_DIR)/egl-variant
 EGL_LVGL_VARIANT_DIR := $(EGL_VARIANT_DIR)/lvgl
 
-# HELIX_ENABLE_OPENGLES is the only knob. lv_conf.h maps it to LV_USE_OPENGLES,
-# and lv_conf_internal.h derives LV_LINUX_DRM_USE_EGL and then LV_USE_EGL from
-# that — so setting either of those directly does nothing.
+# HELIX_ENABLE_OPENGLES is the only knob. lv_conf.h maps it to LV_USE_OPENGLES
+# and LV_LINUX_DRM_BACKEND_EGL, and lv_conf_internal.h derives LV_LINUX_DRM_USE_EGL
+# and then LV_USE_EGL from those.
 EGL_DEFINE := -DHELIX_ENABLE_OPENGLES
 
 # Every public function both DRM drivers define. A fifth one makes the link

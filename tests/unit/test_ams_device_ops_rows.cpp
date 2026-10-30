@@ -18,7 +18,6 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>

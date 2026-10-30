@@ -21,7 +21,7 @@
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"

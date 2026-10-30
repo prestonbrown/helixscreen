@@ -13,7 +13,6 @@
 #include "app_globals.h"
 #include "data_root_resolver.h"
 #include "display_numbering.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "translation_loader.h"
 

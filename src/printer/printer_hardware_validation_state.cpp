@@ -12,7 +12,7 @@
 #include "printer_hardware_validation_state.h"
 
 #include "i18n_plural.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "state/subject_macros.h"
 
 #include <spdlog/fmt/fmt.h>

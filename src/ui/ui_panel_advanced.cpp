@@ -23,7 +23,7 @@
 #include "exception_policy.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"

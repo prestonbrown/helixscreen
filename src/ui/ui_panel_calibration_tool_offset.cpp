@@ -14,7 +14,7 @@
 #include "calibration_abort.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
 #include "observer_factory.h"

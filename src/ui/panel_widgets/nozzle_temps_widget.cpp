@@ -11,7 +11,7 @@
 
 #include "app_globals.h"
 #include "display_numbering.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "nozzle_layout.h"
 #include "observe_language.h"
 #include "observer_factory.h"

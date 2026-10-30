@@ -18,7 +18,7 @@
 #include "app_globals.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

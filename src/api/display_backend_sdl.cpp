@@ -10,7 +10,6 @@
 #include <spdlog/spdlog.h>
 
 // LVGL SDL driver
-#include "lvgl/src/drivers/sdl/lv_sdl_window.h"
 
 #include <lvgl.h>
 

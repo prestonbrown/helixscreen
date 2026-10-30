@@ -3,7 +3,6 @@
 
 #include "app_globals.h"
 #include "exception_policy.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "temperature_controller.h"
 
 #include <spdlog/fmt/fmt.h>

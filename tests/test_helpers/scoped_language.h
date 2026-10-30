@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "translation_loader.h"
 
 namespace helix {

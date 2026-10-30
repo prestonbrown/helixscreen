@@ -44,7 +44,6 @@
 #include "app_globals.h"
 #include "belt_tension_types.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "mock_persona.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

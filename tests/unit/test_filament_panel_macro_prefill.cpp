@@ -33,7 +33,7 @@
 #include "filament_op_router.h"
 #include "filament_op_slot_resolver.h"
 #include "layout_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_param_cache.h"
 #include "macro_param_modal.h"
 #include "moonraker_api.h"

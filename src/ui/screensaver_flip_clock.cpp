@@ -4,7 +4,7 @@
 
 #include "screensaver_flip_clock.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "screensaver_pixel_writer.h"
 
 #include <spdlog/fmt/fmt.h>

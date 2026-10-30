@@ -5,7 +5,6 @@
 
 #include "ui_keyboard_manager.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "system/debug_bundle_collector.h"
 #include "ui/ui_widget_helpers.h"
 

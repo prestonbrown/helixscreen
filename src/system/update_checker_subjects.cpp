@@ -6,7 +6,7 @@
 // update rows bind to an idle state instead of to nothing.
 
 #include "helix_version.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "subject_managed_panel.h"
 #include "system/update_checker.h"
 

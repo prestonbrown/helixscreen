@@ -34,7 +34,7 @@
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "memory_monitor.h"
 #include "observer_factory.h"
 #include "overlay_base.h"

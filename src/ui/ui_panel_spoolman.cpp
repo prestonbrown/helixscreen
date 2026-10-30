@@ -23,7 +23,7 @@
 #include "format_utils.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_state.h"
 #include "spoolman_manager.h"
 #include "spoolman_types.h" // apply_spool_to_slot

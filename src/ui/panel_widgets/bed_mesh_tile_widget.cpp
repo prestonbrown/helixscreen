@@ -19,7 +19,7 @@
 #include "bed_mesh_stats.h"
 #include "helix_psram_attr.h"
 #include "i18n_plural.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "observe_language.h"
 #include "observer_factory.h"

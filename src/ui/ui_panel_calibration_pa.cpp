@@ -17,7 +17,7 @@
 #include "filament_op_slot_resolver.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "pa_calibration.h"
 #include "pa_tuning.h"

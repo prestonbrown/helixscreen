@@ -5,7 +5,7 @@
 #include "ui_error_reporting.h"
 
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "settings_manager.h"
 

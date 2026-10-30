@@ -7,7 +7,7 @@
 #include "format_utils.h"
 #include "i18n_plural.h"
 #include "locale_formats.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <cstdio>
 #include <ctime>

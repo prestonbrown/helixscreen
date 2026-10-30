@@ -43,7 +43,7 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "input_settings_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_manager.h"
 #include "platform_info.h"
 #include "printer_hardware.h"

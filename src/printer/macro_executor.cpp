@@ -12,7 +12,7 @@
 #include "device_display_name.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

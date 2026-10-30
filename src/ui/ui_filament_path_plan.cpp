@@ -9,7 +9,7 @@
 #include "ui_icon_codepoints.h"
 
 #include "i18n_plural.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "theme_manager.h"
 
 #include <algorithm>

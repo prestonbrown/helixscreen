@@ -23,7 +23,7 @@
 #include "ui_utils.h"
 
 #include "helix_fs.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "prerendered_images.h"
 #include "printer_image_manager.h"
 #include "printer_images.h"

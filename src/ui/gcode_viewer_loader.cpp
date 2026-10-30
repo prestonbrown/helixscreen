@@ -28,7 +28,7 @@
 #include "gcode_streaming_controller.h"
 #include "gcode_viewer_state.h"
 #include "geometry_budget_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_status_preview_decision.h"
 #include "printer_state.h"
 #include "system/crash_handler.h"

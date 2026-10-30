@@ -12,7 +12,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_color_utils.h"
 #include "led/led_controller.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

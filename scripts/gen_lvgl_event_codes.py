@@ -25,7 +25,7 @@
 #   - LV_EVENT_LAST: a count sentinel, never dispatched as a code
 #   - LV_EVENT_PREPROCESS / LV_EVENT_MARKED_DELETING: bit flags OR'd onto a
 #     code, not codes themselves. lvglEventCodeName() masks them off the way
-#     lv_event_get_code() does (lib/lvgl/src/misc/lv_event.c:386), so they must
+#     lv_event_get_code() does (lib/lvgl/src/misc/lv_event.c#lv_event_get_code), so they must
 #     not collide with a table entry.
 
 import argparse
@@ -35,7 +35,7 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-ENUM_HEADER = os.path.join(REPO, 'lib', 'lvgl', 'src', 'misc', 'lv_event.h')
+ENUM_HEADER = os.path.join(REPO, 'lib', 'lvgl', 'include', 'lvgl', 'core', 'lv_event.h')
 LV_CONF = os.path.join(REPO, 'lv_conf.h')
 WORKER_TS = os.path.join(REPO, 'server', 'crash-worker', 'src', 'index.ts')
 

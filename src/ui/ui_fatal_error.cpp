@@ -11,8 +11,6 @@
 
 #include "ui_fonts.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
-
 #include <lvgl.h>
 
 // =============================================================================

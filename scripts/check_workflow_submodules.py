@@ -4,7 +4,7 @@
 
 The shell suite reads files out of the submodules. Most of those tests skip
 themselves when a submodule is absent, but `tests/shell/test_lvgl_event_code_gate.bats`
-copies `lib/lvgl/src/misc/lv_event.h` in `setup()`, so a bare checkout kills the
+copies `lib/lvgl/include/lvgl/core/lv_event.h` in `setup()`, so a bare checkout kills the
 whole file instead of skipping it.
 
 That is not hypothetical: `build.yml` was fixed for it in 83b0b9d51 and
@@ -12,9 +12,9 @@ That is not hypothetical: `build.yml` was fixed for it in 83b0b9d51 and
 skipped every build, publish and deploy job behind it. Nothing was released and
 the tag had to be moved.
 
-The enum has to be PATCHED as well, not merely present: `lvgl_display_sync_cb.patch`
-inserts four values and renumbers everything after them, so the committed worker
-table only matches a patched checkout. Both steps are therefore required.
+The enum has to be the one the app builds from, patches applied: the committed
+worker table mirrors that checkout, so a patch that adds an event code would leave
+an unpatched one renumbered. Both steps are therefore required.
 
 Every `make apply-patches` command, in any job, must run with
 HELIX_PATCHES_FROM_CLEAN=1. A CI runner is always a fresh clone: nothing is

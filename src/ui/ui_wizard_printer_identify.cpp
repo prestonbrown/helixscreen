@@ -14,7 +14,6 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_detector.h"
 #include "printer_images.h"
 #include "printer_name_sync.h"

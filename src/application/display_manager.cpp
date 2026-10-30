@@ -29,10 +29,10 @@
 #include "display_settings_manager.h"
 #include "flush_stride.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "lvgl.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"        // not in the lvgl.h umbrella
 #include "lvgl/src/misc/cache/instance/lv_image_header_cache.h" // not in the lvgl.h umbrella
 #include "lvgl/src/misc/lv_timer_private.h" // lv_timer_t::period; LVGL has no period getter
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "lvgl_log_handler.h"
 #include "printer_state.h"
 #include "refresh_period_hold.h"
@@ -62,7 +62,6 @@
 
 #ifdef HELIX_DISPLAY_SDL
 #include "app_globals.h" // For app_request_quit()
-#include "drivers/sdl/lv_sdl_window.h"
 
 #include <SDL.h>
 #endif

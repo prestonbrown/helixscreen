@@ -25,7 +25,7 @@
 #include "../ui_test_utils.h"
 #include "abort_manager.h"
 #include "ams_backend_afc.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_auth.h"
 #include "moonraker_client_mock.h"

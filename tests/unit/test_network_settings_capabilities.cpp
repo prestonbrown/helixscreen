@@ -15,7 +15,7 @@
 #include "../test_helpers/lvgl_event_hook_probe.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "system_settings_manager.h"
 #include "wifi_backend_mock.h"
 #include "wifi_country.h"

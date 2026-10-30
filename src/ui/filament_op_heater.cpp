@@ -13,7 +13,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "post_op_cooldown_manager.h"

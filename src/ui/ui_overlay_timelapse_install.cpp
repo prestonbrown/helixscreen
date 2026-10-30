@@ -14,7 +14,7 @@
 #include "app_globals.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_config_manager.h"
 #include "moonraker_types.h"
 #include "static_panel_registry.h"

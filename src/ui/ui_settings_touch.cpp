@@ -11,7 +11,7 @@
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "input_settings_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "page_scroll_auto_inject.h"
 #include "runtime_config.h"
 #include "ui/ui_widget_helpers.h"

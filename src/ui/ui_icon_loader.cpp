@@ -8,7 +8,7 @@
 // SDL window icon is only available when SDL is enabled
 #ifdef HELIX_DISPLAY_SDL
 #include "helix_icon_data.h"
-#include "lvgl/src/drivers/sdl/lv_sdl_window.h"
+#include "lvgl.h"
 #endif
 
 bool ui_set_window_icon(lv_display_t* disp) {

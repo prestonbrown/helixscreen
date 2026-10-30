@@ -8,7 +8,7 @@
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

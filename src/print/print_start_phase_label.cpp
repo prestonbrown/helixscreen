@@ -2,7 +2,7 @@
 
 #include "print_start_phase_label.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "translation_loader.h"
 
 namespace helix {

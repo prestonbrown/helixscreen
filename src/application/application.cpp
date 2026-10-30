@@ -218,7 +218,7 @@
 #include "hv/hlog.h" // libhv logging - sync level with spdlog
 #include "json_utils.h"
 #include "logging_init.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "lvgl_log_handler.h"
 #include "main_loop_heartbeat.h"
 #include "memory_monitor.h"

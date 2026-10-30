@@ -4,7 +4,7 @@
 #include "filament_chip_model.h"
 
 #include "display_numbering.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/fmt/fmt.h>
 

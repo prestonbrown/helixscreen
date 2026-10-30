@@ -9,7 +9,7 @@
 
 #include "ethernet_manager.h"
 #include "log_redact.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"

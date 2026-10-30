@@ -8,7 +8,7 @@
 #include "ui_slider_scale.h"
 
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "runtime_config.h"
 #include "ui/ui_widget_helpers.h"
 

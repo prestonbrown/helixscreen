@@ -16,7 +16,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_language.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "translation_loader.h"
 
 #include <atomic>

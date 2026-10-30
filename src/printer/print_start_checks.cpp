@@ -22,7 +22,6 @@
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "gcode_ops_detector.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_param_cache.h"
 #include "operation_patterns.h"
 

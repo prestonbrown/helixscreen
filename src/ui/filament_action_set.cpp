@@ -3,7 +3,7 @@
 
 #include "filament_action_set.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <algorithm>
 

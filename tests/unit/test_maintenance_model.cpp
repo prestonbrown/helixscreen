@@ -22,7 +22,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "config.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "settings_manager.h"

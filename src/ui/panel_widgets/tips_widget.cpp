@@ -14,7 +14,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "subject_debug_registry.h"

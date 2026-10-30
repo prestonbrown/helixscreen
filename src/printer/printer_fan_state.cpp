@@ -16,7 +16,7 @@
 #include "hardware_object_table.h"
 #include "hardware_role_registry.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "state/subject_macros.h"
 #include "text_io.h"
 #include "translation_loader.h"

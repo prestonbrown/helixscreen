@@ -7,7 +7,7 @@
 
 #include "display_numbering.h"
 #include "gcode_parser.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_excluded_objects_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "text_io.h"

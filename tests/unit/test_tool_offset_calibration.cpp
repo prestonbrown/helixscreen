@@ -13,7 +13,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "snapmaker_nozzle_offset.h"

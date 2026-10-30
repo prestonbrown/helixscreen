@@ -21,7 +21,7 @@
 #include "config.h"
 #include "display_backend.h"
 #include "display_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "sound_manager.h"
 #include "sound_theme.h"
 #include "theme_manager.h"

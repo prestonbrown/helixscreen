@@ -12,7 +12,7 @@
 
 #include "app_globals.h"
 #include "display_settings_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"

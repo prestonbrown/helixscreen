@@ -14,7 +14,7 @@
 #include "../../include/lvgl_image_writer.h"
 #include "../lvgl_test_fixture.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/draw/lv_image_decoder_private.h"
+#include "lvgl/src/image/lv_image_decoder_private.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"
 
 #include <cstdint>

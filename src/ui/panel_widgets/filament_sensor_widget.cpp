@@ -14,7 +14,7 @@
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_sensor_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "print_control_buttons.h"

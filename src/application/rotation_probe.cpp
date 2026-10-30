@@ -7,7 +7,7 @@
 #include "display_backend.h"
 #include "display_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/spdlog.h>
 

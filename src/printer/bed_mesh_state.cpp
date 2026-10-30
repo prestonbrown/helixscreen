@@ -6,7 +6,7 @@
 #include "format_utils.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>

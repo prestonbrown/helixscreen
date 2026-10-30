@@ -14,7 +14,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"

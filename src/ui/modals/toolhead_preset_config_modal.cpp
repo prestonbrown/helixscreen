@@ -13,7 +13,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_discovery.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"

@@ -15,7 +15,6 @@
 #include "led/led_auto_state.h"
 #include "led/led_devices.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_hardware.h"
 #include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"

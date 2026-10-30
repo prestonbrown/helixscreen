@@ -10,7 +10,6 @@
 #include "app_globals.h"
 #include "config.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "save_config_restart.h"
 #include "settings_manager.h"
 #include "state/subject_macros.h"

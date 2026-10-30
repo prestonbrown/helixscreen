@@ -12,7 +12,7 @@
 #include "format_utils.h"
 #include "led/led_controller.h"
 #include "light_button_config.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_manager.h"
 #include "observer_factory.h"
 #include "panel_widgets/callout_chip.h"
