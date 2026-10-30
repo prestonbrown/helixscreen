@@ -147,11 +147,16 @@ The shipped tier carries a whole sequence rather than a macro name, so a printer
 that needs pre-probe housekeeping expresses it as data in `printer_database.json`
 instead of a branch in the panel that runs the operation. `resolve_macro_script()`
 turns a slot into something runnable: it substitutes `{profile_arg}` (the bed mesh
-profile argument with its leading space, empty for the firmware's `default` profile)
-and `{bed_temp}` (the whole-degree bed temperature to probe at), reports whether the
+profile argument with its leading space, empty for the firmware's `default` profile),
+`{bed_temp}` (the whole-degree bed temperature to probe at) and `{screws_tilt_builtin}`
+(Klipper's SCREWS_TILT_CALCULATE under the name a `[gcode_macro SCREWS_TILT_CALCULATE]`
+wrapper's `rename_existing` gave it, from `PrinterDiscovery::screws_tilt_builtin()`; a
+shipped sequence naming it on a printer with no such wrapper gives way to the next tier,
+so the stock command runs), reports whether the
 script marks a place for the profile argument, whether the winner is the shipped tier
 (whose commands are all meant to exist), whether it brings its own preparation (only
-a shipped sequence whose entry sets `calibration.bed_mesh_self_prepares`), and
+a shipped sequence whose entry sets `calibration.bed_mesh_self_prepares` or
+`calibration.screws_tilt_self_prepares`), and
 can be told to refuse the `HELIX_*` fallback — those are "if needed" macros that
 return without acting, which is wrong for a button that means "do it now".
 

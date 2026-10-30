@@ -701,6 +701,35 @@ TEST_CASE("StandardMacros - init fills the shipped tier from the printer databas
     macros.reset();
 }
 
+TEST_CASE("StandardMacros - the Centauri Carbon's screws tilt follows COSMOS's wrapper",
+          "[standard_macros][shipped_macro][screws_tilt]") {
+    auto& macros = StandardMacros::instance();
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(json{"extruder", "heater_bed", "gcode_macro SCREWS_TILT_CALCULATE"});
+    macros.init(hardware, "Elegoo Centauri Carbon");
+    const auto& info = macros.get(StandardMacroSlot::ScrewsTilt);
+    REQUIRE(info.get_source() == MacroSource::SHIPPED);
+
+    SECTION("with the wrapper, Klipper's calculation runs under its renamed name") {
+        const auto r =
+            resolve_macro_script(info, {.screws_tilt_builtin = "SCREWS_TILT_CALCULATE_BASE"});
+        CHECK(r.script == "LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE\n"
+                          "SCREWS_TILT_CALCULATE_BASE\n"
+                          "G1 X128 Y220 Z20 F6000");
+        CHECK(r.shipped);
+        CHECK(r.self_prepares);
+    }
+
+    SECTION("without the wrapper, the stock command runs and gets the app's preparation") {
+        const auto r = resolve_macro_script(info, {});
+        CHECK(r.script == "SCREWS_TILT_CALCULATE");
+        CHECK_FALSE(r.shipped);
+        CHECK_FALSE(r.self_prepares);
+    }
+
+    macros.reset();
+}
+
 TEST_CASE("resolve_macro_script - substitution and self-preparation",
           "[standard_macros][shipped_macro]") {
     StandardMacroInfo info;
@@ -792,6 +821,18 @@ TEST_CASE("resolve_macro_script - substitution and self-preparation",
         const auto r = resolve_macro_script(info, {});
         CHECK(r.script == "BED_MESH_CALIBRATE BED_TEMP=" +
                               std::to_string(helix::bed_mesh::kDefaultProbeBedTempC));
+    }
+
+    SECTION("a shipped sequence naming an absent builtin yields to the next tier") {
+        info.shipped_macro = "TARE\n{screws_tilt_builtin}";
+        info.shipped_self_prepares = true;
+        const auto none = resolve_macro_script(info, {});
+        CHECK(none.script.empty());
+        CHECK_FALSE(none.shipped);
+        CHECK_FALSE(none.self_prepares);
+
+        info.detected_macro = "BED_LEVEL_SCREWS_TUNE";
+        CHECK(resolve_macro_script(info, {}).script == "BED_LEVEL_SCREWS_TUNE");
     }
 
     SECTION("a user override is never treated as self-preparing") {

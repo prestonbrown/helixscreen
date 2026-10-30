@@ -776,6 +776,24 @@ class PrinterDiscovery {
                                               : sensor_toggle_command_;
     }
 
+    /**
+     * @brief Record the builtin a [gcode_macro SCREWS_TILT_CALCULATE] wrapper renamed
+     *
+     * Some firmware replaces SCREWS_TILT_CALCULATE with a macro that answers in its
+     * own terms. A printer database entry can then run Klipper's calculation under
+     * its renamed name; with no wrapper there is nothing to bypass.
+     *
+     * @param settings JSON object from a configfile.settings response
+     * @return true when a wrapper's rename_existing was found and stored
+     */
+    bool parse_screws_tilt_builtin(const nlohmann::json& settings);
+
+    /// Klipper's SCREWS_TILT_CALCULATE under the name a wrapper gave it, or empty
+    /// when no wrapper replaces the command. See parse_screws_tilt_builtin().
+    [[nodiscard]] const std::string& screws_tilt_builtin() const {
+        return screws_tilt_builtin_;
+    }
+
     /// Macros reaching a command that leaves the host DOWN, from
     /// helix::analyze_host_halting_macros(); stored uppercased like macros_.
     void set_host_halting_macros(std::unordered_set<std::string> macros) {
@@ -1109,6 +1127,7 @@ class PrinterDiscovery {
     std::vector<skip_wrappers::Op> skip_wrappable_;
     std::vector<skip_wrappers::Op> skip_active_;
     std::string sensor_toggle_command_; ///< Empty = the SET_FILAMENT_SENSOR builtin
+    std::string screws_tilt_builtin_;   ///< Empty = no SCREWS_TILT_CALCULATE wrapper
     std::unordered_set<std::string> helix_macros_;
     std::string nozzle_clean_macro_;
     std::string purge_line_macro_;

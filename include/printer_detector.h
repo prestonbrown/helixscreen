@@ -485,6 +485,23 @@ class PrinterDetector {
     static bool get_bed_mesh_self_prepares(const std::string& printer_name);
 
     /**
+     * @brief Printer-specific screws-tilt sequence
+     *
+     * `calibration.screws_tilt_gcode`, for firmware that wraps SCREWS_TILT_CALCULATE
+     * in a macro answering a different question. `{screws_tilt_builtin}` names
+     * Klipper's calculation under the wrapper's rename_existing; on a printer with
+     * no wrapper the sequence yields to the stock command (resolve_macro_script()).
+     *
+     * @return Template, possibly with placeholders, or empty string if the
+     *         printer ships no sequence for this operation.
+     */
+    static std::string get_screws_tilt_gcode(const std::string& printer_name);
+
+    /// `calibration.screws_tilt_self_prepares`: the shipped screws-tilt sequence
+    /// does its own probe preparation. See get_bed_mesh_self_prepares().
+    static bool get_screws_tilt_self_prepares(const std::string& printer_name);
+
+    /**
      * @brief Get print start profile name for a printer
      *
      * Looks up the print_start_profile field from the printer database JSON
