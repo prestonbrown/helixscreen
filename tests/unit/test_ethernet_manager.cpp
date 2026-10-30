@@ -263,21 +263,21 @@ TEST_CASE("Ethernet Manager: IP address and info consistency", "[network][integr
 
 TEST_CASE("Ethernet link: an address on a down link is not connected", "[network][ethernet_link]") {
     // The address outlives the cable; operstate is what says the link is gone.
-    CHECK_FALSE(ethernet::is_link_connected(true, "down"));
-    CHECK_FALSE(ethernet::is_link_connected(false, "down"));
-    CHECK_FALSE(ethernet::is_link_connected(false, "up"));
+    CHECK_FALSE(helix::ethernet::is_link_connected(true, "down"));
+    CHECK_FALSE(helix::ethernet::is_link_connected(false, "down"));
+    CHECK_FALSE(helix::ethernet::is_link_connected(false, "up"));
 
-    CHECK(ethernet::is_link_connected(true, "up"));
+    CHECK(helix::ethernet::is_link_connected(true, "up"));
     // Drivers that never report link state leave operstate at unknown or dormant.
-    CHECK(ethernet::is_link_connected(true, "unknown"));
-    CHECK(ethernet::is_link_connected(true, "dormant"));
-    CHECK(ethernet::is_link_connected(true, ""));
+    CHECK(helix::ethernet::is_link_connected(true, "unknown"));
+    CHECK(helix::ethernet::is_link_connected(true, "dormant"));
+    CHECK(helix::ethernet::is_link_connected(true, ""));
 }
 
 TEST_CASE("Ethernet selection reports the interface that carries traffic",
           "[network][ethernet_link]") {
-    using ethernet::InterfaceState;
-    using ethernet::select_interface;
+    using helix::ethernet::InterfaceState;
+    using helix::ethernet::select_interface;
 
     SECTION("no interfaces") {
         const EthernetInfo info = select_interface({});
