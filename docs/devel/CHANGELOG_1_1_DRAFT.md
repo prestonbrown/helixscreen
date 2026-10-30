@@ -1159,6 +1159,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   not report layers, the current layer is worked out from the nozzle height, and each Z-hop
   bumped it up a few layers and back. A new layer now shows once the nozzle has stayed at
   that height for a moment, so the count steps forward only when the print really moves up.
+- **A K2 Pro with the k2-improvements mod is a K2 Pro** - it was named a K2 Plus, because
+  the mod had a detection entry only for the Plus. The K2 Pro has its own now, and the bed
+  size picks between them. On both, a K2 that kept the stock PRTouch probe no longer shows
+  it as a Cartographer, so its probe tools work; a fitted Cartographer still shows as one.
 - **K2 pre-print steps** - the Creality K2's preparing checklist no longer marks Purge done
   while the nozzle is being cleaned. The nozzle clean parks over the purge chute and pushes a
   little filament to check flow, which read as the purge; the checklist now keeps it under

@@ -14,6 +14,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "config.h"
 #include "hardware_object_table.h"
+#include "printer_detector.h"
 #include "printer_discovery.h"
 #include "probe_sensor_manager.h"
 #include "probe_sensor_types.h"
@@ -692,6 +693,35 @@ TEST_CASE_METHOD(ProbeSensorTestFixture,
     mgr().set_probe_type_override(ProbeSensorType::STANDARD);
     discover({"probe"});
     CHECK(mgr().get_sensors()[0].type == ProbeSensorType::STANDARD);
+}
+
+// PrinterState::set_printer_type_internal's override, from a database entry.
+TEST_CASE_METHOD(ProbeSensorTestFixture,
+                 "ProbeSensorManager - a k2-improvements K2 keeps the probe it reports",
+                 "[probe][discovery][k2improvements]") {
+    for (const char* printer :
+         {"Creality K2 Plus (k2-improvements)", "Creality K2 Pro (k2-improvements)"}) {
+        CAPTURE(printer);
+        const std::string db_type = PrinterDetector::get_probe_type(printer);
+        REQUIRE_FALSE(db_type.empty());
+        auto apply_database_override = [&] {
+            mgr().set_probe_type_override(probe_type_from_string(db_type));
+        };
+
+        // The mod run without Cartographer leaves PRTouch behind a plain probe,
+        // typed as the stock K2 entries type it.
+        discover({"probe", "prtouch_v3"});
+        apply_database_override();
+        REQUIRE(mgr().get_sensors().size() == 1);
+        CHECK(mgr().get_sensors()[0].type == ProbeSensorType::STANDARD);
+
+        ProbeSensorManagerTestAccess::reset(mgr());
+        discover({"cartographer"});
+        apply_database_override();
+        REQUIRE(mgr().get_sensors().size() == 1);
+        CHECK(mgr().get_sensors()[0].type == ProbeSensorType::CARTOGRAPHER);
+        ProbeSensorManagerTestAccess::reset(mgr());
+    }
 }
 
 // ============================================================================

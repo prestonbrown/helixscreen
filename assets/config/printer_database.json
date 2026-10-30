@@ -1901,7 +1901,7 @@
           "image": "creality-k2-plus-cfs.png"
         }
       ],
-      "probe_type": "cartographer",
+      "probe_type": "prtouch_v3",
       "preset": "k2",
       "print_start_profile": "k2_improvements",
       "console_filters": [
@@ -1948,11 +1948,18 @@
           "reason": "_START_PRINT_VARS is the k2-improvements START_PRINT's variable holder - definitive, and it is the macro that changes the narration"
         },
         {
+          "type": "object_required",
+          "field": "printer_objects",
+          "pattern": "^gcode_macro _START_PRINT_VARS$",
+          "confidence": 0,
+          "reason": "A K2 without the mod is its stock entry's: the stock entries score every other heuristic here equally, so without this exclusion the two tie"
+        },
+        {
           "type": "object_exists",
           "field": "printer_objects",
           "pattern": "^cartographer$",
           "confidence": 70,
-          "reason": "The mod replaces prtouch_v3 with a Cartographer probe",
+          "reason": "Cartographer is the mod's optional probe: its gimme-the-jamin.sh installer swaps prtouch_v3 for it, no-carto.sh keeps prtouch_v3. A real Cartographer types itself from this object, so the entry's probe_type stays prtouch_v3",
           "corroborating": true
         },
         {
@@ -2202,6 +2209,177 @@
         "CLEANING": 60,
         "BED_MESH": 10
       }
+    },
+    {
+      "id": "creality_k2_pro_k2improvements",
+      "variant_of": "creality_k2_pro",
+      "variant_label": "k2-improvements",
+      "enclosed": true,
+      "name": "Creality K2 Pro (k2-improvements)",
+      "manufacturer": "Creality",
+      "toolhead_style": "creality_k2",
+      "image": "creality-k2-pro.png",
+      "image_variants": [
+        {
+          "when": {
+            "filament_system": "cfs"
+          },
+          "image": "creality-k2-pro-cfs.png"
+        }
+      ],
+      "probe_type": "prtouch_v3",
+      "preset": "k2",
+      "print_start_profile": "k2_improvements",
+      "console_filters": [
+        "creality_rs485",
+        "creality_k2_modules"
+      ],
+      "pre_print_options": {
+        "macro_name": "START_PRINT",
+        "setup_gcode": "PRINT_PREPARED",
+        "options": [
+          {
+            "id": "ai_detect",
+            "category": "monitoring",
+            "order": 10,
+            "default_enabled": false,
+            "label_key": "AI detection",
+            "description_key": "Monitor for print abnormalities (K2 Plus camera-based)",
+            "strategy": "pre_start_gcode",
+            "gcode_template": "LOAD_AI_RUN SWITCH={value}",
+            "requires_macro": "LOAD_AI_RUN"
+          }
+        ]
+      },
+      "heuristics": [
+        {
+          "type": "kinematics_exclude",
+          "field": "kinematics",
+          "pattern": "delta",
+          "confidence": 0,
+          "reason": "Every K2 is corexy. _START_PRINT_VARS is a common user-macro name too (FLSUN T1 Pro configs carry it), so it cannot be definitive on another kinematics"
+        },
+        {
+          "type": "kinematics_exclude",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 0,
+          "reason": "Every K2 is corexy"
+        },
+        {
+          "type": "macro_match",
+          "field": "macros",
+          "pattern": "_START_PRINT_VARS",
+          "confidence": 99,
+          "reason": "_START_PRINT_VARS is the k2-improvements START_PRINT's variable holder - definitive, and it is the macro that changes the narration"
+        },
+        {
+          "type": "object_required",
+          "field": "printer_objects",
+          "pattern": "^gcode_macro _START_PRINT_VARS$",
+          "confidence": 0,
+          "reason": "A K2 without the mod is its stock entry's: the stock entries score every other heuristic here equally, so without this exclusion the two tie"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^cartographer$",
+          "confidence": 70,
+          "reason": "Cartographer is the mod's optional probe: its gimme-the-jamin.sh installer swaps prtouch_v3 for it, no-carto.sh keeps prtouch_v3. A real Cartographer types itself from this object, so the entry's probe_type stays prtouch_v3",
+          "corroborating": true
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "chamber_temp",
+          "confidence": 70,
+          "reason": "Chamber temperature sensor",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^box$",
+          "confidence": 45,
+          "reason": "CFS box object. Every CFS-equipped Creality carries it, so it narrows a machine to the range and never to a model; the model is the hostname's and bed size's to name",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "motor_control",
+          "confidence": 75,
+          "reason": "K2-specific motor control module"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "fan_feedback",
+          "confidence": 65,
+          "reason": "Creality fan-tachometer module. A captured real K1C reports it too, so it evidences Creality's range and not this model; the model is the hostname's and bed size's to name. Weight left as-is deliberately: re-scoring or dropping it wants a real K2 discovery snapshot, and no fixture has one"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "creality",
+          "confidence": 60,
+          "reason": "Hostname contains 'creality'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2",
+          "confidence": 85,
+          "reason": "Hostname contains 'k2'"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "load_ai",
+          "confidence": 60,
+          "reason": "K2 AI print monitoring"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "filament_rack",
+          "confidence": 65,
+          "reason": "K2 filament rack module"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber_heater",
+          "confidence": 70,
+          "reason": "Active chamber heater"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2pro",
+          "confidence": 90,
+          "reason": "Hostname contains 'K2Pro'"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "measure": "declared_bed",
+          "min_x": 290,
+          "max_x": 310,
+          "min_y": 290,
+          "max_y": 310,
+          "confidence": 55,
+          "reason": "Declared bed ~300mm (K2 Pro); separates Pro from Plus once the K2 platform is identified. Measures the bed size Creality's product_param macro declares; 300 is Creality's spec for the Pro, not a captured value. Stepper travel overshoots the bed: a reported K2 Pro has position_max 302 in X and 332 in Y",
+          "separator": true
+        }
+      ]
     },
     {
       "id": "creality_k2",
