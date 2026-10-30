@@ -1167,7 +1167,7 @@ class PrinterDiscovery {
     std::optional<FitMachine> fit_machine_;                 ///< configfile limits for the fit check
     std::vector<LevelingProbePoint> leveling_probe_points_; ///< [quad_gantry_level]/[z_tilt] points
     std::optional<ProbeXYOffset> probe_xy_offset_;          ///< Z probe x_offset/y_offset
-    bool firmware_runs_start_macro_before_file_ = false; ///< start_macro_injection.h
+    bool firmware_runs_start_macro_before_file_ = false;    ///< start_macro_injection.h
     int chamber_fan_resting_deci_ = 0; ///< Cooling fan's configured resting/off target
                                        ///< (decidegrees), from configfile.settings
                                        ///< target_temp. 0 = unknown. M141 S0 returns here.
