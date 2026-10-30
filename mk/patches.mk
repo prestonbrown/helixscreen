@@ -86,10 +86,16 @@ LVGL_PATCHED_FILES := \
 	src/indev/lv_indev.c \
 	src/indev/lv_indev_private.h \
 	src/indev/lv_indev_scroll.c \
+	src/misc/lv_timer.c \
+	src/misc/lv_check_arg.h \
+	src/misc/lv_helix_thread_check.h \
+	src/drivers/display/drm/lv_linux_drm_egl_upload.h \
 	lv_conf_template.h
-# NOTE: src/misc/lv_check_arg.h is deliberately absent — the backport patch
-# CREATES it, so it is untracked upstream and `git checkout` cannot restore it.
-# reset-patches removes it explicitly instead.
+# Every file a patch touches belongs in its submodule's list, the files a patch
+# creates included: reset_submodule_patches restores the tracked ones and deletes
+# the untracked ones, so a file left off survives a reset and the drift check
+# then refuses the tree. tests/shell/test_reset_patches.bats holds the lists to
+# the patches.
 
 # Files modified by libhv patches
 LIBHV_PATCHED_FILES := \
@@ -416,11 +422,6 @@ endef
 reset-patches:
 	$(ECHO) "$(YELLOW)Resetting LVGL patches to upstream state...$(RESET)"
 	$(call reset_submodule_patches,$(LVGL_DIR),$(LVGL_PATCHED_FILES))
-	@# Not in LVGL_PATCHED_FILES: the backport patch creates it, so there is no
-	@# tracked version to compare against.
-	$(Q)rm -f $(LVGL_DIR)/src/misc/lv_check_arg.h
-	@# Same for the header the EGL partial upload patch creates.
-	$(Q)rm -f $(LVGL_DIR)/src/drivers/display/drm/lv_linux_drm_egl_upload.h
 	$(ECHO) "$(YELLOW)Resetting libhv patches to upstream state...$(RESET)"
 	$(call reset_submodule_patches,$(LIBHV_DIR),$(LIBHV_PATCHED_FILES))
 	$(ECHO) "$(YELLOW)Resetting Lua patches to upstream state...$(RESET)"
@@ -536,7 +537,7 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	@# downgrades rather than fail the build.
 	$(Q)if [ "$(HELIX_PATCHES_FROM_CLEAN)" = "1" ]; then \
 		ok=1; \
-		for pair in "$(LVGL_DIR)|$(LVGL_PATCHED_FILES) src/misc/lv_check_arg.h" \
+		for pair in "$(LVGL_DIR)|$(LVGL_PATCHED_FILES)" \
 		            "$(LIBHV_DIR)|$(LIBHV_PATCHED_FILES)" \
 		            "$(LUA_DIR)|$(LUA_PATCHED_FILES)"; do \
 			dir=$${pair%%|*}; files=$${pair#*|}; \
