@@ -271,6 +271,10 @@ little, so a branch does not grow the suite: `scripts/check_test_budget.py` (pre
 - **`TestAccess` references grow.** Seed and observe through the public API instead.
 - **`friend` declarations grow** in `src/` or `include/`.
 
+The same branch-relative shape caps file size: `scripts/check_growth_ratchets.py` fails a
+C++ file under `tests/` (or `src/`, `include/`) that ends the branch over 1500 lines and
+larger than it started, so a test file that size is split rather than grown.
+
 Before adding a case, check what it buys: it fails when the behaviour it names breaks
 (the hand break below), nothing else already fails for the same break, and its name says
 the behaviour, not the issue that found it. A case that fails none of those is the one to
