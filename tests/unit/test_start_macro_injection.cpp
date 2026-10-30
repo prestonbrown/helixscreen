@@ -6,6 +6,7 @@
 #include "moonraker_client_mock.h"
 #include "print_start_collector.h"
 #include "print_start_profile.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "start_macro_injection.h"
 
@@ -20,10 +21,15 @@ using helix::PrintStartPhase;
 using helix::ui::UpdateQueueTestAccess;
 using json = nlohmann::json;
 
+namespace {
+
+const json kInjecting = {{"virtual_sdcard", {{"auto_creator5_start", true}}}};
+
+} // namespace
+
 TEST_CASE("a firmware that starts the print before the file is named by its config",
           "[print][collector][start_macro]") {
-    CHECK(helix::firmware_runs_start_macro_before_file(
-        json{{"virtual_sdcard", {{"auto_creator5_start", true}}}}));
+    CHECK(helix::firmware_runs_start_macro_before_file(kInjecting));
     CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
         json{{"virtual_sdcard", {{"auto_creator5_start", false}}}}));
     CHECK_FALSE(
@@ -31,6 +37,16 @@ TEST_CASE("a firmware that starts the print before the file is named by its conf
     CHECK_FALSE(helix::firmware_runs_start_macro_before_file(json::object()));
     CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
         json{{"virtual_sdcard", {{"auto_creator5_start", "True"}}}}));
+}
+
+TEST_CASE("discovery keeps whether the firmware starts the print before the file",
+          "[print][collector][start_macro]") {
+    helix::PrinterDiscovery hw;
+    CHECK_FALSE(hw.firmware_runs_start_macro_before_file());
+    hw.parse_start_macro_injection(kInjecting);
+    CHECK(hw.firmware_runs_start_macro_before_file());
+    hw.clear();
+    CHECK_FALSE(hw.firmware_runs_start_macro_before_file());
 }
 
 namespace {
@@ -53,9 +69,12 @@ class StartMacroGateFixture : public LVGLTestFixture {
         client_.reset();
     }
 
+    /// Start a run with the printer reporting @p position before any frame.
     void start(bool injects, uint64_t position) {
-        client_->set_config_settings_section("virtual_sdcard",
-                                             {{"auto_creator5_start", injects}});
+        helix::PrinterDiscovery hw;
+        hw.parse_start_macro_injection(injects ? kInjecting : json::object());
+        state_.set_hardware(hw);
+        drain();
         client_->set_object_status("virtual_sdcard", {{"file_position", position}});
         collector_->start();
         drain();
@@ -75,8 +94,8 @@ class StartMacroGateFixture : public LVGLTestFixture {
             lv_subject_get_int(state_.print_state().get_print_start_phase_subject()));
     }
 
-    bool armed() {
-        return PrintStartCollectorTestAccess::start_macro_gate_armed(*collector_);
+    bool seen_zero() {
+        return PrintStartCollectorTestAccess::start_macro_seen_zero(*collector_);
     }
 
   private:
@@ -91,7 +110,7 @@ TEST_CASE_METHOD(StartMacroGateFixture,
                  "pre-print ends when a firmware-run start macro returns and the file streams",
                  "[print][collector][start_macro]") {
     start(/*injects=*/true, /*position=*/0);
-    REQUIRE(wait_until([this] { return armed(); }));
+    REQUIRE(wait_until([this] { return seen_zero(); }));
 
     // The macro, KAMP's purge line included, is still running at position 0.
     report_position(0);
@@ -99,26 +118,41 @@ TEST_CASE_METHOD(StartMacroGateFixture,
 
     report_position(1872);
     CHECK(phase() == PrintStartPhase::COMPLETE);
-    CHECK_FALSE(armed());
+}
+
+TEST_CASE_METHOD(StartMacroGateFixture,
+                 "the last print's end position does not hide the next start macro",
+                 "[print][collector][start_macro]") {
+    // The collector starts before the new file loads, while the position is
+    // still where the previous job finished.
+    start(/*injects=*/true, /*position=*/1234567);
+    CHECK_FALSE(seen_zero());
+
+    report_position(0);
+    REQUIRE(seen_zero());
+    CHECK(phase() != PrintStartPhase::COMPLETE);
+
+    report_position(1872);
+    CHECK(phase() == PrintStartPhase::COMPLETE);
 }
 
 TEST_CASE_METHOD(StartMacroGateFixture,
                  "a streaming file says nothing about pre-print without the firmware's start macro",
                  "[print][collector][start_macro]") {
     start(/*injects=*/false, /*position=*/0);
-    CHECK_FALSE(wait_until([this] { return armed(); }, 200));
+    report_position(0);
+    CHECK_FALSE(seen_zero());
 
     report_position(1872);
     CHECK(phase() != PrintStartPhase::COMPLETE);
 }
 
-TEST_CASE_METHOD(StartMacroGateFixture,
-                 "a file already streaming at start does not arm the start-macro gate",
+TEST_CASE_METHOD(StartMacroGateFixture, "a run that never shows position 0 does not end pre-print",
                  "[print][collector][start_macro]") {
-    // The file calls the macro itself, so the position stands on that line.
+    // A resume from a saved position streams from there, and a file that calls
+    // the macro itself stands on that line past 0.
     start(/*injects=*/true, /*position=*/4096);
-    CHECK_FALSE(wait_until([this] { return armed(); }, 200));
-
     report_position(5120);
+    CHECK_FALSE(seen_zero());
     CHECK(phase() != PrintStartPhase::COMPLETE);
 }
