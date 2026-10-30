@@ -15,7 +15,8 @@ namespace {
 
 using json = nlohmann::json;
 
-constexpr const char* kCommandActions[] = {"load", "unload", "cancel", "reset"};
+constexpr const char* kCommandActions[] = {kCommandLoad, kCommandUnload, kCommandCancel,
+                                           kCommandReset};
 
 const json* object_member(const json& object, const char* key) {
     auto it = object.find(key);

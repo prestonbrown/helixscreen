@@ -18,8 +18,10 @@
  *        into plain structs.
  *
  * Moonraker sends deltas, so every parsed sibling-object field is a
- * std::optional and an omitted or null one reads as nullopt. Pure: no locks,
- * no AmsState.
+ * std::optional and an omitted or null one reads as nullopt. No AmsState. One
+ * exception to purity: parse_stock_box resolves material codes through
+ * FilamentCatalog::load_codes_cached, which reads the catalog file once behind its
+ * own cache mutex, and it logs at debug level.
  */
 namespace helix::printer {
 

@@ -31,10 +31,10 @@ using json = nlohmann::json;
 
 constexpr const char* kSpoolmanStatusMethod = "notify_openams_spoolman_status";
 constexpr const char* kSpoolmanStatusHandler = "helix_openams_spoolman_status";
-constexpr const char* kLoad = "load";
-constexpr const char* kUnload = "unload";
-constexpr const char* kCancel = "cancel";
-constexpr const char* kReset = "reset";
+constexpr const char* kLoad = openams::kCommandLoad;
+constexpr const char* kUnload = openams::kCommandUnload;
+constexpr const char* kCancel = openams::kCommandCancel;
+constexpr const char* kReset = openams::kCommandReset;
 
 const json* object_member(const json& object, const char* key) {
     auto it = object.find(key);

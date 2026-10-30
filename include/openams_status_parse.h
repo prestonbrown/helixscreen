@@ -26,6 +26,13 @@
  */
 namespace helix::openams {
 
+/// The UI API command names oams_manager advertises under `commands`; the backend
+/// dispatches by the same names, so a rename here reaches both.
+inline constexpr const char* kCommandLoad = "load";
+inline constexpr const char* kCommandUnload = "unload";
+inline constexpr const char* kCommandCancel = "cancel";
+inline constexpr const char* kCommandReset = "reset";
+
 /// OAMS_DRYER_START takes its duration in whole seconds, 1 s to 7 days.
 constexpr int kMaxDryerSeconds = 604800;
 
