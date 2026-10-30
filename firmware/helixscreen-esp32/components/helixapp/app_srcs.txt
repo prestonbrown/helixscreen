@@ -162,6 +162,7 @@ src/printer/ams_backend_multiace.cpp
 src/printer/ams_backend_openams.cpp
 src/printer/ams_bypass_policy.cpp
 src/printer/ams_backend_qidi.cpp
+src/printer/qidi_status_parse.cpp
 src/printer/ams_backend_snapmaker.cpp
 src/printer/ams_backend_toolchanger.cpp
 src/printer/ams_endless_spool.cpp
