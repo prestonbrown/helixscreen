@@ -42,6 +42,14 @@ setup() {
 }
 
 teardown() {
+    # A launcher defers its TERM until its foreground child exits, so the
+    # residents go first. Each recorded its PID as it started, so this holds
+    # even when the test failed before reading the PIDs back.
+    if [ -f "$BATS_TEST_TMPDIR/residents" ]; then
+        while read -r p; do
+            kill "$p" 2>/dev/null || true
+        done < "$BATS_TEST_TMPDIR/residents"
+    fi
     for p in $OWNED_PIDS; do
         kill "$p" 2>/dev/null || true
     done
@@ -52,6 +60,7 @@ teardown() {
 install_resident() {
     cat > "$1" <<EOF
 #!/bin/sh
+echo "\$\$" >> "$BATS_TEST_TMPDIR/residents"
 echo "\${HELIX_LAUNCHER_PID:-none} \$\$" >> "$2"
 trap 'exit 0' TERM
 while :; do sleep 0.2; done
@@ -84,10 +93,11 @@ expose() {
     ln -s "/proc/$1" "$FAKE_PROC/$1"
 }
 
-# Wait until file $1 has at least $2 lines (5s cap).
+# Wait until file $1 has at least $2 lines. The cap is generous because a
+# launcher's start under a loaded machine can take seconds.
 wait_lines() {
     local i=0
-    while [ "$i" -lt 50 ]; do
+    while [ "$i" -lt 200 ]; do
         [ -f "$1" ] && [ "$(wc -l < "$1")" -ge "$2" ] && return 0
         sleep 0.1
         i=$((i + 1))
