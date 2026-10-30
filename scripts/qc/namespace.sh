@@ -91,10 +91,12 @@ echo -n "📛 Checking namespace compliance (declarations outside helix::)..."
 # 1957 -> 1880 is the G-code viewer widget's API moving from the global
 # ui_gcode_viewer_* functions into helix::ui as gcode_viewer_*, declarations,
 # definitions and the compiled-out stubs together.
+# 1880 -> 1876 is the shared Ethernet classifiers moving from a top-level
+# ethernet:: into helix::ethernet.
 #
 # tests/shell/test_namespace_gate.bats carries this same number and fails if
 # the two disagree or if the tree drifts under it.
-if python3 scripts/check_namespace_compliance.py --max-allowed 1880 --summary >/tmp/namespace_check.out 2>&1; then
+if python3 scripts/check_namespace_compliance.py --max-allowed 1876 --summary >/tmp/namespace_check.out 2>&1; then
   section_time $SECTION_START
   echo ""
   tail -1 /tmp/namespace_check.out
