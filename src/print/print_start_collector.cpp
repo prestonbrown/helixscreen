@@ -1825,8 +1825,7 @@ void PrintStartCollector::query_start_macro_gate() {
             if (!self->active_.load() || run != self->run_generation_.load()) {
                 return;
             }
-            const std::optional<uint64_t> position =
-                helix::virtual_sdcard_file_position(response);
+            const std::optional<uint64_t> position = helix::virtual_sdcard_file_position(response);
             if (position && self->note_start_macro_position(*position)) {
                 self->complete_from_external_signal(
                     "start macro returned: the file began streaming");
