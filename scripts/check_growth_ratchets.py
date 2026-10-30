@@ -8,10 +8,10 @@ to HEAD over committed work, so there is no baseline file for parallel branches
 to conflict on. A count may fall; a branch may not raise it.
 
   file size        No C++ file under src/, include/ or tests/ may end the branch
-                   over FILE_CAP lines and larger than it started: a new file
-                   over the cap fails, an existing one over it may not grow,
-                   and one under it may not cross it. A rename is compared
-                   against its old path. A branch commit may exempt one file
+                   over FILE_CAP lines and larger than it started, unless lines
+                   removed on the branch from files that were over the cap
+                   cover the growth (so splitting a file passes). A rename is
+                   compared against its old path. A branch commit may exempt one file
                    with a message line `File-size: <path> <reason>`, for a fix
                    that cannot wait for the split.
   global access    A class that receives a dependency through a constructor or
@@ -51,7 +51,7 @@ CXX_SOURCES = (":(glob)src/**/*.cpp", ":(glob)src/**/*.h", ":(glob)include/**/*.
                ":(glob)tests/**/*.cpp", ":(glob)tests/**/*.h")
 APP_SOURCES = (":(glob)src/**/*.cpp", ":(glob)src/**/*.h", ":(glob)include/**/*.h")
 
-SIZE_GRANT_RE = re.compile(r"^File-size:\s*(\S+)\s+\S", re.M)
+SIZE_GRANT_RE = re.compile(r"^File-size:[ \t]*(\S+)[ \t]+\S", re.M)
 
 # (label, parameter type, global accessor)
 DEPENDENCIES = (
@@ -310,10 +310,16 @@ def tree_with(root: Path, rev: str, needle: str) -> dict[str, str]:
     return read_blobs(root, rev, paths)
 
 
+def receivers_at(root: Path, rev: str, type_re: str):
+    return receivers(tree_with(root, rev, type_re.replace("I?", "")), _param_re(type_re))
+
+
 def global_access_counts(root: Path, rev: str, type_re: str, accessor: str,
-                         only=None) -> Counter:
-    param = _param_re(type_re)
-    classes, statics = receivers(tree_with(root, rev, type_re.replace("I?", "")), param)
+                         classes: set[str] | None = None, only=None) -> Counter:
+    """Accessor calls per file inside `classes` (default: the classes receiving the
+    dependency at `rev`), with static members judged by `rev`'s own declarations."""
+    rev_classes, statics = receivers_at(root, rev, type_re)
+    classes = rev_classes if classes is None else classes
     blobs = tree_with(root, rev, accessor)
     counts = Counter()
     for path, text in blobs.items():
@@ -391,7 +397,11 @@ def main(argv=None) -> int:
     if base == "auto":
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from diff_base import resolve_base  # noqa: E402
-        base, _ = resolve_base(root)
+        base, why = resolve_base(root)
+        if base == "HEAD":
+            print(f"❌ Growth ratchets: no fork point to measure from ({why}). A shallow "
+                  f"or single-branch checkout has no upstream; fetch one, or pass --base REV")
+            return 1
     if base == "HEAD" or git(root, "rev-parse", base) == git(root, "rev-parse", "HEAD"):
         print("✅ Growth ratchets: no committed work to measure")
         return 0
@@ -404,18 +414,25 @@ def main(argv=None) -> int:
     failures = []
     granted = size_grants(root, fork)
 
+    # Over-cap growth is judged across the branch, so a split passes: the lines a
+    # new over-cap file holds are paid for by the lines removed from files that
+    # were over the cap at the fork point.
+    grown_files, paid = [], 0
     for o, n in rows:
-        if not n:
-            continue
-        before, after = line_count(old.get(o)), line_count(new.get(n))
-        if after > FILE_CAP and after > before:
+        before = line_count(old.get(o)) if o else 0
+        after = line_count(new.get(n)) if n else 0
+        if before > FILE_CAP and after < before:
+            paid += before - after
+        if n and after > FILE_CAP and after > before and n not in granted:
             what = (f"new file, {after} lines" if not o else
                     f"{before} -> {after} lines" + (f", renamed from {o}" if o != n else ""))
-            if n in granted:
-                continue
-            failures.append(f"{n} is over the {FILE_CAP}-line cap and grew ({what}): split "
-                            f"it, pay for the growth with cuts in the same file, or grant it "
-                            f"with a commit message line `File-size: {n} <reason>`")
+            grown_files.append((n, after - before, what))
+    if sum(g for _, g, _ in grown_files) > paid:
+        credit = f"; {paid} lines left over-cap files on this branch" if paid else ""
+        for n, _, what in grown_files:
+            failures.append(f"{n} is over the {FILE_CAP}-line cap and grew ({what}{credit}): "
+                            f"split it, pay for the growth with cuts in over-cap files, or "
+                            f"grant it with a commit message line `File-size: {n} <reason>`")
 
     touched_old = {o for o, _ in rows if o}
     touched_new = {n for _, n in rows if n}
@@ -424,8 +441,12 @@ def main(argv=None) -> int:
     for label, type_re, accessor in DEPENDENCIES:
         if not any(accessor in t for t in (*old.values(), *new.values())):
             continue
-        before = global_access_counts(root, fork, type_re, accessor, touched_old)
-        after = global_access_counts(root, "HEAD", type_re, accessor, touched_new)
+        # Both sides count the classes that received the dependency at the fork
+        # point: a class that starts receiving it on this branch is mid-migration,
+        # and is held to the ratchet from the next branch on.
+        fork_classes, _ = receivers_at(root, fork, type_re)
+        before = global_access_counts(root, fork, type_re, accessor, fork_classes, touched_old)
+        after = global_access_counts(root, "HEAD", type_re, accessor, fork_classes, touched_new)
         for path, n in sorted(after.items()):
             was = before.get(renamed.get(path, path), 0)
             if n > was:

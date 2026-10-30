@@ -143,6 +143,40 @@ EOF
     contains "src/big.cpp is over" "$output"
 }
 
+@test "splitting an over-cap file into two over-cap halves passes; a split that also grows fails" {
+    lines $((2 * CAP + 200)) > "$REPO/src/huge.cpp"
+    rebase_here "huge file"
+    lines $((CAP + 100)) > "$REPO/src/huge.cpp"
+    lines $((CAP + 100)) > "$REPO/src/huge_b.cpp"
+    commit_all "split"
+    ratchets
+    [ "$status" -eq 0 ]
+    echo "int more;" >> "$REPO/src/huge_b.cpp"
+    commit_all "and grow"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/huge_b.cpp is over the $CAP-line cap and grew (new file, $((CAP + 101)) lines; $((CAP + 100)) lines left over-cap files on this branch)" "$output"
+}
+
+@test "a reason-less File-size line does not borrow the next commit's subject as its reason" {
+    echo "int x;" >> "$REPO/src/small.cpp"
+    commit_all "an earlier commit on the branch"
+    echo "int more;" >> "$REPO/src/big.cpp"
+    commit_all "grow" "File-size: src/big.cpp"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/big.cpp is over" "$output"
+}
+
+@test "with no upstream to fork from, the auto base refuses instead of passing" {
+    echo "int more;" >> "$REPO/src/big.cpp"
+    commit_all "grow"
+    git -C "$REPO" branch -qD main
+    run python3 "$GATE" --root "$REPO" --base auto
+    [ "$status" -eq 1 ]
+    contains "no fork point to measure from" "$output"
+}
+
 @test "non-C++ files are not measured" {
     lines $((CAP + 1)) > "$REPO/src/table.txt"
     lines $((CAP + 1)) > "$REPO/include/generated.inc"
@@ -170,13 +204,36 @@ EOF
     contains "include/panel.h: get_moonraker_api() inside a class that receives Moonraker API grew 0 -> 1" "$output"
 }
 
+# Rebases BASE onto a commit holding the current changes, so the next commit is
+# the branch under test.
+rebase_here() {
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "${1:-base}"
+    BASE=$(git -C "$REPO" rev-parse HEAD)
+}
+
 @test "a class receives a dependency through an out-of-line method's parameter too" {
     printf 'void Plain::bind(const PrinterState& ps) {\n}\n' >> "$REPO/src/ui/panel.cpp"
+    rebase_here "plain takes it"
     inject "void Plain::refresh()" "get_printer_state().touch();"
-    commit_all "plain takes it now"
+    commit_all "plain reaches for the global"
     ratchets
     [ "$status" -eq 1 ]
     contains "get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
+}
+
+@test "a class that starts receiving the dependency on this branch is not judged by it yet" {
+    inject "void Plain::refresh()" "get_printer_state().touch(); get_printer_state().poke();"
+    rebase_here "plain uses the global"
+    printf 'void Plain::bind(PrinterState& ps) {\n}\n' >> "$REPO/src/ui/panel.cpp"
+    commit_all "inject the dependency"
+    ratchets
+    [ "$status" -eq 0 ]
+    inject "void Panel::refresh()" "get_printer_state().touch();"
+    commit_all "an already-receiving class reaches for the global"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/panel.cpp: get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
 }
 
 @test "global access in a static member (inline or out-of-line), a free function, a lambda outside the class, a class without the parameter, or a comment is not counted" {
