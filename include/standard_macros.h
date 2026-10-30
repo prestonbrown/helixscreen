@@ -203,6 +203,11 @@ struct MacroScriptValues {
 
     /// Replaces `{bed_temp}`, in whole degrees C: the bed temperature to probe at.
     int bed_temp_c = bed_mesh::DEFAULT_PROBE_BED_TEMP_C;
+
+    /// Replaces `{screws_tilt_builtin}`: Klipper's SCREWS_TILT_CALCULATE under the
+    /// name a wrapper renamed it to. Empty when nothing wraps it, and then a shipped
+    /// sequence naming the placeholder gives way to the next tier.
+    std::string screws_tilt_builtin;
 };
 
 } // namespace helix

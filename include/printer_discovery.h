@@ -855,6 +855,7 @@ class PrinterDiscovery {
         macros_.clear();
         host_restarting_macros_.clear();
         host_halting_macros_.clear();
+        screws_tilt_builtin_.clear();
         helix_macros_.clear();
         nozzle_clean_macro_.clear();
         purge_line_macro_.clear();
@@ -1298,6 +1299,36 @@ class PrinterDiscovery {
         return host_halting_macros_;
     }
 
+    /**
+     * @brief Record the builtin a [gcode_macro SCREWS_TILT_CALCULATE] wrapper renamed
+     *
+     * Some firmware replaces SCREWS_TILT_CALCULATE with a macro that answers in its
+     * own terms. A printer database entry can then run Klipper's calculation under
+     * its renamed name; with no wrapper there is nothing to bypass.
+     *
+     * @param settings JSON object from a configfile.settings response
+     * @return true when a wrapper's rename_existing was found and stored
+     */
+    bool parse_screws_tilt_builtin(const nlohmann::json& settings) {
+        screws_tilt_builtin_.clear();
+        const auto wrapper = settings.find("gcode_macro screws_tilt_calculate");
+        if (wrapper == settings.end() || !wrapper->is_object()) {
+            return false;
+        }
+        const auto renamed = wrapper->find("rename_existing");
+        if (renamed == wrapper->end() || !renamed->is_string()) {
+            return false;
+        }
+        screws_tilt_builtin_ = renamed->get<std::string>();
+        return !screws_tilt_builtin_.empty();
+    }
+
+    /// Klipper's SCREWS_TILT_CALCULATE under the name a wrapper gave it, or empty
+    /// when no wrapper replaces the command. See parse_screws_tilt_builtin().
+    [[nodiscard]] const std::string& screws_tilt_builtin() const {
+        return screws_tilt_builtin_;
+    }
+
     [[nodiscard]] std::string nozzle_clean_macro() const {
         return nozzle_clean_macro_;
     }
@@ -1678,6 +1709,7 @@ class PrinterDiscovery {
     std::unordered_set<std::string> macros_;
     std::unordered_set<std::string> host_restarting_macros_; ///< Macros that reach a host restart
     std::unordered_set<std::string> host_halting_macros_;    ///< Macros that reach a host halt
+    std::string screws_tilt_builtin_; ///< Empty = no SCREWS_TILT_CALCULATE wrapper
     std::unordered_set<std::string> helix_macros_;
     std::string nozzle_clean_macro_;
     std::string purge_line_macro_;
