@@ -54,7 +54,7 @@ std::string CfsMaterialDb::slot_to_tnn(int global_index) {
     int unit = global_index / 4 + 1;
     int slot = global_index % 4;
     char letter = 'A' + static_cast<char>(slot);
-    return "T" + std::to_string(unit) + letter;
+    return "T" + std::to_string(unit) + letter; // DISPLAY_NUMBERING_OK: CFS address
 }
 
 int CfsMaterialDb::tnn_to_slot(const std::string& tnn) {
@@ -220,7 +220,8 @@ void reserve_address_gaps(AmsSystemInfo& info) {
         for (int address = static_cast<int>(units.size()); address < unit.unit_index; ++address) {
             AmsUnit gap;
             gap.unit_index = address;
-            gap.name = "T" + std::to_string(address + 1);
+            gap.name =
+                "T" + std::to_string(address + 1); // DISPLAY_NUMBERING_OK: unit name is its box key
             gap.display_name = "CFS Unit " + std::to_string(address + 1);
             gap.slot_count = kBaysPerBox;
             gap.first_slot_global_index = address * kBaysPerBox;
@@ -376,7 +377,7 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
 
     // Loop over T1-T4 units
     for (int n = 1; n <= 4; ++n) {
-        std::string key = "T" + std::to_string(n);
+        std::string key = "T" + std::to_string(n); // DISPLAY_NUMBERING_OK: box object key
         if (!box_json.contains(key) || !box_json[key].is_object()) {
             spdlog::debug("[AMS CFS] {} not present or not an object", key);
             continue;
