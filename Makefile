@@ -1500,6 +1500,63 @@ print-cxxflags:
 print-var-%:
 	@echo "$($*)"
 
+# The compile command for a source, as its object rule's .ccj records it:
+#   make print-compile-command F=src/print/foo.cpp [F="a.cpp b.cpp"]
+# One line per source, `<compiler> <flags> -c <source>`, printed through the
+# shell exactly as emit-compile-command (mk/rules.mk) captures it. A source no
+# rule compiles prints nothing and fails; add -k to get the others' lines anyway.
+# Nothing is built: the targets below have no prerequisites, though parsing this
+# Makefile writes the stamps every invocation writes ($(FLAGS_STAMP), the patch id
+# and ABI stamps).
+# scripts/compile_command.py reads it for a tree whose compile database is
+# missing or was recorded by another version.
+#
+# Each entry pairs a source pattern with the *_COMPILE function of the rule that
+# compiles it, ordered as make chooses between those rules (shortest stem first).
+PRINT_COMPILE_RULES := \
+	$(SRC_DIR)/bluetooth/%.cpp=BT_COMPILE \
+	$(SRC_DIR)/%.cpp=APP_CXX_COMPILE \
+	$(SRC_DIR)/%.mm=APP_CXX_COMPILE \
+	$(SRC_DIR)/%.c=APP_C_COMPILE \
+	$(addsuffix =TEST_COMPILE,$(patsubst $(OBJ_DIR)/tests/%.o,$(TEST_DIR)/%.cpp,$(UI_TEST_UTILS_OBJ) $(LVGL_TEST_FIXTURE_OBJ) $(HELIX_TEST_FIXTURE_OBJ) $(TEST_FIXTURES_OBJ) $(LVGL_UI_TEST_FIXTURE_OBJ))) \
+	$(TEST_UNIT_DIR)/application/%.cpp=TEST_APP_COMPILE \
+	$(TEST_UNIT_DIR)/%.cpp=TEST_COMPILE \
+	$(TEST_MOCK_DIR)/%.cpp=TEST_MOCK_COMPILE \
+	$(TEST_DIR)/test_main.cpp=TEST_MAIN_COMPILE \
+	$(TEST_DIR)/catch_amalgamated.cpp=CATCH2_COMPILE \
+	$(addsuffix =LVGL_GLES_COMPILE,$(LVGL_OPENGLES_CXX_SRCS)) \
+	$(LVGL_DIR)/demos/%.c=LVGL_DEMO_COMPILE \
+	$(LVGL_DIR)/%.c=LVGL_C_COMPILE \
+	$(LVGL_DIR)/%.cpp=LVGL_CXX_COMPILE \
+	$(HELIX_XML_DIR)/%.c=HELIX_XML_COMPILE \
+	$(if $(SPDLOG_DIR),$(SPDLOG_DIR)/src/%.cpp=SPDLOG_COMPILE) \
+	$(LV_MARKDOWN_DIR)/%.c=LV_MARKDOWN_COMPILE \
+	$(QUIRC_DIR)/%.c=QUIRC_COMPILE \
+	$(LUA_DIR)/%.c=LUA_COMPILE \
+	assets/fonts/%.c=FONT_COMPILE
+print_compile_rule = $(firstword $(foreach r,$(PRINT_COMPILE_RULES),$(if $(filter $(firstword $(subst =, ,$(r))),$(1)),$(lastword $(subst =, ,$(r))))))
+
+.PHONY: print-compile-command
+print-compile-command: $(addsuffix .pcc,$(addprefix print-compile-command/,$(F)))
+	@$(if $(strip $(F)),:,echo "usage: make print-compile-command F=<source>" >&2; exit 2)
+
+print-compile-command/%.pcc:
+	@$(if $(call print_compile_rule,$*),printf '%s\n' "$(call $(call print_compile_rule,$*)) -c $*",echo "print-compile-command: no rule compiles $*" >&2; exit 1)
+
+# A recipe runs with its own target's variables and those it inherits as a
+# prerequisite, and these print targets are neither the object nor a prerequisite
+# of the test binary, so the target-specific flags those carry are added here.
+$(foreach f,$(F),$(if $(filter $(LFS_OBJS),$(f:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)),$(eval print-compile-command/$(f).pcc: override CXXFLAGS += $(LFS_CXXFLAGS))))
+$(foreach f,$(filter $(TEST_DIR)/%,$(F)),$(eval print-compile-command/$(f).pcc: override CXXFLAGS += $(TEST_BIN_CXXFLAGS)))
+
+# What an object rule needs in place before its compiler can read the source:
+# patched submodules, the third-party ABI stamp, the flags stamp, libhv's
+# generated headers (with the archive whose build installs them) and the
+# generated headers under $(BUILD_DIR)/generated. A syntax-only check of a tree
+# that was never built makes this and nothing else.
+.PHONY: compile-prereqs
+compile-prereqs: $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) $(PATCH_MARKER_STAMP) $(CONTRIBUTORS_H) $(GIT_HASH_H)
+
 # =============================================================================
 # Install target — stages binary + assets under $(DESTDIR)/opt/helixscreen/
 #

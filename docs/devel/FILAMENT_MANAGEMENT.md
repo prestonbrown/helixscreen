@@ -173,7 +173,7 @@ AFC's opt-in rests on `AFC_stepper.<lane>.tool_loaded`, which upstream's `set_lo
 `set_unloaded()` assign in lockstep with `AFC.current_load` and
 `AFC_extruder.lane_loaded`. Note that AFC's lane `status == "Loaded"` means *loaded to
 hub*, not to the toolhead — only `tool_loaded` answers the toolhead question, which is why
-`parse_afc_stepper` maps `"Loaded"` to `AVAILABLE`.
+`apply_lane_status` maps `"Loaded"` to `AVAILABLE`.
 
 **Which lane a parked head holds.** `build_ams_topology()` asks `slot_is_actively_loaded()`
 of every tool's lane and hands the answers to ToolState as `ToolTopology::tool_seated`.
@@ -633,7 +633,7 @@ Orca prefers it; the `mmu` object is the fallback.)
 to several `T` commands under virtual tools, which a lane-name key cannot
 express, so each mapping gets its own record and the record carries no lane
 identity. Two HelixScreen changes followed: the live AFC reader
-(`parse_lane_data` in `ams_backend_afc.cpp`) joins `T(n)` keys through the
+(`apply_lane_data` in `ams_backend_afc.cpp`) joins `T(n)` keys through the
 firmware-asserted tool mapping (parking a payload that lands before any
 mapping and replaying it once one arrives — the DB query is one-shot), and
 `reset_tool_mappings()` sends `AFC_RESET_MAPPING` on firmware that reports
@@ -1815,8 +1815,9 @@ reading.
 > **Unverified on hardware.** The only AFC rig here is a BoxTurtle with a
 > switched buffer; its live status carries none of the FPS fields. The key names
 > and the scale come from a source read of AFC v1.2.0 (`a06f14d`).
-> `tests/unit/test_buffer_reading.cpp` pins `fps_to_bias()` on that scale, but no
-> test feeds an `AFC_buffer` frame carrying the FPS keys through the AFC parser.
+> `tests/unit/test_buffer_reading.cpp` pins `fps_to_bias()` on that scale, and
+> `tests/unit/test_afc_status_parse.cpp` feeds an `AFC_buffer` frame built from
+> that release's `AFCFPSBuffer.get_status()` through `afc::parse_buffer()`.
 > Re-check both against a real FPS_PSF buffer before trusting them.
 
 ### Filament buffer reading
@@ -3031,7 +3032,7 @@ The input is `AmsState::any_bypass_active()`, which polls every backend's `is_by
 Two things it is deliberately **not**:
 
 - **Not `AmsSystemInfo::current_slot == -2`.** The AFC backend sets that at
-  `src/printer/ams_backend_afc.cpp#parse_afc_state` while parsing `bypass_state`, but nine later writes in the same
+  `src/printer/ams_backend_afc.cpp#apply_afc_state` while parsing `bypass_state`, but nine later writes in the same
   file can overwrite it — including the mount-state derivation from #1229, which is
   intentionally unguarded so it cannot re-latch. `is_bypass_active()` returns the firmware's own
   report and is stable.

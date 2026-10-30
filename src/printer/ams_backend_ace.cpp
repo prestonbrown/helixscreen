@@ -108,19 +108,6 @@ std::string ace_unit_short_name(const std::string& protocol) {
     return "ACE Pro";
 }
 
-/// Whether an ACEPRO unit's `connection_state` says it is connected; nullopt for
-/// a state this backend does not know, which leaves the unit as it was.
-std::optional<bool> ace_link_from_state(const std::string& state) {
-    if (state == "connected") {
-        return true;
-    }
-    if (state == "initializing" || state == "connecting" || state == "reconnecting" ||
-        state == "disabled") {
-        return false;
-    }
-    return std::nullopt;
-}
-
 } // namespace
 
 // ============================================================================
@@ -499,21 +486,7 @@ PathSegment AmsBackendAce::get_slot_filament_segment(int slot_index) const {
     return PathSegment::NONE;
 }
 
-AmsBackendAce::ParkState AmsBackendAce::park_state_from_json(const json& slot_json) {
-    if (slot_json.contains("park_state") && slot_json["park_state"].is_string()) {
-        const auto& text = slot_json["park_state"].get_ref<const std::string&>();
-        if (text == "parked") {
-            return ParkState::Parked;
-        }
-        if (text == "loaded") {
-            return ParkState::Loaded;
-        }
-    }
-    return ParkState::Unknown;
-}
-
-bool AmsBackendAce::note_park_state_locked(int index, const json& slot_json) {
-    const ParkState state = park_state_from_json(slot_json);
+bool AmsBackendAce::note_park_state_locked(int index, ParkState state) {
     auto it = park_states_.find(index);
     const ParkState before = it == park_states_.end() ? ParkState::Unknown : it->second;
     if (state == ParkState::Unknown) {
@@ -766,7 +739,7 @@ void AmsBackendAce::forget_user_temps_locked(int slot_index) {
 }
 
 void AmsBackendAce::apply_hub_temps_locked(int slot_index, SlotInfo& slot,
-                                           const nlohmann::json& slot_json) const {
+                                           const helix::ace::SlotDelta& entry) const {
     // No lane record carries temperatures and the stored record keeps one for
     // every edit, the hub's own included, so only an edit that moved them this
     // session marks them the user's.
@@ -774,15 +747,13 @@ void AmsBackendAce::apply_hub_temps_locked(int slot_index, SlotInfo& slot,
         user_temps_[static_cast<size_t>(slot_index)]) {
         return;
     }
-    slot.nozzle_temp_min = helix::json_util::safe_int(slot_json, "temp_min", slot.nozzle_temp_min);
-    slot.nozzle_temp_max = helix::json_util::safe_int(slot_json, "temp_max", slot.nozzle_temp_max);
+    slot.nozzle_temp_min = entry.temp_min.value_or(slot.nozzle_temp_min);
+    slot.nozzle_temp_max = entry.temp_max.value_or(slot.nozzle_temp_max);
 }
 
-void AmsBackendAce::note_tag_frame_locked(int slot_index, helix::ace::TagRead tag_read,
-                                          const nlohmann::json& slot_json,
-                                          const std::optional<std::string>& material,
-                                          const std::optional<uint32_t>& color,
+void AmsBackendAce::note_tag_frame_locked(int slot_index, const helix::ace::SlotDelta& entry,
                                           std::optional<bool> present) {
+    const helix::ace::TagRead tag_read = entry.tag_read;
     if (slot_index < 0) {
         return;
     }
@@ -802,12 +773,12 @@ void AmsBackendAce::note_tag_frame_locked(int slot_index, helix::ace::TagRead ta
         return;
     }
     helix::ams::TagReading reading;
-    reading.material = material;
-    if (color && helix::ams::is_declarable_color(*color)) {
-        reading.color_rgb = color;
+    reading.material = entry.material;
+    if (entry.color && helix::ams::is_declarable_color(*entry.color)) {
+        reading.color_rgb = entry.color;
     }
-    const int temp_min = helix::json_util::safe_int(slot_json, "temp_min", 0);
-    const int temp_max = helix::json_util::safe_int(slot_json, "temp_max", 0);
+    const int temp_min = entry.temp_min.value_or(0);
+    const int temp_max = entry.temp_max.value_or(0);
     if (temp_min > 0) {
         reading.nozzle_temp_min = temp_min;
     }
@@ -1316,19 +1287,16 @@ bool AmsBackendAce::apply_seated_slot_stamp_locked() {
     return changed;
 }
 
-void AmsBackendAce::apply_path_sensors_locked(const json& data) {
+void AmsBackendAce::apply_path_sensors_locked(const helix::ace::PathSensors& sensors) {
     // Caller holds mutex_.
-    bool stated = false;
-    if (data.contains("rdm_sensor") && data["rdm_sensor"].is_boolean()) {
-        rdm_sensor_ = data["rdm_sensor"].get<bool>();
-        stated = true;
-    }
-    if (data.contains("toolhead_sensor") && data["toolhead_sensor"].is_boolean()) {
-        toolhead_sensor_ = data["toolhead_sensor"].get<bool>();
-        stated = true;
-    }
-    if (!stated) {
+    if (!sensors.stated()) {
         return;
+    }
+    if (sensors.rdm) {
+        rdm_sensor_ = *sensors.rdm;
+    }
+    if (sensors.toolhead) {
+        toolhead_sensor_ = *sensors.toolhead;
     }
     path_sensors_seen_ = true;
 
@@ -1376,11 +1344,11 @@ int AmsBackendAce::tool_for_slot_locked(int slot_index) const {
     return instance_objects_ ? -1 : slot_index;
 }
 
-bool AmsBackendAce::apply_target_index_locked(const json& data) {
+bool AmsBackendAce::apply_target_index_locked(std::optional<int> target_index) {
     // Caller holds mutex_. Absent means unchanged: notify frames carry only
     // changed fields.
-    if (auto v = ams::read_integer_field(data, "target_index")) {
-        target_index_ = *v;
+    if (target_index) {
+        target_index_ = *target_index;
     }
 
     const int prev_pending = system_info_.pending_target_slot;
@@ -1451,7 +1419,12 @@ bool AmsBackendAce::seat_from_local_index_locked(int slot_index) {
 }
 
 void AmsBackendAce::parse_ace_object(const json& data, int unit) {
+    const helix::ace::ObjectDelta d = helix::ace::parse_ace_object(data);
     std::lock_guard<std::mutex> lock(mutex_);
+    apply_ace_object_locked(d, unit);
+}
+
+void AmsBackendAce::apply_ace_object_locked(const helix::ace::ObjectDelta& d, int unit) {
     const bool from_instance = unit != kNotAnInstance;
     const int unit_index = std::max(unit, 0);
 
@@ -1462,7 +1435,7 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
 
     // Parse system info (model, protocol, firmware). The first unit's
     // firmware is the system's version; every unit keeps its own.
-    if (data.contains("model") && data["model"].is_string()) {
+    if (d.model) {
         system_info_.type_name = "ACE";
     }
     {
@@ -1473,14 +1446,14 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
         UnitIdentity& identity = unit_identities_[index];
         const UnitIdentity before = identity;
         identity.reported = identity.reported || from_instance;
-        if (auto v = ams::read_field<std::string>(data, "model")) {
-            identity.model = std::move(*v);
+        if (d.model) {
+            identity.model = *d.model;
         }
-        if (auto v = ams::read_field<std::string>(data, "protocol")) {
-            identity.protocol = std::move(*v);
+        if (d.protocol) {
+            identity.protocol = *d.protocol;
         }
-        if (data.contains("firmware") && data["firmware"].is_string()) {
-            identity.firmware = data["firmware"].get<std::string>();
+        if (d.firmware) {
+            identity.firmware = *d.firmware;
             if (unit_index == 0) {
                 system_info_.version = identity.firmware;
             }
@@ -1495,219 +1468,191 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
     // one AFC and Happy Hare read; ACE's own words (loading/unloading/error,
     // "ready", "drying") resolve to the same actions through it. Each unit
     // states its own, so one unit's "ready" does not end another's load.
-    if (data.contains("status") && data["status"].is_string()) {
-        set_unit_action_locked(unit_index,
-                               ams_action_from_string(data["status"].get<std::string>()));
+    if (d.action) {
+        set_unit_action_locked(unit_index, *d.action);
     }
 
-    // Parse slots array
-    if (data.contains("slots") && data["slots"].is_array()) {
-        const auto& slots_arr = data["slots"];
+    if (d.slots.refused_size > 0) {
+        spdlog::warn("[ACE] Ignoring excessive slot count from get_status: {}",
+                     d.slots.refused_size);
+    }
+    if (d.slots.entries) {
+        const auto& slots_arr = *d.slots.entries;
+        const bool new_unit = static_cast<size_t>(unit_index) >= system_info_.units.size();
+        auto& unit = unit_locked(unit_index);
+        if (new_unit) {
+            apply_unit_identities_locked();
+        }
+        if (instance_objects_) {
+            // Every ACEPRO unit feeds the printer's one extruder through the
+            // one hub its rdm_sensor watches.
+            unit.hub_id = "ace";
+        }
 
-        // Sanity check
-        if (slots_arr.size() > 16) {
-            spdlog::warn("[ACE] Ignoring excessive slot count from get_status: {}",
-                         slots_arr.size());
-        } else {
-            const bool new_unit = static_cast<size_t>(unit_index) >= system_info_.units.size();
-            auto& unit = unit_locked(unit_index);
-            if (new_unit) {
-                apply_unit_identities_locked();
-            }
+        // Resize slots
+        if (unit.slots.size() != slots_arr.size()) {
+            unit.slots.resize(slots_arr.size());
+        }
+        const auto link = unit_links_.find(unit_index);
+        unit.connected = link == unit_links_.end() || link->second;
+        if (index_units_locked()) {
+            // Slots moved: the insert edge compares a bay with itself only,
+            // so it re-baselines as after a restart.
+            prev_slot_status_.clear();
+            pending_insert_reads_.clear();
+            last_spool_evidence_.clear();
+        }
+
+        bool tools_changed = false;
+        for (size_t i = 0; i < slots_arr.size(); ++i) {
+            if (!slots_arr[i])
+                continue;
+            const helix::ace::SlotDelta& entry = *slots_arr[i];
+
+            auto& slot = unit.slots[i];
+            const int idx = slot.global_index;
+            note_park_state_locked(idx, entry.park_state);
+            // Published as the slot's tool so a Load with a tool seated is
+            // planned as the toolchange the driver performs, and the step
+            // bar shows its cut and retract. A frame naming none clears it.
+            tools_changed |= slot.mapped_tool != entry.tool;
+            slot.mapped_tool = entry.tool;
             if (instance_objects_) {
-                // Every ACEPRO unit feeds the printer's one extruder through the
-                // one hub its rdm_sensor watches.
-                unit.hub_id = "ace";
+                slot.extruder_name = "extruder";
             }
 
-            // Resize slots
-            if (unit.slots.size() != slots_arr.size()) {
-                unit.slots.resize(slots_arr.size());
+            // Parse status via the shared vocabulary map so the object path
+            // and the REST fallback path can't drift.
+            //
+            // Each parsed value is also kept in a local for the lane
+            // observations below, rather than read back off `slot`: the
+            // override merge at the bottom of this loop rewrites that
+            // member in place and leaves it rewritten for every later
+            // frame, so an observation sourced from it would file a user's
+            // own edit as the hub's memory.
+            const bool frame_states_status = entry.status.has_value();
+            std::optional<bool> observed_present;
+            if (frame_states_status) {
+                observed_present = slot_status_reports_filament(*entry.status);
+                slot.status = *entry.status;
+                note_driver_ready_locked(slot.global_index, *entry.status_word);
             }
-            const auto link = unit_links_.find(unit_index);
-            unit.connected = link == unit_links_.end() || link->second;
-            if (index_units_locked()) {
-                // Slots moved: the insert edge compares a bay with itself only,
-                // so it re-baselines as after a restart.
-                prev_slot_status_.clear();
-                pending_insert_reads_.clear();
-                last_spool_evidence_.clear();
+
+            // A value that carries no colour leaves the bay showing the
+            // last one the hub did state, rather than flipping it to
+            // black - which is a colour ACE really does report.
+            const std::optional<uint32_t>& observed_color = entry.color;
+            if (observed_color) {
+                slot.color_rgb = *observed_color;
             }
 
-            bool tools_changed = false;
-            for (size_t i = 0; i < slots_arr.size(); ++i) {
-                const auto& slot_json = slots_arr[i];
-                if (!slot_json.is_object())
-                    continue;
-
-                auto& slot = unit.slots[i];
-                const int idx = slot.global_index;
-                note_park_state_locked(idx, slot_json);
-                // Published as the slot's tool so a Load with a tool seated is
-                // planned as the toolchange the driver performs, and the step
-                // bar shows its cut and retract. A frame naming none clears it.
-                const int tool =
-                    helix::ace::read_slot_tool(slot_json, kMaxUnits * kSlotsPerUnit).value_or(-1);
-                tools_changed |= slot.mapped_tool != tool;
-                slot.mapped_tool = tool;
-                if (instance_objects_) {
-                    slot.extruder_name = "extruder";
-                }
-
-                // Parse status via the shared vocabulary map so the object path
-                // and the REST fallback path can't drift.
-                //
-                // Each parsed value is also kept in a local for the lane
-                // observations below, rather than read back off `slot`: the
-                // override merge at the bottom of this loop rewrites that
-                // member in place and leaves it rewritten for every later
-                // frame, so an observation sourced from it would file a user's
-                // own edit as the hub's memory.
-                const bool frame_states_status =
-                    slot_json.contains("status") && slot_json["status"].is_string();
-                std::optional<bool> observed_present;
-                if (frame_states_status) {
-                    const SlotStatus status =
-                        helix::ace::slot_status_from_string(slot_json["status"].get<std::string>());
-                    observed_present = slot_status_reports_filament(status);
-                    slot.status = status;
-                    note_driver_ready_locked(slot.global_index,
-                                             slot_json["status"].get<std::string>());
-                }
-
-                // Parse color: ValgACE returns [r, g, b] array
-                std::optional<uint32_t> observed_color;
-                if (slot_json.contains("color")) {
-                    observed_color = helix::ace::parse_slot_color(slot_json["color"]);
-                    // A value that carries no colour leaves the bay showing the
-                    // last one the hub did state, rather than flipping it to
-                    // black - which is a colour ACE really does report.
-                    if (observed_color) {
-                        slot.color_rgb = *observed_color;
-                    }
-                }
-
-                // Parse material (e.g., "PLA", "PETG") - see read_slot_material.
-                std::optional<std::string> observed_material =
-                    helix::ace::read_slot_material(slot_json);
-                if (observed_material) {
-                    slot.material = *observed_material;
-                }
-
-                // Parse SKU if present
-                if (slot_json.contains("sku") && slot_json["sku"].is_string()) {
-                    // SKU is available but not mapped to SlotInfo currently
-                }
-
-                // The rfid field is the bay's tag reader: only an identified
-                // read states what is in the bay; without one the hub states its
-                // own memory of it (prestonbrown/helixscreen#1710). A read in
-                // progress leaves the evidence incomplete, so the insert edge
-                // holds its verdict for a later frame.
-                const helix::ace::TagRead tag_read = helix::ace::read_tag_state(slot_json);
-                helix::ams::SpoolEvidence evidence;
-                if (tag_read == helix::ace::TagRead::Identified) {
-                    evidence.material = observed_material.value_or(std::string{});
-                    evidence.color_rgb = observed_color;
-                    evidence.tag_read_complete = true;
-                } else if (tag_read == helix::ace::TagRead::NoTag) {
-                    evidence.tag_read_complete = true;
-                }
-
-                // Insert-edge verdict. Must run BEFORE apply_resolved_lane so
-                // the check sees firmware-truth (not the resolved view); once a
-                // DifferentSpool clear has run, the lane declares nothing for
-                // those fields and apply_resolved_lane leaves them as firmware
-                // set them.
-                //
-                // First observation (no prev_slot_status_ entry) is a
-                // BASELINE and must never fire a clear, matching IFS/Snapmaker
-                // baseline semantics. Only call the helper when a prior status
-                // was already recorded for this slot.
-                auto prev_it = prev_slot_status_.find(idx);
-                if (prev_it != prev_slot_status_.end()) {
-                    check_hardware_event_clear(slot, idx, prev_it->second, slot.status, evidence);
-                }
-                prev_slot_status_[idx] = slot.status;
-                // Remember the reading for the spool now in the bay, and keep
-                // it across the empty interval: the reading of the spool that
-                // left is the comparison side of the insert rule when the next
-                // one arrives. Only a frame carrying a read writes it: a
-                // no-read frame states hub memory, not what the reader got
-                // off the occupant, and overwriting with it would lose the
-                // comparison side while an insert is still pending. Must
-                // follow the check, which reads the previous entry.
-                if ((slot.status == SlotStatus::AVAILABLE || slot.status == SlotStatus::LOADED) &&
-                    evidence.tag_read_complete) {
-                    last_spool_evidence_[idx] = evidence;
-                }
-
-                // The hub reports an occupancy status and a colour. Neither is
-                // an identity reading, so the colour is the hub's own memory of
-                // what was last in the bay rather than proof of what is there.
-                //
-                // A frame that states no status for this bay files no sensed
-                // record: one ingest replaces a source's record whole, so an
-                // empty one would erase a live reading instead of repeating it.
-                // A status ACE does not recognise DOES file one, with `present`
-                // unset - the hub saying it does not know is news, and a record
-                // whose field is unset is the only way to retract a reading.
-                if (frame_states_status) {
-                    helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
-                    sensed.present = observed_present;
-                    helix::ams::ingest(lane_id(idx), sensed);
-                }
-
-                // The cache record is filed on every pass, with only what this
-                // frame stated in it. `slots` is one Klipper status field, so
-                // Moonraker sends the array whole or not at all and a frame
-                // that describes a bay describes all of it - there is no
-                // partial identity for a whole-record write to narrow. It also
-                // makes an absent sensed record provably a guard rather than a
-                // translation that did not run.
-                helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
-                cache.color_rgb = observed_color;
-                cache.material = observed_material;
-                helix::ams::ingest(lane_id(idx), cache);
-                note_tag_frame_locked(idx, tag_read, slot_json, observed_material, observed_color,
-                                      observed_present);
-
-                // Layer user-configured overrides on top of firmware-reported
-                // data. Override wins for any non-default field - for ACE
-                // that includes color and material, since ACE hardware
-                // doesn't carry brand/spool_name/weights at all and the user
-                // edit is the authoritative source for color/material too.
-                // The REST poll brings every slot through here each
-                // kPollIntervalMs, so ACE names no slot to cached_slot_locked().
-                apply_resolved_lane(slot, idx);
+            const std::optional<std::string>& observed_material = entry.material;
+            if (observed_material) {
+                slot.material = *observed_material;
             }
-            if (tools_changed) {
-                // The driver names each slot's tool: publish the map in both
-                // directions, so the T badges show only where tool and spool
-                // numbers part.
-                publish_tool_map_locked();
+
+            // The rfid field is the bay's tag reader: only an identified
+            // read states what is in the bay; without one the hub states its
+            // own memory of it (prestonbrown/helixscreen#1710). A read in
+            // progress leaves the evidence incomplete, so the insert edge
+            // holds its verdict for a later frame.
+            const helix::ace::TagRead tag_read = entry.tag_read;
+            helix::ams::SpoolEvidence evidence;
+            if (tag_read == helix::ace::TagRead::Identified) {
+                evidence.material = observed_material.value_or(std::string{});
+                evidence.color_rgb = observed_color;
+                evidence.tag_read_complete = true;
+            } else if (tag_read == helix::ace::TagRead::NoTag) {
+                evidence.tag_read_complete = true;
             }
+
+            // Insert-edge verdict. Must run BEFORE apply_resolved_lane so
+            // the check sees firmware-truth (not the resolved view); once a
+            // DifferentSpool clear has run, the lane declares nothing for
+            // those fields and apply_resolved_lane leaves them as firmware
+            // set them.
+            //
+            // First observation (no prev_slot_status_ entry) is a
+            // BASELINE and must never fire a clear, matching IFS/Snapmaker
+            // baseline semantics. Only call the helper when a prior status
+            // was already recorded for this slot.
+            auto prev_it = prev_slot_status_.find(idx);
+            if (prev_it != prev_slot_status_.end()) {
+                check_hardware_event_clear(slot, idx, prev_it->second, slot.status, evidence);
+            }
+            prev_slot_status_[idx] = slot.status;
+            // Remember the reading for the spool now in the bay, and keep
+            // it across the empty interval: the reading of the spool that
+            // left is the comparison side of the insert rule when the next
+            // one arrives. Only a frame carrying a read writes it: a
+            // no-read frame states hub memory, not what the reader got
+            // off the occupant, and overwriting with it would lose the
+            // comparison side while an insert is still pending. Must
+            // follow the check, which reads the previous entry.
+            if ((slot.status == SlotStatus::AVAILABLE || slot.status == SlotStatus::LOADED) &&
+                evidence.tag_read_complete) {
+                last_spool_evidence_[idx] = evidence;
+            }
+
+            // The hub reports an occupancy status and a colour. Neither is
+            // an identity reading, so the colour is the hub's own memory of
+            // what was last in the bay rather than proof of what is there.
+            //
+            // A frame that states no status for this bay files no sensed
+            // record: one ingest replaces a source's record whole, so an
+            // empty one would erase a live reading instead of repeating it.
+            // A status ACE does not recognise DOES file one, with `present`
+            // unset - the hub saying it does not know is news, and a record
+            // whose field is unset is the only way to retract a reading.
+            if (frame_states_status) {
+                helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+                sensed.present = observed_present;
+                helix::ams::ingest(lane_id(idx), sensed);
+            }
+
+            // The cache record is filed on every pass, with only what this
+            // frame stated in it. `slots` is one Klipper status field, so
+            // Moonraker sends the array whole or not at all and a frame
+            // that describes a bay describes all of it - there is no
+            // partial identity for a whole-record write to narrow. It also
+            // makes an absent sensed record provably a guard rather than a
+            // translation that did not run.
+            helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+            cache.color_rgb = observed_color;
+            cache.material = observed_material;
+            helix::ams::ingest(lane_id(idx), cache);
+            note_tag_frame_locked(idx, entry, observed_present);
+
+            // Layer user-configured overrides on top of firmware-reported
+            // data. Override wins for any non-default field - for ACE
+            // that includes color and material, since ACE hardware
+            // doesn't carry brand/spool_name/weights at all and the user
+            // edit is the authoritative source for color/material too.
+            // The REST poll brings every slot through here each
+            // kPollIntervalMs, so ACE names no slot to cached_slot_locked().
+            apply_resolved_lane(slot, idx);
+        }
+        if (tools_changed) {
+            // The driver names each slot's tool: publish the map in both
+            // directions, so the T badges show only where tool and spool
+            // numbers part.
+            publish_tool_map_locked();
         }
     }
 
     // The ACEPRO driver states each unit's link; a frame that does not restate it
     // leaves it as it was.
-    if (instance_objects_ && data.contains("connection_state") &&
-        data["connection_state"].is_string()) {
-        if (const auto linked =
-                ace_link_from_state(data["connection_state"].get_ref<const std::string&>())) {
-            unit_links_[unit_index] = *linked;
-            if (static_cast<size_t>(unit_index) < system_info_.units.size()) {
-                system_info_.units[static_cast<size_t>(unit_index)].connected = *linked;
-            }
+    if (instance_objects_ && d.linked) {
+        unit_links_[unit_index] = *d.linked;
+        if (static_cast<size_t>(unit_index) < system_info_.units.size()) {
+            system_info_.units[static_cast<size_t>(unit_index)].connected = *d.linked;
         }
     }
 
-    // Parse dryer state — either outer-key spelling (`dryer` or
-    // `dryer_status`), either nested key set, plus the top-level ambient
-    // `temp`. See helix::ace::apply_dryer_state.
+    // Either outer-key spelling, either nested key set, plus the top-level
+    // ambient `temp`. See helix::ace::read_dryer_state.
     DryerInfo& dryer = dryer_locked(unit_index);
-    helix::ace::apply_dryer_state(data, dryer);
+    d.dryer.apply(dryer);
 
     AmsUnit* env_unit = static_cast<size_t>(unit_index) < system_info_.units.size()
                             ? &system_info_.units[static_cast<size_t>(unit_index)]
@@ -1723,53 +1668,31 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
         }
         env_unit->environment->temperature_c = dryer.current_temp_c;
     }
-    if (env_unit != nullptr && data.contains("humidity") && data["humidity"].is_number()) {
+    if (env_unit != nullptr && d.humidity) {
         if (!env_unit->environment.has_value()) {
             env_unit->environment = EnvironmentData{};
         }
-        env_unit->environment->humidity_pct = data["humidity"].get<float>();
+        env_unit->environment->humidity_pct = *d.humidity;
         env_unit->environment->has_humidity = true;
     }
 
-    // Derive loaded slot state from slot statuses
-    // ValgACE doesn't have a top-level "loaded_slot" — infer from slot status
-    // If any slot is "loaded", that's the active one
-    if (env_unit != nullptr) {
-        for (int i = 0; i < static_cast<int>(env_unit->slots.size()); ++i) {
-            // Check the raw JSON for "loaded" status specifically
-            if (data.contains("slots") && data["slots"].is_array() &&
-                i < static_cast<int>(data["slots"].size())) {
-                const auto& sj = data["slots"][static_cast<size_t>(i)];
-                if (sj.contains("status") && sj["status"].is_string() &&
-                    sj["status"].get<std::string>() == "loaded") {
-                    seat_from_local_index_locked(env_unit->first_slot_global_index + i);
-                    break;
-                }
-            }
-        }
+    // ValgACE has no top-level "loaded_slot": the slot whose status reads
+    // "loaded" is the seated one.
+    if (env_unit != nullptr && d.first_loaded_entry &&
+        *d.first_loaded_entry < env_unit->slots.size()) {
+        seat_from_local_index_locked(env_unit->first_slot_global_index +
+                                     static_cast<int>(*d.first_loaded_entry));
     }
 
-    // Also handle explicit loaded_slot if present (future compatibility)
-    if (data.contains("loaded_slot") && data["loaded_slot"].is_number_integer()) {
-        seat_from_local_index_locked(data["loaded_slot"].get<int>());
+    if (d.loaded_slot) {
+        seat_from_local_index_locked(*d.loaded_slot);
     }
 
-    // Native Anycubic GoKlipper reports the loaded slot as a
-    // "current_filament" string of the form "<unitId>-<localIndex>" (e.g.
-    // "0-2" = local slot 2). An empty string or absent field means nothing is
-    // loaded — in that case leave current_slot as managed by load/unload logic
-    // (do NOT force -1 here).
-    if (data.contains("current_filament") && data["current_filament"].is_string()) {
-        const std::string cf = data["current_filament"].get<std::string>();
-        auto dash = cf.find('-');
-        if (!cf.empty() && dash != std::string::npos && dash + 1 < cf.size()) {
-            const auto local_index = helix::text_io::parse_leading<int>(cf.substr(dash + 1));
-            if (!local_index) {
-                spdlog::debug("[ACE] Failed to parse current_filament '{}'", cf);
-            } else if (*local_index >= 0) {
-                seat_from_local_index_locked(*local_index);
-            }
-        }
+    // Native GoKlipper's current_filament. An empty or absent one means nothing
+    // is loaded; current_slot then stays as load/unload left it rather than
+    // being forced to -1.
+    if (d.current_filament_slot) {
+        seat_from_local_index_locked(*d.current_filament_slot);
     }
 
     // ACEPRO driver: the manager object states the seat ONLY as
@@ -1777,9 +1700,9 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
     // nothing is loaded (-1) — so it must clear the seat too, or a TR/unload
     // would leave the previous slot reading loaded forever. Fourth and last
     // explicit signal; last one wins (#1069).
-    if (data.contains("current_index") && data["current_index"].is_number_integer()) {
+    if (d.current_index) {
         manager_states_seat_ = true;
-        seat_from_tool_locked(data["current_index"].get<int>());
+        seat_from_tool_locked(*d.current_index);
     } else if (instance_objects_ && manager_states_seat_ && seat_loaded_ &&
                system_info_.current_tool >= 0) {
         // An instance frame: the manager can name a tool before the unit
@@ -1788,32 +1711,32 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
         seat_from_tool_locked(system_info_.current_tool);
     }
 
-    apply_path_sensors_locked(data);
+    apply_path_sensors_locked(d.sensors);
 
     // After the seat, the sensors and the status-derived action, so a
     // toolchange the driver started itself still reads as LOADING over a unit
     // status that stays "ready" through it, in the phase the hub sensor shows.
-    apply_target_index_locked(data);
+    apply_target_index_locked(d.target_index);
 
     // The master switch. Presence is the capability, so a rig without one is
     // left reporting no bypass rather than one that is permanently off.
-    if (data.contains("ace_pro_enabled") && data["ace_pro_enabled"].is_boolean()) {
+    if (d.ace_pro_enabled) {
         ace_pro_enabled_seen_ = true;
-        ace_pro_enabled_ = data["ace_pro_enabled"].get<bool>();
+        ace_pro_enabled_ = *d.ace_pro_enabled;
         system_info_.supports_bypass = !bypass_on_macro_.empty() && !bypass_off_macro_.empty();
     }
 
-    if (auto v = ams::read_integer_field(data, "feed_assist_slot")) {
-        feed_assist_slots_[unit_index] = *v;
+    if (d.feed_assist_slot) {
+        feed_assist_slots_[unit_index] = *d.feed_assist_slot;
     }
 
-    if (data.contains("endless_spool_enabled") && data["endless_spool_enabled"].is_boolean()) {
+    if (d.endless_spool_enabled) {
         endless_spool_seen_ = true;
-        endless_spool_on_ = data["endless_spool_enabled"].get<bool>();
+        endless_spool_on_ = *d.endless_spool_enabled;
         system_info_.endless_spool_enabled = endless_spool_on_;
     }
-    if (auto v = ams::read_field<std::string>(data, "endless_spool_match_mode")) {
-        endless_spool_mode_ = std::move(*v);
+    if (d.endless_spool_match_mode) {
+        endless_spool_mode_ = *d.endless_spool_match_mode;
     }
 
     // All four seated signals (the ValgACE "loaded" scan, loaded_slot, native
@@ -2175,23 +2098,23 @@ void AmsBackendAce::on_vendor_state(const json& payload) {
 // ============================================================================
 
 void AmsBackendAce::parse_info_response(const json& data) {
+    const helix::ace::InfoResponse info = helix::ace::parse_info_response(data);
     std::lock_guard<std::mutex> lock(mutex_);
 
-    if (data.contains("model") && data["model"].is_string()) {
+    if (info.names_model) {
         system_info_.type_name = "ACE";
     }
 
-    if (auto v = ams::read_field<std::string>(data, "version")) {
-        system_info_.version = std::move(*v);
+    if (info.version) {
+        system_info_.version = *info.version;
     }
 
-    if (data.contains("slot_count") && data["slot_count"].is_number_integer()) {
-        int slot_count = data["slot_count"].get<int>();
-
-        if (slot_count < 0 || slot_count > 16) {
-            spdlog::warn("[ACE] Ignoring invalid slot_count: {}", slot_count);
-            return;
-        }
+    if (info.refused_slot_count) {
+        spdlog::warn("[ACE] Ignoring invalid slot_count: {}", *info.refused_slot_count);
+        return;
+    }
+    if (info.slot_count) {
+        const int slot_count = *info.slot_count;
 
         system_info_.total_slots = slot_count;
 
@@ -2220,66 +2143,49 @@ void AmsBackendAce::parse_info_response(const json& data) {
 }
 
 bool AmsBackendAce::parse_status_response(const json& data) {
+    const helix::ace::StatusResponse r = helix::ace::parse_status_response(data);
     std::lock_guard<std::mutex> lock(mutex_);
     bool changed = false;
 
     // The ACEPRO driver's /server/ace/status envelope carries model + firmware, so the
-    // backend can identify the hardware without /server/ace/info (#1069). Match
-    // the object-path key names (`model`, `firmware`).
-    if (data.contains("model") && data["model"].is_string()) {
+    // backend can identify the hardware without /server/ace/info (#1069).
+    if (r.model) {
         system_info_.type_name = "ACE";
-        auto model = data["model"].get<std::string>();
         if (!system_info_.units.empty()) {
-            system_info_.units[0].name = model;
+            system_info_.units[0].name = *r.model;
         }
     }
-    if (auto v = ams::read_field<std::string>(data, "firmware")) {
-        system_info_.version = std::move(*v);
+    if (r.firmware) {
+        system_info_.version = *r.firmware;
     }
 
-    if (data.contains("loaded_slot") && data["loaded_slot"].is_number_integer()) {
-        changed |= seat_from_local_index_locked(data["loaded_slot"].get<int>());
+    if (r.loaded_slot) {
+        changed |= seat_from_local_index_locked(*r.loaded_slot);
     }
 
-    if (data.contains("ace_manager")) {
+    if (r.names_manager) {
         instance_commands_ = true;
     }
-    if (data.contains("instance_index") && data["instance_index"].is_number_integer() &&
-        data["instance_index"].get<int>() >= 0) {
-        rest_instance_ = data["instance_index"].get<int>();
+    if (r.instance_index) {
+        rest_instance_ = *r.instance_index;
     }
 
     // The ACEPRO driver's /status states the seat through the manager's
     // current_index instead of loaded_slot — same semantics, global tool
     // index with -1 meaning nothing loaded (#1069).
-    if (data.contains("ace_manager") && data["ace_manager"].is_object() &&
-        data["ace_manager"].contains("current_index") &&
-        data["ace_manager"]["current_index"].is_number_integer()) {
+    if (r.manager_current_index) {
         manager_states_seat_ = true;
-        apply_path_sensors_locked(data["ace_manager"]);
-        changed |= seat_from_tool_locked(data["ace_manager"]["current_index"].get<int>());
+        apply_path_sensors_locked(r.manager_sensors);
+        changed |= seat_from_tool_locked(*r.manager_current_index);
     }
 
-    // The ValgACE bridge names the action field `action`; the ACEPRO driver names it
-    // `status` ("ready"/etc.) with the same loading/unloading/error
-    // vocabulary the object path maps (#1069).
-    std::string action_str;
-    if (auto v = ams::read_field<std::string>(data, "action")) {
-        action_str = std::move(*v);
-    } else if (auto v = ams::read_field<std::string>(data, "status")) {
-        action_str = std::move(*v);
-    }
-    // The ValgACE bridge names the action field `action`; the ACEPRO driver names it
-    // `status` ("ready"/etc.) with the same loading/unloading/error
-    // vocabulary the object path maps (#1069). A bridge `action` is
-    // authoritative; the ACEPRO driver's fallback reads the UNIT's status, which can
-    // stay "ready" through a toolchange (do_load_filament sets LOADING
-    // optimistically for exactly that case), so an IDLE resolved from it
-    // must not demote an in-flight local load/unload.
-    const bool action_from_unit_status = !data.contains("action");
-    if (!action_str.empty()) {
-        const AmsAction action = ams_action_from_string(action_str);
-        const bool demotes_in_flight_op = action_from_unit_status && action == AmsAction::IDLE &&
+    // A bridge `action` is authoritative; the ACEPRO driver's fallback reads
+    // the UNIT's status, which can stay "ready" through a toolchange
+    // (do_load_filament sets LOADING optimistically for exactly that case), so
+    // an IDLE resolved from it must not demote an in-flight local load/unload.
+    if (r.action) {
+        const AmsAction action = *r.action;
+        const bool demotes_in_flight_op = r.action_from_unit_status && action == AmsAction::IDLE &&
                                           (system_info_.action == AmsAction::LOADING ||
                                            system_info_.action == AmsAction::UNLOADING);
         if (!demotes_in_flight_op && action != system_info_.action) {
@@ -2289,11 +2195,11 @@ bool AmsBackendAce::parse_status_response(const json& data) {
     }
 
     // After the action parse, for the same reason as the object path.
-    if (data.contains("ace_manager") && data["ace_manager"].is_object()) {
-        changed |= apply_target_index_locked(data["ace_manager"]);
+    if (r.manager_object) {
+        changed |= apply_target_index_locked(r.manager_target_index);
     }
 
-    helix::ace::apply_dryer_state(data, dryer_locked(0));
+    r.dryer.apply(dryer_locked(0));
 
     // /status owns loaded_slot but never touches the slot vector; /slots owns
     // the slot vector but carries no seated field. Both ends re-derive the
@@ -2304,19 +2210,19 @@ bool AmsBackendAce::parse_status_response(const json& data) {
 }
 
 bool AmsBackendAce::parse_slots_response(const json& data) {
+    const helix::ace::SlotArray slots = helix::ace::read_slots(data);
     std::lock_guard<std::mutex> lock(mutex_);
     bool changed = false;
 
-    if (!data.contains("slots") || !data["slots"].is_array()) {
+    if (slots.refused_size > 0) {
+        spdlog::warn("[ACE] Ignoring excessive slot count: {}", slots.refused_size);
+        return false;
+    }
+    if (!slots.entries) {
         return false;
     }
 
-    const auto& slots_data = data["slots"];
-
-    if (slots_data.size() > 16) {
-        spdlog::warn("[ACE] Ignoring excessive slot count: {}", slots_data.size());
-        return false;
-    }
+    const auto& slots_data = *slots.entries;
 
     if (system_info_.units.empty()) {
         system_info_.units.emplace_back();
@@ -2341,32 +2247,26 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
 
     bool tools_changed = false;
     for (size_t i = 0; i < slots_data.size(); ++i) {
-        const auto& slot_json = slots_data[i];
-
-        if (!slot_json.is_object()) {
+        if (!slots_data[i]) {
             continue;
         }
+        const helix::ace::SlotDelta& entry = *slots_data[i];
 
         auto& slot = unit.slots[i];
 
         slot.slot_index = static_cast<int>(i);
         slot.global_index = static_cast<int>(i);
 
-        changed |= note_park_state_locked(static_cast<int>(i), slot_json);
-        const int tool =
-            helix::ace::read_slot_tool(slot_json, kMaxUnits * kSlotsPerUnit).value_or(-1);
-        tools_changed |= slot.mapped_tool != tool;
-        slot.mapped_tool = tool;
+        changed |= note_park_state_locked(static_cast<int>(i), entry.park_state);
+        tools_changed |= slot.mapped_tool != entry.tool;
+        slot.mapped_tool = entry.tool;
 
-        const bool states_status = slot_json.contains("status") && slot_json["status"].is_string();
+        const bool states_status = entry.status.has_value();
         std::optional<bool> observed_present;
         if (states_status) {
-            // Mirror the object path exactly via the shared vocabulary map:
-            // this driver emits `ready` (and can emit `unknown`) (#1069).
-            SlotStatus status =
-                helix::ace::slot_status_from_string(slot_json["status"].get<std::string>());
+            const SlotStatus status = *entry.status;
             observed_present = slot_status_reports_filament(status);
-            note_driver_ready_locked(slot.global_index, slot_json["status"].get<std::string>());
+            note_driver_ready_locked(slot.global_index, *entry.status_word);
 
             if (status != slot.status) {
                 slot.status = status;
@@ -2379,17 +2279,12 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
         const uint32_t shown_color = slot.color_rgb;
         const std::string shown_material = slot.material;
 
-        // Parse color: handle both hex string and RGB array formats
-        std::optional<uint32_t> observed_color;
-        if (slot_json.contains("color")) {
-            observed_color = helix::ace::parse_slot_color(slot_json["color"]);
-            if (observed_color) {
-                slot.color_rgb = *observed_color;
-            }
+        const std::optional<uint32_t>& observed_color = entry.color;
+        if (observed_color) {
+            slot.color_rgb = *observed_color;
         }
 
-        // Material — see read_slot_material (one reader for both producers).
-        const std::optional<std::string> material = helix::ace::read_slot_material(slot_json);
+        const std::optional<std::string>& material = entry.material;
         if (material) {
             slot.material = *material;
         }
@@ -2411,9 +2306,8 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
         cache.material = material;
         helix::ams::ingest(lane_id(idx), cache);
 
-        apply_hub_temps_locked(idx, slot, slot_json);
-        note_tag_frame_locked(idx, helix::ace::read_tag_state(slot_json), slot_json, material,
-                              observed_color, observed_present);
+        apply_hub_temps_locked(idx, slot, entry);
+        note_tag_frame_locked(idx, entry, observed_present);
 
         // A user's declaration outranks the hub's memory on this path too.
         apply_resolved_lane(slot, idx);

@@ -127,6 +127,18 @@ struct OsWifiLink {
 OsWifiLink probe_os_wifi_link(const std::string& sysfs_root = "/sys",
                               const std::string& proc_root = "/proc");
 
+/**
+ * @brief The routable IPv4 address the kernel holds on an interface
+ *
+ * Reads the live socket table (getifaddrs). Link-local (169.254/16) and
+ * loopback (127/8) addresses are not routable and are skipped.
+ *
+ * @param iface Interface name (e.g. "wlan0")
+ * @return Dotted-quad address, or "" when the interface has none (always ""
+ *         on macOS and ESP32, which have no such table here)
+ */
+std::string iface_global_ipv4(const std::string& iface);
+
 } // namespace wifi
 } // namespace ui
 } // namespace helix

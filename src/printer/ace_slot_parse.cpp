@@ -131,9 +131,28 @@ std::optional<uint32_t> parse_slot_color(const json& color_val) {
     return std::nullopt;
 }
 
-void apply_dryer_state(const json& data, DryerInfo& out) {
+void DryerDelta::apply(DryerInfo& dryer) const {
+    if (active) {
+        dryer.active = *active;
+    }
+    if (current_temp_c) {
+        dryer.current_temp_c = *current_temp_c;
+    }
+    if (target_temp_c) {
+        dryer.target_temp_c = *target_temp_c;
+    }
+    if (duration_min) {
+        dryer.duration_min = *duration_min;
+    }
+    if (remaining_min) {
+        dryer.remaining_min = *remaining_min;
+    }
+}
+
+DryerDelta read_dryer_state(const json& data) {
+    DryerDelta d;
     if (!data.is_object()) {
-        return;
+        return d;
     }
     // ACE states its temperature top-level (`temp`, the hub's ambient reading
     // near the dryer) - the only reading the Klipper-object spellings carry -
@@ -141,7 +160,7 @@ void apply_dryer_state(const json& data, DryerInfo& out) {
     // states a current temp inside the dryer object is the more specific
     // reading and wins.
     if (auto v = ams::read_field<float>(data, "temp")) {
-        out.current_temp_c = *v;
+        d.current_temp_c = *v;
     }
 
     const json* dryer = nullptr;
@@ -151,38 +170,43 @@ void apply_dryer_state(const json& data, DryerInfo& out) {
         dryer = &data["dryer_status"];
     }
     if (dryer == nullptr) {
-        return;
+        return d;
     }
 
     // Klipper-object spelling: {status, target_temp, duration, remain_time}
     if (dryer->contains("status") && (*dryer)["status"].is_string()) {
         const std::string ds = (*dryer)["status"].get<std::string>();
-        out.active = (ds != "stop" && ds != "idle" && !ds.empty());
+        d.active = (ds != "stop" && ds != "idle" && !ds.empty());
     }
     if (dryer->contains("target_temp") && (*dryer)["target_temp"].is_number()) {
-        out.target_temp_c = (*dryer)["target_temp"].get<float>();
+        d.target_temp_c = (*dryer)["target_temp"].get<float>();
     }
     if (dryer->contains("duration") && (*dryer)["duration"].is_number()) {
-        out.duration_min = (*dryer)["duration"].get<int>();
+        d.duration_min = (*dryer)["duration"].get<int>();
     }
     if (dryer->contains("remain_time") && (*dryer)["remain_time"].is_number()) {
-        out.remaining_min = (*dryer)["remain_time"].get<int>();
+        d.remaining_min = (*dryer)["remain_time"].get<int>();
     }
 
     // REST-bridge spelling: {active, current_temp, remaining_minutes,
     // duration_minutes}
     if (dryer->contains("active") && (*dryer)["active"].is_boolean()) {
-        out.active = (*dryer)["active"].get<bool>();
+        d.active = (*dryer)["active"].get<bool>();
     }
     if (dryer->contains("current_temp") && (*dryer)["current_temp"].is_number()) {
-        out.current_temp_c = (*dryer)["current_temp"].get<float>();
+        d.current_temp_c = (*dryer)["current_temp"].get<float>();
     }
     if (dryer->contains("remaining_minutes") && (*dryer)["remaining_minutes"].is_number_integer()) {
-        out.remaining_min = (*dryer)["remaining_minutes"].get<int>();
+        d.remaining_min = (*dryer)["remaining_minutes"].get<int>();
     }
     if (dryer->contains("duration_minutes") && (*dryer)["duration_minutes"].is_number_integer()) {
-        out.duration_min = (*dryer)["duration_minutes"].get<int>();
+        d.duration_min = (*dryer)["duration_minutes"].get<int>();
     }
+    return d;
+}
+
+void apply_dryer_state(const json& data, DryerInfo& out) {
+    read_dryer_state(data).apply(out);
 }
 
 std::optional<AmsError> check_dryer_request(const DryerInfo& dryer, float temp_c,

@@ -43,29 +43,6 @@ class CfsTestAccess;
 
 namespace helix::printer {
 
-/// Static CFS utility functions (code stripping, color parsing, TNN
-/// addressing). The material table this class used to own was retired in
-/// favor of FilamentCatalog::load_codes("cfs") — see AmsBackendCfs::parse_box_status.
-class CfsMaterialDb {
-  public:
-    /// Strip the firmware material_type brand-prefix digit (6-char code =
-    /// prefix + 5-char catalog id): "101001" -> "01001" (K2, Creality prefix),
-    /// "000003" -> "00003" (K1, Generic prefix), sentinels -> ""
-    static std::string strip_code(const std::string& code);
-
-    /// Parse CFS color: "0RRGGBB" -> 0xRRGGBB, sentinels -> 0x808080
-    static uint32_t parse_color(const std::string& color_str);
-
-    /// Global slot index -> TNN name: 0 -> "T1A", 4 -> "T2A"
-    static std::string slot_to_tnn(int global_index);
-
-    /// TNN name -> global slot index: "T1A" -> 0, "T2A" -> 4, invalid -> -1
-    static int tnn_to_slot(const std::string& tnn);
-
-    /// Default color for unknown/sentinel slots
-    static constexpr uint32_t kDefaultColor = 0x808080;
-};
-
 /// Decode CFS key8xx error codes into human-readable AmsAlerts
 class CfsErrorDecoder {
   public:
@@ -508,21 +485,10 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     ///
     /// `own_labels` is the caller's snapshot of pushed_material_codes_ (nullptr
     /// when unavailable, e.g. from tests). It only ever REMOVES a false tag
-    /// signal — see parse_stock_box_status.
+    /// signal — see cfs::parse_stock_box.
     static AmsSystemInfo
     parse_box_status(const nlohmann::json& box_json,
                      const std::unordered_map<int, std::string>* own_labels = nullptr);
-
-    /// Stock (`T1`..`T4`) parse. Split out of parse_box_status when the flat
-    /// schema arrived; behavior unchanged.
-    ///
-    /// `own_labels` maps global slot index -> the material_type code THIS app
-    /// wrote to that bay. Firmware echoes it back forever, so without it a
-    /// user's own label reads as RFID tag payload and suppresses the untagged
-    /// presence fallback. Passing nullptr restores the pre-#1077-fix reading.
-    static AmsSystemInfo
-    parse_stock_box_status(const nlohmann::json& box_json,
-                           const std::unordered_map<int, std::string>* own_labels = nullptr);
 
     /// Flat (`slots[]`) parse — community Kalico box.py reimplementations.
     static AmsSystemInfo parse_flat_box_status(const nlohmann::json& box_json);
@@ -540,22 +506,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// spool as a swap at its first poll. Fewer or more pipes is already
     /// current or a value no build of ours wrote, and is left as found.
     static std::string normalize_legacy_flat_fingerprint(const std::string& stored);
-
-    /// The brand a stock bay's `vender` entry names, for a bay whose material
-    /// code the catalog does not resolve. A tagged bay's entry is the tag's
-    /// whole 40-character record, which names its supplier rather than being
-    /// a brand: Creality's code reads as Creality and any other as no brand.
-    /// `"unknown"` (a seated spool the reader did not resolve) reads as
-    /// Creality, a sentinel as no brand, and anything else is the box's own
-    /// vendor name.
-    [[nodiscard]] static std::string brand_from_vender(const std::string& vender);
-
-    /// The Spoolman spool a stock bay's `vender` tag record names, or nullopt.
-    /// Tag writers such as CFTag put the id in the record's serial field
-    /// (chars 29-34) as six zero-padded decimal digits. Creality writes its
-    /// factory serial 000001 there, so 1 names no spool, and neither does 0,
-    /// a serial that is not all digits, or anything but a whole record.
-    [[nodiscard]] static std::optional<int> tag_record_spoolman_id(std::string_view vender);
 
     /// The schema whose feed builds a fingerprint of this shape, or nullopt
     /// when either could have: stock joins the raw material_type code and

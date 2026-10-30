@@ -71,6 +71,26 @@ enum class TagRead {
 /// anything else (including "unknown") -> UNKNOWN.
 [[nodiscard]] SlotStatus slot_status_from_string(const std::string& status_str);
 
+/// What one status-shaped object states about its dryer, under either
+/// spelling: `dryer` (ValgACE/native) or `dryer_status` (ACEPRO driver,
+/// multiACE), each with either nested key set ({status, target_temp, duration,
+/// remain_time} or {active, current_temp, remaining_minutes, duration_minutes}),
+/// plus the top-level ambient `temp`. Where both key sets state a field, the
+/// second set's value is the reading.
+struct DryerDelta {
+    std::optional<bool> active;
+    /// A dryer current temp, else the ambient `temp`.
+    std::optional<float> current_temp_c;
+    std::optional<float> target_temp_c;
+    std::optional<int> duration_min;
+    std::optional<int> remaining_min;
+
+    /// Overlays the fields this delta carries; an omitted field keeps its value.
+    void apply(DryerInfo& dryer) const;
+};
+
+[[nodiscard]] DryerDelta read_dryer_state(const nlohmann::json& data);
+
 /// Fold one status-shaped object's dryer state into @p dryer, under either
 /// spelling: `dryer` (ValgACE/native) or `dryer_status` (ACEPRO driver,
 /// multiACE), each with either nested key set ({status, target_temp, duration,

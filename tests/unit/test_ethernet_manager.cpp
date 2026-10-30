@@ -260,3 +260,66 @@ TEST_CASE("Ethernet Manager: IP address and info consistency", "[network][integr
         REQUIRE(ip.empty());
     }
 }
+
+TEST_CASE("Ethernet link: an address on a down link is not connected", "[network][ethernet_link]") {
+    // The address outlives the cable; operstate is what says the link is gone.
+    CHECK_FALSE(helix::ethernet::is_link_connected(true, "down"));
+    CHECK_FALSE(helix::ethernet::is_link_connected(false, "down"));
+    CHECK_FALSE(helix::ethernet::is_link_connected(false, "up"));
+
+    CHECK(helix::ethernet::is_link_connected(true, "up"));
+    // Drivers that never report link state leave operstate at unknown or dormant.
+    CHECK(helix::ethernet::is_link_connected(true, "unknown"));
+    CHECK(helix::ethernet::is_link_connected(true, "dormant"));
+    CHECK(helix::ethernet::is_link_connected(true, ""));
+}
+
+TEST_CASE("Ethernet selection reports the interface that carries traffic",
+          "[network][ethernet_link]") {
+    using helix::ethernet::InterfaceState;
+    using helix::ethernet::select_interface;
+
+    SECTION("no interfaces") {
+        const EthernetInfo info = select_interface({});
+        CHECK_FALSE(info.connected);
+        CHECK(info.status == "No Ethernet interface");
+    }
+
+    SECTION("a lone unplugged port with a leftover address is no cable, with no address") {
+        const EthernetInfo info =
+            select_interface({{"eth0", "192.168.1.50", "aa:bb:cc:dd:ee:ff", "down"}});
+        CHECK(info.interface == "eth0");
+        CHECK_FALSE(info.connected);
+        CHECK(info.status == "No cable");
+        CHECK(info.ip_address.empty());
+        CHECK(info.mac_address == "aa:bb:cc:dd:ee:ff");
+    }
+
+    SECTION("an unknown-state port with an address is connected") {
+        const EthernetInfo info = select_interface({{"eth0", "192.168.1.50", "", "unknown"}});
+        CHECK(info.connected);
+        CHECK(info.status == "Connected");
+        CHECK(info.ip_address == "192.168.1.50");
+    }
+
+    SECTION("a live port wins over an earlier unplugged one that kept its address") {
+        const EthernetInfo info = select_interface(
+            {{"eth0", "192.168.1.50", "", "down"}, {"eth1", "10.0.0.7", "", "unknown"}});
+        CHECK(info.interface == "eth1");
+        CHECK(info.connected);
+        CHECK(info.ip_address == "10.0.0.7");
+    }
+
+    SECTION("an up port with an address wins over an earlier unknown-state one") {
+        const EthernetInfo info = select_interface(
+            {{"eth0", "192.168.1.50", "", "unknown"}, {"eth1", "10.0.0.7", "", "up"}});
+        CHECK(info.interface == "eth1");
+        CHECK(info.connected);
+    }
+
+    SECTION("a port with no address is no connection") {
+        const EthernetInfo info = select_interface({{"eth0", "", "", "up"}});
+        CHECK_FALSE(info.connected);
+        CHECK(info.status == "No connection");
+    }
+}
