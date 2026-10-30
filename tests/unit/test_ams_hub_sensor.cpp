@@ -121,7 +121,7 @@ TEST_CASE("AmsUnit hub sensor fields default to false", "[ams][hub_sensor]") {
 // AFC per-unit hub sensor — single unit
 // ============================================================================
 
-TEST_CASE("AFC single-unit: parse_afc_hub stores per-hub state", "[ams][hub_sensor][afc]") {
+TEST_CASE("AFC single-unit: apply_hub stores per-hub state", "[ams][hub_sensor][afc]") {
     helix::HubSensorTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
     helper.set_discovered_hubs({"Turtle_1"});

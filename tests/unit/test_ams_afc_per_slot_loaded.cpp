@@ -14,7 +14,7 @@
  * offered Recover on a lane that only reached the hub.
  *
  * Backends now declare per-slot authority explicitly; AFC claims it, so the
- * predicate reads SlotStatus::LOADED — which parse_afc_stepper already derives
+ * predicate reads SlotStatus::LOADED — which apply_lane_status already derives
  * from tool_loaded — instead of the aggregate.
  *
  * Fixture values are the live BoxTurtle at 192.168.1.112: lane1 tool_loaded
@@ -39,7 +39,7 @@ using namespace helix;
 namespace helix {
 
 /// Feeds the real Moonraker status path so the parse chain under test is the
-/// production one (parse_afc_state -> parse_afc_stepper -> parse_afc_extruder).
+/// production one (apply_afc_state -> apply_lane_status -> apply_extruder_object).
 class AfcPerSlotLoadedHelper : public AmsBackendAfc {
   public:
     AfcPerSlotLoadedHelper() : AmsBackendAfc(nullptr, nullptr) {

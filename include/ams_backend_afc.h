@@ -4,6 +4,7 @@
 #pragma once
 
 #include "afc_config_manager.h"
+#include "afc_status_parse.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "error_event.h"
@@ -58,22 +59,6 @@ class AfcTestAccess;
  * - AFC_RESET               - Reset/re-prep all lanes
  * - T{n}                   - Tool change (unload + load)
  */
-/**
- * @brief Per-extruder info for toolchanger configurations
- *
- * When AFC detects a toolchanger (num_extruders > 1), the webhook status
- * includes per-extruder data: which lane is loaded and which lanes can
- * feed each extruder.
- */
-struct AfcExtruderInfo {
-    std::string name;                         ///< Extruder name ("extruder", "extruder1")
-    std::string lane_loaded;                  ///< Currently loaded lane (or empty)
-    std::vector<std::string> available_lanes; ///< Lanes that can feed this extruder
-    float tool_stn = 72.0f;                   ///< Sensor-to-nozzle distance (mm)
-    float tool_stn_unload = 100.0f;           ///< Unload retraction distance (mm)
-    float tool_sensor_after_extruder = 0.0f;  ///< Post-sensor clear distance (mm)
-};
-
 /**
  * @brief Per-lane sensor readings straight from AFC's status lanes section
  *
@@ -258,7 +243,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         // than synthesising a prerequisite operation they never asked for (#1229).
         t.allows_implicit_chaining = false;
         // AFC reports load state per lane (AFC_stepper.<lane>.tool_loaded), which
-        // parse_afc_stepper() turns into SlotStatus::LOADED. That beats deriving a
+        // apply_lane_status() turns into SlotStatus::LOADED. That beats deriving a
         // per-lane answer from the aggregate current_slot pointer, which we resolve
         // from several sources and which goes null mid-toolchange (#1194).
         t.has_per_slot_loaded_authority = true;
@@ -656,7 +641,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // AFC's records would be ingested as if the user had authored them.
     //
     // This is also what restores retention across an eject now that
-    // parse_afc_stepper honours AFC's clears: firmware truth clears, and the
+    // apply_lane_status honours AFC's clears: firmware truth clears, and the
     // override re-supplies the identity the user attached.
     static constexpr const char* kOverrideNamespace = "helix-screen-afc-overrides";
     /// Store on the SHARED lane_data namespace, used only by
@@ -691,7 +676,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      *        Narrower than the flag above, which a named current_load also sets.
      *        Consumed only by apply_mount_state().
      */
-    void parse_afc_state(const nlohmann::json& afc_data, std::string& deferred_error_event,
+    void apply_afc_state(const afc::StateDelta& afc, std::string& deferred_error_event,
                          bool& current_slot_set_by_afc_state, bool& afc_stated_unloaded);
 
     /**
@@ -742,7 +727,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     static constexpr int kLoadUnloadTimeoutSeconds = 180;
 
     /// Start of the current action, stamped once per status frame in
-    /// parse_afc_state() when the action changed across the whole frame.
+    /// apply_afc_state() when the action changed across the whole frame.
     std::chrono::steady_clock::time_point action_start_time_{std::chrono::steady_clock::now()};
 
     /// Raw AFC state string most recently applied by apply_state_string().
@@ -928,13 +913,13 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     [[nodiscard]] int tool_index_for_extruder_unlocked(const std::string& ext_name) const;
 
     /**
-     * @brief Parse lane data from database response
+     * @brief Apply a lane_data payload's records to the slots they name
      *
-     * Processes the lane_data JSON object and updates system_info_.gates.
-     *
-     * @param lane_data JSON object containing lane configurations
+     * A record keyed by lane name applies to that lane; one keyed T(n) applies
+     * through a firmware-asserted tool mapping, and the payload parks until one
+     * exists. Caller must hold mutex_.
      */
-    void parse_lane_data(const nlohmann::json& lane_data);
+    void apply_lane_data(const std::vector<afc::LaneDataRecord>& records);
 
     /**
      * @brief Detect AFC version by querying afc-install database namespace
@@ -943,19 +928,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      * contains version information. Sets afc_version_ and capability flags.
      */
     void detect_afc_version();
-
-    /**
-     * @brief Extract the payload of a server.database.get_item reply
-     *
-     * send_jsonrpc delivers the full JSON-RPC envelope, so the payload lives at
-     * result.value. Strict about that shape: a payload is an arbitrary object,
-     * so it cannot be told apart from an envelope in general. Replies obtained
-     * via IMoonrakerAPI::database_get_item are already unwrapped and must not be
-     * passed here.
-     *
-     * @return the payload, or a null json when absent
-     */
-    static const nlohmann::json& database_item_value(const nlohmann::json& response);
 
     /**
      * @brief Apply an afc-install database reply (sets version + capability flags)
@@ -998,24 +970,20 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     bool apply_lane_data_response(const nlohmann::json& response);
 
     /**
-     * @brief Parse AFC_stepper lane object for sensor states and filament info
-     *
-     * Caller passes the slot index directly (the enclosing loop already knows
-     * it), so this function does not re-resolve the lane name through the
-     * SlotRegistry hashtable. Avoids a hashtable find on every status update.
+     * @brief Apply one AFC_stepper / AFC_lane status object to its lane
      *
      * @param slot_index Registry slot index for this lane (from enclosing loop)
      * @param lane_name Lane identifier (e.g., "lane1"), used for logging and
      *                  lane_hub_routing_ keying
-     * @param data JSON object from AFC_stepper lane{N}
+     * @param data The parsed lane object
      */
-    void parse_afc_stepper(int slot_index, const std::string& lane_name,
-                           const nlohmann::json& data);
+    void apply_lane_status(int slot_index, const std::string& lane_name,
+                           const afc::LaneStatusDelta& data);
 
     /**
      * @brief Push a retained Spoolman binding back into AFC (#1289)
      *
-     * Called from parse_afc_stepper on the empty -> loaded EDGE only. With
+     * Called from apply_lane_status on the empty -> loaded EDGE only. With
      * "Keep Spool Info on Eject" on, AFC's own remember_spool = false means
      * firmware dropped the lane's link on eject while our override kept the
      * identity — re-inserting the spool would paint the retained id here
@@ -1051,28 +1019,19 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      */
     void invalidate_broken_binding(int slot_index, int firmware_spool_id);
 
-    /**
-     * @brief Parse AFC_hub object for per-hub sensor state
-     *
-     * @param hub_name Name of the hub (e.g., "Turtle_1")
-     * @param data JSON object from AFC_hub
-     */
-    void parse_afc_hub(const std::string& hub_name, const nlohmann::json& data);
+    /// Record one AFC_hub object's sensor and bowden length, and mirror the
+    /// sensor onto the unit that owns the hub. @pre mutex_ held.
+    void apply_hub(const std::string& hub_name, const afc::HubDelta& data);
 
     /**
-     * @brief Parse AFC_buffer object for buffer health and fault data
+     * @brief Accumulate one AFC_buffer object into buffer_health_[buffer_name]
      *
-     * Extracts fault_detection_enabled, distance_to_fault, state, the multiplier trio
-     * and the lane list from the buffer status object, accumulating them into
-     * buffer_health_[buffer_name] — Moonraker sends deltas, so absent fields must
-     * leave the previous reading alone. Then re-derives the unit-level view via
-     * apply_buffer_health_to_units(); a buffer sits between hub and toolhead, so its
-     * health belongs to the unit, not to a slot.
-     *
-     * @param buffer_name Name of the buffer (e.g., "Turtle_1")
-     * @param data JSON object from AFC_buffer
+     * Moonraker sends deltas, so absent fields leave the previous reading alone.
+     * Then re-derives the unit-level view via apply_buffer_health_to_units(); a
+     * buffer sits between hub and toolhead, so its health belongs to the unit,
+     * not to a slot. @pre mutex_ held.
      */
-    void parse_afc_buffer(const std::string& buffer_name, const nlohmann::json& data);
+    void apply_buffer(const std::string& buffer_name, const afc::BufferDelta& data);
 
     /**
      * @brief Re-attach every known buffer's health to the unit that owns its lanes.
@@ -1087,10 +1046,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      */
     void apply_buffer_health_to_units();
 
-    /// Record the temperature/humidity an OpenAMS sensor object reports in
-    /// @p params and re-attach it to its unit. Returns true when a frame carried one.
-    /// @pre mutex_ held.
-    bool parse_oams_environment(const nlohmann::json& params);
+    /// Record the OpenAMS sensor readings a frame carried and re-attach them to
+    /// their units. Returns true when there was one. @pre mutex_ held.
+    bool apply_oams_environment(const std::vector<afc::OamsEnvironmentReading>& readings);
 
     /// Attach oams_env_ to the OpenAMS unit each reading belongs to, re-derived
     /// like buffer health because reorganize_slots() rebuilds every AmsUnit.
@@ -1122,23 +1080,20 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     void apply_configfile_topology(ConfigfileTopology topo);
 
     /**
-     * @brief Parse AFC_extruder object for toolhead sensor states
+     * @brief Apply one AFC_extruder object: toolhead sensors, tool state, and
+     *        the lane it holds when it is the active tool
      *
      * @param ext_name Klipper extruder name (e.g. "extruder", "extruder1")
-     * @param data JSON object from AFC_extruder
      */
-    void parse_afc_extruder(const std::string& ext_name, const nlohmann::json& data);
+    void apply_extruder_object(const std::string& ext_name, const afc::ExtruderObjectDelta& data);
 
     /**
-     * @brief Parse a unit-level Klipper object (AFC_BoxTurtle, AFC_OpenAMS)
+     * @brief Apply a unit-level Klipper object (AFC_BoxTurtle, AFC_OpenAMS)
      *
-     * Reads lanes[], extruders[], hubs[], buffers[] arrays from the unit object
-     * and derives topology (PARALLEL vs HUB) based on hub/extruder counts.
-     *
-     * @param unit_info The AfcUnitInfo to populate
-     * @param data JSON object from the unit-level Klipper object
+     * Stores its lanes, extruders, hubs and buffers, re-derives the unit's
+     * topology, and reorganizes once every unit has lanes.
      */
-    void parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann::json& data);
+    void apply_unit_object(AfcUnitInfo& unit_info, const afc::UnitObjectDelta& data);
 
     /**
      * @brief Rebuild unit_lane_map_ from unit_infos_ and reorganize slots
@@ -1187,7 +1142,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      * multi-unit hardware topology. Preserves existing slot data
      * (colors, materials, etc.) during reorganization.
      *
-     * Called from parse_afc_state() when unit_lane_map_ is populated
+     * Called from apply_afc_state() when unit_lane_map_ is populated
      * and slots are already initialized.
      */
     void reorganize_slots();
@@ -1310,15 +1265,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
 
     // A lane_data payload keyed by T(n) (virtual-tools firmware, #832) that
     // arrived while no tool mapping could resolve its records. Kept whole and
-    // replayed once parse_afc_stepper() lands a mapping, because
+    // replayed once apply_lane_status() lands a mapping, because
     // query_lane_data() is one-shot and never retried. Cleared (re-parked) by
     // the replay itself if records still resolve to nothing.
-    std::optional<nlohmann::json> pending_tool_lane_data_;
+    std::optional<std::vector<afc::LaneDataRecord>> pending_tool_lane_data_;
 
     // Slots whose tool mapping the FIRMWARE asserted via a lane "map" field.
     // initialize_slots() seeds a 1:1 identity placeholder, and a T(n)-keyed
     // lane_data join that trusted it could paint another lane's spool onto a
-    // slot nothing corrects until a real map arrives. parse_lane_data() only
+    // slot nothing corrects until a real map arrives. apply_lane_data() only
     // resolves tool keys through slots in this set; everything else parks.
     // Reset with the registry in initialize_slots().
     std::set<int> firmware_mapped_slots_;
@@ -1378,8 +1333,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// the abnormal exit — see kMessageDrainMaxClears.
     int message_drain_budget_ = 0;
 
-    /// Set by parse_afc_state() while holding mutex_; consumed by
-    /// handle_status() after the lock is released. parse_afc_state() must
+    /// Set by apply_afc_state() while holding mutex_; consumed by
+    /// handle_status() after the lock is released. apply_afc_state() must
     /// never send gcode itself — same reason deferred_error_event exists.
     bool message_drain_pending_ = false;
 
@@ -1391,7 +1346,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     std::chrono::steady_clock::time_point message_drain_deadline_{};
 
     /// Runaway guard, NOT the expected stopping point. The drain terminates on
-    /// an empty `AFC.message.message` (parse_afc_state()) or on the wall-clock
+    /// an empty `AFC.message.message` (apply_afc_state()) or on the wall-clock
     /// deadline above; this cap only stops a fault that re-enqueues as fast as
     /// we pop from spinning. Overshoot is safe — clearing an empty queue is a
     /// no-op.
@@ -1501,6 +1456,17 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         ams::Observation metered{ams::ObservationSource::Metered};
     };
     std::unordered_map<std::string, LaneFirmwareReadings> lane_firmware_readings_;
+
+    /// Apply the identity fields a lane record carries to @p slot and to
+    /// firmware's account of the lane, the same way for both lane surfaces.
+    /// @p stated gathers the colour and material the record states and
+    /// @p cleared the keys it clears, for the echo guard.
+    /// @return the spool id firmware stated, when the record set one.
+    /// @pre mutex_ held.
+    std::optional<int> apply_lane_identity(int slot_index, SlotInfo& slot,
+                                           LaneFirmwareReadings& firmware,
+                                           const afc::LaneIdentity& identity,
+                                           ams::Observation& stated, ams::Observation& cleared);
 
     // The base's own_write_echoes_, on this backend:
     // What a user's edit declared and this backend wrote back, for the parse
