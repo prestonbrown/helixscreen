@@ -117,7 +117,15 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
-from compile_command import STALE, SIBLING, PrereqsFailed, load_db, resolve  # noqa: E402
+from compile_command import (  # noqa: E402
+    IGNORE_CLAIM_ENV,
+    SIBLING,
+    STALE,
+    PrereqsFailed,
+    PrereqsRefused,
+    load_db,
+    resolve,
+)
 from diff_base import base_line, resolve_base  # noqa: E402
 from merge_compile_commands import (  # noqa: E402
     current_version,
@@ -625,6 +633,15 @@ def main() -> int:
         paths, firmware_only = split_outside_native_build(paths, root)
         try:
             sel = select_entries(paths, args, db, root)
+        except PrereqsRefused as exc:
+            print("clang syntax check: a changed TU's compile command comes from make, and its "
+                  "headers\nneed `make compile-prereqs` in "
+                  f"{args.make_root or root}, where another session is building:")
+            for line in str(exc).splitlines()[-15:]:
+                print(f"    {line}")
+            print(f"\nRun the gate again when that build finishes, or set {IGNORE_CLAIM_ENV}=1 "
+                  "to make the\nprerequisites beside it.")
+            return 1
         except PrereqsFailed as exc:
             print("clang syntax check: a changed TU's compile command comes from make, and "
                   "make could not\nproduce the headers that command reads (patched "

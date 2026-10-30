@@ -484,3 +484,63 @@ two_trunk_repo() {
     grep -qF "src/needs_make.cpp: ok" <<<"$output"
     refute grep -qF "borrowed" <<<"$output"
 }
+
+# --- another session building in the tree -----------------------------------
+#
+# compile-prereqs is a make in the tree being checked. A peer's live build claim
+# on that tree means a second make there would rewrite stamps and headers under
+# its compilers, so the gate refuses and says how to run anyway.
+
+# $1 = held-by-other's exit status for the fixture's helix-claim
+write_fixture_claim() {
+    mkdir -p "$FIXTURE_DIR/scripts"
+    printf '%s\n' '#!/bin/sh' \
+        '[ "$1" = held-by-other ] || exit 2' \
+        'echo "LIVE build:$2 owner=peer-session"' \
+        "exit $1" > "$FIXTURE_DIR/scripts/helix-claim"
+    chmod +x "$FIXTURE_DIR/scripts/helix-claim"
+}
+
+@test "a peer's build claim on the tree stops the gate before make runs there" {
+    write_guarded_tu
+    write_fragment stale 0.99.1
+    write_fixture_makefile
+    write_fixture_claim 0
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
+        "$FIXTURE_DIR/guarded.cpp"
+    [ "$status" -ne 0 ]
+    grep -qF "owner=peer-session" <<<"$output"
+    grep -qF "HELIX_PREREQS_IGNORE_CLAIM=1" <<<"$output"
+    [ ! -f "$FIXTURE_DIR/prereqs.made" ] || fail "compile-prereqs ran beside a peer's build"
+}
+
+@test "the claim override makes the prerequisites beside a peer's build" {
+    write_guarded_tu
+    write_fragment stale 0.99.1
+    write_fixture_makefile
+    write_fixture_claim 0
+
+    HELIX_PREREQS_IGNORE_CLAIM=1 run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" \
+        --make-root "$FIXTURE_DIR" "$FIXTURE_DIR/guarded.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ]
+    [ -f "$FIXTURE_DIR/prereqs.made" ] || fail "the override did not make the prerequisites"
+}
+
+@test "a tree no other session holds makes its prerequisites as usual" {
+    write_guarded_tu
+    write_fragment stale 0.99.1
+    write_fixture_makefile
+    write_fixture_claim 1
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --make-root "$FIXTURE_DIR" \
+        "$FIXTURE_DIR/guarded.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ]
+    [ -f "$FIXTURE_DIR/prereqs.made" ] || fail "an unheld tree skipped its prerequisites"
+}
