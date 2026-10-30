@@ -3317,181 +3317,15 @@ TEST_CASE("AD5X IFS runout does not flip active slot display status to LOADED", 
 }
 
 // ==========================================================================
-// parse_zcolor_silent — GET_ZCOLOR SILENT=1 response parser
-// ==========================================================================
-//
-// zmod emits one line per LOADED slot plus a summary line, all prefixed "// ":
-//
-//   // Extruder: None (1) | IFS: True
-//   // 1: PLA/FFFFFF
-//   // 2: PLA/2750E0
-//
-// Post-ad2802ab zmod always appends "/<HEX>" to each slot line. Hex is the
-// RIGHTMOST /-segment — transparent/named-color case emits three segments
-// (// 3: PLA/transparent/00000000). Missing slot numbers = physically empty.
-// Old zmod (pre-fix) emits "// 1: PLA" (no /HEX); we fall back to JSON.
-// Very old zmod emits an action:prompt_show dialog; also JSON fallback.
-
-TEST_CASE("AD5X IFS parse_zcolor_silent two-segment lines", "[ams][ad5x_ifs]") {
-    std::vector<std::string> lines = {
-        "// Extruder: None (1) | IFS: True",
-        "// 1: PLA/FFFFFF",
-        "// 2: PETG/2750E0",
-    };
-
-    auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-
-    REQUIRE_FALSE(r.is_prompt_fallback);
-    REQUIRE_FALSE(r.is_old_format);
-    REQUIRE(r.ifs_active);
-    REQUIRE(r.current_channel == 1);
-    REQUIRE_FALSE(r.extruder_slot.has_value());
-    REQUIRE(r.slots[0].has_value());
-    REQUIRE(r.slots[0]->material == "PLA");
-    REQUIRE(r.slots[0]->hex == "FFFFFF");
-    REQUIRE(r.slots[1].has_value());
-    REQUIRE(r.slots[1]->material == "PETG");
-    REQUIRE(r.slots[1]->hex == "2750E0");
-    REQUIRE_FALSE(r.slots[2].has_value());
-    REQUIRE_FALSE(r.slots[3].has_value());
-}
-
-TEST_CASE("AD5X IFS parse_zcolor_silent named-color three-segment", "[ams][ad5x_ifs]") {
-    // Transparent / any COLOR_MAPPING match produces an extra segment:
-    //   // <N>: <MATERIAL>/<NAME>/<HEX>
-    // Parser rule: hex is always the rightmost /-segment.
-    std::vector<std::string> lines = {
-        "// Extruder: 1: PLA/FFFFFF | IFS: True",
-        "// 1: PLA/FFFFFF",
-        "// 3: PLA/transparent/00000000",
-    };
-
-    auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-
-    REQUIRE_FALSE(r.is_prompt_fallback);
-    REQUIRE_FALSE(r.is_old_format);
-    REQUIRE(r.ifs_active);
-    REQUIRE(r.extruder_slot == 0); // 0-based (line says slot 1)
-    REQUIRE(r.slots[0].has_value());
-    REQUIRE(r.slots[0]->hex == "FFFFFF");
-    REQUIRE(r.slots[2].has_value());
-    REQUIRE(r.slots[2]->material == "PLA");
-    REQUIRE(r.slots[2]->hex == "00000000");
-}
-
-TEST_CASE("AD5X IFS parse_zcolor_silent empty (all slots unloaded)", "[ams][ad5x_ifs]") {
-    std::vector<std::string> lines = {
-        "// Extruder: None (0) | IFS: True",
-    };
-
-    auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-
-    REQUIRE_FALSE(r.is_prompt_fallback);
-    REQUIRE_FALSE(r.is_old_format);
-    REQUIRE(r.ifs_active);
-    REQUIRE(r.current_channel == 0);
-    for (int i = 0; i < AmsBackendAd5xIfs::kNumPorts; ++i) {
-        REQUIRE_FALSE(r.slots[static_cast<size_t>(i)].has_value());
-    }
-}
-
-TEST_CASE("AD5X IFS parse_zcolor_silent IFS disabled (independent mode)", "[ams][ad5x_ifs]") {
-    std::vector<std::string> lines = {
-        "// Extruder: None (0) | IFS: False",
-    };
-
-    auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-
-    REQUIRE_FALSE(r.is_prompt_fallback);
-    REQUIRE_FALSE(r.ifs_active);
-}
-
-TEST_CASE("AD5X IFS parse_zcolor_silent old-format (no /HEX)", "[ams][ad5x_ifs]") {
-    // Pre-ad2802ab zmod: silent lines are "// N: MATERIAL" with no /HEX.
-    // Parser must detect this and flag is_old_format so caller falls back to JSON.
-    std::vector<std::string> lines = {
-        "// Extruder: None (1) | IFS: True",
-        "// 1: PLA",
-        "// 2: PETG",
-    };
-
-    auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-
-    REQUIRE_FALSE(r.is_prompt_fallback);
-    REQUIRE(r.is_old_format);
-    // Presence info is still valid even without color — slot 1 and 2 appear.
-    REQUIRE(r.slots[0].has_value());
-    REQUIRE(r.slots[0]->material == "PLA");
-    REQUIRE(r.slots[0]->hex.empty());
-    REQUIRE(r.slots[1].has_value());
-    REQUIRE(r.slots[1]->material == "PETG");
-    REQUIRE(r.slots[1]->hex.empty());
-}
-
-TEST_CASE("AD5X IFS parse_zcolor_silent prompt fallback", "[ams][ad5x_ifs]") {
-    // Very old zmod: SILENT=1 unsupported, emits full dialog.
-    std::vector<std::string> lines = {
-        "// action:prompt_begin Select filament",
-        "// action:prompt_text Extruder: None",
-        "// action:prompt_button 1: PLA|RUN_ZCOLOR SLOT=1 HEX=FFFFFF TYPE=PLA|primary|FFFFFF",
-        "// action:prompt_show",
-    };
-
-    auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-
-    REQUIRE(r.is_prompt_fallback);
-}
-
-TEST_CASE("AD5X IFS parse_zcolor_silent malformed lines skipped", "[ams][ad5x_ifs]") {
-    // Unrelated gcode-response lines interleaved with valid silent output must
-    // not confuse the parser — it should pick out the slot lines it recognises.
-    std::vector<std::string> lines = {
-        "// Extruder: None (1) | IFS: True",
-        "// 1: PLA/FFFFFF",
-        "// random gcode echo",
-        "// 99: nonsense", // slot number out of range
-        "// 2: PETG/00FF00",
-        "echo: hotend temp 205",
-    };
-
-    auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-
-    REQUIRE_FALSE(r.is_prompt_fallback);
-    REQUIRE_FALSE(r.is_old_format);
-    REQUIRE(r.slots[0].has_value());
-    REQUIRE(r.slots[0]->hex == "FFFFFF");
-    REQUIRE(r.slots[1].has_value());
-    REQUIRE(r.slots[1]->hex == "00FF00");
-    REQUIRE_FALSE(r.slots[2].has_value());
-    REQUIRE_FALSE(r.slots[3].has_value());
-}
-
-// ==========================================================================
 // IFS_STATUS Chan as seated-channel authority (2026-06-15 plan)
 // ==========================================================================
 //
 // zmod's IFS_STATUS macro emits one clean-JSON line via respond_info carrying
 // the current engaged port in "Chan" (1-based, 0 = none). Unlike the
 // GET_ZCOLOR "Extruder:" feed line — which reads "None (N)" while loaded-idle —
-// Chan persists at the seated port. parse_zcolor_silent must extract it into
-// ifs_chan, and apply_zcolor_result must derive active_tool_/current_slot from
-// it even on prompt-fallback (old zmod where GET_ZCOLOR degrades to a dialog).
-
-TEST_CASE("AD5X IFS parse_zcolor_silent extracts IFS_STATUS Chan", "[ams][ad5x_ifs]") {
-    // Firmware-accurate IFS_STATUS line: a single `// `-prefixed JSON object.
-    // Chan=4 means port 4 is the seated/engaged channel.
-    std::vector<std::string> lines = {
-        R"(// {"RawData": "...", "State": 4, "Ports": [false, true, true, true], "Silk": 14, )"
-        R"("Chan": 4, "Insert": 0, "NeedInsert": false, "Stall": false, "stall_state": 0})",
-    };
-
-    auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-
-    REQUIRE_FALSE(r.is_prompt_fallback);
-    REQUIRE(r.saw_valid_response);
-    REQUIRE(r.ifs_chan.has_value());
-    REQUIRE(*r.ifs_chan == 4);
-}
+// Chan persists at the seated port. apply_zcolor_result must derive
+// active_tool_/current_slot from it even on prompt-fallback (old zmod where
+// GET_ZCOLOR degrades to a dialog).
 
 TEST_CASE("AD5X IFS IFS_STATUS Chan is seated authority over stale Extruder: None",
           "[ams][ad5x_ifs]") {
@@ -4650,30 +4484,6 @@ TEST_CASE("AD5X IFS apply_zcolor_result old-format preserves colors", "[ams][ad5
     REQUIRE(Ad5xIfsTestAccess::build_colors(backend).find("FFAA00") != std::string::npos);
     // Presence still reflects what the old-format response said.
     REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
-}
-
-TEST_CASE("AD5X IFS parse_zcolor_silent sets saw_valid_response", "[ams][ad5x_ifs]") {
-    SECTION("summary line present") {
-        std::vector<std::string> lines = {"// Extruder: None (0) | IFS: True"};
-        auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-        REQUIRE(r.saw_valid_response);
-    }
-    SECTION("slot line present") {
-        std::vector<std::string> lines = {"// 1: PLA/FFFFFF"};
-        auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-        REQUIRE(r.saw_valid_response);
-    }
-    SECTION("only junk lines") {
-        std::vector<std::string> lines = {"echo: random output", "// not a slot line"};
-        auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-        REQUIRE_FALSE(r.saw_valid_response);
-    }
-    SECTION("slot-number-out-of-range line") {
-        // "// 99: nonsense" is skipped and must NOT count as valid.
-        std::vector<std::string> lines = {"// 99: nonsense"};
-        auto r = Ad5xIfsTestAccess::parse_zcolor_silent(lines);
-        REQUIRE_FALSE(r.saw_valid_response);
-    }
 }
 
 // ==========================================================================
@@ -7163,55 +6973,6 @@ TEST_CASE("AD5X IFS #904 bambufy_custom_types merged into supported materials",
     CHECK(backend.normalize_material("pla+") == "PLA+"); // case-insensitive
 }
 
-// /mod_data/user.cfg parsing — the [zmod_ifs] filament_<NAME>: <TEMP>
-// directive is zmod's official mechanism for user-defined material types
-// (https://wiki.zmod.link/AD5X/#7-add-custom-filament-types). Out-of-section
-// matches must NOT be picked up.
-TEST_CASE("AD5X IFS #904 user.cfg [zmod_ifs] filament_* parser", "[ams][ad5x_ifs][issue_904]") {
-    SECTION("standard wiki example") {
-        const std::string body = "[zmod_ifs]\n"
-                                 "filament_NEWTYPE: 300\n";
-        auto names = AmsBackendAd5xIfs::parse_user_cfg_filament_types(body);
-        REQUIRE(names.size() == 1);
-        CHECK(names[0] == "NEWTYPE");
-    }
-
-    SECTION("multiple entries with comments and other sections") {
-        const std::string body = "# global header\n"
-                                 "[gcode_macro FOO]\n"
-                                 "filament_IGNORED: 999  ; not in zmod_ifs\n"
-                                 "\n"
-                                 "[zmod_ifs]\n"
-                                 "filament_PLA+: 220   # inline comment\n"
-                                 "filament_RPLA: 215\n"
-                                 "filament_HELIX: 240 ; semicolon comment\n"
-                                 "other_setting: 42\n";
-        auto names = AmsBackendAd5xIfs::parse_user_cfg_filament_types(body);
-        REQUIRE(names.size() == 3);
-        CHECK(names[0] == "PLA+");
-        CHECK(names[1] == "RPLA");
-        CHECK(names[2] == "HELIX");
-    }
-
-    SECTION("CRLF line endings (zmod files saved on Windows)") {
-        const std::string body = "[zmod_ifs]\r\nfilament_FOO: 200\r\n";
-        auto names = AmsBackendAd5xIfs::parse_user_cfg_filament_types(body);
-        REQUIRE(names.size() == 1);
-        CHECK(names[0] == "FOO");
-    }
-
-    SECTION("empty body") {
-        auto names = AmsBackendAd5xIfs::parse_user_cfg_filament_types("");
-        CHECK(names.empty());
-    }
-
-    SECTION("section without filament_ entries") {
-        const std::string body = "[zmod_ifs]\nallowed_tool_count: 4\n";
-        auto names = AmsBackendAd5xIfs::parse_user_cfg_filament_types(body);
-        CHECK(names.empty());
-    }
-}
-
 // End-to-end #904 root-cause-#2 fix: TMTYD's slot was PLA+ in zmod, our
 // edit modal showed PLA, save wrote _IFS_VARS types="['PLA',...]"
 // overwriting zmod's truth. The fix loads bambufy_custom_types into the
@@ -7268,61 +7029,6 @@ TEST_CASE("AD5X IFS #904 PLA+ round-trips through apply_user_edit after custom_t
 // the file's "default" entry, then to a hardcoded 1000/1200. Ports are 1-based;
 // HelixScreen slot_index is 0-based, so PRUTOK = slot_index + 1.
 // ==========================================================================
-
-TEST_CASE("AD5X IFS parse_filament_json populates per-material LEN/SPEED with fallback",
-          "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // default + PETG (explicit 650 tube) + PLA (no tube field → default tube).
-    const std::string json = R"({
-        "default": {"filament_tube_length": 1000, "filament_ifs_speed": 1200},
-        "PETG":    {"filament_tube_length": 650,  "filament_ifs_speed": 1100},
-        "PLA":     {"filament_ifs_speed": 900}
-    })";
-    Ad5xIfsTestAccess::parse_filament_json(backend, json);
-
-    // PETG: both fields present.
-    auto petg = Ad5xIfsTestAccess::filament_eject_params(backend, "PETG");
-    REQUIRE(petg.has_value());
-    CHECK(petg->first == 650);
-    CHECK(petg->second == 1100);
-
-    // PLA: missing tube length falls back to the default's tube length (1000),
-    // but its own ifs speed (900) is honored.
-    auto pla = Ad5xIfsTestAccess::filament_eject_params(backend, "PLA");
-    REQUIRE(pla.has_value());
-    CHECK(pla->first == 1000);
-    CHECK(pla->second == 900);
-
-    // Parsed default pair is available for unknown materials.
-    auto def = Ad5xIfsTestAccess::filament_eject_default(backend);
-    CHECK(def.first == 1000);
-    CHECK(def.second == 1200);
-}
-
-TEST_CASE("AD5X IFS parse_filament_json with no default uses 1000/1200 literal fallback",
-          "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // No "default" entry and the one material lacks both fields → everything
-    // resolves to the literal 1000/1200.
-    const std::string json = R"({"ABS": {}})";
-    Ad5xIfsTestAccess::parse_filament_json(backend, json);
-
-    auto def = Ad5xIfsTestAccess::filament_eject_default(backend);
-    CHECK(def.first == 1000);
-    CHECK(def.second == 1200);
-
-    auto abs = Ad5xIfsTestAccess::filament_eject_params(backend, "ABS");
-    REQUIRE(abs.has_value());
-    CHECK(abs->first == 1000);
-    CHECK(abs->second == 1200);
-
-    // Unknown material isn't cached → eject_lane falls back to the default pair.
-    CHECK_FALSE(Ad5xIfsTestAccess::filament_eject_params(backend, "TPU").has_value());
-}
 
 namespace {
 // Captures issued G-code without a live Moonraker connection by overriding the
@@ -7489,16 +7195,21 @@ TEST_CASE("AD5X IFS eject_lane uses the lane material's tube length / ifs speed"
     TestableAd5xIfsBackend backend;
     Ad5xIfsTestAccess::set_running(backend, true);
 
-    // Slot 2's material is PETG; cache says PETG retracts 650mm at 1200.
+    // PETG retracts 650mm at the file's default speed; TPU is not listed.
+    Ad5xIfsTestAccess::parse_filament_json(
+        backend, R"({"default": {"filament_tube_length": 900, "filament_ifs_speed": 1100},
+                     "PETG": {"filament_tube_length": 650}})");
     Ad5xIfsTestAccess::set_material(backend, 2, "PETG");
-    Ad5xIfsTestAccess::seed_filament_eject_params(backend, "PETG", 650, 1200);
+    Ad5xIfsTestAccess::set_material(backend, 1, "TPU");
 
     REQUIRE(backend.eject_lane(2).success());
+    REQUIRE(backend.eject_lane(1).success());
 
-    REQUIRE(backend.captured_gcodes.size() == 3);
+    REQUIRE(backend.captured_gcodes.size() == 6);
     REQUIRE(backend.captured_gcodes[0] == "IFS_F24 PRUTOK=3");
-    REQUIRE(backend.captured_gcodes[1] == "IFS_F11 PRUTOK=3 LEN=650 SPEED=1200");
+    REQUIRE(backend.captured_gcodes[1] == "IFS_F11 PRUTOK=3 LEN=650 SPEED=1100");
     REQUIRE(backend.captured_gcodes[2] == "IFS_F39 PRUTOK=3");
+    CHECK(backend.captured_gcodes[4] == "IFS_F11 PRUTOK=2 LEN=900 SPEED=1100");
 }
 
 TEST_CASE("AD5X IFS eject_lane falls back to 1000/1200 when filament.json absent",

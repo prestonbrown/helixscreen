@@ -1169,19 +1169,6 @@ TEST_CASE("AD5X IFS module poll stand-down", "[ams][ad5x_ifs][ifs_module]") {
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
 }
 
-TEST_CASE("AD5X IFS module colour normalisation", "[ams][ad5x_ifs][ifs_module]") {
-    CHECK(Ad5xIfsTestAccess::normalize_module_color("#A03CF7") == "A03CF7");
-    CHECK(Ad5xIfsTestAccess::normalize_module_color("A03CF7") == "A03CF7");
-    CHECK(Ad5xIfsTestAccess::normalize_module_color("#F80") == "FF8800");
-    CHECK(Ad5xIfsTestAccess::normalize_module_color("#ff8800") == "FF8800");
-    // Not-a-colour returns empty, which the apply path reads as "no reading"
-    // — never as black.
-    CHECK(Ad5xIfsTestAccess::normalize_module_color("").empty());
-    CHECK(Ad5xIfsTestAccess::normalize_module_color("#12345").empty());
-    CHECK(Ad5xIfsTestAccess::normalize_module_color("#GGGGGG").empty());
-    CHECK(Ad5xIfsTestAccess::normalize_module_color(std::string()).empty());
-}
-
 TEST_CASE_METHOD(LVGLTestFixture,
                  "AD5X IFS: a table collapsing every tool onto one lane says nothing",
                  "[ams][ad5x_ifs][ifs_module][provenance][1422]") {

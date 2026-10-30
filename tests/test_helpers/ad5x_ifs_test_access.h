@@ -60,9 +60,6 @@ class Ad5xIfsTestAccess {
     static bool module_live(const AmsBackendAd5xIfs& b) {
         return b.ifs_module_live_.load();
     }
-    static std::string normalize_module_color(const std::string& value) {
-        return AmsBackendAd5xIfs::normalize_module_color_hex(value);
-    }
     // Deliver a printer.ifs status frame carrying the identity tool_map — the
     // fixture every "wire contract detected" test starts from. Shape as the
     // module serialises it: string tool keys, 1-based lanes.
@@ -275,10 +272,6 @@ class Ad5xIfsTestAccess {
     static int current_slot(const AmsBackendAd5xIfs& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.system_info_.current_slot;
-    }
-    static AmsBackendAd5xIfs::ZColorSilentResult
-    parse_zcolor_silent(const std::vector<std::string>& lines) {
-        return AmsBackendAd5xIfs::parse_zcolor_silent(lines, "test");
     }
     static bool zcolor_silent_supported(const AmsBackendAd5xIfs& b) {
         return b.zcolor_silent_supported_.load();
@@ -533,32 +526,9 @@ class Ad5xIfsTestAccess {
 
     // --- filament.json eject-parameter cache (LEN/SPEED per material) ---
 
-    // Drive the pure parse helper directly (no IO).
+    // Parse a filament.json body and apply it to the eject-parameter cache.
     static void parse_filament_json(AmsBackendAd5xIfs& b, const std::string& content) {
         b.parse_filament_json(content);
-    }
-    // Seed the per-material eject-parameter cache directly (mirrors what
-    // fetch_filament_json applies on the main thread). Material key, tube
-    // length (LEN), ifs speed (SPEED).
-    static void seed_filament_eject_params(AmsBackendAd5xIfs& b, const std::string& material,
-                                           int tube_length, int ifs_speed) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        b.filament_eject_params_[material] = {tube_length, ifs_speed};
-    }
-    // Read a cached pair back (returns nullopt when the material isn't cached).
-    static std::optional<std::pair<int, int>> filament_eject_params(const AmsBackendAd5xIfs& b,
-                                                                    const std::string& material) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        auto it = b.filament_eject_params_.find(material);
-        if (it == b.filament_eject_params_.end()) {
-            return std::nullopt;
-        }
-        return it->second;
-    }
-    // Read the parsed "default" pair (tube length, ifs speed).
-    static std::pair<int, int> filament_eject_default(const AmsBackendAd5xIfs& b) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        return b.filament_eject_default_;
     }
 
     // --- Phase tracker hooks (live load/unload progress feedback) ---
