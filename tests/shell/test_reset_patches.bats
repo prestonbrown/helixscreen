@@ -124,3 +124,27 @@ declared_libhv_files() {
     [ -n "$apply_at" ]
     [ "$reset_at" -lt "$apply_at" ]
 }
+
+# The paths a patch touches, created files included (`+++ b/` lines).
+patch_paths() { sed -n 's|^+++ b/||p' "$1" | sort -u; }
+
+# Every path every patch touches is in its submodule's *_PATCHED_FILES, so a
+# reset restores or deletes it. The submodule comes from the patch's name.
+@test "every file a patch touches is declared in its submodule's patched-files list" {
+    local p var f missing=""
+    for p in "$REPO_ROOT"/patches/*.patch; do
+        case "$(basename "$p")" in
+            lvgl*) var=LVGL_PATCHED_FILES ;;
+            libhv*) var=LIBHV_PATCHED_FILES ;;
+            lua*) var=LUA_PATCHED_FILES ;;
+            *) continue ;;
+        esac
+        declared=$(sed -n "/^$var[[:space:]]*:=/,/^\$/p" "$PATCHES_MK" | sed "s/^$var[[:space:]]*:=//" |
+            tr -d '\\' | tr ' \t' '\n' | grep -v '^#' | grep -v '^$')
+        while IFS= read -r f; do
+            printf '%s\n' "$declared" | grep -qxF -- "$f" || missing="$missing $(basename "$p"):$f"
+        done < <(patch_paths "$p")
+    done
+    [ -z "$missing" ] || fail "not in a *_PATCHED_FILES list, so a reset leaves it patched:$missing"
+}
+

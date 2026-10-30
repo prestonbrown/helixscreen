@@ -43,3 +43,41 @@ refused() { # <expected text>
     [ -e "$BATS_TEST_TMPDIR/ssh-called" ]
     contains "needs Docker and passwordless sudo" "$output"
 }
+
+# Runs setup up to the container step, then that step's remote script here,
+# against a sudo that records each docker call. $1: "new" (no container yet) or
+# "existing" (one already mounting the work directory).
+run_container_step() {
+    local kind="$1"
+    mock_command_script ssh 'case "$*" in
+    *"bash -se"*) cat > "$BATS_TEST_TMPDIR/remote.sh"; exit 1 ;;
+    *"docker build"*) cat > /dev/null ;;
+esac
+exit 0'
+    cd "$BATS_TEST_TMPDIR"
+    run "$SETUP" < /dev/null
+    [ -s "$BATS_TEST_TMPDIR/remote.sh" ] || fail "no container script reached the host: $output"
+    mock_command_script sudo 'shift; echo "$*" >> "$BATS_TEST_TMPDIR/docker.log"
+case "$*" in
+    *"inspect -f {{range .Mounts}}"*) echo "$MOCK_MOUNT" ;;
+    *"inspect -f {{.HostConfig.Init}}"*) echo true ;;
+    "docker inspect "*) [ "$MOCK_KIND" = existing ] ;;
+esac'
+    mkdir -p helix-test/trees
+    MOCK_KIND="$kind" MOCK_MOUNT="$(cd helix-test && pwd -P):/work" run bash "$BATS_TEST_TMPDIR/remote.sh" < /dev/null
+}
+
+@test "a new test container gets its memory limit with no swap" {
+    HELIX_TEST_MEMORY=96g run_container_step new
+    [ "$status" -eq 0 ] || fail "remote script failed: $output"
+    grep -E '^docker run .*--memory 96g --memory-swap 96g --pids-limit 16384 ' "$BATS_TEST_TMPDIR/docker.log" ||
+        fail "$(cat "$BATS_TEST_TMPDIR/docker.log")"
+}
+
+@test "an existing test container takes a changed memory limit without being recreated" {
+    HELIX_TEST_MEMORY=64g run_container_step existing
+    [ "$status" -eq 0 ] || fail "remote script failed: $output"
+    grep -qx 'docker update --memory 64g --memory-swap 64g --pids-limit 16384 helix-test' "$BATS_TEST_TMPDIR/docker.log" ||
+        fail "$(cat "$BATS_TEST_TMPDIR/docker.log")"
+    ! grep -q '^docker run' "$BATS_TEST_TMPDIR/docker.log" || fail "recreated it"
+}
