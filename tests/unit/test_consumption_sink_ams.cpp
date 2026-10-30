@@ -302,6 +302,30 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState: slots a backend reports after add g
     REQUIRE(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 0);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState: slots a second backend reports after add get sinks",
+                 "[consumption_sink][ams][tracker_registry]") {
+    auto& ams = helix::AmsState::instance();
+    ams.clear_backends();
+    ams.deinit_subjects();
+    ams.init_subjects(false);
+
+    REQUIRE(ams.add_backend(std::make_unique<helix::AmsBackendMock>(4)) == 0);
+    auto m = std::make_unique<helix::AmsBackendMock>(4);
+    helix::AmsBackendMock* second = m.get();
+    REQUIRE(ams.add_backend(std::move(m)) == 1);
+    REQUIRE(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 8);
+
+    second->set_multi_unit_mode(true);
+    const int grown = second->get_system_info().total_slots;
+    REQUIRE(grown > 4);
+    ams.sync_backend(1);
+    CHECK(FilamentConsumptionTrackerTestAccess::ams_sink_count() ==
+          static_cast<std::size_t>(4 + grown));
+
+    ams.clear_backends();
+    REQUIRE(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 0);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Tracker: mid-print register_sink auto-snapshots and tracks deltas",
                  "[consumption_sink][ams][registration]") {

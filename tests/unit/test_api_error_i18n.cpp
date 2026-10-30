@@ -15,8 +15,10 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/abort_manager_test_access.h"
 #include "../test_helpers/afc_test_access.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/moonraker_manager_test_access.h"
 #include "../test_helpers/moonraker_request_tracker_test_access.h"
 #include "../test_helpers/scoped_language.h"
@@ -28,9 +30,11 @@
 #include "moonraker_auth.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
+#include "moonraker_event_routing.h"
 #include "moonraker_events.h"
 #include "moonraker_manager.h"
 #include "moonraker_request_tracker.h"
+#include "printer_retarget.h"
 #include "printer_state.h"
 #include "rpc_error_policy.h"
 #include "translation_loader.h"
@@ -237,6 +241,35 @@ TEST_CASE_METHOD(LVGLTestFixture, "MoonrakerManager presents an event in the act
 
     CHECK(shown.find("Druckerbefehl 'printer.objects.query' fehlgeschlagen: Klippy not ready") !=
           std::string::npos);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "MoonrakerManager: a refused login prompts for the key, and toasts while a modal "
+                 "is up",
+                 "[api-error-i18n][api-key]") {
+    MoonrakerManager mgr;
+    std::vector<std::string> toasts;
+    helix::ui::set_test_notification_error_hook(
+        [&toasts](const std::string& m) { toasts.push_back(m); });
+    const std::string no_key_message = lv_tr(helix::login_refused_message(false));
+    REQUIRE(helix::active_printer_credential().api_key.empty());
+    REQUIRE(ModalStack::instance().empty());
+
+    MoonrakerManagerTestAccess::present_event(mgr, moonraker_event::login_refused());
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(ModalStack::instance().empty());
+    const std::string prompt = helix::test::top_modal_text();
+    CHECK(prompt.find(no_key_message) != std::string::npos);
+    CHECK(prompt.find(lv_tr("Enter API Key")) != std::string::npos);
+    CHECK(toasts.empty());
+
+    MoonrakerManagerTestAccess::present_event(mgr, moonraker_event::login_refused());
+    helix::ui::UpdateQueue::instance().drain();
+    helix::ui::set_test_notification_error_hook(nullptr);
+    ModalStack::instance().clear();
+
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts.front().find(no_key_message) != std::string::npos);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

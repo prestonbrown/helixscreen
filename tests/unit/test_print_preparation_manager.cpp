@@ -29,6 +29,7 @@
 #include "macro_param_cache.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
+#include "moonraker_auth.h"
 #include "moonraker_client.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
@@ -1682,6 +1683,44 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
         REQUIRE(callback_found == false); // All attempts failed
         REQUIRE(manager_.is_macro_analysis_in_progress() == false);
         REQUIRE(manager_.get_macro_analysis().has_value()); // Has result with found=false
+    }
+}
+
+TEST_CASE_METHOD(MacroAnalysisRetryFixture,
+                 "PrintPreparationManager: a failed analysis is reported unless the login was "
+                 "refused",
+                 "[print_preparation][retry][eventloop][slow][api-key]") {
+    const bool refused = GENERATE(false, true);
+    if (refused) {
+        helix::moonraker_auth::set_credential({"printer.lan", 7125, ""});
+        helix::moonraker_auth::mark_unauthorized();
+        REQUIRE(helix::moonraker_auth::unauthorized());
+    }
+    auto errors = std::make_shared<std::vector<std::string>>();
+    helix::ui::set_test_notification_event_hook([errors](const helix::ui::NotificationEvent& e) {
+        if (e.severity == ToastSeverity::ERROR) {
+            errors->push_back(e.message);
+        }
+    });
+
+    set_list_files_always_fail();
+    std::atomic<bool> landed{false};
+    manager_.set_macro_analysis_callback(
+        [&](const helix::PrintStartAnalysis& /*analysis*/) { landed = true; });
+    manager_.analyze_print_start_macro();
+    const bool finished = wait_for([&]() { return landed.load(); }, 8000);
+    helix::ui::set_test_notification_event_hook(nullptr);
+    helix::moonraker_auth::set_credential({});
+
+    INFO("refused login: " << refused);
+    REQUIRE(finished);
+    REQUIRE(get_list_files_call_count() == 3);
+    if (refused) {
+        CHECK(errors->empty());
+    } else {
+        CHECK(*errors == std::vector<std::string>{
+                             "Could not analyze PRINT_START macro. Some print options may be "
+                             "unavailable."});
     }
 }
 

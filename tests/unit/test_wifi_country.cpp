@@ -353,6 +353,19 @@ TEST_CASE_METHOD(CountryFixture, "the radio's own country is remembered at start
     CHECK(backend->set_country_calls() == 0);
 }
 
+TEST_CASE_METHOD(CountryFixture, "the country state carries the remembered country, normalized",
+                 "[wifi][wifi_country]") {
+    start("");
+    SystemSettingsManager::instance().set_wifi_country_last_seen("us");
+
+    std::optional<WiFiManager::CountryState> got;
+    wm->get_country_async(guard.token(), [&](const WiFiManager::CountryState& s) { got = s; });
+    REQUIRE(WiFiManagerTestAccess::settle(*wm));
+    REQUIRE(got.has_value());
+    REQUIRE(got->system.empty());
+    CHECK(got->last_seen == "US");
+}
+
 TEST_CASE_METHOD(CountryFixture, "a radio wiped to world gets its remembered country back",
                  "[wifi][wifi_country]") {
     SystemSettingsManager::instance().set_wifi_country_last_seen("US");
