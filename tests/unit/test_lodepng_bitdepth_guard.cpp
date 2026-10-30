@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-// TEST_MIRROR_OK: exercises patches/lvgl_lodepng_bpp_guard.patch — shipped LVGL code with no
-// HelixScreen header
+// TEST_MIRROR_OK: exercises LVGL's lodepng port (lodepng_inspect's bit-depth check) — shipped LVGL
+// code with no HelixScreen header
 /**
  * @file test_lodepng_bitdepth_guard.cpp
  * @brief Pin the bit-depth guard on LVGL's lodepng port.
@@ -30,9 +30,10 @@
  * decoded bytes are not directly comparable here (same reason
  * test_screenshot_png.cpp parses IHDR by hand).
  *
- * Mutation check: drop the `bpp > 32` guard from
- * patches/lvgl_lodepng_bpp_guard.patch and the two 16-bit cases below fail
- * (they decode "successfully" while writing past the buffer).
+ * LVGL's port rejects any bit depth above 8 in lodepng_inspect() (error
+ * 116) before decodeGeneric allocates. Mutation check: drop that
+ * `bitdepth > 8` check and the two 16-bit cases below fail (they decode
+ * "successfully" while writing past the buffer).
  */
 
 #include "../lvgl_test_fixture.h"

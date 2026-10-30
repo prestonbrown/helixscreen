@@ -9,88 +9,73 @@
 # submodule, edited and pushed directly rather than patched.
 LVGL_PATCHED_FILES := \
 	src/drivers/sdl/lv_sdl_window.c \
+	src/drivers/sdl/lv_sdl_sw.c \
 	src/themes/default/lv_theme_default.c \
-	src/drivers/display/fb/lv_linux_fbdev.c \
-	src/drivers/display/fb/lv_linux_fbdev.h \
-	src/core/lv_refr.c \
 	src/core/lv_observer.c \
-	src/core/lv_observer.h \
-	src/widgets/span/lv_span.c \
 	src/widgets/slider/lv_slider.c \
-	src/widgets/image/lv_image.c \
-	src/stdlib/clib/lv_string_clib.c \
 	src/stdlib/builtin/lv_string_builtin.c \
+	src/stdlib/clib/lv_string_clib.c \
 	src/draw/sw/blend/lv_draw_sw_blend.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_a8.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_al88.c \
 	src/draw/sw/blend/lv_draw_sw_blend_to_argb8888.c \
 	src/draw/sw/blend/lv_draw_sw_blend_to_argb8888_premultiplied.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_i1.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_l8.c \
 	src/draw/sw/blend/lv_draw_sw_blend_to_rgb565.c \
 	src/draw/sw/blend/lv_draw_sw_blend_to_rgb565_swapped.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_a8.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_l8.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_al88.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_i1.c \
-	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c \
 	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c \
+	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c \
 	src/draw/lv_draw.c \
 	src/draw/lv_draw_private.h \
-	src/draw/lv_draw_buf.c \
-	src/draw/sw/lv_draw_sw_mask_rect.c \
 	src/draw/sw/lv_draw_sw_letter.c \
-	src/draw/sw/lv_draw_sw_img.c \
-	src/draw/sw/lv_draw_sw_blur.c \
+	include/lvgl/drivers/display/lv_linux_drm.h \
 	src/drivers/display/drm/lv_linux_drm.c \
-	src/drivers/display/drm/lv_linux_drm.h \
 	src/drivers/display/drm/lv_linux_drm_egl.c \
-	src/drivers/display/drm/lv_linux_drm_egl_private.h \
+	src/core/lv_refr.c \
+	src/draw/sw/lv_draw_sw_img.c \
+	src/widgets/image/lv_image.c \
+	src/draw/sw/lv_draw_sw_blur.c \
+	src/core/lv_obj_pos.c \
+	src/core/lv_obj_style.c \
+	src/layouts/grid/lv_grid.c \
+	src/draw/lv_draw_buf.c \
+	include/lvgl/drivers/indev/lv_evdev.h \
+	src/drivers/evdev/lv_evdev.c \
 	src/drivers/opengles/lv_opengles_egl.c \
 	src/drivers/opengles/lv_opengles_egl.h \
-	src/drivers/opengles/lv_opengles_driver.c \
-	src/drivers/opengles/lv_opengles_driver.h \
+	src/drivers/display/drm/lv_linux_drm_egl_private.h \
+	src/drivers/display/drm/lv_linux_drm_egl_upload.h \
 	src/drivers/opengles/lv_opengles_texture.c \
 	src/drivers/opengles/lv_opengles_texture_private.h \
+	include/lvgl/drivers/opengles/lv_opengles_driver.h \
 	src/drivers/opengles/assets/lv_opengles_shader.c \
-	src/drivers/evdev/lv_evdev.c \
-	src/drivers/evdev/lv_evdev.h \
-	src/draw/lv_draw_arc.c \
-	src/widgets/arc/lv_arc.c \
-	src/draw/opengles/lv_draw_opengles.c \
+	src/drivers/opengles/lv_opengles_driver.c \
 	src/draw/sdl/lv_draw_sdl.c \
-	src/display/lv_display.c \
-	src/display/lv_display.h \
-	src/display/lv_display_private.h \
-	src/lv_conf_internal.h \
-	src/misc/lv_event.c \
-	src/misc/lv_event.h \
-	src/core/lv_obj_event.c \
-	src/core/lv_obj_pos.c \
-	src/core/lv_obj_tree.c \
 	src/core/lv_obj.c \
-	src/core/lv_obj.h \
-	src/core/lv_obj_style.c \
-	src/draw/sw/lv_draw_sw.c \
-	src/layouts/flex/lv_flex.c \
-	src/layouts/grid/lv_grid.c \
-	src/misc/lv_assert.h \
-	src/drivers/sdl/lv_sdl_sw.c \
-	src/core/lv_global.h \
-	src/misc/lv_event_private.h \
-	src/widgets/label/lv_label.c \
-	src/widgets/label/lv_label.h \
-	src/widgets/label/lv_label_private.h \
-	src/libs/lodepng/lodepng.c \
-	src/libs/lodepng/lv_lodepng.c \
-	src/libs/bin_decoder/lv_bin_decoder.c \
+	src/core/lv_obj_tree.c \
 	src/others/translation/lv_translation.c \
-	src/others/translation/lv_translation.h \
+	include/lvgl/core/lv_translation.h \
+	include/lvgl/widgets/lv_label.h \
+	src/widgets/label/lv_label.c \
+	src/widgets/label/lv_label_private.h \
+	src/draw/sw/lv_draw_sw.c \
+	src/image/lv_bin_decoder.c \
+	src/image/lv_lodepng.c \
+	src/libs/lodepng/lodepng.c \
+	src/core/lv_obj_event.c \
+	src/misc/lv_event.c \
+	src/misc/lv_event_private.h \
 	src/indev/lv_indev.c \
 	src/indev/lv_indev_private.h \
 	src/indev/lv_indev_scroll.c \
-	src/misc/lv_timer.c \
-	src/misc/lv_check_arg.h \
+	src/core/lv_global.h \
+	include/lvgl/core/lv_observer.h \
+	src/widgets/span/lv_span.c \
+	include/lvgl/core/lv_obj.h \
 	src/misc/lv_helix_thread_check.h \
-	src/drivers/display/drm/lv_linux_drm_egl_upload.h \
-	lv_conf_template.h
+	src/misc/lv_timer.c
 # Every file a patch touches belongs in its submodule's list, the files a patch
 # creates included: reset_submodule_patches restores the tracked ones and deletes
 # the untracked ones, so a file left off survives a reset and the drift check
@@ -553,10 +538,6 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_sdl_window.patch "LVGL SDL window patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_sdl_sw_android_debug.patch "LVGL SDL SW android debug + blendmode fix patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_theme_breakpoints.patch "LVGL theme breakpoints patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_fbdev_stride_bpp.patch "LVGL fbdev stride bpp detection patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_fbdev_skip_unblank.patch "LVGL fbdev skip-unblank patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-fbdev-bgr-swap.patch "LVGL fbdev BGR swap patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-fbdev-buffer-align.patch "LVGL fbdev buffer alignment patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_observer_debug.patch "LVGL observer debug info patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_observer_remove_null_guard.patch "LVGL observer remove NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_observer_null_guards.patch "LVGL observer subject NULL guards patch"
@@ -565,7 +546,6 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blend_null_guard.patch "LVGL blend NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blend_buf_bounds_clip.patch "LVGL blend buffer bounds clip patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blend_color_null_guard.patch "LVGL blend color NULL guard patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-fix-signed-unsigned-draw-coords.patch "LVGL draw-area clip patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_render_thread_acquire.patch "LVGL render-thread acquire/release barrier patch (ARM64 layer-buffer UAF)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_sw_label_null_guard.patch "LVGL label draw NULL font guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-drm-flush-rotation.patch "LVGL DRM flush rotation patch"
@@ -582,20 +562,14 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_grid_update_guard.patch "LVGL grid_update freed-container guard patch (#973)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_buf_oom_guard.patch "LVGL draw_buf OOM guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-evdev-protocol-a.patch "LVGL evdev Protocol-A touch release patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_arc_draw_guard.patch "LVGL arc draw guard patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_arc_subject_null_guard.patch "LVGL arc subject NULL guard patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_sw_img_buf_height_guard.patch "LVGL draw_sw_img buf_h guard patch (upstream ca18403)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_lodepng_bpp_guard.patch "LVGL lodepng bit-depth guard (16-bit PNG heap overflow)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_drm_egl_render_mode_fix.patch "LVGL DRM EGL render mode fix (upstream ce112eb)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-vsync.patch "LVGL EGL vsync setter patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-partial-upload.patch "LVGL EGL partial upload patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-xrgb-shader.patch "LVGL EGL XRGB display shader patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-opengles-texture-align.patch "LVGL OpenGL ES texture buffer alignment patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-opengles-quarter-turn-direction.patch "LVGL OpenGL ES quarter-turn direction patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_texture_cache_null_guard.patch "LVGL texture cache NULL guard patch (upstream ec053a0)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_sdl_stride_fix.patch "LVGL draw_sdl aligned stride fix"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_display_sync_cb.patch "LVGL display sync callback patch (upstream 4170bcb)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_delete_null_guards.patch "LVGL obj destructor NULL guard patch (obj_destructor_null telemetry)"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_is_valid_no_deref.patch "LVGL obj_is_valid top-down search patch (no parent-pointer walk on a freed object)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_delete_async_dedup.patch "LVGL obj delete async dedup patch (dedup + UAF guard + diagnostics)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_get_screen_cycle_guard.patch "LVGL obj_get_screen cycle guard patch (cap parent-walk depth to 128)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_async_del_crumb.patch "LVGL async-delete breadcrumb patch (#840/#906 sync+async diagnostic)"
@@ -619,9 +593,6 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_style_null_guards.patch "LVGL style NULL guards patch (null style pointers in transitions/cache)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_subject_deinit_refuses_observers.patch "LVGL subject deinit refuses observers patch (#1279)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_flag_screen_parent_null_guard.patch "LVGL obj flag screen-parent NULL guard (hide/unhide a screen)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_flex_hidden_grow_gap.patch "LVGL flex hidden+grow gap fix (upstream #9897 backport)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_check_arg_backport.patch "LVGL LV_CHECK_ARG backport patch (master macro for v9.5.0; drop at upgrade)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_fbdev_arg_guards.patch "LVGL fbdev arg-guard + log-order patch (uses backported LV_CHECK_ARG)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_thread_check_hook.patch "LVGL thread-check hook patch (subject/timer/delete entry points, #1942)"
 	$(ECHO) "$(CYAN)Checking libhv patches...$(RESET)"
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-openssl-static-link.patch "libhv OpenSSL/static build hook patch"
