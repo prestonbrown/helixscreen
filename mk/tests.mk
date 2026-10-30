@@ -980,19 +980,28 @@ endif
 .PHONY: FORCE
 FORCE:
 
+# The compiler and flags of each tests/ object rule, without -c and -o; $(1)
+# takes what the recipe adds and its .ccj leaves out. mk/rules.mk explains the
+# shape, and print-compile-command (Makefile) prints these for a tests/ source.
+TEST_COMPILE = $(CXX) $(CXXFLAGS) $(1) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF)
+TEST_APP_COMPILE = $(CXX) $(CXXFLAGS) $(1) $(FORCED_INCLUDE) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF)
+TEST_MOCK_COMPILE = $(CXX) $(CXXFLAGS) $(1) $(FORCED_INCLUDE) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF)
+TEST_MAIN_COMPILE = $(CXX) $(CXXFLAGS) $(1) -I$(TEST_DIR)
+CATCH2_COMPILE = $(CXX) $(CXXFLAGS) $(1)
+
 # Compile test main (Catch2 runner)
 # Note: No DEPFLAGS for Catch2 infrastructure - rarely changes
 $(TEST_MAIN_OBJ): $(TEST_DIR)/test_main.cpp $(TEST_DIR)/test_helpers/stale_binary_check.h $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-MAIN]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) -I$(TEST_DIR) -c $< -o $@
+	$(Q)$(call TEST_MAIN_COMPILE) -c $< -o $@
 
 # Compile Catch2 amalgamated source
 # Note: No DEPFLAGS - this is third-party code that never changes
 $(CATCH2_OBJ): $(TEST_DIR)/catch_amalgamated.cpp
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CATCH2]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(Q)$(call CATCH2_COMPILE) -c $< -o $@
 
 # Test compile rules depend on libhv-generated headers ($(LIBHV_JSON_HEADER))
 # and the LVGL patch stamp so a fresh `make test-asan` / `make test-tsan` (without a prior
@@ -1003,32 +1012,32 @@ $(CATCH2_OBJ): $(TEST_DIR)/catch_amalgamated.cpp
 $(UI_TEST_UTILS_OBJ): $(TEST_DIR)/ui_test_utils.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[UI-TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile LVGL test fixture (shared base class for UI tests)
 # Uses DEPFLAGS to track header dependencies
 $(LVGL_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[LVGL-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile HelixScreen test fixture (base class that resets process singletons)
 # Uses DEPFLAGS to track header dependencies
 $(HELIX_TEST_FIXTURE_OBJ): $(TEST_DIR)/helix_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[HELIX-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile test fixtures (reusable fixtures with mock initialization helpers)
 # Uses DEPFLAGS to track header dependencies
 $(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[TEST-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile LVGL UI test fixture (full UI integration test fixture)
 # Uses DEPFLAGS to track header dependencies
@@ -1036,8 +1045,8 @@ $(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HE
 $(LVGL_UI_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_ui_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[UI-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Warnings promoted to errors for TEST code only.
 #
@@ -1059,16 +1068,16 @@ TEST_WARN_FLAGS := -Werror=type-limits
 $(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile application subdirectory test sources
 # Emits .ccj fragment for incremental compile_commands.json generation
 $(OBJ_DIR)/tests/application/%.o: $(TEST_UNIT_DIR)/application/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-APP]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_APP_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_APP_COMPILE),$<,$@)
 
 # Compile libhv dns_resolv.c for test_dns_resolver
 # rules.mk makes dns_resolv.c depend on PATCHES_STAMP, which creates it.
@@ -1086,8 +1095,8 @@ $(DNS_RESOLV_OBJ): $(LIBHV_DIR)/base/dns_resolv.c $(LIBHV_LIB)
 $(OBJ_DIR)/tests/mocks/%.o: $(TEST_MOCK_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(YELLOW)[MOCK]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_MOCK_COMPILE,$(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_MOCK_COMPILE),$<,$@)
 
 # ============================================================================
 # Sanitizer Targets (Memory Safety Testing)
@@ -1229,7 +1238,10 @@ TEST_TSAN_BIN := $(BIN_DIR)/helix-tests-tsan
 # attaches to those targets too. `override` is what makes it survive there: the
 # same invocation passes CXXFLAGS on the command line, and a command-line
 # variable discards every makefile assignment to it without the keyword.
-$(TEST_BIN): override CXXFLAGS += -DHELIX_HAS_ACE=1 -DHELIX_HAS_QIDI=1 -DHELIX_HAS_SNAPMAKER=1
+# print-compile-command (Makefile) adds TEST_BIN_CXXFLAGS to every tests/ source
+# itself: it runs outside this target, where the inheritance does not reach.
+TEST_BIN_CXXFLAGS := -DHELIX_HAS_ACE=1 -DHELIX_HAS_QIDI=1 -DHELIX_HAS_SNAPMAKER=1
+$(TEST_BIN): override CXXFLAGS += $(TEST_BIN_CXXFLAGS)
 
 # Run a sanitizer binary in Catch2 shards, $(3) at a time, each into
 # $$shard_dir/<i>.log with its exit status in <i>.exit. The caller creates
