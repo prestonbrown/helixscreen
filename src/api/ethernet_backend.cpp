@@ -175,3 +175,11 @@ std::unique_ptr<EthernetBackend> EthernetBackend::create() {
     return backend;
 #endif
 }
+
+namespace ethernet {
+
+bool is_link_connected(bool has_ip, const std::string& operstate) {
+    return has_ip && operstate != "down";
+}
+
+} // namespace ethernet
