@@ -5,6 +5,7 @@
 
 #include "ethernet_backend.h"
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -46,7 +47,20 @@ class EthernetBackendLinux : public EthernetBackend {
     bool has_interface() override;
     EthernetInfo get_info() override;
 
+    /// Lists interfaces with their name, ip and mac (operstate stays empty;
+    /// get_info() reads it from sysfs). Returns 0, or ifconfig()'s error code.
+    using InterfaceLister = std::function<int(std::vector<helix::ethernet::InterfaceState>&)>;
+
+    /// Replace the interface listing and the sysfs root that get_info() reads.
+    void set_sources_for_test(InterfaceLister lister, std::string sysfs_root) {
+        lister_ = std::move(lister);
+        sysfs_root_ = std::move(sysfs_root);
+    }
+
   private:
+    InterfaceLister lister_;
+    std::string sysfs_root_ = "/sys";
+
     /**
      * @brief Check if interface name looks like physical Ethernet
      *
