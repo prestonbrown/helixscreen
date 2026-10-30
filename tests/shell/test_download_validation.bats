@@ -591,7 +591,7 @@ PY
     # (See also the AD5M case below: python present but built without zlib.)
     local bin="$BATS_TEST_TMPDIR/nopy"
     make_fake_unzip "$bin" busybox131
-    for t in dd du cut sed grep head basename; do
+    for t in dd du wc cut sed grep head basename; do
         real=$(command -v "$t" 2>/dev/null) && ln -sf "$real" "$bin/$t"
     done
     ln -sf /bin/sh "$bin/sh"
@@ -628,7 +628,7 @@ PY
     # another, so the check must degrade to the structural probe instead.
     local bin="$BATS_TEST_TMPDIR/nozlib"
     make_fake_unzip "$bin" busybox131
-    for t in dd du cut sed grep head basename; do
+    for t in dd du wc cut sed grep head basename; do
         real=$(command -v "$t" 2>/dev/null) && ln -sf "$real" "$bin/$t"
     done
     ln -sf /bin/sh "$bin/sh"
@@ -673,7 +673,7 @@ MOCK
 @test "validate_archive: errors when neither python nor unzip can validate" {
     local bin="$BATS_TEST_TMPDIR/notools"
     mkdir -p "$bin"
-    for t in dd du cut sed grep head basename; do
+    for t in dd du wc cut sed grep head basename; do
         real=$(command -v "$t" 2>/dev/null) && ln -sf "$real" "$bin/$t"
     done
     ln -sf /bin/sh "$bin/sh"
