@@ -705,6 +705,7 @@ TEST_CASE_METHOD(DetectedK2Fixture,
         {"Creality K2 Pro", "creality-k2-pro-cfs"},
         {"Creality K2 Plus", "creality-k2-plus-cfs"},
         {"Creality K2 Plus (k2-improvements)", "creality-k2-plus-cfs"},
+        {"Creality K2 Pro (k2-improvements)", "creality-k2-pro-cfs"},
     };
     std::vector<std::string> k2_family;
     for (const auto& name : PrinterDetector::get_list_names()) {
