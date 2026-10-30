@@ -473,6 +473,18 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// start() has begun another run.
     void apply_phase_object_query(const nlohmann::json& response, uint64_t run);
 
+    /// Ask once at start() whether the firmware runs its start macro before
+    /// streaming the file, and where the file stands. Arms the start-macro
+    /// gate when both say the macro is still running.
+    void query_start_macro_gate();
+
+    /// The start-macro query's answer for run `run`; ignored once a later
+    /// start() has begun another run.
+    void apply_start_macro_gate_query(const nlohmann::json& response, uint64_t run);
+
+    /// Disarms the start-macro gate and returns whether it was armed.
+    bool take_start_macro_gate();
+
     /// Bumped by every start() under state_mutex_, so an answer can tell
     /// which run asked.
     std::atomic<uint64_t> run_generation_{0};
@@ -912,6 +924,10 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// status frames last carried them. Guarded by state_mutex_.
     std::optional<uint64_t> file_position_;
     std::string frame_filename_;
+    /// Set while a firmware that runs its start macro before the file is still
+    /// at file_position 0: the first position past 0 means the macro, purge
+    /// included, has returned. Guarded by state_mutex_.
+    bool start_macro_gate_armed_ = false;
     /// A step that reached its line within the console grace, while the
     /// console's latest change came from a line its command does not print:
     /// the previous command's last words. It shows once the grace passes,

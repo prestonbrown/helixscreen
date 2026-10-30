@@ -18,6 +18,7 @@
 #include "print_start_analyzer.h"
 #include "print_start_phase_label.h"
 #include "printer_detector.h"
+#include "start_macro_injection.h"
 #include "text_io.h"
 #include "thermal_rate_model.h"
 #include "unit_conversions.h"
@@ -30,6 +31,7 @@
 #include <atomic>
 #include <cmath>
 #include <ctime>
+#include <utility>
 
 using namespace helix;
 
@@ -306,6 +308,7 @@ void PrintStartCollector::start() {
                       kEtaUpdateIntervalMs);
     }
     query_phase_object();
+    query_start_macro_gate();
 
     // Run first update immediately
     update_eta_display();
@@ -421,6 +424,7 @@ void PrintStartCollector::reset_run_locked() {
     start_block_requested_ = false;
     file_position_.reset();
     frame_filename_.clear();
+    start_macro_gate_armed_ = false;
     deferred_step_.reset();
     console_phase_line_.clear();
     if (start_block_cancel_) {
@@ -1793,6 +1797,52 @@ void PrintStartCollector::apply_phase_object_query(const json& response, uint64_
     }
 }
 
+void PrintStartCollector::query_start_macro_gate() {
+    json params = {{"objects", json::object({{"configfile", json::array({"settings"})},
+                                             {"virtual_sdcard", json::array({"file_position"})}})}};
+    auto self = shared_from_this();
+    const uint64_t run = run_generation_.load();
+    client_.send_jsonrpc(
+        "printer.objects.query", params,
+        [self, run](const json& response) { self->apply_start_macro_gate_query(response, run); },
+        [](const MoonrakerError& /*err*/) {
+            spdlog::debug("[PrintStartCollector] Failed to query the start-macro gate");
+        });
+}
+
+void PrintStartCollector::apply_start_macro_gate_query(const json& response, uint64_t run) {
+    if (!active_.load()) {
+        return;
+    }
+    const json* result = json_util::find_member(response, "result");
+    const json* status = result != nullptr ? json_util::find_member(*result, "status") : nullptr;
+    const json* configfile =
+        status != nullptr ? json_util::find_member(*status, "configfile") : nullptr;
+    const json* settings =
+        configfile != nullptr ? json_util::find_member(*configfile, "settings") : nullptr;
+    if (settings == nullptr || !helix::firmware_runs_start_macro_before_file(*settings)) {
+        return;
+    }
+    // A position already past 0 means the file is streaming: the macro has
+    // returned, or the file calls it itself and stands on its own line.
+    const std::optional<uint64_t> position = helix::virtual_sdcard_file_position(response);
+    if (!position || *position != 0) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    if (run != run_generation_.load() || current_phase_ == PrintStartPhase::COMPLETE) {
+        return;
+    }
+    start_macro_gate_armed_ = true;
+    spdlog::info("[PrintStartCollector] Firmware runs the start macro before the file; "
+                 "pre-print ends when the file starts streaming");
+}
+
+bool PrintStartCollector::take_start_macro_gate() {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    return std::exchange(start_macro_gate_armed_, false);
+}
+
 void PrintStartCollector::query_phase_object() {
     if (!profile_ || !profile_->has_phase_object() ||
         profile_->phase_object_context_field().empty()) {
@@ -2295,6 +2345,10 @@ void PrintStartCollector::handle_start_block_position(const json& status) {
         if (filename && filename->is_string()) {
             frame_filename_ = filename->get<std::string>();
         }
+    }
+    if (position && *position > 0 && take_start_macro_gate()) {
+        complete_from_external_signal("start macro returned: the file began streaming");
+        return;
     }
     if (!position || !profile_ || !profile_->scripted_start()) {
         return;
