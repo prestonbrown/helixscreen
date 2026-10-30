@@ -298,3 +298,27 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
     REQUIRE_NOTHROW(
         offline_api.database_post_item("helix", "key", json{{"val", 1}}, nullptr, nullptr));
 }
+
+// ============================================================================
+// Client state reached through the API
+// ============================================================================
+
+// The mock inherits these from MoonrakerClient, so they run the real client's code.
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "suppressing the disconnect modal is visible on the client", "[api][proxy]") {
+    REQUIRE_FALSE(mock_client.is_disconnect_modal_suppressed());
+
+    api->suppress_disconnect_modal(5000);
+
+    CHECK(mock_client.is_disconnect_modal_suppressed());
+}
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "is_connected turns false once the client disconnects", "[api][proxy]") {
+    REQUIRE(api->is_connected());
+
+    mock_client.disconnect();
+
+    CHECK_FALSE(api->is_connected());
+}

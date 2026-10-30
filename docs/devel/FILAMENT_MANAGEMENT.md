@@ -1813,10 +1813,11 @@ switched buffer sends none of these keys, leaves `fps_reported` false, and has n
 reading.
 
 > **Unverified on hardware.** The only AFC rig here is a BoxTurtle with a
-> switched buffer; its live status carries none of the FPS fields. The mapping is
-> pinned against a source read of AFC v1.2.0 (`a06f14d`) in
-> `tests/unit/test_buffer_reading.cpp` — re-check those against a real FPS_PSF
-> buffer before trusting the scale.
+> switched buffer; its live status carries none of the FPS fields. The key names
+> and the scale come from a source read of AFC v1.2.0 (`a06f14d`).
+> `tests/unit/test_buffer_reading.cpp` pins `fps_to_bias()` on that scale, but no
+> test feeds an `AFC_buffer` frame carrying the FPS keys through the AFC parser.
+> Re-check both against a real FPS_PSF buffer before trusting them.
 
 ### Filament buffer reading
 

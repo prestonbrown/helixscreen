@@ -152,3 +152,17 @@ TEST_CASE_METHOD(PresenterFixture, "CalloutPresenter pins a tall chip at its com
     REQUIRE(out.chips.size() == 1);
     CHECK(out.chips[0].rect.h == 26);
 }
+
+TEST_CASE_METHOD(PresenterFixture, "a pinned chip covers more of the photo than a docked one",
+                 "[callout_presenter]") {
+    lv_obj_t* c = make_chip();
+    REQUIRE(c != nullptr);
+    REQUIRE(lv_subject_get_int(&compact_subj) == 0);
+    CHECK(lv_obj_get_style_bg_opa(c, LV_PART_MAIN) == LV_OPA_COVER * 65 / 100);
+
+    lv_subject_set_int(&compact_subj, 1);
+    CHECK(lv_obj_get_style_bg_opa(c, LV_PART_MAIN) == LV_OPA_COVER * 90 / 100);
+
+    lv_subject_set_int(&compact_subj, 0);
+    CHECK(lv_obj_get_style_bg_opa(c, LV_PART_MAIN) == LV_OPA_COVER * 65 / 100);
+}

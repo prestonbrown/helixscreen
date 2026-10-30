@@ -1053,6 +1053,24 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: write_exception_record handles null w
     REQUIRE_FALSE(parsed.contains("exception"));
 }
 
+TEST_CASE_METHOD(CrashTestFixture, "Crash: an empty exception message reads back as present",
+                 "[telemetry][crash]") {
+    // An exception whose what() is "" still says the crash came from an
+    // exception, so the key must survive with an empty value.
+    write_crash_file("signal:0\n"
+                     "name:EXCEPTION\n"
+                     "version:0.13.3\n"
+                     "timestamp:1707350400\n"
+                     "uptime:0\n"
+                     "exception:\n");
+
+    json parsed = crash_handler::read_crash_file(crash_path());
+    REQUIRE_FALSE(parsed.is_null());
+    REQUIRE(parsed["signal_name"] == "EXCEPTION");
+    REQUIRE(parsed.contains("exception"));
+    CHECK(parsed["exception"] == "");
+}
+
 TEST_CASE_METHOD(CrashTestFixture, "Crash: write_exception_record is no-op without install",
                  "[telemetry][crash]") {
     // Ensure we start in uninstalled state — prior tests may have left state;

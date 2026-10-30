@@ -23,6 +23,7 @@
 #include "ui_test_utils.h"
 #include "ui_update_queue.h"
 
+#include "app_constants.h"
 #include "backlight_backend.h"
 #include "display_backend.h"
 #include "display_manager.h"
@@ -433,7 +434,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     chain.hold(LV_INDEV_STATE_PRESSED, kOnButton, 30);
     CHECK_FALSE(chain.asleep_or_dimmed()); // woken by the press, not the release
 
-    chain.hold(LV_INDEV_STATE_PRESSED, kOnButton, 470);
+    // Held well past the long-press threshold from the touch-down, so a wake that left
+    // the press live would fire LONG_PRESSED before the lift.
+    chain.hold(LV_INDEV_STATE_PRESSED, kOnButton,
+               static_cast<int>(helix::app_constants::input::kLongPressMs) + 200 - 30);
     chain.hold(LV_INDEV_STATE_RELEASED, kOnButton, 50);
 
     CHECK(g_counts.clicked == 0);

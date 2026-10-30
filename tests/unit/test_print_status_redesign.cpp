@@ -606,6 +606,10 @@ TEST_CASE_METHOD(Landscape800, "the two-line speed/flow chip lays out at its own
             placed = &c;
     REQUIRE(placed != nullptr);
     CHECK(placed->rect.h == lv_obj_get_height(speed));
+    // Both lines live in the chip's one text label; a second label would size and
+    // tint apart from it.
+    CHECK(lv_obj_find_by_name(speed, "chip_text") != nullptr);
+    CHECK(lv_obj_find_by_name(speed, "ps_chip_speed_text") == nullptr);
     check_chips_inside_and_apart(root_);
 }
 

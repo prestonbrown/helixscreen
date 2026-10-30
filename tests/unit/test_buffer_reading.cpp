@@ -92,6 +92,17 @@ TEST_CASE("buffer_reading: the system follows the lane feeding the toolhead", "[
     SECTION("a unit index past the end reads the system") {
         CHECK(buffer_reading(info, 7).unit == 1);
     }
+
+    SECTION("the feeding lane on a switched buffer falls back to the first sensor") {
+        // Unit 1 keeps a buffer but reports no pressure: a switched TurtleNeck.
+        info.units[1].buffer_health = BufferHealth{};
+        REQUIRE(info.units[1].buffer_health.has_value());
+        REQUIRE_FALSE(info.units[1].buffer_health->fps_reported);
+        REQUIRE(info.get_unit_position_for_slot(info.current_slot) == 1);
+        CHECK(info.feeding_pressure_unit() == 0);
+        CHECK(buffer_reading(info, -1).unit == 0);
+        CHECK(info.pressure_sensor_bias() == Catch::Approx(0.8f));
+    }
 }
 
 TEST_CASE("buffer_reading: a switched buffer has no reading", "[buffer][reading]") {

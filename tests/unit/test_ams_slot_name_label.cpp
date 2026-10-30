@@ -352,6 +352,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: no name reads exactly as the mate
 
     CHECK_FALSE(shown(name_label(slot)));
     CHECK(text_of(material_label(slot)) == "PLA");
+    // A present lane draws its material at full strength; only a ghost dims it.
+    CHECK(lv_obj_get_style_text_opa(material_label(slot), LV_PART_MAIN) == LV_OPA_COVER);
 
     lv_obj_delete(slot);
 }

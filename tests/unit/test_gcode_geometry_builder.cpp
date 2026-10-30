@@ -194,6 +194,11 @@ TEST_CASE("Geometry Builder: RibbonGeometry - clear", "[gcode][geometry][ribbon]
     geometry.color_palette.push_back(0xFF0000);
     geometry.extrusion_triangle_count = 10;
     geometry.moving_mesh = std::make_unique<RibbonGeometry>();
+    geometry.strip_layer_index.push_back(2);
+    geometry.layer_strip_ranges.push_back({0, 1});
+    geometry.max_layer_index = 2;
+    geometry.prepared_buffers.push_back({std::vector<uint8_t>(48), 4});
+    REQUIRE(geometry.memory_usage() > 0);
 
     geometry.clear();
 
@@ -203,6 +208,13 @@ TEST_CASE("Geometry Builder: RibbonGeometry - clear", "[gcode][geometry][ribbon]
     REQUIRE(geometry.color_palette.empty());
     REQUIRE(geometry.extrusion_triangle_count == 0);
     REQUIRE(geometry.moving_mesh == nullptr);
+    // The layer index and the GPU staging copy go too, or a cleared viewer keeps
+    // drawing layers from the previous file.
+    CHECK(geometry.strip_layer_index.empty());
+    CHECK(geometry.layer_strip_ranges.empty());
+    CHECK(geometry.max_layer_index == 0);
+    CHECK(geometry.prepared_buffers.empty());
+    CHECK(geometry.memory_usage() == 0);
 }
 
 TEST_CASE("Geometry Builder: RibbonGeometry - memory usage", "[gcode][geometry][ribbon]") {

@@ -164,6 +164,52 @@ TEST_CASE("PrinterTemperatureState: status updates route to each extruder's own 
     state.deinit_subjects();
 }
 
+TEST_CASE("PrinterTemperatureState: init_extruders keeps only extruder heaters",
+          "[core][temperature][multi-extruder]") {
+    lv_init_safe();
+    PrinterTemperatureState state;
+    state.init_subjects(false);
+
+    state.init_extruders({"extruder", "extruder1", "heater_bed", "temperature_sensor chamber",
+                          "extruder_stepper e1"});
+
+    CHECK(state.extruder_count() == 2);
+    CHECK(state.extruders().count("extruder") == 1);
+    CHECK(state.extruders().count("extruder1") == 1);
+    CHECK(state.get_extruder_temp_subject("heater_bed") == nullptr);
+    CHECK(state.get_extruder_temp_subject("extruder_stepper e1") == nullptr);
+
+    state.deinit_subjects();
+}
+
+TEST_CASE("PrinterTemperatureState: deinit drops every extruder and re-init starts fresh",
+          "[core][temperature][multi-extruder]") {
+    lv_init_safe();
+    PrinterTemperatureState state;
+    state.init_subjects(false);
+    state.init_extruders({"extruder", "extruder1"});
+    state.update_from_status({{"extruder", {{"temperature", 200.0}}}});
+    REQUIRE(state.extruder_count() == 2);
+    REQUIRE(lv_subject_get_int(state.get_extruder_temp_subject("extruder")) == 2000);
+
+    state.deinit_subjects();
+    CHECK(state.extruder_count() == 0);
+    CHECK(state.get_extruder_temp_subject("extruder") == nullptr);
+    CHECK(state.get_extruder_target_subject("extruder") == nullptr);
+
+    // A second deinit is a no-op, not a double free.
+    state.deinit_subjects();
+    CHECK(state.extruder_count() == 0);
+
+    // No reading from the previous session survives into the next one.
+    state.init_subjects(false);
+    state.init_extruders({"extruder"});
+    REQUIRE(state.get_extruder_temp_subject("extruder") != nullptr);
+    CHECK(lv_subject_get_int(state.get_extruder_temp_subject("extruder")) == 0);
+
+    state.deinit_subjects();
+}
+
 TEST_CASE("PrinterTemperatureState: load latch survives cooldown to 0",
           "[core][temperature][swap_preheat]") {
     lv_init_safe();

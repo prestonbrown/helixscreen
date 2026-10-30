@@ -614,6 +614,11 @@ TEST_CASE("PrintPreparationManager: collect_macro_skip_params uses correct optio
         const auto* macro = std::get_if<PrePrintStrategyMacroParam>(&bed_cap->strategy);
         REQUIRE(macro != nullptr);
         REQUIRE(macro->param_name == "SKIP_LEVELING");
+
+        // The AD5M Pro's START_PRINT takes no purge or skew parameter, so the card
+        // must offer no toggle that would send one.
+        CHECK(caps.find("purge_line") == nullptr);
+        CHECK(caps.find("skew_correct") == nullptr);
     }
 
     SECTION("All option ids match category_to_string output") {

@@ -181,6 +181,9 @@ TEST_CASE("BrotherQLPrinter::build_raster_commands die-cut media type", "[label]
     REQUIRE(die_cut.media_type == 0x0B);
 
     auto commands = helix::BrotherQLPrinter::build_raster_commands(bitmap, die_cut);
+    // Validity flags mark the length field valid for die-cut media only:
+    // PI | width | media type | length.
+    REQUIRE(commands[209] == 0x8E);
     // Verify media type byte in command buffer
     REQUIRE(commands[210] == 0x0B);
     REQUIRE(commands[212] == 90); // Length mm
