@@ -83,7 +83,8 @@ struct InterfaceState {
  *
  * Preference: the first interface that is "up" with an address, then the
  * first whose address and link make it connected (is_link_connected), then
- * the first interface.
+ * the first interface. A result that is not connected carries no address,
+ * since an address left on an unplugged port reaches nothing.
  *
  * @param interfaces Ethernet interfaces only, in kernel order
  * @return status "No Ethernet interface" when @p interfaces is empty

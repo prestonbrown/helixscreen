@@ -285,12 +285,13 @@ TEST_CASE("Ethernet selection reports the interface that carries traffic",
         CHECK(info.status == "No Ethernet interface");
     }
 
-    SECTION("a lone unplugged port with a leftover address is no cable") {
+    SECTION("a lone unplugged port with a leftover address is no cable, with no address") {
         const EthernetInfo info =
             select_interface({{"eth0", "192.168.1.50", "aa:bb:cc:dd:ee:ff", "down"}});
         CHECK(info.interface == "eth0");
         CHECK_FALSE(info.connected);
         CHECK(info.status == "No cable");
+        CHECK(info.ip_address.empty());
         CHECK(info.mac_address == "aa:bb:cc:dd:ee:ff");
     }
 
