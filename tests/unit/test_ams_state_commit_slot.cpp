@@ -374,152 +374,74 @@ struct RestartedAfcLinkFixture : AfcCommitFixture {
 
 } // namespace
 
-TEST_CASE("commit_slot_edit clears server active spool on unlink", "[ams][spoolman][commit]") {
-    CommitFixture f;
-    MoonrakerAPIMock* mock_api = f.setup(169);
+// Lane 0 is the loaded lane. Unlinking it clears the server's active spool, even
+// where the backend manages the active spool (AFC's SET_SPOOL_ID SPOOL_ID= does
+// not clear it server-side). Linking it makes the spool active unless the
+// backend takes the link itself (AFC); Happy Hare switches only on a load, so
+// the edit sets it there. An edit on a lane that is not loaded, or a clear of a
+// lane that never had a link, leaves the server's active spool alone.
+TEST_CASE("commit_slot_edit moves the server's active spool only for the loaded lane",
+          "[ams][spoolman][commit][1717][plugin_filament]") {
+    enum class Backend { Plain, ManagesActive, ActivatesOnLoad };
+    struct Row {
+        const char* name;
+        Backend backend;
+        int lane0_spool;
+        int lane;
+        int before, after; // the lane's spool id before and after the edit
+        int active_before, active_after;
+    };
+    const Row rows[] = {
+        {"unlink the loaded lane", Backend::Plain, 169, 0, 169, 0, 169, 0},
+        {"unlink the loaded lane where the backend manages it", Backend::ManagesActive, 169, 0, 169,
+         0, 169, 0},
+        {"unlink a lane that is not loaded", Backend::ManagesActive, 169, 1, 147, 0, 169, 169},
+        {"link a lane that is not loaded", Backend::ManagesActive, 169, 1, 0, 147, 169, 169},
+        {"link the loaded lane", Backend::Plain, 0, 0, 0, 147, 0, 147},
+        {"link the loaded lane where the backend takes the link", Backend::ManagesActive, 0, 0, 0,
+         147, 5, 5},
+        {"link the loaded lane where the backend switches on a load", Backend::ActivatesOnLoad, 0,
+         0, 0, 147, 5, 147},
+        // No set_active_spool may fire, not even a clear to 0.
+        {"clear a lane that never had a link", Backend::Plain, 0, 1, 0, 0, 77, 77},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        CommitFixture f;
+        switch (row.backend) {
+        case Backend::Plain:
+            f.setup(row.lane0_spool);
+            break;
+        case Backend::ManagesActive:
+            f.setup_manages_active_spool(row.lane0_spool);
+            break;
+        case Backend::ActivatesOnLoad:
+            f.setup_activates_on_load_only(row.lane0_spool);
+            break;
+        }
+        REQUIRE(f.backend->slot_is_actively_loaded(0));
+        f.client.spoolman_mock().set_active_spool_id(row.active_before);
 
-    // Server thinks 169 is active — the state bundle F2LNLQCC left dangling.
-    f.client.spoolman_mock().set_active_spool_id(169);
-    REQUIRE(f.client.spoolman_mock().get_mock_active_spool_id() == 169);
+        SlotInfo original = f.backend->get_slot_info(row.lane);
+        if (row.lane != 0) {
+            if (row.before == 0 && row.after == 0)
+                original.material = "PLA";
+            original.spoolman_id = row.before;
+            f.backend->sync_external_identity(row.lane, original);
+            REQUIRE_FALSE(f.backend->slot_is_actively_loaded(row.lane));
+        }
+        REQUIRE(f.backend->get_slot_info(row.lane).spoolman_id == row.before);
 
-    SlotInfo original = f.backend->get_slot_info(0);
-    REQUIRE(original.spoolman_id == 169);
+        SlotInfo edited = original;
+        edited.spoolman_id = row.after;
+        if (row.before == 0 && row.after == 0)
+            edited.material.clear();
+        REQUIRE(AmsState::instance().commit_slot_edit(row.lane, original, edited).success());
+        helix::ui::UpdateQueue::instance().drain();
 
-    SlotInfo edited = original;
-    edited.spoolman_id = 0; // unlink
-
-    AmsError err = AmsState::instance().commit_slot_edit(0, original, edited);
-    REQUIRE(err.success());
-    helix::ui::UpdateQueue::instance().drain();
-
-    // REQUIRED: the server-side active spool was cleared.
-    REQUIRE(f.client.spoolman_mock().get_mock_active_spool_id() == 0);
-    // And the edit itself reached the backend slot.
-    REQUIRE(f.backend->get_slot_info(0).spoolman_id == 0);
-}
-
-TEST_CASE("commit_slot_edit leaves the active spool alone when the unlinked lane is not loaded",
-          "[ams][spoolman][commit][1717]") {
-    CommitFixture f;
-    // AFC-shaped, so no loaded-lane sync re-asserts the active spool and the
-    // check reads only what the commit itself did.
-    f.setup_manages_active_spool(169);
-    // Lane 0 is the loaded one, and its spool is the active spool.
-    REQUIRE(f.backend->slot_is_actively_loaded(0));
-    f.client.spoolman_mock().set_active_spool_id(169);
-
-    SlotInfo original = f.backend->get_slot_info(1);
-    original.spoolman_id = 147;
-    f.backend->sync_external_identity(1, original);
-    REQUIRE_FALSE(f.backend->slot_is_actively_loaded(1));
-
-    SlotInfo cleared = original;
-    cleared.spoolman_id = 0;
-    REQUIRE(AmsState::instance().commit_slot_edit(1, original, cleared).success());
-
-    CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 169);
-    CHECK(f.backend->get_slot_info(1).spoolman_id == 0);
-}
-
-TEST_CASE("commit_slot_edit leaves the active spool alone when linking a lane that is not loaded",
-          "[ams][spoolman][commit][1717]") {
-    CommitFixture f;
-    // AFC-shaped, so no loaded-lane sync re-asserts the active spool and the
-    // check reads only what the commit itself did.
-    f.setup_manages_active_spool(169);
-    REQUIRE(f.backend->slot_is_actively_loaded(0));
-    f.client.spoolman_mock().set_active_spool_id(169);
-
-    SlotInfo original = f.backend->get_slot_info(1);
-    original.spoolman_id = 0;
-    f.backend->sync_external_identity(1, original);
-    REQUIRE_FALSE(f.backend->slot_is_actively_loaded(1));
-
-    SlotInfo linked = original;
-    linked.spoolman_id = 147;
-    REQUIRE(AmsState::instance().commit_slot_edit(1, original, linked).success());
-
-    CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 169);
-    CHECK(f.backend->get_slot_info(1).spoolman_id == 147);
-}
-
-TEST_CASE("commit_slot_edit makes the spool active when linking the loaded lane",
-          "[ams][spoolman][commit][1717]") {
-    CommitFixture f;
-    f.setup(0);
-    REQUIRE(f.backend->slot_is_actively_loaded(0));
-
-    SlotInfo original = f.backend->get_slot_info(0);
-    SlotInfo linked = original;
-    linked.spoolman_id = 147;
-    REQUIRE(AmsState::instance().commit_slot_edit(0, original, linked).success());
-
-    CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 147);
-}
-
-TEST_CASE("commit_slot_edit leaves the active spool to a backend that takes the link itself",
-          "[ams][spoolman][commit][plugin_filament]") {
-    // AFC sets the active spool itself when SET_SPOOL_ID names the loaded lane.
-    CommitFixture f;
-    f.setup_manages_active_spool(0);
-    REQUIRE(f.backend->slot_is_actively_loaded(0));
-    f.client.spoolman_mock().set_active_spool_id(5);
-
-    SlotInfo original = f.backend->get_slot_info(0);
-    SlotInfo linked = original;
-    linked.spoolman_id = 147;
-    REQUIRE(AmsState::instance().commit_slot_edit(0, original, linked).success());
-
-    CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 5);
-}
-
-TEST_CASE("commit_slot_edit sets the spool for a backend that switches only on a load",
-          "[ams][spoolman][commit][plugin_filament]") {
-    // Happy Hare activates a gate's spool when the gate loads; a link of the
-    // gate already loaded never reaches that, so the edit sets it.
-    CommitFixture f;
-    f.setup_activates_on_load_only(0);
-    REQUIRE(f.backend->slot_is_actively_loaded(0));
-    f.client.spoolman_mock().set_active_spool_id(5);
-
-    SlotInfo original = f.backend->get_slot_info(0);
-    SlotInfo linked = original;
-    linked.spoolman_id = 147;
-    REQUIRE(AmsState::instance().commit_slot_edit(0, original, linked).success());
-
-    CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 147);
-}
-
-TEST_CASE("commit_slot_edit leaves server active spool alone on a no-link clear",
-          "[ams][spoolman][commit]") {
-    CommitFixture f;
-    MoonrakerAPIMock* mock_api = f.setup(0);
-
-    // Another lane's spool is active server-side. The unlink arm must not
-    // touch it just because THIS slot's edit happened to be a clear.
-    f.client.spoolman_mock().set_active_spool_id(77);
-    REQUIRE(f.client.spoolman_mock().get_mock_active_spool_id() == 77);
-
-    // A clear on a slot that never had a Spoolman link (original and edited
-    // spoolman_id both 0): NO set_active_spool call may fire — not even a
-    // clear(0), which would unlink whatever other lane the server tracks.
-    // (The mock's demo data links every lane, so stage a link-less one.)
-    SlotInfo seeded = f.backend->get_slot_info(1);
-    seeded.material = "PLA";
-    seeded.spoolman_id = 0;
-    f.backend->sync_external_identity(1, seeded);
-
-    SlotInfo original = f.backend->get_slot_info(1);
-    REQUIRE(original.spoolman_id == 0);
-
-    SlotInfo cleared = original;
-    cleared.material.clear();
-
-    AmsError err = AmsState::instance().commit_slot_edit(1, original, cleared);
-    REQUIRE(err.success());
-
-    // REQUIRED: the active spool id is UNCHANGED.
-    CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 77);
+        CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == row.active_after);
+        CHECK(f.backend->get_slot_info(row.lane).spoolman_id == row.after);
+    }
 }
 
 TEST_CASE("commit_slot_edit invalidates identity cache on link change", "[ams][spoolman][commit]") {
@@ -764,35 +686,6 @@ TEST_CASE("context-menu clear on the bypass sentinel names the external spool",
     CHECK(AmsState::instance().get_external_spool_info().value_or(SlotInfo{}).material.empty());
     // The sentinel is not an index into the backend: no lane was touched.
     CHECK(f.backend->get_slot_info(0).material == "PLA");
-}
-
-TEST_CASE("commit_slot_edit clears active spool even when backend manages it",
-          "[ams][spoolman][commit][regression]") {
-    CommitFixture f;
-    MoonrakerAPIMock* mock_api = f.setup_manages_active_spool(169);
-
-    // Premise of the regression: the backend reports that firmware manages the
-    // active spool (AFC sends SET_SPOOL_ID on load). The old
-    // sync_active_spool_after_edit() (since removed) gated on this and never
-    // cleared — but AFC's SET_SPOOL_ID SPOOL_ID= does NOT unlink server-side
-    // either.
-    REQUIRE(AmsState::instance().get_backend()->manages_active_spool());
-
-    f.client.spoolman_mock().set_active_spool_id(169);
-    REQUIRE(f.client.spoolman_mock().get_mock_active_spool_id() == 169);
-
-    SlotInfo original = f.backend->get_slot_info(0);
-    REQUIRE(original.spoolman_id == 169);
-
-    SlotInfo edited = original;
-    edited.spoolman_id = 0; // unlink
-
-    AmsError err = AmsState::instance().commit_slot_edit(0, original, edited);
-    REQUIRE(err.success());
-    helix::ui::UpdateQueue::instance().drain();
-
-    // REQUIRED: the clear fired anyway.
-    REQUIRE(f.client.spoolman_mock().get_mock_active_spool_id() == 0);
 }
 
 // ============================================================================
