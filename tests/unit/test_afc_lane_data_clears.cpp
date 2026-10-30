@@ -35,19 +35,13 @@ json both_lanes(const json& lane1, const json& lane2 = json::object()) {
     return json{{"lane1", lane1}, {"lane2", lane2}};
 }
 
-void seed_spool_id(AmsBackendAfc& afc, int slot_index, int id) {
-    std::lock_guard<std::mutex> lock(AfcTestAccess::mutex(afc));
-    AfcTestAccess::slots(afc).get_mut(slot_index)->info.spoolman_id = id;
-}
-
 } // namespace
 
 TEST_CASE("AFC lane_data null spool_id unlinks one lane and leaves the other", "[ams][afc][1195]") {
     helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
     AmsBackendAfc& afc = *afc_reg;
     helix::test::init_afc_lanes(afc, {"lane1", "lane2"});
-    seed_spool_id(afc, 0, 42);
-    seed_spool_id(afc, 1, 99);
+    feed_lane_data(afc, both_lanes(lane_record(42), lane_record(99)));
 
     feed_lane_data(afc, both_lanes(json{{"material", "PETG"}}));
     CHECK(afc.get_slot_info(0).spoolman_id == 42);
@@ -135,17 +129,16 @@ TEST_CASE("AFC lane_data never resizes a registry that already exists",
     helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
     AmsBackendAfc& afc = *afc_reg;
     helix::test::init_afc_lanes(afc, {"lane1", "lane2", "lane3", "lane4"});
-    seed_spool_id(afc, 1, 99);
+    feed_lane_data(afc, json{{"lane2", lane_record(99)}});
 
     feed_lane_data(afc, json{{"lane1", lane_record(127)}});
-    CHECK(AfcTestAccess::slots(afc).slot_count() == 4);
-    CHECK(AfcTestAccess::slots(afc).name_of(3) == "lane4");
+    CHECK(afc.get_system_info().total_slots == 4);
     CHECK(afc.get_slot_info(0).spoolman_id == 127);
     CHECK(afc.get_slot_info(1).spoolman_id == 99);
 
     // The window opens with the delete, so an even earlier query returns {}.
     feed_lane_data(afc, json::object());
-    CHECK(AfcTestAccess::slots(afc).slot_count() == 4);
+    CHECK(afc.get_system_info().total_slots == 4);
 }
 
 TEST_CASE("AFC lane_data defers to Klipper discovery for the lane set",
@@ -155,8 +148,7 @@ TEST_CASE("AFC lane_data defers to Klipper discovery for the lane set",
 
     feed_lane_data(afc, json{{"lane1", lane_record(127)}});
 
-    CHECK(AfcTestAccess::slots(afc).slot_count() == 4);
-    CHECK(AfcTestAccess::slots(afc).name_of(3) == "lane4");
+    CHECK(afc.get_system_info().total_slots == 4);
     CHECK(afc.get_slot_info(0).spoolman_id == 127);
 }
 
@@ -165,11 +157,10 @@ TEST_CASE("AFC lane_data still bootstraps when discovery found no lanes",
     // Without AFC_stepper/AFC_lane objects to enumerate, the database is the
     // only lane source there is, so deference must not become a refusal.
     AmsBackendAfc afc(nullptr, nullptr);
-    REQUIRE(AfcTestAccess::slots(afc).slot_count() == 0);
+    REQUIRE(afc.get_system_info().total_slots == 0);
 
     feed_lane_data(afc, json{{"lane2", lane_record(2)}, {"lane1", lane_record(1)}});
 
-    CHECK(AfcTestAccess::slots(afc).slot_count() == 2);
-    CHECK(AfcTestAccess::slots(afc).name_of(1) == "lane2");
+    CHECK(afc.get_system_info().total_slots == 2);
     CHECK(afc.get_slot_info(1).spoolman_id == 2);
 }

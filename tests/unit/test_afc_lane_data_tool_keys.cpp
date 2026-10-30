@@ -109,7 +109,7 @@ TEST_CASE("a T-only payload never bootstraps the slot registry", "[afc][lane_dat
     // Slots are named by lanes (discovery's job). "T0"/"T1" slots here would
     // poison the registry for the whole session — lane data never resolves to
     // them and the status path only iterates slots that exist.
-    CHECK(AfcTestAccess::slots(afc).slot_count() == 0);
+    CHECK(afc.get_system_info().total_slots == 0);
 }
 
 TEST_CASE("T-keyed payload arriving before the mapping is parked and replayed",

@@ -31,15 +31,26 @@ json envelope(const char* ns, const json& value) {
     return {{"jsonrpc", "2.0"}, {"id", 1}, {"result", {{"namespace", ns}, {"value", value}}}};
 }
 
+bool apply_version(AmsBackendAfc& afc, const json& response) {
+    return AfcTestAccess::apply_afc_version_response(afc, response);
+}
+
+bool apply_lanes(AmsBackendAfc& afc, const json& response) {
+    return AfcTestAccess::apply_lane_data_response(afc, response);
+}
+
+std::string version(AmsBackendAfc& afc) {
+    return AfcTestAccess::afc_version(afc);
+}
+
 } // namespace
 
 TEST_CASE("AFC version is applied from a real database envelope", "[afc][database]") {
     AmsBackendAfc afc(nullptr, nullptr);
-    REQUIRE(AfcTestAccess::afc_version(afc) == "unknown");
+    REQUIRE(version(afc) == "unknown");
 
-    REQUIRE(AfcTestAccess::apply_afc_version_response(
-        afc, envelope("afc-install", {{"version", "1.0.40"}})));
-    CHECK(AfcTestAccess::afc_version(afc) == "1.0.40");
+    REQUIRE(apply_version(afc, envelope("afc-install", {{"version", "1.0.40"}})));
+    CHECK(version(afc) == "1.0.40");
 }
 
 // lane_data is not gated on a version: AFC stopped writing the afc-install
@@ -47,11 +58,10 @@ TEST_CASE("AFC version is applied from a real database envelope", "[afc][databas
 // reported "1.0.0" while its lane_data namespace was fully populated.
 TEST_CASE("lane_data does not depend on the reported version", "[afc][database]") {
     AmsBackendAfc afc(nullptr, nullptr);
-    REQUIRE(AfcTestAccess::apply_afc_version_response(
-        afc, envelope("afc-install", {{"version", "1.0.0"}})));
+    REQUIRE(apply_version(afc, envelope("afc-install", {{"version", "1.0.0"}})));
 
     const json lanes = {{"lane1", {{"material", "ASA"}, {"color", "#c1c1c1"}, {"spool_id", 127}}}};
-    REQUIRE(AfcTestAccess::apply_lane_data_response(afc, envelope("lane_data", lanes)));
+    REQUIRE(apply_lanes(afc, envelope("lane_data", lanes)));
     CHECK(afc.get_slot_info(0).material == "ASA");
     CHECK(afc.get_slot_info(0).color_rgb == 0xc1c1c1);
     CHECK(afc.get_slot_info(0).spoolman_id == 127);
@@ -59,13 +69,11 @@ TEST_CASE("lane_data does not depend on the reported version", "[afc][database]"
 
 TEST_CASE("a malformed version reply applies nothing", "[afc][database]") {
     AmsBackendAfc afc(nullptr, nullptr);
-    CHECK_FALSE(
-        AfcTestAccess::apply_afc_version_response(afc, envelope("afc-install", json::object())));
-    CHECK_FALSE(AfcTestAccess::apply_afc_version_response(
-        afc, envelope("afc-install", {{"version", nullptr}})));
-    CHECK_FALSE(AfcTestAccess::apply_afc_version_response(afc, envelope("afc-install", "x")));
-    CHECK_FALSE(AfcTestAccess::apply_afc_version_response(afc, json::object()));
-    CHECK(AfcTestAccess::afc_version(afc) == "unknown");
+    CHECK_FALSE(apply_version(afc, envelope("afc-install", json::object())));
+    CHECK_FALSE(apply_version(afc, envelope("afc-install", {{"version", nullptr}})));
+    CHECK_FALSE(apply_version(afc, envelope("afc-install", "x")));
+    CHECK_FALSE(apply_version(afc, json::object()));
+    CHECK(version(afc) == "unknown");
 }
 
 // AFC's real lane_data payload carries no presence keys. Absent means unchanged:
@@ -73,23 +81,21 @@ TEST_CASE("a malformed version reply applies nothing", "[afc][database]") {
 TEST_CASE("lane_data does not clobber slot status when it carries none",
           "[afc][database][regression]") {
     AmsBackendAfc afc(nullptr, nullptr);
-    REQUIRE(AfcTestAccess::apply_lane_data_response(
-        afc, envelope("lane_data", {{"lane1", {{"empty", true}}}})));
+    REQUIRE(apply_lanes(afc, envelope("lane_data", {{"lane1", {{"empty", true}}}})));
     REQUIRE(afc.get_slot_info(0).status == SlotStatus::EMPTY);
 
-    REQUIRE(AfcTestAccess::apply_lane_data_response(
+    REQUIRE(apply_lanes(
         afc, envelope("lane_data", {{"lane1", {{"material", "ASA"}, {"spool_id", 86}}}})));
     CHECK(afc.get_slot_info(0).status == SlotStatus::EMPTY);
     CHECK(afc.get_slot_info(0).material == "ASA");
 
-    REQUIRE(AfcTestAccess::apply_lane_data_response(
-        afc, envelope("lane_data", {{"lane1", {{"tool_loaded", true}}}})));
+    REQUIRE(apply_lanes(afc, envelope("lane_data", {{"lane1", {{"tool_loaded", true}}}})));
     CHECK(afc.get_slot_info(0).status == SlotStatus::LOADED);
 }
 
 TEST_CASE("a non-object lane_data reply is rejected", "[afc][database]") {
     AmsBackendAfc afc(nullptr, nullptr);
-    CHECK_FALSE(AfcTestAccess::apply_lane_data_response(afc, envelope("AFC", nullptr)));
-    CHECK_FALSE(AfcTestAccess::apply_lane_data_response(afc, envelope("AFC", json::array())));
-    CHECK_FALSE(AfcTestAccess::apply_lane_data_response(afc, json::object()));
+    CHECK_FALSE(apply_lanes(afc, envelope("AFC", nullptr)));
+    CHECK_FALSE(apply_lanes(afc, envelope("AFC", json::array())));
+    CHECK_FALSE(apply_lanes(afc, json::object()));
 }
