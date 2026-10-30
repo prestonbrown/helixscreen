@@ -10,11 +10,10 @@
 #include "printer_state.h"
 #include "start_macro_injection.h"
 
-#include "hv/json.hpp"
-
 #include <memory>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::PrinterState;
 using helix::PrintStartPhase;
@@ -77,6 +76,11 @@ class StartMacroGateFixture : public LVGLTestFixture {
         drain();
         client_->set_object_status("virtual_sdcard", {{"file_position", position}});
         collector_->start();
+        drain();
+    }
+
+    void stop() {
+        collector_->stop();
         drain();
     }
 
@@ -154,5 +158,20 @@ TEST_CASE_METHOD(StartMacroGateFixture, "a run that never shows position 0 does 
     start(/*injects=*/true, /*position=*/4096);
     report_position(5120);
     CHECK_FALSE(seen_zero());
+    CHECK(phase() != PrintStartPhase::COMPLETE);
+}
+
+TEST_CASE_METHOD(StartMacroGateFixture,
+                 "a run stopped at position 0 leaves nothing for the next run to complete on",
+                 "[print][collector][start_macro]") {
+    start(/*injects=*/true, /*position=*/0);
+    report_position(0);
+    REQUIRE(seen_zero());
+    stop();
+
+    // The next run resumes a saved print, so its position is past 0 from the start.
+    start(/*injects=*/true, /*position=*/4096);
+    CHECK_FALSE(seen_zero());
+    report_position(4096);
     CHECK(phase() != PrintStartPhase::COMPLETE);
 }
