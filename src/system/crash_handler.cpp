@@ -30,11 +30,16 @@
 #define HAVE_GLIBC_MALLINFO 1
 #endif
 
-// LVGL heap monitor
-#include "core/lv_obj_tree.h" // lv_obj_get_name() for delete crumbs
-#include "lv_init.h"          // lv_is_initialized() — guards the lv_mem_monitor read
-#include "misc/lv_types.h"
-#include "stdlib/lv_mem.h"
+// LVGL heap monitor, lv_obj_get_name() for delete crumbs, lv_is_initialized() guarding
+// the lv_mem_monitor read, and LVGL_VERSION_* for the crash record
+#include "lvgl.h"
+
+#define HELIX_CRASH_STR_(x) #x
+#define HELIX_CRASH_STR(x) HELIX_CRASH_STR_(x)
+// lv_event_code_t numbering changes between LVGL releases, so the record names the LVGL
+// the crashing binary was built against and the crash worker decodes event_code with it.
+static constexpr const char kLvglVersionLine[] = "lvgl_version:" HELIX_CRASH_STR(
+    LVGL_VERSION_MAJOR) "." HELIX_CRASH_STR(LVGL_VERSION_MINOR) "\n";
 
 // AddressSanitizer opt-out for the raw stack readers further down. Both the
 // frame-pointer walk and the linear stack scan deliberately read memory they
@@ -720,6 +725,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     safe_write(fd, "version:");
     safe_write(fd, HELIX_VERSION);
     safe_write(fd, "\n");
+    safe_write(fd, kLvglVersionLine);
 
     // Write timestamp (time() is async-signal-safe per POSIX)
     time_t now = time(nullptr);
@@ -1839,6 +1845,7 @@ void crash_handler::write_exception_record(const char* what) noexcept {
     safe_write(fd, "version:");
     safe_write(fd, HELIX_VERSION);
     safe_write(fd, "\n");
+    safe_write(fd, kLvglVersionLine);
 
     // time(nullptr) is async-signal-safe per POSIX.
     time_t now = time(nullptr);
@@ -1907,6 +1914,8 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
                 result["recorded_by"] = value;
             } else if (key == "version") {
                 result["app_version"] = value;
+            } else if (key == "lvgl_version") {
+                result["lvgl_version"] = value;
             } else if (key == "timestamp") {
                 try {
                     // Convert unix timestamp to ISO 8601
@@ -2065,6 +2074,7 @@ void crash_handler::write_mock_crash_file(const std::string& crash_file_path) {
     ofs << "signal:11\n";
     ofs << "name:SIGSEGV\n";
     ofs << "version:" << HELIX_VERSION << "\n";
+    ofs << kLvglVersionLine;
     ofs << "timestamp:" << now << "\n";
     ofs << "uptime:1234\n";
     ofs << "fault_addr:0x00000000\n";

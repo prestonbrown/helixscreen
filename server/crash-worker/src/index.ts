@@ -381,19 +381,119 @@ export function mdEscape(s: string): string {
 }
 
 /**
- * Map lv_event_code_t values to their symbolic names so crash issues show
- * "code=42 (DELETE)" instead of a bare integer. Unknown codes fall through to "".
- *
- * The table is GENERATED from lib/lvgl/src/misc/lv_event.h by
- * scripts/gen_lvgl_event_codes.py -- do not edit it by hand. It was
- * hand-maintained until LVGL 9.5 inserted four codes mid-enum; 58 of 63 entries
- * went stale and a DELETE crash was filed as SCREEN_UNLOAD_START, which pointed
- * triage away from the teardown bug the label would have named. quality-checks.sh
- * now fails on drift; `make regen-lvgl-event-codes` repairs it.
+ * lv_event_code_t names for crashes from builds on LVGL 9.5, i.e. reports that carry no
+ * lvgl_version (only 9.6 builds record it). Frozen: it is v9.5.0's enum with the four
+ * SYNC codes lvgl_display_sync_cb.patch inserted, which every 9.5-based release ships.
+ * A patch that changes the enum on a 9.5 maintenance branch must change this table too.
  */
-export function lvglEventCodeName(code: number | undefined): string {
+const LVGL_9_5_EVENT_NAMES: Record<number, string> = {
+     0: "ALL",
+     1: "PRESSED",
+     2: "PRESSING",
+     3: "PRESS_LOST",
+     4: "SHORT_CLICKED",
+     5: "SINGLE_CLICKED",
+     6: "DOUBLE_CLICKED",
+     7: "TRIPLE_CLICKED",
+     8: "LONG_PRESSED",
+     9: "LONG_PRESSED_REPEAT",
+    10: "CLICKED",
+    11: "RELEASED",
+    12: "SCROLL_BEGIN",
+    13: "SCROLL_THROW_BEGIN",
+    14: "SCROLL_END",
+    15: "SCROLL",
+    16: "GESTURE",
+    17: "KEY",
+    18: "ROTARY",
+    19: "FOCUSED",
+    20: "DEFOCUSED",
+    21: "LEAVE",
+    22: "HIT_TEST",
+    23: "INDEV_RESET",
+    24: "HOVER_OVER",
+    25: "HOVER_LEAVE",
+    26: "COVER_CHECK",
+    27: "REFR_EXT_DRAW_SIZE",
+    28: "DRAW_MAIN_BEGIN",
+    29: "DRAW_MAIN",
+    30: "DRAW_MAIN_END",
+    31: "DRAW_POST_BEGIN",
+    32: "DRAW_POST",
+    33: "DRAW_POST_END",
+    34: "DRAW_TASK_ADDED",
+    35: "VALUE_CHANGED",
+    36: "INSERT",
+    37: "REFRESH",
+    38: "READY",
+    39: "CANCEL",
+    40: "STATE_CHANGED",
+    41: "CREATE",
+    42: "DELETE",
+    43: "CHILD_CHANGED",
+    44: "CHILD_CREATED",
+    45: "CHILD_DELETED",
+    46: "SCREEN_UNLOAD_START",
+    47: "SCREEN_LOAD_START",
+    48: "SCREEN_LOADED",
+    49: "SCREEN_UNLOADED",
+    50: "SIZE_CHANGED",
+    51: "STYLE_CHANGED",
+    52: "LAYOUT_CHANGED",
+    53: "GET_SELF_SIZE",
+    54: "INVALIDATE_AREA",
+    55: "RESOLUTION_CHANGED",
+    56: "COLOR_FORMAT_CHANGED",
+    57: "REFR_REQUEST",
+    58: "REFR_START",
+    59: "REFR_READY",
+    60: "RENDER_START",
+    61: "RENDER_READY",
+    62: "FLUSH_START",
+    63: "FLUSH_FINISH",
+    64: "FLUSH_WAIT_START",
+    65: "FLUSH_WAIT_FINISH",
+    66: "SYNC_START",
+    67: "SYNC_FINISH",
+    68: "SYNC_WAIT_START",
+    69: "SYNC_WAIT_FINISH",
+    70: "UPDATE_LAYOUT_COMPLETED",
+    71: "VSYNC",
+    72: "VSYNC_REQUEST",
+    73: "TRANSLATION_LANGUAGE_CHANGED",
+};
+
+/**
+ * Pick the lv_event_code_t table for the LVGL a report's binary was built on. The device
+ * sends "<major>.<minor>" as lvgl_version; a report without it comes from a 9.5 build.
+ */
+function eventNamesFor(lvglVersion: string | undefined): Record<number, string> {
+  const m = /^(\d+)\.(\d+)/.exec(lvglVersion ?? "");
+  if (!m) return LVGL_9_5_EVENT_NAMES;
+  const major = Number(m[1]);
+  const minor = Number(m[2]);
+  return major > 9 || (major === 9 && minor >= 6) ? CURRENT_LVGL_EVENT_NAMES : LVGL_9_5_EVENT_NAMES;
+}
+
+/**
+ * Map an lv_event_code_t value to its symbolic name so crash issues show
+ * "code=48 (DELETE)" instead of a bare integer. Unknown codes fall through to "".
+ */
+export function lvglEventCodeName(code: number | undefined, lvglVersion?: string): string {
   if (code == null) return "";
-  const names: Record<number, string> = {
+  // The device records e->code raw, and a preprocess dispatch carries
+  // LV_EVENT_PREPROCESS (0x8000) in it. Mask it exactly the way
+  // lv_event_get_code() does (lib/lvgl/src/misc/lv_event.c#lv_event_get_code) so those
+  // resolve instead of falling through to "".
+  return eventNamesFor(lvglVersion)[code & ~0x8000] || "";
+}
+
+/**
+ * lv_event_code_t names for the LVGL in lib/lvgl, GENERATED from its lv_event.h by
+ * scripts/gen_lvgl_event_codes.py -- do not edit by hand. quality-checks.sh fails on
+ * drift; `make regen-lvgl-event-codes` repairs it.
+ */
+const CURRENT_LVGL_EVENT_NAMES: Record<number, string> = {
   /* BEGIN GENERATED lv_event_code_t (scripts/gen_lvgl_event_codes.py) */
         0: "ALL",
         1: "PRESSED",
@@ -477,13 +577,7 @@ export function lvglEventCodeName(code: number | undefined): string {
        79: "TRANSLATION_LANGUAGE_CHANGED",
     32767: "LAST_CUSTOM",
   /* END GENERATED lv_event_code_t */
-  };
-  // The device records e->code raw, and a preprocess dispatch carries
-  // LV_EVENT_PREPROCESS (0x8000) in it. Mask it exactly the way
-  // lv_event_get_code() does (lib/lvgl/src/misc/lv_event.c:386) so those
-  // resolve instead of falling through to "".
-  return names[code & ~0x8000] || "";
-}
+};
 
 /**
  * Format the crash report into a structured markdown issue body.
@@ -517,7 +611,7 @@ export function formatIssueBody(r: CrashReport, fingerprint: string, resolved: R
 
   // LVGL event under dispatch at crash time (set by event_send_core hook).
   if (r.event_target) {
-    const codeName = lvglEventCodeName(r.event_code);
+    const codeName = lvglEventCodeName(r.event_code, r.lvgl_version);
     const codePart = r.event_code != null ? ` code=${r.event_code}${codeName ? ` (${codeName})` : ""}` : "";
     const origPart = r.event_original_target && r.event_original_target !== r.event_target
       ? ` original=\`${mdEscape(r.event_original_target)}\``

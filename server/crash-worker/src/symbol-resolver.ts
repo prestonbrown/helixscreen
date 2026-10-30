@@ -84,6 +84,8 @@ export interface CrashReport {
   event_target?: string;
   event_original_target?: string;
   event_code?: number;
+  /** "<major>.<minor>" of the LVGL the binary was built on; absent from 9.5 builds. */
+  lvgl_version?: string;
   exception?: string;
   bt_source?: string;
   text_start?: string;

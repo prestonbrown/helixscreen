@@ -107,7 +107,7 @@ describe("formatIssueBody — fields that were historically dropped", () => {
     expect(md).not.toContain("**Heap**");
   });
 
-  it("renders LVGL event under dispatch with decoded code name", () => {
+  it("decodes a report without lvgl_version with the LVGL 9.5 table", () => {
     const md = formatIssueBody(
       { ...MIN_REPORT, event_target: "0x7fc0d2a8", event_code: 42 },
       "fp",
@@ -116,6 +116,18 @@ describe("formatIssueBody — fields that were historically dropped", () => {
     expect(md).toContain("**LVGL Event**");
     expect(md).toContain("target=`0x7fc0d2a8`");
     expect(md).toContain("code=42 (DELETE)");
+  });
+
+  it("decodes a report carrying lvgl_version 9.6 with the 9.6 table", () => {
+    // 9.6 renumbered the enum: DELETE moved from 42 to 48.
+    const md = formatIssueBody(
+      { ...MIN_REPORT, event_target: "0x7fc0d2a8", event_code: 48, lvgl_version: "9.6" },
+      "fp",
+      null
+    );
+    expect(md).toContain("code=48 (DELETE)");
+    expect(lvglEventCodeName(42, "9.6")).not.toBe("DELETE");
+    expect(lvglEventCodeName(48, "9.5")).not.toBe("DELETE");
   });
 
   it("includes original_target only when it differs from target", () => {

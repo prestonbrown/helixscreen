@@ -1499,6 +1499,7 @@ TEST_CASE_METHOD(CrashTestFixture,
                      "event_target:0x7fc0d2a8\n"
                      "event_original_target:0x7fc0d300\n"
                      "event_code:29\n"
+                     "lvgl_version:9.6\n"
                      "heap_snapshot_age_ms:8217\n"
                      "heap_rss_kb:38400\n"
                      "heap_vsz_kb:102400\n"
@@ -1520,6 +1521,7 @@ TEST_CASE_METHOD(CrashTestFixture,
     REQUIRE(result["event_target"] == "0x7fc0d2a8");
     REQUIRE(result["event_original_target"] == "0x7fc0d300");
     REQUIRE(result["event_code"] == 29);
+    REQUIRE(result["lvgl_version"] == "9.6");
 
     REQUIRE(result["heap_snapshot_age_ms"] == 8217);
     REQUIRE(result["heap_rss_kb"] == 38400);

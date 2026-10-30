@@ -256,6 +256,8 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
         report.event_original_target = crash_data["event_original_target"];
     if (crash_data.contains("event_code"))
         report.event_code = crash_data["event_code"];
+    if (crash_data.contains("lvgl_version"))
+        report.lvgl_version = crash_data["lvgl_version"];
 
     // Heap snapshot (cached from main loop)
     auto copy_heap = [&](const char* key, long& dst) {
@@ -493,6 +495,8 @@ nlohmann::json CrashReporter::report_to_json(const CrashReport& report) {
         if (!report.event_original_target.empty())
             j["event_original_target"] = report.event_original_target;
         j["event_code"] = report.event_code;
+        if (!report.lvgl_version.empty())
+            j["lvgl_version"] = report.lvgl_version;
     }
 
     // Cached heap snapshot
