@@ -54,8 +54,7 @@ std::string CfsMaterialDb::slot_to_tnn(int global_index) {
     int unit = global_index / 4 + 1;
     int slot = global_index % 4;
     char letter = 'A' + static_cast<char>(slot);
-    return "T" + std::to_string(unit) +
-           letter; // DISPLAY_NUMBERING_OK: CFS slot address (T1A), a protocol key
+    return "T" + std::to_string(unit) + letter; // DISPLAY_NUMBERING_OK: CFS address
 }
 
 int CfsMaterialDb::tnn_to_slot(const std::string& tnn) {
