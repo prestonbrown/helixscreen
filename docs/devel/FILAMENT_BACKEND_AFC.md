@@ -19,7 +19,7 @@ AFC hardware types register as different Klipper object prefixes:
 | OpenAMS | `AFC_OpenAMS {name}` | `AFC_lane lane{N}` | `AFC_hub Hub_{N}` | HUB (always) |
 | Toolchanger | `AFC_Toolchanger {name}` | — | — | Container only |
 
-**Critical: OpenAMS uses `AFC_lane`, not `AFC_stepper`.** Both have the same JSON schema and are parsed through the same `parse_afc_stepper()` function. We subscribe to both object types.
+**Critical: OpenAMS uses `AFC_lane`, not `AFC_stepper`.** Both have the same JSON schema and are parsed through the same `apply_lane_status()` function. We subscribe to both object types.
 
 ### Unit Object Structure (Real Production Data)
 
@@ -141,7 +141,14 @@ state, so toggling it from our sensor UI would mark a tool loaded or unloaded.
 
 ### Data Sources
 
-AFC state comes from multiple Klipper objects:
+AFC state comes from multiple Klipper objects. Each is read by a pure parser in
+`include/afc_status_parse.h` (`afc::parse_state`, `afc::parse_lane_status`,
+`afc::parse_lane_data`, `afc::parse_buffer`, ...) into a struct whose fields are
+`std::optional`, or `afc::Clearable` where AFC publishes null as a deliberate clear;
+`AmsBackendAfc::apply_*` overlays the result under its lock. Both lane surfaces
+(`AFC_stepper` and the `lane_data` namespace) read spool identity through one
+reader, `afc::read_lane_identity`, and apply it through one step,
+`AmsBackendAfc::apply_lane_identity`.
 
 **Per-lane state** (`AFC_stepper lane{N}` or `AFC_lane lane{N}`):
 
@@ -673,7 +680,7 @@ Each lane's `AFC_stepper`/`AFC_lane` object carries a `buffer_status` string nam
 current buffer operation (e.g. "Advancing"). The buffer's own health lives on separate
 `AFC_buffer {name}` objects, discovered from the Klipper object list.
 
-**Buffer health is per buffer, attributed to a unit.** `parse_afc_buffer()` accumulates
+**Buffer health is per buffer, attributed to a unit.** `apply_buffer()` accumulates
 each frame into `buffer_health_[buffer_name]` - Moonraker forwards only changed keys, so
 absent fields must leave the previous reading alone - and `apply_buffer_health_to_units()`
 then derives `AmsUnit::buffer_health` from `buffer_health_` plus `buffer_lane_names_`,
@@ -682,7 +689,7 @@ resolving the first lane that maps to a unit. Two invariants make that work:
 - **Unit objects must be parsed before anything that resolves a lane to a unit.**
   `handle_status()` runs `AFC_BoxTurtle`/`AFC_OpenAMS`/`AFC_vivid` first, then
   `AFC_buffer`. Those unit objects are what build the multi-unit layout
-  (`parse_afc_unit_object` → `rebuild_unit_map_from_klipper` → `reorganize_slots`). With
+  (`apply_unit_object` → `rebuild_unit_map_from_klipper` → `reorganize_slots`). With
   buffers parsed first, every buffer in the first frame resolved against the synthetic
   single unit `initialize_slots()` creates, and a five-unit rig put all five buffers on
   unit 0, each read-modify-writing the previous one's fields (bundle XGVDYEB5).

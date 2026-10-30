@@ -52,7 +52,7 @@ namespace helix {
 class AfcErrorHandlingHelper : public AmsBackendAfc {
   public:
     AfcErrorHandlingHelper() : AmsBackendAfc(nullptr, nullptr) {
-        // Initialize some lanes so parse_afc_state works
+        // Initialize some lanes so apply_afc_state works
         std::vector<std::string> names = {"lane1", "lane2", "lane3", "lane4"};
         AfcTestAccess::slots(*this).initialize("AFC Test Unit", names);
     }
