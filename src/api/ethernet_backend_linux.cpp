@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Linux-only backend: the shared ethernet:: classifiers it calls are compiled
+// Linux-only backend: the shared helix::ethernet:: classifiers it calls are compiled
 // out on non-Linux targets (see ethernet_backend.cpp), so this TU must be too.
 #if !defined(__ANDROID__) && !defined(__APPLE__)
 
@@ -28,10 +28,10 @@ EthernetBackendLinux::~EthernetBackendLinux() {
 }
 
 bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
-    // Classification lives in one shared place (ethernet::is_ethernet_interface,
+    // Classification lives in one shared place (helix::ethernet::is_ethernet_interface,
     // ethernet_backend.cpp) — the daemon-backed backend classifies with the
     // same rule, and two copies would silently disagree about a machine.
-    return ethernet::is_ethernet_interface(name);
+    return helix::ethernet::is_ethernet_interface(name);
 }
 
 std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
@@ -56,8 +56,8 @@ std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
 }
 
 std::vector<std::string> EthernetBackendLinux::scan_sysfs_interfaces() {
-    // Shared implementation (ethernet::scan_sysfs_interfaces).
-    return ethernet::scan_sysfs_interfaces();
+    // Shared implementation (helix::ethernet::scan_sysfs_interfaces).
+    return helix::ethernet::scan_sysfs_interfaces();
 }
 
 bool EthernetBackendLinux::has_interface() {
@@ -86,7 +86,7 @@ EthernetInfo EthernetBackendLinux::get_info() {
         return info;
     }
 
-    std::vector<ethernet::InterfaceState> ethernet_interfaces;
+    std::vector<helix::ethernet::InterfaceState> ethernet_interfaces;
     for (const auto& iface : interfaces) {
         if (is_ethernet_interface(iface.name)) {
             ethernet_interfaces.push_back(
@@ -101,7 +101,7 @@ EthernetInfo EthernetBackendLinux::get_info() {
         }
     }
 
-    return ethernet::select_interface(ethernet_interfaces);
+    return helix::ethernet::select_interface(ethernet_interfaces);
 }
 
 #endif // !__ANDROID__ && !__APPLE__
