@@ -884,6 +884,9 @@ src/print/print_start_position_classifier.cpp
 #     (KEPT above): scans a start block for its steps; deps are gcode_ops_detector.cpp
 #     and text_io, already in this manifest.
 src/print/start_block_steps.cpp
+#   start_macro_injection.cpp: pure-logic member of the print-start collector
+#     (KEPT above): reads configfile settings; only dep is json_utils.h.
+src/print/start_macro_injection.cpp
 #   print_start_profile.cpp: PrintStartProfile::load() is called directly from
 #     moonraker_manager.cpp (KEPT) AND from print_start_collector.cpp. JSON-profile
 #     loader; only dep is data_root_resolver.cpp (already in this manifest).
