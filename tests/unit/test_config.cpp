@@ -1655,12 +1655,11 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: next_printer_id picks an id no prin
 
 namespace {
 
-/// Checks what a remove/archive left behind in a /printers map that started as
-/// @p before: the printer count, the active selection df() routes at, each
+/// Checks what a remove/archive left behind in @p printers, a /printers map that
+/// started as @p before: the printer count, the active selection df() routes at, each
 /// surviving printer's host and every non-printer settings key, unchanged.
-void check_printers_after(Config& config, const json& before, size_t expected_count,
-                          const std::string& expected_active) {
-    const json& printers = ConfigTestAccess::data(config)["printers"];
+void check_printers_after(Config& config, const json& printers, const json& before,
+                          size_t expected_count, const std::string& expected_active) {
     CHECK(config.get_printer_ids().size() == expected_count);
     CHECK(config.get_active_printer_id() == expected_active);
     CHECK(config.get<std::string>("/active_printer_id", "") == expected_active);
@@ -1743,7 +1742,8 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: remove_printer keeps a valid active
 
             config.remove_printer(r.remove);
 
-            check_printers_after(config, r.printers, r.expected_count, r.expected_active);
+            check_printers_after(config, get_data()["printers"], r.printers, r.expected_count,
+                                 r.expected_active);
         }
     }
 }
@@ -1831,7 +1831,8 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: archive_printer keeps a valid activ
 
             config.archive_printer(r.archive);
 
-            check_printers_after(config, r.printers, r.expected_count, r.expected_active);
+            check_printers_after(config, get_data()["printers"], r.printers, r.expected_count,
+                                 r.expected_active);
             if (r.archived) {
                 CHECK(get_data()["removed_printers"].contains(r.archive));
             } else {
