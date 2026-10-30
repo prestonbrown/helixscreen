@@ -175,6 +175,16 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// do_unload_filament() falls back to with no slot resolved does not.
     [[nodiscard]] bool unload_heats_hotend(int slot_index) const override;
 
+    // FEED_AUTO homes and sets its own nozzle target from the lane's material:
+    // a load reports load_homing then load_heating, an unload unload_homing then
+    // unload_heating. A G28 or UI preheat in front of it is a second wait.
+    [[nodiscard]] bool delegates_homing_to_printer() const override {
+        return true;
+    }
+    [[nodiscard]] bool supports_auto_heat_on_load() const override {
+        return true;
+    }
+
   protected:
     // Operations. Every one of these drives the toolhead: AUTO_FEEDING forwards
     // to FEED_AUTO, which homes before it feeds, and `T{n}` moves the carriage.

@@ -10,6 +10,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "filament_op_heater.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "moonraker_api_mock.h"
@@ -271,6 +272,21 @@ TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker unload heats only throug
     CHECK_FALSE(backend.unload_heats_hotend(-1));
     SnapmakerTestAccess::set_current_slot(backend, 1);
     CHECK(backend.unload_heats_hotend(-1));
+}
+
+// FEED_AUTO walks load_homing -> load_feeding -> load_heating -> ... and sets
+// its own nozzle target from the lane's material, so a UI preheat or G28 in
+// front of it is a second wait the firmware repeats anyway.
+TEST_CASE_METHOD(SnapmakerFixture, "The U1 homes and heats for its own loads",
+                 "[ams][snapmaker][homing][preheat]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    CHECK(backend.supports_auto_heat_on_load());
+    CHECK(backend.delegates_homing_to_printer());
+
+    const helix::ui::FilamentOpPlan load{helix::ui::FilamentTier::AmsBackend, {},
+                                         helix::ui::AmsCall::Load, 1};
+    CHECK(helix::ui::preheat_skip_reason(helix::ui::FilamentHeatOp::Load, &load, &backend) ==
+          helix::ui::PreheatSkip::BackendSelfHeats);
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker construction", "[ams][snapmaker]") {
