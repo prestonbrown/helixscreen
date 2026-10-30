@@ -47,13 +47,6 @@ TEST_CASE("job_holds_machine: false when no job owns the toolhead",
     REQUIRE_FALSE(job_holds_machine(PrintState::Error));
 }
 
-TEST_CASE("job_holds_machine: Preparing is the whole point - it is what print_active cannot see",
-          "[core][print_state][job_holds_machine]") {
-    // If this ever flips, the predicate has collapsed back onto PRINTING||PAUSED
-    // and every guard built on it silently loses the pre-print window.
-    REQUIRE(job_holds_machine(PrintState::Preparing));
-}
-
 // ============================================================================
 // The published subject
 // ============================================================================

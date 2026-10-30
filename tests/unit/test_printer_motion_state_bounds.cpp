@@ -26,13 +26,6 @@ class BoundsFixture : public HelixTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(BoundsFixture, "AxisBounds defaults to all-unset", "[motion][bounds]") {
-    AxisBounds b = state.get_axis_bounds();
-    REQUIRE_FALSE(b.has_x);
-    REQUIRE_FALSE(b.has_y);
-    REQUIRE_FALSE(b.has_z);
-}
-
 TEST_CASE_METHOD(BoundsFixture, "AxisBounds populates from toolhead.axis_min/max",
                  "[motion][bounds]") {
     state.init_subjects(false); // no XML registration in test

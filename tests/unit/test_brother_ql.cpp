@@ -63,6 +63,16 @@ TEST_CASE("BrotherQLPrinter::build_raster_commands ends with print", "[label]") 
     REQUIRE(commands.back() == 0x1A);
 }
 
+TEST_CASE("BrotherQLPrinter::build_raster_commands with no rows still frames a print",
+          "[label][brother]") {
+    auto bitmap = helix::LabelBitmap::create(306, 0, 300);
+    auto sizes = helix::BrotherQLPrinter::supported_sizes_static();
+    auto commands = helix::BrotherQLPrinter::build_raster_commands(bitmap, sizes[0]);
+
+    REQUIRE(commands.size() > 200);
+    REQUIRE(commands.back() == 0x1A);
+}
+
 TEST_CASE("BrotherQLPrinter::build_raster_commands raster row format", "[label]") {
     auto bitmap = helix::LabelBitmap::create(306, 3, 300);
     bitmap.set_pixel(0, 1, true); // Set a pixel in row 1

@@ -333,7 +333,6 @@ Extends `lv_button` with API props:
 | `test_macro_param_parser.cpp` | Jinja2 parameter parsing |
 | `test_standard_macros.cpp` | Slot resolution and auto-detection |
 | `test_subject_macros.cpp` | XML subject bindings |
-| `test_notification_macros.cpp` | Toast notifications |
 | `tests/unit/test_macro_buttons_slot_mapping.cpp` | Settings UI |
 | `test_led_macro_backend.cpp` | LED integration |
 

@@ -110,6 +110,11 @@ class CfsRemapHelper : public AmsBackendCfs {
   public:
     CfsRemapHelper() : AmsBackendCfs(nullptr, nullptr) {}
 
+    /// One Moonraker notification through the production status path.
+    void feed(const json& notification) {
+        handle_status_update(notification);
+    }
+
     // Capture gcode instead of dispatching to a real Moonraker connection.
     AmsError execute_gcode(const std::string& gcode) override {
         captured.push_back(gcode);
@@ -8508,4 +8513,171 @@ TEST_CASE("CFS backend reports the K1-family upgrade's printable-Y shrink (#968)
     }
 
     config->set<std::string>(type_path, saved);
+}
+
+namespace {
+
+/// One connected CFS unit. `active_letter` is the T{n}.filament value:
+/// "A".."D" for the lane this unit has engaged, "None" when it has none.
+/// Bays 0 and 1 carry tagged spools; bays 2 and 3 are empty.
+json per_slot_unit(const std::string& active_letter) {
+    return json{
+        {"state", "1"},
+        {"version", "1.0.0"},
+        {"sn", "CFS-TEST"},
+        {"vender", json::array({"Creality", "Creality", "none", "none"})},
+        {"remain_len", json::array({"240", "240", "-1", "-1"})},
+        {"material_type", json::array({"101001", "101001", "-1", "-1"})},
+        {"color_value", json::array({"FF0000", "00FF00", "-1", "-1"})},
+        {"filament", active_letter},
+    };
+}
+
+/// Single-unit box frame with T1 engaged on `active_letter`.
+json per_slot_box(const std::string& active_letter) {
+    return json{{"filament", 0}, {"T1", per_slot_unit(active_letter)}};
+}
+
+} // namespace
+
+// ============================================================================
+// The parse stamps LOADED on the seated bay
+// ============================================================================
+
+TEST_CASE("CFS parse stamps LOADED on the lane the toolhead is fed from", "[ams][cfs][1199]") {
+    CfsRemapHelper cfs;
+
+    // Letter alone is a lane selection, not a seated lane — the toolhead switch
+    // is the only thing that says filament actually arrived.
+    cfs.feed(make_cfs_notification(per_slot_box("B")));
+
+    SECTION("letter without the toolhead switch stamps nothing") {
+        REQUIRE(cfs.get_current_slot() == 1);
+        REQUIRE_FALSE(cfs.is_filament_loaded());
+
+        for (int i = 0; i < 4; ++i) {
+            CHECK(cfs.get_slot_info(i).status != SlotStatus::LOADED);
+            CHECK_FALSE(cfs.slot_is_actively_loaded(i));
+            CHECK_FALSE(cfs.can_unload_from_toolhead(i));
+        }
+    }
+
+    SECTION("letter plus the toolhead switch stamps exactly that bay") {
+        cfs.feed(toolhead_sensor_frame(true));
+
+        CHECK(cfs.get_slot_info(1).status == SlotStatus::LOADED);
+        CHECK(cfs.slot_is_actively_loaded(1));
+        CHECK(cfs.can_unload_from_toolhead(1));
+        CHECK(cfs.get_slot_filament_segment(1) == PathSegment::NOZZLE);
+
+        // The three idle bays keep their parsed status and stay unloaded.
+        CHECK(cfs.get_slot_info(0).status == SlotStatus::AVAILABLE);
+        CHECK(cfs.get_slot_info(2).status == SlotStatus::EMPTY);
+        CHECK(cfs.get_slot_info(3).status == SlotStatus::EMPTY);
+        for (int i : {0, 2, 3}) {
+            CHECK_FALSE(cfs.slot_is_actively_loaded(i));
+            CHECK_FALSE(cfs.can_unload_from_toolhead(i));
+        }
+    }
+
+    SECTION("a box frame arriving after the sensor re-derives the stamp") {
+        cfs.feed(toolhead_sensor_frame(true));
+        REQUIRE(cfs.get_slot_info(1).status == SlotStatus::LOADED);
+
+        // Slots are rebuilt wholesale on every box frame, so the stamp has to
+        // be re-applied afterwards or it is lost on the next notification.
+        cfs.feed(make_cfs_notification(per_slot_box("B")));
+        CHECK(cfs.get_slot_info(1).status == SlotStatus::LOADED);
+        CHECK(cfs.can_unload_from_toolhead(1));
+    }
+}
+
+TEST_CASE("CFS LOADED stamp follows the active lane across a toolchange", "[ams][cfs][1199]") {
+    CfsRemapHelper cfs;
+    cfs.feed(make_cfs_notification(per_slot_box("A")));
+    cfs.feed(toolhead_sensor_frame(true));
+    REQUIRE(cfs.get_slot_info(0).status == SlotStatus::LOADED);
+
+    // Bay 1 becomes the engaged lane. Exactly one bay may be LOADED — a stale
+    // stamp on bay 0 would light two active-lane highlights at once.
+    cfs.feed(make_cfs_notification(per_slot_box("B")));
+
+    CHECK(cfs.get_slot_info(1).status == SlotStatus::LOADED);
+    CHECK(cfs.get_slot_info(0).status == SlotStatus::AVAILABLE);
+    CHECK(cfs.slot_is_actively_loaded(1));
+    CHECK_FALSE(cfs.slot_is_actively_loaded(0));
+}
+
+TEST_CASE("CFS LOADED stamp honours the per-unit global-index offset", "[ams][cfs][1199]") {
+    CfsRemapHelper cfs;
+
+    // T2's lane A is global slot 4, not 0 — the offset is (n-1)*4.
+    json box{{"filament", 0}, {"T1", per_slot_unit("None")}, {"T2", per_slot_unit("A")}};
+    cfs.feed(make_cfs_notification(box));
+    cfs.feed(toolhead_sensor_frame(true));
+
+    REQUIRE(cfs.get_current_slot() == 4);
+    CHECK(cfs.get_slot_info(4).status == SlotStatus::LOADED);
+    CHECK(cfs.slot_is_actively_loaded(4));
+    CHECK_FALSE(cfs.slot_is_actively_loaded(0));
+    CHECK(cfs.get_slot_info(0).status == SlotStatus::AVAILABLE);
+}
+
+// ============================================================================
+// Un-stamping restores what firmware said, not a guess
+// ============================================================================
+
+TEST_CASE("CFS clears the LOADED stamp when the toolhead switch opens", "[ams][cfs][1199]") {
+    CfsRemapHelper cfs;
+    cfs.feed(make_cfs_notification(per_slot_box("B")));
+    cfs.feed(toolhead_sensor_frame(true));
+    REQUIRE(cfs.get_slot_info(1).status == SlotStatus::LOADED);
+
+    // Sensor-only frame: the slot vector is NOT rebuilt, so the stamp has to be
+    // undone in place or the bay stays LOADED forever after an unload.
+    cfs.feed(toolhead_sensor_frame(false));
+
+    CHECK(cfs.get_slot_info(1).status == SlotStatus::AVAILABLE);
+    CHECK_FALSE(cfs.slot_is_actively_loaded(1));
+    CHECK_FALSE(cfs.can_unload_from_toolhead(1));
+}
+
+TEST_CASE("CFS un-stamping restores EMPTY rather than inventing a spool", "[ams][cfs][1199]") {
+    CfsRemapHelper cfs;
+
+    // Bay 2 reads EMPTY (no RFID vendor, no remaining length) while the unit
+    // still names lane C and the toolhead switch is closed — the spool was
+    // pulled out with filament still threaded to the nozzle. The stamp is
+    // deliberately applied over EMPTY here: filament IS at the toolhead and
+    // the user must still be able to unload it.
+    cfs.feed(make_cfs_notification(per_slot_box("C")));
+    cfs.feed(toolhead_sensor_frame(true));
+    REQUIRE(cfs.get_current_slot() == 2);
+    REQUIRE(cfs.get_slot_info(2).status == SlotStatus::LOADED);
+    REQUIRE(cfs.can_unload_from_toolhead(2));
+
+    // Once the toolhead clears, the bay must fall back to EMPTY — demoting to
+    // AVAILABLE would fabricate a spool in a bay firmware called empty.
+    cfs.feed(toolhead_sensor_frame(false));
+    CHECK(cfs.get_slot_info(2).status == SlotStatus::EMPTY);
+    CHECK_FALSE(cfs.get_slot_info(2).is_present());
+}
+
+TEST_CASE("CFS drops the LOADED stamp when no unit names an active lane", "[ams][cfs][1199]") {
+    CfsRemapHelper cfs;
+    cfs.feed(make_cfs_notification(per_slot_box("B")));
+    cfs.feed(toolhead_sensor_frame(true));
+    REQUIRE(cfs.get_slot_info(1).status == SlotStatus::LOADED);
+
+    // T1.filament goes "None" — parse_box_status leaves current_slot at -1 and
+    // handle_status clears the aggregate. The switch is still closed
+    // (filament in the tube), but no bay owns it, so no bay may claim LOADED.
+    cfs.feed(make_cfs_notification(per_slot_box("None")));
+
+    REQUIRE(cfs.get_current_slot() == -1);
+    REQUIRE(cfs.is_filament_loaded());
+    for (int i = 0; i < 4; ++i) {
+        CHECK(cfs.get_slot_info(i).status != SlotStatus::LOADED);
+        CHECK_FALSE(cfs.slot_is_actively_loaded(i));
+    }
 }

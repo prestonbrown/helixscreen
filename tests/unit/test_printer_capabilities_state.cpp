@@ -60,6 +60,101 @@ TEST_CASE("set_hardware sets the Shake&Tune, fan tach, LED effect and extra fan 
     caps.deinit_subjects();
 }
 
+namespace {
+
+PrinterDiscovery discovery_of(const json& objects, const json& config = json::object()) {
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    hw.parse_config_keys(config);
+    return hw;
+}
+
+void apply(PrinterCapabilitiesState& caps, const PrinterDiscovery& hw) {
+    CapabilityOverrides overrides;
+    overrides.set_hardware(hw);
+    caps.set_hardware(hw, overrides);
+}
+
+} // namespace
+
+TEST_CASE("set_hardware maps discovered hardware onto the calibration and device subjects",
+          "[printer_capabilities][hardware]") {
+    LVGLTestFixture fixture;
+    PrinterCapabilitiesState caps;
+    caps.init_subjects(false);
+
+    // Accelerometers are detected from the configfile, not the objects list.
+    apply(caps, discovery_of(json{"quad_gantry_level", "z_tilt", "bed_mesh", "probe", "heater_bed",
+                                  "neopixel led_strip", "firmware_retraction", "timelapse",
+                                  "output_pin beeper"},
+                             json{{"adxl345", json::object()}}));
+    CHECK(cap(caps, Capability::HasQgl) == 1);
+    CHECK(cap(caps, Capability::HasZTilt) == 1);
+    CHECK(cap(caps, Capability::HasBedMesh) == 1);
+    CHECK(cap(caps, Capability::HasProbe) == 1);
+    CHECK(caps.has_probe());
+    CHECK(cap(caps, Capability::HasHeaterBed) == 1);
+    CHECK(cap(caps, Capability::HasLed) == 1);
+    CHECK(cap(caps, Capability::HasAccelerometer) == 1);
+    CHECK(cap(caps, Capability::HasSpeaker) == 1);
+    CHECK(cap(caps, Capability::HasFirmwareRetraction) == 1);
+    CHECK(cap(caps, Capability::HasTimelapse) == 1);
+
+    caps.deinit_subjects();
+}
+
+TEST_CASE("set_hardware with empty hardware clears the calibration and device subjects",
+          "[printer_capabilities][hardware]") {
+    LVGLTestFixture fixture;
+    PrinterCapabilitiesState caps;
+    caps.init_subjects(false);
+
+    apply(caps, discovery_of(json{"quad_gantry_level", "probe", "heater_bed"}));
+    REQUIRE(cap(caps, Capability::HasQgl) == 1);
+    REQUIRE(cap(caps, Capability::HasProbe) == 1);
+
+    apply(caps, discovery_of(json::array()));
+    CHECK(cap(caps, Capability::HasQgl) == 0);
+    CHECK(cap(caps, Capability::HasZTilt) == 0);
+    CHECK(cap(caps, Capability::HasBedMesh) == 0);
+    CHECK(cap(caps, Capability::HasProbe) == 0);
+    CHECK(cap(caps, Capability::HasHeaterBed) == 0);
+    CHECK(cap(caps, Capability::HasLed) == 0);
+    CHECK(cap(caps, Capability::HasAccelerometer) == 0);
+    CHECK(cap(caps, Capability::HasSpeaker) == 0);
+    CHECK(cap(caps, Capability::HasFirmwareRetraction) == 0);
+
+    caps.deinit_subjects();
+}
+
+TEST_CASE("set_hardware finds a speaker in a beeper or buzzer pin or an M300 macro",
+          "[printer_capabilities][hardware]") {
+    LVGLTestFixture fixture;
+    PrinterCapabilitiesState caps;
+    caps.init_subjects(false);
+
+    SECTION("output_pin beeper") {
+        apply(caps, discovery_of(json{"output_pin beeper"}));
+        CHECK(cap(caps, Capability::HasSpeaker) == 1);
+    }
+    SECTION("output_pin BUZZER") {
+        apply(caps, discovery_of(json{"output_pin BUZZER"}));
+        CHECK(cap(caps, Capability::HasSpeaker) == 1);
+    }
+    SECTION("gcode_macro M300") {
+        // Z-Mod's AD5X config implements the beeper as an M300 macro that
+        // shells out to a buzzer helper; no output_pin object exists at all.
+        apply(caps, discovery_of(json{"gcode_macro M300"}));
+        CHECK(cap(caps, Capability::HasSpeaker) == 1);
+    }
+    SECTION("an unrelated gcode macro is not a speaker") {
+        apply(caps, discovery_of(json{"gcode_macro M356"}));
+        CHECK(cap(caps, Capability::HasSpeaker) == 0);
+    }
+
+    caps.deinit_subjects();
+}
+
 TEST_CASE("set_hardware: only fans the user controls besides part cooling are extra",
           "[printer_capabilities]") {
     LVGLTestFixture fixture;

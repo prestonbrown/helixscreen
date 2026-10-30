@@ -22,7 +22,7 @@
  * Subjects are deliberately never initialized: JobQueueState registers its
  * subjects into helix-xml's PROCESS-global scope and is process-lifetime in
  * production, so a local instance that inits them leaves dangling names behind
- * for the rest of the binary (see test_job_queue_count_subject.cpp). Nothing
+ * for the rest of the binary. Nothing
  * here needs them -- set_jobs() and the staleness mark both bypass subjects.
  */
 

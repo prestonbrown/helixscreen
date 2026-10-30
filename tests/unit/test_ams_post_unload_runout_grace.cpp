@@ -49,6 +49,7 @@
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 
@@ -453,6 +454,41 @@ TEST_CASE_METHOD(IdleRunoutGraceFixture, "A runout during an active print does n
     CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(widget));
 
     // Still armed for the unload that comes after the print.
+    CHECK(ams.consume_post_unload_runout_grace());
+}
+
+TEST_CASE_METHOD(IdleRunoutGraceFixture,
+                 "Idle runout check bails during a host-side pre-print block",
+                 "[runout][grace][print_status_widget][print_state]") {
+    // A "load filament" dialog on top of a start the user just committed to. The
+    // wire says standby for the whole block; the lifecycle says Preparing.
+    struct RetirePreparing {
+        ~RetirePreparing() {
+            auto& ps = get_printer_state();
+            if (ps.print_state().has_preparing_job()) {
+                ps.print_state().retire_preparing(PreparingExit::Superseded);
+            }
+            ps.print_state().set_print_start_state(PrintStartPhase::IDLE, "", 0);
+            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        }
+    } retire;
+
+    auto& ams = AmsState::instance();
+    AmsStateTestAccess::arm_post_unload_runout_grace(ams);
+    set_print_state(PrintJobState::STANDBY);
+
+    auto& ps = get_printer_state();
+    ps.print_state().begin_preparing(PrintJobRef{"chosen.gcode", "", ""});
+    ps.print_state().set_print_start_state(PrintStartPhase::HOMING, "", 0);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(ps.print_state().get_print_job_state() == PrintJobState::STANDBY);
+    REQUIRE(ps.print_state().get_print_lifecycle() == PrintState::Preparing);
+
+    PrintStatusWidget widget;
+    PrintStatusWidgetTestAccess::check_idle_runout(widget);
+
+    CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(widget));
+    // Still armed: bailing at the print-state gate must not burn the one-shot.
     CHECK(ams.consume_post_unload_runout_grace());
 }
 

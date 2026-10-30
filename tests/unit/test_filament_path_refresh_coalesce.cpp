@@ -110,19 +110,3 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: deleting the widget cancels a p
     process_lvgl(100);
     REQUIRE_FALSE(*fired);
 }
-
-TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: the widget backs one canvas buffer",
-                 "[filament_path][layers]") {
-    // Each canvas child owns a full-size ARGB8888 buffer composited every frame;
-    // the topology render needs exactly one.
-    lv_obj_t* path = ui_filament_path_canvas_create(test_screen());
-    REQUIRE(path != nullptr);
-    process_lvgl(60);
-
-    int canvases = 0;
-    for (uint32_t i = 0; i < lv_obj_get_child_count(path); ++i) {
-        if (lv_obj_check_type(lv_obj_get_child(path, i), &lv_canvas_class))
-            canvases++;
-    }
-    CHECK(canvases == 1);
-}

@@ -101,13 +101,11 @@ class PrinterPrintStateTestAccess {
 // touch, and that therefore live for the whole process on the shared
 // get_printer_state() singleton.
 //
-// Deliberately absent: PrinterFanStateTestAccess and
-// PrinterTemperatureStateTestAccess. Both names are already taken by local
-// definitions in tests/unit/test_print_status_fan_section.cpp and
-// tests/unit/test_printer_temperature_{state,char}.cpp, two of which already
-// include this header — defining them here is an immediate ambiguity. Those two
-// domains are cleared through their public init_fans({}) / init_extruders({})
-// instead, which is also the only correct way to expire their per-item subjects.
+// Deliberately absent: PrinterFanStateTestAccess, a name already taken by a
+// local definition in tests/unit/test_print_status_fan_section.cpp, and a
+// temperature accessor. The fan and temperature domains are cleared through
+// their public init_fans({}) / init_extruders({}) instead, which is also the
+// only correct way to expire their per-item subjects.
 // ---------------------------------------------------------------------------
 
 class PrinterExcludedObjectsStateTestAccess {

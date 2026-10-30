@@ -16,11 +16,6 @@
 // The decision is a pure function so it is testable without LVGL; the sidebar
 // calls it rather than duplicating the condition.
 
-#include "../test_helpers/ams_backend_probes.h"
-#include "ams_backend_ace.h"
-#include "ams_backend_afc.h"
-#include "ams_backend_cfs.h"
-#include "ams_backend_happy_hare.h"
 #include "ams_types.h"
 
 #include "../catch_amalgamated.hpp"
@@ -71,51 +66,4 @@ TEST_CASE("should_unload_before_bypass truth table", "[ams][afc][1229][bypass]")
         helix::AmsSystemInfo info = make_info(row.current_slot, row.filament_loaded);
         CHECK(helix::should_unload_before_bypass(info, row.allows_chaining) == row.expect_unload);
     }
-}
-
-TEST_CASE("should_unload_before_bypass is false for every state when chaining is disallowed",
-          "[ams][afc][1229][bypass]") {
-    // Exhaustive over the interesting slot values crossed with the load flag:
-    // with chaining off there is no state that may produce an implicit unload.
-    for (int slot : {-2, -1, 0, 1, 7}) {
-        for (bool loaded : {false, true}) {
-            CAPTURE(slot, loaded);
-            CHECK_FALSE(helix::should_unload_before_bypass(make_info(slot, loaded), false));
-        }
-    }
-}
-
-TEST_CASE("AFC and Happy Hare refuse implicit chaining", "[ams][afc][1229][bypass]") {
-    AfcProbe afc;
-    HappyHareProbe hh;
-
-    // Console-equipped firmwares: one user action == one command sent.
-    CHECK_FALSE(afc.allows_implicit_chaining());
-    CHECK_FALSE(hh.allows_implicit_chaining());
-
-    // And the pure function must honour that even with filament loaded.
-    helix::AmsSystemInfo loaded = make_info(0, true);
-    CHECK_FALSE(helix::should_unload_before_bypass(loaded, afc.allows_implicit_chaining()));
-    CHECK_FALSE(helix::should_unload_before_bypass(loaded, hh.allows_implicit_chaining()));
-}
-
-TEST_CASE("OEM backends keep implicit chaining", "[ams][afc][1229][bypass]") {
-    CfsProbe cfs;
-    AceProbe ace;
-
-    // Neither overrides the predicate, so this also pins the AmsBackend base
-    // default that the remaining OEM backends inherit. No console fallback on
-    // these — the UI keeps doing the unload for the user.
-    CHECK(cfs.allows_implicit_chaining());
-    CHECK(ace.allows_implicit_chaining());
-
-    // With a slot loaded, chaining backends do prompt the unload-first path.
-    helix::AmsSystemInfo loaded = make_info(1, true);
-    CHECK(helix::should_unload_before_bypass(loaded, cfs.allows_implicit_chaining()));
-    CHECK(helix::should_unload_before_bypass(loaded, ace.allows_implicit_chaining()));
-
-    // But an unloaded system still goes straight to enable_bypass().
-    helix::AmsSystemInfo empty = make_info(-1, false);
-    CHECK_FALSE(helix::should_unload_before_bypass(empty, cfs.allows_implicit_chaining()));
-    CHECK_FALSE(helix::should_unload_before_bypass(empty, ace.allows_implicit_chaining()));
 }

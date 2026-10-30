@@ -264,3 +264,24 @@ TEST_CASE("a printer with no database timelapse option still gets the synthesize
                       [](const PrePrintOption& o) { return o.capability_key() == "timelapse"; }));
     REQUIRE(timelapse_rows == 1);
 }
+
+TEST_CASE("helix_plugin_installed keeps unknown (-1) apart from not installed (0)",
+          "[printer_state][plugin][tristate]") {
+    lv_init_safe();
+    PrinterState& state = fresh_state();
+    lv_subject_t* installed = state.plugin_status_state().get_helix_plugin_installed_subject();
+
+    // Not yet probed: the UI can tell "still checking" from "missing".
+    CHECK(lv_subject_get_int(installed) == -1);
+    CHECK_FALSE(state.plugin_status_state().service_has_helix_plugin());
+
+    state.set_helix_plugin_installed(false);
+    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    CHECK(lv_subject_get_int(installed) == 0);
+    CHECK_FALSE(state.plugin_status_state().service_has_helix_plugin());
+
+    state.set_helix_plugin_installed(true);
+    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    CHECK(lv_subject_get_int(installed) == 1);
+    CHECK(state.plugin_status_state().service_has_helix_plugin());
+}

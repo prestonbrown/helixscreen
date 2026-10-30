@@ -1,7 +1,7 @@
 # Hidden Tests Tracker
 
 **Last Updated:** 2026-08-17
-**Total Hidden Tests:** 81 (Catch2's own count — `./build/bin/helix-tests "[.]" --list-tests | tail -1`)
+**Total Hidden Tests:** 79 (Catch2's own count — `./build/bin/helix-tests "[.]" --list-tests | tail -1`)
 
 > 2026-08-17: 81, down from 89. The seven `test_ui_ams_slot.cpp` cases left the
 > hidden set entirely (see the `[.skip]` row removal below), and the concurrent
@@ -65,7 +65,6 @@ Both groups were left red rather than filtered out on purpose while they were re
      passes in the default run (79 assertions across 25 ams_slot cases). They
      are LVGLUITestFixture C++-widget tests, not cwd-coupled XML-tree tests, so
      the "run from the repo root" constraint never applied to them. -->
-| `[.slow]` | 2 | `test_async_callback_safety.cpp` | Stress tests, too slow for CI |
 | `[.memprobe]` | 1 | `test_gcode_memory_probe.cpp` | Memory measurement probe |
 | `[.integration]` | 1 | `test_moonraker_client_security.cpp` | Timeout-callback deadlock check |
 | `[.benchmark]` | 1 | `test_wizard_connection.cpp` | Performance measurement |

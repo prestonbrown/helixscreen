@@ -71,6 +71,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <mutex>
 #include <set>
@@ -1472,6 +1473,81 @@ TEST_CASE("MoonrakerClientMock bed mesh", "[slow][mock][calibration]") {
         // At minimum, it should not crash
         const auto& mesh = mock.get_active_bed_mesh();
         REQUIRE(mesh.name == "test");
+    }
+}
+
+namespace {
+
+/// Element-wise mesh comparison: dimensions plus every height within @p tolerance.
+bool meshes_equal(const BedMeshProfile& a, const BedMeshProfile& b, float tolerance = 0.001f) {
+    if (a.x_count != b.x_count || a.y_count != b.y_count ||
+        a.probed_matrix.size() != b.probed_matrix.size()) {
+        return false;
+    }
+    for (size_t row = 0; row < a.probed_matrix.size(); row++) {
+        if (a.probed_matrix[row].size() != b.probed_matrix[row].size()) {
+            return false;
+        }
+        for (size_t col = 0; col < a.probed_matrix[row].size(); col++) {
+            if (std::fabs(a.probed_matrix[row][col] - b.probed_matrix[row][col]) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+// Mesh heights follow the profile: test_mock_gcode_dispatch pins names and shapes
+// but masks the heights, so these are the cases that see the data itself.
+TEST_CASE("MoonrakerClientMock bed mesh profiles store their heights", "[bed_mesh][mock]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+
+    SECTION("default and adaptive have different mesh data") {
+        mock.gcode_script("BED_MESH_PROFILE LOAD=default");
+        BedMeshProfile default_mesh = mock.get_active_bed_mesh();
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=adaptive");
+        BedMeshProfile adaptive_mesh = mock.get_active_bed_mesh();
+
+        REQUIRE(!meshes_equal(default_mesh, adaptive_mesh));
+    }
+
+    SECTION("LOAD restores actual mesh data") {
+        mock.gcode_script("BED_MESH_PROFILE LOAD=default");
+        BedMeshProfile default_mesh = mock.get_active_bed_mesh();
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=adaptive");
+        REQUIRE(mock.get_active_bed_mesh().name == "adaptive");
+        REQUIRE(!meshes_equal(mock.get_active_bed_mesh(), default_mesh));
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=default");
+        REQUIRE(mock.get_active_bed_mesh().name == "default");
+        REQUIRE(meshes_equal(mock.get_active_bed_mesh(), default_mesh));
+    }
+
+    SECTION("SAVE stores current mesh data") {
+        mock.gcode_script("BED_MESH_CALIBRATE PROFILE=test_save");
+        BedMeshProfile calibrated = mock.get_active_bed_mesh();
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=default");
+        REQUIRE(mock.get_active_bed_mesh().name == "default");
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=test_save");
+        REQUIRE(mock.get_active_bed_mesh().name == "test_save");
+        REQUIRE(meshes_equal(mock.get_active_bed_mesh(), calibrated));
+    }
+
+    SECTION("multiple calibrations produce different results") {
+        std::vector<BedMeshProfile> meshes;
+        for (int i = 0; i < 5; i++) {
+            mock.gcode_script("BED_MESH_CALIBRATE PROFILE=multi_" + std::to_string(i));
+            meshes.push_back(mock.get_active_bed_mesh());
+        }
+        for (size_t i = 1; i < meshes.size(); i++) {
+            REQUIRE(!meshes_equal(meshes[i], meshes[i - 1]));
+        }
     }
 }
 

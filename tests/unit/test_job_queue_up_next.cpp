@@ -171,6 +171,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "up next subjects publish settled before the
     CHECK(std::string(lv_subject_get_string(start_next)) == format_start_next_text("file-0", 3));
     CHECK(up_next_seen_on_count == std::string(lv_subject_get_string(up_next)));
 
+    // One job names it alone, still settled before the count moves.
+    JobQueueStateTestAccess::deliver_status(jqs, status_with(1));
+    CHECK(lv_subject_get_int(count) == 1);
+    CHECK(std::string(lv_subject_get_string(up_next)) == "Up next: file-0");
+    CHECK(up_next_seen_on_count == "Up next: file-0");
+
     JobQueueStateTestAccess::deliver_status(jqs, status_with(0));
     CHECK(lv_subject_get_int(count) == 0);
     CHECK(std::string(lv_subject_get_string(up_next)).empty());
@@ -178,6 +184,68 @@ TEST_CASE_METHOD(LVGLUITestFixture, "up next subjects publish settled before the
     CHECK(up_next_seen_on_count.empty());
 
     lv_observer_remove(count_observer);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "job_queue_run_state follows queue_state and settles before the count",
+                 "[job_queue][subjects]") {
+    JobQueueState jqs(nullptr, nullptr);
+    ScopedJobQueueSubjects subject_guard;
+    jqs.init_subjects();
+
+    lv_subject_t* run_state = lv_xml_get_subject(nullptr, "job_queue_run_state");
+    lv_subject_t* count = lv_xml_get_subject(nullptr, "job_queue_count");
+    REQUIRE(run_state != nullptr);
+    REQUIRE(count != nullptr);
+
+    auto paused = status_with(2);
+    paused.queue_state = "paused";
+    JobQueueStateTestAccess::deliver_status(jqs, paused);
+    CHECK(lv_subject_get_int(run_state) == static_cast<int>(QueueRunState::Paused));
+    CHECK(lv_subject_get_int(run_state) == 3);
+
+    JobQueueStateTestAccess::deliver_status(jqs, status_with(2));
+    CHECK(lv_subject_get_int(run_state) == 0);
+    CHECK(lv_subject_get_int(count) == 2);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a count observer already reads the new run state",
+                 "[job_queue][subjects]") {
+    JobQueueState jqs(nullptr, nullptr);
+    ScopedJobQueueSubjects subject_guard;
+    jqs.init_subjects();
+
+    lv_subject_t* count = lv_xml_get_subject(nullptr, "job_queue_count");
+    REQUIRE(count != nullptr);
+
+    int run_state_seen = -1;
+    lv_observer_t* obs = lv_subject_add_observer(
+        count,
+        [](lv_observer_t* observer, lv_subject_t*) {
+            auto* dest = static_cast<int*>(lv_observer_get_user_data(observer));
+            *dest = lv_subject_get_int(lv_xml_get_subject(nullptr, "job_queue_run_state"));
+        },
+        &run_state_seen);
+
+    JobQueueStateTestAccess::deliver_status(jqs, status_with(3)); // "ready"
+    CHECK(run_state_seen == static_cast<int>(QueueRunState::Ready));
+
+    lv_observer_remove(obs);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "invalidate keeps has_ever_loaded", "[job_queue][subjects]") {
+    JobQueueState jqs(nullptr, nullptr);
+    ScopedJobQueueSubjects subject_guard;
+    jqs.init_subjects();
+
+    CHECK_FALSE(jqs.has_ever_loaded());
+    JobQueueStateTestAccess::deliver_status(jqs, status_with(1));
+    CHECK(jqs.is_loaded());
+    CHECK(jqs.has_ever_loaded());
+
+    jqs.invalidate();
+    CHECK_FALSE(jqs.is_loaded());
+    CHECK(jqs.has_ever_loaded());
 }
 
 // ============================================================================

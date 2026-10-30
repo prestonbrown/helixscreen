@@ -29,8 +29,7 @@ struct SsaoDecision {
  * and Aa::On for every extrusion stroke, and those cost:
  *
  *   - outline pass:  ~2 ms per cache revalidation, measured on an AD5M
- *   - antialiasing:  ~6x the aliased rasterization cost, measured by
- *                    tests/unit/test_gcode_raster_bench.cpp
+ *   - antialiasing:  ~6x the aliased rasterization cost
  *
  * The second is what makes a preview take about 2.2x as long to appear on a
  * constrained device; the first is nearly free and is where most of the visible

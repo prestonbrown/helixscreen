@@ -859,11 +859,9 @@ EffectiveFilament = filament::find_material(product.type)   // type (shipped ◀
 
 `nozzle_min` / `nozzle_max` / `bed` / `density` / `chamber_temp_c` /
 `dry_temp_c` / `dry_time_min` / `compat_group` all come from the type unless
-the product JSON explicitly sets them. A product whose `type` string doesn't
-resolve to a type (an Orca material HelixScreen doesn't map
-yet) is only valid if it's self-sufficient — i.e. the importer emitted
-explicit `nozzle_min`/`nozzle_max` for it directly; see the data-integrity
-lint in `tests/unit/test_filaments_data.cpp`.
+the product JSON explicitly sets them. Every product's `type` must resolve to
+a type in `filament_database.h` (directly or through an alias); the data-integrity
+checks in `tests/unit/test_filament_data_invariants.cpp` fail on one that does not.
 
 ### The `codes` map (scheme-keyed, open-ended)
 
@@ -1817,7 +1815,7 @@ reading.
 > **Unverified on hardware.** The only AFC rig here is a BoxTurtle with a
 > switched buffer; its live status carries none of the FPS fields. The mapping is
 > pinned against a source read of AFC v1.2.0 (`a06f14d`) in
-> `tests/unit/test_afc_fps_buffer.cpp` — re-check those against a real FPS_PSF
+> `tests/unit/test_buffer_reading.cpp` — re-check those against a real FPS_PSF
 > buffer before trusting the scale.
 
 ### Filament buffer reading
@@ -3427,7 +3425,7 @@ Simulates a real-world 6-toolhead toolchanger with mixed AFC hardware (based on 
 - **Unit 2**: OpenAMS "AMS_2" — 4 lanes, HUB, lanes 8-11 all → T5, per-lane hubs (Hub_5-Hub_8), no buffers
 - Total: 12 slots, 6 physical toolheads
 - Per-unit topology via `get_unit_topology()`
-- 23 regression tests in `tests/unit/test_ams_mock_mixed_topology.cpp` validate this setup
+- `tests/unit/test_ams_system_tool_layout.cpp` checks the physical tool layout this setup produces
 
 ### Mock Tool Changer Mode
 

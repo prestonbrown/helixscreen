@@ -584,7 +584,7 @@ Tests are run with:
 |------|-----|---------------|
 | `tests/unit/test_print_exclude_object_manager.cpp` | `[exclude_object]` | Exclusion state machine driven through the real `PrintExcludeObjectManager`: confirm, cancel, undo, timer, API, sync |
 | `tests/unit/test_exclude_object_long_press_gate.cpp` | `[exclude_object]` | Long-press gate: pending object, timer arming, clear; every dismissal of the confirm clears the guard (`[dismiss]`) |
-| `tests/unit/test_excluded_objects_char.cpp` | `[excluded_objects]` | `PrinterExcludedObjectsState`: version subjects, set change detection, observer notification |
+| `tests/unit/test_printer_switch_clears_objects.cpp` | `[exclude_object]` | `PrinterExcludedObjectsState`: a printer switch clears every field and bumps both versions; the excluded set bumps its version only when it changes |
 | `tests/unit/test_moonraker_api_exclude_object.cpp` | `[security]`, `[mock]` | Input validation, injection prevention, mock client integration |
 | `tests/unit/test_exclude_object_badges.cpp` | `[exclude_badges]` | Badge numbering by defined order, flags, anchor fallback chain, map badge numbering with a bbox-less object; the viewer's draw pass (drawn-top Z, off-screen skip, no stale pick targets), pick precedence (badge over geometry, top badge wins, excluded not pickable), equal badges not invalidating, exclusion dropping selection, the 3D shown-image transform |
 | `tests/unit/test_print_status_exclude_badges.cpp` | `[exclude_badges]` | Panel lifecycle: badges appear with the side list, match its chips, follow version bumps, clear on close |

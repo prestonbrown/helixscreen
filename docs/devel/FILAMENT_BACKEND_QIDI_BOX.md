@@ -201,8 +201,7 @@ Not implemented: `recover()` / `reset()` / `cancel()` (return `not_supported`), 
 | `src/printer/ams_backend_qidi.cpp` | Full implementation: save_variables parse, gcode builders, dryer, RFID reverse-lookups |
 | `include/printer_discovery.h` | `box_stepper slot<N>` detection + slot count |
 | `include/ams_types.h` | `AmsType::QIDI_BOX` enum + string converters |
-| `tests/unit/test_ams_backend_qidi.cpp` | 140 cases: save_variables parsing, tool map, dryer, eject, remap, filas list, fingerprint swap detection, metadata clear |
-| `tests/unit/test_ams_qidi_per_slot_loaded.cpp` | 7 cases: the #1199 per-slot loaded authority reconcile |
+| `tests/unit/test_ams_backend_qidi.cpp` | save_variables parsing, the per-slot loaded reconcile (#1199), tool map, dryer, eject, remap, filas list, fingerprint swap detection, metadata clear |
 
 ### Follow-up Work (in order)
 

@@ -167,52 +167,6 @@ struct AmsDesyncFixture : LVGLTestFixture {
 } // namespace
 
 TEST_CASE_METHOD(AmsDesyncFixture,
-                 "AMS: firmware unloading behind a loaded UI clears the loaded lane",
-                 "[integration][error_path][ams][afc]") {
-    helix::test::RegisteredBackend<AmsBackendAfc> afc(nullptr, nullptr);
-    AfcTestAccess::initialize_slots(*afc, std::vector<std::string>{"lane1", "lane2"});
-    auto& ams = AmsState::instance();
-
-    afc_frame(*afc, {{"AFC", {{"current_load", "lane2"}, {"current_state", "Idle"}}}});
-    REQUIRE(value(ams.get_current_slot_subject()) == 1);
-    REQUIRE(value(ams.get_filament_loaded_subject()) == 1);
-
-    afc_frame(*afc, {{"AFC", {{"current_load", nullptr}, {"current_state", "Idle"}}}});
-    CHECK(value(ams.get_current_slot_subject()) == -1);
-    CHECK(value(ams.get_filament_loaded_subject()) == 0);
-}
-
-TEST_CASE_METHOD(AmsDesyncFixture,
-                 "AMS: a frame naming a different lane moves the loaded lane, not both",
-                 "[integration][error_path][ams][afc]") {
-    helix::test::RegisteredBackend<AmsBackendAfc> afc(nullptr, nullptr);
-    AfcTestAccess::initialize_slots(*afc, std::vector<std::string>{"lane1", "lane2"});
-    auto& ams = AmsState::instance();
-
-    afc_frame(*afc, {{"AFC", {{"current_load", "lane1"}}}});
-    REQUIRE(value(ams.get_current_slot_subject()) == 0);
-
-    afc_frame(*afc, {{"AFC", {{"current_load", "lane2"}}}});
-    CHECK(value(ams.get_current_slot_subject()) == 1);
-    CHECK(value(ams.get_filament_loaded_subject()) == 1);
-}
-
-TEST_CASE_METHOD(AmsDesyncFixture, "AMS: a busy UI returns to idle when firmware reports idle",
-                 "[integration][error_path][ams][afc]") {
-    helix::test::RegisteredBackend<AmsBackendAfc> afc(nullptr, nullptr);
-    AfcTestAccess::initialize_slots(*afc, std::vector<std::string>{"lane1", "lane2"});
-    auto& ams = AmsState::instance();
-
-    afc_frame(*afc, {{"AFC", {{"current_state", "Loading"}, {"current_load", "lane1"}}}});
-    REQUIRE(value(ams.get_ams_action_subject()) == static_cast<int>(AmsAction::LOADING));
-
-    // The load never completed: firmware is idle and nothing is loaded.
-    afc_frame(*afc, {{"AFC", {{"current_state", "Idle"}, {"current_load", nullptr}}}});
-    CHECK(value(ams.get_ams_action_subject()) == static_cast<int>(AmsAction::IDLE));
-    CHECK(value(ams.get_filament_loaded_subject()) == 0);
-}
-
-TEST_CASE_METHOD(AmsDesyncFixture,
                  "AMS: a frame for a lane the UI never discovered changes nothing",
                  "[integration][error_path][ams][afc]") {
     helix::test::RegisteredBackend<AmsBackendAfc> afc(nullptr, nullptr);

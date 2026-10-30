@@ -327,7 +327,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     // below would call lv_observer_remove() on memory that
     // PrinterTemperatureState::deinit_subjects() already freed via
     // lv_subject_deinit(). This is the same bool-token path covered for a
-    // synthetic subject in test_observer_cleanup_ordering.cpp's #816 tests —
+    // synthetic subject in test_observer_factory.cpp's #816 tests —
     // here it runs against the real PrinterState accessors bind() uses.
     //
     // ObserverGuard::invalidate_all() is NOT involved: that is a separate,

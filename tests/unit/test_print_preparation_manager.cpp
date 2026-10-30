@@ -2608,6 +2608,20 @@ TEST_CASE("PrepManager: Extension safety - registry completeness", "[print_prepa
         // Non-existent key returns nullopt
         REQUIRE_FALSE(OperationRegistry::get_by_key("nonexistent").has_value());
         REQUIRE_FALSE(OperationRegistry::get_by_key("").has_value());
+        // Keys are the lowercase capability keys; the category spelling is not one.
+        REQUIRE_FALSE(OperationRegistry::get_by_key("BED_MESH").has_value());
+        REQUIRE_FALSE(OperationRegistry::get_by_key("homing").has_value());
+    }
+
+    SECTION("Every entry round-trips and matches operation_patterns naming") {
+        for (const auto& info : OperationRegistry::all()) {
+            INFO("Checking: " << info.capability_key);
+            auto by_key = OperationRegistry::get_by_key(info.capability_key);
+            REQUIRE(by_key.has_value());
+            CHECK(by_key->category == info.category);
+            CHECK(info.friendly_name == category_name(info.category));
+            CHECK(info.capability_key == category_key(info.category));
+        }
     }
 }
 

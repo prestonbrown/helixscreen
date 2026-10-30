@@ -22,8 +22,6 @@
 #include "../ui_test_utils.h"
 
 #include <atomic>
-#include <chrono>
-#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -83,10 +81,8 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate collector parses result
         });
 
     // Simulate Klipper PID output
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response(
         "PID parameters: pid_Kp=22.865 pid_Ki=1.292 pid_Kd=101.178");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(result_received_.load());
     REQUIRE_FALSE(error_received_.load());
@@ -104,9 +100,7 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate collector handles error
             error_received_.store(true);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("!! Error: heater extruder not heating at expected rate");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(error_received_.load());
     REQUIRE_FALSE(result_received_.load());
@@ -122,9 +116,7 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate handles unknown command
             error_received_.store(true);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("Unknown command: \"PID_CALIBRATE\"");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(error_received_.load());
     REQUIRE_FALSE(result_received_.load());
@@ -141,10 +133,8 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate bed heater", "[pid_cali
         },
         [this](const MoonrakerError& err) { error_received_.store(true); });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response(
         "PID parameters: pid_Kp=73.517 pid_Ki=1.132 pid_Kd=1194.093");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(result_received_.load());
     REQUIRE(captured_kp_ == Catch::Approx(73.517f).margin(0.001f));
@@ -166,11 +156,8 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate collector fires progres
             progress_tolerances_.push_back(tolerance);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("sample:1 pwm:0.5 asymmetry:0.2 tolerance:n/a");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("sample:2 pwm:0.48 asymmetry:0.15 tolerance:0.045");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(progress_samples_.size() == 2);
     REQUIRE(progress_samples_[0] == 1);
@@ -181,7 +168,6 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate collector fires progres
     // Complete the collector to avoid dangling callback in mock client destruction
     mock_client_.dispatch_gcode_response(
         "PID parameters: pid_Kp=22.865 pid_Ki=1.292 pid_Kd=101.178");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 }
 
 TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate progress then result", "[pid_calibrate]") {
@@ -199,14 +185,10 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate progress then result", 
             progress_tolerances_.push_back(tolerance);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("sample:1 pwm:0.5 asymmetry:0.2 tolerance:n/a");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("sample:2 pwm:0.48 asymmetry:0.15 tolerance:0.045");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response(
         "PID parameters: pid_Kp=22.865 pid_Ki=1.292 pid_Kd=101.178");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(progress_samples_.size() == 2);
     REQUIRE(result_received_.load());
@@ -220,12 +202,9 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate no progress after compl
         [this](const MoonrakerError& err) { error_received_.store(true); },
         [this](int sample, float tolerance) { progress_samples_.push_back(sample); });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response(
         "PID parameters: pid_Kp=22.865 pid_Ki=1.292 pid_Kd=101.178");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("sample:3 pwm:0.5 asymmetry:0.2 tolerance:0.01");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(result_received_.load());
     REQUIRE(progress_samples_.empty());
@@ -244,12 +223,9 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate backward compat without
         },
         [this](const MoonrakerError& err) { error_received_.store(true); });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("sample:1 pwm:0.5 asymmetry:0.2 tolerance:n/a");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response(
         "PID parameters: pid_Kp=22.865 pid_Ki=1.292 pid_Kd=101.178");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(result_received_.load());
     REQUIRE_FALSE(error_received_.load());
@@ -279,10 +255,8 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture,
         });
 
     // The RPC has already "timed out" synchronously above. Klipper finishes afterwards.
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response(
         "PID parameters: pid_Kp=73.517 pid_Ki=1.132 pid_Kd=1194.093");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(result_received_.load());
     REQUIRE_FALSE(error_received_.load());
@@ -303,8 +277,6 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate RPC timeout does not fi
             error_received_.store(true);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
     REQUIRE_FALSE(error_received_.load());
     REQUIRE_FALSE(result_received_.load());
 }
@@ -323,7 +295,6 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate non-timeout RPC error s
             error_received_.store(true);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     REQUIRE(error_received_.load());
     REQUIRE_FALSE(result_received_.load());
 
@@ -331,7 +302,6 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate non-timeout RPC error s
     result_received_.store(false);
     mock_client_.dispatch_gcode_response(
         "PID parameters: pid_Kp=22.865 pid_Ki=1.292 pid_Kd=101.178");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     REQUIRE_FALSE(result_received_.load());
 }
 
@@ -353,7 +323,6 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "get_heater_pid_values returns extrude
             cb_fired.store(true);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     REQUIRE(cb_fired.load());
     REQUIRE(kp == Catch::Approx(22.865f).margin(0.001f));
     REQUIRE(ki == Catch::Approx(1.292f).margin(0.001f));
@@ -373,7 +342,6 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "get_heater_pid_values returns bed val
         },
         [&](const MoonrakerError&) { cb_fired.store(true); });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     REQUIRE(cb_fired.load());
     REQUIRE(kp == Catch::Approx(73.517f).margin(0.001f));
 }
@@ -398,7 +366,6 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "Mock configfile returns extruder PID 
         },
         [&](const MoonrakerError&) { cb_fired.store(true); });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     REQUIRE(cb_fired.load());
     REQUIRE(kp == Catch::Approx(22.865f).margin(0.001f));
     REQUIRE(ki == Catch::Approx(1.292f).margin(0.001f));
@@ -425,7 +392,6 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "Mock configfile returns bed PID value
         },
         [&](const MoonrakerError&) { cb_fired.store(true); });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     REQUIRE(cb_fired.load());
     REQUIRE(kp == Catch::Approx(73.517f).margin(0.001f));
     REQUIRE(ki == Catch::Approx(1.132f).margin(0.001f));

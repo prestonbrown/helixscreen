@@ -116,6 +116,54 @@ TEST_CASE("PrinterTemperatureState: default active works with single extruder",
     state.deinit_subjects();
 }
 
+TEST_CASE("PrinterTemperatureState: a partial status frame keeps the fields it omits",
+          "[core][temperature][partial]") {
+    lv_init_safe();
+    PrinterTemperatureState state;
+    state.init_subjects(false);
+    state.init_extruders({"extruder"});
+
+    state.update_from_status({{"extruder", {{"temperature", 200.0}, {"target", 210.0}}},
+                              {"heater_bed", {{"temperature", 60.0}, {"target", 65.0}}}});
+    REQUIRE(lv_subject_get_int(state.get_active_extruder_target_subject()) == 2100);
+    REQUIRE(lv_subject_get_int(state.get_bed_temp_subject()) == 600);
+
+    state.update_from_status({{"extruder", {{"temperature", 205.0}}}});
+    CHECK(lv_subject_get_int(state.get_active_extruder_temp_subject()) == 2050);
+    CHECK(lv_subject_get_int(state.get_active_extruder_target_subject()) == 2100);
+    CHECK(lv_subject_get_int(state.get_bed_temp_subject()) == 600);
+    CHECK(lv_subject_get_int(state.get_bed_target_subject()) == 650);
+
+    state.update_from_status(nlohmann::json::object());
+    CHECK(lv_subject_get_int(state.get_active_extruder_temp_subject()) == 2050);
+    CHECK(lv_subject_get_int(state.get_bed_target_subject()) == 650);
+
+    state.deinit_subjects();
+}
+
+TEST_CASE("PrinterTemperatureState: status updates route to each extruder's own subjects",
+          "[core][temperature][multi-extruder]") {
+    lv_init_safe();
+    PrinterTemperatureState state;
+    state.init_subjects(false);
+    state.init_extruders({"extruder", "extruder1"});
+
+    state.update_from_status({{"extruder1", {{"temperature", 220.5}, {"target", 230.0}}}});
+    CHECK(lv_subject_get_int(state.get_extruder_temp_subject("extruder1")) == 2205);
+    CHECK(lv_subject_get_int(state.get_extruder_target_subject("extruder1")) == 2300);
+    CHECK(lv_subject_get_int(state.get_extruder_temp_subject("extruder")) == 0);
+    CHECK(lv_subject_get_int(state.get_extruder_target_subject("extruder")) == 0);
+
+    state.update_from_status({{"extruder", {{"temperature", 200.0}, {"target", 210.0}}},
+                              {"extruder1", {{"temperature", 222.0}, {"target", 231.0}}}});
+    CHECK(lv_subject_get_int(state.get_extruder_temp_subject("extruder")) == 2000);
+    CHECK(lv_subject_get_int(state.get_extruder_target_subject("extruder")) == 2100);
+    CHECK(lv_subject_get_int(state.get_extruder_temp_subject("extruder1")) == 2220);
+    CHECK(lv_subject_get_int(state.get_extruder_target_subject("extruder1")) == 2310);
+
+    state.deinit_subjects();
+}
+
 TEST_CASE("PrinterTemperatureState: load latch survives cooldown to 0",
           "[core][temperature][swap_preheat]") {
     lv_init_safe();

@@ -1096,9 +1096,7 @@ HELIX_SSAO=0 ./build/bin/helix-screen --test --gcode-file model.gcode -vv &
 
 **Performance.** The outline pass is ~2 ms per cache revalidation, measured on a
 real AD5M. The antialiasing is not minimal:
-Wu's algorithm measures about **6.1x** the aliased rasterization cost
-(`tests/unit/test_gcode_raster_bench.cpp`, run with
-`./build/bin/helix-tests "[raster_bench]"`). On the 135,197-segment test plate
+Wu's algorithm measures about **6.1x** the aliased rasterization cost. On the 135,197-segment test plate
 that is roughly 29 ms aliased against 178 ms antialiased, and the adaptive
 controller settles at 49 layers per frame instead of 22 - so a preview appears
 about 2.2x faster with antialiasing off. That is why the constrained tier keeps

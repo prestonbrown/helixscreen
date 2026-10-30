@@ -172,9 +172,15 @@ TEST_CASE_METHOD(MotionPairingFixture,
 
 TEST_CASE_METHOD(MotionPairingFixture,
                  "motion execute_gcode does not stamp when klippy is not ready",
-                 "[motion][busy_guard][mock]") {
-    // The klippy-ready gate is the earliest return in execute_gcode.
-    state.set_klippy_state_sync(KlippyState::SHUTDOWN);
+                 "[motion][busy_guard][motion_guard][mock]") {
+    // The klippy-ready gate is the earliest return in execute_gcode. It refuses
+    // every state but READY, STARTUP included: a jog queued during startup would
+    // fire minutes later. That makes it stricter than MoonrakerAPI::execute_gcode's
+    // halt gate, which lets STARTUP through for recovery gcode.
+    const KlippyState not_ready =
+        GENERATE(KlippyState::STARTUP, KlippyState::SHUTDOWN, KlippyState::ERROR);
+    CAPTURE(static_cast<int>(not_ready));
+    state.set_klippy_state_sync(not_ready);
 
     api->motion().move_axis('X', 10.0, 3000.0, nullptr,
                             [this](const MoonrakerError& err) { error_cb(err); });

@@ -133,7 +133,7 @@ TEST_CASE_METHOD(XMLTestFixture, "K2StockSource gates polling on the detection t
                  "[detection][k2]") {
     // SettingsManager subjects start uninitialized in the unit suite (an
     // uninitialized subject reads as the true fallback and ignores setters),
-    // so rebuild them from Config the way test_detection_settings.cpp does.
+    // so rebuild them from Config.
     ConfigTestAccess::data(*Config::get_instance()).erase("detection");
     SettingsManager::instance().deinit_subjects();
     SettingsManager::instance().init_subjects();

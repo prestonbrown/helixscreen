@@ -17,7 +17,7 @@
 // printer; moving the other way makes a global preference reset itself every
 // time the user switches machines. Both are invisible to a round-trip test that
 // only ever has one printer configured, which is what the existing incidental
-// coverage (test_detection_settings.cpp, test_hidden_macros_settings.cpp,
+// coverage (test_persisted_setting.cpp, test_hidden_macros_settings.cpp,
 // test_page_scroll_setting.cpp) does.
 //
 // Two mechanisms are covered, because SettingsManager reads config two ways:

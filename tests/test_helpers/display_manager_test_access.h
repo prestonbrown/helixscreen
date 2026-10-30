@@ -175,13 +175,6 @@ class DisplayManagerTestAccess {
         return dm.m_sleep.m_sleep_overlay;
     }
 
-    // The press cancel wake_display() runs on every pointer (#1245). Private on the
-    // manager and normally only reachable through a full wake, which also repaints;
-    // driven directly here so the assertions are about the cancel alone.
-    static void cancel_pointer_presses() {
-        DisplayManager::cancel_pointer_presses();
-    }
-
     // Exercises the wake-side panel restore (power-on / unblank / overlay removal)
     // WITHOUT the post-wake repaint. Production wake_display() runs this then
     // lv_refr_now().

@@ -802,6 +802,9 @@ TEST_CASE_METHOD(HelixTestFixture, "catalog - identity fields are present and un
     // fails outright.
     std::map<std::pair<std::string, std::string>, int> pair_counts;
     std::set<std::string> ids;
+    // A CFS RFID tag resolves through codes["cfs"]; a code two products carry
+    // resolves to whichever loaded first.
+    std::set<std::string> cfs_codes;
 
     for (const auto* p : all) {
         INFO("product: " << p->id);
@@ -821,6 +824,10 @@ TEST_CASE_METHOD(HelixTestFixture, "catalog - identity fields are present and un
         CHECK(p->type.back() != ' ');
         CHECK(ids.insert(p->id).second); // ids are the merge key for the overlay
         pair_counts[{p->brand, p->name}]++;
+        auto cfs = p->codes.find("cfs");
+        if (cfs != p->codes.end()) {
+            CHECK(cfs_codes.insert(cfs->second).second);
+        }
     }
 
     for (const auto& [key, count] : pair_counts) {
@@ -996,4 +1003,22 @@ TEST_CASE_METHOD(HelixTestFixture, "two-layer closure - every material type is r
     CHECK(unreachable == declared);
     CHECK(declared.size() == kResolutionOnlyCount);
     CHECK(reachable.size() + declared.size() == shipped_materials()->size());
+}
+
+// CF and GF are different materials (stiffness, abrasiveness, print temps), so the
+// picker must never collapse them by aliasing one onto the other.
+TEST_CASE("CF and GF variants stay distinct", "[filament_data]") {
+    static const char* kPairs[][2] = {
+        {"ASA-CF", "ASA-GF"},   {"ABS-CF", "ABS-GF"}, {"PC-CF", "PC-GF"}, {"PET-CF", "PET-GF"},
+        {"PETG-CF", "PETG-GF"}, {"PA-CF", "PA-GF"},   {"PP-CF", "PP-GF"}, {"PPA-CF", "PPA-GF"},
+    };
+    for (const auto& pair : kPairs) {
+        INFO("pair: " << pair[0] << " vs " << pair[1]);
+        auto cf = find_material(pair[0]);
+        auto gf = find_material(pair[1]);
+        REQUIRE(cf.has_value());
+        REQUIRE(gf.has_value());
+        CHECK(std::string(cf->name) == pair[0]);
+        CHECK(std::string(gf->name) == pair[1]);
+    }
 }

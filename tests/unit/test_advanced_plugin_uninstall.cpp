@@ -322,3 +322,32 @@ TEST_CASE_METHOD(PluginUninstallFixture, "the plugin overview row shows only whi
 
     lv_obj_delete(root);
 }
+
+// The phase-tracking toggle stays out of the app (#1234). Each case first proves
+// its setup ran, so the absence assertions cannot pass on a setup that did nothing.
+TEST_CASE_METHOD(PluginUninstallFixture, "advanced panel builds without a phase tracking row",
+                 "[advanced][plugin][1234]") {
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "advanced_panel", nullptr));
+    REQUIRE(root != nullptr);
+
+    // Positive controls: the panel's plugin and macro rows all built.
+    REQUIRE(lv_obj_find_by_name(root, "row_helix_plugin_install") != nullptr);
+    REQUIRE(lv_obj_find_by_name(root, "row_helix_macros_install") != nullptr);
+    REQUIRE(lv_obj_find_by_name(root, "row_helix_macros_update") != nullptr);
+
+    CHECK(lv_obj_find_by_name(root, "row_phase_tracking") == nullptr);
+    CHECK(lv_obj_find_by_name(root, "container_phase_tracking") == nullptr);
+
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(PluginUninstallFixture, "no phase_tracking_enabled subject is registered",
+                 "[plugin][1234]") {
+    // The scope is live and holds the plugin subjects...
+    REQUIRE(lv_xml_get_subject(nullptr, "helix_plugin_installed") != nullptr);
+    REQUIRE(lv_xml_get_subject(nullptr, "helix_macros_status") != nullptr);
+
+    // ...and the phase-tracking subject is not among them.
+    CHECK(lv_xml_get_subject(nullptr, "phase_tracking_enabled") == nullptr);
+}

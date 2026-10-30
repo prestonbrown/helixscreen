@@ -966,7 +966,6 @@ class PrinterState {
     // through async_lifetime_.defer(), ensuring thread safety.
 
     friend class PrinterStateTestAccess;
-    friend class PrinterTemperatureStateTestAccess;
 
     void set_klipper_version_internal(const std::string& version);
     void set_moonraker_version_internal(const std::string& version);

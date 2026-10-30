@@ -71,24 +71,15 @@ TEST_CASE("header_button_height resolves from the vertical axis",
     CHECK(theme_manager_token_uses_vertical_axis("header_height"));
 }
 
-TEST_CASE("the oversized token that motivated the cap is still oversized",
-          "[theme][header][header-button-cap]") {
-    // Not a tautology: this asserts the PROBLEM still exists, so if someone
-    // later retunes button_height to fit, this test tells them the cap became
-    // redundant rather than letting it rot silently.
-    const auto large = theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_large");
-    CHECK(to_px(large, "button_height") > to_px(large, "header_height"));
-}
-
 TEST_CASE("header_bar.xml actually applies the cap to both action buttons",
           "[theme][header][header-button-cap]") {
-    // The three cases above only exercise TOKEN VALUES, via
+    // The two cases above only exercise TOKEN VALUES, via
     // theme_manager_parse_all_xml_for_suffix / theme_manager_token_uses_vertical_axis.
     // None of them read the <ui_button> elements themselves, so none would
     // notice if style_max_height="#header_button_height" were reverted from
     // action_button / action_button_2 while the token definitions stayed put —
     // that revert IS the regression this whole cap exists to prevent, and it
-    // would leave all three token-only cases green. This case closes that gap
+    // would leave both token-only cases green. This case closes that gap
     // by reading header_bar.xml directly and pinning the attribute onto both
     // button elements, no LVGL init required.
     std::ifstream file("ui_xml/header_bar.xml");

@@ -534,3 +534,106 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a long name stays one line inside
 
     lv_obj_delete(slot);
 }
+
+// ============================================================================
+// An empty lane's label through the real status and material observers
+// ============================================================================
+
+namespace {
+
+lv_opa_t material_opa(lv_obj_t* slot) {
+    return lv_obj_get_style_text_opa(material_label(slot), LV_PART_MAIN);
+}
+
+/// The dashed "add filament here" circle that replaces the spool on a lane with
+/// no identity. Every spool style creates it.
+bool placeholder_visible(lv_obj_t* slot) {
+    lv_obj_t* ph = lv_obj_find_by_name(slot, "empty_placeholder");
+    REQUIRE(ph != nullptr);
+    return shown(ph);
+}
+
+/// A started mock in AmsState, with lane @p slot_index stripped to "never
+/// assigned" (unassigned) or ejected keeping @p material (assigned). Status goes
+/// through force_slot_status(): no backend's apply_user_edit() accepts it.
+AmsBackendMock* install_empty_lane(int slot_index, const char* material) {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    auto owned = std::make_unique<AmsBackendMock>(4);
+    owned->set_operation_delay(0);
+    AmsBackendMock* mock = owned.get();
+    ams.set_backend(std::move(owned));
+
+    SlotInfo info = mock->get_slot_info(slot_index);
+    info.material = material;
+    if (material[0] == '\0') {
+        info.brand.clear();
+        info.spool_name.clear();
+        info.color_name.clear();
+        info.spoolman_id = 0;
+    }
+    REQUIRE(helix::test::apply_edit(*mock, slot_index, info).success());
+    mock->force_slot_status(slot_index, SlotStatus::EMPTY);
+    ams.sync_from_backend();
+    ui_spool_canvas_register();
+    ui_ams_slot_register();
+    return mock;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: unassigned empty lane reads Empty on first paint",
+                 "[ams][slot]") {
+    install_empty_lane(3, "");
+    lv_obj_t* slot = create_ams_slot(test_screen(), 3);
+    REQUIRE(slot != nullptr);
+
+    // First paint, before any further tick: status then material are applied,
+    // and the label already reads "Empty", not the material pass's "--".
+    CHECK(text_of(material_label(slot)) == std::string(lv_tr("Empty")));
+    // Full strength: an unassigned lane is a named blank, not a ghost.
+    CHECK(material_opa(slot) == LV_OPA_COVER);
+    CHECK(placeholder_visible(slot));
+
+    lv_obj_delete(slot);
+    AmsState::instance().clear_backends();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: assigned ejected lane keeps its material, ghosted",
+                 "[ams][slot]") {
+    install_empty_lane(2, "PETG");
+    lv_obj_t* slot = create_ams_slot(test_screen(), 2);
+    REQUIRE(slot != nullptr);
+
+    CHECK(text_of(material_label(slot)) == "PETG");
+    CHECK(material_opa(slot) == LV_OPA_30);
+    // A retained identity ghosts the real spool rather than swapping in the
+    // placeholder.
+    CHECK_FALSE(placeholder_visible(slot));
+
+    lv_obj_delete(slot);
+    AmsState::instance().clear_backends();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a later material notify does not undo Empty",
+                 "[ams][slot]") {
+    // Status and material are separate subjects with separate observers; the
+    // material one notifying after the lane is painted "Empty" must not move it.
+    install_empty_lane(3, "");
+    lv_obj_t* slot = create_ams_slot(test_screen(), 3);
+    REQUIRE(slot != nullptr);
+    REQUIRE(text_of(material_label(slot)) == std::string(lv_tr("Empty")));
+
+    lv_subject_t* material_subject = AmsState::instance().get_slot_material_subject(3);
+    REQUIRE(material_subject != nullptr);
+    // Round-trip through a non-empty value so the subject genuinely notifies twice.
+    lv_subject_copy_string(material_subject, "PLA");
+    process_lvgl(20);
+    lv_subject_copy_string(material_subject, "");
+    process_lvgl(20);
+
+    CHECK(text_of(material_label(slot)) == std::string(lv_tr("Empty")));
+
+    lv_obj_delete(slot);
+    AmsState::instance().clear_backends();
+}

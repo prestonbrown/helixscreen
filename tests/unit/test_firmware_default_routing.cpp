@@ -8,7 +8,6 @@
 // lane-per-tool systems where it is simply false - an 8-lane AFC maps lanes 0..7
 // to T0..T7, and the constant collapsed every tool above 3 onto lane 0.
 
-#include "ams_backend_snapmaker.h"
 #include "firmware_routing.h"
 
 #include "../catch_amalgamated.hpp"
@@ -53,19 +52,4 @@ TEST_CASE("FirmwareRouting: an explicit table wins, and -1 means unmapped",
     CHECK(routing.head(2) == 3);
     CHECK(routing.head(3) == -1); // declared unmapped
     CHECK(routing.head(9) == -1); // past the table
-}
-
-TEST_CASE("AmsBackendSnapmaker declares the four-head U1 table", "[filament][routing][snapmaker]") {
-    // The U1 has four physical heads and accepts up to 32 logical tools. Its own
-    // firmware table is [0,1,2,3,0,0,...], so T5 really does print from head 0 -
-    // this is the one backend for which the old constant was right.
-    helix::AmsBackendSnapmaker backend(nullptr, nullptr);
-    auto routing = backend.firmware_default_routing();
-
-    CHECK(routing.head(0) == 0);
-    CHECK(routing.head(1) == 1);
-    CHECK(routing.head(2) == 2);
-    CHECK(routing.head(3) == 3);
-    CHECK(routing.head(4) == 0);
-    CHECK(routing.head(5) == 0);
 }

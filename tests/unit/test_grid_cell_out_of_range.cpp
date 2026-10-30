@@ -4,7 +4,7 @@
 
 /**
  * @file test_grid_cell_out_of_range.cpp
- * @brief Regression test for the out-of-range grid cell heap walk-off crash.
+ * @brief LVGL grid guards: out-of-range cells are skipped, zero-track templates do not crash.
  *
  * item_repos() reads c->x[col_pos + col_span - 1] / c->y[row_pos + row_span - 1]
  * to position each grid child. calc() sizes those track arrays to col_num/row_num
@@ -24,8 +24,14 @@
  * and assert it keeps that size, so a missing guard fails the assertion even
  * where the over-read itself does not crash.
  *
- * @see lib/lvgl/src/layouts/grid/lv_grid.c item_repos()
- * @see test_grid_zero_track.cpp (sibling guard for the empty-template case)
+ * The same patch makes calc_cols()/calc_rows() return LV_RESULT_INVALID on a
+ * zero-track template ({LV_GRID_TEMPLATE_LAST} alone). Without it count_tracks()
+ * returns 0, grid_align() evaluates `track_num - 1` as a uint32_t, and its
+ * position loop walks ~4 billion entries off the heap (seen on a BIQU CB1 /
+ * Voron 0.2 after a deferred thumbnail swap relaid a degenerate grid). Those
+ * cases pass by surviving the forced layout: a regression SIGSEGVs the process.
+ *
+ * @see lib/lvgl/src/layouts/grid/lv_grid.c item_repos(), grid_align(), calc_cols()
  */
 
 #include "../lvgl_test_fixture.h"
@@ -38,6 +44,7 @@
 
 // Grid templates are stored by pointer (not copied) by LVGL, so they must
 // outlive the container — keep them at static storage duration.
+static const int32_t kEmptyDsc[] = {LV_GRID_TEMPLATE_LAST};
 static const int32_t kTwoFrDsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
 static const int32_t kOneFrDsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
 
@@ -72,6 +79,19 @@ class GridCellOutOfRangeFixture : public LVGLTestFixture {
         lv_obj_set_size(child, kChildW, kChildH);
         lv_obj_set_grid_cell(child, LV_GRID_ALIGN_STRETCH, col, col_span, LV_GRID_ALIGN_STRETCH,
                              row, row_span);
+        return grid;
+    }
+
+    // Build a grid with the given templates and one child cell. calc() bails
+    // before count_tracks() unless the grid has a child, so the child is what
+    // reaches the zero-track path.
+    lv_obj_t* make_grid_with_templates(const int32_t* col_dsc, const int32_t* row_dsc) {
+        lv_obj_t* grid = lv_obj_create(screen);
+        lv_obj_set_size(grid, 400, 300);
+        lv_obj_set_grid_dsc_array(grid, col_dsc, row_dsc);
+        lv_obj_set_layout(grid, LV_LAYOUT_GRID);
+        lv_obj_t* child = lv_obj_create(grid);
+        lv_obj_set_grid_cell(child, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
         return grid;
     }
 
@@ -124,4 +144,25 @@ TEST_CASE_METHOD(GridCellOutOfRangeFixture, "In-range grid child still lays out"
 
     CHECK(lv_obj_get_width(child) > 0);
     CHECK(lv_obj_get_height(child) > 0);
+}
+
+TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid with empty column template does not crash",
+                 "[grid][regression][zero_track]") {
+    make_grid_with_templates(kEmptyDsc, kOneFrDsc);
+    lv_obj_update_layout(screen);
+    SUCCEED("Survived layout of a zero-column grid");
+}
+
+TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid with empty row template does not crash",
+                 "[grid][regression][zero_track]") {
+    make_grid_with_templates(kOneFrDsc, kEmptyDsc);
+    lv_obj_update_layout(screen);
+    SUCCEED("Survived layout of a zero-row grid");
+}
+
+TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid with both templates empty does not crash",
+                 "[grid][regression][zero_track]") {
+    make_grid_with_templates(kEmptyDsc, kEmptyDsc);
+    lv_obj_update_layout(screen);
+    SUCCEED("Survived layout of a zero-track grid");
 }

@@ -9,6 +9,7 @@
  * - Type helpers: role/type string conversion
  * - Sensor discovery from classified configfile sections
  * - Beacon onboard accelerometer rules
+ * - The real discovery sequence records accelerometer configfile sections
  * - Status frames leave discovered state alone (accelerometers publish none)
  * - No roles
  */
@@ -17,10 +18,13 @@
 #include "../test_helpers/sensor_manager_test_access.h"
 #include "accel_sensor_manager.h"
 #include "accel_sensor_types.h"
+#include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -240,4 +244,48 @@ TEST_CASE_METHOD(AccelSensorTestFixture, "AccelSensorManager - has no roles", "[
         REQUIRE(e.role == 0);
         REQUIRE(e.enabled);
     }
+}
+
+// ============================================================================
+// Discovery wiring (#1262)
+//
+// Klipper accelerometers have no get_status(), so they exist only in
+// configfile.config. The discovery sequence's configfile arm records those
+// sections in PrinterDiscovery; discover(hw) turns them into manager entries.
+// ============================================================================
+
+namespace {
+
+/// Runs the REAL discovery sequence: MoonrakerClientMock overrides
+/// discover_printer() with a shortcut, so the base implementation is called
+/// directly while send_jsonrpc() still dispatches through the mock.
+class AccelDiscoveryClient : public MoonrakerClientMock {
+  public:
+    using MoonrakerClientMock::MoonrakerClientMock;
+
+    void discover_printer_real() {
+        MoonrakerClient::discover_printer([]() {}, [](const std::string&) {});
+    }
+};
+
+} // namespace
+
+TEST_CASE("Discovery sequence's configfile arm records accelerometer sections", "[sensors][1262]") {
+    LVGLTestFixture fixture;
+    AccelDiscoveryClient client(MoonrakerClientMock::PrinterType::VORON_24);
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+
+    client.discover_printer_real();
+
+    const auto sections = client.hardware().sections_of({helix::hw::ObjectKind::Accelerometer});
+    CHECK(std::find(sections.begin(), sections.end(), "adxl345") != sections.end());
+}
+
+TEST_CASE_METHOD(AccelSensorTestFixture,
+                 "Repeated discovery does not duplicate accelerometer entries", "[sensors][1262]") {
+    discover_config({{"adxl345", json::object()}, {"adxl345 bed", json::object()}});
+    REQUIRE(mgr().sensor_count() == 2);
+
+    discover_config({{"adxl345", json::object()}, {"adxl345 bed", json::object()}});
+    CHECK(mgr().sensor_count() == 2);
 }

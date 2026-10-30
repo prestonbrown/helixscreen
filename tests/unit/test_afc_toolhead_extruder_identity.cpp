@@ -63,8 +63,7 @@ nlohmann::json load_fixture(const std::string& name) {
     return j;
 }
 
-/// Harness copied from test_afc_toolhead_node_count.cpp — same capture, same
-/// settling requirement.
+/// Discovers lanes from the capture's object list and feeds its status frames.
 class AfcLayoutHelper : public AmsBackendAfc {
   public:
     AfcLayoutHelper() : AmsBackendAfc(nullptr, nullptr) {}

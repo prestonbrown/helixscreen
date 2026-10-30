@@ -45,7 +45,6 @@
 1 tests/shell/test_update_platform_coverage.bats
 1 tests/unit/test_afc_fixture_contract.cpp
 1 tests/unit/test_afc_lane_data_clears.cpp
-1 tests/unit/test_afc_toolhead_node_count.cpp
 2 tests/unit/test_alsa_sound_backend.cpp
 1 tests/unit/test_ams_afc_multi_extruder.cpp
 3 tests/unit/test_ams_backend_ad5x_ifs.cpp
@@ -57,7 +56,6 @@
 1 tests/unit/test_ams_mock_snapmaker_parity.cpp
 1 tests/unit/test_ams_panel_material_refresh.cpp
 2 tests/unit/test_ams_paused_filament_ops.cpp
-1 tests/unit/test_ams_slot_empty_lane_label.cpp
 1 tests/unit/test_ams_toolchanger_per_slot_loaded.cpp
 1 tests/unit/test_config.cpp
 1 tests/unit/test_detail_gcode_download_integrity.cpp
@@ -67,7 +65,6 @@
 1 tests/unit/test_filament_panel_dispatch_wiring.cpp
 1 tests/unit/test_footer_read_need.cpp
 4 tests/unit/test_moonraker_client_robustness.cpp
-2 tests/unit/test_observer_cleanup_ordering.cpp
 1 tests/unit/test_operation_patterns.cpp
 1 tests/unit/test_panel_widget_config.cpp
 1 tests/unit/test_panel_widget_manager.cpp

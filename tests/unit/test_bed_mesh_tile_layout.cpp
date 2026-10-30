@@ -3,12 +3,11 @@
 
 /**
  * @file test_bed_mesh_tile_layout.cpp
- * @brief decide_bed_mesh_tile_layout() at each rung boundary and for each state, and the
- * numbers it feeds.
+ * @brief decide_bed_mesh_tile_layout()'s flags for each rung and state, and the numbers it
+ * feeds. Rung choice itself is choose_size_rung's (test_size_rung.cpp).
  *
  * The needs below are the boxes BedMeshTileWidget measured at the medium tier, in the faces
- * the labels draw in; the budgets are the content boxes of the tile sizes in the design's
- * pixel-budget table (the widget's chrome at medium is 11px across and 9px down).
+ * the labels draw in.
  *
  * Run with: ./build/bin/helix-tests "[bed_mesh_tile][layout]"
  */
@@ -35,9 +34,6 @@ constexpr RungNeeds kEmptyPrinting{
     rung_box(18, 19),  {}, {}, rung_box(56, 101), rung_box(179, 54), rung_box(163, 159),
     rung_box(253, 244)};
 
-constexpr int kChromeW = 11;
-constexpr int kChromeH = 9;
-
 struct Scenario {
     bool loaded = true;
     bool printing = false;
@@ -61,71 +57,7 @@ BedMeshTileVerdict verdict_for(int w, int h, const Scenario& s = {}) {
     return decide_bed_mesh_tile_layout(in);
 }
 
-BedMeshTileVerdict verdict_for_tile(int tile_w, int tile_h, const Scenario& s = {}) {
-    return verdict_for(tile_w - kChromeW, tile_h - kChromeH, s);
-}
-
 } // namespace
-
-TEST_CASE("bed_mesh_tile layout: rung boundaries are exact with a mesh",
-          "[bed_mesh_tile][layout]") {
-    CHECK(verdict_for(26, 40).rung == SizeRung::Glance);
-    CHECK(verdict_for(26, 40).fits);
-    CHECK_FALSE(verdict_for(25, 40).fits);
-    CHECK_FALSE(verdict_for(26, 39).fits);
-    CHECK(verdict_for(76, 39).rung == SizeRung::Strip);
-    CHECK(verdict_for(75, 39).rung == SizeRung::Glance);
-    CHECK(verdict_for(76, 38).rung == SizeRung::Glance);
-    CHECK(verdict_for(40, 60).rung == SizeRung::Column);
-    CHECK(verdict_for(39, 60).rung == SizeRung::Glance);
-    CHECK(verdict_for(40, 59).rung == SizeRung::Glance);
-    CHECK(verdict_for(53, 69).rung == SizeRung::Cell);
-    CHECK(verdict_for(52, 69).rung == SizeRung::Column);
-    CHECK(verdict_for(53, 68).rung == SizeRung::Column);
-    // Wider than tall holds both half-cell rungs and takes the one matching its aspect.
-    CHECK(verdict_for(100, 68).rung == SizeRung::Strip);
-    CHECK(verdict_for(163, 97).rung == SizeRung::Wide);
-    CHECK(verdict_for(162, 97).rung == SizeRung::Cell);
-    CHECK(verdict_for(163, 96).rung == SizeRung::Cell);
-    CHECK(verdict_for(163, 159).rung == SizeRung::Full);
-    CHECK(verdict_for(162, 159).rung == SizeRung::Cell);
-    CHECK(verdict_for(163, 158).rung == SizeRung::Wide);
-    CHECK(verdict_for(253, 244).rung == SizeRung::Large);
-    CHECK(verdict_for(252, 244).rung == SizeRung::Full);
-    CHECK(verdict_for(253, 243).rung == SizeRung::Full);
-}
-
-TEST_CASE("bed_mesh_tile layout: with no mesh a half cell stays Glance",
-          "[bed_mesh_tile][layout]") {
-    const Scenario empty{false};
-    CHECK(verdict_for(18, 19, empty).rung == SizeRung::Glance);
-    CHECK(verdict_for(103, 45, empty).rung == SizeRung::Glance);
-    CHECK(verdict_for(44, 104, empty).rung == SizeRung::Glance);
-    CHECK(verdict_for(56, 101, empty).rung == SizeRung::Cell);
-    CHECK(verdict_for(55, 101, empty).rung == SizeRung::Glance);
-    CHECK(verdict_for(56, 100, empty).rung == SizeRung::Glance);
-    CHECK(verdict_for(179, 54, empty).rung == SizeRung::Wide);
-}
-
-TEST_CASE("bed_mesh_tile layout: the design's pixel budgets", "[bed_mesh_tile][layout]") {
-    struct Row {
-        const char* name;
-        int w, h;
-        SizeRung rung;
-    };
-    const Row rows[] = {
-        {"medium 0.5x0.5", 55, 54, SizeRung::Glance}, {"medium 1x0.5", 114, 54, SizeRung::Strip},
-        {"medium 0.5x1", 55, 113, SizeRung::Column},  {"medium 1x1", 114, 113, SizeRung::Cell},
-        {"large 0.5x0.5", 51, 53, SizeRung::Glance},  {"large 0.5x1", 51, 112, SizeRung::Column},
-        {"large 1x0.5", 108, 53, SizeRung::Strip},
-    };
-    for (const auto& r : rows) {
-        INFO(r.name);
-        const auto v = verdict_for_tile(r.w, r.h);
-        CHECK(v.fits);
-        CHECK(v.rung == r.rung);
-    }
-}
 
 TEST_CASE("bed_mesh_tile layout: flags follow the rung, mesh loaded", "[bed_mesh_tile][layout]") {
     struct Row {
@@ -243,30 +175,6 @@ TEST_CASE("bed_mesh_tile layout: without the renderer a glyph stands in for the 
         CHECK(v.show_glyph);
         CHECK_FALSE(v.show_scale);
         CHECK_FALSE(v.render_3d);
-    }
-}
-
-TEST_CASE("bed_mesh_tile layout: fits is false below Glance and monotonic above",
-          "[bed_mesh_tile][layout]") {
-    CHECK_FALSE(verdict_for(25, 40).fits);
-    CHECK_FALSE(verdict_for(26, 39).fits);
-    CHECK(verdict_for(26, 40).fits);
-
-    for (const bool loaded : {true, false}) {
-        bool fitted_w = false;
-        for (int w = 0; w <= 300; ++w) {
-            const bool now = verdict_for(w, 200, {loaded}).fits;
-            if (fitted_w)
-                CHECK(now);
-            fitted_w = fitted_w || now;
-        }
-        bool fitted_h = false;
-        for (int h = 0; h <= 300; ++h) {
-            const bool now = verdict_for(300, h, {loaded}).fits;
-            if (fitted_h)
-                CHECK(now);
-            fitted_h = fitted_h || now;
-        }
     }
 }
 

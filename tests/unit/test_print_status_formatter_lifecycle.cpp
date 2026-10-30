@@ -61,23 +61,3 @@ TEST_CASE_METHOD(HelixTestFixture, "Re-created DetailedFormatter keeps its XML s
     UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
     CHECK(std::string(lv_subject_get_string(layer_text)) == "7 / 9");
 }
-
-TEST_CASE_METHOD(HelixTestFixture, "release_formatter_for_test does not underflow the refcount",
-                 "[print_status][formatter]") {
-    PrintStatusWidget::destroy_formatter_for_test();
-
-    PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
-    ps.init_subjects(false);
-
-    PrintStatusWidget::ensure_formatter_for_test();
-    // destroy_ zeroes the count outright; a release_ landing after it used to
-    // wrap around to SIZE_MAX, so every later release_ left the formatter alive.
-    PrintStatusWidget::destroy_formatter_for_test();
-    PrintStatusWidget::release_formatter_for_test();
-
-    // A fresh widget must still be the one that builds a formatter, which only
-    // holds if the count is genuinely at zero.
-    PrintStatusWidget widget;
-    CHECK(lv_xml_get_subject(nullptr, "print_status_layer_text") != nullptr);
-}

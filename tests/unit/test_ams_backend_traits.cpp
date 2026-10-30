@@ -136,6 +136,17 @@ TEST_CASE("Real kTraits keep the answers the UI branches on", "[ams][traits]") {
     CHECK_FALSE(AmsBackendToolChanger::kTraits.unloads_stand_alone);
     CHECK_FALSE(AmsBackendHappyHare::kTraits.unloads_stand_alone);
     CHECK_FALSE(AmsBackendAfc::kTraits.unloads_stand_alone);
+    // A tool changer's spools hang outside the machine: no case to draw.
+    CHECK_FALSE(AmsBackendToolChanger::kTraits.has_physical_tray);
+    // Console-equipped firmwares send one command per user action.
+    CHECK_FALSE(AmsBackendAfc::kTraits.allows_implicit_chaining);
+    // Backends whose firmware names the seated lane per slot; Happy Hare and the
+    // tool changer keep the aggregate (current_slot, filament_loaded) rule.
+    CHECK(AmsBackendQidi::kTraits.has_per_slot_loaded_authority);
+    CHECK(helix::printer::AmsBackendCfs::kTraits.has_per_slot_loaded_authority);
+    CHECK(AmsBackendAce::kTraits.has_per_slot_loaded_authority);
+    CHECK(AmsBackendAd5xIfs::kTraits.has_per_slot_loaded_authority);
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.has_per_slot_loaded_authority);
 }
 
 TEST_CASE("The mock leaves spool persistence to ToolState in every persona",

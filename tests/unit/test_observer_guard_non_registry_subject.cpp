@@ -20,6 +20,7 @@
 #include "ui_observer_guard.h"
 #include "ui_update_queue.h"
 
+#include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "observer_factory.h"
@@ -136,4 +137,67 @@ TEST_CASE_METHOD(LVGLTestFixture,
     guard.reset();
     CHECK(lv_ll_get_len(&subject.subs_ll) == 0);
     CHECK_FALSE(static_cast<bool>(guard));
+}
+
+// An observer created after invalidate_all() sits on a live subject, so resetting it
+// must remove it; skipping removal orphans the node and a later notify reaches the
+// freed context.
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "ObserverGuard removes an observer created after invalidate_all from a live subject",
+    "[observer][raii][crash_hardening]") {
+    lv_subject_t subject;
+    lv_subject_init_int(&subject, 0);
+    REQUIRE(lv_ll_get_len(&subject.subs_ll) == 0);
+
+    CountingPanel panel;
+    ObserverGuard::invalidate_all();
+
+    ObserverGuard guard = helix::ui::observe<int>(
+        &subject, &panel, [](CountingPanel* p, int /*v*/) { p->notifications++; },
+        subject_never_freed());
+    REQUIRE(lv_ll_get_len(&subject.subs_ll) == 1);
+
+    guard.reset();
+    REQUIRE(lv_ll_get_len(&subject.subs_ll) == 0);
+
+    panel.notifications = 0;
+    lv_subject_set_int(&subject, 99);
+    drain();
+    REQUIRE(panel.notifications == 0);
+
+    lv_subject_deinit(&subject);
+}
+
+// lv_subject_add_observer_obj() returns null for a subject still typed
+// LV_SUBJECT_TYPE_INVALID (observed before its owner's init_subjects() ran). The guard
+// still owns the context the factory allocated and must free it.
+TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard frees its context when the attach failed",
+                 "[observer][lifetime][1279]") {
+    lv_subject_t never_initialized{};
+    int ctx = 0;
+    bool context_freed = false;
+
+    {
+        ObserverGuard guard(
+            &never_initialized, [](lv_observer_t*, lv_subject_t*) {}, &ctx,
+            [&context_freed]() { context_freed = true; });
+        REQUIRE_FALSE(static_cast<bool>(guard));
+        CHECK_FALSE(context_freed);
+    }
+
+    CHECK(context_freed);
+}
+
+// The epoch is process-global: a test that simulates teardown must not leave it bumped, or
+// every long-lived guard created earlier skips removal from its live subject when it dies.
+TEST_CASE("HelixTestFixture rolls back an invalidate_all() made inside a test",
+          "[observer][raii][crash_hardening]") {
+    const uint64_t before = ObserverGuard::invalidation_epoch();
+    {
+        HelixTestFixture fixture;
+        ObserverGuard::invalidate_all();
+        REQUIRE(ObserverGuard::invalidation_epoch() == before + 1);
+    }
+    CHECK(ObserverGuard::invalidation_epoch() == before);
 }

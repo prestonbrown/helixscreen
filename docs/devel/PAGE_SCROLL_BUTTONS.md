@@ -205,7 +205,6 @@ your time otherwise:
 |------|--------|
 | `tests/unit/test_page_scroll_math.cpp` | the pure paging step and reach computation |
 | `tests/unit/test_page_scroll_setting.cpp` | the setting round-trips |
-| `tests/unit/test_page_scroll_gutter_component.cpp` | the XML component builds with named up/down buttons |
 | `tests/unit/test_page_scroll_controller.cpp` | attach, padding restore, end-disabling, last-page clamp, container deletion |
 | `tests/unit/test_page_scroll_auto_inject.cpp` | the policy: what qualifies, nesting, the tile cut |
 

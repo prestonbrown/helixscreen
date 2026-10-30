@@ -269,3 +269,46 @@ TEST_CASE_METHOD(LVGLTestFixture, "buffer reading words: a fill gauge against it
               "last 60 s · LOOSE up, TIGHT down");
     }
 }
+
+namespace {
+BufferHealth fps_buffer(float smoothed, float set_point) {
+    BufferHealth h;
+    h.smoothed_fps = smoothed;
+    h.fps_value = smoothed;
+    h.fps_set_point = set_point;
+    h.fps_reported = true;
+    return h;
+}
+} // namespace
+
+TEST_CASE("fps_to_bias: a frame without a set point is not FPS data", "[ams][afc][fps]") {
+    // Moonraker forwards only changed keys, so a status update carrying one of
+    // the three FPS fields is normal; buffer_reading() gates on this sentinel.
+    BufferHealth partial;
+    partial.smoothed_fps = 0.5f;
+    partial.fps_reported = true;
+    CHECK_FALSE(partial.has_fps());
+    CHECK(partial.fps_to_bias() == -1.5f);
+}
+
+TEST_CASE("fps_to_bias: an off-centre set point still reaches both rails", "[ams][afc][fps]") {
+    // Each side is normalized against its own distance to the rail rather than
+    // a shared span: AFCFPSBuffer::get_status does not publish low/high points.
+    CHECK(fps_buffer(0.0f, 0.8f).fps_to_bias() == Catch::Approx(-1.0f));
+    CHECK(fps_buffer(1.0f, 0.8f).fps_to_bias() == Catch::Approx(1.0f));
+    CHECK(fps_buffer(0.3f, 0.3f).fps_to_bias() == Catch::Approx(0.0f));
+}
+
+TEST_CASE("fps_to_bias: a degenerate set point cannot divide by zero", "[ams][afc][fps]") {
+    // AFC constrains set_point to 0.1..0.9, but this arrives over the wire.
+    for (float sp : {0.0f, 1.0f}) {
+        auto b = fps_buffer(0.5f, sp);
+        if (!b.has_fps()) {
+            continue; // 0.0 is rejected outright, which is also fine
+        }
+        const float bias = b.fps_to_bias();
+        INFO("set_point " << sp << " -> " << bias);
+        CHECK(bias >= -1.0f);
+        CHECK(bias <= 1.0f);
+    }
+}

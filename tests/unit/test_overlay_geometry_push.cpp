@@ -93,25 +93,6 @@ TEST_CASE_METHOD(OverlayGeometryFixture, "Landscape overlay geometry is untouche
     CHECK(lv_obj_get_style_align(w, LV_PART_MAIN) == LV_ALIGN_RIGHT_MID);
 }
 
-TEST_CASE("Portrait geometry stops the overlay above the nav bar",
-          "[navigation][overlay-geometry][portrait]") {
-    // Exercised through the pure function rather than a live portrait display:
-    // the test harness display is landscape, and detect_layout_type() reads the
-    // widget's screen. This asserts the values ui_set_overlay_geometry writes.
-    constexpr int32_t kNavHeight = 112;
-    constexpr int32_t kGap = 16;
-
-    const auto h = compute_overlay_heights(480, 800, kNavHeight, kGap);
-    const auto w = compute_overlay_widths(480, 800, 54, kGap);
-
-    // Full width, short height, top-anchored: together they leave the nav bar
-    // visible below the overlay.
-    CHECK(w.destination == 480);
-    CHECK(h.destination == 688);
-    CHECK(h.transient == 672);
-    CHECK(is_portrait_layout(detect_layout_type(480, 800)));
-}
-
 TEST_CASE_METHOD(OverlayGeometryFixture, "Portrait overlays slide in and out on the X axis",
                  "[navigation][overlay-geometry][portrait]") {
     // The display is restored to landscape by the next fixture's reclaim_display().

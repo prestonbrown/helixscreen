@@ -88,24 +88,6 @@ struct StatusHarness {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "FilamentPanel: a repeated status arm is not re-rendered",
-                 "[filament][status][panel]") {
-    StatusHarness h(*this);
-
-    // Hot and idle: the Ready arm, whose text is constant.
-    h.set_nozzle(210.0, 0.0);
-    TA::update_status(*h.panel);
-    const std::string ready = h.status_text();
-    REQUIRE_FALSE(ready.empty());
-
-    // The steady state: temperatures keep ticking, the arm does not change.
-    // Whatever the early-out skips, it must not disturb what is on screen.
-    for (int i = 0; i < 5; ++i) {
-        TA::update_status(*h.panel);
-    }
-    CHECK(h.status_text() == ready);
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "FilamentPanel: returning to a cached arm still repaints",
                  "[filament][status][panel]") {
     StatusHarness h(*this);

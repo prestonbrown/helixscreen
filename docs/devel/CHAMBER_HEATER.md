@@ -325,7 +325,7 @@ HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbr
 ./build/bin/helix-tests "[chamber][actions]" # fault reset + filter fan gcode
 ```
 
-Per-file: `test_chamber_heater_backend.cpp` (match/parse), `test_chamber_heater_discovery.cpp` (discovery hook), `test_chamber_diagnostics_subjects.cpp`, `test_chamber_ceiling_actions.cpp`, `test_chamber_mock_appliances.cpp`, `test_chamber_panel_diagnostics.cpp`, `test_chamber_temperature.cpp`, `test_chamber_mode_icon_label_parity.cpp`.
+Per-file: `test_chamber_heater_backend.cpp` (match/parse), `test_printer_discovery.cpp` (discovery hook, keyword ranking), `test_chamber_diagnostics_subjects.cpp`, `test_chamber_ceiling_actions.cpp`, `test_chamber_mock_appliances.cpp`, `test_chamber_panel_diagnostics.cpp`, `test_chamber_temperature.cpp`, `test_chamber_mode_icon_label_parity.cpp`.
 
 ---
 

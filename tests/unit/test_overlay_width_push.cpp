@@ -14,6 +14,7 @@
  * widths.
  */
 
+#include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
 
@@ -261,4 +262,29 @@ TEST_CASE_METHOD(OverlayWidthFixture, "The same cached widget gets both widths",
     CHECK(from_controls == expected_transient());
     CHECK(from_settings == expected_destination());
     CHECK(from_controls != from_settings);
+}
+
+// ============================================================================
+// Opting out of push-time width
+// ============================================================================
+
+TEST_CASE_METHOD(OverlayWidthFixture,
+                 "nav::set_overlay_width_unmanaged exempts an overlay from push-time width",
+                 "[navigation][nav_forwards]") {
+    constexpr int32_t kCustomWidth = 123;
+    FakeOverlay unmanaged_lifecycle("unmanaged_overlay");
+    FakeOverlay managed_lifecycle("managed_overlay");
+    lv_obj_t* unmanaged = lv_obj_create(lv_screen_active());
+    lv_obj_t* managed = lv_obj_create(lv_screen_active());
+    for (lv_obj_t* o : {unmanaged, managed}) {
+        lv_obj_set_style_width(o, kCustomWidth, LV_PART_MAIN);
+    }
+    nav::set_overlay_width_unmanaged(unmanaged);
+
+    push_existing(managed, managed_lifecycle);
+    pop();
+    push_existing(unmanaged, unmanaged_lifecycle);
+
+    CHECK(lv_obj_get_style_width(unmanaged, LV_PART_MAIN) == kCustomWidth);
+    CHECK(lv_obj_get_style_width(managed, LV_PART_MAIN) != kCustomWidth);
 }

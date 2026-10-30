@@ -338,6 +338,88 @@ TEST_CASE("QIDI Box last_load_slot=slot-1 means nothing is in the extruder", "[a
     REQUIRE(backend.get_system_info().units[0].slots[2].status == SlotStatus::AVAILABLE);
 }
 
+// ============================================================================
+// slot<N>: 2 is firmware truth on its own
+// ============================================================================
+
+TEST_CASE("QIDI Box reports a slot loaded from its state word alone", "[ams][qidi_box][1199]") {
+    // No last_load_slot has ever been seen, so the aggregate pair is empty;
+    // slot2 = 2 alone still says that slot is loaded.
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(backend, json{{"slot0", 1}, {"slot1", 0}, {"slot2", 2}});
+
+    REQUIRE(backend.get_slot_info(2).status == SlotStatus::LOADED);
+    CHECK(backend.slot_is_actively_loaded(2));
+    CHECK_FALSE(backend.slot_is_actively_loaded(0));
+    CHECK_FALSE(backend.slot_is_actively_loaded(1));
+    CHECK_FALSE(backend.slot_is_actively_loaded(3));
+}
+
+TEST_CASE("QIDI Box out-of-range slots are false, not a crash", "[ams][qidi_box][1199]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(backend, json{{"slot2", 2}, {"last_load_slot", "slot2"}});
+
+    CHECK_FALSE(backend.slot_is_actively_loaded(-1));
+    CHECK_FALSE(backend.slot_is_actively_loaded(99));
+}
+
+// ============================================================================
+// The ordering hole: a slot<N> repeat must not demote the seated slot
+// ============================================================================
+
+TEST_CASE("QIDI Box keeps the seated slot LOADED across a slot-only payload",
+          "[ams][qidi_box][1199]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"slot2", 2}, {"last_load_slot", "slot2"}, {"enable_box", 1}});
+    REQUIRE(backend.get_system_info().current_slot == 2);
+    REQUIRE(backend.is_filament_loaded());
+    REQUIRE(backend.get_slot_info(2).status == SlotStatus::LOADED);
+
+    // The Box drops slot2's state word back to "available" without saying
+    // anything about last_load_slot. The slot<N> loop runs first and wrote
+    // AVAILABLE; the aggregate still names slot 2, so the two disagreed.
+    QidiBoxTestAccess::parse_vars(backend, json{{"slot2", 1}});
+
+    REQUIRE(backend.get_system_info().current_slot == 2);
+    REQUIRE(backend.is_filament_loaded());
+    CHECK(backend.get_slot_info(2).status == SlotStatus::LOADED);
+    CHECK(backend.slot_is_actively_loaded(2));
+}
+
+TEST_CASE("QIDI Box a blocked seated slot stays BLOCKED", "[ams][qidi_box][1199]") {
+    // A negative state word is the Box reporting a fault on that slot. Painting
+    // it LOADED because the aggregate still names it would hide the error the
+    // UI exists to show, so BLOCKED wins the reconciliation.
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(backend, json{{"slot2", 2}, {"last_load_slot", "slot2"}});
+    REQUIRE(backend.get_slot_info(2).status == SlotStatus::LOADED);
+
+    QidiBoxTestAccess::parse_vars(backend, json{{"slot2", -1}});
+
+    CHECK(backend.get_slot_info(2).status == SlotStatus::BLOCKED);
+    CHECK_FALSE(backend.slot_is_actively_loaded(2));
+}
+
+// ============================================================================
+// A toolchange moves the stamp, and never leaves two slots loaded
+// ============================================================================
+
+TEST_CASE("QIDI Box moves the LOADED stamp on a tool change", "[ams][qidi_box][1199]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"slot0", 2}, {"slot1", 1}, {"slot2", 1}, {"last_load_slot", "slot0"}});
+    REQUIRE(backend.slot_is_actively_loaded(0));
+
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"slot0", 1}, {"slot1", 2}, {"slot2", 1}, {"last_load_slot", "slot1"}});
+
+    CHECK(backend.get_slot_info(1).status == SlotStatus::LOADED);
+    CHECK(backend.slot_is_actively_loaded(1));
+    CHECK(backend.get_slot_info(0).status == SlotStatus::AVAILABLE);
+    CHECK_FALSE(backend.slot_is_actively_loaded(0));
+}
+
 // =====================================================================
 // parse_save_variables: RFID per-slot indices
 // =====================================================================

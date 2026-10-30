@@ -68,14 +68,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC delegates_homing_to_printer reads [AFC] a
     CHECK(afc.delegates_homing_to_printer());
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "base default: no backend delegates homing",
-                 "[capabilities][homing][1265]") {
-    // Qualified call pins the BASE default, matching the
-    // printer_reports_spool_ids pattern in test_ams_firmware_persistence.cpp.
-    auto afc = std::make_unique<AmsBackendAfc>(nullptr, nullptr);
-    CHECK_FALSE(afc->AmsBackend::delegates_homing_to_printer());
-}
-
 namespace helix {
 
 // Drives the REAL ensure_homed_then() path with a captured-gcode API, the

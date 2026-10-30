@@ -184,6 +184,31 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: a restart clears the print, as Klippe
     CHECK(client.get_print_phase() == MoonrakerClientMock::MockPrintPhase::IDLE);
 }
 
+TEST_CASE_METHOD(SaveConfigFixture,
+                 "mock: printer.restart and firmware_restart move this client's klippy state",
+                 "[mock][restart]") {
+    // Real-time speed, unlike the fixture's client: the assertions run inside the
+    // restart's STARTUP window (2s, 3s for firmware), which the fixture's 100x
+    // speedup shrinks to milliseconds. The destructor cancels the pending return
+    // to READY rather than waiting it out, so this costs no test time.
+    for (const char* method : {"printer.restart", "printer.firmware_restart"}) {
+        INFO(method);
+        MoonrakerClientMock real_time{MoonrakerClientMock::PrinterType::VORON_24};
+        REQUIRE(real_time.get_klippy_state() == MoonrakerClientMock::KlippyState::READY);
+
+        bool acked = false;
+        real_time.send_jsonrpc(
+            method, json::object(), [&acked](const json&) { acked = true; },
+            [](const MoonrakerError&) {});
+
+        // Moonraker's do_restart() catches "Klippy Disconnected" and returns "ok".
+        CHECK(acked);
+        // The CLIENT's state moves, through the webhooks update a real restart
+        // arrives as, not the process-global PrinterState.
+        CHECK(real_time.get_klippy_state() == MoonrakerClientMock::KlippyState::STARTUP);
+    }
+}
+
 TEST_CASE_METHOD(SaveConfigFixture, "mock: SAVE_CONFIG's own rpc still fails, as Klipper's does",
                  "[mock][toolchanger]") {
     // cmd_SAVE_CONFIG ends in request_restart(), so it never acks: Moonraker

@@ -4,6 +4,7 @@
 #include "ui_format_utils.h"
 
 #include "format_utils.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 
 #include <cstring>
 #include <ctime>
@@ -562,4 +563,17 @@ TEST_CASE("parse_http_date rejects what is not an IMF-fixdate", "[format_utils][
     CHECK_FALSE(helix::format::parse_http_date("Thu, 29 Feb 2026 00:00:00 GMT", t));
     CHECK_FALSE(helix::format::parse_http_date("Thu, 31 Apr 2026 00:00:00 GMT", t));
     CHECK(t == 42);
+}
+
+TEST_CASE("Object height carries 'tall' only when there is a height", "[ui][metadata][qidi_3mf]") {
+    using helix::ui::format_print_height;
+    CHECK(format_print_height(42.0, true) == std::string("42 mm ") + lv_tr("tall"));
+    CHECK(format_print_height(0.0, true) == helix::format::UNAVAILABLE);
+    CHECK(format_print_height(42.0) == "42 mm");
+}
+
+TEST_CASE("Layer height reads as unavailable when unknown", "[ui][metadata][qidi_3mf]") {
+    using helix::ui::format_layer_height;
+    CHECK(format_layer_height(0.2) == "0.20 mm");
+    CHECK(format_layer_height(0.0) == helix::format::UNAVAILABLE);
 }

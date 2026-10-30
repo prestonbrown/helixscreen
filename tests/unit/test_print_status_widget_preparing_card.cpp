@@ -7,17 +7,13 @@
  *
  * Run with: ./build/bin/helix-tests "[print_status_widget][print_state]"
  *
- * Seen on the K2 during the Phase 1 hardware run and recorded in the plan as
- * "found, not fixed": the home widget kept showing print_card_idle for the whole
- * of a host-side pre-print block. It observed print_state_enum, which reads
- * standby until the printer accepts the job, so the card claimed nothing was
- * happening while the machine was homing and probing - and tapping it went to
- * the file browser rather than the status overlay.
+ * During a host-side pre-print block the printer still reports standby, so a card
+ * that read print_state_enum would show print_card_idle while the machine homes and
+ * probes, and a tap would open the file browser instead of the status overlay. The
+ * card reads the print lifecycle instead (idle variants 0-2, active 3-4).
  *
- * Two consumers in the same widget, both fixed here:
- *   1. is_active_, which picks the view_subject_ variant (idle 0-2 vs active 3-4)
- *   2. the idle runout modal's print-state gate, which would otherwise pop a
- *      "load filament" dialog on top of a start already under way
+ * The same lifecycle gates the idle runout modal; that case lives in
+ * test_ams_post_unload_runout_grace.cpp beside the grace it must not burn.
  *
  * The state is driven through the real inputs - update_from_status() plus
  * set_print_start_state() - never by writing print_state_enum, which no longer
@@ -27,23 +23,16 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/ams_state_test_access.h"
-#include "../test_helpers/filament_sensor_manager_test_access.h"
-#include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/print_status_widget_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
-#include "filament_sensor_manager.h"
-#include "filament_sensor_types.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
-#include "runtime_config.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
 
 #include <memory>
@@ -242,75 +231,4 @@ TEST_CASE_METHOD(PreparingCardFixture, "Print card is active during a firmware-s
     CHECK(card_is_active());
 
     w.detach();
-}
-
-// ============================================================================
-// The idle runout modal's print-state gate
-// ============================================================================
-
-namespace {
-
-/// A basic runout-sensor printer with a real runout standing: the shape that
-/// makes every gate ahead of the print-state check pass, so the check itself is
-/// what the assertion observes. Mirrors IdleRunoutGraceFixture in
-/// test_ams_post_unload_runout_grace.cpp.
-class PreparingRunoutFixture : public PreparingCardFixture {
-  public:
-    static constexpr const char* SENSOR = "filament_switch_sensor runout_sensor";
-
-    PreparingRunoutFixture() {
-        auto& fsm = FilamentSensorManager::instance();
-        PostUnloadGraceTestAccess::reset(fsm);
-        fsm.set_master_enabled(true);
-        discover_filament_sensors(fsm, {SENSOR});
-        fsm.set_role(SENSOR, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
-        fsm.update_from_status(sensor_status(true));
-        fsm.update_from_status(sensor_status(false));
-        PostUnloadGraceTestAccess::clear_startup_grace(fsm);
-        settle();
-        REQUIRE_FALSE(fsm.is_in_startup_grace_period());
-        REQUIRE(fsm.has_real_runout());
-        REQUIRE(get_runtime_config()->should_show_runout_modal());
-    }
-
-    ~PreparingRunoutFixture() override {
-        PostUnloadGraceTestAccess::reset(FilamentSensorManager::instance());
-    }
-
-    static nlohmann::json sensor_status(bool detected) {
-        return nlohmann::json{{SENSOR, {{"filament_detected", detected}, {"enabled", true}}}};
-    }
-};
-
-} // namespace
-
-TEST_CASE_METHOD(PreparingRunoutFixture, "Idle runout check runs its gates when truly idle",
-                 "[print_status_widget][print_state]") {
-    // Non-vacuity baseline. The post-unload grace sits BELOW the print-state gate
-    // and is one-shot, so "was it spent?" is a precise answer to "did the call get
-    // past that gate?" - without needing the modal to render.
-    auto& ams = AmsState::instance();
-    AmsStateTestAccess::arm_post_unload_runout_grace(ams);
-
-    PrintStatusWidget w;
-    PrintStatusWidgetTestAccess::check_idle_runout(w);
-
-    CHECK_FALSE(ams.consume_post_unload_runout_grace()); // spent: the gate was passed
-}
-
-TEST_CASE_METHOD(PreparingRunoutFixture,
-                 "Idle runout check bails during a host-side pre-print block",
-                 "[print_status_widget][print_state]") {
-    // A "load filament" dialog on top of a start the user just committed to. The
-    // gate read the wire, which says standby for the whole block.
-    auto& ams = AmsState::instance();
-    AmsStateTestAccess::arm_post_unload_runout_grace(ams);
-    enter_host_side_preparing();
-
-    PrintStatusWidget w;
-    PrintStatusWidgetTestAccess::check_idle_runout(w);
-
-    CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(w));
-    // Still armed: bailing at the print-state gate must not burn the one-shot.
-    CHECK(ams.consume_post_unload_runout_grace());
 }

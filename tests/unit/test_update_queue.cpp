@@ -6,6 +6,7 @@
 #include "test_helpers/log_capture.h"
 #include "test_helpers/update_queue_test_access.h"
 
+#include <memory>
 #include <system_error>
 
 #include "../catch_amalgamated.hpp"
@@ -389,4 +390,97 @@ TEST_CASE_METHOD(LVGLTestFixture, "is_draining holds through nested drains and e
     q.queue("throws", []() { throw std::runtime_error("boom"); });
     q.drain();
     CHECK_FALSE(q.is_draining());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Widget-safe queue_update: valid widget executes callback",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    bool callback_fired = false;
+    auto data = std::make_unique<int>(42);
+
+    helix::ui::queue_update<int>(widget, std::move(data), [&callback_fired](lv_obj_t* w, int* d) {
+        REQUIRE(lv_obj_is_valid(w));
+        REQUIRE(*d == 42);
+        callback_fired = true;
+    });
+
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE(callback_fired);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Widget-safe queue_update: deleted widget skips callback",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    bool callback_fired = false;
+    auto data = std::make_unique<int>(99);
+
+    helix::ui::queue_update<int>(widget, std::move(data),
+                                 [&callback_fired](lv_obj_t*, int*) { callback_fired = true; });
+
+    // Destroy widget before draining queue
+    lv_obj_delete(widget);
+
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE_FALSE(callback_fired);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Widget-safe queue_update: data freed even when skipped",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    struct TrackDestruction {
+        bool* destroyed;
+        ~TrackDestruction() {
+            *destroyed = true;
+        }
+    };
+
+    bool data_destroyed = false;
+    auto data = std::make_unique<TrackDestruction>();
+    data->destroyed = &data_destroyed;
+
+    helix::ui::queue_update<TrackDestruction>(widget, std::move(data),
+                                              [](lv_obj_t*, TrackDestruction*) {});
+
+    // Destroy widget — callback should be skipped but data still freed
+    lv_obj_delete(widget);
+
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE(data_destroyed);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update: valid widget executes callback",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    bool callback_fired = false;
+
+    helix::ui::queue_widget_update(widget, [&callback_fired](lv_obj_t* w) {
+        REQUIRE(lv_obj_is_valid(w));
+        callback_fired = true;
+    });
+
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE(callback_fired);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update: deleted widget skips callback",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    bool callback_fired = false;
+
+    helix::ui::queue_widget_update(widget, [&callback_fired](lv_obj_t*) { callback_fired = true; });
+
+    lv_obj_delete(widget);
+
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE_FALSE(callback_fired);
 }

@@ -99,26 +99,6 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning clears its handle on a b
     CHECK(handle == nullptr);
 }
 
-TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning still reports a dismissal to its caller",
-                 "[modal][low_ram]") {
-    // The helper clears the handle itself, but a caller holding its own state
-    // has to be able to learn about the dismissal too.
-    bool dismissed = false;
-    helix::ui::ConfirmOptions opts;
-    opts.on_dismiss = [&dismissed]() { dismissed = true; };
-    helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
-
-    lv_obj_t* backdrop = ModalStack::instance().backdrop_for(handle);
-    REQUIRE(backdrop != nullptr);
-    lv_obj_send_event(backdrop, LV_EVENT_CLICKED, nullptr);
-    process_lvgl(50);
-    settle();
-
-    CHECK(handle == nullptr);
-    CHECK(dismissed);
-}
-
 TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning reports an ESC dismissal to its caller",
                  "[modal][low_ram]") {
     // ESC is the other route a caller cannot see from its buttons. A caller

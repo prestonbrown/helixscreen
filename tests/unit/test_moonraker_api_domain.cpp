@@ -255,3 +255,46 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
     CHECK(verdicts == std::vector<bool>{true, false});
     api->set_bed_mesh_presence_observer(nullptr);
 }
+
+// ============================================================================
+// Database operations: error path with null callbacks
+// ============================================================================
+
+// An unconnected MoonrakerClient refuses at its pre-send guard and invokes the
+// error callback synchronously, so these drive the `if (on_error)` branch of
+// the database helpers' error lambdas.
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "database_get_item error path tolerates a null error callback", "[api][proxy]") {
+    MoonrakerClient offline;
+    MoonrakerAPI offline_api(offline, state);
+
+    // Paired non-null run first: proves the error lambda really is reached in this
+    // setup, so the null run below is exercising the guard rather than nothing.
+    bool success_invoked = false;
+    bool error_invoked = false;
+    offline_api.database_get_item(
+        "helix", "key", [&success_invoked](const json&) { success_invoked = true; },
+        [&error_invoked](const MoonrakerError&) { error_invoked = true; });
+    REQUIRE(error_invoked);
+    REQUIRE_FALSE(success_invoked);
+
+    REQUIRE_NOTHROW(offline_api.database_get_item("helix", "key", [](const json&) {}, nullptr));
+}
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "database_post_item error path tolerates null callbacks", "[api][proxy]") {
+    MoonrakerClient offline;
+    MoonrakerAPI offline_api(offline, state);
+
+    bool success_invoked = false;
+    bool error_invoked = false;
+    offline_api.database_post_item(
+        "helix", "key", json{{"val", 1}}, [&success_invoked]() { success_invoked = true; },
+        [&error_invoked](const MoonrakerError&) { error_invoked = true; });
+    REQUIRE(error_invoked);
+    REQUIRE_FALSE(success_invoked);
+
+    REQUIRE_NOTHROW(
+        offline_api.database_post_item("helix", "key", json{{"val", 1}}, nullptr, nullptr));
+}

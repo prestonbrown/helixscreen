@@ -970,7 +970,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: partial migration handles only exis
 // The replacements below read the values production actually produces, through
 // the two public paths that build them, and every read uses a fallback that
 // differs from the expected value (kAbsentSentinel) so an absent or wrong key
-// fails instead of echoing. House style: tests/unit/test_config_migration_v18.cpp:84.
+// fails instead of echoing. House style: tests/unit/test_config_migrations.cpp.
 // ----------------------------------------------------------------------------
 
 namespace {

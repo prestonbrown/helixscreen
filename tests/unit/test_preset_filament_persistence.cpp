@@ -7,7 +7,7 @@
 // later task can attach branded filament info to each of the 4 quick-material
 // preset slots.
 //
-// Migration tests mirror tests/unit/test_config_migration_v18.cpp exactly:
+// Migration tests mirror tests/unit/test_config_migrations.cpp exactly:
 // the migration function is a static function in config.cpp's anonymous
 // namespace, so it's exercised through the public Config::init() path, which
 // runs run_versioned_migrations() on an existing on-disk config. A sandboxed

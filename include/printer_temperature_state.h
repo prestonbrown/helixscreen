@@ -574,8 +574,6 @@ class PrinterTemperatureState {
     }
 
   private:
-    friend class PrinterTemperatureStateTestAccess;
-
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
 

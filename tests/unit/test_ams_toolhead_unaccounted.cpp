@@ -26,12 +26,11 @@
  *    reads present while current_slot names no channel.
  *
  * Helpers feed the production status paths (pattern:
- * test_ams_afc_per_slot_loaded.cpp / test_ams_happy_hare_per_slot_loaded.cpp).
+ * test_ams_afc_per_slot_loaded.cpp).
  *
  * Run with: ./build/bin/helix-tests "[ams][toolhead-unaccounted]"
  */
 
-#include "test_helpers/afc_test_access.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
@@ -42,6 +41,7 @@
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
+#include "test_helpers/afc_test_access.h"
 #include "test_helpers/cfs_test_access.h"
 
 #include <memory>

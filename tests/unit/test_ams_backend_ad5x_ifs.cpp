@@ -13275,3 +13275,162 @@ TEST_CASE("AD5X IFS debounce workers end with the backend", "[ams][ad5x][ad5x_if
     CHECK(waited.count() < bound_ms);
     helix::ui::UpdateQueue::instance().drain();
 }
+
+// The seated lane is LOADED whenever the head sensor sees filament, whatever
+// its port sensor reads (#1199): on lessWaste/bambufy hardware a runout drops
+// the port sensor while the filament it fed is still in the toolhead, the #995
+// state can_unload_from_toolhead() keeps the unload gate open for. These cases
+// use the lessWaste save_variables shape, so has_ifs_vars_ is set the way the
+// plugin sets it.
+namespace {
+
+/// Clears the _IFS_VARS macro-missing latch that only on_started() clears
+/// against a live Moonraker; parse_save_variables refuses the plugin's tool map
+/// while it is set.
+void lesswaste_ready(AmsBackendAd5xIfs& ifs) {
+    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(ifs, false);
+}
+
+void feed_ifs(AmsBackendAd5xIfs& ifs, const json& status) {
+    Ad5xIfsTestAccess::handle_status(ifs, status);
+}
+
+/// lessWaste's private save_variables namespace: a 1:1 tool->port map and the
+/// active tool. less_waste_tools sets has_ifs_vars_, so current_slot resolves
+/// through the tool map rather than the native seated-channel path.
+json less_waste_vars(int current_tool) {
+    return json{{"less_waste_tools", json::array({1, 2, 3, 4})},
+                {"less_waste_current_tool", current_tool}};
+}
+
+json lesswaste_frame(const json& vars) {
+    return json{{"save_variables", json{{"variables", vars}}}};
+}
+
+/// Slot 0 seated and printing: T0 active, its port sensor sees the spool, the
+/// head switch sees filament at the extruder.
+void seat_slot0(AmsBackendAd5xIfs& ifs) {
+    json frame = lesswaste_frame(less_waste_vars(0));
+    frame.update(make_port_sensor(1, true));
+    frame.update(make_port_sensor(3, true));
+    frame.update(make_head_sensor(true));
+    feed_ifs(ifs, frame);
+}
+
+} // namespace
+
+// ============================================================================
+// The parse contract the authority flag depends on
+// ============================================================================
+
+TEST_CASE("AD5X IFS stamps LOADED on the seated lane", "[ams][ad5x_ifs][1199]") {
+    AmsBackendAd5xIfs ifs(nullptr, nullptr);
+    lesswaste_ready(ifs);
+    seat_slot0(ifs);
+
+    REQUIRE(ifs.get_system_info().current_slot == 0);
+    REQUIRE(ifs.is_filament_loaded());
+
+    SECTION("the seated lane is LOADED and every other lane is not") {
+        CHECK(ifs.get_slot_info(0).status == SlotStatus::LOADED);
+        CHECK(ifs.slot_is_actively_loaded(0));
+
+        // Slot 2 has a spool but is not at the head — AVAILABLE, never LOADED.
+        CHECK(ifs.get_slot_info(2).status == SlotStatus::AVAILABLE);
+        CHECK_FALSE(ifs.slot_is_actively_loaded(2));
+        // Slot 1 has no spool at all.
+        CHECK(ifs.get_slot_info(1).status == SlotStatus::EMPTY);
+        CHECK_FALSE(ifs.slot_is_actively_loaded(1));
+        CHECK_FALSE(ifs.slot_is_actively_loaded(3));
+    }
+
+    SECTION("an empty head clears it even while the lane keeps its spool") {
+        feed_ifs(ifs, make_head_sensor(false));
+
+        REQUIRE_FALSE(ifs.is_filament_loaded());
+        CHECK(ifs.get_slot_info(0).status == SlotStatus::AVAILABLE);
+        CHECK_FALSE(ifs.slot_is_actively_loaded(0));
+    }
+
+    SECTION("out-of-range slots are false, not a crash") {
+        CHECK_FALSE(ifs.slot_is_actively_loaded(-1));
+        CHECK_FALSE(ifs.slot_is_actively_loaded(99));
+    }
+}
+
+// ============================================================================
+// The runout the per-slot rule must survive (#995)
+// ============================================================================
+
+TEST_CASE("AD5X IFS keeps the seated lane loaded through a port-sensor runout",
+          "[ams][ad5x_ifs][1199][995]") {
+    AmsBackendAd5xIfs ifs(nullptr, nullptr);
+    lesswaste_ready(ifs);
+    seat_slot0(ifs);
+    REQUIRE(ifs.get_slot_info(0).status == SlotStatus::LOADED);
+
+    // Runout on hardware WITH per-port sensors: the spool leaves the lane
+    // sensor, but the filament it already fed is still at the extruder, so the
+    // head switch stays tripped and the firmware still names slot 0 active.
+    feed_ifs(ifs, make_port_sensor(1, false));
+
+    REQUIRE(ifs.get_system_info().current_slot == 0);
+    REQUIRE(ifs.is_filament_loaded()); // the aggregate pair still says loaded
+
+    // The head sensor alone decides: reading the port sensor here would report
+    // the lane unloaded and blank the highlight mid-recovery.
+    CHECK(ifs.get_slot_info(0).status == SlotStatus::LOADED);
+    CHECK(ifs.slot_is_actively_loaded(0));
+
+    // The #995 unload gate and the highlight agree.
+    CHECK(ifs.can_unload_from_toolhead(0));
+
+    // The runout does not spill onto any other lane.
+    CHECK_FALSE(ifs.slot_is_actively_loaded(1));
+    CHECK_FALSE(ifs.slot_is_actively_loaded(2));
+}
+
+// ============================================================================
+// Hardware without per-port sensors is unaffected
+// ============================================================================
+
+TEST_CASE("AD5X IFS marks the seated lane loaded with no port sensors at all",
+          "[ams][ad5x_ifs][1199]") {
+    // The ZMOD-only variant publishes no _ifs_port_sensor_* objects, so
+    // port_presence_ stays false for every lane; the rule keys on the head
+    // sensor, so the seated lane is still LOADED.
+    AmsBackendAd5xIfs ifs(nullptr, nullptr);
+    lesswaste_ready(ifs);
+
+    json frame = lesswaste_frame(less_waste_vars(1)); // T1 -> port 2 -> slot 1
+    frame.update(make_head_sensor(true));
+    feed_ifs(ifs, frame);
+
+    REQUIRE(ifs.get_system_info().current_slot == 1);
+    CHECK(ifs.get_slot_info(1).status == SlotStatus::LOADED);
+    CHECK(ifs.slot_is_actively_loaded(1));
+    CHECK(ifs.get_slot_info(0).status == SlotStatus::EMPTY);
+    CHECK_FALSE(ifs.slot_is_actively_loaded(0));
+}
+
+// ============================================================================
+// A toolchange moves the stamp with the firmware's active-lane pointer
+// ============================================================================
+
+TEST_CASE("AD5X IFS moves the LOADED stamp on a toolchange", "[ams][ad5x_ifs][1199]") {
+    AmsBackendAd5xIfs ifs(nullptr, nullptr);
+    lesswaste_ready(ifs);
+    seat_slot0(ifs);
+    REQUIRE(ifs.slot_is_actively_loaded(0));
+
+    // T2 becomes active (-> port 3 -> slot 2); slot 2's spool is already there.
+    feed_ifs(ifs, lesswaste_frame(less_waste_vars(2)));
+
+    REQUIRE(ifs.get_system_info().current_slot == 2);
+    CHECK(ifs.get_slot_info(2).status == SlotStatus::LOADED);
+    CHECK(ifs.slot_is_actively_loaded(2));
+    // The lane we left must not keep a stale LOADED — two highlighted lanes is
+    // exactly the failure the per-slot rule cannot self-correct.
+    CHECK(ifs.get_slot_info(0).status == SlotStatus::AVAILABLE);
+    CHECK_FALSE(ifs.slot_is_actively_loaded(0));
+}
