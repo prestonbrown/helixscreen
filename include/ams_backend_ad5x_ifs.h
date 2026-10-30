@@ -5,6 +5,7 @@
 
 #if HELIX_HAS_IFS
 
+#include "ad5x_status_parse.h"
 #include "ams_subscription_backend.h"
 #include "error_event.h"
 #include "filament_slot_override.h"
@@ -110,8 +111,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     AmsBackendAd5xIfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendAd5xIfs() override;
 
-    static constexpr int kNumPorts = 4;
-    static constexpr int kToolMapSize = 16;
+    static constexpr int kNumPorts = helix::ad5x::kNumPorts;
+    static constexpr int kToolMapSize = helix::ad5x::kToolMapSize;
     static constexpr int kUnmappedPort = 5;
     /// The module's _IFS_CLEAR_EXTRUDER refuses below this nozzle temperature.
     static constexpr int kClearToolheadMinTempC = 150;
@@ -615,51 +616,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     [[nodiscard]] std::vector<std::pair<std::string, std::string>>
     get_material_aliases() const override;
 
-    // Parse `[zmod_ifs] filament_<NAME>: <TEMP>` lines out of a user.cfg body.
-    // Returns the NAME tokens (filament type tags as written, e.g. "PLA+").
-    // Stateless + public so tests and external callers can drive it directly.
-    static std::vector<std::string> parse_user_cfg_filament_types(const std::string& body);
-
-    // Result of parsing a GET_ZCOLOR SILENT=1 response. Public so tests can
-    // construct instances via Ad5xIfsTestAccess.
-    struct ZColorSlot {
-        std::string material;
-        std::string hex; // Empty for old-format zmod responses (no /HEX).
-    };
-
-    struct ZColorSilentResult {
-        bool is_prompt_fallback = false; // Response was an action:prompt dialog
-        bool is_old_format = false;      // Slot lines had no /HEX segment
-        bool ifs_active = false;         // "IFS: True" in summary line
-        bool saw_valid_response = false; // Matched at least one summary or slot line
-        // True when a genuine GET_ZCOLOR summary or slot line was parsed (as
-        // opposed to ONLY the IFS_STATUS JSON). Proves SILENT actually works on
-        // this device, which retires the false prompt-demotion (#981).
-        bool saw_silent_content = false;
-        // True only when the GET_ZCOLOR "// Extruder: ..." summary line was parsed
-        // (the line that feeds extruder_slot). Slot lines also set
-        // saw_silent_content but carry no Extruder field, so this distinguishes a
-        // definitive head reading (extruder_slot reflects "N" or "None") from a
-        // frame that simply lacked the summary line — without it a slot-line-only
-        // frame would have extruder_slot == nullopt and falsely clear head state.
-        bool saw_extruder_summary = false;
-        std::optional<int> current_channel;
-        std::optional<int> extruder_slot; // 0-based, absent when "None"
-        // Seated/engaged channel from IFS_STATUS "Chan" (1-based, 0 = none).
-        // Distinct from current_channel (the stale "(N)" paren form, unused) and
-        // from extruder_slot (the live "Extruder:" feed view, which reads "None"
-        // while loaded-idle). Chan persists at the physically seated port, so it
-        // is the seated-channel authority for active_tool_/current_slot.
-        std::optional<int> ifs_chan;
-        // Per-port presence from IFS_STATUS "Ports" (RS-485 silk sensors, 1 entry
-        // per port, index 0 = port 1). The sensor-backed presence truth — present
-        // whenever IFS_STATUS returns clean JSON, independent of the GET_ZCOLOR
-        // SILENT slot lines and of the persisted ffmColor cache. When set, it is
-        // the presence authority (apply_zcolor_result), which makes empty-channel
-        // resurrection from a stale ffmColor structurally impossible (#981).
-        std::optional<std::array<bool, kNumPorts>> ifs_ports;
-        std::array<std::optional<ZColorSlot>, kNumPorts> slots;
-    };
+    using ZColorSlot = helix::ad5x::ZColorSlot;
+    using ZColorSilentResult = helix::ad5x::ZColorSilentResult;
 
   protected:
     void on_started() override;
@@ -807,10 +765,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // session (not a zmod printer). filament.json changes rarely so this is a
     // one-shot fetch at startup/reconnect, NOT a periodic poll.
     void fetch_filament_json();
-    // Pure parse helper (no IO) — populates filament_eject_params_ +
-    // filament_eject_default_ from a filament.json body. Static-shaped but
-    // mutates members under mutex_; exposed to tests via Ad5xIfsTestAccess.
-    // Tolerant of malformed JSON (logs + leaves cache untouched).
+    // Populates filament_eject_params_ + filament_eject_default_ from a
+    // filament.json body. Malformed JSON logs and leaves the cache untouched.
     void parse_filament_json(const std::string& content);
     void update_slot_from_state(int slot_index);
 
@@ -1024,34 +980,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // Fold the plugin's current answer into vendor_push_, reading the file
     // once when that owes a read. Main thread.
     void refresh_vendor_push();
-    /// Read one IFS_STATUS-shaped JSON object (the dict cmd_IFS_STATUS dumps,
-    /// and the dict zmod_ifs.get_status() returns - same keys by construction)
-    /// into @p result. Pure: no logging, no locking, no member access.
-    static void read_ifs_status_object(const nlohmann::json& obj, ZColorSilentResult& result);
-    /// Fold a `zmod_color` status object into @p result. Its slots[] carry the
-    /// same ID/Material/HEX the GET_ZCOLOR SILENT=1 slot lines do, read from
-    /// the same Adventurer5M.json the module caches by mtime.
-    /// @return true if the object carried usable slot content.
-    static bool read_zmod_color_object(const nlohmann::json& obj, ZColorSilentResult& result,
-                                       std::optional<int>& channel);
     /// Apply a status frame's zmod_ifs / zmod_color objects through the normal
     /// apply path. Call with mutex_ RELEASED - apply_zcolor_result() locks.
     /// @return true if the frame carried either object.
     bool apply_zmod_status_objects(const nlohmann::json& status);
-
-    /// Normalize a colour from the standalone module's `ifs_materials.slots`
-    /// ("#RRGGBB" or "#RGB", with or without the '#') into the bare 6-hex-digit
-    /// form colors_[] holds ("A03CF7"). Empty when the value is not a colour
-    /// (null / empty / malformed) - the caller treats that as "no reading".
-    static std::string normalize_module_color_hex(const std::string& value);
-
-    /// Read one `ifs_materials` status object into @p result. Its `slots` dict
-    /// (STRING keys - Moonraker serialises dict keys that way) carries the same
-    /// material/colour data the zmod_color slots array does, because both are
-    /// views onto the same Adventurer5M.json. Pure: no logging, no locking, no
-    /// member access.
-    /// @return true if the object carried usable slot content.
-    static bool read_ifs_materials_object(const nlohmann::json& obj, ZColorSilentResult& result);
 
     /// Apply a status frame's `ifs` / `ifs_materials` objects (the standalone
     /// IFS module) through the normal apply path, then refine system_info_
@@ -1077,8 +1009,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     void schedule_zcolor_query(const char* reason = "unknown");
     void finalize_zcolor_response();
     void apply_zcolor_result(const ZColorSilentResult& result);
-    static ZColorSilentResult parse_zcolor_silent(const std::vector<std::string>& lines,
-                                                  const char* reason);
 
     std::string build_color_list_value() const;
     std::string build_type_list_value() const;
