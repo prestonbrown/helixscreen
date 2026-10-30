@@ -41,6 +41,7 @@
 #include "settings_manager.h"
 #include "sound_manager.h"
 #include "standard_macros.h"
+#include "standing_print_options.h"
 #include "system/crash_error_log_sink.h"
 #include "system_settings_manager.h"
 #include "temperature_sensor_manager.h"
@@ -454,6 +455,12 @@ void HelixTestFixture::reset_all() {
     // lane one test populated would read back in the next as a reading nobody
     // took.
     helix::ams::reset_lane_sources();
+
+    // The screen-start ledger is process-wide, so a start one test noted would
+    // be claimed as this screen's by the next. A claim at the end of time
+    // expires every entry.
+    helix::screen_start_ledger().claim("", helix::ScreenStartLedger::Clock::time_point::max());
+    helix::screen_start_ledger().set_announce(false);
 
     // PrintStatusWidget's DetailedFormatter used to be torn down here for the
     // reason described below, and no longer needs to be: its PrinterState

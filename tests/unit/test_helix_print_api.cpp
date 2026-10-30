@@ -334,8 +334,6 @@ TEST_CASE("a print_modified refused for space is final: no stock start replaces 
     // The plugin deletes the copy and answers 507 when the print would leave
     // less than its free-space floor. A stock start would aim at the deleted
     // copy, or print below the floor, and hide the space message.
-    while (helix::screen_start_ledger().withdraw_any()) {
-    }
     FallbackScriptedClient client;
     client.print_modified_code = helix::storage::kNoSpaceRpcCode;
     PrinterState state;
