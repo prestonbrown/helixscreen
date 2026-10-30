@@ -282,7 +282,7 @@ TEST_CASE("AFC clear_fault drops the timeout latch", "[ams][afc][timeout]") {
 
 TEST_CASE("AFC repeating the same state does not restart the timeout clock",
           "[ams][afc][timeout]") {
-    // The stamp lives in parse_afc_state(), once per frame, gated on the action
+    // The stamp lives in apply_afc_state(), once per frame, gated on the action
     // actually changing across the whole frame. Moving it into
     // apply_state_string() — which runs on every frame and up to twice within
     // one — would restart the clock on every AFC delta and the budget could
@@ -307,7 +307,7 @@ TEST_CASE("AFC repeating the same state does not restart the timeout clock",
 
 TEST_CASE("AFC legacy 'status' and authoritative 'current_state' in one frame share a clock",
           "[ams][afc][timeout]") {
-    // parse_afc_state() applies "status" then "current_state" within a single
+    // apply_afc_state() applies "status" then "current_state" within a single
     // frame. A per-apply_state_string() stamp would see those two disagree and
     // reset the clock on every frame; the frame-level comparison does not.
     AfcActionTimeoutHelper h;

@@ -525,8 +525,7 @@ std::optional<AdventurerFile> parse_adventurer_json(const std::string& content) 
         if (entry.hex.empty()) {
             entry.hex = "808080";
         }
-        for (auto& c : entry.hex)
-            c = static_cast<char>(toupper(c));
+        entry.hex = helix::text_io::to_upper(entry.hex);
 
         if (type_it != ffm.end() && type_it->is_string()) {
             entry.type = type_it->get<std::string>();

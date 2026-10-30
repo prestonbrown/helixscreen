@@ -273,3 +273,17 @@ TEST_CASE("forget_network on a stopped mock backend reports not-initialized", "[
     CHECK_FALSE(result.success());
     CHECK(result.result == WiFiResult::NOT_INITIALIZED);
 }
+
+TEST_CASE("is_hidden_scan_ssid treats zero-byte SSIDs as hidden", "[wifi][hidden_ssid]") {
+    using helix::wifi::detail::is_hidden_scan_ssid;
+    CHECK(is_hidden_scan_ssid(""));
+    CHECK(is_hidden_scan_ssid("\\x00"));
+    CHECK(is_hidden_scan_ssid("\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00"));
+
+    CHECK_FALSE(is_hidden_scan_ssid("HomeNet"));
+    // A real name that merely contains the escape is still a name.
+    CHECK_FALSE(is_hidden_scan_ssid("\\x00Lab"));
+    CHECK_FALSE(is_hidden_scan_ssid("Lab\\x00"));
+    CHECK_FALSE(is_hidden_scan_ssid("\\x01"));
+    CHECK_FALSE(is_hidden_scan_ssid("\\x0"));
+}

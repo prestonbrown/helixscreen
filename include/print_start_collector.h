@@ -481,6 +481,15 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// start() has begun another run.
     void apply_phase_object_query(const nlohmann::json& response, uint64_t run);
 
+    /// Read the print position once at start() on a printer whose firmware
+    /// runs its start macro before the file.
+    void query_start_macro_gate();
+
+    /// Follow the print position on such a printer. Returns true, once per run,
+    /// at the first position past 0 after this run has shown 0: the macro,
+    /// purge included, has returned.
+    bool note_start_macro_position(uint64_t position);
+
     /// Bumped by every start() under state_mutex_, so an answer can tell
     /// which run asked.
     std::atomic<uint64_t> run_generation_{0};
@@ -920,6 +929,11 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// status frames last carried them. Guarded by state_mutex_.
     std::optional<uint64_t> file_position_;
     std::string frame_filename_;
+    /// The firmware runs its start macro before the file, and this run has
+    /// not yet seen it return. Guarded by state_mutex_.
+    bool start_macro_capable_ = false;
+    /// This run has shown print position 0. Guarded by state_mutex_.
+    bool start_macro_seen_zero_ = false;
     /// A step that reached its line within the console grace, while the
     /// console's latest change came from a line its command does not print:
     /// the previous command's last words. It shows once the grace passes,

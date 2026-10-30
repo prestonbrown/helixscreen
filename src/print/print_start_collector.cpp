@@ -158,6 +158,7 @@ void PrintStartCollector::start() {
         run_generation_.fetch_add(1);
         reset_run_locked();
         leveling_points_ = state_.get_discovery().leveling_probe_points();
+        start_macro_capable_ = state_.get_discovery().firmware_runs_start_macro_before_file();
         // Snapshot stale subject values so fallbacks only trigger on real changes
         baseline_layer_ =
             lv_subject_get_int(state_.print_state().get_print_layer_current_subject());
@@ -317,6 +318,7 @@ void PrintStartCollector::start() {
                       kEtaUpdateIntervalMs);
     }
     query_phase_object();
+    query_start_macro_gate();
 
     // Run first update immediately
     update_eta_display();
@@ -432,6 +434,8 @@ void PrintStartCollector::reset_run_locked() {
     start_block_requested_ = false;
     file_position_.reset();
     frame_filename_.clear();
+    start_macro_capable_ = false;
+    start_macro_seen_zero_ = false;
     deferred_step_.reset();
     console_phase_line_.clear();
     if (start_block_cancel_) {
@@ -1804,6 +1808,58 @@ void PrintStartCollector::apply_phase_object_query(const json& response, uint64_
     }
 }
 
+void PrintStartCollector::query_start_macro_gate() {
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (!start_macro_capable_) {
+            return;
+        }
+    }
+    // A file loaded at position 0 sends no frame when the last job also left 0,
+    // so the position is read once here as well as followed in frames.
+    auto self = shared_from_this();
+    const uint64_t run = run_generation_.load();
+    client_.send_jsonrpc(
+        "printer.objects.query", {{"objects", {{"virtual_sdcard", {"file_position"}}}}},
+        [self, run](const json& response) {
+            if (!self->active_.load() || run != self->run_generation_.load()) {
+                return;
+            }
+            const std::optional<uint64_t> position = helix::virtual_sdcard_file_position(response);
+            if (position && self->note_start_macro_position(*position)) {
+                self->complete_from_external_signal(
+                    "start macro returned: the file began streaming");
+            }
+        },
+        [](const MoonrakerError& /*err*/) {
+            spdlog::debug("[PrintStartCollector] Failed to query the print position");
+        });
+}
+
+bool PrintStartCollector::note_start_macro_position(uint64_t position) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    if (!start_macro_capable_) {
+        return false;
+    }
+    // The collector starts before the new file loads, so the position first
+    // read can be the last job's end. The macro is running only once this run
+    // has shown 0, and it has returned at the first position past that.
+    if (position == 0) {
+        if (!start_macro_seen_zero_) {
+            spdlog::info("[PrintStartCollector] Print position 0 with the firmware's start "
+                         "macro running; pre-print ends when the file starts streaming");
+        }
+        start_macro_seen_zero_ = true;
+        return false;
+    }
+    if (!start_macro_seen_zero_) {
+        return false;
+    }
+    start_macro_capable_ = false;
+    start_macro_seen_zero_ = false;
+    return true;
+}
+
 void PrintStartCollector::query_phase_object() {
     if (!profile_ || !profile_->has_phase_object() ||
         profile_->phase_object_context_field().empty()) {
@@ -2306,6 +2362,10 @@ void PrintStartCollector::handle_start_block_position(const json& status) {
         if (filename && filename->is_string()) {
             frame_filename_ = filename->get<std::string>();
         }
+    }
+    if (position && note_start_macro_position(*position)) {
+        complete_from_external_signal("start macro returned: the file began streaming");
+        return;
     }
     if (!position || !profile_ || !profile_->scripted_start()) {
         return;

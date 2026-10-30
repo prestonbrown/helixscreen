@@ -14,14 +14,12 @@
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "openams_api.h"
+#include "openams_status_parse.h"
 #include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <cctype>
-#include <cstdlib>
-#include <set>
 #include <utility>
 
 #include "hv/json.hpp"
@@ -33,71 +31,14 @@ using json = nlohmann::json;
 
 constexpr const char* kSpoolmanStatusMethod = "notify_openams_spoolman_status";
 constexpr const char* kSpoolmanStatusHandler = "helix_openams_spoolman_status";
-constexpr const char* kLoad = "load";
-constexpr const char* kUnload = "unload";
-constexpr const char* kCancel = "cancel";
-constexpr const char* kReset = "reset";
+constexpr const char* kLoad = openams::kCommandLoad;
+constexpr const char* kUnload = openams::kCommandUnload;
+constexpr const char* kCancel = openams::kCommandCancel;
+constexpr const char* kReset = openams::kCommandReset;
 
 const json* object_member(const json& object, const char* key) {
     auto it = object.find(key);
     return it != object.end() && it->is_object() ? &(*it) : nullptr;
-}
-
-const json& array_member(const json& object, const char* key) {
-    static const json kEmpty = json::array();
-    auto it = object.find(key);
-    return it != object.end() && it->is_array() ? *it : kEmpty;
-}
-
-std::string string_member(const json& object, const char* key, std::string fallback = {}) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_string() ? it->get<std::string>() : std::move(fallback);
-}
-
-bool bool_member(const json& object, const char* key, bool fallback) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_boolean() ? it->get<bool>() : fallback;
-}
-
-int int_member(const json& object, const char* key, int fallback) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_number_integer() ? it->get<int>() : fallback;
-}
-
-std::optional<double> number_member(const json& object, const char* key) {
-    auto it = object.find(key);
-    if (it == object.end() || !it->is_number()) {
-        return std::nullopt;
-    }
-    return it->get<double>();
-}
-
-bool advertises_action(const json& device, const char* action) {
-    for (const auto& entry : array_member(device, "supported_actions")) {
-        if (entry.is_string() && entry.get<std::string>() == action) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/// The dryer states in which a cycle is under way. Anything the unit does not
-/// name as idle or failed counts as running, so a state a newer firmware adds
-/// still shows the cycle and offers Stop.
-bool dryer_state_is_running(const std::string& state) {
-    const std::string token = ams_normalize_state_token(state);
-    return !token.empty() && token != "off" && token != "idle" && token != "fault" &&
-           token != "none";
-}
-
-/// OAMS_DRYER_START takes its duration in whole seconds, 1 s to 7 days.
-constexpr int kMaxDryerSeconds = 604800;
-
-/// A command name is sent verbatim, so it must be one G-code word.
-bool command_name_is_safe(const std::string& command) {
-    return !command.empty() && std::all_of(command.begin(), command.end(), [](unsigned char ch) {
-        return std::isalnum(ch) != 0 || ch == '_';
-    });
 }
 
 /// A fault code in plain words; an unfamiliar code reads as the unit's own text.
@@ -110,35 +51,6 @@ std::string describe_fault(const std::string& code, const std::string& text) {
     }
     return !text.empty() ? text
                          : (!code.empty() ? code : std::string(lv_tr("Filament System Error")));
-}
-
-/// Tool number a `T<n>` group stands for, or -1 for any other group name.
-int tool_from_group(const std::string& group) {
-    if (group.size() < 2 || group.size() > 4 || group.front() != 'T') {
-        return -1;
-    }
-    int value = 0;
-    for (std::size_t i = 1; i < group.size(); ++i) {
-        const unsigned char ch = static_cast<unsigned char>(group[i]);
-        if (std::isdigit(ch) == 0) {
-            return -1;
-        }
-        value = value * 10 + (ch - '0');
-    }
-    return value;
-}
-
-std::optional<PathTopology> topology_from_token(const std::string& topology) {
-    const std::string token = ams_normalize_state_token(topology);
-    if (token == "hub")
-        return PathTopology::HUB;
-    if (token == "linear")
-        return PathTopology::LINEAR;
-    if (token == "parallel")
-        return PathTopology::PARALLEL;
-    if (token == "mixed")
-        return PathTopology::MIXED;
-    return std::nullopt;
 }
 
 /// Put @p info's filament fields on @p slot, so get_slot_info returns them at
@@ -308,7 +220,8 @@ void AmsBackendOpenAms::present_nothing_locked() {
 }
 
 void AmsBackendOpenAms::parse_snapshot_locked() {
-    if (!openams::api_supported(snapshot_)) {
+    openams::ManagerStatus parsed = openams::parse_manager_status(snapshot_);
+    if (!parsed.supported) {
         if (api_supported_) {
             spdlog::warn("{} oams_manager stopped publishing a supported UI API; presenting "
                          "no slots",
@@ -317,21 +230,12 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
         present_nothing_locked();
         return;
     }
-
-    std::unordered_map<std::string, std::string> next_commands;
-    if (const json* commands = object_member(snapshot_, "commands")) {
-        for (const char* action : {kLoad, kUnload, kCancel, kReset}) {
-            const std::string command = string_member(*commands, action);
-            if (command.empty()) {
-                continue;
-            }
-            if (!command_name_is_safe(command)) {
-                spdlog::warn("{} Ignoring unsafe {} command name '{}'", backend_log_tag(), action,
-                             command);
-                continue;
-            }
-            next_commands[action] = command;
-        }
+    for (const auto& [action, command] : parsed.unsafe_commands) {
+        spdlog::warn("{} Ignoring unsafe {} command name '{}'", backend_log_tag(), action, command);
+    }
+    for (const auto& [unit, topology] : parsed.unknown_topologies) {
+        spdlog::debug("{} Unit '{}' has unknown topology '{}'; drawing it as a hub",
+                      backend_log_tag(), unit, topology);
     }
 
     AmsSystemInfo next;
@@ -339,280 +243,41 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     next.type_name = system_info_.type_name;
     next.version = std::to_string(openams::kApiVersion);
     next.supports_bypass = false;
+    next.units = std::move(parsed.units);
+    next.total_slots = parsed.total_slots;
+    next.filament_loaded = parsed.filament_loaded;
+    next.current_slot = parsed.current_slot;
+    next.current_tool = parsed.current_tool;
 
-    std::vector<int> next_remote_ids;
-    std::unordered_map<int, int> remote_to_global;
-    std::set<PathTopology> topologies;
-    std::vector<std::string> unit_lanes;
-    std::vector<int> next_unit_idx;
-
-    for (const auto& unit_json : array_member(snapshot_, "units")) {
-        if (!unit_json.is_object()) {
-            continue;
-        }
-        AmsUnit unit;
-        unit.unit_index = static_cast<int>(next.units.size());
-        unit.name = string_member(unit_json, "id", std::to_string(unit.unit_index));
-        unit.display_name = string_member(unit_json, "name", unit.name);
-        unit.first_slot_global_index = next.total_slots;
-        unit.connected = bool_member(unit_json, "connected", true);
-        unit.topology = PathTopology::HUB;
-        // The oams_manager contract publishes no toolhead filament sensor.
-        unit.has_toolhead_sensor = false;
-        const std::string topology = string_member(unit_json, "topology");
-        if (!topology.empty()) {
-            if (auto parsed = topology_from_token(topology)) {
-                unit.topology = *parsed;
-            } else {
-                // Topology only shapes the drawing; slots are addressed by id,
-                // so an unfamiliar shape still loads and unloads correctly.
-                spdlog::debug("{} Unit '{}' has unknown topology '{}'; drawing it as a hub",
-                              backend_log_tag(), unit.name, topology);
-            }
-        }
-        topologies.insert(unit.topology);
-
-        for (const auto& slot_json : array_member(unit_json, "slots")) {
-            if (!slot_json.is_object()) {
-                continue;
-            }
-            const int remote_id = int_member(slot_json, "id", -1);
-            if (remote_id < 0 || remote_to_global.count(remote_id) != 0) {
-                continue;
-            }
-            SlotInfo slot;
-            slot.slot_index = int_member(slot_json, "bay", static_cast<int>(unit.slots.size()));
-            slot.global_index = next.total_slots++;
-            if (bool_member(slot_json, "loaded", false)) {
-                slot.status = SlotStatus::LOADED;
-            } else if (bool_member(slot_json, "ready", false)) {
-                slot.status = SlotStatus::AVAILABLE;
-            } else {
-                slot.status = SlotStatus::EMPTY;
-            }
-            remote_to_global[remote_id] = slot.global_index;
-            next_remote_ids.push_back(remote_id);
-            unit.slots.push_back(std::move(slot));
-        }
-        unit.slot_count = static_cast<int>(unit.slots.size());
-        unit.hub_id = string_member(unit_json, "lane");
-        {
-            const std::string id = string_member(unit_json, "id");
-            char* end = nullptr;
-            const long idx = id.empty() ? -1 : std::strtol(id.c_str(), &end, 10);
-            next_unit_idx.push_back(end && *end == '\0' ? static_cast<int>(idx) : -1);
-        }
-        unit_lanes.push_back(unit.hub_id);
-        next.units.push_back(std::move(unit));
-    }
-
-    std::vector<std::string> next_slot_lanes;
-    for (std::size_t u = 0; u < next.units.size(); ++u) {
-        next_slot_lanes.insert(next_slot_lanes.end(), next.units[u].slots.size(), unit_lanes[u]);
-    }
-
-    // The extruder a lane feeds, when the openams plugin publishes it. It names the
-    // toolhead of every slot on that lane.
-    if (const json* by_fps = object_member(snapshot_, "lanes_by_fps")) {
-        for (std::size_t u = 0; u < next.units.size(); ++u) {
-            const json* lane = object_member(*by_fps, unit_lanes[u].c_str());
-            const std::string extruder = lane ? string_member(*lane, "extruder") : std::string();
-            for (auto& slot : next.units[u].slots) {
-                slot.extruder_name = extruder;
-            }
-        }
-    }
-
-    std::vector<std::string> next_slot_groups(next_remote_ids.size());
-    std::vector<Group> next_groups;
-    for (const auto& group_json : array_member(snapshot_, "groups")) {
-        if (!group_json.is_object()) {
-            continue;
-        }
-        Group group;
-        group.name = string_member(group_json, "name");
-        group.lane = string_member(group_json, "lane");
-        if (group.name.empty()) {
-            continue;
-        }
-        for (const auto& member : array_member(group_json, "slots")) {
-            if (!member.is_number_integer()) {
-                continue;
-            }
-            auto global = remote_to_global.find(member.get<int>());
-            if (global == remote_to_global.end()) {
-                continue;
-            }
-            group.slots.push_back(global->second);
-            next_slot_groups[static_cast<std::size_t>(global->second)] = group.name;
-        }
-        next_groups.push_back(std::move(group));
-    }
-
-    reported_action_ = AmsAction::IDLE;
+    reported_action_ = parsed.reported_action;
     lane_states_.clear();
     lane_ids_.clear();
     lane_loaded_slots_.clear();
-    std::set<int> current_slots;
-    std::string current_group;
-    std::unordered_map<std::string, BufferHealth> lane_fps;
-    for (const auto& lane_json : array_member(snapshot_, "lanes")) {
-        if (!lane_json.is_object()) {
-            continue;
-        }
-        // The lane's filament pressure sensor, 0 (no pressure) to 1 (fully
-        // compressed). It has one spring: it measures compression and never
-        // tension, so a reading under set_point is less compression, not slack
-        // or pull. A manager that publishes no pressure leaves the lane with no
-        // buffer rather than a made-up reading.
-        auto pressure = lane_json.find("pressure");
-        if (pressure != lane_json.end() && pressure->is_number()) {
-            BufferHealth fps;
-            fps.fps_value = fps.smoothed_fps = pressure->get<float>();
-            fps.fps_reported = true;
-            fps.compression_only = true;
-            fps.filament_loaded =
-                remote_to_global.count(int_member(lane_json, "current_slot", -1)) != 0;
-            auto set_point = lane_json.find("set_point");
-            if (set_point != lane_json.end() && set_point->is_number()) {
-                fps.fps_set_point = set_point->get<float>();
-            }
-            lane_fps[string_member(lane_json, "id")] = fps;
-        }
-        const std::string state = string_member(lane_json, "state");
-        lane_states_.push_back(ams_normalize_state_token(state));
-        const AmsAction action = action_from_lane_state(state);
-        if (action == AmsAction::ERROR ||
-            (reported_action_ != AmsAction::ERROR && action != AmsAction::IDLE)) {
-            reported_action_ = action;
-        }
-        lane_ids_.push_back(string_member(lane_json, "id"));
-        auto global = remote_to_global.find(int_member(lane_json, "current_slot", -1));
-        lane_loaded_slots_.push_back(global != remote_to_global.end() ? global->second : -1);
-        if (global != remote_to_global.end()) {
-            current_slots.insert(global->second);
-            if (SlotInfo* slot = next.get_slot_global(global->second)) {
-                slot->status = SlotStatus::LOADED;
-            }
-            current_group = string_member(lane_json, "current_group");
-        }
+    for (auto& lane : parsed.lanes) {
+        lane_states_.push_back(std::move(lane.state));
+        lane_ids_.push_back(std::move(lane.id));
+        lane_loaded_slots_.push_back(lane.loaded_slot);
     }
 
-    // Faults the units publish (openams only; klipper_openams publishes no
-    // `devices`, so nothing is ever raised there).
-    std::vector<std::vector<UnitFault>> next_faults(next.units.size());
-    if (const json* devices = object_member(snapshot_, "devices")) {
-        for (std::size_t u = 0; u < next.units.size(); ++u) {
-            const json* device = object_member(*devices, next.units[u].display_name.c_str());
-            if (!device) {
-                continue;
-            }
-            for (const auto& fault_json : array_member(*device, "faults")) {
-                if (!fault_json.is_object()) {
-                    continue;
-                }
-                UnitFault fault;
-                fault.severity = string_member(fault_json, "severity");
-                fault.code = string_member(fault_json, "code");
-                fault.text = string_member(fault_json, "text");
-                fault.bay = int_member(fault_json, "bay", -1);
-                for (const auto& action : array_member(fault_json, "actions")) {
-                    if (action.is_string() && action.get<std::string>() == "clear_fault") {
-                        fault.clearable = true;
-                    }
-                }
-                if (fault.severity == "stop" || fault.severity == "pause") {
-                    next_faults[u].push_back(std::move(fault));
-                }
-            }
-        }
-    }
-
-    // Environment and dryer, per unit (openams only, like the faults above).
-    std::vector<UnitDryer> next_dryers(next.units.size());
-    if (const json* devices = object_member(snapshot_, "devices")) {
-        for (std::size_t u = 0; u < next.units.size(); ++u) {
-            const json* device = object_member(*devices, next.units[u].display_name.c_str());
-            if (!device) {
-                continue;
-            }
-            UnitDryer& dryer = next_dryers[u];
-            if (const json* env = object_member(*device, "environment")) {
-                const auto temp = number_member(*env, "temp_c");
-                const auto humidity = number_member(*env, "rh_pct");
-                if (temp || humidity) {
-                    EnvironmentData reading;
-                    reading.temperature_c = temp ? static_cast<float>(*temp) : 0.0f;
-                    reading.humidity_pct = humidity ? static_cast<float>(*humidity) : 0.0f;
-                    reading.has_humidity = humidity.has_value();
-                    dryer.environment = reading;
-                    next.units[u].environment = reading;
-                }
-            }
-
-            const json* capabilities = object_member(*device, "capabilities");
-            // A running cycle withdraws dryer_start and keeps dryer_stop, so each
-            // action is permitted on its own and the dryer stays offered while either
-            // is advertised.
-            dryer.can_start = advertises_action(*device, "dryer_start");
-            dryer.can_stop = advertises_action(*device, "dryer_stop");
-            dryer.offered = capabilities && bool_member(*capabilities, "dryer", false) &&
-                            (dryer.can_start || dryer.can_stop);
-            if (!dryer.offered) {
-                continue;
-            }
-            dryer.requires_unloaded = bool_member(*capabilities, "dryer_requires_unloaded", false);
-            DryerInfo& info = dryer.info;
-            info.supported = true;
-            info.supports_fan_control = false;
-            info.min_temp_c = static_cast<float>(
-                number_member(*capabilities, "dryer_target_min_c").value_or(info.min_temp_c));
-            info.max_temp_c = static_cast<float>(
-                number_member(*capabilities, "dryer_target_max_c").value_or(info.max_temp_c));
-            info.max_duration_min = kMaxDryerSeconds / 60;
-            if (const json* state = object_member(*device, "dryer")) {
-                info.active = dryer_state_is_running(string_member(*state, "state"));
-                info.target_temp_c =
-                    info.active
-                        ? static_cast<float>(number_member(*state, "target_c").value_or(0.0))
-                        : 0.0f;
-                info.remaining_min =
-                    info.active
-                        ? static_cast<int>(
-                              (number_member(*state, "remaining_s").value_or(0.0) + 59.0) / 60.0)
-                        : 0;
-                info.fan_pct = static_cast<int>(number_member(*state, "fan_pct").value_or(0.0));
-            }
-            // The chamber probe is the reading that matters for a cycle; fall back to
-            // the unit's environment sensor when the dryer telemetry has none.
-            if (dryer.environment) {
-                info.current_temp_c = dryer.environment->temperature_c;
-            }
-            if (const json* telemetry = object_member(*device, "telemetry")) {
-                if (const json* td = object_member(*telemetry, "dryer")) {
-                    if (const auto chamber = number_member(*td, "chamber_c")) {
-                        info.current_temp_c = static_cast<float>(*chamber);
-                    }
-                }
-            }
-            const auto requested = requested_dry_min_.find(static_cast<int>(u));
-            if (info.active) {
-                info.duration_min =
-                    std::max(info.remaining_min,
-                             requested != requested_dry_min_.end() ? requested->second : 0);
-            }
+    for (std::size_t u = 0; u < parsed.dryers.size(); ++u) {
+        DryerInfo& info = parsed.dryers[u].info;
+        const auto requested = requested_dry_min_.find(static_cast<int>(u));
+        if (info.active) {
+            info.duration_min = std::max(
+                info.remaining_min, requested != requested_dry_min_.end() ? requested->second : 0);
         }
     }
     for (auto it = requested_dry_min_.begin(); it != requested_dry_min_.end();) {
         const auto u = static_cast<std::size_t>(it->first);
-        it = (u < next_dryers.size() && next_dryers[u].info.active) ? std::next(it)
-                                                                    : requested_dry_min_.erase(it);
+        it = (u < parsed.dryers.size() && parsed.dryers[u].info.active)
+                 ? std::next(it)
+                 : requested_dry_min_.erase(it);
     }
 
     bool any_fault = false;
     for (std::size_t u = 0; u < next.units.size(); ++u) {
         AmsUnit& unit = next.units[u];
-        for (const UnitFault& fault : next_faults[u]) {
+        for (const UnitFault& fault : parsed.faults[u]) {
             any_fault = true;
             SlotError error;
             error.message = describe_fault(fault.code, fault.text);
@@ -624,45 +289,27 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
             }
         }
     }
-    if (any_fault && reported_action_ != AmsAction::ERROR) {
-        reported_action_ = AmsAction::ERROR;
-    }
 
-    for (std::size_t u = 0; u < next.units.size(); ++u) {
-        auto fps = lane_fps.find(unit_lanes[u]);
-        if (fps != lane_fps.end()) {
-            next.units[u].buffer_health = fps->second;
-        }
-    }
-
-    // Independent lanes are never folded into one current slot: with several
-    // loaded there is no single answer to give.
-    next.filament_loaded = !current_slots.empty();
-    next.current_slot = current_slots.size() == 1 ? *current_slots.begin() : -1;
-    next.current_tool = current_slots.size() == 1 ? tool_from_group(current_group) : -1;
-
-    remote_slot_ids_ = std::move(next_remote_ids);
-    slot_groups_ = std::move(next_slot_groups);
-    slot_lanes_ = std::move(next_slot_lanes);
-    unit_faults_ = std::move(next_faults);
-    unit_dryers_ = std::move(next_dryers);
+    remote_slot_ids_ = std::move(parsed.remote_slot_ids);
+    slot_groups_ = std::move(parsed.slot_groups);
+    slot_lanes_ = std::move(parsed.slot_lanes);
+    unit_faults_ = std::move(parsed.faults);
+    unit_dryers_ = std::move(parsed.dryers);
     has_unit_climate_ = std::any_of(unit_dryers_.begin(), unit_dryers_.end(),
                                     [](const UnitDryer& d) { return d.environment || d.offered; });
-    unit_oams_idx_ = std::move(next_unit_idx);
-    groups_ = std::move(next_groups);
-    commands_ = std::move(next_commands);
-    manager_ready_ = bool_member(snapshot_, "ready", false);
+    unit_oams_idx_ = std::move(parsed.unit_oams_idx);
+    groups_ = std::move(parsed.groups);
+    commands_ = std::move(parsed.commands);
+    manager_ready_ = parsed.ready;
     api_supported_ = true;
-    topology_ = topologies.size() > 1
-                    ? PathTopology::MIXED
-                    : (topologies.empty() ? PathTopology::HUB : *topologies.begin());
+    topology_ = parsed.topology;
 
     // A T<n> group names the slots that can serve tool n. Exactly one of them
     // serves it now and carries the tool. The others are its runout backups and
     // carry none, so a Load on a backup dispatches that exact slot, not a tool
     // change that would load the serving slot instead.
     for (const auto& group : groups_) {
-        const int tool = tool_from_group(group.name);
+        const int tool = openams::tool_from_group(group.name);
         if (tool < 0 || group.slots.empty()) {
             continue;
         }
@@ -744,21 +391,6 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     if (system_info_.operation_detail.empty() && any_fault) {
         system_info_.operation_detail = fault_detail_locked();
     }
-}
-
-AmsAction AmsBackendOpenAms::action_from_lane_state(const std::string& state) {
-    const std::string token = ams_normalize_state_token(state);
-    if (token == "loading")
-        return AmsAction::LOADING;
-    if (token == "unloading")
-        return AmsAction::UNLOADING;
-    if (token == "calibrating")
-        return AmsAction::RESETTING;
-    if (token == "error")
-        return AmsAction::ERROR;
-    if (token == "paused")
-        return AmsAction::PAUSED;
-    return AmsAction::IDLE;
 }
 
 // ============================================================================
@@ -1317,7 +949,7 @@ AmsError AmsBackendOpenAms::start_drying(float temp_c, int duration_min, int fan
             }
         }
         const float target = dryer.info.clamp_temp(temp_c);
-        const int seconds = std::clamp(duration_min, 1, kMaxDryerSeconds / 60) * 60;
+        const int seconds = std::clamp(duration_min, 1, openams::kMaxDryerSeconds / 60) * 60;
         gcode = fmt::format("OAMS_DRYER_START OAMS={} TARGET={:g} DURATION={}", unit_oams_idx_[u],
                             target, seconds);
         requested_dry_min_[unit] = seconds / 60;
