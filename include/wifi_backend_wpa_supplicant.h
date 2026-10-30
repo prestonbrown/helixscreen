@@ -478,6 +478,12 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     void reconcile_saved_networks();
 
   public:
+    /// Replace the kernel address lookup get_status() falls back on when
+    /// STATUS carries no ip_address. Call before start().
+    void set_ipv4_lookup_for_test(std::function<std::string(const std::string&)> lookup) {
+        ipv4_lookup_ = std::move(lookup);
+    }
+
     /// The resolved interface, or nullopt when resolution was inconclusive and
     /// callers must fall back to legacy first-match behaviour.
     std::optional<helix::wifi::WifiInterface> resolved_interface() const override;
@@ -487,6 +493,9 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     }
 
   private:
+    /// Routable IPv4 the kernel holds on a netdev, "" when none.
+    std::function<std::string(const std::string&)> ipv4_lookup_;
+
     // Last state requested via set_radio_enabled(). Defaults to true (radio on).
     std::atomic<bool> radio_enabled_{true};
 

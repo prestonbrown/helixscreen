@@ -490,4 +490,40 @@ TEST_CASE("wpa scan results skip a hidden network shown as zero bytes",
     CHECK(networks[0].ssid == "Home");
 }
 
+TEST_CASE("wpa status reads the kernel's address when STATUS carries none",
+          "[network][wpa][wifi_status_ip]") {
+    WpaFakeFixture fx;
+    fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\nfreq=2412\n");
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    std::vector<std::string> asked;
+    backend.set_ipv4_lookup_for_test([&asked](const std::string& netdev) {
+        asked.push_back(netdev);
+        return std::string("192.168.1.77");
+    });
+    REQUIRE(backend.start().success());
+
+    WifiBackend::ConnectionStatus status = backend.get_status();
+    REQUIRE(status.connected);
+    CHECK(status.ip_address == "192.168.1.77");
+    REQUIRE_FALSE(asked.empty());
+    CHECK(asked.back() == "wlan0");
+
+    SECTION("an address in STATUS is kept and the kernel is not asked") {
+        fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\nip_address=10.0.0.5\n");
+        asked.clear();
+        status = backend.get_status();
+        CHECK(status.ip_address == "10.0.0.5");
+        CHECK(asked.empty());
+    }
+
+    SECTION("a link that is not associated reports no address") {
+        fx.fake->set_reply("STATUS", "wpa_state=SCANNING\n");
+        asked.clear();
+        status = backend.get_status();
+        CHECK_FALSE(status.connected);
+        CHECK(status.ip_address.empty());
+        CHECK(asked.empty());
+    }
+}
+
 #endif // !__APPLE__

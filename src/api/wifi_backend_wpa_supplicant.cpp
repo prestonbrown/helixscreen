@@ -16,6 +16,7 @@
 #include "wifi_country.h"
 #include "wifi_regdomain.h"
 #include "wifi_saved_config.h"
+#include "wifi_ui_utils.h"
 
 #include <string_view>
 
@@ -2111,6 +2112,14 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
                     break; // Found what we need
                 }
             }
+        }
+    }
+
+    // STATUS leaves out ip_address on some builds while the kernel holds one.
+    if (status.connected && status.ip_address.empty()) {
+        if (const auto iface = resolved_interface(); iface && !iface->netdev.empty()) {
+            status.ip_address = ipv4_lookup_ ? ipv4_lookup_(iface->netdev)
+                                             : helix::ui::wifi::iface_global_ipv4(iface->netdev);
         }
     }
 
