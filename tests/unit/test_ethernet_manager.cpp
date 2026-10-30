@@ -273,3 +273,52 @@ TEST_CASE("Ethernet link: an address on a down link is not connected", "[network
     CHECK(ethernet::is_link_connected(true, "dormant"));
     CHECK(ethernet::is_link_connected(true, ""));
 }
+
+TEST_CASE("Ethernet selection reports the interface that carries traffic",
+          "[network][ethernet_link]") {
+    using ethernet::InterfaceState;
+    using ethernet::select_interface;
+
+    SECTION("no interfaces") {
+        const EthernetInfo info = select_interface({});
+        CHECK_FALSE(info.connected);
+        CHECK(info.status == "No Ethernet interface");
+    }
+
+    SECTION("a lone unplugged port with a leftover address is no cable") {
+        const EthernetInfo info =
+            select_interface({{"eth0", "192.168.1.50", "aa:bb:cc:dd:ee:ff", "down"}});
+        CHECK(info.interface == "eth0");
+        CHECK_FALSE(info.connected);
+        CHECK(info.status == "No cable");
+        CHECK(info.mac_address == "aa:bb:cc:dd:ee:ff");
+    }
+
+    SECTION("an unknown-state port with an address is connected") {
+        const EthernetInfo info = select_interface({{"eth0", "192.168.1.50", "", "unknown"}});
+        CHECK(info.connected);
+        CHECK(info.status == "Connected");
+        CHECK(info.ip_address == "192.168.1.50");
+    }
+
+    SECTION("a live port wins over an earlier unplugged one that kept its address") {
+        const EthernetInfo info = select_interface(
+            {{"eth0", "192.168.1.50", "", "down"}, {"eth1", "10.0.0.7", "", "unknown"}});
+        CHECK(info.interface == "eth1");
+        CHECK(info.connected);
+        CHECK(info.ip_address == "10.0.0.7");
+    }
+
+    SECTION("an up port with an address wins over an earlier unknown-state one") {
+        const EthernetInfo info = select_interface(
+            {{"eth0", "192.168.1.50", "", "unknown"}, {"eth1", "10.0.0.7", "", "up"}});
+        CHECK(info.interface == "eth1");
+        CHECK(info.connected);
+    }
+
+    SECTION("a port with no address is no connection") {
+        const EthernetInfo info = select_interface({{"eth0", "", "", "up"}});
+        CHECK_FALSE(info.connected);
+        CHECK(info.status == "No connection");
+    }
+}
