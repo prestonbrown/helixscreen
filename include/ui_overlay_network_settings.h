@@ -62,6 +62,7 @@
 #include "wifi_backend.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -317,6 +318,12 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Reads the radio's country off the UI thread and applies it to the
     // country row: selection, visibility and the 5 GHz hint.
     void refresh_country();
+    // Sets the 2.4 GHz-only indicator from the radio's band support, which a
+    // scan can raise after the overlay opened.
+    void refresh_band_capability();
+    // Sets the 5 GHz hint from the radio's band support and its country, and
+    // re-shows the country choice with it.
+    void apply_country_hint();
     // What the closed country dropdown reads for selection @p index.
     void show_country_choice(int index, bool hint_5ghz);
     // Fills the country list in the current language and re-shows the choice.
@@ -326,7 +333,8 @@ class NetworkSettingsOverlay : public OverlayBase {
     void detach_country_dropdown();
     lv_obj_t* country_dropdown_ = nullptr;
     std::string country_button_text_;
-    bool country_hint_5ghz_ = false; // 5 GHz radio left in the world domain
+    bool country_hint_5ghz_ = false;           // 5 GHz radio left in the world domain
+    std::optional<std::string> radio_country_; // country the radio runs under, once read
 
     /// Ethernet refresh coalescing: at most one daemon probe in flight, with
     /// one trailing refresh armed while one runs (a flapping link or a

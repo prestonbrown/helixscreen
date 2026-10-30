@@ -62,7 +62,7 @@ class AfcRebindHelper : public AmsBackendAfc {
     /// Drive the Moonraker DB path, the second parser that checks the binding.
     void feed_lane_data(const nlohmann::json& lane_data) {
         std::lock_guard<std::mutex> lock(mutex_);
-        AfcTestAccess::parse_lane_data(*this, lane_data);
+        AfcTestAccess::apply_lane_data(*this, afc::parse_lane_data(lane_data));
     }
 
     [[nodiscard]] int visible_spool_id(int slot_index) const {

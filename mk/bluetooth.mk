@@ -52,6 +52,10 @@ ifneq ($(SYSTEMD_LIBS),)
     endif
 endif
 
+# The plugin objects' compiler and flags, without -c and -o; $(1) takes what the
+# recipe adds. print-compile-command (Makefile) prints it for src/bluetooth/.
+BT_COMPILE = $(CXX) $(BT_CXXFLAGS) $(1)
+
 # --- Build rules ---
 
 .PHONY: bluetooth-plugin
@@ -71,7 +75,7 @@ $(BT_SO): $(BT_OBJS) $(MINILZO_OBJ)
 
 $(OBJ_DIR)/bluetooth/%.o: src/bluetooth/%.cpp $(ABI_STAMP) $(FLAGS_STAMP) | $(OBJ_DIR)/bluetooth
 	$(ECHO) "$(CYAN)[CXX] $<$(RESET)"
-	$(Q)$(CXX) $(BT_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+	$(Q)$(call BT_COMPILE,$(DEPFLAGS)) -c $< -o $@
 
 $(MINILZO_OBJ): lib/minilzo/minilzo.c | $(OBJ_DIR)/bluetooth
 	$(ECHO) "$(CYAN)[CC]  $<$(RESET)"

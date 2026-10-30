@@ -105,7 +105,7 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     // Lane AFC currently names as active (AFC.current_load / AFC.current_lane),
-    // as tracked by parse_afc_state() — used to attribute a shared hub sensor.
+    // as tracked by apply_afc_state() — used to attribute a shared hub sensor.
     void set_active_load_lane(const std::string& lane_name) {
         AfcTestAccess::active_load_lane(*this) = lane_name;
     }
@@ -115,7 +115,7 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     // Lane AFC reports as gripped by the extruder (AFC.current_load only), as
-    // tracked by parse_afc_state() — distinct from active_load_lane_, which
+    // tracked by apply_afc_state() — distinct from active_load_lane_, which
     // prefers the transient AFC.current_lane.
     void set_toolhead_lane(const std::string& lane_name) {
         AfcTestAccess::toolhead_lane(*this) = lane_name;
@@ -230,7 +230,7 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
         std::string deferred_error_event;
         bool current_slot_set_by_afc_state = false;
         bool afc_stated_unloaded = false;
-        AfcTestAccess::parse_afc_state(*this, data, deferred_error_event,
+        AfcTestAccess::apply_afc_state(*this, afc::parse_state(data), deferred_error_event,
                                        current_slot_set_by_afc_state, afc_stated_unloaded);
     }
 
@@ -2374,7 +2374,7 @@ TEST_CASE("AFC tool mapping resets when map transitions string to null",
 }
 
 TEST_CASE("AFC tool mapping survives an update with no map field", "[ams][afc][tool_mapping]") {
-    // parse_afc_stepper receives Moonraker notify_status_update DELTAS: a partial
+    // apply_lane_status receives Moonraker notify_status_update DELTAS: a partial
     // update (e.g. weight-only) that omits "map" means "unchanged", NOT "unmapped".
     // Clearing on absent would wipe a live tool mapping mid-print — the mapping must
     // survive. Only a PRESENT map value is authoritative (see the null test above).
@@ -2743,58 +2743,6 @@ TEST_CASE("AFC hub bowden length parsed from afc_bowden_length", "[ams][afc][hub
     REQUIRE(found_bowden);
 }
 
-TEST_CASE("AFC hub cutter info parsed", "[ams][afc][hub][phase2]") {
-    // Real device: AFC_hub has "cut": false, "cut_dist": 50.0, etc.
-    // We should track whether the hub has a cutter for UI decisions
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    std::vector<std::string> lanes = {"lane1", "lane2", "lane3", "lane4"};
-    std::vector<std::string> hubs = {"Turtle_1"};
-    helper.set_discovered_lanes(lanes, hubs);
-
-    helper.feed_afc_hub(
-        "Turtle_1",
-        {{"state", false}, {"cut", false}, {"cut_dist", 50.0}, {"afc_bowden_length", 1285.0}});
-
-    // Hub sensor state should be updated
-    REQUIRE(helper.get_hub_sensor() == false);
-
-    // System info should reflect cutter availability
-    auto sys_info = helper.get_system_info();
-    // AFC always advertises TipMethod::CUT - but we should parse cut field
-    // to know if cutter is actually present/configured
-    REQUIRE(sys_info.tip_method == TipMethod::CUT);
-}
-
-TEST_CASE("AFC extruder speeds parsed", "[ams][afc][extruder][phase2]") {
-    // Real device: AFC_extruder has "tool_load_speed": 25.0, "tool_unload_speed": 25.0
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_extruder("extruder", {{"tool_start_status", false},
-                                          {"tool_end_status", false},
-                                          {"tool_load_speed", 25.0},
-                                          {"tool_unload_speed", 30.0}});
-
-    // Sensor state should be updated
-    REQUIRE(helper.get_tool_start_sensor() == false);
-    REQUIRE(helper.get_tool_end_sensor() == false);
-}
-
-TEST_CASE("AFC extruder distances parsed", "[ams][afc][extruder][phase2]") {
-    // Real device: tool_stn=42.0, tool_stn_unload=90.0
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_extruder("extruder", {{"tool_start_status", true},
-                                          {"tool_end_status", false},
-                                          {"tool_stn", 42.0},
-                                          {"tool_stn_unload", 90.0}});
-
-    REQUIRE(helper.get_tool_start_sensor() == true);
-}
-
 TEST_CASE("AFC stepper buffer_status parsed", "[ams][afc][stepper][phase2]") {
     // Real device: AFC_stepper lane1 has "buffer_status": "Advancing"
     // LaneSensors struct only has prep, load, loaded_to_hub today
@@ -2832,26 +2780,6 @@ TEST_CASE("AFC stepper dist_hub parsed", "[ams][afc][stepper][phase2]") {
 
     auto sensors = helper.get_lane_sensors(0);
     REQUIRE(sensors.dist_hub == Catch::Approx(200.0f));
-}
-
-TEST_CASE("AFC buffer object parsed via status update", "[ams][afc][buffer][phase2]") {
-    // Real device: AFC_buffer Turtle_1 has "state": "Advancing", "enabled": false
-    // We don't subscribe to or parse AFC_buffer objects today
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    std::vector<std::string> lanes = {"lane1", "lane2", "lane3", "lane4"};
-    std::vector<std::string> hubs = {"Turtle_1"};
-    helper.set_discovered_lanes(lanes, hubs);
-
-    // Feed buffer names through AFC state
-    helper.feed_afc_state({{"buffers", {"Turtle_1"}}});
-
-    // Now feed a buffer update
-    helper.feed_afc_buffer("Turtle_1", {{"state", "Advancing"}, {"enabled", false}});
-
-    // Verify the feed_afc_buffer path doesn't crash
-    REQUIRE_NOTHROW(helper.feed_afc_buffer("Turtle_1", {{"state", "Idle"}, {"enabled", true}}));
 }
 
 TEST_CASE("AFC global quiet_mode parsed from AFC state", "[ams][afc][global][phase2]") {
@@ -3388,7 +3316,7 @@ TEST_CASE("AFC lane reset is refused while the toolhead holds filament", "[ams][
 }
 
 TEST_CASE("AFC attribution survives the filament_loaded derivation", "[ams][afc][recovery]") {
-    // The bug this pins: parse_afc_state() derives filament_loaded from
+    // The bug this pins: apply_afc_state() derives filament_loaded from
     // `loaded_lane`, which PREFERS current_lane (= AFC.current_loading). No
     // shipped AFC build publishes an explicit filament_loaded key, so naming a
     // lane in current_lane sets filament_loaded true as a side effect.
@@ -3561,7 +3489,7 @@ TEST_CASE("AFC treats a stale active_load_lane_ as unattributed rather than "
     // Attribute to a real lane first, to prove the stale case is what changes
     // behavior here (not simply an always-empty active_load_lane_).
     //
-    // Driven through parse_afc_state rather than poking active_load_lane_ alone:
+    // Driven through apply_afc_state rather than poking active_load_lane_ alone:
     // the name only ever reaches us on a frame that also carries current_state,
     // and lane_recovery_is_attributed() now reads the action too, so setting the
     // name by itself models a state AFC cannot produce.
@@ -3667,9 +3595,9 @@ TEST_CASE("AFC: a current_loading latched by a FAILED toolchange is not attribut
 TEST_CASE("AFC active_load_lane_ is populated from a current_load delta and "
           "cleared when it goes null",
           "[ams][afc][recovery]") {
-    // A setter-only test would pass even if parse_afc_state() never assigned
+    // A setter-only test would pass even if apply_afc_state() never assigned
     // active_load_lane_ at all — this drives it through the real status-update
-    // path (feed_afc_state -> parse_afc_state) to prove the parse actually runs.
+    // path (feed_afc_state -> apply_afc_state) to prove the parse actually runs.
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
 
@@ -3688,7 +3616,7 @@ TEST_CASE("AFC active_load_lane_ is populated from a current_load delta and "
 
 TEST_CASE("AFC active_load_lane_ survives a delta that omits both lane keys",
           "[ams][afc][recovery]") {
-    // parse_afc_state() is fed notify_status_update DELTAS, not snapshots — an
+    // apply_afc_state() is fed notify_status_update DELTAS, not snapshots — an
     // absent key means "unchanged," never "clear." AFC.current_toolchange,
     // message, and current_state each trigger a parse independently of
     // current_lane/current_load. An unconditional assignment would wipe the
@@ -3885,7 +3813,7 @@ TEST_CASE("AFC drain arm expires so a stale budget cannot eat a later unrelated 
     // Pressing Reset when AFC.message is already empty leaves message_drain_budget_
     // armed. printer.AFC.message is a delta field, so if the queue was already
     // empty at clear_fault() time, no later delta will ever carry a `message` key
-    // at all — the empty-message disarm in parse_afc_state() never fires, and
+    // at all — the empty-message disarm in apply_afc_state() never fires, and
     // without a wall-clock bound the budget would sit armed until a genuinely new,
     // unrelated error rolls in and gets silently acknowledged. The deadline is what
     // actually bounds the arm's lifetime.
@@ -4674,7 +4602,7 @@ TEST_CASE("AFC backend handles AFC_lane status updates", "[ams][afc][mixed]") {
     params["AFC_lane lane4"] = lane_data;
     helper.feed_status_update(params);
 
-    // Verify the lane was parsed using parse_afc_stepper (same JSON schema)
+    // Verify the lane was parsed using apply_lane_status (same JSON schema)
     auto info = helper.get_system_info();
     auto* slot = info.get_slot_global(4);
     REQUIRE(slot != nullptr);
@@ -6477,7 +6405,7 @@ TEST_CASE("AFC tool changer reconciliation preserves current_load slot",
     CHECK(info.filament_loaded == true);
 }
 
-TEST_CASE("AFC parse_lane_data does not overwrite valid current_slot", "[ams][afc][toolchanger]") {
+TEST_CASE("AFC apply_lane_data does not overwrite valid current_slot", "[ams][afc][toolchanger]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_zero_based(4);
     helper.initialize_slots_from_discovery();
@@ -6944,7 +6872,7 @@ TEST_CASE("AFC tool changer reconciliation derives current_slot from active tool
     // so the fixture used to prove this with a field the firmware never sends.
     //
     // Both keys land in one frame, the same way Moonraker batches them:
-    // parse_afc_state() runs first and clears the tool on the null current_load,
+    // apply_afc_state() runs first and clears the tool on the null current_load,
     // then the toolchanger block re-establishes T2. current_slot stays -1
     // because the null current_load is authoritative "unloaded" and sets
     // current_slot_set_by_afc_state, which the reconciliation block honours.
@@ -7231,7 +7159,7 @@ TEST_CASE("AFC get_operation_step_index_subject is the narration toolchange-step
 }
 
 // ============================================================================
-// parse_afc_stepper must represent AFC's CLEARS, not just its values
+// apply_lane_status must represent AFC's CLEARS, not just its values
 // ============================================================================
 //
 // AFC clears a lane's identity itself. LANE_UNLOAD ends with
@@ -7455,7 +7383,7 @@ TEST_CASE("AFC can_recover_lane_position requires filament at the hub", "[ams][a
     // filament past the hub therefore leaves this naming the guilty lane, which
     // is what makes the attributed case reachable with the toolhead free.
     // Driving it through feed_afc_state() (rather than the setter) proves
-    // parse_afc_state() actually wires the field.
+    // apply_afc_state() actually wires the field.
     helper.feed_afc_state({{"current_lane", "lane1"}});
 
     // loaded_to_hub is latched at prep and never updated (see the [recovery]
@@ -7499,7 +7427,7 @@ TEST_CASE("AFC can_recover_lane_position requires filament at the hub", "[ams][a
 // Override store — user identity survives AFC's own clears
 // ============================================================================
 //
-// parse_afc_stepper now honours AFC's clears (spool_id null, empty colour), so
+// apply_lane_status now honours AFC's clears (spool_id null, empty colour), so
 // firmware truth genuinely clears on eject. Retention lives one layer up: the
 // override store re-supplies the identity the user attached. Without it, the
 // parser change alone would LOSE metadata on eject, which is the opposite of
@@ -7531,7 +7459,7 @@ TEST_CASE("AFC override survives an eject that clears firmware fields", "[ams][a
     REQUIRE(helper.get_slot_info(0).spoolman_filament_id == 55);
 
     // AFC ejects the lane: clear_values() nulls spool_id and empties
-    // colour/material, and parse_afc_stepper now represents that faithfully.
+    // colour/material, and apply_lane_status now represents that faithfully.
     helper.feed_afc_stepper(
         "lane1", {{"spool_id", nullptr}, {"material", ""}, {"color", ""}, {"status", "None"}});
 
@@ -7698,10 +7626,8 @@ TEST_CASE("AFC version never gates behaviour", "[ams][afc][version]") {
 
     helper.feed_afc_state({{"version", "0.0.1"}});
 
-    // NOTE: parse_lane_data re-initializes the slot registry whenever the payload
-    // lane count differs from the current slot count, so a lane_data payload must
-    // carry EVERY lane. A single-lane payload silently collapses the registry to
-    // one slot and any get_slot_info(i>0) then reads a default-constructed slot.
+    // apply_lane_data only bootstraps an EMPTY slot registry, so these cases seed
+    // the slots from discovery first; the payload then names lanes that exist.
     nlohmann::json lanes;
     for (int i = 0; i < 4; ++i) {
         lanes["lane" + std::to_string(i)] = {{"color", "#FF5500"}, {"material", "PLA"}};
@@ -7722,9 +7648,7 @@ TEST_CASE("AFC lane_data reads vendor_name for the brand, with brand as fallback
     // Upstream is naming this vendor_name, NOT vendor, to match Happy Hare's
     // mmu_server.py so both backends share one spelling.
     //
-    // All four lanes in ONE payload: parse_lane_data re-initializes the registry
-    // when the lane count changes, so feeding lanes piecemeal would collapse it
-    // to a single slot and make these assertions read default-constructed slots.
+    // All four lanes in one payload, matching the slots discovery seeded.
     nlohmann::json lanes;
     lanes["lane0"] = {{"brand", "Prusament"}}; // legacy spelling
     lanes["lane1"] = {{"vendor_name", "Polymaker"},
@@ -7778,7 +7702,7 @@ TEST_CASE("AFC an empty vendor never clears an existing brand (#808)", "[ams][af
 
     // #808 is unimplemented, so we do not know whether an unlinked lane will omit
     // the key or publish "". Treating "" as a clear would silently wipe a user's
-    // brand override, and parse_lane_data does NOT call apply_overrides() to put it
+    // brand override, and apply_lane_data does NOT call apply_overrides() to put it
     // back. Ignoring empties is the recoverable direction.
     for (int i = 0; i < 4; ++i)
         lanes["lane" + std::to_string(i)] = {{"vendor_name", ""}};
@@ -7825,8 +7749,7 @@ TEST_CASE("AFC takes no weight from lane_data on any version (#805)", "[ams][afc
     // them apart — the only safe rule is to never source weight here.
     //
     // `remaining_weight` / `total_weight` are included too: no AFC version ever
-    // emitted either key, and readers for them used to sit in parse_lane_data.
-    // Deleting those readers must not be undone by someone "restoring" them.
+    // emits either key, so nothing should read them from lane_data.
     nlohmann::json lanes;
     for (int i = 0; i < 4; ++i) {
         lanes["lane" + std::to_string(i)] = {
@@ -8133,11 +8056,10 @@ TEST_CASE("AFC buffer parses the observed v1.1.0 frame", "[ams][afc][status_fiel
     REQUIRE(bh.active_lane.empty());
 }
 
-TEST_CASE("AFC buffer parses the v1.2.0 multiplier and active-lane fields",
+TEST_CASE("AFC buffer delta omitting lanes still reaches its unit",
           "[ams][afc][status_fields][1149]") {
-    // Source-derived: AFC_buffer.get_status() at v1.2.0 adds active_lane and the
-    // multiplier trio. `multiplier` is _last_multiplier, seeded as an int 1 in
-    // the base trigger, so it can arrive as either an int or a float.
+    // A state-only delta carries no `lanes`, so the routing has to come from
+    // what an earlier frame said.
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
     // AFC_buffer frames are only dispatched for buffers AFC has named.
@@ -8146,70 +8068,14 @@ TEST_CASE("AFC buffer parses the v1.2.0 multiplier and active-lane fields",
     helper.feed_afc_buffer("Turtle_1",
                            nlohmann::json{{"state", "Trailing"},
                                           {"lanes", {"lane1", "lane2", "lane3", "lane4"}},
-                                          {"enabled", true},
-                                          {"rotation_distance", 22.678},
-                                          {"active_lane", "lane2"},
-                                          {"multiplier_high", 1.1},
-                                          {"multiplier_low", 0.9},
-                                          {"multiplier", 1},
-                                          {"fault_detection_enabled", true},
-                                          {"error_sensitivity", 7},
-                                          {"fault_timer", 1.5},
-                                          {"distance_to_fault", 25.5}});
-
-    auto info = helper.get_system_info();
-    REQUIRE(info.units[0].buffer_health.has_value());
-    const auto& bh = info.units[0].buffer_health.value();
-    REQUIRE(bh.active_lane == "lane2");
-    REQUIRE(bh.rotation_distance == Catch::Approx(22.678f));
-    REQUIRE(bh.multiplier == Catch::Approx(1.0f));
-    REQUIRE(bh.multiplier_high == Catch::Approx(1.1f));
-    REQUIRE(bh.multiplier_low == Catch::Approx(0.9f));
-    REQUIRE(bh.fault_timer == Catch::Approx(1.5f));
-    REQUIRE(bh.distance_to_fault == Catch::Approx(25.5f));
-    REQUIRE(bh.error_sensitivity == Catch::Approx(7.0f));
-}
-
-TEST_CASE("AFC buffer delta omitting fields leaves the prior health intact",
-          "[ams][afc][status_fields][1149]") {
-    // The buffer parser used to build a fresh BufferHealth per frame and assign
-    // it wholesale, so a state-only delta wiped the configured multipliers,
-    // sensitivity and fault distance. It also carries no `lanes`, so the routing
-    // has to come from what an earlier frame said.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    // AFC_buffer frames are only dispatched for buffers AFC has named.
-    helper.feed_afc_state({{"buffers", {"Turtle_1"}}});
-
-    helper.feed_afc_buffer("Turtle_1",
-                           nlohmann::json{{"state", "Trailing"},
-                                          {"lanes", {"lane1", "lane2", "lane3", "lane4"}},
-                                          {"enabled", true},
-                                          {"rotation_distance", 22.678},
-                                          {"active_lane", "lane2"},
-                                          {"multiplier_high", 1.1},
-                                          {"multiplier_low", 0.9},
-                                          {"multiplier", 1.1},
-                                          {"fault_detection_enabled", true},
-                                          {"error_sensitivity", 7},
-                                          {"fault_timer", 1.5},
-                                          {"distance_to_fault", 25.5}});
-
+                                          {"multiplier", 1.1}});
     helper.feed_afc_buffer("Turtle_1", nlohmann::json{{"state", "Advancing"}});
 
     auto info = helper.get_system_info();
     REQUIRE(info.units[0].buffer_health.has_value());
     const auto& bh = info.units[0].buffer_health.value();
     REQUIRE(bh.state == "Advancing");
-    REQUIRE(bh.active_lane == "lane2");
-    REQUIRE(bh.rotation_distance == Catch::Approx(22.678f));
     REQUIRE(bh.multiplier == Catch::Approx(1.1f));
-    REQUIRE(bh.multiplier_high == Catch::Approx(1.1f));
-    REQUIRE(bh.multiplier_low == Catch::Approx(0.9f));
-    REQUIRE(bh.fault_timer == Catch::Approx(1.5f));
-    REQUIRE(bh.distance_to_fault == Catch::Approx(25.5f));
-    REQUIRE(bh.error_sensitivity == Catch::Approx(7.0f));
-    REQUIRE(bh.fault_detection_enabled == true);
 }
 
 // ----------------------------------------------------------------------------

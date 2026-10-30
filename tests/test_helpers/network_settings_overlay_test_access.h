@@ -129,4 +129,17 @@ class NetworkSettingsOverlayTestAccess {
     static lv_obj_t* networks_list(NetworkSettingsOverlay& o) {
         return o.networks_list_;
     }
+    /// The wifi_only_24ghz subject (1 = the 2.4 GHz-only indicator shows).
+    static lv_subject_t& wifi_only_24ghz(NetworkSettingsOverlay& o) {
+        return o.wifi_only_24ghz_;
+    }
+    /// Whether the radio's country has been read since the overlay opened.
+    static bool radio_country_read(NetworkSettingsOverlay& o) {
+        return o.radio_country_.has_value();
+    }
+    /// Hand a scan's results to the overlay, as the scan callback does.
+    static void populate_network_list(NetworkSettingsOverlay& o,
+                                      const std::vector<WiFiNetwork>& networks) {
+        o.populate_network_list(networks);
+    }
 };

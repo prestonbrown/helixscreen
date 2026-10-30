@@ -10,7 +10,7 @@
 #include <memory>
 
 // Linux-only backend: falls back to an EthernetBackendLinux instance and the
-// ethernet:: sysfs classifiers, both compiled out on non-Linux targets.
+// helix::ethernet:: sysfs classifiers, both compiled out on non-Linux targets.
 #if !defined(__ANDROID__) && !defined(__APPLE__)
 
 namespace {
@@ -69,9 +69,9 @@ bool EthernetBackendNetd::has_interface() {
     // Pure sysfs: the daemon is never consulted, so the Ethernet row's
     // visibility cannot flap when netd restarts. A downed eth0 still exists
     // in sysfs and still counts. Classification is the shared rule
-    // (ethernet::scan_sysfs_interfaces) — same answer as the kernel-state
+    // (helix::ethernet::scan_sysfs_interfaces) — same answer as the kernel-state
     // backend on the same machine.
-    const std::vector<std::string> interfaces = ethernet::scan_sysfs_interfaces(sysfs_root_);
+    const std::vector<std::string> interfaces = helix::ethernet::scan_sysfs_interfaces(sysfs_root_);
     spdlog::trace("[EthernetNetd] has_interface() = {} ({} candidates)", !interfaces.empty(),
                   interfaces.size());
     return !interfaces.empty();

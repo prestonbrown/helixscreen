@@ -396,7 +396,7 @@ TEST_CASE("AFC lane error: empty errored lane is EMPTY, not present", "[ams][afc
     // tool whose AFC lane has no spool) leaves the live lane in status "Error"
     // with prep=false, load=false, spool_id=null. The AMS panel must show the
     // lane as empty, NOT as "filament present, not loaded". Regression for the
-    // catch-all in parse_afc_stepper that previously defaulted unknown statuses
+    // catch-all in apply_lane_status that previously defaulted unknown statuses
     // (including "Error") to AVAILABLE -> is_present() == true.
     helix::AfcErrorStateHelper helper;
     helper.initialize_test_lanes_with_slots(4); // slots start AVAILABLE

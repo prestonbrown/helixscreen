@@ -200,7 +200,7 @@ own hardware-event signal:
 | `AmsBackendAce` | `ace` | `parse_ace_object` per-slot loop | Status transition: EMPTY/UNKNOWN → present | brand, spool_name, spoolman filament/vendor ids, weights, color_name |
 | `AmsBackendCfs` | `cfs` | `handle_status` tail loop | Composite `material_type\|color_value` fingerprint | spool_name, spoolman filament/vendor ids, remaining_weight_g |
 | `AmsBackendToolChanger` | `toolchanger` | `handle_status` tail loop, `initialize_tools()` tail, and after the start-time load | **None** - see below | *every* field |
-| `AmsBackendAfc` | `afc` | `parse_afc_stepper` and the `lane_data` query parse | AFC's own firmware clears | brand, color_name, spoolman filament/vendor ids |
+| `AmsBackendAfc` | `afc` | `apply_lane_status` and the `lane_data` query parse | AFC's own firmware clears | brand, color_name, spoolman filament/vendor ids |
 | `AmsBackendHappyHare` | `happyhare` | `gate_spool_id` loop in `handle_status` | Gate-map spool id change | brand, spool_name, total_weight_g, color_name, spoolman filament/vendor ids |
 
 "Override-exclusive fields" are the fields the user can edit on that backend
