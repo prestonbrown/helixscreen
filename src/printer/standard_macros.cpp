@@ -405,6 +405,21 @@ bool StandardMacros::execute(StandardMacroSlot slot, IMoonrakerAPI* api,
         return false;
     }
 
+    // A shipped tier is a sequence, not a macro name: it is resolved and sent
+    // whole, and a caller's params have nowhere to go in it.
+    bool send_as_script = false;
+    if (info.get_source() == MacroSource::SHIPPED) {
+        helix::MacroScriptValues values;
+        values.screws_tilt_builtin = api->hardware().screws_tilt_builtin();
+        const helix::ResolvedMacroScript resolved = helix::resolve_macro_script(info, values);
+        if (resolved.script.empty()) {
+            spdlog::debug("[StandardMacros] Slot {} resolves to nothing here", info.slot_name);
+            return false;
+        }
+        macro_name = resolved.script;
+        send_as_script = resolved.shipped;
+    }
+
     spdlog::info("[StandardMacros] Executing {} via {}", info.slot_name, macro_name);
     // Callers toast, which is main-thread only, while the printer's answer
     // arrives on the WebSocket thread. A null callback stays
@@ -420,6 +435,12 @@ bool StandardMacros::execute(StandardMacroSlot slot, IMoonrakerAPI* api,
         };
     }
     // suppress_auto_toast is CallerIntent::silent — see rpc_error_policy.h.
+    if (send_as_script) {
+        api->execute_gcode(macro_name, std::move(on_success), std::move(on_error),
+                           timeout_ms > 0 ? timeout_ms : helix::IMoonrakerAPI::kMacroTimeoutMs,
+                           /*silent=*/suppress_auto_toast);
+        return true;
+    }
     api->advanced().execute_macro(macro_name, params, std::move(on_success), std::move(on_error),
                                   timeout_ms, suppress_auto_toast);
     return true;

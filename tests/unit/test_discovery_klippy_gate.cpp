@@ -420,11 +420,33 @@ TEST_CASE("A Centauri Carbon's Bed Screws runs the wrapped builtin, or stock wit
                                       {{"rename_existing", "SCREWS_TILT_CALCULATE_BASE"}}}};
         CHECK(run_bed_screws() ==
               std::vector<std::string>{"LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE",
-                                       "SCREWS_TILT_CALCULATE_BASE", "G1 X128 Y220 Z20 F6000"});
+                                       "SCREWS_TILT_CALCULATE_BASE", "G90",
+                                       "G1 X128 Y220 Z20 F6000"});
     }
 
     SECTION("without the wrapper the stock command runs") {
         CHECK(run_bed_screws() == std::vector<std::string>{"SCREWS_TILT_CALCULATE"});
+    }
+
+    SECTION("a quick-action button for the slot sends the same sequence") {
+        client.extra_settings = json{{"gcode_macro screws_tilt_calculate",
+                                      {{"rename_existing", "SCREWS_TILT_CALCULATE_BASE"}}}};
+        bool completed = false;
+        client.discover_printer_real([&completed]() { completed = true; },
+                                     [](const std::string& reason) { FAIL(reason); });
+        REQUIRE(completed);
+        api.hardware() = client.hardware();
+        StandardMacros::instance().init(api.hardware(), "Elegoo Centauri Carbon");
+        client.clear_gcode_script_history();
+
+        const bool sent = StandardMacros::instance().execute(StandardMacroSlot::ScrewsTilt, &api,
+                                                             nullptr, nullptr);
+        StandardMacros::instance().reset();
+        REQUIRE(sent);
+        CHECK(client.gcode_script_history() ==
+              std::vector<std::string>{"LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE",
+                                       "SCREWS_TILT_CALCULATE_BASE", "G90",
+                                       "G1 X128 Y220 Z20 F6000"});
     }
 }
 

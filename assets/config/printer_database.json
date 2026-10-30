@@ -3304,7 +3304,7 @@
       "calibration": {
         "bed_mesh_gcode": "BED_MESH_CALIBRATE{profile_arg} BED_TEMP={bed_temp}",
         "bed_mesh_self_prepares": true,
-        "screws_tilt_gcode": "LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE\n{screws_tilt_builtin}\nG1 X128 Y220 Z20 F6000",
+        "screws_tilt_gcode": "LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE\n{screws_tilt_builtin}\nG90\nG1 X128 Y220 Z20 F6000",
         "screws_tilt_self_prepares": true
       },
       "print_start_profile": "cosmos_cc1",
