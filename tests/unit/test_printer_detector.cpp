@@ -3935,6 +3935,24 @@ TEST_CASE("Bed mesh calibration gcode override", "[printer_detector]") {
     }
 }
 
+TEST_CASE("Screws tilt shipped sequence", "[printer_detector][screws_tilt]") {
+    PrinterDetector::reload();
+
+    SECTION("the Centauri Carbon bypasses COSMOS's wrapper and prepares itself") {
+        const std::string gcode = PrinterDetector::get_screws_tilt_gcode("elegoo centauri carbon");
+        CHECK(gcode.find("{screws_tilt_builtin}") != std::string::npos);
+        CHECK(gcode.find("LOAD_CELL_CALIBRATE TARE=TRUE") != std::string::npos);
+        CHECK(PrinterDetector::get_screws_tilt_self_prepares("Elegoo Centauri Carbon"));
+    }
+
+    SECTION("an entry without a sequence, or no entry, ships nothing") {
+        CHECK(PrinterDetector::get_screws_tilt_gcode("FlashForge Adventurer 5M").empty());
+        CHECK(PrinterDetector::get_screws_tilt_gcode("Some Random Printer").empty());
+        CHECK_FALSE(PrinterDetector::get_screws_tilt_self_prepares("FlashForge Adventurer 5M"));
+        CHECK_FALSE(PrinterDetector::get_screws_tilt_self_prepares(""));
+    }
+}
+
 TEST_CASE("Bed mesh sequence self-preparation flag", "[printer_detector]") {
     PrinterDetector::reload();
 

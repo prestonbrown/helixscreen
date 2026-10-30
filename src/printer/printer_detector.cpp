@@ -1627,9 +1627,34 @@ std::string PrinterDetector::get_probe_type(const std::string& printer_name) {
     return printer_field(printer_name, "probe_type");
 }
 
-std::string PrinterDetector::get_bed_mesh_calibrate_gcode(const std::string& printer_name) {
+namespace {
+
+/// `calibration.<key>` as a string, empty when the entry, its calibration object
+/// or the key is absent.
+std::string calibration_string(const std::string& printer_name, const char* key) {
     const json* calibration = printer_member(printer_name, "calibration");
-    return calibration ? helix::json_util::safe_string(*calibration, "bed_mesh_gcode") : "";
+    return calibration ? helix::json_util::safe_string(*calibration, key) : "";
+}
+
+/// `calibration.<key>` is literally true.
+bool calibration_flag(const std::string& printer_name, const char* key) {
+    const json* calibration = printer_member(printer_name, "calibration");
+    const json* flag = calibration ? helix::json_util::find_member(*calibration, key) : nullptr;
+    return flag != nullptr && flag->is_boolean() && flag->get<bool>();
+}
+
+} // namespace
+
+std::string PrinterDetector::get_bed_mesh_calibrate_gcode(const std::string& printer_name) {
+    return calibration_string(printer_name, "bed_mesh_gcode");
+}
+
+std::string PrinterDetector::get_screws_tilt_gcode(const std::string& printer_name) {
+    return calibration_string(printer_name, "screws_tilt_gcode");
+}
+
+bool PrinterDetector::get_screws_tilt_self_prepares(const std::string& printer_name) {
+    return calibration_flag(printer_name, "screws_tilt_self_prepares");
 }
 
 // ============================================================================
@@ -1637,11 +1662,7 @@ std::string PrinterDetector::get_bed_mesh_calibrate_gcode(const std::string& pri
 // ============================================================================
 
 bool PrinterDetector::get_bed_mesh_self_prepares(const std::string& printer_name) {
-    const json* calibration = printer_member(printer_name, "calibration");
-    const json* flag = calibration
-                           ? helix::json_util::find_member(*calibration, "bed_mesh_self_prepares")
-                           : nullptr;
-    return flag != nullptr && flag->is_boolean() && flag->get<bool>();
+    return calibration_flag(printer_name, "bed_mesh_self_prepares");
 }
 
 std::string PrinterDetector::get_print_start_profile(const std::string& printer_name) {

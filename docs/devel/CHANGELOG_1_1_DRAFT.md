@@ -1477,6 +1477,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   over the still-running calibration.
 - **Centauri Carbon** (#1529) - screws tilt, probe accuracy and Z-offset no longer probe on an
   untared load cell, and the tare uses the command COSMOS actually defines.
+- **Centauri Carbon bed screws** - Bed Screws shows Klipper's own turns again, measured from
+  a base screw. COSMOS replaces SCREWS_TILT_CALCULATE with a macro whose Manual Leveling
+  prompt measures every screw against a fixed bed height, so it asked for about two turns on
+  every corner of a bed that needed minutes. HelixScreen now runs Klipper's calculation under
+  the name COSMOS gives it, and the plain command again if COSMOS drops the wrapper.
 - **Bed screw adjustment said Tighten where it meant Loosen** - the word followed Klipper's
   clockwise/counterclockwise, which on a spring-mounted bed is the opposite. It now comes
   from each corner's probed height. The AD5M and AD5X no longer reverse the arrows, which

@@ -305,10 +305,17 @@ TEST_CASE("Shipped rules: COSMOS tares via its object, the ZMOD via its macro",
         REQUIRE(p.rule_id == "cosmos_load_cell_tare");
         REQUIRE(p.gcode == "LOAD_CELL_TARE");
     }
-    SECTION("COSMOS: screws tilt is left alone") {
-        // COSMOS's SCREWS_TILT_CALCULATE tares the load cell itself.
-        REQUIRE(resolve_from_rules(rules, cosmos_macros, cosmos_objects, Operation::ScrewsTilt)
-                    .empty());
+    SECTION("COSMOS: screws tilt gets the tare too") {
+        // Only a self-preparing shipped sequence skips it, and that never reaches the rules.
+        const Preparation p =
+            resolve_from_rules(rules, cosmos_macros, cosmos_objects, Operation::ScrewsTilt);
+        REQUIRE(p.rule_id == "cosmos_load_cell_tare");
+        REQUIRE(p.gcode == "LOAD_CELL_TARE");
+    }
+    SECTION("COSMOS: bed mesh is left alone") {
+        // COSMOS's BED_MESH_CALIBRATE tares the load cell itself.
+        REQUIRE(
+            resolve_from_rules(rules, cosmos_macros, cosmos_objects, Operation::BedMesh).empty());
     }
     SECTION("load_cell_probe without _COSMOS_SETTINGS stays silent") {
         const std::unordered_set<std::string> other_macros = {"SCREWS_TILT_CALCULATE", "G28"};

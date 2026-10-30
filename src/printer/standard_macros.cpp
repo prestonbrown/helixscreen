@@ -167,10 +167,15 @@ ShippedSequence shipped_sequence_for(const std::string& printer, StandardMacroSl
     case StandardMacroSlot::BedMesh:
         return {PrinterDetector::get_bed_mesh_calibrate_gcode(printer),
                 PrinterDetector::get_bed_mesh_self_prepares(printer)};
+    case StandardMacroSlot::ScrewsTilt:
+        return {PrinterDetector::get_screws_tilt_gcode(printer),
+                PrinterDetector::get_screws_tilt_self_prepares(printer)};
     default:
         return {};
     }
 }
+
+constexpr std::string_view kScrewsTiltBuiltin = "{screws_tilt_builtin}";
 
 /// Replace every @p placeholder in @p script with @p value. Inserted text is never
 /// rescanned, so a value that spells a placeholder is kept verbatim.
@@ -193,6 +198,14 @@ ResolvedMacroScript resolve_macro_script(const StandardMacroInfo& info,
     if (!accept_fallback && source == MacroSource::FALLBACK) {
         return out;
     }
+    if (source == MacroSource::SHIPPED && values.screws_tilt_builtin.empty() &&
+        info.shipped_macro.find(kScrewsTiltBuiltin) != std::string::npos) {
+        // The sequence bypasses a wrapper this printer does not have, so the
+        // command it would wrap is the stock one: the next tier decides.
+        StandardMacroInfo without_shipped = info;
+        without_shipped.shipped_macro.clear();
+        return resolve_macro_script(without_shipped, values, accept_fallback);
+    }
     out.script = info.get_macro();
     out.shipped = source == MacroSource::SHIPPED;
     out.self_prepares = out.shipped && info.shipped_self_prepares;
@@ -201,6 +214,7 @@ ResolvedMacroScript resolve_macro_script(const StandardMacroInfo& info,
 
     // The temperature first: a profile name is free text and may spell a placeholder.
     substitute(out.script, "{bed_temp}", std::to_string(values.bed_temp_c));
+    substitute(out.script, kScrewsTiltBuiltin, values.screws_tilt_builtin);
     substitute(out.script, "{profile_arg}", values.profile_arg);
     return out;
 }

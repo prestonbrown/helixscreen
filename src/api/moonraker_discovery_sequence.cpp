@@ -1013,6 +1013,7 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                         helix::skip_wrappers::wrappable(settings),
                                         helix::skip_wrappers::active(settings));
                                     hardware_.parse_sensor_toggle_command(settings);
+                                    hardware_.parse_screws_tilt_builtin(settings);
                                 }
 
                                 helix::MacroFanAnalyzer analyzer;

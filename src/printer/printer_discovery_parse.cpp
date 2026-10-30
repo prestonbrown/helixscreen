@@ -1010,6 +1010,7 @@ void PrinterDiscovery::clear() {
     skip_wrappable_.clear();
     skip_active_.clear();
     sensor_toggle_command_.clear();
+    screws_tilt_builtin_.clear();
     helix_macros_.clear();
     nozzle_clean_macro_.clear();
     purge_line_macro_.clear();
@@ -1085,17 +1086,37 @@ void PrinterDiscovery::clear() {
     objects_reported_ = false;
 }
 
-bool PrinterDiscovery::parse_sensor_toggle_command(const nlohmann::json& settings) {
-    const auto wrapper = settings.find("gcode_macro set_filament_sensor");
+namespace {
+
+/// The name a [gcode_macro <section>] wrapper gave the builtin it replaced
+/// (rename_existing), or empty when nothing wraps it. @p section is the
+/// lowercase configfile key.
+std::string renamed_builtin(const nlohmann::json& settings, const char* section) {
+    const auto wrapper = settings.find(section);
     if (wrapper == settings.end() || !wrapper->is_object()) {
-        return false;
+        return {};
     }
     const auto renamed = wrapper->find("rename_existing");
-    if (renamed == wrapper->end() || !renamed->is_string() || renamed->get<std::string>().empty()) {
+    if (renamed == wrapper->end() || !renamed->is_string()) {
+        return {};
+    }
+    return renamed->get<std::string>();
+}
+
+} // namespace
+
+bool PrinterDiscovery::parse_sensor_toggle_command(const nlohmann::json& settings) {
+    std::string builtin = renamed_builtin(settings, "gcode_macro set_filament_sensor");
+    if (builtin.empty()) {
         return false;
     }
-    sensor_toggle_command_ = renamed->get<std::string>();
+    sensor_toggle_command_ = std::move(builtin);
     return true;
+}
+
+bool PrinterDiscovery::parse_screws_tilt_builtin(const nlohmann::json& settings) {
+    screws_tilt_builtin_ = renamed_builtin(settings, "gcode_macro screws_tilt_calculate");
+    return !screws_tilt_builtin_.empty();
 }
 
 void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_status) {

@@ -2070,6 +2070,44 @@ TEST_CASE("PrinterDiscovery: sensor toggle command follows a SET_FILAMENT_SENSOR
     }
 }
 
+TEST_CASE("PrinterDiscovery: a SCREWS_TILT_CALCULATE wrapper's builtin is recorded",
+          "[printer_discovery][screws_tilt]") {
+    helix::PrinterDiscovery discovery;
+    REQUIRE(discovery.screws_tilt_builtin().empty());
+
+    SECTION("no wrapper records nothing") {
+        CHECK_FALSE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro set_filament_sensor", {{"rename_existing", "_SFS"}}}}));
+        CHECK(discovery.screws_tilt_builtin().empty());
+    }
+
+    SECTION("a wrapper's rename_existing names the builtin, and clear() forgets it") {
+        REQUIRE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro screws_tilt_calculate",
+                  {{"rename_existing", "SCREWS_TILT_CALCULATE_BASE"}, {"gcode", "..."}}}}));
+        CHECK(discovery.screws_tilt_builtin() == "SCREWS_TILT_CALCULATE_BASE");
+
+        discovery.clear();
+        CHECK(discovery.screws_tilt_builtin().empty());
+    }
+
+    SECTION("a later configfile without the wrapper drops the builtin") {
+        REQUIRE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro screws_tilt_calculate",
+                  {{"rename_existing", "SCREWS_TILT_CALCULATE_BASE"}}}}));
+        CHECK_FALSE(discovery.parse_screws_tilt_builtin(json::object()));
+        CHECK(discovery.screws_tilt_builtin().empty());
+    }
+
+    SECTION("a wrapper with no usable rename_existing records nothing") {
+        CHECK_FALSE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro screws_tilt_calculate", {{"gcode", "..."}}}}));
+        CHECK_FALSE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro screws_tilt_calculate", {{"rename_existing", 3}}}}));
+        CHECK(discovery.screws_tilt_builtin().empty());
+    }
+}
+
 TEST_CASE("PrinterDiscovery: filament diameter comes from the extruder section",
           "[printer_discovery][filament_diameter]") {
     helix::PrinterDiscovery discovery;

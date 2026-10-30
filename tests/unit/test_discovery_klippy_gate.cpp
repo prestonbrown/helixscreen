@@ -15,10 +15,12 @@
 #include "../test_helpers/scoped_env.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "moonraker_api.h"
 #include "moonraker_auth.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "standard_macros.h"
 
 #include <algorithm>
 #include <atomic>
@@ -386,6 +388,43 @@ TEST_CASE("Discovery resolves the sensor toggle command from configfile.settings
 
     SECTION("no wrapper keeps the builtin") {
         CHECK(discovered_toggle_command(client) == "SET_FILAMENT_SENSOR");
+    }
+}
+
+TEST_CASE("A Centauri Carbon's Bed Screws runs the wrapped builtin, or stock without a wrapper",
+          "[discovery][klippy_gate][screws_tilt]") {
+    LVGLTestFixture fixture;
+    ConfigfileSettingsClient client(MoonrakerClientMock::PrinterType::VORON_24);
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_klippy_state_sync(helix::KlippyState::READY);
+    MoonrakerAPI api(client, state);
+
+    // Every line sent for one Bed Screws press; the mock records a script line by line.
+    auto run_bed_screws = [&]() {
+        bool completed = false;
+        client.discover_printer_real([&completed]() { completed = true; },
+                                     [](const std::string& reason) { FAIL(reason); });
+        REQUIRE(completed);
+        StandardMacros::instance().init(client.hardware(), "Elegoo Centauri Carbon");
+        client.clear_gcode_script_history();
+        api.advanced().calculate_screws_tilt([](const std::vector<ScrewTiltResult>&) {},
+                                             [](const MoonrakerError&) {});
+        StandardMacros::instance().reset();
+        return client.gcode_script_history();
+    };
+
+    SECTION("COSMOS's wrapper is bypassed: tare, its builtin, park") {
+        client.extra_settings = json{{"gcode_macro screws_tilt_calculate",
+                                      {{"rename_existing", "SCREWS_TILT_CALCULATE_BASE"}}}};
+        CHECK(run_bed_screws() ==
+              std::vector<std::string>{"LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE",
+                                       "SCREWS_TILT_CALCULATE_BASE", "G1 X128 Y220 Z20 F6000"});
+    }
+
+    SECTION("without the wrapper the stock command runs") {
+        CHECK(run_bed_screws() == std::vector<std::string>{"SCREWS_TILT_CALCULATE"});
     }
 }
 

@@ -2576,13 +2576,22 @@ void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
     // make the slot a silent no-op. Falls back to the stock command when the slot
     // is empty, which is every printer that predates this setting.
     const StandardMacroInfo& slot = StandardMacros::instance().get(StandardMacroSlot::ScrewsTilt);
-    const ResolvedMacroScript resolved = resolve_macro_script(slot, {});
+    helix::MacroScriptValues values;
+    values.screws_tilt_builtin = client_.hardware().screws_tilt_builtin();
+    const ResolvedMacroScript resolved = resolve_macro_script(slot, values);
     const std::string command = resolved.script.empty() ? "SCREWS_TILT_CALCULATE" : resolved.script;
     spdlog::info("[Moonraker API] Starting {}", command);
 
+    // A shipped sequence spans several lines; the collector's diagnostics name the
+    // one command in it that probes.
+    const std::string& probing_command = resolved.shipped && !values.screws_tilt_builtin.empty()
+                                             ? values.screws_tilt_builtin
+                                             : command;
+
     // Create a collector to handle async response parsing
     // The collector will self-destruct when complete via shared_ptr ref counting
-    auto collector = std::make_shared<ScrewsTiltCollector>(client_, on_success, on_error, command);
+    auto collector =
+        std::make_shared<ScrewsTiltCollector>(client_, on_success, on_error, probing_command);
     collector->start();
 
     // Send the G-code command

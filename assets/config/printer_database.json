@@ -122,6 +122,7 @@
         }
       ],
       "operations": [
+        "screws_tilt",
         "probe_accuracy",
         "z_offset_calibrate"
       ],
@@ -130,7 +131,7 @@
       ],
       "label": "Zeroing load cell",
       "timeout_s": 60,
-      "reason": "COSMOS probes with a load cell whose zero drifts between calibrations. Its load_cell module registers LOAD_CELL_TARE as a command, never a gcode_macro, so macro_match cannot see it: the load_cell_probe object keys the rule, and COSMOS's _COSMOS_SETTINGS macro keeps it off other firmware whose load cell may not define that command. COSMOS's SCREWS_TILT_CALCULATE and BED_MESH_CALIBRATE tare the load cell themselves, so only probe accuracy and Z-offset calibration get it."
+      "reason": "COSMOS probes with a load cell whose zero drifts between calibrations. Its load_cell module registers LOAD_CELL_TARE as a command, never a gcode_macro, so macro_match cannot see it: the load_cell_probe object keys the rule, and COSMOS's _COSMOS_SETTINGS macro keeps it off other firmware whose load cell may not define that command. COSMOS's BED_MESH_CALIBRATE tares the load cell itself, so bed mesh does not get it. Screws tilt does: the Elegoo Centauri Carbon entry's shipped sequence tares on its own and is self-preparing, and without COSMOS's wrapper the stock SCREWS_TILT_CALCULATE needs the tare from here."
     }
   ],
   "printers": [
@@ -3299,9 +3300,12 @@
       "image": "elegoo-centauri-carbon.png",
       "preset": "cc1",
       "_calibration_comment": "COSMOS's BED_MESH_CALIBRATE is a macro that heats the bed to BED_TEMP, homes, cleans the nozzle, tares the load cell, probes, then measures the Z offset. It needs nothing sent ahead of it (bed_mesh_self_prepares); its M190/M109 wait for a hot bed to cool, so BED_TEMP never asks for less than a bed above 60C already has, even when a lower target is set. {profile_arg} stores the mesh under the chosen name as it completes; the Z-offset step clears the active mesh right after, so it cannot be saved from there.",
+      "_screws_tilt_comment": "COSMOS replaces SCREWS_TILT_CALCULATE with a macro (rename_existing: SCREWS_TILT_CALCULATE_BASE) that tares the load cell, runs Klipper's calculation, parks, then opens a Manual Leveling prompt measuring every screw against a fixed bed height (z_bed_level + position_endstop - 4) rather than against a base screw. The shipped sequence is that macro without its prompt, so the Bed Screws panel shows Klipper's base-relative turns. Firmware without the wrapper runs the stock command, and the cosmos_load_cell_tare rule tares ahead of it.",
       "calibration": {
         "bed_mesh_gcode": "BED_MESH_CALIBRATE{profile_arg} BED_TEMP={bed_temp}",
-        "bed_mesh_self_prepares": true
+        "bed_mesh_self_prepares": true,
+        "screws_tilt_gcode": "LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE\n{screws_tilt_builtin}\nG1 X128 Y220 Z20 F6000",
+        "screws_tilt_self_prepares": true
       },
       "print_start_profile": "cosmos_cc1",
       "_print_start_default_phases_comment": "COSMOS PRINT_START, measured on a CC1 running 26.08 (2026-09-14, cold start, 105C bed / 260C nozzle): both heaters set without waiting, G28 through homing_override ~23s, M190, a heat soak of cosmos.conf heatsoak minutes (60s by default; cosmos_cc1.json holds the pre-print open for the minutes it announces), the stored default mesh loaded in under a second (adaptive_mesh probes a new mesh instead, which the history learns), SMART_PARK, M109, then a KAMP line purge ~13s. Heating is omitted: the thermal model owns it.",
