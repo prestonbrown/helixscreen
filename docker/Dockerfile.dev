@@ -40,11 +40,18 @@ ARG DOCKER_GID=999
 # What the bats suite and quality-checks.sh call that the test image lacks:
 # the same tools CI's ubuntu-latest runner carries.
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        shellcheck python3-pip python3-venv python3-yaml python3-pil openssh-server rsync busybox less \
-        jq zip unzip bsdextrautils xxd file xz-utils zstd wget imagemagick cmake locales \
+        shellcheck python3-pip python3-venv python3-yaml openssh-server rsync busybox less \
+        jq zip unzip bsdextrautils xxd file xz-utils zstd wget imagemagick cmake locales iproute2 \
     && sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen && locale-gen && update-locale LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 ENV LANG=en_US.UTF-8
+
+# Pillow from pip, at the version requirements.txt resolves to in CI's venv:
+# test_installer_output.bats regenerates scripts/lib/installer/logo.sh with the
+# system python3 and compares it byte for byte, so the PNG encoder must match
+# the one that produced the committed file. Ubuntu 22.04's python3-pil (9.0.1)
+# predates Image.Quantize, which scripts/installer_logo_art.py needs.
+RUN python3 -m pip install --no-cache-dir pillow==12.3.0
 
 # The distribution's bats is too old for the suite (bats_require_minimum_version,
 # run --separate-stderr); CI installs it from npm, and so does this.
