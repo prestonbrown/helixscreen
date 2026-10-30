@@ -25,9 +25,9 @@ class PrintStartCollectorTestAccess {
         return c.wait_line_.kind;
     }
 
-    static bool start_macro_gate_armed(PrintStartCollector& c) {
+    static bool start_macro_seen_zero(PrintStartCollector& c) {
         std::lock_guard<std::mutex> lock(c.state_mutex_);
-        return c.start_macro_gate_armed_;
+        return c.start_macro_seen_zero_;
     }
 
     static bool is_heater_wait_report(const std::string& line) {

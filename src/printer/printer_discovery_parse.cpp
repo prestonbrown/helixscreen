@@ -9,6 +9,7 @@
 #include "klipper_extruder_naming.h" // count_extruder_names
 #include "macro_patterns.h"
 #include "printer_discovery.h"
+#include "start_macro_injection.h"
 #include "text_io.h"
 #include "toolchanger_addon.h" // zmod_c5_present
 
@@ -969,6 +970,10 @@ void PrinterDiscovery::parse_probe_xy_offset(const nlohmann::json& settings) {
     probe_xy_offset_ = offset;
 }
 
+void PrinterDiscovery::parse_start_macro_injection(const nlohmann::json& settings) {
+    firmware_runs_start_macro_before_file_ = helix::firmware_runs_start_macro_before_file(settings);
+}
+
 void PrinterDiscovery::apply_printer_info(const nlohmann::json& result) {
     software_version_ = json_util::safe_string(result, "software_version", "unknown");
     if (json_util::safe_string(result, "app") == "Kalico") {
@@ -1050,6 +1055,7 @@ void PrinterDiscovery::clear() {
     fit_machine_.reset();
     leveling_probe_points_.clear();
     probe_xy_offset_.reset();
+    firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
     has_led_ = false;
     led_effects_.clear();
