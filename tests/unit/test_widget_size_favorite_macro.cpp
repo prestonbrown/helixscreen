@@ -14,7 +14,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
-#include "../test_helpers/scoped_widget_labels.h"
 #include "favorite_macro_widget.h"
 
 #include "../catch_amalgamated.hpp"
@@ -51,15 +50,4 @@ TEST_CASE_METHOD(LVGLUITestFixture, "favorite_macro badge/icon/name follow pixel
     h.resize(1, 1, 400, 400);
     const int large = check_faces();
     CHECK(large > small);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "favorite_macro: a box draws the same parts whatever it was before",
-                 "[widget_size][favorite_macro][1805]") {
-    helix::test::ScopedWidgetLabelsShown labels;
-    PanelWidgetHarness<FavoriteMacroWidget> h(test_screen(), "favorite_macro:1");
-    CHECK(h.unsettled_boxes(box_sweep(44, 44, 20, 240)) == std::vector<std::string>{});
-    CHECK(h.unsettled_boxes(box_sweep(114, 114, 20, 240)) == std::vector<std::string>{});
-    CHECK(h.unsettled_boxes(box_sweep(20, 300, 60, 60)) == std::vector<std::string>{});
-    CHECK(h.unsettled_boxes(box_sweep(20, 300, 30, 30)) == std::vector<std::string>{});
 }

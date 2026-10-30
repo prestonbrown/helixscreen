@@ -851,6 +851,195 @@ TEST_CASE("PrinterState: Connection state transitions", "[state][connection]") {
 }
 
 // ============================================================================
+// Derived connection state: nav_buttons_enabled, was_ever_connected
+// ============================================================================
+
+TEST_CASE("PrinterState: nav_buttons_enabled derivation",
+          "[characterization][network][nav_buttons]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    // Defaults: disconnected, "Disconnected", nav buttons off.
+    REQUIRE(std::string(lv_subject_get_string(
+                state.network_state().get_printer_connection_message_subject())) == "Disconnected");
+    REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 0);
+
+    SECTION("connected AND klippy ready -> nav_buttons_enabled = 1") {
+        // Set connected state
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTED), "Ready");
+        // Set klippy ready
+        state.set_klippy_state_sync(KlippyState::READY);
+
+        REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 1);
+    }
+
+    SECTION("disconnected AND klippy ready -> nav_buttons_enabled = 0") {
+        // Set disconnected state
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::DISCONNECTED), "Disconnected");
+        // Set klippy ready
+        state.set_klippy_state_sync(KlippyState::READY);
+
+        REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 0);
+    }
+
+    SECTION("connected AND klippy error -> nav_buttons_enabled = 0") {
+        // Set connected state
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTED), "Ready");
+        // Set klippy error
+        state.set_klippy_state_sync(KlippyState::ERROR);
+
+        REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 0);
+    }
+
+    SECTION("disconnected AND klippy error -> nav_buttons_enabled = 0") {
+        // Set disconnected state
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::DISCONNECTED), "Disconnected");
+        // Set klippy error
+        state.set_klippy_state_sync(KlippyState::ERROR);
+
+        REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 0);
+    }
+
+    SECTION("connecting state -> nav_buttons_enabled = 0") {
+        // Set connecting state (not fully connected)
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTING), "Connecting...");
+        state.set_klippy_state_sync(KlippyState::READY);
+
+        REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 0);
+    }
+
+    SECTION("reconnecting state -> nav_buttons_enabled = 0") {
+        // Set reconnecting state (not fully connected)
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::RECONNECTING), "Reconnecting...");
+        state.set_klippy_state_sync(KlippyState::READY);
+
+        REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 0);
+    }
+
+    SECTION("connected AND klippy startup -> nav_buttons_enabled = 0") {
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTED), "Ready");
+        state.set_klippy_state_sync(KlippyState::STARTUP);
+
+        REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 0);
+    }
+
+    SECTION("connected AND klippy shutdown -> nav_buttons_enabled = 0") {
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTED), "Ready");
+        state.set_klippy_state_sync(KlippyState::SHUTDOWN);
+
+        REQUIRE(lv_subject_get_int(state.network_state().get_nav_buttons_enabled_subject()) == 0);
+    }
+}
+
+TEST_CASE("PrinterState: observer fires when nav_buttons_enabled changes",
+          "[characterization][network][observer]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
+        int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
+        int* value_ptr = count_ptr + 1;
+
+        (*count_ptr)++;
+        *value_ptr = lv_subject_get_int(subject);
+    };
+
+    int user_data[2] = {0, -1};
+
+    lv_observer_t* observer = lv_subject_add_observer(
+        state.network_state().get_nav_buttons_enabled_subject(), observer_cb, user_data);
+
+    // Initial notification
+    REQUIRE(user_data[0] == 1);
+    REQUIRE(user_data[1] == 0); // Starts disabled
+
+    // Enable nav buttons by connecting with klippy ready
+    state.network_state().set_printer_connection_state_internal(
+        static_cast<int>(ConnectionState::CONNECTED), "Ready");
+    state.set_klippy_state_sync(KlippyState::READY);
+
+    REQUIRE(user_data[0] == 2);
+    REQUIRE(user_data[1] == 1);
+
+    // Disable by setting klippy to error
+    state.set_klippy_state_sync(KlippyState::ERROR);
+
+    REQUIRE(user_data[0] == 3);
+    REQUIRE(user_data[1] == 0);
+
+    lv_observer_remove(observer);
+}
+
+TEST_CASE("PrinterState: was_ever_connected flag behavior",
+          "[characterization][network][was_connected]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    // PrinterStateTestAccess::reset() clears the flag, so each SECTION starts false.
+    REQUIRE_FALSE(state.network_state().was_ever_connected());
+
+    SECTION("becomes true when connection state becomes CONNECTED") {
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTED), "Ready");
+
+        REQUIRE(state.network_state().was_ever_connected() == true);
+    }
+
+    SECTION("stays true even after disconnection") {
+        // First connect
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTED), "Ready");
+        REQUIRE(state.network_state().was_ever_connected() == true);
+
+        // Then disconnect
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::DISCONNECTED), "Disconnected");
+        REQUIRE(state.network_state().was_ever_connected() == true);
+    }
+
+    SECTION("stays true through reconnection cycle") {
+        // Connect
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTED), "Ready");
+        REQUIRE(state.network_state().was_ever_connected() == true);
+
+        // Reconnecting
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::RECONNECTING), "Reconnecting...");
+        REQUIRE(state.network_state().was_ever_connected() == true);
+
+        // Disconnect (failed)
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::FAILED), "Connection failed");
+        REQUIRE(state.network_state().was_ever_connected() == true);
+    }
+
+    SECTION("CONNECTING state alone does not set the flag") {
+        state.network_state().set_printer_connection_state_internal(
+            static_cast<int>(ConnectionState::CONNECTING), "Connecting...");
+
+        REQUIRE_FALSE(state.network_state().was_ever_connected());
+    }
+}
+
+// ============================================================================
 // Network Status Tests
 // ============================================================================
 

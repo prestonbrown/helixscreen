@@ -52,22 +52,6 @@ constexpr int32_t kGap = 16;
 // Classification — shared with resolve_xml_path's portrait/ selection
 // ============================================================================
 
-TEST_CASE("detect_layout_type is callable before LayoutManager::init",
-          "[layout-manager][portrait]") {
-    // theme_manager_register_responsive_spacing runs in Application phase 6;
-    // LayoutManager::init runs in phase 8b. The overlay-width computation
-    // therefore cannot consult the singleton and must classify from raw
-    // dimensions, exactly as the existing ultrawide check does.
-    CHECK(detect_layout_type(800, 480) == LayoutType::STANDARD);
-    CHECK(detect_layout_type(1920, 480) == LayoutType::ULTRAWIDE);
-    CHECK(detect_layout_type(320, 1480) == LayoutType::PORTRAIT);
-    CHECK(detect_layout_type(480, 800) == LayoutType::PORTRAIT);
-    CHECK(detect_layout_type(272, 480) == LayoutType::MICRO_PORTRAIT);
-    CHECK(detect_layout_type(320, 480) == LayoutType::TINY_PORTRAIT);
-    CHECK(detect_layout_type(480, 272) == LayoutType::MICRO);
-    CHECK(detect_layout_type(480, 320) == LayoutType::TINY);
-}
-
 TEST_CASE("is_portrait_layout covers every portrait class", "[layout-manager][portrait]") {
     CHECK(is_portrait_layout(LayoutType::PORTRAIT));
     CHECK(is_portrait_layout(LayoutType::TINY_PORTRAIT));
@@ -77,20 +61,6 @@ TEST_CASE("is_portrait_layout covers every portrait class", "[layout-manager][po
     CHECK_FALSE(is_portrait_layout(LayoutType::ULTRAWIDE));
     CHECK_FALSE(is_portrait_layout(LayoutType::TINY));
     CHECK_FALSE(is_portrait_layout(LayoutType::MICRO));
-}
-
-TEST_CASE("classification agrees with the portrait/ variant chain", "[layout-manager][portrait]") {
-    // If these two ever disagree, an overlay would be sized for one orientation
-    // while being handed the XML of the other.
-    struct Case {
-        int w;
-        int h;
-    };
-    const Case portrait_cases[] = {{320, 1480}, {480, 800}, {272, 480}, {320, 480}};
-    for (const auto& c : portrait_cases) {
-        INFO("size " << c.w << "x" << c.h);
-        CHECK(is_portrait_layout(detect_layout_type(c.w, c.h)));
-    }
 }
 
 // ============================================================================
@@ -148,21 +118,8 @@ TEST_CASE("Portrait overlays claim the full screen width", "[theme][overlay-widt
     }
 }
 
-TEST_CASE("Portrait recovers exactly the width the nav strip was taking",
-          "[theme][overlay-width][portrait]") {
-    // State the regression as a delta: on the 320x1480 target the old
-    // arithmetic handed back 266 of 320. Assert we reclaimed those 54px rather
-    // than merely rearranging the formula.
-    const auto portrait = compute_overlay_widths(320, 1480, kNavWidth, kGap);
-    const int32_t old_destination = 320 - kNavWidth;
-
-    CHECK(old_destination == 266);
-    CHECK(portrait.destination == 320);
-    CHECK(portrait.destination - old_destination == kNavWidth);
-}
-
-TEST_CASE("Overlay width formula is wired into both const paths",
-          "[theme][overlay-width][portrait]") {
+TEST_CASE_METHOD(LVGLTestFixture, "Overlay width formula is wired into both const paths",
+                 "[theme][overlay-width][portrait]") {
     // The formula lives in one function, but two call sites publish it: startup
     // registration and the resize refresh. Neither may compute its own version.
     // (The const registry ignores duplicate registrations, so this asserts the

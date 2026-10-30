@@ -149,8 +149,7 @@ void PrintStatusWidget::init_static_subjects() {
 
     // Detailed-layout subjects
     lv_subject_init_int(&layout_effective_subject_, 0);
-    // Observed through layout_effective_subject_for_test() by
-    // tests/unit/test_print_status_widget_layout_gate.cpp, the width-gating guard.
+    // Observed through layout_effective_subject_for_test(), the width-gating guard.
     s_static_subjects.publish(
         "print_status_layout_effective",
         &layout_effective_subject_); // SUBJECT_OK: read by the layout-gate test

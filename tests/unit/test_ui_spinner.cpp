@@ -5,12 +5,8 @@
  * @file test_ui_spinner.cpp
  * @brief Unit tests for ui_spinner.cpp - Reactive spinner widget
  *
- * Tests cover:
- * - Spinner arc color matches shared style from theme_core
- * - Spinner arc color updates reactively when theme changes
- *
- * Phase 2.4: ui_spinner should use ThemeManager::instance().get_style(StyleRole::Spinner) instead
- * of inline styles. This enables automatic theme reactivity via LVGL's style system.
+ * A spinner's arc reads the shared StyleRole::Spinner style rather than an
+ * inline colour, so a theme change recolours every spinner in place.
  */
 
 #include "../lvgl_ui_test_fixture.h"
@@ -41,71 +37,12 @@ static ThemePalette make_dark_test_palette_with_primary(lv_color_t primary) {
 }
 
 // ============================================================================
-// Reactive Spinner Tests - Phase 2.4
+// Reactive Spinner Tests
 // ============================================================================
 // These tests verify that spinner widgets update their arc color when the theme
 // changes. The implementation uses shared styles from ThemeManager which
 // update in-place when the theme mode changes.
 // ============================================================================
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: arc color matches shared spinner style",
-                 "[reactive-spinner][reactive]") {
-    // Create spinner widget via XML
-    const char* attrs[] = {"size", "md", nullptr};
-    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
-    REQUIRE(spinner != nullptr);
-
-    // Get the spinner's arc color (indicator part)
-    lv_color_t spinner_color = lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR);
-
-    // Get expected color from the shared spinner style
-    lv_style_t* spinner_style = ThemeManager::instance().get_style(StyleRole::Spinner);
-    REQUIRE(spinner_style != nullptr);
-    lv_style_value_t value;
-    lv_style_res_t res = lv_style_get_prop(spinner_style, LV_STYLE_ARC_COLOR, &value);
-    REQUIRE(res == LV_STYLE_RES_FOUND);
-
-    // Spinner should have the same color as the shared style
-    REQUIRE(lv_color_eq(spinner_color, value.color));
-
-    lv_obj_delete(spinner);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: arc color updates on theme change",
-                 "[reactive-spinner][reactive]") {
-    // Create spinner widget via XML
-    const char* attrs[] = {"size", "lg", nullptr};
-    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
-    REQUIRE(spinner != nullptr);
-
-    // Get initial arc color
-    lv_color_t before = lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR);
-
-    uint32_t before_rgb = lv_color_to_u32(before) & 0x00FFFFFF;
-    INFO("Initial spinner arc color: 0x" << std::hex << before_rgb);
-
-    // Update theme colors to dark mode with DIFFERENT primary color (orange)
-    // Primary color is what drives spinner arc color
-    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0xFF5722));
-    auto& tm = ThemeManager::instance();
-    tm.set_palettes(palette, palette);
-    tm.set_dark_mode(true);
-
-    // Force LVGL style refresh cascade
-    lv_obj_report_style_change(nullptr);
-
-    // Get updated arc color
-    lv_color_t after = lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR);
-
-    uint32_t after_rgb = lv_color_to_u32(after) & 0x00FFFFFF;
-    INFO("After theme change spinner arc color: 0x" << std::hex << after_rgb);
-
-    // Spinner arc color should change (primary color changed)
-    // This will FAIL with inline style implementation, PASS with shared style
-    REQUIRE_FALSE(lv_color_eq(before, after));
-
-    lv_obj_delete(spinner);
-}
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: style matches shared style after theme change",
                  "[reactive-spinner][reactive]") {

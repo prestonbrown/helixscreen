@@ -785,7 +785,6 @@ rerun it after the watchdog brings the new binary up.
 ### Unit Tests
 
 - `tests/unit/test_update_checker.cpp` — Version comparison, JSON parsing, status enums, lifecycle, subjects, dismissed versions, auto-check timer
-- `tests/unit/test_update_channel.cpp` — Beta channel array parsing, dev manifest parsing, platform asset selection, channel config mapping, R2 URL resolution
 
 Run with:
 
@@ -891,4 +890,3 @@ Or for deployed installations, set `HELIX_LOG_LEVEL=debug` in `~/helixscreen/con
 | `scripts/lib/installer/moonraker.sh` | Moonraker update_manager configuration |
 | `.github/workflows/release.yml` | CI: build, release, R2 upload |
 | `tests/unit/test_update_checker.cpp` | UpdateChecker unit tests |
-| `tests/unit/test_update_channel.cpp` | Channel/manifest parsing tests |

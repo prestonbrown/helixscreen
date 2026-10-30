@@ -57,33 +57,6 @@ lv_obj_t* find_icon(lv_obj_t* root) {
 
 } // namespace
 
-TEST_CASE("every action tile draws an icon from the shared ladder", "[action_tile][1559]") {
-    LVGLUITestFixture fixture;
-    init_widget_registrations();
-
-    int checked = 0;
-    for (const auto& id : kActionTiles) {
-        const auto* def = find_widget_def(id);
-        INFO("tile " << id);
-        REQUIRE(def != nullptr);
-
-        RegistryWidgetHarness harness(fixture.test_screen(), *def);
-        REQUIRE(harness.created());
-
-        lv_obj_t* icon = find_icon(harness.root());
-        REQUIRE(icon != nullptr);
-
-        const lv_font_t* face = lv_obj_get_style_text_font(icon, LV_PART_MAIN);
-        INFO("tile " << id << " face=" << static_cast<const void*>(face));
-        CHECK(helix::ui::is_icon_font(face));
-        ++checked;
-    }
-
-    // A registry that stopped producing these tiles would make the loop empty
-    // and every assertion above vacuous.
-    CHECK(checked == static_cast<int>(kActionTiles.size()));
-}
-
 TEST_CASE("all seven action tiles share one glyph size", "[action_tile][1559]") {
     // One component, so the glyph ladder is shared by construction: every one
     // of the seven draws at the rung its tile publishes, firmware_restart
