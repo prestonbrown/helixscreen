@@ -654,6 +654,48 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     }
 }
 
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a K2 on k2-improvements is named by its bed",
+                 "[printer][build_volume][k2][k2improvements]") {
+    // _START_PRINT_VARS excludes every stock K2 entry, so the mod entries are the
+    // only candidates on a modded K2; the declared bed picks the model among them.
+    // A neutral hostname leaves the bed as the only model evidence.
+    PrinterHardwareData hardware{
+        .heaters = {"extruder", "heater_bed", "heater_generic chamber_heater"},
+        .sensors = {"chamber_temp"},
+        .fans = {"chamber_fan"},
+        .leds = {},
+        .hostname = "creality-k2",
+        .printer_objects = {"box", "motor_control", "fan_feedback", "load_ai", "filament_rack",
+                            "heater_generic chamber_heater", "prtouch_v3",
+                            "gcode_macro _START_PRINT_VARS", "gcode_macro START_PRINT"},
+        .steppers = {},
+        .kinematics = "corexy",
+        .build_volume = {}};
+
+    auto detect_on_bed = [&hardware](float size) {
+        hardware.build_volume = {.declared_bed_x = size, .declared_bed_y = size};
+        return PrinterDetector::detect(hardware);
+    };
+
+    SECTION("a 300mm bed is the K2 Pro") {
+        const auto result = detect_on_bed(300);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin());
+        CHECK(result.type_name == "Creality K2 Pro (k2-improvements)");
+        CHECK(result.margin() >= PrinterDetector::kDetectMinMargin);
+        CHECK(PrinterDetector::meets_autosave_threshold(result));
+    }
+    SECTION("a 350mm bed is the K2 Plus") {
+        const auto result = detect_on_bed(350);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin());
+        CHECK(result.type_name == "Creality K2 Plus (k2-improvements)");
+        CHECK(result.margin() >= PrinterDetector::kDetectMinMargin);
+        CHECK(PrinterDetector::meets_autosave_threshold(result));
+    }
+}
+
 // A corexy printer with the Qidi Max 4 footprint detects as Qidi Max 4, but the
 // same footprint on a cartesian machine must NOT — kinematics_exclude encodes the
 // hard rule that every Qidi is corexy (telemetry-confirmed). Guards against build

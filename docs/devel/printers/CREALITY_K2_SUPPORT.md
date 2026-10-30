@@ -19,9 +19,15 @@ The K2, K2 Pro and K2 Plus use Allwinner ARM Cortex-A7 dual-core processors runn
 covered by [K1 Series Support](CREALITY_K1_SUPPORT.md), where its user-confirmed install is
 recorded. The routing trap is described in `src/printer/ams_backend_cfs.cpp#"AmsBackendCfs::AmsBackendCfs("`.
 
-Detection has an entry for the K2, K2 Pro and K2 Plus (plus the K2 Plus k2-improvements variant),
-all sharing the `k2` preset. They are told apart by the model hostname or by the bed size the
-firmware declares in `gcode_macro product_param` (250-270, 290-310 and 340-360 mm). The base K2
+Detection has an entry for the K2, K2 Pro and K2 Plus, plus k2-improvements variants of the K2 Pro
+and K2 Plus, all sharing the `k2` preset. They are told apart by the model hostname or by the bed
+size the firmware declares in `gcode_macro product_param` (250-270, 290-310 and 340-360 mm); the
+mod's `_START_PRINT_VARS` macro picks the variant pair, and the bed picks the model within it. The
+mod documents only the K2 Plus, and a K2 Pro has been reported running it; with no report from a
+base K2 there is no base K2 variant, so a modded base K2 misses both mod windows and ties them,
+which detection offers as a choice and never saves. The mod
+entries keep `probe_type: prtouch_v3`: Cartographer is optional on the mod, and a real one types
+itself from its own `cartographer` object. The base K2
 entry is the preset's `preset_default`, so a K2 preset install that identifies no K2 machine
 persists "Creality K2". Its image is a copy of the K2 Plus photo until one of the base model exists.
 
