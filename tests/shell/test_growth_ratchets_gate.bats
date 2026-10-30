@@ -143,6 +143,78 @@ EOF
     contains "src/big.cpp is over" "$output"
 }
 
+@test "splitting an over-cap file into two over-cap halves passes; a split that also grows fails" {
+    lines $((2 * CAP + 200)) > "$REPO/src/huge.cpp"
+    rebase_here "huge file"
+    lines $((CAP + 100)) > "$REPO/src/huge.cpp"
+    lines $((CAP + 100)) > "$REPO/src/huge_b.cpp"
+    commit_all "split"
+    ratchets
+    [ "$status" -eq 0 ]
+    echo "int more;" >> "$REPO/src/huge_b.cpp"
+    commit_all "and grow"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/huge_b.cpp is over the $CAP-line cap and grew (new file, $((CAP + 101)) lines; $((CAP + 100)) lines left over-cap files on this branch)" "$output"
+}
+
+@test "a reason-less File-size line does not borrow the next commit's subject as its reason" {
+    echo "int x;" >> "$REPO/src/small.cpp"
+    commit_all "an earlier commit on the branch"
+    echo "int more;" >> "$REPO/src/big.cpp"
+    commit_all "grow" "File-size: src/big.cpp"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/big.cpp is over" "$output"
+}
+
+@test "with no upstream to fork from, the auto base refuses instead of passing" {
+    echo "int more;" >> "$REPO/src/big.cpp"
+    commit_all "grow"
+    git -C "$REPO" branch -qD main
+    run python3 "$GATE" --root "$REPO" --base auto
+    [ "$status" -eq 1 ]
+    contains "no fork point to measure from" "$output"
+}
+
+# The checkout CI makes for a pull request: its merge commit fetched at depth 2,
+# detached, with no branch of the base in the clone.
+pr_checkout() { # <dir>
+    local merge
+    merge=$(git -C "$REPO" commit-tree "$(git -C "$REPO" rev-parse HEAD^{tree})" \
+        -p main -p HEAD -m "Merge PR")
+    git -C "$REPO" update-ref refs/pull/1/merge "$merge"
+    git init -q "$1"
+    git -C "$1" fetch -q --depth 2 "file://$REPO" +refs/pull/1/merge:refs/remotes/pull/1/merge
+    git -C "$1" checkout -q --detach refs/remotes/pull/1/merge
+}
+
+@test "a shallow pull-request checkout refuses until its base is named, then measures the PR" {
+    echo "int more;" >> "$REPO/src/big.cpp"
+    commit_all "grow"
+    pr_checkout "$BATS_TEST_TMPDIR/pr"
+    run python3 "$GATE" --root "$BATS_TEST_TMPDIR/pr" --base auto
+    [ "$status" -eq 1 ]
+    contains "no fork point to measure from" "$output"
+    git -C "$BATS_TEST_TMPDIR/pr" update-ref refs/remotes/origin/main HEAD^1
+    run python3 "$GATE" --root "$BATS_TEST_TMPDIR/pr" --base auto
+    [ "$status" -eq 1 ]
+    contains "src/big.cpp is over the $CAP-line cap and grew" "$output"
+}
+
+@test "Code Quality gives every event a fork point: depth 2 plus the PR's base, full history for claude/**" {
+    run python3 -c "
+import yaml
+steps = yaml.safe_load(open('$BATS_TEST_DIRNAME/../../.github/workflows/quality.yml'))['jobs']['quality-checks']['steps']
+co = next(s for s in steps if str(s.get('uses', '')).startswith('actions/checkout'))
+depth = str(co.get('with', {}).get('fetch-depth', ''))
+assert \"'2'\" in depth and \"'0'\" in depth and 'refs/heads/claude/' in depth, depth
+names = [s.get('run', '') for s in steps if s.get('if') == \"github.event_name == 'pull_request'\"]
+assert any('refs/remotes/origin/\${{ github.base_ref }}\" HEAD^1' in r for r in names), names
+"
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
 @test "non-C++ files are not measured" {
     lines $((CAP + 1)) > "$REPO/src/table.txt"
     lines $((CAP + 1)) > "$REPO/include/generated.inc"
@@ -170,13 +242,36 @@ EOF
     contains "include/panel.h: get_moonraker_api() inside a class that receives Moonraker API grew 0 -> 1" "$output"
 }
 
+# Rebases BASE onto a commit holding the current changes, so the next commit is
+# the branch under test.
+rebase_here() {
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "${1:-base}"
+    BASE=$(git -C "$REPO" rev-parse HEAD)
+}
+
 @test "a class receives a dependency through an out-of-line method's parameter too" {
     printf 'void Plain::bind(const PrinterState& ps) {\n}\n' >> "$REPO/src/ui/panel.cpp"
+    rebase_here "plain takes it"
     inject "void Plain::refresh()" "get_printer_state().touch();"
-    commit_all "plain takes it now"
+    commit_all "plain reaches for the global"
     ratchets
     [ "$status" -eq 1 ]
     contains "get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
+}
+
+@test "a class that starts receiving the dependency on this branch is not judged by it yet" {
+    inject "void Plain::refresh()" "get_printer_state().touch(); get_printer_state().poke();"
+    rebase_here "plain uses the global"
+    printf 'void Plain::bind(PrinterState& ps) {\n}\n' >> "$REPO/src/ui/panel.cpp"
+    commit_all "inject the dependency"
+    ratchets
+    [ "$status" -eq 0 ]
+    inject "void Panel::refresh()" "get_printer_state().touch();"
+    commit_all "an already-receiving class reaches for the global"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/panel.cpp: get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
 }
 
 @test "global access in a static member (inline or out-of-line), a free function, a lambda outside the class, a class without the parameter, or a comment is not counted" {

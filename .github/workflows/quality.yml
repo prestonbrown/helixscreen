@@ -35,10 +35,25 @@ jobs:
     timeout-minutes: 10
 
     steps:
+    # The branch gates (qc_test_budget, qc_growth_ratchets) measure from the
+    # fork point and refuse when none resolves, so each event needs one. A pull
+    # request's merge commit has the base it was merged onto as its first
+    # parent: depth 2 holds it, and the next step names it origin/<base>. A push
+    # to claude/** has no base in the clone at all, so it takes full history
+    # (every branch, origin/main included) to find its merge-base. main and
+    # release/** pushes measure against their own remote ref, which every
+    # checkout sets.
     - name: Checkout repository
       uses: actions/checkout@v6
       with:
         submodules: false
+        fetch-depth: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/claude/')) && '0' || '2' }}
+
+    - name: Name the pull request's base for the branch gates
+      if: github.event_name == 'pull_request'
+      run: |
+        git update-ref "refs/remotes/origin/${{ github.base_ref }}" HEAD^1
+        git log --oneline -1 "origin/${{ github.base_ref }}"
 
     # lib/helix-xml is a submodule, and quality-checks.sh regenerates the XML
     # linter schema from lib/helix-xml/src/xml on its failing-lint path. An
