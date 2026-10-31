@@ -1907,8 +1907,9 @@
 #endif
 
 #if LV_USE_OPENGLES
-/** Check for an OpenGL error after every GL call and log it with the call site. */
-#define LV_USE_OPENGLES_DEBUG 0
+/** Check for an OpenGL error after every GL call and log it with the call site.
+ *  On, as under 9.5: the EGL boards' only report of a failed GL call. */
+#define LV_USE_OPENGLES_DEBUG 1
 
 #endif /*LV_USE_OPENGLES*/
 
