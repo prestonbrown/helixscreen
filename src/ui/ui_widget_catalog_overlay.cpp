@@ -153,8 +153,8 @@ void retire_overlay(lv_obj_t* overlay, const char* tag) {
         return;
     }
     helix::nav::unregister_overlay(overlay);
-    helix::ui::queue_update(tag, [condemned = helix::ui::WeakWidget(
-                                      overlay)]() mutable { // QUEUE_TAG_OK: callers pass literals
+    helix::ui::WeakWidget condemned(overlay);
+    helix::ui::queue_update(tag, [condemned]() mutable { // QUEUE_TAG_OK: callers pass literals
         helix::ui::safe_delete_deferred(condemned);
     });
 }
