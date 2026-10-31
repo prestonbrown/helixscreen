@@ -1032,7 +1032,8 @@ TEST_CASE("Happy Hare eject_lane and clear_fault address one gate or refuse",
             row.op == Op::Eject ? helper.eject_lane(row.slot) : helper.clear_fault(row.slot);
         if (row.result == AmsResult::SUCCESS) {
             CHECK(err.success());
-            CHECK(helper.has_gcode(row.gcode));
+            // Exactly the one command: a gated MMU_RECOVER beside the bare one fails.
+            CHECK(helper.captured_gcodes == std::vector<std::string>{row.gcode});
         } else {
             CHECK_FALSE(err.success());
             CHECK(err.result == row.result);
@@ -3902,6 +3903,17 @@ TEST_CASE("Happy Hare classify_error: which lines it claims, what it says, how t
          "Gate 2 is empty!",
          "",
          {"hh::recover", "hh::unload", "hh::unlock"},
+         {},
+         "hh::resume"},
+        // The same fault with no filament state at all.
+        {"a paused empty gate, no filament state",
+         paused_gate2,
+         true,
+         paused_line("Gate 2 is empty!"),
+         true,
+         "Gate 2 is empty!",
+         "",
+         {},
          {},
          "hh::resume"},
         {"a paused homing failure",

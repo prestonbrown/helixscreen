@@ -1563,6 +1563,13 @@ TEST_CASE_METHOD(SnapmakerFixture,
         INFO("channel_state=" << c.state);
         CHECK(backend.get_system_info().action == c.action);
         CHECK(backend.get_system_info().operation_phase == c.phase);
+
+        // The same frame on lane 2 with no lane active: a present lane reads alike.
+        helix::test::RegisteredBackend<AmsBackendSnapmaker> idle_reg(nullptr, nullptr);
+        SnapmakerTestAccess::handle_status(*idle_reg, make_feed_status(2, c.state));
+        INFO("on lane 2, none active");
+        CHECK(idle_reg->get_system_info().action == c.action);
+        CHECK(idle_reg->get_system_info().operation_phase == c.phase);
     }
 }
 
