@@ -829,23 +829,19 @@ TEST_CASE("CFS cutter found line parses axis and value (#1282)", "[ams][cfs][cal
     CHECK_FALSE(AmsBackendCfs::parse_cut_found_line("", axis, value));
 }
 
+// The UI greys these through moves_machine; the backend refuses whatever gets
+// past. A pause blocks too: both flows home the toolhead by design, which a
+// paused print cannot tolerate.
 TEST_CASE("CFS calibration refuses while a print owns the machine (#1282)", "[ams][cfs][calib]") {
     CfsCalibHelper backend;
 
-    helix::test::set_wire_state(backend.state, helix::PrintJobState::PRINTING);
-    helix::ui::UpdateQueue::instance().drain();
-    CHECK(!backend.calibrate_cutter(nullptr).success());
-    CHECK(!backend.start_chute_calibration(nullptr).success());
-    CHECK(backend.captured.empty());
-
-    // A pause blocks too: both flows home the toolhead by design, which a
-    // paused print cannot tolerate.
-    helix::test::set_wire_state(backend.state, helix::PrintJobState::PAUSED);
-    helix::ui::UpdateQueue::instance().drain();
-    backend.captured.clear();
-    CHECK(!backend.calibrate_cutter(nullptr).success());
-    CHECK(!backend.start_chute_calibration(nullptr).success());
-    CHECK(backend.captured.empty());
+    for (auto state : {helix::PrintJobState::PRINTING, helix::PrintJobState::PAUSED}) {
+        helix::test::set_wire_state(backend.state, state);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(backend.calibrate_cutter(nullptr).user_msg == "Printer is busy with a print");
+        CHECK(backend.start_chute_calibration(nullptr).user_msg == "Printer is busy with a print");
+        CHECK(backend.captured.empty());
+    }
 
     helix::test::set_wire_state(backend.state, helix::PrintJobState::STANDBY);
     helix::ui::UpdateQueue::instance().drain();
@@ -854,28 +850,6 @@ TEST_CASE("CFS calibration refuses while a print owns the machine (#1282)", "[am
     CHECK(backend.captured[0] == "BOX_FIND_CUT_POS");
     // Flush the completion defer before the backend goes out of scope.
     drain_calib_queue();
-}
-
-TEST_CASE("CFS calibration is refused while a print owns the machine (#1282)",
-          "[ams][cfs][calib]") {
-    CfsCalibHelper backend;
-    // The UI greys them through moves_machine; the backend refuses whatever gets past.
-    for (const char* id : {"calibrate_cutter", "calibrate_purge_chute"}) {
-        const auto a = find_action(backend, id);
-        REQUIRE(a.has_value());
-        CHECK(a->moves_machine);
-    }
-
-    for (auto state : {helix::PrintJobState::PRINTING, helix::PrintJobState::PAUSED}) {
-        helix::test::set_wire_state(backend.state, state);
-        helix::ui::UpdateQueue::instance().drain();
-        const AmsError refused = backend.calibrate_cutter(nullptr);
-        CHECK(refused.user_msg == "Printer is busy with a print");
-        CHECK(backend.start_chute_calibration(nullptr).user_msg == "Printer is busy with a print");
-        CHECK(backend.captured.empty());
-    }
-    helix::test::set_wire_state(backend.state, helix::PrintJobState::STANDBY);
-    helix::ui::UpdateQueue::instance().drain();
 }
 
 TEST_CASE("CFS type enum", "[ams][cfs]") {
@@ -4706,21 +4680,54 @@ TEST_CASE("CFS runout: 'no identical supplies' raises one runout fault", "[ams][
     CHECK_FALSE(ev->recovery_actions[1].needs_hot_nozzle);
 }
 
-TEST_CASE("CFS runout: 'disable material automatic refill' raises one runout fault",
-          "[ams][cfs][1250]") {
-    CfsRemapHelper backend;
-
-    auto ev = backend.classify_error("// disable material automatic refill", paused_ctx());
-    REQUIRE(ev.has_value());
-    CHECK(ev->source == helix::ErrorSource::CFS);
-    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
-    CHECK(ev->title == std::string("Filament runout"));
-    // This branch must say WHY nothing happened — auto-refill is switched off.
-    CHECK(ev->detail.find("Auto-Refill is off") != std::string::npos);
-    CHECK(ev->raw_detail == "disable material automatic refill");
-    REQUIRE(ev->recovery_actions.size() == 2);
-    CHECK(ev->recovery_actions[0].gcode == "RESUME");
-    CHECK(ev->recovery_actions[1].gcode == "BOX_ERROR_CLEAR");
+// The give-up lines BOX_CHECK_MATERIAL_REFILL prints, each naming its cause.
+// Matching is by fragment, not sentence: these are untranslated literals from one
+// firmware build and the surrounding words are the least durable part. "no auto
+// refill" (the 2.3.5.34 box_wrapper's terse form) shares no fragment with the
+// long form. "no tray with ingredients found" means a same_material group exists
+// but every member is empty (docs/devel/printer-research/CREALITY_CFS_K1_INTERNALS.md),
+// so it says to load one, not to buy matching filament; like the other strong
+// matches it needs no box latch, so a fresh backend classifies it.
+TEST_CASE("CFS runout: each give-up wording raises one runout fault naming its cause",
+          "[ams][cfs][968][1250]") {
+    struct Row {
+        const char* line;
+        const char* detail_has;
+        const char* raw;
+        const char* detail_lacks;
+    };
+    const Row rows[] = {
+        {"// disable material automatic refill", "Auto-Refill is off",
+         "disable material automatic refill", nullptr},
+        {"// no auto refill", "Auto-Refill is off", "no auto refill", nullptr},
+        {"// no tray with ingredients found", "empty", "no tray with ingredients found",
+         "no matching spool"},
+        {"// No tray with ingredients found!", "empty", nullptr, nullptr},
+        {"// There are no identical supplies available!", "no matching spool", nullptr, nullptr},
+        {"// Material automatic refill is disabled", "Auto-Refill is off", nullptr, nullptr},
+        {"no identical supplies", "no matching spool", "no identical supplies", nullptr},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.line) {
+            CfsRemapHelper backend;
+            auto ev = backend.classify_error(r.line, paused_ctx());
+            REQUIRE(ev.has_value());
+            CHECK(ev->source == helix::ErrorSource::CFS);
+            CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+            CHECK(ev->sticky);
+            CHECK(ev->title == std::string("Filament runout"));
+            CHECK(ev->detail.find(r.detail_has) != std::string::npos);
+            if (r.detail_lacks) {
+                CHECK(ev->detail.find(r.detail_lacks) == std::string::npos);
+            }
+            if (r.raw) {
+                CHECK(ev->raw_detail == r.raw);
+            }
+            REQUIRE(ev->recovery_actions.size() == 2);
+            CHECK(ev->recovery_actions[0].gcode == "RESUME");
+            CHECK(ev->recovery_actions[1].gcode == "BOX_ERROR_CLEAR");
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -4732,44 +4739,47 @@ TEST_CASE("CFS runout: 'disable material automatic refill' raises one runout fau
 // one independent physical witness we have: the toolhead filament switch.
 // ---------------------------------------------------------------------------
 
-TEST_CASE("CFS phase verify: load that never reached the nozzle is caught", "[ams][cfs][968]") {
+// A load must end with filament at the switch and a bay unload without it. A
+// bypass unload has no lane: QUIT_MATERIAL and our fallback pull ~10 mm to clear
+// the melt zone and leave the user to pull the rest, so filament still at the
+// switch is its success; the exemption never covers a load. Until the switch has
+// taken a reading (filament_detected is null at first, and absent on a printer
+// without one) the stored value is a default, not an observation, so nothing is
+// claimed either way. Synthesized sub-phases and non-material actions have no
+// filament end-state contract and are never judged.
+TEST_CASE("CFS phase verify judges load and unload by the toolhead switch",
+          "[ams][cfs][968][bypass]") {
     using V = AmsBackendCfs::PhaseVerdict;
-
-    // The #968 failure: script drained clean, nozzle still empty.
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, /*sensor_ever_read=*/true,
-                                              /*filament_at_end=*/false) ==
-          V::LoadDidNotReachNozzle);
-    // Filament present at the end is the success case.
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, true, true) == V::Ok);
-}
-
-TEST_CASE("CFS phase verify: unload that left filament behind is caught", "[ams][cfs][968]") {
-    using V = AmsBackendCfs::PhaseVerdict;
-
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, true, /*filament_at_end=*/
-                                              true) == V::UnloadLeftFilament);
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, true, false) == V::Ok);
-}
-
-TEST_CASE("CFS phase verify: a bypass unload is not judged by the toolhead switch",
-          "[ams][cfs][bypass]") {
-    using V = AmsBackendCfs::PhaseVerdict;
-
-    // A bay unload reels filament back down its lane, so filament still at the
-    // switch means the cut or retract failed. A bypass unload has no lane: both
-    // QUIT_MATERIAL and our fallback pull ~10 mm to clear the melt zone and
-    // stop, leaving the user to pull the rest. Judging it by the bay rule marked
-    // every bypass unload failed and disarmed the manual-pull prompt with it.
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, /*sensor_ever_read=*/true,
-                                              /*filament_at_end=*/true,
-                                              /*bypass_unload=*/true) == V::Ok);
-    // The bay rule is untouched: same inputs, bypass off, still a failure.
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, true, true,
-                                              /*bypass_unload=*/false) == V::UnloadLeftFilament);
-    // The exemption is scoped to unload. A bypass flag must not launder a load
-    // that never reached the nozzle.
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, true, /*filament_at_end=*/false,
-                                              /*bypass_unload=*/true) == V::LoadDidNotReachNozzle);
+    struct Row {
+        AmsAction op;
+        bool sensor_ever_read;
+        bool filament_at_end;
+        bool bypass_unload;
+        V verdict;
+    };
+    const Row rows[] = {
+        // The #968 failure: script drained clean, nozzle still empty.
+        {AmsAction::LOADING, true, false, false, V::LoadDidNotReachNozzle},
+        {AmsAction::LOADING, true, true, false, V::Ok},
+        {AmsAction::UNLOADING, true, true, false, V::UnloadLeftFilament},
+        {AmsAction::UNLOADING, true, false, false, V::Ok},
+        {AmsAction::UNLOADING, true, true, true, V::Ok},
+        {AmsAction::LOADING, true, false, true, V::LoadDidNotReachNozzle},
+        {AmsAction::LOADING, false, false, false, V::Unverifiable},
+        {AmsAction::LOADING, false, true, false, V::Unverifiable},
+        {AmsAction::UNLOADING, false, true, false, V::Unverifiable},
+    };
+    for (const Row& r : rows) {
+        CAPTURE(static_cast<int>(r.op), r.sensor_ever_read, r.filament_at_end, r.bypass_unload);
+        CHECK(AmsBackendCfs::verify_phase_outcome(r.op, r.sensor_ever_read, r.filament_at_end,
+                                                  r.bypass_unload) == r.verdict);
+    }
+    for (AmsAction op : {AmsAction::IDLE, AmsAction::CUTTING, AmsAction::PURGING,
+                         AmsAction::SELECTING, AmsAction::RESETTING, AmsAction::HEATING}) {
+        CAPTURE(static_cast<int>(op));
+        CHECK(AmsBackendCfs::verify_phase_outcome(op, true, false) == V::Ok);
+        CHECK(AmsBackendCfs::verify_phase_outcome(op, true, true) == V::Ok);
+    }
 }
 
 TEST_CASE("CFS bypass load gcode: LOAD_MATERIAL when the printer defines it",
@@ -4997,36 +5007,6 @@ TEST_CASE("CFS bypass unload completes instead of erroring with filament still d
     CHECK(backend.get_system_info().operation_detail.empty());
 }
 
-TEST_CASE("CFS phase verify: stays silent without a sensor reading", "[ams][cfs][968]") {
-    using V = AmsBackendCfs::PhaseVerdict;
-
-    // Klipper publishes filament_detected as null until the switch takes its
-    // first reading, and a printer without the switch never publishes at all.
-    // last_filament_detected_ is then a DEFAULT, not an observation. Concluding
-    // "load failed" from it would put a modal on every successful load on such
-    // a machine — strictly worse than saying nothing.
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, /*sensor_ever_read=*/false,
-                                              false) == V::Unverifiable);
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, false, true) ==
-          V::Unverifiable);
-    // Even when the default happens to look like success, refuse to claim it.
-    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, false, true) == V::Unverifiable);
-}
-
-TEST_CASE("CFS phase verify: only load and unload are judged", "[ams][cfs][968]") {
-    using V = AmsBackendCfs::PhaseVerdict;
-
-    // The synthesized sub-phases (CUTTING/PURGING) and every non-material
-    // action must never produce a verdict — they are not operations with a
-    // filament end-state contract, and judging them would fire on the
-    // synthesized action rather than the user's actual intent.
-    for (AmsAction op : {AmsAction::IDLE, AmsAction::CUTTING, AmsAction::PURGING,
-                         AmsAction::SELECTING, AmsAction::RESETTING, AmsAction::HEATING}) {
-        CHECK(AmsBackendCfs::verify_phase_outcome(op, true, false) == V::Ok);
-        CHECK(AmsBackendCfs::verify_phase_outcome(op, true, true) == V::Ok);
-    }
-}
-
 TEST_CASE("CFS phase verify: failure verdicts carry actionable wording", "[ams][cfs][968]") {
     using V = AmsBackendCfs::PhaseVerdict;
 
@@ -5187,83 +5167,6 @@ TEST_CASE("CFS phase verify: a good load completes to IDLE with no fault", "[ams
 
     CHECK_FALSE(backend.current_error().has_value());
     CHECK(backend.get_system_info().action == AmsAction::IDLE);
-}
-
-TEST_CASE("CFS runout: terse 'no auto refill' wording is recognized", "[ams][cfs][968]") {
-    CfsRemapHelper backend;
-
-    // Fourth give-up literal, read out of the 2.3.5.34 box_wrapper extension.
-    // It shares nothing with the long-form "disable material automatic refill":
-    // "auto refill" != "automatic refill", and there is no "disab". Before this
-    // it could only ever reach the weak tier, and only with the box latch set.
-    auto ev = backend.classify_error("// no auto refill", paused_ctx());
-    REQUIRE(ev.has_value());
-    CHECK(ev->title == std::string("Filament runout"));
-    CHECK(ev->detail.find("Auto-Refill is off") != std::string::npos);
-    CHECK(ev->raw_detail == "no auto refill");
-    REQUIRE(ev->recovery_actions.size() == 2);
-}
-
-TEST_CASE("CFS runout: 'no tray with ingredients found' raises one runout fault",
-          "[ams][cfs][968]") {
-    CfsRemapHelper backend;
-
-    // The third give-up path, documented in the K1 wrapper RE notes
-    // (docs/devel/printer-research/CREALITY_CFS_K1_INTERNALS.md): a same_material group DOES exist
-    // for the exhausted slot, but none of its members currently has material
-    // sensor presence. Distinct cause from "no identical supplies", which means
-    // no compatible group exists at all.
-    auto ev = backend.classify_error("// no tray with ingredients found", paused_ctx());
-    REQUIRE(ev.has_value());
-    CHECK(ev->source == helix::ErrorSource::CFS);
-    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
-    CHECK(ev->sticky);
-    CHECK(ev->title == std::string("Filament runout"));
-    // Must name the actual situation: the matching slots are empty, so the fix
-    // is loading one of them — not "buy matching filament".
-    CHECK(ev->detail.find("empty") != std::string::npos);
-    // Must NOT be misreported as the no-compatible-material branch.
-    CHECK(ev->detail.find("no matching spool") == std::string::npos);
-    CHECK(ev->raw_detail == "no tray with ingredients found");
-
-    REQUIRE(ev->recovery_actions.size() == 2);
-    CHECK(ev->recovery_actions[0].gcode == "RESUME");
-    CHECK(ev->recovery_actions[1].gcode == AmsBackendCfs::reset_gcode());
-}
-
-TEST_CASE("CFS runout: 'no tray' branch does not need the box latch", "[ams][cfs][968]") {
-    CfsRemapHelper backend;
-
-    // Distinguishes this from the weak-hint tier: that one requires
-    // system_info_.filament_runout to be set. This wording is specific enough
-    // to stand on its own, exactly like the other two strong matches, so a
-    // fresh backend with no box frame parsed yet must still classify it.
-    auto ev = backend.classify_error("// No tray with ingredients found!", paused_ctx());
-    REQUIRE(ev.has_value());
-    CHECK(ev->detail.find("empty") != std::string::npos);
-}
-
-TEST_CASE("CFS runout: matcher survives the sentence being reworded", "[ams][cfs][1250]") {
-    CfsRemapHelper backend;
-
-    // Fragment match, not whole-sentence: these are untranslated literals from
-    // one firmware build and the surrounding words are the least durable part.
-    SECTION("no-match branch, alternate phrasing") {
-        auto ev =
-            backend.classify_error("// There are no identical supplies available!", paused_ctx());
-        REQUIRE(ev.has_value());
-        CHECK(ev->detail.find("no matching spool") != std::string::npos);
-    }
-    SECTION("refill-off branch, alternate phrasing") {
-        auto ev = backend.classify_error("// Material automatic refill is disabled", paused_ctx());
-        REQUIRE(ev.has_value());
-        CHECK(ev->detail.find("Auto-Refill is off") != std::string::npos);
-    }
-    SECTION("bare line with no // prefix still matches") {
-        auto ev = backend.classify_error("no identical supplies", paused_ctx());
-        REQUIRE(ev.has_value());
-        CHECK(ev->raw_detail == "no identical supplies");
-    }
 }
 
 TEST_CASE("CFS runout: weak-hint fallback needs the box latch AND a pause", "[ams][cfs][1250]") {
