@@ -466,10 +466,12 @@ full-test-run:
 # and the moonraker plugin tests, and the generated-artefact freshness checks.
 # The C++ lane goes to the test host as full-test-run's does (TEST_HOST); the
 # rest run here in parallel. Prints a PASS/FAIL table; scripts/land-gate.sh.
+# STAGES=ui,bats reruns only those steps on the commit the last run judged and
+# merges their verdicts into its table.
 CI_SHARDS ?= 8
 
 land-gate:
-	$(Q)TEST_HOST="$(TEST_HOST)" CI_SHARDS="$(CI_SHARDS)" MAKE="$(MAKE)" scripts/land-gate.sh
+	$(Q)TEST_HOST="$(TEST_HOST)" CI_SHARDS="$(CI_SHARDS)" MAKE="$(MAKE)" scripts/land-gate.sh $(if $(STAGES),--rerun "$(STAGES)")
 
 # ----------------------------------------------------------------------------
 # test-run: a signpost that refuses
