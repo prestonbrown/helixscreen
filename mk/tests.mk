@@ -1133,8 +1133,12 @@ TSAN_OBJ_DIR := $(BUILD_DIR)/obj-tsan
 # so they beat the `:=` assignments in the top-level Makefile. BIN_DIR is left
 # shared deliberately — the binaries already have distinct names, and keeping it
 # stable means $(TEST_ASAN_BIN) resolves to the same path in both makes.
+# ASan instruments the submodules too: a freed widget is nearly always read inside
+# LVGL's own C, which an uninstrumented build never reports.
 ASAN_MAKE_OVERRIDES := OBJ_DIR=$(ASAN_OBJ_DIR) \
-	CXXFLAGS='$(CXXFLAGS) $(ASAN_FLAGS)' LDFLAGS='$(LDFLAGS) $(ASAN_FLAGS)'
+	CXXFLAGS='$(CXXFLAGS) $(ASAN_FLAGS)' LDFLAGS='$(LDFLAGS) $(ASAN_FLAGS)' \
+	SUBMODULE_CFLAGS='$(SUBMODULE_CFLAGS) $(ASAN_FLAGS)' \
+	SUBMODULE_CXXFLAGS='$(SUBMODULE_CXXFLAGS) $(ASAN_FLAGS)'
 # TSan also instruments the submodules. LVGL's draw-task handshake is C atomics in
 # lv_draw.c and lv_draw_sw.c; left uninstrumented, TSan sees none of that ordering
 # but still sees the memcpy and free interceptors either side of it, and reports
