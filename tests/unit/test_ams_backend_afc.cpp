@@ -46,6 +46,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -644,12 +645,10 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
 // AFC version is informational only
 // ============================================================================
 //
-// version_at_least() is gone. AFC removed the code that writes the afc-install
-// Moonraker namespace in its commit 7d20db7 (#451, 2025-06-16), so the version
-// string is either absent or frozen at whatever it was before that date. A live
-// BoxTurtle reported "1.0.0" on 2026-07-26 while its payload proved 1.0.32-era.
-// Capabilities are feature-detected from the data; these tests pin that no
-// behavior keys off the reported version.
+// Nothing in AFC writes the afc-install Moonraker namespace (AFC #451), so the
+// version string there is absent or frozen: a BoxTurtle whose payload is
+// 1.0.32-era reports "1.0.0". Capabilities are feature-detected from the data;
+// these tests pin that no behavior keys off the reported version.
 
 TEST_CASE("AFC persistence is independent of the reported version", "[ams][afc][version]") {
     for (const char* version : {"1.0.0", "1.0.19", "unknown", "", "9.9.9"}) {
@@ -665,15 +664,12 @@ TEST_CASE("AFC persistence is independent of the reported version", "[ams][afc][
         info.spoolman_id = 42;
         helix::test::apply_edit(helper, 0, info);
 
-        // Every version, including the ones that used to be gated out, must
-        // persist through G-code. Skipping this was issue #644.
-        REQUIRE_FALSE(helper.captured_gcodes.empty());
-        bool saw_spool_id = false;
-        for (const auto& g : helper.captured_gcodes) {
-            if (g.find("SET_SPOOL_ID") != std::string::npos)
-                saw_spool_id = true;
-        }
-        REQUIRE(saw_spool_id);
+        // "1.0.0" is what a BoxTurtle running v1.1.0-4 reports: nothing writes the
+        // afc-install namespace, so a version gate silently drops every save (#644).
+        CHECK(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=FF0000"));
+        CHECK(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=PLA"));
+        CHECK(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=850"));
+        CHECK(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42"));
     }
 }
 
@@ -681,165 +677,122 @@ TEST_CASE("AFC persistence is independent of the reported version", "[ams][afc][
 // compute_filament_segment_unlocked() - Sensor-to-Segment Mapping Tests
 // ============================================================================
 
-TEST_CASE("AFC segment: no sensors triggered returns NONE", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
+// The furthest point the sensors place the active filament. Toolhead sensors
+// beat the hub, the hub beats the lane sensors, and the end sensor alone means
+// NOZZLE. Without a current lane (or with one not in the map) every lane is
+// scanned in index order and the first lane with any sensor wins, load before
+// prep within a lane. The latched loaded_to_hub field is never a position: it
+// reads true on every prepped lane forever. Filament flagged loaded or a slot
+// selected with no sensor at all reads SPOOL.
+TEST_CASE("AFC segment follows the furthest triggered sensor", "[ams][afc][segment]") {
+    using H = AmsBackendAfcTestHelper;
+    struct Row {
+        const char* name;
+        std::function<void(H&)> setup;
+        PathSegment expected;
+        bool with_units = false; // the named-hub rows need the unit layout
+    };
+    const Row rows[] = {
+        {"no sensors", [](H&) {}, PathSegment::NONE},
+        {"loaded flag, no sensors", [](H& h) { h.set_filament_loaded(true); }, PathSegment::SPOOL},
+        {"current slot, no sensors", [](H& h) { h.set_current_slot(0); }, PathSegment::SPOOL},
+        {"prep",
+         [](H& h) {
+             h.set_current_lane("lane1");
+             h.set_lane_prep_sensor(0, true);
+         },
+         PathSegment::PREP},
+        {"prep and load",
+         [](H& h) {
+             h.set_current_lane("lane1");
+             h.set_lane_prep_sensor(0, true);
+             h.set_lane_load_sensor(0, true);
+         },
+         PathSegment::LANE},
+        {"hub sensor",
+         [](H& h) {
+             h.set_current_lane("lane1");
+             h.set_lane_loaded_to_hub(0, true);
+             h.set_hub_sensor(true);
+         },
+         PathSegment::OUTPUT},
+        {"hub beats every lane sensor",
+         [](H& h) {
+             h.set_current_lane("lane1");
+             h.set_lane_prep_sensor(0, true);
+             h.set_lane_load_sensor(0, true);
+             h.set_lane_loaded_to_hub(0, true);
+             h.set_hub_sensor(true);
+         },
+         PathSegment::OUTPUT},
+        {"tool start beats the hub",
+         [](H& h) {
+             h.set_hub_sensor(true);
+             h.set_tool_start_sensor(true);
+         },
+         PathSegment::TOOLHEAD},
+        {"tool end",
+         [](H& h) {
+             h.set_hub_sensor(true);
+             h.set_tool_start_sensor(true);
+             h.set_tool_end_sensor(true);
+         },
+         PathSegment::NOZZLE},
+        {"tool end alone", [](H& h) { h.set_tool_end_sensor(true); }, PathSegment::NOZZLE},
+        {"scan finds prep", [](H& h) { h.set_lane_prep_sensor(2, true); }, PathSegment::PREP},
+        {"scan finds load", [](H& h) { h.set_lane_load_sensor(1, true); }, PathSegment::LANE},
+        {"scan reaches the last lane", [](H& h) { h.set_lane_load_sensor(3, true); },
+         PathSegment::LANE},
+        {"scan stops at the first lane with a sensor",
+         [](H& h) {
+             h.set_lane_prep_sensor(0, true);
+             h.set_lane_load_sensor(1, true);
+         },
+         PathSegment::PREP},
+        {"scan takes load before prep within a lane",
+         [](H& h) {
+             h.set_lane_load_sensor(0, true);
+             h.set_lane_prep_sensor(0, true);
+         },
+         PathSegment::LANE},
+        {"a current lane not in the map scans",
+         [](H& h) {
+             h.set_current_lane("nonexistent");
+             h.set_lane_prep_sensor(0, true);
+         },
+         PathSegment::PREP},
+        {"latched loaded_to_hub with the hub clear",
+         [](H& h) {
+             h.set_hub_sensor("Turtle_1", false);
+             h.set_lane_loaded_to_hub(0, true);
+             h.set_lane_load_sensor(0, true);
+             h.set_lane_prep_sensor(0, true);
+         },
+         PathSegment::LANE, true},
+        {"named hub sensor triggered",
+         [](H& h) {
+             h.set_lane_loaded_to_hub(0, false);
+             h.set_hub_sensor("Turtle_1", true);
+         },
+         PathSegment::OUTPUT, true},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            H helper;
+            if (r.with_units) {
+                helper.initialize_test_lanes_with_slots(4);
+            } else {
+                helper.initialize_test_lanes(4);
+            }
+            r.setup(helper);
+            CHECK(helper.test_compute_filament_segment() == r.expected);
+        }
+    }
 
-    // No sensors triggered, no filament loaded, no current slot
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::NONE);
-}
-
-TEST_CASE("AFC segment: filament loaded flag returns SPOOL when no sensors",
-          "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_filament_loaded(true);
-
-    // Filament is "loaded" but no sensors triggered - implies at spool
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::SPOOL);
-}
-
-TEST_CASE("AFC segment: current slot set returns SPOOL when no sensors", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_current_slot(0);
-
-    // A slot is selected but no sensors - filament at spool area
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::SPOOL);
-}
-
-TEST_CASE("AFC segment: prep sensor triggered returns PREP", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_current_lane("lane1");
-    helper.set_lane_prep_sensor(0, true);
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::PREP);
-}
-
-TEST_CASE("AFC segment: prep and load sensors return LANE", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_current_lane("lane1");
-    helper.set_lane_prep_sensor(0, true);
-    helper.set_lane_load_sensor(0, true);
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::LANE);
-}
-
-TEST_CASE("AFC segment: hub_sensor returns OUTPUT", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_current_lane("lane1");
-    helper.set_lane_loaded_to_hub(0, true);
-    helper.set_hub_sensor(true);
-
-    // Hub sensor indicates filament past the hub merger, heading to toolhead
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::OUTPUT);
-}
-
-TEST_CASE("AFC segment: tool_start_sensor returns TOOLHEAD", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_hub_sensor(true);
-    helper.set_tool_start_sensor(true);
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::TOOLHEAD);
-}
-
-TEST_CASE("AFC segment: tool_end_sensor returns NOZZLE", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_hub_sensor(true);
-    helper.set_tool_start_sensor(true);
-    helper.set_tool_end_sensor(true);
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::NOZZLE);
-}
-
-TEST_CASE("AFC segment: tool_end_sensor alone returns NOZZLE (overrides all)",
-          "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    // Only end sensor, no others - still returns NOZZLE as it's furthest
-    helper.set_tool_end_sensor(true);
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::NOZZLE);
-}
-
-TEST_CASE("AFC segment: fallback scans all lanes for prep sensor", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    // No current lane set, but lane3 has prep sensor triggered
-    helper.set_lane_prep_sensor(2, true); // lane3 is index 2
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::PREP);
-}
-
-TEST_CASE("AFC segment: fallback scans all lanes for load sensor", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    // No current lane set, but lane2 has load sensor triggered
-    helper.set_lane_load_sensor(1, true); // lane2 is index 1
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::LANE);
-}
-
-TEST_CASE("AFC segment: fallback scans all lanes for load sensor on the last lane",
-          "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    // No current lane set, but lane4 (the last lane scanned) has load triggered
-    helper.set_lane_load_sensor(3, true); // lane4 is index 3
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::LANE);
-}
-
-TEST_CASE("AFC segment: hub sensor takes priority over lane sensors", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_current_lane("lane1");
-    helper.set_lane_prep_sensor(0, true);
-    helper.set_lane_load_sensor(0, true);
-    helper.set_lane_loaded_to_hub(0, true);
-    helper.set_hub_sensor(true);
-
-    // Hub sensor should return OUTPUT even with all lane sensors triggered
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::OUTPUT);
-}
-
-TEST_CASE("AFC segment: toolhead sensors take priority over hub", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.set_hub_sensor(true);
-    helper.set_tool_start_sensor(true);
-
-    // tool_start_sensor should return TOOLHEAD even with hub sensor triggered
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::TOOLHEAD);
-}
-
-TEST_CASE("AFC segment ignores the latched loaded_to_hub field", "[ams][afc][segment]") {
-    // loaded_to_hub reads true on every prepped lane forever, so deriving HUB from
-    // it reported filament at the hub for lanes holding nothing in the bowden.
-    // On AFC there is no observable "at hub" state distinct from OUTPUT: the hub
-    // sensor is the transition, and below it the lane load sensor is authoritative.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.set_hub_sensor("Turtle_1", false);
-    helper.set_lane_loaded_to_hub(0, true);
-    helper.set_lane_load_sensor(0, true);
-    helper.set_lane_prep_sensor(0, true);
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::LANE);
-}
-
-TEST_CASE("AFC segment reports OUTPUT when the hub sensor is triggered", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.set_lane_loaded_to_hub(0, false);
-    helper.set_hub_sensor("Turtle_1", true);
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::OUTPUT);
+    SECTION("no lanes initialized") {
+        H helper;
+        CHECK(helper.test_compute_filament_segment() == PathSegment::NONE);
+    }
 }
 
 TEST_CASE("AFC get_slot_filament_segment ignores the latched loaded_to_hub field "
@@ -860,54 +813,6 @@ TEST_CASE("AFC get_slot_filament_segment ignores the latched loaded_to_hub field
     // Slot 0 is not the active slot (current_slot defaults to -1), so this
     // exercises the non-active-slot branch of get_slot_filament_segment().
     REQUIRE(helper.get_slot_filament_segment(0) == PathSegment::LANE);
-}
-
-// ============================================================================
-// Edge Cases
-// ============================================================================
-
-TEST_CASE("AFC segment: no lanes initialized returns NONE", "[ams][afc][segment][edge]") {
-    AmsBackendAfcTestHelper helper;
-    // Don't call initialize_test_lanes - no lanes configured
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::NONE);
-}
-
-TEST_CASE("AFC segment: current lane not in map uses fallback scan", "[ams][afc][segment][edge]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    // Set a lane name that doesn't exist in the map
-    helper.set_current_lane("nonexistent");
-    helper.set_lane_prep_sensor(0, true);
-
-    // Should fall back to scanning all lanes
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::PREP);
-}
-
-TEST_CASE("AFC segment: multiple lanes with sensors uses first match in order",
-          "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    // Multiple lanes have sensors triggered, but no current lane set.
-    // The algorithm iterates through lanes in index order and returns on the
-    // first sensor found, not the furthest segment across all lanes.
-    helper.set_lane_prep_sensor(0, true);
-    helper.set_lane_load_sensor(1, true);
-
-    // Lane 0: load=false, prep=true -> returns PREP immediately, even though
-    // lane 1 holds LANE, a segment further along the path.
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::PREP);
-}
-
-TEST_CASE("AFC segment: fallback prioritizes load over prep per-lane", "[ams][afc][segment]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    // Lane 0 has both load and prep triggered. load is checked before prep for
-    // each individual lane, so it must win even though prep is also true.
-    helper.set_lane_load_sensor(0, true);
-    helper.set_lane_prep_sensor(0, true);
-
-    REQUIRE(helper.test_compute_filament_segment() == PathSegment::LANE);
 }
 
 // ============================================================================
@@ -983,177 +888,75 @@ TEST_CASE("AFC segment: works with discovered lanes", "[ams][afc][discovery][seg
 }
 
 // ============================================================================
-// apply_user_edit() Persistence Tests - AFC >= 1.0.20
+// apply_user_edit() persistence
 // ============================================================================
 //
-// These tests verify that apply_user_edit() sends the appropriate G-code commands
-// to persist filament properties when AFC version >= 1.0.20.
-//
-// Commands expected:
-// - SET_COLOR LANE=<name> COLOR=<RRGGBB>
-// - SET_MATERIAL LANE=<name> MATERIAL=<type>
-// - SET_WEIGHT LANE=<name> WEIGHT=<grams>
-// - SET_SPOOL_ID LANE=<name> SPOOL_ID=<id>
-//
-// Testing approach: Since MoonrakerAPI::execute_gcode() is not virtual,
-// the test helper captures G-code via the protected execute_gcode() method
-// that AmsBackendAfc exposes. The implementation must call execute_gcode()
-// for these tests to pass.
+// An edit reaches AFC as SET_COLOR / SET_MATERIAL / SET_WEIGHT / SET_SPOOL_ID
+// LANE=<name> through the backend's execute_gcode(), which the helper captures.
 // ============================================================================
 
-// Inverted deliberately. This used to assert that an "old" version suppressed
-// persistence; the version is not a usable signal (AFC stopped writing it), and
-// suppressing G-code on an unrecognized version was issue #644 — spool
-// assignment silently bypassed AFC. persist=false remains the only way to skip.
-TEST_CASE("AFC persistence: persist=false is the only thing that skips G-code",
-          "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
+// One edited field, the write it produces. Colours go out as uppercase hex with
+// no '#', and pure black is a deliberate pick that persists while the default
+// grey does not (#1597). Materials keep their punctuation and are quoted when
+// they hold a space, since Klipper splits extended-command args on whitespace.
+// Weights go out as whole grams; zero or unknown sends nothing. A spool-link
+// clear sends an empty SPOOL_ID, and an unlinked lane staying unlinked sends
+// nothing.
+TEST_CASE("AFC persistence writes each edited field in AFC's format", "[ams][afc][persistence]") {
+    struct Row {
+        const char* name;
+        int slot;
+        int linked_spool;
+        std::function<void(SlotInfo&)> edit;
+        const char* sent;     // must appear, or nullptr
+        const char* not_sent; // no command with this prefix, or nullptr
+    };
+    const Row rows[] = {
+        {"colour", 0, 0, [](SlotInfo& i) { i.color_rgb = 0xFF0000; },
+         "SET_COLOR LANE=lane1 COLOR=FF0000", nullptr},
+        {"colour on another lane", 1, 0, [](SlotInfo& i) { i.color_rgb = 0x00FF00; },
+         "SET_COLOR LANE=lane2 COLOR=00FF00", nullptr},
+        {"pure black", 0, 0, [](SlotInfo& i) { i.color_rgb = 0x000000; },
+         "SET_COLOR LANE=lane1 COLOR=000000", nullptr},
+        {"default grey", 0, 0, [](SlotInfo& i) { i.color_rgb = 0x808080; }, nullptr, "SET_COLOR"},
+        {"material", 1, 0, [](SlotInfo& i) { i.material = "PLA"; },
+         "SET_MATERIAL LANE=lane2 MATERIAL=PLA", nullptr},
+        {"material with punctuation", 0, 0, [](SlotInfo& i) { i.material = "PLA+"; },
+         "SET_MATERIAL LANE=lane1 MATERIAL=PLA+", nullptr},
+        {"multi-word material", 0, 0, [](SlotInfo& i) { i.material = "Silk PLA"; },
+         "SET_MATERIAL LANE=lane1 MATERIAL=\"Silk PLA\"", nullptr},
+        {"empty material", 0, 0, [](SlotInfo& i) { i.material = ""; }, nullptr, "SET_MATERIAL"},
+        {"fractional weight", 0, 0, [](SlotInfo& i) { i.remaining_weight_g = 850.5f; },
+         "SET_WEIGHT LANE=lane1 WEIGHT=850", nullptr},
+        {"zero weight", 0, 0, [](SlotInfo& i) { i.remaining_weight_g = 0; }, nullptr, "SET_WEIGHT"},
+        {"unknown weight", 0, 0, [](SlotInfo& i) { i.remaining_weight_g = -1; }, nullptr,
+         "SET_WEIGHT"},
+        {"spool link", 0, 0, [](SlotInfo& i) { i.spoolman_id = 42; },
+         "SET_SPOOL_ID LANE=lane1 SPOOL_ID=42", nullptr},
+        {"spool link cleared", 0, 123, [](SlotInfo& i) { i.spoolman_id = 0; },
+         "SET_SPOOL_ID LANE=lane1 SPOOL_ID=", nullptr},
+        {"unlinked stays unlinked", 0, 0, [](SlotInfo& i) { i.spoolman_id = 0; }, nullptr,
+         "SET_SPOOL_ID"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            AmsBackendAfcTestHelper helper;
+            helper.initialize_test_lanes_with_slots(4);
+            helper.get_mutable_slot(r.slot)->spoolman_id = r.linked_spool;
 
-    helper.set_afc_version("1.0.19"); // Formerly below the 1.0.20 gate
-    helper.initialize_test_lanes_with_slots(4);
+            SlotInfo info;
+            r.edit(info);
+            AmsError err = helix::test::apply_edit(helper, r.slot, info);
 
-    SlotInfo info;
-    info.color_rgb = 0xFF0000; // Red
-    info.material = "PLA";
-    info.remaining_weight_g = 850;
-    info.spoolman_id = 42;
-
-    helper.sync_external_identity(0, info);
-    REQUIRE(helper.captured_gcodes.empty());
-
-    helix::test::apply_edit(helper, 0, info);
-    REQUIRE_FALSE(helper.captured_gcodes.empty());
-    REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=FF0000"));
-    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=PLA"));
-    REQUIRE(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=850"));
-    REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42"));
-}
-
-TEST_CASE("AFC persistence: SET_COLOR command format", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0xFF0000; // Red
-
-    helix::test::apply_edit(helper, 0, info);
-
-    // Should send: SET_COLOR LANE=lane1 COLOR=FF0000
-    REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=FF0000"));
-}
-
-TEST_CASE("AFC persistence: SET_COLOR uppercase hex no prefix", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0x00FF00; // Green
-
-    helix::test::apply_edit(helper, 1, info);
-
-    // Should send: SET_COLOR LANE=lane2 COLOR=00FF00 (uppercase, no #)
-    REQUIRE(helper.has_gcode("SET_COLOR LANE=lane2 COLOR=00FF00"));
-}
-
-TEST_CASE("AFC persistence: SET_MATERIAL command format", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.material = "PLA";
-
-    helix::test::apply_edit(helper, 1, info);
-
-    // Should send: SET_MATERIAL LANE=lane2 MATERIAL=PLA
-    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane2 MATERIAL=PLA"));
-}
-
-TEST_CASE("AFC persistence: SET_WEIGHT command format", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.remaining_weight_g = 850.5f; // Should be sent as integer
-
-    helix::test::apply_edit(helper, 0, info);
-
-    // Should send: SET_WEIGHT LANE=lane1 WEIGHT=850 (no decimals)
-    REQUIRE(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=850"));
-}
-
-TEST_CASE("AFC persistence: SET_SPOOL_ID command format", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.spoolman_id = 42;
-
-    helix::test::apply_edit(helper, 0, info);
-
-    // Should send: SET_SPOOL_ID LANE=lane1 SPOOL_ID=42
-    REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42"));
-}
-
-TEST_CASE("AFC persistence: SET_SPOOL_ID clear with empty string", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    // Pre-set existing spoolman_id on slot
-    SlotInfo* existing_slot = helper.get_mutable_slot(0);
-    REQUIRE(existing_slot != nullptr);
-    existing_slot->spoolman_id = 123;
-
-    // Now clear it by setting spoolman_id = 0
-    SlotInfo new_info;
-    new_info.spoolman_id = 0;
-
-    helix::test::apply_edit(helper, 0, new_info);
-
-    // Should send: SET_SPOOL_ID LANE=lane1 SPOOL_ID= (empty to clear)
-    REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID="));
-}
-
-// Persistence must NOT be gated on the afc-install database version.
-//
-// Nothing in the AFC source writes the Moonraker `afc-install` namespace, so it
-// is never updated on upgrade. A BoxTurtle running v1.1.0-4-g2921371 still
-// reports {"version": "1.0.0"} there. The old gate was
-// version_at_least("1.0.20"), which on that reading silently skipped EVERY
-// SET_COLOR / SET_MATERIAL / SET_WEIGHT / SET_SPOOL_ID and logged only an
-// "upgrade for persistence" info line. Saves survived purely because the DB
-// query often lost the race and fell into the "unknown" escape hatch (#644).
-// A stale-but-successful read is the dangerous case: total silent data loss.
-TEST_CASE("AFC persistence: a stale afc-install version does not suppress gcode",
-          "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    // Exactly what the .112 BoxTurtle's afc-install namespace reports today,
-    // while actually running v1.1.0-4.
-    helper.set_afc_version("1.0.0");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.material = "PLA";
-    info.color_rgb = 0xE53935;
-    info.remaining_weight_g = 500.0f;
-
-    helix::test::apply_edit(helper, 0, info);
-
-    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=PLA"));
-    REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=E53935"));
-    REQUIRE(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=500"));
+            CHECK(err.success());
+            if (r.sent) {
+                CHECK(helper.has_gcode(r.sent));
+            }
+            if (r.not_sent) {
+                CHECK_FALSE(helper.has_gcode_starting_with(r.not_sent));
+            }
+        }
+    }
 }
 
 // On AFC, SET_SPOOL_ID with an empty value is not a narrow unlink: AFC_spool.py's
@@ -1249,6 +1052,8 @@ TEST_CASE("AFC persistence: SET_MAP fires when an edit changes mapped_tool",
     helix::test::apply_edit(helper, 0, info);
 
     REQUIRE(helper.has_gcode("SET_MAP LANE=lane1 MAP=T2"));
+    // so a later T2 resolves to this lane
+    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
 }
 
 TEST_CASE("AFC persistence: SET_MAP not fired when mapped_tool unchanged",
@@ -1292,128 +1097,6 @@ TEST_CASE("AFC persistence: SET_MAP not fired when caller leaves mapped_tool def
     REQUIRE(helper.get_slot_mapped_tool(2) == 2);
 }
 
-TEST_CASE("AFC persistence: mapped_tool change updates registry reverse map",
-          "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    // Remap slot 0 from T0 → T2 via the slot edit path. Registry should reflect it
-    // so future tool-changes (T2 → which slot?) resolve correctly.
-    SlotInfo info;
-    info.mapped_tool = 2;
-    helix::test::apply_edit(helper, 0, info);
-
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-}
-
-TEST_CASE("AFC persistence: sends gcode even with unknown version", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("unknown");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.spoolman_id = 42;
-    info.material = "PLA";
-    info.color_rgb = 0xFF0000;
-    info.remaining_weight_g = 800.0f;
-
-    helix::test::apply_edit(helper, 0, info);
-
-    // Unknown version should still attempt gcode (SET_SPOOL_ID existed before 1.0.20)
-    REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42"));
-}
-
-TEST_CASE("AFC persistence: sends gcode with empty version", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.spoolman_id = 42;
-
-    helix::test::apply_edit(helper, 0, info);
-
-    REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42"));
-}
-
-TEST_CASE("AFC persistence: skips SET_COLOR for default grey", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0x808080; // Default grey - should NOT send
-
-    helix::test::apply_edit(helper, 0, info);
-
-    // Should NOT send SET_COLOR for grey default
-    // PASSES: no G-code sent at all currently
-    REQUIRE_FALSE(helper.has_gcode_starting_with("SET_COLOR"));
-}
-
-// Pure black is a deliberate user pick, not an absence of colour — skipping it
-// leaves AFC's lane record on the previous colour (prestonbrown/helixscreen#1597).
-TEST_CASE("AFC persistence: dispatches SET_COLOR for pure black", "[ams][afc][persistence][1597]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0x000000; // Pure black
-
-    helix::test::apply_edit(helper, 0, info);
-
-    REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=000000"));
-}
-
-TEST_CASE("AFC persistence: SET_MATERIAL carries material names with punctuation",
-          "[ams][afc][persistence]") {
-    // Bundle XGVDYEB5: "Skipping SET_MATERIAL - unsafe characters in: PLA+".
-    // The gate was is_safe_gcode_param() -> is_safe_identifier(), charset
-    // [A-Za-z0-9_ ] — so `PLA+`, which HelixScreen offers from its own
-    // filament_database.h, could never be persisted. The other four G-codes went
-    // out and apply_user_edit() still returned success: a silent partial write.
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.material = "PLA+";
-
-    AmsError err = helix::test::apply_edit(helper, 0, info);
-
-    REQUIRE(helper.gcode_index_of("SET_MATERIAL LANE=lane1") >= 0);
-    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=PLA+"));
-    REQUIRE(err.success());
-}
-
-TEST_CASE("AFC persistence: SET_MATERIAL quotes multi-word material names",
-          "[ams][afc][persistence]") {
-    // `Silk PLA` and `Matte PLA` ship in filament_database.h too. They passed the
-    // old identifier check (which allows space) and were sent raw — Klipper
-    // tokenizes extended-command args on whitespace, so `MATERIAL=Silk PLA`
-    // arrives as two tokens and the command is rejected as malformed. Quote it.
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.material = "Silk PLA";
-
-    AmsError err = helix::test::apply_edit(helper, 0, info);
-
-    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=\"Silk PLA\""));
-    REQUIRE(err.success());
-}
-
 TEST_CASE("AFC persistence: an unsendable material is reported, not swallowed",
           "[ams][afc][persistence]") {
     // A material that genuinely cannot be expressed as a G-code parameter still
@@ -1435,46 +1118,6 @@ TEST_CASE("AFC persistence: an unsendable material is reported, not swallowed",
     REQUIRE(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=750"));
     REQUIRE_FALSE(err.success());
     REQUIRE(err.result == AmsResult::COMMAND_FAILED);
-}
-
-TEST_CASE("AFC persistence: skips SET_MATERIAL for empty string", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.material = ""; // Empty - should NOT send
-
-    helix::test::apply_edit(helper, 0, info);
-
-    // Should NOT send SET_MATERIAL for empty
-    // PASSES: no G-code sent at all currently
-    REQUIRE_FALSE(helper.has_gcode_starting_with("SET_MATERIAL"));
-}
-
-TEST_CASE("AFC persistence: skips SET_WEIGHT for zero or negative", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SECTION("zero weight") {
-        SlotInfo info;
-        info.remaining_weight_g = 0;
-        helix::test::apply_edit(helper, 0, info);
-        // PASSES: no G-code sent at all currently
-        REQUIRE_FALSE(helper.has_gcode_starting_with("SET_WEIGHT"));
-    }
-
-    SECTION("negative weight (unknown)") {
-        helper.clear_captured_gcodes();
-        SlotInfo info;
-        info.remaining_weight_g = -1;
-        helix::test::apply_edit(helper, 0, info);
-        // PASSES: no G-code sent at all currently
-        REQUIRE_FALSE(helper.has_gcode_starting_with("SET_WEIGHT"));
-    }
 }
 
 namespace {
@@ -1562,46 +1205,6 @@ TEST_CASE_METHOD(AfcLockedLaneFixture, "AFC weight update without persist writes
     CHECK(record().remaining_weight_g == Catch::Approx(recorded_before));
 }
 
-TEST_CASE("AFC persistence: skips SET_SPOOL_ID when both old and new are zero",
-          "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    // Slot starts with spoolman_id = 0 (default)
-    SlotInfo info;
-    info.spoolman_id = 0;
-
-    helix::test::apply_edit(helper, 0, info);
-
-    // Should NOT send SET_SPOOL_ID when both old and new are 0
-    // PASSES: no G-code sent at all currently
-    REQUIRE_FALSE(helper.has_gcode_starting_with("SET_SPOOL_ID"));
-}
-
-TEST_CASE("AFC persistence: sends multiple commands for full slot info",
-          "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0x0000FF; // Blue
-    info.material = "PETG";
-    info.remaining_weight_g = 750;
-    info.spoolman_id = 99;
-
-    helix::test::apply_edit(helper, 0, info);
-
-    // Should send all four commands
-    REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=0000FF"));
-    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=PETG"));
-    REQUIRE(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=750"));
-    REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=99"));
-}
-
 // ============================================================================
 // sync_external_identity() Tests
 // ============================================================================
@@ -1622,7 +1225,8 @@ TEST_CASE("AFC persist=false: updates local state without G-code",
           "[ams][afc][persistence][persist_flag]") {
     AmsBackendAfcTestHelper helper;
 
-    helper.set_afc_version("1.0.20");
+    // on any version, old ones included (#644)
+    helper.set_afc_version("1.0.19");
     helper.initialize_test_lanes_with_slots(4);
 
     SlotInfo info;
@@ -1630,9 +1234,10 @@ TEST_CASE("AFC persist=false: updates local state without G-code",
     info.material = "PLA";
     info.remaining_weight_g = 850;
     info.spoolman_id = 42;
+    info.spoolman_filament_id = 77;
+    info.spoolman_vendor_id = 3;
 
-    // persist=false should NOT send any G-code
-    helper.sync_external_identity(0, info);
+    REQUIRE(helper.sync_external_identity(0, info).success());
 
     REQUIRE(helper.captured_gcodes.empty());
 
@@ -1642,126 +1247,58 @@ TEST_CASE("AFC persist=false: updates local state without G-code",
     REQUIRE(stored.material == "PLA");
     REQUIRE(stored.remaining_weight_g == Catch::Approx(850.0f));
     REQUIRE(stored.spoolman_id == 42);
-}
-
-TEST_CASE("AFC sync_external_identity carries the whole Spoolman link", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.spoolman_id = 42;
-    info.spoolman_filament_id = 77;
-    info.spoolman_vendor_id = 3;
-    helper.sync_external_identity(0, info);
-
-    const SlotInfo stored = helper.get_slot_info(0);
+    // the whole Spoolman link, not only the spool id
     CHECK(stored.spoolman_filament_id == 77);
     CHECK(stored.spoolman_vendor_id == 3);
-}
 
-TEST_CASE("AFC persist=true: sends G-code (default behavior unchanged)",
-          "[ams][afc][persistence][persist_flag]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0x00FF00;
-    info.material = "ABS";
-    info.remaining_weight_g = 500;
-    info.spoolman_id = 7;
-
-    // Default persist=true should send G-code
+    // The same edit through apply_user_edit on the now-linked lane still writes
+    // every field, however the link owns them.
     helix::test::apply_edit(helper, 0, info);
-
-    REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=00FF00"));
-    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=ABS"));
-    REQUIRE(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=500"));
-    REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=7"));
-}
-
-TEST_CASE("AFC persist=false: version warning not emitted",
-          "[ams][afc][persistence][persist_flag]") {
-    AmsBackendAfcTestHelper helper;
-
-    // Old version + persist=false should NOT log the upgrade warning
-    helper.set_afc_version("1.0.19");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0xFF0000;
-    info.material = "PLA";
-
-    // Should succeed without errors and without persistence
-    auto result = helper.sync_external_identity(0, info);
-    REQUIRE(result.success());
-    REQUIRE(helper.captured_gcodes.empty());
+    CHECK(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=FF0000"));
+    CHECK(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=PLA"));
+    CHECK(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=850"));
+    CHECK(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42"));
 }
 
 // ============================================================================
 // reset_tool_mappings() Tests
 // ============================================================================
 
-TEST_CASE("AFC reset_tool_mappings sends RESET_AFC_MAPPING RUNOUT=no",
-          "[ams][afc][tool_mapping][reset]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    auto result = helper.reset_tool_mappings();
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("RESET_AFC_MAPPING RUNOUT=no"));
-}
-
-TEST_CASE("AFC reset_tool_mappings sends single command regardless of lane count",
-          "[ams][afc][tool_mapping][reset]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(8);
-
-    auto result = helper.reset_tool_mappings();
-
-    REQUIRE(result.success());
-    // Should send exactly one command, not one per lane
-    REQUIRE(helper.captured_gcodes.size() == 1);
-    REQUIRE(helper.has_gcode("RESET_AFC_MAPPING RUNOUT=no"));
-}
-
-// AFC dev/1.3 (Klipper-Add-On #832) deregistered RESET_AFC_MAPPING in favour of
-// AFC_RESET_MAPPING. The new firmware is recognisable by the multiple_tool_mapping
-// flag its get_status publishes alongside the rename — the flag's VALUE is the
+// One command resets every lane's mapping, whatever the lane count. AFC dev/1.3
+// (Klipper-Add-On #832) renamed RESET_AFC_MAPPING to AFC_RESET_MAPPING and
+// publishes multiple_tool_mapping alongside the rename. The flag's VALUE is the
 // opt-in to virtual tools and defaults false, so key presence is the version
-// signal, never the value.
-TEST_CASE("AFC reset_tool_mappings uses AFC_RESET_MAPPING once multiple_tool_mapping is reported",
+// signal, never the value; without the key the new name is an unknown command.
+TEST_CASE("AFC reset_tool_mappings sends one reset under the firmware's name",
           "[ams][afc][tool_mapping][reset]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
+    struct Row {
+        const char* name;
+        int lanes;
+        nlohmann::json state;
+        const char* gcode;
+    };
+    const Row rows[] = {
+        {"no status yet", 4, nullptr, "RESET_AFC_MAPPING RUNOUT=no"},
+        {"eight lanes", 8, nullptr, "RESET_AFC_MAPPING RUNOUT=no"},
+        {"a frame without the flag", 4, {{"led_state", true}}, "RESET_AFC_MAPPING RUNOUT=no"},
+        {"the flag reported false",
+         4,
+         {{"multiple_tool_mapping", false}},
+         "AFC_RESET_MAPPING RUNOUT=no"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            AmsBackendAfcTestHelper helper;
+            helper.initialize_test_lanes_with_slots(r.lanes);
+            if (!r.state.is_null()) {
+                helper.feed_afc_state(r.state);
+            }
 
-    // Flag present but FALSE — virtual tools disabled, renamed firmware.
-    helper.feed_afc_state({{"multiple_tool_mapping", false}});
-
-    auto result = helper.reset_tool_mappings();
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("AFC_RESET_MAPPING RUNOUT=no"));
-    REQUIRE(helper.captured_gcodes.size() == 1);
-}
-
-TEST_CASE("AFC reset_tool_mappings keeps the old name until the firmware reports the flag",
-          "[ams][afc][tool_mapping][reset]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    // A status frame from firmware predating the rename carries no flag; the
-    // old macro name must survive — the new name is an unknown command there.
-    helper.feed_afc_state({{"led_state", true}});
-
-    auto result = helper.reset_tool_mappings();
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("RESET_AFC_MAPPING RUNOUT=no"));
-    REQUIRE(helper.captured_gcodes.size() == 1);
+            REQUIRE(helper.reset_tool_mappings().success());
+            CHECK(helper.captured_gcodes.size() == 1);
+            CHECK(helper.has_gcode(r.gcode));
+        }
+    }
 }
 
 // ============================================================================
@@ -1804,20 +1341,6 @@ TEST_CASE("AFC reset_endless_spool with no lanes yet refuses instead of silently
     REQUIRE(result.result == AmsResult::NOT_SUPPORTED);
     REQUIRE_FALSE(result.user_msg.empty());
     REQUIRE(helper.captured_gcodes.empty());
-}
-
-TEST_CASE("AFC reset_endless_spool continues on partial failure",
-          "[ams][afc][endless_spool][reset]") {
-    // This test verifies that if one slot fails, we still attempt the remaining slots
-    // The implementation should return the first error but continue processing
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.initialize_endless_spool_configs(4);
-
-    auto result = helper.reset_endless_spool();
-
-    // Should still have attempted all 4 slots even if one hypothetically failed
-    REQUIRE(helper.captured_gcodes.size() == 4);
 }
 
 // ============================================================================
@@ -2355,273 +1878,129 @@ TEST_CASE("AFC tool mapping swap updates correctly", "[ams][afc][tool_mapping][p
     REQUIRE(helper.get_slot_mapped_tool(2) == 0); // lane3 now maps to T0
 }
 
-TEST_CASE("AFC tool mapping resets when map transitions string to null",
-          "[ams][afc][tool_mapping]") {
-    // CORE REGRESSION: when a lane is explicitly unmapped, AFC sends "map" as JSON
-    // null in the delta. A PRESENT null is authoritative — the lane must drop its
-    // stale tool mapping instead of keeping the previous value.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
+// How a lane's `map` / `current_map` deltas resolve to the one tool SlotRegistry
+// holds per lane. Moonraker sends deltas, so an absent key is "unchanged"; a
+// PRESENT null, empty list, empty string or unparseable value is authoritative
+// and unmaps. AFC virtual tools (#605) send `map` as a list unconditionally, so
+// ["T0"] must behave exactly like "T0". current_map names the tool a multi-tool
+// lane is actually on and moves on its own while map stays put; it only selects
+// among map's tools, survives a map-only delta while still listed, and an empty
+// one is no news (single-tool lanes may send it null). Without a usable
+// current_map the lowest tool is an arbitrary stable pick: AFC's order is not
+// sorted, so the lists are fed unsorted. Junk list entries are skipped, and
+// "T14,T13" must not parse as 14. Every tool in map still routes to the lane.
+TEST_CASE("AFC lane map and current_map resolve to one tool per lane", "[ams][afc][tool_mapping]") {
+    using nlohmann::json;
+    const json multi = {{"map", json::array({"T11", "T10"})}, {"current_map", "T11"}};
+    struct Row {
+        const char* name;
+        std::vector<json> frames;
+        int tool;
+        std::vector<int> routed;   // tools the forward map sends to this lane
+        std::vector<int> unrouted; // tools it must not
+    };
+    const Row rows[] = {
+        {"a string maps", {{{"map", "T0"}}, {{"map", "T3"}}}, 3, {3}, {0}},
+        {"a present null unmaps",
+         {{{"map", "T2"}, {"prep", true}}, {{"map", nullptr}, {"prep", true}}},
+         -1,
+         {},
+         {2}},
+        {"a delta without map keeps it",
+         {{{"map", "T2"}, {"prep", true}}, {{"weight", 931.7}}},
+         2,
+         {2},
+         {}},
+        {"a one-tool list maps like a string", {{{"map", json::array({"T3"})}}}, 3, {3}, {}},
+        {"a multi-tool list takes the lowest",
+         {{{"map", json::array({"T14", "T13", "T1"})}}},
+         1,
+         {1},
+         {}},
+        {"dropping the virtual tools keeps the tool",
+         {{{"map", json::array({"T14", "T13", "T1"})}}, {{"map", json::array({"T1"})}}},
+         1,
+         {1},
+         {}},
+        {"current_map picks the active tool", {multi}, 11, {11, 10}, {}},
+        {"current_map alone retargets", {multi, {{"current_map", "T10"}}}, 10, {10, 11}, {}},
+        {"current_map survives a map-only delta",
+         {multi, {{"map", json::array({"T11", "T10", "T5"})}}},
+         11,
+         {11},
+         {}},
+        {"current_map dropped from map falls back",
+         {multi, {{"map", json::array({"T10"})}}},
+         10,
+         {10},
+         {11}},
+        {"current_map outside map is ignored",
+         {{{"map", json::array({"T11", "T10"})}, {"current_map", "T7"}}},
+         10,
+         {10},
+         {7}},
+        {"a null current_map",
+         {{{"map", json::array({"T2"})}, {"current_map", nullptr}}},
+         2,
+         {2},
+         {}},
+        {"an empty current_map", {{{"map", json::array({"T3"})}, {"current_map", ""}}}, 3, {3}, {}},
+        {"a null current_map alone",
+         {{{"map", json::array({"T2"})}}, {{"current_map", nullptr}}},
+         2,
+         {2},
+         {}},
+        {"unmapping forgets current_map",
+         {multi, {{"map", json::array()}}, {{"map", json::array({"T11", "T4"})}}},
+         4,
+         {4},
+         {}},
+        {"an empty list unmaps",
+         {{{"map", json::array({"T2"})}}, {{"map", json::array()}}},
+         -1,
+         {},
+         {2}},
+        {"junk entries are skipped",
+         {{{"map", json::array({"T14,T13", "garbage", "T7", 5, nullptr})}}},
+         7,
+         {7},
+         {14}},
+        {"a list with nothing usable unmaps",
+         {{{"map", json::array({"T1"})}}, {{"map", json::array({"T14,T13", "nope"})}}},
+         -1,
+         {},
+         {1}},
+        {"an object-shaped map unmaps",
+         {{{"map", "T2"}}, {{"map", json::object({{"T0", "lane1"}})}}},
+         -1,
+         {},
+         {2}},
+        {"an empty string unmaps", {{{"map", "T2"}}, {{"map", ""}}}, -1, {}, {2}},
+        {"an unparseable string unmaps", {{{"map", "T2"}}, {{"map", "garbage"}}}, -1, {}, {2}},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            AmsBackendAfcTestHelper helper;
+            helper.initialize_test_lanes_with_slots(4);
+            for (const json& frame : r.frames) {
+                helper.feed_afc_stepper("lane1", frame);
+            }
 
-    helper.feed_afc_stepper("lane1", {{"map", "T2"}, {"prep", true}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-
-    // Same lane, map now null → mapping must reset to unmapped (-1)
-    helper.feed_afc_stepper("lane1", {{"map", nullptr}, {"prep", true}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == -1);
-    // Reverse map must no longer point T2 at this slot
-    REQUIRE(helper.get_tool_mapping()[2] == -1);
-}
-
-TEST_CASE("AFC tool mapping survives an update with no map field", "[ams][afc][tool_mapping]") {
-    // apply_lane_status receives Moonraker notify_status_update DELTAS: a partial
-    // update (e.g. weight-only) that omits "map" means "unchanged", NOT "unmapped".
-    // Clearing on absent would wipe a live tool mapping mid-print — the mapping must
-    // survive. Only a PRESENT map value is authoritative (see the null test above).
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper("lane1", {{"map", "T2"}, {"prep", true}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-
-    // Partial delta with no "map" key → mapping preserved.
-    helper.feed_afc_stepper("lane1", {{"weight", 931.7}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-}
-
-TEST_CASE("AFC tool mapping valid string still maps", "[ams][afc][tool_mapping]") {
-    // Guard against over-correction: the valid-string path is unchanged.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper("lane1", {{"map", "T0"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 0);
-
-    helper.feed_afc_stepper("lane1", {{"map", "T3"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 3);
-}
-
-TEST_CASE("AFC tool mapping single-element list maps like a string", "[ams][afc][tool_mapping]") {
-    // AFC virtual tools (#605) change `map` to a list UNCONDITIONALLY — a plain
-    // 4-lane BoxTurtle with virtual tools disabled sends ["T0"], not "T0". Treating
-    // the list as unsupported would unmap every lane on every AFC install the day
-    // that version ships, so the one-tool list must behave exactly like the string.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array({"T0"})}});
-    helper.feed_afc_stepper("lane2", {{"map", nlohmann::json::array({"T3"})}});
-
-    REQUIRE(helper.get_slot_mapped_tool(0) == 0);
-    REQUIRE(helper.get_slot_mapped_tool(1) == 3);
-    // Forward map too — this is what change_tool() resolves through
-    REQUIRE(helper.get_tool_mapping()[0] == 0);
-    REQUIRE(helper.get_tool_mapping()[3] == 1);
-}
-
-TEST_CASE("AFC tool mapping multi-tool list without current_map keeps the lowest tool",
-          "[ams][afc][tool_mapping]") {
-    // FALLBACK ONLY. When AFC does not tell us which tool is active — pre-#605
-    // firmware, or a delta that omits current_map before we have ever seen one —
-    // SlotRegistry still holds exactly one tool per lane and we must pick something.
-    // The lowest is an arbitrary but stable choice, NOT a claim about AFC's
-    // semantics: its order is not sorted, so feed it unsorted to prove we do not
-    // just take the first element.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    REQUIRE_NOTHROW(
-        helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array({"T14", "T13", "T1"})}}));
-    REQUIRE(helper.get_slot_mapped_tool(0) == 1);
-    REQUIRE(helper.get_tool_mapping()[1] == 0);
-
-    // Removing the virtual tools leaves the lane on the same tool it already had.
-    helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array({"T1"})}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 1);
-}
-
-TEST_CASE("AFC current_map picks the active tool over the lowest", "[ams][afc][tool_mapping]") {
-    // CORE REGRESSION for the lowest-wins heuristic. AFC #605 added current_map,
-    // which names the tool a multi-tool lane is ACTUALLY on. This is the shape
-    // upstream published: map is unsorted and current_map is not its minimum, so
-    // picking the lowest would put the lane on T10 while AFC drives T11.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper(
-        "lane1", {{"map", nlohmann::json::array({"T11", "T10"})}, {"current_map", "T11"}});
-
-    REQUIRE(helper.get_slot_mapped_tool(0) == 11);
-    // Forward map too — this is what change_tool() resolves through
-    REQUIRE(helper.get_tool_mapping()[11] == 0);
-    // The inactive tool still runs this lane: AFC registered T10 for it.
-    REQUIRE(helper.get_tool_mapping()[10] == 0);
-}
-
-TEST_CASE("AFC current_map alone retargets the lane", "[ams][afc][tool_mapping]") {
-    // current_map is the field that moves while map stays put — that is its whole
-    // purpose. Moonraker sends DELTAS, so a tool change inside a multi-tool lane
-    // arrives as current_map with NO map key. Handling the pick only under
-    // `if (data.contains("map"))` would drop it silently.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper(
-        "lane1", {{"map", nlohmann::json::array({"T11", "T10"})}, {"current_map", "T11"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 11);
-
-    helper.feed_afc_stepper("lane1", {{"current_map", "T10"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 10);
-    REQUIRE(helper.get_tool_mapping()[10] == 0);
-    // The tool the lane stepped off still runs it.
-    REQUIRE(helper.get_tool_mapping()[11] == 0);
-}
-
-TEST_CASE("AFC current_map survives a later map-only delta", "[ams][afc][tool_mapping]") {
-    // The mirror of the case above: once AFC has told us the lane is on T11, a
-    // subsequent delta carrying only map must NOT fall back to the lowest and yank
-    // the lane onto a tool AFC is not driving. Growing the lane's tool list is
-    // exactly when this happens — AFC_ADD_MAPPING sends map without current_map.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper(
-        "lane1", {{"map", nlohmann::json::array({"T11", "T10"})}, {"current_map", "T11"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 11);
-
-    helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array({"T11", "T10", "T5"})}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 11); // not T5
-}
-
-TEST_CASE("AFC current_map dropped from map falls back to the lowest", "[ams][afc][tool_mapping]") {
-    // Self-healing: AFC_REMOVE_MAPPING can strip the very tool current_map named.
-    // The remembered pick must not outlive its membership in map, or the lane stays
-    // pinned to a tool the firmware no longer routes to it.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper(
-        "lane1", {{"map", nlohmann::json::array({"T11", "T10"})}, {"current_map", "T11"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 11);
-
-    helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array({"T10"})}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 10);
-    REQUIRE(helper.get_tool_mapping()[11] == -1);
-}
-
-TEST_CASE("AFC current_map outside map is ignored", "[ams][afc][tool_mapping]") {
-    // map is the authority on which tools a lane owns; current_map only SELECTS
-    // among them. A current_map naming a tool absent from a present map is drift we
-    // do not understand, so fall back rather than route a tool AFC never listed.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper(
-        "lane1", {{"map", nlohmann::json::array({"T11", "T10"})}, {"current_map", "T7"}});
-
-    REQUIRE(helper.get_slot_mapped_tool(0) == 10); // lowest of map, not T7
-    REQUIRE(helper.get_tool_mapping()[7] == -1);
-}
-
-TEST_CASE("AFC empty current_map does not unmap a mapped lane", "[ams][afc][tool_mapping]") {
-    // Upstream describes current_map as holding the active tool "when more than one
-    // T(n) is mapped to that lane", so a single-tool lane may well send it null or
-    // empty. Treating a present-but-empty current_map as authoritative would unmap
-    // every ordinary lane — the same tripwire that made the array shape unsafe.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper("lane1",
-                            {{"map", nlohmann::json::array({"T2"})}, {"current_map", nullptr}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-
-    helper.feed_afc_stepper("lane2", {{"map", nlohmann::json::array({"T3"})}, {"current_map", ""}});
-    REQUIRE(helper.get_slot_mapped_tool(1) == 3);
-
-    // And alone in a delta it means "no news", not "unmap"
-    helper.feed_afc_stepper("lane1", {{"current_map", nullptr}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-}
-
-TEST_CASE("AFC unmapping a lane forgets its current_map", "[ams][afc][tool_mapping]") {
-    // The remembered pick is per-lane state. An authoritative unmap must clear it,
-    // or a lane later remapped to an unrelated tool list could resurrect a stale
-    // tool that happens to reappear in it.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper(
-        "lane1", {{"map", nlohmann::json::array({"T11", "T10"})}, {"current_map", "T11"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 11);
-
-    helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array()}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == -1);
-
-    // Remapped with T11 present again, but AFC never re-stated current_map →
-    // lowest, not the stale T11.
-    helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array({"T11", "T4"})}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 4);
-}
-
-TEST_CASE("AFC tool mapping empty list unmaps the lane", "[ams][afc][tool_mapping]") {
-    // AFC_REMOVE_MAPPING can strip a lane back to no tools. An empty PRESENT list is
-    // authoritative and must unmap, exactly like a present null.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array({"T2"})}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-
-    helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::array()}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == -1);
-    REQUIRE(helper.get_tool_mapping()[2] == -1);
-}
-
-TEST_CASE("AFC tool mapping list skips junk entries without losing good ones",
-          "[ams][afc][tool_mapping]") {
-    // One unparseable element must not discard the lane's real tools. In particular
-    // "T14,T13" must NOT parse as 14 — std::stoi stops at the comma and returns a
-    // confident wrong answer, which is exactly the silent failure to avoid.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    REQUIRE_NOTHROW(helper.feed_afc_stepper(
-        "lane1", {{"map", nlohmann::json::array({"T14,T13", "garbage", "T7", 5, nullptr})}}));
-    REQUIRE(helper.get_slot_mapped_tool(0) == 7);
-
-    // A list with nothing salvageable unmaps rather than guessing.
-    helper.feed_afc_stepper("lane2", {{"map", nlohmann::json::array({"T1"})}});
-    REQUIRE(helper.get_slot_mapped_tool(1) == 1);
-    helper.feed_afc_stepper("lane2", {{"map", nlohmann::json::array({"T14,T13", "nope"})}});
-    REQUIRE(helper.get_slot_mapped_tool(1) == -1);
-}
-
-TEST_CASE("AFC tool mapping object-shaped map does not crash", "[ams][afc][tool_mapping]") {
-    // Not a shape AFC is known to send; assert it degrades to unmapped, not a crash.
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper("lane1", {{"map", "T2"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-
-    REQUIRE_NOTHROW(
-        helper.feed_afc_stepper("lane1", {{"map", nlohmann::json::object({{"T0", "lane1"}})}}));
-    REQUIRE(helper.get_slot_mapped_tool(0) == -1);
-}
-
-TEST_CASE("AFC tool mapping empty or malformed map resets", "[ams][afc][tool_mapping]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper("lane1", {{"map", "T2"}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == 2);
-    helper.feed_afc_stepper("lane1", {{"map", ""}});
-    REQUIRE(helper.get_slot_mapped_tool(0) == -1);
-
-    helper.feed_afc_stepper("lane2", {{"map", "T2"}});
-    REQUIRE(helper.get_slot_mapped_tool(1) == 2);
-    helper.feed_afc_stepper("lane2", {{"map", "garbage"}});
-    REQUIRE(helper.get_slot_mapped_tool(1) == -1);
+            CHECK(helper.get_slot_mapped_tool(0) == r.tool);
+            const auto forward = helper.get_tool_mapping();
+            const auto lane_of = [&](int t) {
+                return t < static_cast<int>(forward.size()) ? forward[t] : -1;
+            };
+            for (int t : r.routed) {
+                INFO("T" << t);
+                CHECK(lane_of(t) == 0);
+            }
+            for (int t : r.unrouted) {
+                INFO("T" << t);
+                CHECK(lane_of(t) == -1);
+            }
+        }
+    }
 }
 
 TEST_CASE("AFC endless spool from runout_lane field", "[ams][afc][endless_spool][phase1]") {
@@ -2743,69 +2122,38 @@ TEST_CASE("AFC hub bowden length parsed from afc_bowden_length", "[ams][afc][hub
     REQUIRE(found_bowden);
 }
 
-TEST_CASE("AFC stepper buffer_status parsed", "[ams][afc][stepper][phase2]") {
-    // Real device: AFC_stepper lane1 has "buffer_status": "Advancing"
-    // LaneSensors struct only has prep, load, loaded_to_hub today
+// The AFC_stepper fields a real lane publishes land on its lane sensors.
+TEST_CASE("AFC stepper fields land on the lane sensors", "[ams][afc][stepper][phase2]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
 
-    helper.feed_afc_stepper("lane1",
-                            {{"prep", true}, {"load", true}, {"buffer_status", "Advancing"}});
-
-    // buffer_status should be stored on lane sensors
-    auto sensors = helper.get_lane_sensors(0);
-    REQUIRE(sensors.prep == true);
-    REQUIRE(sensors.load == true);
-    REQUIRE(sensors.buffer_status == "Advancing");
-}
-
-TEST_CASE("AFC stepper filament_status parsed", "[ams][afc][stepper][phase2]") {
-    // Real device: "filament_status": "Ready" or "Not Ready"
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_stepper("lane1",
-                            {{"filament_status", "Ready"}, {"filament_status_led", "#00ff00"}});
+    helper.feed_afc_stepper("lane1", {{"prep", true},
+                                      {"load", true},
+                                      {"buffer_status", "Advancing"},
+                                      {"filament_status", "Ready"},
+                                      {"filament_status_led", "#00ff00"},
+                                      {"dist_hub", 200.0}});
 
     auto sensors = helper.get_lane_sensors(0);
-    REQUIRE(sensors.filament_status == "Ready");
+    CHECK(sensors.prep);
+    CHECK(sensors.load);
+    CHECK(sensors.buffer_status == "Advancing");
+    CHECK(sensors.filament_status == "Ready");
+    CHECK(sensors.dist_hub == Catch::Approx(200.0f));
 }
 
-TEST_CASE("AFC stepper dist_hub parsed", "[ams][afc][stepper][phase2]") {
-    // Real device: "dist_hub": 200.0 (distance to hub in mm)
+TEST_CASE("AFC global quiet_mode and led_state follow the AFC object",
+          "[ams][afc][global][phase2]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
 
-    helper.feed_afc_stepper("lane1", {{"dist_hub", 200.0}});
+    helper.feed_afc_state({{"quiet_mode", false}, {"led_state", true}});
+    CHECK_FALSE(helper.get_quiet_mode());
+    CHECK(helper.get_led_state());
 
-    auto sensors = helper.get_lane_sensors(0);
-    REQUIRE(sensors.dist_hub == Catch::Approx(200.0f));
-}
-
-TEST_CASE("AFC global quiet_mode parsed from AFC state", "[ams][afc][global][phase2]") {
-    // Real device: AFC has "quiet_mode": false
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_state({{"quiet_mode", false}});
-    REQUIRE(helper.get_quiet_mode() == false);
-
-    // Toggle it on
-    helper.feed_afc_state({{"quiet_mode", true}});
-    REQUIRE(helper.get_quiet_mode() == true);
-}
-
-TEST_CASE("AFC global led_state parsed from AFC state", "[ams][afc][global][phase2]") {
-    // Real device: AFC has "led_state": true
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    helper.feed_afc_state({{"led_state", true}});
-    REQUIRE(helper.get_led_state() == true);
-
-    // Toggle it off
-    helper.feed_afc_state({{"led_state", false}});
-    REQUIRE(helper.get_led_state() == false);
+    helper.feed_afc_state({{"quiet_mode", true}, {"led_state", false}});
+    CHECK(helper.get_quiet_mode());
+    CHECK_FALSE(helper.get_led_state());
 }
 
 TEST_CASE("AFC bowden slider max accommodates real bowden length",
@@ -2855,14 +2203,37 @@ TEST_CASE("AFC device sections include maintenance and led",
     REQUIRE(has_setup);
 }
 
-TEST_CASE("AFC device action test_lanes dispatches gcode", "[ams][afc][device_actions][phase3]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
+// Device actions that are one AFC command each. The LED toggle sends the
+// opposite of the led_state AFC last reported.
+TEST_CASE("AFC device actions send their AFC command", "[ams][afc][device_actions][phase3]") {
+    struct Row {
+        const char* action;
+        std::optional<bool> led_state;
+        const char* gcode;
+    };
+    const Row rows[] = {
+        {"test_lanes", std::nullopt, "AFC_TEST_LANES"},
+        {"change_blade", std::nullopt, "AFC_CHANGE_BLADE"},
+        {"park", std::nullopt, "AFC_PARK"},
+        {"brush", std::nullopt, "AFC_BRUSH"},
+        {"reset_motor", std::nullopt, "AFC_RESET_MOTOR_TIME"},
+        {"led_toggle", false, "TURN_ON_AFC_LED"},
+        {"led_toggle", true, "TURN_OFF_AFC_LED"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.action << (r.led_state ? (*r.led_state ? " (on)" : " (off)") : "")) {
+            AmsBackendAfcTestHelper helper;
+            helper.initialize_test_lanes_with_slots(4);
+            if (r.led_state) {
+                helper.feed_afc_state({{"led_state", *r.led_state}});
+            }
 
-    auto result = helper.execute_device_action("test_lanes");
+            auto result = helper.execute_device_action(r.action);
 
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("AFC_TEST_LANES"));
+            CHECK(result.success());
+            CHECK(helper.has_gcode_starting_with(r.gcode));
+        }
+    }
 }
 
 namespace {
@@ -2936,72 +2307,6 @@ TEST_CASE("AFC device action toolhead_calibration dispatches gcode", "[ams][afc]
         REQUIRE(result.success());
         REQUIRE(helper.has_gcode("AFC_TOOLHEAD_CALIBRATION"));
     }
-}
-
-TEST_CASE("AFC device action change_blade dispatches gcode", "[ams][afc][device_actions][phase3]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    auto result = helper.execute_device_action("change_blade");
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("AFC_CHANGE_BLADE"));
-}
-
-TEST_CASE("AFC device action park dispatches gcode", "[ams][afc][device_actions][phase3]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    auto result = helper.execute_device_action("park");
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("AFC_PARK"));
-}
-
-TEST_CASE("AFC device action brush dispatches gcode", "[ams][afc][device_actions][phase3]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    auto result = helper.execute_device_action("brush");
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("AFC_BRUSH"));
-}
-
-TEST_CASE("AFC device action reset_motor dispatches gcode", "[ams][afc][device_actions][phase3]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    auto result = helper.execute_device_action("reset_motor");
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode_starting_with("AFC_RESET_MOTOR_TIME"));
-}
-
-TEST_CASE("AFC device action led toggle on when off", "[ams][afc][device_actions][phase3]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    // LED is off, toggling should turn it on
-    helper.feed_afc_state({{"led_state", false}});
-
-    auto result = helper.execute_device_action("led_toggle");
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("TURN_ON_AFC_LED"));
-}
-
-TEST_CASE("AFC device action led toggle off when on", "[ams][afc][device_actions][phase3]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    // LED is on, toggling should turn it off
-    helper.feed_afc_state({{"led_state", true}});
-
-    auto result = helper.execute_device_action("led_toggle");
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("TURN_OFF_AFC_LED"));
 }
 
 TEST_CASE("AFC device action quiet_mode dispatches an explicit ENABLE",
@@ -3097,26 +2402,34 @@ TEST_CASE("AFC reset sends AFC_RESET command", "[ams][afc][recovery]") {
     REQUIRE(helper.has_gcode("AFC_RESET"));
 }
 
-TEST_CASE("AFC recover_lane_position sends AFC_LANE_RESET", "[ams][afc][recovery][phase4]") {
+// AFC_LANE_RESET names the lane by its AFC name; a slot outside the discovered
+// lanes is refused, and so is any lane while the backend is not running.
+TEST_CASE("AFC recover_lane_position sends AFC_LANE_RESET for a valid lane",
+          "[ams][afc][recovery][phase4]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
+
+    SECTION("not running") {
+        auto result = helper.recover_lane_position(0);
+        CHECK(result.result == AmsResult::NOT_CONNECTED);
+        CHECK(helper.captured_gcodes.empty());
+    }
+
     helper.set_running(true);
-
-    auto result = helper.recover_lane_position(0);
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("AFC_LANE_RESET LANE=lane1"));
-}
-
-TEST_CASE("AFC recover_lane_position second lane", "[ams][afc][recovery][phase4]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.set_running(true);
-
-    auto result = helper.recover_lane_position(2);
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("AFC_LANE_RESET LANE=lane3"));
+    for (const auto& [slot, gcode] :
+         {std::pair{0, "AFC_LANE_RESET LANE=lane1"}, std::pair{2, "AFC_LANE_RESET LANE=lane3"}}) {
+        DYNAMIC_SECTION("slot " << slot) {
+            REQUIRE(helper.recover_lane_position(slot).success());
+            CHECK(helper.has_gcode(gcode));
+        }
+    }
+    for (int slot : {99, 4, -1}) {
+        DYNAMIC_SECTION("out of range " << slot) {
+            auto result = helper.recover_lane_position(slot);
+            CHECK(result.result == AmsResult::INVALID_SLOT);
+            CHECK(helper.captured_gcodes.empty());
+        }
+    }
 }
 
 TEST_CASE("AFC set_tool_mapping refuses a lane past the discovered range",
@@ -3203,28 +2516,6 @@ TEST_CASE("AFC with its own SET_MAP keeps the native remap", "[ams][afc][tool_ma
     CHECK(helper.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
     CHECK(helper.set_tool_mapping(0, 1).success());
     CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T0"));
-}
-
-TEST_CASE("AFC recover_lane_position validates slot index", "[ams][afc][recovery][phase4]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.set_running(true);
-
-    auto result = helper.recover_lane_position(99);
-
-    REQUIRE_FALSE(result.success());
-    REQUIRE(result.result == AmsResult::INVALID_SLOT);
-}
-
-TEST_CASE("AFC recover_lane_position validates negative index", "[ams][afc][recovery][phase4]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.set_running(true);
-
-    auto result = helper.recover_lane_position(-1);
-
-    REQUIRE_FALSE(result.success());
-    REQUIRE(result.result == AmsResult::INVALID_SLOT);
 }
 
 TEST_CASE("AFC recover_lane_position on a backend with no lanes offers no span",
@@ -3638,17 +2929,6 @@ TEST_CASE("AFC active_load_lane_ survives a delta that omits both lane keys",
     // Same for a message-only delta.
     helper.feed_afc_state({{"message", {{"message", "some notice"}, {"type", "info"}}}});
     REQUIRE(helper.get_active_load_lane() == "lane1");
-}
-
-TEST_CASE("AFC recover_lane_position fails when not running", "[ams][afc][recovery][phase4]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    // running_ defaults to false
-
-    auto result = helper.recover_lane_position(0);
-
-    REQUIRE_FALSE(result.success());
-    REQUIRE(result.result == AmsResult::NOT_CONNECTED);
 }
 
 TEST_CASE("AFC error message surfaces in EVENT_ERROR data", "[ams][afc][recovery][phase4]") {
@@ -4870,32 +4150,43 @@ TEST_CASE("AFC standard single-unit system unchanged by mixed topology code",
 // eject_lane() Tests
 // ============================================================================
 
-TEST_CASE("AFC eject_lane sends LANE_UNLOAD command", "[ams][afc][eject]") {
+// LANE_UNLOAD names the lane by its AFC name, for any lane including one other
+// than the loaded slot; a slot outside the lanes is refused, and so is any lane
+// while the backend is not running.
+TEST_CASE("AFC eject_lane sends LANE_UNLOAD for a valid lane", "[ams][afc][eject]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
+
+    SECTION("not running") {
+        CHECK(helper.eject_lane(0).result == AmsResult::NOT_CONNECTED);
+        CHECK(helper.captured_gcodes.empty());
+    }
+
     helper.set_running(true);
-
-    auto result = helper.eject_lane(0);
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("LANE_UNLOAD LANE=lane1"));
+    SECTION("first lane") {
+        REQUIRE(helper.eject_lane(0).success());
+        CHECK(helper.has_gcode("LANE_UNLOAD LANE=lane1"));
+    }
+    SECTION("another lane while slot 0 is loaded") {
+        helper.set_filament_loaded(true);
+        helper.set_current_slot(0);
+        REQUIRE(helper.eject_lane(2).success());
+        CHECK(helper.has_gcode("LANE_UNLOAD LANE=lane3"));
+    }
+    SECTION("out of range") {
+        CHECK(helper.eject_lane(99).result == AmsResult::INVALID_SLOT);
+        CHECK(helper.captured_gcodes.empty());
+    }
 }
 
 // ============================================================================
 // eject_lane() sends LANE_UNLOAD unconditionally
 //
-// We used to transcribe cmd_LANE_UNLOAD's own if/elif chain here, forked by an
-// inferred AFC version, so a refusal could be reported locally. AFC's maintainer
-// asked us not to gate their macros (prestonbrown/helixscreen#1258), and the
-// fork could not be made correct anyway: there is no reliable AFC version to
-// read, so the era was guessed from whether is_standalone appeared in the
-// status payload.
-//
-// These cases pin the absence of that gate. Every one is a state the old mirror
-// refused on; all of them must now dispatch.
-//
-// Mutation check: re-add any refusal keyed on lane_loaded, hub routing, or
-// is_standalone to eject_lane() and these fail.
+// AFC's own cmd_LANE_UNLOAD decides whether to refuse, and AFC's maintainer asked
+// us not to gate their macros (prestonbrown/helixscreen#1258); there is no
+// reliable AFC version to mirror its rules by either. Every case here is a state
+// AFC may refuse, keyed on lane_loaded, hub routing or is_standalone, and every
+// one must dispatch.
 // ============================================================================
 
 TEST_CASE("AFC eject_lane dispatches regardless of upstream refusal conditions",
@@ -4943,60 +4234,12 @@ TEST_CASE("AFC eject_lane dispatches regardless of upstream refusal conditions",
     }
 }
 
-TEST_CASE("AFC eject_lane targets correct lane", "[ams][afc][eject]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.set_running(true);
-
-    auto result = helper.eject_lane(2);
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("LANE_UNLOAD LANE=lane3"));
-}
-
-TEST_CASE("AFC eject_lane allows eject of non-current slot even when filament loaded",
-          "[ams][afc][eject]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.set_running(true);
-    helper.set_filament_loaded(true);
-    helper.set_current_slot(0);
-
-    // Eject slot 2 while slot 0 is loaded — should work
-    auto result = helper.eject_lane(2);
-
-    REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("LANE_UNLOAD LANE=lane3"));
-}
-
-TEST_CASE("AFC eject_lane validates slot index", "[ams][afc][eject]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.set_running(true);
-
-    auto result = helper.eject_lane(99);
-
-    REQUIRE_FALSE(result.success());
-    REQUIRE(result.result == AmsResult::INVALID_SLOT);
-}
-
-TEST_CASE("AFC eject_lane fails when not running", "[ams][afc][eject]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    auto result = helper.eject_lane(0);
-
-    REQUIRE_FALSE(result.success());
-    REQUIRE(result.result == AmsResult::NOT_CONNECTED);
-}
-
 // LANE_UNLOAD serialization
 //
 // Rapid-fire LANE_UNLOAD commands overlap their lane LED animations and stepper
-// work on AFC's MCU and were a contributor to Klippy "Timer too close"
-// shutdowns when a user tapped Eject on multiple lanes in quick succession.
-// eject_lane() now queues consecutive requests and dispatches them one at a
-// time, with the next one fired only when the previous completes.
+// work on AFC's MCU, which contributes to Klippy "Timer too close" shutdowns.
+// eject_lane() queues consecutive requests and dispatches them one at a time,
+// firing the next only when the previous completes.
 
 TEST_CASE("AFC eject_lane serializes consecutive ejects (only first dispatches)",
           "[ams][afc][eject][serialization]") {
@@ -5520,26 +4763,16 @@ TEST_CASE("AFC get_type returns AFC", "[ams][afc][spoolman]") {
 // by a per-printer setting: get_unload_after_print() (default false). The
 // pre-print runout warning is suppressed only when the setting is enabled.
 
-TEST_CASE_METHOD(LVGLTestFixture, "AFC auto_unloads_after_print defaults to false (setting off)",
+TEST_CASE_METHOD(LVGLTestFixture, "AFC auto_unloads_after_print follows the setting",
                  "[ams][afc][capability]") {
     helix::Config::get_instance();
     helix::SettingsManager::instance().init_subjects();
 
-    // Ensure the setting starts disabled
     helix::SettingsManager::instance().set_unload_after_print(false);
-
     AmsBackendAfcTestHelper helper;
     REQUIRE(helper.auto_unloads_after_print() == false);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "AFC auto_unloads_after_print returns true when setting enabled",
-                 "[ams][afc][capability]") {
-    helix::Config::get_instance();
-    helix::SettingsManager::instance().init_subjects();
 
     helix::SettingsManager::instance().set_unload_after_print(true);
-
-    AmsBackendAfcTestHelper helper;
     REQUIRE(helper.auto_unloads_after_print() == true);
 
     // Toggling the setting back off must flip the capability back
@@ -6107,57 +5340,28 @@ TEST_CASE("AFC get_device_actions does not include LED toggles in single-extrude
     REQUIRE_FALSE(found_per_extruder);
 }
 
-TEST_CASE("AFC execute_device_action led_extruder_T0 sends AFC_SET_EXTRUDER_LED",
-          "[ams][afc][toolchanger][led]") {
+// Each head's LED toggles through AFC_SET_EXTRUDER_LED on that head's extruder,
+// starting on; a T number past the heads is refused.
+TEST_CASE("AFC led_extruder_T<n> toggles that head's LED", "[ams][afc][toolchanger][led]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
     helper.setup_toolchanger(2);
 
-    auto result = helper.execute_device_action("led_extruder_T0");
-
-    REQUIRE(result);
-    REQUIRE(helper.has_gcode("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=1"));
-}
-
-TEST_CASE("AFC execute_device_action led_extruder_T1 sends AFC_SET_EXTRUDER_LED",
-          "[ams][afc][toolchanger][led]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.setup_toolchanger(2);
-
-    auto result = helper.execute_device_action("led_extruder_T1");
-
-    REQUIRE(result);
-    REQUIRE(helper.has_gcode("AFC_SET_EXTRUDER_LED EXTRUDER=extruder1 TURN_ON=1"));
-}
-
-TEST_CASE("AFC execute_device_action led_extruder toggles state", "[ams][afc][toolchanger][led]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.setup_toolchanger(2);
-
-    // First call turns ON
-    auto result1 = helper.execute_device_action("led_extruder_T0");
-    REQUIRE(result1);
-    REQUIRE(helper.has_gcode("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=1"));
-
-    helper.clear_captured_gcodes();
-
-    // Second call turns OFF
-    auto result2 = helper.execute_device_action("led_extruder_T0");
-    REQUIRE(result2);
-    REQUIRE(helper.has_gcode("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=0"));
-}
-
-TEST_CASE("AFC execute_device_action led_extruder rejects invalid tool index",
-          "[ams][afc][toolchanger][led]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-    helper.setup_toolchanger(2);
-
-    auto result = helper.execute_device_action("led_extruder_T5");
-
-    REQUIRE_FALSE(result);
+    SECTION("T0 on, then off") {
+        REQUIRE(helper.execute_device_action("led_extruder_T0"));
+        CHECK(helper.has_gcode("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=1"));
+        helper.clear_captured_gcodes();
+        REQUIRE(helper.execute_device_action("led_extruder_T0"));
+        CHECK(helper.has_gcode("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=0"));
+    }
+    SECTION("T1") {
+        REQUIRE(helper.execute_device_action("led_extruder_T1"));
+        CHECK(helper.has_gcode("AFC_SET_EXTRUDER_LED EXTRUDER=extruder1 TURN_ON=1"));
+    }
+    SECTION("a head that does not exist") {
+        CHECK_FALSE(helper.execute_device_action("led_extruder_T5"));
+        CHECK(helper.captured_gcodes.empty());
+    }
 }
 
 // ============================================================================
@@ -7274,63 +6478,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AFC a loaded lane's first frame after start
     helix::ui::set_test_toast_hook(nullptr);
 }
 
-TEST_CASE("AFC parse: empty colour clears rather than sticking", "[ams][afc][status]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.initialize_slots_from_discovery();
+// A lane colour after "#E53935" and then each value. Empty and a bare '#' (what
+// SET_COLOR LANE=x COLOR= leaves) clear to the default; three digits expand,
+// eight drop the alpha byte; anything else is a parse failure that keeps the
+// previous colour, not a clear.
+TEST_CASE("AFC parse: lane colour forms", "[ams][afc][status]") {
+    struct Row {
+        const char* color;
+        uint32_t expected;
+    };
+    const Row rows[] = {
+        {"", kAmsDefaultSlotColor}, {"#", kAmsDefaultSlotColor}, {"#F00", 0xFF0000},
+        {"#800080FF", 0x800080},    {"#zzzzzz", 0xE53935},       {"#FF0000junk", 0xE53935},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION("\"" << r.color << "\"") {
+            AmsBackendAfcTestHelper helper;
+            helper.initialize_test_lanes(4);
+            helper.initialize_slots_from_discovery();
+            helper.feed_afc_stepper("lane1", {{"color", "#E53935"}});
+            REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
 
-    helper.feed_afc_stepper("lane1", {{"color", "#E53935"}});
-    REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
-
-    helper.feed_afc_stepper("lane1", {{"color", ""}});
-    REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == kAmsDefaultSlotColor);
-}
-
-TEST_CASE("AFC parse: bare '#' colour clears (AFC SET_COLOR with empty value)",
-          "[ams][afc][status]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.initialize_slots_from_discovery();
-
-    helper.feed_afc_stepper("lane1", {{"color", "#E53935"}});
-    REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
-
-    // SET_COLOR LANE=x COLOR=  ->  cur_lane.color = '#'
-    helper.feed_afc_stepper("lane1", {{"color", "#"}});
-    REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == kAmsDefaultSlotColor);
-}
-
-TEST_CASE("AFC parse: a malformed colour still keeps the previous value", "[ams][afc][status]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.initialize_slots_from_discovery();
-
-    helper.feed_afc_stepper("lane1", {{"color", "#E53935"}});
-    // Garbage is a parse failure, NOT a clear — only empty means cleared.
-    helper.feed_afc_stepper("lane1", {{"color", "#zzzzzz"}});
-    REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
-}
-
-TEST_CASE("AFC parse: the colour forms a slicer emits", "[ams][afc][status]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.initialize_slots_from_discovery();
-
-    SECTION("three digits expand to six") {
-        helper.feed_afc_stepper("lane1", {{"color", "#F00"}});
-        CHECK(helper.get_system_info().get_slot_global(0)->color_rgb == 0xFF0000);
-    }
-
-    SECTION("eight digits drop the alpha byte") {
-        helper.feed_afc_stepper("lane1", {{"color", "#800080FF"}});
-        CHECK(helper.get_system_info().get_slot_global(0)->color_rgb == 0x800080);
-    }
-
-    SECTION("a hex head with a tail behind it is not a colour") {
-        helper.feed_afc_stepper("lane1", {{"color", "#E53935"}});
-        REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
-        helper.feed_afc_stepper("lane1", {{"color", "#FF0000junk"}});
-        CHECK(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
+            helper.feed_afc_stepper("lane1", {{"color", r.color}});
+            CHECK(helper.get_system_info().get_slot_global(0)->color_rgb == r.expected);
+        }
     }
 }
 
