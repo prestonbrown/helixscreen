@@ -222,6 +222,34 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     CHECK(lv_obj_is_valid(tree));
 }
 
+TEST_CASE_METHOD(PrintStatusCloseFixture,
+                 "A rebuilt print status is the one tree the next open shows",
+                 "[print_status][destroy_on_close][1983]") {
+    const auto trees_on_screen = [this] {
+        int trees = 0;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(test_screen()); ++i) {
+            lv_obj_t* child = lv_obj_get_child(test_screen(), static_cast<int32_t>(i));
+            trees += lv_obj_find_by_name(child, "print_gcode_viewer") != nullptr;
+        }
+        return trees;
+    };
+    use_memory(roomy_host);
+    lv_obj_t* old_root = open_print_status();
+    close_print_status(old_root);
+    REQUIRE(trees_on_screen() == 1);
+
+    REQUIRE(panel().rebuild());
+    settle();
+    lv_obj_t* rebuilt = panel().get_panel();
+    REQUIRE(rebuilt != nullptr);
+    REQUIRE(rebuilt != old_root);
+    CHECK(PrintStatusPanel::get_cached_overlay() == rebuilt);
+
+    CHECK(open_print_status() == rebuilt);
+    CHECK(panel().get_panel() == rebuilt);
+    CHECK(trees_on_screen() == 1);
+}
+
 TEST_CASE_METHOD(PrintStatusCloseFixture, "Print status decides from the print state at close",
                  "[print_status][destroy_on_close]") {
     // Opened with no job, so a decision made when the tree was created would
