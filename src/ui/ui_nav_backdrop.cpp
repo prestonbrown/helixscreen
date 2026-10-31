@@ -60,7 +60,7 @@ void OverlayBackdrop::adopt(lv_obj_t* screen, lv_obj_t* arriving, lv_event_cb_t 
 }
 
 void OverlayBackdrop::refresh(lv_obj_t* app_layout, lv_obj_t* base_panel) {
-    if (!primary_ || !lv_obj_is_valid(primary_))
+    if (!primary_)
         return;
     // A dim layer is translucent over the live navbar, so it is never stale.
     if (!is_snapshot_backdrop(primary_))
@@ -90,11 +90,9 @@ void OverlayBackdrop::refresh(lv_obj_t* app_layout, lv_obj_t* base_panel) {
     // to be visible again for the snapshot or a narrower overlay (#1178) would
     // expose dimmed emptiness where the panel used to show through.
     bool base_was_hidden = false;
-    if (base_panel && lv_obj_is_valid(base_panel)) {
+    if (base_panel) {
         base_was_hidden = lv_obj_has_flag(base_panel, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(base_panel, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        base_panel = nullptr;
     }
 
     // Into the buffer the backdrop already owns: a second full frame is 768KB

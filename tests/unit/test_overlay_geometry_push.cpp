@@ -51,9 +51,7 @@ class FakeOverlay : public IPanelLifecycle {
     bool destination_;
 };
 
-/// LVGLTestFixture owns LVGL init, the display, and the UpdateQueue lifecycle.
-/// push_overlay() defers through that queue — a fixture that skips it silently
-/// never pushes anything and every assertion fails as if the logic were wrong.
+/// LVGLTestFixture owns the UpdateQueue lifecycle that push_overlay() defers through.
 class OverlayGeometryFixture : public LVGLTestFixture {
   public:
     OverlayGeometryFixture() {
@@ -78,8 +76,7 @@ class OverlayGeometryFixture : public LVGLTestFixture {
 
 TEST_CASE_METHOD(OverlayGeometryFixture, "Landscape overlay geometry is untouched",
                  "[navigation][overlay-geometry][portrait]") {
-    // The display is landscape by default in tests. XML authors height="100%"
-    // and align="right_mid"; ui_set_overlay_geometry must not disturb either.
+    // XML authors height="100%" and align="right_mid"; neither may be disturbed.
     lv_obj_t* w = lv_obj_create(lv_screen_active());
     lv_obj_set_height(w, lv_pct(100));
     lv_obj_set_align(w, LV_ALIGN_RIGHT_MID);
@@ -95,7 +92,6 @@ TEST_CASE_METHOD(OverlayGeometryFixture, "Landscape overlay geometry is untouche
 
 TEST_CASE_METHOD(OverlayGeometryFixture, "Portrait overlays slide in and out on the X axis",
                  "[navigation][overlay-geometry][portrait]") {
-    // The display is restored to landscape by the next fixture's reclaim_display().
     lv_display_set_resolution(lv_display_get_default(), 480, 800);
     REQUIRE(is_portrait_layout(detect_layout_type(lv_obj_get_width(lv_screen_active()),
                                                   lv_obj_get_height(lv_screen_active()))));
@@ -122,5 +118,9 @@ TEST_CASE_METHOD(OverlayGeometryFixture, "Portrait overlays slide in and out on 
     CHECK(lv_obj_get_style_translate_x(w, LV_PART_MAIN) > 0);
     CHECK(lv_obj_get_style_translate_y(w, LV_PART_MAIN) == 0);
 
+    // Deleting the widget mid-slide cancels its animations: no callback outlives it.
+    lv_obj_delete(w);
+    REQUIRE(lv_anim_get(w, nullptr) == nullptr);
+    process_lvgl(500);
     settings.set_animations_enabled(animations_were_enabled);
 }

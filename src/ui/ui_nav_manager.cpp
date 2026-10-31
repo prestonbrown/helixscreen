@@ -462,12 +462,8 @@ void NavigationManager::overlay_slide_out_complete_cb(lv_anim_t* anim) {
     if (NavigationManager::instance().is_shutting_down()) {
         return; // Shutdown in progress — widget may be freed
     }
+    // Deleting a widget cancels its animations, so anim->var is alive here.
     lv_obj_t* panel = static_cast<lv_obj_t*>(anim->var);
-    if (!lv_obj_is_valid(panel)) {
-        spdlog::warn("[NavigationManager] Animation completed but panel {} already freed",
-                     anim->var);
-        return;
-    }
     lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
     reset_overlay_transform(panel);
     spdlog::trace("[NavigationManager] Overlay slide+fade-out complete, panel {} hidden",
@@ -516,8 +512,6 @@ void NavigationManager::activate_restored_target() {
 
 // Overlays enter from and exit to the right edge in every orientation.
 static void overlay_translate_x(void* obj, int32_t v) {
-    if (!lv_obj_is_valid(static_cast<lv_obj_t*>(obj)))
-        return;
     lv_obj_set_style_translate_x(static_cast<lv_obj_t*>(obj), v, LV_PART_MAIN);
 }
 
@@ -560,8 +554,6 @@ void NavigationManager::overlay_animate_slide_in(lv_obj_t* panel) {
     lv_anim_set_duration(&fade_anim, kOverlayAnimDurationMs);
     lv_anim_set_path_cb(&fade_anim, lv_anim_path_ease_out);
     lv_anim_set_exec_cb(&fade_anim, [](void* obj, int32_t value) {
-        if (!lv_obj_is_valid(static_cast<lv_obj_t*>(obj)))
-            return;
         lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
     });
     lv_anim_start(&fade_anim);
@@ -613,8 +605,6 @@ void NavigationManager::overlay_animate_slide_out(lv_obj_t* panel) {
     lv_anim_set_duration(&fade_anim, kOverlayAnimDurationMs);
     lv_anim_set_path_cb(&fade_anim, lv_anim_path_ease_in);
     lv_anim_set_exec_cb(&fade_anim, [](void* obj, int32_t value) {
-        if (!lv_obj_is_valid(static_cast<lv_obj_t*>(obj)))
-            return;
         lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
     });
     lv_anim_start(&fade_anim);
@@ -1459,12 +1449,8 @@ bool NavigationManager::apply_overlay_width(lv_obj_t* overlay, bool is_first_ove
 
 void NavigationManager::reapply_overlay_widths() {
     for (const auto& [overlay, is_destination] : overlay_is_destination_) {
-        // Entries are erased on widget delete (scrub_deleted_widget), but guard
-        // anyway — this runs from a display resize callback, outside the normal
-        // push/pop ordering.
-        if (lv_obj_is_valid(overlay)) {
-            ui_set_overlay_geometry(overlay, is_destination);
-        }
+        // scrub_deleted_widget() erases an entry when its widget is deleted.
+        ui_set_overlay_geometry(overlay, is_destination);
     }
     spdlog::debug("[NavigationManager] Re-applied width to {} overlay(s)",
                   overlay_is_destination_.size());
@@ -2055,10 +2041,9 @@ void NavigationManager::go_back_now() {
         // overlay beneath. Runs LAST, after the un-hide above, so an
         // on_activate() that navigates away (set_active) cannot be undone by it,
         // and runs unconditionally so live resources restart even when the
-        // close animation's completion callback never fires (on Android the
-        // overlay widget can be freed first, so that callback bails at its
-        // lv_obj_is_valid check and the camera stayed dead until a tab
-        // switch — #1245). The latch makes it exactly once per close.
+        // close animation's completion callback never fires: deleting the
+        // overlay widget cancels its animation (#1245). The latch makes it
+        // exactly once per close.
         mgr.activate_restored_target();
     }
 }
