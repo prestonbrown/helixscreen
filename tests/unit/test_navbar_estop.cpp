@@ -219,7 +219,9 @@ TEST_CASE_METHOD(NavbarFixture, "an open modal covers the navbar E-stop",
     REQUIRE(lv_obj_get_parent(backdrop) == lv_obj_get_parent(estop_));
     CHECK(index_of(backdrop) > index_of(estop_));
 
-    // A tap on the E-stop's spot reaches the backdrop, never the button.
+    // A tap on the E-stop's spot reaches the backdrop, never the button. The plain
+    // backdrop a tripped blur breaker falls back to has no size until a layout pass.
+    lv_obj_update_layout(test_screen());
     lv_obj_t* hit = lv_indev_search_obj(test_screen(), &tap);
     CHECK(hit == backdrop);
 
