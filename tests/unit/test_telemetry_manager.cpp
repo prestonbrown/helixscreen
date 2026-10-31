@@ -52,6 +52,7 @@
 #include <set>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -65,102 +66,26 @@ namespace fs = std::filesystem;
 // UUID v4 Generation [telemetry][uuid]
 // ============================================================================
 
-TEST_CASE("UUID v4: format is 8-4-4-4-12 hex characters", "[telemetry][uuid]") {
-    auto uuid = TelemetryManager::generate_uuid_v4();
-
-    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-    // Total length: 36 characters (32 hex + 4 dashes)
-    REQUIRE(uuid.size() == 36);
-
-    // Validate format with regex: 8-4-4-4-12 hex groups separated by dashes
-    std::regex uuid_regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
-    REQUIRE(std::regex_match(uuid, uuid_regex));
-}
-
-TEST_CASE("UUID v4: version bits are correct (position 14 == '4')", "[telemetry][uuid]") {
-    // Generate multiple UUIDs and verify version nibble
-    for (int i = 0; i < 10; ++i) {
-        auto uuid = TelemetryManager::generate_uuid_v4();
-        // Position 14 in the string is the version nibble (first char of 3rd group)
-        // Format: xxxxxxxx-xxxx-Vxxx-yxxx-xxxxxxxxxxxx
-        //         0       8 9  13 14
-        REQUIRE(uuid[14] == '4');
-    }
-}
-
-TEST_CASE("UUID v4: variant bits are correct (position 19 is 8/9/a/b)", "[telemetry][uuid]") {
-    // Generate multiple UUIDs and verify variant nibble
-    for (int i = 0; i < 10; ++i) {
-        auto uuid = TelemetryManager::generate_uuid_v4();
-        // Position 19 is the variant nibble (first char of 4th group)
-        // Format: xxxxxxxx-xxxx-4xxx-Yxxx-xxxxxxxxxxxx
-        //         0       8 9  13 14 18 19
-        char variant = uuid[19];
-        bool valid_variant = (variant == '8' || variant == '9' || variant == 'a' || variant == 'b');
-        INFO("UUID: " << uuid << ", variant char: " << variant);
-        REQUIRE(valid_variant);
-    }
-}
-
-TEST_CASE("UUID v4: generated UUIDs are unique", "[telemetry][uuid]") {
-    std::set<std::string> uuids;
+TEST_CASE("UUID v4: random 8-4-4-4-12 hex with version 4 and an RFC 4122 variant",
+          "[telemetry][uuid]") {
+    // xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx: version nibble at 14, variant at 19
+    const std::regex uuid_regex(
+        "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
     constexpr int kNumUuids = 50;
-
+    std::set<std::string> uuids;
     for (int i = 0; i < kNumUuids; ++i) {
         auto uuid = TelemetryManager::generate_uuid_v4();
+        INFO("UUID: " << uuid);
+        REQUIRE(uuid.size() == 36);
+        REQUIRE(std::regex_match(uuid, uuid_regex));
         uuids.insert(uuid);
     }
-
-    // All generated UUIDs must be distinct
     REQUIRE(uuids.size() == kNumUuids);
-}
-
-TEST_CASE("UUID v4: only contains valid characters", "[telemetry][uuid]") {
-    auto uuid = TelemetryManager::generate_uuid_v4();
-
-    for (size_t i = 0; i < uuid.size(); ++i) {
-        char c = uuid[i];
-        if (i == 8 || i == 13 || i == 18 || i == 23) {
-            REQUIRE(c == '-');
-        } else {
-            bool valid_hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
-            INFO("Position " << i << " has invalid character: " << c);
-            REQUIRE(valid_hex);
-        }
-    }
 }
 
 // ============================================================================
 // Double-hash Anonymization [telemetry][hash]
 // ============================================================================
-
-TEST_CASE("hash_device_id: consistent output for same inputs", "[telemetry][hash]") {
-    std::string uuid = "550e8400-e29b-41d4-a716-446655440000";
-    std::string salt = "test-salt-value";
-
-    auto hash1 = TelemetryManager::hash_device_id(uuid, salt);
-    auto hash2 = TelemetryManager::hash_device_id(uuid, salt);
-
-    REQUIRE(hash1 == hash2);
-}
-
-TEST_CASE("hash_device_id: different salts produce different output", "[telemetry][hash]") {
-    std::string uuid = "550e8400-e29b-41d4-a716-446655440000";
-
-    auto hash1 = TelemetryManager::hash_device_id(uuid, "salt-alpha");
-    auto hash2 = TelemetryManager::hash_device_id(uuid, "salt-beta");
-
-    REQUIRE(hash1 != hash2);
-}
-
-TEST_CASE("hash_device_id: different UUIDs produce different output", "[telemetry][hash]") {
-    std::string salt = "shared-salt";
-
-    auto hash1 = TelemetryManager::hash_device_id("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", salt);
-    auto hash2 = TelemetryManager::hash_device_id("11111111-2222-4333-8444-555555555555", salt);
-
-    REQUIRE(hash1 != hash2);
-}
 
 TEST_CASE("sha256_hex matches the FIPS 180-4 test vectors", "[telemetry][hash]") {
     REQUIRE(helix::sha256_hex("") ==
@@ -171,72 +96,44 @@ TEST_CASE("sha256_hex matches the FIPS 180-4 test vectors", "[telemetry][hash]")
             "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1");
 }
 
-TEST_CASE("hash_device_id: known value, so stored device ids stay stable", "[telemetry][hash]") {
-    REQUIRE(TelemetryManager::hash_device_id("550e8400-e29b-41d4-a716-446655440000", "test-salt") ==
+TEST_CASE("hash_device_id: a stable, salted 64-hex SHA-256 of the UUID", "[telemetry][hash]") {
+    const std::string uuid = "550e8400-e29b-41d4-a716-446655440000";
+    const std::regex hex64("^[0-9a-f]{64}$");
+
+    // A known value keeps stored device ids stable across releases; it also
+    // shows the UUID itself does not survive into the output.
+    REQUIRE(TelemetryManager::hash_device_id(uuid, "test-salt") ==
             "21fffeed629d1a1d7ff8bfcf6af51553abfc0ed61b5351a1f2aaa9ef513380b1");
-}
-
-TEST_CASE("hash_device_id: output is 64 hex characters (SHA-256)", "[telemetry][hash]") {
-    std::string uuid = "550e8400-e29b-41d4-a716-446655440000";
-    std::string salt = "test-salt";
-
-    auto hash = TelemetryManager::hash_device_id(uuid, salt);
-
-    // SHA-256 produces 256 bits = 64 hex characters
-    REQUIRE(hash.size() == 64);
-
-    // All characters must be valid lowercase hex
-    std::regex hex_regex("^[0-9a-f]{64}$");
-    REQUIRE(std::regex_match(hash, hex_regex));
-}
-
-TEST_CASE("hash_device_id: original UUID not present in output (irreversibility)",
-          "[telemetry][hash]") {
-    std::string uuid = "550e8400-e29b-41d4-a716-446655440000";
-    std::string salt = "anonymization-salt";
-
-    auto hash = TelemetryManager::hash_device_id(uuid, salt);
-
-    // The original UUID (or any substring of it) should not appear in the hash
-    REQUIRE(hash.find("550e8400") == std::string::npos);
-    REQUIRE(hash.find("446655440000") == std::string::npos);
-
-    // Also verify the hash is not just the UUID with dashes removed
-    std::string uuid_no_dashes = "550e8400e29b41d4a716446655440000";
-    REQUIRE(hash != uuid_no_dashes);
-}
-
-TEST_CASE("hash_device_id: empty inputs produce valid hash", "[telemetry][hash]") {
-    // Edge case: empty uuid and salt should still produce a valid 64-char hash
-    auto hash = TelemetryManager::hash_device_id("", "");
-    REQUIRE(hash.size() == 64);
-
-    std::regex hex_regex("^[0-9a-f]{64}$");
-    REQUIRE(std::regex_match(hash, hex_regex));
+    CHECK(TelemetryManager::hash_device_id(uuid, "salt-alpha") !=
+          TelemetryManager::hash_device_id(uuid, "salt-beta"));
+    CHECK(TelemetryManager::hash_device_id("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", "shared-salt") !=
+          TelemetryManager::hash_device_id("11111111-2222-4333-8444-555555555555", "shared-salt"));
+    CHECK(std::regex_match(TelemetryManager::hash_device_id("", ""), hex64));
 }
 
 // ============================================================================
 // Event Queue [telemetry][queue]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Queue: starts empty after init", "[telemetry][queue]") {
+TEST_CASE_METHOD(TelemetryTestFixture, "Queue: enqueue, snapshot and clear", "[telemetry][queue]") {
     auto& tm = TelemetryManager::instance();
     REQUIRE(tm.queue_size() == 0);
+    REQUIRE(tm.get_queue_snapshot().is_array());
+    REQUIRE(tm.get_queue_snapshot().empty());
 
-    auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot.is_array());
-    REQUIRE(snapshot.empty());
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Queue: enqueue adds events", "[telemetry][queue]") {
-    auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
-
     tm.record_session();
     REQUIRE(tm.queue_size() == 1);
 
+    // The snapshot is a copy: later events do not reach it
+    auto snapshot = tm.get_queue_snapshot();
     tm.record_session();
+    CHECK(snapshot.size() == 1);
     REQUIRE(tm.queue_size() == 2);
+
+    tm.clear_queue();
+    CHECK(tm.queue_size() == 0);
+    CHECK(tm.get_queue_snapshot().empty());
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Queue: respects max capacity and drops oldest",
@@ -261,72 +158,74 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Queue: respects max capacity and drops o
     REQUIRE(last_event["event"] == "print_outcome");
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Queue: clear removes all events", "[telemetry][queue]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 2);
-
-    tm.clear_queue();
-    REQUIRE(tm.queue_size() == 0);
-    REQUIRE(tm.get_queue_snapshot().empty());
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Queue: snapshot is a copy (not a reference)",
-                 "[telemetry][queue]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot.size() == 1);
-
-    // Adding another event should not affect the snapshot
-    tm.record_session();
-    REQUIRE(snapshot.size() == 1);
-    REQUIRE(tm.queue_size() == 2);
-}
-
 // ============================================================================
 // Session Event Schema [telemetry][session]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event: has all required fields",
+TEST_CASE_METHOD(TelemetryTestFixture, "Session event: envelope, app and host fields, no PII",
                  "[telemetry][session]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
 
+    // Two sessions: the zip probe is cached per process, and caching must not
+    // make zip_tool a first-session-only field.
+    tm.record_session();
     tm.record_session();
     auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot.size() == 1);
+    REQUIRE(snapshot.size() == 2);
 
-    auto event = snapshot[0];
-    REQUIRE(event.contains("schema_version"));
-    REQUIRE(event.contains("event"));
-    REQUIRE(event.contains("device_id"));
-    REQUIRE(event.contains("timestamp"));
+    const std::set<std::string> zip_tools{"unzip", "python", "none"};
+    for (const auto& event : snapshot) {
+        CHECK(event["event"] == "session");
+        CHECK(event["schema_version"].is_number_integer());
+        REQUIRE(event["device_id"].is_string());
+        // ISO 8601: YYYY-MM-DDTHH:MM:SS...
+        const std::string timestamp = event["timestamp"];
+        CHECK(timestamp.size() >= 19);
+        CHECK(timestamp.find('T') != std::string::npos);
 
-    REQUIRE(event["event"] == "session");
-    REQUIRE(event["schema_version"].is_number_integer());
-    REQUIRE(event["device_id"].is_string());
-    REQUIRE(event["timestamp"].is_string());
-}
+        CHECK(event["app"]["version"].is_string());
+        CHECK(event["app"]["platform"].is_string());
+        // Gates the .tar.gz retirement (#993); present even with no DisplayManager
+        const std::string zip_tool = event["app"]["zip_tool"];
+        INFO("zip_tool was: " << zip_tool);
+        CHECK(zip_tools.count(zip_tool) == 1);
+        // From helix::is_moonraker_on_same_host, independent of any connection
+        const std::string locality = event["host"]["screen_locality"];
+        INFO("screen_locality was: " << locality);
+        CHECK((locality == "local" || locality == "remote"));
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event: has app section with version and platform",
-                 "[telemetry][session]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
+        for (const char* pii : {"ip", "ip_address", "hostname", "username", "mac_address",
+                                "filename", "serial_number", "email", "ssid"}) {
+            INFO("PII field: " << pii);
+            CHECK_FALSE(event.contains(pii));
+        }
+        // The device id is a hash, not the raw UUID
+        const std::regex uuid_regex(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
+        CHECK_FALSE(std::regex_match(event["device_id"].get<std::string>(), uuid_regex));
+    }
+    CHECK(snapshot[0]["app"]["zip_tool"] == snapshot[1]["app"]["zip_tool"]);
 
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    REQUIRE(event.contains("app"));
-    REQUIRE(event["app"].contains("version"));
-    REQUIRE(event["app"].contains("platform"));
-    REQUIRE(event["app"]["version"].is_string());
-    REQUIRE(event["app"]["platform"].is_string());
+    const auto& event = snapshot[0];
+    CHECK(event["schema_version"] == TelemetryManager::kSchemaVersion);
+    const std::string theme = event["app"]["theme"];
+    CHECK((theme == "dark" || theme == "light"));
+    CHECK_FALSE(event["app"]["locale"].get<std::string>().empty());
+    // host is present without a printer and always names the architecture
+    CHECK_FALSE(event["host"]["arch"].get<std::string>().empty());
+    // A test printer may report no features: absent, or an array of strings
+    CHECK((!event.contains("features") ||
+           (event["features"].is_array() &&
+            std::all_of(event["features"].begin(), event["features"].end(),
+                        [](const json& f) { return f.is_string(); }))));
+    // No PII key at any depth, printer/features/host included
+    const std::string dumped = event.dump();
+    for (const char* key : {"\"hostname\"", "\"ip\"", "\"mac_address\"", "\"username\"",
+                            "\"serial_number\"", "\"email\"", "\"ssid\""}) {
+        INFO("key: " << key);
+        CHECK(dumped.find(key) == std::string::npos);
+    }
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Session event: app.board is the resolved board",
@@ -342,314 +241,135 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Session event: app.board is the resolved
     CHECK(event["app"]["platform"] == helix::platform::current_key());
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event: app.zip_tool reports zip capability",
-                 "[telemetry][session]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 1);
-    auto event = tm.get_queue_snapshot()[0];
-
-    // Gates the .tar.gz retirement (#993): combined with app.version this says
-    // whether a device could survive a zip-only release. Must be present even
-    // in this test binary, which has no DisplayManager -- the field lives
-    // outside that guard on purpose.
-    REQUIRE(event.contains("app"));
-    REQUIRE(event["app"].contains("zip_tool"));
-    REQUIRE(event["app"]["zip_tool"].is_string());
-
-    const std::string zip_tool = event["app"]["zip_tool"];
-    const std::set<std::string> legal_values{"unzip", "python", "none"};
-    INFO("zip_tool was: " << zip_tool);
-    REQUIRE(legal_values.count(zip_tool) == 1);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event: host.screen_locality is local or remote",
-                 "[telemetry][session]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 1);
-    auto event = tm.get_queue_snapshot()[0];
-
-    // Derived from the same host-identity check that gates every klippy-UDS
-    // feature (helix::is_moonraker_on_same_host). Must always be present -
-    // it does not depend on DisplayManager or a live printer connection.
-    REQUIRE(event.contains("host"));
-    REQUIRE(event["host"].contains("screen_locality"));
-    REQUIRE(event["host"]["screen_locality"].is_string());
-
-    const std::string locality = event["host"]["screen_locality"];
-    const std::set<std::string> legal_values{"local", "remote"};
-    INFO("screen_locality was: " << locality);
-    REQUIRE(legal_values.count(locality) == 1);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event: app.zip_tool is on EVERY session event",
-                 "[telemetry][session]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    // The probe is cached in a function-local static so it runs at most once
-    // per process (it can exec python3, which is slow on MIPS). Caching must
-    // not turn the field into a first-session-only field, and both sessions
-    // must agree on the answer.
-    tm.record_session();
-    tm.record_session();
-
-    auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot.size() == 2);
-
-    const std::set<std::string> legal_values{"unzip", "python", "none"};
-    for (const auto& event : snapshot) {
-        REQUIRE(event.at("app").contains("zip_tool"));
-        const std::string zip_tool = event.at("app").at("zip_tool");
-        REQUIRE(legal_values.count(zip_tool) == 1);
-    }
-    REQUIRE(snapshot[0]["app"]["zip_tool"] == snapshot[1]["app"]["zip_tool"]);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event: does NOT contain PII fields",
-                 "[telemetry][session]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    // Must NOT contain any PII-identifying fields
-    REQUIRE_FALSE(event.contains("ip"));
-    REQUIRE_FALSE(event.contains("ip_address"));
-    REQUIRE_FALSE(event.contains("hostname"));
-    REQUIRE_FALSE(event.contains("username"));
-    REQUIRE_FALSE(event.contains("mac_address"));
-    REQUIRE_FALSE(event.contains("filename"));
-    REQUIRE_FALSE(event.contains("serial_number"));
-    REQUIRE_FALSE(event.contains("email"));
-    REQUIRE_FALSE(event.contains("ssid"));
-
-    // Device ID should be a hash, not a raw UUID
-    std::string device_id = event["device_id"];
-    std::regex uuid_regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
-    REQUIRE_FALSE(std::regex_match(device_id, uuid_regex));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event: timestamp is ISO 8601 format",
-                 "[telemetry][session]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    std::string timestamp = event["timestamp"];
-    // ISO 8601: YYYY-MM-DDTHH:MM:SSZ or similar
-    // At minimum, should contain 'T' separator and be reasonable length
-    REQUIRE(timestamp.size() >= 19);
-    REQUIRE(timestamp.find('T') != std::string::npos);
-}
-
 // ============================================================================
 // Print Outcome Event Schema [telemetry][print_outcome]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Print outcome event: has required fields",
+TEST_CASE_METHOD(TelemetryTestFixture, "Print outcome event: carries the job's figures, no file",
                  "[telemetry][print_outcome]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
+    struct Row {
+        const char* outcome;
+        int duration;
+        int phases;
+        float filament_mm;
+        const char* type;
+        int nozzle;
+        int bed;
+    };
+    const Row rows[] = {
+        {"completed", 7200, 10, 3200.5f, "ABS", 250, 110},
+        {"failed", 1800, 5, 800.0f, "PETG", 240, 80},
+        {"cancelled", 900, 3, 150.0f, "PLA", 200, 55},
+        // A multi-tool job lists every material; a job with none reports ""
+        {"success", 600, 5, 3100.0f, "ABS;PLA", 200, 60},
+        {"success", 3600, 10, 0.0f, "", 210, 60},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.outcome << " " << r.type) {
+            auto& tm = TelemetryManager::instance();
+            tm.set_enabled(true);
+            tm.record_print_outcome(r.outcome, r.duration, r.phases, r.filament_mm, r.type,
+                                    r.nozzle, r.bed);
+            auto snapshot = tm.get_queue_snapshot();
+            REQUIRE(snapshot.size() == 1);
+            const auto& event = snapshot[0];
 
-    tm.record_print_outcome("completed", 3600, 10, 2500.0f, "PLA", 215, 60);
-    auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot.size() == 1);
-
-    auto event = snapshot[0];
-    REQUIRE(event.contains("schema_version"));
-    REQUIRE(event.contains("event"));
-    REQUIRE(event.contains("device_id"));
-    REQUIRE(event.contains("timestamp"));
-
-    REQUIRE(event["event"] == "print_outcome");
-    REQUIRE(event.contains("outcome"));
-    REQUIRE(event["outcome"] == "completed");
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Print outcome event: does NOT contain filename or gcode",
-                 "[telemetry][print_outcome]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_print_outcome("failed", 1800, 5, 800.0f, "PETG", 240, 80);
-    auto event = tm.get_queue_snapshot()[0];
-
-    // Must NOT leak file or gcode information
-    REQUIRE_FALSE(event.contains("filename"));
-    REQUIRE_FALSE(event.contains("file"));
-    REQUIRE_FALSE(event.contains("filepath"));
-    REQUIRE_FALSE(event.contains("gcode"));
-    REQUIRE_FALSE(event.contains("gcode_file"));
-    REQUIRE_FALSE(event.contains("path"));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Print outcome event: captures duration and filament",
-                 "[telemetry][print_outcome]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_print_outcome("completed", 7200, 10, 3200.5f, "ABS", 250, 110);
-    auto event = tm.get_queue_snapshot()[0];
-
-    // Duration should be captured
-    REQUIRE(event.contains("duration_sec"));
-    REQUIRE(event["duration_sec"] == 7200);
-
-    // Filament info should be captured
-    REQUIRE(event.contains("filament_used_mm"));
-    REQUIRE(event["filament_used_mm"].is_number());
-
-    REQUIRE(event.contains("filament_type"));
-    REQUIRE(event["filament_type"] == "ABS");
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Print outcome event: captures temperature and phase info",
-                 "[telemetry][print_outcome]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_print_outcome("cancelled", 900, 3, 150.0f, "PLA", 200, 55);
-    auto event = tm.get_queue_snapshot()[0];
-
-    REQUIRE(event.contains("phases_completed"));
-    REQUIRE(event["phases_completed"] == 3);
-
-    REQUIRE(event.contains("nozzle_temp"));
-    REQUIRE(event["nozzle_temp"] == 200);
-
-    REQUIRE(event.contains("bed_temp"));
-    REQUIRE(event["bed_temp"] == 55);
+            CHECK(event["event"] == "print_outcome");
+            CHECK(event.contains("schema_version"));
+            CHECK(event.contains("device_id"));
+            CHECK(event.contains("timestamp"));
+            CHECK(event["outcome"] == r.outcome);
+            CHECK(event["duration_sec"] == r.duration);
+            CHECK(event["phases_completed"] == r.phases);
+            CHECK(event["filament_used_mm"].get<float>() == Catch::Approx(r.filament_mm));
+            CHECK(event["filament_type"] == r.type);
+            CHECK(event["nozzle_temp"] == r.nozzle);
+            CHECK(event["bed_temp"] == r.bed);
+            for (const char* leak :
+                 {"filename", "file", "filepath", "gcode", "gcode_file", "path"}) {
+                INFO("field: " << leak);
+                CHECK_FALSE(event.contains(leak));
+            }
+        }
+    }
 }
 
 // ============================================================================
 // Enable/Disable Toggle [telemetry][toggle]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Toggle: disabled by default", "[telemetry][toggle]") {
-    auto& tm = TelemetryManager::instance();
-    // Fixture sets disabled; verify the API reports that
-    REQUIRE_FALSE(tm.is_enabled());
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Toggle: when disabled, record_session does not add events",
+TEST_CASE_METHOD(TelemetryTestFixture, "Toggle: recording follows the enabled flag",
                  "[telemetry][toggle]") {
     auto& tm = TelemetryManager::instance();
-    tm.set_enabled(false);
+    REQUIRE_FALSE(tm.is_enabled()); // the fixture's default
 
     tm.record_session();
-    REQUIRE(tm.queue_size() == 0);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Toggle: when disabled, record_print_outcome does not add events",
-                 "[telemetry][toggle]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(false);
-
     tm.record_print_outcome("completed", 3600, 10, 2500.0f, "PLA", 215, 60);
     REQUIRE(tm.queue_size() == 0);
-}
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Toggle: when enabled, events are added normally",
-                 "[telemetry][toggle]") {
-    auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
     REQUIRE(tm.is_enabled());
-
     tm.record_session();
-    REQUIRE(tm.queue_size() == 1);
-
     tm.record_print_outcome("completed", 1000, 5, 500.0f, "PLA", 200, 60);
     REQUIRE(tm.queue_size() == 2);
-}
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Toggle: mid-session toggle respects new state",
-                 "[telemetry][toggle]") {
-    auto& tm = TelemetryManager::instance();
-
-    // Start enabled
-    tm.set_enabled(true);
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 1);
-
-    // Disable mid-session
-    tm.set_enabled(false);
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 1); // No new event added
-
-    // Re-enable
-    tm.set_enabled(true);
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 2); // New event added
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Toggle: disable does not clear existing queue",
-                 "[telemetry][toggle]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 2);
-
-    // Disabling should not erase already-queued events
+    // Disabling keeps what is queued and stops new events; re-enabling resumes
     tm.set_enabled(false);
     REQUIRE(tm.queue_size() == 2);
+    tm.record_session();
+    REQUIRE(tm.queue_size() == 2);
+    tm.set_enabled(true);
+    tm.record_session();
+    REQUIRE(tm.queue_size() == 3);
 }
 
 // ============================================================================
 // Queue File Round-Trip (Persistence) [telemetry][persistence]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Persistence: write queue to file and read back",
-                 "[telemetry][persistence]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    tm.record_print_outcome("completed", 1200, 8, 1000.0f, "PLA", 210, 60);
-    REQUIRE(tm.queue_size() == 2);
-
-    auto snapshot_before = tm.get_queue_snapshot();
-
-    // Save to disk
-    tm.save_queue();
-
-    // Clear in-memory queue
-    tm.clear_queue();
-    REQUIRE(tm.queue_size() == 0);
-
-    // Load from disk
-    tm.load_queue();
-    REQUIRE(tm.queue_size() == 2);
-
-    auto snapshot_after = tm.get_queue_snapshot();
-    REQUIRE(snapshot_before == snapshot_after);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Persistence: empty queue produces empty JSON array",
+TEST_CASE_METHOD(TelemetryTestFixture, "Persistence: the queue file round-trips the queue",
                  "[telemetry][persistence]") {
     auto& tm = TelemetryManager::instance();
 
-    // Save empty queue
-    tm.save_queue();
+    SECTION("an empty queue reads back empty") {
+        tm.save_queue();
+        tm.load_queue();
+        REQUIRE(tm.queue_size() == 0);
+        REQUIRE(tm.get_queue_snapshot().is_array());
+    }
 
-    // Load it back
-    tm.load_queue();
-    REQUIRE(tm.queue_size() == 0);
+    SECTION("events survive several save/load cycles in order") {
+        tm.set_enabled(true);
+        tm.record_session();
+        tm.save_queue();
+        tm.clear_queue();
+        tm.load_queue();
+        REQUIRE(tm.queue_size() == 1);
 
-    auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot.is_array());
-    REQUIRE(snapshot.empty());
+        tm.record_print_outcome("completed", 600, 5, 300.0f, "PETG", 230, 70);
+        const auto before = tm.get_queue_snapshot();
+        tm.save_queue();
+        tm.clear_queue();
+        tm.load_queue();
+        REQUIRE(tm.get_queue_snapshot() == before);
+        CHECK(before[0]["event"] == "session");
+        CHECK(before[1]["event"] == "print_outcome");
+
+        // What sits on disk is a plain JSON array of those events
+        bool found = false;
+        for (auto& entry : fs::recursive_directory_iterator(temp_dir_)) {
+            if (entry.path().extension() != ".json") {
+                continue;
+            }
+            std::ifstream ifs(entry.path());
+            auto parsed = json::parse(ifs, nullptr, false);
+            if (!parsed.is_discarded() && parsed.is_array()) {
+                found = true;
+                CHECK(parsed.size() == 2);
+            }
+        }
+        CHECK(found);
+    }
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Persistence: load from missing file produces empty queue",
@@ -692,103 +412,31 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     REQUIRE(tm.queue_size() == 0);
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Persistence: queue survives multiple write/read cycles",
-                 "[telemetry][persistence]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    // Cycle 1: add events and save
-    tm.record_session();
-    tm.save_queue();
-
-    // Cycle 2: load, add more, save again
-    tm.clear_queue();
-    tm.load_queue();
-    REQUIRE(tm.queue_size() == 1);
-
-    tm.record_print_outcome("completed", 600, 5, 300.0f, "PETG", 230, 70);
-    tm.save_queue();
-
-    // Cycle 3: load and verify everything persisted
-    tm.clear_queue();
-    tm.load_queue();
-    REQUIRE(tm.queue_size() == 2);
-
-    auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot[0]["event"] == "session");
-    REQUIRE(snapshot[1]["event"] == "print_outcome");
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Persistence: saved file is valid JSON",
-                 "[telemetry][persistence]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    tm.record_print_outcome("failed", 120, 2, 50.0f, "PLA", 200, 60);
-    tm.save_queue();
-
-    // Find and read the queue file
-    // The file should be in the temp config directory
-    bool found_valid_json = false;
-    for (auto& entry : fs::recursive_directory_iterator(temp_dir_)) {
-        if (entry.path().extension() == ".json") {
-            std::ifstream ifs(entry.path());
-            std::string content{std::istreambuf_iterator<char>(ifs),
-                                std::istreambuf_iterator<char>()};
-
-            // Should parse without throwing
-            auto parsed = json::parse(content, nullptr, false);
-            if (!parsed.is_discarded() && parsed.is_array()) {
-                found_valid_json = true;
-                REQUIRE(parsed.size() == 2);
-            }
-        }
-    }
-    REQUIRE(found_valid_json);
-}
-
 // ============================================================================
-// kMaxQueueSize constant [telemetry][queue]
+// Queue size, drain capacity and retry spacing [telemetry][send][1476]
 // ============================================================================
 
-TEST_CASE("MAX_QUEUE_SIZE is 100", "[telemetry][queue]") {
+TEST_CASE("Drain: a send window keeps up with the unattended producers",
+          "[telemetry][queue][send][1476]") {
     REQUIRE(TelemetryManager::kMaxQueueSize == 100);
-}
 
-// ============================================================================
-// Drain capacity and retry spacing [telemetry][send][1476]
-// ============================================================================
+    // A window that cannot clear a full queue leaves it saturated, and
+    // enqueue_event() then discards the oldest events unsent.
+    CHECK(TelemetryManager::kMaxBatchesPerSend * TelemetryManager::kMaxBatchSize >=
+          TelemetryManager::kMaxQueueSize);
 
-TEST_CASE("Drain: one send window can empty a full queue", "[telemetry][send][1476]") {
-    // The periodic producers enqueue faster than a single batch per window
-    // drains, so a window that cannot clear a full queue leaves it saturated
-    // and enqueue_event() discards the oldest events unsent.
-    REQUIRE(TelemetryManager::kMaxBatchesPerSend * TelemetryManager::kMaxBatchSize >=
-            TelemetryManager::kMaxQueueSize);
-}
-
-TEST_CASE("Drain: the hourly producer alone outruns a single batch per window",
-          "[telemetry][send][1476]") {
-    // record_memory_snapshot("hourly") fires from the auto-send timer, so a
-    // day enqueues one event per hour with nobody touching the device. A drain
-    // capped at one batch per kSendInterval is below that rate on its own.
+    // record_memory_snapshot("hourly") fires from the auto-send timer: one event
+    // an hour with nobody at the device, more than one batch per kSendInterval
+    // can carry. The batch bound is what covers that rate.
     constexpr int hourly_events_per_send_interval =
         static_cast<int>(TelemetryManager::kSendInterval.count());
-    REQUIRE(hourly_events_per_send_interval > static_cast<int>(TelemetryManager::kMaxBatchSize));
+    CHECK(hourly_events_per_send_interval > static_cast<int>(TelemetryManager::kMaxBatchSize));
+    CHECK(static_cast<int>(TelemetryManager::kMaxBatchesPerSend * TelemetryManager::kMaxBatchSize) >
+          hourly_events_per_send_interval);
 
-    // The drain has to cover that rate, which is what the batch bound buys.
-    REQUIRE(static_cast<int>(TelemetryManager::kMaxBatchesPerSend *
-                             TelemetryManager::kMaxBatchSize) > hourly_events_per_send_interval);
-}
-
-TEST_CASE("Queue budget: an unattended send window fits the queue", "[telemetry][send][1476]") {
-    // With nobody touching the device the periodic timers are the whole
-    // producer set, and the queue is drained once per kSendInterval. A budget
-    // above kMaxQueueSize is the number of events enqueue_event() discards
-    // unsent every day — on every platform, not only the K1-class ones where
-    // the drop log was read.
-    REQUIRE(TelemetryManager::kUnattendedEventsPerSendWindow <= TelemetryManager::kMaxQueueSize);
+    // With nobody touching the device the periodic timers are the whole producer
+    // set; a budget above kMaxQueueSize is what gets discarded unsent every day.
+    CHECK(TelemetryManager::kUnattendedEventsPerSendWindow <= TelemetryManager::kMaxQueueSize);
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a day of unattended production survives to the send",
@@ -849,42 +497,22 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a purge ends the window the drop 
     REQUIRE(TelemetryManagerTestAccess::events_dropped_since_send(tm) == 0);
 }
 
-TEST_CASE("Send delay: a healthy sender waits the full send interval", "[telemetry][send][1476]") {
-    REQUIRE(TelemetryManager::next_attempt_delay(1) == TelemetryManager::kSendInterval);
-}
-
-TEST_CASE("Send delay: a first failure retries sooner than the daily cadence",
+TEST_CASE("Send delay: retries back off from hours to a seven-day ceiling",
           "[telemetry][send][1476]") {
-    // A backoff above 1 means the previous attempt failed. Spacing that first
-    // retry off the full send interval would leave the queue filling for a day
-    // over a server that was unreachable for a moment.
-    REQUIRE(TelemetryManager::next_attempt_delay(2) < TelemetryManager::kSendInterval);
-}
-
-TEST_CASE("Send delay: a sustained failure backs off past the daily cadence",
-          "[telemetry][send][1476]") {
-    // The counterweight to the test above. A printer that never reaches the
-    // endpoint at all must not end up attempting MORE often than a healthy one
-    // — each attempt is a thread, a DNS lookup and a 30s timeout, and on a
-    // LAN-only machine every one of them is waste that never succeeds.
-    REQUIRE(TelemetryManager::next_attempt_delay(TelemetryManager::kMaxBackoffMultiplier) >=
-            TelemetryManager::kSendInterval);
-}
-
-TEST_CASE("Send delay: retries lengthen as the backoff grows", "[telemetry][send][1476]") {
-    REQUIRE(TelemetryManager::next_attempt_delay(2) < TelemetryManager::next_attempt_delay(4));
-    REQUIRE(TelemetryManager::next_attempt_delay(4) < TelemetryManager::next_attempt_delay(64));
-}
-
-TEST_CASE("Send delay: the backoff ceiling still reaches seven days", "[telemetry][send][1476]") {
-    // kRetryInterval is the base, so the multiplier has to be able to climb far
-    // enough that the ceiling is still a week rather than a few hours.
-    REQUIRE(TelemetryManager::next_attempt_delay(TelemetryManager::kMaxBackoffMultiplier) ==
-            std::chrono::hours{24 * 7});
-}
-
-TEST_CASE("Send delay: never exceeds seven days", "[telemetry][send][1476]") {
-    REQUIRE(TelemetryManager::next_attempt_delay(100000) <= std::chrono::hours{24 * 7});
+    using TM = TelemetryManager;
+    // A healthy sender (backoff 1) keeps the daily cadence.
+    CHECK(TM::next_attempt_delay(1) == TM::kSendInterval);
+    // A first failure retries sooner, so a momentary outage does not leave the
+    // queue filling for a day.
+    CHECK(TM::next_attempt_delay(2) < TM::kSendInterval);
+    CHECK(TM::next_attempt_delay(2) < TM::next_attempt_delay(4));
+    CHECK(TM::next_attempt_delay(4) < TM::next_attempt_delay(64));
+    // A printer that never reaches the endpoint must not try MORE often than a
+    // healthy one: each attempt is a thread, a DNS lookup and a 30s timeout.
+    // kRetryInterval is the base, so the multiplier climbs to a full week.
+    CHECK(TM::next_attempt_delay(TM::kMaxBackoffMultiplier) >= TM::kSendInterval);
+    CHECK(TM::next_attempt_delay(TM::kMaxBackoffMultiplier) == std::chrono::hours{24 * 7});
+    CHECK(TM::next_attempt_delay(100000) <= std::chrono::hours{24 * 7});
 }
 
 // try_send() has to actually consult next_attempt_delay(). Pinning the helper
@@ -966,17 +594,6 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 }
 
 // ============================================================================
-// Singleton behavior [telemetry]
-// ============================================================================
-
-TEST_CASE("TelemetryManager: instance returns same object", "[telemetry]") {
-    auto& inst1 = TelemetryManager::instance();
-    auto& inst2 = TelemetryManager::instance();
-
-    REQUIRE(&inst1 == &inst2);
-}
-
-// ============================================================================
 // Device ID consistency across events [telemetry][hash]
 // ============================================================================
 
@@ -1007,135 +624,62 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 // Transmission [telemetry][transmission]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Transmission: try_send is no-op when disabled",
-                 "[telemetry][transmission]") {
-    auto& tm = TelemetryManager::instance();
-
-    // Enqueue an event while enabled, then disable
-    tm.set_enabled(true);
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 1);
-
-    tm.set_enabled(false);
-
-    // try_send should not crash and should not remove events
-    tm.try_send();
-    REQUIRE(tm.queue_size() == 1);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Transmission: try_send is no-op when queue is empty",
-                 "[telemetry][transmission]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    REQUIRE(tm.queue_size() == 0);
-
-    // try_send with empty queue should not crash
-    tm.try_send();
-    REQUIRE(tm.queue_size() == 0);
-}
-
 TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Transmission: build_batch takes at most MAX_BATCH_SIZE events",
+                 "Transmission: try_send leaves the queue alone with nothing to do",
                  "[telemetry][transmission]") {
     auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
 
-    // Fill queue with more events than kMaxBatchSize
-    for (size_t i = 0; i < TelemetryManager::kMaxBatchSize + 10; ++i) {
+    SECTION("telemetry disabled") {
+        tm.set_enabled(true);
         tm.record_session();
+        tm.set_enabled(false);
+        tm.try_send();
+        REQUIRE(tm.queue_size() == 1);
     }
-    REQUIRE(tm.queue_size() == TelemetryManager::kMaxBatchSize + 10);
-
-    // Build a batch and verify it respects the limit
-    auto batch = tm.build_batch();
-    REQUIRE(batch.is_array());
-    REQUIRE(batch.size() == TelemetryManager::kMaxBatchSize);
+    SECTION("an empty queue") {
+        tm.set_enabled(true);
+        tm.try_send();
+        REQUIRE(tm.queue_size() == 0);
+    }
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Transmission: build_batch returns all events when fewer than limit",
+                 "Transmission: build_batch copies up to kMaxBatchSize events",
                  "[telemetry][transmission]") {
     auto& tm = TelemetryManager::instance();
+    REQUIRE(tm.build_batch().is_array());
+    REQUIRE(tm.build_batch().empty());
+
     tm.set_enabled(true);
-
-    tm.record_session();
-    tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
-    REQUIRE(tm.queue_size() == 2);
-
-    auto batch = tm.build_batch();
-    REQUIRE(batch.is_array());
-    REQUIRE(batch.size() == 2);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Transmission: build_batch returns empty array when queue is empty",
-                 "[telemetry][transmission]") {
-    auto& tm = TelemetryManager::instance();
-
-    REQUIRE(tm.queue_size() == 0);
-    auto batch = tm.build_batch();
-    REQUIRE(batch.is_array());
-    REQUIRE(batch.empty());
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Transmission: build_batch does not modify the queue",
-                 "[telemetry][transmission]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 2);
-
-    auto batch = tm.build_batch();
-    REQUIRE(batch.size() == 2);
-
-    // Queue should be unchanged after building a batch
-    REQUIRE(tm.queue_size() == 2);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Transmission: batch payload contains valid event JSON",
-                 "[telemetry][transmission]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
     tm.record_session();
     tm.record_print_outcome("completed", 3600, 10, 2500.0f, "PLA", 215, 60);
-
     auto batch = tm.build_batch();
     REQUIRE(batch.size() == 2);
-
-    // Each event in the batch should have the required schema fields
+    REQUIRE(tm.queue_size() == 2); // building a batch leaves the queue intact
     for (const auto& event : batch) {
-        REQUIRE(event.contains("schema_version"));
-        REQUIRE(event.contains("event"));
-        REQUIRE(event.contains("device_id"));
-        REQUIRE(event.contains("timestamp"));
+        CHECK(event.contains("schema_version"));
+        CHECK(event.contains("device_id"));
+        CHECK(event.contains("timestamp"));
     }
+    CHECK(batch[0]["event"] == "session");
+    CHECK(batch[1]["event"] == "print_outcome");
 
-    // Verify event types are preserved in order
-    REQUIRE(batch[0]["event"] == "session");
-    REQUIRE(batch[1]["event"] == "print_outcome");
+    while (tm.queue_size() < TelemetryManager::kMaxBatchSize + 10) {
+        tm.record_session();
+    }
+    CHECK(tm.build_batch().size() == TelemetryManager::kMaxBatchSize);
 }
 
 TEST_CASE("Transmission: endpoint URL is HTTPS", "[telemetry][transmission]") {
-    // The kMaxBatchSize / kSendInterval assertions that used to sit here copied
-    // the header's literals and compared them to themselves — a constant cannot
-    // fail to equal its own definition. The scheme check is the one thing here
-    // that constrains the value rather than mirroring it: device telemetry must
-    // never leave over plaintext.
+    // Device telemetry must never leave over plaintext.
     const std::string url(TelemetryManager::kEndpointUrl);
     REQUIRE(url.find("https://") == 0);
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Transmission: remove_sent_events removes from front of queue",
+TEST_CASE_METHOD(TelemetryTestFixture, "Transmission: remove_sent_events drops from the front",
                  "[telemetry][transmission]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
-
-    // Add 5 events
     tm.record_session();
     tm.record_session();
     tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
@@ -1143,41 +687,18 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     tm.record_session();
     REQUIRE(tm.queue_size() == 5);
 
-    // Remove the first 3
+    tm.remove_sent_events(0);
+    REQUIRE(tm.queue_size() == 5);
+
     tm.remove_sent_events(3);
     REQUIRE(tm.queue_size() == 2);
-
-    // The remaining events should be the last two (both session events)
     auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot[0]["event"] == "session");
-    REQUIRE(snapshot[1]["event"] == "session");
-}
+    CHECK(snapshot[0]["event"] == "session");
+    CHECK(snapshot[1]["event"] == "session");
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Transmission: remove_sent_events with 0 does nothing",
-                 "[telemetry][transmission]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 1);
-
-    tm.remove_sent_events(0);
-    REQUIRE(tm.queue_size() == 1);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Transmission: remove_sent_events with count > queue size removes all",
-                 "[telemetry][transmission]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    tm.record_session();
-    REQUIRE(tm.queue_size() == 2);
-
-    // Removing more than exists should safely clear the queue
+    // More than the queue holds clears it
     tm.remove_sent_events(100);
-    REQUIRE(tm.queue_size() == 0);
+    CHECK(tm.queue_size() == 0);
 }
 
 // ============================================================================
@@ -1187,12 +708,8 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 /**
  * @brief TelemetryTestFixture plus a live LVGL, for the auto-send timers
  *
- * The scheduler cases used to run on the bare TelemetryTestFixture and assert
- * nothing, which hid a second problem: that fixture's ctor ends with
- * set_enabled(false), so start_auto_send() returned at the !is_enabled() guard
- * (src/system/telemetry_manager.cpp:1015) and never reached lv_timer_create()
- * at all. The idempotence branch (:1023) and stop_auto_send() were unreachable.
- * Enabling telemetry first makes the timers real, and real timers need LVGL up.
+ * start_auto_send() returns early unless telemetry is enabled, and the timers
+ * it then creates need LVGL running.
  *
  * The LVGL base is constructed first and destroyed last, so the composed
  * telemetry fixture's init/shutdown always runs against a live LVGL.
@@ -1235,6 +752,8 @@ TEST_CASE_METHOD(TelemetrySchedulerFixture,
                  "[telemetry][scheduler]") {
     auto& tm = TelemetryManager::instance();
     REQUIRE(telemetry_timer_count() == 0);
+    tm.stop_auto_send(); // a stop before any start is harmless
+    REQUIRE(telemetry_timer_count() == 0);
 
     // Disabled: the !is_enabled() guard must arm nothing. Sending telemetry
     // from a user who opted out is the failure this pins.
@@ -1256,24 +775,8 @@ TEST_CASE_METHOD(TelemetrySchedulerFixture,
 
     tm.stop_auto_send();
     REQUIRE(telemetry_timer_count() == 0);
-}
 
-TEST_CASE_METHOD(TelemetrySchedulerFixture, "Scheduler: stop_auto_send is idempotent",
-                 "[telemetry][scheduler]") {
-    auto& tm = TelemetryManager::instance();
-
-    // Stop before any start.
-    tm.stop_auto_send();
-    REQUIRE(telemetry_timer_count() == 0);
-
-    tm.set_enabled(true);
-    tm.start_auto_send();
-    REQUIRE(telemetry_timer_count() > 0);
-
-    tm.stop_auto_send();
-    REQUIRE(telemetry_timer_count() == 0);
-
-    // Second stop must see null pointers, not freed timers.
+    // A second stop must see null pointers, not freed timers.
     tm.stop_auto_send();
     REQUIRE(telemetry_timer_count() == 0);
 }
@@ -1293,248 +796,62 @@ TEST_CASE_METHOD(TelemetrySchedulerFixture, "Scheduler: shutdown stops auto-send
 }
 
 // ============================================================================
-// Schema Version 2 - Hardware Survey [telemetry][session][v2]
-// ============================================================================
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: schema_version is the current version",
-                 "[telemetry][session][v2]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    REQUIRE(event["schema_version"] == TelemetryManager::kSchemaVersion);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: app section has display backend fields",
-                 "[telemetry][session][v2]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    // App section should exist and have version/platform
-    REQUIRE(event.contains("app"));
-    REQUIRE(event["app"].contains("version"));
-    REQUIRE(event["app"].contains("platform"));
-
-    // Display backend fields are booleans when DisplayManager is available
-    // In test context, DisplayManager may not be initialized, so just verify
-    // the app object itself is present and well-formed
-    REQUIRE(event["app"].is_object());
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: no PII in printer/features/host sections",
-                 "[telemetry][session][v2]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    // Serialize entire event to verify no PII leaked
-    std::string event_str = event.dump();
-
-    // Must NOT contain any PII-identifying fields at any level
-    REQUIRE(event_str.find("\"hostname\"") == std::string::npos);
-    REQUIRE(event_str.find("\"ip\"") == std::string::npos);
-    REQUIRE(event_str.find("\"mac_address\"") == std::string::npos);
-    REQUIRE(event_str.find("\"username\"") == std::string::npos);
-    REQUIRE(event_str.find("\"serial_number\"") == std::string::npos);
-    REQUIRE(event_str.find("\"email\"") == std::string::npos);
-    REQUIRE(event_str.find("\"ssid\"") == std::string::npos);
-
-    // If printer section exists, verify no hostname
-    if (event.contains("printer")) {
-        REQUIRE_FALSE(event["printer"].contains("hostname"));
-    }
-
-    // If host section exists, it should only have os
-    if (event.contains("host")) {
-        REQUIRE_FALSE(event["host"].contains("hostname"));
-        REQUIRE_FALSE(event["host"].contains("ip"));
-    }
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: features is an array when present",
-                 "[telemetry][session][v2]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    // A test printer may report no features at all, so the contract is
-    // conditional: absent, or an array whose every element is a string. Stated
-    // as one assertion it holds on both paths - an `if` around the REQUIREs
-    // checks nothing whenever the key is missing.
-    const bool features_well_formed =
-        !event.contains("features") ||
-        (event["features"].is_array() &&
-         std::all_of(event["features"].begin(), event["features"].end(),
-                     [](const nlohmann::json& f) { return f.is_string(); }));
-    REQUIRE(features_well_formed);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: app has theme and locale",
-                 "[telemetry][session][v2]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    REQUIRE(event.contains("app"));
-    const auto& app = event["app"];
-
-    // Theme should be "dark" or "light"
-    REQUIRE(app.contains("theme"));
-    REQUIRE(app["theme"].is_string());
-    std::string theme = app["theme"].get<std::string>();
-    REQUIRE((theme == "dark" || theme == "light"));
-
-    // Locale should be a non-empty language code
-    REQUIRE(app.contains("locale"));
-    REQUIRE(app["locale"].is_string());
-    REQUIRE(!app["locale"].get<std::string>().empty());
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: host section has hardware info",
-                 "[telemetry][session][v2]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_session();
-    auto event = tm.get_queue_snapshot()[0];
-
-    // Host section should always be present (doesn't require printer)
-    REQUIRE(event.contains("host"));
-    const auto& host = event["host"];
-    REQUIRE(host.is_object());
-
-    // Architecture should be present on any platform
-    REQUIRE(host.contains("arch"));
-    REQUIRE(host["arch"].is_string());
-    REQUIRE(!host["arch"].get<std::string>().empty());
-
-    // Verify no PII leakage in host section
-    REQUIRE_FALSE(host.contains("hostname"));
-    REQUIRE_FALSE(host.contains("ip"));
-}
-
-// ============================================================================
-// Print Outcome - Filament Metadata [telemetry][print_outcome]
-// ============================================================================
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Print outcome event includes filament_type when set",
-                 "[telemetry][print_outcome]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_print_outcome("success", 3600, 10, 1234.5f, "PLA", 210, 60);
-
-    auto batch = tm.build_batch();
-    REQUIRE(batch.size() == 1);
-    REQUIRE(batch[0]["filament_type"] == "PLA");
-    REQUIRE(batch[0]["filament_used_mm"].get<float>() == Catch::Approx(1234.5f));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Print outcome event has empty filament_type by default",
-                 "[telemetry][print_outcome]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_print_outcome("success", 3600, 10, 0.0f, "", 210, 60);
-
-    auto batch = tm.build_batch();
-    REQUIRE(batch.size() == 1);
-    REQUIRE(batch[0]["filament_type"] == "");
-    REQUIRE(batch[0]["filament_used_mm"].get<float>() == Catch::Approx(0.0f));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Print outcome event: preserves filament type across material types",
-                 "[telemetry][print_outcome]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    // Test various filament types including multi-tool separator
-    std::vector<std::pair<std::string, float>> cases = {
-        {"PLA", 1500.0f},
-        {"PETG", 2200.5f},
-        {"ABS;PLA", 3100.0f},
-    };
-
-    for (const auto& [ftype, fmm] : cases) {
-        tm.clear_queue();
-        tm.record_print_outcome("success", 600, 5, fmm, ftype, 200, 60);
-
-        auto batch = tm.build_batch();
-        REQUIRE(batch.size() == 1);
-        INFO("Testing filament_type: " << ftype);
-        REQUIRE(batch[0]["filament_type"] == ftype);
-        REQUIRE(batch[0]["filament_used_mm"].get<float>() == Catch::Approx(fmm));
-    }
-}
-
-// ============================================================================
 // Update Failed Event [telemetry][update]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Update failed event: has required envelope fields",
-                 "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_update_failure("download_failed", "0.14.0", "ad5m");
-
-    REQUIRE(tm.queue_size() == 1);
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-
-    REQUIRE(event["schema_version"] == TelemetryManager::kSchemaVersion);
-    REQUIRE(event["event"] == "update_failed");
-    REQUIRE(event.contains("device_id"));
-    REQUIRE(event.contains("timestamp"));
-    REQUIRE(event["reason"] == "download_failed");
-    REQUIRE(event["version"] == "0.14.0");
-    REQUIRE(event["platform"] == "ad5m");
-}
-
 TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Update failed event: includes optional fields when provided",
+                 "Update failed event: envelope and the fields each failure carries",
                  "[telemetry][update]") {
     auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
 
-    tm.record_update_failure("corrupt_download", "0.14.0", "pi", 200, 1048576);
+    SECTION("not recorded while telemetry is disabled") {
+        tm.set_enabled(false);
+        tm.record_update_failure("download_failed", "0.14.0", "pi");
+        REQUIRE(tm.queue_size() == 0);
+    }
 
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
+    struct Row {
+        const char* reason;
+        const char* platform;
+        int http_code; // -1: omitted
+        int file_size;
+        int exit_code;
+    };
+    const Row rows[] = {
+        {"download_failed", "ad5m", -1, -1, -1},
+        {"corrupt_download", "pi", 200, 1048576, -1},
+        {"install_failed", "ad5m", -1, -1, 127},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.reason) {
+            tm.set_enabled(true);
+            tm.record_update_failure(r.reason, "0.14.0", r.platform, r.http_code, r.file_size,
+                                     r.exit_code);
+            REQUIRE(tm.queue_size() == 1);
+            const auto event = tm.get_queue_snapshot()[0];
 
-    REQUIRE(event["reason"] == "corrupt_download");
-    REQUIRE(event["http_code"] == 200);
-    REQUIRE(event["file_size"] == 1048576);
-    REQUIRE_FALSE(event.contains("exit_code"));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Update failed event: includes exit_code for install failures",
-                 "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_update_failure("install_failed", "0.14.0", "ad5m", -1, -1, 127);
-
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-
-    REQUIRE(event["reason"] == "install_failed");
-    REQUIRE(event["exit_code"] == 127);
-    REQUIRE_FALSE(event.contains("http_code"));
-    REQUIRE_FALSE(event.contains("file_size"));
+            CHECK(event["schema_version"] == TelemetryManager::kSchemaVersion);
+            CHECK(event["event"] == "update_failed");
+            CHECK(event.contains("device_id"));
+            CHECK(event.contains("timestamp"));
+            // version is the target; from_version and app_version the running build
+            CHECK(event["from_version"] == HELIX_VERSION);
+            CHECK(event["app_version"] == HELIX_VERSION);
+            CHECK(event["reason"] == r.reason);
+            CHECK(event["version"] == "0.14.0");
+            CHECK(event["platform"] == r.platform);
+            const std::pair<const char*, int> optional[] = {
+                {"http_code", r.http_code}, {"file_size", r.file_size}, {"exit_code", r.exit_code}};
+            for (const auto& [key, value] : optional) {
+                INFO("field: " << key);
+                if (value < 0) {
+                    CHECK_FALSE(event.contains(key));
+                } else {
+                    CHECK(event[key] == value);
+                }
+            }
+        }
+    }
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Update failed event: carries the failure detail",
@@ -1570,121 +887,65 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Update failed event: carries the failure
         CHECK_FALSE(snapshot[2].contains(field));
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Update failed event: not recorded when telemetry disabled",
-                 "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(false);
-
-    tm.record_update_failure("download_failed", "0.14.0", "pi");
-
-    REQUIRE(tm.queue_size() == 0);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Update failed event: from_version included when available",
-                 "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_update_failure("download_failed", "0.14.0", "pi");
-
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-
-    // from_version should be current HELIX_VERSION
-    REQUIRE(event.contains("from_version"));
-}
-
 // ============================================================================
 // Update Success Event [telemetry][update]
 // ============================================================================
 
+namespace {
+
+/// The flag file the installer leaves for the next boot after an update.
+const std::string kUpdateFlag = json{
+    {"version", "0.14.0"},
+    {"from_version", "0.13.4"},
+    {"platform", "pi"},
+    {"timestamp",
+     "2026-02-26T12:00:00Z"}}.dump();
+
+} // namespace
+
+// check_previous_update() reports the update named by update_success.json and
+// removes the file in every case, so a stale flag can never report twice.
 TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Update success: check_previous_update enqueues event from flag file",
+                 "Update success: the flag file is reported once, then removed",
                  "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
+    struct Row {
+        const char* name;
+        bool enabled;
+        const char* flag; // nullptr: no flag file
+        bool reported;
+    };
+    const Row rows[] = {
+        {"a valid flag is reported", true, kUpdateFlag.c_str(), true},
+        {"no flag file is a no-op", true, nullptr, false},
+        {"telemetry off discards it", false, kUpdateFlag.c_str(), false},
+        {"a malformed flag is discarded", true, "not valid json {{{{", false},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto& tm = TelemetryManager::instance();
+            tm.set_enabled(r.enabled);
+            if (r.flag) {
+                write_file("update_success.json", r.flag);
+            }
 
-    // Write a flag file simulating a successful update
-    json flag;
-    flag["version"] = "0.14.0";
-    flag["from_version"] = "0.13.4";
-    flag["platform"] = "pi";
-    flag["timestamp"] = "2026-02-26T12:00:00Z";
-    write_file("update_success.json", flag.dump());
+            tm.check_previous_update();
 
-    tm.check_previous_update();
-
-    REQUIRE(tm.queue_size() == 1);
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-
-    REQUIRE(event["schema_version"] == TelemetryManager::kSchemaVersion);
-    REQUIRE(event["event"] == "update_success");
-    REQUIRE(event["version"] == "0.14.0");
-    REQUIRE(event["from_version"] == "0.13.4");
-    REQUIRE(event["platform"] == "pi");
-    REQUIRE(event.contains("device_id"));
-    REQUIRE(event.contains("timestamp"));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Update success: flag file deleted after reading",
-                 "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    json flag;
-    flag["version"] = "0.14.0";
-    flag["from_version"] = "0.13.4";
-    flag["platform"] = "pi";
-    flag["timestamp"] = "2026-02-26T12:00:00Z";
-    write_file("update_success.json", flag.dump());
-
-    tm.check_previous_update();
-
-    REQUIRE_FALSE(fs::exists(temp_dir() / "update_success.json"));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Update success: no-op when no flag file exists",
-                 "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.check_previous_update();
-
-    REQUIRE(tm.queue_size() == 0);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Update success: discarded when telemetry disabled",
-                 "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(false);
-
-    json flag;
-    flag["version"] = "0.14.0";
-    flag["from_version"] = "0.13.4";
-    flag["platform"] = "pi";
-    flag["timestamp"] = "2026-02-26T12:00:00Z";
-    write_file("update_success.json", flag.dump());
-
-    tm.check_previous_update();
-
-    REQUIRE(tm.queue_size() == 0);
-    // Flag file should still be removed even if telemetry is disabled
-    REQUIRE_FALSE(fs::exists(temp_dir() / "update_success.json"));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Update success: malformed flag file handled gracefully",
-                 "[telemetry][update]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    write_file("update_success.json", "not valid json {{{{");
-
-    tm.check_previous_update();
-
-    REQUIRE(tm.queue_size() == 0);
-    // Malformed file should still be cleaned up
-    REQUIRE_FALSE(fs::exists(temp_dir() / "update_success.json"));
+            CHECK_FALSE(fs::exists(temp_dir() / "update_success.json"));
+            if (!r.reported) {
+                CHECK(tm.queue_size() == 0);
+                continue;
+            }
+            REQUIRE(tm.queue_size() == 1);
+            const auto event = tm.get_queue_snapshot()[0];
+            CHECK(event["schema_version"] == TelemetryManager::kSchemaVersion);
+            CHECK(event["event"] == "update_success");
+            CHECK(event["version"] == "0.14.0");
+            CHECK(event["from_version"] == "0.13.4");
+            CHECK(event["platform"] == "pi");
+            CHECK(event.contains("device_id"));
+            CHECK(event.contains("timestamp"));
+        }
+    }
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Write update success flag: creates valid JSON file",
@@ -1705,69 +966,50 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Write update success flag: creates valid
 // Post-Update Crash Suppression [telemetry][update][crash]
 // ============================================================================
 
+// A crash.txt beside update_success.json is the expected restart that ends an
+// update, not a real crash: no event, both files left for their owners
+// (Application rotates crash.txt via consume_crash_file, check_previous_update
+// consumes the flag), and had_update_restart() tells Application which it was.
 TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Post-update crash: crash.txt preserved when update_success.json present",
+                 "Post-update crash: an update restart is not reported as a crash",
                  "[telemetry][update][crash]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
+    struct Row {
+        const char* name;
+        bool update_flag;
+        bool crash_file;
+        bool crash_event;
+        bool update_restart;
+    };
+    const Row rows[] = {
+        {"crash beside an update flag", true, true, false, true},
+        {"crash with no update flag", false, true, true, false},
+        {"update flag with no crash (clean update)", true, false, false, false},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto& tm = TelemetryManager::instance();
+            tm.set_enabled(true);
+            REQUIRE_FALSE(tm.had_update_restart());
+            if (r.update_flag) {
+                write_file("update_success.json", kUpdateFlag);
+            }
+            if (r.crash_file) {
+                write_file("crash.txt", "signal:6\nname:SIGABRT\nversion:0.13.4\n");
+            }
 
-    // Simulate: update succeeded, but process crashed before _exit(0)
-    json flag;
-    flag["version"] = "0.14.0";
-    flag["from_version"] = "0.13.4";
-    flag["platform"] = "pi";
-    flag["timestamp"] = "2026-02-26T12:00:00Z";
-    write_file("update_success.json", flag.dump());
-    write_file("crash.txt", "signal:6\nname:SIGABRT\nversion:0.13.4\n");
+            tm.check_previous_crash();
 
-    tm.check_previous_crash();
-
-    // crash.txt should still exist (Application rotates it via consume_crash_file)
-    REQUIRE(fs::exists(temp_dir() / "crash.txt"));
-    // No crash event should be enqueued
-    REQUIRE(tm.queue_size() == 0);
-    // Flag should be set for Application to check
-    REQUIRE(tm.had_update_restart());
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Post-update crash: update_success.json preserved for check_previous_update",
-                 "[telemetry][update][crash]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    json flag;
-    flag["version"] = "0.14.0";
-    flag["from_version"] = "0.13.4";
-    flag["platform"] = "pi";
-    flag["timestamp"] = "2026-02-26T12:00:00Z";
-    write_file("update_success.json", flag.dump());
-    write_file("crash.txt", "signal:6\nname:SIGABRT\nversion:0.13.4\n");
-
-    tm.check_previous_crash();
-
-    // update_success.json should NOT be deleted by check_previous_crash —
-    // it is consumed later by check_previous_update
-    REQUIRE(fs::exists(temp_dir() / "update_success.json"));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Normal crash: crash event enqueued when no update_success.json",
-                 "[telemetry][update][crash]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    // Only crash.txt, no update flag — this is a real crash
-    write_file("crash.txt", "signal:11\nname:SIGSEGV\nversion:0.14.0\n");
-
-    tm.check_previous_crash();
-
-    // Crash event should be enqueued
-    REQUIRE(tm.queue_size() == 1);
-    auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot[0]["event"] == "crash");
-    // Flag should NOT be set
-    REQUIRE_FALSE(tm.had_update_restart());
+            CHECK(tm.had_update_restart() == r.update_restart);
+            CHECK(tm.queue_size() == (r.crash_event ? 1u : 0u));
+            if (r.crash_event) {
+                CHECK(tm.get_queue_snapshot()[0]["event"] == "crash");
+            }
+            if (r.update_flag && r.crash_file) {
+                CHECK(fs::exists(temp_dir() / "crash.txt"));
+                CHECK(fs::exists(temp_dir() / "update_success.json"));
+            }
+        }
+    }
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Crash event: app_board is the resolved board",
@@ -1785,33 +1027,6 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Crash event: app_board is the resolved b
     CHECK(event["app_platform"] == helix::platform::current_key());
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Post-update crash: had_update_restart is false by default",
-                 "[telemetry][update][crash]") {
-    auto& tm = TelemetryManager::instance();
-    REQUIRE_FALSE(tm.had_update_restart());
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Clean update: no crash flag when update_success.json exists without crash.txt",
-                 "[telemetry][update][crash]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    // Happy path: _exit(0) worked, no crash.txt written
-    json flag;
-    flag["version"] = "0.14.0";
-    flag["from_version"] = "0.13.4";
-    flag["platform"] = "pi";
-    flag["timestamp"] = "2026-02-26T12:00:00Z";
-    write_file("update_success.json", flag.dump());
-
-    tm.check_previous_crash();
-
-    // No crash file means had_update_restart stays false
-    REQUIRE_FALSE(tm.had_update_restart());
-    REQUIRE(tm.queue_size() == 0);
-}
-
 // ============================================================================
 // Bundle-Consent Crash Reporting [telemetry][crash][consent]
 //
@@ -1823,63 +1038,47 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 // ============================================================================
 
 TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Bundle consent: crash event enqueued even when telemetry disabled",
+                 "Bundle consent: a consented bundle reports its crash exactly once",
                  "[telemetry][crash][consent]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(false); // opt-in OFF
+    struct Row {
+        const char* name;
+        bool enabled;
+        bool crash_file;
+        bool update_flag;
+        bool enqueued;
+        size_t queued;
+    };
+    const Row rows[] = {
+        // Consent bypasses the opt-in that discarded the crash at boot
+        {"telemetry off", false, true, false, true, 1},
+        // The boot path already queued it; consent adds no second copy
+        {"telemetry on", true, true, false, false, 1},
+        {"no crash file", false, false, false, false, 0},
+        {"an update restart, even with consent", false, true, true, false, 0},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto& tm = TelemetryManager::instance();
+            tm.set_enabled(r.enabled);
+            if (r.update_flag) {
+                write_file("update_success.json", "{\"version\":\"0.14.0\"}");
+            }
+            if (r.crash_file) {
+                write_file("crash.txt", "signal:11\nname:SIGSEGV\nversion:0.14.0\n");
+                if (!r.update_flag) {
+                    tm.check_previous_crash();
+                    REQUIRE(tm.queue_size() == (r.enabled ? 1u : 0u));
+                }
+            }
 
-    write_file("crash.txt", "signal:11\nname:SIGSEGV\nversion:0.14.0\n");
-
-    // Baseline: the normal opt-in path discards the crash when disabled.
-    tm.check_previous_crash();
-    REQUIRE(tm.queue_size() == 0);
-
-    // Bundle consent bypasses the opt-in gate and enqueues the crash event.
-    REQUIRE(tm.enqueue_crash_event_unconditional());
-    REQUIRE(tm.queue_size() == 1);
-    auto snapshot = tm.get_queue_snapshot();
-    REQUIRE(snapshot[0]["event"] == "crash");
-    REQUIRE(snapshot[0]["signal_name"] == "SIGSEGV");
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Bundle consent: no double-enqueue when telemetry already captured the crash",
-                 "[telemetry][crash][consent]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true); // opt-in ON — boot path already enqueues
-
-    write_file("crash.txt", "signal:11\nname:SIGSEGV\nversion:0.14.0\n");
-
-    tm.check_previous_crash();
-    REQUIRE(tm.queue_size() == 1);
-
-    // Consent enqueue must not add a second copy of the same crash.
-    REQUIRE_FALSE(tm.enqueue_crash_event_unconditional());
-    REQUIRE(tm.queue_size() == 1);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Bundle consent: no event when no crash file is present",
-                 "[telemetry][crash][consent]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(false);
-
-    // No crash.txt written.
-    REQUIRE_FALSE(tm.enqueue_crash_event_unconditional());
-    REQUIRE(tm.queue_size() == 0);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Bundle consent: suppressed for post-update restart crash",
-                 "[telemetry][crash][consent]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(false);
-
-    // A crash alongside update_success.json is the expected post-update restart,
-    // not a real crash — it must not be reported even with consent.
-    write_file("update_success.json", "{\"version\":\"0.14.0\"}");
-    write_file("crash.txt", "signal:6\nname:SIGABRT\nversion:0.13.4\n");
-
-    REQUIRE_FALSE(tm.enqueue_crash_event_unconditional());
-    REQUIRE(tm.queue_size() == 0);
+            CHECK(tm.enqueue_crash_event_unconditional() == r.enqueued);
+            REQUIRE(tm.queue_size() == r.queued);
+            if (r.queued > 0) {
+                CHECK(tm.get_queue_snapshot()[0]["event"] == "crash");
+                CHECK(tm.get_queue_snapshot()[0]["signal_name"] == "SIGSEGV");
+            }
+        }
+    }
 }
 
 // ============================================================================
@@ -2231,24 +1430,28 @@ TEST_CASE_METHOD(TelemetryTestFixture, "settings_snapshot spoolman_configured fo
 // Overlay ids [telemetry][overlay_id]
 // ============================================================================
 
-TEST_CASE("overlay_telemetry_id prefers the root's object name", "[telemetry][overlay_id]") {
-    CHECK(helix::overlay_telemetry_id("fan_control_overlay", "Fan Control") ==
-          "fan_control_overlay");
-    CHECK(helix::overlay_telemetry_id("fan_control_overlay", nullptr) == "fan_control_overlay");
-}
-
-TEST_CASE("overlay_telemetry_id falls back to the lifecycle name", "[telemetry][overlay_id]") {
-    CHECK(helix::overlay_telemetry_id(nullptr, "Fan Control") == "Fan Control");
-    CHECK(helix::overlay_telemetry_id("", "Fan Control") == "Fan Control");
-}
-
-TEST_CASE("overlay_telemetry_id is 'unnamed' when nothing names the overlay",
+TEST_CASE("overlay_telemetry_id: object name, then lifecycle name, then 'unnamed'",
           "[telemetry][overlay_id]") {
-    CHECK(helix::overlay_telemetry_id("", nullptr) == "unnamed");
-    CHECK(helix::overlay_telemetry_id(nullptr, nullptr) == "unnamed");
-    CHECK(helix::overlay_telemetry_id(nullptr, "") == "unnamed");
+    struct Row {
+        const char* object_name;
+        const char* lifecycle_name;
+        const char* expected;
+    };
+    const Row rows[] = {
+        {"fan_control_overlay", "Fan Control", "fan_control_overlay"},
+        {"fan_control_overlay", nullptr, "fan_control_overlay"},
+        {nullptr, "Fan Control", "Fan Control"},
+        {"", "Fan Control", "Fan Control"},
+        {"", nullptr, "unnamed"},
+        {nullptr, nullptr, "unnamed"},
+        {nullptr, "", "unnamed"},
+    };
+    for (const Row& r : rows) {
+        INFO("object: " << (r.object_name ? r.object_name : "(null)")
+                        << " lifecycle: " << (r.lifecycle_name ? r.lifecycle_name : "(null)"));
+        CHECK(helix::overlay_telemetry_id(r.object_name, r.lifecycle_name) == r.expected);
+    }
 }
-
 // ============================================================================
 // Panel Usage Event [telemetry][panel_usage]
 // ============================================================================
@@ -2366,39 +1569,31 @@ TEST_CASE_METHOD(TelemetryTestFixture, "print_start_context file size bucketing"
 // Error Encountered Event [telemetry][error]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "record_error creates valid event", "[telemetry][error]") {
-    TelemetryManager::instance().set_enabled(true);
-    TelemetryManager::instance().record_error("moonraker_api", "timeout", "get_printer_objects");
+TEST_CASE_METHOD(TelemetryTestFixture, "record_error records one event per category",
+                 "[telemetry][error]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
 
-    REQUIRE(TelemetryManager::instance().queue_size() == 1);
-
-    auto snapshot = TelemetryManager::instance().get_queue_snapshot();
-    auto& event = snapshot[0];
-
+    tm.record_error("moonraker_api", "timeout", "get_printer_objects");
+    REQUIRE(tm.queue_size() == 1);
+    const auto event = tm.get_queue_snapshot()[0];
     CHECK(event["event"] == "error_encountered");
     CHECK(event["category"] == "moonraker_api");
     CHECK(event["code"] == "timeout");
     CHECK(event["context"] == "get_printer_objects");
     CHECK(event.contains("uptime_sec"));
+
+    // A second error in the same category is rate-limited; another category is not
+    tm.record_error("moonraker_api", "timeout", "ctx2");
+    CHECK(tm.queue_size() == 1);
+    tm.record_error("websocket", "connection_refused", "reconnect");
+    CHECK(tm.queue_size() == 2);
+
+    // Any identifier-shaped category: digits and underscores, up to 32 characters
+    tm.record_error("a_1", "code", "ctx");
+    tm.record_error(std::string(32, 'x'), "code", "ctx");
+    CHECK(tm.queue_size() == 4);
 }
-
-TEST_CASE_METHOD(TelemetryTestFixture, "record_error rate limits by category",
-                 "[telemetry][error]") {
-    TelemetryManager::instance().set_enabled(true);
-
-    // First error should be recorded
-    TelemetryManager::instance().record_error("moonraker_api", "timeout", "ctx1");
-    CHECK(TelemetryManager::instance().queue_size() == 1);
-
-    // Second error in same category should be rate-limited
-    TelemetryManager::instance().record_error("moonraker_api", "timeout", "ctx2");
-    CHECK(TelemetryManager::instance().queue_size() == 1); // Still 1
-
-    // Different category should NOT be rate-limited
-    TelemetryManager::instance().record_error("websocket", "connection_refused", "reconnect");
-    CHECK(TelemetryManager::instance().queue_size() == 2);
-}
-
 // ============================================================================
 // New Events Disabled Behavior [telemetry][disabled]
 // ============================================================================
@@ -2420,21 +1615,6 @@ TEST_CASE_METHOD(TelemetryTestFixture, "new events are no-op when disabled",
     CHECK(TelemetryManager::instance().queue_size() == 0);
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "record_error accepts any identifier-shaped category",
-                 "[telemetry][error]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_error("ui", "main_loop_hang", "ctx");
-    REQUIRE(tm.queue_size() == 1);
-    CHECK(tm.get_queue_snapshot()[0]["category"] == "ui");
-
-    // Digits and underscores are part of the alphabet; 32 characters is the cap.
-    tm.record_error("a_1", "code", "ctx");
-    tm.record_error(std::string(32, 'x'), "code", "ctx");
-    CHECK(tm.queue_size() == 3);
-}
-
 TEST_CASE_METHOD(TelemetryTestFixture, "record_error rejects categories outside [a-z0-9_]{1,32}",
                  "[telemetry][error]") {
     auto& tm = TelemetryManager::instance();
@@ -2452,18 +1632,6 @@ TEST_CASE_METHOD(TelemetryTestFixture, "record_error rejects categories outside 
     // The rejects above did not consume any category's rate-limit slot.
     tm.record_error("moonraker_api", "timeout", "ctx");
     CHECK(tm.queue_size() == 1);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "record_error rate limits each new category separately",
-                 "[telemetry][error]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_error("ui", "main_loop_hang", "a");
-    tm.record_error("ui", "main_loop_hang", "b");
-    CHECK(tm.queue_size() == 1);
-    tm.record_error("display_driver", "init_failed", "c");
-    CHECK(tm.queue_size() == 2);
 }
 
 // ============================================================================
@@ -2543,66 +1711,26 @@ TEST_CASE_METHOD(TelemetryTestFixture, "New events do not leak PII", "[telemetry
 // Frame Time Sampling [telemetry][frame]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: samples are recorded in ring buffer",
-                 "[telemetry][frame]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.notify_panel_changed("status");
-    tm.record_frame_time(8000);  // 8ms
-    tm.record_frame_time(12000); // 12ms
-    tm.record_frame_time(16000); // 16ms
-
-    tm.record_performance_snapshot();
-    REQUIRE(tm.queue_size() == 1);
-
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-    REQUIRE(event["event"] == "performance_snapshot");
-    REQUIRE(event.contains("frame_time_p50_ms"));
-    REQUIRE(event.contains("frame_time_p95_ms"));
-    REQUIRE(event.contains("frame_time_p99_ms"));
-    REQUIRE(event.contains("dropped_frame_count"));
-    REQUIRE(event.contains("total_frame_count"));
-    REQUIRE(event["total_frame_count"] == 3);
-    REQUIRE(event["dropped_frame_count"] == 0);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: dropped frames detected above 33ms threshold",
+TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: the snapshot counts frames and drops over 33ms",
                  "[telemetry][frame]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
 
     tm.notify_panel_changed("temperature");
-    tm.record_frame_time(10000); // 10ms - ok
-    tm.record_frame_time(35000); // 35ms - dropped
-    tm.record_frame_time(50000); // 50ms - dropped
+    tm.record_frame_time(10000); // ok
+    tm.record_frame_time(35000); // dropped
+    tm.record_frame_time(50000); // dropped
 
     tm.record_performance_snapshot();
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-    REQUIRE(event["dropped_frame_count"] == 2);
-    REQUIRE(event["total_frame_count"] == 3);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: drop rate is dropped over total, exactly",
-                 "[telemetry][frame]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.notify_panel_changed("status");
-    constexpr int N = 40;
-    constexpr int D = 10;
-    for (int i = 0; i < N; ++i) {
-        tm.record_frame_time(i < D ? 40000 : 8000);
-    }
-
-    tm.record_performance_snapshot();
-    auto event = tm.get_queue_snapshot()[0];
-    CHECK(event["dropped_frame_count"] == D);
-    CHECK(event["total_frame_count"] == N);
-    CHECK(event["dropped_frame_count"].get<double>() / event["total_frame_count"].get<double>() ==
-          Catch::Approx(0.25));
+    REQUIRE(tm.queue_size() == 1);
+    const auto event = tm.get_queue_snapshot()[0];
+    CHECK(event["event"] == "performance_snapshot");
+    CHECK(event.contains("frame_time_p50_ms"));
+    CHECK(event.contains("frame_time_p95_ms"));
+    CHECK(event.contains("frame_time_p99_ms"));
+    CHECK(event["dropped_frame_count"] == 2);
+    CHECK(event["total_frame_count"] == 3);
+    CHECK_FALSE(event.contains("task_handler_max_ms"));
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: total shares the dropped count's window",
@@ -2627,17 +1755,6 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: total shares the dropped cou
     CHECK(event["dropped_frame_count"] == static_cast<int64_t>(ring / 4));
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: the event carries no task_handler_max_ms",
-                 "[telemetry][frame]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.notify_panel_changed("status");
-    tm.record_frame_time(8000);
-    tm.record_performance_snapshot();
-    CHECK_FALSE(tm.get_queue_snapshot()[0].contains("task_handler_max_ms"));
-}
-
 TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: worst panel is identified by p95",
                  "[telemetry][frame]") {
     auto& tm = TelemetryManager::instance();
@@ -2659,101 +1776,72 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: worst panel is identified by
     REQUIRE(event["worst_panel"] == "temperature");
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: idle frames below threshold are not recorded",
+// Frames under 500us are idle loop passes, not renders: they are not recorded,
+// and a window of nothing else produces no snapshot at all.
+TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: idle frames under 500us are not counted",
                  "[telemetry][frame]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
+    struct Row {
+        const char* name;
+        std::vector<uint32_t> frames_us;
+        int expected_total; // 0: no event
+    };
+    const Row rows[] = {
+        {"idle frames beside a render", {100, 300, 8000}, 1},
+        {"the 500us boundary counts", {499, 500, 501}, 2},
+        {"only idle frames", {100, 200}, 0},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto& tm = TelemetryManager::instance();
+            tm.set_enabled(true);
+            tm.notify_panel_changed("status");
+            for (auto us : r.frames_us) {
+                tm.record_frame_time(us);
+            }
 
-    tm.notify_panel_changed("status");
-    tm.record_frame_time(100);  // 0.1ms - idle, should be filtered
-    tm.record_frame_time(300);  // 0.3ms - idle, should be filtered
-    tm.record_frame_time(8000); // 8ms - real render, should be recorded
-
-    tm.record_performance_snapshot();
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-    REQUIRE(event["total_frame_count"] == 1); // Only the 8ms frame
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: frames at idle threshold boundary are recorded",
-                 "[telemetry][frame]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.notify_panel_changed("status");
-    tm.record_frame_time(499); // Just below 500us threshold - filtered
-    tm.record_frame_time(500); // Exactly at threshold - recorded
-    tm.record_frame_time(501); // Just above threshold - recorded
-
-    tm.record_performance_snapshot();
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-    REQUIRE(event["total_frame_count"] == 2); // 500 and 501 only
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Frame time: snapshot with no active frames produces no event",
-                 "[telemetry][frame]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    // Record only idle frames (below threshold) — ring buffer stays empty
-    tm.notify_panel_changed("status");
-    tm.record_frame_time(100);
-    tm.record_frame_time(200);
-
-    tm.record_performance_snapshot();
-    // No active frames → no event queued
-    REQUIRE(tm.queue_size() == 0);
+            tm.record_performance_snapshot();
+            if (r.expected_total == 0) {
+                CHECK(tm.queue_size() == 0);
+            } else {
+                REQUIRE(tm.queue_size() == 1);
+                CHECK(tm.get_queue_snapshot()[0]["total_frame_count"] == r.expected_total);
+            }
+        }
+    }
 }
 
 // ============================================================================
 // Periodic Snapshots [telemetry][snapshot]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Snapshot: panel_usage includes snapshot_seq and is_shutdown fields",
+TEST_CASE_METHOD(TelemetryTestFixture, "Snapshot: panel_usage carries snapshot_seq and is_shutdown",
                  "[telemetry][snapshot]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
-
-    tm.notify_panel_changed("status");
-    tm.record_panel_usage();
-
-    REQUIRE(tm.queue_size() == 1);
-    auto snapshot = tm.get_queue_snapshot();
-    auto event = snapshot[0];
-    REQUIRE(event["event"] == "panel_usage");
-    REQUIRE(event.contains("snapshot_seq"));
-    REQUIRE(event.contains("is_shutdown"));
-    REQUIRE(event["is_shutdown"] == false);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Snapshot: snapshot_seq increments on each periodic fire",
-                 "[telemetry][snapshot]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
     tm.notify_panel_changed("status");
 
-    tm.fire_periodic_snapshot();
-    tm.fire_periodic_snapshot();
-
-    // Each fire produces panel_usage + connection_stability + performance_snapshot = 3 events
-    REQUIRE(tm.queue_size() >= 4);
-    auto queue = tm.get_queue_snapshot();
-
-    int first_seq = -1, second_seq = -1;
-    for (const auto& ev : queue) {
-        if (ev.value("event", "") == "panel_usage") {
-            if (first_seq < 0)
-                first_seq = ev.value("snapshot_seq", -1);
-            else
-                second_seq = ev.value("snapshot_seq", -1);
-        }
+    SECTION("a direct record is not a shutdown snapshot") {
+        tm.record_panel_usage();
+        REQUIRE(tm.queue_size() == 1);
+        const auto event = tm.get_queue_snapshot()[0];
+        CHECK(event["event"] == "panel_usage");
+        CHECK(event.contains("snapshot_seq"));
+        CHECK(event["is_shutdown"] == false);
     }
-    REQUIRE(first_seq == 0);
-    REQUIRE(second_seq == 1);
+
+    SECTION("snapshot_seq increments on each periodic fire") {
+        tm.fire_periodic_snapshot();
+        tm.fire_periodic_snapshot();
+        // Each fire produces panel_usage + connection_stability + performance_snapshot
+        REQUIRE(tm.queue_size() >= 4);
+        std::vector<int> seqs;
+        for (const auto& ev : tm.get_queue_snapshot()) {
+            if (ev.value("event", "") == "panel_usage") {
+                seqs.push_back(ev.value("snapshot_seq", -1));
+            }
+        }
+        CHECK(seqs == std::vector<int>{0, 1});
+    }
 }
 
 // ============================================================================
@@ -3278,6 +2366,34 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK(kinds.count("connection_stability") == 1);
 }
 
+namespace {
+
+void fill_queue_with_sessions(TelemetryManager& tm, size_t until) {
+    while (tm.queue_size() < until) {
+        tm.record_session();
+    }
+}
+
+/// A full queue whose only panel_usage row sits at index 0.
+void fill_queue_behind_panel_row(TelemetryManager& tm, const std::string& panel) {
+    tm.notify_panel_changed(panel);
+    tm.record_panel_usage();
+    REQUIRE(tm.queue_size() == 1);
+    fill_queue_with_sessions(tm, TelemetryManager::kMaxQueueSize);
+}
+
+/// One real try_send(), past the interval gate, run to its end.
+void send_now(TelemetryManager& tm) {
+    TelemetryManagerTestAccess::set_backoff(tm, 1);
+    TelemetryManagerTestAccess::set_last_send_time(tm, std::chrono::steady_clock::now() - 24h * 30);
+    const auto before = TelemetryManagerTestAccess::last_send_time(tm);
+    tm.try_send();
+    TelemetryManagerTestAccess::join_send_thread(tm);
+    REQUIRE(TelemetryManagerTestAccess::last_send_time(tm) != before);
+}
+
+} // namespace
+
 TEST_CASE_METHOD(TelemetryTestFixture,
                  "Queue: at capacity a delta merges into the queued one of its kind",
                  "[telemetry][queue][delta]") {
@@ -3289,9 +2405,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     tm.notify_panel_changed("home");
     TelemetryManagerTestAccess::advance_clock(tm, 1h);
     tm.fire_periodic_snapshot(); // seq 0
-    while (tm.queue_size() < TelemetryManager::kMaxQueueSize) {
-        tm.record_session();
-    }
+    fill_queue_with_sessions(tm, TelemetryManager::kMaxQueueSize);
 
     tm.notify_panel_changed("controls");
     tm.notify_panel_changed("home");
@@ -3323,11 +2437,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
 
-    tm.notify_panel_changed("home");
-    tm.record_panel_usage();
-    while (tm.queue_size() < TelemetryManager::kMaxQueueSize) {
-        tm.record_session();
-    }
+    fill_queue_behind_panel_row(tm, "home");
 
     tm.record_print_outcome("completed", 600, 10, 1500.0f, "PLA", 210, 60);
 
@@ -3344,11 +2454,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
 
-    tm.notify_panel_changed("home");
-    tm.record_panel_usage(); // index 0, inside the in-flight batch
-    while (tm.queue_size() < TelemetryManager::kMaxQueueSize) {
-        tm.record_session();
-    }
+    fill_queue_behind_panel_row(tm, "home");
     TelemetryManagerTestAccess::set_in_flight(tm, TelemetryManager::kMaxBatchSize);
 
     tm.notify_panel_changed("controls");
@@ -3364,9 +2470,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 
     // remove_sent_events() ends the send, after which the newest one merges.
     tm.remove_sent_events(TelemetryManager::kMaxBatchSize);
-    while (tm.queue_size() < TelemetryManager::kMaxQueueSize) {
-        tm.record_session();
-    }
+    fill_queue_with_sessions(tm, TelemetryManager::kMaxQueueSize);
     tm.notify_panel_changed("home");
     tm.record_panel_usage();
     panels = queued_events(tm, "panel_usage");
@@ -3380,11 +2484,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a merge never touches a row a fai
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
 
-    tm.notify_panel_changed("home");
-    tm.record_panel_usage(); // index 0, inside the attempted batch
-    while (tm.queue_size() < TelemetryManager::kMaxQueueSize) {
-        tm.record_session();
-    }
+    fill_queue_behind_panel_row(tm, "home");
     TelemetryManagerTestAccess::fail_send(tm);
 
     tm.notify_panel_changed("controls");
@@ -3410,11 +2510,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Queue: rows loaded from disk are never m
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
 
-    tm.notify_panel_changed("home");
-    tm.record_panel_usage();
-    while (tm.queue_size() < TelemetryManager::kMaxQueueSize) {
-        tm.record_session();
-    }
+    fill_queue_behind_panel_row(tm, "home");
     tm.save_queue();
     tm.load_queue(); // as a new process would: any loaded row may be delivered
 
@@ -3441,9 +2537,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Queue: deltas from different boots are n
     tm.init(temp_dir().string());
     REQUIRE(queued_events(tm, "panel_usage").size() == 1); // the recovered delta
 
-    while (tm.queue_size() < TelemetryManager::kMaxQueueSize) {
-        tm.record_session();
-    }
+    fill_queue_with_sessions(tm, TelemetryManager::kMaxQueueSize);
     tm.notify_panel_changed("status");
     TelemetryManagerTestAccess::advance_clock(tm, 10min);
     tm.fire_periodic_snapshot();
@@ -3470,9 +2564,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     tm.notify_connection_state_changed(2);
     tm.notify_widget_interaction("led_control");
     tm.fire_periodic_snapshot(); // seq 0
-    while (tm.queue_size() < TelemetryManager::kMaxQueueSize) {
-        tm.record_session();
-    }
+    fill_queue_with_sessions(tm, TelemetryManager::kMaxQueueSize);
 
     tm.notify_connection_state_changed(0);
     TelemetryManagerTestAccess::advance_clock(tm, 5min); // a 300s outage
@@ -3490,34 +2582,6 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     REQUIRE(panels.size() == 1);
     CHECK(panels[0]["widget_interactions"] == json{{"fan_control", 1}, {"led_control", 1}});
 }
-
-namespace {
-
-void fill_queue_with_sessions(TelemetryManager& tm, size_t until) {
-    while (tm.queue_size() < until) {
-        tm.record_session();
-    }
-}
-
-/// A full queue whose only panel_usage row sits at index 0.
-void fill_queue_behind_panel_row(TelemetryManager& tm, const std::string& panel) {
-    tm.notify_panel_changed(panel);
-    tm.record_panel_usage();
-    REQUIRE(tm.queue_size() == 1);
-    fill_queue_with_sessions(tm, TelemetryManager::kMaxQueueSize);
-}
-
-/// One real try_send(), past the interval gate, run to its end.
-void send_now(TelemetryManager& tm) {
-    TelemetryManagerTestAccess::set_backoff(tm, 1);
-    TelemetryManagerTestAccess::set_last_send_time(tm, std::chrono::steady_clock::now() - 24h * 30);
-    const auto before = TelemetryManagerTestAccess::last_send_time(tm);
-    tm.try_send();
-    TelemetryManagerTestAccess::join_send_thread(tm);
-    REQUIRE(TelemetryManagerTestAccess::last_send_time(tm) != before);
-}
-
-} // namespace
 
 TEST_CASE_METHOD(TelemetryTestFixture,
                  "Queue: a send's claim marks its rows attempted, so nothing merges into them",
@@ -3687,33 +2751,25 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 // Settings Changes [telemetry][settings]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Settings changes: batches changes and builds event",
+TEST_CASE_METHOD(TelemetryTestFixture, "Settings changes: pending changes flush as one event",
                  "[telemetry][settings]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
+
+    tm.flush_settings_changes(); // nothing pending: no event
+    REQUIRE(tm.queue_size() == 0);
 
     tm.notify_setting_changed("theme", "dark", "light");
     tm.notify_setting_changed("brightness", "80", "60");
-
     tm.flush_settings_changes();
 
     REQUIRE(tm.queue_size() == 1);
-    auto queue = tm.get_queue_snapshot();
-    auto event = queue[0];
-    REQUIRE(event["event"] == "settings_changes");
+    const auto event = tm.get_queue_snapshot()[0];
+    CHECK(event["event"] == "settings_changes");
     REQUIRE(event["changes"].size() == 2);
-    REQUIRE(event["changes"][0]["setting"] == "theme");
-    REQUIRE(event["changes"][0]["old_value"] == "dark");
-    REQUIRE(event["changes"][0]["new_value"] == "light");
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Settings changes: no event if no changes pending",
-                 "[telemetry][settings]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.flush_settings_changes();
-    REQUIRE(tm.queue_size() == 0);
+    CHECK(event["changes"][0]["setting"] == "theme");
+    CHECK(event["changes"][0]["old_value"] == "dark");
+    CHECK(event["changes"][0]["new_value"] == "light");
 }
 
 // ============================================================================
@@ -3919,23 +2975,8 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Envelope: every event carries all five e
     }
 }
 
-TEST_CASE("Envelope: SCHEMA_VERSION is 3", "[telemetry][envelope]") {
-    REQUIRE(TelemetryManager::kSchemaVersion == 3);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Envelope: boot_id is 16 lowercase hex characters",
-                 "[telemetry][envelope]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-    tm.record_session();
-    auto boot_id = tm.get_queue_snapshot()[0]["boot_id"].get<std::string>();
-
-    REQUIRE(boot_id.size() == 16);
-    CHECK(std::all_of(boot_id.begin(), boot_id.end(),
-                      [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); }));
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Envelope: boot_id is stable within a boot, new per init",
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Envelope: boot_id is 16 hex, stable within a boot, new per init",
                  "[telemetry][envelope]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
@@ -3944,29 +2985,18 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Envelope: boot_id is stable within a boo
     tm.record_error("moonraker_api", "timeout", "ctx");
     auto queue = tm.get_queue_snapshot();
     REQUIRE(queue.size() == 2);
-    CHECK(queue[0]["boot_id"] == queue[1]["boot_id"]);
-    const auto first_boot = queue[0]["boot_id"];
+    const auto boot_id = queue[0]["boot_id"].get<std::string>();
+    REQUIRE(boot_id.size() == 16);
+    CHECK(std::all_of(boot_id.begin(), boot_id.end(),
+                      [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); }));
+    CHECK(queue[1]["boot_id"] == boot_id);
 
     tm.shutdown();
     tm.init(temp_dir().string());
     tm.set_enabled(true);
     tm.clear_queue();
     tm.record_session();
-    CHECK(tm.get_queue_snapshot()[0]["boot_id"] != first_boot);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Envelope: update events keep version fields beside app_version",
-                 "[telemetry][envelope]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.record_update_failure("download_failed", "1.0.5", "pi");
-    auto event = tm.get_queue_snapshot()[0];
-
-    CHECK(event["version"] == "1.0.5");
-    CHECK(event["from_version"] == HELIX_VERSION);
-    CHECK(event["app_version"] == HELIX_VERSION);
+    CHECK(tm.get_queue_snapshot()[0]["boot_id"] != boot_id);
 }
 
 TEST_CASE("Telemetry hardware profile names the filament system by its slug",
