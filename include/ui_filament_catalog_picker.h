@@ -20,7 +20,7 @@ class FilamentCatalogPickerModal : public Modal {
     using SelectCallback = std::function<void(const helix::printer::EffectiveFilament&)>;
 
     FilamentCatalogPickerModal() = default;
-    ~FilamentCatalogPickerModal() override = default;
+    ~FilamentCatalogPickerModal() override;
     FilamentCatalogPickerModal(const FilamentCatalogPickerModal&) = delete;
     FilamentCatalogPickerModal& operator=(const FilamentCatalogPickerModal&) = delete;
 
