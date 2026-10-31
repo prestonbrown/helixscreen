@@ -2210,13 +2210,14 @@ TEST_CASE("AFC device actions send their AFC command", "[ams][afc][device_action
         const char* action;
         std::optional<bool> led_state;
         const char* gcode;
+        bool per_lane = false; // one command per lane, so only its name is fixed
     };
     const Row rows[] = {
         {"test_lanes", std::nullopt, "AFC_TEST_LANES"},
         {"change_blade", std::nullopt, "AFC_CHANGE_BLADE"},
         {"park", std::nullopt, "AFC_PARK"},
         {"brush", std::nullopt, "AFC_BRUSH"},
-        {"reset_motor", std::nullopt, "AFC_RESET_MOTOR_TIME"},
+        {"reset_motor", std::nullopt, "AFC_RESET_MOTOR_TIME", true},
         {"led_toggle", false, "TURN_ON_AFC_LED"},
         {"led_toggle", true, "TURN_OFF_AFC_LED"},
     };
@@ -2231,7 +2232,8 @@ TEST_CASE("AFC device actions send their AFC command", "[ams][afc][device_action
             auto result = helper.execute_device_action(r.action);
 
             CHECK(result.success());
-            CHECK(helper.has_gcode_starting_with(r.gcode));
+            CHECK(
+                (r.per_lane ? helper.has_gcode_starting_with(r.gcode) : helper.has_gcode(r.gcode)));
         }
     }
 }
