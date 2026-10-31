@@ -9,6 +9,7 @@
 #include "ui_zone_presentation.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/navigation_manager_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -52,6 +53,8 @@ std::vector<EnvironmentZone> capped_rig_zones() {
 /// Drop any instance an earlier case left behind so create() runs against this
 /// case's screen instead of one already torn down.
 void reset_overlay_singleton() {
+    // Left open, they cover Home for every later test that asks whether it is.
+    NavigationManagerTestAccess::clear_overlay_stack(NavigationManager::instance());
     helix::ui::destroy_static_panels();
     helix::ui::UpdateQueue::instance().drain();
 }
