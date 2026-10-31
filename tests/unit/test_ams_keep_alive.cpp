@@ -24,6 +24,7 @@
 #include "../test_helpers/draw_buf_alloc_spy.h"
 #include "../test_helpers/memory_monitor_test_access.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "display_settings_manager.h"
@@ -138,7 +139,7 @@ TEST_CASE_METHOD(AmsKeepAliveFixture, "AmsPanel: a second open reuses the built 
     flag_on_delete(slot, &slot_deleted);
 
     close();
-    REQUIRE(lv_obj_is_valid(root));
+    REQUIRE(helix::test::widget_in_tree(root));
 
     open();
     CHECK(panel_obj() == root);

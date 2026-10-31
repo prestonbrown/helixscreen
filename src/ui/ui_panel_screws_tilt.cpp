@@ -467,7 +467,7 @@ void ScrewsTiltPanel::clear_results() {
     lv_subject_copy_string(&tilt_spread_subject_, "");
 
     // Clear bed diagram indicators (dynamically positioned)
-    for (auto* indicator : screw_indicators_) {
+    for (auto& indicator : screw_indicators_) {
         helix::ui::safe_delete_deferred(indicator);
     }
     screw_indicators_.clear();
@@ -642,7 +642,7 @@ void ScrewsTiltPanel::create_screw_indicator(size_t index, const ScrewTiltResult
         lv_anim_start(&anim);
     }
 
-    screw_indicators_.push_back(indicator);
+    screw_indicators_.emplace_back(indicator);
 
     (void)index;
 }

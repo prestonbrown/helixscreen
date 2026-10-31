@@ -195,14 +195,6 @@ void UpdatesSettingsOverlay::show_update_download_modal(bool start_immediately) 
     // The modal can open before the overlay ever has (update notification).
     register_callbacks();
 
-    // Backdrop-tap and ESC dismissal destroy the modal widget via Modal::hide
-    // directly, bypassing hide_update_download_modal().  That leaves our
-    // pointer dangling and a second "Install Update" tap becomes a no-op.
-    // Re-validate before reusing.
-    if (update_download_modal_ && !lv_obj_is_valid(update_download_modal_)) {
-        update_download_modal_ = nullptr;
-    }
-
     if (!download_status_observer_) {
         auto& checker = UpdateChecker::instance();
         download_status_observer_ = helix::ui::observe<int>(

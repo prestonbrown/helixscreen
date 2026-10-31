@@ -262,13 +262,10 @@ void TempGraphController::refresh_all_from_history() {
 }
 
 void TempGraphController::rebuild() {
-    // Guard against stale container — if the parent widget was deleted while a
-    // deferred observer callback was queued, container_ is dangling.
-    // lv_obj_is_valid() is O(n) but acceptable here: rebuild() is the full-reset
-    // path, not something any hot loop reaches.
-    if (tearing_down_ || !container_ || !lv_obj_is_valid(container_)) {
+    // The parent widget can be deleted while a deferred observer callback is
+    // queued; container_ reads nullptr then.
+    if (tearing_down_ || !container_) {
         spdlog::warn("[TempGraphController] Rebuild skipped — tearing down or container freed");
-        container_ = nullptr;
         return;
     }
 
@@ -385,9 +382,8 @@ SeriesId TempGraphController::series_id_for(const std::string& klipper_name) con
 // ============================================================================
 
 void TempGraphController::create_graph() {
-    if (!container_ || !lv_obj_is_valid(container_)) {
+    if (!container_) {
         spdlog::error("[TempGraphController] Container is null or freed, cannot create graph");
-        container_ = nullptr;
         return;
     }
 

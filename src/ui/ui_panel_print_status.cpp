@@ -107,10 +107,6 @@ static void uninstall_root_delete_hook(lv_obj_t*& root, lv_event_cb_t cb, void* 
     root = nullptr;
 }
 
-// Cached widget pointer for lazy creation (separate from overlay_root_ which
-// is managed by OverlayBase). Declared here so teardown callback can null it.
-static lv_obj_t* s_cached_panel = nullptr;
-
 // ID of the MemoryMonitor pressure responder. 0 means "not registered".
 // Registered lazily on first push_overlay(); unregistered in the static
 // panel-destroy callback to prevent calls into a destroyed singleton.
@@ -193,7 +189,6 @@ PrintStatusPanel& get_global_print_status_panel() {
             }
             PrintStatusPanel::destroy_cached_overlay(
                 PrintStatusTreeDestroyCause::PanelRegistryTeardown);
-            s_cached_panel = nullptr;
         },
         get_printer_state(), nullptr);
 }
@@ -204,19 +199,17 @@ PrintStatusPanel& get_global_print_status_panel() {
 // cached tree (e.g. print status was never opened this session).
 static void try_reclaim_cached_print_status() {
     helix::ui::queue_update("ui_panel_print_status::try_reclaim_cached_print_status", []() {
-        if (!s_cached_panel) {
+        lv_obj_t* tree = PrintStatusPanel::get_cached_overlay();
+        if (!tree) {
             return;
         }
-        if (helix::nav::is_in_stack(s_cached_panel)) {
+        if (helix::nav::is_in_stack(tree)) {
             spdlog::debug(
                 "[PrintStatusPanel] Cached tree is currently visible, skipping memory reclaim");
             return;
         }
-        if (!helix::lazy_global_if_exists<PrintStatusPanel>()) {
-            return;
-        }
         spdlog::warn("[PrintStatusPanel] Pressure response: destroying cached overlay tree");
-        // Nulls s_cached_panel; the next push_overlay() recreates the tree.
+        // The next push_overlay() recreates the tree.
         PrintStatusPanel::destroy_cached_overlay(PrintStatusTreeDestroyCause::MemoryReclaim);
     });
 }
@@ -231,10 +224,11 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                 },
                 [this]() { return is_active_; }}),
       progress_text_(printer_state, lifecycle_),
-      layout_fitter_(
-          get_name(), {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_},
-          {[this]() { return overlay_root_; }, [this]() { return subjects_initialized_; }}),
-      tiles_(printer_state, {[this]() { return overlay_root_; },
+      layout_fitter_(get_name(),
+                     {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_},
+                     {[this]() -> lv_obj_t* { return overlay_root_; },
+                      [this]() { return subjects_initialized_; }}),
+      tiles_(printer_state, {[this]() -> lv_obj_t* { return overlay_root_; },
                              [this]() { return lifecycle_.state() != PrintState::Preparing; },
                              [this]() { return lifecycle_.speed_percent(); },
                              [this]() { return lifecycle_.flow_percent(); },
@@ -942,11 +936,12 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     // Find thumbnail section for nested widgets
     lv_obj_t* thumbnail_section = find_required(overlay_content, "thumbnail_section", get_name());
     if (!thumbnail_section) {
+        // Half built and unregistered: a root left set would be pushed by the next open.
+        uninstall_root_delete_hook(delete_hook_root_, on_root_deleted, this);
+        helix::ui::safe_delete_deferred(overlay_root_);
         return nullptr;
     }
 
-    // A failed create() leaves its hook on a root that never got a tree number,
-    // so a replacement is logged only while the last numbered tree is alive.
     if (replaces_previous_tree && s_last_destroyed_tree != s_tree_number) {
         log_tree_destroyed(PrintStatusTreeDestroyCause::ReplacedByRebuild,
                            printer_state_.print_state().get_print_lifecycle());
@@ -1343,9 +1338,6 @@ void PrintStatusPanel::on_root_deleted(lv_event_t* e) {
 
     self->forget_cached_widgets();
     self->delete_hook_root_ = nullptr;
-    if (s_cached_panel == dying) {
-        s_cached_panel = nullptr;
-    }
     log_tree_destroyed(PrintStatusTreeDestroyCause::WidgetTreeDeleted,
                        self->printer_state_.print_state().get_print_lifecycle());
 }
@@ -1371,26 +1363,27 @@ void PrintStatusPanel::forget_cached_widgets() {
 }
 
 lv_obj_t* PrintStatusPanel::get_cached_overlay() {
-    return s_cached_panel;
+    const auto* panel = helix::lazy_global_if_exists<PrintStatusPanel>();
+    return panel ? panel->overlay_root_.get() : nullptr;
 }
 
 helix::MemoryInfo (*PrintStatusPanel::memory_info_source_)() = helix::get_system_memory_info;
 
 void PrintStatusPanel::destroy_cached_overlay(PrintStatusTreeDestroyCause cause) {
     auto* panel = helix::lazy_global_if_exists<PrintStatusPanel>();
-    if (!s_cached_panel || !panel) {
+    if (!panel || !panel->overlay_root_) {
         return;
     }
-    panel->destroy_overlay_ui(s_cached_panel);
-    // destroy_overlay_ui() nulls the pointer only when it destroyed a tree.
-    if (s_cached_panel == nullptr) {
+    panel->destroy_overlay_ui();
+    // destroy_overlay_ui() nulls the root only when it destroyed a tree.
+    if (!panel->overlay_root_) {
         log_tree_destroyed(cause, panel->printer_state_.print_state().get_print_lifecycle());
     }
 }
 
 void PrintStatusPanel::on_overlay_closed() {
     auto* existing = helix::lazy_global_if_exists<PrintStatusPanel>();
-    if (!s_cached_panel || !existing) {
+    if (!existing || !existing->overlay_root_) {
         return;
     }
     PrintStatusPanel& panel = *existing;
@@ -1398,8 +1391,8 @@ void PrintStatusPanel::on_overlay_closed() {
     // tick for a navbar or connection-loss close. The tree can be back on screen
     // by then, where this close no longer applies, and a slide-out completion
     // consumes whichever callback the re-push registered.
-    if (helix::nav::is_in_stack(s_cached_panel)) {
-        helix::nav::on_close(s_cached_panel, on_overlay_closed);
+    if (helix::nav::is_in_stack(panel.overlay_root_)) {
+        helix::nav::on_close(panel.overlay_root_, on_overlay_closed);
         return;
     }
 
@@ -1439,7 +1432,7 @@ void PrintStatusPanel::release_kept_tree_after_job() {
     // memory to spare keeps the tree.
     helix::ui::queue_update("PrintStatusPanel::release_kept_tree_after_job", []() {
         auto* existing = helix::lazy_global_if_exists<PrintStatusPanel>();
-        if (!s_cached_panel || !existing) {
+        if (!existing || !existing->overlay_root_) {
             return;
         }
         PrintStatusPanel& panel = *existing;
@@ -1448,7 +1441,7 @@ void PrintStatusPanel::release_kept_tree_after_job() {
         if (!panel.kept_tree_job_observer_) {
             return;
         }
-        if (helix::nav::is_in_stack(s_cached_panel)) {
+        if (helix::nav::is_in_stack(panel.overlay_root_)) {
             return;
         }
         if (!helix::ui::print_status_destroy_on_close(
@@ -1466,25 +1459,24 @@ bool PrintStatusPanel::push_overlay(lv_obj_t* parent_screen) {
         return false;
     }
     // A request belongs to the push that made it: any other push is not asking for the map.
-    get_global_print_status_panel().exclude_map_requested_ = false;
+    auto& panel = get_global_print_status_panel();
+    panel.exclude_map_requested_ = false;
 
-    // Lazy-create the widget tree if it was destroyed or never created
-    if (!s_cached_panel) {
-        auto& panel = get_global_print_status_panel();
-
+    // Lazy-create the widget tree if it was destroyed or never created. A rebuild
+    // reassigns overlay_root_ to its successor, so this does not build a second tree.
+    if (!panel.overlay_root_) {
         if (!panel.are_subjects_initialized()) {
             panel.init_subjects();
         }
 
-        s_cached_panel = panel.create(parent_screen);
-        if (!s_cached_panel) {
+        if (!panel.create(parent_screen)) {
             spdlog::error("[PrintStatusPanel] Failed to create print status overlay from XML");
             return false;
         }
 
         // Register with NavigationManager for lifecycle callbacks (persistent
         // so the registration survives navbar panel switches while cached)
-        helix::nav::register_overlay(s_cached_panel, &panel, true);
+        helix::nav::register_overlay(panel.overlay_root_, &panel, true);
 
         // Register the pressure responder once. A close keeps the tree whenever
         // memory is plentiful or a job holds the machine; this is what drops a
@@ -1493,12 +1485,9 @@ bool PrintStatusPanel::push_overlay(lv_obj_t* parent_screen) {
         if (s_memory_responder_id == 0) {
             s_memory_responder_id = helix::MemoryMonitor::instance().add_pressure_responder(
                 [](helix::MemoryPressureLevel level) {
-                    // Pre-queue bail-out: if there's no cached tree, a
-                    // queue_update hop would just land on an empty null check.
-                    // Monitor thread reads s_cached_panel without a barrier;
-                    // pointer-sized loads are atomic on our targets, and a
-                    // false-negative is harmless (queued lambda re-checks).
-                    if (level < helix::MemoryPressureLevel::warning || !s_cached_panel) {
+                    // This runs on the monitor thread, so the tree is read only in
+                    // the queued update.
+                    if (level < helix::MemoryPressureLevel::warning) {
                         return;
                     }
                     try_reclaim_cached_print_status();
@@ -1509,16 +1498,16 @@ bool PrintStatusPanel::push_overlay(lv_obj_t* parent_screen) {
     // The tree is being shown, so a job ending is no longer a reason to drop it.
     // Disarmed here, not when the queued push lands, so a release already
     // queued finds the watch gone.
-    get_global_print_status_panel().kept_tree_job_observer_.reset();
+    panel.kept_tree_job_observer_.reset();
 
     // Whether a close destroys the tree is decided when the close happens: the
     // print and available memory both move while the overlay is open.
     // NavigationManager consumes the callback when it fires, and a tree that
     // close kept comes back through here without being re-created, so it is
     // registered on every push.
-    helix::nav::on_close(s_cached_panel, on_overlay_closed);
+    helix::nav::on_close(panel.overlay_root_, on_overlay_closed);
 
-    helix::nav::push_overlay(s_cached_panel);
+    helix::nav::push_overlay(panel.overlay_root_);
     return true;
 }
 
@@ -2297,18 +2286,9 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
             if (gcode_viewer_) {
                 int viewer_max_layer = helix::ui::gcode_viewer_get_max_layer(gcode_viewer_);
                 int viewer_layer = lifecycle_.map_current_layer_to_viewer(viewer_max_layer);
-                struct ViewerProgressCtx {
-                    lv_obj_t* viewer;
-                    int layer;
-                };
-                auto ctx = std::make_unique<ViewerProgressCtx>(
-                    ViewerProgressCtx{gcode_viewer_, viewer_layer});
-                helix::ui::queue_update<ViewerProgressCtx>(
-                    std::move(ctx), [](ViewerProgressCtx* c) {
-                        if (c->viewer && lv_obj_is_valid(c->viewer)) {
-                            helix::ui::gcode_viewer_set_print_progress(c->viewer, c->layer);
-                        }
-                    });
+                helix::ui::queue_widget_update(gcode_viewer_.get(), [viewer_layer](lv_obj_t* live) {
+                    helix::ui::gcode_viewer_set_print_progress(live, viewer_layer);
+                });
             }
         }
         // Don't call update_all_displays() or show_gcode_viewer() — keep display frozen
@@ -2458,16 +2438,8 @@ void PrintStatusPanel::on_print_layer_changed(int current_layer) {
 
         // CRITICAL: Defer to avoid lv_obj_invalidate() during render phase
         // Observer callbacks can fire during lv_timer_handler() which may be mid-render
-        struct ViewerProgressCtx {
-            lv_obj_t* viewer;
-            int layer;
-        };
-        auto ctx =
-            std::make_unique<ViewerProgressCtx>(ViewerProgressCtx{gcode_viewer_, viewer_layer});
-        helix::ui::queue_update<ViewerProgressCtx>(std::move(ctx), [](ViewerProgressCtx* c) {
-            if (c->viewer && lv_obj_is_valid(c->viewer)) {
-                helix::ui::gcode_viewer_set_print_progress(c->viewer, c->layer);
-            }
+        helix::ui::queue_widget_update(gcode_viewer_.get(), [viewer_layer](lv_obj_t* live) {
+            helix::ui::gcode_viewer_set_print_progress(live, viewer_layer);
         });
 
         spdlog::trace("[{}] G-code viewer ghost layer updated to {} (Moonraker: {}/{})", get_name(),

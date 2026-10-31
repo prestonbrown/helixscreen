@@ -129,12 +129,28 @@ static void sync_chrome_cover(const ModalStack& stack) {
     helix::ui::set_chrome_covered(stack.covers_chrome());
 }
 
+// A handle whose widget died reads nullptr: it must not match a nullptr query.
+static bool handle_names(const helix::ui::WeakWidget& handle, const lv_obj_t* obj) {
+    return obj && handle.get() == obj;
+}
+
 void ModalStack::push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& component_name,
                       Modal* owner) {
-    stack_.push_back({backdrop, dialog, component_name, false /* exiting */, owner, true, {}});
+    stack_.push_back({helix::ui::WeakWidget(backdrop),
+                      helix::ui::WeakWidget(dialog),
+                      component_name,
+                      false /* exiting */,
+                      owner,
+                      true,
+                      {}});
     sync_chrome_cover(*this);
-    if (backdrop && lv_obj_is_valid(backdrop)) {
+    if (backdrop) {
         lv_obj_move_foreground(backdrop);
+        // Added after the entry's handle hook, so the handle reads nullptr by now.
+        // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
+        lv_obj_add_event_cb(
+            backdrop, [](lv_event_t*) { ModalStack::instance().prune_dead(); }, LV_EVENT_DELETE,
+            nullptr);
     }
     spdlog::debug("[ModalStack] Pushed modal '{}' (stack depth: {})", component_name,
                   stack_.size());
@@ -158,8 +174,9 @@ static void free_owned_instance(Modal* instance) {
 }
 
 void ModalStack::remove(lv_obj_t* backdrop, bool free_owned_now) {
-    auto it = std::find_if(stack_.begin(), stack_.end(),
-                           [backdrop](const ModalEntry& e) { return e.backdrop == backdrop; });
+    auto it = std::find_if(stack_.begin(), stack_.end(), [backdrop](const ModalEntry& e) {
+        return handle_names(e.backdrop, backdrop);
+    });
     if (it != stack_.end()) {
         spdlog::debug("[ModalStack] Removed modal '{}' (stack depth: {})", it->component_name,
                       stack_.size() - 1);
@@ -189,9 +206,31 @@ void ModalStack::remove(lv_obj_t* backdrop, bool free_owned_now) {
     }
 }
 
+void ModalStack::prune_dead() {
+    // Backwards, so an erase leaves the earlier indices valid.
+    bool pruned = false;
+    for (size_t i = stack_.size(); i-- > 0;) {
+        if (stack_[i].backdrop) {
+            continue;
+        }
+        spdlog::debug("[ModalStack] Dropping modal '{}': its backdrop was deleted",
+                      stack_[i].component_name);
+        Modal* doomed = stack_[i].owned_instance.release();
+        stack_.erase(stack_.begin() + static_cast<std::ptrdiff_t>(i));
+        pruned = true;
+        if (doomed) {
+            helix::ui::queue_update("ModalStack::free_owned",
+                                    [doomed]() { free_owned_instance(doomed); });
+        }
+    }
+    if (pruned) {
+        sync_chrome_cover(*this);
+    }
+}
+
 void ModalStack::assume_ownership(lv_obj_t* backdrop, std::unique_ptr<Modal> instance) {
     for (auto& entry : stack_) {
-        if (entry.backdrop == backdrop) {
+        if (handle_names(entry.backdrop, backdrop)) {
             entry.owner = instance.get();
             entry.owned_instance = std::move(instance);
             return;
@@ -215,25 +254,23 @@ void ModalStack::clear() {
         // owned and unowned entries alike.
         entry.owned_instance.reset();
 
-        // Skip backdrops that LVGL already freed. A modal whose exit
-        // animation never completed stays in the stack as exiting=true with
-        // its remove() still owed to exit_animation_done(). If the backdrop's
-        // ancestor (e.g. the screen it was created on) is deleted first, LVGL
-        // frees the backdrop as part of that subtree - leaving a stale entry
-        // that points at freed memory. Deleting it again walks a poisoned
-        // object (obj->class_p) and crashes. Guard the same way
-        // exit_animation_done() and ~Modal already do (lv_obj_is_valid).
-        if (!entry.backdrop || !lv_obj_is_valid(entry.backdrop)) {
+        // A modal whose exit animation never completed stays in the stack as
+        // exiting=true with its remove() still owed to exit_animation_done(). If
+        // the backdrop's ancestor (e.g. the screen it was created on) is deleted
+        // first, LVGL frees the backdrop with that subtree and the entry's handle
+        // reads nullptr.
+        lv_obj_t* backdrop = entry.backdrop;
+        if (!backdrop) {
             continue;
         }
         // Cancel animations before deletion - exit animation exec callbacks
         // trigger lv_obj_set_style_*() which crashes on freed objects
-        lv_anim_delete(entry.backdrop, nullptr);
-        lv_obj_t* dialog = lv_obj_get_child(entry.backdrop, 0);
+        lv_anim_delete(backdrop, nullptr);
+        lv_obj_t* dialog = lv_obj_get_child(backdrop, 0);
         if (dialog) {
             lv_anim_delete(dialog, nullptr);
         }
-        lv_obj_delete(entry.backdrop);
+        lv_obj_delete(backdrop);
     }
     sync_chrome_cover(*this);
 }
@@ -241,7 +278,7 @@ void ModalStack::clear() {
 lv_obj_t* ModalStack::top_dialog() const {
     // Return topmost non-exiting modal
     for (auto it = stack_.rbegin(); it != stack_.rend(); ++it) {
-        if (!it->exiting) {
+        if (!it->exiting && it->dialog) {
             return it->dialog;
         }
     }
@@ -259,7 +296,7 @@ std::string ModalStack::top_component_name() const {
 
 lv_obj_t* ModalStack::dialog_for_component(const std::string& component_name) const {
     for (auto it = stack_.rbegin(); it != stack_.rend(); ++it) {
-        if (!it->exiting && it->component_name == component_name)
+        if (!it->exiting && it->dialog && it->component_name == component_name)
             return it->dialog;
     }
     return nullptr;
@@ -267,7 +304,7 @@ lv_obj_t* ModalStack::dialog_for_component(const std::string& component_name) co
 
 lv_obj_t* ModalStack::backdrop_for(lv_obj_t* dialog) const {
     for (const auto& entry : stack_) {
-        if (entry.dialog == dialog) {
+        if (handle_names(entry.dialog, dialog)) {
             return entry.backdrop;
         }
     }
@@ -276,7 +313,7 @@ lv_obj_t* ModalStack::backdrop_for(lv_obj_t* dialog) const {
 
 std::string ModalStack::component_name_for(lv_obj_t* dialog) const {
     for (const auto& entry : stack_) {
-        if (entry.dialog == dialog) {
+        if (handle_names(entry.dialog, dialog)) {
             return entry.component_name;
         }
     }
@@ -285,7 +322,7 @@ std::string ModalStack::component_name_for(lv_obj_t* dialog) const {
 
 Modal* ModalStack::owner_for(lv_obj_t* dialog) const {
     for (const auto& entry : stack_) {
-        if (entry.dialog == dialog) {
+        if (handle_names(entry.dialog, dialog)) {
             return entry.owner;
         }
     }
@@ -294,7 +331,7 @@ Modal* ModalStack::owner_for(lv_obj_t* dialog) const {
 
 void ModalStack::reassign_owner(lv_obj_t* backdrop, Modal* new_owner) {
     for (auto& entry : stack_) {
-        if (entry.backdrop == backdrop) {
+        if (handle_names(entry.backdrop, backdrop)) {
             entry.owner = new_owner;
             return;
         }
@@ -303,7 +340,7 @@ void ModalStack::reassign_owner(lv_obj_t* backdrop, Modal* new_owner) {
 
 bool ModalStack::backdrop_for_backdrop(lv_obj_t* backdrop) const {
     for (const auto& entry : stack_) {
-        if (entry.backdrop == backdrop) {
+        if (handle_names(entry.backdrop, backdrop)) {
             return true;
         }
     }
@@ -346,7 +383,7 @@ bool ModalStack::covers_chrome() const {
 
 void ModalStack::set_covers_chrome(lv_obj_t* backdrop, bool covers) {
     for (auto& entry : stack_) {
-        if (entry.backdrop == backdrop) {
+        if (handle_names(entry.backdrop, backdrop)) {
             entry.covers_chrome = covers;
             sync_chrome_cover(*this);
             return;
@@ -356,7 +393,7 @@ void ModalStack::set_covers_chrome(lv_obj_t* backdrop, bool covers) {
 
 lv_obj_t* ModalStack::lowest_covering_backdrop() const {
     for (const auto& entry : stack_) {
-        if (!entry.exiting && entry.covers_chrome) {
+        if (!entry.exiting && entry.covers_chrome && entry.backdrop) {
             return entry.backdrop;
         }
     }
@@ -365,7 +402,7 @@ lv_obj_t* ModalStack::lowest_covering_backdrop() const {
 
 bool ModalStack::mark_exiting(lv_obj_t* backdrop) {
     for (auto& entry : stack_) {
-        if (entry.backdrop == backdrop) {
+        if (handle_names(entry.backdrop, backdrop)) {
             if (entry.exiting) {
                 spdlog::debug("[ModalStack] Modal '{}' already exiting - ignoring",
                               entry.component_name);
@@ -382,7 +419,7 @@ bool ModalStack::mark_exiting(lv_obj_t* backdrop) {
 
 bool ModalStack::is_exiting(lv_obj_t* backdrop) const {
     for (const auto& entry : stack_) {
-        if (entry.backdrop == backdrop) {
+        if (handle_names(entry.backdrop, backdrop)) {
             return entry.exiting;
         }
     }
@@ -390,19 +427,14 @@ bool ModalStack::is_exiting(lv_obj_t* backdrop) const {
 }
 
 void ModalStack::animate_entrance(lv_obj_t* dialog) {
-    if (!lv_obj_is_valid(dialog)) {
-        spdlog::warn("[ModalStack] animate_entrance called with invalid dialog object");
+    if (!dialog) {
+        spdlog::warn("[ModalStack] animate_entrance called with no dialog");
         return;
     }
 
     // Find backdrop for this dialog
     lv_obj_t* backdrop = backdrop_for(dialog);
     if (!backdrop) {
-        return;
-    }
-
-    if (!lv_obj_is_valid(backdrop)) {
-        spdlog::warn("[ModalStack] animate_entrance: backdrop is invalid");
         return;
     }
 
@@ -443,10 +475,8 @@ void ModalStack::animate_entrance(lv_obj_t* dialog) {
     lv_anim_set_duration(&backdrop_anim, kModalEntranceDurationMs);
     lv_anim_set_path_cb(&backdrop_anim, lv_anim_path_ease_out);
     lv_anim_set_exec_cb(&backdrop_anim, [](void* obj, int32_t value) {
-        // No lv_obj_is_valid() guard: LVGL's lv_obj_destructor cancels an object's
-        // animations when it is freed (lv_obj.c), so this exec cb can never fire on
-        // a freed/recycled object. lv_obj_is_valid() here would be an O(n) recursive
-        // tree walk every frame and returns TRUE on recycled memory ([L076]).
+        // No liveness guard: LVGL's lv_obj_destructor cancels an object's animations
+        // when it is freed (lv_obj.c), so this exec cb can never fire on a freed object.
         lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value),
                              LV_PART_MAIN);
     });
@@ -460,7 +490,7 @@ void ModalStack::animate_entrance(lv_obj_t* dialog) {
     lv_anim_set_duration(&scale_anim, kModalEntranceDurationMs);
     lv_anim_set_path_cb(&scale_anim, lv_anim_path_overshoot);
     lv_anim_set_exec_cb(&scale_anim, [](void* obj, int32_t value) {
-        // No lv_obj_is_valid() guard — see the opacity cbs above ([L076]).
+        // No liveness guard: see the opacity cbs above.
         lv_obj_set_style_transform_scale(static_cast<lv_obj_t*>(obj), static_cast<int16_t>(value),
                                          LV_PART_MAIN);
     });
@@ -474,10 +504,8 @@ void ModalStack::animate_entrance(lv_obj_t* dialog) {
     lv_anim_set_duration(&fade_anim, kModalEntranceDurationMs);
     lv_anim_set_path_cb(&fade_anim, lv_anim_path_ease_out);
     lv_anim_set_exec_cb(&fade_anim, [](void* obj, int32_t value) {
-        // No lv_obj_is_valid() guard: LVGL's lv_obj_destructor cancels an object's
-        // animations when it is freed (lv_obj.c), so this exec cb can never fire on
-        // a freed/recycled object. lv_obj_is_valid() here would be an O(n) recursive
-        // tree walk every frame and returns TRUE on recycled memory ([L076]).
+        // No liveness guard: LVGL's lv_obj_destructor cancels an object's animations
+        // when it is freed (lv_obj.c), so this exec cb can never fire on a freed object.
         lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value),
                              LV_PART_MAIN);
     });
@@ -491,9 +519,8 @@ void ModalStack::exit_animation_done(lv_anim_t* anim) {
 }
 
 void ModalStack::finish_exit(lv_obj_t* backdrop) {
-    // Guard against freed backdrop - animation may fire after object deletion
-    if (!backdrop || !lv_obj_is_valid(backdrop)) {
-        spdlog::debug("[ModalStack] Exit complete - backdrop already freed");
+    // The no-animation exit passes nullptr when the backdrop died before its tick.
+    if (!backdrop) {
         return;
     }
 
@@ -537,16 +564,6 @@ void ModalStack::animate_exit(lv_obj_t* backdrop, lv_obj_t* dialog) {
         return;
     }
 
-    if (!lv_obj_is_valid(dialog)) {
-        spdlog::warn("[ModalStack] animate_exit called with invalid dialog object");
-        return;
-    }
-
-    if (!lv_obj_is_valid(backdrop)) {
-        spdlog::warn("[ModalStack] animate_exit called with invalid backdrop object");
-        return;
-    }
-
     // Deterministically cancel any in-flight ENTRANCE animations before starting the
     // exit. Entrance and exit use distinct exec_cb lambdas, so LVGL's
     // remove_concurrent_anims (matches var + exec_cb) does NOT replace them — a fast
@@ -566,8 +583,9 @@ void ModalStack::animate_exit(lv_obj_t* backdrop, lv_obj_t* dialog) {
         // finish_exit frees an owned instance before it queues the tree's delete;
         // this runs inside hide()'s frame, so the whole sequence waits a tick.
         lv_obj_add_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::queue_update("ModalStack::finish_exit",
-                                [backdrop]() { ModalStack::finish_exit(backdrop); });
+        helix::ui::queue_update(
+            "ModalStack::finish_exit",
+            [backdrop = helix::ui::WeakWidget(backdrop)]() { ModalStack::finish_exit(backdrop); });
         return;
     }
 
@@ -579,10 +597,8 @@ void ModalStack::animate_exit(lv_obj_t* backdrop, lv_obj_t* dialog) {
     lv_anim_set_duration(&backdrop_anim, kModalExitDurationMs);
     lv_anim_set_path_cb(&backdrop_anim, lv_anim_path_ease_in);
     lv_anim_set_exec_cb(&backdrop_anim, [](void* obj, int32_t value) {
-        // No lv_obj_is_valid() guard: LVGL's lv_obj_destructor cancels an object's
-        // animations when it is freed (lv_obj.c), so this exec cb can never fire on
-        // a freed/recycled object. lv_obj_is_valid() here would be an O(n) recursive
-        // tree walk every frame and returns TRUE on recycled memory ([L076]).
+        // No liveness guard: LVGL's lv_obj_destructor cancels an object's animations
+        // when it is freed (lv_obj.c), so this exec cb can never fire on a freed object.
         lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value),
                              LV_PART_MAIN);
     });
@@ -597,7 +613,7 @@ void ModalStack::animate_exit(lv_obj_t* backdrop, lv_obj_t* dialog) {
     lv_anim_set_duration(&scale_anim, kModalExitDurationMs);
     lv_anim_set_path_cb(&scale_anim, lv_anim_path_ease_in);
     lv_anim_set_exec_cb(&scale_anim, [](void* obj, int32_t value) {
-        // No lv_obj_is_valid() guard — see the opacity cbs above ([L076]).
+        // No liveness guard: see the opacity cbs above.
         lv_obj_set_style_transform_scale(static_cast<lv_obj_t*>(obj), static_cast<int16_t>(value),
                                          LV_PART_MAIN);
     });
@@ -611,10 +627,8 @@ void ModalStack::animate_exit(lv_obj_t* backdrop, lv_obj_t* dialog) {
     lv_anim_set_duration(&fade_anim, kModalExitDurationMs);
     lv_anim_set_path_cb(&fade_anim, lv_anim_path_ease_in);
     lv_anim_set_exec_cb(&fade_anim, [](void* obj, int32_t value) {
-        // No lv_obj_is_valid() guard: LVGL's lv_obj_destructor cancels an object's
-        // animations when it is freed (lv_obj.c), so this exec cb can never fire on
-        // a freed/recycled object. lv_obj_is_valid() here would be an O(n) recursive
-        // tree walk every frame and returns TRUE on recycled memory ([L076]).
+        // No liveness guard: LVGL's lv_obj_destructor cancels an object's animations
+        // when it is freed (lv_obj.c), so this exec cb can never fire on a freed object.
         lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value),
                              LV_PART_MAIN);
     });
@@ -633,18 +647,13 @@ Modal::~Modal() {
     // RAII: auto-hide if still visible
     // Use safe delete to handle shutdown race conditions
     if (backdrop_) {
-        // Defensive guard against a stale backdrop_ pointer. This can happen
-        // when an owning C++ object (e.g. an overlay holding a unique_ptr<Modal>)
-        // outlives the widget tree the backdrop was created in — for example,
-        // after a screen switch that tore down lv_screen_active()'s children.
-        // Touching the dangling LVGL object here triggered crash signature
-        // 739584fa: ~Modal → lv_obj_remove_event_cb → lv_event_get_count UAF.
-        //
-        // If the backdrop is no longer a live LVGL object, or is no longer
-        // tracked by ModalStack (another path already removed/deleted it),
-        // just drop our pointers and skip cleanup.
+        // An owning C++ object (e.g. an overlay holding a unique_ptr<Modal>) can
+        // outlive the widget tree the backdrop was created in; backdrop_ then reads
+        // nullptr and this block is skipped. A backdrop no longer tracked by
+        // ModalStack belongs to whichever path removed it: drop our pointers and
+        // skip cleanup.
         auto& stack = ModalStack::instance();
-        if (!lv_obj_is_valid(backdrop_) || !stack.backdrop_for_backdrop(backdrop_)) {
+        if (!stack.backdrop_for_backdrop(backdrop_)) {
             spdlog::debug("[Modal] ~Modal: backdrop already cleaned up externally, "
                           "skipping widget cleanup");
             backdrop_ = nullptr;
@@ -813,7 +822,7 @@ void ModalStack::raise_visible_to_foreground() {
 
 void ModalStack::set_tag(lv_obj_t* backdrop, std::string tag) {
     for (auto& entry : stack_) {
-        if (entry.backdrop == backdrop) {
+        if (handle_names(entry.backdrop, backdrop)) {
             entry.tag = std::move(tag);
             return;
         }

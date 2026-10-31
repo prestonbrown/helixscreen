@@ -31,10 +31,7 @@ void ScreenHideHold::release() {
 }
 
 void ScreenHideHold::show_hidden_screen() {
-    // A freed screen's address can come back as any other widget, so only a live
-    // object that is still a screen is unhidden.
-    if (m_hid_screen && lv_is_initialized() && lv_obj_is_valid(m_screen) &&
-        lv_obj_get_parent(m_screen) == nullptr) {
+    if (m_hid_screen && m_screen && lv_is_initialized()) {
         // DECLARATIVE_OK: screen hidden under an opaque top-layer overlay
         lv_obj_remove_flag(m_screen, LV_OBJ_FLAG_HIDDEN);
     }

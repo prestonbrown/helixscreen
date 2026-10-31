@@ -10,6 +10,7 @@
 
 #include "ui_exclude_object_badges.h"
 #include "ui_gcode_viewer.h"
+#include "ui_widget_ref.h"
 
 #include "config.h"
 #include "gcode_camera.h"
@@ -309,7 +310,7 @@ class GCodeViewerState {
         false}; ///< When true, draw_cb skips rendering (for visibility optimization)
 
     // Loading UI elements (managed by async load function)
-    lv_obj_t* loading_container{nullptr};
+    helix::ui::WidgetRef loading_container;
     lv_obj_t* loading_spinner{nullptr};
     lv_obj_t* loading_label{nullptr};
 

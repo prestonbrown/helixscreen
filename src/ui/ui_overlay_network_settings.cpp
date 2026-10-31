@@ -489,8 +489,7 @@ void NetworkSettingsOverlay::on_country_language_changed(lv_event_t* e) {
 }
 
 void NetworkSettingsOverlay::detach_country_dropdown() {
-    // The tree can be deleted out from under this object, leaving the pointer freed.
-    if (country_dropdown_ && lv_is_initialized() && lv_obj_is_valid(country_dropdown_)) {
+    if (country_dropdown_ && lv_is_initialized()) {
         lv_obj_remove_event_cb_with_user_data(country_dropdown_, on_country_language_changed, this);
     }
     country_dropdown_ = nullptr;

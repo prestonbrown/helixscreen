@@ -7,6 +7,7 @@
 #include "ui_observer_guard.h"
 #include "ui_temp_graph.h"
 #include "ui_temperature_utils.h" // kHeaterStatusBufBytes
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "lvgl/lvgl.h"
@@ -226,9 +227,8 @@ class TemperatureService {
     // ── Mini combined graph (filament panel) ────────────────────────────
     // Container ptr is retained so select_extruder() can recreate the
     // controller against the new active extruder. Owned by the filament
-    // panel's XML — its lifetime exceeds ours under normal teardown, but
-    // we guard with lv_obj_is_valid() before reuse just in case.
-    lv_obj_t* mini_graph_container_ = nullptr;
+    // panel's XML, and reads nullptr once that tree is gone.
+    helix::ui::WidgetRef mini_graph_container_;
     std::unique_ptr<helix::TempGraphController> mini_graph_controller_;
 
     // ── Graph update throttling ─────────────────────────────────────────

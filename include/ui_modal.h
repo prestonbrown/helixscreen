@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "helix_shared_callback.h"
 #include "lvgl/lvgl.h"
@@ -348,7 +350,7 @@ class Modal {
 
   protected:
     // Modal state
-    lv_obj_t* backdrop_ = nullptr;
+    helix::ui::WidgetRef backdrop_;
     lv_obj_t* dialog_ = nullptr;
     lv_obj_t* parent_ = nullptr;
 
@@ -535,9 +537,13 @@ class ModalStack {
   private:
     ModalStack() = default;
 
+    /// Drop entries whose backdrop was deleted behind the stack, which no owner
+    /// can name any more.
+    void prune_dead();
+
     struct ModalEntry {
-        lv_obj_t* backdrop;
-        lv_obj_t* dialog;
+        helix::ui::WeakWidget backdrop;
+        helix::ui::WeakWidget dialog;
         std::string component_name;
         bool exiting; /**< true = exit animation in progress, ignore hide() calls */
         Modal* owner; /**< owning instance, or nullptr for static Modal::show() modals */

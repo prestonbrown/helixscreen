@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Gate: a branch does not grow the codebase sideways (prestonbrown/helixscreen#1945).
 
-Three ratchets, each measured from the branch's fork point (scripts/diff_base.py)
+Four ratchets, each measured from the branch's fork point (scripts/diff_base.py)
 to HEAD over committed work, so there is no baseline file for parallel branches
 to conflict on. A count may fall; a branch may not raise it.
 
@@ -27,6 +27,12 @@ to conflict on. A count may fall; a branch may not raise it.
                    `Foo* s_active_ctx = nullptr;`, ...). The branch's total may
                    not rise; an out-of-line `Foo* Foo::active_instance_ =`
                    definition is not a second pointer and is not counted.
+
+One ban, on the whole tree at HEAD rather than the branch's change: no call to
+lv_obj_is_valid() or lv_obj_is_in_widget_tree() anywhere under src/, include/ or tests/
+(comments and strings not counted). Neither can tell a live widget from a new one at a
+freed address; hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h), and
+in a test use helix::test::widget_in_tree() (prestonbrown/helixscreen#1983).
 
 Usage:
   check_growth_ratchets.py --base auto     # the fork point diff_base.py picks
@@ -76,6 +82,9 @@ ACTIVE_STATIC_RE = re.compile(
 ACTIVE_GLOBAL_RE = re.compile(
     rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_)\w*active\w*|(?:s_|g_)\w+_instance_?)"
     rf"\s*(?:=\s*nullptr\s*|\{{\s*\}}\s*)?;", re.M)
+
+VALIDITY_NAMES = ("lv_obj_is_valid", "lv_obj_is_in_widget_tree")
+VALIDITY_CALL_RE = re.compile(rf"\b(?:{'|'.join(VALIDITY_NAMES)})\s*\(")
 
 CLASS_HEAD_RE = re.compile(
     r"(?<![\w])(?:class|struct)\s+(?:\[\[[^\]]*\]\]\s*)?(?:[A-Z_][A-Z0-9_]*\s+)*(\w+)\s*"
@@ -288,6 +297,17 @@ def active_instances(text: str) -> list[str]:
     return names
 
 
+def banned_validity_calls(root: Path) -> list[str]:
+    """`path:line: name` for every banned call in the C++ sources at HEAD."""
+    hits = []
+    for name in VALIDITY_NAMES:
+        for path, text in tree_with(root, "HEAD", name, CXX_SOURCES).items():
+            code = strip_code(text)
+            for m in re.finditer(rf"\b{name}\s*\(", code):
+                hits.append(f"{path}:{code.count(chr(10), 0, m.start()) + 1}: {name}()")
+    return sorted(hits)
+
+
 def is_source(path: str, tests: bool = True) -> bool:
     roots = ("src/", "include/", "tests/") if tests else ("src/", "include/")
     if not path.startswith(roots):
@@ -300,10 +320,10 @@ def list_files(root: Path, rev: str, tests: bool) -> list[str]:
             if is_source(p, tests)]
 
 
-def tree_with(root: Path, rev: str, needle: str) -> dict[str, str]:
-    """App sources at `rev` that contain the fixed string `needle`."""
+def tree_with(root: Path, rev: str, needle: str, sources=APP_SOURCES) -> dict[str, str]:
+    """Sources at `rev` (app code by default) that contain the fixed string `needle`."""
     try:
-        hits = git(root, "grep", "-l", "-F", needle, rev, "--", *APP_SOURCES).split()
+        hits = git(root, "grep", "-l", "-F", needle, rev, "--", *sources).split()
     except subprocess.CalledProcessError:
         hits = []
     paths = [h.split(":", 1)[1] for h in hits]
@@ -374,10 +394,10 @@ def report(root: Path) -> int:
             total += 1
             print(f"  active instance: {path}: {name}")
     print(f"active instance pointers: {total}")
-    big = [(line_count(t), p) for p, t in
-           read_blobs(root, "HEAD", list_files(root, "HEAD", tests=True)).items()
-           if line_count(t) > FILE_CAP]
-    print(f"files over {FILE_CAP} lines: {len(big)}")
+    banned = banned_validity_calls(root)
+    print(f"banned widget validity calls: {len(banned)}")
+    for hit in banned:
+        print(f"  {hit}")
     return 0
 
 
@@ -390,6 +410,13 @@ def main(argv=None) -> int:
     root = Path(git(Path(args.root), "rev-parse", "--show-toplevel").strip())
     if args.report:
         return report(root)
+    banned = banned_validity_calls(root)
+    if banned:
+        for hit in banned:
+            print(f"❌ {hit}: banned, it cannot tell a live widget from a new one at a freed "
+                  f"address. Hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h); "
+                  f"a test uses helix::test::widget_in_tree()")
+        return 1
     if not args.base:
         ap.error("--base is required")
 

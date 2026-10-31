@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include <lvgl.h>
 
 namespace helix {
@@ -22,7 +24,7 @@ class ScreenHideHoldTestAccess;
  *   hidden is left as it is and never unhidden by this hold.
  * - Nested acquire() calls only count; the screen they pass is ignored.
  * - The final release() unhides only the screen the first acquire() hid, and only
- *   while it is still a live screen. A screen loaded mid-hold is never touched.
+ *   while it is still alive. A screen loaded mid-hold is never touched.
  * - release() without a matching acquire() does nothing.
  *
  * Defined in display_manager.cpp, which every build compiles; the screensaver
@@ -41,11 +43,11 @@ class ScreenHideHold {
   private:
     friend class ScreenHideHoldTestAccess;
 
-    /// Unhides the screen the first acquire() hid, if it is still a live screen, and
+    /// Unhides the screen the first acquire() hid, if it is still alive, and
     /// forgets it.
     void show_hidden_screen();
 
-    lv_obj_t* m_screen = nullptr;
+    helix::ui::WidgetRef m_screen;
     bool m_hid_screen = false;
     int m_count = 0;
 };

@@ -161,7 +161,7 @@ class PrintStatusPanel : public OverlayBase {
     /**
      * @brief Get the cached overlay widget pointer, if created.
      *
-     * Exposes `s_cached_panel` to callers that need to check nav-stack
+     * Exposes the panel's root to callers that need to check nav-stack
      * membership before triggering auto-navigation (e.g. the print-start
      * observer skipping push when the user is already viewing print status).
      * Returns nullptr if the widget tree hasn't been created yet or was
@@ -350,7 +350,6 @@ class PrintStatusPanel : public OverlayBase {
 
     helix::PrinterState& printer_state_;
     helix::IMoonrakerAPI* api_;
-    lv_obj_t* parent_screen_ = nullptr;
 
     //
     // === Subjects (owned by this panel) ===
@@ -445,7 +444,7 @@ class PrintStatusPanel : public OverlayBase {
     // Child widgets
     lv_obj_t* progress_bar_ = nullptr;
     lv_obj_t* preparing_progress_bar_ = nullptr;
-    lv_obj_t* gcode_viewer_ = nullptr;
+    helix::ui::WidgetRef gcode_viewer_;
     lv_obj_t* print_thumbnail_ = nullptr;
     lv_obj_t* gradient_background_ = nullptr;
     helix::ui::WidgetRef preview_camera_image_;

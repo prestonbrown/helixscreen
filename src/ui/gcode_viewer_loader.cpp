@@ -367,7 +367,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         // Launch async index building with completion callback
         // The callback can run on a background thread; queue_update marshals it to the UI thread
         std::string path_copy = file_path;
-        st->streaming_controller_->open_file_async(path_copy, [obj, path_copy, gen](bool success) {
+        st->streaming_controller_->open_file_async(path_copy, [obj = helix::ui::WeakWidget(obj),
+                                                               path_copy, gen](bool success) {
             // Marshal completion to UI thread
             struct StreamingResult {
                 bool success;
@@ -521,7 +522,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // Launch worker thread via RAII-managed start_build()
     // Automatically cancels any existing build and joins the thread
     const uint32_t default_rgb = default_3d_extrusion_rgb();
-    st->start_build([st, obj, path = std::string(file_path), gen, default_rgb]() {
+    st->start_build([st, obj = helix::ui::WeakWidget(obj), path = std::string(file_path), gen,
+                     default_rgb]() {
         auto result = std::make_unique<AsyncBuildResult>();
 
         try {
@@ -776,7 +778,7 @@ void helix::gcode_viewer::start_on_demand_3d_build(gcode_viewer_state_t* st, lv_
 
     // Every path that frees st->gcode_file joins this thread first
     // (cancel_build), so `file` outlives the build.
-    st->start_build([st, obj, file, gen, default_rgb]() {
+    st->start_build([st, obj = helix::ui::WeakWidget(obj), file, gen, default_rgb]() {
         auto result = std::make_unique<OnDemandBuild>();
         result->geometry = build_3d_geometry_in_budget(*file, "On-demand 3D switch", default_rgb,
                                                        [st]() { return st->is_cancelled(); });

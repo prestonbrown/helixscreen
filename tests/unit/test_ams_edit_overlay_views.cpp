@@ -21,6 +21,7 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_platform_tier.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_error.h"
@@ -2535,7 +2536,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the editor reopens while its last close is 
     for (int slot : {1, 2}) {
         REQUIRE(overlay.show_for_slot(test_screen(), slot, tracked_slot(), nullptr, record));
         process_lvgl(400);
-        REQUIRE(lv_obj_is_valid(overlay.get_root()));
+        REQUIRE(helix::test::widget_in_tree(overlay.get_root()));
         CHECK(nav.is_panel_on_top(overlay.get_root()));
         CHECK_FALSE(lv_obj_has_flag(overlay.get_root(), LV_OBJ_FLAG_HIDDEN));
 

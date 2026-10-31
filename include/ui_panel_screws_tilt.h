@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "calibration_types.h" // For ScrewTiltResult
 #include "overlay_base.h"
 #include "static_panel_registry.h"
@@ -199,10 +201,10 @@ class ScrewsTiltPanel : public OverlayBase {
     lv_obj_t* results_instruction_ = nullptr;
 
     // Bed surface shaded by height, beneath the indicators
-    lv_obj_t* tilt_surface_ = nullptr;
+    helix::ui::WidgetRef tilt_surface_;
 
     // Dynamic screw indicators (bed diagram only - positions vary)
-    std::vector<lv_obj_t*> screw_indicators_;
+    std::vector<helix::ui::WeakWidget> screw_indicators_;
 
     // Screw row dot widgets (for color updates - XML handles text via subjects)
     std::array<lv_obj_t*, 4> screw_dots_ = {nullptr, nullptr, nullptr, nullptr};

@@ -11,6 +11,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "config.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "settings_manager.h"
@@ -52,10 +53,10 @@ struct ConnectionCallbacksFixture : LVGLUITestFixture {
     }
 
     ~ConnectionCallbacksFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
-        if (panel_stub_ && lv_obj_is_valid(panel_stub_)) {
+        if (panel_stub_ && helix::test::widget_in_tree(panel_stub_)) {
             lv_obj_delete(panel_stub_);
         }
         helix::ui::UpdateQueue::instance().drain();

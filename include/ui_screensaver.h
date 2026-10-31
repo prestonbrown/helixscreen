@@ -4,6 +4,8 @@
 
 #if HELIX_ENABLE_SCREENSAVER
 
+#include "ui_widget_ref.h"
+
 #include "screensaver_base.h"
 #include "screensaver_motion.h"
 
@@ -50,7 +52,7 @@ class FlyingToasterScreensaver : public helix::ui::SaverBase {
     friend class FlyingToasterScreensaverTestAccess;
 
     struct FlyingObject {
-        lv_obj_t* img;
+        helix::ui::WeakWidget img;
         bool is_toaster;
         int16_t start_x;
         int16_t start_y;

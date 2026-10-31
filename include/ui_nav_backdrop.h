@@ -37,7 +37,7 @@ class OverlayBackdrop {
     /// overlay that lands behind it (the navbar). Hides every screen child except
     /// @p app_layout and shows @p base_panel while the picture is taken, so the new
     /// snapshot matches the original rather than the overlays stacked on top.
-    /// No-op without a live snapshot.
+    /// @p base_panel is nullptr or live. No-op without a live snapshot.
     void refresh(lv_obj_t* app_layout, lv_obj_t* base_panel);
 
     /// The primary backdrop, or nullptr.
@@ -88,7 +88,7 @@ class OverlayBackdrop {
     WidgetRef primary_;
     std::string palette_key_;
     bool press_keyboard_visible_ = false;
-    std::unordered_map<lv_obj_t*, lv_obj_t*> nested_;
+    std::unordered_map<lv_obj_t*, WeakWidget> nested_;
 };
 
 } // namespace helix::ui

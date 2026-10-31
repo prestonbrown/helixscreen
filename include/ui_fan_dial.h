@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl.h"
 
 #include <functional>
@@ -129,11 +131,11 @@ class FanDial {
     void update_knob_glow(int percent);
     void update_fan_animation(int speed_pct);
 
-    lv_obj_t* root_ = nullptr;
-    lv_obj_t* arc_ = nullptr;
+    helix::ui::WidgetRef root_;
+    helix::ui::WidgetRef arc_;
     lv_obj_t* speed_label_ = nullptr;
-    lv_obj_t* fan_icon_ = nullptr;
-    lv_obj_t* onoff_switch_ = nullptr;
+    helix::ui::WidgetRef fan_icon_;
+    helix::ui::WidgetRef onoff_switch_;
     lv_obj_t* onoff_label_ = nullptr;
 
     std::string name_;

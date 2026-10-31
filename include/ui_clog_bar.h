@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "clog_meter_model.h"
 
 #include <optional>
@@ -47,7 +49,7 @@ class UiClogBar {
     static void on_track_size_changed(lv_event_t* e);
 
     lv_obj_t* root_ = nullptr;
-    lv_obj_t* track_ = nullptr;
+    helix::ui::WidgetRef track_;
     lv_obj_t* fill_ = nullptr;
     lv_obj_t* marker_ = nullptr;
     lv_obj_t* peak_ = nullptr;

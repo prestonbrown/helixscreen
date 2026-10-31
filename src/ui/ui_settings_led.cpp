@@ -954,9 +954,8 @@ void LedSettingsOverlay::populate_led_chips_impl() {
         return;
 
     lv_obj_t* chip_container = helix::ui::find_required(row, "chip_container", get_name());
-    if (!chip_container || !lv_obj_is_valid(chip_container)) {
-        spdlog::warn("[{}] Applies-to chip row found but chip_container invalid/missing",
-                     get_name());
+    if (!chip_container) {
+        spdlog::warn("[{}] Applies-to chip row found but chip_container missing", get_name());
         return;
     }
 

@@ -12,6 +12,7 @@
 #include "ui_timer_guard.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 #include "ui_wizard_ams_identify.h"
 #include "ui_wizard_connection.h"
 #include "ui_wizard_fan_select.h"
@@ -84,7 +85,7 @@ static char wizard_step_total_buffer[8];
 static char wizard_subtitle_buffer[128];
 
 // Wizard container instance
-static lv_obj_t* wizard_container = nullptr;
+static helix::ui::WidgetRef wizard_container;
 
 // Track current screen for proper cleanup (nullopt = no screen loaded yet)
 static std::optional<helix::wizard::StepId> current_screen_step;

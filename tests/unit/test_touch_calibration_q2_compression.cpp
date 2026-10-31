@@ -30,6 +30,7 @@
 #include "../test_helpers/touch_calibration_overlay_test_access.h"
 #include "../test_helpers/touch_calibration_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "misc/lv_event_private.h" // lv_event_dsc_t::filter — no public accessor
 #include "touch_calibration.h"
@@ -563,8 +564,8 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     // The exit was requested...
     CHECK_FALSE(helix::ui::UpdateQueueTestAccess::queue_empty(q));
     // ...but nothing has been destroyed or moved yet.
-    CHECK(lv_obj_is_valid(root_));
-    CHECK(lv_obj_is_valid(capture));
+    CHECK(helix::test::widget_in_tree(root_));
+    CHECK(helix::test::widget_in_tree(capture));
     CHECK(lv_obj_get_parent(capture) == capture_parent);
 
     // Drop the deferred pop rather than running it: it closes over this

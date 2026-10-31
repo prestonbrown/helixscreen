@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "moonraker_config_manager.h"
 #include "overlay_base.h"
 #include "static_panel_registry.h"
@@ -220,7 +222,7 @@ class SpoolmanOverlay : public OverlayBase {
     //
 
     /// Alias for overlay_root_ to match existing pattern
-    lv_obj_t*& overlay_ = overlay_root_;
+    helix::ui::WidgetRef& overlay_ = overlay_root_;
 
     /// Sync toggle widget
     lv_obj_t* sync_toggle_ = nullptr;
@@ -469,7 +471,7 @@ class SpoolmanOverlay : public OverlayBase {
     lv_obj_t* port_input_ = nullptr;
     lv_obj_t* setup_status_text_ = nullptr;
     lv_obj_t* server_url_text_ = nullptr;
-    lv_obj_t* connect_btn_ = nullptr;
+    helix::ui::WidgetRef connect_btn_;
     lv_obj_t* setup_card_ = nullptr;
     lv_obj_t* status_card_ = nullptr;
 

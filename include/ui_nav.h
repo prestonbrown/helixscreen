@@ -51,7 +51,8 @@ constexpr int kUiPanelCount = static_cast<int>(helix::PanelId::Count);
 
 /// The navigation calls most callers need, without the NavigationManager class.
 /// Each forwards to NavigationManager::instance(); include ui_nav_manager.h only
-/// for the rest of its surface.
+/// for the rest of its surface. A widget argument is nullptr or live: an owner
+/// holds its root in a WidgetRef and passes that (prestonbrown/helixscreen#1983).
 namespace helix::nav {
 
 /// Show @p overlay on top of the stack. Queued; see NavigationManager::push_overlay().

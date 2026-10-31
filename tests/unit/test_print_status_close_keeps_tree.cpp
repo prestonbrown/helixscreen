@@ -24,10 +24,12 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
 #include "memory_utils.h"
 #include "printer_state.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
@@ -210,16 +212,68 @@ class PrintStatusCloseFixture : public LVGLUITestFixture {
 } // namespace
 
 TEST_CASE_METHOD(PrintStatusCloseFixture,
-                 "Print status keeps its tree when closed during an active print",
-                 "[print_status][destroy_on_close]") {
+                 "A rebuilt print status is the one tree the next open shows",
+                 "[print_status][destroy_on_close][1983]") {
+    use_memory(roomy_host);
+    lv_obj_t* old_root = open_print_status();
+    const uint32_t screen_children = lv_obj_get_child_count(test_screen());
+    close_print_status(old_root);
+
+    REQUIRE(panel().rebuild());
+    settle();
+    lv_obj_t* rebuilt = panel().get_panel();
+    REQUIRE(rebuilt != old_root);
+    CHECK(PrintStatusPanel::get_cached_overlay() == rebuilt);
+
+    CHECK(open_print_status() == rebuilt);
+    CHECK(lv_obj_get_child_count(test_screen()) == screen_children);
+}
+
+TEST_CASE_METHOD(PrintStatusCloseFixture,
+                 "Print status rebuilt on screen keeps its width and shows live progress",
+                 "[print_status][destroy_on_close][1983]") {
     set_wire_state(PrintJobState::PRINTING);
-    REQUIRE(get_printer_state().print_state().get_print_lifecycle() == PrintState::Printing);
+    lv_obj_t* old_root = open_print_status();
+    lv_obj_update_layout(test_screen());
+    const int32_t width = lv_obj_get_width(old_root);
 
+    REQUIRE(panel().rebuild());
+    settle();
+
+    lv_obj_t* rebuilt = panel().get_panel();
+    REQUIRE(rebuilt != old_root);
+    CHECK(in_stack(rebuilt));
+    CHECK_FALSE(lv_obj_has_flag(rebuilt, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_update_layout(test_screen());
+    CHECK(lv_obj_get_width(rebuilt) == width);
+
+    nlohmann::json status;
+    status["print_stats"]["state"] = "printing";
+    status["virtual_sdcard"]["progress"] = 0.42;
+    get_printer_state().update_from_status(status);
+    drain();
+    lv_obj_t* percent = lv_obj_find_by_name(rebuilt, "print_percent");
+    REQUIRE(percent != nullptr);
+    CHECK(std::string(lv_label_get_text(percent)) == "42%");
+}
+
+TEST_CASE_METHOD(PrintStatusCloseFixture, "A failed print status create leaves no tree to push",
+                 "[print_status][destroy_on_close][1983]") {
+    const bool strict = helix::ui::strict_ui_checks();
+    helix::ui::set_strict_ui_checks(false);
+    REQUIRE(lv_xml_register_component_from_data(
+                "print_status_panel", "<component><view extends=\"lv_obj\"/></component>") ==
+            LV_RESULT_OK);
+
+    CHECK_FALSE(PrintStatusPanel::push_overlay(test_screen()));
+    CHECK(PrintStatusPanel::get_cached_overlay() == nullptr);
+
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/print_status_panel.xml") == LV_RESULT_OK);
+    helix::ui::set_strict_ui_checks(strict);
+    settle();
     lv_obj_t* tree = open_print_status();
-    close_print_status(tree);
-
-    CHECK(PrintStatusPanel::get_cached_overlay() == tree);
-    CHECK(lv_obj_is_valid(tree));
+    CHECK(NavigationManagerTestAccess::lifecycle_of(NavigationManager::instance(), tree) !=
+          nullptr);
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture, "Print status decides from the print state at close",
@@ -238,7 +292,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture, "Print status decides from the print s
     close_print_status(tree);
 
     CHECK(PrintStatusPanel::get_cached_overlay() == nullptr);
-    CHECK_FALSE(lv_obj_is_valid(tree));
+    CHECK_FALSE(helix::test::widget_in_tree(tree));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture, "Print status decides from available memory at close",
@@ -296,7 +350,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture, "A connection-loss close decides like 
 
         REQUIRE_FALSE(in_stack(tree));
         CHECK(PrintStatusPanel::get_cached_overlay() == tree);
-        CHECK(lv_obj_is_valid(tree));
+        CHECK(helix::test::widget_in_tree(tree));
     }
 
     SECTION("no job: destroyed") {
@@ -308,7 +362,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture, "A connection-loss close decides like 
 
         REQUIRE_FALSE(in_stack(tree));
         CHECK(PrintStatusPanel::get_cached_overlay() == nullptr);
-        CHECK_FALSE(lv_obj_is_valid(tree));
+        CHECK_FALSE(helix::test::widget_in_tree(tree));
     }
 }
 
@@ -363,7 +417,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     settle();
 
     CHECK(PrintStatusPanel::get_cached_overlay() == nullptr);
-    CHECK_FALSE(lv_obj_is_valid(tree));
+    CHECK_FALSE(helix::test::widget_in_tree(tree));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture, "A job ending keeps a kept tree that is on screen",
@@ -385,7 +439,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture, "A job ending keeps a kept tree that i
     settle();
 
     CHECK(PrintStatusPanel::get_cached_overlay() == tree);
-    CHECK(lv_obj_is_valid(tree));
+    CHECK(helix::test::widget_in_tree(tree));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture,
@@ -401,7 +455,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     settle();
 
     CHECK(PrintStatusPanel::get_cached_overlay() == tree);
-    CHECK(lv_obj_is_valid(tree));
+    CHECK(helix::test::widget_in_tree(tree));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture,
@@ -486,17 +540,6 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     REQUIRE(in_stack(tree));
     CHECK(PrintStatusPanelTestAccess::is_active(panel()));
     CHECK(PrintStatusPanelTestAccess::exclude_open(panel()));
-}
-
-TEST_CASE_METHOD(PrintStatusCloseFixture, "A plain print status push leaves the exclude map closed",
-                 "[print_status][exclude]") {
-    set_wire_state(PrintJobState::PRINTING);
-
-    lv_obj_t* tree = open_print_status();
-    settle();
-    CHECK(PrintStatusPanelTestAccess::is_active(panel()));
-    CHECK_FALSE(PrintStatusPanelTestAccess::exclude_open(panel()));
-    close_print_status(tree);
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture,

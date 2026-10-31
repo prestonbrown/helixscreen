@@ -21,6 +21,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_state.h"
 #include "printer_state.h"
 
@@ -61,7 +62,7 @@ class PrintStatusAmsLifetimeFixture : public LVGLUITestFixture {
     }
 
     ~PrintStatusAmsLifetimeFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;

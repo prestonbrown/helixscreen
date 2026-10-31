@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "grid_edit_cross_page.h"
 #include "grid_edit_drop.h"
@@ -554,12 +556,12 @@ class GridEditMode {
 
     bool active_ = false;
     lv_obj_t* container_ = nullptr;
-    lv_obj_t* shield_ = nullptr;
-    lv_obj_t* selected_ = nullptr;
-    lv_obj_t* selection_overlay_ = nullptr;
-    lv_obj_t* remove_btn_ = nullptr; // Trash button (container child, not overlay child)
-    lv_obj_t* configure_btn_ =
-        nullptr; // Configure button (upper-left, shown if widget supports it)
+    helix::ui::WidgetRef shield_;
+    helix::ui::WidgetRef selected_;
+    helix::ui::WidgetRef selection_overlay_;
+    helix::ui::WidgetRef remove_btn_; // Trash button (container child, not overlay child)
+    helix::ui::WidgetRef
+        configure_btn_; // Configure button (upper-left, shown if widget supports it)
     PanelWidgetConfig* config_ = nullptr;
     int page_index_ = 0;
     RebuildCallback rebuild_cb_;
@@ -619,7 +621,7 @@ class GridEditMode {
     void request_page_flip(const char* trigger, int dir);
     static void crossing_flip_cb(lv_timer_t* timer);
     static void dwell_flip_cb(lv_timer_t* timer);
-    lv_obj_t* delete_page_btn_ = nullptr;
+    helix::ui::WidgetRef delete_page_btn_;
     /// What the shield draws as the lattice, owned by the shield.
     GridLatticeSpec* lattice_spec_ = nullptr;
     /// What the drawn lattice was built for: the shield and page holding it,
@@ -684,7 +686,7 @@ class GridEditMode {
     /// An edit preview's four edge bars (top, bottom, left, right) on the top
     /// layer (ensure_outline() in grid_edit_mode.cpp says why). All null, or
     /// all live.
-    using ResizeOutline = std::array<lv_obj_t*, 4>;
+    using ResizeOutline = std::array<helix::ui::WeakWidget, 4>;
     /// The pixel-tracking resize outline.
     ResizeOutline resize_outline_{};
     /// The box resize_outline_ is drawn around, in screen coordinates.
@@ -699,7 +701,7 @@ class GridEditMode {
     ResizeOutline snap_anim_outline_{};
     /// The page the animating resize ran on, where a stopped snap lays the
     /// widget out (cancel_snap_animation). Checked live before use.
-    lv_obj_t* snap_anim_page_ = nullptr;
+    helix::ui::WidgetRef snap_anim_page_;
     /// The widget that snap animation resized, which the rebuild after it
     /// selects again. Empty when no snap is in flight.
     std::string snap_anim_widget_id_;

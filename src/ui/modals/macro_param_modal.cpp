@@ -185,6 +185,14 @@ void MacroParamModal::dismiss() {
     hide(ModalCloseReason::ButtonPress);
 }
 
+MacroParamModal::~MacroParamModal() {
+    // A shown modal's owner can destroy it without on_hide() running, and the static
+    // XML callbacks would then reach a freed instance.
+    if (s_active_instance_ == this) {
+        s_active_instance_ = nullptr;
+    }
+}
+
 void MacroParamModal::on_hide() {
     raw_mode_ = false;
     raw_textarea_ = nullptr;

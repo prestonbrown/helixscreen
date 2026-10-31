@@ -58,15 +58,13 @@ TEST_CASE("PanelWidgetEntry::disable_and_unplace surrenders the cell with the fl
     CHECK(e.rowspan == 3);
 }
 
-TEST_CASE("GridEditMode: enter, exit and selection are tracked and guarded",
-          "[grid_edit][edit_mode][selection][catalog]") {
+TEST_CASE_METHOD(LVGLTestFixture, "GridEditMode: enter, exit and selection are tracked and guarded",
+                 "[grid_edit][edit_mode][selection][catalog]") {
     GridEditMode em;
     REQUIRE_FALSE(em.is_active());
     REQUIRE_FALSE(em.is_catalog_open());
 
-    // lv_obj_t is opaque, so any address stands in for a widget here.
-    int dummy = 0;
-    auto* fake = reinterpret_cast<lv_obj_t*>(&dummy);
+    lv_obj_t* fake = lv_obj_create(test_screen());
 
     // Inactive: exit and select do nothing.
     em.exit();

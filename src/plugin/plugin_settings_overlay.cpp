@@ -178,7 +178,7 @@ lv_obj_t* PluginSettingsOverlay::create(lv_obj_t* parent) {
     if (!rows) {
         spdlog::error("[PluginSettings] {}: plugin_settings_overlay has no settings_rows",
                       plugin_id_);
-        destroy_overlay_ui(overlay_root_);
+        destroy_overlay_ui();
         return nullptr;
     }
     for (const SettingDecl& d : settings_decls_)
@@ -344,7 +344,7 @@ void PluginSettingsOverlay::on_row_action(const RowBinding& b) {
 }
 
 void PluginSettingsOverlay::on_nav_closed() {
-    destroy_overlay_ui(overlay_root_);
+    destroy_overlay_ui();
 }
 
 void register_plugin_settings_callbacks() {

@@ -24,6 +24,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "overlay_base.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -72,7 +73,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "destroy_overlay_ui defers widget deletion (re
     auto overlay = std::make_unique<TestOverlay>();
     lv_obj_t* root = overlay->create(test_screen());
     REQUIRE(root != nullptr);
-    REQUIRE(lv_obj_is_valid(root));
+    REQUIRE(helix::test::widget_in_tree(root));
 
     lv_obj_t* cached = root;
     overlay->destroy_overlay_ui(cached);
@@ -91,12 +92,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "destroy_overlay_ui defers widget deletion (re
     // reparented to top layer) until the async tick fires. This is what
     // prevents the L081 event-list-corruption crash: no sync widget delete
     // inside the queue-callback call chain.
-    REQUIRE(lv_obj_is_valid(root));
+    REQUIRE(helix::test::widget_in_tree(root));
     REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
 
     // After the async tick, the widget is actually gone.
     process_async_timers();
-    REQUIRE_FALSE(lv_obj_is_valid(root));
+    REQUIRE_FALSE(helix::test::widget_in_tree(root));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -120,12 +121,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // After drain: pointer nulled, widget hidden but still valid (async pending).
     REQUIRE(cached == nullptr);
-    REQUIRE(lv_obj_is_valid(root));
+    REQUIRE(helix::test::widget_in_tree(root));
     REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
 
     // Async tick completes the deletion.
     REQUIRE_NOTHROW(process_async_timers());
-    REQUIRE_FALSE(lv_obj_is_valid(root));
+    REQUIRE_FALSE(helix::test::widget_in_tree(root));
 }
 
 // destroy_overlay_ui() names the overlay as the teardown's owner, so an overlay
@@ -149,7 +150,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "destroy_overlay_ui stops when its drain frees
     // Stopped before the null-out, the free and the after hook.
     CHECK(cached == root);
     process_async_timers();
-    CHECK(lv_obj_is_valid(root));
+    CHECK(helix::test::widget_in_tree(root));
 
     helix::ui::set_strict_ui_checks(strict);
     lv_obj_delete(root);
@@ -263,7 +264,7 @@ TEST_CASE_METHOD(ShowFixture, "show() inits subjects once and creates once acros
     CHECK(overlay.create_calls == 1);
     CHECK(overlay.register_calls == 1);
     CHECK(overlay.before_show_calls == 3);
-    CHECK(lv_obj_is_valid(first));
+    CHECK(helix::test::widget_in_tree(first));
 }
 
 TEST_CASE_METHOD(ShowFixture, "show() with destroy_on_close frees the tree on pop and re-creates",
@@ -322,7 +323,7 @@ TEST_CASE_METHOD(ShowFixture, "show() re-creates a root deleted out from under i
     settle();
     CHECK(overlay.create_calls == 2);
     CHECK(overlay.ui_destroyed_calls == 1);
-    CHECK(lv_obj_is_valid(overlay.get_root()));
+    CHECK(helix::test::widget_in_tree(overlay.get_root()));
     pop(overlay);
 }
 
@@ -524,10 +525,9 @@ TEST_CASE_METHOD(ShowFixture, "is_showing() covers queued, stacked and sliding-o
     lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
     CHECK_FALSE(helix::nav::is_showing(overlay));
 
-    // A caller may hold the pointer past the widget's deletion.
+    // An owner's handle reads null once the widget is deleted.
     helix::nav::unregister_overlay(overlay);
-    lv_obj_t* deleted = lv_obj_create(test_screen());
-    lv_obj_delete(deleted);
-    CHECK_FALSE(helix::nav::is_showing(deleted));
+    helix::ui::WidgetRef handle(overlay);
     lv_obj_delete(overlay);
+    CHECK_FALSE(helix::nav::is_showing(handle));
 }

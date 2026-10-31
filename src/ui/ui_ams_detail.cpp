@@ -368,7 +368,7 @@ tray::LidMode unit_lid_mode(int unit_index) {
 }
 
 /// Under per-lane lids each lane's humidity sits above its label.
-void show_lane_humidity(lv_obj_t* const slot_widgets[], int n, tray::LidMode lid) {
+void show_lane_humidity(const helix::ui::WidgetRef slot_widgets[], int n, tray::LidMode lid) {
     for (int i = 0; i < n; ++i) {
         if (slot_widgets[i])
             ui_ams_slot_set_lane_humidity_visible(slot_widgets[i], lid == tray::LidMode::PerLane);
@@ -383,7 +383,7 @@ bool draws_tray() {
 /// With no box to stand against, the environment pill stands just past the
 /// last lane's spool and badge, as tall as the spools and level with them.
 void place_env_pill_beside_spools(lv_obj_t* pill, lv_obj_t* container,
-                                  lv_obj_t* const slot_widgets[], int n) {
+                                  const helix::ui::WidgetRef slot_widgets[], int n) {
     if (!pill || lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN))
         return;
     clear_translate(pill);
@@ -467,8 +467,9 @@ static void ams_detail_add_slot_press_feedback(lv_obj_t* slot) {
     lv_obj_add_event_cb(slot, slot_released_cb, LV_EVENT_PRESS_LOST, nullptr);
 }
 
-AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w, lv_obj_t* slot_widgets[],
-                                            int max_slots, int unit_index, lv_event_cb_t click_cb,
+AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
+                                            helix::ui::WidgetRef slot_widgets[], int max_slots,
+                                            int unit_index, lv_event_cb_t click_cb,
                                             void* user_data) {
     AmsDetailSlotResult result;
 
@@ -546,7 +547,7 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w, lv_obj_t* slot_
     return result;
 }
 
-void helix::ui::ams_detail_sync_slot_states(lv_obj_t* slot_widgets[], int slot_count) {
+void helix::ui::ams_detail_sync_slot_states(helix::ui::WidgetRef slot_widgets[], int slot_count) {
     const auto info = helix::AmsState::instance().system_info();
     if (!info) {
         return;
@@ -554,7 +555,7 @@ void helix::ui::ams_detail_sync_slot_states(lv_obj_t* slot_widgets[], int slot_c
     ams_detail_sync_slot_states(slot_widgets, slot_count, *info);
 }
 
-void helix::ui::ams_detail_sync_slot_states(lv_obj_t* slot_widgets[], int slot_count,
+void helix::ui::ams_detail_sync_slot_states(helix::ui::WidgetRef slot_widgets[], int slot_count,
                                             const helix::AmsSystemInfo& info) {
     for (int i = 0; i < slot_count; ++i) {
         lv_obj_t* slot = slot_widgets[i];
@@ -574,7 +575,8 @@ void helix::ui::ams_detail_sync_slot_states(lv_obj_t* slot_widgets[], int slot_c
     }
 }
 
-void ams_detail_destroy_slots(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int& slot_count) {
+void ams_detail_destroy_slots(AmsDetailWidgets& w, helix::ui::WidgetRef slot_widgets[],
+                              int& slot_count) {
     (void)w; // Reserved for future use (e.g. labels_layer cleanup)
 
     if (slot_count <= 0)
@@ -593,7 +595,7 @@ void ams_detail_destroy_slots(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int
     lv_obj_set_size(condemned, 0, 0);
 
     for (int i = 0; i < slot_count; ++i) {
-        if (slot_widgets[i] && lv_obj_is_valid(slot_widgets[i])) {
+        if (slot_widgets[i]) {
             // Null out pointers to reparented badges/labels BEFORE deferred
             // deletion.  These widgets live on badge_layer/labels_layer which
             // will be cleaned synchronously in ams_detail_update_badges/labels,
@@ -691,8 +693,8 @@ bool helix::ui::ams_detail_tray_geometry(tray::TrayBox& box, tray::LidMode& lid,
     return true;
 }
 
-void ams_detail_update_tray(AmsDetailWidgets& w, lv_obj_t* const slot_widgets[], int slot_count,
-                            int unit_index) {
+void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot_widgets[],
+                            int slot_count, int unit_index) {
     if (!w.slot_tray || !w.slot_grid)
         return;
     s_tray.valid = false;
@@ -847,8 +849,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, lv_obj_t* const slot_widgets[],
                   box.fl, box.fr, box.ft, box.fb, box.depth, static_cast<int>(s_tray.lid));
 }
 
-void ams_detail_update_labels(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int slot_count,
-                              const AmsSlotLayout& layout) {
+void ams_detail_update_labels(AmsDetailWidgets& w, helix::ui::WidgetRef slot_widgets[],
+                              int slot_count, const AmsSlotLayout& layout) {
     if (!w.labels_layer || slot_count <= 4)
         return;
 
@@ -872,8 +874,8 @@ void ams_detail_update_labels(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int
     spdlog::debug("[AmsDetail] Moved {} labels to overlay layer", slot_count);
 }
 
-void ams_detail_update_badges(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int slot_count,
-                              const AmsSlotLayout& layout) {
+void ams_detail_update_badges(AmsDetailWidgets& w, helix::ui::WidgetRef slot_widgets[],
+                              int slot_count, const AmsSlotLayout& layout) {
     if (!w.badge_layer)
         return;
 

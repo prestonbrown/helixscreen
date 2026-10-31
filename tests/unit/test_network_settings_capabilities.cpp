@@ -15,6 +15,7 @@
 #include "../test_helpers/lvgl_event_hook_probe.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "system_settings_manager.h"
 #include "wifi_backend_mock.h"
@@ -229,7 +230,7 @@ TEST_CASE_METHOD(CapabilityFixture,
 
     // A closed overlay's tree lives on after cleanup(); its handler must not.
     overlay.cleanup();
-    REQUIRE(lv_obj_is_valid(dropdown));
+    REQUIRE(helix::test::widget_in_tree(dropdown));
     CHECK_FALSE(event_hook_installed(dropdown, &overlay));
 }
 

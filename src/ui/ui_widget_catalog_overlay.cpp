@@ -12,6 +12,7 @@
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
 #include "grid_layout.h"
 #include "home_layout_sync.h"
@@ -76,8 +77,8 @@ uint32_t g_copy_fetch_generation = 0;
 
 struct CatalogState {
     lv_obj_t* overlay_root = nullptr;
-    lv_obj_t* backdrop = nullptr;      // Semi-transparent dark backdrop behind the catalog
-    lv_obj_t* category_root = nullptr; // Pushed category sub-page, nullptr at the top level
+    helix::ui::WidgetRef backdrop;      // Semi-transparent dark backdrop behind the catalog
+    helix::ui::WidgetRef category_root; // Pushed category sub-page, nullptr at the top level
     lv_obj_t* parent_screen = nullptr;
     const PanelWidgetConfig* config = nullptr; // Owned by the caller (GridEditMode)
     WidgetSelectedCallback on_select;
@@ -152,8 +153,8 @@ void retire_overlay(lv_obj_t* overlay, const char* tag) {
         return;
     }
     helix::nav::unregister_overlay(overlay);
-    helix::ui::queue_update(tag, [overlay]() { // QUEUE_TAG_OK: callers pass literals
-        lv_obj_t* condemned = overlay;
+    helix::ui::WeakWidget condemned(overlay);
+    helix::ui::queue_update(tag, [condemned]() mutable { // QUEUE_TAG_OK: callers pass literals
         helix::ui::safe_delete_deferred(condemned);
     });
 }
@@ -209,7 +210,7 @@ void close_catalog() {
     // go_back()'s own queued body, and scrub_deleted_widget() erasing the widget
     // from panel_stack_ first would make that pop take the wrong overlay.
     if (popped_page) {
-        helix::ui::queue_update("catalog_close_pop", [root]() {
+        helix::ui::queue_update("catalog_close_pop", [root = helix::ui::WeakWidget(root)]() {
             if (helix::nav::is_on_top(root)) {
                 helix::nav::go_back();
                 retire_overlay(root, "catalog_root_reclaim");
@@ -617,10 +618,6 @@ void WidgetCatalogOverlay::populate_category_rows(lv_obj_t* group) {
 
 void WidgetCatalogOverlay::on_category_row_clicked(lv_event_t* e) {
     auto* row = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (!row || !lv_obj_is_valid(row)) {
-        spdlog::warn("[WidgetCatalog] Category row click on an invalid target");
-        return;
-    }
     auto index = reinterpret_cast<size_t>(lv_obj_get_user_data(row));
     const auto& categories = get_widget_categories();
     if (index >= categories.size()) {
@@ -856,18 +853,20 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     // ahead of it, so the screen changes once: made here, it would be drawn in a
     // frame of its own and the whole screen drawn again when the push lands.
     const uint32_t generation = ++g_catalog_generation;
-    helix::ui::queue_update("WidgetCatalog::backdrop", [parent_screen, generation, backdrop_opa]() {
-        if (generation != g_catalog_generation || !g_catalog_state.overlay_root ||
-            !lv_obj_is_valid(parent_screen))
-            return;
-        auto* backdrop = helix::ui::create_fullscreen_backdrop(parent_screen, backdrop_opa);
-        if (backdrop) {
-            // Don't block clicks — let taps on the backdrop close the catalog
-            lv_obj_remove_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
-            helix::ui::bring_to_front(backdrop);
-        }
-        g_catalog_state.backdrop = backdrop;
-    });
+    helix::ui::queue_update(
+        "WidgetCatalog::backdrop",
+        [screen = helix::ui::WeakWidget(parent_screen), generation, backdrop_opa]() {
+            lv_obj_t* live_screen = screen;
+            if (generation != g_catalog_generation || !g_catalog_state.overlay_root || !live_screen)
+                return;
+            auto* backdrop = helix::ui::create_fullscreen_backdrop(live_screen, backdrop_opa);
+            if (backdrop) {
+                // Don't block clicks — let taps on the backdrop close the catalog
+                lv_obj_remove_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
+                helix::ui::bring_to_front(backdrop);
+            }
+            g_catalog_state.backdrop = backdrop;
+        });
 
     // Push onto navigation stack — keep the home panel visible behind the catalog
     helix::nav::push_overlay(overlay, /*hide_previous=*/false);

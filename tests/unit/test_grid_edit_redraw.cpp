@@ -13,6 +13,7 @@
 #include "../test_helpers/grid_edit_mode_test_access.h"
 #include "../test_helpers/grid_edit_scene.h"
 #include "../test_helpers/scoped_whole_cell_def.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "core/lv_obj_private.h"        // scr_layout_inv is private state
 #include "display/lv_display_private.h" // inv_areas / inv_p are private state
 #include "grid_edit_mode.h"
@@ -212,7 +213,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     // The owner rebuilds its pages and forgets them first.
     em.forget_scope();
     process_lvgl(50);
-    CHECK_FALSE(lv_obj_is_valid(lifted));
+    CHECK_FALSE(helix::test::widget_in_tree(lifted));
 
     em.exit();
     process_lvgl(50);

@@ -121,6 +121,17 @@ class ThemeExplorerFixture : public LVGLUITestFixture {
 
 } // namespace
 
+TEST_CASE_METHOD(ThemeExplorerFixture, "ThemeExplorer: a tree deleted with its screen is recreated",
+                 "[theme][ui][widget_handles]") {
+    lv_obj_delete(explorer());
+    settle();
+    overlay().handle_theme_settings_clicked();
+    settle();
+    dropdown_ = lv_obj_find_by_name(lv_screen_active(), "theme_preset_dropdown");
+    REQUIRE(dropdown_ != nullptr);
+    CHECK(explorer() != nullptr);
+}
+
 TEST_CASE_METHOD(ThemeExplorerFixture, "ThemeExplorer: one pick applies the theme once",
                  "[theme][ui]") {
     SECTION("a theme with both modes") {

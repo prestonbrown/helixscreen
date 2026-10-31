@@ -695,7 +695,7 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // Register close callback to destroy widget tree when overlay closes.
     // Frees memory when detail view is dismissed. Subjects survive;
     // next show() call re-creates widgets via lazy creation above.
-    helix::nav::on_close(overlay_root_, [this]() { destroy_overlay_ui(overlay_root_); });
+    helix::nav::on_close(overlay_root_, [this]() { destroy_overlay_ui(); });
 
     // Push onto navigation stack - on_activate() will be called by NavigationManager
     helix::nav::push_overlay(overlay_root_);

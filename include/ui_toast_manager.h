@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_notification_threshold.h"
+#include "ui_widget_ref.h"
 
 #include "lvgl.h"
 
@@ -143,7 +144,7 @@ class ToastManager {
     ~ToastManager();
 
     struct ToastInstance {
-        lv_obj_t* widget = nullptr;
+        helix::ui::WeakWidget widget;
         lv_timer_t* dismiss_timer = nullptr;
         toast_action_callback_t action_cb = nullptr;
         void* action_user_data = nullptr;
@@ -227,7 +228,7 @@ class ToastManager {
     // Hard cap — further bounded at first show_by screen height.
     static constexpr size_t kMaxVisible = 5;
 
-    lv_obj_t* toast_stack_ = nullptr;
+    helix::ui::WidgetRef toast_stack_;
     ToastList active_;
     size_t max_visible_ = kMaxVisible;
     std::atomic<bool> initialized_{false};

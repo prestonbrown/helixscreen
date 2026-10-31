@@ -34,6 +34,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/mock_printer.h"
+#include "../test_helpers/widget_in_tree.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"
 #endif
@@ -1581,7 +1582,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     struct RootDelete {
         lv_obj_t* r;
         ~RootDelete() {
-            if (r && lv_obj_is_valid(r)) {
+            if (r && helix::test::widget_in_tree(r)) {
                 lv_obj_delete(r);
             }
         }
@@ -2492,7 +2493,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "show after the tree is deleted externally r
     OpenDetail::settle();
     lv_obj_t* const root = d.view.get_widget();
     REQUIRE(root != nullptr);
-    CHECK(lv_obj_is_valid(root));
+    CHECK(helix::test::widget_in_tree(root));
     CHECK(lv_obj_find_by_name(root, "print_button") != nullptr);
     CHECK(PrintSelectDetailViewTestAccess::gcode_viewer(d.view) != nullptr);
 }

@@ -363,6 +363,35 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+# --- widget validity ban ----------------------------------------------------
+
+@test "each banned validity call fails, in src, include and tests, even with no branch work" {
+    printf 'bool a(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/src/ui/v.cpp"
+    printf 'bool b(lv_obj_t* o) { return lv_obj_is_in_widget_tree(o); }\n' > "$REPO/include/v.h"
+    printf 'bool c(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/tests/unit/v.cpp"
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "calls already there"
+    BASE=$(git -C "$REPO" rev-parse HEAD)
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/v.cpp:1: lv_obj_is_valid()" "$output"
+    contains "include/v.h:1: lv_obj_is_in_widget_tree()" "$output"
+    contains "tests/unit/v.cpp:1: lv_obj_is_valid()" "$output"
+}
+
+@test "a banned name in a comment, a string or a longer name, or outside the C++ roots, passes" {
+    cat > "$REPO/src/ui/quiet.cpp" <<'EOF'
+// lv_obj_is_valid(old) cannot tell a reused address
+const char* s = "lv_obj_is_in_widget_tree(x)";
+bool my_lv_obj_is_valid(lv_obj_t* o);
+EOF
+    mkdir -p "$REPO/lib/lvgl"
+    printf 'bool c(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/lib/lvgl/l.cpp"
+    commit_all "quiet shapes"
+    ratchets
+    [ "$status" -eq 0 ]
+}
+
 @test "a branch with no commits is not measured" {
     run python3 "$GATE" --root "$REPO" --base HEAD
     [ "$status" -eq 0 ]
