@@ -59,477 +59,227 @@ PrintStartPhase default_phase(const std::string& line) {
 } // namespace
 
 // ============================================================================
-// PRINT_START Marker Tests
+// Universal markers
 // ============================================================================
 
-TEST_CASE("PrintStart: PRINT_START marker detection", "[core][print][marker]") {
-    // Should match
-    REQUIRE(is_print_start("PRINT_START"));
-    REQUIRE(is_print_start("START_PRINT"));
-    REQUIRE(is_print_start("_PRINT_START"));
-    REQUIRE(is_print_start("print_start")); // Case insensitive
-    REQUIRE(is_print_start("Calling PRINT_START with args"));
+struct MarkerRow {
+    const char* line;
+    bool expected;
+};
 
-    // Real macro invocations
-    REQUIRE(is_print_start("START_PRINT BED_TEMP=60 EXTRUDER_TEMP=200"));
-    REQUIRE(is_print_start("PRINT_START BED=60 EXTRUDER=200 CHAMBER=35"));
-
-    // Should NOT match
-    REQUIRE(!is_print_start("PRINTS_TART"));
-    REQUIRE(!is_print_start("G28"));
-    REQUIRE(!is_print_start(""));
-}
-
-// ============================================================================
-// Completion Marker Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: completion marker detection", "[core][print][completion]") {
-    // Should match
-    REQUIRE(is_completion("SET_PRINT_STATS_INFO CURRENT_LAYER=1"));
-    REQUIRE(is_completion("LAYER: 1"));
-    REQUIRE(is_completion("LAYER:1"));
-    REQUIRE(is_completion(";LAYER:1"));
-    REQUIRE(is_completion("First layer starting"));
-
-    // Should NOT match (not layer 1)
-    REQUIRE(!is_completion("LAYER: 2"));
-    REQUIRE(!is_completion("LAYER:10"));
-    REQUIRE(!is_completion("LAYER:100"));
-    REQUIRE(!is_completion("SET_PRINT_STATS_INFO")); // No CURRENT_LAYER
-    REQUIRE(!is_completion("status_printing"));
-}
-
-// ============================================================================
-// RESPOND Completion Pattern Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: RESPOND completion detection", "[core][print][respond]") {
-    SECTION("Should match common print start messages") {
-        REQUIRE(is_respond_completion("// Print started!"));
-        REQUIRE(is_respond_completion("Print Started"));
-        REQUIRE(is_respond_completion("PRINT STARTING"));
-        REQUIRE(is_respond_completion("Print Start Complete"));
-        REQUIRE(is_respond_completion("print started"));
-        REQUIRE(is_respond_completion("Starting print"));
-        REQUIRE(is_respond_completion("starting print now"));
-        REQUIRE(is_respond_completion("Started print successfully"));
-    }
-
-    SECTION("Should NOT match unrelated messages") {
-        // "Printing" is not "print" (word boundary)
-        REQUIRE(!is_respond_completion("Printing layer 5"));
-        // "restart" is not "start" (word boundary)
-        REQUIRE(!is_respond_completion("restart print"));
-        // "print_start" — underscore breaks word boundary for "start"
-        REQUIRE(!is_respond_completion("print_start phase"));
-        // No "print" keyword
-        REQUIRE(!is_respond_completion("Starting temperature check"));
-        // No "start" variant keyword
-        REQUIRE(!is_respond_completion("print complete"));
-        // Unrelated with both words far apart in different context
-        REQUIRE(!is_respond_completion("start heating the print bed"));
-    }
-
-    SECTION("A host prompt asking to start the print is not a print that started") {
-        // Z-Mod's material picker footer, emitted before any print exists
-        REQUIRE(!is_respond_completion(
-            "// action:prompt_footer_button Start print|PRINT_ZCOLOR LEVELING=0 "
-            "FILENAME=\"Button_PETG_6m32s.gcode\" ALLOWED_TOOL_COUNT=1"));
-        REQUIRE(!is_respond_completion("// action:prompt_button Start print|START_PRINT"));
-        REQUIRE(!is_respond_completion("// action:prompt_text Print starting soon"));
-        REQUIRE(!is_respond_completion("  // action:prompt_begin Start print?"));
-        // An action line that is not a prompt still carries a message
-        REQUIRE(is_respond_completion("// action:notification Print started"));
+TEST_CASE("PrintStart: the PRINT_START marker names the macro, any case, nothing else",
+          "[core][print][marker]") {
+    const MarkerRow rows[] = {
+        {"PRINT_START", true},
+        {"START_PRINT", true},
+        {"_PRINT_START", true},
+        {"print_start", true},
+        {"Calling PRINT_START with args", true},
+        {"START_PRINT BED_TEMP=60 EXTRUDER_TEMP=200", true},
+        {"PRINT_START BED=60 EXTRUDER=200 CHAMBER=35", true},
+        {"START_PRINT BED_TEMP=110 EXTRUDER_TEMP=250 CHAMBER_TEMP=45", true},
+        {"RESPOND MSG=\"START_PRINT\"", true},
+        {"PRINTS_TART", false},
+        {"G28", false},
+        {"", false},
+        // A RESPOND message saying the print started is not the macro.
+        {"Print started!", false},
+        {"PRINT STARTED", false},
+        {"print starting", false},
+    };
+    for (const auto& r : rows) {
+        INFO(r.line);
+        CHECK(is_print_start(r.line) == r.expected);
     }
 }
 
-TEST_CASE("PrintStart: RESPOND and PRINT_START patterns are independent",
+TEST_CASE("PrintStart: the completion marker is layer 1 only", "[core][print][completion]") {
+    const MarkerRow rows[] = {
+        {"SET_PRINT_STATS_INFO CURRENT_LAYER=1", true},
+        {"LAYER: 1", true},
+        {"LAYER:1", true},
+        {";LAYER:1", true},
+        {"First layer starting", true},
+        {"LAYER: 2", false},
+        {"LAYER:10", false},
+        {"LAYER:100", false},
+        {"SET_PRINT_STATS_INFO", false}, // no CURRENT_LAYER
+        {"status_printing", false},
+    };
+    for (const auto& r : rows) {
+        INFO(r.line);
+        CHECK(is_completion(r.line) == r.expected);
+    }
+}
+
+TEST_CASE("PrintStart: RESPOND completion needs print and start as words",
           "[core][print][respond]") {
-    SECTION("RESPOND messages with 'Print started' should not match PRINT_START marker pattern") {
-        // "Print started!" is a RESPOND message, not a macro invocation
-        // The print_start_pattern only matches exact macro names: PRINT_START, START_PRINT,
-        // _PRINT_START
-        REQUIRE(!is_print_start("Print started!"));
-        REQUIRE(!is_print_start("PRINT STARTED"));
-        REQUIRE(!is_print_start("print starting"));
-        // But RESPOND pattern should match these:
-        REQUIRE(is_respond_completion("Print started!"));
-        REQUIRE(is_respond_completion("PRINT STARTED"));
-        REQUIRE(is_respond_completion("print starting"));
-    }
-
-    SECTION("PRINT_START macro lines should not trigger RESPOND completion") {
-        // "PRINT_START BED=60 EXTRUDER=200" should NOT match respond pattern
-        // because "PRINT_START" has underscore breaking word boundary for "start"
-        REQUIRE(!is_respond_completion("PRINT_START BED=60 EXTRUDER=200"));
-        REQUIRE(!is_respond_completion("START_PRINT BED=60"));
-        REQUIRE(!is_respond_completion("_PRINT_START"));
-    }
-}
-
-TEST_CASE("PrintStart: timeout fallback still available", "[core][print][timeout]") {
-    // Verifies RESPOND pattern doesn't match common noise lines that could
-    // interfere with timeout-based completion as a last resort.
-
-    SECTION("RESPOND pattern does not match empty or noise lines") {
-        REQUIRE(!is_respond_completion(""));
-        REQUIRE(!is_respond_completion("ok"));
-        REQUIRE(!is_respond_completion("T:200.0 /200.0 B:60.0 /60.0"));
-        REQUIRE(!is_respond_completion("echo: M190 S60"));
-    }
-}
-
-// ============================================================================
-// Homing Phase Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: homing phase detection", "[core][print][homing]") {
-    // Should match
-    REQUIRE(default_phase("G28") == PrintStartPhase::HOMING);
-    REQUIRE(default_phase("G28 X Y Z") == PrintStartPhase::HOMING);
-    REQUIRE(default_phase("G28 Z") == PrintStartPhase::HOMING);
-    REQUIRE(default_phase("Homing axes") == PrintStartPhase::HOMING);
-    REQUIRE(default_phase("Home All Axes") == PrintStartPhase::HOMING);
-    REQUIRE(default_phase("// homing started") == PrintStartPhase::HOMING);
-
-    // Real Voron V2 macro output
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Homing\"") == PrintStartPhase::HOMING);
-
-    // Should NOT match
-    REQUIRE(default_phase("G29") == PrintStartPhase::IDLE); // Bed leveling
-    REQUIRE(default_phase("M104") == PrintStartPhase::IDLE);
-}
-
-// ============================================================================
-// Heating Phase Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: heating bed phase detection", "[core][print][heating]") {
-    // Should match
-    REQUIRE(default_phase("M190 S60") == PrintStartPhase::HEATING_BED); // Wait for bed
-    REQUIRE(default_phase("M140 S60") == PrintStartPhase::HEATING_BED); // Set bed
-    REQUIRE(default_phase("Heating bed to 60") == PrintStartPhase::HEATING_BED);
-    REQUIRE(default_phase("Heat Bed") == PrintStartPhase::HEATING_BED);
-    REQUIRE(default_phase("BED_TEMP=60") == PrintStartPhase::HEATING_BED);
-    REQUIRE(default_phase("bed heating") == PrintStartPhase::HEATING_BED);
-
-    // Real Voron V2 macro: M190 S{BED_TEMP}
-    REQUIRE(default_phase("M190 S110") == PrintStartPhase::HEATING_BED);
-
-    // Should NOT match
-    REQUIRE(default_phase("M140 S0") == PrintStartPhase::IDLE); // Setting to 0 (cooling)
-    REQUIRE(default_phase("M104 S200") == PrintStartPhase::HEATING_NOZZLE); // Nozzle temp
-}
-
-TEST_CASE("PrintStart: heating nozzle phase detection", "[print][heating]") {
-    // Should match
-    REQUIRE(default_phase("M109 S200") == PrintStartPhase::HEATING_NOZZLE); // Wait for nozzle
-    REQUIRE(default_phase("M104 S200") == PrintStartPhase::HEATING_NOZZLE); // Set nozzle
-    REQUIRE(default_phase("M104 S150") == PrintStartPhase::HEATING_NOZZLE); // Mesh temp
-    REQUIRE(default_phase("Heating nozzle to 200") == PrintStartPhase::HEATING_NOZZLE);
-    REQUIRE(default_phase("Heating hotend") == PrintStartPhase::HEATING_NOZZLE);
-    REQUIRE(default_phase("Heating extruder") == PrintStartPhase::HEATING_NOZZLE);
-    REQUIRE(default_phase("EXTRUDER_TEMP=200") == PrintStartPhase::HEATING_NOZZLE);
-
-    // Real Voron V2 macro output
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Heating for print\"") ==
-            PrintStartPhase::IDLE); // "for print" not "nozzle"
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Heating extruder and bed for probing\"") ==
-            PrintStartPhase::HEATING_NOZZLE);
-
-    // Should NOT match
-    REQUIRE(default_phase("M104 S0") == PrintStartPhase::IDLE);         // Cooling
-    REQUIRE(default_phase("M190 S60") == PrintStartPhase::HEATING_BED); // Bed temp
-}
-
-// ============================================================================
-// Leveling Phase Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: QGL phase detection", "[print][leveling]") {
-    // Should match
-    REQUIRE(default_phase("QUAD_GANTRY_LEVEL") == PrintStartPhase::QGL);
-    REQUIRE(default_phase("quad gantry level") == PrintStartPhase::QGL);
-    REQUIRE(default_phase("Running QGL") == PrintStartPhase::QGL);
-
-    // Klipper does not echo a macro's commands, so a macro-driven QGL is legible
-    // only through its display text and QGL's own console report.
-    REQUIRE(default_phase("Leveling gantry") == PrintStartPhase::QGL);
-    REQUIRE(default_phase("Levelling gantry...") == PrintStartPhase::QGL);
-    REQUIRE(default_phase("Gantry leveling") == PrintStartPhase::QGL);
-    REQUIRE(default_phase("// Gantry-relative probe points:\n// 0: 6.137500 1: 5.125000") ==
-            PrintStartPhase::QGL);
-
-    // QGL and Z_TILT_ADJUST share Klipper's adjust/retry report, so it names neither.
-    REQUIRE(default_phase("// Making the following Z adjustments:\n// stepper_z = -1.002280") ==
-            PrintStartPhase::IDLE);
-    REQUIRE(default_phase("// Retries: 0/5 Probed points range: 1.742500 tolerance: 0.010000") ==
-            PrintStartPhase::IDLE);
-    REQUIRE(default_phase("Leveling 3/9") == PrintStartPhase::IDLE);
-
-    // Should NOT match
-    REQUIRE(default_phase("Z_TILT_ADJUST") == PrintStartPhase::Z_TILT);
-    REQUIRE(default_phase("G28") == PrintStartPhase::HOMING);
-}
-
-TEST_CASE("PrintStart: Z_TILT phase detection", "[print][leveling]") {
-    // Should match
-    REQUIRE(default_phase("Z_TILT_ADJUST") == PrintStartPhase::Z_TILT);
-    REQUIRE(default_phase("z_tilt_adjust") == PrintStartPhase::Z_TILT);
-    REQUIRE(default_phase("z tilt adjust") == PrintStartPhase::Z_TILT);
-    REQUIRE(default_phase("Z-tilt") == PrintStartPhase::Z_TILT);
-    REQUIRE(default_phase("Running Z tilt...") == PrintStartPhase::Z_TILT);
-
-    // Should NOT match
-    REQUIRE(default_phase("QUAD_GANTRY_LEVEL") == PrintStartPhase::QGL);
-}
-
-TEST_CASE("PrintStart: motor sync phase detection", "[print][motor_sync]") {
-    // motors-sync's cmd_SYNC_MOTORS announces a sync through respond_info,
-    // which reaches the console with Klipper's "// " prefix.
-    REQUIRE(default_phase("// Motors synchronization started") == PrintStartPhase::MOTOR_SYNC);
-    REQUIRE(default_phase("Motors synchronization started") == PrintStartPhase::MOTOR_SYNC);
-
-    // RESTORE_SYNC=1 only reapplies the stored phase offsets and returns
-    // before that line, so neither its command nor its reply is a sync.
-    REQUIRE(default_phase("SYNC_MOTORS RESTORE_SYNC=1") == PrintStartPhase::IDLE);
-    REQUIRE(default_phase("// Motors sync position already restored or nothing to restore") ==
-            PrintStartPhase::IDLE);
-
-    // The per-axis progress lines a running sync prints name no other phase.
-    REQUIRE(default_phase("// x-Initial magnitude: 2045") == PrintStartPhase::IDLE);
-    REQUIRE(default_phase("// x-Motors adjusted by 3/16 step, magnitude 2045 --> 120") ==
-            PrintStartPhase::IDLE);
-}
-
-// ============================================================================
-// Bed Mesh Phase Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: bed mesh phase detection", "[print][mesh]") {
-    // Should match
-    REQUIRE(default_phase("BED_MESH_CALIBRATE") == PrintStartPhase::BED_MESH);
-    REQUIRE(default_phase("BED_MESH_PROFILE LOAD=default") == PrintStartPhase::BED_MESH);
-    REQUIRE(default_phase("Loading bed mesh") == PrintStartPhase::BED_MESH);
-    REQUIRE(default_phase("mesh loading") == PrintStartPhase::BED_MESH);
-
-    // Real Voron V2 macro: BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1
-    REQUIRE(default_phase("BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1") ==
-            PrintStartPhase::BED_MESH);
-
-    // Display text naming the phase counts too
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Performing bed mesh calibration\"") ==
-            PrintStartPhase::BED_MESH);
-
-    // Should NOT match
-    REQUIRE(default_phase("BED_MESH_CLEAR") == PrintStartPhase::IDLE);
-}
-
-// ============================================================================
-// Cleaning Phase Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: cleaning phase detection", "[print][cleaning]") {
-    // Should match
-    REQUIRE(default_phase("CLEAN_NOZZLE") == PrintStartPhase::CLEANING);
-    REQUIRE(default_phase("NOZZLE_CLEAN") == PrintStartPhase::CLEANING);
-    REQUIRE(default_phase("WIPE_NOZZLE") == PrintStartPhase::CLEANING);
-    REQUIRE(default_phase("nozzle wipe") == PrintStartPhase::CLEANING);
-    REQUIRE(default_phase("clean nozzle") == PrintStartPhase::CLEANING);
-    REQUIRE(default_phase("clean_nozzle") == PrintStartPhase::CLEANING); // Voron V2 macro call
-
-    // Real Voron V2 display text
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Cleaning nozzle\"") == PrintStartPhase::CLEANING);
-
-    // Should NOT match
-    REQUIRE(default_phase("PURGE_LINE") == PrintStartPhase::PURGING);
-}
-
-// ============================================================================
-// Purging Phase Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: purging phase detection", "[print][purging]") {
-    // Should match
-    REQUIRE(default_phase("VORON_PURGE") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("LINE_PURGE") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("PURGE_LINE") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("Prime Line") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("PrimeLine") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("Priming extruder") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("KAMP_ADAPTIVE_PURGE") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("purge line done") == PrintStartPhase::PURGING);
-
-    // Real Voron V2 display text
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Purging\"") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("AFC_Poop: purge_length=100") == PrintStartPhase::IDLE);
-
-    // Should NOT match
-    REQUIRE(default_phase("CLEAN_NOZZLE") == PrintStartPhase::CLEANING);
-}
-
-// ============================================================================
-// Real Voron V2 PRINT_START Macro Tests
-// ============================================================================
-
-/**
- * Test against real output from Voron V2 at 192.168.1.112
- * START_PRINT macro includes:
- *   - M104 S{MESH_TEMP}       -> heating nozzle
- *   - M190 S{BED_TEMP}        -> heating bed
- *   - G28                     -> homing
- *   - clean_nozzle            -> cleaning
- *   - QUAD_GANTRY_LEVEL       -> QGL
- *   - G28 Z                   -> homing Z
- *   - BED_MESH_CALIBRATE      -> bed mesh
- *   - M109 S{EXTRUDER_TEMP}   -> heating nozzle (wait)
- *   - VORON_PURGE             -> purging
- */
-TEST_CASE("PrintStart: real Voron V2 START_PRINT macro lines", "[print][voron][integration]") {
-    // Lines from actual Voron V2 START_PRINT macro
-    struct TestCase {
-        std::string line;
-        PrintStartPhase expected; ///< INITIALIZING = the PRINT_START marker
-        const char* description;
+    const MarkerRow rows[] = {
+        {"// Print started!", true},
+        {"Print Started", true},
+        {"PRINT STARTING", true},
+        {"Print Start Complete", true},
+        {"print started", true},
+        {"Starting print", true},
+        {"starting print now", true},
+        {"Started print successfully", true},
+        {"Print started!", true},
+        {"PRINT STARTED", true},
+        {"print starting", true},
+        // Word boundaries: "Printing", "restart" and "print_start" are not the words.
+        {"Printing layer 5", false},
+        {"restart print", false},
+        {"print_start phase", false},
+        {"PRINT_START BED=60 EXTRUDER=200", false},
+        {"START_PRINT BED=60", false},
+        {"_PRINT_START", false},
+        {"Starting temperature check", false},
+        {"print complete", false},
+        {"start heating the print bed", false},
+        // Noise must not end a pre-print the timeout would otherwise close.
+        {"", false},
+        {"ok", false},
+        {"T:200.0 /200.0 B:60.0 /60.0", false},
+        {"echo: M190 S60", false},
+        // A host prompt offering to start the print is not a print that started
+        // (Z-Mod's material picker footer arrives before any print exists).
+        {"// action:prompt_footer_button Start print|PRINT_ZCOLOR LEVELING=0 "
+         "FILENAME=\"Button_PETG_6m32s.gcode\" ALLOWED_TOOL_COUNT=1",
+         false},
+        {"// action:prompt_button Start print|START_PRINT", false},
+        {"// action:prompt_text Print starting soon", false},
+        {"  // action:prompt_begin Start print?", false},
+        // An action line that is not a prompt still carries a message.
+        {"// action:notification Print started", true},
     };
-
-    std::vector<TestCase> voron_lines = {
-        {"START_PRINT BED_TEMP=110 EXTRUDER_TEMP=250 CHAMBER_TEMP=45",
-         PrintStartPhase::INITIALIZING, "macro invocation"},
-        {"M104 S150", PrintStartPhase::HEATING_NOZZLE, "mesh temp heating"},
-        {"M190 S110", PrintStartPhase::HEATING_BED, "bed temp wait"},
-        {"G28", PrintStartPhase::HOMING, "home all"},
-        {"clean_nozzle", PrintStartPhase::CLEANING, "nozzle clean macro"},
-        {"QUAD_GANTRY_LEVEL", PrintStartPhase::QGL, "quad gantry level"},
-        {"G28 Z", PrintStartPhase::HOMING, "home Z after QGL"},
-        {"BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1", PrintStartPhase::BED_MESH,
-         "adaptive bed mesh"},
-        {"M109 S250", PrintStartPhase::HEATING_NOZZLE, "extruder temp wait"},
-        {"VORON_PURGE", PrintStartPhase::PURGING, "voron purge"},
-    };
-
-    for (const auto& tc : voron_lines) {
-        CAPTURE(tc.description, tc.line);
-        if (tc.expected == PrintStartPhase::INITIALIZING) {
-            REQUIRE(is_print_start(tc.line));
-        } else {
-            REQUIRE(default_phase(tc.line) == tc.expected);
-        }
+    for (const auto& r : rows) {
+        INFO(r.line);
+        CHECK(is_respond_completion(r.line) == r.expected);
     }
 }
 
-TEST_CASE("PrintStart: Voron V2 SET_DISPLAY_TEXT messages", "[print][voron]") {
-    // These are the display messages from the macro
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Homing\"") == PrintStartPhase::HOMING);
-
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Cleaning nozzle\"") == PrintStartPhase::CLEANING);
-
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Leveling gantry\"") == PrintStartPhase::QGL);
-    REQUIRE(default_phase("Performing bed mesh calibration") == PrintStartPhase::BED_MESH);
-    REQUIRE(default_phase("Purging") == PrintStartPhase::PURGING);
-
-    // Wording that names no phase the patterns know does not match
-    REQUIRE(default_phase("SET_DISPLAY_TEXT MSG=\"Heating for print\"") == PrintStartPhase::IDLE);
-}
-
 // ============================================================================
-// Real AD5M Pro START_PRINT Macro Tests
+// The default profile's response patterns
 // ============================================================================
 
-/**
- * Test against real output from FlashForge AD5M Pro at 192.168.1.67
- * START_PRINT macro (with mod firmware) includes:
- *   - M140 S{bed_temp}        -> heating bed
- *   - M104 S{extruder_temp}   -> heating nozzle
- *   - G28                     -> homing
- *   - KAMP or _FULL_BED_LEVEL -> bed mesh (adaptive or full)
- *   - BED_MESH_PROFILE LOAD=  -> mesh loading
- *   - LINE_PURGE              -> KAMP purge
- *
- * Notable differences from Voron V2:
- *   - No QGL or Z_TILT (fixed bed CoreXY)
- *   - Uses KAMP for adaptive meshing
- *   - Has CHECK_MD5 verification step
- *   - Uses _PRINT_STATUS S="..." for display
- */
-TEST_CASE("PrintStart: real AD5M Pro START_PRINT macro lines", "[print][ad5m][integration]") {
-    struct TestCase {
-        std::string line;
-        PrintStartPhase expected; ///< INITIALIZING = the PRINT_START marker
-        const char* description;
+TEST_CASE("PrintStart: default profile reads each phase from real and generic lines",
+          "[core][print][default_profile]") {
+    struct Row {
+        const char* line;
+        PrintStartPhase expected;
     };
-
-    std::vector<TestCase> ad5m_lines = {
-        {"START_PRINT BED_TEMP=60 EXTRUDER_TEMP=200", PrintStartPhase::INITIALIZING,
-         "macro invocation"},
-        {"RESPOND MSG=\"START_PRINT\"", PrintStartPhase::INITIALIZING, "respond with start marker"},
-        {"M140 S60", PrintStartPhase::HEATING_BED, "set bed temp"},
-        {"M104 S200", PrintStartPhase::HEATING_NOZZLE, "set nozzle temp"},
-        {"G28", PrintStartPhase::HOMING, "home all"},
-        {"BED_MESH_CALIBRATE mesh_min=-100,-100 mesh_max=100,100", PrintStartPhase::BED_MESH,
-         "KAMP mesh calibrate"},
-        {"BED_MESH_PROFILE LOAD=auto", PrintStartPhase::BED_MESH, "load auto mesh profile"},
-        {"LINE_PURGE", PrintStartPhase::PURGING, "KAMP line purge"},
+    // Lines from Voron V2 and AD5M Pro START_PRINT macros, their display text,
+    // and generic wording; IDLE rows must name no phase.
+    const Row rows[] = {
+        {"G28", PrintStartPhase::HOMING},
+        {"G28 X Y Z", PrintStartPhase::HOMING},
+        {"G28 Z", PrintStartPhase::HOMING},
+        {"Homing axes", PrintStartPhase::HOMING},
+        {"Home All Axes", PrintStartPhase::HOMING},
+        {"// homing started", PrintStartPhase::HOMING},
+        {"SET_DISPLAY_TEXT MSG=\"Homing\"", PrintStartPhase::HOMING},
+        {"_PRINT_STATUS S=\"HOMING...\"", PrintStartPhase::HOMING},
+        {"M190 S60", PrintStartPhase::HEATING_BED},
+        {"M140 S60", PrintStartPhase::HEATING_BED},
+        {"Heating bed to 60", PrintStartPhase::HEATING_BED},
+        {"Heat Bed", PrintStartPhase::HEATING_BED},
+        {"BED_TEMP=60", PrintStartPhase::HEATING_BED},
+        {"bed heating", PrintStartPhase::HEATING_BED},
+        {"M190 S110", PrintStartPhase::HEATING_BED},
+        {"M104 S200", PrintStartPhase::HEATING_NOZZLE},
+        {"M109 S200", PrintStartPhase::HEATING_NOZZLE},
+        {"M104 S150", PrintStartPhase::HEATING_NOZZLE},
+        {"Heating nozzle to 200", PrintStartPhase::HEATING_NOZZLE},
+        {"Heating hotend", PrintStartPhase::HEATING_NOZZLE},
+        {"Heating extruder", PrintStartPhase::HEATING_NOZZLE},
+        {"EXTRUDER_TEMP=200", PrintStartPhase::HEATING_NOZZLE},
+        {"SET_DISPLAY_TEXT MSG=\"Heating extruder and bed for probing\"",
+         PrintStartPhase::HEATING_NOZZLE},
+        {"M109 S250", PrintStartPhase::HEATING_NOZZLE},
+        // Klipper does not echo a macro's commands, so a macro-driven QGL is legible
+        // only through its display text and QGL's own console report.
+        {"QUAD_GANTRY_LEVEL", PrintStartPhase::QGL},
+        {"quad gantry level", PrintStartPhase::QGL},
+        {"Running QGL", PrintStartPhase::QGL},
+        {"Leveling gantry", PrintStartPhase::QGL},
+        {"Levelling gantry...", PrintStartPhase::QGL},
+        {"Gantry leveling", PrintStartPhase::QGL},
+        {"// Gantry-relative probe points:\n// 0: 6.137500 1: 5.125000", PrintStartPhase::QGL},
+        {"SET_DISPLAY_TEXT MSG=\"Leveling gantry\"", PrintStartPhase::QGL},
+        {"Z_TILT_ADJUST", PrintStartPhase::Z_TILT},
+        {"z_tilt_adjust", PrintStartPhase::Z_TILT},
+        {"z tilt adjust", PrintStartPhase::Z_TILT},
+        {"Z-tilt", PrintStartPhase::Z_TILT},
+        {"Running Z tilt...", PrintStartPhase::Z_TILT},
+        // motors-sync announces a sync through respond_info, with or without the "// ".
+        {"// Motors synchronization started", PrintStartPhase::MOTOR_SYNC},
+        {"Motors synchronization started", PrintStartPhase::MOTOR_SYNC},
+        {"BED_MESH_CALIBRATE", PrintStartPhase::BED_MESH},
+        {"BED_MESH_PROFILE LOAD=default", PrintStartPhase::BED_MESH},
+        {"Loading bed mesh", PrintStartPhase::BED_MESH},
+        {"mesh loading", PrintStartPhase::BED_MESH},
+        {"BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1", PrintStartPhase::BED_MESH},
+        {"SET_DISPLAY_TEXT MSG=\"Performing bed mesh calibration\"", PrintStartPhase::BED_MESH},
+        {"Performing bed mesh calibration", PrintStartPhase::BED_MESH},
+        {"_KAMP_BED_MESH_CALIBRATE", PrintStartPhase::BED_MESH},
+        {"BED_MESH_CALIBRATE mesh_min=-100,-100 mesh_max=100,100", PrintStartPhase::BED_MESH},
+        {"BED_MESH_PROFILE LOAD=auto", PrintStartPhase::BED_MESH},
+        {"CLEAN_NOZZLE", PrintStartPhase::CLEANING},
+        {"NOZZLE_CLEAN", PrintStartPhase::CLEANING},
+        {"WIPE_NOZZLE", PrintStartPhase::CLEANING},
+        {"nozzle wipe", PrintStartPhase::CLEANING},
+        {"clean nozzle", PrintStartPhase::CLEANING},
+        {"clean_nozzle", PrintStartPhase::CLEANING},
+        {"SET_DISPLAY_TEXT MSG=\"Cleaning nozzle\"", PrintStartPhase::CLEANING},
+        {"PURGE_LINE", PrintStartPhase::PURGING},
+        {"VORON_PURGE", PrintStartPhase::PURGING},
+        {"LINE_PURGE", PrintStartPhase::PURGING},
+        {"Prime Line", PrintStartPhase::PURGING},
+        {"PrimeLine", PrintStartPhase::PURGING},
+        {"Priming extruder", PrintStartPhase::PURGING},
+        {"KAMP_ADAPTIVE_PURGE", PrintStartPhase::PURGING},
+        {"purge line done", PrintStartPhase::PURGING},
+        {"SET_DISPLAY_TEXT MSG=\"Purging\"", PrintStartPhase::PURGING},
+        {"Purging", PrintStartPhase::PURGING},
+        {"_LINE_PURGE", PrintStartPhase::PURGING},
+        // QGL and Z_TILT_ADJUST share Klipper's adjust/retry report, so it names neither.
+        // SYNC_MOTORS RESTORE_SYNC=1 only reapplies stored offsets: not a sync.
+        // Setting a heater to 0 is cooling, and wording that names no phase is noise.
+        {"G29", PrintStartPhase::IDLE},
+        {"M104", PrintStartPhase::IDLE},
+        {"M140 S0", PrintStartPhase::IDLE},
+        {"SET_DISPLAY_TEXT MSG=\"Heating for print\"", PrintStartPhase::IDLE},
+        {"M104 S0", PrintStartPhase::IDLE},
+        {"// Making the following Z adjustments:\n// stepper_z = -1.002280", PrintStartPhase::IDLE},
+        {"// Retries: 0/5 Probed points range: 1.742500 tolerance: 0.010000",
+         PrintStartPhase::IDLE},
+        {"Leveling 3/9", PrintStartPhase::IDLE},
+        {"SYNC_MOTORS RESTORE_SYNC=1", PrintStartPhase::IDLE},
+        {"// Motors sync position already restored or nothing to restore", PrintStartPhase::IDLE},
+        {"// x-Initial magnitude: 2045", PrintStartPhase::IDLE},
+        {"// x-Motors adjusted by 3/16 step, magnitude 2045 --> 120", PrintStartPhase::IDLE},
+        {"BED_MESH_CLEAR", PrintStartPhase::IDLE},
+        {"AFC_Poop: purge_length=100", PrintStartPhase::IDLE},
+        {"_PRINT_STATUS S=\"HEATING...\"", PrintStartPhase::IDLE},
+        {"_PRINT_STATUS S=\"MESH CHECKING...\"", PrintStartPhase::IDLE},
+        {"ok", PrintStartPhase::IDLE},
+        {"// Klipper state: Ready", PrintStartPhase::IDLE},
+        {"T:210.5 /210.0 B:60.2 /60.0", PrintStartPhase::IDLE},
+        {"echo: Command completed", PrintStartPhase::IDLE},
+        {"TOOLHEAD_PARK_MACRO", PrintStartPhase::IDLE},
+        {"SET_LED LED=nozzle RED=1", PrintStartPhase::IDLE},
+        {"M141 S45", PrintStartPhase::IDLE},
+        {"AFC_PARK", PrintStartPhase::IDLE},
+        {"SMART_PARK", PrintStartPhase::IDLE},
+        {"TOOLCHANGE TOOL=0", PrintStartPhase::IDLE},
+        {"SET_AFC_TOOLCHANGES TOOLCHANGES=0", PrintStartPhase::IDLE},
+        {"status_printing", PrintStartPhase::IDLE},
+        {"status_busy", PrintStartPhase::IDLE},
+        {"status_ready", PrintStartPhase::IDLE},
     };
-
-    for (const auto& tc : ad5m_lines) {
-        CAPTURE(tc.description, tc.line);
-        if (tc.expected == PrintStartPhase::INITIALIZING) {
-            REQUIRE(is_print_start(tc.line));
-        } else {
-            REQUIRE(default_phase(tc.line) == tc.expected);
-        }
-    }
-}
-
-TEST_CASE("PrintStart: AD5M Pro _PRINT_STATUS messages", "[print][ad5m]") {
-    // These are unique to AD5M Pro mod firmware
-    REQUIRE(default_phase("_PRINT_STATUS S=\"HOMING...\"") == PrintStartPhase::HOMING);
-
-    // Note: These DON'T match because they use different wording (status strings only)
-    REQUIRE(default_phase("_PRINT_STATUS S=\"HEATING...\"") == PrintStartPhase::IDLE);
-    REQUIRE(default_phase("_PRINT_STATUS S=\"MESH CHECKING...\"") == PrintStartPhase::IDLE);
-}
-
-TEST_CASE("PrintStart: AD5M Pro KAMP-specific patterns", "[print][ad5m][kamp]") {
-    // KAMP adaptive purge patterns
-    REQUIRE(default_phase("KAMP_ADAPTIVE_PURGE") == PrintStartPhase::PURGING);
-    REQUIRE(default_phase("_LINE_PURGE") == PrintStartPhase::PURGING);
-
-    // KAMP bed mesh with parameters
-    REQUIRE(default_phase("BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1") ==
-            PrintStartPhase::BED_MESH);
-    REQUIRE(default_phase("_KAMP_BED_MESH_CALIBRATE") == PrintStartPhase::BED_MESH);
-}
-
-// ============================================================================
-// Noise Rejection Tests
-// ============================================================================
-
-TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][negative]") {
-    // These are common Klipper output lines that should NOT trigger phase detection
-    std::vector<std::string> noise_lines = {
-        "ok",
-        "// Klipper state: Ready",
-        "T:210.5 /210.0 B:60.2 /60.0",
-        "echo: Command completed",
-        "TOOLHEAD_PARK_MACRO",
-        "SET_LED LED=nozzle RED=1",
-        "M141 S45", // Chamber temp (not bed or nozzle)
-        "AFC_PARK",
-        "SMART_PARK",
-        "TOOLCHANGE TOOL=0",
-        "BED_MESH_CLEAR",
-        "SET_AFC_TOOLCHANGES TOOLCHANGES=0",
-        "status_printing", // End of PRINT_START, not a phase
-        "status_busy",     // Generic status, not a phase
-        "status_ready",    // Idle status
-    };
-
-    for (const auto& line : noise_lines) {
-        CAPTURE(line);
-        REQUIRE(default_phase(line) == PrintStartPhase::IDLE);
+    for (const auto& r : rows) {
+        INFO(r.line);
+        CHECK(default_phase(r.line) == r.expected);
     }
 }
 
@@ -562,54 +312,6 @@ TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][ne
 
 using namespace helix;
 using namespace helix::ui;
-/**
- * @brief HELIX:PHASE signal parser for direct testing
- *
- * Mirrors the prefix handling in PrintStartCollector::check_helix_phase_signal()
- * so the signal format can be exercised without the callback infrastructure.
- * The name lookup itself is the shipping one, so an alias that stops resolving
- * shows up here.
- *
- * Returns the PrintStartPhase the signal would set, or PrintStartPhase::IDLE
- * when the signal is not recognized.
- */
-static std::pair<PrintStartPhase, std::string> parse_helix_phase_signal(const std::string& line) {
-    static const char* kHelixPhasePrefix = "HELIX:PHASE:";
-    constexpr size_t PREFIX_LEN = 12;
-
-    size_t pos = line.find(kHelixPhasePrefix);
-    if (pos == std::string::npos) {
-        return {PrintStartPhase::IDLE, ""};
-    }
-
-    std::string phase_name = line.substr(pos + PREFIX_LEN);
-    size_t end = phase_name.find_first_of(" \t\n\r\"'");
-    if (end != std::string::npos) {
-        phase_name = phase_name.substr(0, end);
-    }
-
-    const auto phase = helix::print_start_phase_from_name(phase_name);
-    if (!phase || *phase == PrintStartPhase::IDLE) {
-        return {PrintStartPhase::IDLE, ""};
-    }
-
-    static const std::map<PrintStartPhase, std::string> kMessages = {
-        {PrintStartPhase::INITIALIZING, "Preparing Print..."},
-        {PrintStartPhase::HOMING, "Homing..."},
-        {PrintStartPhase::HEATING_BED, "Heating Bed..."},
-        {PrintStartPhase::SOAKING, "Heat Soaking..."},
-        {PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle..."},
-        {PrintStartPhase::QGL, "Leveling Gantry..."},
-        {PrintStartPhase::Z_TILT, "Z Tilt Adjust..."},
-        {PrintStartPhase::BED_MESH, "Loading Bed Mesh..."},
-        {PrintStartPhase::CLEANING, "Cleaning Nozzle..."},
-        {PrintStartPhase::PURGING, "Purging..."},
-        {PrintStartPhase::COMPLETE, "Starting Print..."},
-    };
-    auto it = kMessages.find(*phase);
-    return {*phase, it != kMessages.end() ? it->second : ""};
-}
-
 /**
  * @brief Test fixture for PrintStartCollector proactive heater detection tests
  *
@@ -740,6 +442,24 @@ class PrintStartCollectorHeaterFixture : public LVGLTestFixture {
         drain_async_updates();                          // Process the IDLE update
     }
 
+    int get_current_progress() {
+        return lv_subject_get_int(state_.print_state().get_print_start_progress_subject());
+    }
+
+    /// A status frame through the real notify_status_update path, so the collector's
+    /// status subscription handles it as it would a live WebSocket frame.
+    void send_status_update(const json& object) {
+        client().dispatch_status_update(object);
+        drain_async_updates();
+    }
+
+    /// start(), with the INITIALIZING update it queues applied.
+    void start_and_settle() {
+        collector_->start();
+        drain_async_updates();
+        drain_async_updates();
+    }
+
     /// One fallback check as the ETA timer runs it, with the updates it queues applied.
     void tick_fallbacks() {
         collector_->check_fallback_completion();
@@ -754,144 +474,13 @@ class PrintStartCollectorHeaterFixture : public LVGLTestFixture {
 };
 
 // ============================================================================
-// HELIX:PHASE:STARTING Signal Tests
+// HELIX:PHASE signals
 // ============================================================================
-
-TEST_CASE("HELIX:PHASE:STARTING sets INITIALIZING phase", "[print][collector][helix_phase]") {
-    SECTION("HELIX:PHASE:STARTING") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:STARTING");
-        REQUIRE(phase == PrintStartPhase::INITIALIZING);
-        REQUIRE(message == "Preparing Print...");
-    }
-
-    SECTION("HELIX:PHASE:START (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:START");
-        REQUIRE(phase == PrintStartPhase::INITIALIZING);
-    }
-}
-
-// ============================================================================
-// HELIX:PHASE:COMPLETE Signal Tests
-// ============================================================================
-
-TEST_CASE("HELIX:PHASE:COMPLETE sets COMPLETE phase", "[print][collector][helix_phase]") {
-    SECTION("HELIX:PHASE:COMPLETE") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:COMPLETE");
-        REQUIRE(phase == PrintStartPhase::COMPLETE);
-        REQUIRE(message == "Starting Print...");
-    }
-
-    SECTION("HELIX:PHASE:DONE (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:DONE");
-        REQUIRE(phase == PrintStartPhase::COMPLETE);
-    }
-}
-
-// ============================================================================
-// Individual HELIX:PHASE Signal Tests
-// ============================================================================
-
-TEST_CASE("HELIX:PHASE individual phases set correctly", "[print][collector][helix_phase]") {
-    SECTION("HELIX:PHASE:HOMING") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:HOMING");
-        REQUIRE(phase == PrintStartPhase::HOMING);
-        REQUIRE(message == "Homing...");
-    }
-
-    SECTION("HELIX:PHASE:HEATING_BED") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:HEATING_BED");
-        REQUIRE(phase == PrintStartPhase::HEATING_BED);
-        REQUIRE(message == "Heating Bed...");
-    }
-
-    SECTION("HELIX:PHASE:BED_HEATING (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:BED_HEATING");
-        REQUIRE(phase == PrintStartPhase::HEATING_BED);
-    }
-
-    SECTION("HELIX:PHASE:HEATING_NOZZLE") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:HEATING_NOZZLE");
-        REQUIRE(phase == PrintStartPhase::HEATING_NOZZLE);
-        REQUIRE(message == "Heating Nozzle...");
-    }
-
-    SECTION("HELIX:PHASE:NOZZLE_HEATING (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:NOZZLE_HEATING");
-        REQUIRE(phase == PrintStartPhase::HEATING_NOZZLE);
-    }
-
-    SECTION("HELIX:PHASE:HEATING_HOTEND (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:HEATING_HOTEND");
-        REQUIRE(phase == PrintStartPhase::HEATING_NOZZLE);
-    }
-
-    SECTION("HELIX:PHASE:QGL") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:QGL");
-        REQUIRE(phase == PrintStartPhase::QGL);
-        REQUIRE(message == "Leveling Gantry...");
-    }
-
-    SECTION("HELIX:PHASE:QUAD_GANTRY_LEVEL (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:QUAD_GANTRY_LEVEL");
-        REQUIRE(phase == PrintStartPhase::QGL);
-    }
-
-    SECTION("HELIX:PHASE:Z_TILT") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:Z_TILT");
-        REQUIRE(phase == PrintStartPhase::Z_TILT);
-        REQUIRE(message == "Z Tilt Adjust...");
-    }
-
-    SECTION("HELIX:PHASE:Z_TILT_ADJUST (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:Z_TILT_ADJUST");
-        REQUIRE(phase == PrintStartPhase::Z_TILT);
-    }
-
-    SECTION("HELIX:PHASE:BED_MESH") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:BED_MESH");
-        REQUIRE(phase == PrintStartPhase::BED_MESH);
-        REQUIRE(message == "Loading Bed Mesh...");
-    }
-
-    SECTION("HELIX:PHASE:BED_LEVELING (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:BED_LEVELING");
-        REQUIRE(phase == PrintStartPhase::BED_MESH);
-    }
-
-    SECTION("HELIX:PHASE:CLEANING") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:CLEANING");
-        REQUIRE(phase == PrintStartPhase::CLEANING);
-        REQUIRE(message == "Cleaning Nozzle...");
-    }
-
-    SECTION("HELIX:PHASE:NOZZLE_CLEAN (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:NOZZLE_CLEAN");
-        REQUIRE(phase == PrintStartPhase::CLEANING);
-    }
-
-    SECTION("HELIX:PHASE:PURGING") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:PURGING");
-        REQUIRE(phase == PrintStartPhase::PURGING);
-        REQUIRE(message == "Purging...");
-    }
-
-    SECTION("HELIX:PHASE:PURGE (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:PURGE");
-        REQUIRE(phase == PrintStartPhase::PURGING);
-    }
-
-    SECTION("HELIX:PHASE:PRIMING (alternative form)") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:PRIMING");
-        REQUIRE(phase == PrintStartPhase::PURGING);
-    }
-}
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: each HELIX:PHASE signal shows its phase's banner",
                  "[print][collector][helix_phase]") {
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
 
     const std::pair<const char*, const char*> signals[] = {
         {"HOMING", "Homing..."},
@@ -914,78 +503,32 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     }
 }
 
-// ============================================================================
-// Malformed HELIX:PHASE Signal Tests
-// ============================================================================
-
-TEST_CASE("Malformed HELIX:PHASE signals are ignored",
-          "[print][collector][helix_phase][negative]") {
-    SECTION("Unknown phase name returns IDLE") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:UNKNOWN_PHASE");
-        REQUIRE(phase == PrintStartPhase::IDLE);
-        REQUIRE(message.empty());
-    }
-
-    SECTION("Malformed prefix returns IDLE") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX_PHASE:HOMING"); // Wrong separator
-        REQUIRE(phase == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Partial prefix returns IDLE") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:HOMING"); // Missing PHASE
-        REQUIRE(phase == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Empty phase name returns IDLE") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:");
-        REQUIRE(phase == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Case sensitivity: lowercase phase names return IDLE") {
-        // Currently the code checks for exact uppercase matches
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:homing");
-        REQUIRE(phase == PrintStartPhase::IDLE);
-    }
-
-    SECTION("No HELIX:PHASE prefix returns IDLE") {
-        auto [phase, message] = parse_helix_phase_signal("G28");
-        REQUIRE(phase == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Empty line returns IDLE") {
-        auto [phase, message] = parse_helix_phase_signal("");
-        REQUIRE(phase == PrintStartPhase::IDLE);
-    }
-}
-
-// ============================================================================
-// HELIX:PHASE Signal with Context Tests
-// ============================================================================
-
-TEST_CASE("HELIX:PHASE signals work with surrounding text", "[print][collector][helix_phase]") {
-    SECTION("Signal with quotes is parsed correctly") {
-        auto [phase, message] = parse_helix_phase_signal("\"HELIX:PHASE:HOMING\"");
-        REQUIRE(phase == PrintStartPhase::HOMING);
-    }
-
-    SECTION("Signal with prefix text is parsed correctly") {
-        auto [phase, message] = parse_helix_phase_signal("RESPOND MSG=HELIX:PHASE:HEATING_BED");
-        REQUIRE(phase == PrintStartPhase::HEATING_BED);
-    }
-
-    SECTION("Signal with trailing whitespace") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:QGL   ");
-        REQUIRE(phase == PrintStartPhase::QGL);
-    }
-
-    SECTION("Signal with trailing newline") {
-        auto [phase, message] = parse_helix_phase_signal("HELIX:PHASE:CLEANING\n");
-        REQUIRE(phase == PrintStartPhase::CLEANING);
-    }
-
-    SECTION("Signal embedded in M118 echo") {
-        auto [phase, message] = parse_helix_phase_signal("M118 HELIX:PHASE:Z_TILT output=prefix");
-        REQUIRE(phase == PrintStartPhase::Z_TILT);
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: a HELIX:PHASE signal is read inside any wrapper",
+                 "[print][collector][helix_phase]") {
+    struct Row {
+        const char* line;
+        PrintStartPhase expected;
+    };
+    // Name resolution itself is test_print_start_phase_names.cpp's.
+    const Row rows[] = {
+        {"\"HELIX:PHASE:HOMING\"", PrintStartPhase::HOMING},
+        {"RESPOND MSG=HELIX:PHASE:HEATING_BED", PrintStartPhase::HEATING_BED},
+        {"HELIX:PHASE:QGL   ", PrintStartPhase::QGL},
+        {"HELIX:PHASE:CLEANING\n", PrintStartPhase::CLEANING},
+        {"M118 HELIX:PHASE:Z_TILT output=prefix", PrintStartPhase::Z_TILT},
+        {"HELIX:PHASE:PRIMING", PrintStartPhase::PURGING},
+        // An empty or unknown name is not a signal and moves nothing.
+        {"HELIX:PHASE:", PrintStartPhase::INITIALIZING},
+        {"HELIX:PHASE:UNKNOWN_PHASE", PrintStartPhase::INITIALIZING},
+    };
+    for (const auto& r : rows) {
+        DYNAMIC_SECTION(r.line) {
+            start_and_settle();
+            send_gcode_response(r.line);
+            drain_async_updates();
+            CHECK(get_current_phase() == r.expected);
+        }
     }
 }
 
@@ -1000,58 +543,6 @@ TEST_CASE("HELIX:PHASE signals work with surrounding text", "[print][collector][
 // Note: PrintStartCollectorHeaterFixture is defined above and provides
 // helpers for temperature simulation.
 // ============================================================================
-
-// ============================================================================
-// Proactive Bed Heating Detection Tests
-// ============================================================================
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Proactive detection: bed heating at <50% target triggers HEATING_BED",
-                 "[print][collector][proactive][heating]") {
-    collector().start();
-    drain_async_updates();
-    drain_async_updates(); // Process start()'s INITIALIZING state update
-    collector().enable_fallbacks();
-
-    // Reset collector's internal current_phase_ back to IDLE for proactive detection
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-    REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-
-    SECTION("Bed at 25% of target (150/600) triggers HEATING_BED") {
-        // Bed target 60C (600 decideg), current temp 15C (150 decideg) = 25% of target
-        set_all_temps(150, 600, 0, 0); // No extruder target
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-        REQUIRE(get_current_message() == "Heating Bed...");
-    }
-
-    SECTION("Bed at 49% of target triggers HEATING_BED") {
-        // Bed target 60C, current 29.4C (294 decideg) = 49% of target
-        set_all_temps(294, 600, 0, 0);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    }
-
-    SECTION("Bed at 10% of target (extreme case)") {
-        // Bed target 110C (1100 decideg), current 11C (110 decideg) = 10%
-        set_all_temps(110, 1100, 0, 0);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    }
-}
 
 // ============================================================================
 // Lifetime: the last reference may drop on a network thread
@@ -1113,15 +604,11 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "[print][collector][proactive][heating]") {
     // Drive to a known phase that has its own label. Mirrors the existing
     // proactive bed-heating section at :955-964.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates(); // INITIALIZING settle
+    start_and_settle();
     collector().enable_fallbacks();
 
     set_all_temps(150, 600, 0, 0);
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
     REQUIRE(get_current_message() == "Heating Bed...");
 
@@ -1138,9 +625,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: Voron display text names QGL after the first clean",
                  "[print][collector][voron]") {
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
 
     // The Voron V2.4 START_PRINT's SET_DISPLAY_TEXT sequence: it cleans the
     // nozzle before and after leveling the gantry.
@@ -1168,9 +653,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: a motor sync after homing shows its own phase",
                  "[print][collector][motor_sync]") {
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
 
     send_gcode_response("PRINT_START");
     send_gcode_response("G28");
@@ -1194,9 +677,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     // MOTOR_SYNC sits before the heating phases, but a macro may sync once the
     // bed is warm. The first explicit line of a phase is entered whatever its
     // place in the order.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
 
     send_gcode_response("PRINT_START");
     send_gcode_response("G28");
@@ -1214,9 +695,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: SYNC_MOTORS RESTORE_SYNC=1 enters no motor sync phase",
                  "[print][collector][motor_sync]") {
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
 
     send_gcode_response("PRINT_START");
     send_gcode_response("G28");
@@ -1234,9 +713,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Pre-start echo: the dispatched block's console echo claims no phase",
                  "[print][collector][1571]") {
-    collector().start();
-    drain_async_updates();
-    drain_async_updates(); // Process start()'s INITIALIZING state update
+    start_and_settle();
 
     // The K1C bed_mesh pre-start option from printer_database.json, values
     // rendered. Its echo collides with the default profile three times:
@@ -1275,51 +752,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     CHECK(get_current_phase() == PrintStartPhase::HEATING_BED);
 }
 
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Proactive detection: bed heating stays HEATING_BED until bed reaches target",
-                 "[print][collector][proactive][heating]") {
-    collector().start();
-    drain_async_updates();
-    collector().enable_fallbacks();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-
-    SECTION("Bed at 50% of target - bed still heating even with nozzle also heating") {
-        // Bed target 60C, current 30C (300 decideg) = 50% of target
-        // Nozzle also heating - but bed_heating takes priority
-        set_all_temps(300, 600, 500, 2100); // Nozzle 50C/210C
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        // Bed is still heating, so HEATING_BED takes priority
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    }
-
-    SECTION("Bed at 80% of target with nozzle heating - bed still takes priority") {
-        // Bed target 60C, current 48C (480 decideg) = 80%
-        set_all_temps(480, 600, 1000, 2100);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        // Bed is still below target-tolerance, so HEATING_BED
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    }
-
-    SECTION("Bed at target - nozzle heating takes over") {
-        // Bed target 60C, current 59C (590 decideg) = within tolerance
-        // Nozzle still heating
-        set_all_temps(590, 600, 1000, 2100);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        // Bed is within tolerance, so nozzle heating takes over
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-    }
-}
-
 // ============================================================================
 // Heating-phase heater correction (signal-latched, temp-aware relabel)
 //
@@ -1331,113 +763,47 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 // firmware's ordered non-heating phase.
 // ============================================================================
 
-TEST_CASE_METHOD(
-    PrintStartCollectorHeaterFixture,
-    "Heater correction: latched HEATING_NOZZLE with hot nozzle + cold bed -> HEATING_BED",
-    "[print][collector][heating][heater_correction]") {
-    // Reproduces the observed K2 screenshot: nozzle already at target (green),
-    // bed is the real long pole, but firmware's M109 latched HEATING_NOZZLE.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
-    collector().enable_fallbacks();
-
-    // Arm pattern matching, then latch HEATING_NOZZLE via a real M109 line.
-    send_gcode_response("PRINT_START");
-    send_gcode_response("M109 S140");
-    drain_async_updates();
-
-    // Precondition: the signal path genuinely latched HEATING_NOZZLE.
-    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-
-    // Bed 48.8/100C (heating), nozzle 139.7/140C (at target).
-    set_all_temps(488, 1000, 1397, 1400);
-
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-
-    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    REQUIRE(get_current_message() == "Heating Bed...");
-}
-
-TEST_CASE_METHOD(
-    PrintStartCollectorHeaterFixture,
-    "Heater correction: latched HEATING_BED with hot bed + cold nozzle -> HEATING_NOZZLE",
-    "[print][collector][heating][heater_correction]") {
-    // Symmetric case: bed reached target first, nozzle still climbing.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
-    collector().enable_fallbacks();
-
-    send_gcode_response("PRINT_START");
-    send_gcode_response("M190 S100");
-    drain_async_updates();
-
-    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-
-    // Bed 100/100C (at target), nozzle 100/210C (heating).
-    set_all_temps(1000, 1000, 1000, 2100);
-
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-
-    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-    REQUIRE(get_current_message() == "Heating Nozzle...");
-}
-
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Heater correction: non-heating latched phase (HOMING) is never relabeled",
+                 "Heater correction: a latched heating phase follows the heater still heating",
                  "[print][collector][heating][heater_correction]") {
-    // U1 protection: a firmware-signaled non-heating phase must survive even
-    // though both heaters read below target. Proves the scope guard.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
-    collector().enable_fallbacks();
+    struct Row {
+        const char* what;
+        const char* line;        ///< latches the phase through the real signal path
+        PrintStartPhase latched; ///< precondition
+        int bed, bed_target, nozzle, nozzle_target;
+        PrintStartPhase expected;
+        const char* message; ///< checked when not null
+    };
+    const Row rows[] = {
+        // The K2 case: M109 latched the nozzle, which is already at target.
+        {"hot nozzle, cold bed", "M109 S140", PrintStartPhase::HEATING_NOZZLE, 488, 1000, 1397,
+         1400, PrintStartPhase::HEATING_BED, "Heating Bed..."},
+        {"hot bed, cold nozzle", "M190 S100", PrintStartPhase::HEATING_BED, 1000, 1000, 1000, 2100,
+         PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle..."},
+        {"both heating resolves bed-first", "M109 S210", PrintStartPhase::HEATING_NOZZLE, 300, 600,
+         500, 2100, PrintStartPhase::HEATING_BED, nullptr},
+        // A firmware's non-heating phase is never relabeled, whatever the heaters read.
+        {"HOMING is left alone", "G28", PrintStartPhase::HOMING, 300, 1000, 500, 2100,
+         PrintStartPhase::HOMING, nullptr},
+    };
+    for (const auto& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            start_and_settle();
+            collector().enable_fallbacks();
+            send_gcode_response("PRINT_START");
+            send_gcode_response(r.line);
+            drain_async_updates();
+            REQUIRE(get_current_phase() == r.latched);
 
-    send_gcode_response("PRINT_START");
-    send_gcode_response("G28");
-    drain_async_updates();
+            set_all_temps(r.bed, r.bed_target, r.nozzle, r.nozzle_target);
+            tick_fallbacks();
 
-    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
-
-    // Both heaters well below target — a naive detector would fire HEATING_BED.
-    set_all_temps(300, 1000, 500, 2100);
-
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-
-    // Scope guard: HOMING is not a heating phase, so it must be left alone.
-    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
-}
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Heater correction: both heaters heating resolves bed-first",
-                 "[print][collector][heating][heater_correction]") {
-    // Tiebreak: when both are still heating, the bed (usual long pole) wins.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
-    collector().enable_fallbacks();
-
-    send_gcode_response("PRINT_START");
-    send_gcode_response("M109 S210");
-    drain_async_updates();
-
-    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-
-    // Bed 30/60C and nozzle 50/210C — both heating.
-    set_all_temps(300, 600, 500, 2100);
-
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-
-    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+            CHECK(get_current_phase() == r.expected);
+            if (r.message) {
+                CHECK(get_current_message() == r.message);
+            }
+        }
+    }
 }
 
 TEST_CASE_METHOD(
@@ -1450,9 +816,7 @@ TEST_CASE_METHOD(
     // re-checks under the lock and must refuse, so the newer phase is never
     // regressed. Here we reproduce that deterministically: drive the phase to QGL
     // (a non-heating phase), then invoke the relabel as if a stale snapshot did.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
     collector().enable_fallbacks();
 
     send_gcode_response("PRINT_START");
@@ -1474,245 +838,67 @@ TEST_CASE_METHOD(
 }
 
 // ============================================================================
-// Proactive Nozzle Heating Detection Tests
+// Proactive heater detection (no firmware signal yet)
 // ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Proactive detection: nozzle heating when bed is near target",
+                 "Proactive detection: the heater still short of its target names the phase",
                  "[print][collector][proactive][heating]") {
-    collector().start();
-    drain_async_updates();
-    collector().enable_fallbacks();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
+    // Decidegrees. A heater is heating while temp < target - 50 (5C) and its
+    // target is above 0; the bed wins while it is still heating.
+    struct Row {
+        const char* what;
+        int bed, bed_target, nozzle, nozzle_target;
+        PrintStartPhase expected;
+        const char* message; ///< checked when not null
+    };
+    const Row rows[] = {
+        {"bed at 25%, no nozzle target", 150, 600, 0, 0, PrintStartPhase::HEATING_BED,
+         "Heating Bed..."},
+        {"bed at 49%", 294, 600, 0, 0, PrintStartPhase::HEATING_BED, nullptr},
+        {"bed at 10% of 110C", 110, 1100, 0, 0, PrintStartPhase::HEATING_BED, nullptr},
+        {"bed at 50% beats a heating nozzle", 300, 600, 500, 2100, PrintStartPhase::HEATING_BED,
+         nullptr},
+        {"bed at 80% beats a heating nozzle", 480, 600, 1000, 2100, PrintStartPhase::HEATING_BED,
+         nullptr},
+        {"bed at 20%, nozzle heating", 200, 600, 500, 2100, PrintStartPhase::HEATING_BED, nullptr},
+        {"bed within tolerance hands over to the nozzle", 590, 600, 1000, 2100,
+         PrintStartPhase::HEATING_NOZZLE, nullptr},
+        {"bed near target, nozzle far", 550, 600, 500, 2100, PrintStartPhase::HEATING_NOZZLE,
+         "Heating Nozzle..."},
+        {"bed 2C short, nozzle heating", 580, 600, 1000, 2100, PrintStartPhase::HEATING_NOZZLE,
+         nullptr},
+        {"bed at target, nozzle ramping", 600, 600, 1500, 2100, PrintStartPhase::HEATING_NOZZLE,
+         nullptr},
+        {"exactly 5C short is not heating", 550, 600, 0, 0, PrintStartPhase::IDLE, nullptr},
+        {"5.1C short is heating", 549, 600, 0, 0, PrintStartPhase::HEATING_BED, nullptr},
+        {"4.9C short is not heating", 551, 600, 0, 0, PrintStartPhase::IDLE, nullptr},
+        {"zero bed target", 250, 0, 0, 0, PrintStartPhase::IDLE, nullptr},
+        {"both targets zero", 250, 0, 500, 0, PrintStartPhase::IDLE, nullptr},
+        {"zero bed target, nozzle heating", 250, 0, 500, 2100, PrintStartPhase::HEATING_NOZZLE,
+         nullptr},
+        {"both exactly at target", 600, 600, 2100, 2100, PrintStartPhase::IDLE, nullptr},
+        {"both within tolerance", 580, 600, 2070, 2100, PrintStartPhase::IDLE, nullptr},
+        {"both overshooting", 620, 600, 2120, 2100, PrintStartPhase::IDLE, nullptr},
+    };
+    for (const auto& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            collector().start();
+            drain_async_updates();
+            collector().enable_fallbacks();
+            reset_collector_to_idle();
+            collector().enable_fallbacks();
+            REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
 
-    SECTION("Bed near target, nozzle far from target triggers HEATING_NOZZLE") {
-        // Bed at 55C/60C (near target), nozzle at 50C/210C (far from target)
-        set_all_temps(550, 600, 500, 2100);
+            set_all_temps(r.bed, r.bed_target, r.nozzle, r.nozzle_target);
+            collector().check_fallback_completion();
+            drain_async_updates();
 
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-        REQUIRE(get_current_message() == "Heating Nozzle...");
-    }
-
-    SECTION("Bed at target (within tolerance), nozzle heating") {
-        // kTempToleranceDecidegrees = 50 (5C)
-        // Bed at 58C/60C (within 5C tolerance = at target)
-        // Nozzle at 100C/210C
-        set_all_temps(580, 600, 1000, 2100);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-    }
-
-    SECTION("Bed at exactly target, nozzle ramping") {
-        set_all_temps(600, 600, 1500, 2100);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-    }
-}
-
-// ============================================================================
-// Temperature Tolerance Edge Cases (kTempToleranceDecidegrees = 50)
-// ============================================================================
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Proactive detection respects TEMP_TOLERANCE_DECIDEGREES (50 = 5C)",
-                 "[print][collector][proactive][tolerance]") {
-    // Initialize temps to zero before starting to prevent proactive detection triggering
-    // during enable_fallbacks() call
-    set_all_temps(0, 0, 0, 0);
-
-    collector().start();
-    drain_async_updates();
-    collector().enable_fallbacks();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-    REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-
-    SECTION("Temp exactly at tolerance boundary is considered heating") {
-        // Target 60C (600), temp 55C (550), diff = 50 decideg = exactly at tolerance
-        // temp < target - tolerance means heating
-        // 550 < 600 - 50 = 550 < 550 is FALSE, so NOT heating
-        set_all_temps(550, 600, 0, 0);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        // At exactly tolerance, NOT considered heating (550 is not < 550)
-        REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Temp 1 decidegree below tolerance is considered heating") {
-        // Target 60C (600), temp 54.9C (549), diff = 51 decideg
-        // 549 < 600 - 50 = 549 < 550 is TRUE, so bed_heating = true
-        // Bed heating takes priority regardless of how close to target
-        set_all_temps(549, 600, 0, 0);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        // Bed is still heating (below tolerance), so HEATING_BED
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    }
-
-    SECTION("Temp 1 decidegree above tolerance is NOT heating") {
-        // Target 60C (600), temp 55.1C (551), diff = 49 decideg
-        // 551 < 600 - 50 = 551 < 550 is FALSE, so NOT heating
-        set_all_temps(551, 600, 0, 0);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-    }
-}
-
-// ============================================================================
-// Zero Target Temperature Tests
-// ============================================================================
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Proactive detection handles zero targets correctly",
-                 "[print][collector][proactive][edge]") {
-    collector().start();
-    drain_async_updates();
-    collector().enable_fallbacks();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-
-    SECTION("Zero bed target means no bed heating") {
-        // Bed target 0, so bed_heating = false (target > 0 && temp < target - tol)
-        set_all_temps(250, 0, 0, 0);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Zero extruder target means no nozzle heating") {
-        // Both targets 0
-        set_all_temps(250, 0, 500, 0);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Zero bed target but nozzle heating triggers HEATING_NOZZLE") {
-        // Bed target 0 (no bed heating), nozzle heating
-        set_all_temps(250, 0, 500, 2100);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-    }
-}
-
-// ============================================================================
-// Both Heaters at Target - No Proactive Detection
-// ============================================================================
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Proactive detection not triggered when both heaters at target",
-                 "[print][collector][proactive][edge]") {
-    collector().start();
-    drain_async_updates();
-    collector().enable_fallbacks();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-
-    SECTION("Both heaters exactly at target") {
-        set_all_temps(600, 600, 2100, 2100);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        // No heating detected, should remain IDLE
-        REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Both heaters within tolerance of target") {
-        // Bed 58C/60C, Nozzle 207C/210C - both within 5C tolerance
-        set_all_temps(580, 600, 2070, 2100);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-    }
-
-    SECTION("Heaters above target (overshooting)") {
-        // Bed 62C/60C, Nozzle 212C/210C - both above target
-        set_all_temps(620, 600, 2120, 2100);
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-    }
-}
-
-// ============================================================================
-// Proactive Detection Requires IDLE Phase
-// ============================================================================
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Proactive detection behavior from internal IDLE state",
-                 "[print][collector][proactive][state]") {
-    // NOTE: Proactive detection checks the collector's internal current_phase_,
-    // not the PrinterState subject. After start(), internal state is IDLE while
-    // PrinterState shows INITIALIZING. We can't easily set the internal state
-    // externally, so we test that proactive detection works from the internal
-    // IDLE state (set by start()).
-    //
-    // The previous test was incorrect - it set PrinterState externally but the
-    // collector's internal state remained IDLE, so proactive detection still
-    // triggered. The fix would require exposing internal state or testing
-    // through the G-code callback mechanism.
-
-    // Initialize temps to zero to prevent proactive detection during enable
-    set_all_temps(0, 0, 0, 0);
-
-    collector().start();
-    drain_async_updates();
-    collector().enable_fallbacks();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-    REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
-
-    SECTION("Proactive detection triggers from IDLE state when heaters heating") {
-        // The collector's internal state is IDLE (from start())
-        // Proactive detection should trigger when heaters are heating
-        set_all_temps(200, 600, 500, 2100); // Bed at 20C/60C, nozzle at 50C/210C
-
-        collector().check_fallback_completion();
-        drain_async_updates();
-
-        // Should detect heating - bed is < 50% of target so HEATING_BED
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    }
-
-    SECTION("After proactive detection triggers, subsequent calls don't change phase") {
-        // First call triggers HEATING_BED
-        set_all_temps(200, 600, 500, 2100);
-        collector().check_fallback_completion();
-        drain_async_updates();
-        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-
-        // Now heaters still heating, but internal state is no longer IDLE
-        // so proactive detection won't trigger again (but we can't verify
-        // this without accessing internal state)
+            CHECK(get_current_phase() == r.expected);
+            if (r.message) {
+                CHECK(get_current_message() == r.message);
+            }
+        }
     }
 }
 
@@ -2122,77 +1308,14 @@ static const char* const kSequentialStateProfile = R"JSON(
  * Loads kSequentialStateProfile and provides helpers for dispatching G-code
  * responses and reading progress values.
  */
-class PrintStartCollectorSequentialFixture : public LVGLTestFixture {
+class PrintStartCollectorSequentialFixture : public PrintStartCollectorHeaterFixture {
   public:
     PrintStartCollectorSequentialFixture() {
-        state_.init_subjects(false);
-        // Mark print as active so set_print_start_state() accepts phase updates
-        lv_subject_set_int(state_.print_state().get_print_active_subject(), 1);
-        client_ = std::make_unique<MoonrakerClientMock>();
-        collector_ = PrintStartCollector::create(*client_, state_);
         auto profile =
             PrintStartProfileTestAccess::parse(nlohmann::json::parse(kSequentialStateProfile));
         REQUIRE(profile != nullptr);
         collector_->set_profile(std::move(profile));
     }
-
-    ~PrintStartCollectorSequentialFixture() override {
-        if (collector_->is_active()) {
-            collector_->stop();
-        }
-        collector_.reset();
-        client_.reset();
-    }
-
-    PrinterState& state() {
-        return state_;
-    }
-    MoonrakerClientMock& client() {
-        return *client_;
-    }
-    PrintStartCollector& collector() {
-        return *collector_;
-    }
-
-    int get_current_progress() {
-        return lv_subject_get_int(state_.print_state().get_print_start_progress_subject());
-    }
-
-    PrintStartPhase get_current_phase() {
-        return static_cast<PrintStartPhase>(
-            lv_subject_get_int(state_.print_state().get_print_start_phase_subject()));
-    }
-
-    std::string get_current_message() {
-        return lv_subject_get_string(state_.print_state().get_print_start_message_subject());
-    }
-
-    void send_gcode_response(const std::string& line) {
-        json msg = {{"method", "notify_gcode_response"}, {"params", {line}}};
-        client().dispatch_method_callback("notify_gcode_response", msg);
-        drain_async_updates();
-    }
-
-    /**
-     * @brief Feed a status frame through the real notify_status_update path
-     *
-     * dispatch_status_update wraps the object exactly as the live WebSocket
-     * does, so the collector's status subscription runs its phase-object
-     * handling on it.
-     */
-    void send_status_update(const json& object) {
-        client().dispatch_status_update(object);
-        drain_async_updates();
-    }
-
-    void drain_async_updates() {
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
-    }
-
-  protected:
-    PrinterState state_;
-    std::unique_ptr<MoonrakerClientMock> client_;
-    std::shared_ptr<PrintStartCollector> collector_;
 };
 
 // ============================================================================
@@ -2906,202 +2029,50 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 }
 
 // ============================================================================
-// ADAPTIVE TIMEOUT TESTS
-//
-// Tests for the adaptive timeout behavior introduced to prevent premature
-// completion on bed-first macros (e.g., AD5M with ABS). Uses
-// PrintStartCollectorTestAccess to simulate elapsed time and set predictions.
+// Timeout fallbacks (elapsed time and predictions set through
+// PrintStartCollectorTestAccess)
 // ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Timeout fallback does not fire when nozzle target is zero",
+                 "Timeout fallback: when a quiet pre-print is declared started",
                  "[print][collector][timeout]") {
-    // Simulate AD5M ABS scenario: bed at target, nozzle target not yet set by macro
-    collector().start();
-    drain_async_updates();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
+    // Without a prediction the fallback timeout is 300s and needs both heaters
+    // within 2C of a non-zero target; a prediction stretches it to 1.5x; the
+    // ceiling, max(2.5x prediction, 1800s), fires whatever the heaters read.
+    struct Row {
+        const char* what;
+        float predicted;
+        int bed, bed_target, nozzle, nozzle_target;
+        int elapsed;
+        bool completes;
+    };
+    const Row rows[] = {
+        {"nozzle target still 0 (AD5M ABS)", 0.0f, 1050, 1050, 500, 0, 400, false},
+        {"nozzle hot but target 0", 0.0f, 1050, 1050, 2610, 0, 400, false},
+        {"both near, past 300s", 0.0f, 1050, 1050, 2640, 2650, 310, true},
+        {"nozzle 1C short counts as at target", 0.0f, 1050, 1050, 2640, 2650, 400, true},
+        {"prediction 500s: not before 750s", 500.0f, 1050, 1050, 2650, 2650, 400, false},
+        {"prediction 500s: fires past 750s", 500.0f, 1050, 1050, 2650, 2650, 760, true},
+        {"prediction 400s: ceiling not reached at 950s", 400.0f, 1050, 1050, 500, 0, 950, false},
+        {"prediction 400s: ceiling ignores temperature", 400.0f, 1050, 1050, 500, 0, 1850, true},
+        {"no prediction: 1800s ceiling ignores temperature", 0.0f, 1050, 1050, 500, 0, 1850, true},
+    };
+    for (const auto& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            collector().start();
+            drain_async_updates();
+            reset_collector_to_idle();
+            collector().enable_fallbacks();
+            REQUIRE(collector().is_active());
 
-    // Force no predictions so kFallbackTimeout (300s) applies directly
-    PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
+            PrintStartCollectorTestAccess::set_predicted_total(collector(), r.predicted);
+            set_all_temps(r.bed, r.bed_target, r.nozzle, r.nozzle_target);
+            PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), r.elapsed);
+            tick_fallbacks();
 
-    // Bed at target (105°C), nozzle target = 0 (M109 not issued yet)
-    set_all_temps(1050, 1050, 500, 0);
-    // Simulate 400s elapsed (well past kFallbackTimeout of 300s)
-    PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 400);
-
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-
-    // Should NOT complete — nozzle target unknown means temps_near is false
-    REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
-}
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Timeout fallback fires when both targets set and near",
-                 "[print][collector][timeout]") {
-    collector().start();
-    drain_async_updates();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-    REQUIRE(collector().is_active());
-
-    // Force no predictions so kFallbackTimeout (300s) applies directly
-    PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
-
-    // Both heaters at their targets (within 2°C)
-    set_all_temps(1050, 1050, 2640, 2650);
-    // Simulate 310s elapsed (past kFallbackTimeout of 300s)
-    PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 310);
-
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-
-    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
-}
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Adaptive timeout extends deadline when predictions available",
-                 "[print][collector][timeout]") {
-    collector().start();
-    drain_async_updates();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-
-    // Set predicted total to 500s (adaptive timeout = 500 * 1.5 = 750s)
-    PrintStartCollectorTestAccess::set_predicted_total(collector(), 500.0f);
-
-    // Both heaters at their targets
-    set_all_temps(1050, 1050, 2650, 2650);
-
-    SECTION("Does not fire before adaptive timeout") {
-        // 400s elapsed — past kFallbackTimeout but before adaptive (750s)
-        PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 400);
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-        REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+            CHECK((get_current_phase() == PrintStartPhase::COMPLETE) == r.completes);
+        }
     }
-
-    SECTION("Fires after adaptive timeout with temps near") {
-        // 760s elapsed — past adaptive timeout (750s)
-        PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 760);
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-        REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
-    }
-}
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Absolute timeout fires even without temps near when predicted",
-                 "[print][collector][timeout]") {
-    collector().start();
-    drain_async_updates();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-
-    // Predicted total 400s: the ceiling is max(400*2.5, 1800s), above the
-    // longest legitimate pre-print (the K2 Plus runs ~1140s: heat, ~390s mesh,
-    // purge).
-    PrintStartCollectorTestAccess::set_predicted_total(collector(), 400.0f);
-
-    // Nozzle target still 0 — temps_near will be false
-    set_all_temps(1050, 1050, 500, 0);
-
-    SECTION("Does not fire before absolute timeout") {
-        PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 950);
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-        REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
-    }
-
-    SECTION("Fires at absolute timeout regardless of temps") {
-        // Still fires with temps_near false — the ceiling ignores temperature.
-        PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 1850);
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-        REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
-    }
-}
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "Absolute max timeout fires without predictions",
-                 "[print][collector][timeout]") {
-    collector().start();
-    drain_async_updates();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-
-    // Force no predictions — kFallbackTimeout (300s) applies
-    PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
-
-    // Nozzle target = 0 — temps_near stays false, kFallbackTimeout won't fire
-    set_all_temps(1050, 1050, 500, 0);
-
-    SECTION("FALLBACK_TIMEOUT does not fire with unknown nozzle target") {
-        PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 400);
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-        REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
-    }
-
-    SECTION("ABSOLUTE_MAX_TIMEOUT fires as hard ceiling") {
-        // Past the 1800s ceiling with nothing said for as long, whatever the
-        // temperatures read.
-        PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 1850);
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
-        REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
-    }
-}
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Nozzle hot but target=0 blocks timeout completion",
-                 "[print][collector][timeout]") {
-    // Even with nozzle physically hot, ext_target=0 means the macro hasn't
-    // commanded M109 yet — temps_near must be false
-    collector().start();
-    drain_async_updates();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-    PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
-
-    set_all_temps(1050, 1050, 2610, 0); // Nozzle hot but target=0 (not set by macro)
-    PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 400);
-
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-
-    REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
-}
-
-TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
-                 "Nozzle within 2C of its target counts as at target",
-                 "[print][collector][timeout]") {
-    collector().start();
-    drain_async_updates();
-    reset_collector_to_idle();
-    collector().enable_fallbacks();
-
-    // Force no predictions so kFallbackTimeout (300s) applies directly
-    PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
-
-    // Nozzle at 264°C with target 265°C: inside the 2°C at-target band.
-    set_all_temps(1050, 1050, 2640, 2650);
-    PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 400);
-
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-
-    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
 }
 
 /**
@@ -3880,12 +2851,8 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 
     // Let time pass as if the firmware were idling before its real sequence.
     PrintStartCollectorTestAccess::set_temps_ready_elapsed_seconds(collector(), 30);
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
+    tick_fallbacks();
 
     // The display must NOT have jumped to the last pre-print steps before the
     // printer has done anything. (Old behavior: silent_progression announced
@@ -3914,9 +2881,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     // Bed and nozzle both well below target, which alone reads as HEATING_BED.
     // The firmware phase stands.
     set_all_temps(/*bed*/ 200, 600, /*ext*/ 1000, 2000);
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     INFO("phase=" << static_cast<int>(get_current_phase()) << " msg=" << get_current_message());
     REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
 
@@ -3926,9 +2891,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 
     // Still no proactive override even as temps keep changing.
     set_all_temps(600, 600, 1500, 2000);
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
 }
 
@@ -3945,25 +2908,19 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     // as "Heating Bed".
     lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xy");
     set_all_temps(/*bed*/ 250, 550, /*ext*/ 0, 0);
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
 
     // Klipper clears homed_axes to "" as each axis re-homes during G28. That
     // empty-string blip must NOT flip the label to "Heating Bed" — the HOMING
     // latch holds until the toolhead is actually fully homed.
     lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "");
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
 
     // Once fully homed, proactive may surface the bed heating (still pre-signal).
     lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
 }
 
@@ -4099,9 +3056,7 @@ class SnapmakerHeaterWaitFixture : public SnapmakerCollectorFixture {
     }
 
     void tick() {
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
+        tick_fallbacks();
     }
 
     void set_chamber(int temp_decideg, int target_decideg) {
@@ -4364,40 +3319,20 @@ TEST_CASE_METHOD(
     }
 }
 
-TEST_CASE_METHOD(
-    SnapmakerHeaterWaitFixture,
-    "Snapmaker U1: a wait past the nozzle and bed on a printer with no chamber is not one",
-    "[print][collector][snapmaker][heater_wait][chamber_wait]") {
-    set_all_temps(/*bed*/ 1000, 1000, /*ext*/ 2100, 2100);
-    for (int t = 0; t < 10; ++t) {
-        clock_.advance(std::chrono::seconds(1));
-        feed_gcode("B:100.0 /100.0 T0:210.0 /210.0");
-        tick();
+TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
+                 "a wait past the nozzle and bed is not the chamber's unless its heater is",
+                 "[print][collector][heater_wait][chamber_wait]") {
+    // Each wait reports bed and nozzle at target for a while; none of these is
+    // a stalled chamber heater, so the announced phase stays.
+    SECTION("no chamber at all") {}
+    SECTION("a sensor-only chamber soak (Voron heat soak, no chamber heater)") {
+        state().temperature_state().set_chamber_sensor_name("temperature_sensor chamber");
+        set_chamber(300, 0);
     }
-    CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
-    CHECK(chamber_wait_flag() == 0);
-}
-
-TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
-                 "a sensor-only chamber soak is a wait and never the chamber heater's",
-                 "[print][collector][heater_wait][chamber_wait]") {
-    // A Voron heat soak: TEMPERATURE_WAIT SENSOR="temperature_sensor chamber"
-    // MINIMUM=40 with no chamber heater at all.
-    state().temperature_state().set_chamber_sensor_name("temperature_sensor chamber");
-    set_chamber(300, 0);
-    set_all_temps(/*bed*/ 1000, 1000, /*ext*/ 2100, 2100);
-    report_for(15);
-    CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
-    CHECK(chamber_wait_flag() == 0);
-}
-
-TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
-                 "another wait on a printer with a healthy chamber heater is not the chamber's",
-                 "[print][collector][heater_wait][chamber_wait]") {
-    // A probe coil warming (TEMPERATURE_WAIT on the probe's sensor) while the
-    // chamber heater sits idle with nothing refused.
-    use_appliance_chamber();
-    set_chamber(300, 0);
+    SECTION("a probe coil warming beside an idle chamber heater that refused nothing") {
+        use_appliance_chamber();
+        set_chamber(300, 0);
+    }
     set_all_temps(/*bed*/ 1000, 1000, /*ext*/ 2100, 2100);
     report_for(15);
     CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
@@ -4705,9 +3640,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xy");
     set_all_temps(/*bed*/ 250, 1000, /*ext*/ 0, 0);
     feed_gcode("B:25.0 /100.0");
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
 }
 
@@ -4754,9 +3687,7 @@ class ArtilleryHeaterWaitFixture : public PrintStartCollectorHeaterFixture {
     }
 
     void tick() {
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
+        tick_fallbacks();
     }
 
     int progress() {
@@ -5316,9 +4247,7 @@ TEST_CASE_METHOD(SnapmakerStartBlockFixture,
     set_all_temps(/*bed*/ 870, 1000, /*ext*/ 1900, 1700);
     feed_gcode("B:87.0 /100.0 T1:190.0 /170.0");
     for (int i = 0; i < 2; ++i) {
-        collector().check_fallback_completion();
-        drain_async_updates();
-        drain_async_updates();
+        tick_fallbacks();
     }
     // The nozzle above its target reads as arrived, so a guess says the bed.
     CHECK(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
@@ -5781,9 +4710,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     // z_compensation, one without). The entry threshold counted raw lines, so
     // six lines tripped a threshold of three and the collector announced
     // "Bed Mesh" 79 seconds before BED_MESH_CALIBRATE actually ran.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
     collector().enable_fallbacks();
 
     for (double x : {147.588, 150.588, 153.588}) {
@@ -5806,9 +4733,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "[print][collector][mesh]") {
     // The threshold exists for firmware that emits no mesh-start line at all.
     // Raising it must not break that: a genuine sweep crosses it and enters.
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
     collector().enable_fallbacks();
 
     for (int i = 0; i < 8; ++i) {
@@ -6205,9 +5130,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     // ...but the printer spoke 10 seconds ago.
     PrintStartCollectorTestAccess::set_last_activity_seconds_ago(collector(), 10);
 
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
 
     REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
 }
@@ -6225,9 +5148,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "Timeout fires once the print
     // Nothing heard for well over the quiet window — this one really is stuck.
     PrintStartCollectorTestAccess::set_last_activity_seconds_ago(collector(), 300);
 
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
 
     REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
 }
@@ -6247,9 +5168,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 1100);
     PrintStartCollectorTestAccess::set_last_activity_seconds_ago(collector(), 3);
 
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
 
     REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
 }
@@ -6299,9 +5218,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "A probe line counts as pre-p
     send_gcode_response("// probe at 100.000,100.000 is z=-0.031000");
     drain_async_updates();
 
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
 
     REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
 }
@@ -7056,9 +5973,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     // the two heating phases, so a gated-off detector shows HEATING_BED.
     lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xy");
     set_all_temps(/*bed*/ 235, 600, /*ext*/ 0, 0);
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
 
     INFO("phase=" << static_cast<int>(get_current_phase()) << " msg=" << get_current_message());
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
@@ -7102,9 +6017,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "[print][collector][simclock]") {
     helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
 
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
 
     // Enter a phase the collector timestamps, with no time on the clock yet.
     client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}, {"target", 60.0}}}});
@@ -7143,9 +6056,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     // half cannot pass by the collector simply not running.
     helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
 
-    collector().start();
-    drain_async_updates();
-    drain_async_updates();
+    start_and_settle();
     collector().enable_fallbacks();
 
     // Temps at target and nothing being said: the quiet path. The first call
@@ -7159,16 +6070,12 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
 
     clock.advance(std::chrono::seconds(299));
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
 
     // Two more simulated seconds is all it takes — no real waiting at all.
     clock.advance(std::chrono::seconds(2));
-    collector().check_fallback_completion();
-    drain_async_updates();
-    drain_async_updates();
+    tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
 }
 
