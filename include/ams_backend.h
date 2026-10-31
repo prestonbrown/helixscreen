@@ -2536,6 +2536,12 @@ class AmsBackend {
         return AmsErrorHelper::not_supported("Purge chute calibration");
     }
 
+    /// Jog the toolhead's X by @p delta_mm during chute calibration.
+    virtual AmsError jog_chute_x(float delta_mm) {
+        (void)delta_mm;
+        return AmsErrorHelper::not_supported("Purge chute calibration");
+    }
+
     /// Save the current toolhead position as the chute's extrude position.
     virtual AmsError
     save_chute_position(std::function<void()> on_saved = nullptr,

@@ -4522,6 +4522,17 @@ AmsError AmsBackendCfs::jog_chute_y(float delta_mm) {
     return execute_gcode(script);
 }
 
+AmsError AmsBackendCfs::jog_chute_x(float delta_mm) {
+    if (macro_variant_ != CfsMacroVariant::K1) {
+        return AmsErrorHelper::not_supported("Purge chute jog is K1-stock only");
+    }
+    const std::string script =
+        fmt::format("SAVE_GCODE_STATE NAME=myMoveState\n G91\n G0 X{:.3f} F3000\n M400\n"
+                    " RESTORE_GCODE_STATE NAME=myMoveState",
+                    delta_mm);
+    return execute_gcode(script);
+}
+
 AmsError
 AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
                                    std::function<void(const std::string& klipper_msg)> on_failed) {
