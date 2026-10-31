@@ -271,3 +271,52 @@ esac
     [ -d "$bogus" ]
     [[ "$output" == *"Refusing"* ]]
 }
+
+# =============================================================================
+# Sizes do not trust allocated blocks: ZFS counts a file written seconds ago as
+# about one block until its transaction group commits.
+# =============================================================================
+
+@test "the extract pre-flight sizes the archive by its length, not its allocated blocks" {
+    mock_command_script "du" 'echo "1	stub"'
+    mock_command_script "df" '
+echo "Filesystem  1K-blocks  Used Available Use% Mounted on"
+echo "/dev/tmpfs 1048576 0 40960 95% /"
+'
+    dd if=/dev/zero of="$TMP_DIR/helixscreen.tar.gz" bs=1048576 count=0 seek=20 2>/dev/null
+
+    run extract_release "ad5m"
+
+    [ "$status" -ne 0 ]
+    # 3 x 20MB + the 20MB margin; one allocated block would ask for 23MB and pass.
+    [[ "$output" == *"need 80MB"* ]] || fail "unexpected output: $output"
+}
+
+@test "the install-partition check sizes the new tree by the larger of allocated and apparent" {
+    setup_existing_install
+    create_test_tarball "ad5m"
+    export HELIX_ROLLBACK_CANDIDATES="$BATS_TEST_TMPDIR/does-not-exist"
+    local install_parent
+    install_parent="$(dirname "$INSTALL_DIR")"
+    mock_command_script "du" '
+case " $* " in
+    *" --apparent-size "*) echo "500	stub" ;;
+    *) echo "1	stub" ;;
+esac
+'
+    mock_command_script "df" '
+for _path in "$@"; do :; done
+echo "Filesystem  1K-blocks  Used Available Use% Mounted on"
+case "$_path" in
+    '"$install_parent"'*) echo "/dev/installfs 1048576 0 102400 90% '"$install_parent"'" ;;
+    *) echo "/dev/tmpfs 99999999 0 9999999 1% /" ;;
+esac
+'
+
+    run extract_release "ad5m"
+
+    [ "$status" -ne 0 ]
+    # 100MB free holds one allocated MB, not the 500MB tree.
+    [[ "$output" == *"(~500MB)"* ]] || fail "unexpected output: $output"
+    [ -f "$INSTALL_DIR/bin/helix-screen" ]
+}
