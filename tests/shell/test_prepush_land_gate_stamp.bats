@@ -15,10 +15,16 @@ setup() {
     export HELIX_LAND_GATE_SHARED_STAMP_DIR="$BATS_TEST_TMPDIR/shared-stamps"
     # Every ssh is this fake: it logs the host, and runs the remote command
     # under sh as the host's login shell would, with that host's state
-    # directory at $BATS_TEST_TMPDIR/remote/<host>. down.* refuses.
+    # directory at $BATS_TEST_TMPDIR/remote/<host>. down.* refuses, hang.*
+    # never answers, and quiet.* exits 0 without running anything, as a
+    # forced command would.
     mock_command_script ssh 'while [ $# -gt 0 ]; do case "$1" in -o) shift 2 ;; *) break ;; esac; done
 echo "$1" >> "$BATS_TEST_TMPDIR/ssh-calls"
-case "$1" in down.*) echo "ssh: connect to host $1 port 22: Connection refused" >&2; exit 255 ;; esac
+case "$1" in
+    down.*) echo "ssh: connect to host $1 port 22: Connection refused" >&2; exit 255 ;;
+    hang.*) exec sleep 30 ;;
+    quiet.*) exit 0 ;;
+esac
 XDG_STATE_HOME="$BATS_TEST_TMPDIR/remote/$1" exec sh -c "$2"'
     unset HELIX_PREPUSH_FULL HELIX_PREPUSH_IN_PLACE
     ROOT="$BATS_TEST_TMPDIR/repo"
@@ -222,4 +228,26 @@ run_hook() { # push TIP to a remote that has BASE
     contains "-oProxyCommand=x: not a host name" "$output"
     contains "a;b: not a host name" "$output"
     [ ! -e "$BATS_TEST_TMPDIR/ssh-calls" ]
+}
+
+@test "a gate host that does not answer in time is given up on, and the sweep runs" {
+    remote_stamp hang.invalid "$TIP"
+    gate_hosts hang.invalid
+    start=$(date +%s)
+    HELIX_HOST_PROBE_SECS=1 run_hook
+    [ "$status" -eq 0 ]
+    [ $(( $(date +%s) - start )) -le 10 ]
+    contains "(hang.invalid: timeout after 1s); running the sweep" "$output"
+    contains "ran: quality-checks" "$output"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$TIP" ]
+}
+
+@test "a gate host that exits 0 without the record token is a no" {
+    remote_stamp quiet.invalid "$TIP"
+    gate_hosts quiet.invalid
+    run_hook
+    [ "$status" -eq 0 ]
+    contains "(quiet.invalid: answered without the record token); running the sweep" "$output"
+    contains "ran: quality-checks" "$output"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$TIP" ]
 }

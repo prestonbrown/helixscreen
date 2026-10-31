@@ -142,11 +142,17 @@ via_shell() { run bash -c '. "$1"; echo "host=[${REMOTE_HOST:-}] dir=[${REMOTE_D
 
 @test "a probe with a remote command returns that command's status, 255 for ssh's own failure" {
     mock_command_script ssh 'while [ $# -gt 1 ]; do shift; done
-case "$1" in true) exit 0 ;; no) exit 1 ;; *) echo "ssh: connect to host x port 22: Connection refused" >&2; exit 255 ;; esac'
+case "$1" in true) exit 0 ;; say) echo said; exit 0 ;; no) echo partial; exit 1 ;; *) echo "ssh: connect to host x port 22: Connection refused" >&2; exit 255 ;; esac'
     run bash -c '. "$1"; probe_build_host h.invalid' _ "$LIB"
     [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    # On success the command's stdout is the probe's; on failure it is not.
+    run bash -c '. "$1"; probe_build_host h.invalid say' _ "$LIB"
+    [ "$status" -eq 0 ]
+    [ "$output" = said ]
     run bash -c '. "$1"; probe_build_host h.invalid no' _ "$LIB"
     [ "$status" -eq 1 ]
+    lacks partial "$output"
     run bash -c '. "$1"; probe_build_host h.invalid refuse' _ "$LIB"
     [ "$status" -eq 255 ]
     contains "refused" "$output"
