@@ -214,6 +214,7 @@ TEST_CASE("circuit breaker: disabled after null parent failure",
     result = helix::ui::create_blurred_backdrop(nullptr, 180);
     REQUIRE(result == nullptr);
     REQUIRE(is_blur_disabled());
+    reset_circuit_breaker();
 }
 
 TEST_CASE("circuit breaker: cleanup keeps blur disabled", "[backdrop_blur][circuit_breaker]") {
@@ -226,6 +227,7 @@ TEST_CASE("circuit breaker: cleanup keeps blur disabled", "[backdrop_blur][circu
     // Cleanup keeps blur disabled (pending stability testing)
     helix::ui::backdrop_blur_cleanup();
     REQUIRE(is_blur_disabled());
+    reset_circuit_breaker();
 }
 
 // ============================================================================
