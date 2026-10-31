@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "helix_shared_callback.h"
 #include "lvgl/lvgl.h"
@@ -348,7 +350,7 @@ class Modal {
 
   protected:
     // Modal state
-    lv_obj_t* backdrop_ = nullptr;
+    helix::ui::WidgetRef backdrop_;
     lv_obj_t* dialog_ = nullptr;
     lv_obj_t* parent_ = nullptr;
 

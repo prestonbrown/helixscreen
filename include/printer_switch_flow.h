@@ -5,6 +5,7 @@
 
 #include "ui_observer_guard.h"
 #include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "helix_shared_callback.h"
@@ -133,7 +134,7 @@ class PrinterSwitchFlow {
     std::string m_connected_printer_id;
 
     /// The card on the top layer that covers a restart; null when none is up.
-    lv_obj_t* m_interstitial = nullptr;
+    helix::ui::WidgetRef m_interstitial;
     ObserverGuard m_connect_observer;
     ui::LvglTimerGuard m_connect_timeout;
 

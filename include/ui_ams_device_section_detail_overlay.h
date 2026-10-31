@@ -178,7 +178,7 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
     //
 
     /// Alias for overlay_root_ to match existing pattern
-    lv_obj_t*& overlay_ = overlay_root_;
+    helix::ui::WidgetRef& overlay_ = overlay_root_;
 
     /// Container for section action controls
     lv_obj_t* actions_container_ = nullptr;

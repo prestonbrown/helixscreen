@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "gcode_preview_fetcher.h"
 #include "lvgl.h"
@@ -145,7 +147,7 @@ class PrintPreviewController {
     IMoonrakerAPI* api_ = nullptr;
     GcodePreviewFetcher fetcher_;
 
-    lv_obj_t* print_thumbnail_ = nullptr;
+    helix::ui::WidgetRef print_thumbnail_;
     lv_obj_t* gcode_viewer_ = nullptr;
 
     std::string displayed_file_;

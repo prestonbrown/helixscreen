@@ -6,6 +6,7 @@
 #include "ui_effects.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -23,7 +24,7 @@ namespace helix {
 // ============================================================================
 namespace {
 
-lv_obj_t* g_overlay = nullptr;       // Full-screen backdrop
+helix::ui::WidgetRef g_overlay;      // Full-screen backdrop
 lv_obj_t* g_spinner = nullptr;       // Centered spinner
 lv_obj_t* g_label = nullptr;         // Progress text below spinner
 lv_timer_t* g_grace_timer = nullptr; // Delayed show timer

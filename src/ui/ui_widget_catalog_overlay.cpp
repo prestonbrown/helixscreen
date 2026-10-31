@@ -12,6 +12,7 @@
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
 #include "grid_layout.h"
 #include "home_layout_sync.h"
@@ -76,7 +77,7 @@ uint32_t g_copy_fetch_generation = 0;
 
 struct CatalogState {
     lv_obj_t* overlay_root = nullptr;
-    lv_obj_t* backdrop = nullptr;      // Semi-transparent dark backdrop behind the catalog
+    helix::ui::WidgetRef backdrop;     // Semi-transparent dark backdrop behind the catalog
     lv_obj_t* category_root = nullptr; // Pushed category sub-page, nullptr at the top level
     lv_obj_t* parent_screen = nullptr;
     const PanelWidgetConfig* config = nullptr; // Owned by the caller (GridEditMode)
@@ -152,8 +153,8 @@ void retire_overlay(lv_obj_t* overlay, const char* tag) {
         return;
     }
     helix::nav::unregister_overlay(overlay);
-    helix::ui::queue_update(tag, [overlay]() { // QUEUE_TAG_OK: callers pass literals
-        lv_obj_t* condemned = overlay;
+    helix::ui::queue_update(tag, [condemned = helix::ui::WeakWidget(
+                                      overlay)]() mutable { // QUEUE_TAG_OK: callers pass literals
         helix::ui::safe_delete_deferred(condemned);
     });
 }

@@ -715,7 +715,7 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
     }
 
     // Clear existing bar rows
-    for (auto* row : filament_bar_rows_) {
+    for (auto& row : filament_bar_rows_) {
         helix::ui::safe_delete(row);
     }
     filament_bar_rows_.clear();
@@ -823,7 +823,7 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
         lv_obj_set_style_pad_gap(row, theme_manager_get_spacing("space_xxs"), 0);
         lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        filament_bar_rows_.push_back(row);
+        filament_bar_rows_.emplace_back(row);
 
         // Use readable font size (small but legible)
         const lv_font_t* font_small = lv_xml_get_font(nullptr, "montserrat_14");

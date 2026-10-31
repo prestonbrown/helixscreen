@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "gcode_response_routing.h"
 #include "hardware_fingerprint.h"
@@ -184,7 +186,7 @@ class PrinterSession {
     GcodeResponseRouting m_routing;
 
     lv_obj_t*& m_screen;
-    lv_obj_t* m_app_layout = nullptr;
+    helix::ui::WidgetRef m_app_layout;
     struct OverlayPanels {
         lv_obj_t* motion = nullptr;
         lv_obj_t* nozzle_temp = nullptr;

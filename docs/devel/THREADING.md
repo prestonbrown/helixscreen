@@ -352,7 +352,7 @@ are ratcheted by `scripts/check_cached_widget_pointers.py`; opt out with
 | `object_lifetime_.defer(tag, fn)` / `lifetime_.defer(tag, fn)` | main thread, work bound to an object |
 | `guard.bg_cb(tag, fn)` | built on the main thread, handed to a background API; it defers and guards |
 | `queue_update(tag, fn)` | work bound to no object: singletons reached through `instance()`, process-wide UI such as `BusyOverlay`, work that must run even if its requester is gone |
-| `queue_widget_update(obj, fn)` / `queue_invalidate(obj)` | work bound to a widget, skipped once `lv_obj_is_valid()` fails |
+| `queue_widget_update(obj, fn)` / `queue_invalidate(obj)` | work bound to a widget, skipped once it is deleted. A raw `lv_obj_t*` here is LVGL-thread only; a background thread passes a `helix::ui::WeakWidget` made on the LVGL thread (`include/ui_widget_ref.h`) |
 | `run_next_tick(token, fn)` / `run_next_tick(fn)` | needs LVGL's async list (outside the current event dispatch and outside the UpdateQueue batch) |
 
 `lv_async_call(` outside `include/ui_next_tick.h`, the `void*` `async_call`, and

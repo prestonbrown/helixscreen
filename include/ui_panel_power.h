@@ -5,6 +5,7 @@
 
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "i_moonraker_api.h" // Need full definition for PowerDevice
@@ -85,7 +86,7 @@ class PowerPanel : public PanelBase {
 
     // Device state tracking
     struct DeviceRow {
-        lv_obj_t* container = nullptr;
+        helix::ui::WeakWidget container;
         lv_obj_t* toggle = nullptr;
         std::string device_name;
         bool locked = false;

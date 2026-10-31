@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "lvgl.h"
 
@@ -259,7 +260,7 @@ class KeyboardManager {
     ObserverGuard theme_observer_;
 
     // Global keyboard instance
-    lv_obj_t* keyboard_ = nullptr;
+    helix::ui::WidgetRef keyboard_;
     lv_obj_t* context_textarea_ = nullptr;
 
     // Keyboard font with MDI fallback
@@ -271,7 +272,7 @@ class KeyboardManager {
 
     // Long-press state tracking
     LongPressState longpress_state_ = LP_IDLE;
-    lv_obj_t* overlay_ = nullptr;
+    helix::ui::WidgetRef overlay_;
     uint32_t pressed_btn_id_ = 0;
     char pressed_char_ = 0;
     const char* alternatives_ = nullptr;

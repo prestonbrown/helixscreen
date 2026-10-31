@@ -88,15 +88,14 @@ TEST_CASE("GridEditMode: double enter is no-op", "[grid_edit][edit_mode]") {
     REQUIRE_FALSE(em.is_active());
 }
 
-TEST_CASE("GridEditMode: select/deselect widget tracking", "[grid_edit][selection]") {
+TEST_CASE_METHOD(LVGLTestFixture, "GridEditMode: select/deselect widget tracking",
+                 "[grid_edit][selection]") {
     GridEditMode em;
     em.enter(nullptr, nullptr);
 
     REQUIRE(em.selected_widget() == nullptr);
 
-    // Use a reinterpret_cast'd pointer for tracking test (lv_obj_t is opaque)
-    int dummy = 0;
-    auto* fake = reinterpret_cast<lv_obj_t*>(&dummy);
+    lv_obj_t* fake = lv_obj_create(test_screen());
     em.select_widget(fake);
     REQUIRE(em.selected_widget() == fake);
 
@@ -109,12 +108,12 @@ TEST_CASE("GridEditMode: select/deselect widget tracking", "[grid_edit][selectio
     REQUIRE(em.selected_widget() == nullptr);
 }
 
-TEST_CASE("GridEditMode: selecting same widget is no-op", "[grid_edit][selection]") {
+TEST_CASE_METHOD(LVGLTestFixture, "GridEditMode: selecting same widget is no-op",
+                 "[grid_edit][selection]") {
     GridEditMode em;
     em.enter(nullptr, nullptr);
 
-    int dummy = 0;
-    auto* fake = reinterpret_cast<lv_obj_t*>(&dummy);
+    lv_obj_t* fake = lv_obj_create(test_screen());
     em.select_widget(fake);
     REQUIRE(em.selected_widget() == fake);
 
@@ -125,10 +124,10 @@ TEST_CASE("GridEditMode: selecting same widget is no-op", "[grid_edit][selection
     em.exit();
 }
 
-TEST_CASE("GridEditMode: select_widget when not active is no-op", "[grid_edit][selection]") {
+TEST_CASE_METHOD(LVGLTestFixture, "GridEditMode: select_widget when not active is no-op",
+                 "[grid_edit][selection]") {
     GridEditMode em;
-    int dummy = 0;
-    auto* fake = reinterpret_cast<lv_obj_t*>(&dummy);
+    lv_obj_t* fake = lv_obj_create(test_screen());
 
     em.select_widget(fake);
     REQUIRE(em.selected_widget() == nullptr);

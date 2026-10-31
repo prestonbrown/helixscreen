@@ -220,7 +220,7 @@ class SpoolmanOverlay : public OverlayBase {
     //
 
     /// Alias for overlay_root_ to match existing pattern
-    lv_obj_t*& overlay_ = overlay_root_;
+    helix::ui::WidgetRef& overlay_ = overlay_root_;
 
     /// Sync toggle widget
     lv_obj_t* sync_toggle_ = nullptr;

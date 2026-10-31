@@ -4,6 +4,7 @@
 
 #include "ui_observer_guard.h"
 #include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "lvgl/lvgl.h"
@@ -277,7 +278,7 @@ class AbortManager {
     bool subjects_initialized_ = false;
 
     // Modal backdrop + dialog (created on lv_layer_top() for overlay behavior)
-    lv_obj_t* backdrop_ = nullptr;
+    helix::ui::WidgetRef backdrop_;
 
     // Observer for klippy state changes during WAITING_RECONNECT
     ObserverGuard klippy_observer_;

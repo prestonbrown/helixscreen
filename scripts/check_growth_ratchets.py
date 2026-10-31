@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Gate: a branch does not grow the codebase sideways (prestonbrown/helixscreen#1945).
 
-Three ratchets, each measured from the branch's fork point (scripts/diff_base.py)
+Four ratchets, each measured from the branch's fork point (scripts/diff_base.py)
 to HEAD over committed work, so there is no baseline file for parallel branches
 to conflict on. A count may fall; a branch may not raise it.
 
@@ -27,6 +27,11 @@ to conflict on. A count may fall; a branch may not raise it.
                    `Foo* s_active_ctx = nullptr;`, ...). The branch's total may
                    not rise; an out-of-line `Foo* Foo::active_instance_ =`
                    definition is not a second pointer and is not counted.
+  widget validity  lv_obj_is_valid() calls per app source file (comments and
+                   strings not counted). It cannot tell a live widget from a new
+                   one at a freed address; hold a helix::ui::WidgetRef or WeakWidget
+                   (include/ui_widget_ref.h). A file may not gain one
+                   (prestonbrown/helixscreen#1983).
 
 Usage:
   check_growth_ratchets.py --base auto     # the fork point diff_base.py picks
@@ -76,6 +81,9 @@ ACTIVE_STATIC_RE = re.compile(
 ACTIVE_GLOBAL_RE = re.compile(
     rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_)\w*active\w*|(?:s_|g_)\w+_instance_?)"
     rf"\s*(?:=\s*nullptr\s*|\{{\s*\}}\s*)?;", re.M)
+
+VALIDITY_NAME = "lv_obj_is_valid"
+VALIDITY_CALL_RE = re.compile(rf"\b{VALIDITY_NAME}\s*\(")
 
 CLASS_HEAD_RE = re.compile(
     r"(?<![\w])(?:class|struct)\s+(?:\[\[[^\]]*\]\]\s*)?(?:[A-Z_][A-Z0-9_]*\s+)*(\w+)\s*"
@@ -288,6 +296,10 @@ def active_instances(text: str) -> list[str]:
     return names
 
 
+def validity_calls(text: str) -> int:
+    return len(VALIDITY_CALL_RE.findall(strip_code(text))) if VALIDITY_NAME in text else 0
+
+
 def is_source(path: str, tests: bool = True) -> bool:
     roots = ("src/", "include/", "tests/") if tests else ("src/", "include/")
     if not path.startswith(roots):
@@ -374,6 +386,12 @@ def report(root: Path) -> int:
             total += 1
             print(f"  active instance: {path}: {name}")
     print(f"active instance pointers: {total}")
+    validity = {p: validity_calls(t) for p, t in
+                tree_with(root, "HEAD", VALIDITY_NAME).items()}
+    validity = {p: n for p, n in validity.items() if n}
+    print(f"{VALIDITY_NAME}() calls: {sum(validity.values())} in {len(validity)} files")
+    for path, n in sorted(validity.items()):
+        print(f"  {n:4d}  {path}")
     big = [(line_count(t), p) for p, t in
            read_blobs(root, "HEAD", list_files(root, "HEAD", tests=True)).items()
            if line_count(t) > FILE_CAP]
@@ -465,6 +483,15 @@ def main(argv=None) -> int:
         failures.append(f"static active-instance pointers grew by {grown} ({names}): route "
                         f"the XML callback through the widget's user data or an existing "
                         f"owner instead of a new static")
+
+    for o, n in rows:
+        if not n or not is_source(n, tests=False):
+            continue
+        was = validity_calls(old.get(o, "")) if o else 0
+        now = validity_calls(new.get(n, ""))
+        if now > was:
+            failures.append(f"{n}: {VALIDITY_NAME}() grew {was} -> {now}: hold the widget in a "
+                            f"helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h)")
 
     if failures:
         for f in failures:

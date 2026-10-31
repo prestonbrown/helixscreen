@@ -10,6 +10,7 @@
 #include "ui_bypass_spool_widget.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
+#include "ui_widget_ref.h"
 
 #include "ams_state.h"
 #include "ams_types.h"
@@ -167,8 +168,8 @@ class AmsOverviewPanel : public PanelBase {
     };
 
     std::vector<UnitCard> unit_cards_;
-    lv_obj_t* cards_row_ = nullptr;
-    lv_obj_t* system_path_ = nullptr;
+    helix::ui::WidgetRef cards_row_;
+    helix::ui::WidgetRef system_path_;
     lv_obj_t* system_path_area_ = nullptr;
 
     // Shared bypass spool overlay (see include/ui_bypass_spool_widget.h). Lives
@@ -178,14 +179,14 @@ class AmsOverviewPanel : public PanelBase {
 
     // === Unit view state ===
     static constexpr int kMaxDetailSlots = kAmsDetailMaxSlots;
-    bool unit_view_active_ = false;        ///< The unit view is on screen, not the overview
-    lv_obj_t* detail_container_ = nullptr; ///< Unit view root container (takes the swipe)
+    bool unit_view_active_ = false;         ///< The unit view is on screen, not the overview
+    helix::ui::WidgetRef detail_container_; ///< Unit view root container (takes the swipe)
     lv_obj_t* path_container_ = nullptr;
     lv_obj_t* prev_button_ = nullptr;
     lv_obj_t* next_button_ = nullptr;
-    lv_obj_t* page_dots_ = nullptr;
-    AmsDetailWidgets detail_widgets_;        ///< Shared widget pointers for the spool box
-    lv_obj_t* detail_path_canvas_ = nullptr; ///< Filament path visualization
+    helix::ui::WidgetRef page_dots_;
+    AmsDetailWidgets detail_widgets_;         ///< Shared widget pointers for the spool box
+    helix::ui::WidgetRef detail_path_canvas_; ///< Filament path visualization
     lv_obj_t* detail_slot_widgets_[kMaxDetailSlots] = {nullptr};
     int detail_slot_count_ = 0;
     int shown_unit_pos_ = -1; ///< Position in AmsSystemInfo::units of the unit on screen

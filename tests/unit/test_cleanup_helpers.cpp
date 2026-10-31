@@ -303,12 +303,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_subtree eventually frees the whol
     REQUIRE_FALSE(lv_obj_is_valid(root_copy));
 }
 
-// Property 4: null / invalid input is a safe no-op.
-TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_subtree is a no-op on null/invalid input",
+// Property 4: nullptr, which is what a handle reads once its widget is gone, is a no-op.
+TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_subtree is a no-op on nullptr",
                  "[cleanup][cleanup_helpers][grid]") {
     REQUIRE_NOTHROW(helix::ui::safe_delete_subtree(nullptr));
-
-    lv_obj_t* obj = lv_obj_create(test_screen());
-    lv_obj_delete(obj); // obj is now stale/invalid
-    REQUIRE_NOTHROW(helix::ui::safe_delete_subtree(obj));
 }

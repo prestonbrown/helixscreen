@@ -17,6 +17,7 @@
 #include "ui_next_tick.h"
 #include "ui_spool_drawing.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
 #include "config.h"
 #include "display_backend.h"
@@ -251,7 +252,7 @@ struct InputState {
 namespace {
 
 // UI objects
-lv_obj_t* g_overlay = nullptr;
+helix::ui::WidgetRef g_overlay;
 lv_obj_t* g_game_area = nullptr;
 lv_obj_t* g_score_label = nullptr;
 lv_obj_t* g_gameover_label = nullptr;

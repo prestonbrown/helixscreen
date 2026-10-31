@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "clog_meter_model.h"
 
 #include <optional>
@@ -57,7 +59,7 @@ class UiClogMeter {
 
     static void on_card_size_changed(lv_event_t* e);
 
-    lv_obj_t* root_ = nullptr;
+    helix::ui::WidgetRef root_;
     lv_obj_t* arc_ = nullptr;
     lv_obj_t* arc_container_ = nullptr;
     bool in_resize_ = false;

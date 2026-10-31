@@ -7,6 +7,8 @@
  *        hook behind when it lets go first (prestonbrown/helixscreen#1298)
  */
 
+#include "ui_update_queue.h"
+#include "ui_utils.h"
 #include "ui_widget_ref.h"
 
 #include "../lvgl_test_fixture.h"
@@ -341,4 +343,118 @@ TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget copied and destroyed off the LVGL 
     CHECK(back.get() == obj);
     lv_obj_delete(obj);
     CHECK(back.get() == nullptr);
+}
+
+// ============================================================================
+// Shared helpers take handles, so their callers need no check
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "safe_delete on a handle whose widget died is a no-op",
+                 "[widget_ref]") {
+    lv_obj_t* parent = lv_obj_create(test_screen());
+    WidgetRef ref(lv_obj_create(parent));
+    WeakWidget weak(lv_obj_create(parent));
+    lv_obj_delete(parent);
+
+    CHECK_FALSE(helix::ui::safe_delete(ref));
+    CHECK_FALSE(helix::ui::safe_delete(weak));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "safe_delete on a live handle deletes the widget and lets go",
+                 "[widget_ref]") {
+    WidgetRef ref(lv_obj_create(test_screen()));
+    WeakWidget weak(lv_obj_create(test_screen()));
+    const WeakWidget ref_watch(ref.get());
+    const WeakWidget weak_watch = weak;
+
+    CHECK(helix::ui::safe_delete(ref));
+    CHECK(helix::ui::safe_delete(weak));
+
+    CHECK(ref.get() == nullptr);
+    CHECK(weak.get() == nullptr);
+    CHECK(ref_watch.get() == nullptr);
+    CHECK(weak_watch.get() == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_deferred on a WeakWidget defers and lets go",
+                 "[widget_ref]") {
+    WeakWidget weak(lv_obj_create(test_screen()));
+    const WeakWidget watch = weak;
+
+    helix::ui::safe_delete_deferred(weak);
+
+    CHECK(weak.get() == nullptr);
+    REQUIRE(watch.get() != nullptr); // alive and hidden until the async tick
+    CHECK(lv_obj_has_flag(watch, LV_OBJ_FLAG_HIDDEN));
+    process_lvgl(20);
+    CHECK(watch.get() == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update runs for a live widget, skips a dead one",
+                 "[widget_ref]") {
+    lv_obj_t* live = lv_obj_create(test_screen());
+    lv_obj_t* dead = lv_obj_create(test_screen());
+    lv_obj_t* got = nullptr;
+    bool dead_ran = false;
+
+    helix::ui::queue_widget_update(live, [&](lv_obj_t* w) { got = w; });
+    helix::ui::queue_widget_update(WeakWidget(dead), [&](lv_obj_t*) { dead_ran = true; });
+    lv_obj_delete(dead);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(got == live);
+    CHECK_FALSE(dead_ran);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "queue_update with a widget frees its data when the widget died",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    auto data = std::make_shared<int>(1);
+    bool ran = false;
+
+    helix::ui::queue_update<std::shared_ptr<int>>(
+        obj, std::make_unique<std::shared_ptr<int>>(data),
+        [&](lv_obj_t*, std::shared_ptr<int>*) { ran = true; });
+    lv_obj_delete(obj);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(ran);
+    CHECK(data.use_count() == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update off the LVGL thread needs a handle",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    const uint32_t base = lv_obj_get_event_count(obj);
+    const WeakWidget weak(obj);
+    bool raw_ran = false;
+    bool handle_ran = false;
+
+    std::thread([&] {
+        helix::ui::queue_widget_update(obj, [&](lv_obj_t*) { raw_ran = true; });
+        helix::ui::queue_widget_update(weak, [&](lv_obj_t*) { handle_ran = true; });
+    }).join();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(raw_ran); // the raw pointer could not be hooked off-thread
+    CHECK(handle_ran);
+    CHECK(lv_obj_get_event_count(obj) == base + 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "A handle dead by then reaches the helpers taking lv_obj_t*",
+                 "[widget_ref]") {
+    int fired = 0;
+    const auto cb = [](lv_event_t* e) { ++*static_cast<int*>(lv_event_get_user_data(e)); };
+    WidgetRef ref(lv_obj_create(test_screen()));
+    lv_obj_add_event_cb(ref, cb, LV_EVENT_VALUE_CHANGED, &fired);
+
+    helix::ui::remove_event_cb_if_alive(ref, cb, &fired);
+    lv_obj_send_event(ref, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(fired == 0); // live: removed
+
+    lv_obj_delete(ref);
+    helix::ui::remove_event_cb_if_alive(ref, cb, &fired); // dead: reads nullptr
+    helix::ui::safe_delete_subtree(ref);
+    helix::ui::safe_delete_deferred_raw(ref);
+    CHECK_FALSE(helix::ui::is_on_active_screen(ref));
 }

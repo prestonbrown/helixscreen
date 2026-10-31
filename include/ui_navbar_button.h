@@ -65,7 +65,7 @@ class NavbarButton {
     const char* component_;
     const char* widget_name_;
     bool lifts_over_keyboard_;
-    lv_obj_t* button_ = nullptr;
+    helix::ui::WidgetRef button_;
     WidgetRef navbar_;
     int32_t keyboard_top_ = -1;
 };

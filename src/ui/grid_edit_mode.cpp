@@ -38,12 +38,12 @@ static constexpr int kSnapPreviewWidth = 3;
 static constexpr int kResizeOutlineWidth = 2;
 
 /// Create the four bars of an outline on the top layer, if they do not exist.
-static void ensure_outline(std::array<lv_obj_t*, 4>& bars, lv_obj_t* screen_obj) {
+static void ensure_outline(std::array<helix::ui::WeakWidget, 4>& bars, lv_obj_t* screen_obj) {
     if (bars[0]) {
         return;
     }
     lv_obj_t* layer = lv_display_get_layer_top(lv_obj_get_display(screen_obj));
-    for (lv_obj_t*& bar : bars) {
+    for (helix::ui::WeakWidget& bar : bars) {
         bar = lv_obj_create(layer);
         lv_obj_remove_flag(bar, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
@@ -55,7 +55,8 @@ static void ensure_outline(std::array<lv_obj_t*, 4>& bars, lv_obj_t* screen_obj)
 
 /// Lay the four bars of an outline (top, bottom, left, right), @p t thick,
 /// around the box at screen point (@p x, @p y), @p w by @p h.
-static void place_outline(const std::array<lv_obj_t*, 4>& bars, int t, int x, int y, int w, int h) {
+static void place_outline(const std::array<helix::ui::WeakWidget, 4>& bars, int t, int x, int y,
+                          int w, int h) {
     const int rects[4][4] = {
         {x, y, w, t}, {x, y + h - t, w, t}, {x, y, t, h}, {x + w - t, y, t, h}};
     for (size_t i = 0; i < bars.size(); ++i) {
@@ -66,7 +67,8 @@ static void place_outline(const std::array<lv_obj_t*, 4>& bars, int t, int x, in
 
 /// Paint every bar of an outline @p color at @p opa, leaving a bar already
 /// painted that way untouched: a style set repaints the bar.
-static void color_outline(const std::array<lv_obj_t*, 4>& bars, lv_color_t color, lv_opa_t opa) {
+static void color_outline(const std::array<helix::ui::WeakWidget, 4>& bars, lv_color_t color,
+                          lv_opa_t opa) {
     for (lv_obj_t* bar : bars) {
         if (!lv_color_eq(lv_obj_get_style_bg_color(bar, LV_PART_MAIN), color)) {
             lv_obj_set_style_bg_color(bar, color, 0);
@@ -78,8 +80,8 @@ static void color_outline(const std::array<lv_obj_t*, 4>& bars, lv_color_t color
 }
 
 /// Retire every bar of @p bars, leaving it all null.
-static void delete_outline(std::array<lv_obj_t*, 4>& bars) {
-    for (lv_obj_t*& bar : bars) {
+static void delete_outline(std::array<helix::ui::WeakWidget, 4>& bars) {
+    for (helix::ui::WeakWidget& bar : bars) {
         helix::ui::safe_delete_deferred(bar);
     }
 }
@@ -307,7 +309,8 @@ void GridEditMode::attach_to_current_page(bool sync_config) {
     // Carried chrome goes in above the shield, where its buttons take presses
     // before the shield does (see select_widget()). A carried drag's widget
     // and its outline stay on the top layer until the drop.
-    for (lv_obj_t* chrome : {lifted_ ? nullptr : selection_overlay_, remove_btn_, configure_btn_}) {
+    for (lv_obj_t* chrome :
+         {lifted_ ? nullptr : selection_overlay_.get(), remove_btn_.get(), configure_btn_.get()}) {
         if (chrome && lv_obj_get_parent(chrome) != container_) {
             lv_obj_set_parent(chrome, container_);
         }

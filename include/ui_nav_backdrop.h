@@ -88,7 +88,7 @@ class OverlayBackdrop {
     WidgetRef primary_;
     std::string palette_key_;
     bool press_keyboard_visible_ = false;
-    std::unordered_map<lv_obj_t*, lv_obj_t*> nested_;
+    std::unordered_map<lv_obj_t*, WeakWidget> nested_;
 };
 
 } // namespace helix::ui

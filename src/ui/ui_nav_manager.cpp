@@ -14,6 +14,7 @@
 #include "ui_panel_home.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
 #include "app_globals.h"
 #include "backdrop_blur.h"
@@ -274,7 +275,7 @@ class NavTransitionScrim {
   private:
     bool& active_;
     bool owns_;
-    lv_obj_t* scrim_ = nullptr;
+    helix::ui::WidgetRef scrim_;
 };
 } // namespace
 #endif
@@ -1897,8 +1898,9 @@ void NavigationManager::build_under_loading_pill(const std::function<void()>& bu
     lv_obj_t* pill = make_loading_scrim();
     lv_refr_now(lv_display_get_default());
     build();
-    helix::ui::queue_update("NavigationManager::build_under_loading_pill",
-                            [pill]() mutable { helix::ui::safe_delete_deferred(pill); });
+    helix::ui::queue_update(
+        "NavigationManager::build_under_loading_pill",
+        [pill = helix::ui::WeakWidget(pill)]() mutable { helix::ui::safe_delete_deferred(pill); });
 }
 
 void NavigationManager::close_overlay(lv_obj_t* overlay_panel) {

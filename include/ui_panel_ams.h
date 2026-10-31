@@ -12,6 +12,7 @@
 #include "ui_bypass_spool_widget.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
+#include "ui_widget_ref.h"
 
 #include "ams_standing_fault.h"
 #include "ams_state.h"
@@ -220,7 +221,7 @@ class AmsPanel : public PanelBase {
 
     // === Filament Path Canvas ===
 
-    lv_obj_t* path_canvas_ = nullptr; ///< Filament path visualization widget
+    helix::ui::WidgetRef path_canvas_; ///< Filament path visualization widget
 
     // === Bypass Spool Holder (overlay on path canvas) ===
     //

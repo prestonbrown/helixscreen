@@ -363,6 +363,42 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+# --- widget validity --------------------------------------------------------
+
+@test "a new lv_obj_is_valid call fails in an existing file and in a new one" {
+    inject "void Panel::refresh" 'if (lv_obj_is_valid(w_)) {}'
+    printf 'bool f(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/include/new.h"
+    commit_all "two calls"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/panel.cpp: lv_obj_is_valid() grew 0 -> 1" "$output"
+    contains "include/new.h: lv_obj_is_valid() grew 0 -> 1" "$output"
+}
+
+@test "a file's lv_obj_is_valid count may fall, and a rename keeps its count" {
+    printf 'bool a(lv_obj_t* o) { return lv_obj_is_valid(o); }\nbool b(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/src/ui/v.cpp"
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "two calls"
+    BASE=$(git -C "$REPO" rev-parse HEAD)
+    git -C "$REPO" mv src/ui/v.cpp src/ui/w.cpp
+    printf 'bool b(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/src/ui/w.cpp"
+    commit_all "one call, renamed"
+    ratchets
+    [ "$status" -eq 0 ]
+}
+
+@test "lv_obj_is_valid in a comment, a string, a longer name or a test file is not counted" {
+    cat > "$REPO/src/ui/quiet.cpp" <<'EOF'
+// lv_obj_is_valid(old) cannot tell a reused address
+const char* s = "lv_obj_is_valid(x)";
+bool my_lv_obj_is_valid(lv_obj_t* o);
+EOF
+    printf 'bool t(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/tests/unit/t.cpp"
+    commit_all "quiet shapes"
+    ratchets
+    [ "$status" -eq 0 ]
+}
+
 @test "a branch with no commits is not measured" {
     run python3 "$GATE" --root "$REPO" --base HEAD
     [ "$status" -eq 0 ]

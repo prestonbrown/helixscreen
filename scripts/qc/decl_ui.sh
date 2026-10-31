@@ -371,7 +371,7 @@ echo -n "🧷 Checking raw cached widget pointers..."
 # rise. A cached widget outlives its widget whenever something other than its
 # owner deletes the tree, and owner-keyed guards still read valid then. Hold
 # new ones as helix::ui::WidgetRef, or annotate `// WIDGET_PTR_OK: <why>`.
-if python3 scripts/check_cached_widget_pointers.py --max-allowed=531 \
+if python3 scripts/check_cached_widget_pointers.py --max-allowed=443 \
     >/tmp/cached_widget_ptrs.out 2>&1; then
   section_time $SECTION_START
   echo ""
