@@ -17,7 +17,11 @@
 #define HELIX_CRASH_STR_(x) #x
 #define HELIX_CRASH_STR(x) HELIX_CRASH_STR_(x)
 
-static constexpr const char kCrashVersionLines[] =
+namespace helix::crash_record {
+
+inline constexpr char kCrashVersionLines[] =
     "version:" HELIX_VERSION "\n"
     "lvgl_version:" HELIX_CRASH_STR(LVGL_VERSION_MAJOR) "." HELIX_CRASH_STR(
         LVGL_VERSION_MINOR) "\n";
+
+} // namespace helix::crash_record

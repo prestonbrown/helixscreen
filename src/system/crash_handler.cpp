@@ -716,7 +716,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     safe_write(fd, "\n");
 
     // Write version
-    safe_write(fd, kCrashVersionLines);
+    safe_write(fd, helix::crash_record::kCrashVersionLines);
 
     // Write timestamp (time() is async-signal-safe per POSIX)
     time_t now = time(nullptr);
@@ -1833,7 +1833,7 @@ void crash_handler::write_exception_record(const char* what) noexcept {
     safe_write(fd, "signal:0\n");
     safe_write(fd, "name:EXCEPTION\n");
 
-    safe_write(fd, kCrashVersionLines);
+    safe_write(fd, helix::crash_record::kCrashVersionLines);
 
     // time(nullptr) is async-signal-safe per POSIX.
     time_t now = time(nullptr);
@@ -2061,7 +2061,7 @@ void crash_handler::write_mock_crash_file(const std::string& crash_file_path) {
 
     ofs << "signal:11\n";
     ofs << "name:SIGSEGV\n";
-    ofs << kCrashVersionLines;
+    ofs << helix::crash_record::kCrashVersionLines;
     ofs << "timestamp:" << now << "\n";
     ofs << "uptime:1234\n";
     ofs << "fault_addr:0x00000000\n";
