@@ -53,7 +53,7 @@ void NavbarButton::button_deleted_cb(lv_event_t* e) {
     // successor.
     auto* self = static_cast<NavbarButton*>(lv_event_get_user_data(e));
     lv_obj_t* target = lv_event_get_target_obj(e);
-    if (target == self->button_) {
+    if (self->button_.names_dying(target)) {
         self->button_ = nullptr;
     }
     remove_always_on_top(target);

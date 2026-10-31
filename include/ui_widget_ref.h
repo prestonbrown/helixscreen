@@ -57,15 +57,28 @@ class WidgetRef {
         return obj_;
     }
 
+    /**
+     * Whether this handle names @p dying, or did until @p dying's delete began.
+     *
+     * For an owner's own LV_EVENT_DELETE callback on the widget. A callback added
+     * after the handle was assigned runs after its hook, so the handle already reads
+     * nullptr there and `handle == target` is false. Compares addresses only.
+     */
+    [[nodiscard]] bool names_dying(const lv_obj_t* dying) const {
+        return dying && (obj_ == dying || deleted_ == dying);
+    }
+
   private:
     static void on_deleted(lv_event_t* e) {
         auto* self = static_cast<WidgetRef*>(lv_event_get_user_data(e));
         if (self->obj_ == lv_event_get_target_obj(e)) {
+            self->deleted_ = self->obj_;
             self->obj_ = nullptr;
         }
     }
 
     lv_obj_t* obj_ = nullptr;
+    lv_obj_t* deleted_ = nullptr; // Address only, never dereferenced: see names_dying()
 };
 
 /**

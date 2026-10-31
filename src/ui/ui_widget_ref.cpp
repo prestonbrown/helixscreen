@@ -15,6 +15,7 @@ void WidgetRef::reset(lv_obj_t* obj) {
     if (obj && obj->is_deleting) {
         obj = nullptr;
     }
+    deleted_ = nullptr;
     if (obj == obj_) {
         return;
     }

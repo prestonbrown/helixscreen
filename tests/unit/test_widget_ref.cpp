@@ -184,6 +184,35 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef assigned during its widget's delete
     CHECK(ref.get() == nullptr);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "WidgetRef names_dying answers inside the owner's delete callback",
+                 "[widget_ref]") {
+    struct Owner {
+        WidgetRef ref;
+        bool plain_compare = true;
+        bool named = false;
+    } owner;
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    owner.ref = obj; // assigned first, so its hook runs before the callback below
+    lv_obj_add_event_cb(
+        obj,
+        [](lv_event_t* e) {
+            auto* o = static_cast<Owner*>(lv_event_get_user_data(e));
+            o->plain_compare = o->ref == lv_event_get_target_obj(e);
+            o->named = o->ref.names_dying(lv_event_get_target_obj(e));
+        },
+        LV_EVENT_DELETE, &owner);
+    lv_obj_t* other = lv_obj_create(test_screen());
+
+    CHECK_FALSE(owner.ref.names_dying(other));
+    lv_obj_delete(obj);
+
+    CHECK_FALSE(owner.plain_compare);
+    CHECK(owner.named);
+    owner.ref = nullptr;
+    CHECK_FALSE(owner.ref.names_dying(obj)); // letting go forgets the address
+}
+
 // ============================================================================
 // WeakWidget
 // ============================================================================
