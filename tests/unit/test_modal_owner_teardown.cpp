@@ -296,7 +296,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(stack.backdrop_for(nullptr) == nullptr);
     stack.remove(nullptr);
     CHECK(stack.backdrop_for(beneath) != nullptr);
-
     stack.clear(); // deletes the live backdrop, skips the dead one
     CHECK(stack.stack_empty());
 }
