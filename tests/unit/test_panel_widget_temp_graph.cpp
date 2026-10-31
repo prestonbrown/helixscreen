@@ -1064,6 +1064,7 @@ TEST_CASE("TempGraphWidget: default config lists aux heaters but not the chamber
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "TempGraphWidget config: series colours are painter circles that cycle",
                  "[temp_graph][panel_widget][config][swatch]") {
+    init_widget_registrations(); // the swatch's XML click callback is registered there
     TempGraphWidget widget("test_swatch");
     nlohmann::json config = {
         {"sensors",
