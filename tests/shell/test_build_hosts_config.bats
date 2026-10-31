@@ -118,7 +118,8 @@ via_shell() { run bash -c '. "$1"; echo "host=[${REMOTE_HOST:-}] dir=[${REMOTE_D
     [ "$status" -eq 0 ]
     for k in HELIX_TEST_HOST HELIX_TEST_CONTAINER HELIX_TEST_WORKDIR HELIX_TEST_TREES_HOST \
              HELIX_TEST_TREES HELIX_TEST_CCACHE HELIX_TEST_LOCK_DIR HELIX_TEST_HOST_AUTO \
-             HELIX_TEST_MEMORY REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR; do
+             HELIX_TEST_MEMORY REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR \
+             HELIX_LAND_GATE_HOSTS; do
         contains "$k" "$output"
     done
 }
@@ -129,6 +130,26 @@ via_shell() { run bash -c '. "$1"; echo "host=[${REMOTE_HOST:-}] dir=[${REMOTE_D
     [ "$status" -eq 0 ]
     contains "mem=[96g]" "$output"
     lacks "is not a build-hosts key" "$output"
+}
+
+@test "the land-gate hosts pre-push asks are a key the file can set, commas kept" {
+    hosts HELIX_LAND_GATE_HOSTS=helix-dev,zeus.local
+    run bash -c '. "$1"; echo "gate=[${HELIX_LAND_GATE_HOSTS:-}]"' _ "$LIB"
+    [ "$status" -eq 0 ]
+    contains "gate=[helix-dev,zeus.local]" "$output"
+    lacks "is not a build-hosts key" "$output"
+}
+
+@test "a probe with a remote command returns that command's status, 255 for ssh's own failure" {
+    mock_command_script ssh 'while [ $# -gt 1 ]; do shift; done
+case "$1" in true) exit 0 ;; no) exit 1 ;; *) echo "ssh: connect to host x port 22: Connection refused" >&2; exit 255 ;; esac'
+    run bash -c '. "$1"; probe_build_host h.invalid' _ "$LIB"
+    [ "$status" -eq 0 ]
+    run bash -c '. "$1"; probe_build_host h.invalid no' _ "$LIB"
+    [ "$status" -eq 1 ]
+    run bash -c '. "$1"; probe_build_host h.invalid refuse' _ "$LIB"
+    [ "$status" -eq 255 ]
+    contains "refused" "$output"
 }
 
 # An ssh that saves what each call reads on stdin (the remote scripts
