@@ -63,6 +63,16 @@ land_gate_stamp_write() {
     return 0
 }
 
+# land_gate_stamp_remove SHA: drop SHA's stamp from this clone and from the
+# shared record, for a result set of SHA that is not all PASS.
+land_gate_stamp_remove() {
+    local dir
+    land_gate_sha_ok "$1" || return 1
+    dir=$(land_gate_stamp_dir) && rm -f "$dir/$1"
+    rm -f "$(land_gate_shared_stamp_dir)/$1"
+    return 0
+}
+
 # land_gate_passed SHA: true when make land-gate passed exactly SHA, in this
 # clone or in another clone on this host.
 land_gate_passed() {
@@ -91,8 +101,11 @@ land_gate_ask_hosts() {
         # shellcheck disable=SC2034  # read by probe_build_host
         BUILD_HOST_PROBE_SECS=${HELIX_HOST_PROBE_SECS:-8}
         # The remote login shell parses this once; sh then resolves the remote
-        # user's own state directory. sha is hex, checked above.
-        remote="sh -c 'test -f \"\${XDG_STATE_HOME:-\$HOME/.local/state}/helixscreen/land-gate-pass/$sha\"'"
+        # user's own state directory. sha is hex, checked above. Only the token
+        # line counts as yes: a forced command or a wrapper shell that exits 0
+        # without running this would otherwise vouch for every SHA.
+        token="helix-land-gate-pass:$sha"
+        remote="sh -c 'test -f \"\${XDG_STATE_HOME:-\$HOME/.local/state}/helixscreen/land-gate-pass/$sha\" && echo $token'"
         tried=""
         IFS=, read -r -a hosts <<<"$HELIX_LAND_GATE_HOSTS"
         for host in "${hosts[@]}"; do
@@ -102,13 +115,17 @@ land_gate_ask_hosts() {
             esac
             rc=0
             why=$(probe_build_host "$host" "$remote") || rc=$?
-            if [ "$rc" -eq 0 ]; then
+            if [ "$rc" -eq 0 ] && [ "${why%$'\r'}" = "$token" ]; then
                 land_gate_stamp_write "$sha" "$host"
                 printf '%s\n' "$host"
                 exit 0
             fi
             # Exit 1 is the remote test saying no; ssh itself fails with 255.
-            [ "$rc" -eq 1 ] && why="no record"
+            if [ "$rc" -eq 0 ]; then
+                why="answered without the record token"
+            elif [ "$rc" -eq 1 ]; then
+                why="no record"
+            fi
             tried+="$host: $why; "
         done
         echo "→ pre-push: no make land-gate record for ${sha:0:9} on any gate host (${tried%; }); running the sweep" >&2

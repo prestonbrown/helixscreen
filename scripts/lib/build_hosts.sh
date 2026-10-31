@@ -88,18 +88,20 @@ is_build_host_key() { case " $BUILD_HOSTS_HOST_KEYS " in *" $1 "*) return 0 ;; e
 # Runs `ssh <target> <command>` (default `true`) for at most
 # BUILD_HOST_PROBE_SECS, killing it past that, since macOS has no timeout(1).
 # Returns ssh's exit status (255 when ssh itself failed, otherwise the remote
-# command's), or 124 past the limit. Prints why it failed: timeout, refused,
-# no such name, auth refused, or ssh's own last line.
+# command's), or 124 past the limit. On success prints the command's stdout;
+# on failure, why: timeout, refused, no such name, auth refused, or ssh's own
+# last line.
 probe_build_host() { # <ssh target> [remote command]
-    local err pid tenths=0 limit=$((BUILD_HOST_PROBE_SECS * 10)) rc why
+    local err out pid tenths=0 limit=$((BUILD_HOST_PROBE_SECS * 10)) rc why
     err=$(mktemp "${TMPDIR:-/tmp}/build-host-probe.XXXXXX") || return 1
-    ssh -o BatchMode=yes -o ConnectTimeout=3 "$1" "${2:-true}" </dev/null >/dev/null 2>"$err" &
+    out=$(mktemp "${TMPDIR:-/tmp}/build-host-probe.XXXXXX") || { rm -f "$err"; return 1; }
+    ssh -o BatchMode=yes -o ConnectTimeout=3 "$1" "${2:-true}" </dev/null >"$out" 2>"$err" &
     pid=$!
     while kill -0 "$pid" 2>/dev/null; do
         if [ "$tenths" -ge "$limit" ]; then
             kill "$pid" 2>/dev/null; sleep 0.1; kill -9 "$pid" 2>/dev/null
             wait "$pid" 2>/dev/null
-            rm -f "$err"; echo "timeout after ${BUILD_HOST_PROBE_SECS}s"; return 124
+            rm -f "$err" "$out"; echo "timeout after ${BUILD_HOST_PROBE_SECS}s"; return 124
         fi
         sleep 0.1; tenths=$((tenths + 1))
     done
@@ -112,9 +114,10 @@ probe_build_host() { # <ssh target> [remote command]
             *"Permission denied"*) why="auth refused" ;;
             *) why=$(grep -v '^[[:space:]]*$' "$err" | tail -1); why=${why:-"ssh exit $rc"} ;;
         esac
-        rm -f "$err"; echo "$why"; return "$rc"
+        rm -f "$err" "$out"; echo "$why"; return "$rc"
     fi
-    rm -f "$err"
+    cat "$out"
+    rm -f "$err" "$out"
 }
 
 # Narrows a host key holding a candidate list to the first candidate that
