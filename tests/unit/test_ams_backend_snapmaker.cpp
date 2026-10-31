@@ -4820,15 +4820,19 @@ TEST_CASE_METHOD(SnapmakerFixture,
     mock_printer.client.mock_db_set("lane_data", "T0", remembered_snapspeed_record(0));
     helix::test::RegisteredBackend<AmsBackendSnapmaker> backend(&api, nullptr);
     SnapmakerTestAccess::call_on_started(*backend);
-    helix::ams::FilamentSlotOverride record = *SnapmakerTestAccess::get_override(*backend, 0);
+    const auto loaded = SnapmakerTestAccess::get_override(*backend, 0);
+    REQUIRE(loaded.has_value());
+    helix::ams::FilamentSlotOverride record = *loaded;
 
     SECTION("a record bound to a Spoolman spool") {
         record.spoolman_id = 42;
         SnapmakerTestAccess::replace_override_record(*backend, 0, record);
         feed_silent_channels(*backend);
         CHECK(backend->get_slot_info(0).spool_name == "SnapSpeed");
-        CHECK(SnapmakerTestAccess::get_override(*backend, 0)->spool_name == "SnapSpeed");
-        CHECK(SnapmakerTestAccess::get_override(*backend, 0)->brand == "Snapmaker");
+        const auto kept = SnapmakerTestAccess::get_override(*backend, 0);
+        REQUIRE(kept.has_value());
+        CHECK(kept->spool_name == "SnapSpeed");
+        CHECK(kept->brand == "Snapmaker");
     }
     SECTION("a record holding other values") {
         record.spool_name = "Bench reel";
@@ -4836,8 +4840,10 @@ TEST_CASE_METHOD(SnapmakerFixture,
         SnapmakerTestAccess::replace_override_record(*backend, 0, record);
         feed_silent_channels(*backend);
         CHECK(backend->get_slot_info(0).spool_name.empty());
-        CHECK(SnapmakerTestAccess::get_override(*backend, 0)->spool_name == "Bench reel");
-        CHECK(SnapmakerTestAccess::get_override(*backend, 0)->brand == "Polymaker");
+        const auto kept = SnapmakerTestAccess::get_override(*backend, 0);
+        REQUIRE(kept.has_value());
+        CHECK(kept->spool_name == "Bench reel");
+        CHECK(kept->brand == "Polymaker");
     }
 }
 
