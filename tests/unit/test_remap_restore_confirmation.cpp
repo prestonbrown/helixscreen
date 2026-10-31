@@ -701,6 +701,10 @@ TEST_CASE("remap restore: a backend with no mapping table drops the record unsen
 
 TEST_CASE("remap restore: a printer switch drops the record", "[remap-restore][1859]") {
     LVGLTestFixture fx;
+    // A re-init registers AmsState's invalidator; a test that cleared the registry
+    // left an initialized AmsState without one.
+    helix::AmsState::instance().deinit_subjects();
+    helix::AmsState::instance().init_subjects(true);
     ScopedCountingBackend be{{1, 2}};
     Harness h;
     h.set_klippy(KlippyState::READY);
