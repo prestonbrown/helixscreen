@@ -507,30 +507,19 @@ TEST_CASE("ACE parse_info_response: valid response", "[ams][ace][parse]") {
 // Status Response Parsing Tests
 // ============================================================================
 
-TEST_CASE("ACE parse_status_response: loaded slot", "[ams][ace][parse]") {
+TEST_CASE("ACE parse_status_response: loaded_slot sets the seat", "[ams][ace][parse]") {
     AmsBackendAceTestHelper helper;
 
-    json data = {{"loaded_slot", 2}, {"action", "idle"}};
-
-    bool changed = helper.test_parse_status_response(data);
-    REQUIRE(changed == true);
-
+    REQUIRE(helper.test_parse_status_response(json{{"loaded_slot", 2}, {"action", "idle"}}));
     auto info = helper.get_test_system_info();
-    REQUIRE(info.current_slot == 2);
-    REQUIRE(info.current_tool == 2); // 1:1 mapping
-    REQUIRE(info.filament_loaded == true);
-}
+    CHECK(info.current_slot == 2);
+    CHECK(info.current_tool == 2); // 1:1 mapping
+    CHECK(info.filament_loaded);
 
-TEST_CASE("ACE parse_status_response: no filament loaded", "[ams][ace][parse]") {
-    AmsBackendAceTestHelper helper;
-
-    json data = {{"loaded_slot", -1}};
-
-    helper.test_parse_status_response(data);
-    auto info = helper.get_test_system_info();
-
-    REQUIRE(info.current_slot == -1);
-    REQUIRE(info.filament_loaded == false);
+    helper.test_parse_status_response(json{{"loaded_slot", -1}});
+    info = helper.get_test_system_info();
+    CHECK(info.current_slot == -1);
+    CHECK_FALSE(info.filament_loaded);
 }
 
 TEST_CASE("ACE REST status applies the dryer it states", "[ams][ace][parse]") {
@@ -2192,114 +2181,50 @@ TEST_CASE("ACE maps native runout slot status to EMPTY", "[ams][ace][native][par
 
 // --- Fix 1: manager-only object must fall through to REST fallback ----------
 
-TEST_CASE("ACE manager-only ace object (no slots) selects REST fallback",
+// select_ace_object picks the object the WebSocket subscription parses, or none
+// so on_started commits to REST polling. Only a slot-bearing object qualifies:
+// the ACEPRO driver's `ace` manager (ace_instances/current_index) and its
+// manager-shaped ace_instance_N carry no slots, and an empty slots array carries
+// no slot data either. A slot-bearing filament_hub (native) beats `ace`
+// (ValgACE), both beat ace_instance_N (#1107), and the lowest instance wins.
+TEST_CASE("ACE select_ace_object picks the slot-bearing object or falls back to REST",
           "[ams][ace][rest_fallback][kobra]") {
-    // ACEPRO driver: `ace` is a manager with ace_instances/current_index and NO
-    // slots array. select_ace_object must return nullptr so on_started
-    // commits to REST polling instead of parsing zero slots off the manager.
-    json status = json::object();
-    status["ace"] = json{{"ace_instances", 1}, {"current_index", 0}};
-
-    std::string key;
-    const json* picked = AceTestAccess::select_ace_object(status, &key);
-
-    CHECK(picked == nullptr);
-    CHECK(key.empty());
-}
-
-TEST_CASE("ACE object WITH slots array still selects subscription path",
-          "[ams][ace][rest_fallback][kobra]") {
-    // Regression: a genuine slot-bearing `ace` (ValgACE) or `filament_hub`
-    // (native) object must still be chosen for the WebSocket subscription path.
-    SECTION("community ace key") {
-        json status = json::object();
-        status["ace"] = json{
-            {"model", "ACE Pro"},
-            {"slots", json::array({json{{"status", "available"}, {"type", "PLA"}}})},
-        };
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        REQUIRE(picked != nullptr);
-        CHECK(key == "ace");
-    }
-
-    SECTION("native filament_hub key preferred") {
-        json status = json::object();
-        status["filament_hub"] = make_native_filament_hub_payload();
-        // A manager-only ace present alongside must NOT be picked over the
-        // slot-bearing filament_hub.
-        status["ace"] = json{{"ace_instances", 1}, {"current_index", 0}};
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        REQUIRE(picked != nullptr);
-        CHECK(key == "filament_hub");
-    }
-
-    SECTION("empty slots array is not slot-bearing") {
-        // An object with an empty slots array carries no slot data — treat it
-        // like the manager-only case and fall through to REST.
-        json status = json::object();
-        status["ace"] = json{{"model", "ACE Pro"}, {"slots", json::array()}};
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        CHECK(picked == nullptr);
-    }
-}
-
-// --- #1107: the ACEPRO driver registers `ace_instance_N` ---------------------
-//
-// The ACEPRO driver exposes each ACE unit as its own `ace_instance_N` Klipper
-// object (has get_status()), NOT a top-level `ace`/`filament_hub`. When a build
-// of that driver carries a `slots` array on ace_instance_N, the object path must
-// engage; if not, it falls through to the REST bridge like the manager case.
-
-TEST_CASE("ACE ace_instance_0 WITH slots selects subscription path",
-          "[ams][ace][rest_fallback][kobra]") {
-    json status = json::object();
-    status["ace_instance_0"] = json{
-        {"model", "ACE Pro"},
-        {"slots", json::array({json{{"status", "available"}, {"type", "PLA"}}})},
+    const json pla = json::array({json{{"status", "available"}, {"type", "PLA"}}});
+    const json abs = json::array({json{{"status", "available"}, {"type", "ABS"}}});
+    const json manager = json{{"ace_instances", 1}, {"current_index", 0}};
+    struct Row {
+        const char* name;
+        json status;
+        const char* key; // "" : none, REST fallback
     };
-    std::string key;
-    const json* picked = AceTestAccess::select_ace_object(status, &key);
-    REQUIRE(picked != nullptr);
-    CHECK(key == "ace_instance_0");
-}
-
-TEST_CASE("ACE ace_instance_0 manager-shaped (no slots) selects REST fallback",
-          "[ams][ace][rest_fallback][kobra]") {
-    // The verified ACEPRO driver exposes ace_instance_0 without a slots array
-    // (has_get_status=True but manager-shaped). Must fall through to REST.
-    json status = json::object();
-    status["ace_instance_0"] = json{{"current_index", 0}, {"ace_count", 1}};
-    std::string key;
-    const json* picked = AceTestAccess::select_ace_object(status, &key);
-    CHECK(picked == nullptr);
-    CHECK(key.empty());
-}
-
-TEST_CASE("ACE select prefers filament_hub/ace over ace_instance_N",
-          "[ams][ace][rest_fallback][kobra]") {
-    SECTION("filament_hub beats a slot-bearing ace_instance_0") {
-        json status = json::object();
-        status["filament_hub"] = make_native_filament_hub_payload();
-        status["ace_instance_0"] =
-            json{{"slots", json::array({json{{"status", "available"}, {"type", "PLA"}}})}};
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        REQUIRE(picked != nullptr);
-        CHECK(key == "filament_hub");
-    }
-    SECTION("lowest ace_instance_N wins when several carry slots") {
-        json status = json::object();
-        status["ace_instance_1"] =
-            json{{"slots", json::array({json{{"status", "available"}, {"type", "ABS"}}})}};
-        status["ace_instance_0"] =
-            json{{"slots", json::array({json{{"status", "available"}, {"type", "PLA"}}})}};
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        REQUIRE(picked != nullptr);
-        CHECK(key == "ace_instance_0");
+    const Row rows[] = {
+        {"manager-only ace", {{"ace", manager}}, ""},
+        {"slot-bearing ace", {{"ace", {{"model", "ACE Pro"}, {"slots", pla}}}}, "ace"},
+        {"filament_hub over a manager ace",
+         {{"filament_hub", make_native_filament_hub_payload()}, {"ace", manager}},
+         "filament_hub"},
+        {"empty slots array", {{"ace", {{"model", "ACE Pro"}, {"slots", json::array()}}}}, ""},
+        {"slot-bearing ace_instance_0",
+         {{"ace_instance_0", {{"model", "ACE Pro"}, {"slots", pla}}}},
+         "ace_instance_0"},
+        {"manager-shaped ace_instance_0",
+         {{"ace_instance_0", {{"current_index", 0}, {"ace_count", 1}}}},
+         ""},
+        {"filament_hub over ace_instance_0",
+         {{"filament_hub", make_native_filament_hub_payload()},
+          {"ace_instance_0", {{"slots", pla}}}},
+         "filament_hub"},
+        {"lowest ace_instance_N",
+         {{"ace_instance_1", {{"slots", abs}}}, {"ace_instance_0", {{"slots", pla}}}},
+         "ace_instance_0"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            std::string key;
+            const json* picked = AceTestAccess::select_ace_object(r.status, &key);
+            CHECK(key == r.key);
+            CHECK((picked != nullptr) == (std::string(r.key) != ""));
+        }
     }
 }
 
@@ -3434,8 +3359,14 @@ TEST_CASE("ACE slot actions address the hub by INDEX= on single-hub drivers",
     CAPTURE(surface);
     AmsBackendAceTestHelper b;
     present_driver_surface(b, surface);
-    AceTestAccess::set_seat(b, 2, true);
 
+    // With nothing loaded a manual feed addresses slot 0.
+    REQUIRE(b.get_current_slot() == -1);
+    b.captured_gcodes.clear();
+    REQUIRE(b.execute_device_action("ace_manual_feed", {}).success());
+    CHECK(b.captured_gcodes == std::vector<std::string>{"ACE_FEED INDEX=0 LENGTH=50 SPEED=50"});
+
+    AceTestAccess::set_seat(b, 2, true);
     CHECK(run_slot_actions(b) == std::vector<std::string>{
                                      "ACE_FEED INDEX=2 LENGTH=50 SPEED=50",
                                      "ACE_RETRACT INDEX=2 LENGTH=50 SPEED=50",
@@ -3605,19 +3536,6 @@ TEST_CASE("ACE slot actions on the ACEPRO driver while no slot is current",
     }
 }
 
-TEST_CASE("ACE slot actions keep slot 0 on single-hub drivers with nothing loaded",
-          "[ams][ace][device_actions]") {
-    const std::string surface = GENERATE(as<std::string>{}, "filament_hub", "ace", "rest");
-    CAPTURE(surface);
-    AmsBackendAceTestHelper b;
-    present_driver_surface(b, surface);
-    REQUIRE(b.get_current_slot() == -1);
-
-    b.captured_gcodes.clear();
-    REQUIRE(b.execute_device_action("ace_manual_feed", {}).success());
-    CHECK(b.captured_gcodes == std::vector<std::string>{"ACE_FEED INDEX=0 LENGTH=50 SPEED=50"});
-}
-
 namespace {
 helix::printer::DeviceAction feed_assist_action(const AmsBackendAceTestHelper& b) {
     for (const auto& action : b.get_device_actions()) {
@@ -3722,28 +3640,13 @@ TEST_CASE("ACE Feed Assist is disabled and refused with nothing loaded",
     CHECK_FALSE(action.disable_reason.empty());
 
     b.captured_gcodes.clear();
-    CHECK(b.execute_device_action("ace_feed_assist_toggle", std::any(true)).result ==
-          helix::AmsResult::WRONG_STATE);
-    CHECK(b.execute_device_action("ace_feed_assist_toggle", std::any(false)).result ==
-          helix::AmsResult::WRONG_STATE);
-    CHECK(b.captured_gcodes.empty());
-}
-
-// The backend refuses on its own, not only behind the offered action's
-// enabled flag: a caller that read the list while a slot was loaded can still
-// reach execute after the unload.
-TEST_CASE("ACE Feed Assist execute refuses with nothing loaded",
-          "[ams][ace][device_actions][1853]") {
-    const std::string surface =
-        GENERATE(as<std::string>{}, "filament_hub", "ace", "rest", "ace_instance_0");
-    CAPTURE(surface);
-    AmsBackendAceTestHelper b;
-    present_driver_surface(b, surface);
-    REQUIRE(b.get_current_slot() == -1);
-
-    b.captured_gcodes.clear();
     for (const bool on : {true, false}) {
         CAPTURE(on);
+        CHECK(b.execute_device_action("ace_feed_assist_toggle", std::any(on)).result ==
+              helix::AmsResult::WRONG_STATE);
+        // The backend refuses on its own, not only behind the offered action's
+        // enabled flag: a caller that read the list while a slot was loaded can
+        // still reach execute after the unload.
         const auto err = b.do_execute_device_action("ace_feed_assist_toggle", std::any(on));
         CHECK(err.result == helix::AmsResult::WRONG_STATE);
         CHECK(err.technical_msg == "No filament loaded for feed assist");
