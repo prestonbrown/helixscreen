@@ -59,6 +59,9 @@ void reset_overlay_singleton() {
     }
     helix::ui::destroy_static_panels();
     helix::ui::UpdateQueue::instance().drain();
+    // The destroyed root waits on the top layer for LVGL's deferred delete, and the
+    // navigation stack names it until that delete runs.
+    lv_timer_handler();
 }
 
 } // namespace
