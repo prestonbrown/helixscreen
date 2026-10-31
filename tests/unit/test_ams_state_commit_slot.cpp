@@ -390,6 +390,10 @@ TEST_CASE("commit_slot_edit moves the server's active spool only for the loaded 
         int lane;
         int before, after; // the lane's spool id before and after the edit
         int active_before, active_after;
+        // set_active_spool sends the commit causes, -1 = not counted. A plain
+        // backend's loaded-lane sync re-asserts the loaded lane's spool after an
+        // edit to another lane, so the end state alone cannot show a stray send.
+        int sends = -1;
     };
     const Row rows[] = {
         {"unlink the loaded lane", Backend::Plain, 169, 0, 169, 0, 169, 0},
@@ -397,13 +401,16 @@ TEST_CASE("commit_slot_edit moves the server's active spool only for the loaded 
          0, 169, 0},
         {"unlink a lane that is not loaded", Backend::ManagesActive, 169, 1, 147, 0, 169, 169},
         {"link a lane that is not loaded", Backend::ManagesActive, 169, 1, 0, 147, 169, 169},
+        // Its one send is the sync re-asserting lane 0's spool; the edit itself sends none.
+        {"link a lane that is not loaded on a backend that takes no link", Backend::Plain, 169, 1,
+         0, 147, 169, 169, 1},
         {"link the loaded lane", Backend::Plain, 0, 0, 0, 147, 0, 147},
         {"link the loaded lane where the backend takes the link", Backend::ManagesActive, 0, 0, 0,
          147, 5, 5},
         {"link the loaded lane where the backend switches on a load", Backend::ActivatesOnLoad, 0,
          0, 0, 147, 5, 147},
         // No set_active_spool may fire, not even a clear to 0.
-        {"clear a lane that never had a link", Backend::Plain, 0, 1, 0, 0, 77, 77},
+        {"clear a lane that never had a link", Backend::Plain, 0, 1, 0, 0, 77, 77, 0},
     };
     for (const auto& row : rows) {
         INFO(row.name);
@@ -436,8 +443,11 @@ TEST_CASE("commit_slot_edit moves the server's active spool only for the loaded 
         edited.spoolman_id = row.after;
         if (row.before == 0 && row.after == 0)
             edited.material.clear();
+        const int sends_before = f.client.call_count("server.spoolman.post_spool_id");
         REQUIRE(AmsState::instance().commit_slot_edit(row.lane, original, edited).success());
         helix::ui::UpdateQueue::instance().drain();
+        if (row.sends >= 0)
+            CHECK(f.client.call_count("server.spoolman.post_spool_id") - sends_before == row.sends);
 
         CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == row.active_after);
         CHECK(f.backend->get_slot_info(row.lane).spoolman_id == row.after);
