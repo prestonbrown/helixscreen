@@ -32,7 +32,7 @@
 
 BUILD_HOSTS_KEYS="HELIX_TEST_HOST HELIX_TEST_CONTAINER HELIX_TEST_WORKDIR HELIX_TEST_TREES_HOST
 HELIX_TEST_TREES HELIX_TEST_CCACHE HELIX_TEST_LOCK_DIR HELIX_TEST_HOST_AUTO
-REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR"
+REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR HELIX_LAND_GATE_HOSTS"
 
 # The keys that name a host to ssh to, and so may hold a candidate list.
 BUILD_HOSTS_HOST_KEYS="REMOTE_HOST HELIX_TEST_HOST"
@@ -85,19 +85,21 @@ load_build_hosts() {
 
 is_build_host_key() { case " $BUILD_HOSTS_HOST_KEYS " in *" $1 "*) return 0 ;; esac; return 1; }
 
-# Runs `ssh <target> true` for at most BUILD_HOST_PROBE_SECS, killing it past
-# that, since macOS has no timeout(1). Prints why it failed: timeout, refused,
+# Runs `ssh <target> <command>` (default `true`) for at most
+# BUILD_HOST_PROBE_SECS, killing it past that, since macOS has no timeout(1).
+# Returns ssh's exit status (255 when ssh itself failed, otherwise the remote
+# command's), or 124 past the limit. Prints why it failed: timeout, refused,
 # no such name, auth refused, or ssh's own last line.
-probe_build_host() { # <ssh target>
+probe_build_host() { # <ssh target> [remote command]
     local err pid tenths=0 limit=$((BUILD_HOST_PROBE_SECS * 10)) rc why
     err=$(mktemp "${TMPDIR:-/tmp}/build-host-probe.XXXXXX") || return 1
-    ssh -o BatchMode=yes -o ConnectTimeout=3 "$1" true </dev/null >/dev/null 2>"$err" &
+    ssh -o BatchMode=yes -o ConnectTimeout=3 "$1" "${2:-true}" </dev/null >/dev/null 2>"$err" &
     pid=$!
     while kill -0 "$pid" 2>/dev/null; do
         if [ "$tenths" -ge "$limit" ]; then
             kill "$pid" 2>/dev/null; sleep 0.1; kill -9 "$pid" 2>/dev/null
             wait "$pid" 2>/dev/null
-            rm -f "$err"; echo "timeout after ${BUILD_HOST_PROBE_SECS}s"; return 1
+            rm -f "$err"; echo "timeout after ${BUILD_HOST_PROBE_SECS}s"; return 124
         fi
         sleep 0.1; tenths=$((tenths + 1))
     done
@@ -110,7 +112,7 @@ probe_build_host() { # <ssh target>
             *"Permission denied"*) why="auth refused" ;;
             *) why=$(grep -v '^[[:space:]]*$' "$err" | tail -1); why=${why:-"ssh exit $rc"} ;;
         esac
-        rm -f "$err"; echo "$why"; return 1
+        rm -f "$err"; echo "$why"; return "$rc"
     fi
     rm -f "$err"
 }
