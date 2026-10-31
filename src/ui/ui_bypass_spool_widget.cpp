@@ -73,7 +73,7 @@ void bypass_spool_set_visible(BypassSpoolWidgets& w, bool visible) {
     // resurrect an empty label the moment the node came back.
     lv_obj_t* const always[] = {w.box, w.bypass_label};
     for (lv_obj_t* part : always) {
-        if (part == nullptr || !lv_obj_is_valid(part)) {
+        if (part == nullptr) {
             continue;
         }
         if (visible) {
@@ -83,7 +83,7 @@ void bypass_spool_set_visible(BypassSpoolWidgets& w, bool visible) {
         }
     }
 
-    if (!visible && w.material_label != nullptr && lv_obj_is_valid(w.material_label)) {
+    if (!visible && w.material_label != nullptr) {
         lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
     }
 }

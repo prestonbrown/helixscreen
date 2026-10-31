@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl/lvgl.h"
 
 #include <cstdint>
@@ -110,7 +112,7 @@ class ScopedHideChrome {
     ScopedHideChrome& operator=(const ScopedHideChrome&) = delete;
 
   private:
-    std::vector<lv_obj_t*> hidden_;
+    std::vector<WeakWidget> hidden_;
 };
 
 /**

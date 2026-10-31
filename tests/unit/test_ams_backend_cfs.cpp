@@ -7162,7 +7162,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "CFS: the all-units slot row disables an abs
     lv_obj_set_size(area, 800, 200);
     AmsDetailWidgets w;
     w.slot_grid = lv_obj_create(area);
-    lv_obj_t* slots[16] = {};
+    helix::ui::WidgetRef slots[16];
     const auto result =
         ams_detail_create_slots(w, slots, 16, /*unit_index=*/-1, [](lv_event_t*) {}, nullptr);
     REQUIRE(result.slot_count == 12);
