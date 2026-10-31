@@ -182,7 +182,8 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "[ActivePrintMediaManager]") {
     struct Row {
         std::vector<std::string> filenames; // set in order; the last one is shown
-        std::string display;                // empty: any non-empty name (it may be truncated)
+        std::string display;                // exact, or the start of it when prefix is set
+        bool prefix = false;                // a long name may be truncated
     };
     const Row rows[] = {
         {{"benchy.gcode"}, "benchy"},
@@ -194,7 +195,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
         {{"My Model (v2) - Final.gcode"}, "My Model (v2) - Final"},
         {{"Model.GCODE"}, "Model"},
         {{"Model.GCode"}, "Model"},
-        {{std::string(100, 'x') + ".gcode"}, ""},
+        {{std::string(100, 'x') + ".gcode"}, "xxxx", true},
         // Rapid changes leave the last; a repeat of the same name changes nothing.
         {{"print1.gcode", "print2.gcode", "print3.gcode"}, "print3"},
         {{"same_file.gcode", "same_file.gcode"}, "same_file"},
@@ -205,8 +206,8 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
             set_print_filename(f);
         }
         CHECK(get_print_filename() == row.filenames.back());
-        if (row.display.empty()) {
-            CHECK_FALSE(get_display_filename().empty());
+        if (row.prefix) {
+            CHECK(get_display_filename().rfind(row.display, 0) == 0);
         } else {
             CHECK(get_display_filename() == row.display);
         }

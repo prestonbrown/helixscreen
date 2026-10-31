@@ -271,6 +271,12 @@ TEST_CASE("default_layout: the layout file's anchors, and the fallback when it h
                 CHECK(e->row == x.row);
                 const auto* def = find_widget_def(x.id);
                 REQUIRE(def != nullptr);
+                // A registry span of one track could not tell "the registry span"
+                // from "defaulted to one track".
+                if (x.colspan < 0) {
+                    REQUIRE(def->colspan > 1);
+                    REQUIRE(def->rowspan > 1);
+                }
                 if (x.colspan != 0) {
                     CHECK(e->colspan == (x.colspan < 0 ? def->colspan : x.colspan));
                     CHECK(e->rowspan == (x.rowspan < 0 ? def->rowspan : x.rowspan));
