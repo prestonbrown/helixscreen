@@ -78,6 +78,13 @@ void FilamentCatalogPickerModal::on_show() {
     }
 }
 
+FilamentCatalogPickerModal::~FilamentCatalogPickerModal() {
+    // A shown modal's owner can destroy it without on_hide() running, and the static
+    // XML callbacks would then reach a freed instance.
+    if (active_instance_ == this)
+        active_instance_ = nullptr;
+}
+
 void FilamentCatalogPickerModal::on_hide() {
     if (active_instance_ == this)
         active_instance_ = nullptr;
