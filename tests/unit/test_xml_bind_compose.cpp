@@ -21,12 +21,14 @@
 
 #include "ui_update_queue.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "printer_state.h"
 
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -308,4 +310,37 @@ TEST_CASE("the double-bind inventory is regenerated when ui_xml changes",
     // removing one, moves these and forces a regeneration and a re-run.
     REQUIRE(std::size(kDoubleBindWidgets) + kUndrivableGroups == static_cast<size_t>(kTotalGroups));
     REQUIRE(kTotalGroups == 78);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads without reading it",
+                 "[xml][1983]") {
+    // The shape of motion_panel.xml: one subject dies with its panel, the other is a
+    // setting that outlives it, and the widget is still there when the setting fires.
+    auto panel_tab = std::make_unique<lv_subject_t>();
+    lv_subject_init_int(panel_tab.get(), 0);
+    lv_subject_t setting;
+    lv_subject_init_int(&setting, 0);
+    REQUIRE(lv_xml_register_subject(nullptr, "cond_lifetime_tab", panel_tab.get()) == LV_RESULT_OK);
+    REQUIRE(lv_xml_register_subject(nullptr, "cond_lifetime_setting", &setting) == LV_RESULT_OK);
+    REQUIRE(lv_xml_register_component_from_data(
+                "cond_lifetime_view",
+                "<component><view extends=\"lv_obj\">"
+                "<bind_flag_if cond=\"cond_lifetime_tab eq 0 and cond_lifetime_setting ne 0\" "
+                "flag=\"hidden\"/></view></component>") == LV_RESULT_OK);
+    auto* view =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "cond_lifetime_view", nullptr));
+    REQUIRE(view != nullptr);
+
+    lv_subject_set_int(&setting, 1);
+    REQUIRE(lv_obj_has_flag(view, LV_OBJ_FLAG_HIDDEN));
+
+    lv_subject_deinit(panel_tab.get());
+    panel_tab.reset();
+    lv_subject_set_int(&setting, 0); // reads freed storage if the binding still evaluates
+
+    CHECK(lv_obj_has_flag(view, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_delete(view);
+    lv_subject_deinit(&setting);
+    lv_xml_unregister_subject(nullptr, "cond_lifetime_tab");
+    lv_xml_unregister_subject(nullptr, "cond_lifetime_setting");
 }
