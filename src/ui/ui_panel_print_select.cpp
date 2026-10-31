@@ -1830,7 +1830,7 @@ void PrintSelectPanel::set_api(IMoonrakerAPI* api) {
                             self->get_name());
                         return;
                     }
-                    if (!self->panel_ || !lv_obj_is_valid(self->panel_)) {
+                    if (!self->panel_) {
                         return;
                     }
                     spdlog::debug("[{}] Refreshing file list due to external change",
@@ -1849,7 +1849,7 @@ void PrintSelectPanel::set_api(IMoonrakerAPI* api) {
         file_poll_timer_ = lv_timer_create(
             [](lv_timer_t* timer) {
                 auto* panel = static_cast<PrintSelectPanel*>(lv_timer_get_user_data(timer));
-                if (!panel->panel_ || !lv_obj_is_valid(panel->panel_)) {
+                if (!panel->panel_) {
                     return;
                 }
                 bool is_usb_active = panel->usb_source_ && panel->usb_source_->is_usb_active();
@@ -2435,7 +2435,7 @@ void PrintSelectPanel::schedule_view_refresh() {
         auto* self = this;
 
         // Guard against async callback firing after display destruction
-        if (!self->panel_ || !lv_obj_is_valid(self->panel_)) {
+        if (!self->panel_) {
             return;
         }
 
@@ -2452,7 +2452,7 @@ void PrintSelectPanel::schedule_view_refresh() {
                 panel->refresh_timer_ = nullptr; // Clear before callback (timer auto-deletes)
 
                 // Guard against timer firing after display destruction
-                if (!panel->panel_ || !lv_obj_is_valid(panel->panel_)) {
+                if (!panel->panel_) {
                     return;
                 }
 
@@ -3906,7 +3906,7 @@ void PrintSelectPanel::on_card_container_resized_static(lv_event_t* e) {
     self->object_lifetime_.defer("PrintSelectPanel::card_container_resized", [self]() {
         self->card_resize_pending_ = false;
         lv_obj_t* c = self->card_view_container_;
-        if (!c || !lv_obj_is_valid(c) || self->current_view_mode_ != PrintSelectViewMode::CARD) {
+        if (!c || self->current_view_mode_ != PrintSelectViewMode::CARD) {
             return;
         }
         // Only a content box the cards were not sized for re-populates, so a
