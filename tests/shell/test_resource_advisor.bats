@@ -84,11 +84,13 @@ context() {
     [ "$status" -eq 0 ]
     contains "test host" "$(context)"
     contains "addr2line" "$(context)"
+    contains "test-host-run.sh exec --build --" "$(context)"
 }
 
 @test "gdb against a helix binary points at coredumpctl" {
     advise "gdb -batch -ex bt build/bin/helix-screen core.123"
     contains "coredumpctl info" "$(context)"
+    contains "test-host-run.sh exec --build --" "$(context)"
 }
 
 # A test-host-run.sh stand-in offering exactly the modes named.
