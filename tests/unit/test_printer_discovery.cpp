@@ -782,14 +782,42 @@ TEST_CASE("PrinterDiscovery detects new AFC object types", "[printer_discovery][
     }
 }
 
-TEST_CASE("PrinterDiscovery detects Happy Hare MMU", "[printer_discovery]") {
-    PrinterDiscovery hw;
-
-    json objects = {"mmu", "extruder", "heater_bed"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_mmu());
-    REQUIRE(hw.mmu_type() == AmsType::HAPPY_HARE);
+TEST_CASE("PrinterDiscovery picks the filament system from the object list",
+          "[printer_discovery][ams][ad5x_ifs][qidi_box]") {
+    // Happy Hare's [mmu] wins over the sensors and steppers other systems are
+    // recognised by; a plain runout sensor is no filament system at all.
+    struct Row {
+        const char* label;
+        std::vector<std::string> objects;
+        bool has_mmu;
+        AmsType type;
+    };
+    const Row rows[] = {
+        {"Happy Hare", {"mmu", "extruder", "heater_bed"}, true, AmsType::HAPPY_HARE},
+        {"a runout sensor without zmod sensors",
+         {"extruder", "heater_bed", "filament_switch_sensor runout_sensor"},
+         false,
+         AmsType::NONE},
+        {"Happy Hare over IFS port sensors",
+         {"mmu", "filament_switch_sensor _ifs_port_sensor_1"},
+         true,
+         AmsType::HAPPY_HARE},
+        {"Happy Hare over a QIDI Box",
+         {"mmu", "box_stepper slot0", "box_stepper slot1", "box_stepper slot2",
+          "box_stepper slot3"},
+         true,
+         AmsType::HAPPY_HARE},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.label) {
+            PrinterDiscovery hw;
+            hw.parse_objects(json(row.objects));
+            CHECK(hw.has_mmu() == row.has_mmu);
+            CHECK(hw.mmu_type() == row.type);
+            // The box is not counted when another system owns filament.
+            CHECK(hw.qidi_box_slot_count() == 0);
+        }
+    }
 }
 
 TEST_CASE("PrinterDiscovery parses Happy Hare mmu_encoder objects", "[printer_discovery]") {
@@ -1198,22 +1226,25 @@ TEST_CASE("PrinterDiscovery detects LED capability", "[printer_discovery]") {
     }
 }
 
-TEST_CASE("PrinterDiscovery detects firmware retraction", "[printer_discovery]") {
-    PrinterDiscovery hw;
-
-    json objects = {"extruder", "firmware_retraction"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_firmware_retraction());
-}
-
-TEST_CASE("PrinterDiscovery detects timelapse plugin", "[printer_discovery]") {
-    PrinterDiscovery hw;
-
-    json objects = {"extruder", "timelapse"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_timelapse());
+TEST_CASE("PrinterDiscovery reports a capability for its module object",
+          "[printer_discovery][capabilities]") {
+    struct Row {
+        const char* object;
+        bool (PrinterDiscovery::*has)() const;
+    };
+    const Row rows[] = {
+        {"firmware_retraction", &PrinterDiscovery::has_firmware_retraction},
+        {"timelapse", &PrinterDiscovery::has_timelapse},
+        {"screws_tilt_adjust", &PrinterDiscovery::has_screws_tilt},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.object) {
+            PrinterDiscovery hw;
+            CHECK_FALSE((hw.*row.has)());
+            hw.parse_objects(json{"extruder", "heater_bed", row.object});
+            CHECK((hw.*row.has)());
+        }
+    }
 }
 
 TEST_CASE("PrinterDiscovery detects chamber heater and sensor", "[printer_discovery]") {
@@ -1749,16 +1780,6 @@ TEST_CASE("PrinterDiscovery handles full Voron 2.4 config", "[printer_discovery]
 // NOTE: screws_tilt_adjust doesn't implement get_status() in Klipper,
 // so it typically won't appear in objects/list. Must detect from configfile.
 
-TEST_CASE("PrinterDiscovery detects screws_tilt_adjust from objects list", "[printer_discovery]") {
-    // Belt-and-suspenders: if a future Klipper version adds get_status(), this still works
-    PrinterDiscovery hw;
-
-    json objects = {"extruder", "heater_bed", "screws_tilt_adjust"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_screws_tilt());
-}
-
 TEST_CASE("PrinterDiscovery detects screws_tilt_adjust from config keys", "[printer_discovery]") {
     PrinterDiscovery hw;
 
@@ -1859,32 +1880,6 @@ TEST_CASE("PrinterDiscovery detects native ZMOD IFS via motion sensor",
                       "filament_switch_sensor head_switch_sensor") != sensors.end());
 }
 
-TEST_CASE("PrinterDiscovery does not detect AD5X IFS without zmod sensors",
-          "[printer_discovery][ad5x_ifs]") {
-    helix::PrinterDiscovery discovery;
-    discovery.parse_objects(nlohmann::json::array({
-        "extruder",
-        "heater_bed",
-        "filament_switch_sensor runout_sensor",
-    }));
-
-    REQUIRE_FALSE(discovery.has_mmu());
-    REQUIRE(discovery.mmu_type() == AmsType::NONE);
-}
-
-TEST_CASE("PrinterDiscovery: Happy Hare takes priority over IFS sensors",
-          "[printer_discovery][ad5x_ifs]") {
-    helix::PrinterDiscovery discovery;
-    // Both MMU and IFS sensors present — MMU wins because it's detected first
-    discovery.parse_objects(nlohmann::json::array({
-        "mmu",
-        "filament_switch_sensor _ifs_port_sensor_1",
-    }));
-
-    REQUIRE(discovery.has_mmu());
-    REQUIRE(discovery.mmu_type() == AmsType::HAPPY_HARE);
-}
-
 // ==========================================================================
 // QIDI Box Detection
 // ==========================================================================
@@ -1963,26 +1958,6 @@ TEST_CASE("PrinterDiscovery counts QIDI Box slots from box_stepper objects",
         discovery.parse_objects(nlohmann::json::array({"extruder", "heater_bed"}));
         REQUIRE(discovery.qidi_box_slot_count() == 0);
     }
-}
-
-TEST_CASE("PrinterDiscovery: Happy Hare takes priority over QIDI Box",
-          "[printer_discovery][qidi_box]") {
-    // Happy Hare is a generic MMU and wins over hardware-specific backends
-    // (matches AD5X IFS priority semantics). If both objects appear in
-    // printer.objects.list, mmu_type() must be HAPPY_HARE.
-    helix::PrinterDiscovery discovery;
-    discovery.parse_objects(nlohmann::json::array({
-        "mmu",
-        "box_stepper slot0",
-        "box_stepper slot1",
-        "box_stepper slot2",
-        "box_stepper slot3",
-    }));
-
-    REQUIRE(discovery.has_mmu());
-    REQUIRE(discovery.mmu_type() == AmsType::HAPPY_HARE);
-    // QIDI slot counter must NOT increment when Happy Hare claims the slot.
-    REQUIRE(discovery.qidi_box_slot_count() == 0);
 }
 
 // ============================================================================

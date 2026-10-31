@@ -5,6 +5,7 @@
 
 #include "ui_breakpoint.h"
 #include "ui_modal.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "panel_widget.h"
@@ -113,8 +114,8 @@ class TempGraphWidget : public PanelWidget {
     std::string instance_id_;
     nlohmann::json config_;
 
-    lv_obj_t* widget_obj_ = nullptr;
-    lv_obj_t* parent_screen_ = nullptr;
+    helix::ui::WidgetRef widget_obj_;
+    helix::ui::WidgetRef parent_screen_;
 
     std::unique_ptr<TempGraphController> controller_;
 

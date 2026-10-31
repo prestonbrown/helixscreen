@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl/lvgl.h"
 #include "observer_factory.h"
 #include "overlay_base.h"
@@ -70,7 +72,7 @@ class UpdatesSettingsOverlay : public OverlayBase {
     /// (prestonbrown/helixscreen#1727).
     void on_download_status(int status);
 
-    lv_obj_t* update_download_modal_ = nullptr;
+    helix::ui::WidgetRef update_download_modal_;
     /// Set by hide_update_download_modal(): the user's own Cancel/Close, which
     /// an error arriving afterwards must not override.
     bool download_modal_closed_by_user_ = false;

@@ -78,7 +78,7 @@ UiClogMeter::UiClogMeter(lv_obj_t* parent) {
 UiClogMeter::~UiClogMeter() {
     // Remove SIZE_CHANGED callback to prevent dangling this pointer
     // The card is reached through root_, so root_ must still be alive to ask.
-    if (root_ && lv_is_initialized() && lv_obj_is_valid(root_)) {
+    if (root_ && lv_is_initialized()) {
         helix::ui::remove_event_cb_if_alive(card_of(root_), on_card_size_changed, this);
     }
 

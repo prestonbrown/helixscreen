@@ -65,6 +65,11 @@ ChangeHostModal::ChangeHostModal() {
 }
 
 ChangeHostModal::~ChangeHostModal() {
+    // A shown modal's owner can destroy it without on_hide() running, and the static
+    // XML callbacks would then reach a freed instance.
+    if (active_instance_ == this) {
+        active_instance_ = nullptr;
+    }
     deinit_subjects();
     spdlog::trace("[ChangeHostModal] Destroyed");
 }

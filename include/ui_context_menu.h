@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "helix_type_tag.h"
 
 #include <cstddef>
@@ -330,13 +332,13 @@ class ContextMenu {
     [[nodiscard]] int32_t screen_height_pct(int pct) const;
 
   private:
-    lv_obj_t* menu_ = nullptr;
+    WidgetRef menu_;
     lv_obj_t* parent_ = nullptr;
     int item_index_ = -1;
     lv_point_t click_point_ = {0, 0};
     AnchorMode anchor_mode_ = AnchorMode::ClickPoint;
     AnchorAlign anchor_align_ = AnchorAlign::Center;
-    lv_obj_t* anchor_widget_ = nullptr;
+    WidgetRef anchor_widget_;
     ActionCallback action_callback_;
 
     /** @brief The menu currently on screen — see active() */
@@ -346,20 +348,8 @@ class ContextMenu {
     bool show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, AnchorMode mode,
                    AnchorAlign align);
 
-    /** @brief Take over another menu's widget and delete hook (move ctor/assign) */
+    /** @brief Take over another menu's widgets (move ctor/assign) */
     void adopt_from(ContextMenu& other);
-
-    /**
-     * @brief Keep menu_/s_active_ from outliving the backdrop widget
-     *
-     * The backdrop can be destroyed without going through hide() — a screen swap
-     * takes its parent with it. Without this the pointers go stale and the next
-     * backdrop tap dispatches through freed memory. Re-pointed on move, since the
-     * callback carries `this`.
-     */
-    void install_delete_hook();
-    void uninstall_delete_hook();
-    static void on_menu_deleted(lv_event_t* e);
 
     /** @brief The two XML callbacks every menu shares; both route through active() */
     static void backdrop_cb(lv_event_t* e);

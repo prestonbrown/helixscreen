@@ -131,10 +131,8 @@ void HeatingIconAnimator::detach() {
 
     stop_pulse();
 
-    // Remove our delete callback. Do NOT use lv_obj_is_valid() here — it performs
-    // an O(n) recursive walk that can stack overflow on Pi. The pointer is valid
-    // because detach() is only called while the widget tree is alive, and
-    // icon_delete_cb would have nulled icon_ if the widget was already destroyed.
+    // Remove our delete callback. The pointer is alive: detach() runs only while the
+    // widget tree exists, and icon_delete_cb nulls icon_ when the widget is destroyed.
     lv_obj_remove_event_cb_with_user_data(icon, icon_delete_cb, this);
 
     // ObserverGuard::reset() removes the observer from the subject

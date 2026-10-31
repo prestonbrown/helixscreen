@@ -825,7 +825,8 @@ void ControlsPanel::populate_secondary_fans() {
 
         // Track this row for reactive speed updates
         secondary_fan_rows_.push_back(
-            {fan->object_name, helix::ui::find_required(row, "fan_speed_label", get_name())});
+            {fan->object_name,
+             helix::ui::WeakWidget(helix::ui::find_required(row, "fan_speed_label", get_name()))});
         visible_count++;
     }
 
@@ -1303,11 +1304,6 @@ void ControlsPanel::subscribe_to_secondary_fan_speeds() {
 void ControlsPanel::update_secondary_fan_speed(const std::string& object_name, int speed_pct) {
     for (const auto& row : secondary_fan_rows_) {
         if (row.object_name == object_name && row.speed_label) {
-            if (!lv_obj_is_valid(row.speed_label)) {
-                spdlog::debug("[{}] Stale speed_label for fan '{}', skipping update", get_name(),
-                              object_name);
-                break;
-            }
             char speed_buf[16];
             format_fan_speed(speed_pct, speed_buf, sizeof(speed_buf));
             lv_label_set_text(row.speed_label, speed_buf);

@@ -140,3 +140,22 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A field already above the keyboard leaves t
     lv_obj_delete(high);
     lv_obj_delete(placed);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A focused textarea deleted hides the keyboard",
+                 "[keyboard][1983]") {
+    ScopedAnimatedKeyboard scoped(test_screen());
+    lv_obj_t* textarea = lv_textarea_create(test_screen());
+    auto& keyboard = KeyboardManager::instance();
+    // Outside any group, so no DEFOCUSED arrives: only the delete hook can hide it.
+    lv_group_t* group = lv_group_get_default();
+    lv_group_set_default(nullptr);
+    keyboard.register_textarea(textarea);
+    lv_group_set_default(group);
+    keyboard.show(textarea);
+    REQUIRE(keyboard.is_visible());
+
+    lv_obj_delete(textarea);
+    process_lvgl(400);
+
+    CHECK_FALSE(keyboard.is_visible());
+}

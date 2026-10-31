@@ -1353,7 +1353,7 @@ Where it is installed:
 Two kinds of remote machine help here, and both are optional:
 
 - a **test host** runs the expensive, non-interactive jobs (`sweep`, `asan`,
-  `tsan`, `mutate`) in a container: `scripts/test-host-run.sh`. It mirrors your
+  `tsan`, `mutate`, or any command through `exec`) in a container: `scripts/test-host-run.sh`. It mirrors your
   working tree as it is on disk, uncommitted edits included, into a per-tree
   directory whose `build/` persists, so a warm run rebuilds only what changed.
   A tree's first run copies the nearest warm mirror first, so it starts warm
@@ -1435,6 +1435,7 @@ host simply runs both suites locally, without a word.
 | `HELIX_TEST_PRUNE_DAYS` | `test-host-run.sh` | creating a mirror or mutate checkout removes those unused this many days; `0` never (`14`) |
 | `HELIX_TEST_LOCK_DIR` | `test-host-run.sh` | lock directory on the host (`/tmp`) |
 | `HELIX_TEST_HOST_AUTO` | `full-test-run`, `land-gate` | `0` keeps an unforced gate local even with a test host configured (`1`) |
+| `HELIX_LAND_GATE_HOSTS` | pre-push | comma-separated hosts whose `make land-gate` passes count here: when no local stamp names the pushed commit, pre-push asks each in order over ssh (BatchMode, 8s each) for its shared record of that SHA and skips the quality sweep on the first yes. For a gate host with no push credentials, such as a build container (none: no lookup, no ssh) |
 | `REMOTE_HOST`, `REMOTE_USER` | `mk/remote.mk`, `remote-build.sh` | remote build host (or a candidate list) and optional user (none) |
 | `REMOTE_DIR` | `mk/remote.mk` | rsync target on the remote for the cross targets (none). `remote-sync` rsyncs `--delete` into it, so give it a directory of its own, never a checkout you work in |
 | `REMOTE_BUILD_DIR` | `remote-build.sh` | its own clone on the remote (`~/helix-remote`), which it hard-resets and cleans every run. It works only in a directory it created (marked `.helix-remote-build`) and refuses any other |
@@ -1458,6 +1459,18 @@ from your own machine:
 scripts/test-host-setup.sh                    # image, container, toolchain checks
 scripts/test-host-setup.sh --commit-checkout  # also clone the checkout --commit and mutate use
 scripts/test-host-run.sh test '[netd]'        # first run: syncs the tree and builds (minutes)
+```
+
+`test` hands every argument to `helix-tests` (`test -# '[#test_foo]'`, `test
+--list-tags`); with none it runs the whole suite in one process. `exec --
+COMMAND [ARG...]` runs any command in the synced mirror inside the container,
+with the same sync, lock and jobpool handling, and `exec --build --` runs
+`make test` first. Both quote each argument with `printf %q` before it crosses
+ssh, so an argument holding a space, a quote or a `;` arrives as one word and is
+never run as shell:
+
+```bash
+scripts/test-host-run.sh exec --build -- bash ./scripts/my_probe.sh 'two words'
 ```
 
 The setup builds the image from `docker/Dockerfile.sanitizer` in your tree,

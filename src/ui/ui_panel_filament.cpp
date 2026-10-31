@@ -2203,7 +2203,7 @@ void FilamentPanel::handle_extruder_changed() {
 void FilamentPanel::revert_extruder_dropdown() {
     // A confirmation dialog can outlive the widgets it was opened over (a hot
     // reload rebuilding the panel), and its close is what calls this.
-    if (!extruder_dropdown_ || !lv_is_initialized() || !lv_obj_is_valid(extruder_dropdown_)) {
+    if (!extruder_dropdown_ || !lv_is_initialized()) {
         return;
     }
     const int active = helix::ToolState::instance().active_tool_index();

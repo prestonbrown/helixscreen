@@ -24,6 +24,7 @@
 #include "ui_panel_common.h"
 #include "ui_spool_canvas.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -1367,7 +1368,7 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
     host.parent_screen = parent_screen_;
     host.api = api_;
     host.log_tag = "[AmsPanel]";
-    host.path_canvas = [this] { return path_canvas_; };
+    host.path_canvas = [this]() -> lv_obj_t* { return path_canvas_; };
     host.sidebar = [this] { return sidebar_.get(); };
     helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget, click_pt);
 }
@@ -1533,7 +1534,7 @@ void AmsPanel::dismiss_error_modal_silently(const char* reason) {
 // Global Instance
 // ============================================================================
 
-static lv_obj_t* s_ams_panel_obj = nullptr;
+static helix::ui::WidgetRef s_ams_panel_obj;
 // Theme generation the cached tree was built under; its widgets keep the
 // colours they were created with.
 static int s_ams_panel_theme_gen = 0;

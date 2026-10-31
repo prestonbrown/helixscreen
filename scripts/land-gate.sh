@@ -47,9 +47,24 @@
 # is non-zero unless every row passed. The run holds build:<tree>, so a second
 # gate or a peer's make in the same tree is refused instead of racing it.
 #
-# A PASS on a clean tree that did not move during the run is recorded against
-# the full HEAD SHA (.githooks/lib/land-gate-stamp.sh), and pre-push skips the
-# quality sweep when it pushes exactly that commit.
+# A run on a clean tree that did not move keeps each step's verdict under
+# $LAND_GATE_LOGDIR/results/<full HEAD SHA>/. A gate red on one flaky or
+# environment step is completed by rerunning only that step on the same commit:
+#
+#   scripts/land-gate.sh --rerun ui[,bats...]     make land-gate STAGES=ui,bats
+#
+# A rerun refuses a step name the gate does not have, a dirty tree, and a HEAD
+# with no recorded results; it runs the named steps one after another, merges
+# their verdicts into that commit's results and prints the merged table.
+# bats, ui and quality test the binaries app-build links (build/bin), so a
+# rerun naming any of them or app-build reruns all four: a PASS can only ever
+# come from a binary built from this commit. When that app-build fails, the
+# other three are recorded SKIP.
+#
+# Once every step of a commit's results is a PASS, from the run or a rerun,
+# the commit is stamped by full SHA (.githooks/lib/land-gate-stamp.sh), and
+# pre-push skips the quality sweep when it pushes exactly that commit. A
+# result set for the commit that is not all PASS removes its stamp.
 #
 # Outside this gate: [.] (the commit hook), [slow] and the goldens (nightly and
 # local-only), and build.yml's telemetry-worker vitest
@@ -71,6 +86,7 @@ LAND_GATE_STEP_TIMEOUT=${LAND_GATE_STEP_TIMEOUT:-3600}
 # here actually took instead of anyone's guess.
 LAND_GATE_HISTORY=${LAND_GATE_HISTORY:-${XDG_STATE_HOME:-$HOME/.local/state}/helixscreen/land-gate-history.tsv}
 ROWS_DIR="$LAND_GATE_LOGDIR/rows"
+RESULTS_DIR="$LAND_GATE_LOGDIR/results"
 
 STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 quality"
 
@@ -112,41 +128,64 @@ esp32_check() {
     "$ESP32_CHECK" --require --base "$base" --head HEAD
 }
 
-lane() {
+# run_step <name>: one step, by its table name. The gate's lanes and a rerun
+# both run steps through here, so a rerun runs exactly what the gate ran.
+run_step() {
     local mk=("$MAKE" --no-print-directory)
     case "$1" in
-        unit)
+        app-build) step app-build "${mk[@]}" ;;
+        ci-shards)
             if [ "$SWEEP_WHERE" = remote ]; then
                 step ci-shards "$TEST_HOST_RUN" sweep "NPROCS=$CI_SHARDS" "SHARD_TIMEOUT=$CI_SHARD_TIMEOUT" SHARD_CRASH_FAILS=1
             else
                 step ci-shards "${mk[@]}" unit-sweep "NPROCS=$CI_SHARDS" "SHARD_TIMEOUT=$CI_SHARD_TIMEOUT" SHARD_CRASH_FAILS=1
+            fi ;;
+        bats) step bats "${mk[@]}" test-shell BATS_REQUIRED=1 ;;
+        ui) step ui "${mk[@]}" test-ui-ci ;;
+        plugin) step plugin "${mk[@]}" test-plugin ;;
+        python) step python "${mk[@]}" test-python ;;
+        theme-tokens) step theme-tokens "${mk[@]}" check-theme-tokens ;;
+        xml-schema) step xml-schema "${mk[@]}" check-xml-schema ;;
+        lint-xml) step lint-xml "${mk[@]}" lint-xml ;;
+        lvgl-event-codes) step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes ;;
+        esp32) step esp32 bash "$SELF" --esp32-check ;;
+        quality) step quality "${mk[@]}" quality ;;
+        *) echo "✗ unknown step '$1'" >&2; return 2 ;;
+    esac
+}
+
+lane() {
+    case "$1" in
+        unit)
+            run_step ci-shards
+            if [ "$SWEEP_WHERE" = local ]; then
                 # quality starts makes of its own in this tree (an incremental app
                 # build, the XML tools), so it waits for the local sweep to link
                 # and finish. This lane starts after the app build's row exists.
                 if grep -q '^PASS ' "$ROWS_DIR/app-build" 2>/dev/null; then
-                    step quality "${mk[@]}" quality
+                    run_step quality
                 else
                     skip quality "app-build failed"
                 fi
             fi ;;
         app)
-            if step app-build "${mk[@]}"; then
-                step ui "${mk[@]}" test-ui-ci
-                step plugin "${mk[@]}" test-plugin
-                [ "$SWEEP_WHERE" = local ] || step quality "${mk[@]}" quality
+            if run_step app-build; then
+                run_step ui
+                run_step plugin
+                [ "$SWEEP_WHERE" = local ] || run_step quality
             else
                 skip ui "app-build failed"
                 skip plugin "app-build failed"
                 [ "$SWEEP_WHERE" = local ] || skip quality "app-build failed"
             fi ;;
-        bats) step bats "${mk[@]}" test-shell BATS_REQUIRED=1 ;;
+        bats) run_step bats ;;
         fresh)
-            step python "${mk[@]}" test-python
-            step theme-tokens "${mk[@]}" check-theme-tokens
-            step xml-schema "${mk[@]}" check-xml-schema
-            step lint-xml "${mk[@]}" lint-xml
-            step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes
-            step esp32 bash "$SELF" --esp32-check ;;
+            run_step python
+            run_step theme-tokens
+            run_step xml-schema
+            run_step lint-xml
+            run_step lvgl-event-codes
+            run_step esp32 ;;
         *) echo "✗ unknown lane '$1'" >&2; return 2 ;;
     esac
     return 0
@@ -160,6 +199,38 @@ fi
 if [ "${1:-}" = --esp32-check ]; then
     esp32_check
     exit $?
+fi
+
+# --rerun takes step names, comma- or space-separated, and refuses any the
+# gate does not have before anything runs.
+RERUN=""
+if [ "${1:-}" = --rerun ]; then
+    IFS=', ' read -r -a rerun_names <<<"${2:-}"
+    for n in "${rerun_names[@]}"; do
+        case " $STEPS " in
+            *" $n "*) RERUN+=" $n" ;;
+            *) echo "✗ land-gate has no step '$n' (steps: $STEPS)" >&2; exit 2 ;;
+        esac
+    done
+    if [ -z "$RERUN" ]; then
+        echo "✗ --rerun needs step names (steps: $STEPS)" >&2
+        exit 2
+    fi
+elif [ $# -gt 0 ]; then
+    echo "✗ usage: land-gate.sh [--rerun STEP[,STEP...]]" >&2
+    exit 2
+fi
+reruns() { case "$RERUN " in *" $1 "*) return 0 ;; esac; return 1; }
+
+# The steps that test what app-build links into build/bin.
+BUILD_DEPENDENTS="bats ui quality"
+if [ -n "$RERUN" ]; then
+    for n in app-build $BUILD_DEPENDENTS; do
+        if reruns "$n"; then
+            for d in app-build $BUILD_DEPENDENTS; do reruns "$d" || RERUN+=" $d"; done
+            break
+        fi
+    done
 fi
 
 # A step that ends up running the gate again (a make target, a stub) would fan
@@ -180,7 +251,7 @@ export LAND_GATE_ACTIVE=$$
 resolve_sweep_location || exit $?
 # macOS is a development platform, and the C++ suite has known failures there
 # on the environment alone (#1776): a local run there reds every gate.
-if [ "$SWEEP_WHERE" = local ] && [ "$(uname -s)" = Darwin ]; then
+if [ "$SWEEP_WHERE" = local ] && [ "$(uname -s)" = Darwin ] && { [ -z "$RERUN" ] || reruns ci-shards; }; then
     if [ -n "${HELIX_TEST_HOST:-}" ]; then
         echo "✗ land-gate does not run the C++ suite on macOS: TEST_HOST=1 make land-gate sends it to $HELIX_TEST_HOST" >&2
     else
@@ -189,6 +260,30 @@ if [ "$SWEEP_WHERE" = local ] && [ "$(uname -s)" = Darwin ]; then
     exit 2
 fi
 export SWEEP_WHERE MAKE TEST_HOST_RUN CI_SHARDS CI_SHARD_TIMEOUT LAND_GATE_LOGDIR LAND_GATE_STEP_TIMEOUT ROWS_DIR
+
+judged="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+judged_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+tree_clean() { [ -z "$(git status --porcelain --untracked-files=normal 2>/dev/null)" ]; }
+# The verdicts name judged_sha only while HEAD is still it and nothing is
+# uncommitted: a commit or an edit during the run means something else was judged.
+still_judged() { [ -n "$judged_sha" ] && [ "$(git rev-parse HEAD 2>/dev/null)" = "$judged_sha" ] && tree_clean; }
+
+# A rerun completes the results one commit already has, so it needs that
+# commit checked out and nothing else in the tree.
+if [ -n "$RERUN" ]; then
+    if [ -z "$judged_sha" ]; then
+        echo "✗ --rerun: not in a git tree, so there is no commit to complete" >&2
+        exit 2
+    fi
+    if ! tree_clean; then
+        echo "✗ --rerun needs a clean tree: uncommitted changes are not $judged, whose results a rerun completes" >&2
+        exit 2
+    fi
+    if [ ! -d "$RESULTS_DIR/$judged_sha" ]; then
+        echo "✗ --rerun: no gate results for HEAD $judged to complete; a make land-gate on a clean tree at this commit records them" >&2
+        exit 2
+    fi
+fi
 
 # build:<tree> is taken for this run's pid. The two claims exclude each other
 # across owners, so a worktree:<tree> holder running the gate must read as the
@@ -217,6 +312,79 @@ trap '"$HELIX_CLAIM" release-if-owned-by "$claim_pid" "build:$tree" >/dev/null 2
 mkdir -p "$ROWS_DIR" || exit 2
 rm -f "$ROWS_DIR"/*
 gate_t0=$SECONDS
+
+# print_table <rows dir>: one row per step with its duration and log, then the
+# tail of each red log. Sets failed unless every step has a PASS row.
+print_table() {
+    local dir=$1 s status secs log dur
+    failed=0 unpassed=""
+    for s in $STEPS; do
+        if [ -f "$dir/$s" ]; then
+            read -r status secs log <"$dir/$s"
+        else
+            status=FAIL secs=- log="no result: its lane died"
+        fi
+        [ "$status" = PASS ] || { failed=1; unpassed+=",$s"; }
+        if [ "$secs" = - ]; then dur=-; else dur="${secs}s"; fi
+        printf '  %-7s  %-17s %7s  %s\n' "$status" "$s" "$dur" "$log"
+    done
+    for s in $STEPS; do
+        [ -f "$dir/$s" ] || continue
+        read -r status _ log <"$dir/$s"
+        case "$status" in FAIL | TIMEOUT) ;; *) continue ;; esac
+        echo
+        echo "--- $s: last 25 lines of $log ---"
+        tail -n 25 "$log"
+    done
+}
+
+# stamp_if_complete: called once every step of judged_sha's results is a PASS;
+# records the commit for pre-push while the tree still holds exactly it.
+stamp_if_complete() {
+    if still_judged && land_gate_stamp_write "$judged_sha"; then
+        echo "  recorded: pushing $judged skips pre-push's quality sweep"
+    fi
+}
+
+# results_red: judged_sha's results have a step that is not a PASS, so any
+# stamp it holds no longer agrees with them.
+results_red() {
+    land_gate_stamp_remove "$judged_sha"
+    echo "LAND GATE: FAIL ($judged)"
+    echo "  complete it on this commit by rerunning the steps still to pass: make land-gate STAGES=${unpassed#,}"
+}
+
+if [ -n "$RERUN" ]; then
+    echo "→ rerunning$RERUN on $judged, one after another (logs: $LAND_GATE_LOGDIR)"
+    for s in $STEPS; do
+        reruns "$s" || continue
+        case " $BUILD_DEPENDENTS " in
+            *" $s "*) if ! grep -q '^PASS ' "$ROWS_DIR/app-build" 2>/dev/null; then
+                          skip "$s" "app-build failed"
+                          continue
+                      fi ;;
+        esac
+        run_step "$s"
+    done
+    echo
+    if ! still_judged; then
+        echo "✗ HEAD moved or the tree changed during the rerun: its verdicts name no commit, so nothing was merged"
+        print_table "$ROWS_DIR"
+        echo "LAND GATE: FAIL ($judged)"
+        exit 1
+    fi
+    cp "$ROWS_DIR"/* "$RESULTS_DIR/$judged_sha/" && touch "$RESULTS_DIR/$judged_sha"
+    echo "Land gate on $judged, C++ sweeps: $SWEEP_WHERE; rerun:$RERUN, merged with the commit's earlier results"
+    print_table "$RESULTS_DIR/$judged_sha"
+    echo
+    if [ "$failed" -ne 0 ]; then
+        results_red
+        exit 1
+    fi
+    echo "LAND GATE: PASS ($judged)"
+    stamp_if_complete
+    exit 0
+fi
 # The expected wall time: the median and the longest of the last ten gates
 # whose C++ sweeps ran in the same place.
 gate_eta() {
@@ -233,9 +401,7 @@ gate_eta() {
     echo "→ expect ~$(((median + 59) / 60))m (median of the last $n), up to $(((longest + 59) / 60))m; finishes around $(date -d "+${median} seconds" +%H:%M 2>/dev/null || echo '?')"
 }
 gate_eta
-judged="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
-judged_sha="$(git rev-parse HEAD 2>/dev/null || true)"
-[ -z "$(git status --porcelain --untracked-files=normal 2>/dev/null)" ] || judged+="+dirty"
+tree_clean || judged+="+dirty"
 
 # Each lane is its own process group, so one signal reaches everything under
 # it: a test-host ssh, a build, a pytest and its app, a bats run. A lane left
@@ -276,46 +442,33 @@ start_lane bats
 for p in "${PIDS[@]}"; do wait "$p"; done
 trap - INT TERM HUP
 
-failed=0
 echo
 echo "Land gate on $judged, C++ sweeps: $SWEEP_WHERE"
 [[ "$judged" != *+dirty ]] || echo "  +dirty: uncommitted changes were judged, so this verdict names no commit"
-for s in $STEPS; do
-    if [ -f "$ROWS_DIR/$s" ]; then
-        read -r status secs log <"$ROWS_DIR/$s"
-    else
-        status=FAIL secs=- log="no result: its lane died"
-    fi
-    [ "$status" = PASS ] || failed=1
-    if [ "$secs" = - ]; then dur=-; else dur="${secs}s"; fi
-    printf '  %-7s  %-17s %7s  %s\n' "$status" "$s" "$dur" "$log"
-done
-for s in $STEPS; do
-    [ -f "$ROWS_DIR/$s" ] || continue
-    read -r status _ log <"$ROWS_DIR/$s"
-    case "$status" in FAIL | TIMEOUT) ;; *) continue ;; esac
-    echo
-    echo "--- $s: last 25 lines of $log ---"
-    tail -n 25 "$log"
-done
+print_table "$ROWS_DIR"
 echo
 echo "  total $((SECONDS - gate_t0))s"
 if [ "$failed" -ne 0 ]; then verdict=FAIL; else verdict=PASS; fi
 if mkdir -p "$(dirname "$LAND_GATE_HISTORY")" 2>/dev/null; then
     echo "$(date +%s) $((SECONDS - gate_t0)) $verdict $SWEEP_WHERE" >>"$LAND_GATE_HISTORY"
 fi
+# This run's verdicts replace the commit's results when they name it. Results
+# untouched for 30 days are pruned, as stamps are.
+recorded=""
+if [[ "$judged" != *+dirty ]] && still_judged && mkdir -p "$RESULTS_DIR"; then
+    find "$RESULTS_DIR" -mindepth 1 -maxdepth 1 -type d -mtime +30 -exec rm -rf {} + 2>/dev/null
+    rm -rf "${RESULTS_DIR:?}/$judged_sha"
+    if mkdir -p "$RESULTS_DIR/$judged_sha" && cp "$ROWS_DIR"/* "$RESULTS_DIR/$judged_sha/"; then
+        recorded=1
+    fi
+fi
 if [ "$failed" -ne 0 ]; then
-    echo "LAND GATE: FAIL ($judged)"
+    if [ -n "$recorded" ]; then
+        results_red
+    else
+        echo "LAND GATE: FAIL ($judged)"
+    fi
     exit 1
 fi
 echo "LAND GATE: PASS ($judged)"
-# The verdict names a commit only if the tree was clean and still is, on the
-# same HEAD: a commit or an edit during the run means something else was judged.
-# The quality row is asked by name so the skip can never outlive the step.
-if [[ "$judged" != *+dirty ]] && [ -n "$judged_sha" ] \
-    && grep -q '^PASS ' "$ROWS_DIR/quality" 2>/dev/null \
-    && [ "$(git rev-parse HEAD 2>/dev/null)" = "$judged_sha" ] \
-    && [ -z "$(git status --porcelain --untracked-files=normal 2>/dev/null)" ] \
-    && land_gate_stamp_write "$judged_sha"; then
-    echo "  recorded: pushing $judged skips pre-push's quality sweep"
-fi
+[ -z "$recorded" ] || stamp_if_complete

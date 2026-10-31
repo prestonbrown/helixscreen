@@ -290,8 +290,8 @@ class HistoryListPanel : public OverlayBase {
     // === Detail Overlay State ===
     //
 
-    lv_obj_t* detail_overlay_ = nullptr; ///< Detail overlay widget (created on first use)
-    size_t selected_job_index_ = 0;      ///< Index of currently selected job in filtered_jobs_
+    helix::ui::WidgetRef detail_overlay_; ///< Detail overlay widget (created on first use)
+    size_t selected_job_index_ = 0;       ///< Index of currently selected job in filtered_jobs_
     /// Generation counter for async callback safety. Owned by the
     /// ThumbnailLoadContext each detail-overlay open creates — atomic because
     /// the context reads it from whichever thread delivers a fetch result.

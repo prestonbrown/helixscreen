@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -610,190 +611,108 @@ TEST_CASE("QIDI Box manages preheat itself (no UI-driven heat on load)", "[ams][
     REQUIRE(backend.supports_auto_heat_on_load());
 }
 
-TEST_CASE("QIDI Box load_filament: heats, EXTRUDER_LOADs the slot, clears, cools",
+// A load heats, EXTRUDER_LOADs the slot by name (value_t mapping is for the
+// slicer's T<n> and never changes which slot loads), clears the nozzle and
+// cools, unloading a different loaded slot first so the load does not jam on
+// it. An unload is the stock M603, or EXTRUDER_UNLOAD on firmware without it.
+// change_tool resolves the tool's slot and takes the load path. Global slots
+// past the first box address later boxes.
+TEST_CASE("QIDI Box write path sends the stock load, unload and mapping commands",
           "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-
-    // Fresh load into an empty extruder; no profile temp → default load temp.
-    auto err = backend.load_filament(2);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
-}
-
-TEST_CASE("QIDI Box load_filament: addresses the slot directly, not value_t mapping",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-
-    // value_t mapping is for the slicer's T<n> commands; EXTRUDER_LOAD takes the
-    // slot name directly, so a mapping must not change which slot is loaded.
-    QidiBoxTestAccess::parse_vars(backend, json{{"value_t0", "slot3"}});
-
-    auto err = backend.load_filament(3);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot3\nCLEAR_NOZZLE\nM104 S0");
-}
-
-TEST_CASE("QIDI Box load_filament: unloads a different loaded slot first",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    // Slot 0 is in the extruder; loading slot 2 must retract slot 0 first so
-    // EXTRUDER_LOAD doesn't jam on top of loaded filament.
-    QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot0"}});
-
-    auto err = backend.load_filament(2);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(
-        backend.sent[0] ==
-        "M603 S250\nENABLE_ALL_SENSOR\nM109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
-}
-
-TEST_CASE("QIDI Box load_filament accepts global slots from later boxes",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
-
-    auto err = backend.load_filament(5);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot5\nCLEAR_NOZZLE\nM104 S0");
-}
-
-TEST_CASE("QIDI Box load_filament: reloading the active slot does not self-unload",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot2"}});
-
-    auto err = backend.load_filament(2);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    // No leading M603 — slot 2 is already the loaded slot.
-    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
-}
-
-TEST_CASE("QIDI Box unload_filament: emits M603 (stock unload)", "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-
-    auto err = backend.unload_filament(1);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
-}
-
-TEST_CASE("QIDI Box unload_filament with -1 unloads the active slot via M603",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    // Seed slot 2 as LOADED so unload_filament(-1) targets it.
-    QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot2"}});
-
-    auto err = backend.unload_filament(-1);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
-}
-
-TEST_CASE("QIDI Box unload_filament accepts global slots from later boxes",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
-
-    auto err = backend.unload_filament(5);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
-}
-
-TEST_CASE("QIDI Box unload_filament with -1 and nothing loaded errors",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-
-    auto err = backend.unload_filament(-1);
-
-    REQUIRE_FALSE(err.success());
-    REQUIRE(backend.sent.empty());
-}
-
-TEST_CASE("QIDI Box unload falls back to EXTRUDER_UNLOAD when M603 is absent",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    // Simulate a firmware revision without the M603 macro.
-    QidiBoxTestAccess::set_fw_caps(backend, /*m603=*/false, /*clear_nozzle=*/true);
-
-    auto err = backend.unload_filament(1);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_UNLOAD SLOT=slot1\nM104 S0");
-}
-
-TEST_CASE("QIDI Box load omits CLEAR_NOZZLE when the macro is absent",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::set_fw_caps(backend, /*m603=*/true, /*clear_nozzle=*/false);
-
-    auto err = backend.load_filament(2);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nM104 S0");
-}
-
-TEST_CASE("QIDI Box change_tool resolves to the slot and drives the load path",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-
-    // Default mapping is tool=slot, so changing to tool 3 loads slot 3 via the
-    // verified EXTRUDER_LOAD sequence rather than a non-existent T3 macro.
-    auto err = backend.change_tool(3);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot3\nCLEAR_NOZZLE\nM104 S0");
-}
-
-TEST_CASE("QIDI Box change_tool resolves tool mappings in later boxes",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}, {"value_t0", "slot5"}});
-
-    auto err = backend.change_tool(0);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot5\nCLEAR_NOZZLE\nM104 S0");
-}
-
-TEST_CASE("QIDI Box set_tool_mapping emits SAVE_VARIABLE for value_t<N>",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-
-    auto err = backend.set_tool_mapping(/*tool=*/1, /*slot_idx=*/3);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot3\"");
-}
-
-TEST_CASE("QIDI Box set_tool_mapping accepts global slots from later boxes",
-          "[ams][qidi_box][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
-
-    auto err = backend.set_tool_mapping(/*tool=*/1, /*slot_idx=*/5);
-
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot5\"");
+    using Op = std::function<helix::AmsError(RecordingQidiBackend&)>;
+    const std::string load2 = "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0";
+    const std::string unload = "M603 S250\nENABLE_ALL_SENSOR";
+    struct Row {
+        const char* name;
+        json vars;
+        bool m603, clear_nozzle;
+        Op op;
+        const char* sent; // nullptr = refused, nothing sent
+    };
+    const Row rows[] = {
+        {"load into an empty extruder", json::object(), true, true,
+         [](auto& b) { return b.load_filament(2); }, load2.c_str()},
+        {"load past a tool mapping",
+         {{"value_t0", "slot3"}},
+         true,
+         true,
+         [](auto& b) { return b.load_filament(3); },
+         "M109 S250\nEXTRUDER_LOAD SLOT=slot3\nCLEAR_NOZZLE\nM104 S0"},
+        {"load over another loaded slot",
+         {{"last_load_slot", "slot0"}},
+         true,
+         true,
+         [](auto& b) { return b.load_filament(2); },
+         "M603 S250\nENABLE_ALL_SENSOR\nM109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 "
+         "S0"},
+        {"reload the loaded slot",
+         {{"last_load_slot", "slot2"}},
+         true,
+         true,
+         [](auto& b) { return b.load_filament(2); },
+         load2.c_str()},
+        {"load a later box's slot",
+         {{"box_count", 2}},
+         true,
+         true,
+         [](auto& b) { return b.load_filament(5); },
+         "M109 S250\nEXTRUDER_LOAD SLOT=slot5\nCLEAR_NOZZLE\nM104 S0"},
+        {"load without CLEAR_NOZZLE", json::object(), true, false,
+         [](auto& b) { return b.load_filament(2); },
+         "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nM104 S0"},
+        {"unload a slot", json::object(), true, true, [](auto& b) { return b.unload_filament(1); },
+         unload.c_str()},
+        {"unload the loaded slot",
+         {{"last_load_slot", "slot2"}},
+         true,
+         true,
+         [](auto& b) { return b.unload_filament(-1); },
+         unload.c_str()},
+        {"unload a later box's slot",
+         {{"box_count", 2}},
+         true,
+         true,
+         [](auto& b) { return b.unload_filament(5); },
+         unload.c_str()},
+        {"unload with nothing loaded", json::object(), true, true,
+         [](auto& b) { return b.unload_filament(-1); }, nullptr},
+        {"unload without M603", json::object(), false, true,
+         [](auto& b) { return b.unload_filament(1); },
+         "M109 S250\nEXTRUDER_UNLOAD SLOT=slot1\nM104 S0"},
+        {"change to tool 3", json::object(), true, true, [](auto& b) { return b.change_tool(3); },
+         "M109 S250\nEXTRUDER_LOAD SLOT=slot3\nCLEAR_NOZZLE\nM104 S0"},
+        {"change to a tool mapped into a later box",
+         {{"box_count", 2}, {"value_t0", "slot5"}},
+         true,
+         true,
+         [](auto& b) { return b.change_tool(0); },
+         "M109 S250\nEXTRUDER_LOAD SLOT=slot5\nCLEAR_NOZZLE\nM104 S0"},
+        {"map a tool", json::object(), true, true, [](auto& b) { return b.set_tool_mapping(1, 3); },
+         "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot3\""},
+        {"map a tool to a later box's slot",
+         {{"box_count", 2}},
+         true,
+         true,
+         [](auto& b) { return b.set_tool_mapping(1, 5); },
+         "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot5\""},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        RecordingQidiBackend backend;
+        if (!row.vars.empty())
+            QidiBoxTestAccess::parse_vars(backend, row.vars);
+        if (!row.m603 || !row.clear_nozzle)
+            QidiBoxTestAccess::set_fw_caps(backend, row.m603, row.clear_nozzle);
+        const auto err = row.op(backend);
+        if (row.sent) {
+            CHECK(err.success());
+            REQUIRE(backend.sent.size() == 1);
+            CHECK(backend.sent[0] == row.sent);
+        } else {
+            CHECK_FALSE(err.success());
+            CHECK(backend.sent.empty());
+        }
+    }
 }
 
 TEST_CASE("QIDI Box lane eject is unsupported until force_move is enabled",
@@ -1288,53 +1207,38 @@ TEST_CASE("QIDI Box config query refines max temp (heater_generic section)",
     REQUIRE(QidiBoxTestAccess::get_dryer(backend).max_temp_c == Catch::Approx(80.0f));
 }
 
-// =====================================================================
-// Dryer write-path: start_drying / stop_drying (issue #1019)
-// =====================================================================
-
-TEST_CASE("QIDI Box start_drying uses ENABLE_BOX_DRY when timer supported",
+TEST_CASE("QIDI Box dries with the box's timer commands, else the bare heater",
           "[ams][qidi_box][dryer][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::set_drying_timer_supported(backend, true);
-    auto err = backend.start_drying(55.0f, 240);
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "ENABLE_BOX_DRY BOX=1 TEMP=55 END_TIME=4");
-}
-
-TEST_CASE("QIDI Box start_drying falls back to SET_HEATER_TEMPERATURE",
-          "[ams][qidi_box][dryer][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::set_drying_timer_supported(backend, false);
-    auto err = backend.start_drying(55.0f, 240);
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "SET_HEATER_TEMPERATURE HEATER=heater_box1 TARGET=55");
-}
-
-TEST_CASE("QIDI Box start_drying rejects out-of-range temp", "[ams][qidi_box][dryer][write_path]") {
-    RecordingQidiBackend backend;
-    auto err = backend.start_drying(150.0f, 240);
-    REQUIRE_FALSE(err.success());
-    REQUIRE(backend.sent.empty());
-}
-
-TEST_CASE("QIDI Box stop_drying uses DISABLE_BOX_DRY when timer supported",
-          "[ams][qidi_box][dryer][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::set_drying_timer_supported(backend, true);
-    auto err = backend.stop_drying(0);
-    REQUIRE(err.success());
-    REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "DISABLE_BOX_DRY BOX=1");
-}
-
-TEST_CASE("QIDI Box stop_drying falls back to TARGET=0", "[ams][qidi_box][dryer][write_path]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::set_drying_timer_supported(backend, false);
-    auto err = backend.stop_drying(0);
-    REQUIRE(err.success());
-    REQUIRE(backend.sent[0] == "SET_HEATER_TEMPERATURE HEATER=heater_box1 TARGET=0");
+    struct Row {
+        const char* name;
+        bool timer;
+        bool start;
+        float temp;
+        const char* sent; // nullptr = refused
+    };
+    const Row rows[] = {
+        {"start with a timer", true, true, 55.0f, "ENABLE_BOX_DRY BOX=1 TEMP=55 END_TIME=4"},
+        {"start without one", false, true, 55.0f,
+         "SET_HEATER_TEMPERATURE HEATER=heater_box1 TARGET=55"},
+        {"start out of range", false, true, 150.0f, nullptr},
+        {"stop with a timer", true, false, 0.0f, "DISABLE_BOX_DRY BOX=1"},
+        {"stop without one", false, false, 0.0f,
+         "SET_HEATER_TEMPERATURE HEATER=heater_box1 TARGET=0"},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        RecordingQidiBackend backend;
+        QidiBoxTestAccess::set_drying_timer_supported(backend, row.timer);
+        const auto err = row.start ? backend.start_drying(row.temp, 240) : backend.stop_drying(0);
+        if (row.sent) {
+            CHECK(err.success());
+            REQUIRE(backend.sent.size() == 1);
+            CHECK(backend.sent[0] == row.sent);
+        } else {
+            CHECK_FALSE(err.success());
+            CHECK(backend.sent.empty());
+        }
+    }
 }
 
 // =====================================================================

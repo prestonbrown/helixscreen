@@ -528,36 +528,41 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
 }
 
 TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
-                 "Widget catalog: closing from the top level fires on_close exactly once",
+                 "Widget catalog: every way out fires on_close exactly once",
                  "[widget_catalog][1016]") {
     open_catalog();
     REQUIRE(WidgetCatalogOverlay::active_root() != nullptr);
 
-    header_back();
+    SECTION("from the top level") {
+        header_back();
+    }
+    SECTION("from a category: two levels, two backs") {
+        dive_category(get_widget_categories()[0]);
+        header_back();
+        CHECK(close_count_ == 0);
+        header_back();
+    }
+    SECTION("a close after the category page died") {
+        dive_category(get_widget_categories()[0]);
+        lv_obj_delete(WidgetCatalogOverlay::active_category_root());
+        CHECK(WidgetCatalogOverlay::active_category_root() == nullptr);
+        WidgetCatalogOverlay::close();
+    }
+    SECTION("the root dies with the close's second pop still queued") {
+        dive_category(get_widget_categories()[0]);
+        lv_obj_t* root = WidgetCatalogOverlay::active_root();
+        WidgetCatalogOverlay::close();
+        lv_obj_delete(root);
+    }
+    settle();
 
     CHECK(close_count_ == 1);
     CHECK(WidgetCatalogOverlay::active_root() == nullptr);
+    CHECK(WidgetCatalogOverlay::active_category_root() == nullptr);
 
     // Extra unwinding must not fire it again.
     header_back();
     CHECK(close_count_ == 1);
-}
-
-TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
-                 "Widget catalog: closing from a dived-in state fires on_close exactly once",
-                 "[widget_catalog][1016]") {
-    open_catalog();
-    dive_category(get_widget_categories()[0]);
-    REQUIRE(WidgetCatalogOverlay::active_category_root() != nullptr);
-
-    // Two levels, two backs: out of the category, then out of the catalog.
-    header_back();
-    CHECK(close_count_ == 0);
-
-    header_back();
-    CHECK(close_count_ == 1);
-    CHECK(WidgetCatalogOverlay::active_root() == nullptr);
-    CHECK(WidgetCatalogOverlay::active_category_root() == nullptr);
 }
 
 TEST_CASE_METHOD(WidgetCatalogCategoryFixture,

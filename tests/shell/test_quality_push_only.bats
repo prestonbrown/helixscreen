@@ -50,6 +50,15 @@ with_driver() {
   contains "qc_test_budget" "$output"
 }
 
+# The growth ratchets measure a branch the same way: a commit may grow a file that a
+# later commit on the branch splits.
+@test "the growth ratchets wait for the push" {
+  run with_driver true 'qc_wanted qc_growth_ratchets && echo "RAN qc_growth_ratchets"; echo "deferred:$QC_DEFERRED"'
+  [ "$status" -eq 0 ]
+  lacks "RAN " "$output"
+  contains "qc_growth_ratchets" "$output"
+}
+
 # These are slow too, but a commit that fails them does not build or load.
 @test "the gates that keep a commit buildable still run at commit" {
   run with_driver true 'QC_STAGED_ALL="ui_xml/a.xml"; for g in qc_phase2 qc_xml_tools qc_xml_linter qc_design_pixels; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:[$QC_DEFERRED]"'

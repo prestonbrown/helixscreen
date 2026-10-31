@@ -446,7 +446,7 @@ void KeyboardManager::textarea_delete_event_cb(lv_event_t* e) {
     auto& mgr = KeyboardManager::instance();
     lv_obj_t* textarea = lv_event_get_target_obj(e);
 
-    if (mgr.context_textarea_ == textarea) {
+    if (mgr.context_textarea_.names_dying(textarea)) {
         spdlog::debug("[KeyboardManager] Textarea deleted while focused: {}", (void*)textarea);
         mgr.context_textarea_ = nullptr;
         mgr.hide();
@@ -1564,7 +1564,7 @@ bool KeyboardManager::is_visible() const {
 }
 
 bool KeyboardManager::is_password_context() const {
-    if (context_textarea_ == nullptr || !lv_obj_is_valid(context_textarea_)) {
+    if (context_textarea_ == nullptr) {
         return false;
     }
     return lv_textarea_get_password_mode(context_textarea_);

@@ -28,6 +28,8 @@
 #include "ui_panel_print_status.h"
 #include "ui_update_queue.h"
 
+#include "../test_helpers/widget_in_tree.h"
+
 using helix::ui::UpdateQueue;
 
 #include "../lvgl_ui_test_fixture.h"
@@ -59,7 +61,7 @@ struct MetadataStripFixture : public LVGLUITestFixture {
     }
 
     ~MetadataStripFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;

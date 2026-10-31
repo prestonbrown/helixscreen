@@ -27,9 +27,6 @@ namespace {
  */
 void markdown_text_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     lv_obj_t* md_widget = lv_observer_get_target_obj(observer);
-    if (!md_widget || !lv_obj_is_valid(md_widget)) {
-        return;
-    }
 
     const char* text = lv_subject_get_string(subject);
     // Skip empty/null inputs — md4c on tight-memory devices (e.g. K1, 209 MB RAM)

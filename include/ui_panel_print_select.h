@@ -16,6 +16,7 @@
 #include "ui_print_select_usb_source.h"
 #include "ui_print_start_controller.h"
 #include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "ams_backend.h"
 #include "app_constants.h"
@@ -740,14 +741,14 @@ class PrintSelectPanel : public PanelBase {
     // === Widget References ===
     //
 
-    lv_obj_t* card_view_container_ = nullptr;
+    helix::ui::WidgetRef card_view_container_;
     /// Card container content size the current cards were sized for.
     lv_coord_t sized_for_w_ = -1;
     lv_coord_t sized_for_h_ = -1;
     /// A deferred re-populate for a card container resize is queued.
     bool card_resize_pending_ = false;
     lv_obj_t* list_view_container_ = nullptr;
-    lv_obj_t* list_rows_container_ = nullptr;
+    helix::ui::WidgetRef list_rows_container_;
     lv_obj_t* empty_state_container_ = nullptr;
     lv_obj_t* view_toggle_btn_ = nullptr;
     lv_obj_t* view_toggle_icon_ = nullptr;

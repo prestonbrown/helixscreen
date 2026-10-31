@@ -38,7 +38,7 @@ PanelBase::~PanelBase() {
 // ============================================================================
 
 PanelBase::PanelBase(PanelBase&& other) noexcept
-    : printer_state_(other.printer_state_), api_(other.api_), panel_(other.panel_),
+    : printer_state_(other.printer_state_), api_(other.api_), panel_(other.panel_.get()),
       parent_screen_(other.parent_screen_), subjects_initialized_(other.subjects_initialized_),
       observers_(std::move(other.observers_)) {
     // Clear source's state to prevent double-cleanup
@@ -56,7 +56,7 @@ PanelBase& PanelBase::operator=(PanelBase&& other) noexcept {
 
         // Move state
         api_ = other.api_;
-        panel_ = other.panel_;
+        panel_ = other.panel_.get();
         parent_screen_ = other.parent_screen_;
         subjects_initialized_ = other.subjects_initialized_;
         observers_ = std::move(other.observers_);

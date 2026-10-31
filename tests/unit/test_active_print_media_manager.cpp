@@ -177,50 +177,41 @@ bool ActivePrintMediaManagerTestFixture::queue_initialized = false;
 // ============================================================================
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: simple filename produces correct display name",
+                 "ActivePrintMediaManager: the display name is the file's base name, the "
+                 "original's for a HelixScreen temp file",
                  "[ActivePrintMediaManager]") {
-    set_print_filename("benchy.gcode");
-
-    REQUIRE(get_print_filename() == "benchy.gcode");
-    REQUIRE(get_display_filename() == "benchy");
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: filename with path produces correct display name",
-                 "[ActivePrintMediaManager]") {
-    set_print_filename("my_models/benchy.gcode");
-
-    REQUIRE(get_print_filename() == "my_models/benchy.gcode");
-    REQUIRE(get_display_filename() == "benchy");
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: helix_temp filename resolves to original",
-                 "[ActivePrintMediaManager]") {
-    // When HelixScreen modifies G-code, it creates temp files like:
-    // .helix_temp/modified_1234567890_Original_Model.gcode
-    // The display name should show "Original_Model", not the temp filename
-    set_print_filename(".helix_temp/modified_1234567890_Body1.gcode");
-
-    REQUIRE(get_print_filename() == ".helix_temp/modified_1234567890_Body1.gcode");
-    REQUIRE(get_display_filename() == "Body1");
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: complex helix_temp path resolves correctly",
-                 "[ActivePrintMediaManager]") {
-    set_print_filename(".helix_temp/modified_9876543210_My_Cool_Print.gcode");
-
-    REQUIRE(get_display_filename() == "My_Cool_Print");
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: deeply nested path produces correct display name",
-                 "[ActivePrintMediaManager]") {
-    set_print_filename("projects/2025/january/test_models/benchy_0.2mm_PLA.gcode");
-
-    REQUIRE(get_print_filename() == "projects/2025/january/test_models/benchy_0.2mm_PLA.gcode");
-    REQUIRE(get_display_filename() == "benchy_0.2mm_PLA");
+    struct Row {
+        std::vector<std::string> filenames; // set in order; the last one is shown
+        std::string display;                // exact, or the start of it when prefix is set
+        bool prefix = false;                // a long name may be truncated
+    };
+    const Row rows[] = {
+        {{"benchy.gcode"}, "benchy"},
+        {{"my_models/benchy.gcode"}, "benchy"},
+        {{"projects/2025/january/test_models/benchy_0.2mm_PLA.gcode"}, "benchy_0.2mm_PLA"},
+        // A modified print runs from .helix_temp/modified_<stamp>_<original>.
+        {{".helix_temp/modified_1234567890_Body1.gcode"}, "Body1"},
+        {{".helix_temp/modified_9876543210_My_Cool_Print.gcode"}, "My_Cool_Print"},
+        {{"My Model (v2) - Final.gcode"}, "My Model (v2) - Final"},
+        {{"Model.GCODE"}, "Model"},
+        {{"Model.GCode"}, "Model"},
+        {{std::string(100, 'x') + ".gcode"}, "xxxx", true},
+        // Rapid changes leave the last; a repeat of the same name changes nothing.
+        {{"print1.gcode", "print2.gcode", "print3.gcode"}, "print3"},
+        {{"same_file.gcode", "same_file.gcode"}, "same_file"},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.filenames.back());
+        for (const auto& f : row.filenames) {
+            set_print_filename(f);
+        }
+        CHECK(get_print_filename() == row.filenames.back());
+        if (row.prefix) {
+            CHECK(get_display_filename().rfind(row.display, 0) == 0);
+        } else {
+            CHECK(get_display_filename() == row.display);
+        }
+    }
 }
 
 // ============================================================================
@@ -230,37 +221,18 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 // Clearing happens naturally when a NEW print starts with a different filename.
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: empty filename preserves display name",
+                 "ActivePrintMediaManager: an empty filename keeps the display name and thumbnail",
                  "[ActivePrintMediaManager]") {
-    // First set a filename
+    // Users still see what was printing after cancel -> firmware_restart.
     set_print_filename("test.gcode");
-    REQUIRE(get_print_filename() == "test.gcode");
     REQUIRE(get_display_filename() == "test");
-
-    // When printer goes to standby (empty filename), display name is preserved
-    // so users can see what was printing after cancel→firmware_restart
-    set_print_filename("");
-    REQUIRE(get_print_filename() == "");
-
-    // Display filename should be PRESERVED (not cleared)
-    REQUIRE(get_display_filename() == "test");
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: empty filename preserves thumbnail path",
-                 "[ActivePrintMediaManager]") {
-    // Set a filename first (to trigger the manager to process)
-    set_print_filename("test.gcode");
-
-    // Manually set a thumbnail path (simulating a loaded thumbnail)
     state().print_state().set_print_thumbnail("test.gcode", "A:/tmp/thumbnail_abc123.bin");
     REQUIRE(get_thumbnail_path() == "A:/tmp/thumbnail_abc123.bin");
 
-    // When filename is cleared, thumbnail is PRESERVED (not cleared)
-    // This allows users to see the print info after abort→firmware_restart
     set_print_filename("");
-
-    REQUIRE(get_thumbnail_path() == "A:/tmp/thumbnail_abc123.bin");
+    REQUIRE(get_print_filename() == "");
+    CHECK(get_display_filename() == "test");
+    CHECK(get_thumbnail_path() == "A:/tmp/thumbnail_abc123.bin");
 }
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
@@ -325,44 +297,9 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 // Generation Counter / Stale Callback Detection Tests
 // ============================================================================
 
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: rapid filename changes use latest generation",
-                 "[ActivePrintMediaManager]") {
-    // When filename changes rapidly (user quickly switches prints),
-    // only the last one should be reflected
-
-    set_print_filename("print1.gcode");
-    set_print_filename("print2.gcode");
-    set_print_filename("print3.gcode");
-
-    // Only print3 should be reflected in the display name
-    REQUIRE(get_print_filename() == "print3.gcode");
-    REQUIRE(get_display_filename() == "print3");
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: idempotent on repeated same filename",
-                 "[ActivePrintMediaManager]") {
-    // Setting the same filename multiple times should not trigger redundant processing
-    set_print_filename("same_file.gcode");
-    REQUIRE(get_display_filename() == "same_file");
-
-    // Set again - should be idempotent
-    set_print_filename("same_file.gcode");
-    REQUIRE(get_display_filename() == "same_file");
-}
-
 // ============================================================================
 // Integration with PrinterState Subjects
 // ============================================================================
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: updates print_display_filename subject",
-                 "[ActivePrintMediaManager]") {
-    set_print_filename("test_model.gcode");
-
-    REQUIRE(get_display_filename() == "test_model");
-}
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "ActivePrintMediaManager: observer fires on display_filename change",
@@ -393,28 +330,6 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 // ============================================================================
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: handles filename with special characters",
-                 "[ActivePrintMediaManager]") {
-    set_print_filename("My Model (v2) - Final.gcode");
-
-    REQUIRE(get_print_filename() == "My Model (v2) - Final.gcode");
-    REQUIRE(get_display_filename() == "My Model (v2) - Final");
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: handles very long filename",
-                 "[ActivePrintMediaManager]") {
-    // Test handling of very long filenames (within buffer limits)
-    std::string long_name(100, 'x');
-    long_name += ".gcode";
-
-    set_print_filename(long_name);
-
-    // Should handle gracefully (may be truncated to buffer size)
-    REQUIRE_FALSE(get_display_filename().empty());
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "ActivePrintMediaManager: no API means no thumbnail load",
                  "[ActivePrintMediaManager]") {
     // Without set_api() being called, thumbnail loading should be skipped gracefully
@@ -427,49 +342,12 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     REQUIRE(get_thumbnail_path() == kNoThumb);
 }
 
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: uppercase extension handled",
-                 "[ActivePrintMediaManager]") {
-    set_print_filename("Model.GCODE");
-
-    REQUIRE(get_display_filename() == "Model");
-}
-
-TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-                 "ActivePrintMediaManager: mixed case extension handled",
-                 "[ActivePrintMediaManager]") {
-    set_print_filename("Model.GCode");
-
-    REQUIRE(get_display_filename() == "Model");
-}
-
 // ============================================================================
 // Direct Thumbnail Path Tests (Pre-extracted from USB/G-code)
 // ============================================================================
 
-// NOTE: This test intentionally fails to compile because set_thumbnail_path()
-// doesn't exist yet. This is TDD-style - implement the method to make it compile.
-//
-// TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
-//                  "ActivePrintMediaManager: set_thumbnail_path sets thumbnail directly",
-//                  "[media][thumbnail][direct]")
-//
-// When PrintStartController starts a print with a pre-extracted thumbnail
-// (e.g., from USB drive or embedded G-code), it should be able to set the
-// thumbnail path directly without going through Moonraker thumbnail API.
-//
-// Required new method signature:
-//   void set_thumbnail_path(const std::string& path);
-//
-// Test cases that need to pass once implemented:
-// 1. Direct path sets thumbnail_path subject
-// 2. Direct path works alongside filename
-// 3. Direct path not overwritten by filename change if already set
-// 4. Empty path clears thumbnail
-//
-// Uncomment below and add set_thumbnail_path() to ActivePrintMediaManager
-
-#if 1 // Enable when set_thumbnail_path() is implemented
+// A print started from a pre-extracted thumbnail (a USB drive, embedded G-code)
+// sets the path directly, without the Moonraker thumbnail API.
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "ActivePrintMediaManager: set_thumbnail_path sets thumbnail directly",
                  "[ActivePrintMediaManager]") {
@@ -513,9 +391,8 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     }
 
     SECTION("pre-set thumbnail does not block layer count from metadata") {
-        // Regression: #526 - when thumbnail was pre-set, the metadata fetch was
-        // skipped entirely, so layer_count and estimated_time were never loaded.
-        // The fix ensures metadata is always fetched; only thumbnail download is skipped.
+        // A pre-set thumbnail skips only the download, never the metadata fetch
+        // that loads layer_count and estimated_time (#526).
 
         // Set thumbnail path first (simulating PrintStartController pre-extraction)
         manager().set_thumbnail_path("model_with_layers.gcode", "/tmp/helix/preextracted.png");
@@ -530,9 +407,6 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
         // The key assertion: load_thumbnail_for_file should NOT early-return
         // when thumbnail is set. It should proceed to the API check and only
         // skip after that (because no API is configured in this test).
-        // This is implicitly tested: if the old early-return was still there,
-        // the "Thumbnail already set, skipping API lookup" log would fire,
-        // and we'd never reach the API check at all.
         set_print_filename("model_with_layers.gcode");
 
         // Display name should still work (metadata fetch path is entered)
@@ -551,13 +425,6 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
         REQUIRE(get_thumbnail_path() == kNoThumb);
     }
 }
-#endif
-
-// ============================================================================
-// Stale Thumbnail Invalidation Tests
-// ============================================================================
-// Regression: Starting a new print via Mainsail showed the PREVIOUS print's
-// thumbnail because print_thumbnail_path_ was never cleared between prints.
 
 // ============================================================================
 // Thumbnail Path Subject Observer Integration Tests
@@ -1179,26 +1046,11 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
     REQUIRE(get_layer_total() == 222);
 
     // A's (stale) metadata arrives LATE — its generation was superseded by B.
-    // It MUST NOT clobber B's value. On the buggy code (no generation re-check on
-    // the apply side / non-atomic gen race) this would overwrite with 111.
+    // It must not clobber B's value: the apply side re-checks the generation.
     files().fire_index(0, make_metadata(/*layer_count=*/111));
     drain();
 
     REQUIRE(get_layer_total() == 222);
-}
-
-TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
-                 "ActivePrintMediaManager: live metadata callback applies layer total",
-                 "[ActivePrintMediaManager][async][lifetime]") {
-    // Positive control: with no superseding event, the layer total is applied.
-    set_print_filename_no_drain("live.gcode");
-    drain();
-    REQUIRE(files().has_pending());
-
-    files().fire_last(make_metadata(/*layer_count=*/99));
-    drain();
-
-    REQUIRE(get_layer_total() == 99);
 }
 
 TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
@@ -1500,7 +1352,8 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
 }
 
 TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
-                 "ActivePrintMediaManager: filelist_changed for unrelated file does not reload",
+                 "ActivePrintMediaManager: filelist_changed for another file, or with null fields, "
+                 "does not reload",
                  "[ActivePrintMediaManager][retry]") {
     set_print_filename_no_drain("benchy.gcode");
     drain();
@@ -1510,39 +1363,28 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
     drain();
     REQUIRE(TestAccess::has_pending_retry(manager()));
 
-    json msg = {
-        {"jsonrpc", "2.0"},
-        {"method", "notify_filelist_changed"},
-        {"params", json::array({{{"action", "create_file"},
-                                 {"item", {{"path", "unrelated.gcode"}, {"root", "gcodes"}}}}})}};
-    fire_notification("notify_filelist_changed", msg);
-    drain();
-
-    // No new request; the scheduled backoff retry is untouched.
-    REQUIRE(files().pending_count() == 1);
-    REQUIRE(TestAccess::has_pending_retry(manager()));
-    REQUIRE(TestAccess::retry_count(manager()) == 1);
-}
-
-TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
-                 "ActivePrintMediaManager: filelist_changed with null/missing fields is ignored "
-                 "safely",
-                 "[ActivePrintMediaManager][retry]") {
-    set_print_filename_no_drain("benchy.gcode");
-    drain();
-    files().fire_error_last(make_error("Metadata not available"));
-    drain();
-    REQUIRE(TestAccess::has_pending_retry(manager()));
-
-    // Moonraker notifications can carry null/missing fields — must not throw.
-    json null_item = {{"method", "notify_filelist_changed"},
-                      {"params", json::array({{{"action", nullptr}, {"item", nullptr}}})}};
-    REQUIRE_NOTHROW(fire_notification("notify_filelist_changed", null_item));
-    json no_params = {{"method", "notify_filelist_changed"}};
-    REQUIRE_NOTHROW(fire_notification("notify_filelist_changed", no_params));
-    drain();
-
-    REQUIRE(files().pending_count() == 1); // no reload triggered
+    SECTION("an unrelated file") {
+        json msg = {{"jsonrpc", "2.0"},
+                    {"method", "notify_filelist_changed"},
+                    {"params",
+                     json::array({{{"action", "create_file"},
+                                   {"item", {{"path", "unrelated.gcode"}, {"root", "gcodes"}}}}})}};
+        fire_notification("notify_filelist_changed", msg);
+        drain();
+        // The scheduled backoff retry is untouched.
+        REQUIRE(TestAccess::has_pending_retry(manager()));
+        REQUIRE(TestAccess::retry_count(manager()) == 1);
+    }
+    SECTION("null or missing fields") {
+        // Moonraker notifications can carry null/missing fields — must not throw.
+        json null_item = {{"method", "notify_filelist_changed"},
+                          {"params", json::array({{{"action", nullptr}, {"item", nullptr}}})}};
+        REQUIRE_NOTHROW(fire_notification("notify_filelist_changed", null_item));
+        json no_params = {{"method", "notify_filelist_changed"}};
+        REQUIRE_NOTHROW(fire_notification("notify_filelist_changed", no_params));
+        drain();
+    }
+    REQUIRE(files().pending_count() == 1); // no reload
 }
 
 TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,

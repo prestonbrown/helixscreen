@@ -741,6 +741,7 @@ src/ui/ui_unload_lane_choice.cpp
 src/ui/ui_utils.cpp
 src/ui/ui_variant.cpp
 src/ui/ui_widget_catalog_overlay.cpp
+src/ui/ui_widget_ref.cpp
 src/ui/ui_wizard.cpp
 src/ui/ui_z_offset_indicator.cpp
 src/ui/ui_zone_presentation.cpp

@@ -9,6 +9,7 @@
 #include "ui_panel_base.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_temperature_utils.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "config.h"
@@ -273,7 +274,7 @@ class ControlsPanel : public PanelBase {
     /// @brief Info for a secondary fan row for reactive speed updates
     struct SecondaryFanRow {
         std::string object_name;
-        lv_obj_t* speed_label = nullptr;
+        helix::ui::WeakWidget speed_label;
     };
     std::vector<SecondaryFanRow> secondary_fan_rows_;    ///< Tracked for reactive updates
     std::vector<ObserverGuard> secondary_fan_observers_; ///< Per-fan speed observers

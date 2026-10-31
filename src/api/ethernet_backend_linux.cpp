@@ -18,7 +18,23 @@
 #include <memory>
 #include <sys/stat.h>
 
-EthernetBackendLinux::EthernetBackendLinux() {
+namespace {
+
+int list_with_ifconfig(std::vector<helix::ethernet::InterfaceState>& rows) {
+    std::vector<ifconfig_t> interfaces;
+    const int result = ifconfig(interfaces);
+    if (result != 0) {
+        return result;
+    }
+    for (const auto& iface : interfaces) {
+        rows.push_back({iface.name, iface.ip, iface.mac, ""});
+    }
+    return 0;
+}
+
+} // namespace
+
+EthernetBackendLinux::EthernetBackendLinux() : lister_(list_with_ifconfig) {
     spdlog::debug("[EthernetLinux] Linux backend created");
 }
 
@@ -31,12 +47,12 @@ bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
     // Classification lives in one shared place (helix::ethernet::is_ethernet_interface,
     // ethernet_backend.cpp) — the daemon-backed backend classifies with the
     // same rule, and two copies would silently disagree about a machine.
-    return helix::ethernet::is_ethernet_interface(name);
+    return helix::ethernet::is_ethernet_interface(name, sysfs_root_);
 }
 
 std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
-    // Read /sys/class/net/<interface>/operstate
-    std::string path = "/sys/class/net/" + interface + "/operstate";
+    // Read <sysfs root>/class/net/<interface>/operstate
+    std::string path = sysfs_root_ + "/class/net/" + interface + "/operstate";
     std::ifstream file(path);
 
     if (!file.is_open()) {
@@ -57,7 +73,7 @@ std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
 
 std::vector<std::string> EthernetBackendLinux::scan_sysfs_interfaces() {
     // Shared implementation (helix::ethernet::scan_sysfs_interfaces).
-    return helix::ethernet::scan_sysfs_interfaces();
+    return helix::ethernet::scan_sysfs_interfaces(sysfs_root_);
 }
 
 bool EthernetBackendLinux::has_interface() {
@@ -77,8 +93,8 @@ bool EthernetBackendLinux::has_interface() {
 EthernetInfo EthernetBackendLinux::get_info() {
     EthernetInfo info;
 
-    std::vector<ifconfig_t> interfaces;
-    int result = ifconfig(interfaces);
+    std::vector<helix::ethernet::InterfaceState> interfaces;
+    int result = lister_(interfaces);
 
     if (result != 0) {
         spdlog::error("[EthernetLinux] ifconfig() failed with code: {}", result);
@@ -87,10 +103,10 @@ EthernetInfo EthernetBackendLinux::get_info() {
     }
 
     std::vector<helix::ethernet::InterfaceState> ethernet_interfaces;
-    for (const auto& iface : interfaces) {
+    for (auto& iface : interfaces) {
         if (is_ethernet_interface(iface.name)) {
-            ethernet_interfaces.push_back(
-                {iface.name, iface.ip, iface.mac, read_operstate(iface.name)});
+            iface.operstate = read_operstate(iface.name);
+            ethernet_interfaces.push_back(std::move(iface));
         }
     }
 

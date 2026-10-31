@@ -1601,15 +1601,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Defense-in-depth: verify parent is a live LVGL object.
-    // Catches stale/freed container pointers from deferred callbacks that race
-    // with panel teardown (see #674, #675, #676).
-    if (!lv_obj_is_valid(parent)) {
-        spdlog::error("[TempGraph] Parent object is freed or corrupt ({:#x})",
-                      reinterpret_cast<uintptr_t>(parent));
-        return nullptr;
-    }
-
     // Allocate graph structure using RAII
     auto graph_ptr = std::make_unique<ui_temp_graph_t>();
     if (!graph_ptr) {

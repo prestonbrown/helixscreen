@@ -416,7 +416,7 @@ void SpoolmanOverlay::set_setup_status(const char* text, bool is_error) {
 }
 
 void SpoolmanOverlay::set_connecting(bool connecting) {
-    if (!connect_btn_ || !lv_obj_is_valid(connect_btn_))
+    if (!connect_btn_)
         return;
     if (connecting) {
         lv_obj_add_state(connect_btn_, LV_STATE_DISABLED);

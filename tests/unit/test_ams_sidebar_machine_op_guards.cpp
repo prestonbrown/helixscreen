@@ -22,6 +22,7 @@
 #include "ui_ams_sidebar.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
@@ -53,7 +54,7 @@ struct SidebarGuardFixture : public XMLTestFixture {
     }
 
     ~SidebarGuardFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;
@@ -135,7 +136,7 @@ struct SidebarDirectionGateFixture : public XMLTestFixture {
 
     ~SidebarDirectionGateFixture() override {
         sidebar_.reset(); // cancels the stall watchdog before the tree goes
-        if (panel_ && lv_obj_is_valid(panel_)) {
+        if (panel_ && helix::test::widget_in_tree(panel_)) {
             lv_obj_delete(panel_); // takes the sidebar tree with it
         }
         panel_ = nullptr;

@@ -44,10 +44,22 @@ inline nlohmann::json load_printer_capture(const std::string& slug) {
 inline PrinterHardwareData hardware_from_json(const nlohmann::json& j, const std::string& label) {
     // Every key must be one this loader reads, so a misspelled or unread key
     // fails here instead of leaving the capture silently weaker.
-    static const std::set<std::string> kKnownKeys = {
-        "provenance", "notes",    "heaters",         "sensors",      "fans",
-        "leds",       "hostname", "printer_objects", "steppers",     "kinematics",
-        "mcu",        "mcu_list", "cpu_arch",        "build_volume", "configfile_settings"};
+    static const std::set<std::string> kKnownKeys = {"provenance",
+                                                     "notes",
+                                                     "heaters",
+                                                     "sensors",
+                                                     "fans",
+                                                     "leds",
+                                                     "hostname",
+                                                     "printer_objects",
+                                                     "steppers",
+                                                     "kinematics",
+                                                     "mcu",
+                                                     "mcu_list",
+                                                     "cpu_arch",
+                                                     "build_volume",
+                                                     "configfile_settings",
+                                                     "objects_reported"};
     for (const auto& item : j.items()) {
         INFO("'" << label << "' has a key the loader does not read: " << item.key());
         CHECK(kKnownKeys.count(item.key()) == 1);
@@ -75,6 +87,7 @@ inline PrinterHardwareData hardware_from_json(const nlohmann::json& j, const std
     hardware.mcu = j.value("mcu", std::string{});
     hardware.mcu_list = strings("mcu_list");
     hardware.cpu_arch = j.value("cpu_arch", std::string{});
+    hardware.objects_reported = j.value("objects_reported", false);
     if (j.contains("build_volume")) {
         const auto& v = j.at("build_volume");
         hardware.build_volume =

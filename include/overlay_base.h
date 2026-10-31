@@ -310,7 +310,7 @@ class OverlayBase : public ViewLifecycleBase {
     // === Protected State ===
     //
 
-    lv_obj_t* overlay_root_ = nullptr;  ///< Root widget of overlay UI
+    helix::ui::WidgetRef overlay_root_; ///< Root widget of overlay UI
     lv_obj_t* parent_screen_ = nullptr; ///< Parent screen (for overlay setup)
     bool subjects_initialized_ = false; ///< True after init_subjects() called
     bool visible_ = false;              ///< True when overlay is visible
@@ -530,7 +530,7 @@ struct TeardownHooks {
  *         teardown the drain ran completed it first (no hooks run here in
  *         either case)
  */
-bool teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, TeardownDelete how,
+bool teardown_overlay_ui(WidgetRef& root, const char* owner_name, TeardownDelete how,
                          lv_obj_t** cached_panel = nullptr, TeardownHooks hooks = {});
 
 } // namespace helix::ui

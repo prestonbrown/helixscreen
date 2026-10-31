@@ -18,6 +18,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../mapping_card_render_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 
 #include <set>
 
@@ -80,7 +81,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     REQUIRE_NOTHROW(card.set_used_tools(std::set<int>{0}));
 
     REQUIRE(rows != nullptr);
-    REQUIRE(lv_obj_is_valid(rows));
+    REQUIRE(helix::test::widget_in_tree(rows));
     CHECK(chip_count() == 1);
     CHECK(chip(0) != nullptr);
     CHECK(chip(1) == nullptr);

@@ -17,6 +17,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api_mock.h"
@@ -52,7 +53,7 @@ struct PrintHooksRowFixture : LVGLUITestFixture {
         plugin.set_installed(false);
         get_printer_state().clear_moonraker_locality();
         plugin.set_stored_opt_ins(nlohmann::json::object());
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         helix::ui::UpdateQueue::instance().drain();

@@ -403,152 +403,104 @@ TEST_CASE("DebugBundleCollector: moonraker log tail returns empty when not conne
 // sanitize_value() tests [debug-bundle][sanitize]
 // ============================================================================
 
-TEST_CASE("DebugBundleCollector: sanitize_value redacts email addresses",
-          "[debug-bundle][sanitize]") {
-    auto result = helix::DebugBundleCollector::sanitize_value("notify user@example.com on error");
-    REQUIRE(result.find("user@example.com") == std::string::npos);
-    REQUIRE(result.find("[REDACTED_EMAIL]") != std::string::npos);
+TEST_CASE("DebugBundleCollector: sanitize_value redacts secrets and identifiers",
+          "[debug-bundle][sanitize][privacy][1352]") {
+    struct Row {
+        std::string input;
+        const char* expected;
+    };
+    const Row rows[] = {
+        {"a@b.co", "[REDACTED_EMAIL]"},
+        {"first.last+tag@mail.example.co.uk", "[REDACTED_EMAIL]"},
+        {"x@y-z.io", "[REDACTED_EMAIL]"},
+        {"admin@123.com", "[REDACTED_EMAIL]"},
+        {"https://discord.com/api/webhooks/123456/abcdef-token", "[REDACTED_WEBHOOK]"},
+        {"https://api.telegram.org/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/sendMessage",
+         "[REDACTED_WEBHOOK]"},
+        {"https://api.pushover.net/1/messages.json", "[REDACTED_WEBHOOK]"},
+        {"https://ntfy.sh/my-printer-alerts", "[REDACTED_WEBHOOK]"},
+        {"https://maker.ifttt.com/trigger/print_done/with/key/abc123", "[REDACTED_WEBHOOK]"},
+        {"ghp_" + std::string(36, 'a'), "[REDACTED_TOKEN]"},
+        // A mixed-case or non-hex 40-character string is a token, not a git SHA
+        {"3E887b9ee0c1d2a4b5f6e7d8c9b0a1f2e3d4c5b6", "[REDACTED_TOKEN]"},
+        {"aZ9kQ2mX7pL4vB8nR1tY6wE3uI5oP0sDfGhJkLzx", "[REDACTED_TOKEN]"},
+    };
+    for (const Row& r : rows) {
+        INFO("input: " << r.input);
+        CHECK(helix::DebugBundleCollector::sanitize_value(r.input) == r.expected);
+    }
 
-    SECTION("multi-label domains and a bare two-letter TLD still redact") {
-        for (const char* addr :
-             {"a@b.co", "first.last+tag@mail.example.co.uk", "x@y-z.io", "admin@123.com"}) {
-            auto redacted = helix::DebugBundleCollector::sanitize_value(addr);
-            CAPTURE(addr);
-            REQUIRE(redacted == "[REDACTED_EMAIL]");
+    // Redactions inside a line keep the text around them
+    struct Inline {
+        const char* input;
+        std::vector<const char*> gone;
+        std::vector<const char*> kept;
+    };
+    const Inline inline_rows[] = {
+        {"notify user@example.com on error", {"user@example.com"}, {"[REDACTED_EMAIL]"}},
+        {"http://admin:s3cret@192.168.1.100:8080/api",
+         {"admin", "s3cret"},
+         {"[REDACTED_CREDENTIALS]"}},
+        {"aa:bb:cc:dd:ee:ff", {"aa:bb:cc:dd:ee:ff"}, {"[REDACTED_MAC]"}},
+        // A routable address identifies a household; a routable IPv6 even more
+        // directly than the MAC on the same object
+        {"203.0.113.5", {"203.0.113.5"}, {}},
+        {"2001:db8:85a3::8a2e:370:7334", {"2001:db8:85a3::8a2e:370:7334", "8a2e:370:7334"}, {}},
+        {"[WS] handshake with 198.51.100.7:7125 timed out", {"198.51.100.7"}, {":7125 timed out"}},
+    };
+    for (const Inline& r : inline_rows) {
+        const auto result = helix::DebugBundleCollector::sanitize_value(r.input);
+        INFO("input: " << r.input << " -> " << result);
+        for (const char* gone : r.gone) {
+            CHECK(result.find(gone) == std::string::npos);
+        }
+        for (const char* kept : r.kept) {
+            CHECK(result.find(kept) != std::string::npos);
         }
     }
+}
 
-    SECTION("a <name>@<freq><unit> diagnostic value is not an address") {
-        // The input shaper logs its live config this way; redacting it throws
-        // away the reading the bundle was collected to show.
-        const std::string line = "Input shaper config: X=mzv@40.2Hz, Y=ei@52.0Hz";
-        REQUIRE(helix::DebugBundleCollector::sanitize_value(line) == line);
+TEST_CASE("DebugBundleCollector: sanitize_value passes diagnostic text through",
+          "[debug-bundle][sanitize][privacy][1352]") {
+    const char* keep[] = {
+        "hello world",
+        "/tmp/printer_data",
+        // The input shaper logs its live config as <name>@<freq><unit>
+        "Input shaper config: X=mzv@40.2Hz, Y=ei@52.0Hz",
+        // Private and local addresses are identical in millions of houses and
+        // are the whole diagnostic value of the network section (log_redact.h)
+        "192.168.1.100",
+        "10.0.0.5",
+        "172.16.4.9",
+        "127.0.0.1",
+        "169.254.10.20",
+        "100.64.0.1",
+        "fe80::1",
+        "fd12:3456:789a::1",
+        "::1",
+        "[WS] connecting to 192.168.1.50:7125",
+        // An over-eager IP rule would silently eat version numbers
+        "0.99.115",
+        "HelixScreen 0.99.115 (LVGL 9.5.0)",
+        "v1.2.3.4",
+        "1.2.3.4.5",
+        "2026.08.25.1",
+        "[10:04:30.373] [debug] nothing sensitive here",
+        // A lowercase 40-hex git SHA
+        "3e887b9ee0c1d2a4b5f6e7d8c9b0a1f2e3d4c5b6",
+        // An SSID is arbitrary user text no regex can tell from log content, so
+        // the call sites redact it; the sanitizer must leave it alone
+        "Status: connected=true ssid='Pretzel Logic Cafe' signal=66%",
+    };
+    for (const char* v : keep) {
+        INFO(v);
+        CHECK(helix::DebugBundleCollector::sanitize_value(v) == v);
     }
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value redacts URLs with credentials",
-          "[debug-bundle][sanitize]") {
-    auto result =
-        helix::DebugBundleCollector::sanitize_value("http://admin:s3cret@192.168.1.100:8080/api");
-    REQUIRE(result.find("admin") == std::string::npos);
-    REQUIRE(result.find("s3cret") == std::string::npos);
-    REQUIRE(result.find("[REDACTED_CREDENTIALS]") != std::string::npos);
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value redacts Discord webhooks",
-          "[debug-bundle][sanitize]") {
-    auto result = helix::DebugBundleCollector::sanitize_value(
-        "https://discord.com/api/webhooks/123456/abcdef-token");
-    REQUIRE(result == "[REDACTED_WEBHOOK]");
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value redacts Telegram bot tokens",
-          "[debug-bundle][sanitize]") {
-    auto result = helix::DebugBundleCollector::sanitize_value(
-        "https://api.telegram.org/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/sendMessage");
-    REQUIRE(result == "[REDACTED_WEBHOOK]");
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value redacts long hex tokens",
-          "[debug-bundle][sanitize]") {
-    std::string long_hex = "ghp_" + std::string(36, 'a'); // 40 chars total
-    auto result = helix::DebugBundleCollector::sanitize_value(long_hex);
-    REQUIRE(result == "[REDACTED_TOKEN]");
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value preserves normal strings",
-          "[debug-bundle][sanitize]") {
-    REQUIRE(helix::DebugBundleCollector::sanitize_value("hello world") == "hello world");
-    REQUIRE(helix::DebugBundleCollector::sanitize_value("/tmp/printer_data") ==
-            "/tmp/printer_data");
-
-    // Private addresses survive ON PURPOSE -- do not "fix" this to a blanket
-    // redaction. A RFC1918 address is identical in millions of houses and is
-    // the entire diagnostic value of the network section; it is the globally
-    // routable half that identifies a household, and only that half is
-    // redacted (see the [1352] cases below and include/log_redact.h).
-    REQUIRE(helix::DebugBundleCollector::sanitize_value("192.168.1.100") == "192.168.1.100");
-    REQUIRE(helix::DebugBundleCollector::sanitize_value("203.0.113.5") != "203.0.113.5");
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value redacts MAC addresses",
-          "[debug-bundle][sanitize]") {
-    auto result = helix::DebugBundleCollector::sanitize_value("aa:bb:cc:dd:ee:ff");
-    REQUIRE(result.find("aa:bb:cc:dd:ee:ff") == std::string::npos);
-    REQUIRE(result.find("[REDACTED_MAC]") != std::string::npos);
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value redacts Pushover and ntfy webhooks",
-          "[debug-bundle][sanitize]") {
-    auto pushover =
-        helix::DebugBundleCollector::sanitize_value("https://api.pushover.net/1/messages.json");
-    REQUIRE(pushover == "[REDACTED_WEBHOOK]");
-
-    auto ntfy = helix::DebugBundleCollector::sanitize_value("https://ntfy.sh/my-printer-alerts");
-    REQUIRE(ntfy == "[REDACTED_WEBHOOK]");
-
-    auto ifttt = helix::DebugBundleCollector::sanitize_value(
-        "https://maker.ifttt.com/trigger/print_done/with/key/abc123");
-    REQUIRE(ifttt == "[REDACTED_WEBHOOK]");
 }
 
 // ============================================================================
 // IP addresses and hardware serials (#1352)
 // ============================================================================
-
-TEST_CASE("DebugBundleCollector: sanitize_value preserves private and local addresses",
-          "[debug-bundle][privacy][1352]") {
-    // These are what a "the screen cannot reach Moonraker" report is made of.
-    // Blanket IP redaction would take the whole network section with it.
-    const char* keep[] = {
-        "192.168.1.100", "10.0.0.5",
-        "172.16.4.9",    "127.0.0.1",
-        "169.254.10.20", "100.64.0.1",
-        "fe80::1",       "fd12:3456:789a::1",
-        "::1",           "[WS] connecting to 192.168.1.50:7125",
-    };
-    for (const char* v : keep) {
-        INFO(v);
-        REQUIRE(helix::DebugBundleCollector::sanitize_value(v) == v);
-    }
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value redacts globally routable addresses",
-          "[debug-bundle][privacy][1352]") {
-    // A routable IPv6 is an ISP-allocated prefix plus a stable interface ID:
-    // it resolves to a household far more directly than the MAC on the same
-    // object, which this function has always redacted.
-    const auto v4 = helix::DebugBundleCollector::sanitize_value("203.0.113.5");
-    INFO("v4=" << v4);
-    REQUIRE(v4.find("203.0.113.5") == std::string::npos);
-
-    const auto v6 = helix::DebugBundleCollector::sanitize_value("2001:db8:85a3::8a2e:370:7334");
-    INFO("v6=" << v6);
-    REQUIRE(v6.find("2001:db8:85a3::8a2e:370:7334") == std::string::npos);
-    REQUIRE(v6.find("8a2e:370:7334") == std::string::npos);
-
-    // Inside a line, the surrounding text has to survive.
-    const auto line = helix::DebugBundleCollector::sanitize_value(
-        "[WS] handshake with 198.51.100.7:7125 timed out");
-    INFO("line=" << line);
-    REQUIRE(line.find("198.51.100.7") == std::string::npos);
-    REQUIRE(line.find(":7125 timed out") != std::string::npos);
-}
-
-TEST_CASE("DebugBundleCollector: sanitize_value leaves version strings intact",
-          "[debug-bundle][privacy][1352]") {
-    // The failure mode of an over-eager IP rule is silent: it eats the version
-    // numbers that make a bundle worth reading.
-    const char* keep[] = {
-        "0.99.115",     "HelixScreen 0.99.115 (LVGL 9.5.0)",
-        "v1.2.3.4",     "1.2.3.4.5",
-        "2026.08.25.1", "[10:04:30.373] [debug] nothing sensitive here",
-    };
-    for (const char* v : keep) {
-        INFO(v);
-        REQUIRE(helix::DebugBundleCollector::sanitize_value(v) == v);
-    }
-}
 
 TEST_CASE("DebugBundleCollector: sanitize_json redacts hardware serial numbers",
           "[debug-bundle][privacy][1352]") {
@@ -892,17 +844,6 @@ TEST_CASE("DebugBundleCollector: bound_response keeps klippy webhooks state",
     CHECK(status["moonraker_notifier"]["url"] == "[REDACTED_WEBHOOK]");
 }
 
-TEST_CASE("DebugBundleCollector: sanitize_value keeps git SHAs and redacts token-shaped strings",
-          "[debug-bundle][klipper-status]") {
-    const std::string sha = "3e887b9ee0c1d2a4b5f6e7d8c9b0a1f2e3d4c5b6";
-    REQUIRE(sha.size() == 40);
-    CHECK(helix::DebugBundleCollector::sanitize_value(sha) == sha);
-    CHECK(helix::DebugBundleCollector::sanitize_value("3E887b9ee0c1d2a4b5f6e7d8c9b0a1f2e3d4c5b6") ==
-          "[REDACTED_TOKEN]");
-    CHECK(helix::DebugBundleCollector::sanitize_value("aZ9kQ2mX7pL4vB8nR1tY6wE3uI5oP0sDfGhJkLzx") ==
-          "[REDACTED_TOKEN]");
-}
-
 TEST_CASE("DebugBundleCollector: collect_klipper_status carries an object-list error",
           "[debug-bundle][klipper-status]") {
     json err = {{"error", "HTTP 500 from /printer/objects/list"}};
@@ -1187,68 +1128,51 @@ TEST_CASE("DebugBundleCollector: sanitize_json handles realistic moonraker confi
 // ============================================================================
 
 TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_crash_report_txt reads existing file",
+                 "DebugBundleCollector: collect_crash_report_txt reads the report if present",
                  "[debug-bundle][crash]") {
-    // Write a crash_report.txt in the temp dir
+    CHECK(helix::DebugBundleCollector::collect_crash_report_txt(temp_dir_.string()).empty());
+
     write_file("crash_report.txt", "=== HelixScreen Crash Report ===\n\nSignal: 11 (SIGSEGV)\n");
-
-    auto result = helix::DebugBundleCollector::collect_crash_report_txt(temp_dir_.string());
-    REQUIRE_FALSE(result.empty());
-    REQUIRE(result.find("SIGSEGV") != std::string::npos);
-}
-
-TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_crash_report_txt returns empty when missing",
-                 "[debug-bundle][crash]") {
-    auto result = helix::DebugBundleCollector::collect_crash_report_txt(temp_dir_.string());
-    REQUIRE(result.empty());
+    CHECK(
+        helix::DebugBundleCollector::collect_crash_report_txt(temp_dir_.string()).find("SIGSEGV") !=
+        std::string::npos);
 }
 
 // ============================================================================
 // collect_crash_history() tests [debug-bundle][crash]
 // ============================================================================
 
-TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_crash_history reads history file",
-                 "[debug-bundle][crash]") {
-    // Write a crash_history.json
-    json history = json::array();
-    history.push_back({{"timestamp", "2026-02-22T04:00:00Z"},
-                       {"signal", 11},
-                       {"signal_name", "SIGSEGV"},
-                       {"app_version", "0.10.12"},
-                       {"uptime_sec", 3600},
-                       {"github_issue", 142},
-                       {"github_url", "https://github.com/prestonbrown/helixscreen/issues/142"},
-                       {"sent_via", "crash_reporter"}});
-
-    std::ofstream ofs((temp_dir_ / "crash_history.json").string());
-    ofs << history.dump(2);
-    ofs.close();
-
-    auto result = helix::DebugBundleCollector::collect_crash_history(temp_dir_.string());
-    REQUIRE(result.is_array());
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0]["signal"] == 11);
-    REQUIRE(result[0]["github_issue"] == 142);
-}
-
-TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_crash_history returns empty array when missing",
-                 "[debug-bundle][crash]") {
-    auto result = helix::DebugBundleCollector::collect_crash_history(temp_dir_.string());
-    REQUIRE(result.is_array());
-    REQUIRE(result.empty());
-}
-
-TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_crash_history handles corrupt file",
-                 "[debug-bundle][crash]") {
-    write_file("crash_history.json", "not valid json {{{{");
-
-    auto result = helix::DebugBundleCollector::collect_crash_history(temp_dir_.string());
-    REQUIRE(result.is_array());
-    REQUIRE(result.empty());
+TEST_CASE_METHOD(
+    DebugBundleTestFixture,
+    "DebugBundleCollector: collect_crash_history reads the history, else an empty array",
+    "[debug-bundle][crash]") {
+    SECTION("a history file") {
+        json history =
+            json::array({{{"timestamp", "2026-02-22T04:00:00Z"},
+                          {"signal", 11},
+                          {"signal_name", "SIGSEGV"},
+                          {"app_version", "0.10.12"},
+                          {"uptime_sec", 3600},
+                          {"github_issue", 142},
+                          {"github_url", "https://github.com/prestonbrown/helixscreen/issues/142"},
+                          {"sent_via", "crash_reporter"}}});
+        write_file("crash_history.json", history.dump(2));
+        auto result = helix::DebugBundleCollector::collect_crash_history(temp_dir_.string());
+        REQUIRE(result.size() == 1);
+        CHECK(result[0]["signal"] == 11);
+        CHECK(result[0]["github_issue"] == 142);
+    }
+    SECTION("no file") {
+        auto result = helix::DebugBundleCollector::collect_crash_history(temp_dir_.string());
+        CHECK(result.is_array());
+        CHECK(result.empty());
+    }
+    SECTION("a corrupt file") {
+        write_file("crash_history.json", "not valid json {{{{");
+        auto result = helix::DebugBundleCollector::collect_crash_history(temp_dir_.string());
+        CHECK(result.is_array());
+        CHECK(result.empty());
+    }
 }
 
 // ============================================================================
@@ -1256,27 +1180,16 @@ TEST_CASE_METHOD(DebugBundleTestFixture,
 // ============================================================================
 
 TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_device_id reads from telemetry device file",
+                 "DebugBundleCollector: collect_device_id hashes the telemetry device id",
                  "[debug-bundle]") {
-    // Write a telemetry_device.json
-    json device = {{"uuid", "550e8400-e29b-41d4-a716-446655440000"}, {"salt", "random_salt_value"}};
+    CHECK(helix::DebugBundleCollector::collect_device_id(temp_dir_.string()).empty());
 
-    std::ofstream ofs((temp_dir_ / "telemetry_device.json").string());
-    ofs << device.dump();
-    ofs.close();
-
+    write_file("telemetry_device.json",
+               json{{"uuid", "550e8400-e29b-41d4-a716-446655440000"}, {"salt", "random_salt_value"}}
+                   .dump());
     auto result = helix::DebugBundleCollector::collect_device_id(temp_dir_.string());
-    // Should be a hashed device ID (64 char hex), not the raw UUID
     REQUIRE_FALSE(result.empty());
-    // Must NOT contain the raw UUID
-    REQUIRE(result.find("550e8400") == std::string::npos);
-}
-
-TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_device_id returns empty when no device file",
-                 "[debug-bundle]") {
-    auto result = helix::DebugBundleCollector::collect_device_id(temp_dir_.string());
-    REQUIRE(result.empty());
+    CHECK(result.find("550e8400") == std::string::npos); // never the raw UUID
 }
 
 // ============================================================================
@@ -1307,23 +1220,16 @@ TEST_CASE_METHOD(DebugBundleTestFixture,
 }
 
 TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_log_tail_from_paths tries paths in order",
+                 "DebugBundleCollector: collect_log_tail_from_paths reads the first file present",
                  "[debug-bundle][log]") {
-    // Only write the second path
-    write_file("fallback.log", "fallback line 1\nfallback line 2\n");
+    CHECK(helix::DebugBundleCollector::collect_log_tail_from_paths(
+              {"/nonexistent/a.log", "/nonexistent/b.log"}, 10)
+              .empty());
 
+    write_file("fallback.log", "fallback line 1\nfallback line 2\n");
     auto result = helix::DebugBundleCollector::collect_log_tail_from_paths(
         {(temp_dir_ / "nonexistent.log").string(), (temp_dir_ / "fallback.log").string()}, 10);
-    REQUIRE_FALSE(result.empty());
-    REQUIRE(result.find("fallback line 1") != std::string::npos);
-}
-
-TEST_CASE_METHOD(DebugBundleTestFixture,
-                 "DebugBundleCollector: collect_log_tail_from_paths returns empty when all missing",
-                 "[debug-bundle][log]") {
-    auto result = helix::DebugBundleCollector::collect_log_tail_from_paths(
-        {"/nonexistent/a.log", "/nonexistent/b.log"}, 10);
-    REQUIRE(result.empty());
+    CHECK(result.find("fallback line 1") != std::string::npos);
 }
 
 // ============================================================================
@@ -1334,17 +1240,6 @@ TEST_CASE_METHOD(DebugBundleTestFixture,
 // densest in identifying data, because the ring captures at debug regardless
 // of the user's configured verbosity (#1191).
 // ============================================================================
-
-TEST_CASE("DebugBundleCollector: sanitize_value leaves an SSID-shaped string alone",
-          "[debug-bundle][privacy]") {
-    // Pins WHY the call-site redaction exists. An SSID is an arbitrary
-    // user-chosen string; no regex distinguishes it from ordinary log text, so
-    // the sanitizer cannot be the control for it. If someone later "fixes"
-    // this by adding an SSID regex, that regex will eat real log content and
-    // this test should make them think twice.
-    const std::string ssid_line = "Status: connected=true ssid='Pretzel Logic Cafe' signal=66%";
-    REQUIRE(helix::DebugBundleCollector::sanitize_value(ssid_line) == ssid_line);
-}
 
 TEST_CASE("DebugBundleCollector: sanitize_text_block redacts per line", "[debug-bundle][privacy]") {
     // The 4 KB ReDoS guard in sanitize_value() would swallow a whole log as one
@@ -1426,110 +1321,74 @@ helix::UpdateDiagnostics healthy_diag() {
 
 } // namespace
 
-TEST_CASE("DebugBundleCollector: build_update_info reports a healthy install as not suppressed",
+// The three writability/support fields and the policy flag reach the bundle as
+// they are, because WHICH route is open is the diagnostic. Suppression comes from
+// the support answer or the firmware flag alone; the bundle field and the subject
+// the XML binds to are the same function (compute_update_install_suppressed).
+TEST_CASE("DebugBundleCollector: build_update_info reports each install shape distinctly",
           "[debug-bundle][update]") {
-    json upd = helix::DebugBundleCollector::build_update_info(healthy_diag());
-
-    REQUIRE(upd["install_root"].get<std::string>() == "/opt/helixscreen");
-    REQUIRE(upd["install_parent_writable"].get<bool>() == true);
-    REQUIRE(upd["install_root_writable"].get<bool>() == true);
-    REQUIRE(upd["self_update_supported"].get<bool>() == true);
-    REQUIRE(upd["externally_managed"].get<bool>() == false);
-    REQUIRE(upd["suppressed"].get<bool>() == false);
-    REQUIRE(upd["channel"].get<std::string>() == "stable");
-    REQUIRE(upd["r2_base_url"].get<std::string>() == "https://releases.helixscreen.org");
-    REQUIRE(upd["last_check_status"].get<std::string>() == "up_to_date");
-    REQUIRE(upd["platform_asset_name"].get<std::string>() == "helixscreen-pi32.zip");
-
-    // Optional fields must be ABSENT rather than empty strings — an empty
-    // "available_version" reads like a failed lookup, not "no update cached".
-    REQUIRE_FALSE(upd.contains("available_version"));
-    REQUIRE_FALSE(upd.contains("last_check_error"));
-}
-
-TEST_CASE("DebugBundleCollector: build_update_info marks a read-only install tree suppressed",
-          "[debug-bundle][update]") {
-    auto d = healthy_diag();
-    // Neither writable nor escalatable — a genuinely read-only rootfs.
-    d.install_parent_writable = false;
-    d.install_root_writable = false;
-    d.self_update_supported = false;
-
-    json upd = helix::DebugBundleCollector::build_update_info(d);
-
-    REQUIRE(upd["suppressed"].get<bool>() == true);
-    // Both causes must stay distinguishable: this is the physical-impossibility
-    // branch, NOT the firmware flag.
-    REQUIRE(upd["self_update_supported"].get<bool>() == false);
-    REQUIRE(upd["externally_managed"].get<bool>() == false);
-}
-
-TEST_CASE("DebugBundleCollector: build_update_info leaves an in-place-updatable install "
-          "unsuppressed",
-          "[debug-bundle][update]") {
-    // The standalone-display shape: /opt is root-owned so no rename can happen
-    // there, but the root itself is owned by the service user, and install.sh
-    // replaces its contents in place. Reporting this as suppressed is the bug
-    // that locked a user out for good, so the three fields must stay distinct:
-    // WHICH route is open is the entire diagnostic value.
-    auto d = healthy_diag();
-    d.install_parent_writable = false;
-    d.install_root_writable = true;
-    d.self_update_supported = true;
-
-    json upd = helix::DebugBundleCollector::build_update_info(d);
-
-    REQUIRE(upd["suppressed"].get<bool>() == false);
-    REQUIRE(upd["install_parent_writable"].get<bool>() == false);
-    REQUIRE(upd["install_root_writable"].get<bool>() == true);
-    REQUIRE(upd["self_update_supported"].get<bool>() == true);
-}
-
-TEST_CASE("DebugBundleCollector: build_update_info keeps the sudo-only install distinguishable",
-          "[debug-bundle][update]") {
-    // Neither writability term open, yet self_update_supported() said yes: the
-    // answer came from root escalation alone. Worth telling apart from the two
-    // cases above, because it is the one that stops working the moment the app
-    // runs under the shipped systemd unit (NoNewPrivileges=true blocks sudo).
-    auto d = healthy_diag();
-    d.install_parent_writable = false;
-    d.install_root_writable = false;
-    d.self_update_supported = true;
-
-    json upd = helix::DebugBundleCollector::build_update_info(d);
-
-    REQUIRE(upd["suppressed"].get<bool>() == false);
-    REQUIRE(upd["install_parent_writable"].get<bool>() == false);
-    REQUIRE(upd["install_root_writable"].get<bool>() == false);
-    REQUIRE(upd["self_update_supported"].get<bool>() == true);
-}
-
-TEST_CASE("DebugBundleCollector: build_update_info marks a firmware-managed install suppressed",
-          "[debug-bundle][update]") {
-    auto d = healthy_diag();
-    d.externally_managed = true; // HELIX_DISABLE_AUTO_UPDATES
-
-    json upd = helix::DebugBundleCollector::build_update_info(d);
-
-    REQUIRE(upd["suppressed"].get<bool>() == true);
-    REQUIRE(upd["externally_managed"].get<bool>() == true);
-    // The tree is updatable; suppression is policy, not physics.
-    REQUIRE(upd["self_update_supported"].get<bool>() == true);
-}
-
-TEST_CASE("DebugBundleCollector: build_update_info suppressed matches the UI gate predicate",
-          "[debug-bundle][update]") {
-    // The bundle field and the subject the XML binds to must be the same
-    // function, not two copies that can drift.
-    for (bool managed : {false, true}) {
-        for (bool supported : {false, true}) {
+    struct Row {
+        const char* name;
+        bool parent_writable;
+        bool root_writable;
+        bool supported;
+        bool managed;
+        bool suppressed;
+    };
+    const Row rows[] = {
+        {"healthy", true, true, true, false, false},
+        // Neither writable nor escalatable: a read-only rootfs
+        {"read-only tree", false, false, false, false, true},
+        // Standalone display: /opt is root-owned but install.sh replaces the
+        // service-owned root in place
+        {"in-place updatable", false, true, true, false, false},
+        // Supported through root escalation alone, which the shipped systemd
+        // unit (NoNewPrivileges=true) blocks
+        {"sudo only", false, false, true, false, false},
+        // HELIX_DISABLE_AUTO_UPDATES: policy, not physics
+        {"firmware managed", true, true, true, true, true},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
             auto d = healthy_diag();
-            d.externally_managed = managed;
-            d.self_update_supported = supported;
+            d.install_parent_writable = r.parent_writable;
+            d.install_root_writable = r.root_writable;
+            d.self_update_supported = r.supported;
+            d.externally_managed = r.managed;
+
             json upd = helix::DebugBundleCollector::build_update_info(d);
-            INFO("managed=" << managed << " self_update_supported=" << supported);
-            REQUIRE(upd["suppressed"].get<bool>() ==
-                    compute_update_install_suppressed(managed, supported));
+
+            CHECK(upd["install_parent_writable"].get<bool>() == r.parent_writable);
+            CHECK(upd["install_root_writable"].get<bool>() == r.root_writable);
+            CHECK(upd["self_update_supported"].get<bool>() == r.supported);
+            CHECK(upd["externally_managed"].get<bool>() == r.managed);
+            CHECK(upd["suppressed"].get<bool>() == r.suppressed);
+            CHECK(upd["suppressed"].get<bool>() ==
+                  compute_update_install_suppressed(r.managed, r.supported));
+        }
+    }
+
+    SECTION("the healthy record carries every field, and no empty optional ones") {
+        json upd = helix::DebugBundleCollector::build_update_info(healthy_diag());
+        CHECK(upd["install_root"].get<std::string>() == "/opt/helixscreen");
+        CHECK(upd["channel"].get<std::string>() == "stable");
+        CHECK(upd["r2_base_url"].get<std::string>() == "https://releases.helixscreen.org");
+        CHECK(upd["last_check_status"].get<std::string>() == "up_to_date");
+        CHECK(upd["platform_asset_name"].get<std::string>() == "helixscreen-pi32.zip");
+        // An empty "available_version" would read like a failed lookup
+        CHECK_FALSE(upd.contains("available_version"));
+        CHECK_FALSE(upd.contains("last_check_error"));
+    }
+    SECTION("the predicate agrees on all four inputs") {
+        for (bool managed : {false, true}) {
+            for (bool supported : {false, true}) {
+                auto d = healthy_diag();
+                d.externally_managed = managed;
+                d.self_update_supported = supported;
+                INFO("managed=" << managed << " self_update_supported=" << supported);
+                CHECK(helix::DebugBundleCollector::build_update_info(d)["suppressed"].get<bool>() ==
+                      compute_update_install_suppressed(managed, supported));
+            }
         }
     }
 }

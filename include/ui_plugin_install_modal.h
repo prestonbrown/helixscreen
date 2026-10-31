@@ -68,6 +68,11 @@ class PluginInstallModal : public Modal {
     ~PluginInstallModal() override {
         // Signal destruction to prevent async callbacks from accessing destroyed object
         is_destroying_.store(true);
+        // A shown modal's owner can destroy it without on_hide() running, and the static
+        // XML callbacks would then reach a freed instance.
+        if (s_active_instance_ == this) {
+            s_active_instance_ = nullptr;
+        }
     }
 
     const char* get_name() const override {

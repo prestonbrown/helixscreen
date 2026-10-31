@@ -2181,125 +2181,62 @@ TEST_CASE("ACE maps native runout slot status to EMPTY", "[ams][ace][native][par
 }
 
 // ============================================================================
-// #1069: ACEPRO driver REST path.
+// ACEPRO driver REST path (#1069, #1107).
 //
-// The ACEPRO driver ships a custom ace_status.py Moonraker component that
-// exposes ACE state through /server/ace/status + /server/ace/slots (but NOT /info). The
-// underlying `ace` Klipper object is a MANAGER (ace_instances/current_index,
-// no slots), so the WebSocket subscription path parses zero slots and the REST
-// bridge must take over. These tests lock the four fixes for that path.
+// The ACEPRO driver's ace_status.py Moonraker component serves ACE state over
+// /server/ace/status + /server/ace/slots (not /info), and its `ace` object or
+// `ace_instance_N` objects are managers with no slots. select_ace_object picks
+// only a slot-bearing object for the subscription path, preferring
+// filament_hub, then ace, then the lowest ace_instance_N; a manager or an empty
+// slots array falls through to the REST bridge.
 // ============================================================================
 
-// --- Fix 1: manager-only object must fall through to REST fallback ----------
-
-TEST_CASE("ACE manager-only ace object (no slots) selects REST fallback",
+TEST_CASE("ACE subscribes to a slot-bearing object and otherwise falls back to REST",
           "[ams][ace][rest_fallback][kobra]") {
-    // ACEPRO driver: `ace` is a manager with ace_instances/current_index and NO
-    // slots array. select_ace_object must return nullptr so on_started
-    // commits to REST polling instead of parsing zero slots off the manager.
-    json status = json::object();
-    status["ace"] = json{{"ace_instances", 1}, {"current_index", 0}};
-
-    std::string key;
-    const json* picked = AceTestAccess::select_ace_object(status, &key);
-
-    CHECK(picked == nullptr);
-    CHECK(key.empty());
-}
-
-TEST_CASE("ACE object WITH slots array still selects subscription path",
-          "[ams][ace][rest_fallback][kobra]") {
-    // Regression: a genuine slot-bearing `ace` (ValgACE) or `filament_hub`
-    // (native) object must still be chosen for the WebSocket subscription path.
-    SECTION("community ace key") {
-        json status = json::object();
-        status["ace"] = json{
-            {"model", "ACE Pro"},
-            {"slots", json::array({json{{"status", "available"}, {"type", "PLA"}}})},
-        };
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        REQUIRE(picked != nullptr);
-        CHECK(key == "ace");
-    }
-
-    SECTION("native filament_hub key preferred") {
-        json status = json::object();
-        status["filament_hub"] = make_native_filament_hub_payload();
-        // A manager-only ace present alongside must NOT be picked over the
-        // slot-bearing filament_hub.
-        status["ace"] = json{{"ace_instances", 1}, {"current_index", 0}};
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        REQUIRE(picked != nullptr);
-        CHECK(key == "filament_hub");
-    }
-
-    SECTION("empty slots array is not slot-bearing") {
-        // An object with an empty slots array carries no slot data — treat it
-        // like the manager-only case and fall through to REST.
-        json status = json::object();
-        status["ace"] = json{{"model", "ACE Pro"}, {"slots", json::array()}};
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        CHECK(picked == nullptr);
-    }
-}
-
-// --- #1107: the ACEPRO driver registers `ace_instance_N` ---------------------
-//
-// The ACEPRO driver exposes each ACE unit as its own `ace_instance_N` Klipper
-// object (has get_status()), NOT a top-level `ace`/`filament_hub`. When a build
-// of that driver carries a `slots` array on ace_instance_N, the object path must
-// engage; if not, it falls through to the REST bridge like the manager case.
-
-TEST_CASE("ACE ace_instance_0 WITH slots selects subscription path",
-          "[ams][ace][rest_fallback][kobra]") {
-    json status = json::object();
-    status["ace_instance_0"] = json{
-        {"model", "ACE Pro"},
-        {"slots", json::array({json{{"status", "available"}, {"type", "PLA"}}})},
+    const json slots_pla = json::array({json{{"status", "available"}, {"type", "PLA"}}});
+    const json slots_abs = json::array({json{{"status", "available"}, {"type", "ABS"}}});
+    const json manager = json{{"ace_instances", 1}, {"current_index", 0}};
+    struct Row {
+        const char* name;
+        json status;
+        const char* key; // nullptr = REST fallback
     };
-    std::string key;
-    const json* picked = AceTestAccess::select_ace_object(status, &key);
-    REQUIRE(picked != nullptr);
-    CHECK(key == "ace_instance_0");
-}
-
-TEST_CASE("ACE ace_instance_0 manager-shaped (no slots) selects REST fallback",
-          "[ams][ace][rest_fallback][kobra]") {
-    // The verified ACEPRO driver exposes ace_instance_0 without a slots array
-    // (has_get_status=True but manager-shaped). Must fall through to REST.
-    json status = json::object();
-    status["ace_instance_0"] = json{{"current_index", 0}, {"ace_count", 1}};
-    std::string key;
-    const json* picked = AceTestAccess::select_ace_object(status, &key);
-    CHECK(picked == nullptr);
-    CHECK(key.empty());
-}
-
-TEST_CASE("ACE select prefers filament_hub/ace over ace_instance_N",
-          "[ams][ace][rest_fallback][kobra]") {
-    SECTION("filament_hub beats a slot-bearing ace_instance_0") {
-        json status = json::object();
-        status["filament_hub"] = make_native_filament_hub_payload();
-        status["ace_instance_0"] =
-            json{{"slots", json::array({json{{"status", "available"}, {"type", "PLA"}}})}};
+    const Row rows[] = {
+        {"a manager-only ace", {{"ace", manager}}, nullptr},
+        {"ValgACE's slot-bearing ace",
+         {{"ace", {{"model", "ACE Pro"}, {"slots", slots_pla}}}},
+         "ace"},
+        {"filament_hub beside a manager ace",
+         {{"filament_hub", make_native_filament_hub_payload()}, {"ace", manager}},
+         "filament_hub"},
+        {"an empty slots array",
+         {{"ace", {{"model", "ACE Pro"}, {"slots", json::array()}}}},
+         nullptr},
+        {"a slot-bearing ace_instance_0",
+         {{"ace_instance_0", {{"model", "ACE Pro"}, {"slots", slots_pla}}}},
+         "ace_instance_0"},
+        {"a manager-shaped ace_instance_0",
+         {{"ace_instance_0", {{"current_index", 0}, {"ace_count", 1}}}},
+         nullptr},
+        {"filament_hub beside a slot-bearing ace_instance_0",
+         {{"filament_hub", make_native_filament_hub_payload()},
+          {"ace_instance_0", {{"slots", slots_pla}}}},
+         "filament_hub"},
+        {"the lowest of two slot-bearing instances",
+         {{"ace_instance_1", {{"slots", slots_abs}}}, {"ace_instance_0", {{"slots", slots_pla}}}},
+         "ace_instance_0"},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
         std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        REQUIRE(picked != nullptr);
-        CHECK(key == "filament_hub");
-    }
-    SECTION("lowest ace_instance_N wins when several carry slots") {
-        json status = json::object();
-        status["ace_instance_1"] =
-            json{{"slots", json::array({json{{"status", "available"}, {"type", "ABS"}}})}};
-        status["ace_instance_0"] =
-            json{{"slots", json::array({json{{"status", "available"}, {"type", "PLA"}}})}};
-        std::string key;
-        const json* picked = AceTestAccess::select_ace_object(status, &key);
-        REQUIRE(picked != nullptr);
-        CHECK(key == "ace_instance_0");
+        const json* picked = AceTestAccess::select_ace_object(row.status, &key);
+        if (row.key) {
+            REQUIRE(picked != nullptr);
+            CHECK(key == row.key);
+        } else {
+            CHECK(picked == nullptr);
+            CHECK(key.empty());
+        }
     }
 }
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "config.h"
 #include "display_settings_manager.h"
 #include "screensaver.h"
@@ -834,7 +835,7 @@ class DrawTaskCounter {
         lv_obj_add_event_cb(obj_, on_task_added, LV_EVENT_DRAW_TASK_ADDED, this);
     }
     ~DrawTaskCounter() {
-        if (lv_obj_is_valid(obj_)) {
+        if (helix::test::widget_in_tree(obj_)) {
             lv_obj_remove_event_cb_with_user_data(obj_, on_task_added, this);
             lv_obj_remove_flag(obj_, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
         }
@@ -890,7 +891,7 @@ void check_overlay_draws_only_its_canvas(lv_obj_t* overlay, lv_obj_t* canvas) {
 /// lv_refr_now) or a top-layer snapshot (a screenshot) must not draw the canvas, whose
 /// buffer is already freed.
 void check_stopped_canvas_is_not_drawn(lv_obj_t* canvas) {
-    REQUIRE(lv_obj_is_valid(canvas));
+    REQUIRE(helix::test::widget_in_tree(canvas));
     CHECK(lv_obj_has_flag(canvas, LV_OBJ_FLAG_HIDDEN));
 
     DrawTaskCounter canvas_tasks(canvas);

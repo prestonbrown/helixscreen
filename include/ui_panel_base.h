@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
 
@@ -214,7 +216,7 @@ class PanelBase : public ViewLifecycleBase {
     // === Panel State ===
     //
 
-    lv_obj_t* panel_ = nullptr;
+    helix::ui::WidgetRef panel_;
     lv_obj_t* parent_screen_ = nullptr;
     bool subjects_initialized_ = false;
 

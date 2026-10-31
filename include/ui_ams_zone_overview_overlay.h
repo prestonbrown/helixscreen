@@ -62,7 +62,7 @@ class AmsZoneOverviewOverlay : public OverlayBase {
     /// repeat from binding to unset subjects and flashing on its first frame.
     void rebuild_rows();
 
-    lv_obj_t*& overlay_ = overlay_root_;
+    helix::ui::WidgetRef& overlay_ = overlay_root_;
 
     std::vector<helix::printer::EnvironmentZone> zones_;
 

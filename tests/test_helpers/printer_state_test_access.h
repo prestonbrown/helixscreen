@@ -173,7 +173,13 @@ class PrinterProfileStateTestAccess {
         // A latched external-persistence flag would hold FIRMWARE_MANAGED
         // across every later test in the binary after a mid-test failure.
         s.external_persistence_ = false;
+        // The tune hint subject is seeded from the cached value on re-init.
+        s.z_offset_tune_hint_value_ = ZOffsetTuneHint::SAVE_ON_CONTROLS;
+        s.z_offset_save_enabled_ = true;
+        s.db_z_offset_persists_ = true;
+        s.db_tool_change_resets_z_offset_ = false;
         s.db_enclosed_ = false;
+        s.db_hides_dot_dirs_ = false;
         s.timelapse_default_enabled_ = false;
         s.firmware_option_defaults_.clear();
     }

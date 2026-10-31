@@ -420,6 +420,9 @@ void ActionPromptModal::size_swatch_discs() {
     }
     lv_obj_update_layout(screen);
     for (lv_obj_t* button : created_buttons_) {
+        if (!button) {
+            continue;
+        }
         lv_obj_t* disc = lv_obj_find_by_name(button, "color_swatch_disc");
         if (disc == nullptr) {
             continue;
@@ -621,7 +624,7 @@ void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* contain
     // Transfer ownership to the vector (pointer remains stable)
     button_callback_data_.push_back(std::move(cbd));
 
-    created_buttons_.push_back(button);
+    created_buttons_.emplace_back(button);
 
     spdlog::debug("[ActionPromptModal] Created button: {} (gcode: {}, color: {})", btn.label,
                   btn.gcode.empty() ? "<none>" : btn.gcode,
@@ -656,7 +659,7 @@ void ActionPromptModal::clear_dynamic_content() {
     // risking use-after-free if any queued event dispatches against a button
     // after on_hide() returns.
     for (lv_obj_t* button : created_buttons_) {
-        if (button && lv_obj_is_valid(button)) {
+        if (button) {
             lv_obj_remove_event_cb(button, on_button_cb);
         }
     }

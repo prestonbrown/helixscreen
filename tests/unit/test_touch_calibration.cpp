@@ -7,986 +7,467 @@
 #include "touch_calibration_panel.h"
 #include "touch_calibration_wrapper.h"
 
+#include <array>
+#include <optional>
+#include <string>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 
 using Catch::Approx;
 using namespace helix;
 
+namespace {
+
+using Triple = std::array<Point, 3>;
+
+/// Solves `screen` from `touch`, or fails the case.
+TouchCalibration solved(const Triple& screen, const Triple& touch) {
+    TouchCalibration cal;
+    REQUIRE(compute_calibration(screen.data(), touch.data(), cal));
+    REQUIRE(cal.valid);
+    return cal;
+}
+
+/// |b| + |d| over |a| + |e|: how much each screen axis leans on the other touch axis.
+float cross_coupling(const TouchCalibration& cal) {
+    return (std::abs(cal.b) + std::abs(cal.d)) /
+           std::max(std::abs(cal.a) + std::abs(cal.e), 0.001f);
+}
+
+} // namespace
+
 // ============================================================================
-// Coefficient Computation Tests
+// The three-point solve
 // ============================================================================
 
-TEST_CASE("TouchCalibration: identity transformation", "[touch-calibration][compute]") {
-    // When screen points equal touch points, coefficients should give identity
-    // identity: a=1, b=0, c=0, d=0, e=1, f=0
-    Point screen_points[3] = {{0, 0}, {100, 0}, {0, 100}};
-    Point touch_points[3] = {{0, 0}, {100, 0}, {0, 100}};
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == true);
-    REQUIRE(cal.valid == true);
-    REQUIRE(cal.a == Approx(1.0f));
-    REQUIRE(cal.b == Approx(0.0f));
-    REQUIRE(cal.c == Approx(0.0f));
-    REQUIRE(cal.d == Approx(0.0f));
-    REQUIRE(cal.e == Approx(1.0f));
-    REQUIRE(cal.f == Approx(0.0f));
-}
-
-TEST_CASE("TouchCalibration: simple scaling", "[touch-calibration][compute]") {
-    // Touch range 0-1000 maps to screen 0-800 x 0-480
-    Point screen_points[3] = {{0, 0}, {800, 0}, {0, 480}};
-    Point touch_points[3] = {{0, 0}, {1000, 0}, {0, 1000}};
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == true);
-    REQUIRE(cal.valid == true);
-
-    // Verify transformation produces correct screen coordinates
-    Point p1 = transform_point(cal, {1000, 0});
-    REQUIRE(p1.x == Approx(800).margin(1));
-    REQUIRE(p1.y == Approx(0).margin(1));
-
-    Point p2 = transform_point(cal, {0, 1000});
-    REQUIRE(p2.x == Approx(0).margin(1));
-    REQUIRE(p2.y == Approx(480).margin(1));
-
-    Point p3 = transform_point(cal, {500, 500});
-    REQUIRE(p3.x == Approx(400).margin(1));
-    REQUIRE(p3.y == Approx(240).margin(1));
-}
-
-TEST_CASE("TouchCalibration: translation offset", "[touch-calibration][compute]") {
-    // Touch 0,0 maps to screen 100,100 (offset mapping)
-    Point screen_points[3] = {{100, 100}, {700, 100}, {100, 380}};
-    Point touch_points[3] = {{0, 0}, {600, 0}, {0, 280}};
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == true);
-    REQUIRE(cal.valid == true);
-
-    // transform(0, 0) should give (100, 100)
-    Point p = transform_point(cal, {0, 0});
-    REQUIRE(p.x == Approx(100).margin(1));
-    REQUIRE(p.y == Approx(100).margin(1));
-
-    // transform(600, 0) should give (700, 100)
-    Point p2 = transform_point(cal, {600, 0});
-    REQUIRE(p2.x == Approx(700).margin(1));
-    REQUIRE(p2.y == Approx(100).margin(1));
-
-    // transform(0, 280) should give (100, 380)
-    Point p3 = transform_point(cal, {0, 280});
-    REQUIRE(p3.x == Approx(100).margin(1));
-    REQUIRE(p3.y == Approx(380).margin(1));
-}
-
-TEST_CASE("TouchCalibration: AD5M-like calibration", "[touch-calibration][compute][ad5m]") {
-    // Real-world scenario: 800x480 screen with 15% inset calibration points
-    // Screen points at 15% inset from edges
-    Point screen_points[3] = {
-        {120, 144}, // 15% from left, 30% from top
-        {400, 408}, // center-ish X, 85% from top
-        {680, 72}   // 85% from left, 15% from top
+TEST_CASE("TouchCalibration: the three-point solve maps each touch onto its screen point",
+          "[touch-calibration][compute][transform][coefficients]") {
+    struct Probe {
+        Point touch, screen;
     };
-
-    // Simulated raw touch values from resistive touchscreen
-    Point touch_points[3] = {
-        {500, 3200}, // Top-left region
-        {2040, 900}, // Bottom-center region
-        {3580, 3500} // Top-right region
+    struct Coeffs {
+        float a, b, c, d, e, f;
     };
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == true);
-    REQUIRE(cal.valid == true);
-
-    // Verify the calibration points transform correctly
-    Point p1 = transform_point(cal, {500, 3200});
-    REQUIRE(p1.x == Approx(120).margin(2));
-    REQUIRE(p1.y == Approx(144).margin(2));
-
-    Point p2 = transform_point(cal, {2040, 900});
-    REQUIRE(p2.x == Approx(400).margin(2));
-    REQUIRE(p2.y == Approx(408).margin(2));
-
-    Point p3 = transform_point(cal, {3580, 3500});
-    REQUIRE(p3.x == Approx(680).margin(2));
-    REQUIRE(p3.y == Approx(72).margin(2));
-}
-
-TEST_CASE("TouchCalibration: Y-axis inversion", "[touch-calibration][compute]") {
-    // Common on resistive touchscreens: raw Y increases but screen Y decreases
-    // Screen: origin at top-left, Y increases downward
-    // Touch: origin at bottom-left, Y increases upward
-    Point screen_points[3] = {{0, 0}, {800, 0}, {0, 480}};
-    Point touch_points[3] = {{0, 480}, {800, 480}, {0, 0}}; // Y inverted
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == true);
-    REQUIRE(cal.valid == true);
-
-    // Touch (0, 480) -> Screen (0, 0)
-    Point p1 = transform_point(cal, {0, 480});
-    REQUIRE(p1.x == Approx(0).margin(1));
-    REQUIRE(p1.y == Approx(0).margin(1));
-
-    // Touch (0, 0) -> Screen (0, 480)
-    Point p2 = transform_point(cal, {0, 0});
-    REQUIRE(p2.x == Approx(0).margin(1));
-    REQUIRE(p2.y == Approx(480).margin(1));
-
-    // Touch (400, 240) -> Screen (400, 240) - center stays center
-    Point p3 = transform_point(cal, {400, 240});
-    REQUIRE(p3.x == Approx(400).margin(1));
-    REQUIRE(p3.y == Approx(240).margin(1));
-}
-
-// ============================================================================
-// Edge Cases and Error Handling
-// ============================================================================
-
-TEST_CASE("TouchCalibration: degenerate points - collinear", "[touch-calibration][edge]") {
-    // All three touch points on a line - cannot compute unique transform
-    Point screen_points[3] = {{0, 0}, {100, 100}, {200, 200}};
-    Point touch_points[3] = {{0, 0}, {100, 100}, {200, 200}}; // All on diagonal
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == false);
-    REQUIRE(cal.valid == false);
-}
-
-TEST_CASE("TouchCalibration: degenerate points - duplicates", "[touch-calibration][edge]") {
-    // Two identical touch points
-    Point screen_points[3] = {{0, 0}, {100, 0}, {0, 100}};
-    Point touch_points[3] = {{50, 50}, {50, 50}, {100, 100}}; // First two identical
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == false);
-    REQUIRE(cal.valid == false);
-}
-
-TEST_CASE("TouchCalibration: degenerate points - nearly collinear", "[touch-calibration][edge]") {
-    // Points almost on a line - should detect and fail
-    Point screen_points[3] = {{0, 0}, {100, 100}, {200, 201}}; // Third point barely off line
-    Point touch_points[3] = {{0, 0}, {100, 100}, {200, 200}};  // Collinear
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == false);
-    REQUIRE(cal.valid == false);
-}
-
-// ============================================================================
-// Point Transformation Tests
-// ============================================================================
-
-TEST_CASE("TouchCalibration: transform maintains precision", "[touch-calibration][transform]") {
-    // Set up a known scaling transformation
-    Point screen_points[3] = {{0, 0}, {100, 0}, {0, 100}};
-    Point touch_points[3] = {{0, 0}, {200, 0}, {0, 200}}; // 2x touch range
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal) == true);
-
-    // Test various points
-    SECTION("origin") {
-        Point p = transform_point(cal, {0, 0});
-        REQUIRE(p.x == Approx(0).margin(1));
-        REQUIRE(p.y == Approx(0).margin(1));
-    }
-
-    SECTION("max x") {
-        Point p = transform_point(cal, {200, 0});
-        REQUIRE(p.x == Approx(100).margin(1));
-        REQUIRE(p.y == Approx(0).margin(1));
-    }
-
-    SECTION("max y") {
-        Point p = transform_point(cal, {0, 200});
-        REQUIRE(p.x == Approx(0).margin(1));
-        REQUIRE(p.y == Approx(100).margin(1));
-    }
-
-    SECTION("center") {
-        Point p = transform_point(cal, {100, 100});
-        REQUIRE(p.x == Approx(50).margin(1));
-        REQUIRE(p.y == Approx(50).margin(1));
+    struct Row {
+        const char* what;
+        Triple screen, touch;
+        int margin;
+        std::vector<Probe> probes;
+        std::optional<Coeffs> coeffs;
+    };
+    const Row rows[] = {
+        {"identity",
+         {{{0, 0}, {100, 0}, {0, 100}}},
+         {{{0, 0}, {100, 0}, {0, 100}}},
+         1,
+         {},
+         Coeffs{1, 0, 0, 0, 1, 0}},
+        {"touch 0-1000 onto 800x480",
+         {{{0, 0}, {800, 0}, {0, 480}}},
+         {{{0, 0}, {1000, 0}, {0, 1000}}},
+         1,
+         {{{1000, 0}, {800, 0}}, {{0, 1000}, {0, 480}}, {{500, 500}, {400, 240}}},
+         std::nullopt},
+        {"an offset mapping",
+         {{{100, 100}, {700, 100}, {100, 380}}},
+         {{{0, 0}, {600, 0}, {0, 280}}},
+         1,
+         {{{0, 0}, {100, 100}}, {{600, 0}, {700, 100}}, {{0, 280}, {100, 380}}},
+         std::nullopt},
+        // An 800x480 screen's inset targets against raw resistive readings.
+        {"AD5M-like raw readings",
+         {{{120, 144}, {400, 408}, {680, 72}}},
+         {{{500, 3200}, {2040, 900}, {3580, 3500}}},
+         2,
+         {{{500, 3200}, {120, 144}}, {{2040, 900}, {400, 408}}, {{3580, 3500}, {680, 72}}},
+         std::nullopt},
+        // Raw Y grows upward on many resistive panels; screen Y grows downward.
+        {"Y inverted",
+         {{{0, 0}, {800, 0}, {0, 480}}},
+         {{{0, 480}, {800, 480}, {0, 0}}},
+         1,
+         {{{0, 480}, {0, 0}}, {{0, 0}, {0, 480}}, {{400, 240}, {400, 240}}},
+         std::nullopt},
+        {"half scale",
+         {{{0, 0}, {100, 0}, {0, 100}}},
+         {{{0, 0}, {200, 0}, {0, 200}}},
+         1,
+         {{{0, 0}, {0, 0}}, {{200, 0}, {100, 0}}, {{0, 200}, {0, 100}}, {{100, 100}, {50, 50}}},
+         std::nullopt},
+        {"a quarter turn",
+         {{{0, 0}, {0, 100}, {100, 0}}},
+         {{{0, 0}, {100, 0}, {0, 100}}},
+         1,
+         {{{100, 0}, {0, 100}}, {{0, 100}, {100, 0}}},
+         std::nullopt},
+        {"extrapolates outside the triangle",
+         {{{100, 100}, {200, 100}, {100, 200}}},
+         {{{100, 100}, {200, 100}, {100, 200}}},
+         1,
+         {{{300, 300}, {300, 300}}, {{0, 0}, {0, 0}}},
+         std::nullopt},
+        {"X scaled by 0.8",
+         {{{0, 0}, {80, 0}, {0, 100}}},
+         {{{0, 0}, {100, 0}, {0, 100}}},
+         1,
+         {},
+         Coeffs{0.8f, 0, 0, 0, 1, 0}},
+        {"Y scaled by 0.48",
+         {{{0, 0}, {100, 0}, {0, 48}}},
+         {{{0, 0}, {100, 0}, {0, 100}}},
+         1,
+         {},
+         Coeffs{1, 0, 0, 0, 0.48f, 0}},
+        {"translated by (50, 30)",
+         {{{50, 30}, {150, 30}, {50, 130}}},
+         {{{0, 0}, {100, 0}, {0, 100}}},
+         1,
+         {},
+         Coeffs{1, 0, 50, 0, 1, 30}},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        const TouchCalibration cal = solved(row.screen, row.touch);
+        for (const auto& probe : row.probes) {
+            CAPTURE(probe.touch.x, probe.touch.y);
+            const Point p = transform_point(cal, probe.touch);
+            CHECK(p.x == Approx(probe.screen.x).margin(row.margin));
+            CHECK(p.y == Approx(probe.screen.y).margin(row.margin));
+        }
+        if (row.coeffs) {
+            CHECK(cal.a == Approx(row.coeffs->a).margin(0.001f));
+            CHECK(cal.b == Approx(row.coeffs->b).margin(0.001f));
+            CHECK(cal.c == Approx(row.coeffs->c).margin(0.001f));
+            CHECK(cal.d == Approx(row.coeffs->d).margin(0.001f));
+            CHECK(cal.e == Approx(row.coeffs->e).margin(0.001f));
+            CHECK(cal.f == Approx(row.coeffs->f).margin(0.001f));
+        }
     }
 }
 
-TEST_CASE("TouchCalibration: transform with rotation", "[touch-calibration][transform]") {
-    // 90-degree rotation: touch X becomes screen Y, touch Y becomes -screen X
-    Point screen_points[3] = {{0, 0}, {0, 100}, {100, 0}}; // Rotated
-    Point touch_points[3] = {{0, 0}, {100, 0}, {0, 100}};  // Normal
-
-    TouchCalibration cal;
-    bool result = compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(result == true);
-    REQUIRE(cal.valid == true);
-
-    // Touch (100, 0) -> Screen (0, 100)
-    Point p1 = transform_point(cal, {100, 0});
-    REQUIRE(p1.x == Approx(0).margin(1));
-    REQUIRE(p1.y == Approx(100).margin(1));
-
-    // Touch (0, 100) -> Screen (100, 0)
-    Point p2 = transform_point(cal, {0, 100});
-    REQUIRE(p2.x == Approx(100).margin(1));
-    REQUIRE(p2.y == Approx(0).margin(1));
-}
-
-TEST_CASE("TouchCalibration: transform extrapolation beyond calibration points",
-          "[touch-calibration][transform]") {
-    // Verify transform works for points outside the calibration triangle
-    Point screen_points[3] = {{100, 100}, {200, 100}, {100, 200}};
-    Point touch_points[3] = {{100, 100}, {200, 100}, {100, 200}}; // Identity at offset
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal) == true);
-
-    // Point outside calibration triangle
-    Point p = transform_point(cal, {300, 300});
-    REQUIRE(p.x == Approx(300).margin(1));
-    REQUIRE(p.y == Approx(300).margin(1));
-
-    // Point at origin (outside triangle)
-    Point p2 = transform_point(cal, {0, 0});
-    REQUIRE(p2.x == Approx(0).margin(1));
-    REQUIRE(p2.y == Approx(0).margin(1));
-}
-
-// ============================================================================
-// Coefficient Validation Tests
-// ============================================================================
-
-TEST_CASE("TouchCalibration: coefficient values for known transforms",
-          "[touch-calibration][coefficients]") {
-    SECTION("pure X scaling by 0.8") {
-        // screen_x = 0.8 * touch_x + 0 * touch_y + 0
-        // screen_y = 0 * touch_x + 1 * touch_y + 0
-        Point screen_points[3] = {{0, 0}, {80, 0}, {0, 100}};
-        Point touch_points[3] = {{0, 0}, {100, 0}, {0, 100}};
-
+TEST_CASE("TouchCalibration: degenerate touch points give no calibration",
+          "[touch-calibration][edge]") {
+    struct Row {
+        const char* what;
+        Triple screen, touch;
+    };
+    const Row rows[] = {
+        {"collinear", {{{0, 0}, {100, 100}, {200, 200}}}, {{{0, 0}, {100, 100}, {200, 200}}}},
+        {"two identical", {{{0, 0}, {100, 0}, {0, 100}}}, {{{50, 50}, {50, 50}, {100, 100}}}},
+        // The screen side is barely off the line; the touch side is on it.
+        {"nearly collinear",
+         {{{0, 0}, {100, 100}, {200, 201}}},
+         {{{0, 0}, {100, 100}, {200, 200}}}},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
         TouchCalibration cal;
-        REQUIRE(compute_calibration(screen_points, touch_points, cal) == true);
-
-        REQUIRE(cal.a == Approx(0.8f).margin(0.001f));
-        REQUIRE(cal.b == Approx(0.0f).margin(0.001f));
-        REQUIRE(cal.c == Approx(0.0f).margin(0.001f));
-        REQUIRE(cal.d == Approx(0.0f).margin(0.001f));
-        REQUIRE(cal.e == Approx(1.0f).margin(0.001f));
-        REQUIRE(cal.f == Approx(0.0f).margin(0.001f));
+        CHECK_FALSE(compute_calibration(row.screen.data(), row.touch.data(), cal));
+        CHECK_FALSE(cal.valid);
     }
+}
 
-    SECTION("pure Y scaling by 0.48") {
-        // screen_x = 1 * touch_x + 0 * touch_y + 0
-        // screen_y = 0 * touch_x + 0.48 * touch_y + 0
-        Point screen_points[3] = {{0, 0}, {100, 0}, {0, 48}};
-        Point touch_points[3] = {{0, 0}, {100, 0}, {0, 100}};
+TEST_CASE("TouchCalibration: an invalid calibration passes points through untouched",
+          "[touch-calibration][state]") {
+    TouchCalibration cal;
+    REQUIRE_FALSE(cal.valid); // the default
+    const Point result = transform_point(cal, {500, 300});
+    CHECK(result.x == 500);
+    CHECK(result.y == 300);
+}
 
+// ============================================================================
+// Device classification
+// ============================================================================
+
+TEST_CASE("TouchCalibration: name and bus classifiers",
+          "[touch-calibration][usb-detect]"
+          "[touchscreen-detect][resistive-detection][scoring]") {
+    struct Row {
+        const char* input;
+        bool expect;
+    };
+    SECTION("is_usb_input_phys") {
+        const Row rows[] = {
+            {"usb-0000:01:00.0-1.3/input0", true}, // BTT HDMI, Waveshare
+            {"usb-3f980000.usb-1.2/input0", true},
+            {"usb-xhci-hcd.0-1/input1", true}, // composite device
+            {"usb-0000:01:00.0-1.4/input0", true},
+            {"", false},         // AD5M sun4i_ts
+            {"sun4i_ts", false}, // platform resistive
+            {"i2c-1/1-005d", false},
+            {"spi0.0/input0", false},
+            {"spi0.1/input0", false}, // ADS7846 phantom (#117)
+        };
+        for (const auto& row : rows) {
+            CAPTURE(row.input);
+            CHECK(is_usb_input_phys(row.input) == row.expect);
+        }
+    }
+    SECTION("is_known_touchscreen_name") {
+        const Row rows[] = {
+            {"sun4i-ts", true},
+            {"Goodix Capacitive TouchScreen", true},
+            {"ft5x06_ts", true},
+            {"gt911", true},
+            {"ili2130_ts", true},
+            {"Generic Touchscreen", true},
+            {"edt-ft5x06", true},
+            {"GOODIX Touch", true},
+            {"SUN4I-TS", true},
+            {"ns2009", true},
+            {"NS2009", true},
+            {"ns2016", true},
+            {"BIQU BTT-HDMI5 Touchscreen", true},
+            // A phantom SPI device still matches "touch" (#117): bus and
+            // PROP_DIRECT outscore it, not the name.
+            {"ADS7846 Touchscreen", true},
+            // A generic USB HID name relies on bus and PROP_DIRECT instead.
+            {"ILITEK ILITEK-TP", false},
+            {"vc4-hdmi", false},
+            {"vc4-hdmi HDMI Jack", false},
+            {"AT Translated Set 2 keyboard", false},
+            {"Logitech USB Mouse", false},
+            {"Power Button", false},
+            {"gpio-keys", false},
+            {"", false},
+            {"rc-cec", false},
+        };
+        for (const auto& row : rows) {
+            CAPTURE(row.input);
+            CHECK(is_known_touchscreen_name(row.input) == row.expect);
+        }
+    }
+    SECTION("is_resistive_touchscreen_name") {
+        const Row rows[] = {
+            {"sun4i-ts", true},      {"rtp", true},
+            {"tsc2046", true},       {"SUN4I-TS", true},
+            {"ns2009", true}, // Nebula Pad, I2C
+            {"NS2016", true},        {"Goodix Capacitive TouchScreen", false},
+            {"gt911", false},        {"ft5x06_ts", false},
+            {"ili2130_ts", false},   {"edt-ft5x06", false},
+            {"atmel_mxt_ts", false},
+        };
+        for (const auto& row : rows) {
+            CAPTURE(row.input);
+            CHECK(is_resistive_touchscreen_name(row.input) == row.expect);
+        }
+    }
+}
+
+TEST_CASE("TouchCalibration: only a resistive panel auto-fires the wizard; any real panel can "
+          "run it",
+          "[touch-calibration][calibration-decision][1259]") {
+    struct Row {
+        const char* name;
+        const char* phys;
+        bool has_abs;
+        bool needs;
+        bool supports;
+    };
+    const Row rows[] = {
+        {"sun4i-ts", "sun4i_ts", true, true, true}, // AD5M
+        {"rtp", "", true, true, true},
+        {"ns2009", "input/ts", true, true, true},
+        {"tsc2007", "", true, true, true},
+        // Capacitive panels are factory-calibrated, but one can still be
+        // mounted rotated from the display (tlsc6x on an FLSUN T1 Pro).
+        {"Goodix Capacitive TouchScreen", "", true, false, true},
+        {"gt911", "", true, false, true},
+        {"ft5x06_ts", "", true, false, true},
+        {"edt-ft5x06", "", true, false, true},
+        {"Goodix-TS gt9xxnew_ts", "", true, false, true}, // found through its MT axes
+        {"gt9xx_ts", "", true, false, true},
+        {"tlsc6x_touch", "", true, false, true},
+        // USB HID reports mapped coordinates; the panel can still sit rotated.
+        {"BIQU BTT-HDMI5", "usb-5101400.usb-1/input0", true, false, true},
+        {"USB Touchscreen", "usb-0000:01:00.0-1.3/input0", true, false, true},
+        {"Random Input Device", "", true, false, true},
+        {"some-unknown-ts", "", true, false, true},
+        // A nameless platform touchscreen is what the name heuristic cannot
+        // classify, so it keeps the manual path.
+        {"", "", true, false, true},
+        // VNC injection feeds mapped coordinates: nothing to correct.
+        {"virtual-touchscreen", "", true, false, false},
+        // No ABS axes: not a touch panel, whatever its name.
+        {"Goodix Touch", "", false, false, false},
+        {"vc4-hdmi", "vc4-hdmi/input0", false, false, false},
+        {"vc4-hdmi HDMI Jack", "ALSA", false, false, false},
+        {"AT Translated Set 2 keyboard", "", false, false, false},
+        {"Logitech USB Mouse", "usb-0000:00:14.0-1/input0", false, false, false},
+        {"gpio-keys", "", false, false, false},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.name, row.phys, row.has_abs);
+        CHECK(device_needs_calibration(row.name, row.phys, row.has_abs) == row.needs);
+        CHECK(device_supports_calibration(row.name, row.has_abs) == row.supports);
+    }
+    // The empty, ABS-less device from the auto-fire side.
+    CHECK_FALSE(device_needs_calibration("", "", false));
+}
+
+TEST_CASE("TouchCalibration: ABS range against the display", "[touch-calibration][abs-mismatch]") {
+    struct Row {
+        const char* what;
+        int abs_x, abs_y, disp_w, disp_h;
+        bool mismatch, transposed;
+    };
+    const Row rows[] = {
+        {"exact match", 800, 480, 800, 480, false, false},
+        {"within 5%", 832, 480, 800, 480, false, false},
+        {"slightly smaller, within 5%", 770, 460, 800, 480, false, false},
+        // At exactly 5% the ratio equals the tolerance, which is not past it.
+        {"exactly 5%", 840, 504, 800, 480, false, false},
+        {"just past 5%", 841, 480, 800, 480, true, false},
+        // A Goodix reporting 800x480 on a 480x272 panel (SV06 Ace #123, Nebula Pad).
+        {"a panel resolution that is not the display's", 800, 480, 480, 272, true, false},
+        {"X only", 1024, 480, 800, 480, true, false},
+        {"Y only", 800, 600, 800, 480, true, false},
+        {"both axes", 1024, 768, 800, 480, true, false},
+        // Generic HID ranges map linearly in LVGL's evdev driver (BTT HDMI5).
+        {"generic 4096", 4096, 4096, 800, 480, false, false},
+        {"generic 4095", 4095, 4095, 800, 480, false, false},
+        {"generic 32767", 32767, 32767, 1024, 600, false, false},
+        {"generic 65535", 65535, 65535, 480, 272, false, false},
+        {"generic 4095, portrait display", 4095, 4095, 480, 800, false, false},
+        {"generic 32767, landscape", 32767, 32767, 800, 480, false, false},
+        // Both axes must be generic to skip the check.
+        {"generic X, real Y", 4096, 480, 800, 480, true, false},
+        {"real X, generic Y", 800, 4096, 800, 480, true, false},
+        {"zero ABS X", 0, 480, 800, 480, false, false},
+        {"zero ABS Y", 800, 0, 800, 480, false, false},
+        {"negative ABS X", -1, 480, 800, 480, false, false},
+        {"negative ABS Y", 800, -1, 800, 480, false, false},
+        {"zero display width", 800, 480, 0, 480, false, false},
+        {"zero display height", 800, 480, 800, 0, false, false},
+        {"zero ABS X, portrait", 0, 480, 480, 800, false, false},
+        {"zero ABS Y, portrait", 800, 0, 480, 800, false, false},
+        {"negative ABS X, portrait", -1, 480, 480, 800, false, false},
+        {"negative ABS Y, portrait", 800, -1, 480, 800, false, false},
+        {"zero display width, portrait", 800, 480, 0, 800, false, false},
+        // Creator 5 Goodix: the range advertised the other way round.
+        {"800x480 range on a 480x800 display", 800, 480, 480, 800, true, true},
+        {"480x800 range on an 800x480 display", 480, 800, 800, 480, true, true},
+        {"transposed within 5%", 810, 470, 480, 800, true, true},
+        {"portrait range on a portrait display", 480, 800, 480, 800, false, false},
+        // A square display reads the same both ways, so nothing is transposed.
+        {"square on square", 480, 480, 480, 480, false, false},
+        {"square range missing a square display", 720, 720, 480, 480, true, false},
+        {"non-square range on a square display", 800, 480, 480, 480, true, false},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        CHECK(has_abs_display_mismatch(row.abs_x, row.abs_y, row.disp_w, row.disp_h) ==
+              row.mismatch);
+        CHECK(has_transposed_abs_range(row.abs_x, row.abs_y, row.disp_w, row.disp_h) ==
+              row.transposed);
+    }
+    // The transposed check alone with a zero display height on a portrait range.
+    CHECK_FALSE(has_transposed_abs_range(800, 480, 480, 0));
+
+    for (int generic : {255, 1023, 4095, 4096, 8191, 16383, 32767, 65535}) {
+        CAPTURE(generic);
+        CHECK(is_generic_hid_abs_range(generic));
+    }
+    for (int panel : {800, 480, 1024, 600, 272, 1280}) {
+        CAPTURE(panel);
+        CHECK_FALSE(is_generic_hid_abs_range(panel));
+    }
+}
+
+// ============================================================================
+// Post-solve validation
+// ============================================================================
+
+TEST_CASE("TouchCalibration: validate_calibration_result", "[touch-calibration][validate]") {
+    const Triple targets_800 = {{{120, 86}, {400, 408}, {680, 86}}};
+    struct Row {
+        const char* what;
+        Triple screen, touch;
+        std::optional<TouchCalibration> cal; // nullopt: solve it
+        int width, height;
+        bool valid;
+    };
+    const Row rows[] = {
+        {"an exact identity solve", targets_800, targets_800, std::nullopt, 800, 480, true},
+        {"a large back-transform residual", targets_800, targets_800,
+         TouchCalibration{true, 0.5f, 0, 0, 0, 0.5f, 0, false}, 800, 480, false},
+        {"the centre lands off-screen",
+         targets_800,
+         {{{500, 500}, {2000, 3500}, {3500, 500}}},
+         TouchCalibration{true, 1, 0, 5000, 0, 1, 0, false},
+         800,
+         480,
+         false},
+        // A real ns2009 on a 480x272 display with a 12-bit ADC.
+        {"a real ns2009 fit",
+         {{{72, 49}, {240, 231}, {408, 49}}},
+         {{{673, 872}, {2007, 3307}, {3342, 872}}},
+         TouchCalibration{true, 0.1258f, -0.0025f, -12.63f, -0.0005f, 0.0748f, -16.20f, false},
+         480,
+         272,
+         true},
+        // A Mellow FLY-TFT35 whose Goodix emits a compressed sub-range (X ~7..48,
+        // Y ~299..313) over the whole 480x320 panel: scale terms near 8.4 and 13.2.
+        {"a narrow-range capacitive device",
+         {{{72, 64}, {240, 249}, {408, 64}}},
+         {{{8, 300}, {28, 313}, {48, 299}}},
+         std::nullopt,
+         480,
+         320,
+         true},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
         TouchCalibration cal;
-        REQUIRE(compute_calibration(screen_points, touch_points, cal) == true);
-
-        REQUIRE(cal.a == Approx(1.0f).margin(0.001f));
-        REQUIRE(cal.b == Approx(0.0f).margin(0.001f));
-        REQUIRE(cal.c == Approx(0.0f).margin(0.001f));
-        REQUIRE(cal.d == Approx(0.0f).margin(0.001f));
-        REQUIRE(cal.e == Approx(0.48f).margin(0.001f));
-        REQUIRE(cal.f == Approx(0.0f).margin(0.001f));
-    }
-
-    SECTION("pure translation") {
-        // screen_x = 1 * touch_x + 0 * touch_y + 50
-        // screen_y = 0 * touch_x + 1 * touch_y + 30
-        Point screen_points[3] = {{50, 30}, {150, 30}, {50, 130}};
-        Point touch_points[3] = {{0, 0}, {100, 0}, {0, 100}};
-
-        TouchCalibration cal;
-        REQUIRE(compute_calibration(screen_points, touch_points, cal) == true);
-
-        REQUIRE(cal.a == Approx(1.0f).margin(0.001f));
-        REQUIRE(cal.b == Approx(0.0f).margin(0.001f));
-        REQUIRE(cal.c == Approx(50.0f).margin(0.001f));
-        REQUIRE(cal.d == Approx(0.0f).margin(0.001f));
-        REQUIRE(cal.e == Approx(1.0f).margin(0.001f));
-        REQUIRE(cal.f == Approx(30.0f).margin(0.001f));
+        if (row.cal) {
+            cal = *row.cal;
+        } else {
+            compute_calibration(row.screen.data(), row.touch.data(), cal);
+        }
+        CHECK(validate_calibration_result(cal, row.screen.data(), row.touch.data(), row.width,
+                                          row.height) == row.valid);
     }
 }
 
 // ============================================================================
-// Invalid Calibration State Tests
+// The wizard's sample filtering
 // ============================================================================
 
-TEST_CASE("TouchCalibration: default state is invalid", "[touch-calibration][state]") {
-    TouchCalibration cal;
-    REQUIRE(cal.valid == false);
-}
-
-TEST_CASE("TouchCalibration: transform with invalid calibration", "[touch-calibration][state]") {
-    TouchCalibration cal;
-    cal.valid = false;
-
-    // Transformation with invalid calibration should return input unchanged
-    // (or some sensible default behavior)
-    Point raw = {500, 300};
-    Point result = transform_point(cal, raw);
-
-    // Expected behavior: return input unchanged when calibration is invalid
-    REQUIRE(result.x == raw.x);
-    REQUIRE(result.y == raw.y);
-}
-
-// ============================================================================
-// USB Input Device Detection Tests
-// ============================================================================
-
-TEST_CASE("TouchCalibration: USB input phys detection", "[touch-calibration][usb-detect]") {
-    SECTION("typical USB HID touchscreen") {
-        // BTT HDMI touchscreens, Waveshare, etc.
-        REQUIRE(is_usb_input_phys("usb-0000:01:00.0-1.3/input0") == true);
-    }
-
-    SECTION("USB with different bus format") {
-        REQUIRE(is_usb_input_phys("usb-3f980000.usb-1.2/input0") == true);
-    }
-
-    SECTION("platform resistive touchscreen (empty phys)") {
-        // AD5M sun4i_ts has empty phys
-        REQUIRE(is_usb_input_phys("") == false);
-    }
-
-    SECTION("platform resistive touchscreen (named phys)") {
-        REQUIRE(is_usb_input_phys("sun4i_ts") == false);
-    }
-
-    SECTION("I2C capacitive touchscreen") {
-        // Goodix/FocalTech over I2C
-        REQUIRE(is_usb_input_phys("i2c-1/1-005d") == false);
-    }
-
-    SECTION("SPI touchscreen") {
-        REQUIRE(is_usb_input_phys("spi0.0/input0") == false);
-    }
-
-    SECTION("USB composite device with touch") {
-        REQUIRE(is_usb_input_phys("usb-xhci-hcd.0-1/input1") == true);
-    }
-}
-
-// ============================================================================
-// Known Touchscreen Name Detection Tests
-// ============================================================================
-
-TEST_CASE("TouchCalibration: known touchscreen name detection",
-          "[touch-calibration][touchscreen-detect]") {
-    // --- Real touchscreen controllers should match ---
-
-    SECTION("AD5M sun4i resistive touchscreen") {
-        REQUIRE(is_known_touchscreen_name("sun4i-ts") == true);
-    }
-
-    SECTION("Goodix capacitive touchscreen") {
-        REQUIRE(is_known_touchscreen_name("Goodix Capacitive TouchScreen") == true);
-    }
-
-    SECTION("FocalTech FT5x touchscreen") {
-        REQUIRE(is_known_touchscreen_name("ft5x06_ts") == true);
-    }
-
-    SECTION("Goodix GT911 touchscreen") {
-        REQUIRE(is_known_touchscreen_name("gt911") == true);
-    }
-
-    SECTION("ILI2130 touchscreen") {
-        REQUIRE(is_known_touchscreen_name("ili2130_ts") == true);
-    }
-
-    SECTION("generic touch device") {
-        REQUIRE(is_known_touchscreen_name("Generic Touchscreen") == true);
-    }
-
-    SECTION("EDT FocalTech display") {
-        REQUIRE(is_known_touchscreen_name("edt-ft5x06") == true);
-    }
-
-    SECTION("case insensitive matching") {
-        REQUIRE(is_known_touchscreen_name("GOODIX Touch") == true);
-        REQUIRE(is_known_touchscreen_name("SUN4I-TS") == true);
-    }
-
-    // --- Non-touch devices must NOT match ---
-
-    SECTION("HDMI CEC remote control") {
-        REQUIRE(is_known_touchscreen_name("vc4-hdmi") == false);
-    }
-
-    SECTION("HDMI CEC variant") {
-        REQUIRE(is_known_touchscreen_name("vc4-hdmi HDMI Jack") == false);
-    }
-
-    SECTION("generic keyboard") {
-        REQUIRE(is_known_touchscreen_name("AT Translated Set 2 keyboard") == false);
-    }
-
-    SECTION("USB mouse") {
-        REQUIRE(is_known_touchscreen_name("Logitech USB Mouse") == false);
-    }
-
-    SECTION("power button") {
-        REQUIRE(is_known_touchscreen_name("Power Button") == false);
-    }
-
-    SECTION("GPIO keys") {
-        REQUIRE(is_known_touchscreen_name("gpio-keys") == false);
-    }
-
-    SECTION("empty name") {
-        REQUIRE(is_known_touchscreen_name("") == false);
-    }
-
-    SECTION("IR remote") {
-        REQUIRE(is_known_touchscreen_name("rc-cec") == false);
-    }
-}
-
-// ============================================================================
-// Unified Calibration Decision Tests (device_needs_calibration)
-// ============================================================================
-
-// ============================================================================
-// Resistive Touchscreen Detection Tests (is_resistive_touchscreen_name)
-// ============================================================================
-
-TEST_CASE("TouchCalibration: is_resistive_touchscreen_name",
-          "[touch-calibration][resistive-detection]") {
-    // --- Resistive controllers that NEED calibration ---
-
-    SECTION("sun4i resistive (AD5M)") {
-        REQUIRE(is_resistive_touchscreen_name("sun4i-ts") == true);
-    }
-
-    SECTION("resistive touch panel") {
-        REQUIRE(is_resistive_touchscreen_name("rtp") == true);
-    }
-
-    SECTION("touch screen controller") {
-        REQUIRE(is_resistive_touchscreen_name("tsc2046") == true);
-    }
-
-    SECTION("case insensitive") {
-        REQUIRE(is_resistive_touchscreen_name("SUN4I-TS") == true);
-    }
-
-    SECTION("NS2009 I2C resistive (Nebula Pad)") {
-        REQUIRE(is_resistive_touchscreen_name("ns2009") == true);
-    }
-
-    SECTION("NS2016 I2C resistive") {
-        REQUIRE(is_resistive_touchscreen_name("NS2016") == true);
-    }
-
-    // --- Capacitive controllers that do NOT need calibration ---
-
-    SECTION("Goodix capacitive") {
-        REQUIRE(is_resistive_touchscreen_name("Goodix Capacitive TouchScreen") == false);
-    }
-
-    SECTION("Goodix GT911") {
-        REQUIRE(is_resistive_touchscreen_name("gt911") == false);
-    }
-
-    SECTION("FocalTech capacitive") {
-        REQUIRE(is_resistive_touchscreen_name("ft5x06_ts") == false);
-    }
-
-    SECTION("ILI capacitive") {
-        REQUIRE(is_resistive_touchscreen_name("ili2130_ts") == false);
-    }
-
-    SECTION("EDT FocalTech") {
-        REQUIRE(is_resistive_touchscreen_name("edt-ft5x06") == false);
-    }
-
-    SECTION("Atmel capacitive") {
-        REQUIRE(is_resistive_touchscreen_name("atmel_mxt_ts") == false);
-    }
-}
-
-// ============================================================================
-// Unified Calibration Decision Tests (device_needs_calibration)
-// ============================================================================
-
-TEST_CASE("TouchCalibration: device_needs_calibration",
-          "[touch-calibration][calibration-decision]") {
-    // --- Devices that NEED calibration (resistive touchscreens only) ---
-
-    SECTION("AD5M sun4i resistive touchscreen needs calibration") {
-        // Platform resistive touchscreen: has ABS, not USB, resistive controller
-        REQUIRE(device_needs_calibration("sun4i-ts", "sun4i_ts", true) == true);
-    }
-
-    SECTION("Generic resistive touch panel needs calibration") {
-        REQUIRE(device_needs_calibration("rtp", "", true) == true);
-    }
-
-    SECTION("NS2009 I2C resistive needs calibration") {
-        REQUIRE(device_needs_calibration("ns2009", "input/ts", true) == true);
-    }
-
-    // --- Capacitive touchscreens do NOT need calibration ---
-
-    SECTION("Goodix I2C capacitive (BTT HDMI7) does not need calibration") {
-        // I2C Goodix: has ABS, not USB, but capacitive — factory-calibrated
-        REQUIRE(device_needs_calibration("Goodix Capacitive TouchScreen", "", true) == false);
-    }
-
-    SECTION("Goodix GT911 I2C does not need calibration") {
-        REQUIRE(device_needs_calibration("gt911", "", true) == false);
-    }
-
-    SECTION("FocalTech capacitive does not need calibration") {
-        REQUIRE(device_needs_calibration("ft5x06_ts", "", true) == false);
-    }
-
-    SECTION("EDT FocalTech display does not need calibration") {
-        REQUIRE(device_needs_calibration("edt-ft5x06", "", true) == false);
-    }
-
-    // --- USB devices do NOT need calibration ---
-
-    SECTION("USB HID touchscreen (BTT HDMI5) does not need calibration") {
-        // USB touchscreen: has ABS, IS USB → no calibration
-        REQUIRE(device_needs_calibration("BIQU BTT-HDMI5", "usb-5101400.usb-1/input0", true) ==
-                false);
-    }
-
-    SECTION("USB HID generic touchscreen does not need calibration") {
-        REQUIRE(device_needs_calibration("USB Touchscreen", "usb-0000:01:00.0-1.3/input0", true) ==
-                false);
-    }
-
-    // --- Other non-calibration devices ---
-
-    SECTION("Virtual touchscreen (VNC uinput) does not need calibration") {
-        // Virtual device: has ABS, not USB, but name contains "virtual"
-        REQUIRE(device_needs_calibration("virtual-touchscreen", "", true) == false);
-    }
-
-    SECTION("HDMI CEC remote does not need calibration") {
-        // CEC remote: no ABS capabilities
-        REQUIRE(device_needs_calibration("vc4-hdmi", "vc4-hdmi/input0", false) == false);
-    }
-
-    SECTION("HDMI audio jack does not need calibration") {
-        REQUIRE(device_needs_calibration("vc4-hdmi HDMI Jack", "ALSA", false) == false);
-    }
-
-    SECTION("Device without ABS never needs calibration") {
-        // Even a known touchscreen name without ABS should not trigger calibration
-        REQUIRE(device_needs_calibration("Goodix Touch", "", false) == false);
-    }
-
-    SECTION("Unknown device with ABS does not need calibration") {
-        // Has ABS but unrecognized name → safer to skip (not a known touchscreen)
-        REQUIRE(device_needs_calibration("Random Input Device", "", true) == false);
-    }
-
-    SECTION("Keyboard does not need calibration") {
-        REQUIRE(device_needs_calibration("AT Translated Set 2 keyboard", "", false) == false);
-    }
-
-    SECTION("USB mouse does not need calibration") {
-        REQUIRE(device_needs_calibration("Logitech USB Mouse", "usb-0000:00:14.0-1/input0",
-                                         false) == false);
-    }
-
-    SECTION("Empty device does not need calibration") {
-        REQUIRE(device_needs_calibration("", "", false) == false);
-    }
-
-    SECTION("GPIO keys do not need calibration") {
-        REQUIRE(device_needs_calibration("gpio-keys", "", false) == false);
-    }
-}
-
-// ============================================================================
-// Touch Device Scoring Scenario Tests
-// ============================================================================
-// These test the individual scoring factors (name recognition, USB detection)
-// that find_touch_device() combines; its scoring loop is tested against a mock
-// sysfs tree in test_input_device_scanner.cpp. Scenarios from issue #117.
-
-TEST_CASE("TouchCalibration: phantom SPI vs real USB touchscreen scoring factors",
-          "[touch-calibration][scoring]") {
-    // Issue #117: ADS7846 SPI phantom device matched "touch" pattern but is not
-    // the real touchscreen. The USB HDMI screen should win via PROP_DIRECT + USB.
-
-    SECTION("ADS7846 Touchscreen matches known name (score +2)") {
-        // Phantom ADS7846 has "touch" in its name, so it matches the known patterns
-        REQUIRE(is_known_touchscreen_name("ADS7846 Touchscreen") == true);
-    }
-
-    SECTION("ADS7846 is SPI, not USB (no USB score bonus)") {
-        REQUIRE(is_usb_input_phys("spi0.1/input0") == false);
-    }
-
-    SECTION("USB HDMI touchscreen is USB (score +1)") {
-        REQUIRE(is_usb_input_phys("usb-0000:01:00.0-1.4/input0") == true);
-    }
-
-    SECTION("USB HDMI touchscreen with generic name does not match known patterns") {
-        // Some USB HID touchscreens report generic names like "ILITEK ILITEK-TP"
-        // They rely on PROP_DIRECT + USB bus for scoring, not name patterns
-        REQUIRE(is_known_touchscreen_name("ILITEK ILITEK-TP") == false);
-    }
-
-    SECTION("BTT HDMI5 USB touchscreen matches known name") {
-        REQUIRE(is_known_touchscreen_name("BIQU BTT-HDMI5 Touchscreen") == true);
-    }
-}
-
-// ============================================================================
-// ABS Range Mismatch Detection Tests (has_abs_display_mismatch)
-// ============================================================================
-
-TEST_CASE("TouchCalibration: has_abs_display_mismatch", "[touch-calibration][abs-mismatch]") {
-    SECTION("matching ABS and display — no mismatch") {
-        // ABS max matches display resolution exactly
-        REQUIRE(has_abs_display_mismatch(800, 480, 800, 480) == false);
-    }
-
-    SECTION("matching within 5% tolerance — no mismatch") {
-        // ABS max is ~4% off from display — within tolerance
-        REQUIRE(has_abs_display_mismatch(832, 480, 800, 480) == false);
-    }
-
-    SECTION("SV06 Ace scenario: Goodix reports 800x480, display is 480x272") {
-        // This is the exact bug scenario from issue #123
-        REQUIRE(has_abs_display_mismatch(800, 480, 480, 272) == true);
-    }
-
-    SECTION("mismatch on X axis only") {
-        REQUIRE(has_abs_display_mismatch(1024, 480, 800, 480) == true);
-    }
-
-    SECTION("mismatch on Y axis only") {
-        REQUIRE(has_abs_display_mismatch(800, 600, 800, 480) == true);
-    }
-
-    SECTION("both axes mismatched") {
-        REQUIRE(has_abs_display_mismatch(1024, 768, 800, 480) == true);
-    }
-
-    SECTION("invalid ABS ranges return false (can't determine)") {
-        REQUIRE(has_abs_display_mismatch(0, 480, 800, 480) == false);
-        REQUIRE(has_abs_display_mismatch(800, 0, 800, 480) == false);
-        REQUIRE(has_abs_display_mismatch(-1, 480, 800, 480) == false);
-        REQUIRE(has_abs_display_mismatch(800, -1, 800, 480) == false);
-    }
-
-    SECTION("invalid display dimensions return false") {
-        REQUIRE(has_abs_display_mismatch(800, 480, 0, 480) == false);
-        REQUIRE(has_abs_display_mismatch(800, 480, 800, 0) == false);
-    }
-
-    SECTION("ABS slightly smaller than display — within tolerance") {
-        // ABS 770x460 vs display 800x480: ~3.75% and ~4.2%, within 5%
-        REQUIRE(has_abs_display_mismatch(770, 460, 800, 480) == false);
-    }
-
-    SECTION("ABS at exactly 5% boundary") {
-        // 5% of 800 = 40, so ABS 840 is right at the edge
-        // 5% of 480 = 24, so ABS 504 is right at the edge
-        // At exactly 5% the ratio equals TOLERANCE, which is not > TOLERANCE
-        REQUIRE(has_abs_display_mismatch(840, 504, 800, 480) == false);
-    }
-
-    SECTION("ABS just beyond 5% boundary triggers mismatch") {
-        // Just past 5% on X axis
-        REQUIRE(has_abs_display_mismatch(841, 480, 800, 480) == true);
-    }
-
-    SECTION("generic HID range 4096x4096 — no mismatch (BTT HDMI5 scenario)") {
-        // BTT HDMI5 reports 4096x4096, display is 800x480.
-        // This is a generic HID range, NOT a real panel resolution.
-        // LVGL's evdev driver maps it linearly — no calibration needed.
-        REQUIRE(has_abs_display_mismatch(4096, 4096, 800, 480) == false);
-    }
-
-    SECTION("generic HID range 4095x4095 — no mismatch") {
-        // 12-bit range (2^12 - 1), common USB HID touchscreens
-        REQUIRE(has_abs_display_mismatch(4095, 4095, 800, 480) == false);
-    }
-
-    SECTION("generic HID range 32767x32767 — no mismatch") {
-        // 15-bit range, another common USB HID format
-        REQUIRE(has_abs_display_mismatch(32767, 32767, 1024, 600) == false);
-    }
-
-    SECTION("generic HID range 65535x65535 — no mismatch") {
-        // 16-bit range
-        REQUIRE(has_abs_display_mismatch(65535, 65535, 480, 272) == false);
-    }
-
-    SECTION("mixed generic/non-generic still triggers mismatch") {
-        // One axis is generic HID, the other is a real resolution
-        // Both must be generic to skip
-        REQUIRE(has_abs_display_mismatch(4096, 480, 800, 480) == true);
-        REQUIRE(has_abs_display_mismatch(800, 4096, 800, 480) == true);
-    }
-
-    SECTION("Goodix on Nebula Pad: 800x480 ABS on 480x272 display") {
-        // Real panel resolution that doesn't match display — should trigger
-        REQUIRE(has_abs_display_mismatch(800, 480, 480, 272) == true);
-    }
-}
-
-// ============================================================================
-// Transposed ABS Range Detection Tests (has_transposed_abs_range)
-// ============================================================================
-
-TEST_CASE("TouchCalibration: has_transposed_abs_range", "[touch-calibration][abs-mismatch]") {
-    SECTION("Creator 5 Goodix: ABS 800x480 advertised on a 480x800 framebuffer") {
-        REQUIRE(has_transposed_abs_range(800, 480, 480, 800) == true);
-    }
-
-    SECTION("landscape display with a portrait-advertised range") {
-        REQUIRE(has_transposed_abs_range(480, 800, 800, 480) == true);
-    }
-
-    SECTION("transposed within the 5% tolerance still counts") {
-        // 810x470 reads as 480x800 the other way round, inside tolerance
-        REQUIRE(has_transposed_abs_range(810, 470, 480, 800) == true);
-    }
-
-    SECTION("range matching the display the normal way round is not transposed") {
-        REQUIRE(has_transposed_abs_range(800, 480, 800, 480) == false);
-        REQUIRE(has_transposed_abs_range(480, 800, 480, 800) == false);
-        REQUIRE(has_transposed_abs_range(832, 480, 800, 480) == false);
-    }
-
-    SECTION("a range matching neither orientation is a plain mismatch, not a transposition") {
-        // Goodix 800x480 on a 480x272 panel — the calibration wizard case
-        REQUIRE(has_transposed_abs_range(800, 480, 480, 272) == false);
-        REQUIRE(has_transposed_abs_range(1024, 768, 800, 480) == false);
-        REQUIRE(has_transposed_abs_range(800, 600, 800, 480) == false);
-    }
-
-    SECTION("square display: the two readings are the same, so nothing is transposed") {
-        REQUIRE(has_transposed_abs_range(480, 480, 480, 480) == false);
-        // A square range that misses a square display is a plain mismatch
-        REQUIRE(has_transposed_abs_range(720, 720, 480, 480) == false);
-        // A non-square range on a square display misses both readings equally
-        REQUIRE(has_transposed_abs_range(800, 480, 480, 480) == false);
-    }
-
-    SECTION("generic HID ranges are resolution-independent") {
-        REQUIRE(has_transposed_abs_range(4095, 4095, 480, 800) == false);
-        REQUIRE(has_transposed_abs_range(32767, 32767, 800, 480) == false);
-        REQUIRE(has_transposed_abs_range(65535, 65535, 480, 272) == false);
-    }
-
-    SECTION("invalid ranges and display sizes return false") {
-        REQUIRE(has_transposed_abs_range(0, 480, 480, 800) == false);
-        REQUIRE(has_transposed_abs_range(800, 0, 480, 800) == false);
-        REQUIRE(has_transposed_abs_range(-1, 480, 480, 800) == false);
-        REQUIRE(has_transposed_abs_range(800, -1, 480, 800) == false);
-        REQUIRE(has_transposed_abs_range(800, 480, 0, 800) == false);
-        REQUIRE(has_transposed_abs_range(800, 480, 480, 0) == false);
-    }
-}
-
-TEST_CASE("TouchCalibration: is_generic_hid_abs_range", "[touch-calibration][abs-mismatch]") {
-    SECTION("known generic HID ranges") {
-        REQUIRE(is_generic_hid_abs_range(255) == true);
-        REQUIRE(is_generic_hid_abs_range(1023) == true);
-        REQUIRE(is_generic_hid_abs_range(4095) == true);
-        REQUIRE(is_generic_hid_abs_range(4096) == true);
-        REQUIRE(is_generic_hid_abs_range(8191) == true);
-        REQUIRE(is_generic_hid_abs_range(16383) == true);
-        REQUIRE(is_generic_hid_abs_range(32767) == true);
-        REQUIRE(is_generic_hid_abs_range(65535) == true);
-    }
-
-    SECTION("real panel resolutions are NOT generic") {
-        REQUIRE(is_generic_hid_abs_range(800) == false);
-        REQUIRE(is_generic_hid_abs_range(480) == false);
-        REQUIRE(is_generic_hid_abs_range(1024) == false);
-        REQUIRE(is_generic_hid_abs_range(600) == false);
-        REQUIRE(is_generic_hid_abs_range(272) == false);
-        REQUIRE(is_generic_hid_abs_range(1280) == false);
-    }
-}
-
-TEST_CASE("TouchCalibration: scoring factors for common touchscreen types",
-          "[touch-calibration][scoring]") {
-    SECTION("platform resistive (sun4i): known name, SPI bus") {
-        REQUIRE(is_known_touchscreen_name("sun4i-ts") == true);
-        REQUIRE(is_usb_input_phys("sun4i_ts") == false);
-        // Score: 2 (known name) + 0 (not USB) = 2, plus PROP_DIRECT on real hw
-    }
-
-    SECTION("USB HID screen: USB bus, may or may not match name") {
-        REQUIRE(is_usb_input_phys("usb-3f980000.usb-1.2/input0") == true);
-        // Score: 0-2 (name) + 1 (USB) + potentially 2 (PROP_DIRECT) = 1-5
-    }
-
-    SECTION("I2C Goodix capacitive: known name, not USB") {
-        REQUIRE(is_known_touchscreen_name("Goodix Capacitive TouchScreen") == true);
-        REQUIRE(is_usb_input_phys("i2c-1/1-005d") == false);
-        // Score: 2 (known name) + 0 (not USB) = 2, plus PROP_DIRECT on real hw
-    }
-}
-
-// ============================================================================
-// Post-Compute Validation Tests
-// ============================================================================
-
-TEST_CASE("TouchCalibration: validate_calibration_result accepts good calibration",
-          "[touch-calibration][validate]") {
-    // Identity calibration: residuals should be 0
-    Point screen_points[3] = {{120, 86}, {400, 408}, {680, 86}};
-    Point touch_points[3] = {{120, 86}, {400, 408}, {680, 86}};
-    TouchCalibration cal;
-    compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(validate_calibration_result(cal, screen_points, touch_points, 800, 480) == true);
-}
-
-TEST_CASE("TouchCalibration: validate_calibration_result rejects high residual",
-          "[touch-calibration][validate]") {
-    // Manually craft a calibration with large back-transform error
-    TouchCalibration cal;
-    cal.valid = true;
-    cal.a = 0.5f;
-    cal.b = 0.0f;
-    cal.c = 0.0f;
-    cal.d = 0.0f;
-    cal.e = 0.5f;
-    cal.f = 0.0f;
-
-    Point screen_points[3] = {{120, 86}, {400, 408}, {680, 86}};
-    Point touch_points[3] = {{120, 86}, {400, 408}, {680, 86}};
-
-    REQUIRE(validate_calibration_result(cal, screen_points, touch_points, 800, 480) == false);
-}
-
-TEST_CASE("TouchCalibration: validate_calibration_result rejects off-screen center",
-          "[touch-calibration][validate]") {
-    TouchCalibration cal;
-    cal.valid = true;
-    cal.a = 1.0f;
-    cal.b = 0.0f;
-    cal.c = 5000.0f;
-    cal.d = 0.0f;
-    cal.e = 1.0f;
-    cal.f = 0.0f;
-
-    Point screen_points[3] = {{120, 86}, {400, 408}, {680, 86}};
-    Point touch_points[3] = {{500, 500}, {2000, 3500}, {3500, 500}};
-
-    REQUIRE(validate_calibration_result(cal, screen_points, touch_points, 800, 480) == false);
-}
-
-TEST_CASE("TouchCalibration: validate_calibration_result accepts real ns2009 calibration",
-          "[touch-calibration][validate]") {
-    TouchCalibration cal;
-    cal.valid = true;
-    cal.a = 0.1258f;
-    cal.b = -0.0025f;
-    cal.c = -12.63f;
-    cal.d = -0.0005f;
-    cal.e = 0.0748f;
-    cal.f = -16.20f;
-
-    // Approximate raw->screen mapping for 480x272 display with 12-bit ADC
-    Point screen_points[3] = {{72, 49}, {240, 231}, {408, 49}};
-    Point touch_points[3] = {{673, 872}, {2007, 3307}, {3342, 872}};
-
-    REQUIRE(validate_calibration_result(cal, screen_points, touch_points, 480, 272) == true);
-}
-
-TEST_CASE("TouchCalibration: validate_calibration_result accepts narrow-range capacitive device",
-          "[touch-calibration][validate]") {
-    // Mellow FLY-TFT35 with a Goodix capacitive touch IC whose config bytes
-    // emit a compressed sub-range of the chip's declared 0..4095 ABS axes:
-    // X spans ~7..48, Y spans ~299..313 across the full 480x320 panel. The
-    // affine fit needs scale coefficients around a≈8.4, e≈13.2 — well above
-    // the old 10x cap that wrongly rejected this device.
-    Point screen_points[3] = {{72, 64}, {240, 249}, {408, 64}};
-    Point touch_points[3] = {{8, 300}, {28, 313}, {48, 299}};
-    TouchCalibration cal;
-    compute_calibration(screen_points, touch_points, cal);
-
-    REQUIRE(validate_calibration_result(cal, screen_points, touch_points, 480, 320) == true);
-}
-
-// ============================================================================
-// Multi-Sample Input Filtering Tests
-// ============================================================================
-
-TEST_CASE("TouchCalibrationPanel: accepts clean samples after threshold",
+TEST_CASE("TouchCalibrationPanel: a point needs two clean samples of three",
           "[touch-calibration][filtering]") {
-    helix::TouchCalibrationPanel panel;
-    panel.set_screen_size(800, 480);
-    panel.start();
-
-    REQUIRE(panel.get_state() == helix::TouchCalibrationPanel::State::POINT_1);
-
-    // Feed 3 clean samples — should advance to POINT_2
-    for (int i = 0; i < 3; i++) {
-        panel.add_sample({400, 240});
+    using State = helix::TouchCalibrationPanel::State;
+    struct Row {
+        const char* what;
+        std::array<Point, 3> samples;
+        State after;
+        bool failed;
+    };
+    const Row rows[] = {
+        {"three clean", {{{400, 240}, {400, 240}, {400, 240}}}, State::POINT_2, false},
+        {"three that differ by a pixel",
+         {{{399, 239}, {400, 240}, {401, 241}}},
+         State::POINT_2,
+         false},
+        // X=4095 is the ADC's ceiling.
+        {"one saturated", {{{400, 240}, {400, 240}, {4095, 240}}}, State::POINT_2, false},
+        {"two saturated", {{{400, 240}, {4095, 3500}, {4095, 3500}}}, State::POINT_1, true},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        helix::TouchCalibrationPanel panel;
+        panel.set_screen_size(800, 480);
+        bool failed = false;
+        panel.set_failure_callback([&](const char*) { failed = true; });
+        panel.start();
+        REQUIRE(panel.get_state() == State::POINT_1);
+        for (const auto& s : row.samples) {
+            panel.add_sample(s);
+        }
+        CHECK(panel.get_state() == row.after);
+        CHECK(failed == row.failed);
     }
-    REQUIRE(panel.get_state() == helix::TouchCalibrationPanel::State::POINT_2);
-}
-
-TEST_CASE("TouchCalibrationPanel: rejects ADC-saturated samples",
-          "[touch-calibration][filtering]") {
-    helix::TouchCalibrationPanel panel;
-    panel.set_screen_size(800, 480);
-    panel.start();
-
-    // Feed 2 clean + 1 saturated (X=4095) — should still advance (2 valid >= 2 minimum)
-    panel.add_sample({400, 240});
-    panel.add_sample({400, 240});
-    panel.add_sample({4095, 240});
-    REQUIRE(panel.get_state() == helix::TouchCalibrationPanel::State::POINT_2);
-}
-
-TEST_CASE("TouchCalibrationPanel: fails when too many saturated samples",
-          "[touch-calibration][filtering]") {
-    helix::TouchCalibrationPanel panel;
-    panel.set_screen_size(800, 480);
-
-    bool failure_called = false;
-    panel.set_failure_callback([&](const char*) { failure_called = true; });
-    panel.start();
-
-    // Feed 1 clean + 2 saturated — only 1 valid, below minimum of 2
-    panel.add_sample({400, 240});
-    panel.add_sample({4095, 3500});
-    panel.add_sample({4095, 3500});
-
-    // Should still be on POINT_1 (not advanced) and failure callback fired
-    REQUIRE(panel.get_state() == helix::TouchCalibrationPanel::State::POINT_1);
-    REQUIRE(failure_called == true);
 }
 
 TEST_CASE("TouchCalibrationPanel: rejects calibration with bad matrix",
@@ -1002,9 +483,7 @@ TEST_CASE("TouchCalibrationPanel: rejects calibration with bad matrix",
     });
     panel.start();
 
-    // Capture 3 points that produce a valid but terrible matrix
-    // Points very close together (not collinear, so compute_calibration succeeds)
-    // but resulting matrix will have huge residuals
+    // Close together but not collinear: the solve succeeds with huge residuals.
     panel.capture_point({100, 100});
     panel.capture_point({102, 100});
     panel.capture_point({100, 102});
@@ -1015,532 +494,172 @@ TEST_CASE("TouchCalibrationPanel: rejects calibration with bad matrix",
     REQUIRE(failure_reason.find("unusual") != std::string::npos);
 }
 
-TEST_CASE("TouchCalibrationPanel: median filter removes outliers",
-          "[touch-calibration][filtering]") {
-    helix::TouchCalibrationPanel panel;
-    panel.set_screen_size(800, 480);
-    panel.start();
-
-    // 3 samples, all consistent — median should be (400, 240)
-    panel.add_sample({399, 239});
-    panel.add_sample({400, 240});
-    panel.add_sample({401, 241});
-
-    REQUIRE(panel.get_state() == helix::TouchCalibrationPanel::State::POINT_2);
-}
-
 // ============================================================================
-// ABS Capabilities Parsing Tests (parse_abs_capabilities)
+// sysfs capability parsing
 // ============================================================================
 
-TEST_CASE("TouchCalibration: parse_abs_capabilities basic cases",
-          "[touch-calibration][capabilities]") {
-    SECTION("single-touch only (ABS_X + ABS_Y)") {
-        // "3" = 0x3 → bits 0 and 1 set
-        auto caps = parse_abs_capabilities("3");
-        REQUIRE(caps.has_single_touch == true);
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("both single-touch and MT in one word") {
-        // "600003" = 0x600003 → bits 0,1 (ST) and bits 21,22 of this word
-        // But this is a SINGLE word covering bits 0-31 only.
-        // MT bits 53,54 need word index 1 (bits 32-63).
-        // So "600003" has ST but NOT MT (bits 21,22 are ABS_HAT0X/ABS_HAT0Y, not MT).
-        auto caps = parse_abs_capabilities("600003");
-        REQUIRE(caps.has_single_touch == true);
-        // 0x600000 in word[0] is NOT MT — MT needs word[1]
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("MT-only (no legacy single-touch)") {
-        // "600000 0" → word[1]=0x600000 (MT bits), word[0]=0 (no ST)
-        // After reversal: words[0]=0, words[1]=0x600000
-        auto caps = parse_abs_capabilities("600000 0");
-        REQUIRE(caps.has_single_touch == false);
-        REQUIRE(caps.has_multitouch == true);
-    }
-
-    SECTION("both MT and single-touch (two words)") {
-        // "600000 3" → word[1]=0x600000, word[0]=3
-        auto caps = parse_abs_capabilities("600000 3");
-        REQUIRE(caps.has_single_touch == true);
-        REQUIRE(caps.has_multitouch == true);
-    }
-
-    SECTION("no touch capabilities") {
-        auto caps = parse_abs_capabilities("0");
-        REQUIRE(caps.has_single_touch == false);
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("empty string") {
-        auto caps = parse_abs_capabilities("");
-        REQUIRE(caps.has_single_touch == false);
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("only ABS_X, no ABS_Y") {
-        // "1" = bit 0 only
-        auto caps = parse_abs_capabilities("1");
-        REQUIRE(caps.has_single_touch == false);
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("only ABS_Y, no ABS_X") {
-        // "2" = bit 1 only
-        auto caps = parse_abs_capabilities("2");
-        REQUIRE(caps.has_single_touch == false);
-        REQUIRE(caps.has_multitouch == false);
+TEST_CASE("TouchCalibration: parse_abs_capabilities", "[touch-calibration][capabilities]") {
+    // Words arrive most significant first. Single-touch is ABS_X + ABS_Y (bits
+    // 0, 1); multitouch is ABS_MT_POSITION_X + _Y (bits 53, 54), in the second
+    // 32-bit word or high in one 64-bit word.
+    struct Row {
+        const char* what;
+        const char* abs;
+        bool single_touch, multitouch;
+    };
+    const Row rows[] = {
+        {"ABS_X + ABS_Y (sun4i_ts, USB HID)", "3", true, false},
+        // Bits 21, 22 of the first word are ABS_HAT0X/Y, not multitouch.
+        {"bits 21, 22 of the first word", "600003", true, false},
+        {"MT only (Goodix gt9xxnew_ts on a Nebula Pad)", "600000 0", false, true},
+        {"both, two words", "600000 3", true, true},
+        {"nothing", "0", false, false},
+        {"empty", "", false, false},
+        {"ABS_X alone", "1", false, false},
+        {"ABS_Y alone", "2", false, false},
+        // Bits 48, 50, 53, 54, 57 of one 64-bit word (Goodix gt9xx_ts, Allwinner H616).
+        {"one 64-bit word", "265000000000000", false, true},
+        {"both, GT911", "660000 3", true, true},
+        {"three words", "0 600000 3", true, true},
+        {"leading zeros", "0000600000 00000003", true, true},
+        {"two spaces between words", "600000  3", true, true},
+        {"not hex", "xyz", false, false},
+        {"ABS_MT_POSITION_X alone", "200000 0", false, false},
+        {"ABS_MT_POSITION_Y alone", "400000 0", false, false},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        const auto caps = parse_abs_capabilities(row.abs);
+        CHECK(caps.has_single_touch == row.single_touch);
+        CHECK(caps.has_multitouch == row.multitouch);
     }
 }
-
-TEST_CASE("TouchCalibration: parse_abs_capabilities real-world devices",
-          "[touch-calibration][capabilities]") {
-    SECTION("AD5M sun4i_ts resistive: single-touch only") {
-        // sun4i_ts reports ABS_X + ABS_Y only (no MT)
-        auto caps = parse_abs_capabilities("3");
-        REQUIRE(caps.has_single_touch == true);
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("Goodix gt9xxnew_ts MT-only (Nebula Pad bug scenario)") {
-        // Goodix driver reports ABS_MT_POSITION_X (53) + ABS_MT_POSITION_Y (54)
-        // but NOT legacy ABS_X (0) / ABS_Y (1).
-        auto caps = parse_abs_capabilities("600000 0");
-        REQUIRE(caps.has_single_touch == false);
-        REQUIRE(caps.has_multitouch == true);
-    }
-
-    SECTION("Goodix gt9xx_ts on 64-bit Allwinner (real user device)") {
-        // From /proc/bus/input/devices on Allwinner H616 (aarch64):
-        //   B: ABS=265000000000000
-        // Single 64-bit word (>8 hex digits). Bits set:
-        //   48 (MT_TOUCH_MAJOR), 50 (MT_WIDTH_MAJOR),
-        //   53 (MT_POSITION_X), 54 (MT_POSITION_Y), 57 (MT_TRACKING_ID)
-        auto caps = parse_abs_capabilities("265000000000000");
-        REQUIRE(caps.has_single_touch == false);
-        REQUIRE(caps.has_multitouch == true);
-    }
-
-    SECTION("Goodix GT911 with both ST and MT") {
-        // Many Goodix drivers report both legacy and MT axes
-        auto caps = parse_abs_capabilities("660000 3");
-        REQUIRE(caps.has_single_touch == true);
-        REQUIRE(caps.has_multitouch == true);
-    }
-
-    SECTION("BTT HDMI5 USB HID touchscreen") {
-        // USB HID typically reports ABS_X + ABS_Y (single-touch only)
-        auto caps = parse_abs_capabilities("3");
-        REQUIRE(caps.has_single_touch == true);
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("multi-word with three hex groups") {
-        // "0 600000 3" → words[0]=3, words[1]=0x600000, words[2]=0
-        auto caps = parse_abs_capabilities("0 600000 3");
-        REQUIRE(caps.has_single_touch == true);
-        REQUIRE(caps.has_multitouch == true);
-    }
-}
-
-TEST_CASE("TouchCalibration: parse_abs_capabilities edge cases",
-          "[touch-calibration][capabilities]") {
-    SECTION("leading zeros in hex") {
-        auto caps = parse_abs_capabilities("0000600000 00000003");
-        REQUIRE(caps.has_single_touch == true);
-        REQUIRE(caps.has_multitouch == true);
-    }
-
-    SECTION("extra whitespace between words") {
-        // istringstream handles multiple spaces
-        auto caps = parse_abs_capabilities("600000  3");
-        REQUIRE(caps.has_single_touch == true);
-        REQUIRE(caps.has_multitouch == true);
-    }
-
-    SECTION("invalid hex returns no capabilities") {
-        auto caps = parse_abs_capabilities("xyz");
-        REQUIRE(caps.has_single_touch == false);
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("MT bit ABS_MT_POSITION_X only (no ABS_MT_POSITION_Y)") {
-        // Only bit 53 (0x200000) set, not bit 54 — incomplete MT
-        auto caps = parse_abs_capabilities("200000 0");
-        REQUIRE(caps.has_multitouch == false);
-    }
-
-    SECTION("MT bit ABS_MT_POSITION_Y only (no ABS_MT_POSITION_X)") {
-        // Only bit 54 (0x400000) set, not bit 53 — incomplete MT
-        auto caps = parse_abs_capabilities("400000 0");
-        REQUIRE(caps.has_multitouch == false);
-    }
-}
-
-// ============================================================================
-// Input Properties Parsing Tests (parse_input_prop_direct)
-// ============================================================================
 
 TEST_CASE("TouchCalibration: parse_input_prop_direct", "[touch-calibration][capabilities]") {
-    SECTION("touchscreen reports INPUT_PROP_DIRECT as bit 1") {
-        // Real value from a Creality K2 Plus and K2 Pro (Goodix gt9xxnew_ts).
-        REQUIRE(parse_input_prop_direct("2") == true);
-    }
-
-    SECTION("INPUT_PROP_POINTER is not direct input") {
-        // Bit 0 marks a cursor-moving device: a touchpad or pointing stick.
-        REQUIRE(parse_input_prop_direct("1") == false);
-    }
-
-    SECTION("both POINTER and DIRECT set") {
-        REQUIRE(parse_input_prop_direct("3") == true);
-    }
-
-    SECTION("no properties") {
-        REQUIRE(parse_input_prop_direct("0") == false);
-    }
-
-    SECTION("unreadable sysfs file") {
-        REQUIRE(parse_input_prop_direct("") == false);
-    }
-
-    SECTION("non-hex garbage") {
-        REQUIRE(parse_input_prop_direct("xyz") == false);
-    }
-
-    SECTION("multi-word: the rightmost word carries the low bits") {
-        REQUIRE(parse_input_prop_direct("0 2") == true);
-        REQUIRE(parse_input_prop_direct("2 0") == false);
-    }
-
-    SECTION("higher property bits alone are not direct input") {
-        // INPUT_PROP_BUTTONPAD is bit 2, INPUT_PROP_SEMI_MT bit 3.
-        REQUIRE(parse_input_prop_direct("4") == false);
-        REQUIRE(parse_input_prop_direct("8") == false);
+    // INPUT_PROP_POINTER is bit 0, DIRECT bit 1, BUTTONPAD bit 2, SEMI_MT bit 3.
+    struct Row {
+        const char* props;
+        bool direct;
+    };
+    const Row rows[] = {
+        {"2", true}, // Creality K2 Plus / K2 Pro Goodix gt9xxnew_ts
+        {"1", false},   {"3", true},   {"0", false},   {"", false},
+        {"xyz", false}, {"0 2", true}, {"2 0", false}, // the rightmost word is the low bits
+        {"4", false},   {"8", false},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.props);
+        CHECK(parse_input_prop_direct(row.props) == row.direct);
     }
 }
 
 // ============================================================================
-// Calibration Decision with MT-only devices
+// Axis transposition
 // ============================================================================
 
-TEST_CASE("TouchCalibration: device_needs_calibration with MT-detected devices",
-          "[touch-calibration][calibration-decision]") {
-    SECTION("Goodix gt9xxnew_ts detected via MT — capacitive, no calibration needed") {
-        // has_abs_xy is true (detected via MT fallback), but Goodix is capacitive
-        REQUIRE(device_needs_calibration("Goodix-TS gt9xxnew_ts", "", true) == false);
-    }
+TEST_CASE("TouchCalibration: detect_axis_transposition flags only a cross-coupled solve",
+          "[touch-calibration][axis-swap]") {
+    const Triple targets_800 = {{{120, 96}, {400, 374}, {680, 96}}};
+    const Triple targets_480 = {{{72, 54}, {240, 212}, {408, 54}}};
+    // About 5 degrees of rotation: some cross-coupling, the diagonal still dominant.
+    const auto rotated = [](Point p) {
+        return Point{static_cast<int>(p.x * 0.996 + p.y * 0.087),
+                     static_cast<int>(-p.x * 0.087 + p.y * 0.996)};
+    };
+    struct Row {
+        const char* what;
+        Triple screen, touch;
+        bool swapped;
+        float min_ratio, max_ratio; // the solve's cross-coupling before detection; -1: no floor
+    };
+    const Row rows[] = {
+        {"800x480, swapped in screen-like units",
+         targets_800,
+         {{{96, 120}, {374, 400}, {96, 680}}},
+         true,
+         0.5f,
+         1e9f},
+        {"800x480, swapped 12-bit ADC",
+         targets_800,
+         {{{820, 614}, {3190, 2048}, {820, 3482}}},
+         true,
+         -1.0f,
+         1e9f},
+        // The Ender 5 Max: the diagonal terms vanish.
+        {"Ender 5 Max-like", targets_800, {{{50, 100}, {250, 350}, {50, 600}}}, true, 0.5f, 1e9f},
+        // NS2009 with a hardware swap plus channel cross-talk.
+        {"480x272, swapped ADC with diagonal leak",
+         targets_480,
+         {{{728, 830}, {2693, 2896}, {2072, 3698}}},
+         true,
+         0.3f,
+         3.0f},
+        {"800x480, a small offset",
+         targets_800,
+         {{{125, 100}, {405, 378}, {685, 100}}},
+         false,
+         -1.0f,
+         1e9f},
+        {"800x480, rotated 5 degrees",
+         targets_800,
+         {{rotated({120, 96}), rotated({400, 374}), rotated({680, 96})}},
+         false,
+         -1.0f,
+         1e9f},
+        {"480x272, well aligned",
+         targets_480,
+         {{{776, 632}, {2120, 1896}, {3464, 632}}},
+         false,
+         -1.0f,
+         0.3f},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        TouchCalibration cal = solved(row.screen, row.touch);
+        const float ratio = cross_coupling(cal);
+        CAPTURE(ratio);
+        CHECK(ratio > row.min_ratio);
+        CHECK(ratio < row.max_ratio);
 
-    SECTION("Goodix GT9xx detected via MT — capacitive, no calibration needed") {
-        REQUIRE(device_needs_calibration("gt9xx_ts", "", true) == false);
-    }
-
-    SECTION("MT-only resistive (hypothetical) — would need calibration") {
-        // If a resistive touchscreen only reported MT axes, it would still need cal
-        REQUIRE(device_needs_calibration("sun4i-ts", "sun4i_ts", true) == true);
-    }
-}
-
-// ============================================================================
-// Manual Calibration Availability (device_supports_calibration)
-// ============================================================================
-
-TEST_CASE("TouchCalibration: device_supports_calibration", "[touch-calibration][1259]") {
-    // --- Real touch panels: the manual entry point is always offered ---
-
-    SECTION("Capacitive panel the auto-heuristic skips still offers manual calibration") {
-        // tlsc6x_touch on an FLSUN T1 Pro: touch panel mounted 90° from the
-        // display. device_needs_calibration() says no (not a known resistive
-        // name), which is correct for auto-firing the wizard and fatal if it
-        // also hides the manual path.
-        REQUIRE(device_needs_calibration("tlsc6x_touch", "", true) == false);
-        REQUIRE(device_supports_calibration("tlsc6x_touch", true) == true);
-    }
-
-    SECTION("Goodix capacitive offers manual calibration") {
-        REQUIRE(device_supports_calibration("Goodix-TS gt9xxnew_ts", true) == true);
-    }
-
-    SECTION("Resistive panel offers manual calibration") {
-        REQUIRE(device_supports_calibration("sun4i-ts", true) == true);
-    }
-
-    SECTION("USB HID touchscreen offers manual calibration") {
-        // Auto-detection skips USB HID (it reports mapped coordinates), but a
-        // USB panel can still be physically rotated inside an enclosure.
-        REQUIRE(device_supports_calibration("BIQU BTT-HDMI5", true) == true);
-    }
-
-    SECTION("Unknown-but-real touchscreen offers manual calibration") {
-        REQUIRE(device_supports_calibration("some-unknown-ts", true) == true);
-    }
-
-    // --- Not touch panels: nothing to calibrate ---
-
-    SECTION("Device without ABS axes offers nothing") {
-        REQUIRE(device_supports_calibration("gpio-keys", false) == false);
-        REQUIRE(device_supports_calibration("AT Translated Set 2 keyboard", false) == false);
-    }
-
-    SECTION("Virtual/uinput device offers nothing") {
-        // VNC injection feeds already-mapped screen coordinates; an affine on
-        // top of that has nothing to correct.
-        REQUIRE(device_supports_calibration("virtual-touchscreen", true) == false);
-    }
-
-    SECTION("Empty name with ABS axes still offers manual calibration") {
-        // A nameless platform touchscreen is exactly the case the name-based
-        // auto-heuristic cannot classify, so it must not lose the manual path.
-        REQUIRE(device_supports_calibration("", true) == true);
-    }
-
-    // --- Relationship to the auto-fire decision ---
-
-    SECTION("Every device that needs calibration also supports it") {
-        // supports is a superset of needs: the wizard must never auto-fire on a
-        // device whose manual entry point is hidden.
-        const char* auto_fire_devices[] = {"sun4i-ts", "rtp", "ns2009", "tsc2007"};
-        for (const char* name : auto_fire_devices) {
-            INFO("device: " << name);
-            REQUIRE(device_needs_calibration(name, "", true) == true);
-            REQUIRE(device_supports_calibration(name, true) == true);
+        CHECK(detect_axis_transposition(cal, row.screen.data(), row.touch.data()) == row.swapped);
+        CHECK(cal.axes_swapped == row.swapped);
+        // The matrix still lands each tap as reported on its target: the read
+        // callback has no swap to apply on the way in.
+        for (int i = 0; i < 3; i++) {
+            CAPTURE(i);
+            const Point p = transform_point(cal, row.touch[i]);
+            CHECK(p.x == Approx(row.screen[i].x).margin(2));
+            CHECK(p.y == Approx(row.screen[i].y).margin(2));
         }
     }
 }
 
-// ============================================================================
-// Axis Swap Detection and Correction Tests
-// ============================================================================
-
-TEST_CASE("TouchCalibration: detect_axis_transposition with swapped 800x480 screen",
+TEST_CASE("TouchCalibration: a transposed panel is exact before and after detection",
           "[touch-calibration][axis-swap]") {
-    // Simulate a touchscreen where the controller reports X/Y swapped.
-    // Screen targets are at the standard calibration positions for 800x480.
-    Point screen_points[3] = {
-        {120, 96},  // 15% from left, 20% from top
-        {400, 374}, // center X, 78% from top
-        {680, 96}   // 85% from left, 20% from top
-    };
-
-    // Touch points with X/Y swapped: what would be (120,96) in correct space
-    // comes in as (96,120) from the swapped controller.
-    // Use values in the LVGL-mapped range (post linear mapping, screen-ish coords).
-    Point touch_points[3] = {
-        {96, 120},  // Swapped version of (120, 96)
-        {374, 400}, // Swapped version of (400, 374)
-        {96, 680}   // Swapped version of (680, 96)
-    };
-
-    // First compute calibration from the swapped data
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-
-    // The original calibration should have high cross-coupling
-    float orig_diagonal = std::abs(cal.a) + std::abs(cal.e);
-    float orig_off_diag = std::abs(cal.b) + std::abs(cal.d);
-    REQUIRE(orig_off_diag / orig_diagonal > 0.5f);
-
-    // Now detect and correct
-    bool swapped = detect_axis_transposition(cal, screen_points, touch_points);
-    REQUIRE(swapped == true);
-    REQUIRE(cal.axes_swapped == true);
-
-    // The transposition stays in the cross terms, where the exact solve put it,
-    // and the matrix keeps mapping the taps as reported onto their targets. The
-    // taps are not rewritten, so these are the coordinates the runtime supplies.
-    Point p0 = transform_point(cal, touch_points[0]);
-    REQUIRE(p0.x == Approx(screen_points[0].x).margin(2));
-    REQUIRE(p0.y == Approx(screen_points[0].y).margin(2));
-
-    Point p1 = transform_point(cal, touch_points[1]);
-    REQUIRE(p1.x == Approx(screen_points[1].x).margin(2));
-    REQUIRE(p1.y == Approx(screen_points[1].y).margin(2));
-}
-
-TEST_CASE("TouchCalibration: detect_axis_transposition with non-swapped screen",
-          "[touch-calibration][axis-swap]") {
-    // Normal (non-swapped) calibration — should NOT trigger swap
-    Point screen_points[3] = {{120, 96}, {400, 374}, {680, 96}};
-
-    // Touch points match screen points with slight offset (typical for cap screens)
-    Point touch_points[3] = {{125, 100}, {405, 378}, {685, 100}};
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-
-    // Should NOT detect swap — diagonal is already dominant
-    Point original_touch[3] = {touch_points[0], touch_points[1], touch_points[2]};
-    bool swapped = detect_axis_transposition(cal, screen_points, touch_points);
-    REQUIRE(swapped == false);
-    REQUIRE(cal.axes_swapped == false);
-
-    // Touch points should be unchanged
+    // A panel mounted a quarter turn from the display: each tap arrives transposed.
+    const Triple screen = {{{120, 96}, {400, 374}, {680, 96}}};
+    Triple touch;
     for (int i = 0; i < 3; i++) {
-        REQUIRE(touch_points[i].x == original_touch[i].x);
-        REQUIRE(touch_points[i].y == original_touch[i].y);
+        touch[i] = {screen[i].y, screen[i].x};
     }
-}
 
-TEST_CASE("TouchCalibration: detect_axis_transposition with ADC-range swapped axes",
-          "[touch-calibration][axis-swap]") {
-    // Simulate resistive touchscreen with 12-bit ADC and swapped axes
-    // on 800x480 screen
-    Point screen_points[3] = {{120, 96}, {400, 374}, {680, 96}};
-
-    // Raw ADC values (0-4095 range) but X/Y swapped
-    Point touch_points[3] = {
-        {820, 614},   // Swapped: should be (614, 820)
-        {3190, 2048}, // Swapped: should be (2048, 3190)
-        {820, 3482}   // Swapped: should be (3482, 820)
+    TouchCalibration cal = solved(screen, touch);
+    const auto lands_on_targets = [&]() {
+        for (int i = 0; i < 3; i++) {
+            CAPTURE(i);
+            const Point out = transform_point(cal, touch[i]);
+            CHECK(out.x == Approx(screen[i].x).margin(2));
+            CHECK(out.y == Approx(screen[i].y).margin(2));
+        }
     };
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-
-    bool swapped = detect_axis_transposition(cal, screen_points, touch_points);
-    REQUIRE(swapped == true);
-    REQUIRE(cal.axes_swapped == true);
-
-    // Verify the corrected calibration maps correctly
-    Point p = transform_point(cal, touch_points[0]);
-    REQUIRE(p.x == Approx(screen_points[0].x).margin(2));
-    REQUIRE(p.y == Approx(screen_points[0].y).margin(2));
-}
-
-TEST_CASE("TouchCalibration: axis swap with Ender 5 Max-like coefficients",
-          "[touch-calibration][axis-swap]") {
-    // Reproduce the actual broken calibration from the Ender 5 Max user
-    // The original coefficients (d=1.187, e=2.367) indicate heavy cross-coupling
-    // Simulate the touch input that would produce these coefficients
-
-    Point screen_points[3] = {{120, 96}, {400, 374}, {680, 96}};
-
-    // These touch points produce high cross-coupling when not swapped
-    // (representing a screen where touch X/Y are transposed)
-    Point touch_points[3] = {{50, 100}, {250, 350}, {50, 600}};
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-
-    // Check if this triggers swap detection
-    float diag = std::abs(cal.a) + std::abs(cal.e);
-    float off_diag = std::abs(cal.b) + std::abs(cal.d);
-    float ratio = off_diag / diag;
-
-    if (ratio > 0.5f) {
-        bool swapped = detect_axis_transposition(cal, screen_points, touch_points);
-        REQUIRE(swapped == true);
-
-        // After swap, the calibration should produce valid screen coords
-        Point p = transform_point(cal, touch_points[0]);
-        REQUIRE(p.x == Approx(screen_points[0].x).margin(2));
-        REQUIRE(p.y == Approx(screen_points[0].y).margin(2));
-    }
-}
-
-TEST_CASE("TouchCalibration: axis swap detection does not trigger on slight rotation",
-          "[touch-calibration][axis-swap]") {
-    // A slightly rotated touchscreen has small cross-coupling but diagonal still dominates
-    Point screen_points[3] = {{120, 96}, {400, 374}, {680, 96}};
-
-    // Slight clockwise rotation (~5 degrees) in touch coordinates
-    // cos(5°)≈0.996, sin(5°)≈0.087
-    Point touch_points[3] = {
-        {static_cast<int>(120 * 0.996 + 96 * 0.087), static_cast<int>(-120 * 0.087 + 96 * 0.996)},
-        {static_cast<int>(400 * 0.996 + 374 * 0.087), static_cast<int>(-400 * 0.087 + 374 * 0.996)},
-        {static_cast<int>(680 * 0.996 + 96 * 0.087), static_cast<int>(-680 * 0.087 + 96 * 0.996)},
-    };
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-
-    bool swapped = detect_axis_transposition(cal, screen_points, touch_points);
-    REQUIRE(swapped == false);
-}
-
-TEST_CASE("TouchCalibration: NS2009 recognized as known touchscreen",
-          "[touch-calibration][resistive-detection]") {
-    REQUIRE(is_known_touchscreen_name("ns2009") == true);
-    REQUIRE(is_known_touchscreen_name("NS2009") == true);
-    REQUIRE(is_known_touchscreen_name("ns2016") == true);
-}
-
-TEST_CASE("TouchCalibration: detect axis swap on 480x272 with swapped ADC and diagonal leak",
-          "[touch-calibration][axis-swap]") {
-    // 480x272 screen — NS2009 resistive ADC with hardware X/Y swap
-    // plus slight diagonal leakage from cross-talk in the ADC channels.
-    // The cross-coupling ratio lands above 1.0 (off-diagonal dominates),
-    // confirming axes are swapped. After correction, the ratio drops below 0.5.
-    Point screen_points[3] = {
-        {72, 54},   // 15% of 480, 20% of 272
-        {240, 212}, // 50%, 78%
-        {408, 54},  // 85%, 20%
-    };
-
-    // Raw ADC values: primarily swapped (physical X -> ABS_Y, physical Y -> ABS_X)
-    // with small additive perturbation from diagonal cross-talk
-    Point touch_points[3] = {
-        {728, 830},
-        {2693, 2896},
-        {2072, 3698},
-    };
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-
-    // Verify the cross-coupling ratio indicates swapped axes (ratio > 1.0)
-    float diag = std::abs(cal.a) + std::abs(cal.e);
-    float off_diag = std::abs(cal.b) + std::abs(cal.d);
-    float ratio = off_diag / std::max(diag, 0.001f);
-    INFO("Cross-coupling ratio: " << ratio);
-    REQUIRE(ratio > 0.3f);
-    REQUIRE(ratio < 3.0f);
-
-    // Swap should be detected and corrected
-    bool swapped = detect_axis_transposition(cal, screen_points, touch_points);
-    REQUIRE(swapped == true);
-    REQUIRE(cal.axes_swapped == true);
-
-    // After correction, transform should produce correct screen coordinates
-    Point p0 = transform_point(cal, touch_points[0]);
-    REQUIRE(p0.x == Approx(screen_points[0].x).margin(2));
-    REQUIRE(p0.y == Approx(screen_points[0].y).margin(2));
-}
-
-TEST_CASE("TouchCalibration: no false axis swap on well-aligned 480x272 screen",
-          "[touch-calibration][axis-swap]") {
-    // 480x272 screen, non-swapped — touch axes are correct
-    Point screen_points[3] = {
-        {72, 54},
-        {240, 212},
-        {408, 54},
-    };
-
-    // Non-swapped ADC values (normal orientation, proportional to screen coords)
-    Point touch_points[3] = {
-        {776, 632},
-        {2120, 1896},
-        {3464, 632},
-    };
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-
-    // Should NOT detect swap — diagonal dominates completely
-    float diag = std::abs(cal.a) + std::abs(cal.e);
-    float off_diag = std::abs(cal.b) + std::abs(cal.d);
-    float ratio = off_diag / std::max(diag, 0.001f);
-    INFO("Cross-coupling ratio: " << ratio);
-    REQUIRE(ratio < 0.3f);
-
-    bool swapped = detect_axis_transposition(cal, screen_points, touch_points);
-    REQUIRE(swapped == false);
+    // An affine through three points is exact: the cross terms carry the turn.
+    lands_on_targets();
+    detect_axis_transposition(cal, screen.data(), touch.data());
+    lands_on_targets();
 }
 
 // ============================================================================
-// Legacy calibration invalidation (post-#943 upgrade) — truth table
+// Stored calibrations from older builds
 // ============================================================================
 
 TEST_CASE("TouchCalibration: should_invalidate_unstamped_calibration truth table",
@@ -1584,11 +703,9 @@ TEST_CASE("TouchCalibration: should_invalidate_legacy_calibration truth table",
 // Read-callback wrapper: context handle, not indev user_data
 // ============================================================================
 //
-// Regression for prestonbrown/helixscreen#1112 (bundle LG9X482B): the calibrated
-// read path used to fetch its CalibrationContext via lv_indev_get_user_data(),
-// and a stale/corrupted user_data slot (holding non-null garbage) crashed it. The
-// wrapper now keeps the context in its own static storage and must ignore
-// user_data entirely — so poisoning user_data must not affect the transform.
+// The calibrated read path keeps its CalibrationContext in its own static
+// storage, so a stale or corrupted indev user_data slot cannot reach the
+// transform (prestonbrown/helixscreen#1112).
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "calibrated_read_cb: transforms via static handle, ignores indev user_data",
@@ -1609,8 +726,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // The read callback must have been installed on the indev.
     CHECK(lv_indev_get_read_cb(indev) == helix::calibrated_read_cb);
 
-    // Poison user_data with a non-null garbage value — the exact failure shape of
-    // #1112. The old code dereferenced this; the new code must ignore it.
+    // Poison user_data with non-null garbage (#1112): the callback must not read it.
     lv_indev_set_user_data(indev, reinterpret_cast<void*>(0xDEADBEEFUL));
 
     lv_indev_data_t data{};
@@ -1667,28 +783,18 @@ const ShippedFit kShippedFits[] = {
 
 } // namespace
 
-TEST_CASE("shipped panel fits pass our own validator", "[touch][calibration]") {
+TEST_CASE("shipped panel fits validate, span a sane raw range and keep both edges on the "
+          "digitizer",
+          "[touch][calibration]") {
     for (const auto& fit : kShippedFits) {
         CAPTURE(fit.name);
         CHECK(helix::is_calibration_valid(fit.cal));
-    }
-}
-
-TEST_CASE("shipped panel fits map an 800x480 screen to a sane raw span", "[touch][calibration]") {
-    for (const auto& fit : kShippedFits) {
-        CAPTURE(fit.name);
         const float x_span = 800.0f / std::fabs(fit.cal.a);
         const float y_span = 480.0f / std::fabs(fit.cal.e);
         CHECK(x_span > 200.0f);
         CHECK(x_span < 4096.0f);
         CHECK(y_span > 100.0f);
         CHECK(y_span < 4096.0f);
-    }
-}
-
-TEST_CASE("shipped panel fits keep both screen edges on the digitizer", "[touch][calibration]") {
-    for (const auto& fit : kShippedFits) {
-        CAPTURE(fit.name);
         // Inverting the fit for screen y=0 and y=480 must give non-negative raw
         // values. This is what catches a sign error in e or a wrong f.
         const float raw_top = (0.0f - fit.cal.f) / fit.cal.e;
@@ -1760,60 +866,5 @@ TEST_CASE("platform_default_calibration follows the board", "[touch][calibration
     {
         helix::test::ScopedBoard board(helix::board::Board::Creator5);
         CHECK_FALSE(helix::platform_default_calibration().valid);
-    }
-}
-
-// ============================================================================
-// The stored matrix has to work on the input the RUNTIME supplies
-//
-// calibrated_read_cb() feeds the affine the coordinate that arrives from evdev.
-// Nothing swaps its axes on the way. A matrix that only reproduces the targets
-// from pre-swapped input is therefore wrong wherever it actually runs.
-// ============================================================================
-
-TEST_CASE("a transposed panel is exact from the plain three-point solve",
-          "[touch-calibration][axis-swap]") {
-    const Point screen_points[3] = {{120, 96}, {400, 374}, {680, 96}};
-    // A panel mounted a quarter turn from the display: the tap arrives transposed.
-    Point touch_points[3];
-    for (int i = 0; i < 3; i++) {
-        touch_points[i] = {screen_points[i].y, screen_points[i].x};
-    }
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-
-    // An affine through three points is exact, so the transposition is already
-    // carried by the cross terms. No separate swap is needed to reproduce it.
-    for (int i = 0; i < 3; i++) {
-        const Point out = transform_point(cal, touch_points[i]);
-        INFO("point " << i);
-        REQUIRE(out.x == Approx(screen_points[i].x).margin(2));
-        REQUIRE(out.y == Approx(screen_points[i].y).margin(2));
-    }
-}
-
-TEST_CASE("the calibration left behind maps unswapped taps onto the targets",
-          "[touch-calibration][axis-swap]") {
-    const Point screen_points[3] = {{120, 96}, {400, 374}, {680, 96}};
-
-    Point touch_points[3];
-    for (int i = 0; i < 3; i++) {
-        touch_points[i] = {screen_points[i].y, screen_points[i].x};
-    }
-    // Keep what the digitizer actually reports, before anything mutates it.
-    const Point as_reported[3] = {touch_points[0], touch_points[1], touch_points[2]};
-
-    TouchCalibration cal;
-    REQUIRE(compute_calibration(screen_points, touch_points, cal));
-    detect_axis_transposition(cal, screen_points, touch_points);
-
-    // Whatever the wizard decided, the matrix it leaves has to land a real tap on
-    // its target: the read callback has no swap to apply on the way in.
-    for (int i = 0; i < 3; i++) {
-        const Point out = transform_point(cal, as_reported[i]);
-        INFO("point " << i << " reported (" << as_reported[i].x << "," << as_reported[i].y << ")");
-        REQUIRE(out.x == Approx(screen_points[i].x).margin(2));
-        REQUIRE(out.y == Approx(screen_points[i].y).margin(2));
     }
 }

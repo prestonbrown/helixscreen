@@ -154,6 +154,11 @@ ColorPicker::ColorPicker() {
 }
 
 ColorPicker::~ColorPicker() {
+    // Modal's destructor cannot reach this class's on_hide(), and the static
+    // callbacks of the next picker's show() would run on this freed instance.
+    if (active_instance_ == this) {
+        active_instance_ = nullptr;
+    }
     // Modal destructor will call hide() if visible
     deinit_subjects();
     spdlog::trace("[ColorPicker] Destroyed");

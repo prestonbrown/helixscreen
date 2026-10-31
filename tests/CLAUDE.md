@@ -175,7 +175,11 @@ run goes to the test host when `full-test-run`'s would (`TEST_HOST`); everything
 here in parallel, and it ends with a PASS/FAIL/TIMEOUT table with durations, naming the
 commit it judged (`+dirty` when uncommitted changes were in the tree). It holds
 `build:<tree>` while it runs and refuses a missing bats rather than skipping it
-(`scripts/land-gate.sh`, logs in `build/land-gate/`). `full-test-run` alone misses
+(`scripts/land-gate.sh`, logs in `build/land-gate/`). A gate red on one flaky or environment
+step is finished with `make land-gate STAGES=<step>[,<step>]` on the same clean HEAD: it
+reruns only those steps (app-build, bats, ui and quality as one group, since three of them
+test the binary app-build links), merges them into that commit's table, and stamps the
+commit for pre-push once every step has passed. `full-test-run` alone misses
 `tests/ui` and CI's shard layout, which is how a branch goes green here and red on CI.
 
 Rows four through seven are the evidence ladder below. "Proving a test can fail" is where
@@ -270,6 +274,10 @@ little, so a branch does not grow the suite: `scripts/check_test_budget.py` (pre
   `Test-budget: +N <reason>`; the reason is what a reviewer reads.
 - **`TestAccess` references grow.** Seed and observe through the public API instead.
 - **`friend` declarations grow** in `src/` or `include/`.
+
+The same branch-relative shape caps file size: `scripts/check_growth_ratchets.py` fails a
+C++ file under `tests/` (or `src/`, `include/`) that ends the branch over 1500 lines and
+larger than it started, so a test file that size is split rather than grown.
 
 Before adding a case, check what it buys: it fails when the behaviour it names breaks
 (the hand break below), nothing else already fails for the same break, and its name says

@@ -16,7 +16,7 @@
  *   BedMeshRenderThread rt;
  *   rt.set_renderer(renderer);
  *   rt.set_colors(colors);
- *   rt.set_frame_ready_callback([widget]() {
+ *   rt.set_frame_ready_callback([widget = helix::ui::WeakWidget(widget)]() {
  *       helix::ui::queue_widget_update(widget, [](lv_obj_t* w) {
  *           lv_obj_invalidate(w);
  *       });

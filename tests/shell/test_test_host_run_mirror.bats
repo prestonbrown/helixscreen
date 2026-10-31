@@ -81,6 +81,13 @@ case "$1" in
                     CCACHE_DIR=$MOCK_CCACHE_DIR exec bash -c "$last"
                 fi ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
+               # MOCK_EXEC_DIR: run the job command there, with make logged to
+               # MOCK_EXEC_LOG instead of run; its last argument is the bash -c script.
+               if [ -n "${MOCK_EXEC_DIR:-}" ]; then
+                   for a in "$@"; do last=$a; done
+                   cd "$MOCK_EXEC_DIR" || exit 1
+                   exec bash -c "make() { echo \"make \$*\" >> \"\$MOCK_EXEC_LOG\"; }; $last"
+               fi
                # MOCK_SWEEP_FAILS=<mirror>: the sweep fails and leaves a
                # failing shard log in that mirror, as the real one does.
                if [ -n "${MOCK_SWEEP_FAILS:-}" ]; then
@@ -988,4 +995,76 @@ shared_checkout() {
     run "$TEST_HOST_RUN" sweep
     [ "$status" -eq 0 ]
     [ ! -e "$t/build/shard-artifacts" ]
+}
+
+# --- test and exec: arguments arrive word for word -----------------------------
+
+# A mirror run whose job command runs here, in a directory holding a stand-in
+# helix-tests that logs each argument it receives on its own line.
+job_runner() {
+    export MOCK_EXEC_DIR="$BATS_TEST_TMPDIR/container" MOCK_EXEC_LOG="$BATS_TEST_TMPDIR/exec.log"
+    mkdir -p "$MOCK_EXEC_DIR/build/bin"
+    cat > "$MOCK_EXEC_DIR/build/bin/helix-tests" <<'EOF2'
+#!/usr/bin/env bash
+echo "helix-tests argc=$#" >> "$MOCK_EXEC_LOG"
+for a in "$@"; do printf 'arg[%s]\n' "$a" >> "$MOCK_EXEC_LOG"; done
+EOF2
+    chmod +x "$MOCK_EXEC_DIR/build/bin/helix-tests"
+    : > "$MOCK_EXEC_LOG"
+    cd "$(make_tree tree-args)" || return 1
+}
+
+@test "test forwards every argument to helix-tests as its own word" {
+    job_runner
+    run "$TEST_HOST_RUN" test -# '[#test_x]'
+    [ "$status" -eq 0 ]
+    grep -qxF "helix-tests argc=2" "$MOCK_EXEC_LOG"
+    grep -qxF "arg[-#]" "$MOCK_EXEC_LOG"
+    grep -qxF "arg[[#test_x]]" "$MOCK_EXEC_LOG"
+    grep -qF "make test" "$MOCK_EXEC_LOG"
+}
+
+@test "test with no arguments runs the whole suite: helix-tests gets none" {
+    job_runner
+    run "$TEST_HOST_RUN" test
+    [ "$status" -eq 0 ]
+    grep -qxF "helix-tests argc=0" "$MOCK_EXEC_LOG"
+}
+
+@test "an argument with spaces, quotes or a semicolon arrives intact and is never executed" {
+    job_runner
+    run "$TEST_HOST_RUN" test 'two words' 'x" ; touch PWNED ; echo "' "it's"
+    [ "$status" -eq 0 ]
+    grep -qxF "helix-tests argc=3" "$MOCK_EXEC_LOG"
+    grep -qxF "arg[two words]" "$MOCK_EXEC_LOG"
+    grep -qxF 'arg[x" ; touch PWNED ; echo "]' "$MOCK_EXEC_LOG"
+    grep -qxF "arg[it's]" "$MOCK_EXEC_LOG"
+    [ ! -e "$MOCK_EXEC_DIR/PWNED" ]
+}
+
+@test "exec runs a command in the mirror without building; --build runs make test first" {
+    job_runner
+    printf 'printf "x.sh[%%s]\\n" "$@" >> "$MOCK_EXEC_LOG"\n' > "$MOCK_EXEC_DIR/x.sh"
+    run "$TEST_HOST_RUN" exec -- bash ./x.sh 'a b' '"; touch PWNED; "'
+    [ "$status" -eq 0 ]
+    grep -qxF "x.sh[a b]" "$MOCK_EXEC_LOG"
+    grep -qxF 'x.sh["; touch PWNED; "]' "$MOCK_EXEC_LOG"
+    refute_grep "make test" "$MOCK_EXEC_LOG"
+    [ ! -e "$MOCK_EXEC_DIR/PWNED" ]
+    : > "$MOCK_EXEC_LOG"
+    run "$TEST_HOST_RUN" exec --build -- bash ./x.sh c
+    [ "$status" -eq 0 ]
+    head -1 "$MOCK_EXEC_LOG" | grep -q "^make test"
+    grep -qxF "x.sh[c]" "$MOCK_EXEC_LOG"
+}
+
+@test "exec refuses a missing command or an unknown option before reaching the host" {
+    job_runner
+    run "$TEST_HOST_RUN" exec --
+    [ "$status" -eq 2 ]
+    contains "exec needs a command" "$output"
+    run "$TEST_HOST_RUN" exec bash ./x.sh
+    [ "$status" -eq 2 ]
+    contains "exec takes [--build] -- COMMAND" "$output"
+    [ ! -s "$MOCK_DOCKER_LOG" ]
 }

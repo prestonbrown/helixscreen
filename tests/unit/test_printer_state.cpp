@@ -27,6 +27,20 @@ using namespace helix;
 using namespace helix::ui;
 using Catch::Approx;
 
+namespace {
+
+/// The process-wide PrinterState, reset and with its subjects initialised
+/// without XML registration.
+PrinterState& fresh_state() {
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    return state;
+}
+
+} // namespace
+
 // ============================================================================
 // Singleton Behavior Tests
 // ============================================================================
@@ -244,61 +258,40 @@ TEST_CASE("PrinterState: Initialization sets default values", "[state][init]") {
 // ============================================================================
 // Note: Subjects store temperatures in decidegrees (temp * 10) for 0.1°C resolution.
 
-TEST_CASE("PrinterState: Update extruder temperature from status", "[state][temp]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    json status = {{"extruder", {{"temperature", 205.3}, {"target", 210.0}}}};
-    state.update_from_status(status);
-
-    // Subjects store decidegrees (temp * 10)
-    REQUIRE(lv_subject_get_int(state.temperature_state().get_active_extruder_temp_subject()) ==
-            2053);
-    REQUIRE(lv_subject_get_int(state.temperature_state().get_active_extruder_target_subject()) ==
-            2100);
-}
-
-TEST_CASE("PrinterState: Update bed temperature from status", "[state][temp]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    json status = {{"heater_bed", {{"temperature", 60.5}, {"target", 60.0}}}};
-    state.update_from_status(status);
-
-    // Subjects store decidegrees (temp * 10)
-    REQUIRE(lv_subject_get_int(state.temperature_state().get_bed_temp_subject()) == 605);
-    REQUIRE(lv_subject_get_int(state.temperature_state().get_bed_target_subject()) == 600);
-}
-
-TEST_CASE("PrinterState: Temperature decidegree storage", "[state][temp][edge]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    SECTION("205.4°C stored as 2054 decidegrees") {
-        json status = {{"extruder", {{"temperature", 205.4}}}};
-        state.update_from_status(status);
-        REQUIRE(lv_subject_get_int(state.temperature_state().get_active_extruder_temp_subject()) ==
-                2054);
-    }
-
-    SECTION("205.6°C stored as 2056 decidegrees") {
-        json status = {{"extruder", {{"temperature", 205.6}}}};
-        state.update_from_status(status);
-        REQUIRE(lv_subject_get_int(state.temperature_state().get_active_extruder_temp_subject()) ==
-                2056);
-    }
-
-    SECTION("210.0°C stored as 2100 decidegrees") {
-        json status = {{"extruder", {{"temperature", 210.0}}}};
-        state.update_from_status(status);
-        REQUIRE(lv_subject_get_int(state.temperature_state().get_active_extruder_temp_subject()) ==
-                2100);
+TEST_CASE("PrinterState: temperatures from status are stored in decidegrees",
+          "[state][temp][edge]") {
+    using Getter = lv_subject_t* (PrinterTemperatureState::*)();
+    struct Row {
+        const char* label;
+        const char* object;
+        const char* field;
+        double value;
+        Getter subject;
+        int expected;
+    };
+    const Row rows[] = {
+        {"extruder temperature", "extruder", "temperature", 205.3,
+         &PrinterTemperatureState::get_active_extruder_temp_subject, 2053},
+        {"extruder target", "extruder", "target", 210.0,
+         &PrinterTemperatureState::get_active_extruder_target_subject, 2100},
+        {"bed temperature", "heater_bed", "temperature", 60.5,
+         &PrinterTemperatureState::get_bed_temp_subject, 605},
+        {"bed target", "heater_bed", "target", 60.0,
+         &PrinterTemperatureState::get_bed_target_subject, 600},
+        // A tenth either side of a whole degree is kept, not rounded away.
+        {"205.4", "extruder", "temperature", 205.4,
+         &PrinterTemperatureState::get_active_extruder_temp_subject, 2054},
+        {"205.6", "extruder", "temperature", 205.6,
+         &PrinterTemperatureState::get_active_extruder_temp_subject, 2056},
+        {"210.0", "extruder", "temperature", 210.0,
+         &PrinterTemperatureState::get_active_extruder_temp_subject, 2100},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.label) {
+            PrinterState& state = fresh_state();
+            state.update_from_status(json{{row.object, {{row.field, row.value}}}});
+            CHECK(lv_subject_get_int((state.temperature_state().*row.subject)()) == row.expected);
+        }
     }
 }
 
@@ -340,10 +333,7 @@ TEST_CASE("PrinterState: Update print state and filename", "[state][progress]") 
 
 TEST_CASE("PrinterState: print_stats messages decode a firmware error envelope",
           "[state][pause][firmware_error_envelope]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     json status = {
         {"print_stats",
@@ -396,10 +386,7 @@ TEST_CASE("pause_descriptor::read: silence, an empty descriptor and a populated 
 
 TEST_CASE("PrinterState: parses print_stats.exception structured object",
           "[state][progress][pause]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     SECTION("Populated exception object sets all three fields") {
         // Hardware-verified runout shape from a physical Snapmaker U1 (#991).
@@ -466,10 +453,7 @@ TEST_CASE("PrinterState: parses print_stats.exception structured object",
 
 TEST_CASE("PrinterState: a pause takes no exception latched earlier in the print",
           "[state][progress][pause]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
     state.update_from_status(json{{"print_stats", {{"state", "printing"}}}});
     const json dirty_bed = {{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}};
 
@@ -562,197 +546,12 @@ TEST_CASE("PrinterState: Homed axes variations", "[state][motion]") {
     PrinterState& state = get_printer_state();
     state.init_subjects();
 
-    SECTION("Only X and Y homed") {
-        json notification = {{"method", "notify_status_update"},
-                             {"params", {{{"toolhead", {{"homed_axes", "xy"}}}}, 0.0}}};
-        state.update_from_status(notification["params"][0]);
-        const char* homed = lv_subject_get_string(state.motion_state().get_homed_axes_subject());
-        REQUIRE(std::string(homed) == "xy");
+    for (const char* axes : {"xy", "", "z", "xyz"}) {
+        INFO("homed_axes '" << axes << "'");
+        state.update_from_status(json{{"toolhead", {{"homed_axes", axes}}}});
+        CHECK(std::string(lv_subject_get_string(state.motion_state().get_homed_axes_subject())) ==
+              axes);
     }
-
-    SECTION("No axes homed") {
-        json notification = {{"method", "notify_status_update"},
-                             {"params", {{{"toolhead", {{"homed_axes", ""}}}}, 0.0}}};
-        state.update_from_status(notification["params"][0]);
-        const char* homed = lv_subject_get_string(state.motion_state().get_homed_axes_subject());
-        REQUIRE(std::string(homed) == "");
-    }
-
-    SECTION("Only Z homed") {
-        json notification = {{"method", "notify_status_update"},
-                             {"params", {{{"toolhead", {{"homed_axes", "z"}}}}, 0.0}}};
-        state.update_from_status(notification["params"][0]);
-        const char* homed = lv_subject_get_string(state.motion_state().get_homed_axes_subject());
-        REQUIRE(std::string(homed) == "z");
-    }
-
-    SECTION("XYZ homed") {
-        json notification = {{"method", "notify_status_update"},
-                             {"params", {{{"toolhead", {{"homed_axes", "xyz"}}}}, 0.0}}};
-        state.update_from_status(notification["params"][0]);
-        const char* homed = lv_subject_get_string(state.motion_state().get_homed_axes_subject());
-        REQUIRE(std::string(homed) == "xyz");
-    }
-}
-
-// Helper function for testing homed axes derivation logic
-// This mirrors the logic in ControlsPanel::on_homed_axes_changed()
-static void derive_homed_states(const char* axes, int& xy_homed, int& z_homed, int& all_homed) {
-    if (!axes)
-        axes = "";
-    bool has_x = strchr(axes, 'x') != nullptr;
-    bool has_y = strchr(axes, 'y') != nullptr;
-    bool has_z = strchr(axes, 'z') != nullptr;
-
-    xy_homed = (has_x && has_y) ? 1 : 0;
-    z_homed = has_z ? 1 : 0;
-    all_homed = (has_x && has_y && has_z) ? 1 : 0;
-}
-
-TEST_CASE("PrinterState: Homed axes derivation logic", "[state][motion][homing]") {
-    // Test the derivation logic used by ControlsPanel to create boolean subjects
-    // from the homed_axes string subject. This logic is critical for bind_style
-    // to work correctly on home buttons.
-
-    SECTION("Empty string - nothing homed") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states("", xy, z, all);
-        REQUIRE(xy == 0);
-        REQUIRE(z == 0);
-        REQUIRE(all == 0);
-    }
-
-    SECTION("Only X homed - XY not complete") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states("x", xy, z, all);
-        REQUIRE(xy == 0); // Need both X and Y
-        REQUIRE(z == 0);
-        REQUIRE(all == 0);
-    }
-
-    SECTION("Only Y homed - XY not complete") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states("y", xy, z, all);
-        REQUIRE(xy == 0); // Need both X and Y
-        REQUIRE(z == 0);
-        REQUIRE(all == 0);
-    }
-
-    SECTION("Only Z homed") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states("z", xy, z, all);
-        REQUIRE(xy == 0);
-        REQUIRE(z == 1);
-        REQUIRE(all == 0);
-    }
-
-    SECTION("XY homed (typical after G28 X Y)") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states("xy", xy, z, all);
-        REQUIRE(xy == 1);
-        REQUIRE(z == 0);
-        REQUIRE(all == 0);
-    }
-
-    SECTION("XZ homed") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states("xz", xy, z, all);
-        REQUIRE(xy == 0); // Missing Y
-        REQUIRE(z == 1);
-        REQUIRE(all == 0);
-    }
-
-    SECTION("YZ homed") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states("yz", xy, z, all);
-        REQUIRE(xy == 0); // Missing X
-        REQUIRE(z == 1);
-        REQUIRE(all == 0);
-    }
-
-    SECTION("All axes homed (typical after G28)") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states("xyz", xy, z, all);
-        REQUIRE(xy == 1);
-        REQUIRE(z == 1);
-        REQUIRE(all == 1);
-    }
-
-    SECTION("Null input treated as empty") {
-        int xy = 0, z = 0, all = 0;
-        derive_homed_states(nullptr, xy, z, all);
-        REQUIRE(xy == 0);
-        REQUIRE(z == 0);
-        REQUIRE(all == 0);
-    }
-}
-
-TEST_CASE("PrinterState: Homed axes observer pattern for derived subjects",
-          "[state][motion][homing][observer]") {
-    // This tests the observer pattern that panels use to derive boolean subjects
-    // from homed_axes. ControlsPanel uses this to update xy_homed_, z_homed_,
-    // all_homed_ subjects for bind_style on home buttons.
-
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    // Track derived values via observer
-    struct HomingState {
-        int xy_homed = 0;
-        int z_homed = 0;
-        int all_homed = 0;
-        int callback_count = 0;
-    } homing;
-
-    auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
-        auto* state = static_cast<HomingState*>(lv_observer_get_user_data(observer));
-        const char* axes = lv_subject_get_string(subject);
-        derive_homed_states(axes, state->xy_homed, state->z_homed, state->all_homed);
-        state->callback_count++;
-    };
-
-    lv_observer_t* observer = lv_subject_add_observer(state.motion_state().get_homed_axes_subject(),
-                                                      observer_cb, &homing);
-
-    // Initial callback fires immediately (LVGL behavior)
-    REQUIRE(homing.callback_count == 1);
-    REQUIRE(homing.xy_homed == 0);
-    REQUIRE(homing.z_homed == 0);
-    REQUIRE(homing.all_homed == 0);
-
-    // Simulate G28 X Y
-    json notification = {{"method", "notify_status_update"},
-                         {"params", {{{"toolhead", {{"homed_axes", "xy"}}}}, 0.0}}};
-    state.update_from_status(notification["params"][0]);
-
-    REQUIRE(homing.callback_count == 2);
-    REQUIRE(homing.xy_homed == 1);
-    REQUIRE(homing.z_homed == 0);
-    REQUIRE(homing.all_homed == 0);
-
-    // Simulate G28 Z (now all homed)
-    notification = {{"method", "notify_status_update"},
-                    {"params", {{{"toolhead", {{"homed_axes", "xyz"}}}}, 0.0}}};
-    state.update_from_status(notification["params"][0]);
-
-    REQUIRE(homing.callback_count == 3);
-    REQUIRE(homing.xy_homed == 1);
-    REQUIRE(homing.z_homed == 1);
-    REQUIRE(homing.all_homed == 1);
-
-    // Simulate unhoming (e.g., SET_KINEMATIC_POSITION or restart)
-    notification = {{"method", "notify_status_update"},
-                    {"params", {{{"toolhead", {{"homed_axes", ""}}}}, 0.0}}};
-    state.update_from_status(notification["params"][0]);
-
-    REQUIRE(homing.callback_count == 4);
-    REQUIRE(homing.xy_homed == 0);
-    REQUIRE(homing.z_homed == 0);
-    REQUIRE(homing.all_homed == 0);
-
-    lv_observer_remove(observer);
 }
 
 // ============================================================================
@@ -856,11 +655,7 @@ TEST_CASE("PrinterState: Connection state transitions", "[state][connection]") {
 
 TEST_CASE("PrinterState: nav_buttons_enabled derivation",
           "[characterization][network][nav_buttons]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Defaults: disconnected, "Disconnected", nav buttons off.
     REQUIRE(std::string(lv_subject_get_string(
@@ -944,11 +739,7 @@ TEST_CASE("PrinterState: nav_buttons_enabled derivation",
 
 TEST_CASE("PrinterState: observer fires when nav_buttons_enabled changes",
           "[characterization][network][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
         int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
@@ -986,11 +777,7 @@ TEST_CASE("PrinterState: observer fires when nav_buttons_enabled changes",
 
 TEST_CASE("PrinterState: was_ever_connected flag behavior",
           "[characterization][network][was_connected]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // PrinterStateTestAccess::reset() clears the flag, so each SECTION starts false.
     REQUIRE_FALSE(state.network_state().was_ever_connected());
@@ -1056,41 +843,24 @@ TEST_CASE("PrinterState: Network status initialization", "[state][network]") {
             static_cast<int>(NetworkStatus::CONNECTED));
 }
 
-TEST_CASE("PrinterState: Set network status updates subject", "[state][network]") {
+TEST_CASE("PrinterState: set_network_status publishes every status", "[state][network]") {
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
     state.init_subjects();
 
+    for (auto status :
+         {NetworkStatus::DISCONNECTED, NetworkStatus::CONNECTING, NetworkStatus::CONNECTED}) {
+        INFO(static_cast<int>(status));
+        state.network_state().set_network_status(static_cast<int>(status));
+        CHECK(lv_subject_get_int(state.network_state().get_network_status_subject()) ==
+              static_cast<int>(status));
+    }
+
+    // Repeating the current status is a no-op that leaves it in place.
     state.network_state().set_network_status(static_cast<int>(NetworkStatus::CONNECTED));
-
-    REQUIRE(lv_subject_get_int(state.network_state().get_network_status_subject()) ==
-            static_cast<int>(NetworkStatus::CONNECTED));
-}
-
-TEST_CASE("PrinterState: Network status enum values", "[state][network]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
-    SECTION("DISCONNECTED") {
-        state.network_state().set_network_status(static_cast<int>(NetworkStatus::DISCONNECTED));
-        REQUIRE(lv_subject_get_int(state.network_state().get_network_status_subject()) ==
-                static_cast<int>(NetworkStatus::DISCONNECTED));
-    }
-
-    SECTION("CONNECTING") {
-        state.network_state().set_network_status(static_cast<int>(NetworkStatus::CONNECTING));
-        REQUIRE(lv_subject_get_int(state.network_state().get_network_status_subject()) ==
-                static_cast<int>(NetworkStatus::CONNECTING));
-    }
-
-    SECTION("CONNECTED") {
-        state.network_state().set_network_status(static_cast<int>(NetworkStatus::CONNECTED));
-        REQUIRE(lv_subject_get_int(state.network_state().get_network_status_subject()) ==
-                static_cast<int>(NetworkStatus::CONNECTED));
-    }
+    CHECK(lv_subject_get_int(state.network_state().get_network_status_subject()) ==
+          static_cast<int>(NetworkStatus::CONNECTED));
 }
 
 TEST_CASE("PrinterState: Printer and network status are independent", "[state][integration]") {
@@ -1127,10 +897,7 @@ TEST_CASE("PrinterState: Printer and network status are independent", "[state][i
 // These tests verify update_from_status handles edge cases gracefully.
 
 TEST_CASE("PrinterState: Empty status object is handled", "[state][error]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Empty JSON should not crash
     json empty_status = json::object();
@@ -1141,10 +908,7 @@ TEST_CASE("PrinterState: Empty status object is handled", "[state][error]") {
 }
 
 TEST_CASE("PrinterState: Partial status updates work", "[state][error]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     SECTION("Only extruder temp, no target") {
         json status = {{"extruder", {{"temperature", 205.0}}}};
@@ -1409,11 +1173,7 @@ TEST_CASE("PrinterState: Enum subject value reflects all state transitions", "[s
 // ============================================================================
 
 TEST_CASE("PrinterState: Klippy state initialization defaults to SHUTDOWN", "[state][klippy]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Default should be SHUTDOWN (2) - assume disconnected until confirmed ready
     REQUIRE(lv_subject_get_int(state.network_state().get_klippy_state_subject()) ==
@@ -1421,11 +1181,7 @@ TEST_CASE("PrinterState: Klippy state initialization defaults to SHUTDOWN", "[st
 }
 
 TEST_CASE("PrinterState: set_klippy_state_sync changes subject value", "[state][klippy]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Default should be SHUTDOWN (assume disconnected until confirmed)
     REQUIRE(lv_subject_get_int(state.network_state().get_klippy_state_subject()) ==
@@ -1453,11 +1209,7 @@ TEST_CASE("PrinterState: set_klippy_state_sync changes subject value", "[state][
 }
 
 TEST_CASE("PrinterState: Observer fires when klippy state changes", "[state][klippy][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Register observer
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
@@ -1495,11 +1247,7 @@ TEST_CASE("PrinterState: Observer fires when klippy state changes", "[state][kli
 
 TEST_CASE("PrinterState: Update klippy state from webhooks notification",
           "[state][klippy][webhooks]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Test "startup" state (RESTART in progress)
     nlohmann::json notification = {
@@ -1539,11 +1287,7 @@ TEST_CASE("PrinterState: Update klippy state from webhooks notification",
 }
 
 TEST_CASE("PrinterState: Unknown webhooks state defaults to READY", "[state][klippy][webhooks]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Set to a known state first, then verify unknown doesn't change it
     state.set_klippy_state_sync(KlippyState::READY);
@@ -1559,82 +1303,40 @@ TEST_CASE("PrinterState: Unknown webhooks state defaults to READY", "[state][kli
 // Kinematics / Bed Moves Tests
 // ============================================================================
 
-TEST_CASE("PrinterState: set_kinematics detects corexy as bed-moves", "[state][kinematics]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    // Default should be 0 (gantry moves)
-    REQUIRE(lv_subject_get_int(state.capabilities_state().subject(Capability::BedMoves)) == 0);
-
-    // CoreXY printers (without QGL) have moving beds on Z
-    state.set_kinematics("corexy");
-    REQUIRE(lv_subject_get_int(state.capabilities_state().subject(Capability::BedMoves)) == 1);
-}
-
-TEST_CASE("PrinterState: set_kinematics detects cartesian as gantry-moves", "[state][kinematics]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    // First set to corexy (bed moves)
-    state.set_kinematics("corexy");
-    REQUIRE(lv_subject_get_int(state.capabilities_state().subject(Capability::BedMoves)) == 1);
-
-    // Cartesian printers have moving gantry on Z
-    state.set_kinematics("cartesian");
-    REQUIRE(lv_subject_get_int(state.capabilities_state().subject(Capability::BedMoves)) == 0);
-}
-
-TEST_CASE("PrinterState: set_kinematics detects delta as gantry-moves", "[state][kinematics]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    // Delta printers have moving effector, not bed
-    state.set_kinematics("delta");
-    REQUIRE(lv_subject_get_int(state.capabilities_state().subject(Capability::BedMoves)) == 0);
-}
-
-TEST_CASE("PrinterState: set_kinematics handles kinematics variations", "[state][kinematics]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    SECTION("corexz - gantry moves on Z (Voron Switchwire)") {
-        // CoreXZ has gantry-Z, not bed-Z
-        state.set_kinematics("corexz");
-        REQUIRE(lv_subject_get_int(state.capabilities_state().subject(Capability::BedMoves)) == 0);
-    }
-
-    SECTION("hybrid_corexy - bed moves (contains corexy)") {
-        // hybrid_corexy contains "corexy", so bed moves
-        state.set_kinematics("hybrid_corexy");
-        REQUIRE(lv_subject_get_int(state.capabilities_state().subject(Capability::BedMoves)) == 1);
-    }
-
-    SECTION("limited_cartesian - gantry moves (no corexy/corexz)") {
-        // limited_cartesian does NOT contain "corexy" or "corexz"
-        state.set_kinematics("limited_cartesian");
-        REQUIRE(lv_subject_get_int(state.capabilities_state().subject(Capability::BedMoves)) == 0);
+TEST_CASE("PrinterState: set_kinematics decides whether the bed moves on Z",
+          "[state][kinematics]") {
+    // CoreXY machines (without QGL) carry Z on the bed; cartesian, delta and
+    // CoreXZ carry it on the gantry or effector. Each row starts from the
+    // opposite answer so the setter has to move the subject.
+    struct Row {
+        const char* kinematics;
+        int bed_moves;
+    };
+    const Row rows[] = {
+        {"corexy", 1},
+        {"hybrid_corexy", 1}, // contains "corexy"
+        {"cartesian", 0},
+        {"delta", 0},
+        {"corexz", 0}, // Voron Switchwire: gantry Z
+        {"limited_cartesian", 0},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.kinematics) {
+            PrinterState& state = fresh_state();
+            lv_subject_t* bed_moves = state.capabilities_state().subject(Capability::BedMoves);
+            // Gantry moves until a kinematics says otherwise.
+            REQUIRE(lv_subject_get_int(bed_moves) == 0);
+            state.set_kinematics(row.bed_moves ? "cartesian" : "corexy");
+            REQUIRE(lv_subject_get_int(bed_moves) == 1 - row.bed_moves);
+            state.set_kinematics(row.kinematics);
+            CHECK(lv_subject_get_int(bed_moves) == row.bed_moves);
+        }
     }
 }
 
 TEST_CASE("PrinterState: set_kinematics gives deltas no individual XYZ homing",
           "[state][kinematics]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     lv_subject_t* subject = state.capabilities_state().subject(Capability::HasIndividualXyzHoming);
 
@@ -1656,11 +1358,7 @@ TEST_CASE("PrinterState: set_kinematics gives deltas no individual XYZ homing",
 }
 
 TEST_CASE("PrinterState: set_kinematics gates belt compare on true CoreXY", "[state][kinematics]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     REQUIRE(lv_subject_get_int(
                 state.capabilities_state().subject(Capability::SupportsBeltCompare)) == 0);
@@ -1728,10 +1426,7 @@ TEST_CASE("PrinterState::set_hardware publishes the firmware name", "[state][har
 
 TEST_CASE("PrinterState: set_kinematics bumps the hardware generation",
           "[state][kinematics][hardware]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     lv_subject_t* gen = state.capabilities_state().subject(Capability::HardwareGeneration);
     const int before = lv_subject_get_int(gen);
@@ -1740,11 +1435,7 @@ TEST_CASE("PrinterState: set_kinematics bumps the hardware generation",
 }
 
 TEST_CASE("PrinterState: Update kinematics from toolhead notification", "[state][kinematics][ui]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Send notification with toolhead kinematics
     nlohmann::json notification = {
@@ -1758,11 +1449,7 @@ TEST_CASE("PrinterState: Update kinematics from toolhead notification", "[state]
 
 TEST_CASE("PrinterState: Kinematics update from cartesian notification",
           "[state][kinematics][ui]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // First set to corexy (bed moves)
     state.set_kinematics("corexy");
@@ -1780,11 +1467,7 @@ TEST_CASE("PrinterState: Kinematics update from cartesian notification",
 }
 
 TEST_CASE("PrinterState: Observer fires when bed_moves changes", "[state][kinematics][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Register observer
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
@@ -1822,11 +1505,7 @@ TEST_CASE("PrinterState: Observer fires when bed_moves changes", "[state][kinema
 // ============================================================================
 
 TEST_CASE("PrinterState: set_print_outcome updates subject", "[state][print_outcome]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Initial state should be NONE
     auto initial = static_cast<PrintOutcome>(
@@ -1848,10 +1527,7 @@ TEST_CASE("PrinterState: set_print_outcome updates subject", "[state][print_outc
 
 TEST_CASE("PrinterState: toolhead.extruder updates active extruder subjects",
           "[state][temp][active-extruder]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Set up two extruders
     state.temperature_state().init_extruders({"extruder", "extruder1"});
@@ -1881,10 +1557,7 @@ TEST_CASE("PrinterState: toolhead.extruder updates active extruder subjects",
 
 TEST_CASE("PrinterState: toolhead.extruder with unknown name keeps previous active",
           "[state][temp][active-extruder]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.temperature_state().init_extruders({"extruder"});
 
@@ -1903,10 +1576,7 @@ TEST_CASE("PrinterState: toolhead.extruder with unknown name keeps previous acti
 
 TEST_CASE("PrinterState: get_active_extruder_*_subject returns valid subjects",
           "[state][temp][active-extruder]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Active extruder subjects should be valid (non-null)
     REQUIRE(state.temperature_state().get_active_extruder_temp_subject() != nullptr);
@@ -1919,10 +1589,7 @@ TEST_CASE("PrinterState: get_active_extruder_*_subject returns valid subjects",
 
 TEST_CASE("PrinterState::set_hardware propagates auto-detected chamber sensor name",
           "[state][hardware][chamber][regression]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     auto& settings = helix::SettingsManager::instance();
     settings.init_subjects();
@@ -1944,10 +1611,7 @@ TEST_CASE("PrinterState::set_hardware propagates auto-detected chamber sensor na
 TEST_CASE("PrinterState::set_hardware gives the chamber to its heater",
           "[state][hardware][chamber]") {
     SensorsForget forget;
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     auto& settings = helix::SettingsManager::instance();
     settings.init_subjects();
@@ -1968,10 +1632,7 @@ TEST_CASE("PrinterState::set_hardware gives the chamber to its heater",
 TEST_CASE("PrinterState::set_hardware respects 'none' override for chamber",
           "[state][hardware][chamber]") {
     SensorsForget forget;
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     auto& settings = helix::SettingsManager::instance();
     settings.init_subjects();
@@ -2026,10 +1687,7 @@ PrinterDiscovery discovered_objects(std::initializer_list<const char*> objects) 
 /// loaded and no discovery has landed yet.
 PrinterState& state_before_discovery(const char* heater_assignment,
                                      const char* sensor_assignment = "auto") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     auto& settings = helix::SettingsManager::instance();
     settings.init_subjects();
@@ -2539,11 +2197,7 @@ TEST_CASE("PrinterPrintState: update_from_status handles null print_stats fields
 }
 
 TEST_CASE("PrinterState tracks pause_resume.is_paused", "[printer-state][pause]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     SECTION("defaults to false before any status update") {
         REQUIRE_FALSE(state.is_paused());

@@ -110,6 +110,15 @@ budget() {
     contains "no committed work" "$output"
 }
 
+@test "with no upstream to fork from, the auto base refuses instead of passing" {
+    printf 'TEST_CASE("b") {\n    CHECK(2 == 2);\n}\n' > "$REPO/tests/unit/test_b.cpp"
+    commit_all "add a test"
+    git -C "$REPO" branch -qD main
+    run python3 "$GATE" --root "$REPO" --base auto
+    [ "$status" -eq 1 ]
+    contains "no fork point to measure from" "$output"
+}
+
 qc_budget() {
     run bash -c '
         STAGED_ONLY=false; QC_TMP="$(mktemp -d)"; QC_COUNTS="$QC_TMP/counts"

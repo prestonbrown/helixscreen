@@ -432,7 +432,7 @@ void PowerPanel::on_panel_deleted(lv_event_t* e) {
     // has already replaced is deleted asynchronously, so its event can land after
     // a later setup() installed the successor's pointers — clearing them then
     // would blank a live tree.
-    if (dying != self->panel_) {
+    if (!self->panel_.names_dying(dying)) {
         return;
     }
 

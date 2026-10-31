@@ -21,6 +21,7 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
@@ -236,7 +237,7 @@ struct OptimisticSidebarFixture : public XMLTestFixture {
 
     ~OptimisticSidebarFixture() override {
         sidebar_.reset();
-        if (panel_ && lv_obj_is_valid(panel_)) {
+        if (panel_ && helix::test::widget_in_tree(panel_)) {
             lv_obj_delete(panel_);
         }
         helix::ui::UpdateQueue::instance().drain();

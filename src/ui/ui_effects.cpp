@@ -77,14 +77,9 @@ void create_ripple(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, int start_size,
         lv_obj_set_style_bg_opa(static_cast<lv_obj_t*>(var), static_cast<lv_opa_t>(opa), 0);
     });
     lv_anim_set_completed_cb(&fade_anim, [](lv_anim_t* a) {
-        // Delete ripple object when animation completes
-        // Validate first — parent deletion may have already freed this widget
-        lv_obj_t* widget = static_cast<lv_obj_t*>(a->var);
-        if (widget && lv_obj_is_valid(widget)) {
-            // Defer deletion — this callback fires inside lv_timer_handler,
-            // and synchronous deletion corrupts LVGL's event linked list
-            lv_obj_delete_async(widget);
-        }
+        // Delete ripple object when animation completes. Deferred: this callback fires
+        // inside lv_timer_handler, and synchronous deletion corrupts LVGL's event linked list
+        lv_obj_delete_async(static_cast<lv_obj_t*>(a->var));
     });
     lv_anim_start(&fade_anim);
 }
@@ -133,13 +128,9 @@ void create_touch_marker(lv_obj_t* parent, lv_coord_t x, lv_coord_t y) {
         lv_obj_set_style_border_opa(o, static_cast<lv_opa_t>(opa), 0);
     });
     lv_anim_set_completed_cb(&fade, [](lv_anim_t* a) {
-        // Validate first — teardown may have already freed this widget. Defer the
-        // delete: this fires inside lv_timer_handler and a sync delete corrupts
-        // LVGL's event linked list.
-        lv_obj_t* w = static_cast<lv_obj_t*>(a->var);
-        if (w && lv_obj_is_valid(w)) {
-            lv_obj_delete_async(w);
-        }
+        // Defer the delete: this fires inside lv_timer_handler and a sync delete
+        // corrupts LVGL's event linked list.
+        lv_obj_delete_async(static_cast<lv_obj_t*>(a->var));
     });
     lv_anim_start(&fade);
 }
@@ -184,7 +175,7 @@ void flash_object(lv_obj_t* obj, int32_t duration_ms, bool force) {
 
 namespace {
 struct ChromeEntry {
-    lv_obj_t* obj;
+    WeakWidget obj;
     std::function<void()> raise; ///< empty: lv_obj_move_foreground(obj)
 };
 std::vector<ChromeEntry> s_always_on_top;
@@ -192,21 +183,21 @@ bool s_chrome_covered = false;
 
 auto find_chrome(const lv_obj_t* obj) {
     return std::find_if(s_always_on_top.begin(), s_always_on_top.end(),
-                        [obj](const ChromeEntry& e) { return e.obj == obj; });
+                        [obj](const ChromeEntry& e) { return e.obj.get() == obj; });
 }
 
 void raise_chrome_on(lv_obj_t* parent, const lv_obj_t* except) {
     // Copied: a raise callback may register or unregister chrome.
     const std::vector<ChromeEntry> entries = s_always_on_top;
     for (const ChromeEntry& e : entries) {
-        if (e.obj == except || !lv_obj_is_valid(e.obj) ||
-            (parent && lv_obj_get_parent(e.obj) != parent)) {
+        lv_obj_t* obj = e.obj;
+        if (!obj || obj == except || (parent && lv_obj_get_parent(obj) != parent)) {
             continue;
         }
         if (e.raise) {
             e.raise();
         } else {
-            lv_obj_move_foreground(e.obj);
+            lv_obj_move_foreground(obj);
         }
     }
 }
@@ -228,7 +219,7 @@ bool chrome_covered() {
 
 void add_always_on_top(lv_obj_t* obj, std::function<void()> raise) {
     if (obj && find_chrome(obj) == s_always_on_top.end()) {
-        s_always_on_top.push_back({obj, std::move(raise)});
+        s_always_on_top.push_back({WeakWidget(obj), std::move(raise)});
     }
 }
 
@@ -242,8 +233,8 @@ void remove_always_on_top(lv_obj_t* obj) {
 ScopedHideChrome::ScopedHideChrome() {
     for (const ChromeEntry& e : s_always_on_top) {
         lv_obj_t* obj = e.obj;
-        if (lv_obj_is_valid(obj) && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
-            hidden_.push_back(obj);
+        if (obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            hidden_.emplace_back(obj);
             lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
         }
     }
@@ -251,7 +242,7 @@ ScopedHideChrome::ScopedHideChrome() {
 
 ScopedHideChrome::~ScopedHideChrome() {
     for (lv_obj_t* obj : hidden_) {
-        if (lv_obj_is_valid(obj)) {
+        if (obj) {
             lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
         }
     }

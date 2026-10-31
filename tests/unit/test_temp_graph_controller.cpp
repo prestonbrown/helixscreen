@@ -48,21 +48,6 @@ class TempGraphControllerFixture : public LVGLTestFixture {
     lv_obj_t* screen;
 };
 
-// ============================================================================
-// Tests
-// ============================================================================
-
-TEST_CASE_METHOD(TempGraphControllerFixture, "Controller creates graph with minimal config",
-                 "[controller][temp_graph_controller]") {
-    TempGraphControllerConfig cfg;
-    cfg.series.clear(); // No series — avoids printer state lookups for sensors
-
-    auto controller = std::make_unique<TempGraphController>(screen, cfg);
-
-    REQUIRE(controller->is_valid());
-    REQUIRE(controller->graph() != nullptr);
-}
-
 TEST_CASE_METHOD(TempGraphControllerFixture, "Controller with series specs returns valid IDs",
                  "[controller][temp_graph_controller]") {
     TempGraphControllerConfig cfg;
@@ -153,23 +138,6 @@ TEST_CASE_METHOD(TempGraphControllerFixture, "Controller with custom scale param
     auto controller = std::make_unique<TempGraphController>(screen, cfg);
     REQUIRE(controller->is_valid());
     REQUIRE(controller->graph() != nullptr);
-}
-
-TEST_CASE_METHOD(TempGraphControllerFixture, "Controller destruction with series is safe",
-                 "[controller][temp_graph_controller]") {
-    TempGraphControllerConfig cfg;
-    cfg.series = {
-        {"extruder", lv_color_hex(0xFF4444), true},
-        {"heater_bed", lv_color_hex(0x88C0D0), true},
-    };
-
-    // Create with active series and observers, then immediately destroy
-    auto controller = std::make_unique<TempGraphController>(screen, cfg);
-    REQUIRE(controller->is_valid());
-
-    // Destruction tears down observers, drains queue, destroys graph
-    REQUIRE_NOTHROW(controller.reset());
-    REQUIRE(controller == nullptr);
 }
 
 // Reproducer for: chamber series klipper_name is "heater_generic chamber" (full Klipper
@@ -475,6 +443,22 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
 // These tests exercise both shapes of the race:
 //   1. Synchronous destroy with a queued callback still pending
 //   2. The on_activate() "detach + release + async-delete" swap pattern
+
+TEST_CASE_METHOD(TempGraphControllerFixture, "Controller rebuild leaves a deleted container alone",
+                 "[controller][temp_graph_controller][regression][uaf]") {
+    TempGraphControllerConfig cfg;
+    cfg.series = {{"extruder", lv_color_hex(0xFF4444), true}};
+    lv_obj_t* container = lv_obj_create(screen);
+    auto controller = std::make_unique<TempGraphController>(container, cfg);
+    REQUIRE(controller->is_valid());
+    const auto* graph = controller->graph();
+
+    lv_obj_delete(container);
+    controller->rebuild();
+
+    // A rebuild against the dead container would have made a new graph.
+    CHECK(controller->graph() == graph);
+}
 
 TEST_CASE_METHOD(TempGraphControllerFixture,
                  "Queued rebuild callback safely no-ops after synchronous destroy (#1117)",

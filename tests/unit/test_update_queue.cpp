@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/widget_in_tree.h"
 #include "lvgl_test_fixture.h"
 #include "observer_factory.h"
 #include "test_helpers/log_capture.h"
@@ -401,7 +402,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Widget-safe queue_update: valid widget execut
     auto data = std::make_unique<int>(42);
 
     helix::ui::queue_update<int>(widget, std::move(data), [&callback_fired](lv_obj_t* w, int* d) {
-        REQUIRE(lv_obj_is_valid(w));
+        REQUIRE(helix::test::widget_in_tree(w));
         REQUIRE(*d == 42);
         callback_fired = true;
     });
@@ -462,7 +463,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update: valid widget executes ca
     bool callback_fired = false;
 
     helix::ui::queue_widget_update(widget, [&callback_fired](lv_obj_t* w) {
-        REQUIRE(lv_obj_is_valid(w));
+        REQUIRE(helix::test::widget_in_tree(w));
         callback_fired = true;
     });
 

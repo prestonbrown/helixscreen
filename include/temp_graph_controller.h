@@ -20,6 +20,7 @@
 #include "ui_observer_guard.h"
 #include "ui_temp_graph.h"
 #include "ui_temp_graph_scaling.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 
@@ -304,7 +305,7 @@ class TempGraphController {
     void resolve_pending_series();
 
     TempGraphControllerConfig config_;
-    lv_obj_t* container_ = nullptr;
+    helix::ui::WidgetRef container_;
     ui_temp_graph_t* graph_ = nullptr;
 
     std::vector<SeriesState> series_;

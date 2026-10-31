@@ -22,6 +22,7 @@
 #include "ui_system_path_canvas.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -1482,7 +1483,7 @@ void AmsOverviewPanel::clear_panel_reference() {
 // Global Instance
 // ============================================================================
 
-static lv_obj_t* s_ams_overview_panel_obj = nullptr;
+static helix::ui::WidgetRef s_ams_overview_panel_obj;
 // Theme generation the cached tree was built under.
 static int s_ams_overview_theme_gen = 0;
 
@@ -1675,7 +1676,7 @@ void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_w
     host.parent_screen = parent_screen_;
     host.api = api_;
     host.log_tag = "[AmsOverview]";
-    host.path_canvas = [this] { return detail_path_canvas_; };
+    host.path_canvas = [this]() -> lv_obj_t* { return detail_path_canvas_; };
     host.sidebar = [this] { return sidebar_.get(); };
     helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget, click_pt);
 }

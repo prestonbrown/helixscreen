@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl.h"
 
 #include <cstdint>
@@ -71,10 +73,10 @@ namespace helix::ui {
 /// owning panel responsible for placing the box at the canvas-computed bypass
 /// coordinate. The canvas itself only draws the connecting lines.
 struct BypassSpoolWidgets {
-    lv_obj_t* box = nullptr;            ///< Card container with click target
-    lv_obj_t* spool_canvas = nullptr;   ///< The spool icon inside the box
-    lv_obj_t* bypass_label = nullptr;   ///< "Bypass" text below the box
-    lv_obj_t* material_label = nullptr; ///< Material name above the box (hidden if empty)
+    WeakWidget box;            ///< Card container with click target
+    WeakWidget spool_canvas;   ///< The spool icon inside the box
+    WeakWidget bypass_label;   ///< "Bypass" text below the box
+    WeakWidget material_label; ///< Material name above the box (hidden if empty)
 
     // Cached state for change-detection (avoids spurious invalidates on every
     // panel refresh). Not part of the public API surface — read via setters.

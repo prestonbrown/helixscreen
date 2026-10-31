@@ -39,6 +39,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "helix_callback.h"
 #include "lvgl/lvgl.h"
 #include "system/crash_handler.h"
@@ -741,61 +743,77 @@ inline void update_queue_shutdown() {
 // ============================================================================
 // Widget-safe overloads
 //
-// These wrap the base API with an lv_obj_is_valid() guard so async callbacks
-// that outlive their widget are silently dropped instead of crashing.
+// The callback runs only if the widget is still alive when it fires, so async
+// work that outlives its widget is silently dropped instead of crashing. Each
+// takes a WeakWidget from any thread, or a live lv_obj_t* on the LVGL thread: a
+// raw pointer is turned into a handle by hooking the widget, which off the LVGL
+// thread logs an error and drops the update (WeakWidget). A background thread
+// captures a handle made on the LVGL thread.
 // ============================================================================
 
 /**
  * @brief Queue a UI update with data and widget guard
  *
- * Same as queue_update<T> but validates the widget before invoking the callback.
  * If the widget has been destroyed by the time the callback executes, it is
  * silently skipped and the data is freed via RAII.
  *
  * @tparam T    Type of data to pass
  * @tparam F    Callback type: void(lv_obj_t*, T*)
- * @param widget Widget that must still be valid when callback fires
+ * @param widget Widget that must still be alive when callback fires
  * @param data   Data to pass to callback (moved into queue)
- * @param callback Function to execute with validated widget and data
+ * @param callback Function to execute with the live widget and data
  */
 template <typename T, typename F>
-void queue_update(lv_obj_t* widget, std::unique_ptr<T> data, F&& callback,
+void queue_update(const WeakWidget& widget, std::unique_ptr<T> data, F&& callback,
                   const char* file = __builtin_FILE(), int line = __builtin_LINE()) {
     queue_update(
         [widget, owned = std::move(data), cb = std::forward<F>(callback)]() mutable {
-            if (!lv_obj_is_valid(widget)) {
+            lv_obj_t* obj = widget.get();
+            if (!obj) {
                 spdlog::debug(
                     "[UpdateQueue] Widget-safe guard: widget destroyed, skipping callback");
                 return;
             }
-            cb(widget, owned.get());
+            cb(obj, owned.get());
         },
         file, line);
+}
+
+template <typename T, typename F>
+void queue_update(lv_obj_t* widget, std::unique_ptr<T> data, F&& callback,
+                  const char* file = __builtin_FILE(), int line = __builtin_LINE()) {
+    queue_update<T>(WeakWidget(widget), std::move(data), std::forward<F>(callback), file, line);
 }
 
 /**
  * @brief Queue a widget update with no extra data
  *
- * Convenience wrapper for updates that only need the widget pointer.
- * The callback is skipped if the widget is no longer valid.
+ * The callback is skipped if the widget is gone by then.
  *
  * @tparam F Callback type: void(lv_obj_t*)
- * @param widget Widget that must still be valid when callback fires
- * @param callback Function to execute with validated widget
+ * @param widget Widget that must still be alive when callback fires
+ * @param callback Function to execute with the live widget
  */
 template <typename F>
-void queue_widget_update(lv_obj_t* widget, F&& callback, const char* file = __builtin_FILE(),
-                         int line = __builtin_LINE()) {
+void queue_widget_update(const WeakWidget& widget, F&& callback,
+                         const char* file = __builtin_FILE(), int line = __builtin_LINE()) {
     queue_update(
         [widget, cb = std::forward<F>(callback)]() {
-            if (!lv_obj_is_valid(widget)) {
+            lv_obj_t* obj = widget.get();
+            if (!obj) {
                 spdlog::debug(
                     "[UpdateQueue] Widget-safe guard: widget destroyed, skipping callback");
                 return;
             }
-            cb(widget);
+            cb(obj);
         },
         file, line);
+}
+
+template <typename F>
+void queue_widget_update(lv_obj_t* widget, F&& callback, const char* file = __builtin_FILE(),
+                         int line = __builtin_LINE()) {
+    queue_widget_update(WeakWidget(widget), std::forward<F>(callback), file, line);
 }
 
 /**

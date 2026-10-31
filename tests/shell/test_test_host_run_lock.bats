@@ -327,6 +327,22 @@ FAKE
     grep -qE 'HELIX_JFLAG=-j[0-9]+ helix-test bash -lc make test \$HELIX_JFLAG' "$MOCK_DOCKER_LOG"
 }
 
+@test "test hands its arguments to helix-tests, in a run with no mirror" {
+    run "$SCRIPT" --commit test -# '[#test_x]'
+    [ "$status" -eq 0 ]
+    grep -qF './build/bin/helix-tests -# ' "$MOCK_DOCKER_LOG"
+    grep -qF 'test_x' "$MOCK_DOCKER_LOG"
+}
+
+@test "a quote in an argument survives the jobpool branch's quoting" {
+    fake_jobpool
+    export MOCK_MOUNTS="$BATS_TEST_TMPDIR/mnt /work"
+    run "$SCRIPT" --commit test "it's"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$MOCK_JOBPOOL_LOG")" = "jobpool exec" ]
+    grep -qF "helix-tests it\\'s" "$MOCK_DOCKER_LOG"
+}
+
 # The container half run for real: docker exec of the job exports its -e
 # variables and runs the bash -lc script here, against a make that prints what
 # it was given. container-env opens a real FIFO, so its mode decides whether

@@ -7,6 +7,7 @@
 #include "ui_observer_guard.h"
 #include "ui_timer_guard.h"
 #include "ui_virtual_list.h"
+#include "ui_widget_ref.h"
 
 #if defined(HELIX_PLATFORM_ESP32)
 #include "esp_psram_thumbnail.h"
@@ -298,12 +299,12 @@ class PrintSelectCardView : public ContainerDeleteNet {
 
   private:
     // === Widget References ===
-    lv_obj_t* container_ = nullptr;
+    helix::ui::WidgetRef container_;
     lv_obj_t* leading_spacer_ = nullptr;
     lv_obj_t* trailing_spacer_ = nullptr;
 
     // === Pool State ===
-    std::vector<lv_obj_t*> card_pool_;
+    std::vector<helix::ui::WeakWidget> card_pool_;
     std::vector<ssize_t> card_pool_indices_;
     std::vector<std::unique_ptr<CardWidgetData>> card_data_pool_;
     bool pool_initialized_ = false; ///< Gradient + theme observer set up

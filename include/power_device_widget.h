@@ -5,6 +5,7 @@
 
 #include "ui_context_menu.h"
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "panel_widget.h"
@@ -117,7 +118,7 @@ class PowerDeviceWidget : public TiledPanelWidget {
 
     // Sensor/energy page members
     std::string sensor_id_;
-    lv_obj_t* carousel_ = nullptr;
+    helix::ui::WidgetRef carousel_;
     lv_obj_t* energy_page_ = nullptr;
     lv_obj_t* energy_power_label_ = nullptr;
     lv_obj_t* energy_voltage_label_ = nullptr;

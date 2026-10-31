@@ -28,6 +28,7 @@
 #include <filesystem>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -102,6 +103,32 @@ lv_obj_flag_t flag_from_name(const std::string& name) {
  * panels reading a dead stack slot.
  */
 struct InventoryFixture : public XMLTestFixture {
+    struct Registered {
+        std::string name;
+        std::string file;
+        bool existed;
+    };
+    static std::vector<Registered>& registered() {
+        static std::vector<Registered> components;
+        return components;
+    }
+
+    /// A component bakes the tokens of the breakpoint it is registered at, and the
+    /// lazy loader skips a name that exists, so what this case registered must not
+    /// outlive it; a variant row's replacement goes back to the base file too.
+    struct RestoreComponents {
+        ~RestoreComponents() {
+            for (const Registered& r : registered()) {
+                if (r.existed) {
+                    lv_xml_register_component_from_file(r.file.c_str());
+                } else {
+                    lv_xml_component_unregister(r.name.c_str());
+                }
+            }
+            registered().clear();
+        }
+    };
+
     static std::map<std::string, lv_subject_t>& owned() {
         static std::map<std::string, lv_subject_t> subjects;
         return subjects;
@@ -147,14 +174,17 @@ struct InventoryFixture : public XMLTestFixture {
     /// own file just before building, which is what makes a variant row get the
     /// variant and a base row get the base.
     static void register_base_components() {
-        static bool done = false;
-        if (done)
+        if (!registered().empty())
             return;
-        done = true;
         for (const char* dir : {"ui_xml", "ui_xml/components"}) {
             for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".xml")
-                    lv_xml_register_component_from_file(("A:" + entry.path().string()).c_str());
+                if (entry.is_regular_file() && entry.path().extension() == ".xml") {
+                    const std::string name = entry.path().stem().string();
+                    const std::string file = "A:" + entry.path().string();
+                    registered().push_back(
+                        {name, file, lv_xml_component_find_scope(name.c_str()) != nullptr});
+                    lv_xml_register_component_from_file(file.c_str());
+                }
             }
         }
     }
@@ -203,6 +233,7 @@ void quiet_all(InventoryFixture& fx, const BindGroup& g) {
 // subject registry pointing at the inner one's destroyed PrinterState.
 TEST_CASE("every ui_xml widget with two bindings on one property composes them",
           "[ui][xml][bind_compose][inventory]") {
+    InventoryFixture::RestoreComponents restore;
     int checked = 0;
     int unreachable = 0;
     std::string unreachable_names;

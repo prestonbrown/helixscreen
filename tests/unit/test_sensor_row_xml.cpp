@@ -19,11 +19,14 @@
 
 namespace {
 
-constexpr const char* kSection = "rowtest";
+// No sensor manager or other test uses this section: an owner of the same
+// names withdraws them when it goes, and these are registered only once.
+constexpr const char* kSection = "rowxml";
 constexpr const char* kIndex = "0";
 
-/// Registers the fourteen row subjects for rowtest/0 once for the process: the XML
-/// subject registry never forgets a name, so the storage must outlive the test.
+/// Registers the fourteen row subjects for rowxml/0 once for the process: the XML
+/// subject registry keeps a name until its owner withdraws it, so the storage
+/// must outlive the test.
 struct RowSubjects {
     lv_subject_t name;
     lv_subject_t detail;

@@ -8,6 +8,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_state.h"
 #include "bed_drying_controller.h"
@@ -137,7 +138,7 @@ struct UnloadLaneSidebarFixture : public XMLTestFixture {
 
     ~UnloadLaneSidebarFixture() override {
         sidebar_.reset();
-        if (panel_ && lv_obj_is_valid(panel_)) {
+        if (panel_ && helix::test::widget_in_tree(panel_)) {
             lv_obj_delete(panel_);
         }
         helix::ui::UpdateQueue::instance().drain();

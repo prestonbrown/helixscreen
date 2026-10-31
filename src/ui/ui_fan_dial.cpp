@@ -132,8 +132,8 @@ FanDial::~FanDial() {
 }
 
 FanDial::FanDial(FanDial&& other) noexcept
-    : root_(other.root_), arc_(other.arc_), speed_label_(other.speed_label_),
-      fan_icon_(other.fan_icon_), onoff_switch_(other.onoff_switch_),
+    : root_(other.root_.get()), arc_(other.arc_.get()), speed_label_(other.speed_label_),
+      fan_icon_(other.fan_icon_.get()), onoff_switch_(other.onoff_switch_.get()),
       onoff_label_(other.onoff_label_), name_(std::move(other.name_)),
       fan_id_(std::move(other.fan_id_)), current_speed_(other.current_speed_),
       on_speed_changed_(std::move(other.on_speed_changed_)),
@@ -194,11 +194,11 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
         helix::ui::safe_delete(root_);
 
         // Move resources
-        root_ = other.root_;
-        arc_ = other.arc_;
+        root_ = other.root_.get();
+        arc_ = other.arc_.get();
         speed_label_ = other.speed_label_;
-        fan_icon_ = other.fan_icon_;
-        onoff_switch_ = other.onoff_switch_;
+        fan_icon_ = other.fan_icon_.get();
+        onoff_switch_ = other.onoff_switch_.get();
         onoff_label_ = other.onoff_label_;
         name_ = std::move(other.name_);
         fan_id_ = std::move(other.fan_id_);

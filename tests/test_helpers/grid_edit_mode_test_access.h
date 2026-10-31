@@ -41,9 +41,12 @@ struct GridEditModeTestAccess {
         return em.resize_outline_[0];
     }
 
+    static std::array<lv_obj_t*, 4> raw_bars(const std::array<helix::ui::WeakWidget, 4>& bars) {
+        return {bars[0].get(), bars[1].get(), bars[2].get(), bars[3].get()};
+    }
     /// All four bars of the resize outline.
     static std::array<lv_obj_t*, 4> resize_outline(const GridEditMode& em) {
-        return em.resize_outline_;
+        return raw_bars(em.resize_outline_);
     }
 
     /// Create the resize outline the way handle_resize_move() does. A full drag
@@ -156,7 +159,7 @@ struct GridEditModeTestAccess {
 
     /// All four bars of the snap preview.
     static std::array<lv_obj_t*, 4> snap_preview_bars(const GridEditMode& em) {
-        return em.snap_preview_;
+        return raw_bars(em.snap_preview_);
     }
 
     /// Lift the selected widget for a drag, and settle it back, as a drag's

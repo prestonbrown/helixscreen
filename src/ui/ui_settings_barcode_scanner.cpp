@@ -42,6 +42,11 @@ struct RowData {
 // ============================================================================
 
 BarcodeScannerSettingsOverlay::~BarcodeScannerSettingsOverlay() {
+    // An overlay destroyed while active never reaches on_deactivating(), and the static
+    // XML callbacks would then reach a freed instance.
+    if (s_active_instance_ == this) {
+        s_active_instance_ = nullptr;
+    }
     stop_bt_discovery();
 }
 

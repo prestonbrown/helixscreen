@@ -45,6 +45,7 @@
 #include "../test_helpers/scoped_config_write_counter.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "../test_helpers/scoped_widget_factory.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "config.h"
 #include "display_settings_manager.h"
@@ -875,14 +876,14 @@ class EditHomeFixture : public LVGLTestFixture {
         lv_obj_t* shield = GridEditModeTestAccess::shield(grid());
         REQUIRE(shield != nullptr);
         // Before anything reads it: a shield the session outlived is freed.
-        REQUIRE(lv_obj_is_valid(shield));
+        REQUIRE(helix::test::widget_in_tree(shield));
         CHECK(lv_obj_get_parent(shield) == container);
         lv_obj_t* selection_home =
             GridEditModeTestAccess::dragging(grid()) ? drag_layer() : container;
         for (lv_obj_t* obj :
              {grid().selected_widget(), GridEditModeTestAccess::selection_overlay(grid())}) {
             if (obj) {
-                REQUIRE(lv_obj_is_valid(obj));
+                REQUIRE(helix::test::widget_in_tree(obj));
                 CHECK(lv_obj_get_parent(obj) == selection_home);
             }
         }
@@ -1202,7 +1203,14 @@ TEST_CASE_METHOD(EditHomeFixture, "leaving edit mode re-enables the carousel swi
     REQUIRE(GridEditModeTestAccess::press_armed(grid()));
     REQUIRE_FALSE(scroll_live());
 
-    panel().exit_grid_edit_mode();
+    // Either exit must release the held gesture, not leave the swipe dead until
+    // the next edit session.
+    SECTION("Done") {
+        panel().exit_grid_edit_mode();
+    }
+    SECTION("deactivation") {
+        panel().on_deactivating(DeactivateReason::NavigateAway);
+    }
     REQUIRE_FALSE(HomePanelTestAccess::edit_mode_active(panel()));
     CHECK(scroll_live());
     CHECK(swipe_policy() == CarouselSwipe::Auto);
@@ -1654,7 +1662,7 @@ TEST_CASE_METHOD(EditHomeFixture, "leaving edit mode re-arms every page without 
     CHECK(widget_on(1, "fan") == far_widget);
     CHECK(is_clickable(widget));
     CHECK(is_clickable(far_widget));
-    CHECK_FALSE(lv_obj_is_valid(shield));
+    CHECK_FALSE(helix::test::widget_in_tree(shield));
     // Every page's widgets get to re-apply interactivity the restore overwrote.
     for (lv_obj_t* tile : {widget, far_widget}) {
         auto* stand_in = static_cast<StandInWidget*>(lv_obj_get_user_data(tile));
@@ -1834,7 +1842,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a multi-frame resize commits and tears down i
     const auto committed = config().page_entries(0)[0];
     CHECK(committed.rowspan == orig.rowspan + kCellTracks); // one cell taller
     CHECK(GridEditModeTestAccess::resize_preview(grid()) == nullptr);
-    CHECK_FALSE(lv_obj_is_valid(preview)); // nothing it drew is left
+    CHECK_FALSE(helix::test::widget_in_tree(preview)); // nothing it drew is left
     CHECK(GridEditModeTestAccess::snap_preview(grid()) == nullptr);
 
     // The resized tile keeps its tree: it moves to its new span, its widget
@@ -3019,25 +3027,6 @@ TEST_CASE_METHOD(EditHomeFixture,
     settle();
 }
 
-TEST_CASE_METHOD(EditHomeFixture, "a deactivation exit re-enables the carousel swipe",
-                 "[1638][edit-swipe][home][grid_edit]") {
-    build_home();
-    lv_obj_t* widget = widget_on(0, "temperature");
-    enter_edit_mode();
-
-    // A held gesture at the moment of deactivation: the exit below must release
-    // it, not leave the swipe dead until the next edit session.
-    const lv_point_t c = center_of(widget);
-    indev.grab(c.x, c.y);
-    REQUIRE(grid().selected_widget() == widget);
-    REQUIRE_FALSE(scroll_live());
-
-    panel().on_deactivating(DeactivateReason::NavigateAway);
-    REQUIRE_FALSE(HomePanelTestAccess::edit_mode_active(panel()));
-    CHECK(scroll_live());
-    CHECK(swipe_policy() == CarouselSwipe::Auto);
-}
-
 TEST_CASE_METHOD(EditHomeFixture, "a page flip during edit mode re-scopes the edited page",
                  "[1638][edit-swipe][home][grid_edit]") {
     build_home();
@@ -3247,7 +3236,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     // laid-out size.
     indev.release(carried.x, carried.y);
     settle();
-    REQUIRE(lv_obj_is_valid(widget));
+    REQUIRE(helix::test::widget_in_tree(widget));
     CHECK(lv_obj_get_parent(widget) == page(0));
     lv_obj_update_layout(widget);
     const lv_area_t landed = area_of(widget);
@@ -3361,29 +3350,6 @@ TEST_CASE_METHOD(EditHomeFixture, "a drop's page-creating intent ends with its g
     settle();
 
     CHECK(config().page_count() == 1);
-}
-
-TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode selects and does not grab",
-                 "[1638][edit-swipe][home][grid_edit]") {
-    build_home();
-    // It bubbles, so the hold on it reaches the grid handlers before a shield exists.
-    lv_obj_t* widget = widget_on(0, "temperature");
-
-    const lv_point_t c = center_of(widget);
-    indev.press(c.x, c.y);
-    // Its last read dispatches LONG_PRESSED: edit mode enters and selects the widget.
-    indev.hold(indev.long_press_hold_ms());
-    REQUIRE(HomePanelTestAccess::edit_mode_active(panel()));
-    REQUIRE(grid().selected_widget() == widget);
-
-    // The same finger stays down, then moves past the drag threshold across the
-    // swipe axis, where the carousel cannot take the gesture: nothing arms.
-    indev.move(c.x, c.y);
-    CHECK_FALSE(GridEditModeTestAccess::press_armed(grid()));
-    CHECK(scroll_live());
-    indev.move(c.x, c.y + past_drag_threshold());
-    CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
-    indev.release(c.x, c.y + past_drag_threshold());
 }
 
 TEST_CASE_METHOD(EditHomeFixture, "an edge long-press resize owns the gesture, not the swipe",
@@ -3681,9 +3647,11 @@ TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode only selects, 
                  "[1638][edit-swipe][home][grid_edit]") {
     build_home();
     lv_obj_t* widget = widget_on(0, "temperature");
-    // Past the long press the entry fires, and past the second one a reset
-    // press would reach on the shield.
-    const uint32_t hold_ms = 3 * indev.long_press_hold_ms();
+    // One long press is the read that enters edit mode; three reach past the
+    // second long press a reset press would deliver on the shield.
+    const uint32_t presses = GENERATE(1u, 3u);
+    CAPTURE(presses);
+    const uint32_t hold_ms = presses * indev.long_press_hold_ms();
 
     SECTION("on a widget") {
         const lv_point_t c = center_of(widget);
@@ -3691,6 +3659,10 @@ TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode only selects, 
         indev.hold(hold_ms);
         REQUIRE(HomePanelTestAccess::edit_mode_active(panel()));
         CHECK(grid().selected_widget() == widget);
+        // The same finger stays down: nothing arms, and the swipe stays live.
+        indev.move(c.x, c.y);
+        CHECK_FALSE(GridEditModeTestAccess::press_armed(grid()));
+        CHECK(scroll_live());
         // Moved across the swipe axis, where the carousel cannot take the gesture.
         indev.move(c.x, c.y + past_drag_threshold());
         CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
@@ -4577,27 +4549,56 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-// A page population and a carousel teardown both drain queued work under their
-// own frame. A drained callback that rebuilds the carousel must leave the panel
-// holding only the rebuilt carousel, with every page populated on it.
+// A page population drains queued work under its own frame. A drained callback
+// that builds or rebuilds the carousel must leave the panel holding only the new
+// carousel, with every page populated on it:
+//  - a full population draining a rebuild;
+//  - a population whose page only flips hardware gates (a partial path with a
+//    drain of its own) draining a rebuild;
+//  - a population draining finalize_setup()'s build, which has no teardown
+//    before it, so the outer population must still read as stale.
 TEST_CASE_METHOD(EditHomeFixture,
-                 "a carousel rebuilt by work a page population drains ends up populated",
+                 "a carousel built by work a page population drains ends up populated",
                  "[home][drain_reentrancy]") {
+    struct Row {
+        const char* what;
+        bool gate_flip;  // record page 0 as built with its first widget gated
+        bool full_build; // drain build_carousel() rather than rebuild_carousel()
+    };
+    const Row row = GENERATE(Row{"rebuild under a population", false, false},
+                             Row{"rebuild under a gate-flip population", true, false},
+                             Row{"build without teardown under a population", false, true});
+    INFO(row.what);
+
     build_home();
+    if (row.gate_flip) {
+        auto ids = HomePanelTestAccess::built_ids(panel(), 0);
+        REQUIRE_FALSE(ids.empty());
+        ids[0] += helix::kGatedIdSuffix;
+        HomePanelTestAccess::set_built_ids(panel(), 0, ids);
+    }
     bool ran = false;
-    helix::ui::UpdateQueue::instance().queue("test::rebuild_mid_populate", [this, &ran]() {
+    helix::ui::UpdateQueue::instance().queue("test::build_mid_populate", [this, &ran, row]() {
         ran = true;
-        HomePanelTestAccess::rebuild_carousel(panel(), 0);
+        if (row.full_build) {
+            HomePanelTestAccess::build_carousel(panel());
+        } else {
+            HomePanelTestAccess::rebuild_carousel(panel(), 0);
+        }
     });
 
-    HomePanelTestAccess::populate(panel());
+    if (row.gate_flip) {
+        HomePanelTestAccess::populate_unforced(panel());
+    } else {
+        HomePanelTestAccess::populate(panel());
+    }
     REQUIRE(ran);
     settle();
 
     REQUIRE(page_count() == 2);
     for (int i = 0; i < page_count(); ++i) {
         INFO("page " << i);
-        REQUIRE(lv_obj_is_valid(page(i)));
+        REQUIRE(helix::test::widget_in_tree(page(i)));
         CHECK(helix::ui::is_on_active_screen(page(i)));
     }
     CHECK(widget_on(0, "temperature") != nullptr);
@@ -4648,62 +4649,6 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK(log.count_containing("out of range") == 0);
     REQUIRE(page_count() == 1);
     CHECK(widget_on(0, "temperature") != nullptr);
-}
-
-// A page whose widget list only flips hardware gates takes a partial path with
-// a drain of its own. A rebuild run by that drain owns the pages afterwards.
-TEST_CASE_METHOD(EditHomeFixture,
-                 "a carousel rebuilt by work a gate-flip population drains ends up populated",
-                 "[home][drain_reentrancy]") {
-    build_home();
-    // The page records being built with its first widget gated, so the unforced
-    // population below sees a gate flip and nothing else.
-    auto ids = HomePanelTestAccess::built_ids(panel(), 0);
-    REQUIRE_FALSE(ids.empty());
-    ids[0] += helix::kGatedIdSuffix;
-    HomePanelTestAccess::set_built_ids(panel(), 0, ids);
-
-    bool ran = false;
-    helix::ui::UpdateQueue::instance().queue("test::rebuild_mid_gate_flip", [this, &ran]() {
-        ran = true;
-        HomePanelTestAccess::rebuild_carousel(panel(), 0);
-    });
-
-    HomePanelTestAccess::populate_unforced(panel());
-    REQUIRE(ran);
-    settle();
-
-    REQUIRE(page_count() == 2);
-    for (int i = 0; i < page_count(); ++i) {
-        INFO("page " << i);
-        REQUIRE(lv_obj_is_valid(page(i)));
-        CHECK(helix::ui::is_on_active_screen(page(i)));
-    }
-    CHECK(widget_on(0, "temperature") != nullptr);
-    CHECK(widget_on(1, "fan") != nullptr);
-}
-
-// A panel rebuild re-runs finalize_setup(), whose carousel build has no
-// teardown before it. Run by a page population's drain, it must still leave
-// the outer population stale, so the build's own pages get filled.
-TEST_CASE_METHOD(
-    EditHomeFixture,
-    "a carousel build without a teardown run by a page population drain ends up populated",
-    "[home][drain_reentrancy]") {
-    build_home();
-    bool ran = false;
-    helix::ui::UpdateQueue::instance().queue("test::build_mid_populate", [this, &ran]() {
-        ran = true;
-        HomePanelTestAccess::build_carousel(panel());
-    });
-
-    HomePanelTestAccess::populate(panel());
-    REQUIRE(ran);
-    settle();
-
-    REQUIRE(page_count() == 2);
-    CHECK(widget_on(0, "temperature") != nullptr);
-    CHECK(widget_on(1, "fan") != nullptr);
 }
 
 // A page that cannot be re-seated in place is populated instead, with a drain of
@@ -4780,6 +4725,19 @@ TEST_CASE_METHOD(EditHomeFixture, "a hold on a widget's drag surface does not en
     }
 }
 
+TEST_CASE_METHOD(EditHomeFixture, "a hold on a fan arc's ring does not enter edit mode",
+                 "[home][drag_surface][fan]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    lv_obj_t* arc = fill_child(widget, lv_arc_create(widget));
+    // The arc's knob track runs around its edge; press on the ring.
+    const lv_point_t ring{center_of(arc).x, area_of(arc).y1 + 4};
+    indev.press(ring.x, ring.y);
+    indev.hold(indev.long_press_hold_ms());
+    CHECK_FALSE(HomePanelTestAccess::edit_mode_active(panel()));
+    indev.release(ring.x, ring.y);
+}
+
 TEST_CASE_METHOD(EditHomeFixture, "a horizontal drag on a drag surface leaves the page in place",
                  "[home][drag_surface]") {
     build_home();
@@ -4806,22 +4764,6 @@ TEST_CASE_METHOD(EditHomeFixture, "a horizontal drag on a drag surface leaves th
     CHECK(current_page() == 0);
     CHECK(lv_obj_get_scroll_x(scroller()) == 0);
     CHECK_FALSE(HomePanelTestAccess::edit_mode_active(panel()));
-}
-
-TEST_CASE_METHOD(EditHomeFixture, "a hold on a fan arc still does not enter edit mode",
-                 "[home][drag_surface][fan]") {
-    build_home();
-    lv_obj_t* widget = widget_on(0, "temperature");
-    lv_obj_t* arc = fill_child(widget, lv_arc_create(widget));
-
-    const lv_point_t c = center_of(arc);
-    // The arc's knob track runs around its edge; press on the ring.
-    const lv_area_t a = area_of(arc);
-    const lv_point_t ring{c.x, a.y1 + 4};
-    indev.press(ring.x, ring.y);
-    indev.hold(indev.long_press_hold_ms());
-    CHECK_FALSE(HomePanelTestAccess::edit_mode_active(panel()));
-    indev.release(ring.x, ring.y);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "mark_drag_surface sets the flag and the input flags it needs",

@@ -331,7 +331,7 @@ class NetworkSettingsOverlay : public OverlayBase {
     static void on_country_language_changed(lv_event_t* e);
     // Removes the dropdown's language handler, whose user_data is this object.
     void detach_country_dropdown();
-    lv_obj_t* country_dropdown_ = nullptr;
+    helix::ui::WidgetRef country_dropdown_;
     std::string country_button_text_;
     bool country_hint_5ghz_ = false;           // 5 GHz radio left in the world domain
     std::optional<std::string> radio_country_; // country the radio runs under, once read

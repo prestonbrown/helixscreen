@@ -26,6 +26,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
+#include <set>
 #include <sys/stat.h>
 
 #include "../catch_amalgamated.hpp"
@@ -70,38 +72,25 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolInfo: default construction", "[tool][too
     REQUIRE(info.backend_slot == -1);
 }
 
-TEST_CASE_METHOD(ToolStateFixture, "ToolInfo: default backend mapping is unassigned",
+TEST_CASE_METHOD(ToolStateFixture,
+                 "ToolInfo: effective_heater is the heater, else the extruder, else \"extruder\"",
                  "[tool][tool-state]") {
-    ToolInfo info;
-    REQUIRE(info.backend_index == -1);
-    REQUIRE(info.backend_slot == -1);
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolInfo: effective_heater prefers heater_name",
-                 "[tool][tool-state]") {
-    ToolInfo info;
-    info.heater_name = "heater_generic chamber";
-    info.extruder_name = "extruder1";
-
-    REQUIRE(info.effective_heater() == "heater_generic chamber");
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolInfo: effective_heater falls back to extruder_name",
-                 "[tool][tool-state]") {
-    ToolInfo info;
-    info.extruder_name = "extruder1";
-    // heater_name not set
-
-    REQUIRE(info.effective_heater() == "extruder1");
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolInfo: effective_heater fallback when nothing set",
-                 "[tool][tool-state]") {
-    ToolInfo info;
-    info.extruder_name = std::nullopt;
-    info.heater_name = std::nullopt;
-
-    REQUIRE(info.effective_heater() == "extruder");
+    struct Row {
+        std::optional<std::string> heater, extruder;
+        const char* want;
+    };
+    const Row rows[] = {
+        {"heater_generic chamber", "extruder1", "heater_generic chamber"},
+        {std::nullopt, "extruder1", "extruder1"},
+        {std::nullopt, std::nullopt, "extruder"},
+    };
+    for (const auto& row : rows) {
+        INFO(row.want);
+        ToolInfo info;
+        info.heater_name = row.heater;
+        info.extruder_name = row.extruder;
+        CHECK(info.effective_heater() == row.want);
+    }
 }
 
 // ============================================================================
@@ -492,206 +481,84 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: detect_state parsed from status",
     ts.deinit_subjects();
 }
 
-// ============================================================================
-// toolhead.extruder cross-check tests
-// ============================================================================
-
-TEST_CASE_METHOD(ToolStateFixture,
-                 "ToolState: toolhead.extruder updates active tool for multi-extruder",
+TEST_CASE_METHOD(ToolStateFixture, "ToolState: toolhead.extruder names the active tool",
                  "[tool][tool-state][active-extruder]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array(
+    using nlohmann::json;
+    const json changer = json::array(
         {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
+    struct Row {
+        const char* name;
+        json objects;
+        json status;
+        int active;
+    };
+    const Row rows[] = {
+        {"an extruder mapped to T1", changer, {{"toolhead", {{"extruder", "extruder1"}}}}, 1},
+        // toolhead.extruder is read after toolchanger.tool_number, so it wins;
+        // Klipper keeps the two consistent in practice.
+        {"read after toolchanger.tool_number",
+         changer,
+         {{"toolchanger", {{"tool_number", 0}}}, {"toolhead", {{"extruder", "extruder1"}}}},
+         1},
+        {"an extruder no tool owns",
+         changer,
+         {{"toolhead", {{"extruder", "extruder_unknown"}}}},
+         0},
+        {"the implicit single tool",
+         json::array({"extruder", "heater_bed", "fan", "gcode_move"}),
+         {{"toolhead", {{"extruder", "extruder"}}}},
+         0},
+    };
+    lv_init_safe();
+    ToolState& ts = ToolState::instance();
+    for (const auto& row : rows) {
+        INFO(row.name);
+        ts.deinit_subjects();
+        ts.init_subjects(false);
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(row.objects);
+        ts.init_tools(hw);
+        REQUIRE(ts.active_tool_index() == 0);
 
-    // Initially active tool is T0
-    REQUIRE(ts.active_tool_index() == 0);
-
-    // Send toolhead.extruder pointing to extruder1 (mapped to T1)
-    nlohmann::json status = {{"toolhead", {{"extruder", "extruder1"}}}};
-    ts.update_from_status(status);
-
-    REQUIRE(ts.active_tool_index() == 1);
-    REQUIRE(lv_subject_get_int(ts.get_active_tool_subject()) == 1);
-
+        ts.update_from_status(row.status);
+        CHECK(ts.active_tool_index() == row.active);
+        CHECK(lv_subject_get_int(ts.get_active_tool_subject()) == row.active);
+    }
     ts.deinit_subjects();
 }
 
 TEST_CASE_METHOD(ToolStateFixture,
-                 "ToolState: toolchanger tool_number takes priority over toolhead.extruder",
-                 "[tool][tool-state][active-extruder]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array(
-        {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    // Both toolchanger.tool_number=0 and toolhead.extruder="extruder1" present
-    // toolchanger block sets to 0 first, then toolhead.extruder would set to 1
-    // Since toolchanger is parsed first and sets active_tool_index_=0,
-    // and toolhead.extruder sees extruder1 -> tool 1 != 0, it updates to 1.
-    // But that's actually fine — in practice Klipper keeps these consistent.
-    // This test verifies both code paths execute without error.
-    nlohmann::json status = {{"toolchanger", {{"tool_number", 0}}},
-                             {"toolhead", {{"extruder", "extruder1"}}}};
-    ts.update_from_status(status);
-
-    // The toolhead.extruder runs after toolchanger, so extruder1 -> T1 wins
-    REQUIRE(ts.active_tool_index() == 1);
-
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: toolhead.extruder with no matching tool is ignored",
-                 "[tool][tool-state][active-extruder]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array(
-        {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    REQUIRE(ts.active_tool_index() == 0);
-
-    // Send toolhead.extruder with name that doesn't map to any tool
-    nlohmann::json status = {{"toolhead", {{"extruder", "extruder_unknown"}}}};
-    ts.update_from_status(status);
-
-    // Should remain unchanged
-    REQUIRE(ts.active_tool_index() == 0);
-
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: toolhead.extruder works for implicit single tool",
-                 "[tool][tool-state][active-extruder]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    // No toolchanger — single implicit tool
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array({"extruder", "heater_bed", "fan", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    REQUIRE(ts.tool_count() == 1);
-    REQUIRE(ts.active_tool_index() == 0);
-
-    // toolhead.extruder="extruder" matches T0's extruder_name — no change expected
-    nlohmann::json status = {{"toolhead", {{"extruder", "extruder"}}}};
-    ts.update_from_status(status);
-
-    REQUIRE(ts.active_tool_index() == 0);
-
-    ts.deinit_subjects();
-}
-
-// ============================================================================
-// Multi-extruder (no toolchanger) tests
-// ============================================================================
-
-TEST_CASE_METHOD(ToolStateFixture,
-                 "ToolState: multi-extruder without toolchanger creates multiple tools",
+                 "ToolState: without a toolchanger each extruder is a tool, T0 taking the fan",
                  "[tool][tool-state][multi-extruder]") {
+    const std::vector<std::vector<std::string>> extruder_sets = {
+        {"extruder"}, {"extruder", "extruder1"}, {"extruder", "extruder1", "extruder2"}};
     lv_init_safe();
-
     ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
+    for (const auto& extruders : extruder_sets) {
+        INFO(extruders.size() << " extruder(s)");
+        ts.deinit_subjects();
+        ts.init_subjects(false);
+        nlohmann::json objects = nlohmann::json::array({"heater_bed", "fan", "gcode_move"});
+        for (const auto& e : extruders)
+            objects.push_back(e);
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(objects);
+        ts.init_tools(hw);
 
-    // Two extruders, no toolchanger object
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects =
-        nlohmann::json::array({"extruder", "extruder1", "heater_bed", "fan", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    REQUIRE(ts.tool_count() == 2);
-    REQUIRE(ts.is_multi_tool() == true);
-    REQUIRE(lv_subject_get_int(ts.get_tool_count_subject()) == 2);
-
-    const auto& tools = ts.tools();
-    REQUIRE(tools[0].name == "T0");
-    REQUIRE(tools[0].extruder_name.value() == "extruder");
-    REQUIRE(tools[0].active == true);
-    REQUIRE(tools[0].fan_name.value() == "fan");
-
-    REQUIRE(tools[1].name == "T1");
-    REQUIRE(tools[1].extruder_name.value() == "extruder1");
-    REQUIRE(tools[1].active == false);
-    REQUIRE_FALSE(tools[1].fan_name.has_value());
-
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture,
-                 "ToolState: single extruder without toolchanger still creates 1 tool",
-                 "[tool][tool-state][multi-extruder]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array({"extruder", "heater_bed", "fan", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    REQUIRE(ts.tool_count() == 1);
-    REQUIRE(ts.is_multi_tool() == false);
-
-    const auto& tools = ts.tools();
-    REQUIRE(tools[0].name == "T0");
-    REQUIRE(tools[0].extruder_name.value() == "extruder");
-    REQUIRE(tools[0].fan_name.value() == "fan");
-
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: three extruders without toolchanger",
-                 "[tool][tool-state][multi-extruder]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array(
-        {"extruder", "extruder1", "extruder2", "heater_bed", "fan", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    REQUIRE(ts.tool_count() == 3);
-    REQUIRE(ts.is_multi_tool() == true);
-
-    REQUIRE(ts.tools()[0].extruder_name.value() == "extruder");
-    REQUIRE(ts.tools()[1].extruder_name.value() == "extruder1");
-    REQUIRE(ts.tools()[2].extruder_name.value() == "extruder2");
-    REQUIRE(ts.tools()[2].name == "T2");
-
+        const int n = static_cast<int>(extruders.size());
+        REQUIRE(ts.tool_count() == n);
+        CHECK(ts.is_multi_tool() == (n > 1));
+        CHECK(lv_subject_get_int(ts.get_tool_count_subject()) == n);
+        for (int i = 0; i < n; ++i) {
+            const auto& tool = ts.tools()[static_cast<size_t>(i)];
+            INFO("T" << i);
+            CHECK(tool.name == "T" + std::to_string(i));
+            CHECK(tool.extruder_name.value() == extruders[static_cast<size_t>(i)]);
+            CHECK(tool.active == (i == 0));
+            CHECK(tool.fan_name.has_value() == (i == 0));
+        }
+        CHECK(ts.tools()[0].fan_name.value() == "fan");
+    }
     ts.deinit_subjects();
 }
 
@@ -722,80 +589,48 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: multi-extruder tracks active via 
     ts.deinit_subjects();
 }
 
-// ============================================================================
-// request_tool_change tests
-// ============================================================================
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: request_tool_change with invalid index calls error",
-                 "[tool][tool-state][tool-change]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects =
-        nlohmann::json::array({"extruder", "extruder1", "heater_bed", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    bool error_called = false;
-    ts.request_tool_change(5, nullptr, nullptr, [&](const std::string& msg) {
-        error_called = true;
-        REQUIRE(msg.find("Invalid") != std::string::npos);
-    });
-
-    REQUIRE(error_called);
-
-    ts.deinit_subjects();
-}
-
 TEST_CASE_METHOD(ToolStateFixture,
-                 "ToolState: request_tool_change for already-active tool calls success",
+                 "ToolState: request_tool_change answers without the printer when it can",
                  "[tool][tool-state][tool-change]") {
+    using nlohmann::json;
+    const json two_extruders = json::array({"extruder", "extruder1", "heater_bed", "gcode_move"});
+    const json changer = json::array(
+        {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed", "gcode_move"});
+    struct Row {
+        const char* name;
+        json objects;
+        int tool;
+        const char* error; // substring of the error; nullptr = success
+    };
+    const Row rows[] = {
+        {"a tool past the end", two_extruders, 5, "Invalid"},
+        {"a negative tool", changer, -1, "Invalid"},
+        {"the tool already active", two_extruders, 0, nullptr},
+        {"another tool with no API", two_extruders, 1, "No API"},
+    };
     lv_init_safe();
-
     ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
+    for (const auto& row : rows) {
+        INFO(row.name);
+        ts.deinit_subjects();
+        ts.init_subjects(false);
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(row.objects);
+        ts.init_tools(hw);
 
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects =
-        nlohmann::json::array({"extruder", "extruder1", "heater_bed", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    bool success_called = false;
-    ts.request_tool_change(0, nullptr, [&]() { success_called = true; }, nullptr);
-
-    REQUIRE(success_called);
-
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: request_tool_change with no API calls error",
-                 "[tool][tool-state][tool-change]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects =
-        nlohmann::json::array({"extruder", "extruder1", "heater_bed", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    bool error_called = false;
-    ts.request_tool_change(1, nullptr, nullptr, [&](const std::string& msg) {
-        error_called = true;
-        REQUIRE(msg.find("No API") != std::string::npos);
-    });
-
-    REQUIRE(error_called);
-
+        bool succeeded = false;
+        std::optional<std::string> error;
+        ts.request_tool_change(
+            row.tool, nullptr, [&] { succeeded = true; },
+            [&](const std::string& msg) { error = msg; });
+        CHECK(succeeded == (row.error == nullptr));
+        if (row.error) {
+            REQUIRE(error.has_value());
+            CHECK(error->find(row.error) != std::string::npos);
+        } else {
+            CHECK_FALSE(error.has_value());
+        }
+    }
     ts.deinit_subjects();
 }
 
@@ -903,31 +738,6 @@ TEST_CASE_METHOD(
     CHECK(error_called);
 
     AmsState::instance().deinit_subjects();
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: request_tool_change with negative tool index",
-                 "[tool][tool-state][tool-change][toolchanger]") {
-    lv_init_safe();
-
-    ToolState& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    helix::PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array(
-        {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed", "gcode_move"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    bool error_called = false;
-    ts.request_tool_change(-1, nullptr, nullptr, [&](const std::string& msg) {
-        error_called = true;
-        CHECK(msg.find("Invalid") != std::string::npos);
-    });
-
-    CHECK(error_called);
-
     ts.deinit_subjects();
 }
 
@@ -1427,117 +1237,50 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: weight fields omitted from JSON w
 }
 
 // ============================================================================
-// assigned_spool_ids tests
+// assigned_spool_ids
 // ============================================================================
 
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: assigned_spool_ids returns all assigned IDs",
+TEST_CASE_METHOD(ToolStateFixture,
+                 "ToolState: assigned_spool_ids lists the tools' spools, less an excluded tool",
                  "[tool][tool-state][spool]") {
+    struct Row {
+        const char* name;
+        std::vector<int> spools; // spool id per tool, 0 = unassigned
+        int cleared;             // tool cleared after assigning, -1 = none
+        std::optional<int> exclude;
+        std::set<int> want;
+    };
+    const Row rows[] = {
+        {"T2 unassigned", {10, 20, 0}, -1, std::nullopt, {10, 20}},
+        {"T1 excluded", {10, 20, 30}, -1, 1, {10, 30}},
+        {"nothing assigned", {0}, -1, std::nullopt, {}},
+        {"T0 cleared", {10, 20}, 0, std::nullopt, {20}},
+    };
     lv_init_safe();
     auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
+    for (const auto& row : rows) {
+        INFO(row.name);
+        ts.deinit_subjects();
+        ts.init_subjects(false);
+        nlohmann::json objects = nlohmann::json::array({"heater_bed"});
+        for (size_t i = 0; i < row.spools.size(); ++i)
+            objects.push_back(i == 0 ? std::string("extruder") : "extruder" + std::to_string(i));
+        PrinterDiscovery hw;
+        hw.parse_objects(objects);
+        ts.init_tools(hw);
+        REQUIRE(ts.tool_count() == static_cast<int>(row.spools.size()));
 
-    PrinterDiscovery hw;
-    nlohmann::json objects =
-        nlohmann::json::array({"extruder", "extruder1", "extruder2", "heater_bed"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-    REQUIRE(ts.tool_count() == 3);
+        for (size_t i = 0; i < row.spools.size(); ++i)
+            if (row.spools[i] != 0)
+                ts.assign_spool(static_cast<int>(i), row.spools[i], "Spool");
+        if (row.cleared >= 0)
+            ts.clear_spool(row.cleared);
 
-    ts.assign_spool(0, 10, "Spool A");
-    ts.assign_spool(1, 20, "Spool B");
-    // T2 unassigned
-
-    auto ids = ts.assigned_spool_ids();
-    REQUIRE(ids.size() == 2);
-    REQUIRE(ids.count(10) == 1);
-    REQUIRE(ids.count(20) == 1);
-
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: assigned_spool_ids excludes specified tool",
-                 "[tool][tool-state][spool]") {
-    lv_init_safe();
-    auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    PrinterDiscovery hw;
-    nlohmann::json objects =
-        nlohmann::json::array({"extruder", "extruder1", "extruder2", "heater_bed"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    ts.assign_spool(0, 10, "Spool A");
-    ts.assign_spool(1, 20, "Spool B");
-    ts.assign_spool(2, 30, "Spool C");
-
-    // Exclude tool 1 — should not include spool 20
-    auto ids = ts.assigned_spool_ids(1);
-    REQUIRE(ids.size() == 2);
-    REQUIRE(ids.count(10) == 1);
-    REQUIRE(ids.count(30) == 1);
-    REQUIRE(ids.count(20) == 0);
-
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: assigned_spool_ids empty when no spools assigned",
-                 "[tool][tool-state][spool]") {
-    lv_init_safe();
-    auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array({"extruder", "heater_bed"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    auto ids = ts.assigned_spool_ids();
-    REQUIRE(ids.empty());
-
-    ts.deinit_subjects();
-}
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: assigned_spool_ids skips cleared spools",
-                 "[tool][tool-state][spool]") {
-    lv_init_safe();
-    auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    PrinterDiscovery hw;
-    nlohmann::json objects = nlohmann::json::array({"extruder", "extruder1", "heater_bed"});
-    hw.parse_objects(objects);
-    ts.init_tools(hw);
-
-    ts.assign_spool(0, 10, "Spool A");
-    ts.assign_spool(1, 20, "Spool B");
-    ts.clear_spool(0);
-
-    auto ids = ts.assigned_spool_ids();
-    REQUIRE(ids.size() == 1);
-    REQUIRE(ids.count(20) == 1);
-    REQUIRE(ids.count(10) == 0);
-
-    ts.deinit_subjects();
-}
-
-// ============================================================================
-// spool_assignments_loaded flag tests
-// ============================================================================
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: spool_assignments_loaded initially false",
-                 "[tool][tool-state][spool]") {
-    lv_init_safe();
-    auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
-    REQUIRE_FALSE(ts.spool_assignments_loaded());
-
+        const auto ids =
+            row.exclude ? ts.assigned_spool_ids(*row.exclude) : ts.assigned_spool_ids();
+        CHECK(std::set<int>(ids.begin(), ids.end()) == row.want);
+        CHECK(ids.size() == row.want.size());
+    }
     ts.deinit_subjects();
 }
 

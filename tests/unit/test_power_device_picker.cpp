@@ -17,6 +17,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/power_device_widget_test_access.h"
 #include "../test_helpers/press_wash_probe.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "device_display_name.h"
 #include "moonraker_types.h"
 #include "power_device_state.h"
@@ -145,7 +146,7 @@ TEST_CASE_METHOD(PowerPickerFixture,
     // behind dies on LVGL's async pass without reaching back into it.
     CHECK(ContextMenu::active() == nullptr);
     process_lvgl(50);
-    CHECK_FALSE(lv_obj_is_valid(backdrop));
+    CHECK_FALSE(helix::test::widget_in_tree(backdrop));
 }
 
 TEST_CASE_METHOD(PowerPickerFixture,
@@ -179,13 +180,13 @@ TEST_CASE_METHOD(PowerPickerFixture,
     // Reopen inside one async tick: the first card's deferred delete lands while
     // the second is already on screen.
     Access::hide_picker(*widget);
-    REQUIRE(lv_obj_is_valid(first));
+    REQUIRE(helix::test::widget_in_tree(first));
     Access::show_picker(*widget);
     REQUIRE(Access::picker_visible(*widget));
 
     process_lvgl(50);
 
-    CHECK_FALSE(lv_obj_is_valid(first));
+    CHECK_FALSE(helix::test::widget_in_tree(first));
     CHECK(Access::picker_visible(*widget));
     CHECK(ContextMenu::active() == Access::picker(*widget));
     widget.reset();

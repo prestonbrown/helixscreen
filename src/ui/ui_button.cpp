@@ -8,6 +8,7 @@
 #include "ui_text.h"
 #include "ui_update_queue.h"
 #include "ui_variant.h"
+#include "ui_widget_ref.h"
 
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_expr.h"
@@ -33,17 +34,10 @@ namespace {
 // NOTE: Magic number required because Modal::wire_button overwrites user_data
 // with a Modal* pointer. Without this check, button_delete_cb would try to
 // delete a Modal* as if it were UiButtonData*, causing a crash on shutdown.
-//
-// `id` is a per-button unique value captured when a deferred contrast recompute
-// is queued and re-verified when it fires. lv_obj_is_valid() + magic only prove
-// the address is *a* live ui_button; under heap address reuse a freed button's
-// address can be reallocated to a *different* live ui_button before the deferred
-// tick, passing both checks. The id catches that foreign-button case (#924).
 struct UiButtonData {
     static constexpr uint32_t kMagic = 0x42544E31; // "BTN1"
     uint32_t magic{kMagic};
 
-    uint64_t id{0};     // Defer-time identity token (see note above, #924)
     lv_obj_t* icon;     // Icon widget (or nullptr if none)
     lv_obj_t* label;    // Label widget (always present)
     bool icon_on_right; // true if icon is after text
@@ -118,23 +112,11 @@ void bind_part_hidden(lv_xml_parser_state_t* state, lv_obj_t* btn, const char* s
                   static_cast<int>(ref_val));
 }
 
-// Monotonic source of per-button identity tokens. Buttons are created on the
-// main thread, so a plain non-atomic counter is sufficient.
-uint64_t next_button_id() {
-    static uint64_t n = 1;
-    return n++;
-}
-
-// Set of addresses that are currently one of OUR live ui_buttons. A deferred
-// contrast recompute captures a raw lv_obj_t*; by the time it fires the button
-// may have been freed and its address reused. lv_obj_is_valid() only proves the
-// address is *some* live object — it can be a foreign widget whose user_data is
-// a small non-pointer sentinel (e.g. 0x2), and dereferencing that as a
-// UiButtonData* crashes (#1111). Membership here is the missing precondition:
-// only if btn is still a tracked ui_button is its user_data guaranteed to be a
-// real UiButtonData safe to dereference. Function-local static (not namespace
-// scope) to avoid static-init-order issues; main-thread only (create, delete,
-// and queue drain all run on the UI thread), so no locking is needed.
+// The widgets that are currently one of OUR live ui_buttons. A button's user_data is
+// only known to be a real UiButtonData while it is listed here, whatever the magic
+// field would read. Function-local static (not namespace scope) to avoid
+// static-init-order issues; main-thread only (create and delete run on the UI thread),
+// so no locking is needed.
 std::unordered_set<const lv_obj_t*>& live_ui_buttons() {
     static std::unordered_set<const lv_obj_t*> s;
     return s;
@@ -402,39 +384,25 @@ void update_button_text_contrast(lv_obj_t* btn) {
     }
 }
 
-struct PendingContrast {
-    lv_obj_t* btn;
-    uint64_t gen; // the button's identity token when the update was queued
-};
-
-std::vector<PendingContrast>& pending_contrast() {
-    static std::vector<PendingContrast> pending;
+std::vector<helix::ui::WeakWidget>& pending_contrast() {
+    static std::vector<helix::ui::WeakWidget> pending;
     return pending;
 }
 
-// Apply the queued contrast updates, each only to a button that is still the one
-// it was queued for. The button may be freed and its address reused in between.
-// Two independent hazards:
-//   1. Reused by a foreign (non-ui_button) widget whose user_data is a small
-//      non-pointer sentinel (e.g. 0x2). lv_obj_is_valid() passes (a live object
-//      occupies the address) and !d passes, so dereferencing d->magic faults at
-//      the sentinel address (#1111). Guard: reject btn unless it is still one of
-//      our tracked live ui_buttons — only then is user_data a real UiButtonData.
-//   2. Reused by a *different* ui_button. It passes the registry + magic checks,
-//      so re-verify the per-button identity token captured at defer time (#924).
+// Apply the queued contrast updates to the buttons still alive.
 void drain_pending_contrast() {
-    std::vector<PendingContrast> batch;
+    std::vector<helix::ui::WeakWidget> batch;
     batch.swap(pending_contrast());
-    for (const PendingContrast& p : batch) {
-        if (!live_ui_buttons().count(p.btn))
+    for (lv_obj_t* btn : batch) {
+        if (!btn)
             continue;
-        UiButtonData* d = static_cast<UiButtonData*>(lv_obj_get_user_data(p.btn));
-        if (!d || d->magic != UiButtonData::kMagic || d->id != p.gen)
+        UiButtonData* d = static_cast<UiButtonData*>(lv_obj_get_user_data(btn));
+        if (!d || d->magic != UiButtonData::kMagic)
             continue;
-        update_button_text_contrast(p.btn);
+        update_button_text_contrast(btn);
         // A style bound after create (bind_style, bind_style_if) can bring a
         // content minimum to a column button.
-        fit_column_min_width(p.btn, d);
+        fit_column_min_width(btn, d);
     }
 }
 
@@ -451,7 +419,7 @@ void defer_button_contrast_update(lv_obj_t* btn) {
     UiButtonData* data = static_cast<UiButtonData*>(lv_obj_get_user_data(btn));
     if (!data || data->magic != UiButtonData::kMagic)
         return;
-    pending_contrast().push_back({btn, data->id});
+    pending_contrast().emplace_back(btn);
 
     if (lv_display_t* disp = lv_obj_get_display(btn)) {
         bool hooked = false;
@@ -571,8 +539,6 @@ void part_resized_cb(lv_event_t* e) {
  */
 void button_delete_cb(lv_event_t* e) {
     lv_obj_t* btn = lv_event_get_target_obj(e);
-    // Stop tracking this address before it is freed and possibly reused, so a
-    // pending deferred contrast update rejects the stale pointer (#1111).
     live_ui_buttons().erase(btn);
     UiButtonData* data = static_cast<UiButtonData*>(lv_obj_get_user_data(btn));
     // Only delete if magic matches - user_data may have been overwritten
@@ -750,7 +716,6 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
 
     // Allocate user data to track icon/label
     UiButtonData* data = new UiButtonData{.magic = UiButtonData::kMagic,
-                                          .id = next_button_id(),
                                           .icon = nullptr,
                                           .label = nullptr,
                                           .icon_on_right = icon_on_right,

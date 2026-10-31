@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "touch_calibration_controller.h"
 #include "touch_calibration_layout.h"
 #include "touch_calibration_panel.h"
@@ -138,7 +140,7 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     friend class WizardTouchCalibrationTestAccess;
 
     lv_obj_t* screen_root_ = nullptr;
-    lv_obj_t* crosshair_ = nullptr;           // Reparented to screen for absolute positioning
+    helix::ui::WidgetRef crosshair_;          // Reparented to screen for absolute positioning
     lv_obj_t* test_area_container_ = nullptr; // Container for test area (shown in COMPLETE state)
     lv_obj_t* test_touch_area_ = nullptr;     // Touch area for testing calibration
     /// Panel, session, sink resolution, capture, retry and commit. Shared with the

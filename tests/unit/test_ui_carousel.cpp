@@ -11,6 +11,7 @@
 #include "ui_carousel.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 
 #include <vector>
 
@@ -663,7 +664,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item on non-carousel is safe",
 
     ui_carousel_remove_item(plain, 0);
     REQUIRE(foreign.real_tiles.size() == 1);
-    REQUIRE(lv_obj_is_valid(tile));
+    REQUIRE(helix::test::widget_in_tree(tile));
 
     lv_obj_set_user_data(plain, nullptr);
 }

@@ -593,58 +593,38 @@ TEST_CASE("AD5X IFS printer.ifs tool_map makes remap ready", "[ams][ad5x_ifs]") 
     REQUIRE(old_module.get_tool_mapping().empty());
 }
 
-TEST_CASE("AD5X IFS get_tool_mapping translates 1-based wire lanes to 0-based slots",
-          "[ams][ad5x_ifs]") {
-    // The AmsBackend contract is 0-based slot indices in both directions,
-    // while the wire speaks 1-based lanes. An off-by-one here aims T0 at the
-    // wrong lane on real hardware.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::handle_status(backend,
-                                     make_ifs_frame(json{{"0", 4}, {"1", 1}, {"2", 3}, {"3", 2}}));
-
-    REQUIRE(backend.get_tool_mapping() == std::vector<int>{3, 0, 2, 1});
-}
-
-TEST_CASE("AD5X IFS get_tool_mapping drops the trailing unmapped tools", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
-
-    auto mapping = backend.get_tool_mapping();
-    REQUIRE(mapping.size() == 4);
-    REQUIRE(mapping == std::vector<int>{0, 1, 2, 3});
-
-    // The addressable register itself is untouched — only the advertised
-    // topology shrinks, so the 16-wide system_info view still reports every
-    // T-number.
-    REQUIRE(backend.get_system_info().tool_to_slot_map.size() == 16);
-}
-
-TEST_CASE("AD5X IFS get_tool_mapping keeps a mid-range hole", "[ams][ad5x_ifs]") {
-    // tool_to_slot[i] is indexed BY tool number, so a lane this backend cannot
-    // address (a wider module publishing lane 6) stays a -1 hole rather than
-    // collapsing T2 down into its place.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::handle_status(backend,
-                                     make_ifs_frame(json{{"0", 1}, {"1", 6}, {"2", 3}, {"3", 4}}));
-
-    REQUIRE(backend.get_tool_mapping() == std::vector<int>{0, -1, 2, 3});
-}
-
-TEST_CASE("AD5X IFS tool_map replaces wholesale and ignores keys that name no tool",
-          "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
-
-    // JSON object keys are strings whatever Python held; a non-numeric key or
-    // one past the addressable register cannot name a tool, and the frame is
-    // the COMPLETE table — absent entries unmap.
-    Ad5xIfsTestAccess::handle_status(backend,
-                                     make_ifs_frame(json{{"0", 2}, {"not-a-tool", 3}, {"16", 1}}));
-    REQUIRE(backend.get_tool_mapping() == std::vector<int>{1});
+// The AmsBackend contract is 0-based slot indices indexed BY tool number, while
+// the wire speaks 1-based lanes: an off-by-one aims T0 at the wrong lane. A lane
+// this backend cannot address stays a -1 hole, trailing unmapped tools drop off,
+// and each tool_map frame is the COMPLETE table: absent entries unmap, and a key
+// that names no tool (non-numeric, past the 16-wide register) is ignored.
+TEST_CASE("AD5X IFS get_tool_mapping translates the wire tool_map", "[ams][ad5x_ifs]") {
+    struct Row {
+        const char* name;
+        json tool_map;
+        std::vector<int> expected;
+    };
+    const Row rows[] = {
+        {"1-based lanes become 0-based slots",
+         json{{"0", 4}, {"1", 1}, {"2", 3}, {"3", 2}},
+         {3, 0, 2, 1}},
+        {"trailing unmapped tools drop off", identity_tool_map(), {0, 1, 2, 3}},
+        {"an unaddressable lane stays a hole",
+         json{{"0", 1}, {"1", 6}, {"2", 3}, {"3", 4}},
+         {0, -1, 2, 3}},
+        {"keys that name no tool are ignored", json{{"0", 2}, {"not-a-tool", 3}, {"16", 1}}, {1}},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+            AmsBackendAd5xIfs& backend = *backend_reg;
+            Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+            Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(r.tool_map));
+            CHECK(backend.get_tool_mapping() == r.expected);
+            // Only the advertised topology shrinks; the 16-wide register stays
+            CHECK(backend.get_system_info().tool_to_slot_map.size() == 16);
+        }
+    }
 }
 
 TEST_CASE("AD5X IFS set_tool_mapping emits IFS_MAP_TOOL", "[ams][ad5x_ifs]") {
@@ -1308,51 +1288,42 @@ TEST_CASE("AD5X IFS motion during PURGING resets the timeout clock (#1065 Bug 2)
 // so these stay fast and untagged (L052).
 // ==========================================================================
 
-TEST_CASE("AD5X IFS indeterminate: a stalled progress feed trips the flag (#1065 row 14)",
+TEST_CASE("AD5X IFS indeterminate: a stalled progress feed trips the flag until progress or "
+          "completion (#1065 row 14)",
           "[ams][ad5x_ifs][1065]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
     Ad5xIfsTestAccess::set_head_filament(backend, false);
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/false); // load -> HEATING
-
-    // One healthy heat frame — flag stays clear while progress is fresh.
     Ad5xIfsTestAccess::handle_status(backend, make_extruder(150.0, 230.0));
     REQUIRE_FALSE(Ad5xIfsTestAccess::operation_indeterminate(backend));
 
-    // Feed starves: no progress signal for 10s (> 8s threshold).
-    Ad5xIfsTestAccess::set_progress_age(backend, std::chrono::seconds(10));
-    Ad5xIfsTestAccess::run_action_timeout(backend);
-
-    REQUIRE(Ad5xIfsTestAccess::operation_indeterminate(backend));
-    // Still HEATING — this is the busy mitigation, NOT the coarse ERROR timeout
-    // (HEATING's 300s ERROR budget is untouched; only the progress clock aged).
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
-
-    // The UI-facing view carries the flag too.
-    REQUIRE(backend.get_system_info().operation_indeterminate);
-}
-
-TEST_CASE("AD5X IFS indeterminate: a fresh progress signal clears the flag (#1065 row 14)",
-          "[ams][ad5x_ifs][1065]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, false);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/false);
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(150.0, 230.0));
-
-    // Just under threshold — does not fire.
+    // Just under threshold - does not fire.
     Ad5xIfsTestAccess::set_progress_age(backend, std::chrono::seconds(7));
     Ad5xIfsTestAccess::run_action_timeout(backend);
     REQUIRE_FALSE(Ad5xIfsTestAccess::operation_indeterminate(backend));
 
-    // Past threshold — fires.
+    // Feed starves past the 8s threshold.
     Ad5xIfsTestAccess::set_progress_age(backend, std::chrono::seconds(10));
     Ad5xIfsTestAccess::run_action_timeout(backend);
     REQUIRE(Ad5xIfsTestAccess::operation_indeterminate(backend));
+    // Still HEATING: this is the busy mitigation, not the coarse ERROR timeout
+    // (HEATING's 300s ERROR budget is untouched; only the progress clock aged).
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_system_info().operation_indeterminate);
 
-    // A temp-VALUE change is a genuine progress signal → clears immediately.
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(180.0, 230.0));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::operation_indeterminate(backend));
+    SECTION("a temp-VALUE change is progress and clears it") {
+        Ad5xIfsTestAccess::handle_status(backend, make_extruder(180.0, 230.0));
+        CHECK_FALSE(Ad5xIfsTestAccess::operation_indeterminate(backend));
+    }
+
+    SECTION("completing the operation clears it") {
+        Ad5xIfsTestAccess::finalize_op_after_macro(backend, /*is_unload=*/false);
+        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        // get_system_info() re-runs the detector; with no active op the flag is off.
+        CHECK_FALSE(backend.get_system_info().operation_indeterminate);
+        CHECK_FALSE(Ad5xIfsTestAccess::operation_indeterminate(backend));
+    }
 }
 
 // The sidebar's stall watchdog (ui_ams_sidebar) drives the detector by calling
@@ -1412,27 +1383,6 @@ TEST_CASE("AD5X IFS indeterminate: healthy heat never false-fires; frozen value 
         Ad5xIfsTestAccess::handle_status(backend, make_extruder(150.0, 230.0));
         REQUIRE(Ad5xIfsTestAccess::operation_indeterminate(backend));
     }
-}
-
-TEST_CASE("AD5X IFS indeterminate: flag clears when the operation completes (#1065 row 14)",
-          "[ams][ad5x_ifs][1065]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, false);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/false);
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(150.0, 230.0));
-
-    Ad5xIfsTestAccess::set_progress_age(backend, std::chrono::seconds(10));
-    Ad5xIfsTestAccess::run_action_timeout(backend);
-    REQUIRE(Ad5xIfsTestAccess::operation_indeterminate(backend));
-
-    // Operation completes on the macro's gcode ack → IDLE, phase tracker cleared.
-    Ad5xIfsTestAccess::finalize_op_after_macro(backend, /*is_unload=*/false);
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
-
-    // get_system_info() re-runs the detector; with no active op the flag is off.
-    REQUIRE_FALSE(backend.get_system_info().operation_indeterminate);
-    REQUIRE_FALSE(Ad5xIfsTestAccess::operation_indeterminate(backend));
 }
 
 // ==========================================================================
@@ -1910,81 +1860,52 @@ static AmsBackendAd5xIfs::ZColorSilentResult make_zcolor(std::optional<int> extr
     return r;
 }
 
-TEST_CASE("AD5X IFS phase: zcolor quick-finish unload (head drop seen)", "[ams][ad5x_ifs][phase]") {
-    // After the unload physically progresses past the cut (head drop), a fresh
-    // GET_ZCOLOR with no extruder slot is the early terminal signal — finalize
-    // to IDLE within ~1s instead of waiting out the 90s timeout backstop.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
-
-    Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
-
-    // zcolor confirms the toolhead is now empty → IDLE, no timeout call.
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, make_zcolor(std::nullopt, /*saw_valid=*/true));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
-    REQUIRE(Ad5xIfsTestAccess::operation_detail(backend).empty());
-    REQUIRE_FALSE(Ad5xIfsTestAccess::phase_active(backend));
-}
-
-TEST_CASE("AD5X IFS phase: zcolor does NOT finalize before head transition",
+// A fresh GET_ZCOLOR is the early terminal signal for a tracked op, finalizing
+// to IDLE within a second instead of waiting out the 90s backstop, but only once
+// the op has physically progressed past its head transition (the post-dispatch
+// query fires before the cut) and only on a valid read.
+TEST_CASE("AD5X IFS phase: GET_ZCOLOR quick-finishes an op only after its head transition",
           "[ams][ad5x_ifs][phase]") {
-    // The early post-dispatch query (unload_filament schedules one immediately)
-    // must NOT finalize before the op physically progresses past the cut. With
-    // no head drop seen, progressed==false → stay in CUTTING.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
+    struct Row {
+        const char* name;
+        bool unload;
+        bool head_transition;
+        std::optional<int> extruder_slot;
+        bool valid;
+        AmsAction expected;
+    };
+    const Row rows[] = {
+        {"unload after the head drop", true, true, std::nullopt, true, AmsAction::IDLE},
+        {"unload before the head drop", true, false, std::nullopt, true, AmsAction::CUTTING},
+        {"load after the head rise", false, true, 0, true, AmsAction::IDLE},
+        {"an invalid read after the head drop", true, true, std::nullopt, false,
+         AmsAction::UNLOADING},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+            AmsBackendAd5xIfs& backend = *backend_reg;
+            Ad5xIfsTestAccess::set_head_filament(backend, r.unload);
+            Ad5xIfsTestAccess::begin_phase(backend, r.unload);
+            Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
+            REQUIRE(Ad5xIfsTestAccess::action(backend) ==
+                    (r.unload ? AmsAction::CUTTING : AmsAction::LOADING));
+            if (r.head_transition) {
+                Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(!r.unload));
+                REQUIRE(Ad5xIfsTestAccess::action(backend) ==
+                        (r.unload ? AmsAction::UNLOADING : AmsAction::PURGING));
+            }
 
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+            Ad5xIfsTestAccess::apply_zcolor_result(backend, make_zcolor(r.extruder_slot, r.valid));
 
-    // zcolor with empty extruder, but no head drop yet → must NOT finalize.
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, make_zcolor(std::nullopt, /*saw_valid=*/true));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
-    REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
-}
-
-TEST_CASE("AD5X IFS phase: zcolor quick-finish load (head rise seen)", "[ams][ad5x_ifs][phase]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, false);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/false);
-
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
-
-    Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(true));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::PURGING);
-
-    // zcolor confirms slot 0 (port 1) now seated in the extruder → IDLE.
-    Ad5xIfsTestAccess::apply_zcolor_result(backend,
-                                           make_zcolor(std::optional<int>(0), /*saw_valid=*/true));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
-    REQUIRE_FALSE(Ad5xIfsTestAccess::phase_active(backend));
-}
-
-TEST_CASE("AD5X IFS phase: zcolor invalid response does not finalize", "[ams][ad5x_ifs][phase]") {
-    // A junk read (saw_valid_response=false) must never finalize the op — even
-    // after a head transition. apply_zcolor_result early-returns on it.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
-    Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
-
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, make_zcolor(std::nullopt, /*saw_valid=*/false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
-    REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
+            CHECK(Ad5xIfsTestAccess::action(backend) == r.expected);
+            const bool finished = r.expected == AmsAction::IDLE;
+            CHECK(Ad5xIfsTestAccess::phase_active(backend) == !finished);
+            if (finished) {
+                CHECK(Ad5xIfsTestAccess::operation_detail(backend).empty());
+            }
+        }
+    }
 }
 
 TEST_CASE("AD5X IFS phase: inactive tracker preserves legacy snap-to-IDLE",
@@ -4255,7 +4176,7 @@ TEST_CASE("AD5X IFS phase: head drop during unload advances past HEATING (no hea
     REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
 }
 
-TEST_CASE("AD5X IFS apply_zcolor_result updates port_presence", "[ams][ad5x_ifs]") {
+TEST_CASE("AD5X IFS apply_zcolor_result writes presence, colour and material", "[ams][ad5x_ifs]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
 
@@ -4263,16 +4184,19 @@ TEST_CASE("AD5X IFS apply_zcolor_result updates port_presence", "[ams][ad5x_ifs]
     r.saw_valid_response = true;
     r.ifs_active = true;
     r.current_channel = 1;
-    r.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "FFFFFF"};
-    r.slots[1] = AmsBackendAd5xIfs::ZColorSlot{"PETG", "2750E0"};
-    // slots 2 and 3 left empty — should clear any existing presence
+    r.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PETG", "00FF00"};
+    r.slots[1] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "2750E0"};
+    // slots 2 and 3 left empty: they read as not present
 
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 1));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 2));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 3));
+    CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
+    CHECK(Ad5xIfsTestAccess::port_presence(backend, 1));
+    CHECK_FALSE(Ad5xIfsTestAccess::port_presence(backend, 2));
+    CHECK_FALSE(Ad5xIfsTestAccess::port_presence(backend, 3));
+    // build_colors/build_types are the comma-separated _IFS_VARS payloads
+    CHECK(Ad5xIfsTestAccess::build_colors(backend).find("00FF00") != std::string::npos);
+    CHECK(Ad5xIfsTestAccess::build_types(backend).find("PETG") != std::string::npos);
 }
 
 TEST_CASE("AD5X IFS apply_zcolor_result skips on prompt fallback", "[ams][ad5x_ifs]") {
@@ -4290,48 +4214,43 @@ TEST_CASE("AD5X IFS apply_zcolor_result skips on prompt fallback", "[ams][ad5x_i
     REQUIRE_FALSE(Ad5xIfsTestAccess::zcolor_silent_supported(backend));
 }
 
-TEST_CASE("AD5X IFS apply_zcolor_result skips when response has no valid content",
+// A response that carries nothing usable leaves what the slot already holds: a
+// transient one with no slot or summary line keeps presence, a dirty slot (an
+// unsaved user edit) keeps its colour, and an old-format zmod response (slot
+// lines without /HEX) updates presence but keeps the colour.
+TEST_CASE("AD5X IFS apply_zcolor_result does not overwrite with what a response lacks",
           "[ams][ad5x_ifs]") {
-    // Regression: a transient/malformed response with zero slot lines and no
-    // summary line must NOT wipe port_presence. Pre-fix, an empty ZColorSilentResult
-    // would clear all four slots to "not loaded".
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // Seed presence so we can detect an erroneous wipe.
     AmsBackendAd5xIfs::ZColorSilentResult seed;
     seed.saw_valid_response = true;
-    seed.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "FFFFFF"};
+    seed.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "FF0000"};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, seed);
     REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
+    REQUIRE(Ad5xIfsTestAccess::build_colors(backend).find("FF0000") != std::string::npos);
 
-    // Empty (junk response) — saw_valid_response stays false.
-    AmsBackendAd5xIfs::ZColorSilentResult empty;
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, empty);
-
-    // Slot 0 must still be present — we didn't get valid data, don't overwrite.
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
-}
-
-TEST_CASE("AD5X IFS apply_zcolor_result updates colors and materials", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    AmsBackendAd5xIfs::ZColorSilentResult r;
-    r.saw_valid_response = true;
-    r.ifs_active = true;
-    r.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PETG", "00FF00"};
-
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
-
-    // Color and material should be propagated.
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
-    // build_colors returns the comma-separated list used for _IFS_VARS writes;
-    // indirect but the only public window into colors_[] without friend access.
-    auto colors = Ad5xIfsTestAccess::build_colors(backend);
-    auto types = Ad5xIfsTestAccess::build_types(backend);
-    REQUIRE(colors.find("00FF00") != std::string::npos);
-    REQUIRE(types.find("PETG") != std::string::npos);
+    SECTION("a response with no valid content") {
+        Ad5xIfsTestAccess::apply_zcolor_result(backend, AmsBackendAd5xIfs::ZColorSilentResult{});
+        CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
+    }
+    SECTION("a dirty slot") {
+        Ad5xIfsTestAccess::set_dirty(backend, 0, true);
+        AmsBackendAd5xIfs::ZColorSilentResult incoming;
+        incoming.saw_valid_response = true;
+        incoming.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "0000FF"};
+        Ad5xIfsTestAccess::apply_zcolor_result(backend, incoming);
+        CHECK(Ad5xIfsTestAccess::build_colors(backend).find("FF0000") != std::string::npos);
+        CHECK(Ad5xIfsTestAccess::build_colors(backend).find("0000FF") == std::string::npos);
+    }
+    SECTION("an old-format response with no hex") {
+        AmsBackendAd5xIfs::ZColorSilentResult old_fmt;
+        old_fmt.saw_valid_response = true;
+        old_fmt.is_old_format = true;
+        old_fmt.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", ""};
+        Ad5xIfsTestAccess::apply_zcolor_result(backend, old_fmt);
+        CHECK(Ad5xIfsTestAccess::build_colors(backend).find("FF0000") != std::string::npos);
+        CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
+    }
 }
 
 // raza616 v0.99.50 report: "HelixScreen seems to be unaware of which IFS lane
@@ -4434,56 +4353,6 @@ TEST_CASE("AD5X IFS apply_zcolor_result leaves active_tool alone when has_ifs_va
     // active_tool defaulted to -1 and was not updated — lessWaste's save_variables
     // path retains exclusive ownership.
     REQUIRE(Ad5xIfsTestAccess::active_tool(backend) == -1);
-}
-
-TEST_CASE("AD5X IFS apply_zcolor_result skips color write on dirty slot", "[ams][ad5x_ifs]") {
-    // Dirty slot means an unsaved user edit is pending — we must NOT overwrite
-    // the local color with zmod's view, or we'd clobber the user's edit.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // Seed slot 0 with a color we want preserved.
-    AmsBackendAd5xIfs::ZColorSilentResult seed;
-    seed.saw_valid_response = true;
-    seed.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "FF0000"};
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, seed);
-    REQUIRE(Ad5xIfsTestAccess::build_colors(backend).find("FF0000") != std::string::npos);
-
-    // Mark dirty, then apply a result that would change color.
-    Ad5xIfsTestAccess::set_dirty(backend, 0, true);
-    AmsBackendAd5xIfs::ZColorSilentResult incoming;
-    incoming.saw_valid_response = true;
-    incoming.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "0000FF"};
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, incoming);
-
-    // Color must still be FF0000 — dirty-slot guard held.
-    REQUIRE(Ad5xIfsTestAccess::build_colors(backend).find("FF0000") != std::string::npos);
-    REQUIRE(Ad5xIfsTestAccess::build_colors(backend).find("0000FF") == std::string::npos);
-}
-
-TEST_CASE("AD5X IFS apply_zcolor_result old-format preserves colors", "[ams][ad5x_ifs]") {
-    // Pre-ad2802ab zmod: slot lines carry no /HEX. Presence should still
-    // update, but existing colors must NOT be overwritten with empty strings.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    AmsBackendAd5xIfs::ZColorSilentResult seed;
-    seed.saw_valid_response = true;
-    seed.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "FFAA00"};
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, seed);
-    REQUIRE(Ad5xIfsTestAccess::build_colors(backend).find("FFAA00") != std::string::npos);
-
-    AmsBackendAd5xIfs::ZColorSilentResult old_fmt;
-    old_fmt.saw_valid_response = true;
-    old_fmt.is_old_format = true;
-    // slot present but material only, no hex
-    old_fmt.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", ""};
-    Ad5xIfsTestAccess::apply_zcolor_result(backend, old_fmt);
-
-    // Color preserved from JSON-seeded state.
-    REQUIRE(Ad5xIfsTestAccess::build_colors(backend).find("FFAA00") != std::string::npos);
-    // Presence still reflects what the old-format response said.
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
 }
 
 // ==========================================================================
@@ -4619,36 +4488,14 @@ TEST_CASE("AD5X IFS applies override brand over Adventurer5M.json data",
     REQUIRE(info.remaining_weight_g == 750.0f);
 }
 
-TEST_CASE("AD5X IFS preserves firmware color when no override present",
-          "[ams][ad5x_ifs][filament_slot_override]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // No overrides seeded — firmware data must flow through unchanged.
-    std::string content = R"({
-        "FFMInfo": {
-            "ffmColor1": "#FF5500",
-            "ffmType1": "PLA"
-        }
-    })";
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, content);
-
-    auto info = backend.get_slot_info(0);
-    REQUIRE(info.color_rgb == 0xFF5500u);
-    REQUIRE(info.material == "PLA");
-    // Default-valued fields on SlotInfo.
-    REQUIRE(info.brand.empty());
-    REQUIRE(info.spool_name.empty());
-    REQUIRE(info.spoolman_id == 0);
-}
-
 TEST_CASE("AD5X IFS partial override only replaces specified fields",
           "[ams][ad5x_ifs][filament_slot_override]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
 
     // Seed an override that only sets brand. Every other field must fall
-    // through to the firmware-reported value (or SlotInfo default).
+    // through to the firmware-reported value (or SlotInfo default), the same
+    // as a slot with no override at all.
     helix::ams::FilamentSlotOverride ovr;
     ovr.brand = "Polymaker";
     Ad5xIfsTestAccess::seed_override(backend, 0, ovr);
@@ -4662,12 +4509,15 @@ TEST_CASE("AD5X IFS partial override only replaces specified fields",
     Ad5xIfsTestAccess::parse_adventurer_json(backend, content);
 
     auto info = backend.get_slot_info(0);
-    REQUIRE(info.brand == "Polymaker");        // override wins
-    REQUIRE(info.color_rgb == 0xFF5500u);      // firmware untouched
-    REQUIRE(info.material == "PLA");           // firmware untouched
-    REQUIRE(info.spool_name.empty());          // default
-    REQUIRE(info.spoolman_id == 0);            // default
-    REQUIRE(info.remaining_weight_g == -1.0f); // default
+    REQUIRE(info.brand == "Polymaker");   // override wins
+    REQUIRE(info.color_rgb == 0xFF5500u); // firmware untouched
+    REQUIRE(info.material == "PLA");      // firmware untouched
+    REQUIRE(info.spool_name.empty());     // default
+    REQUIRE(info.spoolman_id == 0);       // default
+    // The override's own defaults are the "unset" sentinels (color_set false,
+    // weights -1), so none of them replaces a firmware or SlotInfo value.
+    REQUIRE(info.remaining_weight_g == -1.0f);
+    REQUIRE(info.total_weight_g == -1.0f);
 }
 
 TEST_CASE("AD5X IFS override applies to multiple slots independently",
@@ -4755,53 +4605,6 @@ TEST_CASE("AD5X IFS override re-applied on every parse",
     auto second = backend.get_slot_info(0);
     REQUIRE(second.brand == "Polymaker");
     REQUIRE(second.material == "ABS");
-}
-
-TEST_CASE("AD5X IFS override zero color_rgb does not replace firmware color",
-          "[ams][ad5x_ifs][filament_slot_override]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // color_rgb=0 is the "no override" sentinel — must not clobber firmware.
-    helix::ams::FilamentSlotOverride ovr;
-    ovr.brand = "TestBrand";
-    ovr.color_rgb = 0;
-    Ad5xIfsTestAccess::seed_override(backend, 0, ovr);
-
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, R"({
-        "FFMInfo": {"ffmColor1": "#AA55FF", "ffmType1": "PLA"}
-    })");
-
-    auto info = backend.get_slot_info(0);
-    REQUIRE(info.brand == "TestBrand");
-    REQUIRE(info.color_rgb == 0xAA55FFu); // unchanged
-}
-
-TEST_CASE("AD5X IFS override negative weights do not replace firmware values",
-          "[ams][ad5x_ifs][filament_slot_override]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // Seed an override with -1.0 weights (the "unknown" sentinel) — must not
-    // overwrite whatever weights the firmware / SlotInfo default holds.
-    helix::ams::FilamentSlotOverride ovr;
-    ovr.brand = "WeightTest";
-    ovr.remaining_weight_g = -1.0f;
-    ovr.total_weight_g = -1.0f;
-    Ad5xIfsTestAccess::seed_override(backend, 0, ovr);
-
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, R"({
-        "FFMInfo": {"ffmColor1": "#FF0000", "ffmType1": "PLA"}
-    })");
-
-    auto info = backend.get_slot_info(0);
-    REQUIRE(info.brand == "WeightTest");
-    // Firmware doesn't populate weights at all — they should remain at the
-    // SlotInfo default (-1), not at zero. This verifies apply_overrides did
-    // NOT write the -1 sentinel over the default (which would be a no-op
-    // today but guards against a future default change).
-    REQUIRE(info.remaining_weight_g == -1.0f);
-    REQUIRE(info.total_weight_g == -1.0f);
 }
 
 TEST_CASE("AD5X IFS apply_user_edit takes effect when no override present",
@@ -6483,51 +6286,51 @@ TEST_CASE("AD5X IFS clear_slot_override rejects out-of-range indices",
     CHECK(backend.get_slot_info(0).brand.empty());
 }
 
-// ==========================================================================
-// Listener self-feedback regression (v0.99.51 GET_ZCOLOR spam loop)
-// ==========================================================================
-//
-// zmod's GET_ZCOLOR macro body echoes RUN_ZCOLOR/CHANGE_ZCOLOR tokens through
-// notify_gcode_response while our query is still in flight. Pre-fix, the
-// listener treated those echoes as external state-change triggers and called
-// schedule_zcolor_query() again, looping at ~2-4 Hz on the gcode console.
-// The fix: when zcolor_query_active_ is set, buffer the line and return
-// without re-arming a query.
-
-TEST_CASE("AD5X IFS listener buffers RUN_ZCOLOR during in-flight query (no re-arm)",
+// Which console lines re-read the slots. With our own GET_ZCOLOR in flight,
+// zmod echoes RUN_ZCOLOR/CHANGE_ZCOLOR tokens and its response rows: every line
+// is buffered and nothing re-arms, or the listener loops on its own echo. With
+// no query in flight, a RUN_ZCOLOR/CHANGE_ZCOLOR token, or zmod's bare,
+// non-localized `Extruder: <N>` channel-commit line from _SET_EXTRUDER_SLOT
+// (an unload through zmod's own macro carries no colour token), schedules one
+// re-read. The bare form is strict: SILENT responses and prompts carry an
+// " | IFS:" suffix, slot rows read "1: PLA/FFFFFF", and the unload dialog
+// DEFINITION echoes IN_ZCOLOR when it renders, not when it runs.
+TEST_CASE("AD5X IFS listener re-reads only on external colour or unload lines",
           "[ams][ad5x_ifs][zcolor]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_zcolor_query_active(backend, true);
+    struct Row {
+        const char* line;
+        bool query_in_flight;
+        bool buffered;
+        uint32_t scheduled;
+    };
+    const Row rows[] = {
+        {"// RUN_ZCOLOR slot=2 color=FF0000", true, true, 0},
+        {"// CHANGE_ZCOLOR slot=3", true, true, 0},
+        {"// Extruder: None (1) | IFS: True", true, true, 0},
+        {"// 2: PLA/2750E0", true, true, 0},
+        {"// CHANGE_ZCOLOR slot=1 color=00FF00", false, false, 1},
+        // Captured live: raza616 AD5X, unloading lane 3 while lane 4 active
+        {"Extruder: 3", false, false, 1},
+        {"// Extruder: 2", false, false, 1},
+        {"// Extruder: 1: PLA/FF0000 | IFS: True", false, false, 0},
+        {"// Extruder: None (1) | IFS: True", false, false, 0},
+        {"ok", false, false, 0},
+        {"// 2: PETG/00FF00", false, false, 0},
+        {"// action:prompt_button Unload|IN_ZCOLOR SLOT=3 NAPR=1|primary|", false, false, 0},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.line << (r.query_in_flight ? " (query in flight)" : "")) {
+            helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+            AmsBackendAd5xIfs& backend = *backend_reg;
+            Ad5xIfsTestAccess::set_zcolor_query_active(backend, r.query_in_flight);
+            const uint32_t before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
+            REQUIRE(Ad5xIfsTestAccess::zcolor_buffer_size(backend) == 0);
 
-    uint32_t before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
-    REQUIRE(Ad5xIfsTestAccess::zcolor_buffer_size(backend) == 0);
-
-    // Lines that pre-fix would have re-armed the query loop.
-    bool buffered_a =
-        Ad5xIfsTestAccess::on_gcode_response_line(backend, "// RUN_ZCOLOR slot=2 color=FF0000");
-    bool buffered_b = Ad5xIfsTestAccess::on_gcode_response_line(backend, "// CHANGE_ZCOLOR slot=3");
-
-    CHECK(buffered_a);
-    CHECK(buffered_b);
-    CHECK(Ad5xIfsTestAccess::zcolor_buffer_size(backend) == 2);
-    // Critically: schedule_zcolor_query must NOT have been re-armed.
-    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
-}
-
-TEST_CASE("AD5X IFS listener fires schedule_zcolor_query on external RUN_ZCOLOR (no in-flight)",
-          "[ams][ad5x_ifs][zcolor]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    // No in-flight query: the line is a genuine external state-change signal.
-    Ad5xIfsTestAccess::set_zcolor_query_active(backend, false);
-
-    uint32_t before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
-    bool buffered =
-        Ad5xIfsTestAccess::on_gcode_response_line(backend, "// CHANGE_ZCOLOR slot=1 color=00FF00");
-
-    CHECK_FALSE(buffered); // Treated as external trigger, not buffered.
-    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before + 1);
+            CHECK(Ad5xIfsTestAccess::on_gcode_response_line(backend, r.line) == r.buffered);
+            CHECK(Ad5xIfsTestAccess::zcolor_buffer_size(backend) == (r.buffered ? 1u : 0u));
+            CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before + r.scheduled);
+        }
+    }
 }
 
 // A single user color edit makes zmod re-emit its "Select print materials"
@@ -6557,112 +6360,6 @@ TEST_CASE("AD5X IFS coalesces a burst of color-change triggers into one debounce
     // ...but only ONE debounce worker was submitted; the rest hit the armed gate.
     CHECK(Ad5xIfsTestAccess::zcolor_worker_submit_count(backend) == submit_before + 1);
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_armed(backend));
-}
-
-TEST_CASE("AD5X IFS listener ignores unrelated gcode lines", "[ams][ad5x_ifs][zcolor]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_zcolor_query_active(backend, false);
-
-    uint32_t before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
-
-    // Lines without RUN_ZCOLOR / CHANGE_ZCOLOR must not trigger anything.
-    Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Extruder: 1: PLA/FF0000 | IFS: True");
-    Ad5xIfsTestAccess::on_gcode_response_line(backend, "ok");
-    Ad5xIfsTestAccess::on_gcode_response_line(backend, "// 2: PETG/00FF00");
-
-    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
-}
-
-// ==========================================================================
-// External-unload presence resurrection (zmod's own color macro)
-// ==========================================================================
-//
-// When the user unloads a lane via zmod's native macro (AD5X LCD / Mainsail),
-// the console stream contains NO RUN_ZCOLOR / CHANGE_ZCOLOR token, so the old
-// listener never re-read presence and the emptied lane kept showing loaded.
-// zmod's `_SET_EXTRUDER_SLOT` emits a bare, non-localized `Extruder: <N>` line
-// (zmod_color.py cmd_SET_EXTRUDER_SLOT) at the channel-commit step near the end
-// of the operation — we key off that to schedule one GET_ZCOLOR refresh.
-//
-// The match is deliberately strict (bare "Extruder: <int>" only): GET_ZCOLOR
-// SILENT responses and the interactive prompt both carry a " | IFS:" suffix,
-// and the per-slot rows look like "1: PLA/FFFFFF" — none match the bare form,
-// so neither our own in-flight query echo nor a dialog render re-triggers.
-
-TEST_CASE("AD5X IFS listener fires schedule_zcolor_query on external unload completion",
-          "[ams][ad5x_ifs][zcolor]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    // No in-flight query: this is the genuine post-unload channel-commit line.
-    Ad5xIfsTestAccess::set_zcolor_query_active(backend, false);
-
-    uint32_t before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
-
-    // zmod's _SET_EXTRUDER_SLOT respond_raw form, exactly as captured live
-    // (raza616 AD5X, unloading lane 3 while lane 4 active).
-    bool buffered = Ad5xIfsTestAccess::on_gcode_response_line(backend, "Extruder: 3");
-
-    CHECK_FALSE(buffered); // Treated as external trigger, not buffered.
-    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before + 1);
-}
-
-TEST_CASE("AD5X IFS external-unload trigger tolerates the // console prefix",
-          "[ams][ad5x_ifs][zcolor]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_zcolor_query_active(backend, false);
-
-    uint32_t before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
-
-    // Same line, but framed with Klipper's "// " comment prefix.
-    Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Extruder: 2");
-
-    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before + 1);
-}
-
-TEST_CASE("AD5X IFS dialog button-definition with IN_ZCOLOR does NOT re-read",
-          "[ams][ad5x_ifs][zcolor]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_zcolor_query_active(backend, false);
-
-    uint32_t before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
-
-    // The unload dialog DEFINITION echoes IN_ZCOLOR when the prompt renders —
-    // NOT when the unload executes. It must NOT schedule a query (IN_ZCOLOR is
-    // not a watched token, and the line carries no bare "Extruder: N").
-    Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "// action:prompt_button Unload|IN_ZCOLOR SLOT=3 NAPR=1|primary|");
-
-    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
-}
-
-TEST_CASE("AD5X IFS GET_ZCOLOR SILENT extruder line does NOT re-trigger (spam guard)",
-          "[ams][ad5x_ifs][zcolor]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // Our own GET_ZCOLOR SILENT=1 is in flight: every response line (incl. the
-    // "Extruder: ... | IFS:" header) must be buffered, not re-armed.
-    Ad5xIfsTestAccess::set_zcolor_query_active(backend, true);
-    uint32_t before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
-
-    bool b1 =
-        Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Extruder: None (1) | IFS: True");
-    bool b2 = Ad5xIfsTestAccess::on_gcode_response_line(backend, "// 2: PLA/2750E0");
-
-    CHECK(b1);
-    CHECK(b2);
-    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
-
-    // Even with no in-flight query, the SILENT header form (" | IFS:" suffix,
-    // non-bare) must NOT match the strict external-unload trigger.
-    Ad5xIfsTestAccess::set_zcolor_query_active(backend, false);
-    uint32_t before2 = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
-    Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Extruder: None (1) | IFS: True");
-    Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Extruder: 3: PLA/2750E0 | IFS: True");
-    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before2);
 }
 
 // ==========================================================================
@@ -6855,81 +6552,61 @@ TEST_CASE("AD5X IFS write_adventurer_json_local atomic — leaves no .tmp on suc
 // port 4 and breaking every per-port T-badge in the UI. The fallback rule:
 // when both prefixes have _tools arrays AND they disagree, neither is
 // authoritative; revert to the default 1:1 mapping.
-TEST_CASE("AD5X IFS #904 both prefixes conflict falls back to 1:1 tool map",
+// Which plugin's tool table wins (#904). One prefix with a custom table, or two
+// that agree, is applied as written. Two non-default tables that disagree name
+// no single routing, so the map falls back to 1:1 (T0->port 1 ... T3->port 4,
+// the rest unmapped) and each port's T-badge follows it: with TMTYD's data,
+// bambufy_tools[0]=4 would otherwise badge port 4 as T0.
+TEST_CASE("AD5X IFS #904 picks the tool map from the plugin prefixes",
           "[ams][ad5x_ifs][issue_904]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
-
-    // TMTYD's exact data: bambufy_tools and less_waste_tools both non-default
-    // and disagreeing.
-    json vars = json{
-        {"bambufy_tools", json::array({4, 2, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4})},
-        {"bambufy_current_tool", -1},
-        {"less_waste_tools", json::array({2, 1, 3, 4})},
-        {"less_waste_current_tool", -1},
+    const auto same = json::array({2, 1, 4, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5});
+    struct Row {
+        const char* name;
+        json vars;
+        std::vector<int> first_four;
     };
+    const Row rows[] = {
+        // TMTYD's exact data
+        {"two disagreeing prefixes fall back to 1:1",
+         {{"bambufy_tools", json::array({4, 2, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4})},
+          {"bambufy_current_tool", -1},
+          {"less_waste_tools", json::array({2, 1, 3, 4})},
+          {"less_waste_current_tool", -1}},
+         {1, 2, 3, 4}},
+        {"one prefix with a custom table is honoured",
+         {{"bambufy_tools", json::array({3, 2, 1, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5})},
+          {"bambufy_current_tool", -1}},
+         {3, 2, 1, 0}},
+        {"two agreeing prefixes are applied",
+         {{"bambufy_tools", same}, {"less_waste_tools", same}},
+         {2, 1, 4, 3}},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+            AmsBackendAd5xIfs& backend = *backend_reg;
+            Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+            Ad5xIfsTestAccess::parse_vars(backend, r.vars);
 
-    Ad5xIfsTestAccess::parse_vars(backend, vars);
-
-    auto map = Ad5xIfsTestAccess::tool_map(backend);
-    // Default 1:1 mapping — T0→port1, T1→port2, T2→port3, T3→port4, then
-    // kUnmappedPort for the remaining slots.
-    CHECK(map[0] == 1);
-    CHECK(map[1] == 2);
-    CHECK(map[2] == 3);
-    CHECK(map[3] == 4);
-    for (size_t i = 4; i < map.size(); ++i) {
-        CHECK(map[i] == AmsBackendAd5xIfs::kUnmappedPort);
+            auto map = Ad5xIfsTestAccess::tool_map(backend);
+            for (size_t i = 0; i < r.first_four.size(); ++i) {
+                INFO("tool " << i);
+                CHECK(map[i] == r.first_four[i]);
+            }
+        }
     }
 
-    // Per-port T-badge: slot 3 (port 4) must show T3, NOT T0. Pre-fix this
-    // was T0 because bambufy_tools[0]=4 made find_first_tool_for_port(4)=0.
-    auto info3 = backend.get_slot_info(3);
-    CHECK(info3.mapped_tool == 3);
-}
-
-// Single-prefix users still get their map applied (no false-positive
-// fallback for users with a legitimately active plugin).
-TEST_CASE("AD5X IFS #904 single-prefix non-default tools is honored",
-          "[ams][ad5x_ifs][issue_904]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
-
-    // Only bambufy_tools, with a custom mapping.
-    json vars = json{
-        {"bambufy_tools", json::array({3, 2, 1, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5})},
-        {"bambufy_current_tool", -1},
-    };
-
-    Ad5xIfsTestAccess::parse_vars(backend, vars);
-    auto map = Ad5xIfsTestAccess::tool_map(backend);
-    CHECK(map[0] == 3);
-    CHECK(map[1] == 2);
-    CHECK(map[2] == 1);
-    CHECK(map[3] == 0);
-}
-
-// Both-prefixes-but-equal: no conflict, apply the map normally. (Edge case:
-// a user with bambufy active whose less_waste_tools happens to match.)
-TEST_CASE("AD5X IFS #904 both prefixes agree — no fallback", "[ams][ad5x_ifs][issue_904]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
-
-    auto same = json::array({2, 1, 4, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5});
-    json vars = json{
-        {"bambufy_tools", same},
-        {"less_waste_tools", same},
-    };
-
-    Ad5xIfsTestAccess::parse_vars(backend, vars);
-    auto map = Ad5xIfsTestAccess::tool_map(backend);
-    CHECK(map[0] == 2);
-    CHECK(map[1] == 1);
-    CHECK(map[2] == 4);
-    CHECK(map[3] == 3);
+    SECTION("the 1:1 fallback unmaps the rest and badges each port by it") {
+        helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+        AmsBackendAd5xIfs& backend = *backend_reg;
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        Ad5xIfsTestAccess::parse_vars(backend, rows[0].vars);
+        auto map = Ad5xIfsTestAccess::tool_map(backend);
+        for (size_t i = 4; i < map.size(); ++i) {
+            CHECK(map[i] == AmsBackendAd5xIfs::kUnmappedPort);
+        }
+        CHECK(backend.get_slot_info(3).mapped_tool == 3);
+    }
 }
 
 // Custom material types from bambufy_custom_types must surface in
@@ -7170,24 +6847,6 @@ TEST_CASE("AD5X IFS eject_lane optimistically clears the ejected lane's presence
     // even though the confirming poll never ran.
     CHECK_FALSE(Ad5xIfsTestAccess::port_presence(backend, 2));
     CHECK(backend.get_slot_info(2).status == SlotStatus::EMPTY);
-}
-
-TEST_CASE("AD5X IFS eject_lane port mapping is 1-based", "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-
-    REQUIRE(backend.eject_lane(0).success());
-    REQUIRE(backend.captured_gcodes.size() == 3);
-    REQUIRE(backend.captured_gcodes[0] == "IFS_F24 PRUTOK=1");
-    REQUIRE(backend.captured_gcodes[1] == "IFS_F11 PRUTOK=1 LEN=1000 SPEED=1200");
-    REQUIRE(backend.captured_gcodes[2] == "IFS_F39 PRUTOK=1");
-
-    backend.captured_gcodes.clear();
-    REQUIRE(backend.eject_lane(3).success());
-    REQUIRE(backend.captured_gcodes.size() == 3);
-    REQUIRE(backend.captured_gcodes[0] == "IFS_F24 PRUTOK=4");
-    REQUIRE(backend.captured_gcodes[1] == "IFS_F11 PRUTOK=4 LEN=1000 SPEED=1200");
-    REQUIRE(backend.captured_gcodes[2] == "IFS_F39 PRUTOK=4");
 }
 
 TEST_CASE("AD5X IFS eject_lane uses the lane material's tube length / ifs speed",
@@ -8540,88 +8199,47 @@ TEST_CASE("AD5X IFS external CHANGE_ZCOLOR preserves the user brand override (#9
 // macros" glitch from mkleersn's 07-18 + 07-20 sheets.
 // ==========================================================================
 
-TEST_CASE(
-    "AD5X IFS CHANGE_ZCOLOR TYPE= updates material visible in get_slot_info immediately (#1065)",
-    "[ams][ad5x_ifs][1065]") {
-    // The user's exact scenario: a slot showing PETG, COLOR macro changes
-    // TYPE to ABS. Before the fix, materials_[3] only refreshed when the
-    // follow-up GET_ZCOLOR returned — which can lag minutes behind a queued
-    // IFS op. The CHANGE_ZCOLOR token itself carries the new TYPE; we extract
-    // it directly so the UI refreshes within the same frame.
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    // Disable SILENT so schedule_zcolor_query early-returns — keeps the test
-    // synchronous and proves the refresh no longer depends on GET_ZCOLOR.
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_port_presence(backend, 3, true);
-    Ad5xIfsTestAccess::set_color(backend, 3, "FEF043");
-    Ad5xIfsTestAccess::set_material(backend, 3, "PETG");
-
-    REQUIRE_FALSE(
-        Ad5xIfsTestAccess::on_gcode_response_line(backend, "CHANGE_ZCOLOR SLOT=4 TYPE=ABS"));
-
-    // The UI-visible material changed synchronously — no GET_ZCOLOR roundtrip.
-    SlotInfo info = backend.get_slot_info(3);
-    REQUIRE(info.material == "ABS");
-    // Color is unchanged (the gcode didn't carry HEX=).
-    REQUIRE(info.color_rgb == 0xFEF043);
-}
-
-TEST_CASE("AD5X IFS CHANGE_ZCOLOR HEX= updates color visible in get_slot_info immediately (#1065)",
+// The CHANGE_ZCOLOR token itself carries the new TYPE/HEX, so the slot updates
+// in the same frame instead of waiting on a GET_ZCOLOR that can lag minutes
+// behind a queued IFS op (#1065). SILENT is off here, so nothing but the gcode
+// line can have done it. Hex is upper-cased to match parse_adventurer_json, so
+// the follow-up GET_ZCOLOR compares equal.
+TEST_CASE("AD5X IFS CHANGE_ZCOLOR TYPE=/HEX= update get_slot_info immediately",
           "[ams][ad5x_ifs][1065]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_port_presence(backend, 1, true);
-    Ad5xIfsTestAccess::set_color(backend, 1, "FFFFFF");
-    Ad5xIfsTestAccess::set_material(backend, 1, "PETG");
+    struct Row {
+        const char* name;
+        int slot;
+        const char* color;
+        const char* material;
+        const char* line;
+        const char* expected_material;
+        uint32_t expected_color;
+    };
+    const Row rows[] = {
+        {"TYPE= alone", 3, "FEF043", "PETG", "CHANGE_ZCOLOR SLOT=4 TYPE=ABS", "ABS", 0xFEF043},
+        {"HEX= alone", 1, "FFFFFF", "PETG", "CHANGE_ZCOLOR SLOT=2 HEX=2750E0", "PETG", 0x2750E0},
+        // Real zmod format (bundle NJB2U558)
+        {"TYPE= and HEX= together", 0, "000000", "PLA", "CHANGE_ZCOLOR SLOT=1 TYPE=PETG HEX=F95D73",
+         "PETG", 0xF95D73},
+        {"lower-case HEX=", 0, "000000", "PLA", "CHANGE_ZCOLOR SLOT=1 TYPE=PETG HEX=fef043", "PETG",
+         0xFEF043},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            TestableAd5xIfsBackend backend;
+            Ad5xIfsTestAccess::set_running(backend, true);
+            Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+            Ad5xIfsTestAccess::set_port_presence(backend, r.slot, true);
+            Ad5xIfsTestAccess::set_color(backend, r.slot, r.color);
+            Ad5xIfsTestAccess::set_material(backend, r.slot, r.material);
 
-    REQUIRE_FALSE(
-        Ad5xIfsTestAccess::on_gcode_response_line(backend, "CHANGE_ZCOLOR SLOT=2 HEX=2750E0"));
+            REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(backend, r.line));
 
-    SlotInfo info = backend.get_slot_info(1);
-    REQUIRE(info.color_rgb == 0x2750E0);
-    REQUIRE(info.material == "PETG"); // unchanged — no TYPE= in gcode
-}
-
-TEST_CASE("AD5X IFS CHANGE_ZCOLOR TYPE= and HEX= together update both fields (#1065)",
-          "[ams][ad5x_ifs][1065]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "000000");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PLA");
-
-    // Real zmod format — slot, type, hex all present (cf. bundle NJB2U558
-    // 21:20:08 "CHANGE_ZCOLOR SLOT=4 TYPE=PLA HEX=FEF043").
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 TYPE=PETG HEX=F95D73"));
-
-    SlotInfo info = backend.get_slot_info(0);
-    REQUIRE(info.material == "PETG");
-    REQUIRE(info.color_rgb == 0xF95D73);
-}
-
-TEST_CASE(
-    "AD5X IFS CHANGE_ZCOLOR lower-case HEX= is upper-cased to match parse_adventurer_json (#1065)",
-    "[ams][ad5x_ifs][1065]") {
-    // parse_adventurer_json upper-cases hex from Adventurer5M.json (line ~4042);
-    // GET_ZCOLOR's parse_zcolor_silent also receives upper-case. The gcode path
-    // must produce the same canonical form so the follow-up GET_ZCOLOR response
-    // compares equal (no spurious "material/color changed" re-sync).
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "000000");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PLA");
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 TYPE=PETG HEX=fef043"));
-
-    SlotInfo info = backend.get_slot_info(0);
-    REQUIRE(info.color_rgb == 0xFEF043);
+            SlotInfo info = backend.get_slot_info(r.slot);
+            CHECK(info.material == r.expected_material);
+            CHECK(info.color_rgb == r.expected_color);
+        }
+    }
 }
 
 TEST_CASE("AD5X IFS CHANGE_ZCOLOR TYPE= updates baseline so the eventual GET_ZCOLOR response is a "
@@ -9426,63 +9044,34 @@ TEST_CASE("AD5X IFS phase: operation_phase advances 0->1->2 during load",
 // Error-center bridge: IFS surfaces ERROR on timeout, current_error(), recover
 // ==========================================================================
 
-TEST_CASE("AD5X IFS error-center: timeout sets ERROR not IDLE", "[ams][ad5x_ifs][error-center]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-
-    // Advance to CUTTING so a non-IDLE action is in-flight.
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
-
-    // Timeout fires: must land on ERROR, not IDLE.
-    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
-}
-
-TEST_CASE("AD5X IFS error-center: current_error returns CRITICAL IFS event on ERROR",
-          "[ams][ad5x_ifs][error-center]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
-    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
-
-    auto ev = backend.current_error();
-    REQUIRE(ev.has_value());
-    REQUIRE(ev->severity == helix::ErrorSeverity::CRITICAL);
-    REQUIRE(ev->source == helix::ErrorSource::IFS);
-    REQUIRE(ev->sticky);
-    REQUIRE_FALSE(ev->recovery_actions.empty());
-    REQUIRE(ev->recovery_actions[0].gcode == "IFS_UNLOCK");
-}
-
-TEST_CASE("AD5X IFS error-center: recover() clears ERROR state", "[ams][ad5x_ifs][error-center]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
-    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
-
-    backend.recover();
-
-    REQUIRE(backend.get_system_info().action != AmsAction::ERROR);
-    REQUIRE_FALSE(backend.current_error().has_value());
-}
-
-TEST_CASE("AD5X IFS error-center: current_error returns nullopt when IDLE",
+// An operation that times out lands on ERROR, never IDLE, and surfaces a sticky
+// CRITICAL IFS event whose first recovery is IFS_UNLOCK; recover() clears both.
+TEST_CASE("AD5X IFS error-center: a timed-out op raises a recoverable CRITICAL event",
           "[ams][ad5x_ifs][error-center]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
     REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
     REQUIRE_FALSE(backend.current_error().has_value());
+
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
+    Ad5xIfsTestAccess::handle_status(backend, make_extruder(230.0, 230.0));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+    CHECK(ev->source == helix::ErrorSource::IFS);
+    CHECK(ev->sticky);
+    REQUIRE_FALSE(ev->recovery_actions.empty());
+    CHECK(ev->recovery_actions[0].gcode == "IFS_UNLOCK");
+
+    backend.recover();
+    CHECK(backend.get_system_info().action != AmsAction::ERROR);
+    CHECK_FALSE(backend.current_error().has_value());
 }
 
 // ==========================================================================
@@ -9663,243 +9252,105 @@ TEST_CASE(
 // FIX 4: clear-spool persists firmware-native '?' / "" sentinels
 // ==========================================================================
 
-TEST_CASE("AD5X IFS write_adventurer_json_local persists '?'/empty sentinels for a cleared slot "
-          "(FIX 4a)",
+// What a slot write puts in Adventurer5M.json. An empty material persists the
+// firmware's own "no filament" pair (ffmColor "", ffmType "?"). A real material
+// never persists an empty ffmColor: zmod builds the "Change type" button as
+// `CHANGE_ZCOLOR SLOT=n HEX={zhex}`, which an empty colour turns into a command
+// cmd_CHANGE_ZCOLOR rejects after it has closed the dialog, so the empty and the
+// 808080 placeholder colours become zmod's default #161616.
+TEST_CASE("AD5X IFS write_adventurer_json_local writes the firmware's slot encoding",
           "[ams][ad5x_ifs][local_write]") {
-    Ad5xIfsTmpJsonFile tmp("clear_sentinel",
-                           R"({"FFMInfo":{"ffmColor1":"#FF0000","ffmType1":"PLA"}})");
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
+    struct Row {
+        const char* name;
+        const char* seed;
+        int slot;
+        const char* hex;
+        const char* material;
+        const char* expected_color;
+        const char* expected_type;
+    };
+    const Row rows[] = {
+        {"a cleared slot", R"({"FFMInfo":{"ffmColor1":"#FF0000","ffmType1":"PLA"}})", 0, "808080",
+         "", "", "?"},
+        {"an explicitly empty colour", R"({"FFMInfo":{"ffmColor2":"#00FF00","ffmType2":"PETG"}})",
+         1, "", "", "", "?"},
+        {"empty slot, empty hex", R"({"FFMInfo":{}})", 2, "", "", "", "?"},
+        {"empty slot, placeholder hex", R"({"FFMInfo":{}})", 2, "808080", "", "", "?"},
+        {"a normal slot", R"({"FFMInfo":{}})", 2, "AABBCC", "TPU", "#AABBCC", "TPU"},
+        {"a fully-specified slot", R"({"FFMInfo":{}})", 3, "FF7700", "ABS", "#FF7700", "ABS"},
+        {"material with an empty colour", R"({"FFMInfo":{}})", 0, "", "PLA", "#161616", "PLA"},
+        {"material with the placeholder colour", R"({"FFMInfo":{}})", 1, "808080", "PETG",
+         "#161616", "PETG"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            Ad5xIfsTmpJsonFile tmp("slot_encoding", r.seed);
+            helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+            AmsBackendAd5xIfs& backend = *backend_reg;
+            Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
 
-    // Cleared slot: empty material, placeholder gray colour (the in-memory
-    // "no colour" sentinel parse_adventurer_json maps empty ffmColor to).
-    auto err = Ad5xIfsTestAccess::write_adventurer_json_local(backend, 0, "808080", "");
-    REQUIRE(err.success());
+            REQUIRE(
+                Ad5xIfsTestAccess::write_adventurer_json_local(backend, r.slot, r.hex, r.material)
+                    .success());
 
-    std::ifstream f(tmp.path);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    auto doc = json::parse(ss.str());
-    CHECK(doc["FFMInfo"]["ffmColor1"] == "");
-    CHECK(doc["FFMInfo"]["ffmType1"] == "?");
-}
-
-TEST_CASE("AD5X IFS write_adventurer_json_local clears colour for an explicitly empty colour "
-          "(FIX 4a)",
-          "[ams][ad5x_ifs][local_write]") {
-    Ad5xIfsTmpJsonFile tmp("clear_empty_color",
-                           R"({"FFMInfo":{"ffmColor2":"#00FF00","ffmType2":"PETG"}})");
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    // Empty colour string and empty material -> both sentinels.
-    auto err = Ad5xIfsTestAccess::write_adventurer_json_local(backend, 1, "", "");
-    REQUIRE(err.success());
-
-    std::ifstream f(tmp.path);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    auto doc = json::parse(ss.str());
-    CHECK(doc["FFMInfo"]["ffmColor2"] == "");
-    CHECK(doc["FFMInfo"]["ffmType2"] == "?");
-}
-
-TEST_CASE("AD5X IFS write_adventurer_json_local writes real colour/type for a normal slot "
-          "(FIX 4a regression)",
-          "[ams][ad5x_ifs][local_write]") {
-    Ad5xIfsTmpJsonFile tmp("normal_write", R"({"FFMInfo":{}})");
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    auto err = Ad5xIfsTestAccess::write_adventurer_json_local(backend, 2, "AABBCC", "TPU");
-    REQUIRE(err.success());
-
-    std::ifstream f(tmp.path);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    auto doc = json::parse(ss.str());
-    CHECK(doc["FFMInfo"]["ffmColor3"] == "#AABBCC");
-    CHECK(doc["FFMInfo"]["ffmType3"] == "TPU");
-}
-
-// ==========================================================================
-// A filament-present slot must never persist an EMPTY ffmColor.
-//
-// zmod's cmd_RUN_ZCOLOR builds the "Change type" prompt button as
-// `CHANGE_ZCOLOR SLOT=n HEX={zhex}` with no TYPE= param. When ffmColor is "",
-// zhex is "" and the literal gcode becomes `CHANGE_ZCOLOR SLOT=n HEX=`, which
-// cmd_CHANGE_ZCOLOR rejects (both HEX and TYPE empty) AFTER it has already
-// emitted `action:prompt_end`. The dialog closes and nothing reopens.
-// ==========================================================================
-
-TEST_CASE("AD5X IFS write_adventurer_json_local writes zmod's default colour when the material is "
-          "set but the colour is empty",
-          "[ams][ad5x_ifs][local_write]") {
-    Ad5xIfsTmpJsonFile tmp("typed_empty_color", R"({"FFMInfo":{}})");
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    // Real material, no colour: the poisoned combination.
-    auto err = Ad5xIfsTestAccess::write_adventurer_json_local(backend, 0, "", "PLA");
-    REQUIRE(err.success());
-
-    std::ifstream f(tmp.path);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    auto doc = json::parse(ss.str());
-    CHECK(doc["FFMInfo"]["ffmColor1"] == "#161616");
-    CHECK(doc["FFMInfo"]["ffmType1"] == "PLA");
-}
-
-TEST_CASE("AD5X IFS write_adventurer_json_local writes zmod's default colour when the material is "
-          "set but the colour is the 808080 placeholder",
-          "[ams][ad5x_ifs][local_write]") {
-    Ad5xIfsTmpJsonFile tmp("typed_placeholder_color", R"({"FFMInfo":{}})");
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    // 808080 is our in-memory "no colour" placeholder; it must not reach the
-    // file as an empty ffmColor either.
-    auto err = Ad5xIfsTestAccess::write_adventurer_json_local(backend, 1, "808080", "PETG");
-    REQUIRE(err.success());
-
-    std::ifstream f(tmp.path);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    auto doc = json::parse(ss.str());
-    CHECK(doc["FFMInfo"]["ffmColor2"] == "#161616");
-    CHECK(doc["FFMInfo"]["ffmType2"] == "PETG");
-}
-
-TEST_CASE("AD5X IFS write_adventurer_json_local keeps the empty-slot sentinels when no material is "
-          "set",
-          "[ams][ad5x_ifs][local_write]") {
-    Ad5xIfsTmpJsonFile tmp("empty_slot_sentinel", R"({"FFMInfo":{}})");
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    // No material at all: the firmware-native "no filament" pair must survive.
-    // A genuinely empty slot never reaches the RUN_ZCOLOR submenu, so the empty
-    // ffmColor is harmless there and is what stock ZMOD itself writes.
-    std::string hex;
-    SECTION("empty hex") {
-        hex = "";
+            std::ifstream f(tmp.path);
+            const auto doc = json::parse(f);
+            const std::string n = std::to_string(r.slot + 1);
+            CHECK(doc["FFMInfo"]["ffmColor" + n] == r.expected_color);
+            CHECK(doc["FFMInfo"]["ffmType" + n] == r.expected_type);
+        }
     }
-    SECTION("808080 placeholder hex") {
-        hex = "808080";
-    }
-
-    auto err = Ad5xIfsTestAccess::write_adventurer_json_local(backend, 2, hex, "");
-    REQUIRE(err.success());
-
-    std::ifstream f(tmp.path);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    auto doc = json::parse(ss.str());
-    CHECK(doc["FFMInfo"]["ffmColor3"] == "");
-    CHECK(doc["FFMInfo"]["ffmType3"] == "?");
-}
-
-TEST_CASE("AD5X IFS write_adventurer_json_local leaves a fully-specified slot alone",
-          "[ams][ad5x_ifs][local_write]") {
-    Ad5xIfsTmpJsonFile tmp("full_slot_unchanged", R"({"FFMInfo":{}})");
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    auto err = Ad5xIfsTestAccess::write_adventurer_json_local(backend, 3, "FF7700", "ABS");
-    REQUIRE(err.success());
-
-    std::ifstream f(tmp.path);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    auto doc = json::parse(ss.str());
-    CHECK(doc["FFMInfo"]["ffmColor4"] == "#FF7700");
-    CHECK(doc["FFMInfo"]["ffmType4"] == "ABS");
 }
 
 // ==========================================================================
 // HEATING detail must not assert a target the printer never reported.
 // ==========================================================================
 
-TEST_CASE("AD5X IFS phase: HEATING detail omits the target when none is known",
+// HEATING detail never asserts a target the printer has not reported: no frame
+// at all, the live temperature with the heater off, or the real target once a
+// pre-op extruder frame carries one (begin_phase seeds from it).
+TEST_CASE("AD5X IFS phase: HEATING detail names only what the printer reported",
           "[ams][ad5x_ifs][phase]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-
-    // No extruder frame and no RESPOND line have been seen, so there is no
-    // target and no current temperature.
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
-
-    const std::string detail = Ad5xIfsTestAccess::operation_detail(backend);
-    CHECK(detail == "Heating nozzle");
-    CHECK(detail.find("230") == std::string::npos);
-}
-
-TEST_CASE("AD5X IFS phase: HEATING detail names the live temp but no target when only the temp is "
-          "known",
-          "[ams][ad5x_ifs][phase]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-
-    // Heater off (target 0) but the nozzle still reads a real temperature.
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(62.0, 0.0));
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-
-    const std::string detail = Ad5xIfsTestAccess::operation_detail(backend);
-    CHECK(detail == "Heating nozzle (62°C)");
-    CHECK(detail.find("230") == std::string::npos);
-}
-
-TEST_CASE("AD5X IFS phase: HEATING detail still names a real target when one is known",
-          "[ams][ad5x_ifs][phase]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_head_filament(backend, true);
-
-    // A pre-op extruder frame reports a live 220°C target at 62°C. begin_phase
-    // seeds from it, so the very first detail carries the REAL target.
-    Ad5xIfsTestAccess::handle_status(backend, make_extruder(62.0, 220.0));
-    Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-
-    CHECK(Ad5xIfsTestAccess::operation_detail(backend) == "Heating nozzle to 220°C (62°C)");
-}
-
-TEST_CASE("AD5X IFS parse_adventurer_json maps firmware '?' ffmType to empty material (FIX 4b)",
-          "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // Firmware-native unset sentinel for slot 0 (port 1): ffmType '?'.
-    std::string content = R"({
-        "FFMInfo": {
-            "ffmColor1": "",
-            "ffmType1": "?"
+    struct Row {
+        const char* name;
+        bool extruder_frame;
+        double temp;
+        double target;
+        const char* expected;
+    };
+    const Row rows[] = {
+        {"nothing known", false, 0, 0, "Heating nozzle"},
+        {"live temp, heater off", true, 62.0, 0.0, "Heating nozzle (62°C)"},
+        {"a real target", true, 62.0, 220.0, "Heating nozzle to 220°C (62°C)"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+            AmsBackendAd5xIfs& backend = *backend_reg;
+            Ad5xIfsTestAccess::set_head_filament(backend, true);
+            if (r.extruder_frame) {
+                Ad5xIfsTestAccess::handle_status(backend, make_extruder(r.temp, r.target));
+            }
+            Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
+            REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+            CHECK(Ad5xIfsTestAccess::operation_detail(backend) == r.expected);
         }
-    })";
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, content);
-
-    // '?' must yield an empty material so the UI renders '--'.
-    auto info = backend.get_slot_info(0);
-    CHECK(info.material.empty());
+    }
 }
 
-TEST_CASE("AD5X IFS parse_adventurer_json maps empty ffmType to empty material (FIX 4b)",
+// The firmware-native unset sentinel '?' and an empty ffmType both read as no
+// material, so the UI renders '--', even on a port whose colour is set.
+TEST_CASE("AD5X IFS parse_adventurer_json maps '?' and empty ffmType to no material (FIX 4b)",
           "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    std::string content = R"({"FFMInfo": {"ffmColor1": "", "ffmType1": ""}})";
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, content);
-    CHECK(backend.get_slot_info(0).material.empty());
+    for (const char* type : {"?", ""}) {
+        DYNAMIC_SECTION("ffmType '" << type << "'") {
+            helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+            AmsBackendAd5xIfs& backend = *backend_reg;
+            Ad5xIfsTestAccess::parse_adventurer_json(
+                backend, json{{"FFMInfo", {{"ffmColor1", "#FF5500"}, {"ffmType1", type}}}}.dump());
+            CHECK(backend.get_slot_info(0).material.empty());
+        }
+    }
 }
 
 // ==========================================================================
@@ -10178,9 +9629,10 @@ TEST_CASE("AD5X IFS eject_lane maps each slot to its 1-based port", "[ams][ad5x_
             Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
             REQUIRE(backend.eject_lane(slot).success());
             const std::string port = std::to_string(slot + 1);
-            CHECK(backend.has_gcode("IFS_F24 PRUTOK=" + port));
-            CHECK(backend.has_gcode_containing("IFS_F11 PRUTOK=" + port));
-            CHECK(backend.has_gcode("IFS_F39 PRUTOK=" + port));
+            REQUIRE(backend.captured_gcodes.size() == 3);
+            CHECK(backend.captured_gcodes[0] == "IFS_F24 PRUTOK=" + port);
+            CHECK(backend.captured_gcodes[1] == "IFS_F11 PRUTOK=" + port + " LEN=1000 SPEED=1200");
+            CHECK(backend.captured_gcodes[2] == "IFS_F39 PRUTOK=" + port);
         }
     }
 }

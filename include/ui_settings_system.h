@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "static_panel_registry.h"
@@ -58,7 +60,7 @@ class SystemSettingsOverlay : public OverlayBase {
     void perform_factory_reset();
 
     /// Created on first use, deleted when its close animation finishes.
-    lv_obj_t* factory_reset_dialog_ = nullptr;
+    helix::ui::WidgetRef factory_reset_dialog_;
 };
 
 inline SystemSettingsOverlay& get_system_settings_overlay() {

@@ -7,6 +7,13 @@
     "expect": "FlashForge Adventurer 5M Pro"
   },
   {
+    "name": "Detect FlashForge AD5M Pro from the fuller hardware snapshot",
+    "note": "A second extruder, mcu_temp sensor and hotend fan must not cost the Pro its lead",
+    "capture": "flashforge_ad5m_pro_extended",
+    "autosave": true,
+    "expect": "FlashForge Adventurer 5M Pro"
+  },
+  {
     "name": "Detect by hostname - Creality K1",
     "note": "Hostname \"k1-max\" matches K1 Max specifically",
     "hardware": {
@@ -1264,5 +1271,1053 @@
     "capture": "qidi_plus5",
     "autosave": true,
     "expect": "Qidi Plus 5"
+  },
+  {
+    "name": "Detect Voron V2 by bed_fans",
+    "note": "bed_fans + exhaust fan combo is Voron evidence the other families lack Reason should mention fans or Voron enclosed signature",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["temperature_sensor chamber"],
+      "fans": ["controller_fan", "exhaust_fan", "bed_fans"],
+      "leds": [],
+      "hostname": "voron-v2"
+    },
+    "expect": "Voron 2.4",
+    "reason_any": ["fan", "Voron"]
+  },
+  {
+    "name": "Detect by hostname - FlashForge",
+    "note": "Every FlashForge model carries the \"flashforge\" hostname pattern, so the family is named and the model is not: the siblings tie and the recorded winner is a tiebreak, not an identification.",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "flashforge-model"
+    },
+    "detected": true,
+    "family": "FlashForge",
+    "runner_family": "FlashForge",
+    "tie": true,
+    "tied": true,
+    "autosave": false,
+    "reason_any": ["Hostname"]
+  },
+  {
+    "name": "Detect by hostname - Voron V2",
+    "note": "Use \"voron\" in hostname to trigger Voron detection \"v2\" alone is too generic and doesn't match any database entry \"voron\" names the family; nothing on this rig separates the models.",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "voron-printer"
+    },
+    "detected": true,
+    "family": "Voron",
+    "runner_family": "Voron",
+    "tie": true,
+    "tied": true,
+    "autosave": false,
+    "reason_any": ["voron"]
+  },
+  {
+    "name": "Empty hardware returns no detection",
+    "hardware": {},
+    "none": true,
+    "type_name": "",
+    "confidence": 0
+  },
+  {
+    "name": "Generic printer returns no detection",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan", "heater_fan hotend_fan"],
+      "leds": [],
+      "hostname": "mainsailos"
+    },
+    "none": true,
+    "confidence": 0
+  },
+  {
+    "name": "Multiple matches return highest confidence",
+    "note": "Conflicting hardware: FlashForge sensor (95%) vs Voron hostname (85%) The tvocValue sensor outranks the voron-v2 hostname: the FlashForge family takes the lead, even though the FlashForge siblings tie among themselves and neither model is identified.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["tvocValue"],
+      "fans": ["bed_fans"],
+      "leds": [],
+      "hostname": "voron-v2"
+    },
+    "detected": true,
+    "family": "FlashForge",
+    "runner_family": "FlashForge"
+  },
+  {
+    "name": "Unknown hostname with no distinctive features",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "my-custom-printer-123"
+    },
+    "none": true,
+    "confidence": 0
+  },
+  {
+    "name": "sensor_match heuristic - weightValue",
+    "note": "weightValue is FlashForge-family evidence; the family leads and the models tie, so the recorded winner is a tiebreak.",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": ["weightValue"],
+      "fans": [],
+      "leds": ["led chamber_light"],
+      "hostname": "test"
+    },
+    "detected": true,
+    "family": "FlashForge",
+    "tie": true
+  },
+  {
+    "name": "fan_match heuristic - single pattern",
+    "note": "One Voron fan pattern is family evidence only: dozens of entries tie.",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": ["bed_fans"],
+      "leds": [],
+      "hostname": "test",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "detected": true,
+    "family": "Voron",
+    "tie": true
+  },
+  {
+    "name": "Single-fan detection stays off the autosave path",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": ["bed_fans"],
+      "leds": [],
+      "hostname": "test",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "detected": true,
+    "family": "Voron",
+    "tie": true,
+    "autosave": false
+  },
+  {
+    "name": "kinematics_match heuristic - CoreXY",
+    "note": "CoreXY alone matches many printers at low confidence: it may point at an entry, but never one the product would act on.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "test-printer",
+      "printer_objects": [],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "corexy"
+    },
+    "detected": true,
+    "autosave": false
+  },
+  {
+    "name": "kinematics_match heuristic - Delta",
+    "note": "Delta + delta_calibrate names the delta CLASS, not a vendor: the delta entries tie on it and the winner is a tiebreak.",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "test",
+      "printer_objects": ["delta_calibrate"],
+      "steppers": ["stepper_a", "stepper_b", "stepper_c"],
+      "kinematics": "delta"
+    },
+    "detected": true,
+    "tie": true,
+    "tied": true,
+    "autosave": false
+  },
+  {
+    "name": "macro_match heuristic - KAMP macros",
+    "note": "Non-printer addons (show_in_list: false) should never win detection",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "test",
+      "printer_objects": ["gcode_macro ADAPTIVE_BED_MESH", "gcode_macro LINE_PURGE", "gcode_macro PRINT_START"],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "not": ["KAMP (Adaptive Meshing)"]
+  },
+  {
+    "name": "macro_match heuristic - Klippain Shake&Tune",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "test",
+      "printer_objects": ["gcode_macro AXES_SHAPER_CALIBRATION", "gcode_macro BELTS_SHAPER_CALIBRATION", "gcode_macro PRINT_START"],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "not": ["Klippain Shake&Tune"]
+  },
+  {
+    "name": "macro_match heuristic - Klicky Probe",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "test",
+      "printer_objects": ["gcode_macro ATTACH_PROBE", "gcode_macro DOCK_PROBE", "gcode_macro PRINT_START"],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "not": ["Klicky Probe User"]
+  },
+  {
+    "name": "macro_match heuristic - Happy Hare MMU",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "test",
+      "printer_objects": ["mmu", "gcode_macro MMU_CHANGE_TOOL", "gcode_macro _MMU_LOAD"],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "not": ["ERCF/Happy Hare MMU"]
+  },
+  {
+    "name": "macro_match heuristic - Case insensitive",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "test",
+      "printer_objects": ["gcode_macro adaptive_bed_mesh", "gcode_macro LINE_purge"],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "not": ["KAMP (Adaptive Meshing)"]
+  },
+  {
+    "name": "Only addon macros yields no detection or real printer",
+    "note": "Only non-printer addon macros, no distinctive real printer hardware Non-printer addons should never be the winning detection If something was detected, it must be a real printer, not an addon",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "test-printer",
+      "printer_objects": ["gcode_macro ADAPTIVE_BED_MESH", "gcode_macro LINE_PURGE", "gcode_macro AXES_SHAPER_CALIBRATION", "gcode_macro ATTACH_PROBE", "gcode_macro DOCK_PROBE"],
+      "steppers": [],
+      "kinematics": ""
+    },
+    "not": ["KAMP (Adaptive Meshing)", "Klippain Shake&Tune", "Klicky Probe User"]
+  },
+  {
+    "name": "Combined heuristics - Delta printer",
+    "note": "Delta kinematics + delta_calibrate + a flsun hostname is still class evidence: the delta entries tie on it and the winner is a tiebreak. Only corroborating hardware (the MCU, see below) separates the vendors.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "flsun-v400",
+      "printer_objects": ["delta_calibrate"],
+      "steppers": ["stepper_a", "stepper_b", "stepper_c"],
+      "kinematics": "delta",
+      "build_volume": {"x_min": -100, "x_max": 100, "y_min": -100, "y_max": 100, "z_max": 400}
+    },
+    "detected": true,
+    "tie": true,
+    "tied": true,
+    "autosave": false
+  },
+  {
+    "name": "Regular AD5M without LED",
+    "note": "Regular Adventurer 5M does NOT have LED chamber light The rig never reported an object list, so the absent chamber light is \"not yet\", not \"none\": the Pro entry still matches everything the plain 5M matches and the siblings tie.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["tvocValue"],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "flashforge",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": "cartesian"
+    },
+    "detected": true,
+    "family": "FlashForge Adventurer 5M",
+    "runner_up": "FlashForge Adventurer 5M Pro",
+    "tie": true,
+    "autosave": false
+  },
+  {
+    "name": "V-Core 4 host (3Z) not misdetected as V-Core 3",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "hostname": "ratrig-vcore4",
+      "printer_objects": ["gcode_macro RatOS", "z_tilt"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2"],
+      "kinematics": "corexy",
+      "build_volume": {"x_min": 0, "x_max": 300, "y_min": 0, "y_max": 300, "z_max": 300}
+    },
+    "expect": "RatRig V-Core 4",
+    "not": ["RatRig V-Core 3"]
+  },
+  {
+    "name": "Sovol SV06 Plus ACE detected hostname-free (300mm load-cell stack)",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "",
+      "printer_objects": ["smart_effector", "hx711", "lis2dw hotend", "lis2dw bed", "probe", "z_tilt"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1"],
+      "kinematics": "cartesian",
+      "build_volume": {"x_min": 0, "x_max": 300, "y_min": 0, "y_max": 300, "z_max": 350}
+    },
+    "expect": "Sovol SV06 Plus ACE"
+  },
+  {
+    "name": "Sovol SV08 detected hostname-free (probe_pressure keystone)",
+    "note": "probe_pressure is the required hostname-free discriminator vs a Voron 2.4 (both are QGL/4-Z corexy). Without it, an SV08 correctly stays ambiguous with the Voron 2.4. What it cannot do is tell the base SV08 from the Max: only the bed size separates those, and a volume corroborates without identifying, so the family is pinned and the siblings tie.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "",
+      "printer_objects": ["quad_gantry_level", "probe_pressure", "z_offset_calibration", "adxl345", "probe"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2", "stepper_z3"],
+      "kinematics": "corexy",
+      "build_volume": {"x_min": 0, "x_max": 355, "y_min": 0, "y_max": 364, "z_max": 347}
+    },
+    "detected": true,
+    "family": "Sovol SV08",
+    "runner_family": "Sovol SV08",
+    "tie": true
+  },
+  {
+    "name": "hostname-free 500mm SV08 resolves to the family, not a sibling",
+    "note": "The family is identified from the load cell, not from the bed size. Base and Max are indistinguishable here, so they tie and the sibling is the runner-up. If one ever pulled ahead it would be on evidence other than the volume, and this assertion is the place that would tell us.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "",
+      "printer_objects": ["quad_gantry_level", "probe_pressure", "z_offset_calibration", "adxl345", "probe"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2", "stepper_z3"],
+      "kinematics": "corexy",
+      "build_volume": {"x_min": 0, "x_max": 500, "y_min": 0, "y_max": 500, "z_max": 500}
+    },
+    "detected": true,
+    "family": "Sovol SV08",
+    "runner_family": "Sovol SV08",
+    "tie": true
+  },
+  {
+    "name": "Sovol SV07 detected hostname-free and NOT swallowed by SV06 ACE",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "",
+      "printer_objects": ["adxl345", "z_tilt", "probe"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1"],
+      "kinematics": "cartesian",
+      "build_volume": {"x_min": 0, "x_max": 225, "y_min": 0, "y_max": 225, "z_max": 253}
+    },
+    "expect": "Sovol SV07",
+    "not": ["Sovol SV06 ACE"]
+  },
+  {
+    "name": "a bare 220mm cartesian rig is ambiguous, not a Sovol SV06",
+    "note": "Nothing in the product acts on a score this low - it neither warns nor saves. The SV06 has not been ruled out, it simply has no more claim than its look-alikes: it ties for the lead rather than winning.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "",
+      "printer_objects": ["probe"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "cartesian",
+      "build_volume": {"x_min": 0, "x_max": 220, "y_min": 0, "y_max": 220, "z_max": 250}
+    },
+    "confidence_below": 70,
+    "autosave": false,
+    "tie": true
+  },
+  {
+    "name": "a bare 300mm cartesian rig is ambiguous, not a Sovol SV06 Plus",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "",
+      "printer_objects": ["probe"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "cartesian",
+      "build_volume": {"x_min": 0, "x_max": 300, "y_min": 0, "y_max": 300, "z_max": 350}
+    },
+    "confidence_below": 70,
+    "autosave": false,
+    "tie": true
+  },
+  {
+    "name": "BIQU B1 fingerprint",
+    "note": "BIQU B1 is not in the printer database, so we test that the detector matches something reasonable based on the build volume and kinematics. With cartesian kinematics and ~235mm build volume, Qidi Q2 matches best at 50% confidence via build volume heuristic. Not in the database: whatever the look-alike scoring suggests, it must stay below the bar the product acts on.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "bigtreetech-b1",
+      "printer_objects": [],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "cartesian",
+      "build_volume": {"x_min": 0, "x_max": 235, "y_min": 0, "y_max": 235, "z_max": 270}
+    },
+    "detected": true,
+    "autosave": false
+  },
+  {
+    "name": "Two Trees Sapphire Pro fingerprint",
+    "note": "Two Trees Sapphire Pro is not in the printer database, so we test that the detector matches something reasonable based on the build volume and kinematics. With CoreXY kinematics and ~235mm build volume, Qidi Q2 matches best at 50% via build volume heuristic. Not in the database: whatever the look-alike scoring suggests, it must stay below the bar the product acts on.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "twotrees-sapphire-pro",
+      "printer_objects": [],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "corexy",
+      "build_volume": {"x_min": 0, "x_max": 235, "y_min": 0, "y_max": 235, "z_max": 235}
+    },
+    "detected": true,
+    "autosave": false
+  },
+  {
+    "name": "MCU match - STM32F103 (FlashForge stock)",
+    "note": "tvocValue + hostname name the family; the chamber light the Pro needs to separate itself was never reported, so the siblings tie.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["tvocValue"],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "flashforge",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": "cartesian",
+      "mcu": "stm32f103xe",
+      "mcu_list": ["stm32f103xe"]
+    },
+    "detected": true,
+    "family": "FlashForge Adventurer 5M",
+    "tie": true,
+    "autosave": false
+  },
+  {
+    "name": "No false positive on random hostname",
+    "note": "Should NOT detect a specific printer from generic Pi hostname",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "raspberrypi-4b-2022",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": ""
+    },
+    "none": true
+  },
+  {
+    "name": "No false positive on minimal config",
+    "note": "Minimal config should not match any specific printer",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "localhost",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": ""
+    },
+    "none": true
+  },
+  {
+    "name": "No false positive on v2 without Voron features",
+    "note": "\"v2\" in hostname should NOT match Voron if no other Voron features \"v2\" alone shouldn't trigger Voron detection without corexy/QGL",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "printer-v2-test",
+      "printer_objects": [],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "cartesian"
+    },
+    "not": ["Voron 2.4"]
+  },
+  {
+    "name": "MCU alone - HC32F460 provides supporting evidence",
+    "note": "MCU alone without hostname should still provide some confidence HC32F460 alone - should detect as some Anycubic Should match one of the Anycubic printers The chip names the vendor, not the model: the Kobra siblings tie on it.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "test-printer",
+      "printer_objects": [],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "cartesian",
+      "mcu": "HC32F460",
+      "mcu_list": ["HC32F460"]
+    },
+    "detected": true,
+    "contains_any": ["Anycubic", "Kobra"],
+    "tie": true,
+    "autosave": false
+  },
+  {
+    "name": "stock Q2 (linaro-alip host) is not misdetected as Artillery",
+    "note": "The bug: linaro-alip pulled this to Artillery M1 Pro. It must not.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed", "heater_generic chamber"],
+      "sensors": ["temperature_sensor chamber"],
+      "fans": ["fan", "chamber_fan"],
+      "leds": [],
+      "hostname": "linaro-alip",
+      "printer_objects": ["heater_generic chamber"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "corexy",
+      "mcu": "STM32F407",
+      "mcu_list": ["STM32F407"],
+      "build_volume": {"x_min": 0, "x_max": 245, "y_min": 0, "y_max": 245, "z_max": 245}
+    },
+    "not": ["Artillery M1 Pro", "Qidi Max 4"]
+  },
+  {
+    "name": "a stock FLSUN T1 Pro identifies as itself",
+    "capture": "flsun_t1_pro",
+    "expect": "FLSUN T1 Pro",
+    "autosave": true
+  },
+  {
+    "name": "stock Max 4 fingerprint stays in the Qidi family",
+    "note": "The capture carries Max 4-only hardware alongside the shared QIDI stock firmware - multi_color_controller and the second auxiliary fan - so the Max 4 leads its family on identifying evidence. The pinned regression is that the shared objects do not drag the machine to the Artillery M1 Pro.",
+    "capture": "qidi_max4",
+    "expect": "Qidi Max 4",
+    "autosave": true,
+    "not": ["Artillery M1 Pro"]
+  },
+  {
+    "name": "Anycubic Kobra 3 Max by dual-Y + ACE (beats Kobra 2 Max)",
+    "note": "Kobra 3 Max: large cartesian bedslinger with dual-Y steppers (stepper_y1), ACE, and a GPIO filament_tracker. Its build volume (~420mm) overlaps the Kobra 2 Max, so stepper_y1 + ACE + filament_tracker are the discriminators that must let it out-score the Kobra 2 Max with NO hostname hint. Must beat the Kobra 2 Max (also cartesian + ~420mm) via dual-Y + ACE. The base score comes from stepper_y1 - the dual-Y stepper that actually distinguishes this machine - plus the extra-match bonus. It does NOT come from the ~420mm bed, which the Kobra 2 Max shares and which therefore corroborates without identifying. That is why the floor here sits lower than the bed size alone would have scored: the discriminator is worth less on its own than the shared measurement was, and it is the honest number. The point of the test: it out-scores the look-alike rather than tying it.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan", "heater_fan hotend_fan"],
+      "leds": [],
+      "hostname": "mainsailos",
+      "printer_objects": ["stepper_y1", "filament_hub", "filament_tracker", "probe"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_y1", "stepper_z"],
+      "kinematics": "cartesian",
+      "build_volume": {"x_min": 0, "x_max": 420, "y_min": 0, "y_max": 420, "z_max": 500}
+    },
+    "expect": "Anycubic Kobra 3 Max"
+  },
+  {
+    "name": "MCU match case insensitive - hc32f460",
+    "note": "Should still match Anycubic despite lowercase MCU",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "kobra2",
+      "printer_objects": [],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "cartesian",
+      "mcu": "hc32f460",
+      "mcu_list": ["hc32f460"]
+    },
+    "detected": true,
+    "contains_any": ["Anycubic", "Kobra"]
+  },
+  {
+    "name": "MCU match case insensitive - gd32f303",
+    "note": "Should match FLSUN despite lowercase/suffix",
+    "hardware": {
+      "heaters": ["extruder"],
+      "sensors": [],
+      "fans": ["fan"],
+      "leds": [],
+      "hostname": "flsun",
+      "printer_objects": ["delta_calibrate"],
+      "steppers": ["stepper_a", "stepper_b", "stepper_c"],
+      "kinematics": "delta",
+      "mcu": "gd32f303xx",
+      "mcu_list": ["gd32f303xx"]
+    },
+    "detected": true,
+    "contains_any": ["FLSUN"]
+  },
+  {
+    "name": "tool_count heuristic does not match wrong extruder count",
+    "note": "Only 1 extruder - should NOT match tool_count_4 Should not detect as AD5X (no tool_count match, no hostname match)",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "generic-printer",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": "cartesian"
+    },
+    "not": ["FlashForge Adventurer 5X"]
+  },
+  {
+    "name": "cpu_arch_match does not match wrong architecture",
+    "note": "ARM architecture should NOT match \"mips\" pattern Should not detect as AD5X (ARM doesn't match MIPS pattern)",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "generic-printer",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": "cartesian",
+      "cpu_arch": "ARMv7 Processor rev 5 (v7l)"
+    },
+    "not": ["FlashForge Adventurer 5X"]
+  },
+  {
+    "name": "cpu_arch_match with empty cpu_arch does not match",
+    "note": "Empty cpu_arch should not trigger any cpu_arch_match",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "generic-printer",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": "cartesian",
+      "cpu_arch": ""
+    },
+    "not": ["FlashForge Adventurer 5X"]
+  },
+  {
+    "name": "AD5X with IFS objects detected correctly even without ad5x hostname",
+    "note": "Regression test for #375: AD5X was incorrectly detected as AD5M because the hostname on many AD5X devices is \"flashforge\" (not \"ad5x\"), and the AD5M had stronger heuristics winning the scoring. The IFS objects are AD5X-exclusive hardware",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": ["weightValue", "weight"],
+      "fans": [],
+      "leds": [],
+      "hostname": "flashforge",
+      "printer_objects": ["zmod_ifs_switch_sensor _ifs_port_sensor_1", "zmod_ifs_switch_sensor _ifs_port_sensor_2", "zmod_ifs_switch_sensor _ifs_port_sensor_3", "zmod_ifs_switch_sensor _ifs_port_sensor_4", "gcode_macro SET_EXTRUDER_SLOT", "gcode_macro IFS_STATUS", "gcode_macro START_PRINT"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "MIPS Ingenic X2600"
+    },
+    "expect": "FlashForge Adventurer 5X"
+  },
+  {
+    "name": "AD5M not detected when hostname contains ad5x",
+    "note": "hostname_exclude should prevent AD5M from matching when hostname has \"ad5x\" Should NOT detect as any AD5M variant (hostname_exclude blocks it)",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["tvocValue", "tvoc", "weightValue", "weight"],
+      "fans": [],
+      "leds": [],
+      "hostname": "ad5x-flashforge",
+      "printer_objects": ["mod_params", "gcode_macro SUPPORT_FORGE_X"],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "not_contains": ["Adventurer 5M"]
+  },
+  {
+    "name": "Creator 5 Pro on FlashForge firmware (ff_* objects)",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": [],
+      "fans": ["heater_fan heat_fan", "fan_generic fanM106", "fan_generic chamber_fan"],
+      "leds": ["led chamber_led"],
+      "hostname": "flashforge",
+      "printer_objects": ["ff_toolchange", "ff_tool_offset", "ff_tool 0", "ff_tool 1", "ff_tool 2", "ff_tool 3", "gcode_button extruder_grab0", "gcode_button extruder_grab1", "gcode_button extruder_grab2", "gcode_button extruder_grab3", "filament_switch_sensor fd_ex0", "filament_switch_sensor fd_ex1", "filament_switch_sensor fd_ex2", "filament_switch_sensor fd_ex3", "heater_generic chamber_heater", "gcode_macro TOOLCHANGE_PARK", "gcode_macro BED_MESH_CALIBRATE"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "MIPS Ingenic X2000",
+      "objects_reported": true
+    },
+    "expect": "FlashForge Creator 5 Pro"
+  },
+  {
+    "name": "Creator 5 Pro on Z-Mod firmware (no ff_* objects)",
+    "note": "z_c5pro ships none of the ff_* extras; the grab buttons carry the identification and zmod_color may only corroborate it. The chamber heater and its fan suite are the Pro's hardware and separate it from the heater-free Creator 5.",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan_generic chamber_fan", "fan_generic chamber_heat_fan", "fan_generic chamber_loop_fan", "fan_generic chamber_cool_fan"],
+      "leds": [],
+      "hostname": "flashforge",
+      "printer_objects": ["zmod", "zmod_color", "heater_generic chamber_heater", "gcode_button extruder_grab1", "gcode_button extruder_grab2", "gcode_button extruder_grab3", "gcode_button extruder_grab4", "filament_switch_sensor fd_ex0", "filament_switch_sensor fd_ex1", "filament_switch_sensor fd_ex2", "filament_switch_sensor fd_ex3", "filament_motion_sensor fm_ex0", "filament_motion_sensor fm_ex1", "filament_motion_sensor fm_ex2", "filament_motion_sensor fm_ex3"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "MIPS Ingenic X2000",
+      "objects_reported": true
+    },
+    "expect": "FlashForge Creator 5 Pro"
+  },
+  {
+    "name": "Creator 5 Pro on Z-Mod 1.7.4 publishes the afclite AFC shim",
+    "note": "Field shape from bundle 5WSPTZBL: Z-Mod 1.7.4 registers an AFC-shaped surface (zmod_afclite plus the AFC/AFC_lane/AFC_unit objects an AFC panel wants) for the C5's four heads. The hostname names the machine itself, not \"flashforge\", so the identification has to stand on the objects alone — and the AD5X must self-exclude on the same object list.",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan_generic chamber_fan", "fan_generic chamber_heat_fan", "fan_generic chamber_loop_fan", "fan_generic chamber_cool_fan"],
+      "leds": ["led chamber_led"],
+      "hostname": "creator5pro",
+      "printer_objects": ["zmod", "zmod_color", "zmod_afclite", "AFC", "AFC_lane E0", "AFC_lane E1", "AFC_lane E2", "AFC_lane E3", "AFC_unit C5", "heater_generic chamber_heater", "gcode_button extruder_pos1", "gcode_button extruder_grab1", "gcode_button extruder_pos2", "gcode_button extruder_grab2", "gcode_button extruder_pos3", "gcode_button extruder_grab3", "gcode_button extruder_pos4", "gcode_button extruder_grab4", "filament_switch_sensor fd_ex0", "filament_switch_sensor fd_ex1", "filament_switch_sensor fd_ex2", "filament_switch_sensor fd_ex3", "filament_motion_sensor fm_ex0", "filament_motion_sensor fm_ex1", "filament_motion_sensor fm_ex2", "filament_motion_sensor fm_ex3"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "mips",
+      "objects_reported": true
+    },
+    "expect": "FlashForge Creator 5 Pro"
+  },
+  {
+    "name": "Creator 5 on Z-Mod firmware (no chamber heater)",
+    "note": "The Creator 5 is the heater-free model: same Z-Mod objects as the Pro above, minus the chamber heater and its fan suite.",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": [],
+      "fans": [],
+      "leds": [],
+      "hostname": "flashforge",
+      "printer_objects": ["zmod", "zmod_color", "gcode_button extruder_grab1", "gcode_button extruder_grab2", "gcode_button extruder_grab3", "gcode_button extruder_grab4", "filament_switch_sensor fd_ex0", "filament_switch_sensor fd_ex1", "filament_switch_sensor fd_ex2", "filament_switch_sensor fd_ex3", "filament_motion_sensor fm_ex0", "filament_motion_sensor fm_ex1", "filament_motion_sensor fm_ex2", "filament_motion_sensor fm_ex3"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "MIPS Ingenic X2000",
+      "objects_reported": true
+    },
+    "expect": "FlashForge Creator 5"
+  },
+  {
+    "name": "Creator 5 on FlashForge firmware (no chamber heater)",
+    "note": "The Reforge fingerprint above, minus the Pro's chamber heater and chamber fan. The LED stays: both models carry it.",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": [],
+      "fans": ["heater_fan heat_fan", "fan_generic fanM106"],
+      "leds": ["led chamber_led"],
+      "hostname": "flashforge",
+      "printer_objects": ["ff_toolchange", "ff_tool_offset", "ff_tool 0", "ff_tool 1", "ff_tool 2", "ff_tool 3", "gcode_button extruder_grab0", "gcode_button extruder_grab1", "gcode_button extruder_grab2", "gcode_button extruder_grab3", "filament_switch_sensor fd_ex0", "filament_switch_sensor fd_ex1", "filament_switch_sensor fd_ex2", "filament_switch_sensor fd_ex3", "gcode_macro TOOLCHANGE_PARK", "gcode_macro BED_MESH_CALIBRATE"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "MIPS Ingenic X2000",
+      "objects_reported": true
+    },
+    "expect": "FlashForge Creator 5"
+  },
+  {
+    "name": "AD5X Z-Mod (zmod_color, IFS) is not a Creator 5",
+    "note": "zmod_color exists on AD5X Z-Mod too; with the grab buttons absent it must never pull the machine toward either Creator 5 entry, and the IFS objects must exclude both outright. \"Creator 5\" is a substring of \"Creator 5 Pro\", so one check covers both entries as winner and as runner-up.",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": ["weightValue", "weight"],
+      "fans": [],
+      "leds": [],
+      "hostname": "flashforge",
+      "printer_objects": ["zmod", "zmod_color", "zmod_ifs", "zmod_ifs_switch_sensor _ifs_port_sensor_1", "zmod_ifs_switch_sensor _ifs_port_sensor_2", "zmod_ifs_switch_sensor _ifs_port_sensor_3", "zmod_ifs_switch_sensor _ifs_port_sensor_4", "gcode_macro SET_EXTRUDER_SLOT", "gcode_macro _IFS_AUTOINSERT"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "MIPS Ingenic X2600"
+    },
+    "expect": "FlashForge Adventurer 5X",
+    "not_contains": ["Creator 5"],
+    "runner_not_contains": ["Creator 5"]
+  },
+  {
+    "name": "AD5X with chamber LED and generic hostname detects as AD5X, not AD5M Pro",
+    "note": "The AD5X is an enclosed printer and exposes `led chamber_light` just like the AD5M Pro. If the user has not renamed their Moonraker host and the hostname therefore lacks \"ad5x\", the AD5M Pro's hostname_exclude never fires. AD5M Pro's chamber-LED match (confidence 100) then ties AD5X's combined score at 100 but wins the best_single_confidence tiebreaker over AD5X's 98-confidence IFS object. The fix: AD5M variants now macro_exclude on SET_EXTRUDER_SLOT (IFS control macro), which is exclusive to the AD5X.",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": ["tvocValue", "weightValue"],
+      "fans": [],
+      "leds": ["led chamber_light"],
+      "hostname": "flashforge",
+      "printer_objects": ["zmod_ifs_switch_sensor _ifs_port_sensor_1", "zmod_ifs_switch_sensor _ifs_port_sensor_2", "zmod_ifs_switch_sensor _ifs_port_sensor_3", "zmod_ifs_switch_sensor _ifs_port_sensor_4", "gcode_macro SET_EXTRUDER_SLOT", "gcode_macro START_PRINT"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "MIPS Ingenic X2600"
+    },
+    "expect": "FlashForge Adventurer 5X"
+  },
+  {
+    "name": "AD5X with ZMOD firmware detected via [zmod_ifs] section + private _IFS_ macros",
+    "note": "Regression for bundle Q8PJP63J: AD5X running ZMOD firmware does NOT publish the `zmod_ifs_switch_sensor` object or a public `SET_EXTRUDER_SLOT` macro. Instead it has a `[zmod_ifs]` section and private `_IFS_*` macros (_IFS_AUTOINSERT, _IFS_ON/OFF, _IFS_REMOVE_*, _PRINT_IFS_MOTION). Combined with the chamber LED that the AD5X shares with the AD5M Pro, the detector previously misclassified this hardware as \"Adventurer 5M Pro\". The [zmod_ifs] section and private _IFS_* macros are AD5X-exclusive",
+    "hardware": {
+      "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+      "sensors": ["weightValue"],
+      "fans": [],
+      "leds": ["led chamber_led"],
+      "hostname": "flashforge",
+      "printer_objects": ["zmod_ifs", "zmod_ifs_motion_sensor ifs_motion_sensor", "filament_motion_sensor ifs_motion_sensor", "filament_switch_sensor head_switch_sensor", "gcode_macro _IFS_AUTOINSERT", "gcode_macro _IFS_ON", "gcode_macro _IFS_OFF", "gcode_macro _IFS_REMOVE_PRUTOK", "gcode_macro _PRINT_IFS_MOTION", "gcode_macro IFS_UNLOCK", "gcode_macro END_CHANGE_FILAMENT", "gcode_macro START_PRINT"],
+      "steppers": [],
+      "kinematics": "corexy",
+      "cpu_arch": "MIPS Ingenic X2600"
+    },
+    "expect": "FlashForge Adventurer 5X"
+  },
+  {
+    "name": "a CoreXY Pi named nebula keeps Creality out of contention",
+    "note": "The hostname alone is family-level evidence: a CoreXY machine with its own fingerprint must not even have a Creality entry as its nearest rival.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["temperature_sensor chamber"],
+      "fans": ["fan", "heater_fan hotend_fan"],
+      "leds": [],
+      "hostname": "nebula",
+      "printer_objects": ["z_tilt", "bed_mesh"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2"],
+      "kinematics": "corexy",
+      "mcu": "stm32f446xx",
+      "build_volume": {"x_min": 0, "x_max": 255, "y_min": 0, "y_max": 255, "z_max": 260},
+      "cpu_arch": "aarch64"
+    },
+    "detected": true,
+    "not_contains": ["Creality"],
+    "runner_not_contains": ["Creality"]
+  },
+  {
+    "name": "AD5M with ForgeX macros detects as ForgeX variant",
+    "note": "SUPPORT_FORGE_X rules out the stock entries; which ForgeX variant (5M vs 5M Pro) needs the chamber light this rig never reported, so the two ForgeX entries tie.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["tvocValue", "weightValue"],
+      "fans": [],
+      "leds": [],
+      "hostname": "flashforge-ad5m",
+      "printer_objects": ["mod_params", "gcode_macro SUPPORT_FORGE_X"],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "detected": true,
+    "contains": ["(ForgeX)"],
+    "tie": true,
+    "autosave": false
+  },
+  {
+    "name": "AD5M without ForgeX macros detects as stock variant",
+    "note": "No ForgeX macros: a stock 5M-family entry wins (the siblings tie on the silent chamber light, as in Regular AD5M without LED).",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["tvocValue", "weightValue"],
+      "fans": [],
+      "leds": [],
+      "hostname": "flashforge-ad5m",
+      "printer_objects": [],
+      "steppers": [],
+      "kinematics": "corexy"
+    },
+    "detected": true,
+    "family": "FlashForge Adventurer 5M",
+    "not_contains": ["(ForgeX)"],
+    "tie": true,
+    "autosave": false
+  },
+  {
+    "name": "Detect Snapmaker U1 with preset field",
+    "capture": "snapmaker_u1",
+    "expect": "Snapmaker U1",
+    "preset": "snapmaker_u1"
+  },
+  {
+    "name": "Detect Creality K1 with preset field",
+    "note": "K1 Max matches due to hostname \"k1-max\"",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan", "chamber_fan"],
+      "leds": [],
+      "hostname": "k1-max"
+    },
+    "expect": "Creality K1 Max",
+    "preset": "k1"
+  },
+  {
+    "name": "Generic printer has empty preset field",
+    "note": "Voron has no preset in the database",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["temperature_sensor chamber"],
+      "fans": ["controller_fan", "exhaust_fan", "bed_fans"],
+      "leds": [],
+      "hostname": "voron-v2"
+    },
+    "expect": "Voron 2.4",
+    "preset": ""
+  },
+  {
+    "name": "led_effect rig with chamber_light must not detect AD5M Pro at >=70",
+    "note": "A Voron-class rig running the klipper-led_effect mod. The mod's configs target an underlying 'neopixel chamber_light' strip — the most natural chamber-light name on custom builds — and 'chamber_light' contains the AD5M Pro DB pattern 'chamber_l'. That name is generic, so the LED alone must never carry detection to the >=70 high-confidence threshold (where the saved type is overridden / the mismatch warning fires). The unambiguous Voron hardware (QGL + 4x Z steppers) must win, not the LED-name substring match.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed", "heater_generic chamber"],
+      "sensors": ["extruder", "heater_bed", "temperature_sensor chamber", "temperature_sensor raspberry_pi", "temperature_sensor mcu_temp"],
+      "fans": ["heater_fan hotend_fan", "fan", "fan_generic nevermore", "controller_fan controller_fan"],
+      "leds": ["neopixel chamber_light", "neopixel status_led", "led caselight", "output_pin Enclosure_LEDs"],
+      "hostname": "voron",
+      "printer_objects": ["quad_gantry_level", "neopixel chamber_light", "neopixel status_led", "led caselight", "led_effect breathing", "led_effect fire_comet", "led_effect rainbow", "led_effect static_white"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2", "stepper_z3"],
+      "kinematics": "corexy",
+      "mcu": "rp2040"
+    },
+    "expect": "Voron 2.4"
+  },
+  {
+    "name": "chamber_light-only rig is never auto-saved",
+    "note": "Same minimal rig as the #1284 exclusivity test above. #1284 kept it under the 70 warning bar and its comment says it \"may still be suggested\" - but nothing downstream only-suggested. auto_detect_and_save took the ~55% guess and made it the permanent printer type.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": [],
+      "fans": ["fan", "heater_fan hotend_fan"],
+      "leds": ["led chamber_light"],
+      "hostname": "mainsailos"
+    },
+    "autosave": false
+  },
+  {
+    "name": "genuine AD5M Pro shape is auto-saved",
+    "note": "The gate must not cost us the printers we genuinely recognise. AD5M Pro earns its score from the stock TVOC/weight sensors and the hostname.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["tvocValue", "weightValue", "temperature_sensor chamber_temp"],
+      "fans": ["fan", "fan_generic exhaust_fan"],
+      "leds": ["led chamber_light"],
+      "hostname": "flashforge-ad5m-pro",
+      "kinematics": "corexy"
+    },
+    "expect": "FlashForge Adventurer 5M Pro",
+    "autosave": true
+  },
+  {
+    "name": "unambiguous Voron 2.4 is auto-saved",
+    "note": "QGL + 4 independent Z steppers is the signature that should have won on the reported rig. Guards the gate against being so strict that a clearly identified printer still falls through to the picker.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "fans": ["fan", "fan_generic exhaust_fan", "fan_generic nevermore"],
+      "hostname": "voron",
+      "printer_objects": ["quad_gantry_level"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2", "stepper_z3"],
+      "kinematics": "corexy"
+    },
+    "expect": "Voron 2.4",
+    "autosave": true
+  },
+  {
+    "name": "reported Voron 2.4 rig outscores FlashForge",
+    "note": "Fingerprint taken from a user's debug bundle: a Voron 2.4 that shipped labelled \"FlashForge Adventurer 5M Pro\". The capture file records the two things that make it hostile: a hostname that names nothing Voron, and LED section names that contain the AD5M Pro 'chamber_l' pattern.",
+    "capture": "voron_2_4_qs846gmm",
+    "expect": "Voron 2.4"
+  },
+  {
+    "name": "a 500mm Geralkom keeps its own identity",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "hostname": "geralkom-x500",
+      "printer_objects": ["bed_mesh"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "corexy",
+      "build_volume": {"x_min": 0, "x_max": 500, "y_min": 0, "y_max": 500, "z_max": 0}
+    },
+    "expect": "Geralkom X500 HT"
+  },
+  {
+    "name": "a chamber sensor does not make a Voron a Qidi",
+    "note": "The reporter's rig: enclosed V0.2 on an RP2040 board, chamber thermistor, no hostname that names anything. The Qidi entries can still corroborate, but none of them may lead. Well clear of the runner-up rather than a coin toss.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["chamber_temp", "MCU_temp"],
+      "hostname": "printer",
+      "printer_objects": ["neopixel bed_light", "bed_mesh"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "corexy",
+      "mcu": "rp2040",
+      "build_volume": {"x_min": 0, "x_max": 120, "y_min": 0, "y_max": 120, "z_max": 0}
+    },
+    "expect": "Voron 0.2",
+    "not_contains": ["Qidi"],
+    "margin_above": 20
+  },
+  {
+    "name": "an identifying volume still needs corroboration",
+    "note": "The Voron 0 window is the one volume distinctive enough to lead. It must still not identify on its own, or a 120mm cartesian rig becomes a Voron 0 the same way a 500mm Geralkom became a Sovol.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "hostname": "printer",
+      "printer_objects": [],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "cartesian",
+      "build_volume": {"x_min": 0, "x_max": 120, "y_min": 0, "y_max": 120, "z_max": 0}
+    },
+    "not": ["Voron 0.2"]
+  },
+  {
+    "name": "a real Qidi X-Max 3 is still identified",
+    "note": "The demotion must cost the Qidi nothing when its own evidence is present: the chamber HEATER, the M141/M191 macros and the hostname all name it.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "sensors": ["chamber"],
+      "hostname": "qidi-x-max-3",
+      "printer_objects": ["heater_generic chamber", "bed_mesh", "gcode_macro M141", "gcode_macro M191"],
+      "steppers": ["stepper_x", "stepper_y", "stepper_z"],
+      "kinematics": "corexy",
+      "mcu": "rp2040",
+      "build_volume": {"x_min": 0, "x_max": 325, "y_min": 0, "y_max": 250, "z_max": 0}
+    },
+    "expect": "Qidi X-Max 3",
+    "autosave": true
+  },
+  {
+    "name": "reported Voron Trident rig outscores FlashForge",
+    "note": "Second reporter, different rig, same wrong label: a Voron Trident that shipped as \"FlashForge Adventurer 5M Pro\". Same hostname blind spot as the QS846GMM rig above, but a different false-positive vector: no led_effect config, just a plain 'output_pin Chamber_Light'. The capture file records the details.",
+    "capture": "voron_trident_tzt85mq3",
+    "expect": "Voron Trident",
+    "autosave": true
   }
 ]

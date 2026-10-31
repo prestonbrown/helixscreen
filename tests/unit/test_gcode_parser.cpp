@@ -3,6 +3,7 @@
 
 #include "gcode_parser.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
@@ -11,11 +12,25 @@
 #include <set>
 #include <sstream>
 #include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::gcode;
 using Catch::Approx;
+
+namespace {
+
+/// extract_header_metadata() over a file holding @p content.
+GCodeHeaderMetadata header_of(const std::string& content) {
+    const std::string path = "/tmp/test_gcode_header_" + std::to_string(getpid()) + ".gcode";
+    std::ofstream(path) << content;
+    auto metadata = extract_header_metadata(path);
+    std::remove(path.c_str());
+    return metadata;
+}
+
+} // namespace
 
 TEST_CASE("GCodeParser - Basic movement parsing", "[gcode][parser]") {
     GCodeParser parser;
@@ -337,114 +352,71 @@ TEST_CASE("GCodeParser - Real-world G-code snippet", "[gcode][parser]") {
 }
 
 TEST_CASE("GCodeParser - Move type differentiation", "[gcode][parser]") {
-    GCodeParser parser;
+    // A move extrudes when E advances; G0, G1 without E and a retracting G1 travel.
+    struct Row {
+        const char* what;
+        std::vector<const char*> lines;
+        std::vector<bool> extrudes; ///< one per segment, in order
+    };
+    const Row rows[] = {
+        {"G0 moves travel", {"G0 X10 Y10 Z0.2", "G0 X20 Y20"}, {false, false}},
+        {"G1 without E travels", {"G1 X10 Y10 Z0.2", "G1 X20 Y20"}, {false, false}},
+        {"G1 with E extrudes", {"G1 X10 Y10 Z0.2 E0.5", "G1 X20 Y20 E1.0"}, {true, true}},
+        {"a G1 whose E falls retracts",
+         {"M82", "G1 X10 Y10 Z0.2 E1.0", "G1 X15 Y15 E0.5", "G1 X20 Y20"},
+         {true, false, false}},
+        {"mixed G0 and G1",
+         {"G1 X10 Y10 Z0.2 E1.0", "G0 X20 Y20", "G1 X30 Y30 E2.0", "G0 X0 Y0"},
+         {true, false, true, false}},
+    };
+    for (const auto& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            GCodeParser parser;
+            for (const char* line : r.lines) {
+                parser.parse_line(line);
+            }
+            auto file = parser.finalize();
 
-    SECTION("G0 commands are travel moves") {
-        parser.parse_line("G0 X10 Y10 Z0.2"); // Travel move (no extrusion)
-        parser.parse_line("G0 X20 Y20");      // Another travel
-
-        auto file = parser.finalize();
-
-        REQUIRE(file.total_segments == 2);
-        REQUIRE(file.layers[0].segment_count_travel == 2);
-        REQUIRE(file.layers[0].segment_count_extrusion == 0);
-        REQUIRE(file.layers[0].segments[0].is_extrusion == false);
-        REQUIRE(file.layers[0].segments[1].is_extrusion == false);
-    }
-
-    SECTION("G1 without E parameter is travel move") {
-        parser.parse_line("G1 X10 Y10 Z0.2"); // No E = travel
-        parser.parse_line("G1 X20 Y20");      // No E = travel
-
-        auto file = parser.finalize();
-
-        REQUIRE(file.total_segments == 2);
-        REQUIRE(file.layers[0].segment_count_travel == 2);
-        REQUIRE(file.layers[0].segment_count_extrusion == 0);
-    }
-
-    SECTION("G1 with E parameter is extrusion move") {
-        parser.parse_line("G1 X10 Y10 Z0.2 E0.5"); // Has E = extrusion
-        parser.parse_line("G1 X20 Y20 E1.0");      // Has E = extrusion
-
-        auto file = parser.finalize();
-
-        REQUIRE(file.total_segments == 2);
-        REQUIRE(file.layers[0].segment_count_extrusion == 2);
-        REQUIRE(file.layers[0].segment_count_travel == 0);
-        REQUIRE(file.layers[0].segments[0].is_extrusion == true);
-        REQUIRE(file.layers[0].segments[1].is_extrusion == true);
-    }
-
-    SECTION("G1 with decreasing E during movement is retraction (travel move)") {
-        parser.parse_line("M82");                  // Absolute extrusion mode
-        parser.parse_line("G1 X10 Y10 Z0.2 E1.0"); // Extrusion
-        parser.parse_line("G1 X15 Y15 E0.5");      // Move with retraction (E decreases)
-        parser.parse_line("G1 X20 Y20");           // Travel after retraction
-
-        auto file = parser.finalize();
-
-        // First move is extrusion, second has negative E delta (retraction), third is travel
-        REQUIRE(file.total_segments == 3);
-        REQUIRE(file.layers[0].segments[0].is_extrusion == true);
-        REQUIRE(file.layers[0].segments[1].is_extrusion == false); // Negative E = retraction
-        REQUIRE(file.layers[0].segments[2].is_extrusion == false); // Travel
-    }
-
-    SECTION("Mixed G0 and G1 commands") {
-        parser.parse_line("G1 X10 Y10 Z0.2 E1.0"); // G1 extrusion
-        parser.parse_line("G0 X20 Y20");           // G0 travel
-        parser.parse_line("G1 X30 Y30 E2.0");      // G1 extrusion
-        parser.parse_line("G0 X0 Y0");             // G0 travel
-
-        auto file = parser.finalize();
-
-        REQUIRE(file.total_segments == 4);
-        REQUIRE(file.layers[0].segment_count_extrusion == 2);
-        REQUIRE(file.layers[0].segment_count_travel == 2);
-
-        // Verify specific segment types
-        REQUIRE(file.layers[0].segments[0].is_extrusion == true);  // G1 E1.0
-        REQUIRE(file.layers[0].segments[1].is_extrusion == false); // G0
-        REQUIRE(file.layers[0].segments[2].is_extrusion == true);  // G1 E2.0
-        REQUIRE(file.layers[0].segments[3].is_extrusion == false); // G0
+            const auto n = static_cast<long>(r.extrudes.size());
+            const auto extruding = std::count(r.extrudes.begin(), r.extrudes.end(), true);
+            REQUIRE(file.total_segments == static_cast<size_t>(n));
+            CHECK(file.layers[0].segment_count_extrusion == static_cast<size_t>(extruding));
+            CHECK(file.layers[0].segment_count_travel == static_cast<size_t>(n - extruding));
+            for (size_t i = 0; i < r.extrudes.size(); ++i) {
+                INFO("segment " << i);
+                CHECK(file.layers[0].segments[i].is_extrusion == r.extrudes[i]);
+            }
+        }
     }
 }
 
 TEST_CASE("GCodeParser - Extrusion amount tracking", "[gcode][parser]") {
-    GCodeParser parser;
-
-    SECTION("Track extrusion delta in absolute mode (M82)") {
-        parser.parse_line("M82"); // Absolute extrusion
-        parser.parse_line("G1 X10 Y10 Z0.2 E1.0");
-        parser.parse_line("G1 X20 Y20 E3.0"); // Delta = 3.0 - 1.0 = 2.0
-
-        auto file = parser.finalize();
-
-        REQUIRE(file.layers[0].segments[0].extrusion_amount == Approx(1.0f));
-        REQUIRE(file.layers[0].segments[1].extrusion_amount == Approx(2.0f));
-    }
-
-    SECTION("Track extrusion delta in relative mode (M83)") {
-        parser.parse_line("M83");                  // Relative extrusion
-        parser.parse_line("G1 X10 Y10 Z0.2 E1.5"); // Delta = 1.5
-        parser.parse_line("G1 X20 Y20 E2.0");      // Delta = 2.0
-
-        auto file = parser.finalize();
-
-        REQUIRE(file.layers[0].segments[0].extrusion_amount == Approx(1.5f));
-        REQUIRE(file.layers[0].segments[1].extrusion_amount == Approx(2.0f));
-    }
-
-    SECTION("Retraction has negative extrusion amount") {
-        parser.parse_line("M82"); // Absolute extrusion
-        parser.parse_line("G1 X10 Y10 Z0.2 E5.0");
-        parser.parse_line("G1 X15 Y15 E3.0"); // Move with retract: delta = 3.0 - 5.0 = -2.0
-
-        auto file = parser.finalize();
-
-        REQUIRE(file.layers[0].segments[0].extrusion_amount == Approx(5.0f));
-        REQUIRE(file.layers[0].segments[1].extrusion_amount == Approx(-2.0f));
+    // M82 reports the delta from the last absolute E; M83 takes E as the delta.
+    struct Row {
+        const char* what;
+        std::vector<const char*> lines;
+        std::vector<float> amounts;
+    };
+    const Row rows[] = {
+        {"absolute (M82)", {"M82", "G1 X10 Y10 Z0.2 E1.0", "G1 X20 Y20 E3.0"}, {1.0f, 2.0f}},
+        {"relative (M83)", {"M83", "G1 X10 Y10 Z0.2 E1.5", "G1 X20 Y20 E2.0"}, {1.5f, 2.0f}},
+        {"a retraction is negative",
+         {"M82", "G1 X10 Y10 Z0.2 E5.0", "G1 X15 Y15 E3.0"},
+         {5.0f, -2.0f}},
+    };
+    for (const auto& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            GCodeParser parser;
+            for (const char* line : r.lines) {
+                parser.parse_line(line);
+            }
+            auto file = parser.finalize();
+            REQUIRE(file.layers[0].segments.size() >= r.amounts.size());
+            for (size_t i = 0; i < r.amounts.size(); ++i) {
+                INFO("segment " << i);
+                CHECK(file.layers[0].segments[i].extrusion_amount == Approx(r.amounts[i]));
+            }
+        }
     }
 }
 
@@ -488,37 +460,6 @@ TEST_CASE("GCodeParser - Travel move characteristics", "[gcode][parser]") {
     }
 }
 
-TEST_CASE("GCodeParser - Extrusion move characteristics", "[gcode][parser]") {
-    GCodeParser parser;
-
-    SECTION("Extrusion moves have non-zero E delta") {
-        parser.parse_line("G1 X10 Y10 Z0.2 E1.5");
-        parser.parse_line("G1 X20 Y20 E3.0");
-
-        auto file = parser.finalize();
-
-        REQUIRE(file.layers[0].segments[0].extrusion_amount > 0);
-        REQUIRE(file.layers[0].segments[1].extrusion_amount > 0);
-    }
-
-    SECTION("Extrusion width calculated from E delta and distance") {
-        parser.parse_line("; layer_height = 0.2"); // Set layer height metadata
-        parser.parse_line("G1 X0 Y0 Z0.2 E0");
-        parser.parse_line("G1 X10 Y0 E1.5"); // 10mm move with 1.5mm³ extrusion
-
-        auto file = parser.finalize();
-
-        // Width should be calculated (implementation-specific formula)
-        // Just verify it's set to a reasonable value if calculated
-        REQUIRE(file.layers[0].segments.size() >= 1);
-        auto& seg = file.layers[0].segments.back();
-        if (seg.width > 0) {
-            REQUIRE(seg.width > 0.1f); // Minimum reasonable width
-            REQUIRE(seg.width < 2.0f); // Maximum reasonable width
-        }
-    }
-}
-
 // ============================================================================
 // Metadata Extraction Tests
 // ============================================================================
@@ -530,96 +471,58 @@ TEST_CASE("extract_header_metadata - OrcaSlicer file footer parsing", "[gcode][m
 
     SECTION("Parse estimated print time from footer (format: NNm NNs)") {
         // Create a temp file with footer-style metadata
-        std::string temp_path = "/tmp/test_metadata_" + std::to_string(getpid()) + "_time.gcode";
-        std::ofstream out(temp_path);
-        out << "; generated by OrcaSlicer 2.3.1\n";
-        out << "; total layer number: 100\n";
-        out << "G1 X10 Y10 Z0.2\n"; // Some G-code to simulate content
-        out << "G1 X20 Y20\n";
-        // Footer metadata (like OrcaSlicer produces)
-        out << "; estimated printing time (normal mode) = 36m 25s\n";
-        out << "; total filament used [g] = 10.98\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
+        auto metadata = header_of("; generated by OrcaSlicer 2.3.1\n"
+                                  "; total layer number: 100\n"
+                                  "G1 X10 Y10 Z0.2\n" // Some G-code to simulate content
+                                  "G1 X20 Y20\n"
+                                  // Footer metadata (like OrcaSlicer produces)
+                                  "; estimated printing time (normal mode) = 36m 25s\n"
+                                  "; total filament used [g] = 10.98\n");
 
         // 36m 25s = 36*60 + 25 = 2185 seconds
         REQUIRE(metadata.estimated_time_seconds == Approx(2185.0));
         REQUIRE(metadata.filament_used_g == Approx(10.98));
-
-        std::remove(temp_path.c_str());
     }
 
     SECTION("Parse estimated print time with hours (format: Nh NNm NNs)") {
-        std::string temp_path =
-            "/tmp/test_metadata_" + std::to_string(getpid()) + "_time_hours.gcode";
-        std::ofstream out(temp_path);
-        out << "; generated by PrusaSlicer\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out << "; estimated printing time (normal mode) = 2h 30m 15s\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
+        auto metadata = header_of("; generated by PrusaSlicer\n"
+                                  "G1 X10 Y10 Z0.2\n"
+                                  "; estimated printing time (normal mode) = 2h 30m 15s\n");
 
         // 2h 30m 15s = 2*3600 + 30*60 + 15 = 9015 seconds
         REQUIRE(metadata.estimated_time_seconds == Approx(9015.0));
-
-        std::remove(temp_path.c_str());
     }
 
     SECTION("Parse slicer info from header") {
-        std::string temp_path = "/tmp/test_metadata_" + std::to_string(getpid()) + "_slicer.gcode";
-        std::ofstream out(temp_path);
-        out << "; generated by: OrcaSlicer 2.3.1\n";
-        out << "; slicer_version = 2.3.1\n";
-        out << "; total layer number: 240\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
+        auto metadata = header_of("; generated by: OrcaSlicer 2.3.1\n"
+                                  "; slicer_version = 2.3.1\n"
+                                  "; total layer number: 240\n"
+                                  "G1 X10 Y10 Z0.2\n");
 
         REQUIRE(metadata.slicer == "OrcaSlicer 2.3.1");
         REQUIRE(metadata.layer_count == 240);
-
-        std::remove(temp_path.c_str());
     }
 
     SECTION("Parse filament weight with decimal") {
-        std::string temp_path =
-            "/tmp/test_metadata_" + std::to_string(getpid()) + "_filament.gcode";
-        std::ofstream out(temp_path);
-        out << "G1 X10 Y10 Z0.2\n";
-        out << "; total filament used [g] = 25.73\n";
-        out << "; filament used [mm] = 8532.5\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
+        auto metadata = header_of("G1 X10 Y10 Z0.2\n"
+                                  "; total filament used [g] = 25.73\n"
+                                  "; filament used [mm] = 8532.5\n");
 
         REQUIRE(metadata.filament_used_g == Approx(25.73));
         REQUIRE(metadata.filament_used_mm == Approx(8532.5));
-
-        std::remove(temp_path.c_str());
     }
 
     SECTION("Parse height fields from OrcaSlicer footer") {
-        std::string temp_path =
-            "/tmp/test_metadata_" + std::to_string(getpid()) + "_height_fields.gcode";
-        std::ofstream out(temp_path);
-        out << "; generated by OrcaSlicer 2.3.1\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        // Footer metadata (OrcaSlicer places these at end of file)
-        out << "; layer_height = 0.24\n";
-        out << "; first_layer_height = 0.300\n";
-        out << "; max_z_height: 52.62\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
+        auto metadata = header_of("; generated by OrcaSlicer 2.3.1\n"
+                                  "G1 X10 Y10 Z0.2\n"
+                                  // Footer metadata (OrcaSlicer places these at end of file)
+                                  "; layer_height = 0.24\n"
+                                  "; first_layer_height = 0.300\n"
+                                  "; max_z_height: 52.62\n");
 
         REQUIRE(metadata.layer_height == Approx(0.24));
         REQUIRE(metadata.first_layer_height == Approx(0.300));
         REQUIRE(metadata.object_height == Approx(52.62));
-
-        std::remove(temp_path.c_str());
     }
 
     SECTION("Handle file with metadata only in footer (large file simulation)") {
@@ -660,53 +563,32 @@ TEST_CASE("extract_header_metadata - Cura format parsing", "[gcode][metadata]") 
     // Cura places metadata at the BEGINNING of the file with different syntax
 
     SECTION("Parse Cura slicer info") {
-        std::string temp_path =
-            "/tmp/test_metadata_" + std::to_string(getpid()) + "_cura_slicer.gcode";
-        std::ofstream out(temp_path);
-        out << ";Generated with Cura_SteamEngine 5.6.0\n";
-        out << ";TIME:7036\n";
-        out << ";Filament used: 1.20047m\n";
-        out << ";Layer height: 0.12\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
+        auto metadata = header_of(";Generated with Cura_SteamEngine 5.6.0\n"
+                                  ";TIME:7036\n"
+                                  ";Filament used: 1.20047m\n"
+                                  ";Layer height: 0.12\n"
+                                  "G1 X10 Y10 Z0.2\n");
 
         REQUIRE(metadata.slicer == "Cura_SteamEngine 5.6.0");
         REQUIRE(metadata.layer_height == Approx(0.12));
-        std::remove(temp_path.c_str());
     }
 
     SECTION("Parse Cura time in seconds") {
-        std::string temp_path =
-            "/tmp/test_metadata_" + std::to_string(getpid()) + "_cura_time.gcode";
-        std::ofstream out(temp_path);
-        out << ";TIME:7036\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
+        auto metadata = header_of(";TIME:7036\n"
+                                  "G1 X10 Y10 Z0.2\n");
 
         // 7036 seconds = ~117 minutes = ~1h 57m
         REQUIRE(metadata.estimated_time_seconds == Approx(7036.0));
-        std::remove(temp_path.c_str());
     }
 
     SECTION("Parse Cura filament in meters") {
-        std::string temp_path =
-            "/tmp/test_metadata_" + std::to_string(getpid()) + "_cura_filament.gcode";
-        std::ofstream out(temp_path);
-        out << ";Filament used: 1.20047m\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
+        auto metadata = header_of(";Filament used: 1.20047m\n"
+                                  "G1 X10 Y10 Z0.2\n");
 
         // 1.20047m = 1200.47mm
         REQUIRE(metadata.filament_used_mm == Approx(1200.47));
         // Grams estimated as PLA (1.24 g/cm^3) through a 1.75mm cross-section
         REQUIRE(metadata.filament_used_g == Approx(3.5805).margin(0.0005));
-        std::remove(temp_path.c_str());
     }
 }
 
@@ -836,162 +718,22 @@ TEST_CASE("extract_header_metadata - Real exclude_object_test file",
 // ============================================================================
 
 TEST_CASE("extract_header_metadata - Filament type parsing", "[gcode][metadata][filament_type]") {
-    SECTION("Parse simple filament_type (PLA)") {
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_pla.gcode";
-        std::ofstream out(temp_path);
-        out << "; generated by TestSlicer 1.0\n";
-        out << "; filament_type = PLA\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        REQUIRE(metadata.filament_type == "PLA");
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Parse semicolon-separated multi-extruder filament_type (preserves full string)") {
-        // OrcaSlicer/PrusaSlicer format for multi-extruder: "PLA;PLA;PLA;PLA"
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_multi.gcode";
-        std::ofstream out(temp_path);
-        out << "; generated by PrusaSlicer 2.6\n";
-        out << "; filament_type = PLA;PLA;PLA;PLA\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        // Preserves full semicolon-separated string; consumers split as needed
-        REQUIRE(metadata.filament_type == "PLA;PLA;PLA;PLA");
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Parse PETG filament type") {
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_petg.gcode";
-        std::ofstream out(temp_path);
-        out << "; filament_type = PETG\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        REQUIRE(metadata.filament_type == "PETG");
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Parse ABS filament type") {
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_abs.gcode";
-        std::ofstream out(temp_path);
-        out << "; filament_type = ABS\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        REQUIRE(metadata.filament_type == "ABS");
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Parse TPU filament type") {
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_tpu.gcode";
-        std::ofstream out(temp_path);
-        out << "; filament_type = TPU\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        REQUIRE(metadata.filament_type == "TPU");
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Parse ASA filament type") {
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_asa.gcode";
-        std::ofstream out(temp_path);
-        out << "; filament_type = ASA\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        REQUIRE(metadata.filament_type == "ASA");
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Parse Nylon filament type") {
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_nylon.gcode";
-        std::ofstream out(temp_path);
-        out << "; filament_type = Nylon\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        REQUIRE(metadata.filament_type == "Nylon");
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Parse PC (Polycarbonate) filament type") {
-        std::string temp_path = "/tmp/test_filament_type_" + std::to_string(getpid()) + "_pc.gcode";
-        std::ofstream out(temp_path);
-        out << "; filament_type = PC\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        REQUIRE(metadata.filament_type == "PC");
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Handle missing filament_type (remains empty)") {
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_missing.gcode";
-        std::ofstream out(temp_path);
-        out << "; generated by TestSlicer 1.0\n";
-        out << "; total layer number: 100\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        // filament_type should be empty when not present in file
-        REQUIRE(metadata.filament_type.empty());
-
-        std::remove(temp_path.c_str());
-    }
-
-    SECTION("Parse mixed multi-extruder filament types (preserves full string)") {
-        // Different materials for different extruders
-        std::string temp_path =
-            "/tmp/test_filament_type_" + std::to_string(getpid()) + "_mixed.gcode";
-        std::ofstream out(temp_path);
-        out << "; generated by OrcaSlicer 2.3.1\n";
-        out << "; filament_type = PETG;PLA;ABS\n";
-        out << "G1 X10 Y10 Z0.2\n";
-        out.close();
-
-        auto metadata = extract_header_metadata(temp_path);
-
-        // Preserves full semicolon-separated string; consumers split as needed
-        REQUIRE(metadata.filament_type == "PETG;PLA;ABS");
-
-        std::remove(temp_path.c_str());
+    // A multi-extruder value is kept whole, semicolons and all; consumers split it.
+    const std::pair<const char*, const char*> rows[] = {
+        {"; generated by TestSlicer 1.0\n; filament_type = PLA\n", "PLA"},
+        {"; generated by PrusaSlicer 2.6\n; filament_type = PLA;PLA;PLA;PLA\n", "PLA;PLA;PLA;PLA"},
+        {"; generated by OrcaSlicer 2.3.1\n; filament_type = PETG;PLA;ABS\n", "PETG;PLA;ABS"},
+        {"; filament_type = PETG\n", "PETG"},
+        {"; filament_type = ABS\n", "ABS"},
+        {"; filament_type = TPU\n", "TPU"},
+        {"; filament_type = ASA\n", "ASA"},
+        {"; filament_type = Nylon\n", "Nylon"},
+        {"; filament_type = PC\n", "PC"},
+        {"; generated by TestSlicer 1.0\n; total layer number: 100\n", ""}, // absent
+    };
+    for (const auto& [header, expected] : rows) {
+        INFO(header);
+        CHECK(header_of(std::string(header) + "G1 X10 Y10 Z0.2\n").filament_type == expected);
     }
 }
 

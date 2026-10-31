@@ -1076,12 +1076,14 @@ endif
 # SUBMODULE_CFLAGS/SUBMODULE_CXXFLAGS: instrumenting LVGL, libhv and helix-xml
 # would multiply build time and disk for lines no diff of ours ever touches.
 # -fprofile-abs-path puts absolute source paths in the .gcno, so gcov resolves
-# them no matter which directory the report is generated from.
+# them no matter which directory the report is generated from. Compilers that
+# reject it (clang before 15, the test host image's clang 14) get --coverage
+# alone and report from the tree root.
 #
 # Appended here, after the per-platform `LDFLAGS :=` composition above, for the
 # same reason the sanitizer flags are.
 ifeq ($(COVERAGE),1)
-    COVERAGE_FLAGS := --coverage -fprofile-abs-path
+    COVERAGE_FLAGS := --coverage $(shell $(CXX) -fprofile-abs-path -x c++ -fsyntax-only /dev/null >/dev/null 2>&1 && echo -fprofile-abs-path)
     CFLAGS += $(COVERAGE_FLAGS)
     CXXFLAGS += $(COVERAGE_FLAGS)
     LDFLAGS += --coverage

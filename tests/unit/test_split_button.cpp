@@ -201,7 +201,7 @@ class SplitButtonLogCapture {
 // Teardown-safety guard for the #980 SIGSEGV: ui_split_button_create() schedules
 // a deferred callback that calls get_data()->lv_obj_get_child() on the widget.
 // During rapid panel teardown the widget is freed before that callback fires.
-// The fix routes the deferral through the widget-safe async_call (lv_obj_is_valid
+// The fix routes the deferral through the widget-safe async_call (widget liveness
 // guard) instead of a raw lv_async_call, so the callback is skipped once the
 // widget is gone.
 //

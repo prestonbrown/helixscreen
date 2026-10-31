@@ -339,8 +339,6 @@ static void arrow_opacity_anim_cb(void* var, int32_t value) {
 /// Called when draw-in animation completes; starts the fade-out phase
 static void on_draw_in_complete(lv_anim_t* anim) {
     lv_obj_t* obj = static_cast<lv_obj_t*>(anim->var);
-    if (!lv_obj_is_valid(obj))
-        return;
 
     lv_anim_t fade;
     lv_anim_init(&fade);

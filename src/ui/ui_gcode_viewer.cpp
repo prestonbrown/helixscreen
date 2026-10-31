@@ -994,9 +994,7 @@ void helix::ui::gcode_viewer_clear_all_active() {
     }
     spdlog::warn("[GCode Viewer] Pressure response: clearing {} active viewer(s)", snapshot.size());
     for (lv_obj_t* obj : snapshot) {
-        if (obj && lv_obj_is_valid(obj)) {
-            helix::ui::gcode_viewer_clear(obj);
-        }
+        helix::ui::gcode_viewer_clear(obj);
     }
 }
 

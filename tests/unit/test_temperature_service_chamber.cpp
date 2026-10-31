@@ -74,6 +74,21 @@ struct MiniGraphHarness {
 } // namespace
 
 TEST_CASE_METHOD(LVGLTestFixture,
+                 "Switching extruder keeps the mini graph once its container is deleted",
+                 "[temperature_service][chamber]") {
+    MiniGraphHarness h;
+    h.service->init_subjects();
+    h.discover("auto", {"extruder", "extruder1", "heater_bed"});
+    lv_obj_t* container = lv_obj_create(test_screen());
+    const auto& graph = h.build(container);
+
+    lv_obj_delete(container);
+    h.service->switch_active_extruder("extruder1");
+
+    CHECK(TemperatureServiceTestAccess::mini_graph(*h.service) == &graph);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
                  "The filament mini graph charts the chamber sensor PrinterState resolved",
                  "[temperature_service][chamber]") {
     MiniGraphHarness h;

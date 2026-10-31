@@ -22,6 +22,7 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "led/ui_led_control_overlay.h"
 #include "printer_state.h"
@@ -142,7 +143,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     seed_nav_panels(test_screen());
     lv_obj_t* reopened = helix::open_fan_control_overlay(test_screen());
     REQUIRE(reopened != nullptr);
-    CHECK(lv_obj_is_valid(reopened));
+    CHECK(helix::test::widget_in_tree(reopened));
     CHECK(overlay.get_root() == reopened);
     lv_obj_t* container = FanControlOverlayTestAccess::fans_container(overlay);
     REQUIRE(container != nullptr);
@@ -168,7 +169,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     seed_nav_panels(test_screen());
     lv_obj_t* reopened = helix::open_led_control_overlay(test_screen());
     REQUIRE(reopened != nullptr);
-    CHECK(lv_obj_is_valid(reopened));
+    CHECK(helix::test::widget_in_tree(reopened));
     CHECK(get_led_control_overlay().get_root() == reopened);
     CHECK(lv_obj_find_by_name(reopened, "led_tab_row") != nullptr);
 }

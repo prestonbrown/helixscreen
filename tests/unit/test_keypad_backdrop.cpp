@@ -6,6 +6,7 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 
 #include <algorithm>
 #include <array>
@@ -68,7 +69,7 @@ lv_obj_t* recycle_address(lv_obj_t* freed, const lv_obj_class_t* cls, lv_obj_t* 
 
 // The backdrop hangs off the screen, so anything clearing the screen takes it along
 // without the keypad being told. Its address is then free for the next allocation, and
-// lv_obj_is_valid() cannot tell a recycled address from the original object.
+// helix::test::widget_in_tree() cannot tell a recycled address from the original object.
 TEST_CASE_METHOD(KeypadBackdropFixture,
                  "Keypad: closing after the backdrop died leaves its recycled address alone",
                  "[keypad]") {
@@ -108,7 +109,7 @@ TEST_CASE_METHOD(KeypadBackdropFixture,
     process_lvgl(100);
 
     // A deferred delete would have moved it to the top layer and then freed it.
-    REQUIRE(lv_obj_is_valid(victim));
+    REQUIRE(helix::test::widget_in_tree(victim));
     CHECK(lv_obj_get_parent(victim) == screen);
     lv_obj_delete(victim);
 }

@@ -9,6 +9,9 @@
 #   scripts/test-host-run.sh tsan '[ams],[spoolman]'     # ThreadSanitizer, tags as ONE argument
 #   scripts/test-host-run.sh tsan                        # ThreadSanitizer, full suite, sharded
 #   scripts/test-host-run.sh test '[netd]'               # plain suite, one tag
+#   scripts/test-host-run.sh test -# '[#test_foo]'        # every argument reaches helix-tests
+#   scripts/test-host-run.sh exec -- bash ./x.sh          # any command in the synced mirror
+#   scripts/test-host-run.sh exec --build -- ./build/bin/helix-tests --list-tags  # after make test
 #   scripts/test-host-run.sh sweep                       # make unit-sweep, sharded
 #   scripts/test-host-run.sh asan-app help-qr --repeat 50  # the APP under ASAN
 #   scripts/test-host-run.sh tsan-app help-qr --repeat 50  # the APP under TSan
@@ -18,6 +21,10 @@
 # in the test container: it builds and starts a container per Moonraker
 # vintage and printer layout, so it needs the host's docker. Its results come
 # back to build/plugin-host/<timestamp>/. It is a mirror run only (no --commit).
+#
+# test and exec hand their arguments over word for word: each one is quoted
+# here (printf %q) and arrives in the container as one argument, so a space,
+# a quote or a semicolon in it is data, never shell.
 #
 # The app modes are here for the same reason asan is: the run is long and
 # non-interactive, and the container's image (SDL, no ld.so.preload) is the
@@ -729,7 +736,19 @@ case "$WHAT" in
             fi
             TSAN_TAG="$_tag"
             GB_PER_JOB=1.5 ;;
-    test)   CMD='make test $HELIX_JFLAG && ./build/bin/helix-tests "'"${1:-}"'"' ;;
+    test)   CMD='make test $HELIX_JFLAG && ./build/bin/helix-tests'
+            [ $# -eq 0 ] || CMD="$CMD $(printf '%q ' "$@")" ;;
+    exec)   _build=0
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --build) _build=1; shift ;;
+                    --) shift; break ;;
+                    *) echo "✗ exec takes [--build] -- COMMAND [ARG...], not '$1'" >&2; exit 2 ;;
+                esac
+            done
+            [ $# -gt 0 ] || { echo "✗ exec needs a command after --" >&2; exit 2; }
+            CMD=$(printf '%q ' "$@")
+            [ "$_build" = 0 ] || CMD='make test $HELIX_JFLAG && '"$CMD" ;;
     # Trailing args become make overrides, e.g. SHARD_CONCURRENCY=24.
     # NPROCS pins the shard count (SWEEP_NPROCS); a trailing NPROCS= overrides it.
     # Failing shards' logs land in the mirror's build/, which outlives the
@@ -766,10 +785,14 @@ case "$WHAT" in
         [ "$MODE" = mirror ] || { echo "✗ plugin-host runs the working tree; it takes no --commit" >&2; exit 2; }
         CMD="bash scripts/plugin-host-matrix.sh"
         [ $# -eq 0 ] || CMD="$CMD $(printf '%q ' "$@")" ;;
-    *)      echo "✗ unknown job '$WHAT' (mutate | asan | tsan | test | sweep | asan-app | tsan-app | plugin-host)" >&2; exit 2 ;;
+    *)      echo "✗ unknown job '$WHAT' (mutate | asan | tsan | test | exec | sweep | asan-app | tsan-app | plugin-host)" >&2; exit 2 ;;
 esac
 
 LOG="${TMPDIR:-/tmp}/test-host-$WHAT-$LABEL.log"
+
+# The remote shell reads CMD inside single quotes; each ' in it (from a %q-quoted
+# argument) closes and reopens them around an escaped quote.
+CMD_SQ=${CMD//\'/\'\\\'\'}
 
 # A failed mirror sweep keeps each failing shard's log (its last test case,
 # its timeout output) on the test host; copy them here, where whoever reads
@@ -962,9 +985,9 @@ if [ -n "\$POOL_ENV" ]; then
     # FIFO is mode 600, so a container uid that is not root (or is a remapped
     # root) cannot open it; that run takes its own -j instead.
     "\$JP" exec -- sudo -n docker exec -w "$RUNDIR" $GIT_SAFE_ENV -e CCACHE_DIR="$CCACHE" -e HELIX_J="\$HELIX_J" -e HELIX_JFLAG= "$CONTAINER" bash -lc \
-        "if { \$POOL_ENV; } 2>/dev/null; then :; else "'echo "→ uid \$(id -u) cannot open the jobpool FIFO; using -j\$HELIX_J"; HELIX_JFLAG=-j\$HELIX_J; fi; $CMD 2>&1'
+        "if { \$POOL_ENV; } 2>/dev/null; then :; else "'echo "→ uid \$(id -u) cannot open the jobpool FIFO; using -j\$HELIX_J"; HELIX_JFLAG=-j\$HELIX_J; fi; $CMD_SQ 2>&1'
 else
-    D '$CMD 2>&1'
+    D '$CMD_SQ 2>&1'
 fi
 REMOTE
 

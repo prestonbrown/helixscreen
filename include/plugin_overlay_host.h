@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
@@ -97,7 +99,7 @@ class PluginOverlayHost {
         int handle = 0;
         std::string plugin_id;
         std::string component;
-        lv_obj_t* root = nullptr;
+        helix::ui::WeakWidget root;
         std::function<void()> on_closed;
     };
 

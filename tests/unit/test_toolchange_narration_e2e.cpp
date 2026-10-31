@@ -22,6 +22,7 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/ams_sidebar_xml.h"
 #include "../test_helpers/gcode_narration_router_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
 #include "gcode_narration_router.h"
@@ -521,7 +522,7 @@ struct NarratedSidebarFixture : public XMLTestFixture {
 
     ~NarratedSidebarFixture() override {
         sidebar_.reset();
-        if (panel_ && lv_obj_is_valid(panel_)) {
+        if (panel_ && helix::test::widget_in_tree(panel_)) {
             lv_obj_delete(panel_);
         }
         AmsState::instance().set_narration_phase(-1, "");

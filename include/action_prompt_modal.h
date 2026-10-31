@@ -5,6 +5,7 @@
 
 #include "ui_fault_path.h"
 #include "ui_modal.h"
+#include "ui_widget_ref.h"
 
 #include "action_prompt_manager.h"
 
@@ -177,7 +178,7 @@ class ActionPromptModal : public Modal {
     bool button_sent_gcode_ = false;
 
     // === Dynamic button tracking ===
-    std::vector<lv_obj_t*> created_buttons_;
+    std::vector<helix::ui::WeakWidget> created_buttons_;
     std::vector<lv_obj_t*> created_text_labels_;
     std::vector<std::unique_ptr<ButtonCallbackData>> button_callback_data_;
 

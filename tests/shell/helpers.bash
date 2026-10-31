@@ -18,6 +18,7 @@ export HELIX_INSTALL_VERBOSE=1
 if [ -z "$BATS_TEST_TMPDIR" ]; then
     BATS_TEST_TMPDIR=$(mktemp -d "${BATS_TMPDIR:-/tmp}/bats-test-XXXXXX")
 fi
+export BATS_TEST_TMPDIR
 
 # helix-claim treats two claims carrying one session id as one owner. A suite
 # run from inside a session would otherwise make every claim a test takes the

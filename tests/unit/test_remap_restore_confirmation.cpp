@@ -42,6 +42,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "slot_registry.h"
+#include "static_panel_registry.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -164,6 +165,10 @@ struct Harness {
     Harness() {
         ps.init_subjects(false);
     }
+    // A restart builds the process-wide print-select panel around this api.
+    ~Harness() {
+        StaticPanelRegistry::instance().destroy_all();
+    }
 
     /// Tick AmsState's data-revision subject the way a synced backend event
     /// does, then drain so the observer body actually runs.
@@ -201,9 +206,10 @@ struct Harness {
 TEST_CASE("remap restore: halted Klipper does not consume the saved mapping",
           "[remap-restore][1270]") {
     LVGLTestFixture fx;
+    auto state = GENERATE(KlippyState::SHUTDOWN, KlippyState::ERROR, KlippyState::STARTUP);
     ScopedCountingBackend be{{1, 2}};
     Harness h;
-    h.set_klippy(KlippyState::SHUTDOWN);
+    h.set_klippy(state);
 
     // Print ended with T0->slot 2, T1->slot 1 needing to go back.
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
@@ -1009,63 +1015,34 @@ TEST_CASE("remap restore: CFS retries when the box reports the refused bay's uni
     AmsState::instance().set_backend(nullptr);
 }
 
-TEST_CASE("remap restore: klippy ERROR and STARTUP are also not delivery",
-          "[remap-restore][1270]") {
-    LVGLTestFixture fx;
-
-    auto state = GENERATE(KlippyState::ERROR, KlippyState::STARTUP);
-
-    ScopedCountingBackend be{{1, 2}};
-    Harness h;
-    h.set_klippy(state);
-    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
-
-    PrintStartControllerTestAccess::restore(h.controller);
-
-    CHECK(be.backend->calls.empty());
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-}
-
 // ============================================================================
 // The gate must not break the normal path
 // ============================================================================
 
-TEST_CASE("remap restore: ready Klipper restores and consumes the snapshot",
+TEST_CASE("remap restore: ready Klipper consumes the snapshot, sending only what differs",
           "[remap-restore][1270]") {
     LVGLTestFixture fx;
-    ScopedCountingBackend be{{1, 2}}; // firmware currently on the print's mapping
+    const bool already_matches = GENERATE(false, true);
+    CAPTURE(already_matches);
+    ScopedCountingBackend be{already_matches ? std::vector<int>{2, 1} : std::vector<int>{1, 2}};
     Harness h;
     h.set_klippy(KlippyState::READY);
 
-    // Saved (pre-print) mapping differs from current in both slots.
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
-
     PrintStartControllerTestAccess::restore(h.controller);
 
-    REQUIRE(be.backend->calls.size() == 2);
-    CHECK(be.backend->calls[0].tool == 0);
-    CHECK(be.backend->calls[0].slot == 2);
-    CHECK(be.backend->calls[1].tool == 1);
-    CHECK(be.backend->calls[1].slot == 1);
-
-    // Delivered to a ready Klipper — snapshot is spent.
+    if (already_matches) {
+        CHECK(be.backend->calls.empty());
+    } else {
+        REQUIRE(be.backend->calls.size() == 2);
+        CHECK(be.backend->calls[0].tool == 0);
+        CHECK(be.backend->calls[0].slot == 2);
+        CHECK(be.backend->calls[1].tool == 1);
+        CHECK(be.backend->calls[1].slot == 1);
+    }
+    // Delivered to a ready Klipper: the snapshot is spent.
     CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
     CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == -1);
-}
-
-TEST_CASE("remap restore: ready Klipper with nothing to change still clears",
-          "[remap-restore][1270]") {
-    LVGLTestFixture fx;
-    ScopedCountingBackend be{{2, 1}}; // firmware already matches the saved mapping
-    Harness h;
-    h.set_klippy(KlippyState::READY);
-
-    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
-
-    PrintStartControllerTestAccess::restore(h.controller);
-
-    CHECK(be.backend->calls.empty()); // no diff, nothing to send
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
 }
 
 // ============================================================================
@@ -1170,32 +1147,20 @@ TEST_CASE("remap restore: latch arms when this job goes live, fires at its end",
 // Firmware confirmation: the send is not the proof
 // ============================================================================
 
-TEST_CASE("remap restore: echoing backend waits for firmware before clearing",
-          "[remap-restore][1270]") {
+TEST_CASE(
+    "remap restore: an echoing backend waits for firmware; its own optimistic write is no proof",
+    "[remap-restore][1270]") {
     LVGLTestFixture fx;
     ScopedCountingBackend be{{1, 2}};
     be.backend->echoes_firmware = true;
     Harness h;
     h.set_klippy(KlippyState::READY);
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
-
     PrintStartControllerTestAccess::restore(h.controller);
 
-    // Commands went out to a ready Klipper...
+    // Commands went out to a ready Klipper, but a send is not proof, so the record stays.
     REQUIRE(be.backend->calls.size() == 2);
-    // ...but a send is not proof the firmware applied them, so the record stays.
     CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-}
-
-TEST_CASE("remap restore: our own optimistic write never counts as confirmation",
-          "[remap-restore][1270]") {
-    LVGLTestFixture fx;
-    ScopedCountingBackend be{{1, 2}};
-    be.backend->echoes_firmware = true;
-    Harness h;
-    h.set_klippy(KlippyState::READY);
-    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
-    PrintStartControllerTestAccess::restore(h.controller);
 
     // THE trap this whole seam exists for: every backend updates its registry
     // optimistically inside set_tool_mapping(), so the mapping reads correct
@@ -1207,7 +1172,7 @@ TEST_CASE("remap restore: our own optimistic write never counts as confirmation"
     CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
 }
 
-TEST_CASE("remap restore: firmware report matching the snapshot confirms it",
+TEST_CASE("remap restore: firmware confirms only the mapping that matches the snapshot",
           "[remap-restore][1270]") {
     LVGLTestFixture fx;
     ScopedCountingBackend be{{1, 2}};
@@ -1217,23 +1182,6 @@ TEST_CASE("remap restore: firmware report matching the snapshot confirms it",
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
     PrintStartControllerTestAccess::restore(h.controller);
     REQUIRE_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-
-    be.backend->firmware_reports({2, 1});
-    Harness::ams_data_tick();
-
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == -1);
-}
-
-TEST_CASE("remap restore: firmware reporting the wrong mapping keeps waiting",
-          "[remap-restore][1270]") {
-    LVGLTestFixture fx;
-    ScopedCountingBackend be{{1, 2}};
-    be.backend->echoes_firmware = true;
-    Harness h;
-    h.set_klippy(KlippyState::READY);
-    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
-    PrintStartControllerTestAccess::restore(h.controller);
 
     // A multi-lane restore lands one delta at a time, so a partial match is a
     // normal intermediate state — keep the record rather than declaring failure.
@@ -1245,6 +1193,7 @@ TEST_CASE("remap restore: firmware reporting the wrong mapping keeps waiting",
     be.backend->firmware_reports({2, 1});
     Harness::ams_data_tick();
     CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == -1);
 }
 
 // ============================================================================

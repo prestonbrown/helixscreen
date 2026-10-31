@@ -4,6 +4,8 @@
 
 #if HELIX_ENABLE_SCREENSAVER
 
+#include "ui_widget_ref.h"
+
 #include <lvgl.h>
 
 namespace helix::ui {
@@ -34,7 +36,7 @@ class SaverOverlay {
     }
 
   private:
-    lv_obj_t* obj_ = nullptr;
+    helix::ui::WidgetRef obj_;
 };
 
 } // namespace helix::ui

@@ -81,10 +81,10 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
     auto& nav = NavigationManager::instance();
 
     // The tree this object last pushed was deleted out from under it (its
-    // screen went away): overlay_root_ still holds the freed address.
-    if (overlay_root_ && overlay_root_ == shown_root_ && !shown_root_ref_) {
+    // screen went away): the owner never heard, so its child pointers are stale.
+    if (shown_root_ && !shown_root_ref_ && !overlay_root_) {
         spdlog::debug("[{}] shown root was deleted externally - re-creating", get_name());
-        overlay_root_ = nullptr;
+        shown_root_ = nullptr;
         on_ui_destroyed();
     }
 
@@ -114,7 +114,7 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
     }
 
     shown_root_ = overlay_root_;
-    shown_root_ref_ = overlay_root_;
+    shown_root_ref_ = overlay_root_.get();
     before_show();
     helix::nav::register_overlay(overlay_root_, this);
     helix::nav::push_overlay(overlay_root_);
@@ -135,13 +135,17 @@ void OverlayBase::close() {
 }
 
 void OverlayBase::destroy_overlay_ui(lv_obj_t*& cached_panel) {
-    auto hooks = helix::ui::TeardownHooks::after([this]() { on_ui_destroyed(); });
+    auto hooks = helix::ui::TeardownHooks::after([this]() {
+        shown_root_ = nullptr;
+        shown_root_ref_ = nullptr;
+        on_ui_destroyed();
+    });
     hooks.owner = teardown_owner_.token();
     helix::ui::teardown_overlay_ui(overlay_root_, get_name(), helix::ui::TeardownDelete::Deferred,
                                    &cached_panel, std::move(hooks));
 }
 
-bool helix::ui::teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, TeardownDelete how,
+bool helix::ui::teardown_overlay_ui(WidgetRef& root, const char* owner_name, TeardownDelete how,
                                     lv_obj_t** cached_panel, TeardownHooks hooks) {
     if (!root) {
         return false;

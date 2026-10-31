@@ -45,7 +45,7 @@ Full rules: [`THREADING.md`](THREADING.md).
 | **Detached one-shot `std::thread`** | `std::thread(...).detach()` without try/catch. `pthread_create` returns `EAGAIN` under thread exhaustion → `std::terminate` through an LVGL C frame, and the crash looks unrelated. | #724, #837 |
 | **Deletion during input dispatch** | `lv_obj_delete()` on container children inside `LV_EVENT_CLICKED` / `LV_EVENT_RELEASED`. | — |
 | **Missing shutdown self-registration** | An `init_subjects()` that doesn't register its own `deinit_subjects()`, or a teardown callback that reaches a lazy `get_global_*()` getter and resurrects a singleton. | L101 |
-| **`lv_obj_is_valid()` in a hot path** | Recursive O(n) walk; stack-overflows on Pi. Use null checks plus a lifetime token. | L076 |
+| **`lv_obj_is_valid()` anywhere** | Banned in `src/`, `include/` and `tests/`: it cannot tell a live widget from a new one at a freed address, and it walks the whole tree. Hold a `WidgetRef` or `WeakWidget` (`include/ui_widget_ref.h`). `scripts/check_growth_ratchets.py` gates it |
 | **Cached child pointers outliving the widget tree** | A panel or manager caches raw `lv_obj_t*` members (or containers keyed by widget) — the subtree is deleted by a rebuild/teardown, then a later callback writes through the stale pointer. Null checks pass; the pointer isn't null, it's freed. Two guards do **not** cover it: `AsyncLifetimeGuard` guards `this`, not the widget tree, and a queued `UpdateQueue` callback can drain after the tree died. Fix shape: hold the member as `helix::ui::WidgetRef`, which clears itself on the widget's own delete; a hand-written `LV_EVENT_DELETE` hook only when the delete must do more than clear a pointer. THREADING.md §2. | 882edde88, 13db7c92e, #1298 |
 
 ---

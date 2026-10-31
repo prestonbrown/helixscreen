@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "overlay_base.h"
 #include "print_history_data.h"
@@ -162,7 +163,7 @@ class HistoryDashboardPanel : public OverlayBase {
 
     lv_obj_t* filament_chart_container_ = nullptr;
     // Filament bar rows stored for cleanup/refresh
-    std::vector<lv_obj_t*> filament_bar_rows_;
+    std::vector<helix::ui::WeakWidget> filament_bar_rows_;
 
     //
     // === Dependencies ===

@@ -79,6 +79,11 @@ class StartMacroGateFixture : public LVGLTestFixture {
         drain();
     }
 
+    void stop() {
+        collector_->stop();
+        drain();
+    }
+
     void report_position(uint64_t position) {
         client_->dispatch_status_update({{"virtual_sdcard", {{"file_position", position}}}});
         drain();
@@ -153,5 +158,20 @@ TEST_CASE_METHOD(StartMacroGateFixture, "a run that never shows position 0 does 
     start(/*injects=*/true, /*position=*/4096);
     report_position(5120);
     CHECK_FALSE(seen_zero());
+    CHECK(phase() != PrintStartPhase::COMPLETE);
+}
+
+TEST_CASE_METHOD(StartMacroGateFixture,
+                 "a run stopped at position 0 leaves nothing for the next run to complete on",
+                 "[print][collector][start_macro]") {
+    start(/*injects=*/true, /*position=*/0);
+    report_position(0);
+    REQUIRE(seen_zero());
+    stop();
+
+    // The next run resumes a saved print, so its position is past 0 from the start.
+    start(/*injects=*/true, /*position=*/4096);
+    CHECK_FALSE(seen_zero());
+    report_position(4096);
     CHECK(phase() != PrintStartPhase::COMPLETE);
 }

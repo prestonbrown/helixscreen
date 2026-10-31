@@ -742,110 +742,58 @@ TEST_CASE_METHOD(HardwareValidatorConfigFixture,
     REQUIRE_FALSE(HardwareValidator::is_hardware_optional(&config, "not_in_list"));
 }
 
+namespace {
+/// How many times `name` appears in the config list at `path`.
+int list_count(Config& config, const std::string& path, const std::string& name) {
+    const json& list = config.get_json(path);
+    REQUIRE(list.is_array());
+    return static_cast<int>(std::count(list.begin(), list.end(), name));
+}
+} // namespace
+
 TEST_CASE_METHOD(HardwareValidatorConfigFixture,
-                 "HardwareValidator - set_hardware_optional adds to list",
-                 "[hardware][validator][config]") {
+                 "HardwareValidator - set_hardware_optional keeps one entry under "
+                 "/printer/hardware/optional",
+                 "[hardware][validator][config][paths][plural]") {
     setup_empty_hardware_config();
+    const std::string path = config.df() + "hardware/optional";
+    REQUIRE_FALSE(HardwareValidator::is_hardware_optional(&config, "test_hw"));
 
-    // Initially not optional
-    REQUIRE_FALSE(HardwareValidator::is_hardware_optional(&config, "new_hardware"));
+    HardwareValidator::set_hardware_optional(&config, "test_hw", true);
+    HardwareValidator::set_hardware_optional(&config, "test_hw", true);
+    CHECK(HardwareValidator::is_hardware_optional(&config, "test_hw"));
+    REQUIRE(config_contains(path));
+    CHECK(list_count(config, path, "test_hw") == 1);
 
-    // Mark as optional
-    HardwareValidator::set_hardware_optional(&config, "new_hardware", true);
-
-    // Now should be optional
-    REQUIRE(HardwareValidator::is_hardware_optional(&config, "new_hardware"));
+    HardwareValidator::set_hardware_optional(&config, "test_hw", false);
+    CHECK_FALSE(HardwareValidator::is_hardware_optional(&config, "test_hw"));
+    CHECK(list_count(config, path, "test_hw") == 0);
 }
 
 TEST_CASE_METHOD(HardwareValidatorConfigFixture,
-                 "HardwareValidator - set_hardware_optional removes from list",
+                 "HardwareValidator - set_hardware_optional removes a preset optional entry",
                  "[hardware][validator][config]") {
     setup_hardware_with_optional();
-
-    // Initially optional
     REQUIRE(HardwareValidator::is_hardware_optional(&config, "neopixel chamber_light"));
-
-    // Unmark as optional
     HardwareValidator::set_hardware_optional(&config, "neopixel chamber_light", false);
-
-    // Should no longer be optional
-    REQUIRE_FALSE(HardwareValidator::is_hardware_optional(&config, "neopixel chamber_light"));
+    CHECK_FALSE(HardwareValidator::is_hardware_optional(&config, "neopixel chamber_light"));
 }
 
 TEST_CASE_METHOD(HardwareValidatorConfigFixture,
-                 "HardwareValidator - set_hardware_optional handles duplicates",
-                 "[hardware][validator][config]") {
+                 "HardwareValidator - add_expected_hardware keeps one named entry under "
+                 "/printer/hardware/expected",
+                 "[hardware][validator][config][paths][plural]") {
     setup_empty_hardware_config();
+    const std::string path = config.df() + "hardware/expected";
 
-    // Add twice - should only appear once
-    HardwareValidator::set_hardware_optional(&config, "test_hw", true);
-    HardwareValidator::set_hardware_optional(&config, "test_hw", true);
-
-    // Check the list only has one entry
-    // NEW path: /printer/hardware/optional (was /hardware/optional)
-    json& optional_list = config.get_json(config.df() + "hardware/optional");
-    int count = 0;
-    for (const auto& item : optional_list) {
-        if (item == "test_hw") {
-            count++;
-        }
-    }
-    REQUIRE(count == 1);
-}
-
-TEST_CASE_METHOD(HardwareValidatorConfigFixture,
-                 "HardwareValidator - add_expected_hardware adds to list",
-                 "[hardware][validator][config]") {
-    setup_empty_hardware_config();
-
-    // Add expected hardware
-    HardwareValidator::add_expected_hardware(&config, "temperature_sensor chamber");
-
-    // Verify it's in the list
-    // NEW path: /printer/hardware/expected (was /hardware/expected)
-    json& expected_list = config.get_json(config.df() + "hardware/expected");
-    bool found = false;
-    for (const auto& item : expected_list) {
-        if (item == "temperature_sensor chamber") {
-            found = true;
-            break;
-        }
-    }
-    REQUIRE(found);
-}
-
-TEST_CASE_METHOD(HardwareValidatorConfigFixture,
-                 "HardwareValidator - add_expected_hardware handles duplicates",
-                 "[hardware][validator][config]") {
-    setup_empty_hardware_config();
-
-    // Add same hardware twice
-    HardwareValidator::add_expected_hardware(&config, "neopixel test");
-    HardwareValidator::add_expected_hardware(&config, "neopixel test");
-
-    // Check the list only has one entry
-    // NEW path: /printer/hardware/expected (was /hardware/expected)
-    json& expected_list = config.get_json(config.df() + "hardware/expected");
-    int count = 0;
-    for (const auto& item : expected_list) {
-        if (item == "neopixel test") {
-            count++;
-        }
-    }
-    REQUIRE(count == 1);
-}
-
-TEST_CASE_METHOD(HardwareValidatorConfigFixture,
-                 "HardwareValidator - add_expected_hardware ignores empty names",
-                 "[hardware][validator][config]") {
-    setup_empty_hardware_config();
-
-    // Try to add empty name - should be ignored
     HardwareValidator::add_expected_hardware(&config, "");
+    CHECK(config.get_json(path).empty());
 
-    // NEW path: /printer/hardware/expected (was /hardware/expected)
-    json& expected_list = config.get_json(config.df() + "hardware/expected");
-    REQUIRE(expected_list.empty());
+    HardwareValidator::add_expected_hardware(&config, "temperature_sensor chamber");
+    HardwareValidator::add_expected_hardware(&config, "temperature_sensor chamber");
+    REQUIRE(config_contains(path));
+    CHECK(list_count(config, path, "temperature_sensor chamber") == 1);
+    CHECK(config.get_json(path).size() == 1);
 }
 
 TEST_CASE_METHOD(HardwareValidatorConfigFixture,
@@ -864,52 +812,6 @@ TEST_CASE_METHOD(HardwareValidatorConfigFixture,
 // These tests define the contract for the refactored hardware config paths.
 // They SHOULD FAIL until the implementation is updated.
 // ============================================================================
-
-TEST_CASE_METHOD(HardwareValidatorConfigFixture,
-                 "HardwareValidator - optional hardware uses /printer/hardware/optional path",
-                 "[hardware][validator][config][paths][plural]") {
-    setup_empty_hardware_config();
-
-    // Mark hardware as optional - should write to /printer/hardware/optional
-    HardwareValidator::set_hardware_optional(&config, "test_led", true);
-
-    // Verify the path is /printer/hardware/optional (not /hardware/optional)
-    REQUIRE(config_contains(config.df() + "hardware/optional"));
-    json& optional_list = config.get_json(config.df() + "hardware/optional");
-    REQUIRE(optional_list.is_array());
-
-    bool found = false;
-    for (const auto& item : optional_list) {
-        if (item == "test_led") {
-            found = true;
-            break;
-        }
-    }
-    REQUIRE(found);
-}
-
-TEST_CASE_METHOD(HardwareValidatorConfigFixture,
-                 "HardwareValidator - expected hardware uses /printer/hardware/expected path",
-                 "[hardware][validator][config][paths][plural]") {
-    setup_empty_hardware_config();
-
-    // Add expected hardware - should write to /printer/hardware/expected
-    HardwareValidator::add_expected_hardware(&config, "temperature_sensor test");
-
-    // Verify the path is /printer/hardware/expected (not /hardware/expected)
-    REQUIRE(config_contains(config.df() + "hardware/expected"));
-    json& expected_list = config.get_json(config.df() + "hardware/expected");
-    REQUIRE(expected_list.is_array());
-
-    bool found = false;
-    for (const auto& item : expected_list) {
-        if (item == "temperature_sensor test") {
-            found = true;
-            break;
-        }
-    }
-    REQUIRE(found);
-}
 
 TEST_CASE_METHOD(HardwareValidatorConfigFixture,
                  "HardwareValidator - last_snapshot uses /printer/hardware/last_snapshot path",

@@ -212,7 +212,7 @@ void LedControlOverlay::on_root_deleted(lv_event_t* e) {
     // overlay before freeing its tree, and the re-created overlay can be opened
     // on a new root before the old one is freed.
     auto* overlay = helix::lazy_global_if_exists<LedControlOverlay>();
-    if (!overlay || overlay->overlay_root_ != lv_event_get_target_obj(e)) {
+    if (!overlay || !overlay->overlay_root_.names_dying(lv_event_get_target_obj(e))) {
         return;
     }
     overlay->overlay_root_ = nullptr;

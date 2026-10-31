@@ -446,6 +446,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     PrinterStateTestAccess::refresh_option_visibility(ps);
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "has_any_preprint_options")) == 1);
 
+    // The scene is measured with AmsState's subjects unpublished, as this file's
+    // ScopedAmsBackend leaves them; a test that published them and walked away
+    // would bind the bypass card hidden and shorten the column.
+    helix::AmsState::instance().deinit_subjects();
+    REQUIRE(lv_xml_get_subject(nullptr, "ams_bypass_active") == nullptr);
+
     // No filament card: the options column is short enough to fit whole
     // above the width/3 floor at a micro portrait canvas.
     ScopedResolution res(lv_display_get_default(), 272, 480);

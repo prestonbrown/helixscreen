@@ -62,7 +62,7 @@ void seed_nav_panels() {
 // Root for the DetachSubtree-shape case: the registry callback is a captureless
 // lambda, so it reaches the widget through file scope (how AmsPanel's
 // s_ams_panel_obj works).
-lv_obj_t* s_detach_shape_root = nullptr;
+helix::ui::WidgetRef s_detach_shape_root;
 
 } // namespace
 

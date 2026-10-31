@@ -956,9 +956,9 @@ void ui_bed_mesh_set_async_mode(lv_obj_t* widget, bool enabled) {
         data->render_thread->set_colors(fetch_theme_colors());
 
         // Set callback to invalidate widget when frame ready (from render thread).
-        // queue_widget_update() guards with lv_obj_is_valid(), so if the widget
-        // is deleted before the queued callback fires, it is silently skipped.
-        data->render_thread->set_frame_ready_callback([widget]() {
+        // The handle is made here on the LVGL thread; if the widget is deleted
+        // before the queued callback fires, it is silently skipped.
+        data->render_thread->set_frame_ready_callback([widget = helix::ui::WeakWidget(widget)]() {
             helix::ui::queue_widget_update(widget, [](lv_obj_t* w) { lv_obj_invalidate(w); });
         });
 

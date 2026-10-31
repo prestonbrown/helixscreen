@@ -564,7 +564,7 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* spool_card_ = nullptr;
     lv_obj_t* spool_card_header_row_ = nullptr;
     lv_obj_t* extruder_selector_group_ = nullptr;
-    lv_obj_t* extruder_dropdown_ = nullptr;
+    helix::ui::WidgetRef extruder_dropdown_;
     lv_obj_t* btn_manage_slots_ = nullptr;
     lv_obj_t* ams_manage_row_ = nullptr;
     ObserverGuard tools_version_observer_;

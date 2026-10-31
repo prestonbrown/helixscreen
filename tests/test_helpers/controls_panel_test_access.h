@@ -48,7 +48,7 @@ struct ControlsPanelTestAccess {
     static void set_rows(ControlsPanel& p, const std::vector<std::string>& object_names) {
         p.secondary_fan_rows_.clear();
         for (const auto& name : object_names) {
-            p.secondary_fan_rows_.push_back({name, nullptr});
+            p.secondary_fan_rows_.push_back({name, {}});
         }
     }
 

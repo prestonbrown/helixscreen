@@ -18,6 +18,7 @@
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_theme_mode.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "theme_manager.h"
 
@@ -140,7 +141,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button can be created via XML",
 
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
-    REQUIRE(lv_obj_is_valid(btn));
+    REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 // A solid variant is an accent fill: the label starts from the palette text
@@ -191,7 +192,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon basic creation works"
     const char* attrs[] = {"text", "Test", "bind_icon", "test_icon_subject", nullptr};
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
-    REQUIRE(lv_obj_is_valid(btn));
+    REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon updates icon from subject",
@@ -280,7 +281,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles missing subje
     process_lvgl(50);
 
     // Button should exist and be valid
-    REQUIRE(lv_obj_is_valid(btn));
+    REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles empty string value",
@@ -297,7 +298,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles empty string 
     process_lvgl(50);
 
     // Button should exist and be valid
-    REQUIRE(lv_obj_is_valid(btn));
+    REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture,
@@ -522,15 +523,13 @@ TEST_CASE_METHOD(UiButtonTestFixture,
 }
 
 // ============================================================================
-// Deferred contrast / address-reuse crash regression (#924)
+// Deferred contrast after delete (#924)
 //
 // Integration-level coverage of the deferred-contrast path: a STYLE_CHANGED
 // event defers update_button_text_contrast through the UpdateQueue; if the
 // button is destroyed before the queue drains, the deferred recompute must be
-// skipped rather than crashing. The discriminating identity-guard test (which
-// FAILS when `d->id != gen` is removed) lives in
-// test_ui_button_defer_reuse.cpp, which includes ui_button.cpp directly for
-// access to the anonymous-namespace internals.
+// skipped rather than crashing. test_ui_button_defer_reuse.cpp covers the same
+// path through the anonymous-namespace internals.
 // ============================================================================
 
 TEST_CASE_METHOD(UiButtonTestFixture,
@@ -544,7 +543,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 
     // STYLE_CHANGED enqueues a deferred contrast recompute; destroy the button
-    // before the queue drains. lv_obj_is_valid() must reject the stale pointer.
+    // before the queue drains. helix::test::widget_in_tree() must reject the stale pointer.
     lv_obj_send_event(btn, LV_EVENT_STYLE_CHANGED, nullptr);
     lv_obj_delete(btn);
 

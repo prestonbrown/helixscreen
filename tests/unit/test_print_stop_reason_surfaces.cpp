@@ -11,6 +11,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "audio_settings_manager.h"
 #include "print_completion.h"
@@ -45,7 +46,7 @@ struct StopReasonPanelFixture : public LVGLUITestFixture {
     ~StopReasonPanelFixture() override {
         state().print_state().set_print_stop_reason("");
         test::set_wire_state(state(), PrintJobState::STANDBY);
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;

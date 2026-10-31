@@ -10,6 +10,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -49,10 +50,10 @@ TEST_CASE_METHOD(BackdropFixture, "retire deletes one overlay's backdrop, deferr
     track(b, c, c_bd);
 
     b.retire(a);
-    CHECK(lv_obj_is_valid(a_bd));
+    CHECK(helix::test::widget_in_tree(a_bd));
     process_lvgl(50);
-    CHECK_FALSE(lv_obj_is_valid(a_bd));
-    CHECK(lv_obj_is_valid(c_bd));
+    CHECK_FALSE(helix::test::widget_in_tree(a_bd));
+    CHECK(helix::test::widget_in_tree(c_bd));
 
     b.retire(a); // already gone: no-op
 }
@@ -67,8 +68,8 @@ TEST_CASE_METHOD(BackdropFixture, "retire_all deletes every overlay's backdrop",
     b.retire_all();
     process_lvgl(50);
 
-    CHECK_FALSE(lv_obj_is_valid(a_bd));
-    CHECK_FALSE(lv_obj_is_valid(c_bd));
+    CHECK_FALSE(helix::test::widget_in_tree(a_bd));
+    CHECK_FALSE(helix::test::widget_in_tree(c_bd));
 }
 
 TEST_CASE_METHOD(BackdropFixture, "scrub forgets a backdrop without deleting it",
@@ -81,7 +82,7 @@ TEST_CASE_METHOD(BackdropFixture, "scrub forgets a backdrop without deleting it"
     b.retire(a);
     process_lvgl(50);
 
-    CHECK(lv_obj_is_valid(a_bd));
+    CHECK(helix::test::widget_in_tree(a_bd));
 }
 
 TEST_CASE_METHOD(BackdropFixture, "rekey moves a backdrop to the rebuilt overlay",
@@ -93,9 +94,9 @@ TEST_CASE_METHOD(BackdropFixture, "rekey moves a backdrop to the rebuilt overlay
     b.rekey(old_root, new_root);
     b.retire(old_root);
     process_lvgl(50);
-    CHECK(lv_obj_is_valid(bd));
+    CHECK(helix::test::widget_in_tree(bd));
 
     b.retire(new_root);
     process_lvgl(50);
-    CHECK_FALSE(lv_obj_is_valid(bd));
+    CHECK_FALSE(helix::test::widget_in_tree(bd));
 }

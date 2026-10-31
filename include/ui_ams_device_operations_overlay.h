@@ -142,7 +142,7 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     //
 
     /// Alias for overlay_root_ to match existing pattern
-    lv_obj_t*& overlay_ = overlay_root_;
+    helix::ui::WidgetRef& overlay_ = overlay_root_;
 
     /// Container for section list rows
     lv_obj_t* section_list_container_ = nullptr;

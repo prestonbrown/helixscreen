@@ -11,6 +11,7 @@
 #include "ui_button.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -48,7 +49,7 @@ struct SidebarGridFixture : public XMLTestFixture {
 
     ~SidebarGridFixture() override {
         lv_subject_set_int(bp_, original_bp_);
-        if (column_ && lv_obj_is_valid(column_))
+        if (column_ && helix::test::widget_in_tree(column_))
             lv_obj_delete(column_);
         helix::AmsState::instance().set_backend(nullptr);
     }

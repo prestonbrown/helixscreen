@@ -542,10 +542,9 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
 
     // Compute label width from available space after layout resolves.
     // Must defer because flex_grow sizes aren't final during create.
-    // Widget-safe (lv_obj_is_valid guard): during rapid panel teardown the
-    // container can be freed before this deferral fires, and get_data() would
-    // then dereference freed memory (#980). Same guard the style-change
-    // deferral above uses.
+    // Widget-safe: during rapid panel teardown the container can be freed before
+    // this deferral fires, and get_data() would then dereference freed memory
+    // (#980). Same guard the style-change deferral above uses.
     helix::ui::queue_widget_update(sb, [](lv_obj_t* obj) {
         auto* d = get_data(obj);
         if (!d || !d->label || !d->main_btn)

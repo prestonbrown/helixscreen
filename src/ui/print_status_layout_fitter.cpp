@@ -40,7 +40,7 @@ bool strip_shows_up_next(bool row) {
 /// The laid-out progress block's rows and the gaps between them; 0 before
 /// its first layout.
 int32_t measured_text_height(lv_obj_t* progress) {
-    if (!progress || !lv_obj_is_valid(progress)) {
+    if (!progress) {
         return 0;
     }
     int32_t h = 0;

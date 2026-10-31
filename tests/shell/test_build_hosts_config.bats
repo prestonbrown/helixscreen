@@ -118,7 +118,8 @@ via_shell() { run bash -c '. "$1"; echo "host=[${REMOTE_HOST:-}] dir=[${REMOTE_D
     [ "$status" -eq 0 ]
     for k in HELIX_TEST_HOST HELIX_TEST_CONTAINER HELIX_TEST_WORKDIR HELIX_TEST_TREES_HOST \
              HELIX_TEST_TREES HELIX_TEST_CCACHE HELIX_TEST_LOCK_DIR HELIX_TEST_HOST_AUTO \
-             HELIX_TEST_MEMORY REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR; do
+             HELIX_TEST_MEMORY REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR \
+             HELIX_LAND_GATE_HOSTS; do
         contains "$k" "$output"
     done
 }
@@ -129,6 +130,32 @@ via_shell() { run bash -c '. "$1"; echo "host=[${REMOTE_HOST:-}] dir=[${REMOTE_D
     [ "$status" -eq 0 ]
     contains "mem=[96g]" "$output"
     lacks "is not a build-hosts key" "$output"
+}
+
+@test "the land-gate hosts pre-push asks are a key the file can set, commas kept" {
+    hosts HELIX_LAND_GATE_HOSTS=helix-dev,zeus.local
+    run bash -c '. "$1"; echo "gate=[${HELIX_LAND_GATE_HOSTS:-}]"' _ "$LIB"
+    [ "$status" -eq 0 ]
+    contains "gate=[helix-dev,zeus.local]" "$output"
+    lacks "is not a build-hosts key" "$output"
+}
+
+@test "a probe with a remote command returns that command's status, 255 for ssh's own failure" {
+    mock_command_script ssh 'while [ $# -gt 1 ]; do shift; done
+case "$1" in true) exit 0 ;; say) echo said; exit 0 ;; no) echo partial; exit 1 ;; *) echo "ssh: connect to host x port 22: Connection refused" >&2; exit 255 ;; esac'
+    run bash -c '. "$1"; probe_build_host h.invalid' _ "$LIB"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    # On success the command's stdout is the probe's; on failure it is not.
+    run bash -c '. "$1"; probe_build_host h.invalid say' _ "$LIB"
+    [ "$status" -eq 0 ]
+    [ "$output" = said ]
+    run bash -c '. "$1"; probe_build_host h.invalid no' _ "$LIB"
+    [ "$status" -eq 1 ]
+    lacks partial "$output"
+    run bash -c '. "$1"; probe_build_host h.invalid refuse' _ "$LIB"
+    [ "$status" -eq 255 ]
+    contains "refused" "$output"
 }
 
 # An ssh that saves what each call reads on stdin (the remote scripts

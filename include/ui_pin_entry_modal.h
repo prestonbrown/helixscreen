@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl/lvgl.h"
 
 #include <functional>
@@ -96,7 +98,7 @@ class PinEntryModal {
     PinCallback on_complete_;
     std::string digit_buffer_;
 
-    lv_obj_t* backdrop_ = nullptr;
+    helix::ui::WidgetRef backdrop_;
     bool covering_chrome_ = false;
     lv_obj_t* dialog_ = nullptr;
 

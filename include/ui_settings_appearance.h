@@ -67,7 +67,7 @@ class AppearanceSettingsOverlay : public OverlayBase {
     void init_theme_preset_dropdown(lv_obj_t* root);
 
     /// Theme Explorer overlay (primary - for browsing and selecting themes)
-    lv_obj_t* theme_explorer_overlay_{nullptr};
+    helix::ui::WidgetRef theme_explorer_overlay_;
 
     /// Tracks original theme index for Apply button state
     int original_theme_index_{-1};
