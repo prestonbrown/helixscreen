@@ -13,7 +13,7 @@ GATE="$BATS_TEST_DIRNAME/../../scripts/check_growth_ratchets.py"
 CAP=1500
 
 setup() {
-    REPO="${BATS_TEST_TMPDIR:-$(mktemp -d)}/repo"
+    REPO="$(mktemp -d "${BATS_TMPDIR:-/tmp}/ratchets.XXXXXX")/repo"
     mkdir -p "$REPO/src/ui" "$REPO/include" "$REPO/tests/unit"
     git -C "$REPO" init -q -b main
     git -C "$REPO" config user.email t@example.com
@@ -203,6 +203,7 @@ pr_checkout() { # <dir>
 }
 
 @test "Code Quality gives every event a fork point: depth 2 plus the PR's base, full history for claude/**" {
+    python3 -c "import yaml" 2>/dev/null || skip "PyYAML is not installed here"
     run python3 -c "
 import yaml
 steps = yaml.safe_load(open('$BATS_TEST_DIRNAME/../../.github/workflows/quality.yml'))['jobs']['quality-checks']['steps']
