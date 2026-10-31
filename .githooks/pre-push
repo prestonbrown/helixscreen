@@ -35,9 +35,13 @@
 #
 # A tip `make land-gate` passed skips the quality sweep and its clang/GCC
 # divergence gate: the gate ran quality-checks.sh on exactly that commit
-# (.githooks/lib/land-gate-stamp.sh). The ESP32 syntax check, patch drift and
-# the doc-anchor advisory still run; the gate has no ESP32 check, and drift
-# describes this tree's lib/, not the commit.
+# (.githooks/lib/land-gate-stamp.sh). The pass counts from this clone, from
+# another clone on this host, or from a gate host named in HELIX_LAND_GATE_HOSTS
+# (build-hosts.env), asked over ssh when nothing here matches. A stamp names a
+# commit, not a tree, so it counts the same from a dirty tree, whose push is
+# swept in a throwaway checkout of that commit. The ESP32 syntax check, patch
+# drift and the doc-anchor advisory still run; the gate has no ESP32 check, and
+# drift describes this tree's lib/, not the commit.
 #
 # Escape hatches: HELIX_PREPUSH_IN_PLACE=1 forces the old in-place behaviour,
 # HELIX_PREPUSH_FULL=1 sweeps a gated tip anyway, and `git push --no-verify`
@@ -79,11 +83,16 @@ BASE="$(push_base "$REMOTE_SHA" "$TARGET")" || BASE=""
 # shellcheck source=lib/land-gate-stamp.sh
 . "$(dirname "$0")/lib/land-gate-stamp.sh"
 GATE_PASSED=""
-if [ -z "${HELIX_PREPUSH_FULL:-}" ] && land_gate_passed "$TARGET"; then
-    GATE_PASSED=1
+GATE_HOST=""
+if [ -z "${HELIX_PREPUSH_FULL:-}" ]; then
+    if land_gate_passed "$TARGET"; then
+        GATE_PASSED=1
+    elif GATE_HOST=$(land_gate_ask_hosts "$TARGET"); then
+        GATE_PASSED=1
+    fi
 fi
 gate_passed_note() {
-    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}; skipping the quality sweep it ran (HELIX_PREPUSH_FULL=1 runs it)"
+    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep it ran (HELIX_PREPUSH_FULL=1 runs it)"
 }
 
 # Code that compiles on the host can still fail on the ESP32 image: int32_t is
