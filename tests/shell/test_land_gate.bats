@@ -401,6 +401,21 @@ gate_in_tree() { run bash -c 'cd "$1" && shift && "$@"' _ "$T" "$GATE" "$@"; }
     [ "$(grep '^make' "$CALLS")" = "make lint-xml" ]
 }
 
+@test "on macOS a rerun runs unless it names the C++ suite" {
+    stamp_tree
+    RC_lint_xml=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    : >"$CALLS"
+    mock_command_script uname 'echo Darwin'
+    gate_in_tree --rerun ci-shards
+    [ "$status" -eq 2 ]
+    contains "land-gate does not run the C++ suite on macOS" "$output"
+    [ ! -s "$CALLS" ]
+    gate_in_tree --rerun lint-xml
+    [ "$status" -eq 0 ]
+    [ "$(grep '^make' "$CALLS")" = "make lint-xml" ]
+}
+
 @test "a rerun of a step that tests the app build rebuilds the app and reruns every such step" {
     stamp_tree
     RC_test_ui_ci=1 gate_in_tree
