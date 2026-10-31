@@ -13,7 +13,7 @@ GATE="$BATS_TEST_DIRNAME/../../scripts/check_growth_ratchets.py"
 CAP=1500
 
 setup() {
-    REPO="$(mktemp -d "${BATS_TMPDIR:-/tmp}/ratchets.XXXXXX")/repo"
+    REPO="${BATS_TEST_TMPDIR:-$(mktemp -d)}/repo"
     mkdir -p "$REPO/src/ui" "$REPO/include" "$REPO/tests/unit"
     git -C "$REPO" init -q -b main
     git -C "$REPO" config user.email t@example.com

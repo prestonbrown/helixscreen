@@ -59,6 +59,10 @@ class HelixTestFixture {
     // List expands reactively. Keep small; don't over-reset. Public because the
     // test runner's listener also calls it before every case (tests/test_main.cpp).
     static void reset_all();
+    /// Panels a run leaves behind die in static destruction, with no
+    /// Application::shutdown() ahead of them, and their destructors log after spdlog's
+    /// registry is gone. Call once the run has ended.
+    static void keep_logger_for_exit();
 
     // The global PrinterState part of reset_all(): its plain data and its print
     // lifecycle. Both need its subjects up, so a fixture that tears them down

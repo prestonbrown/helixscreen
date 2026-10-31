@@ -15,9 +15,9 @@ struct LedStripInfo {
     std::string name; // Display name
     std::string id;   // Klipper/Moonraker ID (e.g., "neopixel chamber_light")
     LedBackendType backend;
-    bool supports_color; // RGB/RGBW capable
-    bool supports_white; // Has W channel (RGBW)
-    bool is_pwm = false; // PWM capable (output_pin with pwm:true)
+    bool supports_color = false; // RGB/RGBW capable
+    bool supports_white = false; // Has W channel (RGBW)
+    bool is_pwm = false;         // PWM capable (output_pin with pwm:true)
 
     // Per-channel capability (set from configfile for generic [led] sections).
     // When all false, capabilities are inferred from the LED type prefix.

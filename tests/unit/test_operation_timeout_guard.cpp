@@ -121,8 +121,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "OperationTimeoutGuard: end without begin is s
 
 TEST_CASE_METHOD(LVGLTestFixture, "OperationTimeoutGuard: init_subject registers subject",
                  "[operation_timeout_guard]") {
-    SubjectManager subjects;
     OperationTimeoutGuard guard;
+    SubjectManager subjects;
     guard.init_subject("test_guard_subject", subjects);
 
     REQUIRE(guard.subject() != nullptr);
@@ -131,8 +131,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "OperationTimeoutGuard: init_subject registers
 
 TEST_CASE_METHOD(LVGLTestFixture, "OperationTimeoutGuard: begin sets subject to 1",
                  "[operation_timeout_guard]") {
-    SubjectManager subjects;
     OperationTimeoutGuard guard;
+    SubjectManager subjects;
     guard.init_subject("test_guard_begin_subject", subjects);
 
     guard.begin(30000, [] {});
@@ -143,8 +143,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "OperationTimeoutGuard: begin sets subject to 
 
 TEST_CASE_METHOD(LVGLTestFixture, "OperationTimeoutGuard: end sets subject to 0",
                  "[operation_timeout_guard]") {
-    SubjectManager subjects;
     OperationTimeoutGuard guard;
+    SubjectManager subjects;
     guard.init_subject("test_guard_end_subject", subjects);
 
     guard.begin(30000, [] {});

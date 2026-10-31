@@ -672,7 +672,9 @@ int MoonrakerClientMock::get_total_layers() const {
 
 bool MoonrakerClientMock::has_motors_sync() const {
     std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
-    const auto& objects = discovery_.hardware().printer_objects();
+    // hardware() returns a copy, which has to outlive the reference taken into it.
+    const helix::PrinterDiscovery hardware = discovery_.hardware();
+    const auto& objects = hardware.printer_objects();
     return std::find(objects.begin(), objects.end(), "motors_sync") != objects.end();
 }
 

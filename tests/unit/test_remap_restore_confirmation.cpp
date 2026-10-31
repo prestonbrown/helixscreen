@@ -27,6 +27,7 @@
 #include "../test_helpers/cfs_test_access.h"
 #include "../test_helpers/config_dir_guard.h"
 #include "../test_helpers/print_start_controller_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
@@ -1396,7 +1397,8 @@ TEST_CASE("reprint: a Fork print-map box sends the identity map for the file's t
     const auto reprint = [](Harness& h) {
         h.client.clear_gcode_script_history();
         h.controller.initiate_reprint("part.gcode", "part.gcode", {0, 1}, [] {}, [] {});
-        helix::ui::UpdateQueue::instance().drain();
+        // Everything the reprint queues names this Harness: none of it may outlive the section.
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     };
 
     SECTION("revision 4 sends every used tool at its own slot") {

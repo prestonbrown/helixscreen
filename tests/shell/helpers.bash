@@ -13,10 +13,12 @@ export -f log_info log_warn log_error log_success log_note
 # assert on its text, so they run verbose unless a test unsets this.
 export HELIX_INSTALL_VERBOSE=1
 
-# Ensure BATS_TEST_TMPDIR exists (added in bats 1.4.1, Ubuntu 22.04 ships 1.2.1)
-# Each bats test runs in a subshell, so this creates a fresh dir per test.
-if [ -z "$BATS_TEST_TMPDIR" ]; then
+# Ensure BATS_TEST_TMPDIR exists (added in bats 1.4.1, Ubuntu 22.04 ships 1.2.1).
+# This file is sourced for every test, but the export reaches the next test too,
+# so a value this file set is replaced rather than kept: each test gets its own.
+if [ -z "$BATS_TEST_TMPDIR" ] || [ -n "$HELIX_BATS_TEST_TMPDIR_FILLED" ]; then
     BATS_TEST_TMPDIR=$(mktemp -d "${BATS_TMPDIR:-/tmp}/bats-test-XXXXXX")
+    export HELIX_BATS_TEST_TMPDIR_FILLED=1
 fi
 export BATS_TEST_TMPDIR
 

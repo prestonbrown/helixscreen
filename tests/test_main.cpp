@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <memory>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <system_error>
@@ -148,6 +149,8 @@ class CacheSandboxListener : public Catch::EventListenerBase {
     }
 
     void testRunEnded(Catch::TestRunStats const&) override {
+        HelixTestFixture::keep_logger_for_exit();
+
         // Best-effort: a leftover sandbox is litter, never a test failure.
         if (g_cache_sandbox[0] == '\0')
             return;

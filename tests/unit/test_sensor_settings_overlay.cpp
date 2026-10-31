@@ -467,6 +467,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(manager.entries()[0].role == RowTestManager::kFirst);
         section.pick_role(0, 3); // past the options: ignored
         CHECK(manager.entries()[0].role == RowTestManager::kFirst);
+        subjects.deinit_all(); // the section's subjects die before the manager does
     }
     manager.deinit_subjects();
 
@@ -537,6 +538,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK_FALSE(hidden_up_to(dd, row));
         CHECK(lv_dropdown_get_selected(dd) == 1);
         lv_obj_delete(row);
+        subjects.deinit_all(); // the section's subjects die before the manager does
     }
     manager.deinit_subjects();
 }
