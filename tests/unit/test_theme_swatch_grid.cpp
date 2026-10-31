@@ -215,6 +215,7 @@ constexpr const char* kPaletteSwitchComponent =
 
 struct PaletteSwitchFixture : public LVGLTestFixture {
     lv_subject_t palette_subject{};
+    lv_subject_t* registered_palette = nullptr;
 
     PaletteSwitchFixture() {
         REQUIRE(lv_xml_register_component_from_file("A:ui_xml/globals.xml") == LV_RESULT_OK);
@@ -225,6 +226,7 @@ struct PaletteSwitchFixture : public LVGLTestFixture {
         REQUIRE(lv_xml_register_component_from_file("A:ui_xml/components/color_swatch_grid.xml") ==
                 LV_RESULT_OK);
         lv_subject_init_int(&palette_subject, 0);
+        registered_palette = lv_xml_get_subject(nullptr, "color_picker_palette");
         lv_xml_register_subject(nullptr, "color_picker_palette", &palette_subject);
         REQUIRE(lv_xml_register_component_from_data("palette_switch_probe",
                                                     kPaletteSwitchComponent) == LV_RESULT_OK);
@@ -232,6 +234,12 @@ struct PaletteSwitchFixture : public LVGLTestFixture {
 
     ~PaletteSwitchFixture() {
         lv_xml_component_unregister("palette_switch_probe");
+        // This subject dies with the test's stack frame: a later picker must not bind it.
+        if (registered_palette) {
+            lv_xml_register_subject(nullptr, "color_picker_palette", registered_palette);
+        } else {
+            lv_xml_unregister_subject(nullptr, "color_picker_palette");
+        }
         lv_subject_deinit(&palette_subject);
     }
 
