@@ -194,6 +194,16 @@ struct OpenedMaze {
     }
 };
 
+/// Every tile of the outer ring is a wall.
+void check_closed_outside(const MazeMap& map) {
+    for (int i = 0; i < map.size(); i++) {
+        CHECK(map.wall(i, 0));
+        CHECK(map.wall(i, map.size() - 1));
+        CHECK(map.wall(0, i));
+        CHECK(map.wall(map.size() - 1, i));
+    }
+}
+
 /// A corridor running east: open tiles (1..size-2, mid), brick elsewhere.
 MazeMap corridor(int size) {
     std::vector<MazeTile> tiles(static_cast<size_t>(size * size), MazeTile::BRICK);
@@ -221,57 +231,42 @@ MazeMap room(int size) {
 
 } // namespace
 
-TEST_CASE("a generated maze is perfect: every cell reachable, no loops, closed outside",
+TEST_CASE("a generated maze is perfect, closed outside, with no islands and 16 pictures on walls",
           "[screensaver][maze]") {
-    for (uint32_t seed = 1; seed <= 50; seed++) {
-        std::minstd_rand rng(seed);
-        MazeMap map;
-        map.generate(MazeSim::CELLS, rng);
-        const int cells = MazeSim::CELLS * MazeSim::CELLS;
-        REQUIRE(map.size() == 2 * MazeSim::CELLS + 1);
-        CHECK(reachable_cells(map) == cells);
-        CHECK(open_edges(map) == cells - 1);
-        for (int i = 0; i < map.size(); i++) {
-            CHECK(map.wall(i, 0));
-            CHECK(map.wall(i, map.size() - 1));
-            CHECK(map.wall(0, i));
-            CHECK(map.wall(map.size() - 1, i));
-        }
-    }
-}
-
-TEST_CASE("a maze hangs pictures only on walls, and out of bounds reads as brick",
-          "[screensaver][maze]") {
-    std::minstd_rand rng(7);
-    MazeMap map;
-    map.generate(MazeSim::CELLS, rng);
-    int pictures = 0;
-    for (int y = 0; y < map.size(); y++) {
-        for (int x = 0; x < map.size(); x++) {
-            if (map.tile(x, y) == MazeTile::PICTURE) {
-                pictures++;
-                CHECK(map.wall(x, y));
-            }
-        }
-    }
-    CHECK(pictures > 0);
-    CHECK(map.tile(-1, 3) == MazeTile::BRICK);
-    CHECK(map.tile(map.size(), 3) == MazeTile::BRICK);
-}
-
-TEST_CASE("a perfect maze has no islands: every wall reaches the outside", "[screensaver][maze]") {
+    const int cells = MazeSim::CELLS * MazeSim::CELLS;
     for (uint32_t seed = 1; seed <= 50; seed++) {
         INFO("seed " << seed);
         std::minstd_rand rng(seed);
         MazeMap map;
         map.generate(MazeSim::CELLS, rng);
+        REQUIRE(map.size() == 2 * MazeSim::CELLS + 1);
+        // Perfect: every cell reachable through exactly cells - 1 passages.
+        CHECK(reachable_cells(map) == cells);
+        CHECK(open_edges(map) == cells - 1);
+        check_closed_outside(map);
+        // Pictures hang only on walls, indices 0..15 once each; every wall
+        // reaches the outside.
+        std::vector<int> seen(MazeMap::kPictureWalls, 0);
         for (int y = 0; y < map.size(); y++) {
             for (int x = 0; x < map.size(); x++) {
                 if (map.wall(x, y)) {
                     REQUIRE(map.boundary_wall(x, y));
                 }
+                if (map.tile(x, y) == MazeTile::PICTURE) {
+                    CHECK(map.wall(x, y));
+                    const int i = map.picture_index(x, y);
+                    REQUIRE(i < MazeMap::kPictureWalls);
+                    seen[static_cast<size_t>(i)]++;
+                } else {
+                    CHECK(map.picture_index(x, y) == 0);
+                }
             }
         }
+        for (int i = 0; i < MazeMap::kPictureWalls; i++) {
+            CHECK(seen[static_cast<size_t>(i)] == 1);
+        }
+        CHECK(map.tile(-1, 3) == MazeTile::BRICK);
+        CHECK(map.tile(map.size(), 3) == MazeTile::BRICK);
     }
 }
 
@@ -293,30 +288,6 @@ TEST_CASE("an island is not on the boundary", "[screensaver][maze]") {
     CHECK_FALSE(map.boundary_wall(7, 1));
 }
 
-TEST_CASE("a generated maze hangs 16 pictures, indices 0..15 once each", "[screensaver][maze]") {
-    for (uint32_t seed = 1; seed <= 50; seed++) {
-        INFO("seed " << seed);
-        std::minstd_rand rng(seed);
-        MazeMap map;
-        map.generate(MazeSim::CELLS, rng);
-        std::vector<int> seen(MazeMap::kPictureWalls, 0);
-        for (int y = 0; y < map.size(); y++) {
-            for (int x = 0; x < map.size(); x++) {
-                if (map.tile(x, y) == MazeTile::PICTURE) {
-                    const int i = map.picture_index(x, y);
-                    REQUIRE(i < MazeMap::kPictureWalls);
-                    seen[static_cast<size_t>(i)]++;
-                } else {
-                    CHECK(map.picture_index(x, y) == 0);
-                }
-            }
-        }
-        for (int i = 0; i < MazeMap::kPictureWalls; i++) {
-            CHECK(seen[static_cast<size_t>(i)] == 1);
-        }
-    }
-}
-
 TEST_CASE("set_tiles carries picture indices", "[screensaver][maze]") {
     const int size = 15;
     std::vector<MazeTile> tiles(static_cast<size_t>(size * size), MazeTile::BRICK);
@@ -336,7 +307,7 @@ TEST_CASE("set_tiles carries picture indices", "[screensaver][maze]") {
     CHECK(bare.picture_index(4, 6) == 0);
 }
 
-TEST_CASE("an opened maze keeps every cell, closes its outside and has loops",
+TEST_CASE("an opened maze keeps every cell, has loops and rooms, walled dead ends and placed items",
           "[screensaver][maze]") {
     const int cells = MazeSim::CELLS * MazeSim::CELLS;
     int extra_total = 0;
@@ -344,26 +315,15 @@ TEST_CASE("an opened maze keeps every cell, closes its outside and has loops",
         INFO("seed " << seed);
         OpenedMaze m(seed);
         const MazeMap& map = m.sim.map();
+        const int n = map.cells();
         CHECK(reachable_cells(map) == cells);
-        for (int i = 0; i < map.size(); i++) {
-            CHECK(map.wall(i, 0));
-            CHECK(map.wall(i, map.size() - 1));
-            CHECK(map.wall(0, i));
-            CHECK(map.wall(map.size() - 1, i));
-        }
+        check_closed_outside(map);
         const int extra = open_edges(map) - (cells - 1);
         CHECK(extra >= MazeMap::kExtraOpenings);
         extra_total += extra;
-    }
-    CHECK(extra_total >= 10 * 200);
-}
 
-TEST_CASE("an opened maze has 2 or 3 rooms", "[screensaver][maze]") {
-    for (uint32_t seed = 1; seed <= 200; seed++) {
-        INFO("seed " << seed);
-        OpenedMaze m(seed);
-        const MazeMap& map = m.sim.map();
-        // A 2x2 room opens the one pillar inside it, a 2x3 room two; nothing else opens one.
+        // 2 or 3 rooms: a 2x2 room opens the one pillar inside it, a 2x3 room
+        // two; nothing else opens one.
         int pillars = 0;
         for (int y = 2; y < map.size() - 1; y += 2) {
             for (int x = 2; x < map.size() - 1; x += 2) {
@@ -373,8 +333,8 @@ TEST_CASE("an opened maze has 2 or 3 rooms", "[screensaver][maze]") {
         CHECK(pillars >= 2);
         CHECK(pillars <= 6);
         int open_blocks = 0;
-        for (int cy = 0; cy + 1 < map.cells(); cy++) {
-            for (int cx = 0; cx + 1 < map.cells(); cx++) {
+        for (int cy = 0; cy + 1 < n; cy++) {
+            for (int cx = 0; cx + 1 < n; cx++) {
                 open_blocks += map.passage(cx, cy, 0) && map.passage(cx, cy, 1) &&
                                        map.passage(cx + 1, cy + 1, 2) &&
                                        map.passage(cx + 1, cy + 1, 3)
@@ -383,15 +343,8 @@ TEST_CASE("an opened maze has 2 or 3 rooms", "[screensaver][maze]") {
             }
         }
         CHECK(open_blocks >= 2);
-    }
-}
 
-TEST_CASE("start and exit stay dead ends walled by the boundary", "[screensaver][maze]") {
-    for (uint32_t seed = 1; seed <= 200; seed++) {
-        INFO("seed " << seed);
-        OpenedMaze m(seed);
-        const MazeMap& map = m.sim.map();
-        const int n = map.cells();
+        // Start and exit stay dead ends walled by the boundary.
         REQUIRE(m.exit >= 0);
         REQUIRE(m.start != m.exit);
         for (int c : {m.start, m.exit}) {
@@ -406,15 +359,8 @@ TEST_CASE("start and exit stay dead ends walled by the boundary", "[screensaver]
                 }
             }
         }
-    }
-}
 
-TEST_CASE("items still stand in distinct open cells of an opened maze", "[screensaver][maze]") {
-    for (uint32_t seed = 1; seed <= 200; seed++) {
-        INFO("seed " << seed);
-        OpenedMaze m(seed);
-        const MazeMap& map = m.sim.map();
-        const int n = map.cells();
+        // Items stand in open cells; logos and rocks each in a cell of their own.
         std::vector<int> used(static_cast<size_t>(n * n), 0);
         int counts[5] = {};
         for (const MazeItem& item : m.sim.items()) {
@@ -434,6 +380,7 @@ TEST_CASE("items still stand in distinct open cells of an opened maze", "[screen
         CHECK(counts[static_cast<int>(MazeItemKind::ROCK)] == MazeSim::kRockCount);
         CHECK(counts[static_cast<int>(MazeItemKind::TOOLHEAD)] == 1);
     }
+    CHECK(extra_total >= 10 * 200);
 }
 
 TEST_CASE("the wall follower passes every cell of a perfect maze within the step bound",
@@ -688,6 +635,9 @@ TEST_CASE("a wall straight ahead has the slice height its distance gives, with n
     const int expected = static_cast<int>(focal / 3.5f);
     REQUIRE(expected == 14);
     CHECK(std::abs((r.wall_bottom(mid) - r.wall_top(mid)) - expected) <= 1);
+    // Its top is where the focal length puts it.
+    CHECK(r.wall_top(mid) ==
+          static_cast<int>(std::floor((static_cast<float>(r.internal_h()) - focal / 3.5f) * 0.5f)));
     // A flat wall square to the view stands the same height across every column that hits it.
     for (uint32_t x = 0; x < r.internal_w(); x++) {
         INFO("column " << x);
@@ -704,20 +654,6 @@ TEST_CASE("the maze sees 90 degrees vertically, capped at 120 across", "[screens
     CHECK(maze_focal(1920, 440) == Catch::Approx(554.256f).margin(0.01f));
     CHECK(maze_focal(480, 800) == Catch::Approx(400.0f));
     CHECK(maze_focal(1, 1) == Catch::Approx(0.5f));
-}
-
-TEST_CASE("the wall top is where the focal length puts it", "[screensaver][maze]") {
-    const int size = 15;
-    MazeMap map = room(size);
-    MazeRenderer r;
-    TestFrame frame(160, 100, PixelFormat::XRGB8888);
-    r.init(160, 100, PixelFormat::XRGB8888, MazeArt{});
-    const MazePose pose{static_cast<float>(size - 1) - 3.5f, size * 0.5f, 0.0f};
-    r.render(map, {}, pose, 0.0f, 0, frame.target);
-    const uint32_t mid = r.internal_w() / 2;
-    const float focal = helix::ui::maze_focal(r.internal_w(), r.internal_h());
-    CHECK(r.wall_top(mid) ==
-          static_cast<int>(std::floor((static_cast<float>(r.internal_h()) - focal / 3.5f) * 0.5f)));
 }
 
 TEST_CASE("a sprite stands the height its distance gives", "[screensaver][maze]") {
@@ -792,21 +728,17 @@ std::pair<float, float> item_centre(const MazeItem& item) {
 
 } // namespace
 
-TEST_CASE("a sprite off to one side stands where the focal length puts it", "[screensaver][maze]") {
-    // 4 tiles ahead and 1 to the right: focal * 1 / 4 right of centre.
-    const float focal = helix::ui::maze_focal(160, 100);
-    const auto [x, y] = item_centre({MazeItemKind::LOGO, 5.5f, 8.5f, true});
-    CHECK(x == Catch::Approx(80.0f + focal / 4.0f).margin(1.0f));
-    CHECK(y == Catch::Approx(50.0f).margin(1.0f));
-}
-
-TEST_CASE("a low sprite sits below the horizon by what the focal length gives",
+TEST_CASE("an item stands where the focal length puts it, beside or below the centre",
           "[screensaver][maze]") {
-    // The toolhead's centre is 0.175 tiles up, 0.325 below the eye, 4 tiles ahead.
     const float focal = helix::ui::maze_focal(160, 100);
-    const auto [x, y] = item_centre({MazeItemKind::TOOLHEAD, 5.5f, 7.5f, true});
-    CHECK(x == Catch::Approx(80.0f).margin(1.0f));
-    CHECK(y == Catch::Approx(50.0f + 0.325f * focal / 4.0f).margin(1.0f));
+    // A logo 4 tiles ahead and 1 to the right: focal * 1 / 4 right of centre.
+    const auto [lx, ly] = item_centre({MazeItemKind::LOGO, 5.5f, 8.5f, true});
+    CHECK(lx == Catch::Approx(80.0f + focal / 4.0f).margin(1.0f));
+    CHECK(ly == Catch::Approx(50.0f).margin(1.0f));
+    // The toolhead's centre is 0.175 tiles up, 0.325 below the eye, 4 tiles ahead.
+    const auto [tx, ty] = item_centre({MazeItemKind::TOOLHEAD, 5.5f, 7.5f, true});
+    CHECK(tx == Catch::Approx(80.0f).margin(1.0f));
+    CHECK(ty == Catch::Approx(50.0f + 0.325f * focal / 4.0f).margin(1.0f));
 }
 
 TEST_CASE("the fog curve and blend", "[screensaver][maze]") {

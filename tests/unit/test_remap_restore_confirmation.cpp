@@ -42,6 +42,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "slot_registry.h"
+#include "static_panel_registry.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -164,6 +165,10 @@ struct Harness {
     Harness() {
         ps.init_subjects(false);
     }
+    // A restart builds the process-wide print-select panel around this api.
+    ~Harness() {
+        StaticPanelRegistry::instance().destroy_all();
+    }
 
     /// Tick AmsState's data-revision subject the way a synced backend event
     /// does, then drain so the observer body actually runs.
@@ -201,9 +206,10 @@ struct Harness {
 TEST_CASE("remap restore: halted Klipper does not consume the saved mapping",
           "[remap-restore][1270]") {
     LVGLTestFixture fx;
+    auto state = GENERATE(KlippyState::SHUTDOWN, KlippyState::ERROR, KlippyState::STARTUP);
     ScopedCountingBackend be{{1, 2}};
     Harness h;
-    h.set_klippy(KlippyState::SHUTDOWN);
+    h.set_klippy(state);
 
     // Print ended with T0->slot 2, T1->slot 1 needing to go back.
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
@@ -1007,23 +1013,6 @@ TEST_CASE("remap restore: CFS retries when the box reports the refused bay's uni
     }
 
     AmsState::instance().set_backend(nullptr);
-}
-
-TEST_CASE("remap restore: klippy ERROR and STARTUP are also not delivery",
-          "[remap-restore][1270]") {
-    LVGLTestFixture fx;
-
-    auto state = GENERATE(KlippyState::ERROR, KlippyState::STARTUP);
-
-    ScopedCountingBackend be{{1, 2}};
-    Harness h;
-    h.set_klippy(state);
-    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
-
-    PrintStartControllerTestAccess::restore(h.controller);
-
-    CHECK(be.backend->calls.empty());
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
 }
 
 // ============================================================================

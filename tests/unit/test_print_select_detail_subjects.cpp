@@ -2069,42 +2069,40 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Picks clear when the user leaves the file, 
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Picks held for a start survive the hide and a same-file re-show",
+                 "Picks held for a start survive the hide for the same file only, never a shutdown",
                  "[print_select][detail_view][pre_start_exclude]") {
     ExcludeObjectHardware hw(true);
     OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
     d.view.toggle_exclude_pick("Cube_id_1");
-
     d.view.hold_picks_for_start(true);
     CHECK(d.view.picks_held_for_start());
-    d.close();
-    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
 
-    // The start failed: details comes back for the same file with the pick intact.
-    d.view.show("parts.gcode", "", "PLA");
-    OpenDetail::settle();
-    CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
-    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
-    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 1);
-    // The hold is spent by that show; leaving the file now clears.
-    CHECK_FALSE(d.view.picks_held_for_start());
-    d.close();
-    CHECK(d.view.exclude_picks().empty());
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "A held pick does not carry over to another file",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_pick("Cube_id_1");
-
-    d.view.hold_picks_for_start(true);
-    d.close();
-    d.view.show("other.gcode", "", "PLA");
-    OpenDetail::settle();
-    CHECK(d.view.exclude_objects().get_excluded_objects().empty());
-    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 0);
-    CHECK_FALSE(d.view.picks_held_for_start());
+    SECTION("the same file re-shown") {
+        d.close();
+        CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+        // The start failed: details comes back for the same file with the pick intact.
+        d.view.show("parts.gcode", "", "PLA");
+        OpenDetail::settle();
+        CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
+        CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+        CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 1);
+        // The hold is spent by that show; leaving the file now clears.
+        CHECK_FALSE(d.view.picks_held_for_start());
+        d.close();
+        CHECK(d.view.exclude_picks().empty());
+    }
+    SECTION("another file") {
+        d.close();
+        d.view.show("other.gcode", "", "PLA");
+        OpenDetail::settle();
+        CHECK(d.view.exclude_objects().get_excluded_objects().empty());
+        CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 0);
+        CHECK_FALSE(d.view.picks_held_for_start());
+    }
+    SECTION("leaving for shutdown") {
+        d.view.on_deactivating(DeactivateReason::Shutdown);
+        CHECK(d.view.exclude_picks().empty());
+    }
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Every object picked is reported, and dropping picks says so",
@@ -2120,17 +2118,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Every object picked is reported, and droppi
     CHECK(d.view.all_objects_picked());
 
     CHECK(d.view.drop_exclude_picks());
-    CHECK(d.view.exclude_picks().empty());
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Leaving details for shutdown clears picks even while held",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_pick("Cube_id_1");
-    d.view.hold_picks_for_start(true);
-
-    d.view.on_deactivating(DeactivateReason::Shutdown);
     CHECK(d.view.exclude_picks().empty());
 }
 
@@ -2232,35 +2219,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Leaving details closes exclude mode",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_mode();
-    OpenDetail::settle();
-    REQUIRE(d.view.is_exclude_mode_open());
-
-    d.close();
-    process_lvgl(50);
-    CHECK_FALSE(d.view.is_exclude_mode_open());
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "A suspend closes exclude mode and keeps the picks",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_pick("Cube_id_1");
-    d.view.toggle_exclude_mode();
-    OpenDetail::settle();
-    REQUIRE(d.view.is_exclude_mode_open());
-
-    d.view.on_deactivating(DeactivateReason::Suspended);
-    OpenDetail::settle();
-    CHECK_FALSE(d.view.is_exclude_mode_open());
-    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Clearing the details viewer closes exclude mode",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Exclude mode closes on leaving, a suspend, a viewer clear or another file",
                  "[print_select][detail_view][pre_start_exclude]") {
     ExcludeObjectHardware hw(true);
     OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
@@ -2271,24 +2231,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clearing the details viewer closes exclude 
     OpenDetail::settle();
     REQUIRE(d.view.is_exclude_mode_open());
 
-    // What the memory-pressure responder does to every live viewer.
-    helix::ui::gcode_viewer_clear_all_active();
-    OpenDetail::settle();
-    CHECK_FALSE(d.view.is_exclude_mode_open());
-    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Showing the open view for another file closes exclude mode",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_mode();
-    OpenDetail::settle();
-    REQUIRE(d.view.is_exclude_mode_open());
-
-    d.view.show("other.gcode", "", "PLA");
-    OpenDetail::settle();
-    CHECK_FALSE(d.view.is_exclude_mode_open());
+    SECTION("leaving details") {
+        d.close();
+        process_lvgl(50);
+        CHECK_FALSE(d.view.is_exclude_mode_open());
+    }
+    SECTION("a suspend keeps the picks") {
+        d.view.on_deactivating(DeactivateReason::Suspended);
+        OpenDetail::settle();
+        CHECK_FALSE(d.view.is_exclude_mode_open());
+        CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+    }
+    SECTION("a viewer clear keeps the picks") {
+        // What the memory-pressure responder does to every live viewer.
+        helix::ui::gcode_viewer_clear_all_active();
+        OpenDetail::settle();
+        CHECK_FALSE(d.view.is_exclude_mode_open());
+        CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+    }
+    SECTION("showing another file") {
+        d.view.show("other.gcode", "", "PLA");
+        OpenDetail::settle();
+        CHECK_FALSE(d.view.is_exclude_mode_open());
+    }
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Picks the skip option no longer offers are never sent",
@@ -2611,54 +2576,51 @@ bool hidden(lv_obj_t* obj) {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "No plugin item leaves the print row unchanged",
+TEST_CASE_METHOD(LVGLUITestFixture, "A plugin print_file item, and only one, adds the more button",
                  "[print_select][detail_view][plugin_menu]") {
-    ShownDetail d(test_screen());
-    process_lvgl(20);
-    CHECK(hidden(d.find("more_button")));
-    CHECK_FALSE(hidden(ui_button_get_label(d.find("print_button"))));
-    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "print_detail_has_plugin_items")) == 0);
+    SECTION("no plugin item leaves the print row unchanged") {
+        ShownDetail d(test_screen());
+        process_lvgl(20);
+        CHECK(hidden(d.find("more_button")));
+        CHECK_FALSE(hidden(ui_button_get_label(d.find("print_button"))));
+        CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "print_detail_has_plugin_items")) ==
+              0);
+    }
+    SECTION("an item adds the more button and drops the print label") {
+        PluginMenuHost host(kFileItem);
+        ShownDetail d(test_screen());
+        process_lvgl(20);
+        CHECK_FALSE(hidden(d.find("more_button")));
+        CHECK(hidden(ui_button_get_label(d.find("print_button"))));
+    }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "A plugin print_file item adds the more button",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The more button passes a printer file's path, a USB file's none",
                  "[print_select][detail_view][plugin_menu]") {
+    struct Row {
+        const char* local_path; // "": a printer file
+        const char* source;
+        const char* path;
+        const char* local;
+    };
+    const Row row =
+        GENERATE(Row{"/media/usb0/benchy.gcode", "usb", "nil", "/media/usb0/benchy.gcode"},
+                 Row{"", "printer", "boats/benchy.gcode", "nil"});
+    CAPTURE(row.source);
     PluginMenuHost host(kFileItem);
-    ShownDetail d(test_screen());
-    process_lvgl(20);
-    CHECK_FALSE(hidden(d.find("more_button")));
-    CHECK(hidden(ui_button_get_label(d.find("print_button"))));
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "The more button on a USB file passes no path",
-                 "[print_select][detail_view][plugin_menu]") {
-    PluginMenuHost host(kFileItem);
-    ShownDetail d(test_screen(), "/media/usb0/benchy.gcode");
+    ShownDetail d(test_screen(), row.local_path);
     process_lvgl(20);
     d.view.show_plugin_actions();
     lv_obj_t* label = d.find("item_label");
     REQUIRE(label);
     CHECK(std::string(lv_label_get_text(label)) == "Do the thing");
     lv_obj_send_event(lv_obj_get_parent(lv_obj_get_parent(label)), LV_EVENT_CLICKED, nullptr);
-    CHECK(host.global("seen_source") == "usb");
-    CHECK(host.global("seen_path") == "nil");
-    CHECK(host.global("seen_local") == "/media/usb0/benchy.gcode");
+    CHECK(host.global("seen_source") == row.source);
+    CHECK(host.global("seen_path") == row.path);
+    CHECK(host.global("seen_local") == row.local);
     // Metadata had not arrived: absent, never 0.
     CHECK(host.global("seen_time") == "nil");
-    process_lvgl(20);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "The more button on a printer file passes its path",
-                 "[print_select][detail_view][plugin_menu]") {
-    PluginMenuHost host(kFileItem);
-    ShownDetail d(test_screen());
-    process_lvgl(20);
-    d.view.show_plugin_actions();
-    lv_obj_t* label = d.find("item_label");
-    REQUIRE(label);
-    lv_obj_send_event(lv_obj_get_parent(lv_obj_get_parent(label)), LV_EVENT_CLICKED, nullptr);
-    CHECK(host.global("seen_source") == "printer");
-    CHECK(host.global("seen_path") == "boats/benchy.gcode");
-    CHECK(host.global("seen_local") == "nil");
     process_lvgl(20);
 }
 #endif // HELIX_HAS_PLUGINS

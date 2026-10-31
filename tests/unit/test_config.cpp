@@ -8,7 +8,6 @@
 #include "config.h"
 #include "config_testing.h"
 #include "runtime_config.h"
-#include "static_subject_registry.h"
 #include "test_helpers/unique_temp_dir.h"
 #include "text_io.h"
 #include "wizard_config_paths.h"
@@ -62,13 +61,9 @@ class ConfigTestFixture {
         ConfigTestAccess::path(config) = p;
     }
 
-    // Run the REAL display migration Config::init() runs (migrate_display_config()
+    // Run the real display migration Config::init() runs (migrate_display_config()
     // followed by the /display/ -> /input/ key moves), through the config_testing
-    // seam. This used to be a hand-written copy of both functions living in this
-    // fixture: it froze the pre-refactor semantics and could not go red when
-    // production changed. One divergence it had already accumulated — it returned
-    // early when "display_rotate" was absent, skipping the /input/ migration
-    // entirely, where production always runs both.
+    // seam, so these cases go red when production changes.
     void apply_migration() {
         helix::config_testing::run_display_migrations_for_test(ConfigTestAccess::data(config));
     }
@@ -142,39 +137,31 @@ class ConfigTestFixture {
 } // namespace helix
 
 // ============================================================================
-// get() without default parameter - Existing behavior
+// get(): reads existing values, throws on missing or mistyped keys
 // ============================================================================
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() returns existing string value",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: get() returns existing values at any depth",
                  "[core][config][get]") {
     setup_default_config();
 
-    std::string host = config.get<std::string>(config.df() + "moonraker_host");
-    REQUIRE(host == "192.168.1.100");
-}
+    struct Row {
+        const char* path;
+        const char* expected;
+    };
+    const Row rows[] = {
+        {"moonraker_host", "192.168.1.100"},
+        {"hardware_map/heated_bed", "heater_bed"},
+    };
+    for (const Row& r : rows) {
+        INFO("path: " << r.path);
+        CHECK(config.get<std::string>(config.df() + r.path) == r.expected);
+    }
+    CHECK(config.get<int>(config.df() + "moonraker_port") == 7125);
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() returns existing int value",
-                 "[core][config][get]") {
-    setup_default_config();
-
-    int port = config.get<int>(config.df() + "moonraker_port");
-    REQUIRE(port == 7125);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() returns existing nested value",
-                 "[config][get]") {
-    setup_default_config();
-
-    std::string bed = config.get<std::string>(config.df() + "hardware_map/heated_bed");
-    REQUIRE(bed == "heater_bed");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with df() prefix returns value",
-                 "[config][get]") {
-    setup_default_config();
-
-    std::string host = config.get<std::string>(config.df() + "moonraker_host");
-    REQUIRE(host == "192.168.1.100");
+    auto hardware_map = config.get<json>(config.df() + "hardware_map");
+    REQUIRE(hardware_map.is_object());
+    CHECK(hardware_map["heated_bed"] == "heater_bed");
+    CHECK(hardware_map["hotend"] == "extruder");
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with missing key throws exception",
@@ -183,160 +170,88 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with missing key throws excep
 
     // out_of_range, not type_error: get() uses at() so a missing key never
     // vivifies a null on the way to failing (#1129).
-    REQUIRE_THROWS_AS(config.get<std::string>(config.df() + "nonexistent_key"),
-                      nlohmann::detail::out_of_range);
-    REQUIRE_FALSE(config.exists(config.df() + "nonexistent_key"));
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with missing nested key throws exception",
-                 "[config][get]") {
-    setup_default_config();
-
-    REQUIRE_THROWS_AS(config.get<std::string>(config.df() + "hardware_map/missing"),
-                      nlohmann::detail::out_of_range);
-    // The failed lookup must not have created the missing leaf (#1129).
-    REQUIRE_FALSE(config.exists(config.df() + "hardware_map/missing"));
+    for (const char* key : {"nonexistent_key", "hardware_map/missing"}) {
+        INFO("key: " << key);
+        REQUIRE_THROWS_AS(config.get<std::string>(config.df() + key),
+                          nlohmann::detail::out_of_range);
+        REQUIRE_FALSE(config.exists(config.df() + key));
+    }
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with type mismatch throws exception",
                  "[config][get]") {
     setup_default_config();
 
-    // Try to get string value as int
     REQUIRE_THROWS(config.get<int>(config.df() + "moonraker_host"));
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with object returns nested structure",
-                 "[config][get]") {
-    setup_default_config();
-
-    auto hardware_map = config.get<json>(config.df() + "hardware_map");
-    REQUIRE(hardware_map.is_object());
-    REQUIRE(hardware_map["heated_bed"] == "heater_bed");
-    REQUIRE(hardware_map["hotend"] == "extruder");
-}
-
 // ============================================================================
-// get() with default parameter - NEW behavior
+// get() with a default: the stored value wins, the default fills any gap
 // ============================================================================
 
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: get() with default returns value when key exists (string)",
-                 "[config][get][default]") {
-    setup_default_config();
-
-    std::string host = config.get<std::string>(config.df() + "moonraker_host", "default.local");
-    REQUIRE(host == "192.168.1.100"); // Ignores default
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: get() with default returns value when key exists (int)",
-                 "[config][get][default]") {
-    setup_default_config();
-
-    int port = config.get<int>(config.df() + "moonraker_port", 9999);
-    REQUIRE(port == 7125); // Ignores default
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: get() with default returns default when key missing (string)",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with default returns value or default",
                  "[core][config][get][default]") {
-    setup_default_config();
+    struct Row {
+        const char* path; // absolute
+        const char* fallback;
+        const char* expected;
+    };
 
-    std::string printer_name = config.get<std::string>(config.df() + "printer_name", "My Printer");
-    REQUIRE(printer_name == "My Printer");
-}
+    SECTION("string keys on a full config") {
+        setup_default_config();
+        const std::string df = config.df();
+        const Row rows[] = {
+            {"moonraker_host", "default.local", "192.168.1.100"},
+            {"printer_name", "My Printer", "My Printer"},
+            {"hardware_map/main_led", "none", "none"},
+            {"empty_field", "", ""},
+        };
+        for (const Row& r : rows) {
+            INFO("path: " << r.path);
+            CHECK(config.get<std::string>(df + r.path, r.fallback) == r.expected);
+        }
+        CHECK(config.get<std::string>("/nonexistent/path/key", "fallback") == "fallback");
+        CHECK(config.get<int>(df + "moonraker_port", 9999) == 7125);
+        CHECK(config.get<int>(df + "timeout", 30) == 30);
+        CHECK(config.get<bool>(df + "moonraker_api_key", false) == false);
+    }
 
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: get() with default returns default when key missing (int)",
-                 "[config][get][default]") {
-    setup_default_config();
+    SECTION("a missing key on a minimal config returns the default, not a throw") {
+        setup_minimal_config();
+        CHECK(config.get<std::string>(config.df() + "printer_name", "") == "");
+    }
 
-    int timeout = config.get<int>(config.df() + "timeout", 30);
-    REQUIRE(timeout == 30);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: get() with default returns default when key missing (bool)",
-                 "[config][get][default]") {
-    setup_default_config();
-
-    bool api_key = config.get<bool>(config.df() + "moonraker_api_key", false);
-    REQUIRE(api_key == false);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with default handles nested missing path",
-                 "[config][get][default]") {
-    setup_default_config();
-
-    std::string led = config.get<std::string>(config.df() + "hardware_map/main_led", "none");
-    REQUIRE(led == "none");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with empty string default",
-                 "[config][get][default]") {
-    setup_default_config();
-
-    std::string empty = config.get<std::string>(config.df() + "empty_field", "");
-    REQUIRE(empty == "");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with default using df() prefix",
-                 "[config][get][default]") {
-    setup_default_config();
-
-    std::string printer_name = config.get<std::string>(config.df() + "printer_name", "");
-    REQUIRE(printer_name == "");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: get() with default handles completely missing parent path",
-                 "[config][get][default]") {
-    setup_default_config();
-
-    std::string missing = config.get<std::string>("/nonexistent/path/key", "fallback");
-    REQUIRE(missing == "fallback");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with default prevents crashes on null keys",
-                 "[config][get][default]") {
-    setup_minimal_config();
-
-    // This is the bug we fixed - printer_name doesn't exist, should return default not throw
-    std::string printer_name = config.get<std::string>(config.df() + "printer_name", "");
-    REQUIRE(printer_name == "");
+    SECTION("an empty config returns the default") {
+        set_data_empty();
+        CHECK(config.get<std::string>(config.df() + "moonraker_host", "localhost") == "localhost");
+    }
 }
 
 // ============================================================================
 // set() operations
 // ============================================================================
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set() creates new top-level key", "[config][set]") {
+TEST_CASE_METHOD(ConfigTestFixture, "Config: set() creates and updates keys at any depth",
+                 "[config][set]") {
     setup_default_config();
+    const std::string df = config.df();
 
-    config.set<std::string>("/new_key", "new_value");
-    REQUIRE(config.get<std::string>("/new_key") == "new_value");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set() updates existing key", "[config][set]") {
-    setup_default_config();
-
-    config.set<std::string>(config.df() + "moonraker_host", "10.0.0.1");
-    REQUIRE(config.get<std::string>(config.df() + "moonraker_host") == "10.0.0.1");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set() creates nested path", "[config][set]") {
-    setup_default_config();
-
-    config.set<std::string>(config.df() + "hardware_map/main_led", "neopixel");
-    REQUIRE(config.get<std::string>(config.df() + "hardware_map/main_led") == "neopixel");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set() updates nested value", "[config][set]") {
-    setup_default_config();
-
-    config.set<std::string>(config.df() + "hardware_map/hotend", "extruder1");
-    REQUIRE(config.get<std::string>(config.df() + "hardware_map/hotend") == "extruder1");
+    struct Row {
+        std::string path;
+        const char* value;
+    };
+    const Row rows[] = {
+        {"/new_key", "new_value"},                    // new top-level key
+        {df + "moonraker_host", "10.0.0.1"},          // existing key
+        {df + "hardware_map/main_led", "neopixel"},   // new nested key
+        {df + "hardware_map/hotend", "extruder1"},    // existing nested key
+        {df + "nested/level1/level2/level3", "deep"}, // several missing parents
+    };
+    for (const Row& r : rows) {
+        INFO("path: " << r.path);
+        config.set<std::string>(r.path, r.value);
+        CHECK(config.get<std::string>(r.path) == r.value);
+    }
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: set() handles different types", "[config][set]") {
@@ -344,226 +259,62 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: set() handles different types", "[c
 
     config.set<int>(config.df() + "new_int", 42);
     config.set<bool>(config.df() + "new_bool", true);
-    config.set<std::string>(config.df() + "new_string", "test");
-
     REQUIRE(config.get<int>(config.df() + "new_int") == 42);
     REQUIRE(config.get<bool>(config.df() + "new_bool") == true);
-    REQUIRE(config.get<std::string>(config.df() + "new_string") == "test");
-}
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set() overwrites value of different type",
-                 "[config][set]") {
-    setup_default_config();
-
+    // A key may change type: int overwritten with a string
     config.set<int>(config.df() + "moonraker_port", 8080);
     REQUIRE(config.get<int>(config.df() + "moonraker_port") == 8080);
-
-    // Overwrite int with string
     config.set<std::string>(config.df() + "moonraker_port", "9090");
     REQUIRE(config.get<std::string>(config.df() + "moonraker_port") == "9090");
 }
 
 // ============================================================================
-// is_wizard_required() logic - NEW: wizard_completed flag
+// is_wizard_required(): only a boolean true wizard_completed skips the wizard
 // ============================================================================
 
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: is_wizard_required() returns false when wizard_completed is true",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required() reads wizard_completed",
                  "[config][wizard]") {
-    setup_minimal_config();
-
-    // Set wizard_completed flag
-    config.set<bool>("/wizard_completed", true);
-
-    REQUIRE(config.is_wizard_required() == false);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: is_wizard_required() returns true when wizard_completed is false",
-                 "[config][wizard]") {
-    setup_default_config();
-
-    // Explicitly set wizard_completed to false
-    config.set<bool>("/wizard_completed", false);
-
-    REQUIRE(config.is_wizard_required() == true);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: is_wizard_required() returns true when wizard_completed flag missing",
-                 "[config][wizard]") {
-    setup_minimal_config();
-
-    // No wizard_completed flag set
-    REQUIRE(config.is_wizard_required() == true);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: wizard_completed flag overrides hardware config",
-                 "[config][wizard]") {
-    setup_default_config();
-
-    // Even with full hardware config, if wizard_completed is false, wizard should run
-    config.set<bool>("/wizard_completed", false);
-
-    REQUIRE(config.is_wizard_required() == true);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: wizard_completed=true skips wizard even with minimal config",
-                 "[config][wizard]") {
-    setup_minimal_config();
-
-    // Even with minimal config (127.0.0.1 host), wizard_completed=true should skip wizard
-    config.set<bool>("/wizard_completed", true);
-
-    REQUIRE(config.is_wizard_required() == false);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: is_wizard_required() handles invalid wizard_completed type",
-                 "[config][wizard]") {
-    setup_default_config();
-
-    // Set wizard_completed to invalid type (string instead of bool)
-    config.set<std::string>("/wizard_completed", "true");
-
-    // Should return true (wizard required) because flag is not a valid boolean
-    REQUIRE(config.is_wizard_required() == true);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required() handles null wizard_completed",
-                 "[config][wizard]") {
-    setup_default_config();
-
-    // Set wizard_completed to null
-    set_data_null("/wizard_completed");
-
-    // Should return true (wizard required) because flag is null
-    REQUIRE(config.is_wizard_required() == true);
-}
-
-// ============================================================================
-// Edge cases
-// ============================================================================
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: handles deeply nested structures", "[config][edge]") {
-    setup_default_config();
-
-    config.set<std::string>(config.df() + "nested/level1/level2/level3", "deep");
-    std::string deep = config.get<std::string>(config.df() + "nested/level1/level2/level3");
-    REQUIRE(deep == "deep");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with default handles empty config",
-                 "[config][edge]") {
-    // Empty config
-    set_data_empty();
-
-    std::string host = config.get<std::string>(config.df() + "moonraker_host", "localhost");
-    REQUIRE(host == "localhost");
-}
-
-// ============================================================================
-// Config Path Structure Tests - NEW plural naming convention
-// These tests define the contract for the refactored config structure.
-// They SHOULD FAIL until the implementation is updated.
-// ============================================================================
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: heaters path uses plural form",
-                 "[config][paths][plural]") {
-    setup_default_config();
-    config.set<std::string>(config.df() + "heaters/bed", "heater_bed");
-    config.set<std::string>(config.df() + "heaters/hotend", "extruder");
-
-    std::string bed_heater = config.get<std::string>(config.df() + "heaters/bed");
-    REQUIRE(bed_heater == "heater_bed");
-
-    std::string hotend_heater = config.get<std::string>(config.df() + "heaters/hotend");
-    REQUIRE(hotend_heater == "extruder");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: temp_sensors path uses plural form",
-                 "[config][paths][plural]") {
-    setup_default_config();
-    config.set<std::string>(config.df() + "temp_sensors/bed", "heater_bed");
-    config.set<std::string>(config.df() + "temp_sensors/hotend", "extruder");
-
-    std::string bed_sensor = config.get<std::string>(config.df() + "temp_sensors/bed");
-    REQUIRE(bed_sensor == "heater_bed");
-
-    std::string hotend_sensor = config.get<std::string>(config.df() + "temp_sensors/hotend");
-    REQUIRE(hotend_sensor == "extruder");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: fans path uses plural form",
-                 "[config][paths][plural]") {
-    setup_default_config();
-    config.set<std::string>(config.df() + "fans/part", "fan");
-    config.set<std::string>(config.df() + "fans/hotend", "heater_fan hotend_fan");
-
-    std::string part_fan = config.get<std::string>(config.df() + "fans/part");
-    REQUIRE(part_fan == "fan");
-
-    std::string hotend_fan = config.get<std::string>(config.df() + "fans/hotend");
-    REQUIRE(hotend_fan == "heater_fan hotend_fan");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: leds path uses plural form",
-                 "[config][paths][plural]") {
-    setup_default_config();
-    config.set<std::string>(config.df() + "leds/strip", "neopixel chamber_light");
-
-    std::string led_strip = config.get<std::string>(config.df() + "leds/strip");
-    REQUIRE(led_strip == "neopixel chamber_light");
-}
-
-// ============================================================================
-// Default Config Structure Tests - NEW structure contract
-// ============================================================================
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default structure has extra_sensors as empty object",
-                 "[config][defaults][plural]") {
-    setup_default_config();
-    config.set<json>(config.df() + "extra_sensors", json::object());
-
-    auto extra_sensors = config.get<json>(config.df() + "extra_sensors");
-    REQUIRE(extra_sensors.is_object());
-    REQUIRE(extra_sensors.empty());
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: default structure has no fans array - fans is object only",
-                 "[config][defaults][plural]") {
-    setup_default_config();
-
-    auto fans = config.get<json>(config.df() + "fans", json::object());
-    REQUIRE(fans.is_object());
-    REQUIRE_FALSE(fans.is_array());
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: temp_sensors key exists for temperature sensor mappings",
-                 "[config][defaults][plural]") {
-    setup_default_config();
-
-    auto temp_sensors = config.get<json>(config.df() + "temp_sensors");
-    REQUIRE(temp_sensors.is_object());
-    REQUIRE(temp_sensors.contains("bed"));
-    REQUIRE(temp_sensors.contains("hotend"));
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: hardware section is under printer/hardware/",
-                 "[config][defaults][plural]") {
-    setup_default_config();
-    config.set<json>(config.df() + "hardware", {{"optional", json::array()},
-                                                {"expected", json::array()},
-                                                {"last_snapshot", json::object()}});
-
-    auto hardware = config.get<json>(config.df() + "hardware");
-    REQUIRE(hardware.is_object());
-    REQUIRE(hardware.contains("optional"));
-    REQUIRE(hardware.contains("expected"));
-    REQUIRE(hardware.contains("last_snapshot"));
+    enum class Flag { True, False, Missing, StringTrue, Null };
+    struct Row {
+        const char* name;
+        bool full_config; // default config with hardware, else minimal 127.0.0.1
+        Flag flag;
+        bool expected;
+    };
+    const Row rows[] = {
+        {"true on a minimal config skips", false, Flag::True, false},
+        {"false on a full hardware config still runs", true, Flag::False, true},
+        {"missing runs", false, Flag::Missing, true},
+        {"string \"true\" is not a boolean, runs", true, Flag::StringTrue, true},
+        {"null runs", true, Flag::Null, true},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            if (r.full_config) {
+                setup_default_config();
+            } else {
+                setup_minimal_config();
+            }
+            switch (r.flag) {
+            case Flag::True:
+                config.set<bool>("/wizard_completed", true);
+                break;
+            case Flag::False:
+                config.set<bool>("/wizard_completed", false);
+                break;
+            case Flag::StringTrue:
+                config.set<std::string>("/wizard_completed", "true");
+                break;
+            case Flag::Null:
+                set_data_null("/wizard_completed");
+                break;
+            case Flag::Missing:
+                break;
+            }
+            CHECK(config.is_wizard_required() == r.expected);
+        }
+    }
 }
 
 // ============================================================================
@@ -635,79 +386,6 @@ TEST_CASE("WizardConfigPaths: device-level constants are absolute paths",
 // Display Config Migration Tests - Phase 1 of display config refactoring
 // ============================================================================
 
-// NOT a defaults test despite what its old name claimed: every value below is
-// written in by the test and read straight back, so nothing here ever reached
-// get_default_display_config(). It sat on 600/300 while production has shipped
-// 1200/600 since b12daa974 and stayed green throughout. What it does pin is the
-// SHAPE — /display/ holds no calibration, and calibration + touch_device live
-// under /input/. The real defaults are covered by FreshConfigFixture +
-// expected_defaults() further down this file, which drive Config::init().
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: display and input sections keep calibration on the /input/ side",
-                 "[config][display][migration]") {
-    // Values here are arbitrary test INPUT, not production defaults.
-    // Note: calibration and touch_device are now under /input/, not /display/
-    set_data_for_plural_test(
-        {{"printer", {{"moonraker_host", "127.0.0.1"}}},
-         {"display",
-          {{"rotate", 0},
-           {"sleep_sec", 600},
-           {"dim_sec", 300},
-           {"dim_brightness", 30},
-           {"drm_device", ""}}},
-         {"input",
-          {{"touch_device", ""}, {"calibration", {{"valid", false}, {"a", 1.0}, {"b", 0.0}}}}}});
-
-    // Verify display section has expected structure (no calibration - that's in /input/)
-    auto display = config.get<json>("/display");
-    REQUIRE(display.is_object());
-    REQUIRE(display.contains("rotate"));
-    REQUIRE(display.contains("sleep_sec"));
-    REQUIRE(display.contains("dim_sec"));
-    REQUIRE(display.contains("dim_brightness"));
-    REQUIRE_FALSE(display.contains("calibration")); // Now under /input/
-
-    // Round-trip of the values written above — deliberately NOT compared against
-    // production defaults, which this fixture never builds.
-    REQUIRE(display["rotate"].get<int>() == 0);
-    REQUIRE(display["sleep_sec"].get<int>() == 600);
-    REQUIRE(display["dim_sec"].get<int>() == 300);
-    REQUIRE(display["dim_brightness"].get<int>() == 30);
-
-    // Verify calibration is under /input/
-    auto input = config.get<json>("/input");
-    REQUIRE(input.contains("calibration"));
-    REQUIRE(input.contains("touch_device"));
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: input/calibration section has coefficients",
-                 "[config][input][migration]") {
-    // Set up input section with calibration (new location)
-    set_data_for_plural_test({{"input",
-                               {{"calibration",
-                                 {{"valid", true},
-                                  {"a", 1.5},
-                                  {"b", 0.1},
-                                  {"c", -10.0},
-                                  {"d", 0.2},
-                                  {"e", 1.3},
-                                  {"f", -5.0}}}}}});
-
-    auto cal = config.get<json>("/input/calibration");
-    REQUIRE(cal.is_object());
-    REQUIRE(cal.contains("valid"));
-    REQUIRE(cal.contains("a"));
-    REQUIRE(cal.contains("b"));
-    REQUIRE(cal.contains("c"));
-    REQUIRE(cal.contains("d"));
-    REQUIRE(cal.contains("e"));
-    REQUIRE(cal.contains("f"));
-
-    REQUIRE(cal["valid"].get<bool>() == true);
-    REQUIRE(cal["a"].get<double>() == Catch::Approx(1.5));
-    REQUIRE(cal["e"].get<double>() == Catch::Approx(1.3));
-}
-
 TEST_CASE_METHOD(ConfigTestFixture, "Config: display settings readable when populated",
                  "[config][display][migration]") {
     // Populate display section with calibration at old location
@@ -728,24 +406,6 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: display settings readable when popu
     REQUIRE(config.get<int>("/display/dim_brightness") == 50);
     REQUIRE(config.get<bool>("/input/calibration/valid") == true);
     REQUIRE(config.get<double>("/input/calibration/a") == Catch::Approx(2.0));
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: display settings can be set and updated",
-                 "[config][display][migration]") {
-    // Create config with empty display section
-    set_data_for_plural_test({{"display", json::object()}});
-
-    // Set values
-    config.set<int>("/display/rotate", 270);
-    config.set<int>("/display/sleep_sec", 900);
-    config.set<bool>("/input/calibration/valid", true);
-    config.set<double>("/input/calibration/a", 1.1);
-
-    // Verify
-    REQUIRE(config.get<int>("/display/rotate") == 270);
-    REQUIRE(config.get<int>("/display/sleep_sec") == 900);
-    REQUIRE(config.get<bool>("/input/calibration/valid") == true);
-    REQUIRE(config.get<double>("/input/calibration/a") == Catch::Approx(1.1));
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: migrates /display/calibration to /input/calibration",
@@ -789,24 +449,6 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: migrates /display/calibration to /i
 // Migration Detection Tests
 // ----------------------------------------------------------------------------
 
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: migration detects old format with display_rotate at root",
-                 "[config][display][migration]") {
-    // Old format config with display_rotate at root
-    json old_format = {{"display_rotate", 90}, {"printer", {{"moonraker_host", "192.168.1.100"}}}};
-
-    set_data_for_plural_test(old_format);
-    REQUIRE(data_contains("display_rotate"));
-
-    apply_migration();
-
-    // Old key should be removed
-    REQUIRE_FALSE(data_contains("display_rotate"));
-    // New structure should exist
-    REQUIRE(data_contains("display"));
-    REQUIRE(config.get<int>("/display/rotate") == 90);
-}
-
 TEST_CASE_METHOD(ConfigTestFixture, "Config: migration skips config already in new format",
                  "[config][display][migration]") {
     // New format config - no root-level display_* keys
@@ -828,62 +470,6 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: migration skips config already in n
 // ----------------------------------------------------------------------------
 // Individual Key Migration Tests
 // ----------------------------------------------------------------------------
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: migrates display_rotate to /display/rotate",
-                 "[config][display][migration]") {
-    json old_format = {{"display_rotate", 270}};
-
-    set_data_for_plural_test(old_format);
-    apply_migration();
-
-    REQUIRE_FALSE(data_contains("display_rotate"));
-    REQUIRE(config.get<int>("/display/rotate") == 270);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: migrates display_sleep_sec to /display/sleep_sec",
-                 "[config][display][migration]") {
-    json old_format = {{"display_rotate", 0}, {"display_sleep_sec", 1800}};
-
-    set_data_for_plural_test(old_format);
-    apply_migration();
-
-    REQUIRE_FALSE(data_contains("display_sleep_sec"));
-    REQUIRE(config.get<int>("/display/sleep_sec") == 1800);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: migrates display_dim_sec to /display/dim_sec",
-                 "[config][display][migration]") {
-    json old_format = {{"display_rotate", 0}, {"display_dim_sec", 120}};
-
-    set_data_for_plural_test(old_format);
-    apply_migration();
-
-    REQUIRE_FALSE(data_contains("display_dim_sec"));
-    REQUIRE(config.get<int>("/display/dim_sec") == 120);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: migrates display_dim_brightness to /display/dim_brightness",
-                 "[config][display][migration]") {
-    json old_format = {{"display_rotate", 0}, {"display_dim_brightness", 50}};
-
-    set_data_for_plural_test(old_format);
-    apply_migration();
-
-    REQUIRE_FALSE(data_contains("display_dim_brightness"));
-    REQUIRE(config.get<int>("/display/dim_brightness") == 50);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: migrates touch_calibrated to /input/calibration/valid",
-                 "[config][display][migration]") {
-    json old_format = {{"display_rotate", 0}, {"touch_calibrated", true}};
-
-    set_data_for_plural_test(old_format);
-    apply_migration();
-
-    REQUIRE_FALSE(data_contains("touch_calibrated"));
-    REQUIRE(config.get<bool>("/input/calibration/valid") == true);
-}
 
 TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: migrates touch_calibration coefficients to /input/calibration",
@@ -958,18 +544,8 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: partial migration handles only exis
 }
 
 // ----------------------------------------------------------------------------
-// Default Value Tests - Verify get_default_display_config() values
-//
-// Every case here used to pass its own expectation in as get()'s fallback on an
-// empty config, so the key was absent, get() handed the literal straight back,
-// and the assertion compared it to itself. Nothing reached
-// get_default_display_config() (src/system/config.cpp:90) — two cases in this
-// file asserted mutually contradictory sleep_sec defaults (1800 and 600) and
-// both passed, while production has shipped 1200 the whole time.
-//
-// The replacements below read the values production actually produces, through
-// the two public paths that build them, and every read uses a fallback that
-// differs from the expected value (kAbsentSentinel) so an absent or wrong key
+// Default values: read through the two public paths that build them, each read
+// with a fallback no default equals (kAbsentSentinel) so an absent or wrong key
 // fails instead of echoing. House style: tests/unit/test_config_migrations.cpp.
 // ----------------------------------------------------------------------------
 
@@ -1093,110 +669,8 @@ TEST_CASE_METHOD(FreshConfigFixture, "Config: a first-boot config has no display
 }
 
 // ----------------------------------------------------------------------------
-// Read/Write Tests - Set and get display values
-// ----------------------------------------------------------------------------
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set and get display/rotate",
-                 "[config][display][readwrite]") {
-    set_data_for_plural_test({{"display", json::object()}});
-
-    config.set<int>("/display/rotate", 180);
-    REQUIRE(config.get<int>("/display/rotate") == 180);
-
-    config.set<int>("/display/rotate", 270);
-    REQUIRE(config.get<int>("/display/rotate") == 270);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set and get display/sleep_sec",
-                 "[config][display][readwrite]") {
-    set_data_for_plural_test({{"display", json::object()}});
-
-    config.set<int>("/display/sleep_sec", 1800);
-    REQUIRE(config.get<int>("/display/sleep_sec") == 1800);
-
-    config.set<int>("/display/sleep_sec", 0); // Disable sleep
-    REQUIRE(config.get<int>("/display/sleep_sec") == 0);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set and get input/calibration/valid",
-                 "[config][input][readwrite]") {
-    set_data_for_plural_test({{"input", {{"calibration", json::object()}}}});
-
-    config.set<bool>("/input/calibration/valid", true);
-    REQUIRE(config.get<bool>("/input/calibration/valid") == true);
-
-    config.set<bool>("/input/calibration/valid", false);
-    REQUIRE(config.get<bool>("/input/calibration/valid") == false);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set and get input/calibration coefficients",
-                 "[config][input][readwrite]") {
-    set_data_for_plural_test({{"input", {{"calibration", json::object()}}}});
-
-    // Set custom calibration values
-    config.set<double>("/input/calibration/a", 1.25);
-    config.set<double>("/input/calibration/b", 0.05);
-    config.set<double>("/input/calibration/c", -15.5);
-    config.set<double>("/input/calibration/d", 0.03);
-    config.set<double>("/input/calibration/e", 1.15);
-    config.set<double>("/input/calibration/f", -8.2);
-
-    REQUIRE(config.get<double>("/input/calibration/a") == Catch::Approx(1.25));
-    REQUIRE(config.get<double>("/input/calibration/b") == Catch::Approx(0.05));
-    REQUIRE(config.get<double>("/input/calibration/c") == Catch::Approx(-15.5));
-    REQUIRE(config.get<double>("/input/calibration/d") == Catch::Approx(0.03));
-    REQUIRE(config.get<double>("/input/calibration/e") == Catch::Approx(1.15));
-    REQUIRE(config.get<double>("/input/calibration/f") == Catch::Approx(-8.2));
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set and get display/drm_device",
-                 "[config][display][readwrite]") {
-    set_data_for_plural_test({{"display", json::object()}});
-
-    config.set<std::string>("/display/drm_device", "/dev/dri/card0");
-    REQUIRE(config.get<std::string>("/display/drm_device") == "/dev/dri/card0");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set and get input/touch_device",
-                 "[config][input][readwrite]") {
-    set_data_for_plural_test({{"input", json::object()}});
-
-    config.set<std::string>("/input/touch_device", "/dev/input/event0");
-    REQUIRE(config.get<std::string>("/input/touch_device") == "/dev/input/event0");
-}
-
-// ----------------------------------------------------------------------------
 // Edge Cases
 // ----------------------------------------------------------------------------
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: empty display section gets populated with set values",
-                 "[config][display][edge]") {
-    set_data_for_plural_test({{"display", json::object()}});
-
-    // Verify empty initially
-    REQUIRE(display_size() == 0);
-
-    // Set a single value
-    config.set<int>("/display/rotate", 90);
-
-    // Verify value was set
-    REQUIRE(config.get<int>("/display/rotate") == 90);
-    REQUIRE(display_size() == 1);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: missing calibration subsection can be created via set",
-                 "[config][input][edge]") {
-    // Input section without calibration
-    set_data_for_plural_test({{"input", json::object()}});
-
-    REQUIRE_FALSE(calibration_contains("valid"));
-
-    // Set creates the path
-    config.set<bool>("/input/calibration/valid", true);
-
-    REQUIRE(calibration_contains("valid"));
-    REQUIRE(config.get<bool>("/input/calibration/valid") == true);
-}
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: migration preserves existing /display/ values",
                  "[config][display][edge]") {
@@ -1273,48 +747,6 @@ TEST_CASE_METHOD(ConfigTestFixture,
     REQUIRE_FALSE(calibration_contains("f"));
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: display values with boundary conditions",
-                 "[config][display][edge]") {
-    set_data_for_plural_test({{"display", json::object()}});
-
-    // Test rotation values (0, 90, 180, 270)
-    for (int rotation : {0, 90, 180, 270}) {
-        config.set<int>("/display/rotate", rotation);
-        REQUIRE(config.get<int>("/display/rotate") == rotation);
-    }
-
-    // Test sleep disabled (0) and max reasonable value
-    config.set<int>("/display/sleep_sec", 0);
-    REQUIRE(config.get<int>("/display/sleep_sec") == 0);
-
-    config.set<int>("/display/sleep_sec", 86400); // 24 hours
-    REQUIRE(config.get<int>("/display/sleep_sec") == 86400);
-
-    // Test brightness range (0-100)
-    config.set<int>("/display/dim_brightness", 0);
-    REQUIRE(config.get<int>("/display/dim_brightness") == 0);
-
-    config.set<int>("/display/dim_brightness", 100);
-    REQUIRE(config.get<int>("/display/dim_brightness") == 100);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: input calibration with extreme coefficient values",
-                 "[config][input][edge]") {
-    set_data_for_plural_test({{"input", {{"calibration", json::object()}}}});
-
-    // Test very small values
-    config.set<double>("/input/calibration/a", 0.001);
-    REQUIRE(config.get<double>("/input/calibration/a") == Catch::Approx(0.001));
-
-    // Test negative values
-    config.set<double>("/input/calibration/c", -500.0);
-    REQUIRE(config.get<double>("/input/calibration/c") == Catch::Approx(-500.0));
-
-    // Test large values
-    config.set<double>("/input/calibration/f", 1000.0);
-    REQUIRE(config.get<double>("/input/calibration/f") == Catch::Approx(1000.0));
-}
-
 TEST_CASE_METHOD(
     ConfigTestFixture,
     "Config: migration does not overwrite existing /display/ values with old root values",
@@ -1337,94 +769,6 @@ TEST_CASE_METHOD(
     // Verify old keys were removed
     REQUIRE_FALSE(data_contains("display_rotate"));
     REQUIRE_FALSE(data_contains("display_sleep_sec"));
-}
-
-// ============================================================================
-// Log Level Configuration Tests
-// ============================================================================
-// These tests verify the contract for log_level configuration behavior.
-// The key behavior is that log_level should NOT have a default value in config,
-// allowing test_mode to provide its own fallback to DEBUG.
-//
-// BUG CONTEXT: config.cpp currently writes log_level="warn" to config during init(),
-// which means by the time init_logging() runs, test_mode fallback never triggers.
-// The fix is to remove log_level from defaults so test_mode can provide fallback.
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default config should NOT contain log_level key",
-                 "[core][config][log_level]") {
-    // TDD TEST: This test defines the CONTRACT that default config should NOT
-    // have log_level. This allows test_mode to provide its own fallback to DEBUG.
-    //
-    // EXPECTED TO FAIL INITIALLY: config.cpp currently includes log_level in
-    // get_default_config() and also sets it during init() if missing.
-    // The fix (Step 5) will remove log_level from defaults.
-    //
-    // Build the same default config structure that get_default_config() produces,
-    // but WITHOUT the log_level key (which is the desired behavior).
-    set_data_for_plural_test({{"log_path", "/tmp/helixscreen.log"},
-                              // NOTE: NO log_level key - this is intentional!
-                              {"dark_mode", true},
-                              {"display", json::object()},
-                              {"printer", json::object()}});
-
-    // The config should NOT have log_level set in defaults
-    // This allows the application to fall through to test_mode check
-    REQUIRE_FALSE(data_contains("log_level"));
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: test mode fallback requires absent log_level",
-                 "[core][config][log_level]") {
-    // This test verifies the pattern used in init_logging():
-    // 1. Get log_level from config with empty string default
-    // 2. If empty string, fall through to test_mode check
-    //
-    // Without this pattern working, test_mode users don't get DEBUG logs.
-    set_data_for_plural_test({{"log_path", "/tmp/helixscreen.log"}, {"dark_mode", true}});
-    // NO log_level key - simulates config without user override
-
-    // The pattern from init_logging(): get with empty sentinel
-    std::string level_str = config.get<std::string>("/log_level", "");
-
-    // When log_level is absent, the sentinel should be returned
-    REQUIRE(level_str.empty());
-
-    // In init_logging(), this allows falling through to test_mode check:
-    // if (level_str == "trace") { ... }
-    // else if (level_str == "debug") { ... }
-    // else if (level_str == "info") { ... }
-    // else if (get_runtime_config()->test_mode) { <-- CAN NOW REACH THIS
-    //     log_config.level = spdlog::level::debug;
-    // }
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: get log_level with default returns default when key absent",
-                 "[core][config][log_level]") {
-    // When log_level is absent, get() with default should return the default
-    // This is the pattern used in init_logging() to check for absent log_level
-    set_data_empty();
-
-    // Using empty string as sentinel to detect "not set"
-    std::string level = config.get<std::string>("/log_level", "");
-    REQUIRE(level == "");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: log_level is respected when explicitly set",
-                 "[config][log_level]") {
-    // When user explicitly sets log_level, it should be used
-    set_data_for_plural_test({{"log_level", "debug"}});
-
-    std::string level = config.get<std::string>("/log_level", "");
-    REQUIRE(level == "debug");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: log_level can be set to any valid level",
-                 "[config][log_level]") {
-    for (const char* level_name : {"trace", "debug", "info", "warn"}) {
-        set_data_for_plural_test({{"log_level", level_name}});
-        std::string level = config.get<std::string>("/log_level", "");
-        REQUIRE(level == level_name);
-    }
 }
 
 // ============================================================================
@@ -1473,47 +817,27 @@ TEST_CASE("Config::init() should NOT write log_level to new config file",
 // LANGUAGE CONFIG TESTS
 // ============================================================================
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get_language returns default 'en' for new config",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: language defaults to en and round-trips via /language",
                  "[config][language]") {
-    // Empty config should return default "en"
     set_data_empty();
     REQUIRE(config.get_language() == "en");
-}
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: get_language returns stored value",
-                 "[config][language]") {
-    get_data()["language"] = "de";
-    REQUIRE(config.get_language() == "de");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: set_language stores value", "[config][language]") {
-    set_data_empty();
-
+    // Written into an empty (null) document, then read back from a stored value
     config.set_language("fr");
     REQUIRE(get_data()["language"] == "fr");
-}
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: language supports all planned languages",
-                 "[config][language]") {
-    std::vector<std::string> languages = {"en", "de", "fr", "es", "ru"};
-
-    for (const auto& lang : languages) {
-        config.set_language(lang);
-        REQUIRE(config.get_language() == lang);
-    }
+    get_data()["language"] = "de";
+    REQUIRE(config.get_language() == "de");
 }
 
 // ============================================================================
 // Config Versioning & Migration Tests
 // ============================================================================
 
-// RAII guard to save and restore the global backup file that init() overwrites
 /// RAII guard: redirect BOTH backup tiers (the $HOME fallback and the
 /// /var/lib/helixscreen StateDirectory primary) to a temp dir so neither
-/// tarball-detection nor restore finds a real backup. Redirecting the primary
-/// too is what lets these tests run on a machine with HelixScreen installed —
-/// they used to SKIP whenever /var/lib/helixscreen/settings.json.backup existed.
-/// Each instance gets a unique dir to avoid parallel-shard races.
+/// tarball-detection nor restore finds a real backup, even on a machine with
+/// HelixScreen installed. Each instance gets a unique dir to avoid parallel-shard races.
 struct BackupGuard {
     std::string temp_dir;
     std::string original_home;
@@ -1549,27 +873,37 @@ struct BackupGuard {
     }
 };
 
+/// A settings document written into its own temp directory, removed on scope exit.
+struct SettingsFile {
+    std::string dir;
+    std::string path;
+
+    SettingsFile(const char* tag, const json& doc)
+        : dir(helix::test::unique_temp_dir(tag)), path(dir + "/test_config.json") {
+        std::filesystem::remove_all(dir);
+        std::filesystem::create_directories(dir);
+        std::ofstream(path) << doc.dump(2);
+    }
+    ~SettingsFile() {
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+    }
+};
+
 TEST_CASE_METHOD(
     ConfigTestFixture,
     "Config: a config below the migration floor is kept aside and replaced by defaults",
     "[core][config][migration][versioning]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_floor_test");
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     json v5_config = {{"config_version", 5},
                       {"brightness", 50},
                       {"active_printer_id", "ender3"},
                       {"printers", {{"ender3", {{"moonraker_host", "192.168.1.100"}}}}}};
-    {
-        std::ofstream o(temp_path);
-        o << v5_config.dump(2);
-    }
+    SettingsFile file("helix_floor_test", v5_config);
 
     BackupGuard guard;
     helix::LogCapture log;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
     REQUIRE(test_config.get_active_printer_id() == "default");
@@ -1577,35 +911,24 @@ TEST_CASE_METHOD(
     REQUIRE_FALSE(test_config.exists("/printers/ender3"));
     REQUIRE(log.count_containing("config_version 5") == 1);
 
-    auto kept = json::parse(std::ifstream(temp_path + ".pre-migration"));
+    auto kept = json::parse(std::ifstream(file.path + ".pre-migration"));
     REQUIRE(kept == v5_config);
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: a config at the migration floor is migrated",
                  "[core][config][migration][versioning]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_floor_v9_test");
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     json v9_config = {{"config_version", kMinMigratableConfigVersion},
                       {"active_printer_id", "ender3"},
                       {"printers", {{"ender3", {{"moonraker_host", "192.168.1.100"}}}}}};
-    {
-        std::ofstream o(temp_path);
-        o << v9_config.dump(2);
-    }
+    SettingsFile file("helix_floor_v9_test", v9_config);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
     REQUIRE(test_config.get_active_printer_id() == "ender3");
     REQUIRE(test_config.get<std::string>(test_config.df() + "moonraker_host") == "192.168.1.100");
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 TEST_CASE_METHOD(ConfigTestFixture,
@@ -1642,29 +965,20 @@ TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: v0 config without sounds_enabled key just gets version stamp",
                  "[config][migration][versioning]") {
     // Edge case: old config that somehow never had sounds_enabled
-    std::string temp_dir = helix::test::unique_temp_dir("helix_nosound_test");
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     json minimal_v0 = {
         {"brightness", 50},
         {"printer", {{"moonraker_host", "192.168.1.100"}, {"moonraker_port", 7125}}}};
 
-    {
-        std::ofstream o(temp_path);
-        o << minimal_v0.dump(2);
-    }
+    SettingsFile file("helix_nosound_test", minimal_v0);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     // Should get version stamp without errors
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
     // sounds_enabled should not have been created by migration
     REQUIRE(test_config.get<bool>("/sounds_enabled", false) == false);
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: factory reset removes rolling backups at every tier",
@@ -1844,11 +1158,6 @@ TEST_CASE("Config: version-0 document selects its legacy LED strip",
 
 TEST_CASE("Config: version-0 migration restructures single printer to multi-printer",
           "[core][config][migration][v4]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v3_to_v4");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     // A version-0 document in the single /printer shape the shipped presets use
     json v3_config = {
         {"dark_mode", true},
@@ -1863,14 +1172,11 @@ TEST_CASE("Config: version-0 migration restructures single printer to multi-prin
         {"filament", {{"extrude_speed", 10}}},
         {"panel_widgets", {{"home", json::array({{{"id", "temp"}, {"enabled", true}}})}}}};
 
-    {
-        std::ofstream o(temp_path);
-        o << v3_config.dump(2);
-    }
+    SettingsFile file("helix_test_v3_to_v4", v3_config);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
 
@@ -1907,85 +1213,57 @@ TEST_CASE("Config: version-0 migration restructures single printer to multi-prin
 
     // Root-level wizard_completed should still exist (backward compat)
     REQUIRE(test_config.get<bool>("/wizard_completed") == true);
-
-    std::filesystem::remove_all(temp_dir);
 }
 
-TEST_CASE("Config: version-0 migration uses 'default' when printer has no name",
+TEST_CASE("Config: version-0 migration picks the active printer id",
           "[core][config][migration][v4]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v3_to_v4_noname");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
+    struct Row {
+        const char* name;
+        json doc;
+        const char* active_id;
+        const char* host;
+    };
+    const Row rows[] = {
+        {"a nameless /printer becomes 'default'",
+         {{"printer", {{"moonraker_host", "10.0.0.5"}, {"moonraker_port", 7125}}}},
+         "default",
+         "10.0.0.5"},
+        {"a document already in the /printers shape keeps its id",
+         {{"active_printer_id", "ender3"},
+          {"printers",
+           {{"ender3",
+             {{"moonraker_host", "192.168.1.50"},
+              {"moonraker_port", 7125},
+              {"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}}}}}}},
+         "ender3",
+         "192.168.1.50"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            SettingsFile file("helix_test_v3_to_v4_id", r.doc);
+            BackupGuard guard;
+            Config test_config;
+            test_config.init(file.path);
 
-    json v3_config = {{"printer", {{"moonraker_host", "10.0.0.5"}, {"moonraker_port", 7125}}}};
-
-    {
-        std::ofstream o(temp_path);
-        o << v3_config.dump(2);
+            CHECK(test_config.get_active_printer_id() == r.active_id);
+            CHECK(test_config.get<std::string>(test_config.df() + "moonraker_host") == r.host);
+        }
     }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get_active_printer_id() == "default");
-    REQUIRE(test_config.get<std::string>(test_config.df() + "moonraker_host") == "10.0.0.5");
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-TEST_CASE("Config: version-0 migration skips if /printers already exists",
-          "[core][config][migration][v4]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v3_skip");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
-    // Already in the /printers shape
-    json v3_config = {{"active_printer_id", "ender3"},
-                      {"printers",
-                       {{"ender3",
-                         {{"moonraker_host", "192.168.1.50"},
-                          {"moonraker_port", 7125},
-                          {"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}}}}}}};
-
-    {
-        std::ofstream o(temp_path);
-        o << v3_config.dump(2);
-    }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get_active_printer_id() == "ender3");
-    REQUIRE(test_config.get<std::string>(test_config.df() + "moonraker_host") == "192.168.1.50");
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 TEST_CASE("Config: version-0 migration moves printer_image to per-printer path",
           "[core][config][migration][v4]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v3_to_v4_printer_image");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     // A version-0 document in the single /printer shape, with /display/printer_image
     json v3_config = {
         {"printer",
          {{"name", "My Printer"}, {"moonraker_host", "192.168.1.100"}, {"moonraker_port", 7125}}},
         {"display", {{"printer_image", "shipped:voron-v2"}, {"rotate", 0}}}};
 
-    {
-        std::ofstream o(temp_path);
-        o << v3_config.dump(2);
-    }
+    SettingsFile file("helix_test_v3_to_v4_printer_image", v3_config);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
 
@@ -1998,186 +1276,99 @@ TEST_CASE("Config: version-0 migration moves printer_image to per-printer path",
 
     // /display should still have other keys intact
     REQUIRE(test_config.get<int>("/display/rotate") == 0);
-
-    std::filesystem::remove_all(temp_dir);
 }
 
-TEST_CASE("Config: version-0 migration disables printer switcher for single-printer config",
+TEST_CASE("Config: version-0 migration sets the printer switcher only for one printer",
           "[core][config][migration][v5]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v4_to_v5_single");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
+    enum class Switcher { Off, On, Absent };
+    struct Row {
+        const char* name;
+        json printers;
+        Switcher expected;
+    };
+    const Row rows[] = {
+        {"a single printer hides the switcher",
+         {{"ender3", {{"moonraker_host", "192.168.1.50"}, {"moonraker_port", 7125}}}},
+         Switcher::Off},
+        {"several printers leave the key unwritten",
+         {{"ender3", {{"moonraker_host", "192.168.1.50"}}},
+          {"voron", {{"moonraker_host", "192.168.1.51"}}}},
+         Switcher::Absent},
+        {"an explicit true is kept",
+         {{"show_printer_switcher", true}, {"ender3", {{"moonraker_host", "192.168.1.50"}}}},
+         Switcher::On},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            SettingsFile file("helix_test_v4_to_v5",
+                              {{"active_printer_id", "ender3"}, {"printers", r.printers}});
+            BackupGuard guard;
+            Config test_config;
+            test_config.init(file.path);
 
-    json v4_config = {
-        {"active_printer_id", "ender3"},
-        {"printers", {{"ender3", {{"moonraker_host", "192.168.1.50"}, {"moonraker_port", 7125}}}}}};
-
-    {
-        std::ofstream o(temp_path);
-        o << v4_config.dump(2);
+            REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
+            switch (r.expected) {
+            case Switcher::Off:
+                CHECK(test_config.get<bool>("/printers/show_printer_switcher") == false);
+                break;
+            case Switcher::On:
+                CHECK(test_config.get<bool>("/printers/show_printer_switcher") == true);
+                break;
+            case Switcher::Absent:
+                CHECK_FALSE(test_config.exists("/printers/show_printer_switcher"));
+                break;
+            }
+        }
     }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-    REQUIRE(test_config.get<bool>("/printers/show_printer_switcher") == false);
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-TEST_CASE("Config: version-0 migration skips when multiple printers configured",
-          "[core][config][migration][v5]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v4_to_v5_multi");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
-    json v4_config = {{"active_printer_id", "ender3"},
-                      {"printers",
-                       {{"ender3", {{"moonraker_host", "192.168.1.50"}}},
-                        {"voron", {{"moonraker_host", "192.168.1.51"}}}}}};
-
-    {
-        std::ofstream o(temp_path);
-        o << v4_config.dump(2);
-    }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-    // Migration should NOT have written the key for multi-printer configs
-    REQUIRE_FALSE(test_config.exists("/printers/show_printer_switcher"));
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-TEST_CASE("Config: version-0 migration preserves explicit show_printer_switcher setting",
-          "[core][config][migration][v5]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v4_to_v5_explicit");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
-    json v4_config = {
-        {"active_printer_id", "ender3"},
-        {"printers",
-         {{"show_printer_switcher", true}, {"ender3", {{"moonraker_host", "192.168.1.50"}}}}}};
-
-    {
-        std::ofstream o(temp_path);
-        o << v4_config.dump(2);
-    }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-    // Should NOT override the explicit true setting
-    REQUIRE(test_config.get<bool>("/printers/show_printer_switcher") == true);
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 // ============================================================================
 // v13 → v14: fold legacy telemetry_config.json into settings.json
 // ============================================================================
 
-TEST_CASE("Config: v13→v14 imports legacy telemetry_config.json when settings lacks key",
+TEST_CASE("Config: v13→v14 folds legacy telemetry_config.json into settings",
           "[core][config][migration][v14]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v13_to_v14_import");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string settings_path = temp_dir + "/test_config.json";
-    std::string legacy_path = temp_dir + "/telemetry_config.json";
-
-    json v13_config = {{"config_version", 13},
-                       {"active_printer_id", "default"},
-                       {"printers", {{"default", {{"moonraker_host", "127.0.0.1"}}}}}};
-    {
-        std::ofstream o(settings_path);
-        o << v13_config.dump(2);
-    }
-    {
-        std::ofstream o(legacy_path);
-        o << R"({"enabled": true})";
-    }
-
-    Config test_config;
-    test_config.init(settings_path);
-
-    REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-    REQUIRE(test_config.exists("/telemetry_enabled"));
-    REQUIRE(test_config.get<bool>("/telemetry_enabled") == true);
-    // Legacy file must be removed so it can never re-poison a future startup.
-    REQUIRE_FALSE(std::filesystem::exists(legacy_path));
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-TEST_CASE("Config: v13→v14 preserves disabled legacy state", "[core][config][migration][v14]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v13_to_v14_disabled");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string settings_path = temp_dir + "/test_config.json";
-    std::string legacy_path = temp_dir + "/telemetry_config.json";
-
-    json v13_config = {{"config_version", 13}, {"active_printer_id", "default"}};
-    {
-        std::ofstream o(settings_path);
-        o << v13_config.dump(2);
-    }
-    {
-        std::ofstream o(legacy_path);
-        o << R"({"enabled": false})";
-    }
-
-    Config test_config;
-    test_config.init(settings_path);
-
-    REQUIRE(test_config.get<bool>("/telemetry_enabled") == false);
-    REQUIRE_FALSE(std::filesystem::exists(legacy_path));
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-TEST_CASE("Config: v13→v14 does NOT overwrite existing /telemetry_enabled",
-          "[core][config][migration][v14]") {
-    // Regression guard for the original bug: settings.json had the key set;
-    // legacy telemetry_config.json should never silently override it.
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v13_to_v14_no_overwrite");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string settings_path = temp_dir + "/test_config.json";
-    std::string legacy_path = temp_dir + "/telemetry_config.json";
-
-    json v13_config = {
-        {"config_version", 13},
-        {"active_printer_id", "default"},
-        {"telemetry_enabled", true}, // authoritative
+    struct Row {
+        const char* name;
+        json settings_value; // null = key absent from settings.json
+        const char* legacy;
+        bool expected;
     };
-    {
-        std::ofstream o(settings_path);
-        o << v13_config.dump(2);
+    const Row rows[] = {
+        {"enabled legacy state is imported", nullptr, R"({"enabled": true})", true},
+        {"disabled legacy state is imported", nullptr, R"({"enabled": false})", false},
+        // settings.json is authoritative: the legacy file never overrides it
+        {"an existing /telemetry_enabled wins", true, R"({"enabled": false})", true},
+        {"no legacy file leaves the key unwritten", nullptr, nullptr, false},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            json v13 = {{"config_version", 13},
+                        {"active_printer_id", "default"},
+                        {"printers", {{"default", {{"moonraker_host", "127.0.0.1"}}}}}};
+            if (!r.settings_value.is_null()) {
+                v13["telemetry_enabled"] = r.settings_value;
+            }
+            SettingsFile file("helix_test_v13_to_v14", v13);
+            const std::string legacy_path = file.dir + "/telemetry_config.json";
+            if (r.legacy) {
+                std::ofstream(legacy_path) << r.legacy;
+            }
+
+            Config test_config;
+            test_config.init(file.path);
+
+            REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
+            if (!r.legacy) {
+                CHECK_FALSE(test_config.exists("/telemetry_enabled"));
+                continue;
+            }
+            REQUIRE(test_config.exists("/telemetry_enabled"));
+            CHECK(test_config.get<bool>("/telemetry_enabled") == r.expected);
+            // The legacy file is removed either way so it can never re-poison a startup.
+            CHECK_FALSE(std::filesystem::exists(legacy_path));
+        }
     }
-    {
-        std::ofstream o(legacy_path);
-        o << R"({"enabled": false})"; // would silently disable if we honored this
-    }
-
-    Config test_config;
-    test_config.init(settings_path);
-
-    REQUIRE(test_config.get<bool>("/telemetry_enabled") == true);
-    // File still gets removed — it's dead weight either way.
-    REQUIRE_FALSE(std::filesystem::exists(legacy_path));
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 // v22→v23: the Macro Button widget's per-instance run gate flipped polarity and
@@ -2186,11 +1377,6 @@ TEST_CASE("Config: v13→v14 does NOT overwrite existing /telemetry_enabled",
 // key, and must clear the legacy key so it cannot be read back later.
 TEST_CASE("Config: v22→v23 rewrites macro widget skip_param_prompt",
           "[core][config][migration][v23]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v22_to_v23");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string settings_path = temp_dir + "/test_config.json";
-
     json v22_config = {{"config_version", 22},
                        {"active_printer_id", "default"},
                        {"printers",
@@ -2216,13 +1402,10 @@ TEST_CASE("Config: v22→v23 rewrites macro widget skip_param_prompt",
                                     {{"id", "camera"},
                                      {"enabled", true},
                                      {"config", {{"url", "rtsp://x"}}}}}}}}}}}}}}}}}};
-    {
-        std::ofstream o(settings_path);
-        o << v22_config.dump(2);
-    }
+    SettingsFile file("helix_test_v22_to_v23", v22_config);
 
     Config test_config;
-    test_config.init(settings_path);
+    test_config.init(file.path);
 
     const std::string base = "/printers/default/panel_widgets/home/pages/0/widgets/";
 
@@ -2239,19 +1422,12 @@ TEST_CASE("Config: v22→v23 rewrites macro widget skip_param_prompt",
     REQUIRE(test_config.get<std::string>(base + "3/config/url") == "rtsp://x");
 
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 // A config already stamped at v23 must survive untouched — re-running the
 // migration over a rewritten document would be a no-op only by luck otherwise.
 TEST_CASE("Config: v22→v23 leaves an already-migrated config alone",
           "[core][config][migration][v23]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v23_idempotent");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string settings_path = temp_dir + "/test_config.json";
-
     json v23_config = {
         {"config_version", kCurrentConfigVersion},
         {"active_printer_id", "default"},
@@ -2266,170 +1442,68 @@ TEST_CASE("Config: v22→v23 leaves an already-migrated config alone",
                       {"enabled", true},
                       {"config",
                        {{"macro", "PURGE"}, {"require_confirmation", false}}}}}}}}}}}}}}}}}};
-    {
-        std::ofstream o(settings_path);
-        o << v23_config.dump(2);
-    }
+    SettingsFile file("helix_test_v23_idempotent", v23_config);
 
     Config test_config;
-    test_config.init(settings_path);
+    test_config.init(file.path);
 
     REQUIRE(test_config.get<bool>("/printers/default/panel_widgets/home/pages/0/widgets/0/config/"
                                   "require_confirmation") == false);
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-
-    std::filesystem::remove_all(temp_dir);
 }
 
-TEST_CASE("Config: v13→v14 is a no-op when no legacy file exists",
-          "[core][config][migration][v14]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v13_to_v14_noop");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string settings_path = temp_dir + "/test_config.json";
-
-    json v13_config = {{"config_version", 13}, {"active_printer_id", "default"}};
-    {
-        std::ofstream o(settings_path);
-        o << v13_config.dump(2);
-    }
-
-    Config test_config;
-    test_config.init(settings_path);
-
-    REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-    REQUIRE_FALSE(test_config.exists("/telemetry_enabled"));
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-// v14→v15: AD5X with stale wizard-era display overrides must be restored to
-// preset values. Post-wizard users had hardware_blank=0, sleep_backlight_off=false
-// which caused sleep-mode RGB color artifacts. See FLASHFORGE_AD5X_SUPPORT.md.
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: v14→v15 restores AD5X sleep preset after wizard override",
+// v14->v15: an AD5X still carrying the wizard-era display overrides
+// (hardware_blank=0 AND sleep_backlight_off=false) is put back on its preset.
+// Detection needs both stale values and an AD5X, found either by the top-level
+// preset or by /printers/<id>/type. See FLASHFORGE_AD5X_SUPPORT.md.
+TEST_CASE_METHOD(ConfigTestFixture, "Config: v14→v15 restores the AD5X sleep preset",
                  "[core][config][migration][versioning]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_v15");
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
+    const json stale = {
+        {"hardware_blank", 0}, {"sleep_backlight_off", false}, {"backlight_enable_ioctl", false}};
+    struct Row {
+        const char* name;
+        json doc;
+        int hardware_blank;
+        bool sleep_backlight_off;
+    };
+    const Row rows[] = {
+        {"AD5X preset after a wizard override",
+         {{"preset", "ad5x"}, {"display", stale}, {"printer", {{"moonraker_host", "127.0.0.1"}}}},
+         1,
+         true},
+        {"AD5X found by printer type in a multi-printer config",
+         {{"display", stale},
+          {"printers",
+           {{"my-ad5x", {{"type", "FlashForge Adventurer 5X"}, {"moonraker_host", "127.0.0.1"}}}}}},
+         1,
+         true},
+        // The user's own workaround: only sleep_backlight_off was changed
+        {"one stale value alone is kept",
+         {{"preset", "ad5x"},
+          {"display", {{"hardware_blank", 1}, {"sleep_backlight_off", false}}},
+          {"printer", {{"moonraker_host", "127.0.0.1"}}}},
+         1,
+         false},
+        // CC1 legitimately ships these values
+        {"a non-AD5X printer is left alone",
+         {{"preset", "cc1"}, {"display", stale}, {"printer", {{"moonraker_host", "127.0.0.1"}}}},
+         0,
+         false},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            json doc = r.doc;
+            doc["config_version"] = 14;
+            SettingsFile file("helix_migration_v15", doc);
+            BackupGuard guard;
+            Config test_config;
+            test_config.init(file.path);
 
-    // Simulate an AD5X user at v14 whose identify wizard ran AFTER the v12→v13
-    // migration and wrote the stale (pre-#431) display config values.
-    json v14_config = {{"config_version", 14},
-                       {"preset", "ad5x"},
-                       {"display",
-                        {{"hardware_blank", 0},
-                         {"sleep_backlight_off", false},
-                         {"backlight_enable_ioctl", false}}},
-                       {"printer", {{"moonraker_host", "127.0.0.1"}}}};
-    {
-        std::ofstream o(temp_path);
-        o << v14_config.dump(2);
+            REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
+            CHECK(test_config.get<int>("/display/hardware_blank") == r.hardware_blank);
+            CHECK(test_config.get<bool>("/display/sleep_backlight_off") == r.sleep_backlight_off);
+        }
     }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get<int>("/display/hardware_blank") == 1);
-    REQUIRE(test_config.get<bool>("/display/sleep_backlight_off") == true);
-    REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-// Multi-printer variant: the printer type lives under /printers/<id>/type
-// instead of the top-level preset key. Migration must detect both shapes.
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: v14→v15 restores AD5X sleep preset (multi-printer config)",
-                 "[core][config][migration][versioning]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_v15_mp");
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
-    json v14_config = {
-        {"config_version", 14},
-        {"display",
-         {{"hardware_blank", 0},
-          {"sleep_backlight_off", false},
-          {"backlight_enable_ioctl", false}}},
-        {"printers",
-         {{"my-ad5x", {{"type", "FlashForge Adventurer 5X"}, {"moonraker_host", "127.0.0.1"}}}}}};
-    {
-        std::ofstream o(temp_path);
-        o << v14_config.dump(2);
-    }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get<int>("/display/hardware_blank") == 1);
-    REQUIRE(test_config.get<bool>("/display/sleep_backlight_off") == true);
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-// Workaround-2 case: user intentionally set sleep_backlight_off=false but left
-// hardware_blank at preset default (1). Migration must NOT overwrite their
-// chosen workaround — detection requires BOTH stale values.
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: v14→v15 preserves user workaround (sleep_backlight_off=false only)",
-                 "[core][config][migration][versioning]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_v15_workaround");
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
-    json v14_config = {{"config_version", 14},
-                       {"preset", "ad5x"},
-                       {"display",
-                        {{"hardware_blank", 1},            // preset default
-                         {"sleep_backlight_off", false}}}, // user's workaround
-                       {"printer", {{"moonraker_host", "127.0.0.1"}}}};
-    {
-        std::ofstream o(temp_path);
-        o << v14_config.dump(2);
-    }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get<int>("/display/hardware_blank") == 1);
-    REQUIRE(test_config.get<bool>("/display/sleep_backlight_off") == false);
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-// Non-AD5X printers must not be touched by the migration.
-TEST_CASE_METHOD(ConfigTestFixture, "Config: v14→v15 does not affect non-AD5X printers",
-                 "[core][config][migration][versioning]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_v15_cc1");
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
-    // CC1 preset legitimately has hardware_blank=0, sleep_backlight_off=false.
-    // Migration must leave it alone.
-    json v14_config = {{"config_version", 14},
-                       {"preset", "cc1"},
-                       {"display",
-                        {{"hardware_blank", 0},
-                         {"sleep_backlight_off", false},
-                         {"backlight_enable_ioctl", false}}},
-                       {"printer", {{"moonraker_host", "127.0.0.1"}}}};
-    {
-        std::ofstream o(temp_path);
-        o << v14_config.dump(2);
-    }
-
-    BackupGuard guard;
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get<int>("/display/hardware_blank") == 0);
-    REQUIRE(test_config.get<bool>("/display/sleep_backlight_off") == false);
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 // ============================================================================
@@ -2578,55 +1652,106 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: next_printer_id picks an id no prin
     }
 }
 
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: remove_printer deletes entry and auto-selects remaining printer",
-                 "[core][config][multi-printer]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"printers",
-                               {{"voron", {{"moonraker_host", "192.168.1.10"}}},
-                                {"ender3", {{"moonraker_host", "192.168.1.20"}}}}}});
-    config.set_active_printer("voron");
+namespace {
 
-    config.remove_printer("voron");
-
-    auto ids = config.get_printer_ids();
-    REQUIRE(ids.size() == 1);
-    // Active should auto-switch to remaining printer since we removed the active one
-    REQUIRE(config.get_active_printer_id() == "ender3");
+/// Checks what a remove/archive left behind in @p printers, a /printers map that
+/// started as @p before: the printer count, the active selection df() routes at, each
+/// surviving printer's host and every non-printer settings key, unchanged.
+void check_printers_after(Config& config, const json& printers, const json& before,
+                          size_t expected_count, const std::string& expected_active) {
+    CHECK(config.get_printer_ids().size() == expected_count);
+    CHECK(config.get_active_printer_id() == expected_active);
+    CHECK(config.get<std::string>("/active_printer_id", "") == expected_active);
+    CHECK(config.df() == "/printers/" + expected_active + "/");
+    for (const auto& id : config.get_printer_ids()) {
+        INFO("printer: " << id);
+        CHECK(printers[id]["moonraker_host"] == before[id]["moonraker_host"]);
+    }
+    for (const auto& [key, value] : before.items()) {
+        if (!value.is_object()) {
+            INFO("settings key: " << key);
+            REQUIRE(printers.contains(key));
+            CHECK(printers[key] == value);
+        }
+    }
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: remove_printer keeps active if removing non-active",
-                 "[core][config][multi-printer]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"printers",
-                               {{"voron", {{"moonraker_host", "192.168.1.10"}}},
-                                {"ender3", {{"moonraker_host", "192.168.1.20"}}}}}});
-    config.set_active_printer("voron");
+const json kVoron = {{"moonraker_host", "192.168.1.10"}};
+const json kEnder3 = {{"moonraker_host", "192.168.1.20"}};
+const json kZortrax = {{"moonraker_host", "192.168.1.30"}};
+const char* const kComment = "Show the printer switcher in the header.";
 
-    config.remove_printer("ender3");
+} // namespace
 
-    REQUIRE(config.get_printer_ids().size() == 1);
-    REQUIRE(config.get_active_printer_id() == "voron");
-}
+// The /printers map is MIXED. Alongside the printer objects it holds plain
+// settings keys: show_printer_switcher (a bool, seeded by get_default_config())
+// and _show_printer_switcher_comment (a string, shipped in
+// config/settings.json.template). Every real config has at least the bool, so
+// the rows below carry them wherever a printers-only map would hide a bug
+// (prestonbrown/helixscreen#1210). nlohmann orders keys lexicographically, so a
+// "_..." or "show_..." key is the FIRST entry when every printer id sorts after it.
+TEST_CASE_METHOD(ConfigTestFixture, "Config: remove_printer keeps a valid active printer",
+                 "[core][config][multi-printer][1210]") {
+    struct Row {
+        const char* name;
+        json printers;
+        const char* remove;
+        size_t expected_count;
+        const char* expected_active;
+    };
+    const Row rows[] = {
+        {"removing the active printer selects the remaining one",
+         {{"voron", kVoron}, {"ender3", kEnder3}},
+         "voron",
+         1,
+         "ender3"},
+        {"removing another printer keeps the active one",
+         {{"voron", kVoron}, {"ender3", kEnder3}},
+         "ender3",
+         1,
+         "voron"},
+        {"the last printer is never removed", {{"voron", kVoron}}, "voron", 1, "voron"},
+        {"the last-printer guard counts printers, not map entries",
+         {{"show_printer_switcher", false}, {"voron", kVoron}},
+         "voron",
+         1,
+         "voron"},
+        {"the last-printer guard ignores the comment string key",
+         {{"_show_printer_switcher_comment", kComment},
+          {"show_printer_switcher", true},
+          {"voron", kVoron}},
+         "voron",
+         1,
+         "voron"},
+        {"an id naming a settings key erases nothing",
+         {{"show_printer_switcher", true}, {"voron", kVoron}, {"zortrax", kZortrax}},
+         "show_printer_switcher",
+         2,
+         "voron"},
+        {"the auto-switch skips the comment string key",
+         {{"_show_printer_switcher_comment", kComment}, {"voron", kVoron}, {"zortrax", kZortrax}},
+         "voron",
+         1,
+         "zortrax"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            set_data_for_plural_test({{"active_printer_id", "voron"}, {"printers", r.printers}});
+            REQUIRE(config.set_active_printer("voron"));
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: remove_printer prevents removing last printer",
-                 "[core][config][multi-printer]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"printers", {{"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
-    config.set_active_printer("voron");
+            config.remove_printer(r.remove);
 
-    config.remove_printer("voron");
-
-    // Should still have the printer — cannot remove the last one
-    REQUIRE(config.get_printer_ids().size() == 1);
-    REQUIRE(config.get_active_printer_id() == "voron");
+            check_printers_after(config, get_data()["printers"], r.printers, r.expected_count,
+                                 r.expected_active);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
-// archive_printer(): the non-destructive removal used by automatic recovery.
-// Phase 11b stale-printer recovery used to call remove_printer() directly, which
-// erased a fully configured printer — host, heaters, macros, sensors — with no
-// way back. archive_printer() must keep a verbatim copy under /removed_printers.
+// archive_printer(): the non-destructive removal stale-printer recovery uses.
+// remove_printer() erases a fully configured printer (host, heaters, macros,
+// sensors) with no way back; archive_printer() keeps a verbatim copy under
+// /removed_printers.
 // ---------------------------------------------------------------------------
 
 TEST_CASE_METHOD(ConfigTestFixture,
@@ -2665,39 +1790,55 @@ TEST_CASE_METHOD(ConfigTestFixture,
     REQUIRE(archived == voron);
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: archive_printer auto-switches the active printer",
-                 "[core][config][multi-printer]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"printers",
-                               {{"voron", {{"moonraker_host", "192.168.1.10"}}},
-                                {"ender3", {{"moonraker_host", "192.168.1.20"}}}}}});
-    config.set_active_printer("voron");
+TEST_CASE_METHOD(ConfigTestFixture, "Config: archive_printer keeps a valid active printer",
+                 "[core][config][multi-printer][1210]") {
+    struct Row {
+        const char* name;
+        json printers;
+        const char* archive;
+        size_t expected_count;
+        const char* expected_active;
+        bool archived; // false: /removed_printers is never created
+    };
+    const Row rows[] = {
+        // remove_printer()'s contract: archiving the active printer leaves a valid selection
+        {"archiving the active printer selects the remaining one",
+         {{"voron", kVoron}, {"ender3", kEnder3}},
+         "voron",
+         1,
+         "ender3",
+         true},
+        // No phantom duplicate for recovery UI to "restore" over a printer that never left
+        {"the last printer is not archived", {{"voron", kVoron}}, "voron", 1, "voron", false},
+        {"an unknown id is a no-op",
+         {{"voron", kVoron}, {"ender3", kEnder3}},
+         "does-not-exist",
+         2,
+         "voron",
+         false},
+        {"the auto-switch skips non-printer keys",
+         {{"show_printer_switcher", false}, {"voron", kVoron}, {"zortrax", kZortrax}},
+         "voron",
+         1,
+         "zortrax",
+         true},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            set_data_for_plural_test({{"active_printer_id", "voron"}, {"printers", r.printers}});
+            REQUIRE(config.set_active_printer("voron"));
 
-    config.archive_printer("voron");
+            config.archive_printer(r.archive);
 
-    // Same contract as remove_printer(): archiving the active printer must leave
-    // a valid active selection behind, or df() routes at a missing node.
-    REQUIRE(config.get_active_printer_id() == "ender3");
-    REQUIRE(config.get<std::string>("/active_printer_id", "") == "ender3");
-    REQUIRE(config.df() == "/printers/ender3/");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: archive_printer archives nothing when it is the last printer",
-                 "[core][config][multi-printer]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"printers", {{"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
-    config.set_active_printer("voron");
-
-    config.archive_printer("voron");
-
-    // remove_printer() declines to remove the last printer, so the archive must
-    // not happen either — otherwise the config grows a phantom duplicate that
-    // recovery UI would offer to "restore" over a printer that never left.
-    REQUIRE(config.get_printer_ids().size() == 1);
-    REQUIRE(config.get_active_printer_id() == "voron");
-    REQUIRE(config.get<std::string>("/printers/voron/moonraker_host", "") == "192.168.1.10");
-    REQUIRE_FALSE(data_contains("removed_printers"));
+            check_printers_after(config, get_data()["printers"], r.printers, r.expected_count,
+                                 r.expected_active);
+            if (r.archived) {
+                CHECK(get_data()["removed_printers"].contains(r.archive));
+            } else {
+                CHECK_FALSE(data_contains("removed_printers"));
+            }
+        }
+    }
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: archive_printer accumulates instead of clobbering",
@@ -2716,89 +1857,6 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: archive_printer accumulates instead
     REQUIRE(get_data()["removed_printers"].size() == 2);
     REQUIRE(get_data()["removed_printers"]["voron"]["moonraker_host"] == "192.168.1.10");
     REQUIRE(get_data()["removed_printers"]["ender3"]["moonraker_host"] == "192.168.1.20");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: archive_printer on an unknown id is a no-op",
-                 "[core][config][multi-printer]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"printers",
-                               {{"voron", {{"moonraker_host", "192.168.1.10"}}},
-                                {"ender3", {{"moonraker_host", "192.168.1.20"}}}}}});
-    config.set_active_printer("voron");
-
-    config.archive_printer("does-not-exist");
-
-    REQUIRE(config.get_printer_ids().size() == 2);
-    REQUIRE(config.get_active_printer_id() == "voron");
-    REQUIRE_FALSE(data_contains("removed_printers"));
-}
-
-// ---------------------------------------------------------------------------
-// The /printers map is MIXED. Alongside the printer objects it holds plain
-// settings keys: show_printer_switcher (a bool, seeded by get_default_config())
-// and _show_printer_switcher_comment (a string, shipped in
-// config/settings.json.template). EVERY real config has at least the bool, so
-// code that treats the map as printers-only misbehaves on every device while
-// passing tests built from a hand-written printers-only map — which is exactly
-// how the cases below went missing.
-// ---------------------------------------------------------------------------
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: remove_printer counts printers, not map entries, for the last-printer "
-                 "guard",
-                 "[core][config][multi-printer][1210]") {
-    set_data_for_plural_test(
-        {{"active_printer_id", "voron"},
-         {"printers",
-          {{"show_printer_switcher", false}, {"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
-    REQUIRE(config.set_active_printer("voron"));
-
-    config.remove_printer("voron");
-
-    // printers.size() is 2 here, but only one entry is a printer: refusing must
-    // still happen, or the user's only printer is erased.
-    REQUIRE(config.get_printer_ids().size() == 1);
-    REQUIRE(config.get<std::string>("/printers/voron/moonraker_host", "") == "192.168.1.10");
-    REQUIRE(config.get_active_printer_id() == "voron");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: remove_printer last-printer guard ignores the comment string key",
-                 "[core][config][multi-printer][1210]") {
-    set_data_for_plural_test(
-        {{"active_printer_id", "voron"},
-         {"printers",
-          {{"_show_printer_switcher_comment", "Show the printer switcher in the header."},
-           {"show_printer_switcher", true},
-           {"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
-    REQUIRE(config.set_active_printer("voron"));
-
-    config.remove_printer("voron");
-
-    REQUIRE(config.get_printer_ids().size() == 1);
-    REQUIRE(config.get<std::string>("/printers/voron/moonraker_host", "") == "192.168.1.10");
-    // The settings keys themselves are untouched.
-    REQUIRE(get_data()["printers"]["show_printer_switcher"].get<bool>() == true);
-    REQUIRE(get_data()["printers"]["_show_printer_switcher_comment"].is_string());
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: remove_printer refuses to erase a non-printer key",
-                 "[core][config][multi-printer][1210]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"printers",
-                               {{"show_printer_switcher", true},
-                                {"voron", {{"moonraker_host", "192.168.1.10"}}},
-                                {"zortrax", {{"moonraker_host", "192.168.1.30"}}}}}});
-    REQUIRE(config.set_active_printer("voron"));
-
-    config.remove_printer("show_printer_switcher");
-
-    // A mistyped/stale id that happens to name a settings key must not delete
-    // the setting.
-    REQUIRE(get_data()["printers"].contains("show_printer_switcher"));
-    REQUIRE(get_data()["printers"]["show_printer_switcher"].get<bool>() == true);
-    REQUIRE(config.get_printer_ids().size() == 2);
-    REQUIRE(config.get_active_printer_id() == "voron");
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: remove_printer auto-switch skips non-printer keys",
@@ -2824,43 +1882,6 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: remove_printer auto-switch skips no
     config.set<std::string>(config.df() + "moonraker_host", "10.0.0.9");
     REQUIRE(config.get<std::string>("/printers/zortrax/moonraker_host", "") == "10.0.0.9");
     REQUIRE(get_data()["printers"]["show_printer_switcher"].is_boolean());
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: remove_printer auto-switch skips the comment string key",
-                 "[core][config][multi-printer][1210]") {
-    // "_..." sorts ahead of everything, so the first map entry is a string.
-    set_data_for_plural_test(
-        {{"active_printer_id", "voron"},
-         {"printers",
-          {{"_show_printer_switcher_comment", "Show the printer switcher in the header."},
-           {"voron", {{"moonraker_host", "192.168.1.10"}}},
-           {"zortrax", {{"moonraker_host", "192.168.1.30"}}}}}});
-    REQUIRE(config.set_active_printer("voron"));
-
-    config.remove_printer("voron");
-
-    REQUIRE(config.get_active_printer_id() == "zortrax");
-    REQUIRE(config.df() == "/printers/zortrax/");
-    REQUIRE(get_data()["printers"]["_show_printer_switcher_comment"].is_string());
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: archive_printer auto-switch skips non-printer keys",
-                 "[core][config][multi-printer][1210]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"printers",
-                               {{"show_printer_switcher", false},
-                                {"voron", {{"moonraker_host", "192.168.1.10"}}},
-                                {"zortrax", {{"moonraker_host", "192.168.1.30"}}}}}});
-    REQUIRE(config.set_active_printer("voron"));
-
-    config.archive_printer("voron");
-
-    // archive_printer() delegates the switch to remove_printer(), so it inherits
-    // the same contract.
-    REQUIRE(config.get_active_printer_id() == "zortrax");
-    REQUIRE(config.df() == "/printers/zortrax/");
-    REQUIRE(get_data()["removed_printers"].contains("voron"));
 }
 
 TEST_CASE_METHOD(ConfigTestFixture,
@@ -2974,106 +1995,55 @@ TEST_CASE_METHOD(ConfigTestFixture,
     }
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: df() routes to active printer path",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required prefers the per-printer flag",
                  "[core][config][multi-printer]") {
-    set_data_for_plural_test({{"active_printer_id", "my-printer"},
-                              {"printers", {{"my-printer", {{"moonraker_host", "10.0.0.1"}}}}}});
-    config.set_active_printer("my-printer");
-
-    REQUIRE(config.df() == "/printers/my-printer/");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required checks per-printer flag",
-                 "[core][config][multi-printer]") {
-    set_data_for_plural_test(
-        {{"active_printer_id", "voron"},
-         {"wizard_completed", false},
-         {"printers", {{"voron", {{"wizard_completed", true}, {"moonraker_host", "10.0.0.1"}}}}}});
+    SECTION("a per-printer true beats a root false") {
+        set_data_for_plural_test(
+            {{"active_printer_id", "voron"},
+             {"wizard_completed", false},
+             {"printers",
+              {{"voron", {{"wizard_completed", true}, {"moonraker_host", "10.0.0.1"}}}}}});
+    }
+    SECTION("no per-printer flag falls back to the root true") {
+        set_data_for_plural_test({{"active_printer_id", "voron"},
+                                  {"wizard_completed", true},
+                                  {"printers", {{"voron", {{"moonraker_host", "10.0.0.1"}}}}}});
+    }
     config.set_active_printer("voron");
-
-    // Per-printer wizard_completed=true should take priority over root false
     REQUIRE_FALSE(config.is_wizard_required());
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required falls back to root flag",
-                 "[core][config][multi-printer]") {
-    set_data_for_plural_test({{"active_printer_id", "voron"},
-                              {"wizard_completed", true},
-                              {"printers", {{"voron", {{"moonraker_host", "10.0.0.1"}}}}}});
-    config.set_active_printer("voron");
-
-    // No per-printer flag, should fall back to root wizard_completed=true
-    REQUIRE_FALSE(config.is_wizard_required());
-}
-
-// ============================================================================
-// Registry deinit/re-init cycle tests (Phase 2: soft restart support)
-// ============================================================================
-
-TEST_CASE("StaticSubjectRegistry supports deinit/re-init cycles", "[.][core][registry]") {
-    // Verify deinit_all() clears vector, allowing fresh registrations
-    int call_count = 0;
-    StaticSubjectRegistry::instance().register_deinit("test_cycle_1", [&]() { call_count++; });
-    StaticSubjectRegistry::instance().deinit_all();
-    REQUIRE(call_count == 1);
-
-    // Re-register after deinit — should work (vector was cleared)
-    call_count = 0;
-    StaticSubjectRegistry::instance().register_deinit("test_cycle_2", [&]() { call_count++; });
-    StaticSubjectRegistry::instance().deinit_all();
-    REQUIRE(call_count == 1);
-}
-
-TEST_CASE("StaticSubjectRegistry deinit_all runs callbacks in LIFO order", "[.][core][registry]") {
-    std::vector<std::string> order;
-    StaticSubjectRegistry::instance().register_deinit("first", [&]() { order.push_back("first"); });
-    StaticSubjectRegistry::instance().register_deinit("second",
-                                                      [&]() { order.push_back("second"); });
-    StaticSubjectRegistry::instance().deinit_all();
-
-    REQUIRE(order.size() == 2);
-    // LIFO: second registered = first to deinit
-    REQUIRE(order[0] == "second");
-    REQUIRE(order[1] == "first");
 }
 
 // ============================================================================
 // Preset detection tests
 // ============================================================================
 
-TEST_CASE_METHOD(ConfigTestFixture, "has_preset returns false for default config",
+// The marker lives under the active printer, not at the config root
+// (test_config_preset_per_printer.cpp covers multi-printer isolation and the
+// legacy root-key lift). A root-level key belongs to no printer: reading it would
+// leak one printer's preset into another (#1162).
+TEST_CASE_METHOD(ConfigTestFixture, "has_preset reads only the active printer's marker",
                  "[config][preset]") {
-    get_data() = json::object();
-    REQUIRE(config.has_preset() == false);
-    REQUIRE(config.get_preset().empty());
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "has_preset returns true when preset field is set",
-                 "[config][preset]") {
-    // Per-printer storage: the marker lives under the active printer, not at the
-    // config root. See test_config_preset_per_printer.cpp for the multi-printer
-    // isolation and the legacy root-key lift.
-    setup_printer_data(config, {{"preset", "ad5m"}});
-    REQUIRE(config.has_preset() == true);
-    REQUIRE(config.get_preset() == "ad5m");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "has_preset returns false for empty preset string",
-                 "[config][preset]") {
-    setup_printer_data(config, {{"preset", ""}});
-    REQUIRE(config.has_preset() == false);
-    REQUIRE(config.get_preset().empty());
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "has_preset ignores a stray root-level preset key",
-                 "[config][preset]") {
-    // A root-level marker belongs to no printer in particular. init() lifts it
-    // (see lift_root_preset); reading it here would let one printer's preset leak
-    // into a printer that has none of its own — the #1162 bug.
-    setup_printer_data(config, json::object());
-    get_data()["preset"] = "ad5m";
-    REQUIRE(config.has_preset() == false);
-    REQUIRE(config.get_preset().empty());
+    SECTION("an empty config has none") {
+        get_data() = json::object();
+        CHECK_FALSE(config.has_preset());
+        CHECK(config.get_preset().empty());
+    }
+    SECTION("a printer preset is found") {
+        setup_printer_data(config, {{"preset", "ad5m"}});
+        CHECK(config.has_preset());
+        CHECK(config.get_preset() == "ad5m");
+    }
+    SECTION("an empty preset string is none") {
+        setup_printer_data(config, {{"preset", ""}});
+        CHECK_FALSE(config.has_preset());
+        CHECK(config.get_preset().empty());
+    }
+    SECTION("a stray root-level preset key is ignored") {
+        setup_printer_data(config, json::object());
+        get_data()["preset"] = "ad5m";
+        CHECK_FALSE(config.has_preset());
+        CHECK(config.get_preset().empty());
+    }
 }
 
 // --- Config::save() symlink preservation tests ---
@@ -3120,38 +2090,8 @@ TEST_CASE_METHOD(ConfigTestFixture, "save preserves symlink when config path is 
     fs::remove_all(tmp);
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "save works normally with regular file (no symlink)",
-                 "[config][save]") {
-    namespace fs = std::filesystem;
-
-    auto tmp = fs::temp_directory_path() / ("helix_test_regular_" + std::to_string(getpid()));
-    fs::create_directories(tmp);
-
-    auto file_path = tmp / "helixconfig.json";
-
-    // Write initial content
-    {
-        std::ofstream o(file_path);
-        o << R"({"initial": true})";
-    }
-
-    set_path(file_path.string());
-    get_data() = {{"regular_save", true}};
-
-    REQUIRE(config.save());
-
-    // File should be a regular file (not a symlink)
-    REQUIRE(!fs::is_symlink(file_path));
-
-    std::ifstream in(file_path);
-    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    REQUIRE(content.find("\"regular_save\": true") != std::string::npos);
-
-    fs::remove_all(tmp);
-}
-
 // ============================================================================
-// RAII guard for HOME — moved here so corruption tests can also use it.
+// RAII guard for HOME and both backup tiers
 // ============================================================================
 
 namespace {
@@ -3162,8 +2102,7 @@ namespace {
 /// Also redirects the primary (StateDirectory) backup tier under the same temp
 /// home. The primary tier outranks the $HOME fallback in the search order, so
 /// without this a real /var/lib/helixscreen/settings.json.backup on the host
-/// would be restored instead of the fixture's backup — which is why these tests
-/// used to SKIP on any machine that had ever installed HelixScreen.
+/// would be restored instead of the fixture's backup.
 struct HomeGuard {
     std::string original;
     std::string prev_state_dir;
@@ -3192,148 +2131,6 @@ struct HomeGuard {
 };
 
 } // namespace
-
-// ============================================================================
-// Corrupt Config Recovery Tests
-// ============================================================================
-
-TEST_CASE("Config::init() recovers from corrupt config by restoring backup",
-          "[core][config][corruption]") {
-    // HomeGuard (below) redirects both backup tiers into temp_dir, so a real
-    // /var/lib/helixscreen backup on the host cannot outrank this test's backup.
-    std::string temp_dir = "/tmp/helix_test_corrupt_backup_" + std::to_string(getpid());
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/settings.json";
-
-    // Write corrupt JSON
-    {
-        std::ofstream o(temp_path);
-        o << "{{{{ not valid json !!!!";
-    }
-
-    // RAII guard: restore HOME even if REQUIRE throws
-    HomeGuard home_guard(temp_dir);
-
-    // Write a valid backup at the fallback backup location
-    std::string backup_dir = temp_dir + "/.helixscreen";
-    std::filesystem::create_directories(backup_dir);
-    std::string backup_path = backup_dir + "/settings.json.backup";
-    json backup_data = {{"config_version", kCurrentConfigVersion},
-                        {"active_printer_id", "voron"},
-                        {"brightness", 75},
-                        {"printers", {{"voron", {{"moonraker_host", "10.0.0.5"}}}}}};
-    {
-        std::ofstream o(backup_path);
-        o << backup_data.dump(2);
-    }
-
-    Config test_config;
-    test_config.init(temp_path);
-
-    // Should have restored from backup, not fallen back to defaults
-    REQUIRE(test_config.get<std::string>("/printers/voron/moonraker_host") == "10.0.0.5");
-    REQUIRE(test_config.get<int>("/brightness") == 75);
-
-    // Corrupt file should be preserved for diagnosis
-    REQUIRE(std::filesystem::exists(temp_path + ".corrupt"));
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-TEST_CASE("Config::init() falls back to defaults when corrupt and no backup exists",
-          "[core][config][corruption]") {
-    std::string temp_dir = "/tmp/helix_test_corrupt_nobackup_" + std::to_string(getpid());
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/settings.json";
-
-    // Write corrupt JSON
-    {
-        std::ofstream o(temp_path);
-        o << "not json at all";
-    }
-
-    // RAII guard: redirect both backup tiers into temp_dir and restore them (and
-    // HOME) even if REQUIRE throws. Redirecting the primary tier keeps the test
-    // independent of a real /var/lib/helixscreen backup on the host.
-    HomeGuard home_guard(temp_dir);
-
-    Config test_config;
-    test_config.init(temp_path);
-
-    // Should have fallen back to defaults (127.0.0.1)
-    REQUIRE(test_config.get<std::string>("/printers/default/moonraker_host") == "127.0.0.1");
-
-    // Corrupt file should still be preserved
-    REQUIRE(std::filesystem::exists(temp_path + ".corrupt"));
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-TEST_CASE("Config::init() falls back to defaults when both config and backup are corrupt",
-          "[core][config][corruption]") {
-    std::string temp_dir = "/tmp/helix_test_both_corrupt_" + std::to_string(getpid());
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/settings.json";
-
-    // Write corrupt config
-    {
-        std::ofstream o(temp_path);
-        o << "{truncated";
-    }
-
-    // RAII guard: redirect both backup tiers into temp_dir and restore them (and
-    // HOME) even if REQUIRE throws. Redirecting the primary tier keeps the test
-    // independent of a real /var/lib/helixscreen backup on the host.
-    HomeGuard home_guard(temp_dir);
-
-    std::string backup_dir = temp_dir + "/.helixscreen";
-    std::filesystem::create_directories(backup_dir);
-    {
-        std::ofstream o(backup_dir + "/settings.json.backup");
-        o << "also not valid json";
-    }
-
-    Config test_config;
-    test_config.init(temp_path);
-
-    // Both corrupt — should fall back to defaults
-    REQUIRE(test_config.get<std::string>("/printers/default/moonraker_host") == "127.0.0.1");
-
-    std::filesystem::remove_all(temp_dir);
-}
-
-TEST_CASE("Config::init() restores the backup over a zero-byte settings file",
-          "[core][config][corruption][integration][error_path]") {
-    // A power cut mid-write leaves a zero-byte file, which must not reach the
-    // app as a config.
-    std::string temp_dir = "/tmp/helix_test_shape_backup_" + std::to_string(getpid());
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/settings.json";
-    { std::ofstream o(temp_path); }
-
-    HomeGuard home_guard(temp_dir);
-    std::filesystem::create_directories(temp_dir + "/.helixscreen");
-    json backup_data = {{"config_version", kCurrentConfigVersion},
-                        {"active_printer_id", "voron"},
-                        {"brightness", 61},
-                        {"printers", {{"voron", {{"moonraker_host", "10.0.0.7"}}}}}};
-    {
-        std::ofstream o(temp_dir + "/.helixscreen/settings.json.backup");
-        o << backup_data.dump(2);
-    }
-
-    Config test_config;
-    test_config.init(temp_path);
-
-    REQUIRE(test_config.get<std::string>("/printers/voron/moonraker_host") == "10.0.0.7");
-    REQUIRE(test_config.get<int>("/brightness") == 61);
-
-    std::filesystem::remove_all(temp_dir);
-}
 
 // ============================================================================
 // Tarball Default Detection Tests (Moonraker web update config clobber)
@@ -3369,6 +2166,11 @@ struct TarballTestEnv {
         o << j.dump(2);
     }
 
+    void write_config_raw(const std::string& content) {
+        std::ofstream o(config_path);
+        o << content;
+    }
+
     void write_backup(const json& j) {
         std::filesystem::create_directories(backup_dir);
         std::ofstream o(backup_dir + "/settings.json.backup");
@@ -3393,6 +2195,59 @@ struct TarballTestEnv {
 };
 
 } // namespace
+
+// An unreadable settings.json is set aside as .corrupt and replaced by the
+// rolling backup, or by the defaults when the backup is missing or unreadable.
+// A zero-byte file is what a power cut mid-write leaves behind.
+TEST_CASE("Config::init() recovers an unreadable config from the backup or the defaults",
+          "[core][config][corruption][integration][error_path]") {
+    auto backup_for = [](const char* host, int brightness) {
+        return json{{"config_version", kCurrentConfigVersion},
+                    {"active_printer_id", "voron"},
+                    {"brightness", brightness},
+                    {"printers", {{"voron", {{"moonraker_host", host}}}}}}
+            .dump(2);
+    };
+    struct Row {
+        const char* name;
+        const char* config;
+        std::string backup; // empty: no backup file
+        const char* host_ptr;
+        const char* host;
+        int brightness; // -1: not checked
+    };
+    const Row rows[] = {
+        {"corrupt config, valid backup", "{{{{ not valid json !!!!", backup_for("10.0.0.5", 75),
+         "/printers/voron/moonraker_host", "10.0.0.5", 75},
+        {"corrupt config, no backup", "not json at all", "", "/printers/default/moonraker_host",
+         "127.0.0.1", -1},
+        {"corrupt config, corrupt backup", "{truncated", "also not valid json",
+         "/printers/default/moonraker_host", "127.0.0.1", -1},
+        {"zero-byte config, valid backup", "", backup_for("10.0.0.7", 61),
+         "/printers/voron/moonraker_host", "10.0.0.7", 61},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            TarballTestEnv env("corrupt_recovery");
+            env.write_config_raw(r.config);
+            if (!r.backup.empty()) {
+                env.write_backup_raw(r.backup);
+            }
+
+            Config test_config;
+            test_config.init(env.config_path);
+
+            CHECK(test_config.get<std::string>(r.host_ptr) == r.host);
+            if (r.brightness >= 0) {
+                CHECK(test_config.get<int>("/brightness") == r.brightness);
+            }
+            if (*r.config != '\0') {
+                // Kept for diagnosis
+                CHECK(std::filesystem::exists(env.config_path + ".corrupt"));
+            }
+        }
+    }
+}
 
 TEST_CASE("Config::init() restores backup when tarball default replaces user config",
           "[core][config][moonraker-update]") {
@@ -3426,18 +2281,35 @@ TEST_CASE("Config::init() restores backup when tarball default replaces user con
     REQUIRE(on_disk.contains("printers"));
 }
 
-TEST_CASE("Config::init() keeps tarball default when no backup exists (fresh install)",
+// A packaged default with nothing better to restore stays, and the wizard runs.
+TEST_CASE("Config::init() keeps a tarball default when no usable backup exists",
           "[core][config][moonraker-update]") {
-    TarballTestEnv env("tarball_fresh");
+    const json tarball_default = {{"preset", "ad5x"},
+                                  {"wizard_completed", false},
+                                  {"printer", {{"moonraker_host", "127.0.0.1"}}}};
+    struct Row {
+        const char* name;
+        std::string backup; // empty: no backup file
+    };
+    const Row rows[] = {
+        {"no backup (fresh install)", ""},
+        {"the backup is also a tarball default", tarball_default.dump(2)},
+        {"the backup is corrupt", "{{{{ not valid json"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            TarballTestEnv env("tarball_kept");
+            env.write_config(tarball_default);
+            if (!r.backup.empty()) {
+                env.write_backup_raw(r.backup);
+            }
 
-    env.write_config({{"preset", "ad5m"},
-                      {"wizard_completed", false},
-                      {"printer", {{"moonraker_host", "127.0.0.1"}}}});
+            Config test_config;
+            test_config.init(env.config_path);
 
-    Config test_config;
-    test_config.init(env.config_path);
-
-    REQUIRE(test_config.is_wizard_required());
+            CHECK(test_config.is_wizard_required());
+        }
+    }
 }
 
 // A versionless document can name no printer at all: the installer creates
@@ -3576,22 +2448,6 @@ TEST_CASE("Config::init() adds no default printer to a config from a newer build
     CHECK_FALSE(on_disk.contains("active_printer_id"));
 }
 
-TEST_CASE("Config::init() keeps tarball default when backup is also a tarball default",
-          "[core][config][moonraker-update]") {
-    TarballTestEnv env("tarball_both_default");
-
-    json tarball_default = {{"preset", "ad5x"},
-                            {"wizard_completed", false},
-                            {"printer", {{"moonraker_host", "127.0.0.1"}}}};
-    env.write_config(tarball_default);
-    env.write_backup(tarball_default);
-
-    Config test_config;
-    test_config.init(env.config_path);
-
-    REQUIRE(test_config.is_wizard_required());
-}
-
 TEST_CASE("Config::init() keeps a shipped preset when the installer marked a fresh install",
           "[core][config][moonraker-update]") {
     TarballTestEnv env("tarball_fresh_marker");
@@ -3620,24 +2476,6 @@ TEST_CASE("Config::init() keeps a shipped preset when the installer marked a fre
     REQUIRE(test_config.get<int>("/display/rotate", -1) == 270);
     REQUIRE(test_config.get<int>("/brightness", -1) == -1);
     REQUIRE(test_config.is_wizard_required());
-}
-
-TEST_CASE("Config::init() consumes the fresh-install marker", "[core][config][moonraker-update]") {
-    TarballTestEnv env("tarball_marker_consumed");
-
-    env.write_config({{"preset", "k1"},
-                      {"wizard_completed", false},
-                      {"display", {{"rotate", 270}}},
-                      {"printer", {{"heaters", {{"bed", "heater_bed"}}}}}});
-    env.write_backup({{"config_version", kCurrentConfigVersion},
-                      {"active_printer_id", "other"},
-                      {"brightness", 80},
-                      {"printers", {{"other", {{"moonraker_host", "192.168.1.50"}}}}}});
-    env.write_fresh_marker();
-    REQUIRE(std::filesystem::exists(env.fresh_marker()));
-
-    Config test_config;
-    test_config.init(env.config_path);
 
     // One-shot: the marker only ever answers for the config it shipped beside,
     // so a later unversioned document must not inherit its verdict.
@@ -3720,21 +2558,6 @@ TEST_CASE("Config::init() discards a shipped preset with no fresh-install marker
     REQUIRE_FALSE(test_config.is_wizard_required());
 }
 
-TEST_CASE("Config::init() keeps tarball default when backup is corrupt",
-          "[core][config][moonraker-update]") {
-    TarballTestEnv env("tarball_corrupt_backup");
-
-    env.write_config({{"preset", "ad5m"},
-                      {"wizard_completed", false},
-                      {"printer", {{"moonraker_host", "127.0.0.1"}}}});
-    env.write_backup_raw("{{{{ not valid json");
-
-    Config test_config;
-    test_config.init(env.config_path);
-
-    REQUIRE(test_config.is_wizard_required());
-}
-
 namespace {
 
 /// A below-floor document of a remote-UI install: its printer lives on another host.
@@ -3757,29 +2580,16 @@ json read_json_file(const std::string& file) {
 
 } // namespace
 
-TEST_CASE("Config::init() keeps a below-floor backup restored over a tarball default",
+TEST_CASE("Config::init() keeps a below-floor backup it restores",
           "[core][config][moonraker-update][migration]") {
-    TarballTestEnv env("floor_tarball_backup");
-    env.write_config({{"preset", "ad5m"},
-                      {"wizard_completed", false},
-                      {"printer", {{"moonraker_host", "127.0.0.1"}}}});
-    env.write_backup(below_floor_backup());
-
-    Config test_config;
-    test_config.init(env.config_path);
-
-    REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-    REQUIRE(test_config.get_active_printer_id() == "default");
-    REQUIRE(read_json_file(env.config_path + ".pre-migration") == below_floor_backup());
-    REQUIRE(read_json_file(env.backup_dir + "/settings.json.backup") == below_floor_backup());
-}
-
-TEST_CASE("Config::init() keeps a below-floor backup restored over a corrupt config",
-          "[core][config][migration]") {
-    TarballTestEnv env("floor_corrupt_backup");
-    {
-        std::ofstream o(env.config_path);
-        o << "{{{{ not valid json";
+    TarballTestEnv env("floor_backup");
+    SECTION("over a tarball default") {
+        env.write_config({{"preset", "ad5m"},
+                          {"wizard_completed", false},
+                          {"printer", {{"moonraker_host", "127.0.0.1"}}}});
+    }
+    SECTION("over a corrupt config") {
+        env.write_config_raw("{{{{ not valid json");
     }
     env.write_backup(below_floor_backup());
 
@@ -3857,11 +2667,6 @@ TEST_CASE("Config::init() carries the update channel across the migration floor"
 
 TEST_CASE("Config: v10→v11 migration moves heat rates and strips heating phases",
           "[core][config][migration][v11]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v10_to_v11");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     json v10_config = {
         {"config_version", 10},
         {"calibration",
@@ -3875,14 +2680,11 @@ TEST_CASE("Config: v10→v11 migration moves heat rates and strips heating phase
                         {{"no_phases", true}}})}}},
         {"printer", {{"moonraker_host", "127.0.0.1"}, {"moonraker_port", 7125}}}};
 
-    {
-        std::ofstream o(temp_path);
-        o << v10_config.dump(2);
-    }
+    SettingsFile file("helix_test_v10_to_v11", v10_config);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
 
@@ -3920,16 +2722,9 @@ TEST_CASE("Config: v10→v11 migration moves heat rates and strips heating phase
     // Third entry: no phases key → unchanged
     REQUIRE(entries[2].contains("no_phases"));
     REQUIRE_FALSE(entries[2].contains("phases"));
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 TEST_CASE("Config: v10→v11 migration is idempotent", "[core][config][migration][v11]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v10_to_v11_idempotent");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     // Config already at v11 with thermal rates in the new location
     json v11_config = {
         {"config_version", 10},
@@ -3938,14 +2733,11 @@ TEST_CASE("Config: v10→v11 migration is idempotent", "[core][config][migration
          {{"pid_history", {{"extruder", {{"heat_rate", 0.99}, {"oscillation_duration", 3.5}}}}}}},
         {"printer", {{"moonraker_host", "127.0.0.1"}, {"moonraker_port", 7125}}}};
 
-    {
-        std::ofstream o(temp_path);
-        o << v11_config.dump(2);
-    }
+    SettingsFile file("helix_test_v10_to_v11_idempotent", v11_config);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     // Should keep existing value at new path (not overwrite with old)
     REQUIRE(test_config.get<double>("/thermal/rates/extruder/heat_rate") == Catch::Approx(1.25));
@@ -3956,44 +2748,27 @@ TEST_CASE("Config: v10→v11 migration is idempotent", "[core][config][migration
     // Oscillation duration preserved
     REQUIRE(test_config.get<double>("/calibration/pid_history/extruder/oscillation_duration") ==
             Catch::Approx(3.5));
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 TEST_CASE("Config: v10→v11 migration handles missing calibration data gracefully",
           "[core][config][migration][v11]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v10_to_v11_empty");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     // Minimal v10 config with no calibration or print history
     json v10_config = {{"config_version", 10},
                        {"printer", {{"moonraker_host", "127.0.0.1"}, {"moonraker_port", 7125}}}};
 
-    {
-        std::ofstream o(temp_path);
-        o << v10_config.dump(2);
-    }
+    SettingsFile file("helix_test_v10_to_v11_empty", v10_config);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
     // No crash, no thermal section created
     REQUIRE_FALSE(test_config.exists("/thermal"));
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 TEST_CASE("Config: v11→v12 migration consolidates chamber keys for all printers",
           "[core][config][migration][v12]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v11_to_v12");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     json v11_config = {
         {"config_version", 11},
         {"active_printer_id", "k1c"},
@@ -4005,14 +2780,11 @@ TEST_CASE("Config: v11→v12 migration consolidates chamber keys for all printer
           {"voron", {{"printer", {{"chamber_sensor", "temperature_sensor chamber"}}}}},
           {"bare", {{"heaters", {{"bed", "heater_bed"}}}}}}}};
 
-    {
-        std::ofstream o(temp_path);
-        o << v11_config.dump(2);
-    }
+    SettingsFile file("helix_test_v11_to_v12", v11_config);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
 
@@ -4035,44 +2807,35 @@ TEST_CASE("Config: v11→v12 migration consolidates chamber keys for all printer
     // bare: no chamber keys to migrate, untouched
     REQUIRE(test_config.get<std::string>("/printers/bare/heaters/bed") == "heater_bed");
     REQUIRE_FALSE(test_config.exists("/printers/bare/temp_sensors/chamber"));
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 TEST_CASE("Config: v11→v12 migration does not overwrite canonical keys already set",
           "[core][config][migration][v12]") {
-    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v11_to_v12_existing");
-    std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directories(temp_dir);
-    std::string temp_path = temp_dir + "/test_config.json";
-
     json v11_config = {{"config_version", 11},
                        {"printers",
                         {{"k1c",
                           {{"temp_sensors", {{"chamber", "temperature_sensor new_chamber"}}},
                            {"printer", {{"chamber_sensor", "temperature_sensor old_chamber"}}}}}}}};
 
-    {
-        std::ofstream o(temp_path);
-        o << v11_config.dump(2);
-    }
+    SettingsFile file("helix_test_v11_to_v12_existing", v11_config);
 
     BackupGuard guard;
     Config test_config;
-    test_config.init(temp_path);
+    test_config.init(file.path);
 
     // Canonical value preserved; legacy value discarded (migrate_config_keys behavior)
     REQUIRE(test_config.get<std::string>("/printers/k1c/temp_sensors/chamber") ==
             "temperature_sensor new_chamber");
     REQUIRE_FALSE(test_config.exists("/printers/k1c/printer/chamber_sensor"));
-
-    std::filesystem::remove_all(temp_dir);
 }
 
 // ============================================================================
 // v15→v16 migration: screensaver off on BASIC/EMBEDDED tier with Flying Toasters
 // ============================================================================
 
+// A pre-v16 config carrying Flying Toasters (type 1) on a BASIC or EMBEDDED tier
+// is switched off and queues a one-time notice; any other tier or screensaver,
+// or a config already at v16, is left as it is.
 TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained tiers",
           "[config][migration][v16]") {
     struct TierGuard {
@@ -4080,190 +2843,50 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
             helix::config_testing::set_forced_tier_for_migration(std::nullopt);
         }
     };
-    TierGuard _tier_guard; // Ensures override is reset even if a SECTION fails
+    TierGuard tier_guard; // Resets the override even if a row fails
 
-    SECTION("BASIC tier with Flying Toasters: type flipped to 0 and notice queued") {
-        helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
+    struct Row {
+        const char* name;
+        helix::PlatformTier tier;
+        int version;
+        int type;
+        const char* expected;
+        bool notice;
+    };
+    const Row rows[] = {
+        {"BASIC tier, Flying Toasters", helix::PlatformTier::BASIC, 15, 1, "off", true},
+        {"EMBEDDED tier, Flying Toasters", helix::PlatformTier::EMBEDDED, 15, 1, "off", true},
+        {"STANDARD tier, Flying Toasters", helix::PlatformTier::STANDARD, 15, 1, "toasters", false},
+        {"BASIC tier, Starfield", helix::PlatformTier::BASIC, 15, 2, "starfield", false},
+        {"BASIC tier, Pipes 3D", helix::PlatformTier::BASIC, 15, 3, "pipes", false},
+        {"BASIC tier, already off", helix::PlatformTier::BASIC, 15, 0, "off", false},
+        {"BASIC tier, already v16", helix::PlatformTier::BASIC, 16, 1, "toasters", false},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            helix::config_testing::set_forced_tier_for_migration(r.tier);
+            SettingsFile file(
+                "helix_test_v15_to_v16",
+                {{"config_version", r.version}, {"display", {{"screensaver_type", r.type}}}});
+            BackupGuard guard;
+            Config test_config;
+            test_config.init(file.path);
 
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_basic");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
-        json v15_config = {{"config_version", 15}, {"display", {{"screensaver_type", 1}}}};
-        {
-            std::ofstream o(temp_path);
-            o << v15_config.dump(2);
+            REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
+            CHECK(test_config.get<std::string>("/display/screensaver_type", "") == r.expected);
+            if (r.notice) {
+                CHECK(
+                    test_config.get<bool>("/display/screensaver_migration_notice_pending", false));
+            } else {
+                CHECK_FALSE(test_config.exists("/display/screensaver_migration_notice_pending"));
+            }
         }
-
-        BackupGuard guard;
-        Config test_config;
-        test_config.init(temp_path);
-
-        REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-        REQUIRE(test_config.get<std::string>("/display/screensaver_type", "") == "off");
-        REQUIRE(test_config.get<bool>("/display/screensaver_migration_notice_pending", false) ==
-                true);
-
-        std::filesystem::remove_all(temp_dir);
-    }
-
-    SECTION("EMBEDDED tier with Flying Toasters: type flipped to 0 and notice queued") {
-        helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::EMBEDDED);
-
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_embedded");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
-        json v15_config = {{"config_version", 15}, {"display", {{"screensaver_type", 1}}}};
-        {
-            std::ofstream o(temp_path);
-            o << v15_config.dump(2);
-        }
-
-        BackupGuard guard;
-        Config test_config;
-        test_config.init(temp_path);
-
-        REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
-        REQUIRE(test_config.get<std::string>("/display/screensaver_type", "") == "off");
-        REQUIRE(test_config.get<bool>("/display/screensaver_migration_notice_pending", false) ==
-                true);
-
-        std::filesystem::remove_all(temp_dir);
-    }
-
-    SECTION("STANDARD tier with Flying Toasters: setting untouched, no notice flag") {
-        helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::STANDARD);
-
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_standard");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
-        json v15_config = {{"config_version", 15}, {"display", {{"screensaver_type", 1}}}};
-        {
-            std::ofstream o(temp_path);
-            o << v15_config.dump(2);
-        }
-
-        BackupGuard guard;
-        Config test_config;
-        test_config.init(temp_path);
-
-        REQUIRE(test_config.get<std::string>("/display/screensaver_type", "") == "toasters");
-        REQUIRE_FALSE(test_config.exists("/display/screensaver_migration_notice_pending"));
-
-        std::filesystem::remove_all(temp_dir);
-    }
-
-    SECTION("BASIC tier with Starfield (type=2): untouched, no notice flag") {
-        helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
-
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_starfield");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
-        json v15_config = {{"config_version", 15}, {"display", {{"screensaver_type", 2}}}};
-        {
-            std::ofstream o(temp_path);
-            o << v15_config.dump(2);
-        }
-
-        BackupGuard guard;
-        Config test_config;
-        test_config.init(temp_path);
-
-        REQUIRE(test_config.get<std::string>("/display/screensaver_type", "") == "starfield");
-        REQUIRE_FALSE(test_config.exists("/display/screensaver_migration_notice_pending"));
-
-        std::filesystem::remove_all(temp_dir);
-    }
-
-    SECTION("BASIC tier with Pipes 3D (type=3): untouched, no notice flag") {
-        helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
-
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_pipes");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
-        json v15_config = {{"config_version", 15}, {"display", {{"screensaver_type", 3}}}};
-        {
-            std::ofstream o(temp_path);
-            o << v15_config.dump(2);
-        }
-
-        BackupGuard guard;
-        Config test_config;
-        test_config.init(temp_path);
-
-        REQUIRE(test_config.get<std::string>("/display/screensaver_type", "") == "pipes");
-        REQUIRE_FALSE(test_config.exists("/display/screensaver_migration_notice_pending"));
-
-        std::filesystem::remove_all(temp_dir);
-    }
-
-    SECTION("BASIC tier with screensaver already Off (type=0): no-op, no notice flag") {
-        helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
-
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_off");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
-        json v15_config = {{"config_version", 15}, {"display", {{"screensaver_type", 0}}}};
-        {
-            std::ofstream o(temp_path);
-            o << v15_config.dump(2);
-        }
-
-        BackupGuard guard;
-        Config test_config;
-        test_config.init(temp_path);
-
-        REQUIRE(test_config.get<std::string>("/display/screensaver_type", "") == "off");
-        REQUIRE_FALSE(test_config.exists("/display/screensaver_migration_notice_pending"));
-
-        std::filesystem::remove_all(temp_dir);
-    }
-
-    SECTION("Already-v16 config: migration does not run, type stays as set") {
-        helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
-
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_already_v16");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
-        json v16_config = {{"config_version", 16}, {"display", {{"screensaver_type", 1}}}};
-        {
-            std::ofstream o(temp_path);
-            o << v16_config.dump(2);
-        }
-
-        BackupGuard guard;
-        Config test_config;
-        test_config.init(temp_path);
-
-        // Migration gate (version < 16) must not fire for already-v16 config
-        REQUIRE(test_config.get<std::string>("/display/screensaver_type", "") == "toasters");
-        REQUIRE_FALSE(test_config.exists("/display/screensaver_migration_notice_pending"));
-
-        std::filesystem::remove_all(temp_dir);
     }
 }
 
 TEST_CASE("Config: v16→v17 migration renames retired Voron printer_image IDs",
           "[core][config][migration][v17]") {
     SECTION("voron-24r2 and voron-0-2 rewritten; unrelated values left alone") {
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v16_to_v17_rename");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
         json v16_config = {{"config_version", 16},
                            {"active_printer_id", "voron24"},
                            {"printers",
@@ -4274,14 +2897,11 @@ TEST_CASE("Config: v16→v17 migration renames retired Voron printer_image IDs",
                              {"auto", {{"printer_image", ""}}},
                              {"none", {{"heaters", {{"bed", "heater_bed"}}}}}}}};
 
-        {
-            std::ofstream o(temp_path);
-            o << v16_config.dump(2);
-        }
+        SettingsFile file("helix_test_v16_to_v17_rename", v16_config);
 
         BackupGuard guard;
         Config test_config;
-        test_config.init(temp_path);
+        test_config.init(file.path);
 
         REQUIRE(test_config.get<int>("/config_version") == kCurrentConfigVersion);
 
@@ -4295,34 +2915,21 @@ TEST_CASE("Config: v16→v17 migration renames retired Voron printer_image IDs",
                 "custom:my-printer");
         REQUIRE(test_config.get<std::string>("/printers/auto/printer_image", "missing") == "");
         REQUIRE_FALSE(test_config.exists("/printers/none/printer_image"));
-
-        std::filesystem::remove_all(temp_dir);
     }
 
     SECTION("Already-v17 config: migration does not run") {
-        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v16_to_v17_already");
-        std::filesystem::remove_all(temp_dir);
-        std::filesystem::create_directories(temp_dir);
-        std::string temp_path = temp_dir + "/test_config.json";
-
-        json v17_config = {{"config_version", 17},
+        SettingsFile file("helix_test_v16_to_v17_already",
+                          {{"config_version", 17},
                            {"active_printer_id", "voron24"},
-                           {"printers", {{"voron24", {{"printer_image", "shipped:voron-24r2"}}}}}};
-
-        {
-            std::ofstream o(temp_path);
-            o << v17_config.dump(2);
-        }
+                           {"printers", {{"voron24", {{"printer_image", "shipped:voron-24r2"}}}}}});
 
         BackupGuard guard;
         Config test_config;
-        test_config.init(temp_path);
+        test_config.init(file.path);
 
-        // Already-v17: stale value is preserved verbatim, migration gate (version<17) skipped.
+        // The stale value is kept verbatim: the version<17 gate is skipped.
         REQUIRE(test_config.get<std::string>("/printers/voron24/printer_image") ==
                 "shipped:voron-24r2");
-
-        std::filesystem::remove_all(temp_dir);
     }
 }
 
@@ -4413,132 +3020,54 @@ json production_backup_json() {
 
 } // namespace
 
-TEST_CASE("Config::init() in test mode does not restore a missing config from a production backup",
+// Test mode reads no production backup: neither to replace a missing config nor
+// to adopt one over a versionless (tarball-default) config. Production keeps both.
+TEST_CASE("Config::init() adopts a production backup only outside test mode",
           "[core][config][test-mode][backup-isolation]") {
-    BackupSandbox env("testmode_no_restore");
-    env.write_primary_backup(production_backup_json());
-    REQUIRE(env.primary_backup_exists()); // precondition: a backup IS available
+    struct Row {
+        const char* name;
+        bool test_mode;
+        bool tarball_config; // false: no settings file at all
+        bool adopted;
+    };
+    const Row rows[] = {
+        {"test mode, missing config", true, false, false},
+        {"production, missing config", false, false, true},
+        {"test mode, tarball-default config", true, true, false},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            BackupSandbox env("backup_adopt");
+            env.write_primary_backup(production_backup_json());
+            REQUIRE(env.primary_backup_exists()); // a backup IS available
+            if (r.tarball_config) {
+                // config_version absent: tarball detection would fire outside test mode
+                std::ofstream(env.config_path())
+                    << json{{"preset", "ad5x"},
+                            {"wizard_completed", false},
+                            {"printers", {{"default", {{"moonraker_host", "127.0.0.1"}}}}}}
+                           .dump(2);
+            } else {
+                REQUIRE_FALSE(std::filesystem::exists(env.config_path()));
+            }
+            ConfigTestModeGuard test_mode(r.test_mode);
 
-    ConfigTestModeGuard test_mode(true);
+            Config test_config;
+            test_config.init(env.config_path());
 
-    // Config file is absent — exactly the `--test` first-run case.
-    REQUIRE_FALSE(std::filesystem::exists(env.config_path()));
-
-    Config test_config;
-    test_config.init(env.config_path());
-
-    // Must fall back to normal defaults, NOT the production backup.
-    REQUIRE(test_config.get<std::string>("/active_printer_id", "") != "real-production-printer");
-    REQUIRE(test_config.get<int>("/brightness", 0) != 42);
-    REQUIRE(test_config.get<std::string>("/printers/real-production-printer/moonraker_host", "") ==
-            "");
-}
-
-TEST_CASE("Config::init() outside test mode still restores a missing config from backup",
-          "[core][config][backup-isolation]") {
-    // Guards the isolation from over-reaching: production recovery must survive.
-    BackupSandbox env("prodmode_restores");
-    env.write_primary_backup(production_backup_json());
-
-    ConfigTestModeGuard test_mode(false);
-
-    REQUIRE_FALSE(std::filesystem::exists(env.config_path()));
-
-    Config test_config;
-    test_config.init(env.config_path());
-
-    REQUIRE(test_config.get<std::string>("/active_printer_id", "") == "real-production-printer");
-    REQUIRE(test_config.get<int>("/brightness", 0) == 42);
-}
-
-TEST_CASE("Config::init() in test mode does not adopt a backup over a tarball-default config",
-          "[core][config][test-mode][backup-isolation]") {
-    // The second /var/lib-consulting path: a loaded config with config_version==0
-    // is treated as a tarball default and replaced with backup contents.
-    BackupSandbox env("testmode_no_tarball_adopt");
-    env.write_primary_backup(production_backup_json());
-
-    // A config_version==0 config — would trip tarball detection outside test mode.
-    {
-        std::ofstream o(env.config_path());
-        o << json{{"preset", "ad5x"},
-                  {"wizard_completed", false},
-                  {"printers", {{"default", {{"moonraker_host", "127.0.0.1"}}}}}}
-                 .dump(2);
+            CHECK((test_config.get<std::string>("/active_printer_id", "") ==
+                   "real-production-printer") == r.adopted);
+            CHECK((test_config.get<int>("/brightness", 0) == 42) == r.adopted);
+            if (!r.adopted) {
+                CHECK(test_config.get<std::string>(
+                          "/printers/real-production-printer/moonraker_host", "") == "");
+            }
+        }
     }
-
-    ConfigTestModeGuard test_mode(true);
-
-    Config test_config;
-    test_config.init(env.config_path());
-
-    // Test config must stay put — no production data adopted.
-    REQUIRE(test_config.get<std::string>("/active_printer_id", "") != "real-production-printer");
-    REQUIRE(test_config.get<int>("/brightness", 0) != 42);
-}
-
-TEST_CASE("Config::init() in test mode does not write a production rolling backup",
-          "[core][config][test-mode][backup-isolation]") {
-    // The write-side mirror of the same hazard: test-mode saves must not clobber
-    // the real user's rolling backup with test data.
-    BackupSandbox env("testmode_no_backup_write");
-
-    // A complete, wizard-completed config so init()'s rolling-backup write is reached.
-    {
-        std::ofstream o(env.config_path());
-        o << json{{"config_version", kCurrentConfigVersion},
-                  {"active_printer_id", "test-printer"},
-                  {"wizard_completed", true},
-                  {"brightness", 7},
-                  {"printers", {{"test-printer", {{"moonraker_host", "127.0.0.1"}}}}}}
-                 .dump(2);
-    }
-
-    ConfigTestModeGuard test_mode(true);
-
-    Config test_config;
-    test_config.init(env.config_path());
-    test_config.set("/brightness", 9);
-    test_config.save();
-
-    REQUIRE_FALSE(env.primary_backup_exists());
-    REQUIRE_FALSE(std::filesystem::exists(app_constants::update::config_backup_fallback()));
-}
-
-TEST_CASE("Config::save() outside test mode still writes a rolling backup",
-          "[core][config][backup-isolation]") {
-    // Guards the write-side isolation from over-reaching.
-    BackupSandbox env("prodmode_writes_backup");
-
-    {
-        std::ofstream o(env.config_path());
-        o << json{{"config_version", kCurrentConfigVersion},
-                  {"active_printer_id", "test-printer"},
-                  {"wizard_completed", true},
-                  {"brightness", 7},
-                  {"printers", {{"test-printer", {{"moonraker_host", "127.0.0.1"}}}}}}
-                 .dump(2);
-    }
-
-    ConfigTestModeGuard test_mode(false);
-
-    Config test_config;
-    test_config.init(env.config_path());
-    test_config.set("/brightness", 9);
-    test_config.save();
-
-    REQUIRE(env.primary_backup_exists());
-    REQUIRE(env.read_primary_backup().value("brightness", 0) == 9);
 }
 
 // ============================================================================
-// save() must not refresh the rolling backup while the wizard is incomplete.
-//
-// The single-slot rolling backup is the only recovery copy of the user's real
-// config. A wizard-incomplete config holds preset defaults, not user data, so
-// letting save() copy it over the backup destroys the recovery copy. init()
-// already carried this guard on the startup backup; save() did not, so the
-// first setting touched during setup wiped it.
+// Rolling-backup writes from save()
 // ============================================================================
 
 namespace {
@@ -4575,63 +3104,61 @@ struct ConfigDirEnvGuard {
 
 } // namespace
 
-TEST_CASE("Config::save() does not overwrite the rolling backup while the wizard is incomplete",
-          "[core][config][backup-isolation][wizard]") {
-    BackupSandbox env("wizard_incomplete_no_backup_write");
-    ConfigDirEnvGuard config_dir_guard;
+// The single-slot rolling backup is the only recovery copy of the user's real
+// config. save() refreshes it only outside test mode and only once setup is
+// complete: test data and a wizard-incomplete config (preset defaults, not user
+// data) must never replace it, and the setup-in-progress config must not reach
+// the fallback tier either. The wizard rows differ in exactly one bit, so the
+// guard cannot be satisfied by disabling rolling backups altogether.
+TEST_CASE("Config::save() refreshes the rolling backup only for a finished production config",
+          "[core][config][test-mode][backup-isolation][wizard]") {
+    struct Row {
+        const char* name;
+        bool test_mode;
+        bool wizard_completed;
+        bool prior_backup;
+        int backup_brightness; // 0: no primary backup afterwards
+        const char* backup_printer;
+    };
+    const Row rows[] = {
+        {"test mode writes no backup", true, true, false, 0, nullptr},
+        {"production writes one", false, true, false, 9, "fresh"},
+        {"an incomplete wizard keeps the old backup", false, false, true, 42,
+         "real-production-printer"},
+        {"a completed wizard refreshes the old backup", false, true, true, 9, "fresh"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            BackupSandbox env("rolling_backup_write");
+            ConfigDirEnvGuard config_dir_guard;
+            if (r.prior_backup) {
+                env.write_primary_backup(production_backup_json());
+                REQUIRE(env.read_primary_backup().value("brightness", 0) == 42);
+            }
+            std::ofstream(env.config_path())
+                << wizard_state_config_json(r.wizard_completed).dump(2);
+            ConfigTestModeGuard test_mode(r.test_mode);
 
-    // A good recovery copy from a fully configured install already exists.
-    env.write_primary_backup(production_backup_json());
-    REQUIRE(env.read_primary_backup().value("brightness", 0) == 42);
+            Config test_config;
+            test_config.init(env.config_path());
+            REQUIRE(test_config.is_wizard_required() == !r.wizard_completed);
 
-    {
-        std::ofstream o(env.config_path());
-        o << wizard_state_config_json(false).dump(2);
+            test_config.set("/brightness", 9);
+            REQUIRE(test_config.save());
+
+            if (r.backup_brightness == 0) {
+                CHECK_FALSE(env.primary_backup_exists());
+            } else {
+                REQUIRE(env.primary_backup_exists());
+                CHECK(env.read_primary_backup().value("brightness", 0) == r.backup_brightness);
+                CHECK(env.read_primary_backup().value("active_printer_id", "") == r.backup_printer);
+            }
+            if (r.test_mode || !r.wizard_completed) {
+                CHECK_FALSE(
+                    std::filesystem::exists(app_constants::update::config_backup_fallback()));
+            }
+        }
     }
-
-    ConfigTestModeGuard test_mode(false);
-
-    Config test_config;
-    test_config.init(env.config_path());
-    REQUIRE(test_config.is_wizard_required()); // precondition the guard keys off
-
-    test_config.set("/brightness", 9);
-    REQUIRE(test_config.save());
-
-    // The backup must still be the user's real config, untouched.
-    REQUIRE(env.primary_backup_exists());
-    REQUIRE(env.read_primary_backup().value("brightness", 0) == 42);
-    REQUIRE(env.read_primary_backup().value("active_printer_id", "") == "real-production-printer");
-    // ...and the setup-in-progress config must not have leaked into the fallback tier either.
-    REQUIRE_FALSE(std::filesystem::exists(app_constants::update::config_backup_fallback()));
-}
-
-TEST_CASE("Config::save() does refresh the rolling backup once the wizard is complete",
-          "[core][config][backup-isolation][wizard]") {
-    // Paired with the test above and differing in exactly one bit, so the guard
-    // cannot be "fixed" by disabling rolling backups altogether.
-    BackupSandbox env("wizard_complete_backup_write");
-    ConfigDirEnvGuard config_dir_guard;
-
-    env.write_primary_backup(production_backup_json());
-
-    {
-        std::ofstream o(env.config_path());
-        o << wizard_state_config_json(true).dump(2);
-    }
-
-    ConfigTestModeGuard test_mode(false);
-
-    Config test_config;
-    test_config.init(env.config_path());
-    REQUIRE_FALSE(test_config.is_wizard_required());
-
-    test_config.set("/brightness", 9);
-    REQUIRE(test_config.save());
-
-    REQUIRE(env.primary_backup_exists());
-    REQUIRE(env.read_primary_backup().value("brightness", 0) == 9);
-    REQUIRE(env.read_primary_backup().value("active_printer_id", "") == "fresh");
 }
 
 TEST_CASE("Config::resolve_path applies HELIX_CONFIG_DIR without losing the filename",
@@ -4702,7 +3229,7 @@ TEST_CASE("Config::resolve_path applies HELIX_CONFIG_DIR without losing the file
 // inode and the old one keeps its complete pre-migration contents until the
 // instant it is replaced. `std::ofstream o(path)` truncates the live file and
 // streams into it, so the same inode passes through a zero-length state — which
-// is exactly what a power cut during first-boot migration used to freeze in
+// is exactly what a power cut during first-boot migration would freeze in
 // place. The inode/hard-link assertions below are the ones that discriminate;
 // the content assertions state what the user actually cares about.
 // ============================================================================

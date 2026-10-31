@@ -327,50 +327,27 @@ class BeltPanelFixture : public XMLTestFixture {
             UpdateQueue::instance().drain();
         }
     }
-    bool pump_until_state(int want, uint32_t budget_ms = 60000) {
-        for (uint32_t t = 0; t < budget_ms; t += 100) {
-            if (state_int("belt_tension_state") == want) {
-                return true;
-            }
+    /// Pumps in 100ms steps until `done` holds or the budget runs out.
+    template <typename Pred> bool pump_until(Pred done, uint32_t budget_ms) {
+        for (uint32_t t = 0; t < budget_ms && !done(); t += 100) {
             lv_tick_inc(100);
             lv_timer_handler_safe();
             UpdateQueue::instance().drain();
         }
-        return state_int("belt_tension_state") == want;
+        return done();
+    }
+    bool pump_until_state(int want, uint32_t budget_ms = 60000) {
+        return pump_until_int("belt_tension_state", want, budget_ms);
     }
     bool pump_until_int(const char* name, int want, uint32_t budget_ms = 60000) {
-        for (uint32_t t = 0; t < budget_ms; t += 100) {
-            if (state_int(name) == want) {
-                return true;
-            }
-            lv_tick_inc(100);
-            lv_timer_handler_safe();
-            UpdateQueue::instance().drain();
-        }
-        return state_int(name) == want;
+        return pump_until([&] { return state_int(name) == want; }, budget_ms);
     }
     bool pump_until_text(const char* name, const std::string& want, uint32_t budget_ms = 60000) {
-        for (uint32_t t = 0; t < budget_ms; t += 100) {
-            if (text(name) == want) {
-                return true;
-            }
-            lv_tick_inc(100);
-            lv_timer_handler_safe();
-            UpdateQueue::instance().drain();
-        }
-        return text(name) == want;
+        return pump_until([&] { return text(name) == want; }, budget_ms);
     }
     /// Pumps until the gate opens (hardware detect + config probe answered).
     bool wait_gate_open(uint32_t budget_ms = 10000) {
-        for (uint32_t t = 0; t < budget_ms; t += 100) {
-            if (state_int("bt_can_start") == 1) {
-                return true;
-            }
-            lv_tick_inc(100);
-            lv_timer_handler_safe();
-            UpdateQueue::instance().drain();
-        }
-        return state_int("bt_can_start") == 1;
+        return pump_until_int("bt_can_start", 1, budget_ms);
     }
 
     /// The persona's travel and a max velocity, as a toolhead status frame.
@@ -810,74 +787,64 @@ TEST_CASE("sweep fact line comes from the printer's resonance_tester config", "[
     CHECK(fx.text("bt_hw_sweep") == "5-135 Hz · about 5 min");
 }
 
-TEST_CASE("low RAM asks before the sweep starts", "[belt][panel]") {
+TEST_CASE("the host's free RAM decides whether Start asks, refuses or just starts",
+          "[belt][panel]") {
     BeltPanelFixture fx;
     helix::ui::modal_init_subjects();
     REQUIRE(fx.register_component("modal_dialog"));
     REQUIRE(fx.wait_gate_open());
-    helix::MemoryInfo small;
-    small.total_kb = 128 * 1024;
-    small.available_kb = 80 * 1024;
-    fx.panel().set_memory_for_test(small);
+    const auto with_memory = [&fx](size_t total_mb, size_t available_mb) {
+        helix::MemoryInfo m;
+        m.total_kb = total_mb * 1024;
+        m.available_kb = available_mb * 1024;
+        fx.panel().set_memory_for_test(m);
+    };
 
-    fx.panel().handle_start_clicked();
-    fx.pump_ms(500);
-    // Klipper analyses the sweep on this host: on a small board the warning
-    // comes first and nothing moves until it is answered.
-    lv_obj_t* dialog = ModalStack::instance().top_dialog();
-    REQUIRE(dialog != nullptr);
-    CHECK(fx.panel_low_ram_dialog() == dialog);
-    CHECK(fx.state_int("belt_tension_state") ==
-          static_cast<int>(BeltTensionPanel::ViewState::START));
+    SECTION("enough: starts without asking") {
+        with_memory(1024, 600);
+        fx.panel().handle_start_clicked();
+        CHECK(fx.panel_low_ram_dialog() == nullptr);
+        CHECK(fx.state_int("belt_tension_state") ==
+              static_cast<int>(BeltTensionPanel::ViewState::RUNNING));
+    }
+    SECTION("low: asks first, and Continue starts") {
+        with_memory(128, 80);
+        fx.panel().handle_start_clicked();
+        fx.pump_ms(500);
+        // Klipper analyses the sweep on this host: on a small board the warning
+        // comes first and nothing moves until it is answered.
+        lv_obj_t* dialog = ModalStack::instance().top_dialog();
+        REQUIRE(dialog != nullptr);
+        CHECK(fx.panel_low_ram_dialog() == dialog);
+        CHECK(fx.state_int("belt_tension_state") ==
+              static_cast<int>(BeltTensionPanel::ViewState::START));
 
-    // Continuing starts the sweep and clears the handle.
-    lv_obj_t* go = lv_obj_find_by_name(dialog, "btn_primary");
-    REQUIRE(go != nullptr);
-    lv_obj_send_event(go, LV_EVENT_CLICKED, nullptr);
-    fx.pump_ms(500);
-    CHECK(fx.panel_low_ram_dialog() == nullptr);
-    CHECK(fx.state_int("belt_tension_state") ==
-          static_cast<int>(BeltTensionPanel::ViewState::RUNNING));
-}
+        // Continuing starts the sweep and clears the handle.
+        lv_obj_t* go = lv_obj_find_by_name(dialog, "btn_primary");
+        REQUIRE(go != nullptr);
+        lv_obj_send_event(go, LV_EVENT_CLICKED, nullptr);
+        fx.pump_ms(500);
+        CHECK(fx.panel_low_ram_dialog() == nullptr);
+        CHECK(fx.state_int("belt_tension_state") ==
+              static_cast<int>(BeltTensionPanel::ViewState::RUNNING));
+    }
+    SECTION("too little headroom: refuses") {
+        // The CC1 as measured: Klipper's analysis is OOM-killed and klippy wedges.
+        with_memory(114, 25);
+        fx.panel().handle_start_clicked();
+        fx.pump_ms(500);
+        lv_obj_t* dialog = ModalStack::instance().top_dialog();
+        REQUIRE(dialog != nullptr);
+        // Not the continue-anyway warning: there is no way to start from here.
+        CHECK(fx.panel_low_ram_dialog() == nullptr);
 
-TEST_CASE("enough RAM starts the sweep without asking", "[belt][panel]") {
-    BeltPanelFixture fx;
-    REQUIRE(fx.wait_gate_open());
-    helix::MemoryInfo big;
-    big.total_kb = 1024 * 1024;
-    big.available_kb = 600 * 1024;
-    fx.panel().set_memory_for_test(big);
-
-    fx.panel().handle_start_clicked();
-    CHECK(fx.panel_low_ram_dialog() == nullptr);
-    CHECK(fx.state_int("belt_tension_state") ==
-          static_cast<int>(BeltTensionPanel::ViewState::RUNNING));
-}
-
-TEST_CASE("too little headroom refuses the sweep", "[belt][panel]") {
-    BeltPanelFixture fx;
-    helix::ui::modal_init_subjects();
-    REQUIRE(fx.register_component("modal_dialog"));
-    REQUIRE(fx.wait_gate_open());
-    // The CC1 as measured: Klipper's analysis is OOM-killed and klippy wedges.
-    helix::MemoryInfo cc1;
-    cc1.total_kb = 114 * 1024;
-    cc1.available_kb = 25 * 1024;
-    fx.panel().set_memory_for_test(cc1);
-
-    fx.panel().handle_start_clicked();
-    fx.pump_ms(500);
-    lv_obj_t* dialog = ModalStack::instance().top_dialog();
-    REQUIRE(dialog != nullptr);
-    // Not the continue-anyway warning: there is no way to start from here.
-    CHECK(fx.panel_low_ram_dialog() == nullptr);
-
-    lv_obj_t* ok = lv_obj_find_by_name(dialog, "btn_primary");
-    REQUIRE(ok != nullptr);
-    lv_obj_send_event(ok, LV_EVENT_CLICKED, nullptr);
-    fx.pump_ms(500);
-    CHECK(fx.state_int("belt_tension_state") ==
-          static_cast<int>(BeltTensionPanel::ViewState::START));
+        lv_obj_t* ok = lv_obj_find_by_name(dialog, "btn_primary");
+        REQUIRE(ok != nullptr);
+        lv_obj_send_event(ok, LV_EVENT_CLICKED, nullptr);
+        fx.pump_ms(500);
+        CHECK(fx.state_int("belt_tension_state") ==
+              static_cast<int>(BeltTensionPanel::ViewState::START));
+    }
 }
 
 // ============================================================================
@@ -1680,41 +1647,39 @@ TEST_CASE("a zone matched at its baseline reports no round count", "[belt][panel
     CHECK(fx.text("bt_facts").find(" · Path B tightened about 1 turn") != std::string::npos);
 }
 
-TEST_CASE("Stop during a tuning sweep lands on START", "[belt][panel][tune]") {
+TEST_CASE("Stop during a tuning sweep or a calibration run lands on START", "[belt][panel][tune]") {
+    const bool calibrating = GENERATE(false, true);
+    CAPTURE(calibrating);
     BeltPanelFixture fx;
     helix::ui::modal_init_subjects();
     REQUIRE(fx.register_component("modal_dialog"));
-    enter_adjust(fx);
+    if (calibrating) {
+        enter_tuning(fx);
+        REQUIRE(fx.state_int("bt_tune_phase") == kPhaseCalibrate);
+    } else {
+        enter_adjust(fx);
+    }
     fx.panel().handle_tune_measure_clicked();
     stop_lands_on_start(fx);
 }
 
-TEST_CASE("Stop during a calibration run lands on START", "[belt][panel][tune]") {
+TEST_CASE("a rebuild mid tuning sweep or calibration run drops the late callbacks",
+          "[belt][panel][tune]") {
     BeltPanelFixture fx;
-    helix::ui::modal_init_subjects();
-    REQUIRE(fx.register_component("modal_dialog"));
-    enter_tuning(fx);
-    REQUIRE(fx.state_int("bt_tune_phase") == kPhaseCalibrate);
-    fx.panel().handle_tune_measure_clicked();
-    stop_lands_on_start(fx);
-}
-
-TEST_CASE("a rebuild mid tuning sweep drops the late callbacks", "[belt][panel][tune]") {
-    BeltPanelFixture fx;
-    enter_adjust(fx);
-    fx.panel().handle_tune_measure_clicked();
-    rebuild_drops_late_callbacks(fx);
-}
-
-TEST_CASE("a rebuild mid calibration run drops the late callbacks", "[belt][panel][tune]") {
-    BeltPanelFixture fx;
-    enter_tuning(fx);
-    REQUIRE(fx.state_int("bt_tune_phase") == kPhaseCalibrate);
-    const auto before = fx.panel_run(1).curve;
-    fx.panel().handle_tune_measure_clicked();
-    rebuild_drops_late_callbacks(fx);
-    // Nothing the abandoned calibration measured reached RESULTS' runs.
-    CHECK(fx.panel_run(1).curve == before);
+    SECTION("tuning sweep") {
+        enter_adjust(fx);
+        fx.panel().handle_tune_measure_clicked();
+        rebuild_drops_late_callbacks(fx);
+    }
+    SECTION("calibration run") {
+        enter_tuning(fx);
+        REQUIRE(fx.state_int("bt_tune_phase") == kPhaseCalibrate);
+        const auto before = fx.panel_run(1).curve;
+        fx.panel().handle_tune_measure_clicked();
+        rebuild_drops_late_callbacks(fx);
+        // Nothing the abandoned calibration measured reached RESULTS' runs.
+        CHECK(fx.panel_run(1).curve == before);
+    }
 }
 
 TEST_CASE("a round with no peak says so and can be re-measured", "[belt][panel][tune]") {
@@ -2539,18 +2504,11 @@ constexpr int kBpMicro = 0;
 constexpr int kBpSmall = 2;
 constexpr int kBpMedium = 3;
 
-lv_obj_t* named_in(BeltPanelFixture& fx, const char* name) {
-    lv_obj_t* obj = lv_obj_find_by_name(fx.view(), name);
-    INFO("missing: " << name);
-    REQUIRE(obj != nullptr);
-    return obj;
-}
-
 std::vector<std::string> visible_of(BeltPanelFixture& fx,
                                     std::initializer_list<const char*> names) {
     std::vector<std::string> out;
     for (const char* name : names) {
-        if (!lv_hidden(named_in(fx, name))) {
+        if (!lv_hidden(named(fx, name))) {
             out.emplace_back(name);
         }
     }
@@ -2568,7 +2526,7 @@ const std::vector<std::string> kUnfolded{"btn_retest_slot_0", "btn_retest_slot_1
 
 /// Opens the Re-test menu, returning the row named `row` inside it.
 lv_obj_t* open_retest_menu(BeltPanelFixture& fx, const char* row) {
-    lv_obj_send_event(named_in(fx, "btn_retest_menu"), LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(named(fx, "btn_retest_menu"), LV_EVENT_CLICKED, nullptr);
     fx.pump_ms(100);
     REQUIRE(helix::ui::ContextMenu::active() != nullptr);
     lv_obj_t* item = lv_obj_find_by_name(lv_obj_get_screen(fx.view()), row);
@@ -2666,7 +2624,7 @@ TEST_CASE("TUNING below medium is one tappable line over the chart",
     enter_tuning(fx);
     REQUIRE(fx.state_int("bt_tune_kind") == 1);
 
-    auto named = [&](const char* name) { return named_in(fx, name); };
+    auto named = [&](const char* name) { return ::named(fx, name); };
     // The calibration turn records nothing: no stepper, the short button measures.
     CHECK(lv_hidden(named("bt_tune_row_stepper")));
     CHECK_FALSE(lv_hidden(named("btn_tune_measure_short")));
@@ -2716,9 +2674,9 @@ TEST_CASE("the one-line hero's gauge shows the round's gap", "[belt][panel][comp
     tune_round(fx);
     REQUIRE(fx.state_int("bt_tune_phase") == kPhaseAdjust);
 
-    lv_obj_t* line_gauge = named_in(fx, "bt_tune_line_gauge");
+    lv_obj_t* line_gauge = named(fx, "bt_tune_line_gauge");
     CHECK_FALSE(lv_hidden(line_gauge));
-    const float hero_gap = helix::ui::ui_belt_gap_gauge_get_gap(named_in(fx, "bt_tune_gauge"));
+    const float hero_gap = helix::ui::ui_belt_gap_gauge_get_gap(named(fx, "bt_tune_gauge"));
     INFO("hero gauge gap " << hero_gap);
     REQUIRE(std::abs(hero_gap) > 1.0f);
     CHECK(helix::ui::ui_belt_gap_gauge_get_gap(line_gauge) == Catch::Approx(hero_gap));
@@ -2744,11 +2702,11 @@ TEST_CASE("Confirm drops its duration on compact layouts and beside Next zone",
 
     lv_subject_set_int(next_zone, 0);
     CHECK(confirms() == full);
-    CHECK(lv_hidden(named_in(fx, "btn_tune_next_zone")));
+    CHECK(lv_hidden(named(fx, "btn_tune_next_zone")));
 
     SECTION("Next zone beside it at medium") {
         lv_subject_set_int(next_zone, 1);
-        CHECK_FALSE(lv_hidden(named_in(fx, "btn_tune_next_zone")));
+        CHECK_FALSE(lv_hidden(named(fx, "btn_tune_next_zone")));
         CHECK(confirms() == shortened);
     }
     SECTION("micro, no Next zone") {
@@ -2793,31 +2751,26 @@ TEST_CASE("destroying the UI drops every chart host and the tuning ghosts",
     }
 }
 
-TEST_CASE("leaving the panel ends the tuning session", "[belt][panel][tune]") {
+TEST_CASE("leaving the panel or a fresh Start ends the tuning session", "[belt][panel][tune]") {
     BeltPanelFixture fx;
     fx.mock().set_belt_tune_script('B', {110.0f});
     enter_tuning(fx);
     tune_round(fx);
     REQUIRE(fx.state_int("bt_tune_phase") == kPhaseMatched);
 
-    fx.panel().on_deactivate(DeactivateReason::NavigateAway);
-    UpdateQueue::instance().drain();
-    CHECK(fx.state_int("bt_tune_phase") == kPhaseAdjust);
-    CHECK(fx.state_int("belt_tension_state") ==
-          static_cast<int>(BeltTensionPanel::ViewState::START));
-}
-
-TEST_CASE("a fresh Start ends the tuning session", "[belt][panel][tune]") {
-    BeltPanelFixture fx;
-    fx.mock().set_belt_tune_script('B', {110.0f});
-    enter_tuning(fx);
-    tune_round(fx);
-    REQUIRE(fx.state_int("bt_tune_phase") == kPhaseMatched);
-
-    fx.panel().handle_start_clicked();
-    CHECK(fx.state_int("bt_tune_phase") == kPhaseAdjust);
-    REQUIRE(fx.pump_until_state(kResults));
-    CHECK(fx.state_int("bt_tune_phase") == kPhaseAdjust);
+    SECTION("leaving") {
+        fx.panel().on_deactivate(DeactivateReason::NavigateAway);
+        UpdateQueue::instance().drain();
+        CHECK(fx.state_int("bt_tune_phase") == kPhaseAdjust);
+        CHECK(fx.state_int("belt_tension_state") ==
+              static_cast<int>(BeltTensionPanel::ViewState::START));
+    }
+    SECTION("a fresh Start") {
+        fx.panel().handle_start_clicked();
+        CHECK(fx.state_int("bt_tune_phase") == kPhaseAdjust);
+        REQUIRE(fx.pump_until_state(kResults));
+        CHECK(fx.state_int("bt_tune_phase") == kPhaseAdjust);
+    }
 }
 
 TEST_CASE("a tuning round keeps the peak markers on screen while it sweeps",
@@ -2924,7 +2877,7 @@ TEST_CASE("TUNING on ultrawide puts the chart beside a sidebar with the full her
     enter_tuning(fx);
     REQUIRE(fx.state_int("bt_tune_kind") == 1);
 
-    auto named = [&](const char* name) { return named_in(fx, name); };
+    auto named = [&](const char* name) { return ::named(fx, name); };
     CHECK_FALSE(lv_hidden(named("chart_host_wide")));
     CHECK(lv_hidden(named("chart_host_tuning")));
     CHECK_FALSE(lv_hidden(named("bt_tune_hero")));
@@ -2969,15 +2922,15 @@ TEST_CASE("RESULTS on ultrawide keeps both Re-test buttons in the sidebar",
     auto* chart = fx.panel_chart();
     REQUIRE(chart != nullptr);
     CHECK(lv_obj_get_parent(ui_frequency_response_chart_get_obj(chart)) ==
-          named_in(fx, "chart_host_wide"));
-    CHECK(lv_hidden(named_in(fx, "chart_host_results")));
+          named(fx, "chart_host_wide"));
+    CHECK(lv_hidden(named(fx, "chart_host_results")));
 
     SECTION("START has no chart, so the panel takes the full width") {
         fx.panel_set_view_state(BeltTensionPanel::ViewState::START);
-        CHECK(lv_hidden(named_in(fx, "chart_host_wide")));
+        CHECK(lv_hidden(named(fx, "chart_host_wide")));
         lv_obj_update_layout(fx.view());
-        CHECK(lv_obj_get_width(named_in(fx, "bt_main")) ==
-              lv_obj_get_content_width(named_in(fx, "overlay_content")));
+        CHECK(lv_obj_get_width(named(fx, "bt_main")) ==
+              lv_obj_get_content_width(named(fx, "overlay_content")));
     }
 }
 
@@ -3004,18 +2957,18 @@ TEST_CASE("portrait gives the primary action its own line and caps the chart",
     enter_results_with_menu(fx);
 
     lv_obj_update_layout(fx.view());
-    lv_obj_t* tune = named_in(fx, "btn_tune");
-    lv_obj_t* both = named_in(fx, "btn_test_both");
+    lv_obj_t* tune = named(fx, "btn_tune");
+    lv_obj_t* both = named(fx, "btn_test_both");
     CHECK(lv_obj_get_y(tune) > lv_obj_get_y(both));
     CHECK(lv_obj_get_width(tune) > lv_obj_get_width(both));
-    CHECK(lv_obj_get_style_max_height(named_in(fx, "chart_host_results"), LV_PART_MAIN) ==
+    CHECK(lv_obj_get_style_max_height(named(fx, "chart_host_results"), LV_PART_MAIN) ==
           chart_max_h_token());
 
     SECTION("landscape keeps one row and an uncapped chart") {
         portrait.set(0);
         lv_obj_update_layout(fx.view());
         CHECK(lv_obj_get_y(tune) == lv_obj_get_y(both));
-        CHECK(lv_obj_get_style_max_height(named_in(fx, "chart_host_results"), LV_PART_MAIN) !=
+        CHECK(lv_obj_get_style_max_height(named(fx, "chart_host_results"), LV_PART_MAIN) !=
               chart_max_h_token());
     }
 }
@@ -3029,8 +2982,8 @@ TEST_CASE("portrait START stacks the sketch over the text", "[belt][panel][portr
             static_cast<int>(BeltTensionPanel::ViewState::START));
 
     lv_obj_update_layout(fx.view());
-    lv_obj_t* sketch = named_in(fx, "bt_sketch");
-    lv_obj_t* text = named_in(fx, "bt_start_text");
+    lv_obj_t* sketch = named(fx, "bt_sketch");
+    lv_obj_t* text = named(fx, "bt_start_text");
     CHECK(lv_obj_get_y(text) > lv_obj_get_y(sketch));
     CHECK(lv_obj_get_x(text) == lv_obj_get_x(sketch));
 
@@ -3050,7 +3003,7 @@ TEST_CASE("portrait shows the full tuning hero, stacked", "[belt][panel][portrai
     enter_adjust(fx);
     REQUIRE(fx.state_int("bt_tune_kind") == 1);
 
-    auto named = [&](const char* name) { return named_in(fx, name); };
+    auto named = [&](const char* name) { return ::named(fx, name); };
     CHECK_FALSE(lv_hidden(named("bt_tune_hero")));
     CHECK(lv_hidden(named("bt_tune_line")));
     CHECK(lv_hidden(named("bt_tune_line_gauge")));
@@ -3152,31 +3105,29 @@ TEST_CASE("Confirm settles once before its pair", "[belt][panel][settle][tune]")
     }
 }
 
-TEST_CASE("a refused settle lands on ERROR and sends no sweep", "[belt][panel][settle]") {
+TEST_CASE("a settle that cannot run or is rejected lands on ERROR", "[belt][panel][settle]") {
     BeltPanelFixture fx;
-    fx.mock().set_resonance_probe_points(false);
-    REQUIRE(fx.wait_gate_open());
-    fx.mock().clear_gcode_script_history();
-
-    fx.panel().handle_start_clicked();
-    REQUIRE(fx.pump_until_state(static_cast<int>(BeltTensionPanel::ViewState::ERROR)));
-    CHECK(fx.text("bt_error_message") ==
-          "[resonance_tester] has no probe_points, so the toolhead has no safe height for the "
-          "settling laps.");
-    CHECK(fx.mock().gcode_script_history().empty());
-}
-
-TEST_CASE("a settle the printer rejects lands on ERROR", "[belt][panel][settle]") {
-    BeltPanelFixture fx;
-    REQUIRE(fx.wait_gate_open());
-    fx.mock().force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, "Move out of range",
-                                     kSettleStart);
-    fx.mock().clear_gcode_script_history();
-
-    fx.panel().handle_start_clicked();
-    REQUIRE(fx.pump_until_state(static_cast<int>(BeltTensionPanel::ViewState::ERROR)));
-    CHECK(fx.text("bt_error_message").find("Move out of range") != std::string::npos);
-    CHECK(run_steps(fx) == std::vector<std::string>{"settle"});
+    SECTION("no probe point: refused before anything is sent") {
+        fx.mock().set_resonance_probe_points(false);
+        REQUIRE(fx.wait_gate_open());
+        fx.mock().clear_gcode_script_history();
+        fx.panel().handle_start_clicked();
+        REQUIRE(fx.pump_until_state(static_cast<int>(BeltTensionPanel::ViewState::ERROR)));
+        CHECK(fx.text("bt_error_message") ==
+              "[resonance_tester] has no probe_points, so the toolhead has no safe height for "
+              "the settling laps.");
+        CHECK(fx.mock().gcode_script_history().empty());
+    }
+    SECTION("the printer rejects the laps") {
+        REQUIRE(fx.wait_gate_open());
+        fx.mock().force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, "Move out of range",
+                                         kSettleStart);
+        fx.mock().clear_gcode_script_history();
+        fx.panel().handle_start_clicked();
+        REQUIRE(fx.pump_until_state(static_cast<int>(BeltTensionPanel::ViewState::ERROR)));
+        CHECK(fx.text("bt_error_message").find("Move out of range") != std::string::npos);
+        CHECK(run_steps(fx) == std::vector<std::string>{"settle"});
+    }
 }
 
 TEST_CASE("Stop during the laps lands on START", "[belt][panel][settle]") {
@@ -3209,7 +3160,7 @@ TEST_CASE("Stop during the laps lands on START", "[belt][panel][settle]") {
     CHECK(run_steps(fx) == std::vector<std::string>{"settle"});
 }
 
-TEST_CASE("a rebuild during the laps drops the late ack", "[belt][panel][settle]") {
+TEST_CASE("a rebuild or a teardown during the laps drops the late ack", "[belt][panel][settle]") {
     BeltPanelFixture fx;
     REQUIRE(fx.wait_gate_open());
     fx.mock().clear_gcode_script_history();
@@ -3220,11 +3171,19 @@ TEST_CASE("a rebuild during the laps drops the late ack", "[belt][panel][settle]
     UpdateQueue::instance().drain();
     REQUIRE(run_steps(fx) == std::vector<std::string>{"settle"});
 
-    REQUIRE(fx.panel().rebuild());
-    UpdateQueue::instance().drain();
-    fx.pump_ms(5000);
-    CHECK(fx.state_int("belt_tension_state") ==
-          static_cast<int>(BeltTensionPanel::ViewState::START));
+    SECTION("rebuild") {
+        REQUIRE(fx.panel().rebuild());
+        UpdateQueue::instance().drain();
+        fx.pump_ms(5000);
+        CHECK(fx.state_int("belt_tension_state") ==
+              static_cast<int>(BeltTensionPanel::ViewState::START));
+    }
+    SECTION("teardown") {
+        // Destruction's order: cleanup(), then the members, the calibrator among them.
+        fx.panel().cleanup();
+        fx.panel().set_api(nullptr, nullptr);
+        fx.pump_ms(5000);
+    }
     CHECK(run_steps(fx) == std::vector<std::string>{"settle"});
 }
 
@@ -3269,22 +3228,6 @@ TEST_CASE("a wake re-asks the probe point the suspension expired", "[belt][panel
     fx.panel().on_activate();
     REQUIRE(fx.pump_until_state(kResults));
     CHECK(run_steps(fx) == std::vector<std::string>{"settle", "full", "full"});
-}
-
-TEST_CASE("tearing the panel down during the laps drops the late ack", "[belt][panel][settle]") {
-    BeltPanelFixture fx;
-    REQUIRE(fx.wait_gate_open());
-    fx.mock().clear_gcode_script_history();
-
-    fx.panel().handle_start_clicked();
-    UpdateQueue::instance().drain(); // the query answers; the laps go out, their ack queued
-    REQUIRE(run_steps(fx) == std::vector<std::string>{"settle"});
-
-    // Destruction's order: cleanup(), then the members, the calibrator among them.
-    fx.panel().cleanup();
-    fx.panel().set_api(nullptr, nullptr);
-    fx.pump_ms(5000);
-    CHECK(run_steps(fx) == std::vector<std::string>{"settle"});
 }
 
 TEST_CASE("a tool changer's laps keep to the central half", "[belt][panel][settle]") {
@@ -3769,10 +3712,16 @@ TEST_CASE("the sweep's last console line ends a stream that never locks",
           static_cast<int>(BeltTensionPanel::ViewState::RUNNING));
 }
 
-TEST_CASE("Stop mid-sweep drops the preview and its stream", "[belt][panel][preview]") {
+TEST_CASE("a Stop or a sweep that dies drops the preview and its stream",
+          "[belt][panel][preview]") {
+    const bool dies = GENERATE(false, true);
+    CAPTURE(dies);
     BeltPanelFixture fx;
     helix::ui::modal_init_subjects();
     REQUIRE(fx.register_component("modal_dialog"));
+    if (dies) {
+        fx.mock().set_belt_failure(BeltMockFailure::STALL);
+    }
     REQUIRE(fx.wait_gate_open());
     auto& log = fx.source_log();
 
@@ -3782,36 +3731,22 @@ TEST_CASE("Stop mid-sweep drops the preview and its stream", "[belt][panel][prev
     const int live_a = fx.panel_preview_series_id(0);
     REQUIRE(series_visible(fx, live_a));
 
-    fx.panel().handle_stop_clicked();
-    fx.pump_ms(200);
-    lv_obj_t* dialog = ModalStack::instance().top_dialog();
-    REQUIRE(dialog != nullptr);
-    lv_obj_send_event(lv_obj_find_by_name(dialog, "btn_primary"), LV_EVENT_CLICKED, nullptr);
-    fx.pump_ms(200);
-    REQUIRE(fx.state_int("belt_tension_state") ==
-            static_cast<int>(BeltTensionPanel::ViewState::START));
-    CHECK(log.stopped == log.created);
-    CHECK(fx.panel_preview().state() == LiveSweepPreview::State::IDLE);
-    CHECK_FALSE(series_visible(fx, live_a));
-    CHECK_FALSE(series_visible(fx, fx.panel_preview_series_id(1)));
-}
-
-TEST_CASE("a sweep that dies drops the preview and its stream", "[belt][panel][preview]") {
-    BeltPanelFixture fx;
-    fx.mock().set_belt_failure(BeltMockFailure::STALL);
-    REQUIRE(fx.wait_gate_open());
-    auto& log = fx.source_log();
-
-    fx.panel().handle_start_clicked();
-    REQUIRE(pump_until_created(fx, 1));
-    fx.panel_preview_points(BeltPath::PATH_A, ramp_points(5, 40));
-    const int live_a = fx.panel_preview_series_id(0);
-    REQUIRE(series_visible(fx, live_a));
-
-    fx.pump_ms(15000);
-    fx.pump_ms(BeltTensionPanel::kStallTimeoutMs + 2000);
-    REQUIRE(fx.state_int("belt_tension_state") ==
-            static_cast<int>(BeltTensionPanel::ViewState::ERROR));
+    if (dies) {
+        fx.pump_ms(15000);
+        fx.pump_ms(BeltTensionPanel::kStallTimeoutMs + 2000);
+        REQUIRE(fx.state_int("belt_tension_state") ==
+                static_cast<int>(BeltTensionPanel::ViewState::ERROR));
+    } else {
+        fx.panel().handle_stop_clicked();
+        fx.pump_ms(200);
+        lv_obj_t* dialog = ModalStack::instance().top_dialog();
+        REQUIRE(dialog != nullptr);
+        lv_obj_send_event(lv_obj_find_by_name(dialog, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+        fx.pump_ms(200);
+        REQUIRE(fx.state_int("belt_tension_state") ==
+                static_cast<int>(BeltTensionPanel::ViewState::START));
+        CHECK_FALSE(series_visible(fx, fx.panel_preview_series_id(1)));
+    }
     CHECK(log.stopped == log.created);
     CHECK(fx.panel_preview().state() == LiveSweepPreview::State::IDLE);
     CHECK_FALSE(series_visible(fx, live_a));

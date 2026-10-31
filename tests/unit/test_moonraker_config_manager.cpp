@@ -30,419 +30,68 @@ bool defines_all(const std::string& content, const std::vector<std::string>& req
 // Task 1: has_section
 // ============================================================================
 
-TEST_CASE("has_section detects existing section", "[config_manager]") {
-    std::string content = "[spoolman]\nserver: http://localhost:7912\n";
-    CHECK(MoonrakerConfigManager::has_section(content, "spoolman"));
-}
-
-TEST_CASE("has_section returns false when missing", "[config_manager]") {
-    std::string content = "[server]\nhost: localhost\n";
-    CHECK_FALSE(MoonrakerConfigManager::has_section(content, "spoolman"));
-}
-
-TEST_CASE("has_section returns false for empty content", "[config_manager]") {
-    CHECK_FALSE(MoonrakerConfigManager::has_section("", "spoolman"));
-}
-
-TEST_CASE("has_section ignores commented-out sections", "[config_manager]") {
-    std::string content = "# [spoolman]\n# server: http://localhost:7912\n";
-    CHECK_FALSE(MoonrakerConfigManager::has_section(content, "spoolman"));
-}
-
-TEST_CASE("has_section handles section with spaces", "[config_manager]") {
-    std::string content = "[update_manager timelapse]\ntype: git_repo\n";
-    CHECK(MoonrakerConfigManager::has_section(content, "update_manager timelapse"));
-}
-
-TEST_CASE("has_section does not match partial names", "[config_manager]") {
-    std::string content = "[spoolman_extra]\nkey: value\n";
-    CHECK_FALSE(MoonrakerConfigManager::has_section(content, "spoolman"));
-}
-
-TEST_CASE("has_section handles trailing whitespace", "[config_manager]") {
-    std::string content = "[spoolman]   \nserver: http://localhost:7912\n";
-    CHECK(MoonrakerConfigManager::has_section(content, "spoolman"));
-}
-
-TEST_CASE("has_section handles Windows line endings", "[config_manager]") {
-    std::string content = "[spoolman]\r\nserver: http://localhost:7912\r\n";
-    CHECK(MoonrakerConfigManager::has_section(content, "spoolman"));
-}
-
-TEST_CASE("has_section handles leading whitespace on section line", "[config_manager]") {
-    std::string content = "  [spoolman]\nserver: http://localhost:7912\n";
-    CHECK(MoonrakerConfigManager::has_section(content, "spoolman"));
+TEST_CASE("has_section matches a whole, uncommented section header", "[config_manager]") {
+    struct Row {
+        const char* content;
+        const char* section;
+        bool expected;
+    };
+    const Row rows[] = {
+        {"[spoolman]\nserver: http://localhost:7912\n", "spoolman", true},
+        {"[server]\nhost: localhost\n", "spoolman", false},
+        {"", "spoolman", false},
+        {"# [spoolman]\n# server: http://localhost:7912\n", "spoolman", false},
+        {"[update_manager timelapse]\ntype: git_repo\n", "update_manager timelapse", true},
+        {"[spoolman_extra]\nkey: value\n", "spoolman", false},
+        {"[spoolman]   \nserver: http://localhost:7912\n", "spoolman", true},
+        {"[spoolman]\r\nserver: http://localhost:7912\r\n", "spoolman", true},
+        {"  [spoolman]\nserver: http://localhost:7912\n", "spoolman", true},
+    };
+    for (const Row& r : rows) {
+        INFO("content: " << r.content << " section: " << r.section);
+        CHECK(MoonrakerConfigManager::has_section(r.content, r.section) == r.expected);
+    }
 }
 
 // ============================================================================
 // Task 2: add_section
 // ============================================================================
 
-TEST_CASE("add_section appends section with entries and comment", "[config_manager]") {
-    std::string content = "[server]\nhost: localhost\n";
-    auto result = MoonrakerConfigManager::add_section(
-        content, "spoolman", {{"server", "http://localhost:7912"}, {"sync_rate", "5"}},
-        "Added by HelixScreen");
-    CHECK(MoonrakerConfigManager::has_section(result, "spoolman"));
-    CHECK(result.find("# Added by HelixScreen") != std::string::npos);
-    CHECK(result.find("server: http://localhost:7912") != std::string::npos);
-    CHECK(result.find("sync_rate: 5") != std::string::npos);
+TEST_CASE("add_section appends a section with its entries in order", "[config_manager]") {
+    SECTION("after existing content, with a comment line") {
+        auto result = MoonrakerConfigManager::add_section(
+            "[server]\nhost: localhost\n", "spoolman",
+            {{"server", "http://localhost:7912"}, {"sync_rate", "5"}}, "Added by HelixScreen");
+        CHECK(MoonrakerConfigManager::has_section(result, "spoolman"));
+        CHECK(MoonrakerConfigManager::has_section(result, "server"));
+        CHECK(result.find("# Added by HelixScreen") != std::string::npos);
+        CHECK(result.find("server: http://localhost:7912") != std::string::npos);
+        CHECK(result.find("sync_rate: 5") != std::string::npos);
+    }
+    SECTION("into empty content, entries in order, no comment line when none given") {
+        auto result = MoonrakerConfigManager::add_section(
+            "", "spoolman",
+            {{"server", "http://localhost:7912"}, {"sync_rate", "5"}, {"connection_timeout", "30"}},
+            "");
+        CHECK(MoonrakerConfigManager::has_section(result, "spoolman"));
+        size_t server_pos = result.find("server: http://localhost:7912");
+        size_t sync_pos = result.find("sync_rate: 5");
+        size_t timeout_pos = result.find("connection_timeout: 30");
+        REQUIRE(server_pos != std::string::npos);
+        CHECK(server_pos < sync_pos);
+        CHECK(sync_pos < timeout_pos);
+        CHECK(timeout_pos != std::string::npos);
+        CHECK(result.find('#') == std::string::npos);
+    }
+    SECTION("with no entries") {
+        CHECK(MoonrakerConfigManager::has_section(
+            MoonrakerConfigManager::add_section("", "spoolman", {}, ""), "spoolman"));
+    }
 }
 
-TEST_CASE("add_section is idempotent", "[config_manager]") {
-    std::string content = "[spoolman]\nserver: http://localhost:7912\n";
-    auto result = MoonrakerConfigManager::add_section(content, "spoolman",
-                                                      {{"server", "http://other:7912"}}, "");
-    // Should not have added a second spoolman section
-    size_t first = result.find("[spoolman]");
-    size_t second = result.find("[spoolman]", first + 1);
-    CHECK(second == std::string::npos);
-}
-
-TEST_CASE("add_section handles empty content", "[config_manager]") {
-    auto result = MoonrakerConfigManager::add_section("", "spoolman",
-                                                      {{"server", "http://localhost:7912"}}, "");
-    CHECK(MoonrakerConfigManager::has_section(result, "spoolman"));
-    CHECK(result.find("server: http://localhost:7912") != std::string::npos);
-}
-
-TEST_CASE("add_section preserves multiple entries in order", "[config_manager]") {
-    auto result = MoonrakerConfigManager::add_section(
-        "", "spoolman",
-        {{"server", "http://localhost:7912"}, {"sync_rate", "5"}, {"connection_timeout", "30"}},
-        "");
-    size_t server_pos = result.find("server: http://localhost:7912");
-    size_t sync_pos = result.find("sync_rate: 5");
-    size_t timeout_pos = result.find("connection_timeout: 30");
-    CHECK(server_pos != std::string::npos);
-    CHECK(sync_pos != std::string::npos);
-    CHECK(timeout_pos != std::string::npos);
-    CHECK(server_pos < sync_pos);
-    CHECK(sync_pos < timeout_pos);
-}
-
-TEST_CASE("add_section no comment line when comment is empty", "[config_manager]") {
-    auto result = MoonrakerConfigManager::add_section("", "spoolman",
-                                                      {{"server", "http://localhost:7912"}}, "");
-    CHECK(result.find('#') == std::string::npos);
-}
-
-TEST_CASE("add_section handles section with no entries", "[config_manager]") {
-    auto result = MoonrakerConfigManager::add_section("", "spoolman", {}, "");
-    CHECK(MoonrakerConfigManager::has_section(result, "spoolman"));
-}
-
-TEST_CASE("add_section result passes has_section check", "[config_manager]") {
-    std::string content = "[server]\nhost: localhost\n";
-    auto result = MoonrakerConfigManager::add_section(content, "spoolman",
-                                                      {{"server", "http://localhost:7912"}}, "");
-    CHECK(MoonrakerConfigManager::has_section(result, "spoolman"));
-}
-
-// ============================================================================
-// Task 3: remove_section
-// ============================================================================
-
-TEST_CASE("remove_section removes section and its entries", "[config_manager]") {
-    std::string content =
-        "[server]\nhost: localhost\n\n[spoolman]\nserver: http://localhost:7912\n";
-    auto result = MoonrakerConfigManager::remove_section(content, "spoolman");
-    CHECK_FALSE(MoonrakerConfigManager::has_section(result, "spoolman"));
-    CHECK(result.find("server: http://localhost:7912") == std::string::npos);
-    CHECK(MoonrakerConfigManager::has_section(result, "server"));
-}
-
-TEST_CASE("remove_section removes preceding comment block", "[config_manager]") {
-    std::string content =
-        "[server]\nhost: localhost\n\n# Added by HelixScreen\n[spoolman]\nserver: "
-        "http://localhost:7912\n";
-    auto result = MoonrakerConfigManager::remove_section(content, "spoolman");
-    CHECK(result.find("Added by HelixScreen") == std::string::npos);
-    CHECK(MoonrakerConfigManager::has_section(result, "server"));
-}
-
-TEST_CASE("remove_section removes section between other sections", "[config_manager]") {
-    std::string content = "[server]\nhost: localhost\n\n[spoolman]\nserver: "
-                          "http://localhost:7912\n\n[authorization]\nenabled: true\n";
-    auto result = MoonrakerConfigManager::remove_section(content, "spoolman");
-    CHECK_FALSE(MoonrakerConfigManager::has_section(result, "spoolman"));
-    CHECK(MoonrakerConfigManager::has_section(result, "server"));
-    CHECK(MoonrakerConfigManager::has_section(result, "authorization"));
-}
-
-TEST_CASE("remove_section is no-op when section does not exist", "[config_manager]") {
-    std::string content = "[server]\nhost: localhost\n";
-    auto result = MoonrakerConfigManager::remove_section(content, "spoolman");
-    CHECK(result == content);
-}
-
-TEST_CASE("remove_section handles section at end of file", "[config_manager]") {
-    std::string content =
-        "[server]\nhost: localhost\n\n[spoolman]\nserver: http://localhost:7912\n";
-    auto result = MoonrakerConfigManager::remove_section(content, "spoolman");
-    CHECK_FALSE(MoonrakerConfigManager::has_section(result, "spoolman"));
-    CHECK(MoonrakerConfigManager::has_section(result, "server"));
-}
-
-TEST_CASE("remove_section handles section with spaces in name", "[config_manager]") {
-    std::string content =
-        "[update_manager timelapse]\ntype: git_repo\npath: ~/timelapse\n\n[server]\nhost: "
-        "localhost\n";
-    auto result = MoonrakerConfigManager::remove_section(content, "update_manager timelapse");
-    CHECK_FALSE(MoonrakerConfigManager::has_section(result, "update_manager timelapse"));
-    CHECK(MoonrakerConfigManager::has_section(result, "server"));
-}
-
-TEST_CASE("remove_section after add returns to original-like state", "[config_manager]") {
-    std::string original = "[server]\nhost: localhost\n";
-    auto added = MoonrakerConfigManager::add_section(
-        original, "spoolman", {{"server", "http://localhost:7912"}}, "Added by HelixScreen");
-    auto removed = MoonrakerConfigManager::remove_section(added, "spoolman");
-    CHECK_FALSE(MoonrakerConfigManager::has_section(removed, "spoolman"));
-    CHECK(MoonrakerConfigManager::has_section(removed, "server"));
-}
-
-// ============================================================================
-// Task 4: has_include_line, add_include_line, get_section_value
-// ============================================================================
-
-TEST_CASE("has_include_line detects existing include", "[config_manager]") {
-    std::string content = "[include helixscreen.conf]\n[server]\nhost: localhost\n";
-    CHECK(MoonrakerConfigManager::has_include_line(content));
-}
-
-TEST_CASE("has_include_line returns false when missing", "[config_manager]") {
-    std::string content = "[server]\nhost: localhost\n";
-    CHECK_FALSE(MoonrakerConfigManager::has_include_line(content));
-}
-
-TEST_CASE("has_include_line ignores commented include", "[config_manager]") {
-    std::string content = "# [include helixscreen.conf]\n[server]\nhost: localhost\n";
-    CHECK_FALSE(MoonrakerConfigManager::has_include_line(content));
-}
-
-TEST_CASE("add_include_line adds before first section", "[config_manager]") {
-    std::string content = "[server]\nhost: localhost\n";
-    auto result = MoonrakerConfigManager::add_include_line(content);
-    CHECK(MoonrakerConfigManager::has_include_line(result));
-    size_t include_pos = result.find("[include helixscreen.conf]");
-    size_t server_pos = result.find("[server]");
-    CHECK(include_pos < server_pos);
-}
-
-TEST_CASE("add_include_line is idempotent", "[config_manager]") {
-    std::string content = "[include helixscreen.conf]\n[server]\nhost: localhost\n";
-    auto result = MoonrakerConfigManager::add_include_line(content);
-    size_t first = result.find("[include helixscreen.conf]");
-    size_t second = result.find("[include helixscreen.conf]", first + 1);
-    CHECK(second == std::string::npos);
-}
-
-TEST_CASE("add_include_line handles empty content", "[config_manager]") {
-    auto result = MoonrakerConfigManager::add_include_line("");
-    CHECK(MoonrakerConfigManager::has_include_line(result));
-}
-
-TEST_CASE("add_include_line inserts after leading comments but before first section",
-          "[config_manager]") {
-    std::string content =
-        "# Moonraker configuration\n# Generated by setup\n\n[server]\nhost: localhost\n";
-    auto result = MoonrakerConfigManager::add_include_line(content);
-    CHECK(MoonrakerConfigManager::has_include_line(result));
-    size_t comment_pos = result.find("# Moonraker configuration");
-    size_t include_pos = result.find("[include helixscreen.conf]");
-    size_t server_pos = result.find("[server]");
-    CHECK(comment_pos < include_pos);
-    CHECK(include_pos < server_pos);
-}
-
-TEST_CASE("get_section_value extracts value from section", "[config_manager]") {
-    std::string content = "[spoolman]\nserver: http://localhost:7912\nsync_rate: 5\n";
-    CHECK(MoonrakerConfigManager::get_section_value(content, "spoolman", "server") ==
-          "http://localhost:7912");
-}
-
-TEST_CASE("get_section_value returns empty for missing key", "[config_manager]") {
-    std::string content = "[spoolman]\nserver: http://localhost:7912\n";
-    CHECK(MoonrakerConfigManager::get_section_value(content, "spoolman", "missing_key").empty());
-}
-
-TEST_CASE("get_section_value returns empty for missing section", "[config_manager]") {
-    std::string content = "[server]\nhost: localhost\n";
-    CHECK(MoonrakerConfigManager::get_section_value(content, "spoolman", "server").empty());
-}
-
-TEST_CASE("get_section_value does not cross section boundaries", "[config_manager]") {
-    std::string content =
-        "[server]\nhost: localhost\n\n[spoolman]\nserver: http://localhost:7912\n";
-    // 'host' key is in [server], not [spoolman]
-    CHECK(MoonrakerConfigManager::get_section_value(content, "spoolman", "host").empty());
-}
-
-TEST_CASE("get_section_value handles whitespace around colon", "[config_manager]") {
-    std::string content = "[spoolman]\nserver  :  http://localhost:7912\n";
-    CHECK(MoonrakerConfigManager::get_section_value(content, "spoolman", "server") ==
-          "http://localhost:7912");
-}
-
-// ============================================================================
-// upsert_section — updating an existing section in place
-//
-// Regression cover for the bug where changing an already-configured Spoolman
-// URL silently did nothing: add_section() early-returns when the section
-// exists, so the re-upload was byte-identical and the URL never changed while
-// the UI still reported success.
-// ============================================================================
-
-TEST_CASE("upsert_section updates the value of an existing key", "[config_manager][upsert]") {
-    std::string content = "[spoolman]\nserver: http://192.168.1.58:7912\n";
-    auto result = MoonrakerConfigManager::upsert_section(
-        content, "spoolman", {{"server", "http://192.168.1.56:7912"}}, "");
-
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://192.168.1.56:7912");
-    // The stale value must be gone entirely, not merely shadowed.
-    CHECK(result.find("192.168.1.58") == std::string::npos);
-}
-
-TEST_CASE("upsert_section does not duplicate the section header", "[config_manager][upsert]") {
-    std::string content = "[spoolman]\nserver: http://old:7912\n";
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-    size_t first = result.find("[spoolman]");
-    size_t second = result.find("[spoolman]", first + 1);
-    CHECK(first != std::string::npos);
-    CHECK(second == std::string::npos);
-}
-
-TEST_CASE("upsert_section adds the section when absent", "[config_manager][upsert]") {
-    std::string content = "[server]\nhost: localhost\n";
-    auto result = MoonrakerConfigManager::upsert_section(
-        content, "spoolman", {{"server", "http://localhost:7912"}}, "Added by HelixScreen");
-
-    CHECK(MoonrakerConfigManager::has_section(result, "spoolman"));
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://localhost:7912");
-    CHECK(result.find("# Added by HelixScreen") != std::string::npos);
-    CHECK(MoonrakerConfigManager::has_section(result, "server"));
-}
-
-TEST_CASE("upsert_section preserves unrelated sections and their keys",
-          "[config_manager][upsert]") {
-    std::string content = "[server]\nhost: localhost\nport: 7125\n\n"
-                          "[spoolman]\nserver: http://old:7912\n\n"
-                          "[authorization]\ntrusted_clients: 192.168.1.0/24\n";
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-
-    CHECK(MoonrakerConfigManager::get_section_value(result, "server", "host") == "localhost");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "server", "port") == "7125");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "authorization", "trusted_clients") ==
-          "192.168.1.0/24");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-}
-
-TEST_CASE("upsert_section preserves unrelated keys inside the target section",
-          "[config_manager][upsert]") {
-    std::string content = "[spoolman]\nserver: http://old:7912\nsync_rate: 5\n";
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "sync_rate") == "5");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-}
-
-TEST_CASE("upsert_section appends keys missing from an existing section",
-          "[config_manager][upsert]") {
-    std::string content = "[spoolman]\nserver: http://old:7912\n\n[server]\nhost: localhost\n";
-    auto result = MoonrakerConfigManager::upsert_section(
-        content, "spoolman", {{"server", "http://new:7912"}, {"sync_rate", "10"}}, "");
-
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-    // New key must land inside [spoolman], not leak into [server].
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "sync_rate") == "10");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "server", "sync_rate").empty());
-    CHECK(MoonrakerConfigManager::get_section_value(result, "server", "host") == "localhost");
-}
-
-TEST_CASE("upsert_section only updates keys in the target section", "[config_manager][upsert]") {
-    // Both sections define a 'server' key; only [spoolman]'s may change.
-    std::string content = "[some_other]\nserver: keep-me\n\n[spoolman]\nserver: http://old:7912\n";
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "some_other", "server") == "keep-me");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-}
-
-TEST_CASE("upsert_section preserves comments inside the section", "[config_manager][upsert]") {
-    std::string content = "# Spoolman - added by HelixScreen\n[spoolman]\n"
-                          "# the server URL\nserver: http://old:7912\n";
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-    CHECK(result.find("# Spoolman - added by HelixScreen") != std::string::npos);
-    CHECK(result.find("# the server URL") != std::string::npos);
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-}
-
-TEST_CASE("upsert_section is stable when the value is unchanged", "[config_manager][upsert]") {
-    std::string content = "[spoolman]\nserver: http://same:7912\n";
-    auto once = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                       {{"server", "http://same:7912"}}, "");
-    auto twice = MoonrakerConfigManager::upsert_section(once, "spoolman",
-                                                        {{"server", "http://same:7912"}}, "");
-    CHECK(once == twice);
-    CHECK(MoonrakerConfigManager::get_section_value(twice, "spoolman", "server") ==
-          "http://same:7912");
-}
-
-TEST_CASE("upsert_section handles a section header with no keys", "[config_manager][upsert]") {
-    std::string content = "[spoolman]\n";
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-}
-
-TEST_CASE("upsert_section handles empty content", "[config_manager][upsert]") {
-    auto result =
-        MoonrakerConfigManager::upsert_section("", "spoolman", {{"server", "http://new:7912"}}, "");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-}
-
-TEST_CASE("upsert_section tolerates malformed lines in the section", "[config_manager][upsert]") {
-    // A bare line with no colon must not crash or be swallowed.
-    std::string content = "[spoolman]\nthis line has no colon\nserver: http://old:7912\n";
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-    CHECK(result.find("this line has no colon") != std::string::npos);
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-}
-
-TEST_CASE("upsert_section handles content without a trailing newline", "[config_manager][upsert]") {
-    std::string content = "[spoolman]\nserver: http://old:7912"; // no trailing '\n'
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-    CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
-          "http://new:7912");
-    CHECK(result.back() == '\n');
-}
-
-TEST_CASE("upsert_section preserves indentation of an updated key", "[config_manager][upsert]") {
-    std::string content = "[spoolman]\n    server: http://old:7912\n";
-    auto result = MoonrakerConfigManager::upsert_section(content, "spoolman",
-                                                         {{"server", "http://new:7912"}}, "");
-    CHECK(result.find("    server: http://new:7912") != std::string::npos);
-}
-
-TEST_CASE("add_section keeps its idempotent no-op contract", "[config_manager][upsert]") {
-    // Timelapse install calls add_section() repeatedly and relies on it NOT
-    // rewriting an existing section. upsert_section() is the opt-in update path.
+// Timelapse install calls add_section() repeatedly and relies on it NOT
+// rewriting an existing section; upsert_section() is the opt-in update path.
+TEST_CASE("add_section leaves an existing section untouched", "[config_manager][upsert]") {
     std::string content = "[spoolman]\nserver: http://192.168.1.58:7912\n";
     auto result = MoonrakerConfigManager::add_section(content, "spoolman",
                                                       {{"server", "http://192.168.1.56:7912"}}, "");
@@ -450,91 +99,335 @@ TEST_CASE("add_section keeps its idempotent no-op contract", "[config_manager][u
 }
 
 // ============================================================================
-// resolve_config_upload_location — is Moonraker's real config file writable?
-//
-// Regression cover for uploading [spoolman] into a file Moonraker never loads.
-// On stock Creality K2, config_file is /usr/share/moonraker/moonraker.conf while
-// data_path is /mnt/UDISK/printer_data, so the file API's "config" root points
-// somewhere Moonraker does not read.
+// Task 3: remove_section
 // ============================================================================
 
-TEST_CASE("resolve_config_upload_location accepts the standard Klipper layout",
-          "[config_manager][config_path]") {
-    auto info = MoonrakerConfigManager::resolve_config_upload_location(
-        "/home/pi/printer_data/config/moonraker.conf", "/home/pi/printer_data");
-    CHECK(info.uploadable);
-    CHECK(info.upload_subdir.empty());
-    CHECK(info.config_filename == "moonraker.conf");
-    CHECK(info.error.empty());
-    CHECK(info.path_for("helixscreen.conf") == "helixscreen.conf");
+TEST_CASE("remove_section deletes the section, its entries and its comment block",
+          "[config_manager]") {
+    struct Row {
+        const char* name;
+        std::string content;
+        const char* section;
+        std::vector<const char*> kept_sections;
+        std::vector<const char*> gone_text;
+    };
+    const Row rows[] = {
+        {"at the end of the file",
+         "[server]\nhost: localhost\n\n[spoolman]\nserver: http://localhost:7912\n",
+         "spoolman",
+         {"server"},
+         {"server: http://localhost:7912"}},
+        {"with its preceding comment",
+         "[server]\nhost: localhost\n\n# Added by HelixScreen\n[spoolman]\nserver: "
+         "http://localhost:7912\n",
+         "spoolman",
+         {"server"},
+         {"Added by HelixScreen"}},
+        {"between other sections",
+         "[server]\nhost: localhost\n\n[spoolman]\nserver: "
+         "http://localhost:7912\n\n[authorization]\nenabled: true\n",
+         "spoolman",
+         {"server", "authorization"},
+         {}},
+        {"with spaces in its name",
+         "[update_manager timelapse]\ntype: git_repo\npath: ~/timelapse\n\n[server]\nhost: "
+         "localhost\n",
+         "update_manager timelapse",
+         {"server"},
+         {}},
+        {"just added by add_section",
+         MoonrakerConfigManager::add_section("[server]\nhost: localhost\n", "spoolman",
+                                             {{"server", "http://localhost:7912"}},
+                                             "Added by HelixScreen"),
+         "spoolman",
+         {"server"},
+         {}},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto result = MoonrakerConfigManager::remove_section(r.content, r.section);
+            CHECK_FALSE(MoonrakerConfigManager::has_section(result, r.section));
+            for (const char* kept : r.kept_sections) {
+                CHECK(MoonrakerConfigManager::has_section(result, kept));
+            }
+            for (const char* gone : r.gone_text) {
+                CHECK(result.find(gone) == std::string::npos);
+            }
+        }
+    }
+
+    SECTION("a missing section is a no-op") {
+        std::string content = "[server]\nhost: localhost\n";
+        CHECK(MoonrakerConfigManager::remove_section(content, "spoolman") == content);
+    }
 }
 
-TEST_CASE("resolve_config_upload_location rejects a config outside data_path",
-          "[config_manager][config_path]") {
-    // Stock Creality K2 firmware.
-    auto info = MoonrakerConfigManager::resolve_config_upload_location(
-        "/usr/share/moonraker/moonraker.conf", "/mnt/UDISK/printer_data");
-    CHECK_FALSE(info.uploadable);
-    CHECK_FALSE(info.error.empty());
-    // The error must name the offending path so the user can act on it.
-    CHECK(info.error.find("/usr/share/moonraker/moonraker.conf") != std::string::npos);
+// ============================================================================
+// Task 4: has_include_line, add_include_line, get_section_value
+// ============================================================================
+
+TEST_CASE("has_include_line finds only an uncommented include", "[config_manager]") {
+    CHECK(MoonrakerConfigManager::has_include_line(
+        "[include helixscreen.conf]\n[server]\nhost: localhost\n"));
+    CHECK_FALSE(MoonrakerConfigManager::has_include_line("[server]\nhost: localhost\n"));
+    CHECK_FALSE(MoonrakerConfigManager::has_include_line(
+        "# [include helixscreen.conf]\n[server]\nhost: localhost\n"));
 }
 
-TEST_CASE("resolve_config_upload_location reports a nested subdirectory",
-          "[config_manager][config_path]") {
-    auto info = MoonrakerConfigManager::resolve_config_upload_location(
-        "/home/pi/printer_data/config/subdir/moonraker.conf", "/home/pi/printer_data");
-    CHECK(info.uploadable);
-    CHECK(info.upload_subdir == "subdir");
-    CHECK(info.config_filename == "moonraker.conf");
-    CHECK(info.path_for("helixscreen.conf") == "subdir/helixscreen.conf");
+TEST_CASE("add_include_line inserts once, after leading comments, before the first section",
+          "[config_manager]") {
+    SECTION("before the first section") {
+        auto result = MoonrakerConfigManager::add_include_line("[server]\nhost: localhost\n");
+        REQUIRE(MoonrakerConfigManager::has_include_line(result));
+        CHECK(result.find("[include helixscreen.conf]") < result.find("[server]"));
+    }
+    SECTION("after the leading comments") {
+        auto result = MoonrakerConfigManager::add_include_line(
+            "# Moonraker configuration\n# Generated by setup\n\n[server]\nhost: localhost\n");
+        size_t comment_pos = result.find("# Moonraker configuration");
+        size_t include_pos = result.find("[include helixscreen.conf]");
+        CHECK(comment_pos < include_pos);
+        CHECK(include_pos < result.find("[server]"));
+    }
+    SECTION("into empty content") {
+        CHECK(
+            MoonrakerConfigManager::has_include_line(MoonrakerConfigManager::add_include_line("")));
+    }
+    SECTION("never twice") {
+        auto result = MoonrakerConfigManager::add_include_line(
+            "[include helixscreen.conf]\n[server]\nhost: localhost\n");
+        size_t first = result.find("[include helixscreen.conf]");
+        CHECK(result.find("[include helixscreen.conf]", first + 1) == std::string::npos);
+    }
 }
 
-TEST_CASE("resolve_config_upload_location tolerates a trailing slash on data_path",
-          "[config_manager][config_path]") {
-    auto info = MoonrakerConfigManager::resolve_config_upload_location(
-        "/home/pi/printer_data/config/moonraker.conf", "/home/pi/printer_data/");
-    CHECK(info.uploadable);
-    CHECK(info.upload_subdir.empty());
+TEST_CASE("get_section_value reads a key inside its own section only", "[config_manager]") {
+    struct Row {
+        const char* content;
+        const char* section;
+        const char* key;
+        const char* expected; // "" = not found
+    };
+    const Row rows[] = {
+        {"[spoolman]\nserver: http://localhost:7912\nsync_rate: 5\n", "spoolman", "server",
+         "http://localhost:7912"},
+        {"[spoolman]\nserver  :  http://localhost:7912\n", "spoolman", "server",
+         "http://localhost:7912"},
+        {"[spoolman]\nserver: http://localhost:7912\n", "spoolman", "missing_key", ""},
+        {"[server]\nhost: localhost\n", "spoolman", "server", ""},
+        // 'host' lives in [server], not [spoolman]
+        {"[server]\nhost: localhost\n\n[spoolman]\nserver: http://localhost:7912\n", "spoolman",
+         "host", ""},
+    };
+    for (const Row& r : rows) {
+        INFO("content: " << r.content << " key: " << r.key);
+        CHECK(MoonrakerConfigManager::get_section_value(r.content, r.section, r.key) == r.expected);
+    }
 }
 
-TEST_CASE("resolve_config_upload_location is not fooled by a lookalike prefix",
-          "[config_manager][config_path]") {
-    // A naive string-prefix test would wrongly accept this.
-    auto info = MoonrakerConfigManager::resolve_config_upload_location(
-        "/home/pi/printer_data_old/config/moonraker.conf", "/home/pi/printer_data");
-    CHECK_FALSE(info.uploadable);
-    CHECK_FALSE(info.error.empty());
+// ============================================================================
+// upsert_section: updating an existing section in place. add_section() returns
+// early when the section exists, so changing a configured URL needs this path.
+// ============================================================================
+
+TEST_CASE("upsert_section writes keys into the target section and nothing else",
+          "[config_manager][upsert]") {
+    using Kv = std::vector<std::pair<std::string, std::string>>;
+    struct Value {
+        const char* section;
+        const char* key;
+        const char* expected; // "" = absent
+    };
+    struct Row {
+        const char* name;
+        std::string content;
+        Kv entries;
+        std::vector<Value> values;
+        std::vector<const char*> kept_text;
+        std::vector<const char*> gone_text;
+    };
+    const Kv new_server = {{"server", "http://new:7912"}};
+    const Row rows[] = {
+        // The stale value is gone entirely, not merely shadowed
+        {"an existing key is updated",
+         "[spoolman]\nserver: http://192.168.1.58:7912\n",
+         {{"server", "http://192.168.1.56:7912"}},
+         {{"spoolman", "server", "http://192.168.1.56:7912"}},
+         {},
+         {"192.168.1.58"}},
+        {"unrelated sections and their keys survive",
+         "[server]\nhost: localhost\nport: 7125\n\n[spoolman]\nserver: http://old:7912\n\n"
+         "[authorization]\ntrusted_clients: 192.168.1.0/24\n",
+         new_server,
+         {{"server", "host", "localhost"},
+          {"server", "port", "7125"},
+          {"authorization", "trusted_clients", "192.168.1.0/24"},
+          {"spoolman", "server", "http://new:7912"}},
+         {},
+         {}},
+        {"unrelated keys inside the section survive",
+         "[spoolman]\nserver: http://old:7912\nsync_rate: 5\n",
+         new_server,
+         {{"spoolman", "sync_rate", "5"}, {"spoolman", "server", "http://new:7912"}},
+         {},
+         {}},
+        // A new key lands inside [spoolman], not in the section after it
+        {"a missing key is appended to the section",
+         "[spoolman]\nserver: http://old:7912\n\n[server]\nhost: localhost\n",
+         {{"server", "http://new:7912"}, {"sync_rate", "10"}},
+         {{"spoolman", "server", "http://new:7912"},
+          {"spoolman", "sync_rate", "10"},
+          {"server", "sync_rate", ""},
+          {"server", "host", "localhost"}},
+         {},
+         {}},
+        {"a same-named key in another section is left alone",
+         "[some_other]\nserver: keep-me\n\n[spoolman]\nserver: http://old:7912\n",
+         new_server,
+         {{"some_other", "server", "keep-me"}, {"spoolman", "server", "http://new:7912"}},
+         {},
+         {}},
+        {"comments in and above the section survive",
+         "# Spoolman - added by HelixScreen\n[spoolman]\n# the server URL\nserver: "
+         "http://old:7912\n",
+         new_server,
+         {{"spoolman", "server", "http://new:7912"}},
+         {"# Spoolman - added by HelixScreen", "# the server URL"},
+         {}},
+        {"a header with no keys",
+         "[spoolman]\n",
+         new_server,
+         {{"spoolman", "server", "http://new:7912"}},
+         {},
+         {}},
+        {"empty content", "", new_server, {{"spoolman", "server", "http://new:7912"}}, {}, {}},
+        // A bare line with no colon is neither a crash nor swallowed
+        {"a malformed line is kept",
+         "[spoolman]\nthis line has no colon\nserver: http://old:7912\n",
+         new_server,
+         {{"spoolman", "server", "http://new:7912"}},
+         {"this line has no colon"},
+         {}},
+        {"an updated key keeps its indentation",
+         "[spoolman]\n    server: http://old:7912\n",
+         new_server,
+         {},
+         {"    server: http://new:7912"},
+         {}},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto result =
+                MoonrakerConfigManager::upsert_section(r.content, "spoolman", r.entries, "");
+            // Exactly one header, whatever the input held
+            size_t first = result.find("[spoolman]");
+            REQUIRE(first != std::string::npos);
+            CHECK(result.find("[spoolman]", first + 1) == std::string::npos);
+            for (const Value& v : r.values) {
+                INFO("[" << v.section << "] " << v.key);
+                CHECK(MoonrakerConfigManager::get_section_value(result, v.section, v.key) ==
+                      v.expected);
+            }
+            for (const char* text : r.kept_text) {
+                CHECK(result.find(text) != std::string::npos);
+            }
+            for (const char* text : r.gone_text) {
+                CHECK(result.find(text) == std::string::npos);
+            }
+        }
+    }
 }
 
-TEST_CASE("resolve_config_upload_location rejects a config directly under data_path",
-          "[config_manager][config_path]") {
-    // data_path/moonraker.conf is not under data_path/config, so it is not
-    // reachable through the file API's "config" root.
-    auto info = MoonrakerConfigManager::resolve_config_upload_location(
-        "/home/pi/printer_data/moonraker.conf", "/home/pi/printer_data");
-    CHECK_FALSE(info.uploadable);
+TEST_CASE("upsert_section adds a missing section and is stable on a second pass",
+          "[config_manager][upsert]") {
+    SECTION("a missing section is added with its comment") {
+        auto result = MoonrakerConfigManager::upsert_section(
+            "[server]\nhost: localhost\n", "spoolman", {{"server", "http://localhost:7912"}},
+            "Added by HelixScreen");
+        CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
+              "http://localhost:7912");
+        CHECK(result.find("# Added by HelixScreen") != std::string::npos);
+        CHECK(MoonrakerConfigManager::has_section(result, "server"));
+    }
+    SECTION("an unchanged value rewrites nothing") {
+        std::string content = "[spoolman]\nserver: http://same:7912\n";
+        auto once = MoonrakerConfigManager::upsert_section(content, "spoolman",
+                                                           {{"server", "http://same:7912"}}, "");
+        auto twice = MoonrakerConfigManager::upsert_section(once, "spoolman",
+                                                            {{"server", "http://same:7912"}}, "");
+        CHECK(once == twice);
+        CHECK(MoonrakerConfigManager::get_section_value(twice, "spoolman", "server") ==
+              "http://same:7912");
+    }
+    SECTION("content without a trailing newline gains one") {
+        auto result = MoonrakerConfigManager::upsert_section(
+            "[spoolman]\nserver: http://old:7912", "spoolman", {{"server", "http://new:7912"}}, "");
+        CHECK(MoonrakerConfigManager::get_section_value(result, "spoolman", "server") ==
+              "http://new:7912");
+        CHECK(result.back() == '\n');
+    }
 }
 
-TEST_CASE("resolve_config_upload_location reports missing inputs",
-          "[config_manager][config_path]") {
-    auto no_file =
-        MoonrakerConfigManager::resolve_config_upload_location("", "/home/pi/printer_data");
-    CHECK_FALSE(no_file.uploadable);
-    CHECK_FALSE(no_file.error.empty());
+// ============================================================================
+// resolve_config_upload_location: can the file API write the config Moonraker
+// actually loads? On stock Creality K2, config_file is
+// /usr/share/moonraker/moonraker.conf while data_path is /mnt/UDISK/printer_data.
+// ============================================================================
 
-    auto no_data = MoonrakerConfigManager::resolve_config_upload_location(
-        "/home/pi/printer_data/config/moonraker.conf", "");
-    CHECK_FALSE(no_data.uploadable);
-    CHECK_FALSE(no_data.error.empty());
-}
-
-TEST_CASE("resolve_config_upload_location honours a non-default config filename",
+TEST_CASE("resolve_config_upload_location finds the config under data_path/config",
           "[config_manager][config_path]") {
-    auto info = MoonrakerConfigManager::resolve_config_upload_location(
-        "/home/pi/printer_data/config/moonraker-alt.conf", "/home/pi/printer_data");
-    CHECK(info.uploadable);
-    CHECK(info.config_filename == "moonraker-alt.conf");
+    struct Row {
+        const char* name;
+        const char* config_file;
+        const char* data_path;
+        bool uploadable;
+        const char* subdir;
+        const char* filename;
+    };
+    const Row rows[] = {
+        {"the standard Klipper layout", "/home/pi/printer_data/config/moonraker.conf",
+         "/home/pi/printer_data", true, "", "moonraker.conf"},
+        {"a nested subdirectory", "/home/pi/printer_data/config/subdir/moonraker.conf",
+         "/home/pi/printer_data", true, "subdir", "moonraker.conf"},
+        {"a trailing slash on data_path", "/home/pi/printer_data/config/moonraker.conf",
+         "/home/pi/printer_data/", true, "", "moonraker.conf"},
+        {"a non-default filename", "/home/pi/printer_data/config/moonraker-alt.conf",
+         "/home/pi/printer_data", true, "", "moonraker-alt.conf"},
+        // Stock Creality K2: Moonraker reads a file the file API cannot reach
+        {"a config outside data_path", "/usr/share/moonraker/moonraker.conf",
+         "/mnt/UDISK/printer_data", false, "", ""},
+        // A naive string-prefix test would accept this
+        {"a lookalike prefix", "/home/pi/printer_data_old/config/moonraker.conf",
+         "/home/pi/printer_data", false, "", ""},
+        // data_path/moonraker.conf is outside the file API's "config" root
+        {"a config directly under data_path", "/home/pi/printer_data/moonraker.conf",
+         "/home/pi/printer_data", false, "", ""},
+        {"no config file", "", "/home/pi/printer_data", false, "", ""},
+        {"no data_path", "/home/pi/printer_data/config/moonraker.conf", "", false, "", ""},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto info =
+                MoonrakerConfigManager::resolve_config_upload_location(r.config_file, r.data_path);
+            REQUIRE(info.uploadable == r.uploadable);
+            if (!r.uploadable) {
+                CHECK_FALSE(info.error.empty());
+                continue;
+            }
+            CHECK(info.error.empty());
+            CHECK(info.upload_subdir == r.subdir);
+            CHECK(info.config_filename == r.filename);
+            const std::string subdir = r.subdir;
+            CHECK(info.path_for("helixscreen.conf") ==
+                  (subdir.empty() ? "helixscreen.conf" : subdir + "/helixscreen.conf"));
+        }
+    }
+
+    SECTION("the error names the unreachable path so the user can act on it") {
+        auto info = MoonrakerConfigManager::resolve_config_upload_location(
+            "/usr/share/moonraker/moonraker.conf", "/mnt/UDISK/printer_data");
+        CHECK(info.error.find("/usr/share/moonraker/moonraker.conf") != std::string::npos);
+    }
 }
 
 // ============================================================================
@@ -557,27 +450,17 @@ static std::vector<helix::LoadedConfigFile> k2_server_config_files() {
               "octoprint_compat", "history"}}};
 }
 
-TEST_CASE("select_primary_config_index handles the real K2 files[] shape",
-          "[config_manager][config_path]") {
-    auto files = k2_server_config_files();
-    CHECK(MoonrakerConfigManager::select_primary_config_index(files) == 0);
-}
-
 TEST_CASE("select_primary_config_index picks the file defining [server]",
           "[config_manager][config_path]") {
-    std::vector<helix::LoadedConfigFile> files = {{"helixscreen.conf", {"spoolman"}},
-                                                  {"moonraker.conf", {"server", "file_manager"}}};
-    CHECK(MoonrakerConfigManager::select_primary_config_index(files) == 1);
-}
-
-TEST_CASE("select_primary_config_index falls back to the first entry",
-          "[config_manager][config_path]") {
-    std::vector<helix::LoadedConfigFile> files = {{"a.conf", {"history"}},
-                                                  {"b.conf", {"spoolman"}}};
-    CHECK(MoonrakerConfigManager::select_primary_config_index(files) == 0);
-}
-
-TEST_CASE("select_primary_config_index reports no usable entry", "[config_manager][config_path]") {
+    CHECK(MoonrakerConfigManager::select_primary_config_index(k2_server_config_files()) == 0);
+    std::vector<helix::LoadedConfigFile> server_second = {
+        {"helixscreen.conf", {"spoolman"}}, {"moonraker.conf", {"server", "file_manager"}}};
+    CHECK(MoonrakerConfigManager::select_primary_config_index(server_second) == 1);
+    // No [server] anywhere: the first entry
+    std::vector<helix::LoadedConfigFile> no_server = {{"a.conf", {"history"}},
+                                                      {"b.conf", {"spoolman"}}};
+    CHECK(MoonrakerConfigManager::select_primary_config_index(no_server) == 0);
+    // No usable entry
     CHECK(MoonrakerConfigManager::select_primary_config_index({}) == -1);
     std::vector<helix::LoadedConfigFile> blank = {{"", {"server"}}};
     CHECK(MoonrakerConfigManager::select_primary_config_index(blank) == -1);
@@ -665,42 +548,41 @@ TEST_CASE("select_root_config_index skips unusable entries",
     CHECK(MoonrakerConfigManager::select_root_config_index(blank_first) == 1);
 }
 
-TEST_CASE("config_path_from_relative accepts a bare filename as reported by K2",
+TEST_CASE("config_path_from_relative accepts a path inside the config root",
           "[config_manager][config_path]") {
-    auto files = k2_server_config_files();
-    auto info = MoonrakerConfigManager::config_path_from_relative(files[0].filename);
-    CHECK(info.uploadable);
-    CHECK(info.upload_subdir.empty());
-    CHECK(info.config_filename == "moonraker.conf");
-    CHECK(info.path_for("helixscreen.conf") == "helixscreen.conf");
-}
-
-TEST_CASE("config_path_from_relative rejects an absolute path", "[config_manager][config_path]") {
-    auto info =
-        MoonrakerConfigManager::config_path_from_relative("/usr/share/moonraker/moonraker.conf");
-    CHECK_FALSE(info.uploadable);
-    CHECK(info.error.find("/usr/share/moonraker/moonraker.conf") != std::string::npos);
-}
-
-TEST_CASE("config_path_from_relative rejects a path escaping the config root",
-          "[config_manager][config_path]") {
-    auto info = MoonrakerConfigManager::config_path_from_relative("../outside/moonraker.conf");
-    CHECK_FALSE(info.uploadable);
-    CHECK_FALSE(info.error.empty());
-}
-
-TEST_CASE("config_path_from_relative rejects an empty filename", "[config_manager][config_path]") {
-    auto info = MoonrakerConfigManager::config_path_from_relative("");
-    CHECK_FALSE(info.uploadable);
-    CHECK_FALSE(info.error.empty());
-}
-
-TEST_CASE("config_path_from_relative splits a subdirectory", "[config_manager][config_path]") {
-    auto info = MoonrakerConfigManager::config_path_from_relative("subdir/moonraker.conf");
-    CHECK(info.uploadable);
-    CHECK(info.upload_subdir == "subdir");
-    CHECK(info.config_filename == "moonraker.conf");
-    CHECK(info.path_for("helixscreen.conf") == "subdir/helixscreen.conf");
+    struct Row {
+        const char* name;
+        const char* filename;
+        bool uploadable;
+        const char* subdir;
+    };
+    const Row rows[] = {
+        {"a bare filename as reported by K2", "moonraker.conf", true, ""},
+        {"a subdirectory", "subdir/moonraker.conf", true, "subdir"},
+        {"an absolute path", "/usr/share/moonraker/moonraker.conf", false, ""},
+        {"a path escaping the config root", "../outside/moonraker.conf", false, ""},
+        {"an empty filename", "", false, ""},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto info = MoonrakerConfigManager::config_path_from_relative(r.filename);
+            REQUIRE(info.uploadable == r.uploadable);
+            if (!r.uploadable) {
+                CHECK_FALSE(info.error.empty());
+                continue;
+            }
+            CHECK(info.upload_subdir == r.subdir);
+            CHECK(info.config_filename == "moonraker.conf");
+            const std::string subdir = r.subdir;
+            CHECK(info.path_for("helixscreen.conf") ==
+                  (subdir.empty() ? "helixscreen.conf" : subdir + "/helixscreen.conf"));
+        }
+    }
+    SECTION("the error names a rejected absolute path") {
+        auto info = MoonrakerConfigManager::config_path_from_relative(
+            "/usr/share/moonraker/moonraker.conf");
+        CHECK(info.error.find("/usr/share/moonraker/moonraker.conf") != std::string::npos);
+    }
 }
 
 TEST_CASE("K2 case: a stray file under the config root fails the section match",
@@ -1223,135 +1105,75 @@ TEST_CASE("remove with no [spoolman] anywhere: nothing to remove, not success",
 // the included file is reported absolute even though it sits squarely inside the
 // writable root and is perfectly addressable through the file API.
 //
-// Rejecting every leading '/' therefore threw away a reachable file. The config
-// root is supplied by the caller; with none supplied the old refusal stands.
+// So an absolute name inside the caller-supplied config root is accepted; with
+// no root supplied every absolute name is refused.
 // ============================================================================
 
-TEST_CASE("config_path_from_relative accepts an absolute path under the config root",
+TEST_CASE("config_path_from_relative accepts an absolute path inside the supplied config root",
           "[config_manager][config_path][abs_root]") {
-    auto info = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config/helixscreen.conf", "/mnt/UDISK/printer_data/config");
-    CHECK(info.uploadable);
-    CHECK(info.error.empty());
-    CHECK(info.upload_subdir.empty());
-    CHECK(info.config_filename == "helixscreen.conf");
-    CHECK(info.path_for("helixscreen.conf") == "helixscreen.conf");
-}
+    const char* root = "/mnt/UDISK/printer_data/config";
+    struct Row {
+        const char* name;
+        const char* filename;
+        const char* root;
+        bool uploadable;
+        const char* subdir;
+        const char* config_filename;
+    };
+    const Row rows[] = {
+        {"a file directly under the root", "/mnt/UDISK/printer_data/config/helixscreen.conf", root,
+         true, "", "helixscreen.conf"},
+        {"a subdirectory of the root", "/mnt/UDISK/printer_data/config/extra/user.conf", root, true,
+         "extra", "user.conf"},
+        {"a trailing slash on the root", "/mnt/UDISK/printer_data/config/helixscreen.conf",
+         "/mnt/UDISK/printer_data/config/", true, "", "helixscreen.conf"},
+        // A relative name is already relative to the root, even one that repeats it
+        {"a relative name with a root", "moonraker.conf", root, true, "", "moonraker.conf"},
+        {"a relative name with a subdirectory", "extended/moonraker/04_remote_screen.cfg",
+         "/oem/printer_data/config", true, "extended/moonraker", "04_remote_screen.cfg"},
+        // Stock K2: the loaded root config lives outside the writable area
+        {"outside the root", "/usr/share/moonraker/moonraker.conf", root, false, "", ""},
+        // The prefix has to end on a path boundary
+        {"a sibling sharing the root's prefix",
+         "/mnt/UDISK/printer_data/config_backup/helixscreen.conf", root, false, "", ""},
+        {"a sibling, slashed root", "/mnt/UDISK/printer_data/config_backup/x.conf",
+         "/mnt/UDISK/printer_data/config/", false, "", ""},
+        // A directory is not a config file
+        {"the root itself", "/mnt/UDISK/printer_data/config", root, false, "", ""},
+        {"the root itself, slashed", "/mnt/UDISK/printer_data/config/", root, false, "", ""},
+        {".. after the prefix", "/mnt/UDISK/printer_data/config/../secrets/moonraker.conf", root,
+         false, "", ""},
+        {"a relative name escaping the root", "../outside/moonraker.conf", root, false, "", ""},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            auto info = MoonrakerConfigManager::config_path_from_relative(r.filename, r.root);
+            REQUIRE(info.uploadable == r.uploadable);
+            CHECK(info.config_filename == r.config_filename);
+            if (r.uploadable) {
+                CHECK(info.error.empty());
+                CHECK(info.upload_subdir == r.subdir);
+            } else {
+                CHECK_FALSE(info.error.empty());
+            }
+        }
+    }
 
-TEST_CASE("config_path_from_relative splits a subdirectory out of an absolute path",
-          "[config_manager][config_path][abs_root]") {
-    auto info = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config/extra/user.conf", "/mnt/UDISK/printer_data/config");
-    CHECK(info.uploadable);
-    CHECK(info.upload_subdir == "extra");
-    CHECK(info.config_filename == "user.conf");
-    CHECK(info.path_for("helixscreen.conf") == "extra/helixscreen.conf");
-}
-
-TEST_CASE("config_path_from_relative still rejects an absolute path with no config root",
-          "[config_manager][config_path][abs_root]") {
-    // The pre-existing contract: with nothing to compare against, an absolute
-    // path is unreachable. Explicitly passing an empty root must behave exactly
-    // like omitting it.
-    auto omitted =
-        MoonrakerConfigManager::config_path_from_relative("/usr/share/moonraker/moonraker.conf");
-    auto empty_root = MoonrakerConfigManager::config_path_from_relative(
-        "/usr/share/moonraker/moonraker.conf", "");
-    CHECK_FALSE(omitted.uploadable);
-    CHECK_FALSE(empty_root.uploadable);
-    CHECK(empty_root.error == omitted.error);
-    CHECK(empty_root.error.find("/usr/share/moonraker/moonraker.conf") != std::string::npos);
-}
-
-TEST_CASE("config_path_from_relative rejects an absolute path outside the config root",
-          "[config_manager][config_path][abs_root]") {
-    // Stock K2: the loaded root config really does live outside the writable area.
-    auto info = MoonrakerConfigManager::config_path_from_relative(
-        "/usr/share/moonraker/moonraker.conf", "/mnt/UDISK/printer_data/config");
-    CHECK_FALSE(info.uploadable);
-    CHECK(info.error.find("/usr/share/moonraker/moonraker.conf") != std::string::npos);
-}
-
-TEST_CASE("config_path_from_relative is not fooled by a sibling sharing the root's prefix",
-          "[config_manager][config_path][abs_root]") {
-    // A naive rfind(root, 0) == 0 accepts this, and we would then upload into a
-    // directory the file API cannot reach. The prefix must end on a path boundary.
-    auto info = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config_backup/helixscreen.conf", "/mnt/UDISK/printer_data/config");
-    CHECK_FALSE(info.uploadable);
-    CHECK_FALSE(info.error.empty());
-    CHECK(info.config_filename.empty());
-}
-
-TEST_CASE("config_path_from_relative treats a trailing slash on the root as identical",
-          "[config_manager][config_path][abs_root]") {
-    auto bare = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config/helixscreen.conf", "/mnt/UDISK/printer_data/config");
-    auto slashed = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config/helixscreen.conf", "/mnt/UDISK/printer_data/config/");
-    CHECK(slashed.uploadable == bare.uploadable);
-    CHECK(slashed.uploadable);
-    CHECK(slashed.upload_subdir == bare.upload_subdir);
-    CHECK(slashed.config_filename == bare.config_filename);
-
-    // ...and the lookalike sibling must stay rejected with a slashed root too.
-    auto sibling = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config_backup/x.conf", "/mnt/UDISK/printer_data/config/");
-    CHECK_FALSE(sibling.uploadable);
-}
-
-TEST_CASE("config_path_from_relative rejects the config root directory itself",
-          "[config_manager][config_path][abs_root]") {
-    // A directory is not a config file; stripping the prefix must not yield an
-    // empty (or silently uploadable) file name.
-    auto exact = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config", "/mnt/UDISK/printer_data/config");
-    CHECK_FALSE(exact.uploadable);
-    CHECK_FALSE(exact.error.empty());
-    CHECK(exact.config_filename.empty());
-
-    auto trailing = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config/", "/mnt/UDISK/printer_data/config");
-    CHECK_FALSE(trailing.uploadable);
-    CHECK_FALSE(trailing.error.empty());
-    CHECK(trailing.config_filename.empty());
-}
-
-TEST_CASE("config_path_from_relative still rejects .. inside a stripped absolute path",
-          "[config_manager][config_path][abs_root]") {
-    // Escaping back out of the root after the prefix matches must not be a way in.
-    auto info = MoonrakerConfigManager::config_path_from_relative(
-        "/mnt/UDISK/printer_data/config/../secrets/moonraker.conf",
-        "/mnt/UDISK/printer_data/config");
-    CHECK_FALSE(info.uploadable);
-    CHECK_FALSE(info.error.empty());
-    CHECK(info.config_filename.empty());
-}
-
-TEST_CASE("config_path_from_relative leaves relative filenames untouched by the root",
-          "[config_manager][config_path][abs_root]") {
-    // Supplying a root must not change how a relative name resolves — it is already
-    // relative to exactly that directory.
-    auto files = k2_server_config_files();
-    auto without = MoonrakerConfigManager::config_path_from_relative(files[0].filename);
-    auto with = MoonrakerConfigManager::config_path_from_relative(files[0].filename,
-                                                                  "/mnt/UDISK/printer_data/config");
-    CHECK(with.uploadable);
-    CHECK(with.uploadable == without.uploadable);
-    CHECK(with.upload_subdir == without.upload_subdir);
-    CHECK(with.config_filename == without.config_filename);
-
-    // Including the case where the relative name coincidentally repeats the root.
-    auto nested = MoonrakerConfigManager::config_path_from_relative(
-        "extended/moonraker/04_remote_screen.cfg", "/oem/printer_data/config");
-    CHECK(nested.uploadable);
-    CHECK(nested.upload_subdir == "extended/moonraker");
-    CHECK(nested.config_filename == "04_remote_screen.cfg");
-
-    // A relative name escaping the root is still refused when a root is supplied.
-    auto escaping = MoonrakerConfigManager::config_path_from_relative(
-        "../outside/moonraker.conf", "/mnt/UDISK/printer_data/config");
-    CHECK_FALSE(escaping.uploadable);
+    SECTION("with no root an absolute path is refused, and naming an empty root is the same") {
+        auto omitted = MoonrakerConfigManager::config_path_from_relative(
+            "/usr/share/moonraker/moonraker.conf");
+        auto empty_root = MoonrakerConfigManager::config_path_from_relative(
+            "/usr/share/moonraker/moonraker.conf", "");
+        CHECK_FALSE(omitted.uploadable);
+        CHECK_FALSE(empty_root.uploadable);
+        CHECK(empty_root.error == omitted.error);
+        CHECK(empty_root.error.find("/usr/share/moonraker/moonraker.conf") != std::string::npos);
+    }
+    SECTION("a refusal against a root names the path") {
+        auto info = MoonrakerConfigManager::config_path_from_relative(
+            "/usr/share/moonraker/moonraker.conf", root);
+        CHECK(info.error.find("/usr/share/moonraker/moonraker.conf") != std::string::npos);
+    }
 }
 
 // ============================================================================
@@ -1660,65 +1482,29 @@ TEST_CASE("verify dispatch: an in-place rewrite target must define [spoolman]",
 // file exists — and Moonraker refuses to start on an include it cannot match.
 // ============================================================================
 
-TEST_CASE("has_include_line finds an absolute include target", "[config_manager][include_line]") {
-    const std::string target = "/mnt/UDISK/printer_data/config/helixscreen.conf";
-    const std::string content = "[server]\nhost: 0.0.0.0\n[include " + target + "]\n";
-
-    CHECK(MoonrakerConfigManager::has_include_line(content, target));
+TEST_CASE("has_include_line matches the include target exactly", "[config_manager][include_line]") {
+    const std::string absolute = "/mnt/UDISK/printer_data/config/helixscreen.conf";
+    CHECK(MoonrakerConfigManager::has_include_line(
+        "[server]\nhost: 0.0.0.0\n[include " + absolute + "]\n", absolute));
+    // The K2 trap: a relative include exists and points somewhere else entirely
+    CHECK_FALSE(MoonrakerConfigManager::has_include_line("[include helixscreen.conf]\n[server]\n",
+                                                         absolute));
+    // ...and an absolute include is not the relative default
+    CHECK_FALSE(MoonrakerConfigManager::has_include_line("[include " + absolute + "]\n"));
 }
 
-TEST_CASE("has_include_line does not accept a relative include for an absolute target",
-          "[config_manager][include_line]") {
-    // The K2 trap: this line exists and points somewhere else entirely.
-    const std::string content = "[include helixscreen.conf]\n[server]\n";
-
-    CHECK_FALSE(MoonrakerConfigManager::has_include_line(
-        content, "/mnt/UDISK/printer_data/config/helixscreen.conf"));
-}
-
-TEST_CASE("has_include_line does not accept an absolute include for the relative default",
-          "[config_manager][include_line]") {
-    const std::string content = "[include /mnt/UDISK/printer_data/config/helixscreen.conf]\n";
-
-    CHECK_FALSE(MoonrakerConfigManager::has_include_line(content));
-}
-
-TEST_CASE("has_include_line still defaults to the relative helixscreen.conf",
-          "[config_manager][include_line]") {
-    CHECK(MoonrakerConfigManager::has_include_line("[include helixscreen.conf]\n[server]\n"));
-    CHECK_FALSE(MoonrakerConfigManager::has_include_line("[server]\nhost: 0.0.0.0\n"));
-}
-
-TEST_CASE("add_include_line inserts an absolute target before the first section",
+TEST_CASE("add_include_line inserts an absolute target once, before the first section",
           "[config_manager][include_line]") {
     const std::string target = "/mnt/UDISK/printer_data/config/helixscreen.conf";
-    const std::string content = "# vendor config\n[server]\nhost: 0.0.0.0\n";
-
-    std::string out = MoonrakerConfigManager::add_include_line(content, target);
+    const std::string out = MoonrakerConfigManager::add_include_line(
+        "# vendor config\n[server]\nhost: 0.0.0.0\n", target);
 
     CHECK(out.find("[include " + target + "]") != std::string::npos);
     CHECK(MoonrakerConfigManager::has_include_line(out, target));
-    // Nothing that was there is lost.
     CHECK(out.find("# vendor config") != std::string::npos);
-    CHECK(out.find("[server]") != std::string::npos);
     CHECK(out.find("host: 0.0.0.0") != std::string::npos);
-    // The include must precede the sections it is meant to extend.
     CHECK(out.find("[include ") < out.find("[server]"));
-}
-
-TEST_CASE("add_include_line with an absolute target is idempotent",
-          "[config_manager][include_line]") {
-    const std::string target = "/mnt/UDISK/printer_data/config/helixscreen.conf";
-    std::string once = MoonrakerConfigManager::add_include_line("[server]\n", target);
-    std::string twice = MoonrakerConfigManager::add_include_line(once, target);
-
-    CHECK(once == twice);
-}
-
-TEST_CASE("add_include_line still defaults to the relative helixscreen.conf",
-          "[config_manager][include_line]") {
-    std::string out = MoonrakerConfigManager::add_include_line("[server]\n");
-    CHECK(out.find("[include helixscreen.conf]") != std::string::npos);
+    CHECK(MoonrakerConfigManager::add_include_line(out, target) == out);
 }
 
 // ============================================================================
@@ -1861,23 +1647,38 @@ std::string find_stanza(const std::map<std::string, std::string>& files) {
 
 } // namespace
 
-TEST_CASE("find_section_file reads the stanza from moonraker.conf itself",
+TEST_CASE("find_section_file follows includes to the defining file",
           "[config_manager][update_channel_sync]") {
-    CHECK(find_stanza({{"moonraker.conf", kServer + kStanzaText}}) == "moonraker.conf");
-}
-
-TEST_CASE("find_section_file follows a direct include", "[config_manager][update_channel_sync]") {
-    CHECK(find_stanza({{"moonraker.conf", kServer + "[include mainsail.conf]\n"},
-                       {"mainsail.conf", kStanzaText}}) == "mainsail.conf");
-}
-
-TEST_CASE("find_section_file resolves an include against the including file's directory",
-          "[config_manager][update_channel_sync]") {
-    // conf.d/a.conf names b.conf, which is conf.d/b.conf, never the root's b.conf.
-    CHECK(find_stanza({{"moonraker.conf", "[include conf.d/a.conf]\n"},
-                       {"conf.d/a.conf", "[include b.conf]\n"},
-                       {"conf.d/b.conf", kStanzaText},
-                       {"b.conf", "[server]\n"}}) == "conf.d/b.conf");
+    using Files = std::map<std::string, std::string>;
+    struct Row {
+        const char* name;
+        Files files;
+        const char* expected;
+    };
+    const Row rows[] = {
+        {"moonraker.conf itself", {{"moonraker.conf", kServer + kStanzaText}}, "moonraker.conf"},
+        {"a direct include",
+         {{"moonraker.conf", kServer + "[include mainsail.conf]\n"},
+          {"mainsail.conf", kStanzaText}},
+         "mainsail.conf"},
+        {"a nested include",
+         {{"moonraker.conf", "[include mainsail.conf]\n"},
+          {"mainsail.conf", "[include helix/updates.conf]\n"},
+          {"helix/updates.conf", kStanzaText}},
+         "helix/updates.conf"},
+        // conf.d/a.conf names b.conf, which is conf.d/b.conf, never the root's b.conf
+        {"an include resolves against the including file's directory",
+         {{"moonraker.conf", "[include conf.d/a.conf]\n"},
+          {"conf.d/a.conf", "[include b.conf]\n"},
+          {"conf.d/b.conf", kStanzaText},
+          {"b.conf", "[server]\n"}},
+         "conf.d/b.conf"},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            CHECK(find_stanza(r.files) == r.expected);
+        }
+    }
 }
 
 TEST_CASE("find_section_file expands a glob include", "[config_manager][update_channel_sync]") {
@@ -1895,12 +1696,6 @@ TEST_CASE("find_section_file expands a glob include", "[config_manager][update_c
         nested["conf.d/nested/other.conf"] = kStanzaText;
         CHECK(find_stanza(nested).empty());
     }
-}
-
-TEST_CASE("find_section_file follows a nested include", "[config_manager][update_channel_sync]") {
-    CHECK(find_stanza({{"moonraker.conf", "[include mainsail.conf]\n"},
-                       {"mainsail.conf", "[include helix/updates.conf]\n"},
-                       {"helix/updates.conf", kStanzaText}}) == "helix/updates.conf");
 }
 
 TEST_CASE("find_section_file stops at an include cycle", "[config_manager][update_channel_sync]") {

@@ -77,7 +77,14 @@ make land-gate                       # THE pre-landing gate: ONCE per batch, bef
 #   moonraker plugin tests, the generated-artefact checks (theme token table,
 #   xml schema + lint-xml, lvgl event codes), the ESP32 syntax check (needs
 #   docker + the IDF image: thelio/zeus), and quality-checks.sh: pushing the
-#   exact commit it passed skips that sweep. C++ on the test host as
+#   exact commit it passed skips that sweep, from any clone on the gate's host
+#   or from a machine whose build-hosts.env names that host in
+#   HELIX_LAND_GATE_HOSTS (pre-push asks it over ssh). A gate red on one step:
+#   `make land-gate STAGES=<step>[,<step>]` reruns just those on the same
+#   clean HEAD (naming app-build, bats, ui or quality reruns all four, since
+#   three test the binary the fourth links), merges them into that commit's
+#   table, and stamps it once every step has passed; a red table removes the
+#   stamp. C++ on the test host as
 #   full-test-run's sweep goes; the rest here in parallel; a PASS/FAIL table
 #   with durations at the end. full-test-run alone is NOT a landing gate: it
 #   skips tests/ui and CI's shard layout, both of which red CI.
@@ -220,7 +227,7 @@ every agent you brief: put this table in the brief, because agents default to ov
 | **While building** - each task, each agent, each review fix | `make t F='[tags the change touches]'` once after the change. A new or changed test: break the line it pins once, see it go red, restore (one `make t` cycle) | `mutate-diff`, `unit-sweep`, `full-test-run`, `land-gate`, screenshots, ASAN, re-reviews |
 | **Finish** - once per batch (every branch landing together) | 1. One review of the batch; a second round only for a crash, lifetime, data-loss or wrong-hardware-command finding (anything else is fixed without re-review). 2. One screenshot per changed screen. 3. ONE `make land-gate` on the combined result, on the fastest free machine (thelio, then zeus; never a Mac) | a gate per branch; a second full gate for a docs-only or test-only fix; waiting on mutation |
 | **Landed** - right after the push, every batch, never skipped | `make mutate-diff MUTATE_ARGS="--base <the origin/main it landed on>"` from the landed tree, in the background: on a host without reflink copies it runs on the test host. Each changed file runs against its own tests, capped at 30 minutes. A survivor is a follow-up fix (a test that pins it), landed like any other | blocking the merge on it; a run over 30 minutes |
-| **Gate red** | Fix it, rerun only the failing stage's command (`build/land-gate/<stage>.log` names it), then one more `land-gate` only if the fix touched `src/` or `include/` | rerunning the whole gate to "be sure" |
+| **Gate red** | A flaky or environment stage: `make land-gate STAGES=<stage>` on the same clean HEAD reruns it, merges it into that commit's table and stamps the commit once every stage has passed. A real finding: fix it (a new commit, which has no table to complete), rerun only the failing stage's command (`build/land-gate/<stage>.log` names it), then one more `land-gate` only if the fix touched `src/` or `include/` | rerunning the whole gate to "be sure" |
 | **Release** | Whole-branch mutation, ASAN on the test host, device checks | |
 
 **Several changes or agents at once: one test plan, owned by one session.** The orchestrator
