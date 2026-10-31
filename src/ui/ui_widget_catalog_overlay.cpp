@@ -77,8 +77,8 @@ uint32_t g_copy_fetch_generation = 0;
 
 struct CatalogState {
     lv_obj_t* overlay_root = nullptr;
-    helix::ui::WidgetRef backdrop;     // Semi-transparent dark backdrop behind the catalog
-    lv_obj_t* category_root = nullptr; // Pushed category sub-page, nullptr at the top level
+    helix::ui::WidgetRef backdrop;      // Semi-transparent dark backdrop behind the catalog
+    helix::ui::WidgetRef category_root; // Pushed category sub-page, nullptr at the top level
     lv_obj_t* parent_screen = nullptr;
     const PanelWidgetConfig* config = nullptr; // Owned by the caller (GridEditMode)
     WidgetSelectedCallback on_select;
@@ -210,7 +210,7 @@ void close_catalog() {
     // go_back()'s own queued body, and scrub_deleted_widget() erasing the widget
     // from panel_stack_ first would make that pop take the wrong overlay.
     if (popped_page) {
-        helix::ui::queue_update("catalog_close_pop", [root]() {
+        helix::ui::queue_update("catalog_close_pop", [root = helix::ui::WeakWidget(root)]() {
             if (helix::nav::is_on_top(root)) {
                 helix::nav::go_back();
                 retire_overlay(root, "catalog_root_reclaim");

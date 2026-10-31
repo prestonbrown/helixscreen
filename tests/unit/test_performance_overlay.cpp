@@ -103,6 +103,20 @@ class PerfOverlayFixture : public XMLTestFixture {
 
 bool PerfOverlayFixture::s_perf_xml_registered = false;
 
+void set_mcus(std::initializer_list<const char*> mcu_names) {
+    PerfSample s;
+    s.host_cpu_pct = 30.0f;
+    float load = 0.10f;
+    for (const char* n : mcu_names) {
+        McuStat m;
+        m.name = n;
+        m.load = load;
+        load += 0.05f;
+        s.mcus.push_back(m);
+    }
+    PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
+}
+
 } // namespace
 
 // ============================================================================
@@ -112,15 +126,7 @@ bool PerfOverlayFixture::s_perf_xml_registered = false;
 TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay renders MCU rows dynamically",
                  "[performance][xml]") {
     // --- initial state: 1 MCU ---
-    {
-        PerfSample s;
-        s.host_cpu_pct = 30.0f;
-        McuStat a;
-        a.name = "mcu";
-        a.load = 0.10f;
-        s.mcus = {a};
-        PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    }
+    set_mcus({"mcu"});
     // apply_sample runs synchronously; the observe<const char*> callback for
     // perf_mcu_names defers rebuild_mcu_rows via queue_update.
     UpdateQueueTestAccess::drain(UpdateQueue::instance());
@@ -141,21 +147,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay renders MCU rows dynami
     REQUIRE(lv_obj_get_child_count(card) == 1);
 
     // --- second sample: 3 MCUs -> overlay must rebuild to 3 rows ---
-    {
-        PerfSample s;
-        s.host_cpu_pct = 30.0f;
-        McuStat a;
-        a.name = "mcu";
-        a.load = 0.10f;
-        McuStat b;
-        b.name = "mcu sb";
-        b.load = 0.20f;
-        McuStat c;
-        c.name = "mcu helper";
-        c.load = 0.30f;
-        s.mcus = {a, b, c};
-        PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    }
+    set_mcus({"mcu", "mcu sb", "mcu helper"});
     UpdateQueueTestAccess::drain(UpdateQueue::instance());
 
     REQUIRE(lv_obj_get_child_count(card) == 3);
@@ -177,20 +169,6 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay renders MCU rows dynami
 TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay gates rebuild on actual name change",
                  "[perf][1061]") {
     // Seed an initial 3-MCU sample so the names subject is non-empty.
-    auto set_mcus = [](std::initializer_list<const char*> mcu_names) {
-        PerfSample s;
-        s.host_cpu_pct = 30.0f;
-        float load = 0.10f;
-        for (const char* n : mcu_names) {
-            McuStat m;
-            m.name = n;
-            m.load = load;
-            load += 0.05f;
-            s.mcus.push_back(m);
-        }
-        PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    };
-
     set_mcus({"mcu", "Turtle_1", "EBBCan"});
     UpdateQueueTestAccess::drain(UpdateQueue::instance());
 
@@ -220,6 +198,14 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay gates rebuild on actual
     UpdateQueueTestAccess::drain(UpdateQueue::instance());
 
     REQUIRE(lv_obj_get_child_count(card) == 2);
+
+    // A root deleted with its screen reads null, and a new one shows the rows again.
+    lv_obj_delete(root);
+    CHECK(UiOverlayPerformance::instance().root() == nullptr);
+    root = UiOverlayPerformance::instance().create(lv_screen_active());
+    REQUIRE(root != nullptr);
+    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    CHECK(lv_obj_get_child_count(lv_obj_find_by_name(root, "mcu_card")) == 2);
 }
 
 // Test B: after a rebuild, every row must have resolved (non-sentinel, > 0)
