@@ -522,15 +522,13 @@ TEST_CASE_METHOD(UiButtonTestFixture,
 }
 
 // ============================================================================
-// Deferred contrast / address-reuse crash regression (#924)
+// Deferred contrast after delete (#924)
 //
 // Integration-level coverage of the deferred-contrast path: a STYLE_CHANGED
 // event defers update_button_text_contrast through the UpdateQueue; if the
 // button is destroyed before the queue drains, the deferred recompute must be
-// skipped rather than crashing. The discriminating identity-guard test (which
-// FAILS when `d->id != gen` is removed) lives in
-// test_ui_button_defer_reuse.cpp, which includes ui_button.cpp directly for
-// access to the anonymous-namespace internals.
+// skipped rather than crashing. test_ui_button_defer_reuse.cpp covers the same
+// path through the anonymous-namespace internals.
 // ============================================================================
 
 TEST_CASE_METHOD(UiButtonTestFixture,

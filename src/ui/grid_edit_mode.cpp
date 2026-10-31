@@ -129,7 +129,7 @@ bool GridEditMode::cancel_snap_animation() {
         // the shield nor any other page. The widget's own content follows its
         // new size at the next rebuild. The page the resize ran on may have
         // been deleted since; the outline lives on the top layer and outlives it.
-        lv_obj_t* widget = (page && lv_obj_is_valid(page) && !widget_id.empty())
+        lv_obj_t* widget = (page && !widget_id.empty())
                                ? lv_obj_get_child_by_name(page, widget_id.c_str())
                                : nullptr;
         if (widget) {

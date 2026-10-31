@@ -618,10 +618,6 @@ void WidgetCatalogOverlay::populate_category_rows(lv_obj_t* group) {
 
 void WidgetCatalogOverlay::on_category_row_clicked(lv_event_t* e) {
     auto* row = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (!row || !lv_obj_is_valid(row)) {
-        spdlog::warn("[WidgetCatalog] Category row click on an invalid target");
-        return;
-    }
     auto index = reinterpret_cast<size_t>(lv_obj_get_user_data(row));
     const auto& categories = get_widget_categories();
     if (index >= categories.size()) {
@@ -857,18 +853,20 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     // ahead of it, so the screen changes once: made here, it would be drawn in a
     // frame of its own and the whole screen drawn again when the push lands.
     const uint32_t generation = ++g_catalog_generation;
-    helix::ui::queue_update("WidgetCatalog::backdrop", [parent_screen, generation, backdrop_opa]() {
-        if (generation != g_catalog_generation || !g_catalog_state.overlay_root ||
-            !lv_obj_is_valid(parent_screen))
-            return;
-        auto* backdrop = helix::ui::create_fullscreen_backdrop(parent_screen, backdrop_opa);
-        if (backdrop) {
-            // Don't block clicks — let taps on the backdrop close the catalog
-            lv_obj_remove_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
-            helix::ui::bring_to_front(backdrop);
-        }
-        g_catalog_state.backdrop = backdrop;
-    });
+    helix::ui::queue_update(
+        "WidgetCatalog::backdrop",
+        [screen = helix::ui::WeakWidget(parent_screen), generation, backdrop_opa]() {
+            lv_obj_t* live_screen = screen;
+            if (generation != g_catalog_generation || !g_catalog_state.overlay_root || !live_screen)
+                return;
+            auto* backdrop = helix::ui::create_fullscreen_backdrop(live_screen, backdrop_opa);
+            if (backdrop) {
+                // Don't block clicks — let taps on the backdrop close the catalog
+                lv_obj_remove_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
+                helix::ui::bring_to_front(backdrop);
+            }
+            g_catalog_state.backdrop = backdrop;
+        });
 
     // Push onto navigation stack — keep the home panel visible behind the catalog
     helix::nav::push_overlay(overlay, /*hide_previous=*/false);

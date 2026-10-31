@@ -29,67 +29,29 @@
 using helix::ui::PrintSelectCardView;
 
 // ============================================================================
-// is_placeholder_thumbnail
+// Thumbnail paths
 // ============================================================================
 
-TEST_CASE("CardView: is_placeholder_thumbnail treats empty path as placeholder",
-          "[ui][card_view]") {
-    REQUIRE(PrintSelectCardView::is_placeholder_thumbnail(""));
-}
-
-TEST_CASE("CardView: is_placeholder_thumbnail rejects real paths", "[ui][card_view]") {
-    REQUIRE_FALSE(PrintSelectCardView::is_placeholder_thumbnail(
+TEST_CASE("CardView: is_placeholder_thumbnail means an empty path", "[ui][card_view]") {
+    CHECK(PrintSelectCardView::is_placeholder_thumbnail(""));
+    CHECK_FALSE(PrintSelectCardView::is_placeholder_thumbnail(
         "A:/home/user/.cache/helix/abc123_160x160_ARGB8888.bin"));
-    REQUIRE_FALSE(PrintSelectCardView::is_placeholder_thumbnail("A:/tmp/thumb.png"));
+    CHECK_FALSE(PrintSelectCardView::is_placeholder_thumbnail("A:/tmp/thumb.png"));
 }
 
-// ============================================================================
-// has_real_thumbnail
-// ============================================================================
-
-TEST_CASE("CardView: has_real_thumbnail returns false for empty path", "[ui][card_view]") {
-    REQUIRE_FALSE(PrintSelectCardView::has_real_thumbnail(""));
-}
-
-TEST_CASE("CardView: has_real_thumbnail returns false for nonexistent file", "[ui][card_view]") {
-    REQUIRE_FALSE(
+TEST_CASE("CardView: has_real_thumbnail finds a file, with or without the A: prefix",
+          "[ui][card_view]") {
+    CHECK_FALSE(PrintSelectCardView::has_real_thumbnail(""));
+    CHECK_FALSE(
         PrintSelectCardView::has_real_thumbnail("A:/tmp/does_not_exist_helix_test_thumb.bin"));
-}
 
-TEST_CASE("CardView: has_real_thumbnail with A: prefix finds existing file", "[ui][card_view]") {
-    // Create a temporary file to test against
-    auto tmp = std::filesystem::temp_directory_path() / "helix_test_thumb.bin";
-    {
-        std::ofstream out(tmp);
-        out << "test";
-    }
-
-    REQUIRE(PrintSelectCardView::has_real_thumbnail("A:" + tmp.string()));
+    const auto tmp = std::filesystem::temp_directory_path() / "helix_test_thumb.bin";
+    std::ofstream(tmp) << "test";
+    CHECK(PrintSelectCardView::has_real_thumbnail("A:" + tmp.string()));
+    CHECK(PrintSelectCardView::has_real_thumbnail(tmp.string()));
 
     std::filesystem::remove(tmp);
-}
-
-TEST_CASE("CardView: has_real_thumbnail without A: prefix finds existing file", "[ui][card_view]") {
-    auto tmp = std::filesystem::temp_directory_path() / "helix_test_thumb2.bin";
-    {
-        std::ofstream out(tmp);
-        out << "test";
-    }
-
-    REQUIRE(PrintSelectCardView::has_real_thumbnail(tmp.string()));
-
-    std::filesystem::remove(tmp);
-}
-
-TEST_CASE("CardView: has_real_thumbnail returns false after file deleted", "[ui][card_view]") {
-    auto tmp = std::filesystem::temp_directory_path() / "helix_test_thumb3.bin";
-    {
-        std::ofstream out(tmp);
-        out << "test";
-    }
-    std::filesystem::remove(tmp);
-
-    REQUIRE_FALSE(PrintSelectCardView::has_real_thumbnail("A:" + tmp.string()));
+    CHECK_FALSE(PrintSelectCardView::has_real_thumbnail("A:" + tmp.string()));
 }
 
 // ============================================================================
@@ -118,6 +80,29 @@ size_t window_cards(lv_obj_t* container, const CardDimensions& dims, int file_co
 }
 
 } // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "CardView: a refresh skips a deleted pool card",
+                 "[ui][card_view][print_select]") {
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 700, 400);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW_WRAP);
+
+    PrintSelectCardView view;
+    REQUIRE(view.setup(container, [](size_t) {}, nullptr));
+    const CardDimensions dims{4, 2, 160, 200};
+    auto files = make_files(8);
+    view.populate(files, dims);
+    REQUIRE(view.pool_size() > 1);
+
+    // Child 0 is the leading spacer.
+    lv_obj_t* doomed = lv_obj_get_child(container, 1);
+    lv_obj_t* survivor = lv_obj_get_child(container, 2);
+    lv_obj_delete(doomed);
+    view.refresh_content(files, dims);
+
+    CHECK_FALSE(lv_obj_has_flag(survivor, LV_OBJ_FLAG_HIDDEN));
+    view.cleanup();
+}
 
 TEST_CASE_METHOD(LVGLUITestFixture, "CardView: the pool holds the visible window, not a fixed 24",
                  "[ui][card_view][print_select]") {

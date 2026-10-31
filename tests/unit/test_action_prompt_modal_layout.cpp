@@ -34,7 +34,8 @@
 // White-box accessor (declared friend in action_prompt_modal.h) — avoids adding
 // _for_testing() methods to the production class ([L065]/[L088]).
 struct ActionPromptModalTestAccess {
-    static const std::vector<lv_obj_t*>& buttons(const helix::ui::ActionPromptModal& m) {
+    static const std::vector<helix::ui::WeakWidget>&
+    buttons(const helix::ui::ActionPromptModal& m) {
         return m.created_buttons_;
     }
 };

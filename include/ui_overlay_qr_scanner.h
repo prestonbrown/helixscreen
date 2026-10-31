@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "overlay_base.h"
 #include "qr_decoder.h"
 #include "snapshot_qr_scanner.h"
@@ -145,7 +147,7 @@ class QrScannerOverlay : public OverlayBase {
     char status_buf_[128]{};
 
     // Cached widget pointers
-    lv_obj_t* viewfinder_ = nullptr;
+    helix::ui::WidgetRef viewfinder_;
     lv_obj_t* success_flash_ = nullptr;
 
     // Timers (tracked for cleanup)

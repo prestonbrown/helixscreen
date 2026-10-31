@@ -159,7 +159,7 @@ class AmsPanel : public PanelBase {
     // === Slot Management ===
 
     static constexpr int kMaxVisibleSlots = kAmsDetailMaxSlots; ///< Max slots displayed
-    lv_obj_t* slot_widgets_[kMaxVisibleSlots] = {nullptr};
+    helix::ui::WidgetRef slot_widgets_[kMaxVisibleSlots];
     lv_obj_t* label_widgets_[kMaxVisibleSlots] = {nullptr}; ///< Separate label layer for z-order
     AmsDetailWidgets detail_widgets_;                       ///< Shared component widget pointers
 

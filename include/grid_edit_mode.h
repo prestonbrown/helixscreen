@@ -701,7 +701,7 @@ class GridEditMode {
     ResizeOutline snap_anim_outline_{};
     /// The page the animating resize ran on, where a stopped snap lays the
     /// widget out (cancel_snap_animation). Checked live before use.
-    lv_obj_t* snap_anim_page_ = nullptr;
+    helix::ui::WidgetRef snap_anim_page_;
     /// The widget that snap animation resized, which the rebuild after it
     /// selects again. Empty when no snap is in flight.
     std::string snap_anim_widget_id_;

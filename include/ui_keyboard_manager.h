@@ -261,7 +261,7 @@ class KeyboardManager {
 
     // Global keyboard instance
     helix::ui::WidgetRef keyboard_;
-    lv_obj_t* context_textarea_ = nullptr;
+    helix::ui::WidgetRef context_textarea_;
 
     // Keyboard font with MDI fallback
     lv_font_t keyboard_font_{};

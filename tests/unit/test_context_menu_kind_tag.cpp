@@ -83,16 +83,29 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: active_as resolves the live menu
         MenuAlpha alpha;
         show(alpha, test_screen());
         alpha.hide();
-        process_lvgl(50);
 
+        // Raised before the outgoing backdrop's deferred delete lands; that delete
+        // must spare it.
         MenuBeta beta;
         show(beta, test_screen());
+        process_lvgl(50);
 
         CHECK(ContextMenu::active_as<MenuBeta>() == &beta);
         CHECK(ContextMenu::active_as<MenuAlpha>() == nullptr);
 
         beta.hide();
         process_lvgl(50);
+    }
+
+    SECTION("a backdrop deleted without hide() leaves no active menu") {
+        MenuAlpha alpha;
+        show(alpha, test_screen());
+        REQUIRE(ContextMenu::active() == &alpha);
+
+        lv_obj_delete(lv_obj_get_child(test_screen(), -1));
+
+        CHECK(ContextMenu::active() == nullptr);
+        CHECK_FALSE(alpha.is_visible());
     }
 }
 

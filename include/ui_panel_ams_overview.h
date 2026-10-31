@@ -187,7 +187,7 @@ class AmsOverviewPanel : public PanelBase {
     helix::ui::WidgetRef page_dots_;
     AmsDetailWidgets detail_widgets_;         ///< Shared widget pointers for the spool box
     helix::ui::WidgetRef detail_path_canvas_; ///< Filament path visualization
-    lv_obj_t* detail_slot_widgets_[kMaxDetailSlots] = {nullptr};
+    helix::ui::WidgetRef detail_slot_widgets_[kMaxDetailSlots];
     int detail_slot_count_ = 0;
     int shown_unit_pos_ = -1; ///< Position in AmsSystemInfo::units of the unit on screen
 

@@ -27,26 +27,22 @@ ContextMenu::ContextMenu() {
 
 ContextMenu::~ContextMenu() {
     hide();
+    if (s_active_ == this) {
+        s_active_ = nullptr;
+    }
     spdlog::trace("[ContextMenu] Destroyed");
 }
 
-// The delete hook carries `this` as its user_data, so a move has to re-point it at
-// the new owner. Leaving it on the moved-from object is a use-after-free waiting for
-// the backdrop to be destroyed.
 void ContextMenu::adopt_from(ContextMenu& other) {
-    menu_ = other.menu_;
+    menu_ = other.menu_.get();
     parent_ = other.parent_;
     item_index_ = other.item_index_;
     click_point_ = other.click_point_;
     anchor_mode_ = other.anchor_mode_;
     anchor_align_ = other.anchor_align_;
-    anchor_widget_ = other.anchor_widget_;
+    anchor_widget_ = other.anchor_widget_.get();
     action_callback_ = std::move(other.action_callback_);
 
-    if (menu_ && lv_obj_is_valid(menu_)) {
-        lv_obj_remove_event_cb_with_user_data(menu_, on_menu_deleted, &other);
-        lv_obj_add_event_cb(menu_, on_menu_deleted, LV_EVENT_DELETE, this);
-    }
     if (s_active_ == &other) {
         s_active_ = this;
     }
@@ -74,37 +70,9 @@ ContextMenu& ContextMenu::operator=(ContextMenu&& other) noexcept {
 // ============================================================================
 
 ContextMenu* ContextMenu::active() {
-    return s_active_;
-}
-
-void ContextMenu::on_menu_deleted(lv_event_t* e) {
-    auto* self = static_cast<ContextMenu*>(lv_event_get_user_data(e));
-    if (!self) {
-        return;
-    }
-    // Only the backdrop we still believe in may clear us. Dismissal is deferred, so
-    // a menu raised in the meantime has already claimed menu_ and s_active_ — and
-    // the outgoing backdrop's delete must not knock the incoming one out.
-    if (lv_event_get_current_target_obj(e) != self->menu_) {
-        return;
-    }
-    self->menu_ = nullptr;
-    if (s_active_ == self) {
-        s_active_ = nullptr;
-    }
-    spdlog::trace("[ContextMenu] Backdrop deleted — cleared active menu");
-}
-
-void ContextMenu::install_delete_hook() {
-    if (menu_) {
-        lv_obj_add_event_cb(menu_, on_menu_deleted, LV_EVENT_DELETE, this);
-    }
-}
-
-void ContextMenu::uninstall_delete_hook() {
-    if (menu_ && lv_obj_is_valid(menu_)) {
-        lv_obj_remove_event_cb_with_user_data(menu_, on_menu_deleted, this);
-    }
+    // The backdrop can be destroyed without going through hide(): a screen swap takes
+    // its parent with it. menu_ reads nullptr from then on, so that menu is not active.
+    return s_active_ && s_active_->menu_ ? s_active_ : nullptr;
 }
 
 void ContextMenu::backdrop_cb(lv_event_t* e) {
@@ -181,7 +149,6 @@ bool ContextMenu::show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, 
     }
 
     s_active_ = this;
-    install_delete_hook();
 
     // The backdrop is width/height 100% and nothing has resolved that yet. Everything
     // below reads 0 without this: the width policy collapses to its minimum, and any
@@ -228,10 +195,6 @@ void ContextMenu::hide() {
     if (s_active_ == this) {
         s_active_ = nullptr;
     }
-    // The hook has done its job; leaving it armed would let this backdrop's deferred
-    // delete clear a menu raised before the delete lands.
-    uninstall_delete_hook();
-
     // Use deferred delete since we may be called during event processing
     helix::ui::safe_delete_deferred(menu_);
     item_index_ = -1;
@@ -646,7 +609,7 @@ void ContextMenu::position_card(lv_obj_t* menu_card) {
 
     AnchorMode mode = anchor_mode_;
     lv_area_t anchor{};
-    if (mode == AnchorMode::BelowAnchor && anchor_widget_ && lv_obj_is_valid(anchor_widget_)) {
+    if (mode == AnchorMode::BelowAnchor && anchor_widget_) {
         lv_obj_get_coords(anchor_widget_, &anchor);
     } else {
         // No live anchor rect to hang off — fall back to the click point.

@@ -859,12 +859,13 @@ TEST_CASE_METHOD(TempGraphFeatureFixture,
                  "[temp_graph][panel_widget][regression]") {
     TempGraphWidget w("test_save_stale");
 
-    // Simulate the layout manager having detached this widget instance (or the
-    // underlying lv_obj_t having been freed by a panel rebuild) by leaving
-    // widget_obj_ = nullptr. The modal's save callback will still fire because
-    // it captured `this`, but the container is gone.
-    TempGraphWidgetTestAccess::set_widget_obj(w, nullptr);
-    TempGraphWidgetTestAccess::set_parent_screen(w, nullptr);
+    // A panel rebuild frees the container while the config modal is open. The
+    // modal's save callback still fires because it captured `this`.
+    lv_obj_t* container = lv_obj_create(screen);
+    lv_obj_set_size(container, 400, 300);
+    w.attach(container, screen);
+    REQUIRE(TempGraphWidgetTestAccess::has_controller(w));
+    lv_obj_delete(container);
 
     nlohmann::json new_cfg = {
         {"sensors", nlohmann::json::array(

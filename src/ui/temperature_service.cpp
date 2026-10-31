@@ -531,7 +531,7 @@ void TemperatureService::select_extruder(const std::string& name) {
     // was active at setup_mini_combined_graph() time — typically T0, since
     // the setup runs at panel construction — and the chart shows T0's cold
     // baseline while the user is actively heating T1.
-    if (mini_graph_controller_ && mini_graph_container_ && lv_obj_is_valid(mini_graph_container_)) {
+    if (mini_graph_controller_ && mini_graph_container_) {
         mini_graph_controller_.reset();
         setup_mini_combined_graph(mini_graph_container_);
     }
