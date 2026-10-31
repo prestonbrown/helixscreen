@@ -45,6 +45,7 @@
 #include "../test_helpers/scoped_config_write_counter.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "../test_helpers/scoped_widget_factory.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "config.h"
 #include "display_settings_manager.h"
@@ -875,14 +876,14 @@ class EditHomeFixture : public LVGLTestFixture {
         lv_obj_t* shield = GridEditModeTestAccess::shield(grid());
         REQUIRE(shield != nullptr);
         // Before anything reads it: a shield the session outlived is freed.
-        REQUIRE(lv_obj_is_valid(shield));
+        REQUIRE(helix::test::widget_in_tree(shield));
         CHECK(lv_obj_get_parent(shield) == container);
         lv_obj_t* selection_home =
             GridEditModeTestAccess::dragging(grid()) ? drag_layer() : container;
         for (lv_obj_t* obj :
              {grid().selected_widget(), GridEditModeTestAccess::selection_overlay(grid())}) {
             if (obj) {
-                REQUIRE(lv_obj_is_valid(obj));
+                REQUIRE(helix::test::widget_in_tree(obj));
                 CHECK(lv_obj_get_parent(obj) == selection_home);
             }
         }
@@ -1654,7 +1655,7 @@ TEST_CASE_METHOD(EditHomeFixture, "leaving edit mode re-arms every page without 
     CHECK(widget_on(1, "fan") == far_widget);
     CHECK(is_clickable(widget));
     CHECK(is_clickable(far_widget));
-    CHECK_FALSE(lv_obj_is_valid(shield));
+    CHECK_FALSE(helix::test::widget_in_tree(shield));
     // Every page's widgets get to re-apply interactivity the restore overwrote.
     for (lv_obj_t* tile : {widget, far_widget}) {
         auto* stand_in = static_cast<StandInWidget*>(lv_obj_get_user_data(tile));
@@ -1834,7 +1835,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a multi-frame resize commits and tears down i
     const auto committed = config().page_entries(0)[0];
     CHECK(committed.rowspan == orig.rowspan + kCellTracks); // one cell taller
     CHECK(GridEditModeTestAccess::resize_preview(grid()) == nullptr);
-    CHECK_FALSE(lv_obj_is_valid(preview)); // nothing it drew is left
+    CHECK_FALSE(helix::test::widget_in_tree(preview)); // nothing it drew is left
     CHECK(GridEditModeTestAccess::snap_preview(grid()) == nullptr);
 
     // The resized tile keeps its tree: it moves to its new span, its widget
@@ -3247,7 +3248,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     // laid-out size.
     indev.release(carried.x, carried.y);
     settle();
-    REQUIRE(lv_obj_is_valid(widget));
+    REQUIRE(helix::test::widget_in_tree(widget));
     CHECK(lv_obj_get_parent(widget) == page(0));
     lv_obj_update_layout(widget);
     const lv_area_t landed = area_of(widget);
@@ -4597,7 +4598,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     REQUIRE(page_count() == 2);
     for (int i = 0; i < page_count(); ++i) {
         INFO("page " << i);
-        REQUIRE(lv_obj_is_valid(page(i)));
+        REQUIRE(helix::test::widget_in_tree(page(i)));
         CHECK(helix::ui::is_on_active_screen(page(i)));
     }
     CHECK(widget_on(0, "temperature") != nullptr);
@@ -4676,7 +4677,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     REQUIRE(page_count() == 2);
     for (int i = 0; i < page_count(); ++i) {
         INFO("page " << i);
-        REQUIRE(lv_obj_is_valid(page(i)));
+        REQUIRE(helix::test::widget_in_tree(page(i)));
         CHECK(helix::ui::is_on_active_screen(page(i)));
     }
     CHECK(widget_on(0, "temperature") != nullptr);

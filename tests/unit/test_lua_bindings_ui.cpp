@@ -12,6 +12,7 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/plugin_host_test_support.h"
 #include "../test_helpers/plugin_test_support.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "layout_manager.h"
@@ -302,7 +303,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a bound object outlives its plugin's runtime 
     size_t before = retired_subject_count();
     lv_obj_t* root = bind_label_to_doomed_subject();
     helix::ScopeExit cleanup([&root] {
-        if (root && lv_obj_is_valid(root))
+        if (root && helix::test::widget_in_tree(root))
             lv_obj_delete(root);
         lv_xml_component_unregister("test-plugin__bindrow");
     });
@@ -324,7 +325,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a plugin load sweeps retired subjects",
     size_t before = retired_subject_count();
     lv_obj_t* root = bind_label_to_doomed_subject();
     helix::ScopeExit cleanup([&root] {
-        if (root && lv_obj_is_valid(root))
+        if (root && helix::test::widget_in_tree(root))
             lv_obj_delete(root);
         lv_xml_component_unregister("test-plugin__bindrow");
     });

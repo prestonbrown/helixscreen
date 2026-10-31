@@ -19,6 +19,7 @@
 #include "ui_modal.h"
 #include "ui_update_queue.h"
 
+#include "../test_helpers/widget_in_tree.h"
 #include "async_lifetime_guard.h"
 #include "logging_init.h"
 
@@ -412,7 +413,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms deeply nested butto
 
     Modal::hide(dialog);
 
-    REQUIRE(lv_obj_is_valid(primary));
+    REQUIRE(helix::test::widget_in_tree(primary));
     CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
 
     process_lvgl(50);
@@ -514,7 +515,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Disarm preserves ui_button user_data but cl
 
     Modal::hide(dialog);
 
-    REQUIRE(lv_obj_is_valid(primary));
+    REQUIRE(helix::test::widget_in_tree(primary));
     // Still ui_button's own allocation - button_delete_cb can still free it.
     CHECK(ui_button_owns_user_data(primary));
     // The foreign pointer is gone.
@@ -537,7 +538,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Instance hide disarms through the shared pa
 
     modal.hide();
 
-    REQUIRE(lv_obj_is_valid(primary));
+    REQUIRE(helix::test::widget_in_tree(primary));
     CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
     CHECK(modal.hide_calls == 1);
 
@@ -584,7 +585,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A helper dialog disarms through its owner",
 
     Modal::hide(dialog);
 
-    REQUIRE(lv_obj_is_valid(primary));
+    REQUIRE(helix::test::widget_in_tree(primary));
     CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
 
     process_lvgl(50);
@@ -901,7 +902,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Teardown strips the owner's callbacks from 
 
     Modal::hide(dialog);
 
-    REQUIRE(lv_obj_is_valid(primary));
+    REQUIRE(helix::test::widget_in_tree(primary));
     const uint32_t after = lv_obj_get_event_count(primary);
     // Exactly one removed: ours. ui_button's callbacks carry null user_data and
     // are deliberately left alone.

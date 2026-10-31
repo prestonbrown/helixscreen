@@ -7,6 +7,7 @@
 #include "../../include/ui_nav_manager.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
 
@@ -862,9 +863,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
 // This differs from the ZW6ATWSL self-heal above: there the overlay was already
 // ON panel_stack_ when deleted; here it is deleted while the push is still
 // pending, so it never reached the stack and the delete-hook scrub does not
-// apply. The fix is an lv_obj_is_valid(overlay_panel) guard at the top of the
-// deferred lambda — lv_obj_is_valid searches the display tree rather than
-// dereferencing, so it is safe on a freed pointer.
+// apply. The deferred lambda holds a WeakWidget, which reads nullptr by then.
 
 TEST_CASE_METHOD(NavbarIconTestFixture,
                  "push_overlay skips a target freed before the deferred push drains",
@@ -894,7 +893,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     lv_obj_delete(overlay);
 
     // Draining must not crash on the freed pointer, and the dead overlay must
-    // not be admitted to the stack. Without the lv_obj_is_valid guard the lambda
+    // not be admitted to the stack. Without the handle the lambda
     // calls lv_obj_get_screen on freed memory (SIGSEGV under ASAN) or pushes the
     // dangling pointer onto panel_stack_ (is_panel_in_stack would be true).
     REQUIRE_NOTHROW(

@@ -41,6 +41,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/sweep_preview_fakes.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "belt_tension_types.h"
 #include "lvgl/lvgl.h"
@@ -2647,7 +2648,7 @@ TEST_CASE("leaving the panel closes the Re-test menu so it cannot start a sweep"
 
     // A tap that was already in flight on the row: nothing may start.
     fx.mock().clear_gcode_script_history();
-    if (lv_obj_is_valid(row)) {
+    if (helix::test::widget_in_tree(row)) {
         lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
     }
     fx.pump_ms(2000);

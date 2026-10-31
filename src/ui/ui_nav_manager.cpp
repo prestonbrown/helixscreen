@@ -1343,6 +1343,8 @@ void NavigationManager::rekey_overlay_widget(lv_obj_t* old_widget, lv_obj_t* new
         bool cls = wc_it->second;
         overlay_is_destination_.erase(wc_it);
         overlay_is_destination_[new_widget] = cls;
+        // The new root has its XML's geometry until told its width class.
+        ui_set_overlay_geometry(new_widget, cls);
     }
 
     std::replace(panel_stack_.begin(), panel_stack_.end(), old_widget, new_widget);

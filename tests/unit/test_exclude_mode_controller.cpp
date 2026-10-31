@@ -10,6 +10,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "printer_excluded_objects_state.h"
 
 #include <string>
@@ -223,7 +224,7 @@ TEST_CASE_METHOD(ExcludeModeFixture,
 
     list.destroy();
     settle();
-    CHECK(lv_obj_is_valid(fresh));
+    CHECK(helix::test::widget_in_tree(fresh));
     objects.set_excluded_objects({"A"}); // no observer may reach the deleted rows
     settle();
 }
@@ -246,7 +247,7 @@ TEST_CASE_METHOD(ExcludeModeFixture,
 
     map.destroy();
     settle();
-    CHECK(lv_obj_is_valid(fresh));
+    CHECK(helix::test::widget_in_tree(fresh));
     objects.set_defined_objects({"A", "B"}); // no observer may reach the deleted rects
     settle();
 }

@@ -14,6 +14,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/process_async_timers.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "overlay_base.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -68,11 +69,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     bool after_saw_live_tree = false;
     bool after_saw_nulled_cached = false;
-    CHECK(teardown_overlay_ui(
-        root, "DeferredCase", TeardownDelete::Deferred, &cached, TeardownHooks::after([&] {
-            after_saw_live_tree = lv_obj_is_valid(raw) && lv_obj_is_valid(child);
-            after_saw_nulled_cached = (cached == nullptr);
-        })));
+    CHECK(teardown_overlay_ui(root, "DeferredCase", TeardownDelete::Deferred, &cached,
+                              TeardownHooks::after([&] {
+                                  after_saw_live_tree = helix::test::widget_in_tree(raw) &&
+                                                        helix::test::widget_in_tree(child);
+                                  after_saw_nulled_cached = (cached == nullptr);
+                              })));
 
     // Pointers null out immediately.
     CHECK(root == nullptr);
@@ -83,7 +85,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // Deferred contract: the tree is alive (hidden, reparented to the top
     // layer) until the async tick — never sync-deleted.
-    CHECK(lv_obj_is_valid(raw));
+    CHECK(helix::test::widget_in_tree(raw));
     CHECK(lv_obj_get_parent(raw) == lv_layer_top());
 
     // after_delete runs after null-out but before the async free.
@@ -91,7 +93,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(after_saw_nulled_cached);
 
     process_async_timers();
-    CHECK_FALSE(lv_obj_is_valid(raw));
+    CHECK_FALSE(helix::test::widget_in_tree(raw));
 }
 
 TEST_CASE_METHOD(
@@ -119,8 +121,9 @@ TEST_CASE_METHOD(
             // before_delete owns the moment while every pointer is still
             // valid AND the subtree is still attached — the AMS panels drop
             // their sidebar and context-menu sub-objects here.
-            before_saw_attached_live_tree =
-                lv_obj_is_valid(raw) && lv_obj_is_valid(child) && lv_obj_get_parent(raw) == parent;
+            before_saw_attached_live_tree = helix::test::widget_in_tree(raw) &&
+                                            helix::test::widget_in_tree(child) &&
+                                            lv_obj_get_parent(raw) == parent;
         })));
 
     CHECK(root == nullptr);
@@ -138,7 +141,7 @@ TEST_CASE_METHOD(
 
     // ...but it sits in a hidden, layout-less condemned container, not the
     // top layer directly, and cannot drive a layout pass itself.
-    CHECK(lv_obj_is_valid(raw));
+    CHECK(helix::test::widget_in_tree(raw));
     lv_obj_t* holder = lv_obj_get_parent(raw);
     CHECK(holder != lv_layer_top());
     CHECK(lv_obj_get_parent(holder) == lv_layer_top());
@@ -147,7 +150,7 @@ TEST_CASE_METHOD(
 
     // Free is still deferred — no sync delete in a close callback (#776).
     process_async_timers();
-    CHECK_FALSE(lv_obj_is_valid(raw));
+    CHECK_FALSE(helix::test::widget_in_tree(raw));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -239,6 +242,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(after_runs == 1);
     CHECK(root == fresh);
     process_async_timers();
-    CHECK(lv_obj_is_valid(fresh));
+    CHECK(helix::test::widget_in_tree(fresh));
     lv_obj_delete(fresh);
 }

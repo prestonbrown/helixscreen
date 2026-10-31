@@ -24,6 +24,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
 #include "memory_utils.h"
@@ -227,6 +228,34 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     CHECK(lv_obj_get_child_count(test_screen()) == screen_children);
 }
 
+TEST_CASE_METHOD(PrintStatusCloseFixture,
+                 "Print status rebuilt on screen keeps its width and shows live progress",
+                 "[print_status][destroy_on_close][1983]") {
+    set_wire_state(PrintJobState::PRINTING);
+    lv_obj_t* old_root = open_print_status();
+    lv_obj_update_layout(test_screen());
+    const int32_t width = lv_obj_get_width(old_root);
+
+    REQUIRE(panel().rebuild());
+    settle();
+
+    lv_obj_t* rebuilt = panel().get_panel();
+    REQUIRE(rebuilt != old_root);
+    CHECK(in_stack(rebuilt));
+    CHECK_FALSE(lv_obj_has_flag(rebuilt, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_update_layout(test_screen());
+    CHECK(lv_obj_get_width(rebuilt) == width);
+
+    nlohmann::json status;
+    status["print_stats"]["state"] = "printing";
+    status["virtual_sdcard"]["progress"] = 0.42;
+    get_printer_state().update_from_status(status);
+    drain();
+    lv_obj_t* percent = lv_obj_find_by_name(rebuilt, "print_percent");
+    REQUIRE(percent != nullptr);
+    CHECK(std::string(lv_label_get_text(percent)) == "42%");
+}
+
 TEST_CASE_METHOD(PrintStatusCloseFixture, "Print status decides from the print state at close",
                  "[print_status][destroy_on_close]") {
     // Opened with no job, so a decision made when the tree was created would
@@ -243,7 +272,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture, "Print status decides from the print s
     close_print_status(tree);
 
     CHECK(PrintStatusPanel::get_cached_overlay() == nullptr);
-    CHECK_FALSE(lv_obj_is_valid(tree));
+    CHECK_FALSE(helix::test::widget_in_tree(tree));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture, "Print status decides from available memory at close",
@@ -301,7 +330,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture, "A connection-loss close decides like 
 
         REQUIRE_FALSE(in_stack(tree));
         CHECK(PrintStatusPanel::get_cached_overlay() == tree);
-        CHECK(lv_obj_is_valid(tree));
+        CHECK(helix::test::widget_in_tree(tree));
     }
 
     SECTION("no job: destroyed") {
@@ -313,7 +342,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture, "A connection-loss close decides like 
 
         REQUIRE_FALSE(in_stack(tree));
         CHECK(PrintStatusPanel::get_cached_overlay() == nullptr);
-        CHECK_FALSE(lv_obj_is_valid(tree));
+        CHECK_FALSE(helix::test::widget_in_tree(tree));
     }
 }
 
@@ -368,7 +397,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     settle();
 
     CHECK(PrintStatusPanel::get_cached_overlay() == nullptr);
-    CHECK_FALSE(lv_obj_is_valid(tree));
+    CHECK_FALSE(helix::test::widget_in_tree(tree));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture, "A job ending keeps a kept tree that is on screen",
@@ -390,7 +419,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture, "A job ending keeps a kept tree that i
     settle();
 
     CHECK(PrintStatusPanel::get_cached_overlay() == tree);
-    CHECK(lv_obj_is_valid(tree));
+    CHECK(helix::test::widget_in_tree(tree));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture,
@@ -406,7 +435,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     settle();
 
     CHECK(PrintStatusPanel::get_cached_overlay() == tree);
-    CHECK(lv_obj_is_valid(tree));
+    CHECK(helix::test::widget_in_tree(tree));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture,

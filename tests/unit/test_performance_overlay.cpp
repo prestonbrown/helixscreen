@@ -20,6 +20,7 @@
 #include "../test_helpers/performance_state_test_access.h"
 #include "../test_helpers/ui_overlay_performance_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "helix_sparkline.h"
 #include "performance_state.h"
 
@@ -84,7 +85,7 @@ class PerfOverlayFixture : public XMLTestFixture {
         // delete the test screen. By the time it does so, the overlay widget is
         // already gone (step 1), so the screen deletion is clean.
         lv_obj_t* root = UiOverlayPerformance::instance().root();
-        if (root && lv_obj_is_valid(root)) {
+        if (root && helix::test::widget_in_tree(root)) {
             lv_obj_delete(root);
         }
         UiOverlayPerformanceTestAccess::reset(UiOverlayPerformance::instance());

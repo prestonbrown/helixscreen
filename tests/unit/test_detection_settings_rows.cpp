@@ -23,6 +23,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "detection_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "settings_manager.h"
@@ -57,7 +58,7 @@ struct DetectionRowsFixture : public LVGLUITestFixture {
     }
 
     ~DetectionRowsFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;

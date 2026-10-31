@@ -363,37 +363,30 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-# --- widget validity --------------------------------------------------------
+# --- widget validity ban ----------------------------------------------------
 
-@test "a new lv_obj_is_valid call fails in an existing file and in a new one" {
-    inject "void Panel::refresh" 'if (lv_obj_is_valid(w_)) {}'
-    printf 'bool f(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/include/new.h"
-    commit_all "two calls"
+@test "each banned validity call fails, in src, include and tests, even with no branch work" {
+    printf 'bool a(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/src/ui/v.cpp"
+    printf 'bool b(lv_obj_t* o) { return lv_obj_is_in_widget_tree(o); }\n' > "$REPO/include/v.h"
+    printf 'bool c(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/tests/unit/v.cpp"
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "calls already there"
+    BASE=$(git -C "$REPO" rev-parse HEAD)
     ratchets
     [ "$status" -eq 1 ]
-    contains "src/ui/panel.cpp: lv_obj_is_valid() grew 0 -> 1" "$output"
-    contains "include/new.h: lv_obj_is_valid() grew 0 -> 1" "$output"
+    contains "src/ui/v.cpp:1: lv_obj_is_valid()" "$output"
+    contains "include/v.h:1: lv_obj_is_in_widget_tree()" "$output"
+    contains "tests/unit/v.cpp:1: lv_obj_is_valid()" "$output"
 }
 
-@test "a file's lv_obj_is_valid count may fall, and a rename keeps its count" {
-    printf 'bool a(lv_obj_t* o) { return lv_obj_is_valid(o); }\nbool b(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/src/ui/v.cpp"
-    git -C "$REPO" add -A
-    git -C "$REPO" commit -qm "two calls"
-    BASE=$(git -C "$REPO" rev-parse HEAD)
-    git -C "$REPO" mv src/ui/v.cpp src/ui/w.cpp
-    printf 'bool b(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/src/ui/w.cpp"
-    commit_all "one call, renamed"
-    ratchets
-    [ "$status" -eq 0 ]
-}
-
-@test "lv_obj_is_valid in a comment, a string, a longer name or a test file is not counted" {
+@test "a banned name in a comment, a string or a longer name, or outside the C++ roots, passes" {
     cat > "$REPO/src/ui/quiet.cpp" <<'EOF'
 // lv_obj_is_valid(old) cannot tell a reused address
-const char* s = "lv_obj_is_valid(x)";
+const char* s = "lv_obj_is_in_widget_tree(x)";
 bool my_lv_obj_is_valid(lv_obj_t* o);
 EOF
-    printf 'bool t(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/tests/unit/t.cpp"
+    mkdir -p "$REPO/lib/lvgl"
+    printf 'bool c(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/lib/lvgl/l.cpp"
     commit_all "quiet shapes"
     ratchets
     [ "$status" -eq 0 ]

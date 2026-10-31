@@ -16,6 +16,7 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_state.h"
 #include "ams_step_operation.h"
 #include "filament_action_set.h"
@@ -121,7 +122,7 @@ struct BatchStepsFixture : public XMLTestFixture {
 
     void close() {
         sidebar_.reset();
-        if (panel_ && lv_obj_is_valid(panel_)) {
+        if (panel_ && helix::test::widget_in_tree(panel_)) {
             lv_obj_delete(panel_);
         }
         panel_ = nullptr;
@@ -153,7 +154,7 @@ struct BatchStepsFixture : public XMLTestFixture {
         helix::ui::UpdateQueue::instance().drain();
         helix::ui::UpdateQueue::instance().drain();
         REQUIRE_FALSE(changer_->sent_.empty()); // the batch reached the backend
-        REQUIRE(lv_obj_is_valid(panel_));
+        REQUIRE(helix::test::widget_in_tree(panel_));
     }
 
     /// Every row label the step bar on screen shows, in order.

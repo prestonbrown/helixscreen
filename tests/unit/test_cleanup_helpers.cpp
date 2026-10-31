@@ -9,6 +9,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ui/ui_cleanup_helpers.h"
 
 #include "../catch_amalgamated.hpp"
@@ -76,7 +77,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_deferred deletes object after tim
                  "[cleanup][cleanup_helpers]") {
     lv_obj_t* obj = lv_obj_create(test_screen());
     lv_obj_t* raw_copy = obj;
-    REQUIRE(lv_obj_is_valid(raw_copy));
+    REQUIRE(helix::test::widget_in_tree(raw_copy));
 
     helix::ui::safe_delete_deferred(obj);
 
@@ -87,7 +88,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_deferred deletes object after tim
 
     // After timer tick, the async deletion executes
     process_async_timers();
-    REQUIRE_FALSE(lv_obj_is_valid(raw_copy));
+    REQUIRE_FALSE(helix::test::widget_in_tree(raw_copy));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "multiple safe_delete_deferred in same batch does not crash",
@@ -118,7 +119,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "multiple safe_delete_deferred in same batch d
 
     // All objects deleted after timer tick
     for (int i = 0; i < COUNT; ++i) {
-        REQUIRE_FALSE(lv_obj_is_valid(raw_copies[i]));
+        REQUIRE_FALSE(helix::test::widget_in_tree(raw_copies[i]));
     }
 }
 
@@ -126,7 +127,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_deferred hides and defers deletio
                  "[cleanup][cleanup_helpers]") {
     lv_obj_t* obj = lv_obj_create(test_screen());
     lv_obj_t* raw_copy = obj;
-    REQUIRE(lv_obj_is_valid(raw_copy));
+    REQUIRE(helix::test::widget_in_tree(raw_copy));
 
     // safe_delete_deferred hides immediately and defers via lv_obj_delete_async
     helix::ui::safe_delete_deferred(obj);
@@ -134,12 +135,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_deferred hides and defers deletio
     // Pointer nullified immediately
     REQUIRE(obj == nullptr);
     // Object hidden immediately but still exists
-    REQUIRE(lv_obj_is_valid(raw_copy));
+    REQUIRE(helix::test::widget_in_tree(raw_copy));
     REQUIRE(lv_obj_has_flag(raw_copy, LV_OBJ_FLAG_HIDDEN));
 
     // After timer tick, the async deletion executes
     process_async_timers();
-    REQUIRE_FALSE(lv_obj_is_valid(raw_copy));
+    REQUIRE_FALSE(helix::test::widget_in_tree(raw_copy));
 }
 
 // ============================================================================
@@ -240,13 +241,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_t* victim_copy = victim;
     helix::ui::safe_delete_deferred(victim);
 
-    REQUIRE(victim == nullptr);            // reference overload nulls the caller pointer
-    REQUIRE(lv_obj_is_valid(victim_copy)); // not freed yet (deferred)
+    REQUIRE(victim == nullptr); // reference overload nulls the caller pointer
+    REQUIRE(helix::test::widget_in_tree(victim_copy)); // not freed yet (deferred)
     // The defining difference: deferred puts the child directly on lv_layer_top.
     REQUIRE(lv_obj_get_parent(victim_copy) == lv_layer_top());
 
     process_async_timers();
-    REQUIRE_FALSE(lv_obj_is_valid(victim_copy));
+    REQUIRE_FALSE(helix::test::widget_in_tree(victim_copy));
 }
 
 // Property 2: relayout of the original grid after teardown is safe and never
@@ -300,7 +301,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_subtree eventually frees the whol
 
     // Whole subtree freed: descendant's DELETE fired and the root is invalid.
     REQUIRE(s_subtree_child_deleted);
-    REQUIRE_FALSE(lv_obj_is_valid(root_copy));
+    REQUIRE_FALSE(helix::test::widget_in_tree(root_copy));
 }
 
 // Property 4: nullptr, which is what a handle reads once its widget is gone, is a no-op.

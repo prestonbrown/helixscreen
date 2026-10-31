@@ -27,11 +27,12 @@ to conflict on. A count may fall; a branch may not raise it.
                    `Foo* s_active_ctx = nullptr;`, ...). The branch's total may
                    not rise; an out-of-line `Foo* Foo::active_instance_ =`
                    definition is not a second pointer and is not counted.
-  widget validity  lv_obj_is_valid() calls per app source file (comments and
-                   strings not counted). It cannot tell a live widget from a new
-                   one at a freed address; hold a helix::ui::WidgetRef or WeakWidget
-                   (include/ui_widget_ref.h). A file may not gain one
-                   (prestonbrown/helixscreen#1983).
+
+One ban, on the whole tree at HEAD rather than the branch's change: no call to
+lv_obj_is_valid() or lv_obj_is_in_widget_tree() anywhere under src/, include/ or tests/
+(comments and strings not counted). Neither can tell a live widget from a new one at a
+freed address; hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h), and
+in a test use helix::test::widget_in_tree() (prestonbrown/helixscreen#1983).
 
 Usage:
   check_growth_ratchets.py --base auto     # the fork point diff_base.py picks
@@ -82,8 +83,8 @@ ACTIVE_GLOBAL_RE = re.compile(
     rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_)\w*active\w*|(?:s_|g_)\w+_instance_?)"
     rf"\s*(?:=\s*nullptr\s*|\{{\s*\}}\s*)?;", re.M)
 
-VALIDITY_NAME = "lv_obj_is_valid"
-VALIDITY_CALL_RE = re.compile(rf"\b{VALIDITY_NAME}\s*\(")
+VALIDITY_NAMES = ("lv_obj_is_valid", "lv_obj_is_in_widget_tree")
+VALIDITY_CALL_RE = re.compile(rf"\b(?:{'|'.join(VALIDITY_NAMES)})\s*\(")
 
 CLASS_HEAD_RE = re.compile(
     r"(?<![\w])(?:class|struct)\s+(?:\[\[[^\]]*\]\]\s*)?(?:[A-Z_][A-Z0-9_]*\s+)*(\w+)\s*"
@@ -296,8 +297,15 @@ def active_instances(text: str) -> list[str]:
     return names
 
 
-def validity_calls(text: str) -> int:
-    return len(VALIDITY_CALL_RE.findall(strip_code(text))) if VALIDITY_NAME in text else 0
+def banned_validity_calls(root: Path) -> list[str]:
+    """`path:line: name` for every banned call in the C++ sources at HEAD."""
+    hits = []
+    for name in VALIDITY_NAMES:
+        for path, text in tree_with(root, "HEAD", name, CXX_SOURCES).items():
+            code = strip_code(text)
+            for m in re.finditer(rf"\b{name}\s*\(", code):
+                hits.append(f"{path}:{code.count(chr(10), 0, m.start()) + 1}: {name}()")
+    return sorted(hits)
 
 
 def is_source(path: str, tests: bool = True) -> bool:
@@ -312,10 +320,10 @@ def list_files(root: Path, rev: str, tests: bool) -> list[str]:
             if is_source(p, tests)]
 
 
-def tree_with(root: Path, rev: str, needle: str) -> dict[str, str]:
-    """App sources at `rev` that contain the fixed string `needle`."""
+def tree_with(root: Path, rev: str, needle: str, sources=APP_SOURCES) -> dict[str, str]:
+    """Sources at `rev` (app code by default) that contain the fixed string `needle`."""
     try:
-        hits = git(root, "grep", "-l", "-F", needle, rev, "--", *APP_SOURCES).split()
+        hits = git(root, "grep", "-l", "-F", needle, rev, "--", *sources).split()
     except subprocess.CalledProcessError:
         hits = []
     paths = [h.split(":", 1)[1] for h in hits]
@@ -386,16 +394,10 @@ def report(root: Path) -> int:
             total += 1
             print(f"  active instance: {path}: {name}")
     print(f"active instance pointers: {total}")
-    validity = {p: validity_calls(t) for p, t in
-                tree_with(root, "HEAD", VALIDITY_NAME).items()}
-    validity = {p: n for p, n in validity.items() if n}
-    print(f"{VALIDITY_NAME}() calls: {sum(validity.values())} in {len(validity)} files")
-    for path, n in sorted(validity.items()):
-        print(f"  {n:4d}  {path}")
-    big = [(line_count(t), p) for p, t in
-           read_blobs(root, "HEAD", list_files(root, "HEAD", tests=True)).items()
-           if line_count(t) > FILE_CAP]
-    print(f"files over {FILE_CAP} lines: {len(big)}")
+    banned = banned_validity_calls(root)
+    print(f"banned widget validity calls: {len(banned)}")
+    for hit in banned:
+        print(f"  {hit}")
     return 0
 
 
@@ -408,6 +410,13 @@ def main(argv=None) -> int:
     root = Path(git(Path(args.root), "rev-parse", "--show-toplevel").strip())
     if args.report:
         return report(root)
+    banned = banned_validity_calls(root)
+    if banned:
+        for hit in banned:
+            print(f"❌ {hit}: banned, it cannot tell a live widget from a new one at a freed "
+                  f"address. Hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h); "
+                  f"a test uses helix::test::widget_in_tree()")
+        return 1
     if not args.base:
         ap.error("--base is required")
 
@@ -483,15 +492,6 @@ def main(argv=None) -> int:
         failures.append(f"static active-instance pointers grew by {grown} ({names}): route "
                         f"the XML callback through the widget's user data or an existing "
                         f"owner instead of a new static")
-
-    for o, n in rows:
-        if not n or not is_source(n, tests=False):
-            continue
-        was = validity_calls(old.get(o, "")) if o else 0
-        now = validity_calls(new.get(n, ""))
-        if now > was:
-            failures.append(f"{n}: {VALIDITY_NAME}() grew {was} -> {now}: hold the widget in a "
-                            f"helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h)")
 
     if failures:
         for f in failures:

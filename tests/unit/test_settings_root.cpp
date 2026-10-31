@@ -12,6 +12,7 @@
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/settings_panel_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "app_globals.h"
 #include "config.h"
@@ -67,7 +68,7 @@ struct RootFixture : LVGLUITestFixture {
         process_lvgl(5);
     }
     ~RootFixture() override {
-        if (root_ && lv_obj_is_valid(root_))
+        if (root_ && helix::test::widget_in_tree(root_))
             lv_obj_delete(root_);
         helix::ui::UpdateQueue::instance().drain();
         get_global_settings_panel().deinit_subjects();
