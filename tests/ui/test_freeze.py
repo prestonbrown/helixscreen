@@ -68,26 +68,25 @@ def test_unfreeze_actually_resumes_a_paused_timer(helix_app):
     # resumed by unfreeze, so its value is direct behavioral proof rather than
     # a count the server reports about itself.
     #
-    # Two different shapes here. "Still advancing after unfreeze" is a
-    # positive assertion, so it's event-driven: perf_history_tick increments
-    # by exactly 1 per tick (PerformanceState::update — `tick = current + 1`),
-    # so the exact next value is known up front and wait_for's exact-match
-    # semantics fit it precisely. That resolves the instant the tick actually
-    # fires instead of guessing how long to sleep, so it is *faster* than a
-    # fixed sleep in the common case and immune to the flake a fixed margin
-    # has under load (this used to sleep 2.2s against the 1s period and
-    # failed once under concurrent load).
+    # The baseline is read AFTER freeze returns, never before. freeze pauses
+    # the timer before it answers, but a tick that fired earlier only queued
+    # its sample (PerformanceState defers apply_sample through UpdateQueue),
+    # and a baseline read before freeze also races every tick inside one ctl
+    # round trip, which a loaded runner stretches past the 1s period. Every
+    # ctl command runs through the same FIFO UpdateQueue, so a get sent after
+    # freeze's reply runs behind any sample queued before the pause: from that
+    # read on, nothing can move the value until unfreeze.
     #
-    # "Stays flat while frozen" is the opposite shape — asserting an absence
-    # has no event to wait for, so it still needs a real wall-clock wait.
-    # 1.3s (one tick period plus a modest margin) is enough: if freeze()
-    # failed to actually pause the timer, it would have ticked within that
-    # window regardless.
+    # "Stays flat while frozen" asserts an absence, so it needs a wall-clock
+    # wait: 1.3s, one tick period plus a margin, in which an unpaused timer
+    # would have ticked. "Advances after unfreeze" is event-driven: the tick
+    # increments by exactly 1 (PerformanceState::apply_sample), so wait_for
+    # resolves the instant the next one lands.
     helix_app.wait_idle()
-    before = helix_app.get("perf_history_tick")["value"]
 
     helix_app.freeze()
     try:
+        before = helix_app.get("perf_history_tick")["value"]
         time.sleep(1.3)
         during = helix_app.get("perf_history_tick")["value"]
         assert during == before, "perf_history_tick advanced while frozen"
