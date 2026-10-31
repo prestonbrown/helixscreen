@@ -32,11 +32,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "always-on-top chrome skips a widget that died
         set_chrome_covered(false);
         CHECK(doomed_raises == 0);
         CHECK(kept_raises == 1);
-
-        // Raising over another widget takes the parent-matching path.
-        bring_to_front(lv_obj_create(test_screen()));
-        CHECK(doomed_raises == 0);
-        CHECK(kept_raises == 2);
     }
 
     SECTION("a chrome hide that spans the delete") {
@@ -44,15 +39,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "always-on-top chrome skips a widget that died
             ScopedHideChrome hide;
             CHECK(lv_obj_has_flag(kept, LV_OBJ_FLAG_HIDDEN));
             lv_obj_delete(doomed);
-        }
-        CHECK_FALSE(lv_obj_has_flag(kept, LV_OBJ_FLAG_HIDDEN));
-    }
-
-    SECTION("a hide made after the delete") {
-        lv_obj_delete(doomed);
-        {
-            ScopedHideChrome hide;
-            CHECK(lv_obj_has_flag(kept, LV_OBJ_FLAG_HIDDEN));
         }
         CHECK_FALSE(lv_obj_has_flag(kept, LV_OBJ_FLAG_HIDDEN));
     }

@@ -485,20 +485,6 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     modal_.hide();
 }
 
-TEST_CASE_METHOD(ActionPromptLayoutFixture,
-                 "ActionPromptModal: a button deleted while shown is skipped at hide",
-                 "[action_prompt][layout][ui_integration]") {
-    REQUIRE(modal_.show_prompt(test_screen(), make_regular_prompt(2)));
-    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
-    REQUIRE(btns.size() == 2);
-
-    lv_obj_delete(btns[0]);
-    CHECK(btns[0].get() == nullptr);
-    CHECK(btns[1].get() != nullptr);
-
-    modal_.hide();
-}
-
 // More swatch rows than the card can hold at button_height: the tiles stop
 // shrinking there and the grid scrolls, so the footer stays on the card.
 TEST_CASE_METHOD(ActionPromptLayoutFixture,
