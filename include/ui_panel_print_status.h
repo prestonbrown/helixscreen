@@ -445,7 +445,7 @@ class PrintStatusPanel : public OverlayBase {
     // Child widgets
     lv_obj_t* progress_bar_ = nullptr;
     lv_obj_t* preparing_progress_bar_ = nullptr;
-    lv_obj_t* gcode_viewer_ = nullptr;
+    helix::ui::WidgetRef gcode_viewer_;
     lv_obj_t* print_thumbnail_ = nullptr;
     lv_obj_t* gradient_background_ = nullptr;
     helix::ui::WidgetRef preview_camera_image_;

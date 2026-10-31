@@ -928,7 +928,7 @@ void PrintStatusWidget::unpoint_thumbs_from(const void* dsc) {
     lv_obj_t* thumbs[] = {print_card_active_thumb_, print_card_thumb_, print_card_thumb_compact_,
                           idle_hero_thumb()};
     for (auto* img : thumbs) {
-        if (img && lv_obj_is_valid(img) && lv_image_get_src(img) == dsc) {
+        if (img && lv_image_get_src(img) == dsc) {
             lv_image_set_src(img, helix::PrinterPrintState::no_thumbnail_placeholder());
         }
     }
@@ -964,7 +964,7 @@ bool PrintStatusWidget::show_finished_print_image() {
     shown_idle_thumb_ = {};
     lv_obj_t* thumbs[] = {print_card_thumb_, print_card_thumb_compact_, idle_hero_thumb()};
     for (auto* img : thumbs) {
-        if (img && lv_obj_is_valid(img)) {
+        if (img) {
             lv_image_set_src(img, esp_thumbnail_->dsc());
         }
     }
@@ -973,9 +973,7 @@ bool PrintStatusWidget::show_finished_print_image() {
 }
 
 lv_obj_t* PrintStatusWidget::idle_hero_thumb() const {
-    return widget_obj_ && lv_obj_is_valid(widget_obj_)
-               ? lv_obj_find_by_name(widget_obj_, "idle_thumb")
-               : nullptr;
+    return widget_obj_ ? lv_obj_find_by_name(widget_obj_, "idle_thumb") : nullptr;
 }
 #endif
 
@@ -1014,7 +1012,7 @@ std::string PrintStatusWidget::get_last_print_thumbnail_path() const {
     const auto& job = *newest;
 
     // Sized for the widget as rendered; unmeasured, that is the largest.
-    const bool measured = print_card_thumb_ && lv_obj_is_valid(print_card_thumb_);
+    const bool measured = print_card_thumb_;
     const int target_w = measured ? lv_obj_get_width(print_card_thumb_) : 0;
     const int target_h = measured ? lv_obj_get_height(print_card_thumb_) : 0;
     std::string path = helix::select_and_resolve_thumbnail(
@@ -1097,7 +1095,7 @@ void PrintStatusWidget::reset_print_card_to_idle() {
     // Update "Print Last" row availability
     update_last_print_availability();
 
-    if (!print_card_thumb_ || !lv_obj_is_valid(print_card_thumb_)) {
+    if (!print_card_thumb_) {
         return;
     }
 
@@ -1208,16 +1206,16 @@ void PrintStatusWidget::set_thumb_on_widgets(const char* src) {
     // Library-mode thumbs are imperative (they don't bind_src); the subject is
     // what drives the detailed-idle hero. All three must move together or the
     // hero shows a different image from the thumbs next to it.
-    if (print_card_thumb_ && lv_obj_is_valid(print_card_thumb_)) {
+    if (print_card_thumb_) {
         lv_image_set_src(print_card_thumb_, src);
     }
-    if (print_card_thumb_compact_ && lv_obj_is_valid(print_card_thumb_compact_)) {
+    if (print_card_thumb_compact_) {
         lv_image_set_src(print_card_thumb_compact_, src);
     }
 #if defined(HELIX_PLATFORM_ESP32)
     // The subject only notifies on a change, and the hero may have been
     // written directly (show_finished_print_image) while it held this value.
-    if (lv_obj_t* hero = idle_hero_thumb(); hero && lv_obj_is_valid(hero)) {
+    if (lv_obj_t* hero = idle_hero_thumb()) {
         lv_image_set_src(hero, src);
     }
 #endif
@@ -1237,7 +1235,7 @@ void PrintStatusWidget::update_last_print_availability() {
     // Apply to both full and compact "Print Last" rows
     lv_obj_t* rows[] = {library_row_last_, compact_row_last_};
     for (auto* row : rows) {
-        if (!row || !lv_obj_is_valid(row))
+        if (!row)
             continue;
         if (last_print_available_) {
             lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
@@ -1431,7 +1429,7 @@ void PrintStatusWidget::set_config(const nlohmann::json& config) {
         save_widget_config(config_);
     }
     // Re-apply layout visibility — layout_style may have changed.
-    if (widget_obj_ && lv_obj_is_valid(widget_obj_)) {
+    if (widget_obj_) {
         update_idle_compact_mode();
         update_active_layout_mode();
     }

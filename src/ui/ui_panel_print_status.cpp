@@ -2298,18 +2298,9 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
             if (gcode_viewer_) {
                 int viewer_max_layer = helix::ui::gcode_viewer_get_max_layer(gcode_viewer_);
                 int viewer_layer = lifecycle_.map_current_layer_to_viewer(viewer_max_layer);
-                struct ViewerProgressCtx {
-                    lv_obj_t* viewer;
-                    int layer;
-                };
-                auto ctx = std::make_unique<ViewerProgressCtx>(
-                    ViewerProgressCtx{gcode_viewer_, viewer_layer});
-                helix::ui::queue_update<ViewerProgressCtx>(
-                    std::move(ctx), [](ViewerProgressCtx* c) {
-                        if (c->viewer && lv_obj_is_valid(c->viewer)) {
-                            helix::ui::gcode_viewer_set_print_progress(c->viewer, c->layer);
-                        }
-                    });
+                helix::ui::queue_widget_update(gcode_viewer_.get(), [viewer_layer](lv_obj_t* live) {
+                    helix::ui::gcode_viewer_set_print_progress(live, viewer_layer);
+                });
             }
         }
         // Don't call update_all_displays() or show_gcode_viewer() — keep display frozen
@@ -2459,16 +2450,8 @@ void PrintStatusPanel::on_print_layer_changed(int current_layer) {
 
         // CRITICAL: Defer to avoid lv_obj_invalidate() during render phase
         // Observer callbacks can fire during lv_timer_handler() which may be mid-render
-        struct ViewerProgressCtx {
-            lv_obj_t* viewer;
-            int layer;
-        };
-        auto ctx =
-            std::make_unique<ViewerProgressCtx>(ViewerProgressCtx{gcode_viewer_, viewer_layer});
-        helix::ui::queue_update<ViewerProgressCtx>(std::move(ctx), [](ViewerProgressCtx* c) {
-            if (c->viewer && lv_obj_is_valid(c->viewer)) {
-                helix::ui::gcode_viewer_set_print_progress(c->viewer, c->layer);
-            }
+        helix::ui::queue_widget_update(gcode_viewer_.get(), [viewer_layer](lv_obj_t* live) {
+            helix::ui::gcode_viewer_set_print_progress(live, viewer_layer);
         });
 
         spdlog::trace("[{}] G-code viewer ghost layer updated to {} (Moonraker: {}/{})", get_name(),
