@@ -246,7 +246,7 @@ class NavigationManager {
      *
      * Used by hot-reload overlay rebuild. Touches overlay_instances_,
      * persistent_overlay_instances_, the nested backdrops, overlay_close_callbacks_,
-     * and panel_stack_. Does NOT free either widget —
+     * panel_stack_ and queued operations. Does NOT free either widget —
      * caller handles old widget teardown.
      */
     void rekey_overlay_widget(lv_obj_t* old_widget, lv_obj_t* new_widget);
@@ -766,7 +766,7 @@ class NavigationManager {
     // push_overlay() targets not yet pushed. A queued push runs only while its
     // serial is still listed, so removing an entry cancels that push.
     struct PendingPush {
-        lv_obj_t* panel;
+        helix::ui::WeakWidget panel;
         uint64_t serial;
     };
     std::vector<PendingPush> pending_pushes_;
@@ -788,22 +788,14 @@ class NavigationManager {
     // widths, e.g. the 70% widget catalog). #1178
     std::unordered_set<lv_obj_t*> overlay_width_unmanaged_;
 
-    // Rebuilt overlays (replaced root -> its live successor). Callers cache an
-    // overlay's root and keep registering and pushing it after a hot-reload
-    // rebuild has freed it, so every widget-taking entry point resolves through
-    // this. An entry is dropped when its successor is deleted, and when a
-    // different object is deleted at, or arrives live at, its key's address.
-    std::unordered_map<lv_obj_t*, lv_obj_t*> rebuilt_overlays_;
-    // Replaced roots still awaiting their deferred delete. Still valid objects,
-    // but never handed back: they resolve to their successor.
-    std::unordered_set<lv_obj_t*> condemned_roots_;
-
-    /// @p widget, or the live overlay that replaced it when a rebuild replaced it.
-    lv_obj_t* resolve_rebuilt(lv_obj_t* widget) const;
-    /// resolve_rebuilt() for a widget arriving to be registered or pushed: a
-    /// live object at a replaced root's address is a new object there, so its
-    /// forwarding entry ends.
-    lv_obj_t* resolve_arriving(lv_obj_t* widget);
+    // The widgets queued close and cancel operations name, by ticket.
+    // rekey_overlay_widget() rewrites them, so an operation queued before a rebuild
+    // reaches the rebuilt root; a deleted widget reads nullptr.
+    std::unordered_map<uint64_t, helix::ui::WeakWidget> queued_targets_;
+    uint64_t next_queued_target_ = 0;
+    uint64_t track_queued_target(lv_obj_t* widget);
+    /// The ticket's widget, or nullptr once deleted. Ends the ticket.
+    lv_obj_t* take_queued_target(uint64_t id);
 
     // Widgets that already have the LV_EVENT_DELETE scrub hook attached.
     // Prevents double-registering the callback and is itself scrubbed on delete.
