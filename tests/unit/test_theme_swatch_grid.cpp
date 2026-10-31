@@ -19,9 +19,12 @@
 #include "ui_swatch.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <new>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -253,6 +256,21 @@ TEST_CASE_METHOD(PaletteSwitchFixture, "color picker palette: Theme selects the 
                  "[xml][theme][swatch]") {
     lv_subject_set_int(&palette_subject, 1); // ColorPicker::Palette::Theme
     REQUIRE(built_grid_first_swatch() == kThemeFirstSwatch);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "color picker: destroyed while shown, it is no callback's target",
+                 "[xml][theme][swatch]") {
+    alignas(helix::ui::ColorPicker) unsigned char storage[sizeof(helix::ui::ColorPicker)];
+    auto* doomed = new (storage) helix::ui::ColorPicker;
+    REQUIRE(doomed->show_with_color(lv_screen_active(), 0x808080));
+    doomed->~ColorPicker();
+    std::memset(storage, 0, sizeof(storage));
+
+    // A pointer left at the freed instance dispatches through its zeroed vtable.
+    lv_event_cb_t cancel = lv_xml_get_event_cb(nullptr, "color_picker_cancel_cb");
+    REQUIRE(cancel != nullptr);
+    cancel(nullptr);
 }
 
 TEST_CASE_METHOD(PaletteSwitchFixture, "color picker palette: General selects the shared grid",
