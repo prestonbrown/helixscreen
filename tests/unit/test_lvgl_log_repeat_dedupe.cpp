@@ -25,6 +25,7 @@
 
 #include "lvgl/lvgl.h"
 #include "lvgl_log_handler.h"
+#include "subject_debug_registry.h"
 
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
@@ -76,6 +77,16 @@ class LevelCapture {
     /// Lines recorded at any level, including trace.
     int total(const std::string& needle) const {
         return count(all_, needle);
+    }
+
+    /// The first line recorded at any level containing @p needle, or "".
+    std::string first_line_with(const std::string& needle) const {
+        for (const auto& line : all_->last_formatted(256)) {
+            if (line.find(needle) != std::string::npos) {
+                return line;
+            }
+        }
+        return "";
     }
 
   private:
@@ -262,4 +273,30 @@ TEST_CASE("LVGL log handler: English having no translation pack stays out of the
     const std::string de_tag = unique_tag("missing_pack");
     warn_language_not_found("de", de_tag);
     CHECK(logs.in_ring(de_tag) == 1);
+}
+
+TEST_CASE("LVGL log handler: a subject type mismatch names the subject and maps to its anomaly",
+          "[logging][lvgl][subject]") {
+    helix::logging::register_lvgl_log_handler();
+    LevelCapture logs;
+
+    lv_subject_t subject;
+    lv_subject_init_int(&subject, 0);
+    SubjectDebugRegistry::instance().register_subject(&subject, "helix_type_probe",
+                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+
+    // An int subject read as a string: what a binding wired to the wrong subject does.
+    // LVGL itself writes the warning, so the handler sees the exact text it ships.
+    (void)lv_subject_get_string(&subject);
+
+    const std::string warning = logs.first_line_with("subject->type");
+    REQUIRE_FALSE(warning.empty());
+    const char* code = helix::logging::anomaly_code_for_warning(warning);
+    REQUIRE(code != nullptr);
+    CHECK(std::string(code) == "subject_type_mismatch");
+    CHECK(logs.total("Expected type: STRING") == 1);
+    CHECK(logs.total("Subject: \"helix_type_probe\"") == 1);
+
+    SubjectDebugRegistry::instance().unregister_subject(&subject);
+    lv_subject_deinit(&subject);
 }

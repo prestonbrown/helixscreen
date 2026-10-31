@@ -220,17 +220,17 @@ void* parse_pointer(const char* hex_str) {
     return reinterpret_cast<void*>(addr);
 }
 
+/// LVGL's subject accessors check the type with LV_CHECK_ARG_FORMAT_MSG, which logs
+/// "Check failed: subject->type == LV_SUBJECT_TYPE_<X> (ptr=0x..., type=N)".
+constexpr const char kSubjectTypeCheck[] = "Check failed: subject->type == LV_SUBJECT_TYPE_";
+
 /**
  * @brief Check if the log message is a subject type mismatch warning
- *
- * LVGL warns with: "Subject type is not X"
- * After patching LVGL, we may also see: "(ptr=0x..., type=N)"
- *
  * @param buf The log message buffer
  * @return true if this is a subject type mismatch warning
  */
 bool is_subject_type_mismatch(const char* buf) {
-    return std::strstr(buf, "Subject type is not") != nullptr;
+    return std::strstr(buf, kSubjectTypeCheck) != nullptr;
 }
 
 /**
@@ -255,18 +255,17 @@ lv_subject_t* extract_subject_pointer(const char* buf) {
 }
 
 /**
- * @brief Extract expected type from "Subject type is not X" message
+ * @brief Extract the expected type (the X of LV_SUBJECT_TYPE_X) from a type check failure
  * @param buf The log message buffer
  * @return Expected type name or empty string
  */
 std::string extract_expected_type(const char* buf) {
-    const char* pattern = "Subject type is not ";
-    const char* start = std::strstr(buf, pattern);
+    const char* start = std::strstr(buf, kSubjectTypeCheck);
     if (start == nullptr) {
         return "";
     }
 
-    start += std::strlen(pattern);
+    start += std::strlen(kSubjectTypeCheck);
 
     // Find end of type name (next space, newline, or end)
     const char* end = start;
@@ -491,7 +490,7 @@ const char* anomaly_code_for_warning(std::string_view msg) {
         return "glyph_draw_skip";
     } else if (msg.find("subject is NULL") != std::string_view::npos) {
         return "null_subject";
-    } else if (msg.find("Subject type is not") != std::string_view::npos) {
+    } else if (msg.find(kSubjectTypeCheck) != std::string_view::npos) {
         // XML binding wired wrong subject type — real bug in panel XML.
         return "subject_type_mismatch";
     } else if (msg.find("coordinates out of range") != std::string_view::npos) {
