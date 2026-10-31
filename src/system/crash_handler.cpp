@@ -6,6 +6,7 @@
 #include "helix_thread.h"
 #include "helix_version.h"
 #include "system/crash_record.h"
+#include "system/crash_version_lines.h"
 
 #include <spdlog/spdlog.h>
 
@@ -33,13 +34,6 @@
 // LVGL heap monitor, lv_obj_get_name() for delete crumbs, lv_is_initialized() guarding
 // the lv_mem_monitor read, and LVGL_VERSION_* for the crash record
 #include "lvgl.h"
-
-#define HELIX_CRASH_STR_(x) #x
-#define HELIX_CRASH_STR(x) HELIX_CRASH_STR_(x)
-// lv_event_code_t numbering changes between LVGL releases, so the record names the LVGL
-// the crashing binary was built against and the crash worker decodes event_code with it.
-static constexpr const char kLvglVersionLine[] = "lvgl_version:" HELIX_CRASH_STR(
-    LVGL_VERSION_MAJOR) "." HELIX_CRASH_STR(LVGL_VERSION_MINOR) "\n";
 
 // AddressSanitizer opt-out for the raw stack readers further down. Both the
 // frame-pointer walk and the linear stack scan deliberately read memory they
@@ -722,10 +716,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     safe_write(fd, "\n");
 
     // Write version
-    safe_write(fd, "version:");
-    safe_write(fd, HELIX_VERSION);
-    safe_write(fd, "\n");
-    safe_write(fd, kLvglVersionLine);
+    safe_write(fd, kCrashVersionLines);
 
     // Write timestamp (time() is async-signal-safe per POSIX)
     time_t now = time(nullptr);
@@ -1842,10 +1833,7 @@ void crash_handler::write_exception_record(const char* what) noexcept {
     safe_write(fd, "signal:0\n");
     safe_write(fd, "name:EXCEPTION\n");
 
-    safe_write(fd, "version:");
-    safe_write(fd, HELIX_VERSION);
-    safe_write(fd, "\n");
-    safe_write(fd, kLvglVersionLine);
+    safe_write(fd, kCrashVersionLines);
 
     // time(nullptr) is async-signal-safe per POSIX.
     time_t now = time(nullptr);
@@ -2073,8 +2061,7 @@ void crash_handler::write_mock_crash_file(const std::string& crash_file_path) {
 
     ofs << "signal:11\n";
     ofs << "name:SIGSEGV\n";
-    ofs << "version:" << HELIX_VERSION << "\n";
-    ofs << kLvglVersionLine;
+    ofs << kCrashVersionLines;
     ofs << "timestamp:" << now << "\n";
     ofs << "uptime:1234\n";
     ofs << "fault_addr:0x00000000\n";
