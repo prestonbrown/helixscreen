@@ -327,6 +327,13 @@ FAKE
     grep -qE 'HELIX_JFLAG=-j[0-9]+ helix-test bash -lc make test \$HELIX_JFLAG' "$MOCK_DOCKER_LOG"
 }
 
+@test "test hands its arguments to helix-tests, in a run with no mirror" {
+    run "$SCRIPT" --commit test -# '[#test_x]'
+    [ "$status" -eq 0 ]
+    grep -qF './build/bin/helix-tests -# ' "$MOCK_DOCKER_LOG"
+    grep -qF 'test_x' "$MOCK_DOCKER_LOG"
+}
+
 # The container half run for real: docker exec of the job exports its -e
 # variables and runs the bash -lc script here, against a make that prints what
 # it was given. container-env opens a real FIFO, so its mode decides whether
