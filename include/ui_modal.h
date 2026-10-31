@@ -538,8 +538,8 @@ class ModalStack {
     ModalStack() = default;
 
     struct ModalEntry {
-        lv_obj_t* backdrop;
-        lv_obj_t* dialog;
+        helix::ui::WeakWidget backdrop;
+        helix::ui::WeakWidget dialog;
         std::string component_name;
         bool exiting; /**< true = exit animation in progress, ignore hide() calls */
         Modal* owner; /**< owning instance, or nullptr for static Modal::show() modals */
