@@ -75,7 +75,10 @@ LVGL_PATCHED_FILES := \
 	src/widgets/span/lv_span.c \
 	include/lvgl/core/lv_obj.h \
 	src/misc/lv_helix_thread_check.h \
-	src/misc/lv_timer.c
+	src/misc/lv_timer.c \
+	include/lvgl/config/lv_conf_internal.h \
+	include/lvgl/debugging/lv_check_arg.h \
+	src/logging/lv_log.c
 # Every file a patch touches belongs in its submodule's list, the files a patch
 # creates included: reset_submodule_patches restores the tracked ones and deletes
 # the untracked ones, so a file left off survives a reset and the drift check
@@ -594,6 +597,7 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_subject_deinit_refuses_observers.patch "LVGL subject deinit refuses observers patch (#1279)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_flag_screen_parent_null_guard.patch "LVGL obj flag screen-parent NULL guard (hide/unhide a screen)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_thread_check_hook.patch "LVGL thread-check hook patch (subject/timer/delete entry points, #1942)"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_check_arg_site_logger.patch "LVGL check-arg SITE log mode (one cold file:line logger; ESP32 flash)"
 	$(ECHO) "$(CYAN)Checking libhv patches...$(RESET)"
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-openssl-static-link.patch "libhv OpenSSL/static build hook patch"
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-streaming-upload.patch "libhv streaming upload patch"

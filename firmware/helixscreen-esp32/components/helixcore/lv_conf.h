@@ -2492,8 +2492,11 @@
  *  - LV_CHECK_ARG_LOG_MODE_MINIMAL: log 'Check failed' only (file/line from LV_LOG_WARN) (requires LV_USE_LOG)
  *  - LV_CHECK_ARG_LOG_MODE_VERBOSE: log 'Check failed: <cond>' plus caller-supplied message (requires LV_USE_LOG)
  */
-/* Log the failed condition and the caller's message. */
-#define LV_CHECK_ARG_LOG_MODE LV_CHECK_ARG_LOG_MODE_VERBOSE
+/* SITE (lvgl_check_arg_site_logger.patch): every failed check logs "Check failed" with
+ * its file and line through one cold function, so a check site costs a call. VERBOSE
+ * would add each condition's text and values to flash; NONE keeps the checks but leaves
+ * a failure with no trace on the UART. */
+#define LV_CHECK_ARG_LOG_MODE LV_CHECK_ARG_LOG_MODE_SITE
 
 /** LV_CHECK_OBJ verifies with lv_obj_has_class() that the object has the
  *  expected class. When disabled the class check is skipped

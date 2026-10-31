@@ -83,6 +83,7 @@ Applied in order by `mk/patches.mk`. Grouped by subsystem.
 |-------|---------|---------|
 | `lvgl_label_text_transform.patch` | `lv_label.c`, `include/lvgl/widgets/lv_label.h`, `lv_label_private.h` | text_transform_upper flag for i18n-safe uppercase at text-set time |
 | `lvgl_translation_tail_packs.patch` | `lv_translation.c`, `include/lvgl/core/lv_translation.h` (after `lvgl_translation_threadsafe.patch`) | `lv_translation_set_new_packs_at_tail()`: while set, dynamic packs are appended to the END of the lookup order, so plugin packs only supply tags the app does not translate | Project-specific |
+| `lvgl_check_arg_site_logger.patch` | `include/lvgl/config/lv_conf_internal.h`, `include/lvgl/debugging/lv_check_arg.h`, `lv_log.c` | `LV_CHECK_ARG_LOG_MODE_SITE`: every failed check logs through one cold `lv_check_arg_failed_at(file, line)`, so a check site costs a call instead of its strings. The ESP32 firmware selects it; the desktop stays VERBOSE, whose text `lvgl_log_handler.cpp` matches |
 | `lvgl_sdl_window.patch` | `lv_sdl_window.c` | Multi-display positioning, Android support, macOS crash fix |
 | `lvgl_draw_sdl_stride_fix.patch` | `lv_draw_sdl.c` | Four `lv_draw_sdl` fixes: real stride for `SDL_UpdateTexture`, zero the full aligned buffer, normalise polyline points, decline canvas targets in evaluate |
 | `lvgl_sdl_sw_android_debug.patch` | `lv_sdl_sw.c` | `SDL_BLENDMODE_NONE` for the framebuffer texture (Android GLES promotes RGB888 to RGBA) and a NULL guard in `deinit_display` for a failed init |
