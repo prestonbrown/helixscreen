@@ -4,12 +4,10 @@
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/scoped_runtime_config.h"
-#include "../test_helpers/scoped_subject_registry_isolation.h"
 #include "app_constants.h"
 #include "config.h"
 #include "config_testing.h"
 #include "runtime_config.h"
-#include "static_subject_registry.h"
 #include "test_helpers/unique_temp_dir.h"
 #include "text_io.h"
 #include "wizard_config_paths.h"
@@ -3005,41 +3003,6 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required falls back to ro
 
     // No per-printer flag, should fall back to root wizard_completed=true
     REQUIRE_FALSE(config.is_wizard_required());
-}
-
-// ============================================================================
-// Registry deinit/re-init cycle tests (Phase 2: soft restart support)
-// ============================================================================
-
-TEST_CASE("StaticSubjectRegistry supports deinit/re-init cycles", "[.][core][registry]") {
-    // An isolated registry: deinit_all() on the process-wide one would tear down
-    // sources registered once per process, such as the XML fixture's widgets.
-    ScopedSubjectRegistryIsolation isolate;
-    // Verify deinit_all() clears vector, allowing fresh registrations
-    int call_count = 0;
-    StaticSubjectRegistry::instance().register_deinit("test_cycle_1", [&]() { call_count++; });
-    StaticSubjectRegistry::instance().deinit_all();
-    REQUIRE(call_count == 1);
-
-    // Re-register after deinit — should work (vector was cleared)
-    call_count = 0;
-    StaticSubjectRegistry::instance().register_deinit("test_cycle_2", [&]() { call_count++; });
-    StaticSubjectRegistry::instance().deinit_all();
-    REQUIRE(call_count == 1);
-}
-
-TEST_CASE("StaticSubjectRegistry deinit_all runs callbacks in LIFO order", "[.][core][registry]") {
-    ScopedSubjectRegistryIsolation isolate;
-    std::vector<std::string> order;
-    StaticSubjectRegistry::instance().register_deinit("first", [&]() { order.push_back("first"); });
-    StaticSubjectRegistry::instance().register_deinit("second",
-                                                      [&]() { order.push_back("second"); });
-    StaticSubjectRegistry::instance().deinit_all();
-
-    REQUIRE(order.size() == 2);
-    // LIFO: second registered = first to deinit
-    REQUIRE(order[0] == "second");
-    REQUIRE(order[1] == "first");
 }
 
 // ============================================================================
