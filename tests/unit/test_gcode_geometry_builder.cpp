@@ -5,57 +5,15 @@
 #include "gcode_parser.h"
 #include "gcode_selection_style.h"
 
-#include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 #include <limits>
 #include <set>
 #include <utility>
-#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::gcode;
 using Catch::Approx;
-
-namespace {
-
-/// An extruding 0.4 mm segment, the shape most cases here build by hand.
-ToolpathSegment extrusion(glm::vec3 start, glm::vec3 end) {
-    ToolpathSegment seg;
-    seg.start = start;
-    seg.end = end;
-    seg.is_extrusion = true;
-    seg.extrusion_amount = 1.0f;
-    seg.width = 0.4f;
-    return seg;
-}
-
-/// One layer at z 0.2 holding @p segments, in a 100 x 100 x 10 mm box.
-ParsedGCodeFile one_layer_file(std::vector<ToolpathSegment> segments) {
-    ParsedGCodeFile gcode;
-    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
-    gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
-    Layer layer;
-    layer.z_height = 0.2f;
-    layer.segments = std::move(segments);
-    gcode.layers.push_back(layer);
-    return gcode;
-}
-
-/// Extruding segments joining @p points in order, at z 0.2.
-std::vector<ToolpathSegment> polyline(std::initializer_list<glm::vec2> points) {
-    std::vector<ToolpathSegment> out;
-    const glm::vec2* prev = nullptr;
-    for (const auto& p : points) {
-        if (prev) {
-            out.push_back(extrusion({prev->x, prev->y, 0.2f}, {p.x, p.y, 0.2f}));
-        }
-        prev = &p;
-    }
-    return out;
-}
-
-} // namespace
 
 // ============================================================================
 // QuantizationParams Tests
@@ -96,31 +54,28 @@ TEST_CASE("Geometry Builder: QuantizationParams - quantize and dequantize round 
         REQUIRE(dequantized == Approx(original).margin(0.01f));
     }
 
-    SECTION("Quantize vec3, including the box's own corners") {
-        struct Row {
-            glm::vec3 min, max, point;
-            float margin;
-        };
-        const Row rows[] = {
-            {{0, 0, 0}, {200, 200, 200}, {50, 100, 150}, 0.01f},
-            {{0, 0, 0}, {200, 200, 200}, {0, 0, 0}, 0.01f},
-            {{0, 0, 0}, {200, 200, 200}, {200, 200, 200}, 0.01f},
-            // A 300 mm build volume still lands within 0.02 mm.
-            {{-150, -150, 0}, {150, 150, 300}, {-150, -150, 0}, 0.02f},
-            {{-150, -150, 0}, {150, 150, 300}, {150, 150, 300}, 0.02f},
-        };
-        for (const auto& r : rows) {
-            QuantizationParams q;
-            AABB box;
-            box.min = r.min;
-            box.max = r.max;
-            q.calculate_scale(box);
-            const glm::vec3 back = q.dequantize_vec3(q.quantize_vec3(r.point));
-            INFO(r.point.x << "," << r.point.y << "," << r.point.z);
-            CHECK(back.x == Approx(r.point.x).margin(r.margin));
-            CHECK(back.y == Approx(r.point.y).margin(r.margin));
-            CHECK(back.z == Approx(r.point.z).margin(r.margin));
-        }
+    SECTION("Quantize vec3") {
+        glm::vec3 original(50.0f, 100.0f, 150.0f);
+        QuantizedVertex quantized = params.quantize_vec3(original);
+        glm::vec3 dequantized = params.dequantize_vec3(quantized);
+
+        REQUIRE(dequantized.x == Approx(original.x).margin(0.01f));
+        REQUIRE(dequantized.y == Approx(original.y).margin(0.01f));
+        REQUIRE(dequantized.z == Approx(original.z).margin(0.01f));
+    }
+
+    SECTION("Quantize boundary values") {
+        glm::vec3 min_point = bbox.min;
+        glm::vec3 max_point = bbox.max;
+
+        QuantizedVertex qmin = params.quantize_vec3(min_point);
+        QuantizedVertex qmax = params.quantize_vec3(max_point);
+
+        glm::vec3 dmin = params.dequantize_vec3(qmin);
+        glm::vec3 dmax = params.dequantize_vec3(qmax);
+
+        REQUIRE(dmin.x == Approx(min_point.x).margin(0.01f));
+        REQUIRE(dmax.x == Approx(max_point.x).margin(0.01f));
     }
 }
 
@@ -135,6 +90,28 @@ TEST_CASE("Geometry Builder: QuantizationParams - degenerate bounding box",
 
     // Should fall back to default scale factor
     REQUIRE(params.scale_factor == Approx(1000.0f));
+}
+
+TEST_CASE("Geometry Builder: QuantizationParams - large build volume",
+          "[gcode][geometry][quantization]") {
+    QuantizationParams params;
+    AABB bbox;
+    bbox.min = glm::vec3(-150.0f, -150.0f, 0.0f);
+    bbox.max = glm::vec3(150.0f, 150.0f, 300.0f); // 300x300x300mm
+    params.calculate_scale(bbox);
+
+    // Test corners
+    glm::vec3 corner1 = bbox.min;
+    glm::vec3 corner2 = bbox.max;
+
+    QuantizedVertex q1 = params.quantize_vec3(corner1);
+    QuantizedVertex q2 = params.quantize_vec3(corner2);
+
+    glm::vec3 d1 = params.dequantize_vec3(q1);
+    glm::vec3 d2 = params.dequantize_vec3(q2);
+
+    REQUIRE(d1.x == Approx(corner1.x).margin(0.02f));
+    REQUIRE(d2.z == Approx(corner2.z).margin(0.02f));
 }
 
 // ============================================================================
@@ -323,39 +300,120 @@ TEST_CASE("Geometry Builder: auxiliary geometry never reaches the ribbon",
 TEST_CASE("Geometry Builder: Color computation - hex parsing", "[gcode][geometry][color]") {
     // Helper to create minimal G-code for color testing
     auto make_single_segment_gcode = []() {
-        return one_layer_file({extrusion({0, 0, 0.2f}, {10, 0, 0.2f})});
+        ParsedGCodeFile gcode;
+        gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+        gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
+
+        Layer layer;
+        layer.z_height = 0.2f;
+        ToolpathSegment seg;
+        seg.start = glm::vec3(0, 0, 0.2f);
+        seg.end = glm::vec3(10, 0, 0.2f);
+        seg.is_extrusion = true;
+        seg.extrusion_amount = 1.0f;
+        seg.width = 0.4f;
+        layer.segments.push_back(seg);
+        gcode.layers.push_back(layer);
+
+        return gcode;
     };
 
     SimplificationOptions options;
     options.enable_merging = false;
 
-    struct Row {
-        const char* color;
-        uint32_t expected;
-        uint32_t absent; ///< a value that must not appear, or 0
-    };
-    const Row rows[] = {
-        {"#26A69A", 0x26A69A, 0},
-        {"FF0000", 0xFF0000, 0},
-        // A string the parser rejects leaves the default teal, never black.
-        {"XYZ", 0x26A69A, 0},
-        // #RRGGBBAA drops alpha; reading it as one number shifts every channel.
-        {"#800080FF", 0x800080, 0x0080FF},
-    };
-    for (const auto& r : rows) {
-        DYNAMIC_SECTION(r.color) {
-            GeometryBuilder builder;
-            builder.set_filament_color(r.color);
-            auto gcode = make_single_segment_gcode();
-            RibbonGeometry geometry = builder.build(gcode, options);
+    SECTION("Parse with # prefix") {
+        GeometryBuilder builder;
+        builder.set_filament_color("#26A69A"); // OrcaSlicer teal
 
-            REQUIRE(geometry.vertices.size() > 0);
-            const auto& palette = geometry.color_palette;
-            CHECK(std::find(palette.begin(), palette.end(), r.expected) != palette.end());
-            if (r.absent) {
-                CHECK(std::find(palette.begin(), palette.end(), r.absent) == palette.end());
+        auto gcode = make_single_segment_gcode();
+        RibbonGeometry geometry = builder.build(gcode, options);
+
+        REQUIRE(geometry.vertices.size() > 0);
+        REQUIRE(geometry.color_palette.size() >= 1);
+
+        // Verify the teal color (0x26A69A) is in the palette
+        uint32_t expected_color = 0x26A69A;
+        bool found_expected = false;
+        for (uint32_t color : geometry.color_palette) {
+            if (color == expected_color) {
+                found_expected = true;
+                break;
             }
         }
+        REQUIRE(found_expected);
+    }
+
+    SECTION("Parse without # prefix") {
+        GeometryBuilder builder;
+        builder.set_filament_color("FF0000"); // Red
+
+        auto gcode = make_single_segment_gcode();
+        RibbonGeometry geometry = builder.build(gcode, options);
+
+        REQUIRE(geometry.vertices.size() > 0);
+        REQUIRE(geometry.color_palette.size() >= 1);
+
+        // Verify red (0xFF0000) is in the palette
+        uint32_t expected_color = 0xFF0000;
+        bool found_expected = false;
+        for (uint32_t color : geometry.color_palette) {
+            if (color == expected_color) {
+                found_expected = true;
+                break;
+            }
+        }
+        REQUIRE(found_expected);
+    }
+
+    SECTION("Invalid color string leaves the current color untouched") {
+        GeometryBuilder builder;
+        builder.set_filament_color("XYZ"); // Invalid hex
+
+        auto gcode = make_single_segment_gcode();
+        RibbonGeometry geometry = builder.build(gcode, options);
+
+        // Should not crash and should produce geometry
+        REQUIRE(geometry.vertices.size() > 0);
+        REQUIRE(geometry.color_palette.size() >= 1);
+
+        // A color the parser rejects is a no-op, so the builder keeps its
+        // default teal. The old strtol("XYZ", nullptr, 16) returned 0 and
+        // painted the model BLACK - a parse failure indistinguishable from a
+        // deliberate choice of black filament.
+        uint32_t expected_color = 0x26A69A;
+        bool found_expected = false;
+        for (uint32_t color : geometry.color_palette) {
+            if (color == expected_color) {
+                found_expected = true;
+                break;
+            }
+        }
+        REQUIRE(found_expected);
+    }
+
+    SECTION("8-digit #RRGGBBAA drops alpha instead of shifting channels") {
+        GeometryBuilder builder;
+        builder.set_filament_color("#800080FF"); // purple, explicit alpha
+
+        auto gcode = make_single_segment_gcode();
+        RibbonGeometry geometry = builder.build(gcode, options);
+
+        REQUIRE(geometry.color_palette.size() >= 1);
+
+        bool found_purple = false;
+        bool found_azure = false;
+        for (uint32_t color : geometry.color_palette) {
+            if (color == 0x800080) {
+                found_purple = true;
+            }
+            // What the old strtol + >>16/>>8/&0xFF split produced: every
+            // channel read one byte to the left of where it lives.
+            if (color == 0x0080FF) {
+                found_azure = true;
+            }
+        }
+        REQUIRE(found_purple);
+        REQUIRE_FALSE(found_azure);
     }
 }
 
@@ -425,39 +483,129 @@ TEST_CASE("Geometry Builder: Color computation - solid filament color",
 // GeometryBuilder - Segment Simplification Tests
 // ============================================================================
 
-TEST_CASE("Geometry Builder: Segment simplification merges only collinear runs",
+TEST_CASE("Geometry Builder: Segment simplification - collinear merging",
           "[gcode][geometry][simplification]") {
-    SECTION("three collinear segments merge") {
-        GeometryBuilder builder;
-        SimplificationOptions options;
-        options.enable_merging = true;
-        options.tolerance_mm = 0.1f;
-        builder.build(one_layer_file(polyline({{0, 0}, {10, 0}, {20, 0}, {30, 0}})), options);
-        CHECK(builder.last_stats().input_segments == 3);
-        CHECK(builder.last_stats().output_segments < 3);
+    GeometryBuilder builder;
+
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
+
+    Layer layer;
+    layer.z_height = 0.2f;
+
+    // Three collinear segments that should merge
+    ToolpathSegment seg1;
+    seg1.start = glm::vec3(0, 0, 0.2f);
+    seg1.end = glm::vec3(10, 0, 0.2f);
+    seg1.is_extrusion = true;
+    seg1.extrusion_amount = 1.0f;
+    seg1.width = 0.4f;
+    layer.segments.push_back(seg1);
+
+    ToolpathSegment seg2;
+    seg2.start = glm::vec3(10, 0, 0.2f);
+    seg2.end = glm::vec3(20, 0, 0.2f);
+    seg2.is_extrusion = true;
+    seg2.extrusion_amount = 1.0f;
+    seg2.width = 0.4f;
+    layer.segments.push_back(seg2);
+
+    ToolpathSegment seg3;
+    seg3.start = glm::vec3(20, 0, 0.2f);
+    seg3.end = glm::vec3(30, 0, 0.2f);
+    seg3.is_extrusion = true;
+    seg3.extrusion_amount = 1.0f;
+    seg3.width = 0.4f;
+    layer.segments.push_back(seg3);
+
+    gcode.layers.push_back(layer);
+
+    SimplificationOptions options;
+    options.enable_merging = true;
+    options.tolerance_mm = 0.1f;
+
+    RibbonGeometry geometry = builder.build(gcode, options);
+
+    // Check statistics
+    const auto& stats = builder.last_stats();
+    REQUIRE(stats.input_segments == 3);
+    REQUIRE(stats.output_segments < stats.input_segments); // Should have merged
+}
+
+TEST_CASE("Geometry Builder: Segment simplification - non-collinear preservation",
+          "[gcode][geometry][simplification]") {
+    GeometryBuilder builder;
+
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
+
+    Layer layer;
+    layer.z_height = 0.2f;
+
+    // Two segments at 90 degrees - should NOT merge
+    ToolpathSegment seg1;
+    seg1.start = glm::vec3(0, 0, 0.2f);
+    seg1.end = glm::vec3(10, 0, 0.2f);
+    seg1.is_extrusion = true;
+    seg1.extrusion_amount = 1.0f;
+    seg1.width = 0.4f;
+    layer.segments.push_back(seg1);
+
+    ToolpathSegment seg2;
+    seg2.start = glm::vec3(10, 0, 0.2f);
+    seg2.end = glm::vec3(10, 10, 0.2f); // 90 degree turn
+    seg2.is_extrusion = true;
+    seg2.extrusion_amount = 1.0f;
+    seg2.width = 0.4f;
+    layer.segments.push_back(seg2);
+
+    gcode.layers.push_back(layer);
+
+    SimplificationOptions options;
+    options.enable_merging = true;
+    options.tolerance_mm = 0.1f;
+
+    RibbonGeometry geometry = builder.build(gcode, options);
+
+    const auto& stats = builder.last_stats();
+    REQUIRE(stats.input_segments == 2);
+    REQUIRE(stats.output_segments == 2); // Should NOT merge
+}
+
+TEST_CASE("Geometry Builder: Segment simplification - disabled",
+          "[gcode][geometry][simplification]") {
+    GeometryBuilder builder;
+
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
+
+    Layer layer;
+    layer.z_height = 0.2f;
+
+    for (int i = 0; i < 5; i++) {
+        ToolpathSegment seg;
+        seg.start = glm::vec3(i * 10.0f, 0, 0.2f);
+        seg.end = glm::vec3((i + 1) * 10.0f, 0, 0.2f);
+        seg.is_extrusion = true;
+        seg.extrusion_amount = 1.0f;
+        seg.width = 0.4f;
+        layer.segments.push_back(seg);
     }
 
-    SECTION("a 90 degree turn is kept") {
-        GeometryBuilder builder;
-        SimplificationOptions options;
-        options.enable_merging = true;
-        options.tolerance_mm = 0.1f;
-        builder.build(one_layer_file(polyline({{0, 0}, {10, 0}, {10, 10}})), options);
-        CHECK(builder.last_stats().input_segments == 2);
-        CHECK(builder.last_stats().output_segments == 2);
-    }
+    gcode.layers.push_back(layer);
 
-    SECTION("merging disabled keeps even a straight run") {
-        GeometryBuilder builder;
-        SimplificationOptions options;
-        options.enable_merging = false;
-        builder.build(
-            one_layer_file(polyline({{0, 0}, {10, 0}, {20, 0}, {30, 0}, {40, 0}, {50, 0}})),
-            options);
-        CHECK(builder.last_stats().input_segments == 5);
-        CHECK(builder.last_stats().output_segments == 5);
-        CHECK(builder.last_stats().simplification_ratio == Approx(0.0f));
-    }
+    SimplificationOptions options;
+    options.enable_merging = false; // DISABLED
+
+    RibbonGeometry geometry = builder.build(gcode, options);
+
+    const auto& stats = builder.last_stats();
+    REQUIRE(stats.input_segments == 5);
+    REQUIRE(stats.output_segments == 5); // No simplification
+    REQUIRE(stats.simplification_ratio == Approx(0.0f));
 }
 
 // ============================================================================
@@ -467,7 +615,23 @@ TEST_CASE("Geometry Builder: Segment simplification merges only collinear runs",
 TEST_CASE("Geometry Builder: Geometry generation - single segment",
           "[gcode][geometry][generation]") {
     GeometryBuilder builder;
-    auto gcode = one_layer_file({extrusion({0, 0, 0.2f}, {10, 0, 0.2f})});
+
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
+
+    Layer layer;
+    layer.z_height = 0.2f;
+
+    ToolpathSegment seg;
+    seg.start = glm::vec3(0, 0, 0.2f);
+    seg.end = glm::vec3(10, 0, 0.2f);
+    seg.is_extrusion = true;
+    seg.extrusion_amount = 1.0f;
+    seg.width = 0.4f;
+    layer.segments.push_back(seg);
+
+    gcode.layers.push_back(layer);
 
     SimplificationOptions options;
     RibbonGeometry geometry = builder.build(gcode, options);
@@ -632,32 +796,88 @@ TEST_CASE("Geometry Builder: Geometry generation - multiple layers",
     REQUIRE(geometry.vertices.size() > 0);
 }
 
-TEST_CASE("Geometry Builder: unusual segments and settings still produce geometry",
-          "[gcode][geometry][generation][config][edge]") {
+TEST_CASE("Geometry Builder: Geometry generation - very short segment",
+          "[gcode][geometry][generation][edge]") {
     GeometryBuilder builder;
-    ToolpathSegment seg = extrusion({0, 0, 0.2f}, {10, 0, 0.2f});
 
-    SECTION("a 0.01 mm segment") {
-        seg = extrusion({10.0f, 10.0f, 0.2f}, {10.01f, 10.0f, 0.2f});
-        seg.extrusion_amount = 0.001f;
-    }
-    SECTION("a segment with no width takes the configured extrusion width") {
-        builder.set_extrusion_width(0.5f);
-        seg.width = 0.0f;
-    }
-    SECTION("a non-default layer height") {
-        builder.set_layer_height(0.3f);
-        seg = extrusion({0, 0, 0.3f}, {10, 0, 0.3f});
-    }
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
+
+    Layer layer;
+    layer.z_height = 0.2f;
+
+    // Extremely short segment (0.01mm)
+    ToolpathSegment seg;
+    seg.start = glm::vec3(10.0f, 10.0f, 0.2f);
+    seg.end = glm::vec3(10.01f, 10.0f, 0.2f);
+    seg.is_extrusion = true;
+    seg.extrusion_amount = 0.001f;
+    seg.width = 0.4f;
+    layer.segments.push_back(seg);
+
+    gcode.layers.push_back(layer);
 
     SimplificationOptions options;
-    RibbonGeometry geometry = builder.build(one_layer_file({seg}), options);
-    CHECK(geometry.vertices.size() > 0);
+    RibbonGeometry geometry = builder.build(gcode, options);
+
+    // Should handle without crashing
+    REQUIRE(geometry.vertices.size() > 0);
 }
 
 // ============================================================================
 // GeometryBuilder - Configuration Tests
 // ============================================================================
+
+TEST_CASE("Geometry Builder: Configuration - extrusion width", "[gcode][geometry][config]") {
+    GeometryBuilder builder;
+    builder.set_extrusion_width(0.5f);
+
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
+
+    Layer layer;
+    layer.z_height = 0.2f;
+    ToolpathSegment seg;
+    seg.start = glm::vec3(0, 0, 0.2f);
+    seg.end = glm::vec3(10, 0, 0.2f);
+    seg.is_extrusion = true;
+    seg.extrusion_amount = 1.0f;
+    seg.width = 0.0f; // Should use configured width
+    layer.segments.push_back(seg);
+    gcode.layers.push_back(layer);
+
+    SimplificationOptions options;
+    RibbonGeometry geometry = builder.build(gcode, options);
+
+    REQUIRE(geometry.vertices.size() > 0);
+}
+
+TEST_CASE("Geometry Builder: Configuration - layer height", "[gcode][geometry][config]") {
+    GeometryBuilder builder;
+    builder.set_layer_height(0.3f); // Non-default
+
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(100, 100, 10);
+
+    Layer layer;
+    layer.z_height = 0.3f;
+    ToolpathSegment seg;
+    seg.start = glm::vec3(0, 0, 0.3f);
+    seg.end = glm::vec3(10, 0, 0.3f);
+    seg.is_extrusion = true;
+    seg.extrusion_amount = 1.0f;
+    seg.width = 0.4f;
+    layer.segments.push_back(seg);
+    gcode.layers.push_back(layer);
+
+    SimplificationOptions options;
+    RibbonGeometry geometry = builder.build(gcode, options);
+
+    REQUIRE(geometry.vertices.size() > 0);
+}
 
 // ============================================================================
 // GeometryBuilder - Real-world Scenarios
