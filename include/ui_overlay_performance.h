@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "lvgl/lvgl.h"
 
@@ -41,8 +42,8 @@ class UiOverlayPerformance {
 
     void rebuild_mcu_rows();
 
-    lv_obj_t* root_ = nullptr;
-    lv_obj_t* mcu_card_ = nullptr;
+    helix::ui::WidgetRef root_;
+    helix::ui::WidgetRef mcu_card_;
 
     // Last perf_mcu_names value applied to the rows. perf_mcu_names is
     // re-published on essentially every perf sample even when the MCU set is

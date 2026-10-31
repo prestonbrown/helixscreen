@@ -35,6 +35,8 @@ lv_obj_t* UiOverlayPerformance::create(lv_obj_t* parent) {
     }
 
     mcu_card_ = helix::ui::find_required(root_, "mcu_card", "UiOverlayPerformance");
+    // A new card holds no rows, whatever the last one showed.
+    last_mcu_names_.clear();
 
     lv_subject_t* names_subj = lv_xml_get_subject(nullptr, "perf_mcu_names");
     if (names_subj) {
