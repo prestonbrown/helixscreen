@@ -408,6 +408,8 @@ void AmsState::clear_backends() {
     optimistic_action_until_.reset();
     // Every trace describes the departing backend's buffers.
     buffer_traces_.clear();
+    // The next backend gets its own overflow warning.
+    slot_overflow_warned_total_ = 0;
     if (initialized_) {
         publish_buffer_reading(BufferReading{});
     }
