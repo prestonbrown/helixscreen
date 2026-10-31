@@ -12,6 +12,8 @@
 #include "../lvgl_test_fixture.h"
 
 #include <memory>
+#include <thread>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -162,4 +164,181 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef converts to lv_obj_t* for LVGL call
     CHECK(ref != nullptr);
     lv_obj_delete(raw);
     CHECK(ref == nullptr);
+}
+
+// ============================================================================
+// WeakWidget
+// ============================================================================
+
+using helix::ui::WeakWidget;
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget nulls on its widget's delete", "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    WeakWidget weak(obj);
+    REQUIRE(weak.get() == obj);
+
+    lv_obj_delete(obj);
+
+    CHECK(weak.get() == nullptr);
+    CHECK_FALSE(weak);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget nulls when an ancestor is deleted", "[widget_ref]") {
+    lv_obj_t* parent = lv_obj_create(test_screen());
+    WeakWidget weak(lv_obj_create(parent));
+    REQUIRE(weak);
+
+    lv_obj_delete(parent);
+
+    CHECK(weak.get() == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget copy outlives the original and sees the delete",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    auto original = std::make_unique<WeakWidget>(obj);
+    const WeakWidget copy = *original;
+    original.reset();
+    REQUIRE(copy.get() == obj);
+
+    lv_obj_delete(obj);
+
+    CHECK(copy.get() == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget captured by a lambda reads nullptr once deleted",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    const auto read = [weak = WeakWidget(obj)]() -> lv_obj_t* { return weak; };
+    REQUIRE(read() == obj);
+
+    lv_obj_delete(obj);
+
+    CHECK(read() == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget does not vouch for a new widget at a freed address",
+                 "[widget_ref]") {
+    // The allocator is free to hand the address back, which is the case a tree
+    // search cannot tell apart. Whatever it does here, the handle stays null.
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    WeakWidget weak(obj);
+
+    lv_obj_delete(obj);
+    std::vector<lv_obj_t*> churn;
+    for (int i = 0; i < 16; ++i) {
+        churn.push_back(lv_obj_create(test_screen()));
+    }
+
+    CHECK(weak.get() == nullptr);
+    for (lv_obj_t* o : churn) {
+        lv_obj_delete(o);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget handles to one widget share one hook",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    const uint32_t base = lv_obj_get_event_count(obj);
+
+    WeakWidget first(obj);
+    REQUIRE(lv_obj_get_event_count(obj) == base + 1);
+    WeakWidget second(obj);
+    WeakWidget assigned;
+    assigned = obj;
+    CHECK(lv_obj_get_event_count(obj) == base + 1);
+
+    lv_obj_delete(obj);
+    CHECK(first.get() == nullptr);
+    CHECK(second.get() == nullptr);
+    CHECK(assigned.get() == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget reset drops this copy and leaves the others",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    WeakWidget first(obj);
+    WeakWidget second = first;
+
+    first.reset();
+
+    CHECK(first.get() == nullptr);
+    CHECK(second.get() == obj);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget with every copy gone still rejoins the live widget",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    const uint32_t base = lv_obj_get_event_count(obj);
+    { WeakWidget gone(obj); }
+    REQUIRE(lv_obj_get_event_count(obj) == base + 1);
+
+    WeakWidget again(obj);
+    CHECK(lv_obj_get_event_count(obj) == base + 1);
+    CHECK(again.get() == obj);
+
+    lv_obj_delete(obj); // the hook writes into a slot that must still exist
+    CHECK(again.get() == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget with no copies left survives its widget's delete",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    { WeakWidget gone(obj); }
+
+    lv_obj_delete(obj);
+
+    SUCCEED(); // under ASAN a slot freed with the last copy is a write after free
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget made during its widget's delete is empty",
+                 "[widget_ref]") {
+    struct Seen {
+        WeakWidget made;
+        bool fired = false;
+    } seen;
+
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    lv_obj_add_event_cb(
+        obj,
+        [](lv_event_t* e) {
+            auto* s = static_cast<Seen*>(lv_event_get_user_data(e));
+            s->made = lv_event_get_target_obj(e);
+            s->fired = true;
+        },
+        LV_EVENT_DELETE, &seen);
+
+    lv_obj_delete(obj);
+
+    REQUIRE(seen.fired);
+    CHECK(seen.made.get() == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget made off the LVGL thread is empty and hooks nothing",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    const uint32_t base = lv_obj_get_event_count(obj);
+
+    WeakWidget made;
+    std::thread([&] { made = WeakWidget(obj); }).join();
+
+    CHECK(made.get() == nullptr);
+    CHECK(lv_obj_get_event_count(obj) == base);
+    lv_obj_delete(obj);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget copied and destroyed off the LVGL thread stays good",
+                 "[widget_ref]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    WeakWidget weak(obj);
+
+    WeakWidget back;
+    std::thread([&] {
+        WeakWidget local = weak;
+        back = std::move(local);
+    }).join();
+
+    CHECK(back.get() == obj);
+    lv_obj_delete(obj);
+    CHECK(back.get() == nullptr);
 }
