@@ -21,6 +21,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <new>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -219,6 +221,21 @@ uint32_t picker_first_swatch(helix::ui::ColorPicker::Palette palette) {
 TEST_CASE_METHOD(LVGLUITestFixture, "color picker palette: Theme selects the theme grid",
                  "[xml][theme][swatch]") {
     CHECK(picker_first_swatch(helix::ui::ColorPicker::Palette::Theme) == kThemeFirstSwatch);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "color picker: destroyed while shown, it is no callback's target",
+                 "[xml][theme][swatch]") {
+    alignas(helix::ui::ColorPicker) unsigned char storage[sizeof(helix::ui::ColorPicker)];
+    auto* doomed = new (storage) helix::ui::ColorPicker;
+    REQUIRE(doomed->show_with_color(lv_screen_active(), 0x808080));
+    doomed->~ColorPicker();
+    std::memset(storage, 0, sizeof(storage));
+
+    // A pointer left at the freed instance dispatches through its zeroed vtable.
+    lv_event_cb_t cancel = lv_xml_get_event_cb(nullptr, "color_picker_cancel_cb");
+    REQUIRE(cancel != nullptr);
+    cancel(nullptr);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "color picker palette: General selects the shared grid",
