@@ -190,65 +190,34 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef assigned during its widget's delete
 
 using helix::ui::WeakWidget;
 
-TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget nulls on its widget's delete", "[widget_ref]") {
-    lv_obj_t* obj = lv_obj_create(test_screen());
-    WeakWidget weak(obj);
-    REQUIRE(weak.get() == obj);
-
-    lv_obj_delete(obj);
-
-    CHECK(weak.get() == nullptr);
-    CHECK_FALSE(weak);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget nulls when an ancestor is deleted", "[widget_ref]") {
+TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget reads nullptr once its widget dies", "[widget_ref]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
-    WeakWidget weak(lv_obj_create(parent));
-    REQUIRE(weak);
-
-    lv_obj_delete(parent);
-
-    CHECK(weak.get() == nullptr);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget copy outlives the original and sees the delete",
-                 "[widget_ref]") {
+    lv_obj_t* child = lv_obj_create(parent);
     lv_obj_t* obj = lv_obj_create(test_screen());
     auto original = std::make_unique<WeakWidget>(obj);
     const WeakWidget copy = *original;
+    const WeakWidget of_child(child);
+    const auto captured = [weak = WeakWidget(obj)]() -> lv_obj_t* { return weak; };
     original.reset();
     REQUIRE(copy.get() == obj);
+    REQUIRE(captured() == obj);
+    REQUIRE(of_child.get() == child);
 
     lv_obj_delete(obj);
+    lv_obj_delete(parent);
 
     CHECK(copy.get() == nullptr);
-}
+    CHECK_FALSE(copy);
+    CHECK(captured() == nullptr);
+    CHECK(of_child.get() == nullptr);
 
-TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget captured by a lambda reads nullptr once deleted",
-                 "[widget_ref]") {
-    lv_obj_t* obj = lv_obj_create(test_screen());
-    const auto read = [weak = WeakWidget(obj)]() -> lv_obj_t* { return weak; };
-    REQUIRE(read() == obj);
-
-    lv_obj_delete(obj);
-
-    CHECK(read() == nullptr);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget does not vouch for a new widget at a freed address",
-                 "[widget_ref]") {
-    // The allocator is free to hand the address back, which is the case a tree
-    // search cannot tell apart. Whatever it does here, the handle stays null.
-    lv_obj_t* obj = lv_obj_create(test_screen());
-    WeakWidget weak(obj);
-
-    lv_obj_delete(obj);
+    // The allocator is free to hand the address back, the case a tree search cannot
+    // tell apart. Whatever it does here, the handle stays null.
     std::vector<lv_obj_t*> churn;
     for (int i = 0; i < 16; ++i) {
         churn.push_back(lv_obj_create(test_screen()));
     }
-
-    CHECK(weak.get() == nullptr);
+    CHECK(copy.get() == nullptr);
     for (lv_obj_t* o : churn) {
         lv_obj_delete(o);
     }
@@ -297,16 +266,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget with every copy gone still rejoins
 
     lv_obj_delete(obj); // the hook writes into a slot that must still exist
     CHECK(again.get() == nullptr);
-}
 
-TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget with no copies left survives its widget's delete",
-                 "[widget_ref]") {
-    lv_obj_t* obj = lv_obj_create(test_screen());
-    { WeakWidget gone(obj); }
-
-    lv_obj_delete(obj);
-
-    SUCCEED(); // under ASAN a slot freed with the last copy is a write after free
+    // No copy at all when the widget dies: under ASAN a slot freed with its last
+    // copy is a write after free here.
+    lv_obj_t* orphaned = lv_obj_create(test_screen());
+    { WeakWidget gone(orphaned); }
+    lv_obj_delete(orphaned);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget made during its widget's delete is empty",
@@ -365,77 +330,55 @@ TEST_CASE_METHOD(LVGLTestFixture, "WeakWidget copied and destroyed off the LVGL 
 // Shared helpers take handles, so their callers need no check
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLTestFixture, "safe_delete on a handle whose widget died is a no-op",
+TEST_CASE_METHOD(LVGLTestFixture, "safe_delete on a handle deletes it if live and lets go",
                  "[widget_ref]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
-    WidgetRef ref(lv_obj_create(parent));
-    WeakWidget weak(lv_obj_create(parent));
+    WidgetRef dead_ref(lv_obj_create(parent));
+    WeakWidget dead_weak(lv_obj_create(parent));
     lv_obj_delete(parent);
+    CHECK_FALSE(helix::ui::safe_delete(dead_ref));
+    CHECK_FALSE(helix::ui::safe_delete(dead_weak));
 
-    CHECK_FALSE(helix::ui::safe_delete(ref));
-    CHECK_FALSE(helix::ui::safe_delete(weak));
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "safe_delete on a live handle deletes the widget and lets go",
-                 "[widget_ref]") {
     WidgetRef ref(lv_obj_create(test_screen()));
     WeakWidget weak(lv_obj_create(test_screen()));
     const WeakWidget ref_watch(ref.get());
     const WeakWidget weak_watch = weak;
-
     CHECK(helix::ui::safe_delete(ref));
     CHECK(helix::ui::safe_delete(weak));
-
     CHECK(ref.get() == nullptr);
     CHECK(weak.get() == nullptr);
     CHECK(ref_watch.get() == nullptr);
     CHECK(weak_watch.get() == nullptr);
-}
 
-TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_deferred on a WeakWidget defers and lets go",
-                 "[widget_ref]") {
-    WeakWidget weak(lv_obj_create(test_screen()));
-    const WeakWidget watch = weak;
-
-    helix::ui::safe_delete_deferred(weak);
-
-    CHECK(weak.get() == nullptr);
-    REQUIRE(watch.get() != nullptr); // alive and hidden until the async tick
-    CHECK(lv_obj_has_flag(watch, LV_OBJ_FLAG_HIDDEN));
+    WeakWidget deferred(lv_obj_create(test_screen()));
+    const WeakWidget deferred_watch = deferred;
+    helix::ui::safe_delete_deferred(deferred);
+    CHECK(deferred.get() == nullptr);
+    REQUIRE(deferred_watch.get() != nullptr); // alive and hidden until the async tick
+    CHECK(lv_obj_has_flag(deferred_watch, LV_OBJ_FLAG_HIDDEN));
     process_lvgl(20);
-    CHECK(watch.get() == nullptr);
+    CHECK(deferred_watch.get() == nullptr);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update runs for a live widget, skips a dead one",
+TEST_CASE_METHOD(LVGLTestFixture, "Widget-guarded updates run for a live widget, skip a dead one",
                  "[widget_ref]") {
     lv_obj_t* live = lv_obj_create(test_screen());
     lv_obj_t* dead = lv_obj_create(test_screen());
     lv_obj_t* got = nullptr;
     bool dead_ran = false;
+    auto data = std::make_shared<int>(1);
 
     helix::ui::queue_widget_update(live, [&](lv_obj_t* w) { got = w; });
     helix::ui::queue_widget_update(WeakWidget(dead), [&](lv_obj_t*) { dead_ran = true; });
+    helix::ui::queue_update<std::shared_ptr<int>>(
+        dead, std::make_unique<std::shared_ptr<int>>(data),
+        [&](lv_obj_t*, std::shared_ptr<int>*) { dead_ran = true; });
     lv_obj_delete(dead);
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(got == live);
     CHECK_FALSE(dead_ran);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "queue_update with a widget frees its data when the widget died",
-                 "[widget_ref]") {
-    lv_obj_t* obj = lv_obj_create(test_screen());
-    auto data = std::make_shared<int>(1);
-    bool ran = false;
-
-    helix::ui::queue_update<std::shared_ptr<int>>(
-        obj, std::make_unique<std::shared_ptr<int>>(data),
-        [&](lv_obj_t*, std::shared_ptr<int>*) { ran = true; });
-    lv_obj_delete(obj);
-    helix::ui::UpdateQueue::instance().drain();
-
-    CHECK_FALSE(ran);
-    CHECK(data.use_count() == 1);
+    CHECK(data.use_count() == 1); // the queued data was freed with the skipped update
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update off the LVGL thread needs a handle",

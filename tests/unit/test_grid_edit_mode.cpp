@@ -95,8 +95,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "GridEditMode: enter, exit and selection are t
     REQUIRE_FALSE(em.is_catalog_open());
 }
 
-// screen_to_grid_cell
-
 TEST_CASE("GridEditMode: screen_to_grid_cell maps a point to its cell, clamping to the grid",
           "[grid_edit][drag][grid_metrics]") {
     struct Row {
