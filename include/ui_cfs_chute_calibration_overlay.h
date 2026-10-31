@@ -68,14 +68,28 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     void set_state(State state);
     void start_calibration();
     void handle_jog(double delta_mm);
+    void handle_jog_y(double delta_mm);
+    void handle_jog_x(double delta_mm);
+    void jog_up();
+    void jog_down();
+    void jog_left();
+    void jog_right();
+    void set_step_size(double step_mm);
     void save_position();
+    void update_x_display(int centimm);
     void update_y_display(int centimm);
 
-    /// Live toolhead Y in mm, from the position subject; drives the readout
+    /// Live toolhead X/Y in mm, from the position subjects; drives the readout
     /// and the jog clamp.
+    double current_x_mm_ = 0.0;
+    bool x_known_ = false;
+    bool edge_warned_x_ = false;
+
     double current_y_mm_ = 0.0;
     bool y_known_ = false;
     bool edge_warned_y_ = false;
+
+    double current_step_mm_ = 0.5;
 
     /// Set the moment the overlay starts leaving; the backend polls it at
     /// each step boundary so a cancel during the home drops the flow instead
@@ -83,6 +97,7 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     std::shared_ptr<std::atomic<bool>> cancel_requested_ =
         std::make_shared<std::atomic<bool>>(false);
 
+    ObserverGuard x_observer_;
     ObserverGuard y_observer_;
     SubjectManager subjects_;
 };

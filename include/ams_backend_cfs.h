@@ -447,6 +447,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
     /// is the hard limit either way.
     AmsError jog_chute_y(float delta_mm) override;
 
+    /// Jog X by @p delta_mm during chute calibration.
+    AmsError jog_chute_x(float delta_mm) override;
+
     /// Chute save: COORDINATES_ADJUST_SAVE_POS (the firmware reads the LIVE
     /// toolhead position and rewrites extrude_pos_x/y in box.cfg; HelixScreen
     /// sends no coordinate) followed by Y_SAFE to re-park. on_saved fires on
