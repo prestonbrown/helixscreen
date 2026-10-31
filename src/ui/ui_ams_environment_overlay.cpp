@@ -224,9 +224,6 @@ lv_obj_t* AmsEnvironmentOverlay::create(lv_obj_t* parent) {
             preset_dropdown_,
             [](lv_event_t* e) {
                 auto* dropdown = lv_event_get_target_obj(e);
-                if (!dropdown || !lv_obj_is_valid(dropdown)) {
-                    return;
-                }
                 const int selected = static_cast<int>(lv_dropdown_get_selected(dropdown));
                 spdlog::debug("[AmsEnvironmentOverlay] Preset selected: {}", selected);
                 // Picking a preset by hand hands the fields back to the preset machinery.
