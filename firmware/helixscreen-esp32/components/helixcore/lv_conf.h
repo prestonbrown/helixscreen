@@ -1313,7 +1313,7 @@
 #define LV_USE_BUTTONMATRIX 1
 
 /** Calendar */
-#define LV_USE_CALENDAR 1
+#define LV_USE_CALENDAR 0
 
 #if LV_USE_CALENDAR
 /** Week starts on Monday */
@@ -1455,7 +1455,7 @@
 #define LV_USE_IMAGE 1
 
 /** Image button */
-#define LV_USE_IMAGEBUTTON 1
+#define LV_USE_IMAGEBUTTON 0
 
 /** Chinese input method that converts Pinyin typed on a keyboard widget
  *  into Chinese characters.
@@ -1505,7 +1505,7 @@
 #endif /*LV_USE_LABEL*/
 
 /** LED */
-#define LV_USE_LED 1
+#define LV_USE_LED 0
 
 /** Line */
 #define LV_USE_LINE 1
@@ -1523,13 +1523,13 @@
 #endif /*LV_USE_THORVG*/
 
 /** Menu */
-#define LV_USE_MENU 1
+#define LV_USE_MENU 0
 
 /** Message box
  *
  *  Enable: LV_USE_LABEL
  */
-#define LV_USE_MSGBOX 1
+#define LV_USE_MSGBOX 0
 
 /** QR code
  *
@@ -1547,7 +1547,7 @@
 #define LV_USE_ROLLER 1
 
 /** Scale */
-#define LV_USE_SCALE 1
+#define LV_USE_SCALE 0
 
 /** Slider
  *
@@ -1586,16 +1586,16 @@
 #endif /*LV_USE_TEXTAREA*/
 
 /** Table */
-#define LV_USE_TABLE 1
+#define LV_USE_TABLE 0
 
 /** Tabview */
-#define LV_USE_TABVIEW 1
+#define LV_USE_TABVIEW 0
 
 /** Tileview */
-#define LV_USE_TILEVIEW 1
+#define LV_USE_TILEVIEW 0
 
 /** Window */
-#define LV_USE_WIN 1
+#define LV_USE_WIN 0
 
 
 
