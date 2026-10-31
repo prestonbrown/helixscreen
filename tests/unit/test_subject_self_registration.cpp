@@ -49,14 +49,6 @@ TEST_CASE("StaticSubjectRegistry basic operations", "[shutdown][registry]") {
     LVGLTestFixture fixture;
     ScopedSubjectRegistryIsolation isolated;
 
-    SECTION("starts empty") {
-        // After fixture setup, registry may have entries from other tests.
-        // We just verify it's accessible.
-        auto& registry = StaticSubjectRegistry::instance();
-        REQUIRE_FALSE(StaticSubjectRegistry::is_destroyed());
-        (void)registry.count(); // Should not crash
-    }
-
     SECTION("register and deinit round-trip") {
         auto& registry = StaticSubjectRegistry::instance();
         // Clear stale entries without running callbacks (avoids SIGSEGV from

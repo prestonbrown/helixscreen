@@ -701,8 +701,7 @@ TEST_CASE("remap restore: a backend with no mapping table drops the record unsen
 
 TEST_CASE("remap restore: a printer switch drops the record", "[remap-restore][1859]") {
     LVGLTestFixture fx;
-    // A re-init registers AmsState's invalidator; a test that cleared the registry
-    // left an initialized AmsState without one.
+    // A re-init registers AmsState's invalidator, which clearing the registry drops.
     helix::AmsState::instance().deinit_subjects();
     helix::AmsState::instance().init_subjects(true);
     ScopedCountingBackend be{{1, 2}};
@@ -1222,13 +1221,10 @@ TEST_CASE("remap restore: echoing backends advertise confirmation support",
     // AD5X IFS cannot: ZMOD publishes no status object for the mapping.
     AmsBackendAd5xIfs ifs{nullptr, nullptr};
     CHECK_FALSE(ifs.reports_firmware_tool_mapping());
-}
 
-TEST_CASE("remap restore: CFS confirms except on K1 where BOX_MODIFY_TN no-ops",
-          "[remap-restore][1270]") {
+    // CFS confirms, except on K1 where BOX_MODIFY_TN no-ops.
     helix::printer::AmsBackendCfs cfs{nullptr, nullptr};
     CHECK(cfs.reports_firmware_tool_mapping()); // K2 default
-
     CfsTestAccess::set_macro_variant_k1(cfs);
     CHECK_FALSE(cfs.reports_firmware_tool_mapping());
 }
