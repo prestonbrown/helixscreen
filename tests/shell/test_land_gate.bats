@@ -40,6 +40,8 @@ echo "start $t" >> "$CALLS.order"
 [ "$t" != unit-sweep ] || [ -z "${UNIT_SWEEP_SECS:-}" ] || sleep "$UNIT_SWEEP_SECS"
 trap '\''echo "end $t" >> "$CALLS.order"'\'' EXIT
 [ "$t" != quality ] || [ -z "${MAKE_QUALITY_HOOK:-}" ] || eval "$MAKE_QUALITY_HOOK"
+eval "hook=\${HOOK_$(echo "$t" | tr - _):-}"
+[ -z "$hook" ] || eval "$hook"
 echo "output of $t"
 eval "rc=\${RC_$(echo "$t" | tr - _):-0}"
 exit "$rc"'
@@ -383,20 +385,107 @@ gate_in_tree() { run bash -c 'cd "$1" && shift && "$@"' _ "$T" "$GATE" "$@"; }
 
 @test "a red step completed by a passing rerun of it on the same commit stamps the commit" {
     stamp_tree
-    RC_test_ui_ci=1 gate_in_tree
+    RC_lint_xml=1 gate_in_tree
     [ "$status" -eq 1 ]
-    row FAIL ui
-    contains "make land-gate STAGES=" "$output"
+    row FAIL lint-xml
+    contains "make land-gate STAGES=lint-xml" "$output"
     [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
     : >"$CALLS"
-    gate_in_tree --rerun ui
+    gate_in_tree --rerun lint-xml
     [ "$status" -eq 0 ]
     for s in $ALL_STEPS; do row PASS "$s"; done
     contains "LAND GATE: PASS (${SHA:0:7}" "$output"
     [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
     [ -f "$HELIX_LAND_GATE_SHARED_STAMP_DIR/$SHA" ]
-    # Only the named step ran.
-    [ "$(grep '^make' "$CALLS")" = "make test-ui-ci" ]
+    # Only the named step ran: lint-xml tests nothing app-build links.
+    [ "$(grep '^make' "$CALLS")" = "make lint-xml" ]
+}
+
+@test "a rerun of a step that tests the app build rebuilds the app and reruns every such step" {
+    stamp_tree
+    RC_test_ui_ci=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    : >"$CALLS"
+    gate_in_tree --rerun ui
+    [ "$status" -eq 0 ]
+    [ "$(grep '^make' "$CALLS")" = "$(printf 'make app\nmake test-shell BATS_REQUIRED=1\nmake test-ui-ci\nmake quality')" ]
+    [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a rerun whose app build fails records its dependents SKIP and stamps nothing" {
+    stamp_tree
+    RC_test_ui_ci=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    : >"$CALLS"
+    RC_app=2 gate_in_tree --rerun ui
+    [ "$status" -eq 1 ]
+    row FAIL app-build
+    row SKIP ui
+    row SKIP bats
+    row SKIP quality
+    refute_grep "make test-ui-ci" "$CALLS"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a rerun of the app build reruns its dependents, so a PASS from a failed build never counts" {
+    stamp_tree
+    # bats runs after a failed build, against whatever binary is on disk.
+    RC_app=2 gate_in_tree
+    [ "$status" -eq 1 ]
+    row PASS bats
+    : >"$CALLS"
+    RC_test_shell=1 gate_in_tree --rerun app-build,plugin
+    [ "$status" -eq 1 ]
+    grep -qx "make test-shell BATS_REQUIRED=1" "$CALLS"
+    row PASS app-build
+    row FAIL bats
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    gate_in_tree --rerun app-build,plugin
+    [ "$status" -eq 0 ]
+    [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a rerun whose tree changes while it runs merges nothing" {
+    stamp_tree
+    RC_lint_xml=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    HOOK_lint_xml="echo edited >f" gate_in_tree --rerun lint-xml
+    [ "$status" -eq 1 ]
+    contains "nothing was merged" "$output"
+    grep -q "^FAIL " "$LAND_GATE_LOGDIR/results/$SHA/lint-xml"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a red full run of a stamped commit removes its stamp, here and in the shared record" {
+    stamp_tree
+    gate_in_tree
+    [ "$status" -eq 0 ]
+    [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    [ -f "$HELIX_LAND_GATE_SHARED_STAMP_DIR/$SHA" ]
+    RC_lint_xml=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    [ ! -e "$HELIX_LAND_GATE_SHARED_STAMP_DIR/$SHA" ]
+}
+
+# kill_lane_hook <lane>: shell that, run from inside a step, kill the lane running it, as a crash
+# would; the lane then never writes the rows of its remaining steps.
+kill_lane_hook() {
+    printf '%s' 'p=$PPID; while [ "${p:-1}" -gt 1 ]; do case "$(ps -o args= -p "$p")" in *"--lane '"$1"'"*) kill -9 "$p"; break ;; esac; p=$(ps -o ppid= -p "$p" | tr -d " "); done'
+}
+
+@test "a second run of a commit whose lane dies leaves no earlier PASS standing" {
+    stamp_tree
+    gate_in_tree
+    [ "$status" -eq 0 ]
+    HOOK_lint_xml="$(kill_lane_hook fresh)" gate_in_tree
+    [ "$status" -eq 1 ]
+    contains "no result: its lane died" "$output"
+    [ ! -e "$LAND_GATE_LOGDIR/results/$SHA/lint-xml" ]
+    gate_in_tree --rerun python
+    [ "$status" -eq 1 ]
+    row FAIL lint-xml
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
 }
 
 @test "a rerun on another commit or a dirty tree is refused and writes nothing" {
