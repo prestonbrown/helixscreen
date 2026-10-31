@@ -81,7 +81,10 @@ idf_component_register(
 file(GLOB_RECURSE LVGL_DRAW_SRCS ${REPO_ROOT}/lib/lvgl/src/draw/*.c)
 file(GLOB_RECURSE LVGL_CORE_SRCS ${REPO_ROOT}/lib/lvgl/src/core/*.c ${REPO_ROOT}/lib/lvgl/src/misc/*.c
      ${REPO_ROOT}/lib/lvgl/src/layouts/*.c)
-set_source_files_properties(${LVGL_DRAW_SRCS} ${LVGL_CORE_SRCS} ${HELIX_XML_SRCS} PROPERTIES COMPILE_OPTIONS "-O2")
+set(LVGL_MOVED_CORE_SRCS ${REPO_ROOT}/lib/lvgl/src/image/lv_image_decoder.c
+    ${REPO_ROOT}/lib/lvgl/src/fs/lv_fs.c ${REPO_ROOT}/lib/lvgl/src/logging/lv_log.c)
+set_source_files_properties(${LVGL_DRAW_SRCS} ${LVGL_CORE_SRCS} ${LVGL_MOVED_CORE_SRCS} ${HELIX_XML_SRCS}
+    PROPERTIES COMPILE_OPTIONS "-O2")
 
 # LV_KCONFIG_IGNORE: helix-xml ships lv_conf_internal.h without the sibling
 # lv_conf_kconfig.h; we configure via lv_conf.h, not ESP-IDF Kconfig.
