@@ -378,7 +378,7 @@ struct PhotosFx : LVGLTestFixture {
     PhotosFx() {
         auto& ps = get_printer_state();
         ps.capabilities_state().set_webcams({cam("main", "mjpegstreamer", "http://cam/snap.jpg")});
-        ps.plugin_status_state().set_locality_source([] { return true; });
+        ps.set_moonraker_is_remote(false);
         ps.plugin_status_state().set_stored_opt_ins(json::object());
         ui::UpdateQueue::instance().drain();
         controller = std::make_unique<PrintPhotosController>(
@@ -391,7 +391,7 @@ struct PhotosFx : LVGLTestFixture {
         controller.reset();
         auto& ps = get_printer_state();
         ps.capabilities_state().set_webcam_available(false);
-        ps.plugin_status_state().set_locality_source(nullptr);
+        ps.clear_moonraker_locality();
         ps.plugin_status_state().set_stored_opt_ins(json::object());
         ui::UpdateQueue::instance().drain();
     }
@@ -471,7 +471,7 @@ struct PhotosApiFx : LVGLUITestFixture {
         set_moonraker_api(api.get());
         auto& ps = get_printer_state();
         ps.capabilities_state().set_webcams({cam("main", "mjpegstreamer", "http://cam/snap.jpg")});
-        ps.plugin_status_state().set_locality_source([] { return true; });
+        ps.set_moonraker_is_remote(false);
         ps.plugin_status_state().set_stored_opt_ins(json::object());
         drain();
         controller = std::make_unique<PrintPhotosController>(
@@ -483,7 +483,7 @@ struct PhotosApiFx : LVGLUITestFixture {
         set_moonraker_api(previous_api);
         auto& ps = get_printer_state();
         ps.capabilities_state().set_webcam_available(false);
-        ps.plugin_status_state().set_locality_source(nullptr);
+        ps.clear_moonraker_locality();
         drain();
         client.stop_temperature_simulation();
         client.disconnect();

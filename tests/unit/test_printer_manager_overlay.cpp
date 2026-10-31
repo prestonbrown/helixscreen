@@ -322,6 +322,8 @@ class CapabilityChipsFixture : public LVGLUITestFixture {
     CapabilityChipsFixture() : previous_api_(get_moonraker_api()) {
         set_moonraker_api(api());
         helix::AmsState::instance().init_subjects(true);
+        // init_subjects() keeps the tools a live ToolState already holds.
+        helix::ToolState::instance().deinit_subjects();
         helix::ToolState::instance().init_subjects(true);
         helix::FilamentSensorManager::instance().init_subjects();
         helix::sensors::WidthSensorManager::instance().init_subjects();

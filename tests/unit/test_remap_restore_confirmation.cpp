@@ -42,6 +42,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "slot_registry.h"
+#include "static_panel_registry.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -163,6 +164,10 @@ struct Harness {
 
     Harness() {
         ps.init_subjects(false);
+    }
+    // A restart builds the process-wide print-select panel around this api.
+    ~Harness() {
+        StaticPanelRegistry::instance().destroy_all();
     }
 
     /// Tick AmsState's data-revision subject the way a synced backend event
