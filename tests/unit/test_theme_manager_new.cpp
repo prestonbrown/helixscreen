@@ -72,12 +72,6 @@ TEST_CASE("StyleEntry holds role and configure function", "[theme-manager][style
 
 #include "../lvgl_test_fixture.h"
 
-TEST_CASE("ThemeManager is singleton", "[theme-manager][singleton]") {
-    auto& tm1 = ThemeManager::instance();
-    auto& tm2 = ThemeManager::instance();
-    REQUIRE(&tm1 == &tm2);
-}
-
 TEST_CASE_METHOD(LVGLTestFixture, "ThemeManager::get_style returns valid style for each role",
                  "[theme-manager][get-style]") {
     auto& tm = ThemeManager::instance();

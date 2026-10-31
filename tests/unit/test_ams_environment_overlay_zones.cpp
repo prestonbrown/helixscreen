@@ -52,8 +52,16 @@ std::vector<EnvironmentZone> capped_rig_zones() {
 /// Drop any instance an earlier case left behind so create() runs against this
 /// case's screen instead of one already torn down.
 void reset_overlay_singleton() {
+    // Left open, they cover Home for every later test that asks whether it is.
+    while (NavigationManager::instance().has_open_overlays()) {
+        NavigationManager::instance().go_back();
+        helix::ui::UpdateQueue::instance().drain();
+    }
     helix::ui::destroy_static_panels();
     helix::ui::UpdateQueue::instance().drain();
+    // The destroyed root waits on the top layer for LVGL's deferred delete, and the
+    // navigation stack names it until that delete runs.
+    lv_timer_handler();
 }
 
 } // namespace

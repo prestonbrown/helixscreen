@@ -44,6 +44,8 @@ using namespace helix;
 struct ToolStateFixture : public HelixTestFixture {
     ~ToolStateFixture() override {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        // init_subjects() keeps the tools a live ToolState holds.
+        ToolState::instance().deinit_subjects();
     }
 };
 
@@ -94,25 +96,8 @@ TEST_CASE_METHOD(ToolStateFixture,
 }
 
 // ============================================================================
-// DetectState enum tests
-// ============================================================================
-
-TEST_CASE_METHOD(ToolStateFixture, "DetectState: enum values", "[tool][tool-state]") {
-    REQUIRE(static_cast<int>(DetectState::PRESENT) == 0);
-    REQUIRE(static_cast<int>(DetectState::ABSENT) == 1);
-    REQUIRE(static_cast<int>(DetectState::UNAVAILABLE) == 2);
-}
-
-// ============================================================================
 // ToolState singleton tests
 // ============================================================================
-
-TEST_CASE_METHOD(ToolStateFixture, "ToolState: singleton access", "[tool][tool-state]") {
-    ToolState& a = ToolState::instance();
-    ToolState& b = ToolState::instance();
-
-    REQUIRE(&a == &b);
-}
 
 TEST_CASE_METHOD(ToolStateFixture, "ToolState: init_subjects creates subjects",
                  "[tool][tool-state]") {

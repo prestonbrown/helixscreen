@@ -17,6 +17,8 @@
  * display has no driver, hence no tick callback, so nothing else advances it).
  */
 
+#include "ui_test_utils.h"
+
 #include "../lvgl_test_fixture.h"
 
 #include <atomic>
@@ -57,7 +59,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "process_lvgl advances virtual time, not real 
     if (elapsed >= 50) {
         elapsed = real_ms([&] { process_lvgl(500); });
     }
-    CHECK(elapsed < 50);
+    // Timers an earlier test left running are CPU, not sleep: charge them to neither.
+    const long long timers_alone = real_ms([] {
+        for (int i = 0; i < 100; ++i) {
+            lv_tick_inc(5);
+            lv_timer_handler_safe();
+        }
+    });
+    CHECK(elapsed < timers_alone + 50);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "wait_until observes a value published by another thread",
