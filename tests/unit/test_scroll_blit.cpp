@@ -227,6 +227,7 @@ TEST_CASE_METHOD(ScrollBlitFixture, "scroll blit matches a full render and draws
 
 TEST_CASE_METHOD(ScrollBlitFixture, "scroll blit redraws widgets that stay put", "[scroll_blit]") {
     const uint64_t region = region_px();
+    lv_obj_t* toast = nullptr; // the top layer outlives the fixture's screen
 
     SECTION("a sibling drawn on top") {
         plain_box(panel_, 300, 200, 80, 80, 0xff0000);
@@ -240,14 +241,17 @@ TEST_CASE_METHOD(ScrollBlitFixture, "scroll blit redraws widgets that stay put",
         lv_obj_add_flag(fab, LV_OBJ_FLAG_FLOATING);
     }
     SECTION("a toast on the top layer") {
-        plain_box(lv_layer_top(), 150, 100, 200, 40, 0xffff00);
+        toast = plain_box(lv_layer_top(), 150, 100, 200, 40, 0xffff00);
     }
     render();
     for (int32_t dy : {-40, 30}) {
         CAPTURE(dy);
         lv_obj_scroll_by(list_, 0, dy, LV_ANIM_OFF);
         CHECK(render() < region / 2);
-        REQUIRE(mismatch() == "0 px differ");
+        CHECK(mismatch() == "0 px differ");
+    }
+    if (toast) {
+        lv_obj_delete(toast);
     }
 }
 
