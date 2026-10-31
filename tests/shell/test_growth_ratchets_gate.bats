@@ -379,6 +379,15 @@ EOF
     contains "tests/unit/v.cpp:1: lv_obj_is_valid()" "$output"
 }
 
+@test "--report lists each banned validity call with its count" {
+    printf 'bool a(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/src/ui/v.cpp"
+    commit_all "one call"
+    run python3 "$GATE" --root "$REPO" --report
+    [ "$status" -eq 0 ]
+    contains "banned widget validity calls: 1" "$output"
+    contains "src/ui/v.cpp:1: lv_obj_is_valid()" "$output"
+}
+
 @test "a banned name in a comment, a string or a longer name, or outside the C++ roots, passes" {
     cat > "$REPO/src/ui/quiet.cpp" <<'EOF'
 // lv_obj_is_valid(old) cannot tell a reused address

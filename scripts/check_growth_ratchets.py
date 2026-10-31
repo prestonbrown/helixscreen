@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Gate: a branch does not grow the codebase sideways (prestonbrown/helixscreen#1945).
 
-Four ratchets, each measured from the branch's fork point (scripts/diff_base.py)
+Three ratchets, each measured from the branch's fork point (scripts/diff_base.py)
 to HEAD over committed work, so there is no baseline file for parallel branches
 to conflict on. A count may fall; a branch may not raise it.
 
@@ -88,7 +88,6 @@ ACTIVE_GLOBAL_RE = re.compile(
     rf"\s*(?:=\s*nullptr\s*|\{{\s*\}}\s*)?;", re.M)
 
 VALIDITY_NAMES = ("lv_obj_is_valid", "lv_obj_is_in_widget_tree")
-VALIDITY_CALL_RE = re.compile(rf"\b(?:{'|'.join(VALIDITY_NAMES)})\s*\(")
 
 CLASS_HEAD_RE = re.compile(
     r"(?<![\w])(?:class|struct)\s+(?:\[\[[^\]]*\]\]\s*)?(?:[A-Z_][A-Z0-9_]*\s+)*(\w+)\s*"
