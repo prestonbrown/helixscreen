@@ -221,20 +221,25 @@ TEST_CASE("AppGlobals self-registers cleanup on init_subjects", "[shutdown][self
 
 TEST_CASE("NavigationManager self-registers cleanup on init", "[shutdown][self-register]") {
     LVGLTestFixture fixture;
+    ScopedSubjectRegistryIsolation isolated;
     auto& registry = StaticSubjectRegistry::instance();
-    registry.deinit_all();
+    NavigationManager::instance().deinit_subjects();
+    registry.clear();
 
     NavigationManager::instance().init();
 
     REQUIRE(registry.count() > 0);
 
-    registry.deinit_all();
+    NavigationManager::instance().deinit_subjects();
+    registry.clear();
 }
 
 TEST_CASE("Double init_subjects does not double-register", "[shutdown][self-register]") {
     LVGLTestFixture fixture;
+    ScopedSubjectRegistryIsolation isolated;
     auto& registry = StaticSubjectRegistry::instance();
-    registry.deinit_all();
+    helix::ToolState::instance().deinit_subjects();
+    registry.clear();
 
     helix::ToolState::instance().init_subjects();
     size_t count_after_first = registry.count();
@@ -245,7 +250,8 @@ TEST_CASE("Double init_subjects does not double-register", "[shutdown][self-regi
 
     REQUIRE(count_after_first == count_after_second);
 
-    registry.deinit_all();
+    helix::ToolState::instance().deinit_subjects();
+    registry.clear();
 }
 
 TEST_CASE("XMLTestFixture leaves no PrinterState entry behind in the registry",
