@@ -158,6 +158,22 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
     /// A refused value puts the slider back on the action's current value.
     void apply_slider_value(const helix::printer::DeviceAction& action, double value);
 
+    /// Show @p choice in @p action's dropdown and send it. A refused choice puts
+    /// the section back on what the backend reports.
+    void apply_dropdown_choice(const helix::printer::DeviceAction& action,
+                               const std::string& choice);
+
+    /// Ask @p confirm's question before @p choice is sent. Confirmed, it goes
+    /// through on_choice_confirmed(); cancelled or dismissed, nothing is sent and
+    /// the section goes back to what the backend reports.
+    void confirm_dropdown_choice(const helix::printer::DeviceAction& action,
+                                 const std::string& choice,
+                                 const helix::printer::DeviceAction::OptionConfirm& confirm);
+
+    /// Send a confirmed @p choice, unless @p action_id has since gone or become
+    /// unavailable (or no longer lists it), when the pick is dropped.
+    void on_choice_confirmed(const std::string& action_id, const std::string& choice);
+
     //
     // === Static Callbacks ===
     //

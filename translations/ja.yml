@@ -150,6 +150,8 @@ translations:
   = Loosen: = 緩める
   = Tighten: = 締める
   A: A
+  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
+  : "0.2 mmノズルでは一部のフィラメントを印刷できません: PA、PCおよびPCTG、TPU、PVA、PEBA、カーボンファイバー・グラスファイバー入り、Glow、Marble、Wood。このツールヘッドにそのいずれかが装填されている場合、プリンターはフィラメント情報を消去するため、再設定が必要です。"
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'アラートやサウンド用のブザーまたはスピーカー。再生内容はサウンド設定で選べます。'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Moonrakerが配信するカメラ。ホーム画面にカメラウィジェットを追加すると、印刷中も映像を確認できます。'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。'
@@ -2559,9 +2561,14 @@ translations:
   Nozzle Temps: ノズル温度
   Nozzle clean complete: ノズル清掃完了
   Nozzle clog detected: ノズルの詰まりを検出しました
+  Nozzle diameter: "ノズル径"
   Nozzle did not reach {}°C — {} canceled: ノズルが{}°Cに達しませんでした — {}を中止しました
+  Nozzle flow: "ノズルフロー"
   Nozzle interval: 'ノズルの間隔'
   Nozzle min cannot exceed max: ノズル温度の最小値は最大値を超えられません
+  'Nozzle not changed: the printer did not confirm it': "ノズルは変更されていません: プリンターが確認しませんでした"
+  'Nozzle not changed: {}': "ノズルは変更されていません: {}"
+  Nozzle size and flow type per head: "ツールヘッドごとのノズルサイズとフロータイプ"
   Nozzle target set to {}°C: ノズル目標温度を {}°C に設定しました
   Nozzle temp must be 100-%d°C: ノズル温度は 100〜%d°C にしてください
   Nozzle, bed, and chamber in one widget: ノズル、ベッド、チャンバーをまとめて表示

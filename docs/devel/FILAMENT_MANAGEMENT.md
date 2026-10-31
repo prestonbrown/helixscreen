@@ -3291,6 +3291,8 @@ Section ids, labels and icons come from one table, `include/ams_device_sections.
 
 Values reach `do_execute_device_action()` through `device_action_value<T>()` (`include/ams_device_action_value.h`): numbers by value whatever their type, a missing value refused. An action that moves the printer is marked `with_machine_motion()`: its control greys while motion is blocked (`moves_machine`), and `AmsSubscriptionBackend::execute_device_action()` refuses it during a print with "Printer is busy with a print".
 
+A dropdown option that should not be sent on a single tap is marked with `with_option_confirm(option, message, confirm_label)` (English, `TR_NOOP` both): a pick of that option opens a warning `modal_confirm` first, and Cancel or a backdrop dismissal sends nothing and redraws the section from the backend. A pick of the value the row already shows sends without asking. A confirmed pick is checked against the section's current actions before it is sent, so a row that became disabled, vanished or stopped listing the option while the question was open drops the pick (`src/ui/ui_ams_device_section_detail_overlay.cpp#on_choice_confirmed`). A dropdown pick the backend refuses at once also redraws the section, so the row shows the backend's value again. The Snapmaker U1's **Nozzle diameter** rows use it for 0.2 mm ([FILAMENT_BACKEND_SNAPMAKER_U1.md](FILAMENT_BACKEND_SNAPMAKER_U1.md#changing-a-heads-nozzle)).
+
 The section lists live in `src/printer/afc_defaults.cpp` (`afc_default_sections()`) and
 `src/printer/hh_defaults.cpp` (`hh_default_sections()`):
 

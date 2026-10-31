@@ -154,6 +154,8 @@ translations:
   = Loosen: = Allentare
   = Tighten: = Stringere
   A: A
+  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
+  : "Un ugello da 0,2 mm non può stampare alcuni filamenti: PA, PC e PCTG, TPU, PVA, PEBA, caricati con fibra di carbonio o di vetro, Glow, Marble e Wood. Se questa testina ne ha uno caricato, la stampante cancella le sue informazioni sul filamento e andranno impostate di nuovo."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un cicalino o altoparlante per avvisi e suoni. Scegli cosa riprodurre nelle impostazioni audio.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Una telecamera trasmessa da Moonraker. Aggiungi il widget telecamera alla schermata iniziale per guardarla, anche durante una stampa.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Una ventola che fa passare l''aria della camera attraverso un filtro. Controllala nella schermata della temperatura camera.'
@@ -2693,9 +2695,14 @@ translations:
   Nozzle Temps: Temp. ugelli
   Nozzle clean complete: Pulizia ugello completata
   Nozzle clog detected: Rilevata ostruzione dell'ugello
+  Nozzle diameter: "Diametro ugello"
   Nozzle did not reach {}°C — {} canceled: L'ugello non ha raggiunto {}°C — {} annullato
+  Nozzle flow: "Flusso ugello"
   Nozzle interval: 'Intervallo ugello'
   Nozzle min cannot exceed max: Il minimo dell’ugello non può superare il massimo
+  'Nozzle not changed: the printer did not confirm it': "Ugello non cambiato: la stampante non l'ha confermato"
+  'Nozzle not changed: {}': "Ugello non cambiato: {}"
+  Nozzle size and flow type per head: "Dimensione e tipo di flusso dell'ugello per testina"
   Nozzle target set to {}°C: Obiettivo ugello impostato a {}°C
   Nozzle temp must be 100-%d°C: La temperatura dell’ugello deve essere 100-%d°C
   Nozzle, bed, and chamber in one widget: Ugello, piano e camera in un widget

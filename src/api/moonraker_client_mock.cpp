@@ -6434,6 +6434,71 @@ bool MoonrakerClientMock::nozzle_calibration_active() const {
     return nozzle_cal_active_;
 }
 
+std::pair<double, std::string> MoonrakerClientMock::nozzle_properties(int head) const {
+    std::lock_guard<std::mutex> lock(nozzle_cal_mutex_);
+    if (head < 0 || head >= static_cast<int>(nozzle_props_.size())) {
+        return {0.0, {}};
+    }
+    return nozzle_props_[static_cast<size_t>(head)];
+}
+
+json MoonrakerClientMock::set_nozzle_properties(const json& params) {
+    // The firmware's own checks, in its order (extruder.py
+    // _handle_control_nozzle_properties): it compares each value exactly
+    // against its lists, and a diameter is applied before the flow type is
+    // checked, so a bad flow type still leaves a good diameter set.
+    static constexpr std::array<double, 4> kValidDiameters = {0.2, 0.4, 0.6, 0.8};
+    static constexpr std::array<const char*, 2> kValidTypes = {"standard", "high_flow"};
+    auto refuse = [](std::string message) {
+        return json{{"state", "error"}, {"message", std::move(message)}};
+    };
+
+    const auto ext = params.find("extruder");
+    if (ext == params.end() || !ext->is_number_integer()) {
+        return refuse("extruder must be specified!");
+    }
+    const int head = ext->get<int>();
+    if (head < 0 || head >= static_cast<int>(nozzle_props_.size())) {
+        return refuse("extruder not found!");
+    }
+    const int state = print_state_.load();
+    if (state == 1 || state == 2) { // printing, paused
+        return refuse("Cannot change nozzle properties during printing!");
+    }
+
+    json changed = json::object();
+    json reply = {{"state", "success"}};
+    {
+        std::lock_guard<std::mutex> lock(nozzle_cal_mutex_);
+        auto& nozzle = nozzle_props_[static_cast<size_t>(head)];
+        if (const auto d = params.find("diameter"); d != params.end() && !d->is_null()) {
+            const double mm = d->is_number() ? d->get<double>() : -1.0;
+            if (std::find(kValidDiameters.begin(), kValidDiameters.end(), mm) ==
+                kValidDiameters.end()) {
+                return refuse("nozzle_diameter error: " + d->dump());
+            }
+            nozzle.first = mm;
+            changed["nozzle_diameter"] = mm;
+        }
+        if (const auto t = params.find("volume_type"); t != params.end() && !t->is_null()) {
+            const std::string type = t->is_string() ? t->get<std::string>() : t->dump();
+            if (std::find_if(kValidTypes.begin(), kValidTypes.end(),
+                             [&type](const char* v) { return type == v; }) == kValidTypes.end()) {
+                reply = refuse("nozzle_volume_type error: " + type);
+            } else {
+                nozzle.second = type;
+                changed["nozzle_volume_type"] = type;
+            }
+        }
+    }
+    if (!changed.empty()) {
+        const std::string object = head == 0 ? "extruder" : "extruder" + std::to_string(head);
+        dispatch_status_update({{object, changed}});
+        spdlog::info("[MoonrakerClientMock] {} nozzle set: {}", object, changed.dump());
+    }
+    return reply;
+}
+
 bool MoonrakerClientMock::simulate_nozzle_offset_calibration(
     const std::string& script, helix::SharedCallback<void(const nlohmann::json&)> success_cb,
     helix::SharedCallback<void(const MoonrakerError&)> error_cb) {

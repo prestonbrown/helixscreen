@@ -267,6 +267,7 @@ src/printer/snapmaker_channel_state.cpp
 src/printer/snapmaker_exceptions.cpp
 src/printer/pause_descriptor.cpp
 src/printer/snapmaker_nozzle_offset.cpp
+src/printer/snapmaker_nozzle_properties.cpp
 src/printer/snapmaker_print_preferences.cpp
 src/printer/snapmaker_resume.cpp
 src/printer/snapmaker_status_parse.cpp

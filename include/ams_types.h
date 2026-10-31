@@ -2757,6 +2757,15 @@ struct DeviceAction {
     /// executing the action directly. Empty for an ordinary action.
     std::string guided_flow;
 
+    /// A dropdown option the UI asks about before sending it.
+    struct OptionConfirm {
+        std::string option;        ///< The option, as `options` lists it
+        std::string message;       ///< What picking it does, in English (TR_NOOP it)
+        std::string confirm_label; ///< The confirm button, in English (TR_NOOP it)
+    };
+    /// Dropdown only: options whose pick needs the user's yes first.
+    std::vector<OptionConfirm> option_confirms;
+
     // Factories for the five control types. Argument order is fixed: id, label, section, the
     // type-specific fields, then optional icon and description. scripts/translations/
     // cpp_tables.py reads the label and description positions of each call, so keep them literal.
@@ -2829,6 +2838,27 @@ struct DeviceAction {
     [[nodiscard]] DeviceAction with_step(float resolution) && {
         step = resolution;
         return std::move(*this);
+    }
+
+    /// This dropdown, asking the user to confirm @p message (with a button
+    /// reading @p confirm_label) before a pick of @p option is sent. A pick of
+    /// the value it already shows sends without asking.
+    [[nodiscard]] DeviceAction with_option_confirm(std::string option, std::string message,
+                                                   std::string confirm_label) && {
+        option_confirms.push_back(
+            {std::move(option), std::move(message), std::move(confirm_label)});
+        return std::move(*this);
+    }
+
+    /// The confirmation a pick of @p option asks for, or nullptr when it sends
+    /// without asking.
+    [[nodiscard]] const OptionConfirm* option_confirm_for(const std::string& option) const {
+        for (const auto& c : option_confirms) {
+            if (c.option == option) {
+                return &c;
+            }
+        }
+        return nullptr;
     }
 };
 

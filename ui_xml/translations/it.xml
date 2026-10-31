@@ -147,6 +147,7 @@
   <translation tag="= Loosen" it="= Allentare"/>
   <translation tag="= Tighten" it="= Stringere"/>
   <translation tag="A" it="A"/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." it="Un ugello da 0,2 mm non può stampare alcuni filamenti: PA, PC e PCTG, TPU, PVA, PEBA, caricati con fibra di carbonio o di vetro, Glow, Marble e Wood. Se questa testina ne ha uno caricato, la stampante cancella le sue informazioni sul filamento e andranno impostate di nuovo."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." it="Un cicalino o altoparlante per avvisi e suoni. Scegli cosa riprodurre nelle impostazioni audio."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." it="Una telecamera trasmessa da Moonraker. Aggiungi il widget telecamera alla schermata iniziale per guardarla, anche durante una stampa."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." it="Una ventola che fa passare l&apos;aria della camera attraverso un filtro. Controllala nella schermata della temperatura camera."/>
@@ -2463,9 +2464,14 @@
   <translation tag="Nozzle Temps" it="Temp. ugelli"/>
   <translation tag="Nozzle clean complete" it="Pulizia ugello completata"/>
   <translation tag="Nozzle clog detected" it="Rilevata ostruzione dell&apos;ugello"/>
+  <translation tag="Nozzle diameter" it="Diametro ugello"/>
   <translation tag="Nozzle did not reach {}°C — {} canceled" it="L&apos;ugello non ha raggiunto {}°C — {} annullato"/>
+  <translation tag="Nozzle flow" it="Flusso ugello"/>
   <translation tag="Nozzle interval" it="Intervallo ugello"/>
   <translation tag="Nozzle min cannot exceed max" it="Il minimo dell’ugello non può superare il massimo"/>
+  <translation tag="Nozzle not changed: the printer did not confirm it" it="Ugello non cambiato: la stampante non l&apos;ha confermato"/>
+  <translation tag="Nozzle not changed: {}" it="Ugello non cambiato: {}"/>
+  <translation tag="Nozzle size and flow type per head" it="Dimensione e tipo di flusso dell&apos;ugello per testina"/>
   <translation tag="Nozzle target set to {}°C" it="Obiettivo ugello impostato a {}°C"/>
   <translation tag="Nozzle temp must be 100-%d°C" it="La temperatura dell’ugello deve essere 100-%d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" it="Ugello, piano e camera in un widget"/>

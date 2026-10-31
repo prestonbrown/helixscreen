@@ -154,6 +154,8 @@ translations:
   = Loosen: = Aflojar
   = Tighten: = Apretar
   A: A
+  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
+  : "Una boquilla de 0,2 mm no puede imprimir algunos filamentos: PA, PC y PCTG, TPU, PVA, PEBA, con fibra de carbono o de vidrio, Glow, Marble y Wood. Si este cabezal tiene uno de ellos cargado, la impresora borra su información de filamento y tendrás que configurarla de nuevo."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un zumbador o altavoz para alertas y sonidos. Elige qué se reproduce en los ajustes de sonido.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Una cámara que transmite Moonraker. Añade el widget de cámara a la pantalla de inicio para verla, también durante una impresión.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilador que hace pasar el aire de la cámara por un filtro. Contrólalo en la pantalla de temperatura de la cámara.'
@@ -2693,9 +2695,14 @@ translations:
   Nozzle Temps: Temps de boquilla
   Nozzle clean complete: Limpieza de boquilla completa
   Nozzle clog detected: Se detectó una obstrucción en la boquilla
+  Nozzle diameter: "Diámetro de boquilla"
   Nozzle did not reach {}°C — {} canceled: La boquilla no alcanzó {}°C — se canceló {}
+  Nozzle flow: "Flujo de boquilla"
   Nozzle interval: 'Intervalo de la boquilla'
   Nozzle min cannot exceed max: El mínimo de la boquilla no puede superar el máximo
+  'Nozzle not changed: the printer did not confirm it': "Boquilla no cambiada: la impresora no lo confirmó"
+  'Nozzle not changed: {}': "Boquilla no cambiada: {}"
+  Nozzle size and flow type per head: "Tamaño y tipo de flujo de boquilla por cabezal"
   Nozzle target set to {}°C: Boquilla configurada a {}°C
   Nozzle temp must be 100-%d°C: La temperatura de la boquilla debe ser 100-%d°C
   Nozzle, bed, and chamber in one widget: Boquilla, cama y cámara en un widget

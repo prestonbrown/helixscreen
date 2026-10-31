@@ -1394,6 +1394,18 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// (PRESTART ran, EXIT has not). machine_state_manager.main_state reports it.
     [[nodiscard]] bool nozzle_calibration_active() const;
 
+    /// The U1 persona's fitted nozzle on head @p head (0-3): its diameter in mm
+    /// and flow type, as the extruder object reports them.
+    [[nodiscard]] std::pair<double, std::string> nozzle_properties(int head) const;
+
+    /// The U1 firmware's control/nozzle_properties webhook: @p params carries
+    /// extruder and optionally diameter and volume_type. Refuses the way the
+    /// firmware does, inside the reply ({"state": "error", "message": ...}),
+    /// for no extruder, an unknown one, a print printing or paused, or a value
+    /// it does not accept; otherwise stores the change, pushes the extruder's
+    /// status update and answers {"state": "success"}.
+    nlohmann::json set_nozzle_properties(const nlohmann::json& params);
+
     /// The inverse: which axis a PARAMETER= names, or nullopt for any other
     /// tool parameter (the mock models only the three offsets).
     static std::optional<helix::Axis> tool_offset_axis(const std::string& param);
@@ -1532,6 +1544,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
                                                           {0.089, 0.037, 0.099},
                                                           {0.012, 0.019, 0.272},
                                                           {-0.089, -0.016, 0.060}}};
+    /// Each head's fitted nozzle (the stock U1: 0.4 mm standard on every head),
+    /// also under nozzle_cal_mutex_.
+    std::array<std::pair<double, std::string>, 4> nozzle_props_{
+        {{0.4, "standard"}, {0.4, "standard"}, {0.4, "standard"}, {0.4, "standard"}}};
     mutable std::mutex nozzle_cal_mutex_;
     void service_pending_pa_lines();
 

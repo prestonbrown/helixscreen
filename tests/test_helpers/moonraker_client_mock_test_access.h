@@ -90,6 +90,12 @@ class MoonrakerClientMockTestAccess {
         c.method_handlers_[method] = std::move(handler);
     }
 
+    // The print state the mock's handlers check (0 standby, 1 printing,
+    // 2 paused, 3 complete), without running a simulated print.
+    static void set_print_state(MoonrakerClientMock& c, int state) {
+        c.print_state_.store(state);
+    }
+
     // Answer every directory listing with a disk that has no free space, as
     // Moonraker reports disk_usage beside any gcodes directory's entries.
     static void report_full_disk(MoonrakerClientMock& c) {

@@ -180,6 +180,7 @@
   <translation tag="= Loosen" ru="= Ослабить"/>
   <translation tag="= Tighten" ru="= Затянуть"/>
   <translation tag="A" ru="A"/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." ru="Сопло 0,2 мм не может печатать некоторые филаменты: PA, PC и PCTG, TPU, PVA, PEBA, с углеволокном или стекловолокном, Glow, Marble и Wood. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." ru="Зуммер или динамик для оповещений и звуков. Что воспроизводится, настраивается в настройках звука."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." ru="Камера, которую транслирует Moonraker. Добавьте виджет камеры на главный экран, чтобы смотреть ее, в том числе во время печати."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ru="Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры."/>
@@ -2508,9 +2509,14 @@
   <translation tag="Nozzle Temps" ru="Темп. сопел"/>
   <translation tag="Nozzle clean complete" ru="Очистка сопла завершена"/>
   <translation tag="Nozzle clog detected" ru="Обнаружено засорение сопла"/>
+  <translation tag="Nozzle diameter" ru="Диаметр сопла"/>
   <translation tag="Nozzle did not reach {}°C — {} canceled" ru="Сопло не нагрелось до {}°C — «{}» отменено"/>
+  <translation tag="Nozzle flow" ru="Поток сопла"/>
   <translation tag="Nozzle interval" ru="Интервал сопла"/>
   <translation tag="Nozzle min cannot exceed max" ru="Минимум сопла не может превышать максимум"/>
+  <translation tag="Nozzle not changed: the printer did not confirm it" ru="Сопло не изменено: принтер не подтвердил"/>
+  <translation tag="Nozzle not changed: {}" ru="Сопло не изменено: {}"/>
+  <translation tag="Nozzle size and flow type per head" ru="Размер сопла и тип потока для каждой печатающей головки"/>
   <translation tag="Nozzle target set to {}°C" ru="Целевая температура сопла {}°C"/>
   <translation tag="Nozzle temp must be 100-%d°C" ru="Температура сопла должна быть 100-%d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" ru="Сопло, стол и камера в одном виджете"/>

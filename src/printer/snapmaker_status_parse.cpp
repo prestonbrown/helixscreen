@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <optional>
 #include <string_view>
 
@@ -43,6 +44,12 @@ void ExtruderToolState::apply(const ExtruderDelta& delta) {
     }
     if (delta.error_count) {
         error_count = *delta.error_count;
+    }
+    if (delta.nozzle_diameter) {
+        nozzle_diameter = *delta.nozzle_diameter;
+    }
+    if (delta.nozzle_volume_type) {
+        nozzle_volume_type = *delta.nozzle_volume_type;
     }
 }
 
@@ -78,6 +85,14 @@ ExtruderDelta parse_extruder_delta(const nlohmann::json& json) {
     }
     if (auto v = ams::read_field<int>(json, "error_count")) {
         d.error_count = *v;
+    }
+    // A diameter that is not a positive number says nothing about the nozzle.
+    if (auto v = ams::read_field<double>(json, "nozzle_diameter");
+        v && std::isfinite(*v) && *v > 0.0) {
+        d.nozzle_diameter = *v;
+    }
+    if (auto v = ams::read_field<std::string>(json, "nozzle_volume_type")) {
+        d.nozzle_volume_type = std::move(*v);
     }
     return d;
 }

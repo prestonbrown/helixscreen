@@ -17,6 +17,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/device_action_controls.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
@@ -598,6 +599,110 @@ TEST_CASE_METHOD(GuidedFlowFixture, "a dropdown with no value it lists shows a p
     settle();
     CHECK(lv_dropdown_get_text(d) == nullptr);
     CHECK(last_executed() == "speed");
+}
+
+namespace {
+/// A dropdown showing "0.4 mm" whose "0.2 mm" pick asks first.
+DeviceAction confirmed_dropdown(const char* shown = "0.4 mm") {
+    return DeviceAction::dropdown("nozzle", "Nozzle diameter", "prefs",
+                                  {"0.2 mm", "0.4 mm", "0.6 mm"}, std::string(shown))
+        .with_option_confirm("0.2 mm", "Fine nozzles refuse some filaments.", "Change");
+}
+void pick_option(lv_obj_t* dropdown, uint32_t index) {
+    lv_dropdown_set_selected(dropdown, index);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+}
+} // namespace
+
+TEST_CASE_METHOD(GuidedFlowFixture, "a dropdown option that needs a yes is sent only after one",
+                 "[ams][device-section][nozzle]") {
+    lv_obj_t* root = open_prefs({confirmed_dropdown()});
+    lv_obj_t* d = helix::test::find_device_action_control(root, "nozzle", &lv_dropdown_class);
+    REQUIRE(d != nullptr);
+
+    pick_option(d, 0);
+    settle();
+    CHECK(last_executed().empty());
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+    CHECK(helix::test::top_modal_text().find("Fine nozzles refuse some filaments.") !=
+          std::string::npos);
+
+    helix::test::answer_top_modal("btn_primary");
+    settle();
+    CHECK(last_executed() == "nozzle");
+    CHECK(std::any_cast<std::string>(backend->get_last_executed_action().second) == "0.2 mm");
+    d = helix::test::find_device_action_control(get_ams_device_section_detail_overlay().get_root(),
+                                                "nozzle", &lv_dropdown_class);
+    REQUIRE(d != nullptr);
+    CHECK(lv_dropdown_get_selected(d) == 0);
+}
+
+TEST_CASE_METHOD(GuidedFlowFixture,
+                 "a cancelled or dismissed confirmation sends nothing and the row goes back",
+                 "[ams][device-section][nozzle]") {
+    const bool dismiss = GENERATE(false, true);
+    CAPTURE(dismiss);
+    lv_obj_t* root = open_prefs({confirmed_dropdown()});
+    lv_obj_t* d = helix::test::find_device_action_control(root, "nozzle", &lv_dropdown_class);
+    REQUIRE(d != nullptr);
+
+    pick_option(d, 0);
+    settle();
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+    if (dismiss) {
+        helix::test::dismiss_top_modal();
+    } else {
+        helix::test::answer_top_modal("btn_secondary");
+    }
+    settle();
+    CHECK(last_executed().empty());
+    d = helix::test::find_device_action_control(get_ams_device_section_detail_overlay().get_root(),
+                                                "nozzle", &lv_dropdown_class);
+    REQUIRE(d != nullptr);
+    CHECK(lv_dropdown_get_selected(d) == 1);
+}
+
+TEST_CASE_METHOD(GuidedFlowFixture,
+                 "a confirmed pick for an action disabled meanwhile sends nothing",
+                 "[ams][device-section][nozzle]") {
+    lv_obj_t* root = open_prefs({confirmed_dropdown()});
+    lv_obj_t* d = helix::test::find_device_action_control(root, "nozzle", &lv_dropdown_class);
+    REQUIRE(d != nullptr);
+    pick_option(d, 0);
+    settle();
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+
+    // While the question is up a print starts and the backend disables the row.
+    DeviceAction locked = confirmed_dropdown();
+    locked.enabled = false;
+    locked.disable_reason = "Finish or cancel the print first";
+    backend->set_device_actions({locked});
+    get_ams_device_section_detail_overlay().refresh();
+    settle();
+
+    helix::test::answer_top_modal("btn_primary");
+    settle();
+    CHECK(last_executed().empty());
+}
+
+TEST_CASE_METHOD(GuidedFlowFixture,
+                 "re-picking the value a row shows, or a plain option, asks nothing",
+                 "[ams][device-section][nozzle]") {
+    SECTION("the shown value") {
+        lv_obj_t* root = open_prefs({confirmed_dropdown("0.2 mm")});
+        lv_obj_t* d = helix::test::find_device_action_control(root, "nozzle", &lv_dropdown_class);
+        REQUIRE(d != nullptr);
+        pick_option(d, 0);
+    }
+    SECTION("an option with no question") {
+        lv_obj_t* root = open_prefs({confirmed_dropdown()});
+        lv_obj_t* d = helix::test::find_device_action_control(root, "nozzle", &lv_dropdown_class);
+        REQUIRE(d != nullptr);
+        pick_option(d, 2);
+    }
+    settle();
+    CHECK(ModalStack::instance().top_dialog() == nullptr);
+    CHECK(last_executed() == "nozzle");
 }
 
 TEST_CASE("the built-in registrar registers every vendor's flows", "[ams][guided-flow]") {

@@ -156,6 +156,8 @@ translations:
   = Loosen: = Desserrer
   = Tighten: = Serrer
   A: A
+  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
+  : "Une buse de 0,2 mm ne peut pas imprimer certains filaments : PA, PC et PCTG, TPU, PVA, PEBA, chargés en fibre de carbone ou de verre, Glow, Marble et Wood. Si l'un d'eux est chargé dans cette tête d'outil, l'imprimante efface ses informations de filament et vous devrez les saisir à nouveau."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un buzzer ou haut-parleur pour les alertes et les sons. Choisissez ce qui est joué dans les paramètres du son.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Une caméra diffusée par Moonraker. Ajoutez le widget caméra à l''écran d''accueil pour la regarder, y compris pendant une impression.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilateur qui fait passer l''air de l''enceinte à travers un filtre. Commandez-le sur l''écran de température de l''enceinte.'
@@ -2708,9 +2710,14 @@ translations:
   Nozzle Temps: Temp. des buses
   Nozzle clean complete: Nettoyage de la buse terminé
   Nozzle clog detected: Buse bouchée détectée
+  Nozzle diameter: "Diamètre de buse"
   Nozzle did not reach {}°C — {} canceled: La buse n'a pas atteint {}°C — {} annulé
+  Nozzle flow: "Débit de buse"
   Nozzle interval: 'Intervalle de la buse'
   Nozzle min cannot exceed max: Le minimum de la buse ne peut pas dépasser le maximum
+  'Nozzle not changed: the printer did not confirm it': "Buse non modifiée : l'imprimante ne l'a pas confirmé"
+  'Nozzle not changed: {}': "Buse non modifiée : {}"
+  Nozzle size and flow type per head: "Taille et type de débit de buse par tête d'outil"
   Nozzle target set to {}°C: Cible buse réglée à {}°C
   Nozzle temp must be 100-%d°C: La température de la buse doit être entre 100 et %d°C
   Nozzle, bed, and chamber in one widget: Buse, plateau et enceinte réunis

@@ -163,6 +163,28 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
         return true;
     };
 
+    // printer.control.nozzle_properties - the U1 firmware's webhook for a
+    // head's fitted nozzle, proxied by Moonraker. It answers inside a
+    // successful reply, refusals included. Other printers have no such
+    // endpoint. VENDOR_OK: the mock simulates that firmware.
+    registry["printer.control.nozzle_properties"] =
+        [](MoonrakerClientMock* self, const json& params,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
+        if (self->get_printer_type() != MoonrakerClientMock::PrinterType::SNAPMAKER_U1) {
+            if (error_cb) {
+                error_cb(MoonrakerError::json_rpc_error("printer.control.nozzle_properties",
+                                                        "Method not found"));
+            }
+            return true;
+        }
+        const json reply = self->set_nozzle_properties(params);
+        if (success_cb) {
+            success_cb(json{{"result", reply}});
+        }
+        return true;
+    };
+
     // printer.emergency_stop - Execute emergency stop (M112)
     registry["printer.emergency_stop"] =
         [](MoonrakerClientMock* self, [[maybe_unused]] const json& params,

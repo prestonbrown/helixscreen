@@ -147,6 +147,7 @@
   <translation tag="= Loosen" zh="= 松开"/>
   <translation tag="= Tighten" zh="= 拧紧"/>
   <translation tag="A" zh="辅"/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." zh="0.2 mm 喷嘴无法打印部分耗材：PA、PC 和 PCTG、TPU、PVA、PEBA、CF 或 GF 增强型、Glow、Marble 和 Wood。如果此工具头装有其中之一，打印机会清除其耗材信息，需要重新设置。"/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." zh="用于提示和声音的蜂鸣器或扬声器。在声音设置中选择播放内容。"/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." zh="Moonraker 推流的摄像头。将摄像头小组件添加到主屏幕即可查看,打印时也能看到。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." zh="让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。"/>
@@ -2463,9 +2464,14 @@
   <translation tag="Nozzle Temps" zh="喷嘴温度"/>
   <translation tag="Nozzle clean complete" zh="喷嘴清洁完成"/>
   <translation tag="Nozzle clog detected" zh="检测到喷嘴堵塞"/>
+  <translation tag="Nozzle diameter" zh="喷嘴直径"/>
   <translation tag="Nozzle did not reach {}°C — {} canceled" zh="喷嘴未达到 {}°C — {} 已取消"/>
+  <translation tag="Nozzle flow" zh="喷嘴流量"/>
   <translation tag="Nozzle interval" zh="喷嘴间隔"/>
   <translation tag="Nozzle min cannot exceed max" zh="喷嘴最低温度不能超过最高温度"/>
+  <translation tag="Nozzle not changed: the printer did not confirm it" zh="喷嘴未更改：打印机未确认"/>
+  <translation tag="Nozzle not changed: {}" zh="喷嘴未更改：{}"/>
+  <translation tag="Nozzle size and flow type per head" zh="每个工具头的喷嘴尺寸和流量类型"/>
   <translation tag="Nozzle target set to {}°C" zh="喷嘴目标已设为 {}°C"/>
   <translation tag="Nozzle temp must be 100-%d°C" zh="喷嘴温度必须为 100-%d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" zh="喷嘴、热床和腔体合为一个小组件"/>
