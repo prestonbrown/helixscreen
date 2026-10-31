@@ -220,233 +220,99 @@ TEST_CASE("the ghost silhouette skips auxiliary geometry too", "[layer_renderer]
     CHECK(with_tower == part_only);
 }
 
-TEST_CASE("set_excluded_objects stores names and can be cleared", "[layer_renderer][exclude]") {
-    GCodeLayerRenderer renderer;
-    auto gcode = make_test_gcode();
-    renderer.set_gcode(&gcode);
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-    renderer.auto_fit();
-    renderer.set_current_layer(0);
-
-    SECTION("setting excluded objects does not crash") {
-        std::unordered_set<std::string> excluded = {"cube1"};
-        REQUIRE_NOTHROW(renderer.set_excluded_objects(excluded));
+TEST_CASE("the exclude and highlight setters take any name set, with or without a file",
+          "[layer_renderer][exclude][highlight]") {
+    // What the sets do to the drawing is pinned by the colour cases below.
+    const std::unordered_set<std::string> sets[] = {
+        {"cube1"}, {"cube1", "cube2"}, {}, {"nonexistent_object"}};
+    SECTION("no file") {
+        GCodeLayerRenderer renderer;
+        REQUIRE_NOTHROW(renderer.set_excluded_objects({"cube1"}));
+        REQUIRE_NOTHROW(renderer.set_highlighted_objects({"cube1"}));
     }
-
-    SECTION("clearing excluded objects does not crash") {
-        std::unordered_set<std::string> excluded = {"cube1", "cube2"};
-        renderer.set_excluded_objects(excluded);
-
-        std::unordered_set<std::string> empty;
-        REQUIRE_NOTHROW(renderer.set_excluded_objects(empty));
-    }
-
-    SECTION("setting excluded objects with unknown name does not crash") {
-        std::unordered_set<std::string> excluded = {"nonexistent_object"};
-        REQUIRE_NOTHROW(renderer.set_excluded_objects(excluded));
+    SECTION("a fitted file") {
+        GCodeLayerRenderer renderer;
+        auto gcode = make_test_gcode();
+        renderer.set_gcode(&gcode);
+        renderer.set_canvas_size(200, 200);
+        GCodeLayerRendererTestAccess::set_view_mode(renderer,
+                                                    GCodeLayerRenderer::ViewMode::TOP_DOWN);
+        renderer.auto_fit();
+        renderer.set_current_layer(0);
+        for (const auto& set : sets) {
+            REQUIRE_NOTHROW(renderer.set_excluded_objects(set));
+            REQUIRE_NOTHROW(renderer.set_highlighted_objects(set));
+        }
     }
 }
 
 // =============================================================================
-// Highlight Object Support
+// Pick Object At - the top-down fixture
 // =============================================================================
 
-TEST_CASE("set_highlighted_objects stores names and can be cleared",
-          "[layer_renderer][highlight]") {
-    GCodeLayerRenderer renderer;
-    auto gcode = make_test_gcode();
-    renderer.set_gcode(&gcode);
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-    renderer.auto_fit();
-    renderer.set_current_layer(0);
-
-    SECTION("setting highlighted objects does not crash") {
-        std::unordered_set<std::string> highlighted = {"cube2"};
-        REQUIRE_NOTHROW(renderer.set_highlighted_objects(highlighted));
+TEST_CASE("pick_object_at returns the named object under the tap, and nothing elsewhere",
+          "[layer_renderer][pick][exclude]") {
+    // In TOP_DOWN with auto_fit on (10,20)-(50,80) in a 200x200 canvas the
+    // scale is ~3.03 about (30, 50): cube1's midpoint lands at (100, ~191),
+    // cube2's at (100, ~9), and the unnamed segment's at the centre.
+    struct Row {
+        const char* what;
+        int x, y;
+        std::optional<std::string> name;
+        bool may_miss = false; // nearer one object, but maybe past the pick reach
+        std::unordered_set<std::string> excluded = {};
+    };
+    const Row rows[] = {
+        {"cube1's midpoint", 100, 191, "cube1"},
+        {"cube2's midpoint", 100, 9, "cube2"},
+        {"a far corner", 0, 0, std::nullopt},
+        {"the other corner", 199, 199, std::nullopt},
+        {"an unnamed segment is not an object", 100, 100, std::nullopt},
+        {"nearer cube1", 100, 180, "cube1", true},
+        {"nearer cube2", 100, 20, "cube2", true},
+        // An excluded object stays pickable, so a tap can un-exclude it.
+        {"an excluded cube1", 100, 191, "cube1", false, {"cube1"}},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        GCodeLayerRenderer renderer;
+        auto gcode = make_test_gcode();
+        renderer.set_gcode(&gcode);
+        renderer.set_canvas_size(200, 200);
+        GCodeLayerRendererTestAccess::set_view_mode(renderer,
+                                                    GCodeLayerRenderer::ViewMode::TOP_DOWN);
+        renderer.auto_fit();
+        renderer.set_current_layer(0);
+        renderer.set_excluded_objects(row.excluded);
+        const auto picked = renderer.pick_object_at(row.x, row.y);
+        if (!row.name) {
+            CHECK_FALSE(picked.has_value());
+        } else if (picked || !row.may_miss) {
+            REQUIRE(picked.has_value());
+            CHECK(*picked == *row.name);
+        }
     }
 
-    SECTION("clearing highlighted objects does not crash") {
-        std::unordered_set<std::string> highlighted = {"cube1"};
-        renderer.set_highlighted_objects(highlighted);
-
-        std::unordered_set<std::string> empty;
-        REQUIRE_NOTHROW(renderer.set_highlighted_objects(empty));
+    SECTION("no file") {
+        GCodeLayerRenderer renderer;
+        renderer.set_canvas_size(200, 200);
+        GCodeLayerRendererTestAccess::set_view_mode(renderer,
+                                                    GCodeLayerRenderer::ViewMode::TOP_DOWN);
+        CHECK_FALSE(renderer.pick_object_at(100, 100).has_value());
     }
-
-    SECTION("setting highlighted objects with unknown name does not crash") {
-        std::unordered_set<std::string> highlighted = {"nonexistent_object"};
-        REQUIRE_NOTHROW(renderer.set_highlighted_objects(highlighted));
+    SECTION("an empty layer") {
+        ParsedGCodeFile gcode;
+        Layer empty_layer;
+        empty_layer.z_height = 0.2f;
+        gcode.layers.push_back(empty_layer);
+        GCodeLayerRenderer renderer;
+        renderer.set_gcode(&gcode);
+        renderer.set_canvas_size(200, 200);
+        GCodeLayerRendererTestAccess::set_view_mode(renderer,
+                                                    GCodeLayerRenderer::ViewMode::TOP_DOWN);
+        renderer.set_current_layer(0);
+        CHECK_FALSE(renderer.pick_object_at(100, 100).has_value());
     }
-}
-
-// =============================================================================
-// Pick Object At - Core algorithmic tests
-// =============================================================================
-
-TEST_CASE("pick_object_at returns object name for segment under cursor", "[layer_renderer][pick]") {
-    GCodeLayerRenderer renderer;
-    auto gcode = make_test_gcode();
-    renderer.set_gcode(&gcode);
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-    renderer.auto_fit();
-    renderer.set_current_layer(0);
-
-    // In TOP_DOWN mode with auto_fit on bounding box (10,20)-(50,80):
-    //   center = (30, 50), range_x = 40, range_y = 60
-    //   scale = min(200/(40*1.1), 200/(60*1.1)) ~= min(4.54, 3.03) ~= 3.03
-    //   offset_x = 30, offset_y = 50
-    //
-    // world_to_screen(x, y):
-    //   sx = (x - 30) * scale + 100
-    //   sy = 100 - (y - 50) * scale
-    //
-    // For cube1 midpoint (30, 20):
-    //   sx = 0 * 3.03 + 100 = 100
-    //   sy = 100 - (-30) * 3.03 = 100 + 90.9 = ~191
-    //
-    // For cube2 midpoint (30, 80):
-    //   sx = 100
-    //   sy = 100 - 30 * 3.03 = 100 - 90.9 = ~9
-
-    // Pick near cube1's midpoint (bottom of screen in top-down, since Y is flipped)
-    auto result_cube1 = renderer.pick_object_at(100, 191);
-    REQUIRE(result_cube1.has_value());
-    CHECK(result_cube1.value() == "cube1");
-
-    // Pick near cube2's midpoint (top of screen in top-down)
-    auto result_cube2 = renderer.pick_object_at(100, 9);
-    REQUIRE(result_cube2.has_value());
-    CHECK(result_cube2.value() == "cube2");
-}
-
-TEST_CASE("pick_object_at returns nullopt for empty space", "[layer_renderer][pick]") {
-    GCodeLayerRenderer renderer;
-    auto gcode = make_test_gcode();
-    renderer.set_gcode(&gcode);
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-    renderer.auto_fit();
-    renderer.set_current_layer(0);
-
-    // Pick at far corner where no segments exist
-    auto result = renderer.pick_object_at(0, 0);
-    REQUIRE_FALSE(result.has_value());
-
-    // Another empty spot
-    auto result2 = renderer.pick_object_at(199, 199);
-    REQUIRE_FALSE(result2.has_value());
-}
-
-TEST_CASE("pick_object_at skips segments without object_name", "[layer_renderer][pick]") {
-    GCodeLayerRenderer renderer;
-    auto gcode = make_test_gcode();
-    renderer.set_gcode(&gcode);
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-    renderer.auto_fit();
-    renderer.set_current_layer(0);
-
-    // The unnamed segment is at y=50 (world), which maps to sy=100 (screen center).
-    // Picking at screen center should NOT return a result since the unnamed
-    // segment has an empty object_name.
-    auto result = renderer.pick_object_at(100, 100);
-    REQUIRE_FALSE(result.has_value());
-}
-
-TEST_CASE("pick_object_at with multiple objects picks closest", "[layer_renderer][pick]") {
-    GCodeLayerRenderer renderer;
-    auto gcode = make_test_gcode();
-    renderer.set_gcode(&gcode);
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-    renderer.auto_fit();
-    renderer.set_current_layer(0);
-
-    // cube1 is at y=20 (screen ~191), cube2 is at y=80 (screen ~9)
-    // Pick slightly closer to cube1 than cube2
-    auto near_cube1 = renderer.pick_object_at(100, 180);
-    if (near_cube1.has_value()) {
-        CHECK(near_cube1.value() == "cube1");
-    }
-
-    // Pick slightly closer to cube2 than cube1
-    auto near_cube2 = renderer.pick_object_at(100, 20);
-    if (near_cube2.has_value()) {
-        CHECK(near_cube2.value() == "cube2");
-    }
-}
-
-TEST_CASE("pick_object_at with no gcode returns nullopt", "[layer_renderer][pick]") {
-    GCodeLayerRenderer renderer;
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-
-    // No gcode set - should return nullopt
-    auto result = renderer.pick_object_at(100, 100);
-    REQUIRE_FALSE(result.has_value());
-}
-
-TEST_CASE("pick_object_at with empty layer returns nullopt", "[layer_renderer][pick]") {
-    GCodeLayerRenderer renderer;
-    ParsedGCodeFile gcode;
-    Layer empty_layer;
-    empty_layer.z_height = 0.2f;
-    gcode.layers.push_back(empty_layer);
-    gcode.total_segments = 0;
-
-    renderer.set_gcode(&gcode);
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-    renderer.set_current_layer(0);
-
-    auto result = renderer.pick_object_at(100, 100);
-    REQUIRE_FALSE(result.has_value());
-}
-
-// =============================================================================
-// Exclude + Pick interaction
-// =============================================================================
-
-TEST_CASE("excluded objects are still pickable", "[layer_renderer][exclude][pick]") {
-    // Excluded objects should still be pickable (user needs to be able to
-    // un-exclude them by tapping on them)
-    GCodeLayerRenderer renderer;
-    auto gcode = make_test_gcode();
-    renderer.set_gcode(&gcode);
-    renderer.set_canvas_size(200, 200);
-    GCodeLayerRendererTestAccess::set_view_mode(renderer, GCodeLayerRenderer::ViewMode::TOP_DOWN);
-    renderer.auto_fit();
-    renderer.set_current_layer(0);
-
-    // Exclude cube1
-    std::unordered_set<std::string> excluded = {"cube1"};
-    renderer.set_excluded_objects(excluded);
-
-    // Should still be able to pick cube1
-    auto result = renderer.pick_object_at(100, 191);
-    REQUIRE(result.has_value());
-    CHECK(result.value() == "cube1");
-}
-
-// =============================================================================
-// Exclude/Highlight with no data source
-// =============================================================================
-
-TEST_CASE("set_excluded_objects with no gcode does not crash", "[layer_renderer][exclude]") {
-    GCodeLayerRenderer renderer;
-
-    std::unordered_set<std::string> excluded = {"cube1"};
-    REQUIRE_NOTHROW(renderer.set_excluded_objects(excluded));
-}
-
-TEST_CASE("set_highlighted_objects with no gcode does not crash", "[layer_renderer][highlight]") {
-    GCodeLayerRenderer renderer;
-
-    std::unordered_set<std::string> highlighted = {"cube1"};
-    REQUIRE_NOTHROW(renderer.set_highlighted_objects(highlighted));
 }
 
 // =============================================================================
@@ -736,10 +602,9 @@ ParsedGCodeFile make_support_object_gcode() {
 
 } // namespace
 
-// THE REGRESSION. current_layer_ is the top layer, whose only segments sit at
-// y=90; the click is in the middle of the object's body, 20mm clear of every
-// rail on every layer. Before the projected-AABB stage existed this returned
-// nullopt, which is exactly what a real tap on a 3-object plate did.
+// current_layer_ is the top layer, whose only segments sit at y=90; the click is
+// in the middle of the object's body, 20mm clear of every rail on every layer,
+// so only the projected-box stage can find it.
 TEST_CASE("pick_object_at picks an object whose body is below the current layer",
           "[layer_renderer][pick]") {
     GCodeLayerRenderer renderer;
@@ -1192,9 +1057,8 @@ TEST_CASE("FRONT: a tap within reach of two objects picks the nearer segment",
 //
 // Selection is classified by interned object index through SelectionState, which
 // only answers correctly once rebuild_index_map() has been fed the object-name
-// table. Miss a wiring site and selection silently stops working while every
-// unit test above stays green -- the pre-existing exclude tests assert only
-// REQUIRE_NOTHROW on the setters, so they cannot catch it.
+// table. Miss a wiring site and selection silently stops working while the
+// setter cases above, which only check that the setters accept a set, stay green.
 //
 // These assert the rendered colour, which is the end of the chain.
 // ===========================================================================
@@ -1377,24 +1241,8 @@ RenderCounts render_and_count(const std::unordered_set<std::string>& highlighted
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLTestFixture, "an unselected plate draws no white pixels",
-                 "[layer_renderer][halo]") {
-    // Baseline. The default filament colour is teal (0x26A69A) and depth shading
-    // only darkens it, so nothing should read as white without a selection. If
-    // this fails the white-detection threshold is wrong, not the halo.
-    auto gcode = make_test_gcode();
-    lv_obj_t* canvas = lv_canvas_create(test_screen());
-    REQUIRE(canvas != nullptr);
-    static uint8_t buf[200 * 200 * 4];
-    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
-
-    const auto counts = render_and_count({}, gcode, buf, canvas);
-    INFO("painted=" << counts.painted << " white=" << counts.white);
-    REQUIRE(counts.painted > 0); // the plate did render
-    REQUIRE(counts.white == 0);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "selecting an object draws a white rim without growing it",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a selection draws a white rim inside each selected object and nowhere else",
                  "[layer_renderer][halo]") {
     auto gcode = make_test_gcode();
     lv_obj_t* canvas = lv_canvas_create(test_screen());
@@ -1403,42 +1251,25 @@ TEST_CASE_METHOD(LVGLTestFixture, "selecting an object draws a white rim without
     lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
 
     const auto plain = render_and_count({}, gcode, buf, canvas);
-    const auto selected = render_and_count({"cube1"}, gcode, buf, canvas);
-
-    INFO("plain: painted=" << plain.painted << " white=" << plain.white);
-    INFO("selected: painted=" << selected.painted << " white=" << selected.white);
-
-    // The rim is the only source of white.
-    REQUIRE(selected.white > 0);
-
-    // And the object occupies exactly the same pixels it did unselected. This
-    // assertion used to be the other way round - the halo was painted wider than
-    // the object and the footprint grew - which is precisely why it flooded: the
-    // white it laid down outside the object had to be covered by something, and
-    // on a sloped wall nothing ever covered it.
-    REQUIRE(selected.painted == plain.painted);
-
-    // A rim is a boundary, so it is a minority of the object's pixels. A flood
-    // still satisfies "white > 0".
-    REQUIRE(selected.white * 2 < selected.painted);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "the halo covers only the selected object",
-                 "[layer_renderer][halo]") {
-    // Selecting both objects must produce strictly more halo than selecting one.
-    // A halo keyed on the wrong thing (say, drawn for every segment whenever any
-    // selection exists) would give identical counts.
-    auto gcode = make_test_gcode();
-    lv_obj_t* canvas = lv_canvas_create(test_screen());
-    REQUIRE(canvas != nullptr);
-    static uint8_t buf[200 * 200 * 4];
-    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
-
     const auto one = render_and_count({"cube1"}, gcode, buf, canvas);
     const auto both = render_and_count({"cube1", "cube2"}, gcode, buf, canvas);
+    INFO("plain: painted=" << plain.painted << " white=" << plain.white);
+    INFO("one: painted=" << one.painted << " white=" << one.white);
+    INFO("both: white=" << both.white);
 
-    INFO("one=" << one.white << " both=" << both.white);
+    // The default teal only darkens with depth, so nothing is white unselected;
+    // if this fails the white threshold is wrong, not the halo.
+    REQUIRE(plain.painted > 0);
+    REQUIRE(plain.white == 0);
+    // The rim is the only source of white.
     REQUIRE(one.white > 0);
+    // The object covers the same pixels selected: a rim painted wider than the
+    // object grows the footprint and floods sloped walls with white nothing covers.
+    REQUIRE(one.painted == plain.painted);
+    // A rim is a boundary, so a minority of the object's pixels; a flood would
+    // still satisfy "white > 0".
+    REQUIRE(one.white * 2 < one.painted);
+    // A halo keyed on anything but the selected objects would not grow with them.
     REQUIRE(both.white > one.white);
 }
 
@@ -1533,7 +1364,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a new extrusion color repaints a completed so
     CHECK(second.second > 0);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "a new extrusion color drops the built ghost",
+TEST_CASE_METHOD(LVGLTestFixture, "a new extrusion colour or a tool palette drops the built ghost",
                  "[layer_renderer][color][ghost]") {
     auto gcode = make_test_gcode();
     GCodeLayerRenderer renderer;
@@ -1545,27 +1376,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "a new extrusion color drops the built ghost",
     renderer.pump_offscreen_build(200, 200);
     REQUIRE(renderer.has_ghost_output());
 
-    // The same color is not a change, so a healthy ghost survives it.
-    renderer.set_extrusion_color(lv_color_hex(0xFF0000));
-    CHECK(renderer.has_ghost_output());
-
-    renderer.set_extrusion_color(lv_color_hex(0x0000FF));
-    CHECK_FALSE(renderer.has_ghost_output());
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "installing a tool palette drops the built ghost",
-                 "[layer_renderer][color][ghost]") {
-    auto gcode = make_test_gcode();
-    GCodeLayerRenderer renderer;
-    renderer.set_gcode(&gcode);
-
-    renderer.pump_offscreen_build(200, 200);
-    GCodeLayerRendererTestAccess::join_ghost_build(renderer);
-    renderer.pump_offscreen_build(200, 200);
-    REQUIRE(renderer.has_ghost_output());
-
-    renderer.set_tool_color_palette({"#112233", "#445566"});
-    CHECK_FALSE(renderer.has_ghost_output());
+    SECTION("extrusion colour") {
+        // The same color is not a change, so a healthy ghost survives it.
+        renderer.set_extrusion_color(lv_color_hex(0xFF0000));
+        CHECK(renderer.has_ghost_output());
+        renderer.set_extrusion_color(lv_color_hex(0x0000FF));
+        CHECK_FALSE(renderer.has_ghost_output());
+    }
+    SECTION("tool palette") {
+        renderer.set_tool_color_palette({"#112233", "#445566"});
+        CHECK_FALSE(renderer.has_ghost_output());
+    }
 }
 
 // ===========================================================================
@@ -1624,9 +1445,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "scrubbing back down the stack keeps the selec
     // Layer 0 is the destination that makes the loss permanent rather than
     // self-healing. The rebuild finishes inside a single frame there, so no later
     // frame takes the forward-growth branch — which has its own copy of the reset
-    // and would clear a stale flag on the way past. Scrub to the middle of the
-    // stack instead and the rim comes back a frame or two later, which is why
-    // this went unnoticed.
+    // and would clear a stale flag on the way past. Scrubbed to the middle of the
+    // stack, the rim comes back a frame or two later on its own.
     auto gcode = make_stacked_gcode(8);
     lv_obj_t* canvas = lv_canvas_create(test_screen());
     REQUIRE(canvas != nullptr);

@@ -11,278 +11,137 @@
 #include "spoolman_types.h" // For SpoolInfo, VendorInfo, FilamentInfo
 
 #include <algorithm>
+#include <functional>
+#include <optional>
 #include <set>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// SpoolInfo Struct Tests
-// ============================================================================
-
-TEST_CASE("SpoolInfo - remaining_percent calculation", "[filament]") {
-    SpoolInfo spool;
-
-    SECTION("Full spool returns 100%") {
-        spool.initial_weight_g = 1000.0;
-        spool.remaining_weight_g = 1000.0;
-        REQUIRE(spool.remaining_percent() == Catch::Approx(100.0));
+TEST_CASE("SpoolInfo - remaining_percent and is_low", "[filament]") {
+    struct Pct {
+        double initial, remaining, pct;
+    };
+    // A zero or negative initial weight reads 0% rather than dividing by it.
+    const Pct pcts[] = {{1000, 1000, 100},     {1000, 500, 50}, {1000, 0, 0},  {1000, 850, 85},
+                        {750, 500, 66.666666}, {0, 100, 0},     {-100, 50, 0}, {1000, 50, 5}};
+    for (const auto& p : pcts) {
+        INFO(p.remaining << "g of " << p.initial << "g");
+        SpoolInfo spool;
+        spool.initial_weight_g = p.initial;
+        spool.remaining_weight_g = p.remaining;
+        CHECK(spool.remaining_percent() == Catch::Approx(p.pct).margin(0.001));
     }
 
-    SECTION("Half spool returns 50%") {
-        spool.initial_weight_g = 1000.0;
-        spool.remaining_weight_g = 500.0;
-        REQUIRE(spool.remaining_percent() == Catch::Approx(50.0));
-    }
-
-    SECTION("Empty spool returns 0%") {
-        spool.initial_weight_g = 1000.0;
-        spool.remaining_weight_g = 0.0;
-        REQUIRE(spool.remaining_percent() == Catch::Approx(0.0));
-    }
-
-    SECTION("Partial spool calculates correctly") {
-        spool.initial_weight_g = 1000.0;
-        spool.remaining_weight_g = 850.0;
-        REQUIRE(spool.remaining_percent() == Catch::Approx(85.0));
-    }
-
-    SECTION("Non-standard spool weight works") {
-        spool.initial_weight_g = 750.0; // 750g spool
-        spool.remaining_weight_g = 500.0;
-        REQUIRE(spool.remaining_percent() == Catch::Approx(66.666666).margin(0.001));
-    }
-
-    SECTION("Zero initial weight returns 0% (avoids division by zero)") {
-        spool.initial_weight_g = 0.0;
-        spool.remaining_weight_g = 100.0;
-        REQUIRE(spool.remaining_percent() == Catch::Approx(0.0));
-    }
-
-    SECTION("Negative initial weight returns 0%") {
-        spool.initial_weight_g = -100.0;
-        spool.remaining_weight_g = 50.0;
-        REQUIRE(spool.remaining_percent() == Catch::Approx(0.0));
+    // Low means strictly under the threshold, 100g by default.
+    struct Low {
+        double remaining;
+        std::optional<double> threshold;
+        bool low;
+    };
+    const Low lows[] = {{99, std::nullopt, true},
+                        {100, std::nullopt, false},
+                        {101, std::nullopt, false},
+                        {200, 250.0, true},
+                        {200, 200.0, false},
+                        {200, 150.0, false},
+                        {0, std::nullopt, true},
+                        {0, 0.0, false},
+                        {5, 10.0, true},
+                        {5, 5.0, false},
+                        {5, 1.0, false}};
+    for (const auto& l : lows) {
+        INFO(l.remaining << "g against " << l.threshold.value_or(-1));
+        SpoolInfo spool;
+        spool.remaining_weight_g = l.remaining;
+        CHECK((l.threshold ? spool.is_low(*l.threshold) : spool.is_low()) == l.low);
     }
 }
 
-TEST_CASE("SpoolInfo - is_low threshold detection", "[filament]") {
-    SpoolInfo spool;
-
-    SECTION("Default threshold is 100g") {
-        spool.remaining_weight_g = 99.0;
-        REQUIRE(spool.is_low() == true);
-
-        spool.remaining_weight_g = 100.0;
-        REQUIRE(spool.is_low() == false);
-
-        spool.remaining_weight_g = 101.0;
-        REQUIRE(spool.is_low() == false);
+TEST_CASE("Spoolman display names read vendor, filament name, material", "[filament]") {
+    struct Row {
+        std::string vendor, material, name;
+        std::string spool, filament; // SpoolInfo's and FilamentInfo's display_name
+    };
+    const Row rows[] = {
+        {"Polymaker", "PLA", "Jet Black", "Polymaker Jet Black PLA", "Polymaker Jet Black PLA"},
+        {"eSUN", "PETG", "", "eSUN PETG", "eSUN PETG"},
+        {"", "ABS", "Red", "Red ABS", "Red ABS"},
+        {"", "TPU", "", "TPU", "TPU"},
+        {"", "", "", "Unknown Spool", "Unknown Filament"},
+        {"", "", "Blue", "Blue", ""},
+        {"Eryone", "Silk PLA", "Gold/Silver/Copper Tri-Color",
+         "Eryone Gold/Silver/Copper Tri-Color Silk PLA", ""},
+    };
+    for (const auto& row : rows) {
+        INFO("\"" << row.vendor << "\" \"" << row.material << "\" \"" << row.name << "\"");
+        SpoolInfo spool;
+        spool.vendor = row.vendor;
+        spool.material = row.material;
+        spool.filament_name = row.name;
+        CHECK(spool.display_name() == row.spool);
+        if (!row.filament.empty()) {
+            FilamentInfo filament;
+            filament.vendor_name = row.vendor;
+            filament.material = row.material;
+            filament.filament_name = row.name;
+            CHECK(filament.display_name() == row.filament);
+        }
     }
 
-    SECTION("Custom threshold works") {
-        spool.remaining_weight_g = 200.0;
-        REQUIRE(spool.is_low(250.0) == true);
-        REQUIRE(spool.is_low(200.0) == false);
-        REQUIRE(spool.is_low(150.0) == false);
-    }
-
-    SECTION("Empty spool is always low") {
-        spool.remaining_weight_g = 0.0;
-        REQUIRE(spool.is_low() == true);
-        REQUIRE(spool.is_low(0.0) == false); // Edge case: threshold 0
-    }
-
-    SECTION("Very low threshold") {
-        spool.remaining_weight_g = 5.0;
-        REQUIRE(spool.is_low(10.0) == true);
-        REQUIRE(spool.is_low(5.0) == false);
-        REQUIRE(spool.is_low(1.0) == false);
-    }
-}
-
-TEST_CASE("SpoolInfo - display_name formatting", "[filament]") {
-    SpoolInfo spool;
-
-    SECTION("Full info formats correctly") {
-        spool.vendor = "Polymaker";
-        spool.material = "PLA";
-        spool.filament_name = "Jet Black";
-        REQUIRE(spool.display_name() == "Polymaker Jet Black PLA");
-    }
-
-    SECTION("Empty filament name is simply absent") {
-        spool.vendor = "eSUN";
-        spool.material = "PETG";
-        spool.filament_name = "";
-        REQUIRE(spool.display_name() == "eSUN PETG");
-    }
-
-    SECTION("No vendor omits vendor") {
-        spool.vendor = "";
-        spool.material = "ABS";
-        spool.filament_name = "Red";
-        REQUIRE(spool.display_name() == "Red ABS");
-    }
-
-    SECTION("Only material") {
-        spool.vendor = "";
-        spool.material = "TPU";
-        spool.filament_name = "";
-        REQUIRE(spool.display_name() == "TPU");
-    }
-
-    SECTION("Empty info returns 'Unknown Spool'") {
-        spool.vendor = "";
-        spool.material = "";
-        spool.filament_name = "";
-        REQUIRE(spool.display_name() == "Unknown Spool");
-    }
-
-    SECTION("Only a filament name") {
-        spool.vendor = "";
-        spool.material = "";
-        spool.filament_name = "Blue";
-        REQUIRE(spool.display_name() == "Blue");
-    }
-
-    SECTION("Complex color names preserved") {
-        spool.vendor = "Eryone";
-        spool.material = "Silk PLA";
-        spool.filament_name = "Gold/Silver/Copper Tri-Color";
-        REQUIRE(spool.display_name() == "Eryone Gold/Silver/Copper Tri-Color Silk PLA");
-    }
-}
-
-TEST_CASE("SpoolInfo - default initialization", "[filament]") {
-    SpoolInfo spool;
-
-    SECTION("All numeric fields default to 0") {
-        REQUIRE(spool.id == 0);
-        REQUIRE(spool.remaining_weight_g == 0.0);
-        REQUIRE(spool.remaining_length_m == 0.0);
-        REQUIRE(spool.spool_weight_g == 0.0);
-        REQUIRE(spool.initial_weight_g == 0.0);
-        REQUIRE(spool.nozzle_temp_min == 0);
-        REQUIRE(spool.nozzle_temp_max == 0);
-        REQUIRE(spool.nozzle_temp_recommended == 0);
-        REQUIRE(spool.bed_temp_min == 0);
-        REQUIRE(spool.bed_temp_max == 0);
-        REQUIRE(spool.bed_temp_recommended == 0);
-    }
-
-    SECTION("Strings default to empty") {
-        REQUIRE(spool.vendor.empty());
-        REQUIRE(spool.material.empty());
-        REQUIRE(spool.filament_name.empty());
-        REQUIRE(spool.color_hex.empty());
-    }
-}
-
-// ============================================================================
-// FilamentUsageRecord Tests
-// ============================================================================
-
-TEST_CASE("FilamentUsageRecord - default initialization", "[filament]") {
-    FilamentUsageRecord record;
-
-    SECTION("All fields default correctly") {
-        REQUIRE(record.spool_id == 0);
-        REQUIRE(record.used_weight_g == 0.0);
-        REQUIRE(record.used_length_m == 0.0);
-        REQUIRE(record.print_filename.empty());
-        REQUIRE(record.timestamp == 0.0);
-    }
-}
-
-// ============================================================================
-// VendorInfo Tests
-// ============================================================================
-
-TEST_CASE("VendorInfo - default initialization", "[filament]") {
     VendorInfo vendor;
-
-    SECTION("All fields default correctly") {
-        REQUIRE(vendor.id == 0);
-        REQUIRE(vendor.name.empty());
-    }
-}
-
-TEST_CASE("VendorInfo - display_name formatting", "[filament]") {
-    VendorInfo vendor;
-
-    SECTION("Name returns name") {
-        vendor.name = "Hatchbox";
-        REQUIRE(vendor.display_name() == "Hatchbox");
-    }
-
-    SECTION("Empty name returns Unknown Vendor") {
-        REQUIRE(vendor.display_name() == "Unknown Vendor");
-    }
+    CHECK(vendor.display_name() == "Unknown Vendor");
+    vendor.name = "Hatchbox";
+    CHECK(vendor.display_name() == "Hatchbox");
 }
 
 // ============================================================================
-// FilamentInfo Tests
+// Default records
 // ============================================================================
 
-TEST_CASE("FilamentInfo - default initialization", "[filament]") {
-    FilamentInfo filament;
+TEST_CASE("Spoolman records start empty, with a 1.75mm filament diameter", "[filament]") {
+    const SpoolInfo spool;
+    CHECK(spool.id == 0);
+    CHECK(spool.vendor_id == 0);
+    for (const double v : {spool.remaining_weight_g, spool.remaining_length_m, spool.spool_weight_g,
+                           spool.initial_weight_g, spool.price})
+        CHECK(v == 0.0);
+    for (const int t : {spool.nozzle_temp_min, spool.nozzle_temp_max, spool.nozzle_temp_recommended,
+                        spool.bed_temp_min, spool.bed_temp_max, spool.bed_temp_recommended})
+        CHECK(t == 0);
+    for (const auto* s : {&spool.vendor, &spool.material, &spool.filament_name, &spool.color_hex,
+                          &spool.lot_nr, &spool.comment, &spool.location})
+        CHECK(s->empty());
 
-    SECTION("All numeric fields default correctly") {
-        REQUIRE(filament.id == 0);
-        REQUIRE(filament.vendor_id == 0);
-        REQUIRE(filament.density == 0.0f);
-        REQUIRE(filament.diameter == Catch::Approx(1.75f));
-        REQUIRE(filament.weight == 0.0f);
-        REQUIRE(filament.spool_weight == 0.0f);
-        REQUIRE(filament.nozzle_temp_min == 0);
-        REQUIRE(filament.nozzle_temp_max == 0);
-        REQUIRE(filament.bed_temp_min == 0);
-        REQUIRE(filament.bed_temp_max == 0);
-    }
+    const FilamentUsageRecord record;
+    CHECK(record.spool_id == 0);
+    CHECK(record.used_weight_g == 0.0);
+    CHECK(record.used_length_m == 0.0);
+    CHECK(record.print_filename.empty());
+    CHECK(record.timestamp == 0.0);
 
-    SECTION("Strings default to empty") {
-        REQUIRE(filament.vendor_name.empty());
-        REQUIRE(filament.material.empty());
-        REQUIRE(filament.filament_name.empty());
-        REQUIRE(filament.color_hex.empty());
-    }
+    const VendorInfo vendor;
+    CHECK(vendor.id == 0);
+    CHECK(vendor.name.empty());
 
-    SECTION("Diameter defaults to 1.75mm") {
-        REQUIRE(filament.diameter == Catch::Approx(1.75f));
-    }
-}
+    const FilamentInfo filament;
+    CHECK(filament.id == 0);
+    CHECK(filament.vendor_id == 0);
+    CHECK(filament.diameter == Catch::Approx(1.75f));
+    for (const float v : {filament.density, filament.weight, filament.spool_weight})
+        CHECK(v == 0.0f);
+    for (const int t : {filament.nozzle_temp_min, filament.nozzle_temp_max, filament.bed_temp_min,
+                        filament.bed_temp_max})
+        CHECK(t == 0);
+    for (const auto* s :
+         {&filament.vendor_name, &filament.material, &filament.filament_name, &filament.color_hex})
+        CHECK(s->empty());
 
-TEST_CASE("FilamentInfo - display_name formatting", "[filament]") {
-    FilamentInfo filament;
+    const SpoolWizardOverlay::FilamentEntry entry;
+    CHECK(entry.diameter == Catch::Approx(1.75));
+    CHECK(entry.density == 0.0);
 
-    SECTION("Full info formats correctly") {
-        filament.vendor_name = "Polymaker";
-        filament.material = "PLA";
-        filament.filament_name = "Jet Black";
-        REQUIRE(filament.display_name() == "Polymaker Jet Black PLA");
-    }
-
-    SECTION("Empty filament name is simply absent") {
-        filament.vendor_name = "eSUN";
-        filament.material = "PETG";
-        REQUIRE(filament.display_name() == "eSUN PETG");
-    }
-
-    SECTION("No vendor omits vendor") {
-        filament.material = "ABS";
-        filament.filament_name = "Red";
-        REQUIRE(filament.display_name() == "Red ABS");
-    }
-
-    SECTION("Only material") {
-        filament.material = "TPU";
-        REQUIRE(filament.display_name() == "TPU");
-    }
-
-    SECTION("Empty returns Unknown Filament") {
-        REQUIRE(filament.display_name() == "Unknown Filament");
-    }
+    CHECK(SlotInfo{}.spoolman_vendor_id == 0);
 }
 
 // ============================================================================
@@ -657,261 +516,71 @@ TEST_CASE("MoonrakerAPIMock - update_spoolman_spool", "[filament][mock]") {
 }
 
 TEST_CASE("MoonrakerAPIMock - Spoolman-gated methods fail when disabled", "[filament][mock]") {
-    // Mirrors the real proxy's failure mode when Spoolman isn't connected:
-    // these calls must error out, not silently succeed with mock data — the
-    // slot editor's managed-state gating depends on this (HELIX_MOCK_SPOOLMAN=0
-    // regression, see AmsEditOverlay::update_ui()/enter_spool_edit()).
+    // The real proxy errors when Spoolman is not connected, and the slot
+    // editor's managed-state gating depends on these calls failing rather than
+    // succeeding with mock data.
     MoonrakerClientMock client;
     PrinterState state;
     MoonrakerAPIMock api(client, state);
     client.set_mock_spoolman_enabled(false);
+    auto& sm = api.spoolman();
+    const int active_before = client.spoolman_mock().get_mock_active_spool_id();
 
-    SECTION("get_spoolman_spool errors, no spool delivered") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().get_spoolman_spool(
-            1, [&](const std::optional<SpoolInfo>&) { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
+    using Ok = std::function<void()>;
+    using Err = std::function<void(const MoonrakerError&)>;
+    const nlohmann::json weight = {{"remaining_weight", 1.0}};
+    const nlohmann::json color = {{"color_hex", "00FF00"}};
+    const nlohmann::json vendor = {{"name", "Acme"}};
+    const nlohmann::json material = {{"material", "PLA"}};
+    const nlohmann::json on_filament = {{"filament_id", 1}};
+    const std::pair<const char*, std::function<void(Ok, Err)>> calls[] = {
+        {"get_spoolman_spool",
+         [&](Ok ok, Err e) { sm.get_spoolman_spool(1, [ok](const auto&) { ok(); }, e); }},
+        {"get_spoolman_spools",
+         [&](Ok ok, Err e) { sm.get_spoolman_spools([ok](const auto&) { ok(); }, e); }},
+        {"update_spoolman_spool",
+         [&](Ok ok, Err e) { sm.update_spoolman_spool(1, weight, ok, e); }},
+        {"update_spoolman_filament",
+         [&](Ok ok, Err e) { sm.update_spoolman_filament(300, color, ok, e); }},
+        {"set_active_spool", [&](Ok ok, Err e) { sm.set_active_spool(9, ok, e); }},
+        {"update_spoolman_spool_weight",
+         [&](Ok ok, Err e) { sm.update_spoolman_spool_weight(1, 500.0, ok, e); }},
+        {"update_spoolman_filament_color",
+         [&](Ok ok, Err e) { sm.update_spoolman_filament_color(300, "00FF00", ok, e); }},
+        {"get_spoolman_vendors",
+         [&](Ok ok, Err e) { sm.get_spoolman_vendors([ok](const auto&) { ok(); }, e); }},
+        {"get_spoolman_filaments",
+         [&](Ok ok, Err e) { sm.get_spoolman_filaments([ok](const auto&) { ok(); }, e); }},
+        {"get_spoolman_filaments(vendor_id)",
+         [&](Ok ok, Err e) { sm.get_spoolman_filaments(2, [ok](const auto&) { ok(); }, e); }},
+        {"create_spoolman_vendor",
+         [&](Ok ok, Err e) { sm.create_spoolman_vendor(vendor, [ok](const auto&) { ok(); }, e); }},
+        {"create_spoolman_filament",
+         [&](Ok ok, Err e) {
+             sm.create_spoolman_filament(material, [ok](const auto&) { ok(); }, e);
+         }},
+        {"create_spoolman_spool",
+         [&](Ok ok, Err e) {
+             sm.create_spoolman_spool(on_filament, [ok](const auto&) { ok(); }, e);
+         }},
+        {"delete_spoolman_spool", [&](Ok ok, Err e) { sm.delete_spoolman_spool(1, ok, e); }},
+        {"delete_spoolman_vendor", [&](Ok ok, Err e) { sm.delete_spoolman_vendor(1, ok, e); }},
+        {"delete_spoolman_filament", [&](Ok ok, Err e) { sm.delete_spoolman_filament(1, ok, e); }},
+    };
+    for (const auto& [name, call] : calls) {
+        INFO(name);
+        bool succeeded = false;
+        std::optional<MoonrakerError> error;
+        call([&] { succeeded = true; }, [&](const MoonrakerError& err) { error = err; });
+        CHECK_FALSE(succeeded);
+        REQUIRE(error.has_value());
+        CHECK(error->code == -32601);
+        CHECK_FALSE(error->is_not_found());
     }
-
-    SECTION("get_spoolman_spools errors, no list delivered") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().get_spoolman_spools(
-            [&](const std::vector<SpoolInfo>&) { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("update_spoolman_spool errors, no write applied") {
-        bool error_called = false;
-        bool success_called = false;
-        nlohmann::json patch;
-        patch["remaining_weight"] = 1.0;
-        api.spoolman().update_spoolman_spool(
-            1, patch, [&]() { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("update_spoolman_filament errors, no write applied") {
-        bool error_called = false;
-        bool success_called = false;
-        nlohmann::json patch;
-        patch["color_hex"] = "00FF00";
-        api.spoolman().update_spoolman_filament(
-            300, patch, [&]() { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("set_active_spool errors, no active change") {
-        const int before = client.spoolman_mock().get_mock_active_spool_id();
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().set_active_spool(
-            9, [&]() { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-        CHECK(client.spoolman_mock().get_mock_active_spool_id() == before);
-    }
-
-    SECTION("update_spoolman_spool_weight errors, no write applied") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().update_spoolman_spool_weight(
-            1, 500.0, [&]() { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("update_spoolman_filament_color errors, no write applied") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().update_spoolman_filament_color(
-            300, "00FF00", [&]() { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("get_spoolman_vendors errors, no list delivered") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().get_spoolman_vendors(
-            [&](const std::vector<VendorInfo>&) { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("get_spoolman_filaments errors, no list delivered") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().get_spoolman_filaments(
-            [&](const std::vector<FilamentInfo>&) { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("get_spoolman_filaments(vendor_id) errors, no list delivered") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().get_spoolman_filaments(
-            2, [&](const std::vector<FilamentInfo>&) { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("create_spoolman_vendor errors, no vendor created") {
-        bool error_called = false;
-        bool success_called = false;
-        nlohmann::json vendor;
-        vendor["name"] = "Acme";
-        api.spoolman().create_spoolman_vendor(
-            vendor, [&](const VendorInfo&) { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-        CHECK(client.spoolman_mock().created_vendors.empty());
-    }
-
-    SECTION("create_spoolman_filament errors, no filament created") {
-        bool error_called = false;
-        bool success_called = false;
-        nlohmann::json filament;
-        filament["material"] = "PLA";
-        api.spoolman().create_spoolman_filament(
-            filament, [&](const FilamentInfo&) { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-        CHECK(client.spoolman_mock().created_filaments.empty());
-    }
-
-    SECTION("create_spoolman_spool errors, no spool created") {
-        bool error_called = false;
-        bool success_called = false;
-        nlohmann::json spool;
-        spool["filament_id"] = 1;
-        api.spoolman().create_spoolman_spool(
-            spool, [&](const SpoolInfo&) { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-        CHECK(client.spoolman_mock().created_spools.empty());
-    }
-
-    SECTION("delete_spoolman_spool errors, no delete applied") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().delete_spoolman_spool(
-            1, [&]() { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("delete_spoolman_vendor errors, no delete applied") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().delete_spoolman_vendor(
-            1, [&]() { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-
-    SECTION("delete_spoolman_filament errors, no delete applied") {
-        bool error_called = false;
-        bool success_called = false;
-        api.spoolman().delete_spoolman_filament(
-            1, [&]() { success_called = true; },
-            [&](const MoonrakerError& err) {
-                error_called = true;
-                CHECK(err.code == -32601);
-                CHECK_FALSE(err.is_not_found());
-            });
-        CHECK(error_called);
-        CHECK_FALSE(success_called);
-    }
-}
-
-TEST_CASE("SpoolInfo - new fields have defaults", "[filament]") {
-    SpoolInfo spool;
-
-    REQUIRE(spool.price == 0.0);
-    REQUIRE(spool.lot_nr.empty());
-    REQUIRE(spool.comment.empty());
+    CHECK(client.spoolman_mock().get_mock_active_spool_id() == active_before);
+    CHECK(client.spoolman_mock().created_vendors.empty());
+    CHECK(client.spoolman_mock().created_filaments.empty());
+    CHECK(client.spoolman_mock().created_spools.empty());
 }
 
 // ============================================================================
@@ -1265,173 +934,49 @@ static std::vector<SpoolInfo> make_filter_test_spools() {
     return spools;
 }
 
-TEST_CASE("filter_spools - empty query returns all", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "");
-    REQUIRE(result.size() == spools.size());
-}
-
-TEST_CASE("filter_spools - whitespace-only query returns all", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "   ");
-    REQUIRE(result.size() == spools.size());
-}
-
-TEST_CASE("filter_spools - single term matches material", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "PLA");
-    REQUIRE(result.size() == 2);
-    REQUIRE(result[0].id == 1);
-    REQUIRE(result[1].id == 42);
-}
-
-TEST_CASE("filter_spools - single term matches vendor", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "polymaker");
-    REQUIRE(result.size() == 2);
-    REQUIRE(result[0].id == 1);
-    REQUIRE(result[1].id == 3);
-}
-
-TEST_CASE("filter_spools - multi-term AND matching", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "polymaker pla");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 1);
-}
-
-TEST_CASE("filter_spools - case insensitive", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "ESUN petg");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 2);
-}
-
-TEST_CASE("filter_spools - spool ID search with #", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "#42");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 42);
-}
-
-TEST_CASE("filter_spools - spool ID search without #", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "42" matches spool #42's searchable text which contains "#42"
-    auto result = filter_spools(spools, "42");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 42);
-}
-
-TEST_CASE("filter_spools - color name search", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "blue");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 2);
-}
-
-TEST_CASE("filter_spools - no matches returns empty", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "nonexistent");
-    REQUIRE(result.empty());
-}
-
-TEST_CASE("filter_spools - empty spool list returns empty", "[filament][filter]") {
-    std::vector<SpoolInfo> empty;
-    auto result = filter_spools(empty, "PLA");
-    REQUIRE(result.empty());
-}
-
-TEST_CASE("filter_spools - location search", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "shelf");
-    REQUIRE(result.size() == 2);
-    REQUIRE(result[0].id == 1);
-    REQUIRE(result[1].id == 3);
-}
-
-TEST_CASE("filter_spools - location + material AND search", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    auto result = filter_spools(spools, "shelf pla");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 1);
-}
-
-TEST_CASE("filter_spools - empty location does not break search", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // Spool s2 and s4 have empty location — they should still match on other fields
-    auto result = filter_spools(spools, "hatchbox");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 42);
-}
-
-// ============================================================================
-// Fuzzy search tests
-// ============================================================================
-
-TEST_CASE("filter_spools - fuzzy matches vendor with typo", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "Polmaker" is 1 edit from "Polymaker" (missing 'y')
-    auto result = filter_spools(spools, "polmaker");
-    REQUIRE(result.size() == 2);
-    REQUIRE(result[0].id == 1);
-    REQUIRE(result[1].id == 3);
-}
-
-TEST_CASE("filter_spools - fuzzy matches material with typo", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "PEYG" is 1 edit from "PETG" (Y instead of T)
-    auto result = filter_spools(spools, "peyg");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 2);
-}
-
-TEST_CASE("filter_spools - fuzzy matches vendor with swapped chars", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "htachbox" is 2 edits from "hatchbox" (transposition)
-    auto result = filter_spools(spools, "htachbox");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 42);
-}
-
-TEST_CASE("filter_spools - fuzzy does not match wildly different terms", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "xyz" is far from any word in the spool data
-    auto result = filter_spools(spools, "xyz");
-    REQUIRE(result.empty());
-}
-
-TEST_CASE("filter_spools - fuzzy AND still works with mixed exact and fuzzy",
+// Spools: #1 Polymaker PLA Jet Black (Shelf A), #2 eSUN PETG Blue, #3 Polymaker
+// ASA Red (Shelf A), #42 Hatchbox PLA White. Every term must match (AND), case
+// is ignored, and a term matches by substring or, failing that, within an edit
+// distance that tightens to one edit for three-character terms.
+TEST_CASE("filter_spools matches every term against id, vendor, material, name and location",
           "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "polmaker" fuzzy-matches "polymaker", "pla" exact-matches
-    auto result = filter_spools(spools, "polmaker pla");
-    REQUIRE(result.size() == 1);
-    REQUIRE(result[0].id == 1);
-}
-
-TEST_CASE("filter_spools - fuzzy short term has tighter threshold", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "PLS" is 1 edit from "PLA" — within threshold for 3-char terms
-    auto result = filter_spools(spools, "pls");
-    REQUIRE(result.size() == 2);
-    REQUIRE(result[0].id == 1);
-    REQUIRE(result[1].id == 42);
-}
-
-TEST_CASE("filter_spools - fuzzy rejects 2-edit on short term", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "XYA" is 2 edits from "PLA" — exceeds threshold of 1 for 3-char terms
-    auto result = filter_spools(spools, "xya");
-    REQUIRE(result.empty());
-}
-
-TEST_CASE("filter_spools - exact substring still preferred over fuzzy", "[filament][filter]") {
-    auto spools = make_filter_test_spools();
-    // "poly" is an exact substring of "polymaker" — should match without needing fuzzy
-    auto result = filter_spools(spools, "poly");
-    REQUIRE(result.size() == 2);
-    REQUIRE(result[0].id == 1);
-    REQUIRE(result[1].id == 3);
+    const auto spools = make_filter_test_spools();
+    struct Row {
+        const char* query;
+        std::vector<int> ids;
+    };
+    const Row rows[] = {
+        {"", {1, 2, 3, 42}},
+        {"   ", {1, 2, 3, 42}},
+        {"PLA", {1, 42}},
+        {"polymaker", {1, 3}},
+        {"polymaker pla", {1}},
+        {"ESUN petg", {2}},
+        {"#42", {42}},
+        {"42", {42}},
+        {"blue", {2}},
+        {"nonexistent", {}},
+        {"shelf", {1, 3}},
+        {"shelf pla", {1}},
+        {"hatchbox", {42}}, // a spool with no location still matches
+        {"poly", {1, 3}},
+        // Typos: a dropped letter, a wrong letter, a transposition.
+        {"polmaker", {1, 3}},
+        {"peyg", {2}},
+        {"htachbox", {42}},
+        {"polmaker pla", {1}},
+        {"pls", {1, 42}},
+        {"xya", {}},
+        {"xyz", {}},
+    };
+    for (const auto& row : rows) {
+        INFO("query \"" << row.query << "\"");
+        std::vector<int> got;
+        for (const auto& s : filter_spools(spools, row.query))
+            got.push_back(s.id);
+        CHECK(got == row.ids);
+    }
+    CHECK(filter_spools(std::vector<SpoolInfo>{}, "PLA").empty());
 }
 
 TEST_CASE("build_searchable_text - id vendor material name location, lowercased",
@@ -1513,11 +1058,6 @@ TEST_CASE("SpoolInfo - location defaults to empty when null in JSON", "[filament
         [](const MoonrakerError&) { FAIL("create failed"); });
 
     REQUIRE(created_location.empty());
-}
-
-TEST_CASE("SpoolInfo - location defaults to empty string", "[filament]") {
-    SpoolInfo spool;
-    REQUIRE(spool.location.empty());
 }
 
 // ============================================================================
@@ -1680,12 +1220,6 @@ TEST_CASE("Filament creation data includes required Spoolman fields", "[spoolman
     }
 }
 
-TEST_CASE("FilamentEntry defaults include diameter", "[spoolman]") {
-    SpoolWizardOverlay::FilamentEntry entry;
-    REQUIRE(entry.diameter == Catch::Approx(1.75));
-    REQUIRE(entry.density == 0.0);
-}
-
 TEST_CASE("FilamentInfo diameter populates FilamentEntry", "[spoolman]") {
     FilamentInfo fi;
     fi.material = "PETG";
@@ -1698,52 +1232,6 @@ TEST_CASE("FilamentInfo diameter populates FilamentEntry", "[spoolman]") {
 
     REQUIRE(entry.density == Catch::Approx(1.27));
     REQUIRE(entry.diameter == Catch::Approx(2.85));
-}
-
-TEST_CASE("SpoolInfo - realistic spool scenarios", "[filament][integration]") {
-    SECTION("Typical PLA spool usage") {
-        SpoolInfo spool;
-        spool.vendor = "Polymaker";
-        spool.material = "PLA";
-        spool.filament_name = "Jet Black";
-        spool.color_hex = "1A1A2E";
-        spool.initial_weight_g = 1000.0;
-        spool.remaining_weight_g = 850.0;
-        spool.nozzle_temp_recommended = 210;
-        spool.bed_temp_recommended = 60;
-
-        REQUIRE(spool.remaining_percent() == Catch::Approx(85.0));
-        REQUIRE(spool.is_low() == false);
-        REQUIRE(spool.is_low(900.0) == true); // Custom threshold
-        REQUIRE(spool.display_name() == "Polymaker Jet Black PLA");
-    }
-
-    SECTION("Nearly empty ASA spool") {
-        SpoolInfo spool;
-        spool.vendor = "Flashforge";
-        spool.material = "ASA";
-        spool.filament_name = "Fire Engine Red";
-        spool.initial_weight_g = 1000.0;
-        spool.remaining_weight_g = 50.0;
-
-        REQUIRE(spool.remaining_percent() == Catch::Approx(5.0));
-        REQUIRE(spool.is_low() == true);
-        REQUIRE(spool.is_low(50.0) == false);
-    }
-
-    SECTION("Engineering filament with 750g spool") {
-        SpoolInfo spool;
-        spool.vendor = "Polymaker";
-        spool.material = "PC";
-        spool.filament_name = "PolyMax PC Grey";
-        spool.initial_weight_g = 750.0;
-        spool.remaining_weight_g = 500.0;
-        spool.nozzle_temp_recommended = 270;
-        spool.bed_temp_recommended = 100;
-
-        REQUIRE(spool.remaining_percent() == Catch::Approx(66.666666).margin(0.001));
-        REQUIRE(spool.is_low() == false);
-    }
 }
 
 // ============================================================================
@@ -1863,16 +1351,6 @@ TEST_CASE("SpoolInfo vendor_id populated from mock spool", "[filament][spoolman]
     REQUIRE(fetched);
 }
 
-TEST_CASE("SpoolInfo vendor_id defaults to 0 when not set", "[filament][spoolman]") {
-    SpoolInfo spool;
-    REQUIRE(spool.vendor_id == 0);
-}
-
-TEST_CASE("SlotInfo spoolman_vendor_id defaults to 0", "[ams][spoolman]") {
-    SlotInfo slot;
-    REQUIRE(slot.spoolman_vendor_id == 0);
-}
-
 // ============================================================================
 // sort_spools_by_recency — picker ordering (#1071). Single descending key:
 // max(last_used, registered). A never-used spool competes on its registration
@@ -1900,29 +1378,35 @@ std::vector<int> ids_of(const std::vector<SpoolInfo>& spools) {
 
 } // namespace
 
-TEST_CASE("sort_spools_by_recency puts a newly added never-used spool on top (#1071)",
+TEST_CASE("sort_spools_by_recency puts the most recently used or registered spool first (#1071)",
           "[filament][spoolman][sort]") {
-    // The user's exact scenario: a spool registered today but never used must
-    // outrank a spool used yesterday. Under the old "used spools always first"
-    // rule the brand-new spool sank to the bottom of the picker.
-    std::vector<SpoolInfo> spools;
-    spools.push_back(dated_spool(11, "2026-07-18T09:00:00", "2026-01-02T00:00:00"));
-    spools.push_back(dated_spool(21, "", "2026-07-19T08:00:00")); // added today, never used
-
-    sort_spools_by_recency(spools);
-
-    CHECK(ids_of(spools) == std::vector<int>{21, 11});
-}
-
-TEST_CASE("sort_spools_by_recency puts a used spool above an older-registered unused spool",
-          "[filament][spoolman][sort]") {
-    std::vector<SpoolInfo> spools;
-    spools.push_back(dated_spool(30, "", "2026-07-15T00:00:00")); // never used, older
-    spools.push_back(dated_spool(31, "2026-07-19T00:00:00", "2026-03-01T00:00:00"));
-
-    sort_spools_by_recency(spools);
-
-    CHECK(ids_of(spools) == std::vector<int>{31, 30});
+    struct Row {
+        const char* name;
+        std::vector<SpoolInfo> spools;
+        std::vector<int> want;
+    };
+    const Row rows[] = {
+        // A spool registered today and never used outranks one used yesterday.
+        {"a newly added never-used spool",
+         {dated_spool(11, "2026-07-18T09:00:00", "2026-01-02T00:00:00"),
+          dated_spool(21, "", "2026-07-19T08:00:00")},
+         {21, 11}},
+        {"a used spool over an older-registered unused one",
+         {dated_spool(30, "", "2026-07-15T00:00:00"),
+          dated_spool(31, "2026-07-19T00:00:00", "2026-03-01T00:00:00")},
+         {31, 30}},
+        {"never-used spools by registration",
+         {dated_spool(50, "", "2026-02-01T00:00:00"), dated_spool(51, "", "2026-08-01T00:00:00"),
+          dated_spool(52, "", "2026-05-01T00:00:00")},
+         {51, 52, 50}},
+        {"an empty list", {}, {}},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        auto spools = row.spools;
+        sort_spools_by_recency(spools);
+        CHECK(ids_of(spools) == row.want);
+    }
 }
 
 TEST_CASE("sort_spools_by_recency key is the max of last_used and registered",
@@ -1945,19 +1429,6 @@ TEST_CASE("sort_spools_by_recency key is the max of last_used and registered",
     SpoolInfo used_after = dated_spool(43, "2026-06-01T00:00:00", "2026-01-01T00:00:00");
     CHECK(spool_recency_key(used_after) ==
           spool_recency_key(dated_spool(0, "2026-06-01T00:00:00", "")));
-}
-
-TEST_CASE("sort_spools_by_recency falls back to registered when last_used is missing",
-          "[filament][spoolman][sort]") {
-    std::vector<SpoolInfo> spools;
-    spools.push_back(dated_spool(50, "", "2026-02-01T00:00:00"));
-    spools.push_back(dated_spool(51, "", "2026-08-01T00:00:00"));
-    spools.push_back(dated_spool(52, "", "2026-05-01T00:00:00"));
-
-    sort_spools_by_recency(spools);
-
-    // Never-used spools order among themselves by registration, newest first.
-    CHECK(ids_of(spools) == std::vector<int>{51, 52, 50});
 }
 
 TEST_CASE("sort_spools_by_recency sorts spools with no usable timestamp last",
@@ -1990,12 +1461,6 @@ TEST_CASE("sort_spools_by_recency ordering is deterministic across refreshes",
 
     CHECK(ids_of(a) == std::vector<int>{3, 2, 1}); // higher id first
     CHECK(ids_of(a) == ids_of(b));                 // same result from a different input order
-}
-
-TEST_CASE("sort_spools_by_recency handles an empty list", "[filament][spoolman][sort]") {
-    std::vector<SpoolInfo> spools;
-    sort_spools_by_recency(spools);
-    CHECK(spools.empty());
 }
 
 TEST_CASE("parse_spool_timestamp handles the timestamp shapes Spoolman emits",

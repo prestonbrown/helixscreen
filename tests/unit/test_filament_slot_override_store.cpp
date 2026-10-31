@@ -12,10 +12,13 @@
 #include "printer_state.h"
 #include "spoolman_types.h" // SpoolInfo + apply_spool_to_slot (the picker-side writer)
 
+#include <array>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -945,71 +948,62 @@ TEST_CASE("FilamentSlotOverrideStore save_async reports error on MR DB failure",
     CHECK(stored.is_null());
 }
 
-TEST_CASE("FilamentSlotOverrideStore clear_async removes single slot", "[filament_slot_override]") {
-    TmpCacheDir tmp("clear_single");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Seed two entries; clearing slot 0 should leave slot 1 untouched.
-    nlohmann::json lane1 = {{"lane", "0"}, {"material", "PLA"}};
-    nlohmann::json lane2 = {{"lane", "1"}, {"material", "PETG"}};
-    mock_printer.client.mock_db_set("lane_data", "lane1", lane1);
-    mock_printer.client.mock_db_set("lane_data", "lane2", lane2);
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    bool cb_done = false;
-    bool cb_ok = false;
-    store.clear_async(0, [&](bool ok, std::string) {
-        cb_ok = ok;
-        cb_done = true;
-    });
-    REQUIRE(cb_done);
-    CHECK(cb_ok);
-
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-    auto lane2_after = mock_printer.client.mock_db_get("lane_data", "lane2");
-    CHECK(lane2_after["material"] == "PETG");
-}
-
-TEST_CASE("FilamentSlotOverrideStore clear_async succeeds for absent slot (idempotent)",
+// A key that is already gone is a cleared slot: Moonraker answers a missing key
+// with 404, or with -32601 and a "not found" message. The same -32601 with
+// "Method not found" is a missing method and stays an error.
+TEST_CASE("FilamentSlotOverrideStore clear_async deletes one slot and reads a missing key as done",
           "[filament_slot_override]") {
-    TmpCacheDir tmp("clear_idempotent");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
+    const auto rpc = [](int code, const char* message) {
+        return MoonrakerError::from_json_rpc({{"code", code}, {"message", message}},
+                                             "server.database.delete_item");
+    };
+    MoonrakerError http_404;
+    http_404.code = 404;
+    http_404.message = "Key 'lane1' not found";
+    MoonrakerError http_500;
+    http_500.code = 500;
+    http_500.message = "internal server error";
+    struct Row {
+        const char* name;
+        int slot;
+        std::optional<MoonrakerError> fail;
+        bool ok;
+        const char* error; // substring of the error text when refused
+    };
+    const Row rows[] = {
+        {"a stored slot", 0, std::nullopt, true, ""},
+        {"an absent slot", 3, std::nullopt, true, ""},
+        {"a negative slot", -1, std::nullopt, false, ""},
+        {"a 404", 0, http_404, true, ""},
+        {"Moonraker's missing-key answer", 0,
+         rpc(-32601, "Key 'lane1' in namespace 'lane_data' not found"), true, ""},
+        {"a missing method", 0, rpc(-32601, "Method not found"), false, ""},
+        {"a server error", 0, http_500, false, "internal server error"},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        TmpCacheDir tmp("clear_async");
+        MockPrinter mock_printer;
+        mock_printer.client.mock_db_set("lane_data", "lane1", {{"lane", "0"}, {"material", "PLA"}});
+        mock_printer.client.mock_db_set("lane_data", "lane2",
+                                        {{"lane", "1"}, {"material", "PETG"}});
+        if (row.fail)
+            mock_printer.client.fail_next("server.database.delete_item", *row.fail);
+        FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
 
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    bool cb_done = false;
-    bool cb_ok = false;
-    std::string cb_err;
-    store.clear_async(3, [&](bool ok, std::string err) {
-        cb_ok = ok;
-        cb_err = std::move(err);
-        cb_done = true;
-    });
-    REQUIRE(cb_done);
-    CHECK(cb_ok);
-    CHECK(cb_err.empty());
-}
-
-TEST_CASE("FilamentSlotOverrideStore clear_async rejects negative slot_index",
-          "[filament_slot_override]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-
-    bool cb_done = false;
-    bool cb_ok = true;
-    store.clear_async(-1, [&](bool ok, std::string) {
-        cb_ok = ok;
-        cb_done = true;
-    });
-    REQUIRE(cb_done);
-    CHECK(!cb_ok);
+        std::optional<std::pair<bool, std::string>> answer;
+        store.clear_async(row.slot, [&](bool ok, std::string err) { answer.emplace(ok, err); });
+        REQUIRE(answer.has_value());
+        CHECK(answer->first == row.ok);
+        if (row.ok)
+            CHECK(answer->second.empty());
+        else
+            CHECK(answer->second.find(row.error) != std::string::npos);
+        CHECK(mock_printer.client.mock_db_get("lane_data", "lane2")["material"] == "PETG");
+        if (row.slot == 0 && !row.fail)
+            CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
+    }
 }
 
 TEST_CASE("FilamentSlotOverrideStore clear_async handles null callback gracefully",
@@ -1025,81 +1019,6 @@ TEST_CASE("FilamentSlotOverrideStore clear_async handles null callback gracefull
     store.clear_async(0, {});
     // Verify delete still happened.
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-}
-
-TEST_CASE("FilamentSlotOverrideStore clear_async maps 404 error to success",
-          "[filament_slot_override]") {
-    TmpCacheDir tmp("clear_404");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    MoonrakerError err;
-    err.code = 404;
-    err.message = "Key 'lane1' not found";
-    mock_printer.client.fail_next("server.database.delete_item", err);
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-    bool cb_done = false;
-    bool cb_ok = false;
-    store.clear_async(0, [&](bool ok, std::string) {
-        cb_ok = ok;
-        cb_done = true;
-    });
-    REQUIRE(cb_done);
-    CHECK(cb_ok); // 404 → treated as success
-}
-
-TEST_CASE("FilamentSlotOverrideStore clear_async propagates non-missing-key errors",
-          "[filament_slot_override]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    MoonrakerError err;
-    err.code = 500;
-    err.message = "internal server error";
-    mock_printer.client.fail_next("server.database.delete_item", err);
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    bool cb_done = false;
-    bool cb_ok = true;
-    std::string cb_err;
-    store.clear_async(0, [&](bool ok, std::string e) {
-        cb_ok = ok;
-        cb_err = std::move(e);
-        cb_done = true;
-    });
-    REQUIRE(cb_done);
-    CHECK(!cb_ok);
-    CHECK(cb_err.find("internal server error") != std::string::npos);
-}
-
-TEST_CASE("FilamentSlotOverrideStore clear_async reads Moonraker's missing-key answer as success",
-          "[filament_slot_override]") {
-    // Moonraker sends a missing key as -32601 with its message; the same code
-    // with "Method not found" is a missing method and stays an error.
-    TmpCacheDir tmp("clear_msg_missing");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    auto clear_with = [&](const char* message) {
-        mock_printer.client.fail_next(
-            "server.database.delete_item",
-            MoonrakerError::from_json_rpc({{"code", -32601}, {"message", message}},
-                                          "server.database.delete_item"));
-        FilamentSlotOverrideStore store(&api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-        bool cb_done = false;
-        bool cb_ok = false;
-        store.clear_async(0, [&](bool ok, std::string) {
-            cb_ok = ok;
-            cb_done = true;
-        });
-        REQUIRE(cb_done);
-        return cb_ok;
-    };
-    CHECK(clear_with("Key 'lane1' in namespace 'lane_data' not found"));
-    CHECK_FALSE(clear_with("Method not found"));
 }
 
 // ============================================================================
@@ -1426,153 +1345,56 @@ TEST_CASE("FilamentSlotOverrideStore save_async survives corrupt existing cache"
     CHECK(doc["ifs"]["slots"]["0"]["brand"] == "Polymaker");
 }
 
-// ============================================================================
-// Task 7: local JSON read-cache — read side.
-//
-// When load_blocking cannot reach the Moonraker DB (connection error OR
-// cv.wait_for timeout), it falls back to the on-disk cache so the UI can show
-// last-known metadata offline. A successful-but-empty MR DB response is NOT
-// cache-fallback-eligible — it's authoritative "no overrides configured" and
-// stale cache data must not leak past it.
-// ============================================================================
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking falls back to cache when MR DB connection fails",
-          "[filament_slot_override]") {
-    TmpCacheDir tmp("task7_fallback_error");
-
-    // Seed the cache file directly with a known entry.
-    nlohmann::json doc = {{"version", 1},
-                          {"ifs",
-                           {{"slots",
-                             {
-                                 {"0",
-                                  {
-                                      {"brand", "Polymaker"},
-                                      {"material", "PLA"},
-                                      {"color_rgb", 0xFF5500},
-                                  }},
-                             }}}}};
-    std::ofstream(tmp.path / "filament_slot_overrides.json") << doc.dump(2);
-
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Force MR DB GET to fail — simulates a connection/server failure.
-    mock_printer.client.fail_next("server.database.get_item");
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].brand == "Polymaker");
-    CHECK(overrides[0].material == "PLA");
-    CHECK(overrides[0].color_rgb == 0xFF5500u);
-}
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking falls back to cache on MR DB timeout",
-          "[filament_slot_override]") {
-    TmpCacheDir tmp("task7_fallback_timeout");
-
-    nlohmann::json doc = {{"version", 1}, {"ifs", {{"slots", {{"0", {{"brand", "eSUN"}}}}}}}};
-    std::ofstream(tmp.path / "filament_slot_overrides.json") << doc.dump(2);
-
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    mock_printer.client.defer_next(
-        "server.database.get_item"); // never fires within the wait window
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-    FilamentSlotOverrideStoreTestAccess::set_load_timeout(store, std::chrono::milliseconds(50));
-
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].brand == "eSUN");
-
-    // Clean up the deferred capture so the mock's internal state is tidy —
-    // matches the pattern used by the load_blocking-timeout test above.
-    mock_printer.client.fire_deferred_error("server.database.get_item", MoonrakerError{});
-}
-
 TEST_CASE(
-    "FilamentSlotOverrideStore load_blocking does NOT use cache when MR DB returns empty namespace",
+    "FilamentSlotOverrideStore load_blocking reads this backend's cache only when the DB fails",
     "[filament_slot_override]") {
-    TmpCacheDir tmp("task7_empty_ns_no_fallback");
+    enum class Db { Fails, TimesOut, Empty };
+    const nlohmann::json ours = {
+        {"version", 1},
+        {"ifs",
+         {{"slots",
+           {{"0", {{"brand", "Polymaker"}, {"material", "PLA"}, {"color_rgb", 0xFF5500}}}}}}},
+        {"ace", {{"slots", {{"0", {{"brand", "SHOULD_NOT_LEAK"}}}, {"1", {{"brand", "x"}}}}}}}};
+    struct Row {
+        const char* name;
+        std::string cache; // file content; empty = no file
+        Db db;
+        bool reads_cache;
+    };
+    const Row rows[] = {
+        {"the DB fails", ours.dump(2), Db::Fails, true},
+        {"the DB times out", ours.dump(2), Db::TimesOut, true},
+        // An empty namespace is the DB saying there are no overrides.
+        {"the DB answers empty", ours.dump(2), Db::Empty, false},
+        {"the DB fails with no cache file", "", Db::Fails, false},
+        {"the DB fails with a corrupt cache", "not json", Db::Fails, false},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        TmpCacheDir tmp("cache_fallback");
+        if (!row.cache.empty())
+            std::ofstream(tmp.path / "filament_slot_overrides.json") << row.cache;
+        MockPrinter mock_printer;
+        if (row.db == Db::Fails)
+            mock_printer.client.fail_next("server.database.get_item");
+        if (row.db == Db::TimesOut)
+            mock_printer.client.defer_next("server.database.get_item");
+        FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        FilamentSlotOverrideStoreTestAccess::set_load_timeout(store, std::chrono::milliseconds(50));
 
-    // Seed cache with stale data that we must NOT return — an empty-but-success
-    // MR DB response is authoritative.
-    nlohmann::json doc = {{"version", 1}, {"ifs", {{"slots", {{"0", {{"brand", "StaleBrand"}}}}}}}};
-    std::ofstream(tmp.path / "filament_slot_overrides.json") << doc.dump(2);
-
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-    // No seed into lane_data — MR DB returns empty (success, not error).
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    auto overrides = store.load_blocking();
-    CHECK(overrides.empty()); // MR DB said "no overrides" → trust it.
-}
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking cache fallback handles missing file",
-          "[filament_slot_override]") {
-    TmpCacheDir tmp("task7_missing_cache");
-    // No cache file created — TmpCacheDir makes the dir but not the file.
-
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    mock_printer.client.fail_next("server.database.get_item");
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    auto overrides = store.load_blocking();
-    CHECK(overrides.empty()); // first-run with no cache → empty, not a crash.
-}
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking cache fallback handles corrupt cache",
-          "[filament_slot_override]") {
-    TmpCacheDir tmp("task7_corrupt_cache");
-    std::ofstream(tmp.path / "filament_slot_overrides.json") << "not json";
-
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    mock_printer.client.fail_next("server.database.get_item");
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    auto overrides = store.load_blocking();
-    CHECK(overrides.empty()); // corrupt cache → treat as empty, don't crash.
-}
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking cache returns only this backend's slots",
-          "[filament_slot_override]") {
-    TmpCacheDir tmp("task7_backend_isolation");
-
-    // Seed cache with both ifs and ace entries; only the ifs ones are ours.
-    nlohmann::json doc = {{"version", 1},
-                          {"ifs", {{"slots", {{"0", {{"brand", "Poly"}}}}}}},
-                          {"ace", {{"slots", {{"0", {{"brand", "SHOULD_NOT_LEAK"}}}}}}}};
-    std::ofstream(tmp.path / "filament_slot_overrides.json") << doc.dump(2);
-
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    mock_printer.client.fail_next("server.database.get_item");
-
-    FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].brand == "Poly");
-    CHECK(overrides.size() == 1); // ace entries did not leak.
+        auto overrides = store.load_blocking();
+        if (row.reads_cache) {
+            REQUIRE(overrides.size() == 1);
+            CHECK(overrides[0].brand == "Polymaker");
+            CHECK(overrides[0].material == "PLA");
+            CHECK(overrides[0].color_rgb == 0xFF5500u);
+        } else {
+            CHECK(overrides.empty());
+        }
+        if (row.db == Db::TimesOut)
+            mock_printer.client.fire_deferred_error("server.database.get_item", MoonrakerError{});
+    }
 }
 
 // ============================================================================
@@ -2241,69 +2063,11 @@ TEST_CASE("mirror_firmware_to_lane_data OverwriteAlways: auto-mirrored entry sti
     CHECK(overrides[0].material == "PETG");
 }
 
-TEST_CASE("locked fields survive an OverwriteAlways mirror", "[mirror_firmware][lock]") {
-    std::unordered_map<int, FilamentSlotOverride> overrides;
-    auto& ovr = overrides[0];
-    ovr.material = "ASA-GF";
-    ovr.color_rgb = 0x1A1A1A;
-    ovr.color_set = true;
-    ovr.declared =
-        helix::ams::declared_fields_from_names(nlohmann::json::array({"color_rgb", "material"}));
-
-    // Firmware reports something different — e.g. AD5X re-emitting stale
-    // FFMInfo after a print completes (#965).
-    bool changed = helix::ams::mirror_firmware_to_lane_data(
-        nullptr, overrides, 0, 0xFF0000, "PLA", /*slot_has_filament=*/true,
-        helix::ams::MirrorPolicy::OverwriteAlways, "[test]", helix::ams::DeclaredOnLane{});
-
-    CHECK_FALSE(changed);
-    CHECK(overrides[0].material == "ASA-GF");
-    CHECK(overrides[0].color_rgb == 0x1A1A1Au);
-}
-
-TEST_CASE("unlocked fields accept an OverwriteAlways mirror", "[mirror_firmware][lock]") {
-    std::unordered_map<int, FilamentSlotOverride> overrides;
-    auto& ovr = overrides[0];
-    ovr.material = "PLA";
-    ovr.color_rgb = 0x00FF00;
-    ovr.color_set = true;
-    // nothing declared: auto-mirror wrote these, not the user
-
-    bool changed = helix::ams::mirror_firmware_to_lane_data(
-        nullptr, overrides, 0, 0xFF0000, "PETG", /*slot_has_filament=*/true,
-        helix::ams::MirrorPolicy::OverwriteAlways, "[test]", helix::ams::DeclaredOnLane{});
-
-    CHECK(changed);
-    CHECK(overrides[0].material == "PETG");
-    CHECK(overrides[0].color_rgb == 0xFF0000u);
-}
-
-TEST_CASE("FillUnsetOnly never overwrites a set field", "[mirror_firmware][lock]") {
-    std::unordered_map<int, FilamentSlotOverride> overrides;
-    auto& ovr = overrides[0];
-    ovr.material = "ASA-GF";
-    ovr.color_rgb = 0x1A1A1A;
-    ovr.color_set = true;
-    ovr.declared =
-        helix::ams::declared_fields_from_names(nlohmann::json::array({"color_rgb", "material"}));
-
-    // CFS: every status poll re-reports firmware truth. Without the guard this
-    // would erase the user's choice on the next poll.
-    bool changed = helix::ams::mirror_firmware_to_lane_data(
-        nullptr, overrides, 0, 0x000000, "PLA", /*slot_has_filament=*/true,
-        helix::ams::MirrorPolicy::FillUnsetOnly, "[test]", helix::ams::DeclaredOnLane{});
-
-    CHECK_FALSE(changed);
-    CHECK(overrides[0].material == "ASA-GF");
-}
-
 TEST_CASE("FillUnsetOnly honors user_locked_material on an empty-but-locked field",
           "[mirror_firmware][lock]") {
-    // The test above ("never overwrites a set field") can't discriminate the
-    // declared-material guard from the material.empty() unset-check, since
-    // material is non-empty there and the unset-check alone already blocks the
-    // write. This case isolates the guard: material is empty (as the unset-
-    // check would normally allow a fill) but the material is declared. That
+    // A set material is held by the unset-check alone, so this case isolates the
+    // declaration guard: material is empty (the unset-check would allow a fill)
+    // but the material is declared. That
     // is a record where the declaration and the value-set state disagree (see the
     // "declaration checks are redundant..." comment on this function). Only
     // the declaration guard can block this write. Color is declared-and-set so
@@ -2517,79 +2281,39 @@ using helix::ams::LaneKeyStyle;
 // A. Key style — write side
 // ---------------------------------------------------------------------------
 
-TEST_CASE("FilamentSlotOverrideStore save_async writes a T-keyed record on Tool key style",
+TEST_CASE("FilamentSlotOverrideStore save_async keys a Tool store T<n>, a Lane store lane<n+1>",
           "[filament_slot_override][lane_key_style]") {
-    TmpCacheDir tmp("tool_save_t");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    FilamentSlotOverride ovr;
-    ovr.material = "PLA";
-
-    bool cb_done = false;
-    store.save_async(0, ovr, [&](bool, std::string) { cb_done = true; });
-    REQUIRE(cb_done);
-
-    // Tool style: slot 0 → "T0"; the 1-based "lane1" key is NOT written.
-    CHECK(!mock_printer.client.mock_db_get("lane_data", "T0").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-}
-
-TEST_CASE("FilamentSlotOverrideStore save_async writes a lane-keyed record on Lane key style",
-          "[filament_slot_override][lane_key_style]") {
-    std::string backend;
-    SECTION("ace") {
-        backend = "ace";
+    struct Row {
+        const char* backend;
+        LaneKeyStyle style;
+        int slot;
+        const char* written;
+        std::vector<const char*> not_written;
+    };
+    const Row rows[] = {
+        // T is 0-based: slot 0 is T0, never T1.
+        {"snapmaker", LaneKeyStyle::Tool, 0, "T0", {"lane1", "T1"}},
+        {"ace", LaneKeyStyle::Lane, 1, "lane2", {"T1"}},
+        {"cfs", LaneKeyStyle::Lane, 1, "lane2", {"T1"}},
+        {"ifs", LaneKeyStyle::Lane, 1, "lane2", {"T1"}},
+    };
+    for (const auto& row : rows) {
+        INFO(row.backend);
+        TmpCacheDir tmp("key_style_save");
+        MockPrinter mock_printer;
+        FilamentSlotOverrideStore store(&mock_printer.api, row.backend, row.style);
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        FilamentSlotOverride ovr;
+        ovr.material = "PLA";
+        bool done = false;
+        store.save_async(row.slot, ovr, [&](bool, std::string) { done = true; });
+        REQUIRE(done);
+        CHECK_FALSE(mock_printer.client.mock_db_get("lane_data", row.written).is_null());
+        for (const char* key : row.not_written) {
+            INFO(key);
+            CHECK(mock_printer.client.mock_db_get("lane_data", key).is_null());
+        }
     }
-    SECTION("cfs") {
-        backend = "cfs";
-    }
-    SECTION("ifs") {
-        backend = "ifs";
-    }
-
-    TmpCacheDir tmp("lane_save_" + backend);
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    FilamentSlotOverrideStore store(&api, backend, LaneKeyStyle::Lane);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    FilamentSlotOverride ovr;
-    ovr.material = "PLA";
-
-    bool cb_done = false;
-    store.save_async(1, ovr, [&](bool, std::string) { cb_done = true; });
-    REQUIRE(cb_done);
-
-    // Lane style: slot 1 → 1-based "lane2"; the tool key "T1" is NOT written.
-    CHECK(!mock_printer.client.mock_db_get("lane_data", "lane2").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "T1").is_null());
-}
-
-TEST_CASE("FilamentSlotOverrideStore Tool key style uses 0-based tool numbers",
-          "[filament_slot_override][lane_key_style]") {
-    TmpCacheDir tmp("tool_zero_based");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-
-    FilamentSlotOverride ovr;
-    ovr.material = "PLA";
-
-    bool cb_done = false;
-    store.save_async(0, ovr, [&](bool, std::string) { cb_done = true; });
-    REQUIRE(cb_done);
-
-    // Fences the off-by-one the deleted static lane_key() carried: T is 0-based,
-    // so slot 0 is "T0", never "T1".
-    CHECK(!mock_printer.client.mock_db_get("lane_data", "T0").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "T1").is_null());
 }
 
 TEST_CASE("FilamentSlotOverrideStore records carry a 0-based STRING lane field (Orca contract)",
@@ -2665,56 +2389,77 @@ TEST_CASE("lane_key_style_for maps AmsType to key style",
 }
 
 // ---------------------------------------------------------------------------
-// B. Key-agnostic read
+// B/C. Key-agnostic read and duplicate reconciliation
 // ---------------------------------------------------------------------------
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking reads T-keyed records",
-          "[filament_slot_override][lane_key_style]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Seed a T-keyed record and read it with a LANE-style (ace) store: the
-    // agnostic reader still ingests it. Agnosticism is a property of the
-    // reader, not of the store's own key style.
-    mock_printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}, {"material", "PLA"}});
-
-    FilamentSlotOverrideStore store(&api, "ace", LaneKeyStyle::Lane);
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].material == "PLA");
-}
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking reads a record under an unrecognized key",
-          "[filament_slot_override][lane_key_style]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // A record under a foreign key (Mainsail/Happy Hare/anyone) is ingested as
-    // long as its inner "lane" field parses. The key is not a filter anymore.
-    mock_printer.client.mock_db_set("lane_data", "gate_0",
-                                    json{{"lane", "3"}, {"material", "ABS"}});
-
-    FilamentSlotOverrideStore store(&api, "ace", LaneKeyStyle::Lane);
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.count(3) == 1);
-    CHECK(overrides[3].material == "ABS");
-}
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking ignores the seated key when parsing lanes",
-          "[filament_slot_override][lane_key_style]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // "seated" is a plain int sibling — never a lane record. Even though its
-    // value (2) looks like a slot index, it must not fabricate a slot-2 entry.
-    mock_printer.client.mock_db_set("lane_data", "seated", nlohmann::json(2));
-    mock_printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}, {"material", "PLA"}});
-    mock_printer.client.mock_db_set("lane_data", "T1", json{{"lane", "1"}, {"material", "ABS"}});
-
-    FilamentSlotOverrideStore store(&api, "ace", LaneKeyStyle::Lane);
-    auto overrides = store.load_blocking();
-    CHECK(overrides.size() == 2);
-    CHECK(overrides.count(2) == 0); // seated=2 did NOT become a fabricated slot
+// Any key whose inner "lane" parses is a record, whatever the store's own key
+// style; "seated" is a plain int sibling and never a lane. Two records for one
+// slot resolve to the store's canonical key, never to whichever iterates first
+// ("zzz_custom" sorts after T0) or carries the newer scan_time.
+TEST_CASE(
+    "FilamentSlotOverrideStore load_blocking reads any lane record and prefers the canonical key",
+    "[filament_slot_override][lane_key_style]") {
+    const auto rec = [](const char* lane, const char* material, const char* scan = nullptr) {
+        json r = {{"lane", lane}, {"material", material}};
+        if (scan)
+            r["scan_time"] = scan;
+        return r;
+    };
+    struct Row {
+        const char* name;
+        const char* backend;
+        LaneKeyStyle style;
+        std::vector<std::pair<const char*, json>> seed;
+        std::map<int, std::string> want;
+    };
+    const Row rows[] = {
+        {"a T-keyed record in a Lane store",
+         "ace",
+         LaneKeyStyle::Lane,
+         {{"T0", rec("0", "PLA")}},
+         {{0, "PLA"}}},
+        {"a record under a foreign key",
+         "ace",
+         LaneKeyStyle::Lane,
+         {{"gate_0", rec("3", "ABS")}},
+         {{3, "ABS"}}},
+        {"the seated key beside two records",
+         "ace",
+         LaneKeyStyle::Lane,
+         {{"seated", json(2)}, {"T0", rec("0", "PLA")}, {"T1", rec("1", "ABS")}},
+         {{0, "PLA"}, {1, "ABS"}}},
+        {"duplicates in a Tool store",
+         "snapmaker",
+         LaneKeyStyle::Tool,
+         {{"lane1", rec("0", "PLA")}, {"T0", rec("0", "PETG")}},
+         {{0, "PETG"}}},
+        {"duplicates in a Lane store",
+         "ace",
+         LaneKeyStyle::Lane,
+         {{"lane1", rec("0", "PLA")}, {"T0", rec("0", "PETG")}},
+         {{0, "PLA"}}},
+        {"a rival key sorting after the canonical one",
+         "snapmaker",
+         LaneKeyStyle::Tool,
+         {{"T0", rec("0", "PETG")}, {"zzz_custom", rec("0", "ABS")}},
+         {{0, "PETG"}}},
+        {"a rival key with a newer scan_time",
+         "snapmaker",
+         LaneKeyStyle::Tool,
+         {{"T0", rec("0", "PETG", "2020-01-01T00:00:00Z")},
+          {"lane1", rec("0", "PLA", "2030-01-01T00:00:00Z")}},
+         {{0, "PETG"}}},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        MockPrinter mock_printer;
+        for (const auto& [key, value] : row.seed)
+            mock_printer.client.mock_db_set("lane_data", key, value);
+        FilamentSlotOverrideStore store(&mock_printer.api, row.backend, row.style);
+        const auto overrides = store.load_blocking();
+        REQUIRE(overrides.size() == row.want.size());
+        for (const auto& [slot, material] : row.want)
+            CHECK(overrides.at(slot).material == material);
+    }
 }
 
 TEST_CASE("FilamentSlotOverrideStore load_seated_slot_blocking still works alongside T-keyed lanes",
@@ -2736,128 +2481,113 @@ TEST_CASE("FilamentSlotOverrideStore load_seated_slot_blocking still works along
 }
 
 // ---------------------------------------------------------------------------
-// C. Duplicate reconciliation
-// ---------------------------------------------------------------------------
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking prefers the canonical key on duplicates (Tool)",
-          "[filament_slot_override][lane_key_style]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Both keys describe slot 0. Tool style → the canonical key is "T0".
-    mock_printer.client.mock_db_set("lane_data", "lane1", json{{"lane", "0"}, {"material", "PLA"}});
-    mock_printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}, {"material", "PETG"}});
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.size() == 1);
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].material == "PETG"); // canonical T0 won
-}
-
-TEST_CASE("FilamentSlotOverrideStore load_blocking prefers the canonical key on duplicates (Lane)",
-          "[filament_slot_override][lane_key_style]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Same seeds, Lane style (ace) → the canonical key is "lane1".
-    mock_printer.client.mock_db_set("lane_data", "lane1", json{{"lane", "0"}, {"material", "PLA"}});
-    mock_printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}, {"material", "PETG"}});
-
-    FilamentSlotOverrideStore store(&api, "ace", LaneKeyStyle::Lane);
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.size() == 1);
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].material == "PLA"); // canonical lane1 won
-}
-
-TEST_CASE("FilamentSlotOverrideStore canonical key wins even when a rival key sorts after it",
-          "[filament_slot_override][lane_key_style]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // "zzz_custom" sorts AFTER "T0" in nlohmann's byte-sorted iteration, so if
-    // reconciliation were accidentally "first-iterated wins" the canonical T0
-    // would still win by luck. Placing the rival AFTER makes the canonical
-    // preference actually load-bearing: T0 must win because it is canonical,
-    // not because it comes first.
-    mock_printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}, {"material", "PETG"}});
-    mock_printer.client.mock_db_set("lane_data", "zzz_custom",
-                                    json{{"lane", "0"}, {"material", "ABS"}});
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.size() == 1);
-    CHECK(overrides[0].material == "PETG");
-}
-
-TEST_CASE("FilamentSlotOverrideStore canonical key wins over a newer scan_time on a rival key",
-          "[filament_slot_override][lane_key_style]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // The rival (non-canonical lane1) carries the NEWER scan_time. Canonical
-    // preference deliberately ignores recency — scan_time is optional and would
-    // degenerate to arbitrary exactly in the mixed-writer case. T0 still wins.
-    mock_printer.client.mock_db_set(
-        "lane_data", "T0",
-        json{{"lane", "0"}, {"material", "PETG"}, {"scan_time", "2020-01-01T00:00:00Z"}});
-    mock_printer.client.mock_db_set(
-        "lane_data", "lane1",
-        json{{"lane", "0"}, {"material", "PLA"}, {"scan_time", "2030-01-01T00:00:00Z"}});
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].material == "PETG"); // canonical beats newer rival
-}
-
-// ---------------------------------------------------------------------------
 // D. Migration: laneN -> T<n> on tool changers
 // ---------------------------------------------------------------------------
-
-TEST_CASE("Key migration: Tool-style backend rewrites laneN records to T<n>",
+// A Tool-style store moves our own laneN records to T<n> (lane normalized to
+// the Orca string), all or nothing: a failed write deletes nothing, and what
+// was read stays loaded. An existing T<n> is newer than our leftover, which is
+// only dropped. Keys we did not write (gate_0), Lane-style stores and an
+// unreachable DB are left alone.
+TEST_CASE("Key migration: a tool changer moves its laneN records to T<n>",
           "[filament_slot_override][lane_key_style][migration]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
+    enum class Fail { None, Write, Read };
+    struct Row {
+        const char* name;
+        LaneKeyStyle style;
+        std::vector<std::array<const char*, 3>> seed; // key, lane, material
+        Fail fail;
+        std::vector<std::pair<std::string, const char*>> db; // key -> material, nullptr = absent
+        std::map<int, std::string> loaded;
+        bool writes, deletes;
+    };
+    const Row rows[] = {
+        {"two laneN records",
+         LaneKeyStyle::Tool,
+         {{"lane1", "0", "PLA"}, {"lane3", "2", "ABS"}},
+         Fail::None,
+         {{"T0", "PLA"}, {"T2", "ABS"}, {"lane1", nullptr}, {"lane3", nullptr}},
+         {{0, "PLA"}, {2, "ABS"}},
+         true,
+         true},
+        {"a Lane-style store",
+         LaneKeyStyle::Lane,
+         {{"lane1", "0", "PLA"}},
+         Fail::None,
+         {{"lane1", "PLA"}, {"T0", nullptr}},
+         {{0, "PLA"}},
+         false,
+         false},
+        {"a failed T-key write",
+         LaneKeyStyle::Tool,
+         {{"lane1", "0", "PLA"}},
+         Fail::Write,
+         {{"lane1", "PLA"}, {"T0", nullptr}},
+         {{0, "PLA"}},
+         true,
+         false},
+        // Writes go in slot order; the first failing stops the rest.
+        {"a failed write among two slots",
+         LaneKeyStyle::Tool,
+         {{"lane1", "0", "PLA"}, {"lane2", "1", "ABS"}},
+         Fail::Write,
+         {{"lane1", "PLA"}, {"lane2", "ABS"}, {"T0", nullptr}, {"T1", nullptr}},
+         {{0, "PLA"}, {1, "ABS"}},
+         true,
+         false},
+        {"a stale laneN beside its T-key",
+         LaneKeyStyle::Tool,
+         {{"lane1", "0", "PLA"}, {"T0", "0", "PETG"}},
+         Fail::None,
+         {{"lane1", nullptr}, {"T0", "PETG"}},
+         {{0, "PETG"}},
+         false,
+         true},
+        {"a third-party key",
+         LaneKeyStyle::Tool,
+         {{"gate_0", "0", "PLA"}},
+         Fail::None,
+         {{"gate_0", "PLA"}, {"T0", nullptr}},
+         {{0, "PLA"}},
+         false,
+         false},
+        {"an unreachable DB", LaneKeyStyle::Tool, {}, Fail::Read, {}, {}, false, false},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        TmpCacheDir tmp("key_migration");
+        MockPrinter mock_printer;
+        for (const auto& [key, lane, material] : row.seed)
+            mock_printer.client.mock_db_set("lane_data", key,
+                                            json{{"lane", lane}, {"material", material}});
+        if (row.fail == Fail::Write)
+            mock_printer.client.fail_next("server.database.post_item");
+        if (row.fail == Fail::Read)
+            mock_printer.client.fail_next("server.database.get_item");
+        FilamentSlotOverrideStore store(
+            &mock_printer.api, row.style == LaneKeyStyle::Tool ? "snapmaker" : "ace", row.style);
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        const auto overrides = store.load_blocking();
 
-    mock_printer.client.mock_db_set("lane_data", "lane1", json{{"lane", "0"}, {"material", "PLA"}});
-    mock_printer.client.mock_db_set("lane_data", "lane3", json{{"lane", "2"}, {"material", "ABS"}});
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    auto overrides = store.load_blocking();
-
-    // Returned map has the two slots, right content.
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].material == "PLA");
-    REQUIRE(overrides.count(2) == 1);
-    CHECK(overrides[2].material == "ABS");
-
-    // DB rewritten to T-keys; stale laneN keys deleted.
-    auto t0 = mock_printer.client.mock_db_get("lane_data", "T0");
-    REQUIRE(!t0.is_null());
-    CHECK(t0["material"] == "PLA");
-    CHECK(t0["lane"] == "0"); // normalized to the Orca string contract
-    auto t2 = mock_printer.client.mock_db_get("lane_data", "T2");
-    REQUIRE(!t2.is_null());
-    CHECK(t2["material"] == "ABS");
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane3").is_null());
-}
-
-TEST_CASE("Key migration: Lane-style backends are untouched",
-          "[filament_slot_override][lane_key_style][migration]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    mock_printer.client.mock_db_set("lane_data", "lane1", json{{"lane", "0"}, {"material", "PLA"}});
-
-    FilamentSlotOverrideStore store(&api, "ace", LaneKeyStyle::Lane);
-    auto overrides = store.load_blocking();
-    REQUIRE(overrides.count(0) == 1);
-    // No key migration on a Lane backend: laneN stays, no T0 written.
-    CHECK(!mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "T0").is_null());
+        for (const auto& [key, material] : row.db) {
+            INFO(key);
+            const auto rec = mock_printer.client.mock_db_get("lane_data", key);
+            if (!material) {
+                CHECK(rec.is_null());
+                continue;
+            }
+            REQUIRE_FALSE(rec.is_null());
+            CHECK(rec["material"] == material);
+            if (key[0] == 'T')
+                CHECK(rec["lane"] == key.substr(1));
+        }
+        REQUIRE(overrides.size() == row.loaded.size());
+        for (const auto& [slot, material] : row.loaded)
+            CHECK(overrides.at(slot).material == material);
+        if (!row.writes)
+            CHECK(mock_printer.client.call_count("server.database.post_item") == 0);
+        if (!row.deletes)
+            CHECK(mock_printer.client.call_count("server.database.delete_item") == 0);
+    }
 }
 
 TEST_CASE("Key migration: idempotent (second load is a no-op)",
@@ -2903,113 +2633,6 @@ TEST_CASE("Key migration: preserves the seated key",
     CHECK(seated == 1);
 }
 
-TEST_CASE("Key migration: aborts without deleting laneN if the T-key write fails",
-          "[filament_slot_override][lane_key_style][migration]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    mock_printer.client.mock_db_set("lane_data", "lane1", json{{"lane", "0"}, {"material", "PLA"}});
-    mock_printer.client.fail_next("server.database.post_item"); // fail the T0 write
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    auto overrides = store.load_blocking();
-
-    // Write failed → no delete, laneN preserved for retry, no T0 written.
-    CHECK(!mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "T0").is_null());
-    CHECK(mock_printer.client.call_count("server.database.delete_item") ==
-          0); // aborted before any delete
-    // The in-memory data is NOT lost — we already read it successfully. This is
-    // the deliberate difference from the legacy migration.
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].material == "PLA");
-}
-
-TEST_CASE("Key migration: all-or-nothing across multiple slots",
-          "[filament_slot_override][lane_key_style][migration]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    mock_printer.client.mock_db_set("lane_data", "lane1", json{{"lane", "0"}, {"material", "PLA"}});
-    mock_printer.client.mock_db_set("lane_data", "lane2", json{{"lane", "1"}, {"material", "ABS"}});
-    // One-shot rejection fails slot 0's write (writes go in ascending slot
-    // order), so we must abort before touching slot 1 or deleting anything.
-    mock_printer.client.fail_next("server.database.post_item");
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    (void)store.load_blocking();
-
-    // Neither laneN deleted, no T-key written — never half-migrated.
-    CHECK(!mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-    CHECK(!mock_printer.client.mock_db_get("lane_data", "lane2").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "T0").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "T1").is_null());
-    CHECK(mock_printer.client.call_count("server.database.delete_item") == 0);
-}
-
-TEST_CASE("Key migration: drops a stale laneN when the canonical T-key already exists",
-          "[filament_slot_override][lane_key_style][migration]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Both exist for slot 0. T0 is Mainsail's newer record; lane1 is our stale
-    // leftover. The migration must DROP lane1 (delete only), NOT POST lane1's
-    // PLA body over T0 — that would regress T0's data.
-    mock_printer.client.mock_db_set("lane_data", "lane1", json{{"lane", "0"}, {"material", "PLA"}});
-    mock_printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}, {"material", "PETG"}});
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    auto overrides = store.load_blocking();
-
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null()); // dropped
-    auto t0 = mock_printer.client.mock_db_get("lane_data", "T0");
-    REQUIRE(!t0.is_null());
-    CHECK(t0["material"] == "PETG"); // NOT overwritten by lane1's PLA
-    CHECK(mock_printer.client.call_count("server.database.post_item") ==
-          0); // pure drop — no write at all
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].material == "PETG"); // reader agrees with the DB
-}
-
-TEST_CASE("Key migration: leaves third-party keys alone",
-          "[filament_slot_override][lane_key_style][migration]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // gate_0 is not a key WE wrote (not "lane1"), so renaming it would be
-    // vandalism of a shared namespace. Leave it; accept a permanent
-    // non-canonical duplicate as the conservative choice.
-    mock_printer.client.mock_db_set("lane_data", "gate_0",
-                                    json{{"lane", "0"}, {"material", "PLA"}});
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    auto overrides = store.load_blocking();
-
-    CHECK(!mock_printer.client.mock_db_get("lane_data", "gate_0").is_null());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "T0").is_null()); // nothing written
-    REQUIRE(overrides.count(0) == 1);
-    CHECK(overrides[0].material == "PLA"); // came from gate_0
-}
-
-TEST_CASE("Key migration: does not run when MR DB is unreachable",
-          "[filament_slot_override][lane_key_style][migration]") {
-    TmpCacheDir tmp("migrate_unreachable");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // The namespace fetch fails → load falls back to local cache and must NOT
-    // attempt any destructive key moves. Regression fence on the reachability
-    // contract (got_copy == false).
-    mock_printer.client.fail_next("server.database.get_item");
-
-    FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-    (void)store.load_blocking();
-
-    CHECK(mock_printer.client.call_count("server.database.post_item") == 0);
-    CHECK(mock_printer.client.call_count("server.database.delete_item") == 0);
-}
-
 TEST_CASE("Legacy migration on ace still writes lane keys",
           "[filament_slot_override][lane_key_style][migration]") {
     // Fences the try_migrate_legacy refactor onto format_lane_key: an ace
@@ -3035,78 +2658,70 @@ TEST_CASE("Legacy migration on ace still writes lane keys",
 }
 
 // ---------------------------------------------------------------------------
-// scan_lane_data_anomalies — read-only load-time diagnostic. Pure function, so
-// these exercise it directly without a store or mock.
+// scan_lane_data_anomalies — read-only load-time diagnostic.
 // ---------------------------------------------------------------------------
 
-TEST_CASE("Anomaly scan: clean namespace reports nothing",
+TEST_CASE("Anomaly scan counts what OrcaSlicer or our reader would mishandle",
           "[filament_slot_override][lane_key_style][anomaly]") {
-    using helix::ams::scan_lane_data_anomalies;
-    json doc = {{"lane1", {{"lane", "0"}, {"material", "PLA"}}},
-                {"lane2", {{"lane", "1"}, {"material", "PETG"}}},
-                {"seated", 1}};
-    auto a = scan_lane_data_anomalies(doc);
-    CHECK(a.total() == 0);
-}
-
-TEST_CASE("Anomaly scan: int-typed inner lane is flagged (Orca drops it)",
-          "[filament_slot_override][lane_key_style][anomaly]") {
-    using helix::ams::scan_lane_data_anomalies;
-    // Integer lane parses for us but OrcaSlicer's is_string() guard drops it.
-    json doc = {{"lane1", {{"lane", 0}, {"material", "PLA"}}}};
-    auto a = scan_lane_data_anomalies(doc);
-    CHECK(a.int_typed_lane == 1);
-    CHECK(a.key_inner_mismatch == 0);
-    CHECK(a.total() == 1);
-}
-
-TEST_CASE("Anomaly scan: key/inner mismatch is flagged for our key shapes",
-          "[filament_slot_override][lane_key_style][anomaly]") {
-    using helix::ams::scan_lane_data_anomalies;
-    // lane3 implies slot 2 but the record says slot 0; T5 implies 5 but says 2.
-    json doc = {{"lane3", {{"lane", "0"}, {"material", "PLA"}}},
-                {"T5", {{"lane", "2"}, {"material", "ABS"}}}};
-    auto a = scan_lane_data_anomalies(doc);
-    CHECK(a.key_inner_mismatch == 2);
-}
-
-TEST_CASE("Anomaly scan: consistent keys and foreign keys are NOT mismatches",
-          "[filament_slot_override][lane_key_style][anomaly]") {
-    using helix::ams::scan_lane_data_anomalies;
-    // lane1/T0 agree with their inner index; gate_0 is a foreign key that does
-    // not resemble ours, so it is a valid record, not an inconsistency.
-    json doc = {{"lane1", {{"lane", "0"}}}, {"T3", {{"lane", "3"}}}, {"gate_0", {{"lane", "5"}}}};
-    auto a = scan_lane_data_anomalies(doc);
-    CHECK(a.key_inner_mismatch == 0);
-    CHECK(a.total() == 0);
-}
-
-TEST_CASE("Anomaly scan: unparseable object flagged, seated never counted",
-          "[filament_slot_override][lane_key_style][anomaly]") {
-    using helix::ams::scan_lane_data_anomalies;
-    json doc = {{"metadata", {{"note", "AFC config"}}}, // object, no "lane"
-                {"seated", 2},                          // scalar sibling, must be ignored
-                {"version", 3},                         // non-object scalar, ignored
-                {"lane1", {{"lane", "0"}}}};
-    auto a = scan_lane_data_anomalies(doc);
-    CHECK(a.unparseable == 1);
-    CHECK(a.total() == 1); // metadata only; seated + version + lane1 are all fine
-}
-
-TEST_CASE("Anomaly scan: duplicate slot index across two keys",
-          "[filament_slot_override][lane_key_style][anomaly]") {
-    using helix::ams::scan_lane_data_anomalies;
-    json doc = {{"lane1", {{"lane", "0"}, {"material", "PLA"}}},
-                {"T0", {{"lane", "0"}, {"material", "PETG"}}}};
-    auto a = scan_lane_data_anomalies(doc);
-    CHECK(a.duplicate_slot == 1);
-}
-
-TEST_CASE("Anomaly scan: non-object namespace is empty result, no crash",
-          "[filament_slot_override][lane_key_style][anomaly]") {
-    using helix::ams::scan_lane_data_anomalies;
-    CHECK(scan_lane_data_anomalies(json(nullptr)).total() == 0);
-    CHECK(scan_lane_data_anomalies(json::array({1, 2, 3})).total() == 0);
+    struct Row {
+        const char* name;
+        json doc;
+        int int_lane, mismatch, unparseable, duplicate;
+    };
+    const Row rows[] = {
+        {"a clean namespace",
+         {{"lane1", {{"lane", "0"}, {"material", "PLA"}}},
+          {"lane2", {{"lane", "1"}, {"material", "PETG"}}},
+          {"seated", 1}},
+         0,
+         0,
+         0,
+         0},
+        // Our reader takes an integer lane; OrcaSlicer's is_string() drops it.
+        {"an integer inner lane", {{"lane1", {{"lane", 0}, {"material", "PLA"}}}}, 1, 0, 0, 0},
+        {"our key shapes naming another slot",
+         {{"lane3", {{"lane", "0"}, {"material", "PLA"}}},
+          {"T5", {{"lane", "2"}, {"material", "ABS"}}}},
+         0,
+         2,
+         0,
+         0},
+        // gate_0 does not resemble our keys, so its index is not a mismatch.
+        {"consistent and foreign keys",
+         {{"lane1", {{"lane", "0"}}}, {"T3", {{"lane", "3"}}}, {"gate_0", {{"lane", "5"}}}},
+         0,
+         0,
+         0,
+         0},
+        // Scalars (seated, version) are siblings, not records.
+        {"an object with no lane",
+         {{"metadata", {{"note", "AFC config"}}},
+          {"seated", 2},
+          {"version", 3},
+          {"lane1", {{"lane", "0"}}}},
+         0,
+         0,
+         1,
+         0},
+        {"one slot under two keys",
+         {{"lane1", {{"lane", "0"}, {"material", "PLA"}}},
+          {"T0", {{"lane", "0"}, {"material", "PETG"}}}},
+         0,
+         0,
+         0,
+         1},
+        {"a null namespace", json(nullptr), 0, 0, 0, 0},
+        {"an array namespace", json::array({1, 2, 3}), 0, 0, 0, 0},
+    };
+    for (const auto& row : rows) {
+        INFO(row.name);
+        const auto a = helix::ams::scan_lane_data_anomalies(row.doc);
+        CHECK(a.int_typed_lane == row.int_lane);
+        CHECK(a.key_inner_mismatch == row.mismatch);
+        CHECK(a.unparseable == row.unparseable);
+        CHECK(a.duplicate_slot == row.duplicate);
+        CHECK(a.total() == row.int_lane + row.mismatch + row.unparseable + row.duplicate);
+    }
 }
 
 TEST_CASE("lane_data carries both the Orca match string and our display string",
