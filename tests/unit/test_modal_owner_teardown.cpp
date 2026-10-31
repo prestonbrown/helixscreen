@@ -278,6 +278,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Hiding an owned modal raises the modal bene
 // Regression: the static (unowned) path is unchanged
 // ============================================================================
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A modal whose backdrop was deleted behind the stack stays inert",
+                 "[modal][1983]") {
+    auto& stack = ModalStack::instance();
+    lv_obj_t* beneath = Modal::show(kTestComponent);
+    lv_obj_t* above = Modal::show(kTestComponent);
+    REQUIRE((beneath && above));
+    lv_obj_t* above_backdrop = stack.backdrop_for(above);
+
+    lv_obj_delete(above_backdrop);
+
+    // The dead entry answers no query, nullptr included, and hides nothing below it.
+    CHECK(stack.top_dialog() == beneath);
+    CHECK(stack.dialog_for_component(kTestComponent) == beneath);
+    CHECK_FALSE(stack.backdrop_for_backdrop(nullptr));
+    CHECK(stack.backdrop_for(nullptr) == nullptr);
+    stack.remove(nullptr);
+    CHECK(stack.backdrop_for(beneath) != nullptr);
+
+    stack.clear(); // deletes the live backdrop, skips the dead one
+    CHECK(stack.stack_empty());
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "Static show/hide still tears a modal down", "[modal][1230]") {
     lv_obj_t* dialog = Modal::show(kTestComponent);
     REQUIRE(dialog != nullptr);
