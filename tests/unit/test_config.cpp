@@ -4,6 +4,7 @@
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/scoped_runtime_config.h"
+#include "../test_helpers/scoped_subject_registry_isolation.h"
 #include "app_constants.h"
 #include "config.h"
 #include "config_testing.h"
@@ -3011,6 +3012,9 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required falls back to ro
 // ============================================================================
 
 TEST_CASE("StaticSubjectRegistry supports deinit/re-init cycles", "[.][core][registry]") {
+    // An isolated registry: deinit_all() on the process-wide one would tear down
+    // sources registered once per process, such as the XML fixture's widgets.
+    ScopedSubjectRegistryIsolation isolate;
     // Verify deinit_all() clears vector, allowing fresh registrations
     int call_count = 0;
     StaticSubjectRegistry::instance().register_deinit("test_cycle_1", [&]() { call_count++; });
@@ -3025,6 +3029,7 @@ TEST_CASE("StaticSubjectRegistry supports deinit/re-init cycles", "[.][core][reg
 }
 
 TEST_CASE("StaticSubjectRegistry deinit_all runs callbacks in LIFO order", "[.][core][registry]") {
+    ScopedSubjectRegistryIsolation isolate;
     std::vector<std::string> order;
     StaticSubjectRegistry::instance().register_deinit("first", [&]() { order.push_back("first"); });
     StaticSubjectRegistry::instance().register_deinit("second",
