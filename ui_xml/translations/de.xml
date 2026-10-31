@@ -3246,6 +3246,7 @@
   <translation tag="Toolhead LED" de="Werkzeugkopf-LED"/>
   <translation tag="Toolhead Sensor" de="Werkzeugkopfsensor"/>
   <translation tag="Toolhead Style" de="Toolhead-Stil"/>
+  <translation tag="Toolhead X" de="Werkzeugkopf X"/>
   <translation tag="Toolhead Y" de="Werkzeugkopf Y"/>
   <translation tag="Toolhead jam" de="Werkzeugkopf-Stau"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" de="Position und Referenzfahrt des Werkzeugkopfs, mit Plattenansicht und Alle referenzieren"/>

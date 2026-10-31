@@ -36,10 +36,13 @@ namespace helix::ui {
 // bindings resolve it by name from the current scope, and SubjectManager
 // deinit on the singleton keeps observers disconnected across rebuilds.
 static lv_subject_t s_cfs_chute_state;
+static lv_subject_t s_cfs_chute_x_text;
+static char s_cfs_chute_x_buf[16];
 static lv_subject_t s_cfs_chute_y_text;
 static char s_cfs_chute_y_buf[16];
 static lv_subject_t s_cfs_chute_saved_text;
 static char s_cfs_chute_saved_buf[96];
+static lv_subject_t s_cfs_chute_step_idx;
 
 namespace {
 
@@ -64,10 +67,13 @@ CfsChuteCalibrationOverlay::~CfsChuteCalibrationOverlay() {
 void CfsChuteCalibrationOverlay::init_subjects() {
     init_subjects_guarded([this]() {
         UI_MANAGED_SUBJECT_INT(s_cfs_chute_state, 0, "cfs_chute_state", subjects_);
+        UI_MANAGED_SUBJECT_STRING(s_cfs_chute_x_text, s_cfs_chute_x_buf, "0.00 mm",
+                                  "cfs_chute_x_display", subjects_);
         UI_MANAGED_SUBJECT_STRING(s_cfs_chute_y_text, s_cfs_chute_y_buf, "0.00 mm",
                                   "cfs_chute_y_display", subjects_);
         UI_MANAGED_SUBJECT_STRING(s_cfs_chute_saved_text, s_cfs_chute_saved_buf, "",
                                   "cfs_chute_saved_pos", subjects_);
+        UI_MANAGED_SUBJECT_INT(s_cfs_chute_step_idx, 1, "cfs_chute_step_idx", subjects_);
     });
 }
 
@@ -75,12 +81,26 @@ void CfsChuteCalibrationOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_chute_start_clicked",
          [](lv_event_t*) { get_cfs_chute_calibration_overlay().start_calibration(); }},
-        // user_data carries the jog delta as a string
         {"on_chute_jog_clicked",
          [](lv_event_t* e) {
              const char* delta_str = static_cast<const char*>(lv_event_get_user_data(e));
              if (delta_str) {
-                 get_cfs_chute_calibration_overlay().handle_jog(std::atof(delta_str));
+                 get_cfs_chute_calibration_overlay().handle_jog_y(std::atof(delta_str));
+             }
+         }},
+        {"on_chute_jog_up_clicked",
+         [](lv_event_t*) { get_cfs_chute_calibration_overlay().jog_up(); }},
+        {"on_chute_jog_down_clicked",
+         [](lv_event_t*) { get_cfs_chute_calibration_overlay().jog_down(); }},
+        {"on_chute_jog_left_clicked",
+         [](lv_event_t*) { get_cfs_chute_calibration_overlay().jog_left(); }},
+        {"on_chute_jog_right_clicked",
+         [](lv_event_t*) { get_cfs_chute_calibration_overlay().jog_right(); }},
+        {"on_chute_step_clicked",
+         [](lv_event_t* e) {
+             const char* step_str = static_cast<const char*>(lv_event_get_user_data(e));
+             if (step_str) {
+                 get_cfs_chute_calibration_overlay().set_step_size(std::atof(step_str));
              }
          }},
         {"on_chute_save_clicked",
@@ -101,9 +121,12 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Live toolhead Y: the save step writes whatever position the head is in,
-    // so the readout is the value being calibrated.
+    // Live toolhead X and Y readouts
     auto& ps = get_printer_state();
+    x_observer_ = observe<int>(
+        ps.motion_state().get_position_x_subject(), this,
+        [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_x_display(centimm); },
+        ps.get_subjects_lifetime());
     y_observer_ = observe<int>(
         ps.motion_state().get_position_y_subject(), this,
         [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_y_display(centimm); },
@@ -143,6 +166,7 @@ void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
 void CfsChuteCalibrationOverlay::set_state(State state) {
     lv_subject_set_int(&s_cfs_chute_state, static_cast<int>(state));
     if (state == State::ADJUSTING) {
+        edge_warned_x_ = false;
         edge_warned_y_ = false;
     }
 }
@@ -168,6 +192,41 @@ void CfsChuteCalibrationOverlay::start_calibration() {
 }
 
 void CfsChuteCalibrationOverlay::handle_jog(double delta_mm) {
+    handle_jog_y(delta_mm);
+}
+
+void CfsChuteCalibrationOverlay::jog_up() {
+    handle_jog_y(current_step_mm_);
+}
+
+void CfsChuteCalibrationOverlay::jog_down() {
+    handle_jog_y(-current_step_mm_);
+}
+
+void CfsChuteCalibrationOverlay::jog_left() {
+    handle_jog_x(-current_step_mm_);
+}
+
+void CfsChuteCalibrationOverlay::jog_right() {
+    handle_jog_x(current_step_mm_);
+}
+
+void CfsChuteCalibrationOverlay::set_step_size(double step_mm) {
+    current_step_mm_ = step_mm;
+    int idx = 1; // default 0.5
+    if (std::abs(step_mm - 0.1) < 0.05) {
+        idx = 0;
+    } else if (std::abs(step_mm - 0.5) < 0.05) {
+        idx = 1;
+    } else if (std::abs(step_mm - 1.0) < 0.05) {
+        idx = 2;
+    } else if (std::abs(step_mm - 10.0) < 0.5) {
+        idx = 3;
+    }
+    lv_subject_set_int(&s_cfs_chute_step_idx, idx);
+}
+
+void CfsChuteCalibrationOverlay::handle_jog_y(double delta_mm) {
     auto* backend = chute_backend();
     if (!backend) {
         return;
@@ -198,6 +257,32 @@ void CfsChuteCalibrationOverlay::handle_jog(double delta_mm) {
     backend->jog_chute_y(static_cast<float>(delta));
 }
 
+void CfsChuteCalibrationOverlay::handle_jog_x(double delta_mm) {
+    auto* backend = chute_backend();
+    if (!backend) {
+        return;
+    }
+
+    double delta = delta_mm;
+    const auto bounds = get_printer_state().motion_state().get_axis_bounds();
+    if (helix::jog_refused_for_unknown_position(bounds.has_x, x_known_)) {
+        NOTIFY_INFO(lv_tr("Toolhead position unknown"));
+        return;
+    }
+    const auto result =
+        helix::clamp_jog_with_warn(current_x_mm_, 0.0, delta, static_cast<double>(bounds.x_min),
+                                   static_cast<double>(bounds.x_max), edge_warned_x_);
+    edge_warned_x_ = result.latch;
+    delta = result.allowed;
+    if (result.warn) {
+        NOTIFY_INFO(lv_tr("X axis limit reached"));
+    }
+    if (std::abs(delta) <= helix::AxisMove::EPSILON_MM) {
+        return;
+    }
+    backend->jog_chute_x(static_cast<float>(delta));
+}
+
 void CfsChuteCalibrationOverlay::save_position() {
     auto* backend = chute_backend();
     if (!backend) {
@@ -225,6 +310,13 @@ void CfsChuteCalibrationOverlay::save_position() {
         set_state(State::ADJUSTING);
         notify_ams_error(err);
     }
+}
+
+void CfsChuteCalibrationOverlay::update_x_display(int centimm) {
+    current_x_mm_ = helix::units::from_centimm(centimm);
+    x_known_ = true;
+    helix::ui::position::format_position(centimm, s_cfs_chute_x_buf, sizeof(s_cfs_chute_x_buf));
+    lv_subject_copy_string(&s_cfs_chute_x_text, s_cfs_chute_x_buf);
 }
 
 void CfsChuteCalibrationOverlay::update_y_display(int centimm) {

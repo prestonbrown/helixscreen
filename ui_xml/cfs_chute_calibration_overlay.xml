@@ -2,14 +2,18 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- CFS Purge Chute Calibration Overlay (K1 stock dialect) -->
-<!-- Guided flow: home, prepare, Y-only jog, save. Choreography per issue 1282. -->
+<!-- Guided flow: home, prepare, XY jog, save. -->
 <component>
+  <styles>
+    <style name="step_selected" bg_color="#primary" bg_opa="255" radius="9999"/>
+    <style name="step_unselected" bg_color="#elevated_bg" bg_opa="200" border_width="1" border_color="#border" radius="9999"/>
+  </styles>
   <view name="cfs_chute_calibration_overlay"
         extends="overlay_panel" title="Purge Chute Calibration" bg_color="#screen_bg">
     <!-- Content Area -->
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" scrollable="false" flex_flow="column"
-            style_pad_gap="#space_lg">
+            width="100%" flex_grow="1" style_pad_all="4" scrollable="false" flex_flow="column"
+            style_pad_gap="6">
       <!-- ================================================================== -->
       <!-- STATE: IDLE (0) - Instructions and Start Button -->
       <!-- ================================================================== -->
@@ -24,7 +28,7 @@
                 height="content" style_bg_color="#section_bg_color" style_radius="#border_radius"
                 style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_xs">
           <text_small width="100%" text="1. Printer homes all axes (~1 minute)"/>
-          <text_small width="100%" text="2. Jog Y until the nozzle is centered over the chute opening"/>
+          <text_small width="100%" text="2. Jog X and Y until the nozzle is centered over the chute opening"/>
           <text_small width="100%" text="3. Save the position"/>
           <text_small width="100%" text="Keep hands clear. The printer moves on its own." style_text_color="#text_muted"/>
         </lv_obj>
@@ -49,47 +53,117 @@
         </ui_button>
       </lv_obj>
       <!-- ================================================================== -->
-      <!-- STATE: ADJUSTING (2) - Y-only jog -->
+      <!-- STATE: ADJUSTING (2) - D-Pad XY jog and Step Size Selection -->
       <!-- ================================================================== -->
       <lv_obj name="state_adjusting"
               width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="start"
-              style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
+              style_flex_cross_place="center" style_pad_gap="6" scrollable="false">
         <bind_flag_if_not_eq subject="cfs_chute_state" flag="hidden" ref_value="2"/>
-        <!-- Live toolhead Y: the value Save writes -->
-        <lv_obj width="100%"
-                height="content" style_bg_color="#section_bg_color" style_radius="#border_radius"
-                style_pad_all="#space_md" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                scrollable="false">
-          <text_small text="Toolhead Y" style_text_color="#text_muted"/>
-          <text_heading name="chute_y_display" bind_text="cfs_chute_y_display"/>
+
+        <!-- Live toolhead X and Y readouts: Slim bar to maximize vertical space -->
+        <lv_obj width="100%" height="28" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                style_flex_main_place="space_between" style_flex_cross_place="center" scrollable="false">
+          <lv_obj flex_grow="1" height="28" style_bg_color="#elevated_bg" style_radius="#border_radius"
+                  style_border_width="1" style_border_color="#border"
+                  style_pad_hor="#space_md" style_pad_ver="0" flex_flow="row" style_flex_main_place="space_between"
+                  style_flex_cross_place="center" scrollable="false">
+            <text_small text="Toolhead X" style_text_color="#text_muted"/>
+            <text_body name="chute_x_display" bind_text="cfs_chute_x_display"/>
+          </lv_obj>
+          <lv_obj flex_grow="1" height="28" style_bg_color="#elevated_bg" style_radius="#border_radius"
+                  style_border_width="1" style_border_color="#border"
+                  style_pad_hor="#space_md" style_pad_ver="0" flex_flow="row" style_flex_main_place="space_between"
+                  style_flex_cross_place="center" scrollable="false">
+            <text_small text="Toolhead Y" style_text_color="#text_muted"/>
+            <text_body name="chute_y_display" bind_text="cfs_chute_y_display"/>
+          </lv_obj>
         </lv_obj>
-        <text_small width="90%"
-                    text="Jog Y until the nozzle is centered over the chute opening, then tap Save."
-                    style_text_align="center"/>
-        <!-- Jog buttons: same magnitudes as the stock screen -->
+
+        <!-- Main Jog Area: Full-size Creality Round D-Pad and Expanded Step Buttons -->
         <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-                style_pad_gap="#space_sm" scrollable="false">
-          <ui_button name="btn_chute_y_m10" flex_grow="1" text="-10" moves_machine="true">
-            <event_cb trigger="clicked" callback="on_chute_jog_clicked" user_data="-10"/>
-          </ui_button>
-          <ui_button name="btn_chute_y_m0_5" flex_grow="1" text="-0.5" moves_machine="true">
-            <event_cb trigger="clicked" callback="on_chute_jog_clicked" user_data="-0.5"/>
-          </ui_button>
-          <ui_button name="btn_chute_y_p0_5" flex_grow="1" text="+0.5" moves_machine="true">
-            <event_cb trigger="clicked" callback="on_chute_jog_clicked" user_data="0.5"/>
-          </ui_button>
-          <ui_button name="btn_chute_y_p10" flex_grow="1" text="+10" moves_machine="true">
-            <event_cb trigger="clicked" callback="on_chute_jog_clicked" user_data="10"/>
-          </ui_button>
+                flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+                style_flex_cross_place="center" style_pad_hor="#space_xs" scrollable="false">
+
+          <!-- Left Area: Centered Large Creality Round D-Pad Disc (280x280 px) -->
+          <lv_obj flex_grow="1" height="100%" style_pad_all="0"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  scrollable="false">
+            <lv_obj name="chute_dpad" width="280" height="280" style_pad_all="6"
+                    style_radius="9999" style_bg_color="#section_bg_color" style_bg_opa="140"
+                    style_border_width="1" style_border_color="#border"
+                    flex_flow="column" style_flex_main_place="space_between" style_flex_cross_place="center"
+                    scrollable="false">
+              <!-- Row 1: UP -->
+              <lv_obj width="100%" height="82" style_pad_all="0" flex_flow="row"
+                      style_flex_main_place="center" style_flex_cross_place="center" scrollable="false">
+                <ui_button name="btn_chute_up" width="82" height="82" icon="arrow_up" icon_size="lg"
+                           variant="secondary" style_radius="9999" moves_machine="true">
+                  <event_cb trigger="clicked" callback="on_chute_jog_up_clicked"/>
+                </ui_button>
+              </lv_obj>
+              <!-- Row 2: LEFT & RIGHT (Clean Open Center) -->
+              <lv_obj width="100%" height="82" style_pad_all="0" flex_flow="row"
+                      style_flex_main_place="space_between" style_flex_cross_place="center"
+                      style_pad_hor="6" scrollable="false">
+                <ui_button name="btn_chute_left" width="82" height="82" icon="arrow_left" icon_size="lg"
+                           variant="secondary" style_radius="9999" moves_machine="true">
+                  <event_cb trigger="clicked" callback="on_chute_jog_left_clicked"/>
+                </ui_button>
+                <ui_button name="btn_chute_right" width="82" height="82" icon="arrow_right" icon_size="lg"
+                           variant="secondary" style_radius="9999" moves_machine="true">
+                  <event_cb trigger="clicked" callback="on_chute_jog_right_clicked"/>
+                </ui_button>
+              </lv_obj>
+              <!-- Row 3: DOWN -->
+              <lv_obj width="100%" height="82" style_pad_all="0" flex_flow="row"
+                      style_flex_main_place="center" style_flex_cross_place="center" scrollable="false">
+                <ui_button name="btn_chute_down" width="82" height="82" icon="arrow_down" icon_size="lg"
+                           variant="secondary" style_radius="9999" moves_machine="true">
+                  <event_cb trigger="clicked" callback="on_chute_jog_down_clicked"/>
+                </ui_button>
+              </lv_obj>
+            </lv_obj>
+          </lv_obj>
+
+          <!-- Right Area: Step Size Column (300px wide, 54px tall pill buttons) -->
+          <lv_obj name="chute_steps" width="300" height="260" style_pad_all="0"
+                  flex_flow="column" style_flex_main_place="space_between" style_flex_cross_place="stretch"
+                  scrollable="false">
+            <ui_button name="btn_chute_step_10" width="100%" height="54" style_radius="9999" text="10 mm"
+                       style_text_font="#font_heading">
+              <bind_style_if name="step_selected" cond="cfs_chute_step_idx eq 3"/>
+              <bind_style_if name="step_unselected" cond="cfs_chute_step_idx ne 3"/>
+              <event_cb trigger="clicked" callback="on_chute_step_clicked" user_data="10"/>
+            </ui_button>
+            <ui_button name="btn_chute_step_1" width="100%" height="54" style_radius="9999" text="1 mm"
+                       style_text_font="#font_heading">
+              <bind_style_if name="step_selected" cond="cfs_chute_step_idx eq 2"/>
+              <bind_style_if name="step_unselected" cond="cfs_chute_step_idx ne 2"/>
+              <event_cb trigger="clicked" callback="on_chute_step_clicked" user_data="1"/>
+            </ui_button>
+            <ui_button name="btn_chute_step_0_5" width="100%" height="54" style_radius="9999" text="0.5 mm"
+                       style_text_font="#font_heading">
+              <bind_style_if name="step_selected" cond="cfs_chute_step_idx eq 1"/>
+              <bind_style_if name="step_unselected" cond="cfs_chute_step_idx ne 1"/>
+              <event_cb trigger="clicked" callback="on_chute_step_clicked" user_data="0.5"/>
+            </ui_button>
+            <ui_button name="btn_chute_step_0_1" width="100%" height="54" style_radius="9999" text="0.1 mm"
+                       style_text_font="#font_heading">
+              <bind_style_if name="step_selected" cond="cfs_chute_step_idx eq 0"/>
+              <bind_style_if name="step_unselected" cond="cfs_chute_step_idx ne 0"/>
+              <event_cb trigger="clicked" callback="on_chute_step_clicked" user_data="0.1"/>
+            </ui_button>
+          </lv_obj>
         </lv_obj>
+
+        <!-- Bottom Action Buttons: Cancel and Save -->
         <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+                height="42" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
                 style_pad_gap="#space_md" scrollable="false">
-          <ui_button name="btn_chute_cancel_adjust" flex_grow="1" text="Cancel" variant="danger">
+          <ui_button name="btn_chute_cancel_adjust" flex_grow="1" height="42" style_radius="9999" text="Cancel" variant="danger">
             <event_cb trigger="clicked" callback="on_chute_cancel_clicked"/>
           </ui_button>
-          <ui_button name="btn_chute_save" flex_grow="2" text="Save" variant="success" moves_machine="true">
+          <ui_button name="btn_chute_save" flex_grow="2" height="42" style_radius="9999" text="Save Position" variant="success" moves_machine="true">
             <event_cb trigger="clicked" callback="on_chute_save_clicked"/>
           </ui_button>
         </lv_obj>
