@@ -56,10 +56,15 @@
 # A rerun refuses a step name the gate does not have, a dirty tree, and a HEAD
 # with no recorded results; it runs the named steps one after another, merges
 # their verdicts into that commit's results and prints the merged table.
+# bats, ui and quality test the binaries app-build links (build/bin), so a
+# rerun naming any of them or app-build reruns all four: a PASS can only ever
+# come from a binary built from this commit. When that app-build fails, the
+# other three are recorded SKIP.
 #
 # Once every step of a commit's results is a PASS, from the run or a rerun,
 # the commit is stamped by full SHA (.githooks/lib/land-gate-stamp.sh), and
-# pre-push skips the quality sweep when it pushes exactly that commit.
+# pre-push skips the quality sweep when it pushes exactly that commit. A
+# result set for the commit that is not all PASS removes its stamp.
 #
 # Outside this gate: [.] (the commit hook), [slow] and the goldens (nightly and
 # local-only), and build.yml's telemetry-worker vitest
@@ -217,6 +222,17 @@ elif [ $# -gt 0 ]; then
 fi
 reruns() { case "$RERUN " in *" $1 "*) return 0 ;; esac; return 1; }
 
+# The steps that test what app-build links into build/bin.
+BUILD_DEPENDENTS="bats ui quality"
+if [ -n "$RERUN" ]; then
+    for n in app-build $BUILD_DEPENDENTS; do
+        if reruns "$n"; then
+            for d in app-build $BUILD_DEPENDENTS; do reruns "$d" || RERUN+=" $d"; done
+            break
+        fi
+    done
+fi
+
 # A step that ends up running the gate again (a make target, a stub) would fan
 # out every lane once more at each level. Lanes inherit this, so a nested gate
 # refuses at once.
@@ -301,14 +317,14 @@ gate_t0=$SECONDS
 # tail of each red log. Sets failed unless every step has a PASS row.
 print_table() {
     local dir=$1 s status secs log dur
-    failed=0
+    failed=0 unpassed=""
     for s in $STEPS; do
         if [ -f "$dir/$s" ]; then
             read -r status secs log <"$dir/$s"
         else
             status=FAIL secs=- log="no result: its lane died"
         fi
-        [ "$status" = PASS ] || failed=1
+        [ "$status" = PASS ] || { failed=1; unpassed+=",$s"; }
         if [ "$secs" = - ]; then dur=-; else dur="${secs}s"; fi
         printf '  %-7s  %-17s %7s  %s\n' "$status" "$s" "$dur" "$log"
     done
@@ -330,10 +346,25 @@ stamp_if_complete() {
     fi
 }
 
+# results_red: judged_sha's results have a step that is not a PASS, so any
+# stamp it holds no longer agrees with them.
+results_red() {
+    land_gate_stamp_remove "$judged_sha"
+    echo "LAND GATE: FAIL ($judged)"
+    echo "  complete it on this commit by rerunning the steps still to pass: make land-gate STAGES=${unpassed#,}"
+}
+
 if [ -n "$RERUN" ]; then
     echo "→ rerunning$RERUN on $judged, one after another (logs: $LAND_GATE_LOGDIR)"
     for s in $STEPS; do
-        reruns "$s" && run_step "$s"
+        reruns "$s" || continue
+        case " $BUILD_DEPENDENTS " in
+            *" $s "*) if ! grep -q '^PASS ' "$ROWS_DIR/app-build" 2>/dev/null; then
+                          skip "$s" "app-build failed"
+                          continue
+                      fi ;;
+        esac
+        run_step "$s"
     done
     echo
     if ! still_judged; then
@@ -347,7 +378,7 @@ if [ -n "$RERUN" ]; then
     print_table "$RESULTS_DIR/$judged_sha"
     echo
     if [ "$failed" -ne 0 ]; then
-        echo "LAND GATE: FAIL ($judged)"
+        results_red
         exit 1
     fi
     echo "LAND GATE: PASS ($judged)"
@@ -432,8 +463,11 @@ if [[ "$judged" != *+dirty ]] && still_judged && mkdir -p "$RESULTS_DIR"; then
     fi
 fi
 if [ "$failed" -ne 0 ]; then
-    echo "LAND GATE: FAIL ($judged)"
-    [ -z "$recorded" ] || echo "  complete it on this commit by rerunning the red steps: make land-gate STAGES=<step>[,<step>]"
+    if [ -n "$recorded" ]; then
+        results_red
+    else
+        echo "LAND GATE: FAIL ($judged)"
+    fi
     exit 1
 fi
 echo "LAND GATE: PASS ($judged)"
