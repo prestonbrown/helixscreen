@@ -359,6 +359,10 @@ void ScrewsTiltPanel::start_screws_tilt_command() {
 
 void ScrewsTiltPanel::cancel_probing() {
     spdlog::info("[ScrewsTilt] Probing cancelled by user");
+    if (api_) {
+        spdlog::info("[ScrewsTilt] Sending ABORT on cancel");
+        api_->execute_gcode("ABORT", nullptr, nullptr);
+    }
     // The run is cancelled from the UI side; a firmware that holds an
     // explicit calibration state (the U1) needs the gated exit or it stays
     // in it, refusing unrelated operations. Gated on the dialect so other
@@ -761,6 +765,9 @@ void ScrewsTiltPanel::handle_reprobe_clicked() {
 
 void ScrewsTiltPanel::handle_done_clicked() {
     spdlog::debug("[ScrewsTilt] Done clicked");
+    if (api_ && state_ == State::PROBING) {
+        api_->execute_gcode("ABORT", nullptr, nullptr);
+    }
     probe_count_ = 0;
     clear_results();
     set_state(State::IDLE);

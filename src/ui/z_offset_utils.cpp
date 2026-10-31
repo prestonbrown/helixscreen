@@ -12,6 +12,7 @@
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "probe_sensor_manager.h"
 #include "save_config_restart.h"
 #include "state/subject_macros.h"
 #include "static_subject_registry.h"
@@ -160,6 +161,36 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
         // Firmware/macros handle persistence — nothing for us to do
         spdlog::debug("[ZOffsetUtils] apply_and_save: firmware_managed strategy — auto-saved");
         on_saved();
+        return;
+    }
+
+    // Eddy Current, Beacon, and Cartographer sensors calculate and store calibration
+    // in memory during ACCEPT (frequency sweep / model fit) and do NOT support Z_OFFSET_APPLY_PROBE.
+    // They must execute SAVE_CONFIG directly.
+    bool skip_apply_cmd = false;
+    auto& probe_mgr = helix::sensors::ProbeSensorManager::instance();
+    for (const auto& s : probe_mgr.get_sensors()) {
+        if (s.type == helix::sensors::ProbeSensorType::EDDY_CURRENT ||
+            s.type == helix::sensors::ProbeSensorType::BEACON ||
+            s.type == helix::sensors::ProbeSensorType::CARTOGRAPHER) {
+            skip_apply_cmd = true;
+            break;
+        }
+    }
+
+    if (skip_apply_cmd && strategy == ZOffsetCalibrationStrategy::PROBE_CALIBRATE) {
+        spdlog::info("[ZOffsetUtils] Scanning/eddy probe detected — skipping Z_OFFSET_APPLY_PROBE, executing SAVE_CONFIG directly");
+        save_watch.begin_from_background(
+            api, "Saving config... Klipper will restart.", on_saved,
+            [on_error](const std::string& err) {
+                spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err);
+                if (on_error)
+                    on_error(fmt::format(
+                        lv_tr(
+                            "SAVE_CONFIG failed: {}. Z-offset was applied but not saved. "
+                            "Run SAVE_CONFIG manually or the offset will be lost on restart."),
+                        err));
+            });
         return;
     }
 

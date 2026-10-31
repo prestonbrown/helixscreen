@@ -261,9 +261,14 @@ void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     // Shutdown and hot-reload take the UI out from under a calibration that
     // the printer is still executing; cancelling on those would abort a run
     // nobody asked to stop.
-    if (state_ == State::ADJUSTING || state_ == State::PROBING) {
+    PrinterState& ps = get_printer_state();
+    const bool probe_active =
+        lv_subject_get_int(ps.calibration_state().get_manual_probe_active_subject()) != 0;
+
+    if (state_ == State::ADJUSTING || state_ == State::PROBING || probe_active) {
         if (reason == DeactivateReason::NavigateAway) {
-            spdlog::info("[ZOffsetCal] Aborting calibration on deactivate");
+            spdlog::info("[ZOffsetCal] Aborting calibration on deactivate (state={}, probe_active={})",
+                         static_cast<int>(state_), probe_active);
             send_abort(); // send_abort() calls turn_off_bed_if_needed()
         } else {
             spdlog::info("[ZOffsetCal] Leaving calibration running ({})",
@@ -564,6 +569,7 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
         }
 
         const char* calibrate_cmd = nullptr;
+        std::string eddy_calibrate_cmd;
         if (strategy == ZOffsetCalibrationStrategy::ENDSTOP) {
             calibrate_cmd = "Z_ENDSTOP_CALIBRATE";
         } else {
@@ -579,6 +585,16 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
             case helix::sensors::ProbeSensorType::BEACON:
                 calibrate_cmd = "BEACON_CALIBRATE";
                 break;
+            case helix::sensors::ProbeSensorType::EDDY_CURRENT: {
+                std::string chip = sensors.empty() ? "" : sensors[0].sensor_name;
+                if (!chip.empty()) {
+                    eddy_calibrate_cmd = "PROBE_EDDY_CURRENT_CALIBRATE CHIP=" + chip;
+                } else {
+                    eddy_calibrate_cmd = "PROBE_EDDY_CURRENT_CALIBRATE";
+                }
+                calibrate_cmd = eddy_calibrate_cmd.c_str();
+                break;
+            }
             default:
                 calibrate_cmd = "PROBE_CALIBRATE";
                 break;
@@ -594,10 +610,11 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
                                                                      : "probe_calibrate");
 
         auto tok = lifetime_.token();
+        std::string cmd_name = calibrate_cmd;
         api_->execute_gcode(
             gcode,
-            [calibrate_cmd]() {
-                spdlog::info("[ZOffsetCal] {} sent, waiting for manual_probe", calibrate_cmd);
+            [cmd_name]() {
+                spdlog::info("[ZOffsetCal] {} sent, waiting for manual_probe", cmd_name);
                 // State transition to ADJUSTING happens via manual_probe_active observer
             },
             [this, tok](const MoonrakerError& err) {
@@ -747,7 +764,8 @@ void ZOffsetCalibrationPanel::send_accept() {
                                     false, fmt::format(fmt::runtime(lv_tr("ACCEPT failed: {}")),
                                                        err.localized_message()));
                             });
-            });
+            },
+            IAdvancedAPI::PROBING_TIMEOUT_MS);
     }
 }
 
@@ -827,12 +845,22 @@ void ZOffsetCalibrationPanel::handle_abort_clicked() {
 
 void ZOffsetCalibrationPanel::handle_done_clicked() {
     spdlog::debug("[ZOffsetCal] Done clicked");
+    PrinterState& ps = get_printer_state();
+    if (lv_subject_get_int(ps.calibration_state().get_manual_probe_active_subject()) != 0) {
+        spdlog::info("[ZOffsetCal] Manual probe still active on done; sending ABORT");
+        send_abort();
+    }
     set_state(State::IDLE);
     helix::nav::go_back();
 }
 
 void ZOffsetCalibrationPanel::handle_retry_clicked() {
     spdlog::debug("[ZOffsetCal] Retry clicked");
+    PrinterState& ps = get_printer_state();
+    if (lv_subject_get_int(ps.calibration_state().get_manual_probe_active_subject()) != 0) {
+        spdlog::info("[ZOffsetCal] Manual probe still active on retry; sending ABORT");
+        send_abort();
+    }
     set_state(State::IDLE);
 }
 
@@ -897,6 +925,13 @@ void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::str
             lv_label_set_text(error_message_, message.c_str());
         }
         set_state(State::ERROR);
+        // If Klipper is still in manual probe mode after a calibration failure, abort it
+        // so external web frontends (Mainsail/Fluidd) do not keep manual probe modals open.
+        PrinterState& ps = get_printer_state();
+        if (lv_subject_get_int(ps.calibration_state().get_manual_probe_active_subject()) != 0) {
+            spdlog::warn("[ZOffsetCal] Manual probe still active after failure; sending ABORT");
+            send_abort();
+        }
     }
 }
 
