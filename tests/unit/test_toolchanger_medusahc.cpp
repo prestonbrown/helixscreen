@@ -77,73 +77,40 @@ PrinterDiscovery plain_toolchanger_discovery() {
 
 } // namespace
 
-// ============================================================================
-// Init states
-// ============================================================================
-
-TEST_CASE("A cold-boot toolchanger refuses the tool tap", "[ams][toolchanger][coldstart]") {
-    ToolChangerHelper h(4);
-    h.feed_status("uninitialized", -1);
-
-    // Refusing is the lesser evil, not a clean answer. On the default
-    // initialize_on: first-use, select_tool() would have auto-initialized and
-    // this tap is what would have cleared the state, so the refusal costs the
-    // user a Reset they should not have needed.
-    //
-    // Letting it through is worse. On initialize_on: manual (what MedusaHC
-    // ships) Klipper raises "Cannot select tool, toolchanger status is
-    // uninitialized". That rejection reaches execute_gcode()'s error callback,
-    // which only logs: on_complete never fires, so the optimistic SELECTING that
-    // dispatch_operation() stamped is never unwound, and execute_gcode() returns
-    // success() so the `if (!result)` net misses it too. is_busy() would then
-    // refuse every later op, and Moonraker only republishes CHANGED fields, so
-    // no second 'uninitialized' frame arrives to reset it. A latched SELECTING
-    // is unrecoverable without a restart; a refusal clears with Reset, which
-    // sends INITIALIZE_TOOLCHANGER.
-    CHECK(h.get_system_info().is_busy());
-    CHECK(h.get_current_action() == AmsAction::RESETTING);
-
-    auto err = h.change_tool(2);
-    CHECK_FALSE(err.success());
-    CHECK(h.sent().empty());
-}
-
-TEST_CASE("An initializing toolchanger IS busy", "[ams][toolchanger][coldstart]") {
-    ToolChangerHelper h(4);
-    h.feed_status("initializing", -1);
-
-    // STATUS_INITIALIZING was unmapped and fell through to IDLE, so a tap landed
-    // mid-initialization while the carriage was moving.
-    CHECK(h.get_system_info().is_busy());
-    CHECK(h.get_current_action() == AmsAction::RESETTING);
-
-    auto err = h.change_tool(1);
-    CHECK_FALSE(err.success());
-    CHECK(h.sent().empty());
-}
-
-TEST_CASE("The settled toolchanger states are unchanged", "[ams][toolchanger][coldstart]") {
-    // Regression guard: the two fixes above must not disturb the states that
-    // already worked.
-    ToolChangerHelper h(4);
-
-    h.feed_status("ready", 0);
-    CHECK(h.get_current_action() == AmsAction::IDLE);
-
-    h.feed_status("changing", 0);
-    CHECK(h.get_current_action() == AmsAction::SELECTING);
-
-    h.feed_status("error", -1);
-    CHECK(h.get_current_action() == AmsAction::ERROR);
-}
-
-TEST_CASE("The raw toolchanger status survives as operation detail",
+// An uninitialized changer refuses a tool tap rather than letting it through.
+// On initialize_on: manual (what MedusaHC ships) Klipper rejects the select,
+// that rejection only logs, and the optimistic SELECTING dispatch stamped is
+// never unwound: is_busy() would refuse every later op until a restart, since
+// Moonraker republishes only changed fields. The refusal clears with Reset,
+// which sends INITIALIZE_TOOLCHANGER. An initializing changer is moving the
+// carriage, so it is busy too. The raw status names the state as detail.
+TEST_CASE("A toolchanger's status maps to an action, and the unready ones refuse a tap",
           "[ams][toolchanger][coldstart]") {
-    // IDLE alone cannot tell the user why a tap was rejected by Klipper. The
-    // status string is what names the state.
-    ToolChangerHelper h(4);
-    h.feed_status("uninitialized", -1);
-    CHECK(h.get_system_info().operation_detail == "uninitialized");
+    struct Row {
+        const char* status;
+        int tool;
+        AmsAction action;
+        bool refuses_tap;
+    };
+    const Row rows[] = {
+        {"uninitialized", -1, AmsAction::RESETTING, true},
+        {"initializing", -1, AmsAction::RESETTING, true},
+        {"ready", 0, AmsAction::IDLE, false},
+        {"changing", 0, AmsAction::SELECTING, false},
+        {"error", -1, AmsAction::ERROR, false},
+    };
+    for (const auto& row : rows) {
+        INFO(row.status);
+        ToolChangerHelper h(4);
+        h.feed_status(row.status, row.tool);
+        CHECK(h.get_current_action() == row.action);
+        if (row.refuses_tap) {
+            CHECK(h.get_system_info().operation_detail == row.status);
+            CHECK(h.get_system_info().is_busy());
+            CHECK_FALSE(h.change_tool(2).success());
+            CHECK(h.sent().empty());
+        }
+    }
 }
 
 // ============================================================================
