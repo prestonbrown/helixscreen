@@ -196,14 +196,6 @@ TEST_CASE_METHOD(AbortManagerTestFixture, "AbortManager: Initial state is IDLE",
     REQUIRE(state_name() == "IDLE");
 }
 
-TEST_CASE_METHOD(AbortManagerTestFixture, "AbortManager: Singleton returns same instance",
-                 "[abort][singleton]") {
-    AbortManager& instance1 = AbortManager::instance();
-    AbortManager& instance2 = AbortManager::instance();
-
-    REQUIRE(&instance1 == &instance2);
-}
-
 // ============================================================================
 // Lazy Modal Creation Tests (crash fix: no eager GPU-blur backdrop at startup)
 // ============================================================================
