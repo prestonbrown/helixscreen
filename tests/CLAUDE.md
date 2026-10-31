@@ -177,8 +177,9 @@ commit it judged (`+dirty` when uncommitted changes were in the tree). It holds
 `build:<tree>` while it runs and refuses a missing bats rather than skipping it
 (`scripts/land-gate.sh`, logs in `build/land-gate/`). A gate red on one flaky or environment
 step is finished with `make land-gate STAGES=<step>[,<step>]` on the same clean HEAD: it
-reruns only those steps, merges them into that commit's table, and stamps the commit for
-pre-push once every step has passed. `full-test-run` alone misses
+reruns only those steps (app-build, bats, ui and quality as one group, since three of them
+test the binary app-build links), merges them into that commit's table, and stamps the
+commit for pre-push once every step has passed. `full-test-run` alone misses
 `tests/ui` and CI's shard layout, which is how a branch goes green here and red on CI.
 
 Rows four through seven are the evidence ladder below. "Proving a test can fail" is where

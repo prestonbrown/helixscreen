@@ -81,8 +81,10 @@ make land-gate                       # THE pre-landing gate: ONCE per batch, bef
 #   or from a machine whose build-hosts.env names that host in
 #   HELIX_LAND_GATE_HOSTS (pre-push asks it over ssh). A gate red on one step:
 #   `make land-gate STAGES=<step>[,<step>]` reruns just those on the same
-#   clean HEAD, merges them into that commit's table, and stamps it once every
-#   step has passed. C++ on the test host as
+#   clean HEAD (naming app-build, bats, ui or quality reruns all four, since
+#   three test the binary the fourth links), merges them into that commit's
+#   table, and stamps it once every step has passed; a red table removes the
+#   stamp. C++ on the test host as
 #   full-test-run's sweep goes; the rest here in parallel; a PASS/FAIL table
 #   with durations at the end. full-test-run alone is NOT a landing gate: it
 #   skips tests/ui and CI's shard layout, both of which red CI.
