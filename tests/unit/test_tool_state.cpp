@@ -44,6 +44,8 @@ using namespace helix;
 struct ToolStateFixture : public HelixTestFixture {
     ~ToolStateFixture() override {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        // init_subjects() keeps the tools a live ToolState holds.
+        ToolState::instance().deinit_subjects();
     }
 };
 
