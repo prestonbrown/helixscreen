@@ -94,6 +94,33 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: active_as resolves the live menu
         beta.hide();
         process_lvgl(50);
     }
+
+    SECTION("a backdrop deleted without hide() leaves no active menu") {
+        MenuAlpha alpha;
+        show(alpha, test_screen());
+        REQUIRE(ContextMenu::active() == &alpha);
+
+        lv_obj_delete(lv_obj_get_child(test_screen(), -1));
+
+        CHECK(ContextMenu::active() == nullptr);
+        CHECK_FALSE(alpha.is_visible());
+    }
+
+    SECTION("the outgoing backdrop's deferred delete spares a menu raised before it lands") {
+        MenuAlpha alpha;
+        show(alpha, test_screen());
+        alpha.hide();
+
+        MenuBeta beta;
+        show(beta, test_screen());
+        process_lvgl(50);
+
+        CHECK(ContextMenu::active() == &beta);
+        CHECK(beta.is_visible());
+
+        beta.hide();
+        process_lvgl(50);
+    }
 }
 
 // Production menus have to carry distinct tags for the same reason — an omitted
