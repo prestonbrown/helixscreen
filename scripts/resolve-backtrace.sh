@@ -95,38 +95,15 @@ is_garbage_symbol() {
     [[ "$GARBAGE_SYMBOLS" == *"|$1|"* ]]
 }
 
-# Repo-relative path to LVGL's event enum, used to decode numeric event_code →
-# symbolic name (e.g. 53 → LV_EVENT_GET_SELF_SIZE) in the crash-context analysis.
+# Decode an lv_event_code_t ordinal to its LV_EVENT_* name with the table for the
+# LVGL the crash's binary was built on (the crash file's lvgl_version; none means
+# 9.5), the same tables the crash worker files issues with. Prints "" when the
+# code does not resolve.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly LV_EVENT_HEADER="${SCRIPT_DIR}/../lib/lvgl/include/lvgl/core/lv_event.h"
-
-# Decode an lv_event_code_t ordinal to its LV_EVENT_* name by parsing the enum
-# in lv_event.h. Manual counting is error-prone (the enum has comment-only lines
-# and section dividers), so parse it. Prints "" if the header is absent or the
-# code doesn't resolve.
 lvgl_event_name() {
-    local code="$1"
+    local code="$1" lvgl_version="${2:-}"
     [[ "$code" =~ ^[0-9]+$ ]] || return 0
-    [[ -f "$LV_EVENT_HEADER" ]] || return 0
-    python3 - "$LV_EVENT_HEADER" "$code" <<'PY' 2>/dev/null || true
-import re, sys
-hdr, target = sys.argv[1], int(sys.argv[2])
-m = re.search(r'enum\s*\{(.*?)\}\s*lv_event_code_t', open(hdr).read(), re.S)
-if not m:
-    sys.exit()
-val = 0
-for raw in m.group(1).splitlines():
-    code = re.sub(r'/\*.*?\*/', '', raw).strip().rstrip(',')
-    mm = re.match(r'(LV_EVENT_[A-Z0-9_]+)\s*(=\s*(0x[0-9a-fA-F]+|\d+))?$', code)
-    if not mm:
-        continue
-    if mm.group(3):
-        val = int(mm.group(3), 0)
-    if val == target:
-        print(mm.group(1))
-        break
-    val += 1
-PY
+    python3 "${SCRIPT_DIR}/lvgl_event_name.py" "$code" "$lvgl_version" 2>/dev/null || true
 }
 
 # Memory map entries parsed from crash file (array of "start_dec end_dec path" strings)
@@ -1209,9 +1186,10 @@ if [[ ${#ALL_SYMS[@]} -gt 0 ]]; then
 fi
 
 # Pull the ambient LVGL/queue fields from the crash header, if we have one.
-_ev_code="" _ev_class="" _ev_addr="" _q_prev="" _r_err=""
+_ev_code="" _ev_class="" _ev_addr="" _q_prev="" _r_err="" _lvgl_version=""
 if [[ -n "${CRASH_FILE:-}" && -f "${CRASH_FILE:-/nonexistent}" ]]; then
     _ev_code=$(grep -m1 '^event_code:' "$CRASH_FILE" 2>/dev/null | cut -d: -f2 | tr -d '[:space:]' || true)
+    _lvgl_version=$(grep -m1 '^lvgl_version:' "$CRASH_FILE" 2>/dev/null | cut -d: -f2 | tr -d '[:space:]' || true)
     _ev_class=$(grep -m1 '^event_target_class:' "$CRASH_FILE" 2>/dev/null | cut -d: -f2 | tr -d '[:space:]' || true)
     _ev_addr=$(grep -m1 '^event_target:' "$CRASH_FILE" 2>/dev/null | cut -d: -f2 | tr -d '[:space:]' || true)
     _q_prev=$(grep -m1 '^queue_prev:' "$CRASH_FILE" 2>/dev/null | cut -d: -f2- || true)
@@ -1227,7 +1205,7 @@ if [[ -n "$_crash_thread" || -n "$_ev_code$_ev_class$_q_prev$_r_err" ]]; then
     [[ "$_crash_thread" == *BACKGROUND* ]] && _is_bg=1
 
     if [[ -n "$_ev_code" || -n "$_ev_class" ]]; then
-        _ev_name=$(lvgl_event_name "$_ev_code")
+        _ev_name=$(lvgl_event_name "$_ev_code" "$_lvgl_version")
         _line="  LVGL header: event_target_class=${_ev_class:-?}"
         [[ -n "$_ev_addr" ]] && _line="$_line (${_ev_addr})"
         _line="$_line  event_code=${_ev_code:-?}"
