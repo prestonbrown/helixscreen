@@ -265,7 +265,9 @@ def test_a_stop_signal_mid_mutant_restores_the_file_byte_for_byte(tmp_path, sig)
         [sys.executable, "scripts/mutate_diff.py", "--base", "main", "--shards", "1",
          "--log", str(work / "mutate.log")],
         cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        start_new_session=True, env=ENV)
+        start_new_session=True, env=ENV,
+        # A run keeps an inherited SIGHUP ignore, so a nohup'd pytest would hand it one.
+        preexec_fn=lambda: signal.signal(signal.SIGHUP, signal.SIG_DFL))
     try:
         _wait_for(work / ".mutant-build-started")
         child = _wait_for(work / ".mutant-build-child")
