@@ -125,6 +125,14 @@ struct InventoryFixture : public XMLTestFixture {
             lv_obj_delete(root);
             root = nullptr;
         }
+        // A variant row replaced the component of its basename; later tests build
+        // the base one.
+        for (const char* dir : {"ui_xml/", "ui_xml/components/"}) {
+            const std::string base = dir + replaced_name + ".xml";
+            if (!replaced_name.empty() && std::filesystem::exists(base)) {
+                lv_xml_register_component_from_file(("A:" + base).c_str());
+            }
+        }
     }
 
     void set_and_settle(lv_subject_t* subject, int value) {
@@ -175,6 +183,9 @@ struct InventoryFixture : public XMLTestFixture {
 
         // Built by basename, which is the only name the engine knows it by.
         const std::string name = std::filesystem::path(g.component).filename().string();
+        if (name != g.component) {
+            replaced_name = name;
+        }
         root = create_component(name.c_str());
         if (root == nullptr)
             return nullptr;
@@ -188,6 +199,7 @@ struct InventoryFixture : public XMLTestFixture {
     }
 
     lv_obj_t* root = nullptr;
+    std::string replaced_name;
 };
 
 /// Every subject of the group at a value that releases all of its bindings.
