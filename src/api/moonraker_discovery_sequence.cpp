@@ -982,6 +982,7 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                             helix::fit_machine_json(*hardware_.fit_machine())));
                                     hardware_.parse_leveling_probe_points(settings);
                                     hardware_.parse_probe_xy_offset(settings);
+                                    hardware_.parse_start_macro_injection(settings);
                                 }
 
                                 // Which macros take the host down with them.

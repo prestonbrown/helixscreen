@@ -21,6 +21,7 @@
 #include "wifi_country.h"
 #include "wifi_manager.h"
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -43,6 +44,19 @@ class NoForgetNoToggleBackend : public WifiBackendMock {
     bool supports_country() const override {
         return false;
     }
+};
+
+/// A radio whose 5 GHz support is unknown until a scan proves it.
+class LateFiveGhzBackend : public WifiBackendMock {
+  public:
+    explicit LateFiveGhzBackend(std::shared_ptr<std::atomic<bool>> five_ghz)
+        : five_ghz_(std::move(five_ghz)) {}
+    bool supports_5ghz() const override {
+        return five_ghz_->load();
+    }
+
+  private:
+    std::shared_ptr<std::atomic<bool>> five_ghz_;
 };
 
 class CapabilityFixture : public LVGLUITestFixture {
@@ -300,4 +314,71 @@ TEST_CASE_METHOD(CapabilityFixture,
     CHECK_FALSE(hidden(root, "wifi_unresponsive_state"));
     // The rows above keep the last known state.
     CHECK_FALSE(hidden(root, "wifi_connected_state"));
+}
+
+TEST_CASE_METHOD(CapabilityFixture,
+                 "Network settings drops the 2.4 GHz-only label once a scan finds 5 GHz",
+                 "[network_settings][wifi_band]") {
+    auto five_ghz = std::make_shared<std::atomic<bool>>(false);
+    NetworkSettingsOverlay overlay;
+    open_overlay(overlay, std::make_unique<LateFiveGhzBackend>(five_ghz));
+    REQUIRE(lv_subject_get_int(&Access::wifi_only_24ghz(overlay)) == 1);
+
+    five_ghz->store(true);
+    Access::populate_network_list(overlay, {WiFiNetwork("Fast", 80, true, "WPA2", 5180)});
+
+    CHECK(lv_subject_get_int(&Access::wifi_only_24ghz(overlay)) == 0);
+}
+
+TEST_CASE_METHOD(CapabilityFixture,
+                 "Network settings hints at 5 GHz once a scan finds it under a world domain",
+                 "[network_settings][wifi_band]") {
+    helix::SystemSettingsManager::instance().set_wifi_country("");
+    auto five_ghz = std::make_shared<std::atomic<bool>>(false);
+    NetworkSettingsOverlay overlay;
+    lv_obj_t* root = open_overlay(overlay, std::make_unique<LateFiveGhzBackend>(five_ghz));
+    lv_obj_t* dropdown = lv_obj_find_by_name(root, "wifi_country_dropdown");
+    REQUIRE(dropdown != nullptr);
+    auto shown = [dropdown] {
+        const char* text = lv_dropdown_get_text(dropdown);
+        return std::string(text ? text : "");
+    };
+    // A 2.4 GHz-only radio loses nothing in the world domain, so no hint.
+    REQUIRE(wait_until([&] { return Access::radio_country_read(overlay); }));
+    REQUIRE(shown() == "Not set");
+
+    five_ghz->store(true);
+    Access::populate_network_list(overlay, {WiFiNetwork("Fast", 80, true, "WPA2", 5180)});
+
+    CHECK(shown() == "2.4 GHz only");
+}
+
+TEST_CASE_METHOD(CapabilityFixture,
+                 "Network settings rebuilt for another radio forgets the previous radio's country",
+                 "[network_settings][wifi_band]") {
+    helix::SystemSettingsManager::instance().set_wifi_country("");
+    // The first radio runs in the world domain, where a 5 GHz radio earns the hint.
+    auto first_five_ghz = std::make_shared<std::atomic<bool>>(false);
+    NetworkSettingsOverlay overlay;
+    open_overlay(overlay, std::make_unique<LateFiveGhzBackend>(first_five_ghz));
+    REQUIRE(wait_until([&] { return Access::radio_country_read(overlay); }));
+    REQUIRE(lv_subject_get_int(&Access::wifi_only_24ghz(overlay)) == 1);
+
+    // Rebuilt for a printer whose radio is set to DE, as a printer switch does.
+    overlay.cleanup();
+    auto second_five_ghz = std::make_shared<std::atomic<bool>>(true);
+    auto second = std::make_unique<LateFiveGhzBackend>(second_five_ghz);
+    second->set_country_for_test("DE");
+    auto wm = std::make_shared<helix::WiFiManager>(std::move(second));
+    wm->init_self_reference(wm);
+    Access::wifi_manager(overlay) = wm;
+    lv_obj_t* root = overlay.create(test_screen());
+    REQUIRE(root != nullptr);
+    lv_obj_t* dropdown = lv_obj_find_by_name(root, "wifi_country_dropdown");
+    REQUIRE(dropdown != nullptr);
+
+    // Until the new radio's country is read, no hint may come from the old one.
+    Access::populate_network_list(overlay, {WiFiNetwork("Fast", 80, true, "WPA2", 5180)});
+    const char* text = lv_dropdown_get_text(dropdown);
+    CHECK(std::string(text ? text : "") == "Not set");
 }

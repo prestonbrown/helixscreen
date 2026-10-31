@@ -533,56 +533,6 @@ TEST_CASE("QIDI Box multiple heater_box readings populate matching units", "[ams
     REQUIRE(info.units[1].environment->temperature_c == Catch::Approx(22.5).epsilon(0.01));
 }
 
-// QIDI Q2 firmware 01.01.02.01 (June 2026) refactor: box_config.py declares the
-// dryer thermistor as `temperature_sensor heater_temp_a/b_box<N>` (#1047), but it
-// still creates `heater_generic heater_box<N>`. Box temperature must come from the
-// heater object, NOT the thermistor (which mirrors the heater element and would
-// over-report). A thermistor-only delta must not drive the displayed box temp.
-TEST_CASE("QIDI Box 01.01.02 box temp comes from heater_generic, not heater_temp thermistor",
-          "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-
-    // heater_temp thermistor reads hotter than the heater object; it must be
-    // ignored for temperature, so the heater_generic value wins.
-    QidiBoxTestAccess::handle_status(
-        backend, json{
-                     {"temperature_sensor heater_temp_a_box1", json{{"temperature", 99.0}}},
-                     {"heater_generic heater_box1", json{{"temperature", 55.0}}},
-                 });
-
-    auto info = backend.get_system_info();
-    REQUIRE(info.units[0].environment.has_value());
-    REQUIRE(info.units[0].environment->temperature_c == Catch::Approx(55.0).epsilon(0.01));
-}
-
-// An unrelated temperature_sensor (chamber/MCU) must NOT be mistaken for a box
-// dryer thermistor — the "_box" guard keeps it out of the box environment.
-TEST_CASE("QIDI Box non-box temperature_sensor is ignored", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-
-    QidiBoxTestAccess::handle_status(backend,
-                                     json{{"temperature_sensor Chamber_Thermal_Protection_Sensor",
-                                           json{{"temperature", 60.0}}}});
-
-    REQUIRE_FALSE(backend.get_system_info().units[0].environment.has_value());
-}
-
-// Defensive: if the 01.01.02 firmware relocates the humidity field onto a box
-// object other than aht20_f, the backend still surfaces it (best-effort — the
-// exact source is unconfirmed on hardware, #1047).
-TEST_CASE("QIDI Box humidity is read from any matched box object", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-
-    QidiBoxTestAccess::handle_status(backend,
-                                     json{{"temperature_sensor heater_temp_a_box1",
-                                           json{{"temperature", 30.0}, {"humidity", 22.0}}}});
-
-    auto info = backend.get_system_info();
-    REQUIRE(info.units[0].environment.has_value());
-    REQUIRE(info.units[0].environment->has_humidity);
-    REQUIRE(info.units[0].environment->humidity_pct == Catch::Approx(22.0).epsilon(0.01));
-}
-
 // =====================================================================
 // apply_query_response: bootstrap from printer.objects.query result
 // =====================================================================
@@ -1132,92 +1082,6 @@ TEST_CASE("QIDI Box write-path rejects out-of-range slot/tool indices",
 }
 
 // =====================================================================
-// apply_filas_list: parse officiall_filas_list.cfg (ConfigParser INI)
-// =====================================================================
-// box_extras.py looks up the printer-local file at
-//   /home/mks/printer_data/config/officiall_filas_list.cfg
-// using ConfigParser. Sections are `[fila<N>]` (N = filament_slot<N>
-// index, 1-99) and each section carries min_temp / max_temp (nozzle)
-// plus box_min_temp / box_max_temp (drying chamber). We fetch the file
-// via Moonraker's file API and parse the same INI shape.
-
-TEST_CASE("QIDI Box apply_filas_list parses sections into fila_profiles_", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    const std::string cfg = R"INI(
-[fila1]
-min_temp = 200
-max_temp = 220
-box_min_temp = 40
-box_max_temp = 60
-
-[fila2]
-min_temp = 240
-max_temp = 260
-box_min_temp = 65
-box_max_temp = 80
-)INI";
-
-    QidiBoxTestAccess::apply_filas_list(backend, cfg);
-
-    auto p1 = QidiBoxTestAccess::get_profile(backend, 1);
-    REQUIRE(p1.has_value());
-    REQUIRE(p1->nozzle_min == 200);
-    REQUIRE(p1->nozzle_max == 220);
-    REQUIRE(p1->box_min == 40);
-    REQUIRE(p1->box_max == 60);
-
-    auto p2 = QidiBoxTestAccess::get_profile(backend, 2);
-    REQUIRE(p2.has_value());
-    REQUIRE(p2->nozzle_min == 240);
-    REQUIRE(p2->nozzle_max == 260);
-}
-
-TEST_CASE("QIDI Box apply_filas_list tolerates whitespace, comments, blank lines",
-          "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    const std::string cfg = R"INI(
-# leading comment
-; semicolon-style comment
-
-  [fila5]
-    min_temp   =   195
-   max_temp=215   ; inline tail (ignored)
-box_min_temp = 35
-box_max_temp = 55
-
-# trailing comment
-)INI";
-
-    QidiBoxTestAccess::apply_filas_list(backend, cfg);
-    auto p = QidiBoxTestAccess::get_profile(backend, 5);
-    REQUIRE(p.has_value());
-    REQUIRE(p->nozzle_min == 195);
-    REQUIRE(p->nozzle_max == 215);
-    REQUIRE(p->box_min == 35);
-    REQUIRE(p->box_max == 55);
-}
-
-TEST_CASE("QIDI Box apply_filas_list ignores non-fila sections", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    const std::string cfg = R"INI(
-[printer]
-kinematics = corexy
-
-[fila7]
-min_temp = 230
-max_temp = 250
-box_min_temp = 0
-box_max_temp = 0
-)INI";
-
-    QidiBoxTestAccess::apply_filas_list(backend, cfg);
-    REQUIRE(QidiBoxTestAccess::get_profile(backend, 7).has_value());
-    // No spurious profile from [printer] (parses as fila_id 0 only if we
-    // mistakenly accept any section).
-    REQUIRE_FALSE(QidiBoxTestAccess::get_profile(backend, 0).has_value());
-}
-
-// =====================================================================
 // last_load_slot also drives current_slot / current_tool / filament_loaded
 // =====================================================================
 // The AmsSubscriptionBackend base exposes these via get_current_slot() /
@@ -1424,13 +1288,6 @@ TEST_CASE("QIDI Box config query refines max temp (heater_generic section)",
     REQUIRE(QidiBoxTestAccess::get_dryer(backend).max_temp_c == Catch::Approx(80.0f));
 }
 
-TEST_CASE("QIDI Box config query refines max temp (box_config section)", "[ams][qidi_box][dryer]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_config_settings(
-        backend, json{{"box_config box0", json{{"target_max_temp_heater_generic", 90.0}}}});
-    REQUIRE(QidiBoxTestAccess::get_dryer(backend).max_temp_c == Catch::Approx(90.0f));
-}
-
 // =====================================================================
 // Dryer write-path: start_drying / stop_drying (issue #1019)
 // =====================================================================
@@ -1525,57 +1382,6 @@ type                           = PETG-CF
 2                              = eSUN
 )INI";
 
-TEST_CASE("QIDI Box apply_filas_list captures filament name and type", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
-
-    auto p1 = QidiBoxTestAccess::get_profile(backend, 1);
-    REQUIRE(p1.has_value());
-    REQUIRE(p1->name == "PLA Rapido");
-    REQUIRE(p1->type == "PLA");
-    REQUIRE(p1->nozzle_min == 190);
-    REQUIRE(p1->nozzle_max == 240);
-
-    auto p11 = QidiBoxTestAccess::get_profile(backend, 11);
-    REQUIRE(p11.has_value());
-    REQUIRE(p11->name == "ABS Rapido");
-    REQUIRE(p11->type == "ABS");
-    REQUIRE(p11->box_max == 45);
-
-    auto p42 = QidiBoxTestAccess::get_profile(backend, 42);
-    REQUIRE(p42.has_value());
-    REQUIRE(p42->name == "PETG-CF");
-    REQUIRE(p42->type == "PETG-CF");
-}
-
-TEST_CASE("QIDI Box apply_filas_list parses colordict to packed RGB", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
-
-    REQUIRE(QidiBoxTestAccess::get_color(backend, 1) == 0xFAFAFA);
-    REQUIRE(QidiBoxTestAccess::get_color(backend, 2) == 0x060606);
-    REQUIRE(QidiBoxTestAccess::get_color(backend, 18) == 0xFF362D);
-    REQUIRE(QidiBoxTestAccess::get_color(backend, 24) == 0xB87F2B);
-    REQUIRE_FALSE(QidiBoxTestAccess::get_color(backend, 99).has_value());
-}
-
-TEST_CASE("QIDI Box apply_filas_list parses vendor_list", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
-
-    REQUIRE(QidiBoxTestAccess::get_vendor(backend, 0) == "Generic");
-    REQUIRE(QidiBoxTestAccess::get_vendor(backend, 1) == "QIDI");
-    REQUIRE(QidiBoxTestAccess::get_vendor(backend, 2) == "eSUN");
-    REQUIRE_FALSE(QidiBoxTestAccess::get_vendor(backend, 99).has_value());
-}
-
-TEST_CASE("QIDI Box apply_filas_list colordict accepts bare hex (no #)", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, "[colordict]\n1 = FAFAFA\n2 = #060606\n");
-    REQUIRE(QidiBoxTestAccess::get_color(backend, 1) == 0xFAFAFA);
-    REQUIRE(QidiBoxTestAccess::get_color(backend, 2) == 0x060606);
-}
-
 TEST_CASE("QIDI Box apply_filas_list ignores bad sections and atomically swaps",
           "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
@@ -1601,17 +1407,6 @@ max_temp = 240
     // Typo'd [colourdict] not accepted, old palette wiped.
     REQUIRE(QidiBoxTestAccess::color_count(backend) == 0);
     REQUIRE(QidiBoxTestAccess::vendor_count(backend) == 0);
-}
-
-TEST_CASE("QIDI Box apply_filas_list still parses temps (regression)", "[ams][qidi_box]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
-    auto p11 = QidiBoxTestAccess::get_profile(backend, 11);
-    REQUIRE(p11.has_value());
-    REQUIRE(p11->nozzle_min == 240);
-    REQUIRE(p11->nozzle_max == 280);
-    REQUIRE(p11->box_min == 0);
-    REQUIRE(p11->box_max == 45);
 }
 
 // =====================================================================

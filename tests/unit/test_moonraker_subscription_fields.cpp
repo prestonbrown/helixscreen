@@ -326,7 +326,7 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
 
     json subs = fx.build();
 
-    SECTION("AFC top-level reads ams_backend_afc.cpp parse_afc_state") {
+    SECTION("AFC top-level reads ams_backend_afc.cpp apply_afc_state") {
         REQUIRE(has_field(subs, "AFC", "current_load"));
         REQUIRE(has_field(subs, "AFC", "current_lane"));
         REQUIRE(has_field(subs, "AFC", "current_state"));
@@ -336,7 +336,7 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
         REQUIRE(has_field(subs, "AFC", "units"));
     }
 
-    SECTION("AFC_stepper / AFC_lane: parse_afc_stepper fields") {
+    SECTION("AFC_stepper / AFC_lane: apply_lane_status fields") {
         for (const auto& obj : {"AFC_stepper lane1", "AFC_lane lane2"}) {
             CAPTURE(obj);
             REQUIRE(has_field(subs, obj, "prep"));
@@ -351,12 +351,12 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
         }
     }
 
-    SECTION("AFC_hub: parse_afc_hub fields") {
+    SECTION("AFC_hub: apply_hub fields") {
         REQUIRE(has_field(subs, "AFC_hub turtle1", "state"));
         REQUIRE(has_field(subs, "AFC_hub turtle1", "afc_bowden_length"));
     }
 
-    SECTION("AFC_buffer: parse_afc_buffer fields") {
+    SECTION("AFC_buffer: apply_buffer fields") {
         REQUIRE(has_field(subs, "AFC_buffer buffer1", "state"));
         REQUIRE(has_field(subs, "AFC_buffer buffer1", "distance_to_fault"));
         REQUIRE(has_field(subs, "AFC_buffer buffer1", "error_sensitivity"));
@@ -364,13 +364,13 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
         REQUIRE(has_field(subs, "AFC_buffer buffer1", "lanes"));
     }
 
-    SECTION("AFC_extruder: parse_afc_extruder fields") {
+    SECTION("AFC_extruder: apply_extruder_object fields") {
         REQUIRE(has_field(subs, "AFC_extruder extruder", "lane_loaded"));
         REQUIRE(has_field(subs, "AFC_extruder extruder", "tool_end_status"));
         REQUIRE(has_field(subs, "AFC_extruder extruder", "tool_start_status"));
     }
 
-    SECTION("Unit-level (AFC_BoxTurtle): parse_afc_unit_object fields") {
+    SECTION("Unit-level (AFC_BoxTurtle): apply_unit_object fields") {
         REQUIRE(has_field(subs, "AFC_BoxTurtle turtle1", "lanes"));
         REQUIRE(has_field(subs, "AFC_BoxTurtle turtle1", "extruders"));
         REQUIRE(has_field(subs, "AFC_BoxTurtle turtle1", "hubs"));

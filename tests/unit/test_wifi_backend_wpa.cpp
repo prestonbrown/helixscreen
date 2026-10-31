@@ -462,4 +462,88 @@ TEST_CASE("wpa teardown detaches the monitor connection while it is still open",
     }
 }
 
+namespace {
+
+std::string scan_results(const std::vector<std::string>& rows) {
+    std::string raw = "bssid / frequency / signal level / flags / ssid\n";
+    for (const auto& row : rows) {
+        raw += row + "\n";
+    }
+    return raw;
+}
+
+} // namespace
+
+TEST_CASE("wpa scan results skip a hidden network shown as zero bytes",
+          "[network][wpa][hidden_ssid]") {
+    WpaFakeFixture fx;
+    fx.fake->set_reply("SCAN_RESULTS",
+                       scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[WPA2-PSK-CCMP][ESS]\tHome",
+                                     "aa:bb:cc:dd:ee:02\t2437\t-60\t[WPA2-PSK-CCMP][ESS]\t"
+                                     "\\x00\\x00\\x00\\x00\\x00\\x00"}));
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    std::vector<WiFiNetwork> networks;
+    REQUIRE(backend.get_scan_results(networks).success());
+    REQUIRE(networks.size() == 1);
+    CHECK(networks[0].ssid == "Home");
+}
+
+TEST_CASE("wpa learns 5 GHz support from a scan that sees a 5 GHz network",
+          "[network][wpa][wifi_band]") {
+    WpaFakeFixture fx;
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+    // The fake's frequency list names no 5 GHz channel and no iw is installed,
+    // so init leaves the radio at 2.4 GHz only.
+    REQUIRE_FALSE(backend.supports_5ghz());
+
+    std::vector<WiFiNetwork> networks;
+    fx.fake->set_reply("SCAN_RESULTS", scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[ESS]\tSlow"}));
+    REQUIRE(backend.get_scan_results(networks).success());
+    CHECK_FALSE(backend.supports_5ghz());
+
+    fx.fake->set_reply("SCAN_RESULTS", scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[ESS]\tSlow",
+                                                     "aa:bb:cc:dd:ee:02\t5180\t-70\t[ESS]\tFast"}));
+    REQUIRE(backend.get_scan_results(networks).success());
+    CHECK(backend.supports_5ghz());
+}
+
+TEST_CASE("wpa status reads the kernel's address when STATUS carries none",
+          "[network][wpa][wifi_status_ip]") {
+    WpaFakeFixture fx;
+    fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\nfreq=2412\n");
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    std::vector<std::string> asked;
+    backend.set_ipv4_lookup_for_test([&asked](const std::string& netdev) {
+        asked.push_back(netdev);
+        return std::string("192.168.1.77");
+    });
+    REQUIRE(backend.start().success());
+
+    WifiBackend::ConnectionStatus status = backend.get_status();
+    REQUIRE(status.connected);
+    CHECK(status.ip_address == "192.168.1.77");
+    REQUIRE_FALSE(asked.empty());
+    CHECK(asked.back() == "wlan0");
+
+    SECTION("an address in STATUS is kept and the kernel is not asked") {
+        fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\nip_address=10.0.0.5\n");
+        asked.clear();
+        status = backend.get_status();
+        CHECK(status.ip_address == "10.0.0.5");
+        CHECK(asked.empty());
+    }
+
+    SECTION("a link that is not associated reports no address") {
+        fx.fake->set_reply("STATUS", "wpa_state=SCANNING\n");
+        asked.clear();
+        status = backend.get_status();
+        CHECK_FALSE(status.connected);
+        CHECK(status.ip_address.empty());
+        CHECK(asked.empty());
+    }
+}
+
 #endif // !__APPLE__

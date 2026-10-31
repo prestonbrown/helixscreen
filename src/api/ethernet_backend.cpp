@@ -27,7 +27,7 @@
 
 namespace {
 
-// Shared classification tables — see ethernet::is_ethernet_interface.
+// Shared classification tables — see helix::ethernet::is_ethernet_interface.
 // Reject first (loopback is equality-matched by the caller), then accept.
 
 constexpr const char* const kRejectPrefixes[] = {
@@ -64,7 +64,7 @@ bool starts_with_any(const std::string& name, const char* const* prefixes, size_
 
 } // namespace
 
-namespace ethernet {
+namespace helix::ethernet {
 
 bool is_ethernet_interface(const std::string& name, const std::string& sysfs_root) {
     if (name.empty() || name == "lo")
@@ -120,7 +120,7 @@ std::vector<std::string> scan_sysfs_interfaces(const std::string& sysfs_root) {
     return ethernet_interfaces;
 }
 
-} // namespace ethernet
+} // namespace helix::ethernet
 #endif // !__APPLE__ && !__ANDROID__
 
 std::unique_ptr<EthernetBackend> EthernetBackend::create() {
@@ -175,3 +175,56 @@ std::unique_ptr<EthernetBackend> EthernetBackend::create() {
     return backend;
 #endif
 }
+
+namespace helix::ethernet {
+
+bool is_link_connected(bool has_ip, const std::string& operstate) {
+    return has_ip && operstate != "down";
+}
+
+EthernetInfo select_interface(const std::vector<InterfaceState>& interfaces) {
+    EthernetInfo info;
+    if (interfaces.empty()) {
+        info.status = "No Ethernet interface";
+        spdlog::debug("[EthernetBackend] No Ethernet interface found");
+        return info;
+    }
+
+    auto has_ip = [](const InterfaceState& iface) {
+        return !iface.ip.empty() && iface.ip != "0.0.0.0" && iface.ip != "127.0.0.1";
+    };
+
+    const InterfaceState* up = nullptr;
+    const InterfaceState* addressed = nullptr;
+    for (const auto& iface : interfaces) {
+        if (iface.operstate == "up" && has_ip(iface)) {
+            up = &iface;
+            break;
+        }
+        if (!addressed && is_link_connected(has_ip(iface), iface.operstate)) {
+            addressed = &iface;
+        }
+    }
+    const InterfaceState& selected = up ? *up : addressed ? *addressed : interfaces.front();
+
+    info.interface = selected.name;
+    info.mac_address = selected.mac;
+    info.connected = is_link_connected(has_ip(selected), selected.operstate);
+    if (info.connected) {
+        info.ip_address = selected.ip;
+        info.status = "Connected";
+        spdlog::debug("[EthernetBackend] Ethernet connected: {} ({}, operstate: {})",
+                      info.interface, info.ip_address, selected.operstate);
+    } else if (selected.operstate == "down") {
+        info.status = "No cable";
+        spdlog::debug("[EthernetBackend] Ethernet cable disconnected: {} (operstate: {})",
+                      info.interface, selected.operstate);
+    } else {
+        info.status = "No connection";
+        spdlog::debug("[EthernetBackend] Ethernet interface {} has no IP (operstate: {})",
+                      info.interface, selected.operstate);
+    }
+    return info;
+}
+
+} // namespace helix::ethernet

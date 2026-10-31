@@ -80,40 +80,8 @@ std::vector<std::string> proc_wireless_ifaces(const std::string& proc_root) {
     return result;
 }
 
-// Best-effort: does this interface have a routable (non-link-local) IPv4?
-// Only meaningful against the live kernel socket table, so callers gate this
-// on probing the real sysfs root.
-bool iface_has_global_ipv4([[maybe_unused]] const std::string& iface) {
-#if defined(__APPLE__) || defined(HELIX_PLATFORM_ESP32)
-    return false;
-#else
-    ifaddrs* ifap = nullptr;
-    if (getifaddrs(&ifap) != 0) {
-        return false;
-    }
-    bool found = false;
-    for (auto* p = ifap; p; p = p->ifa_next) {
-        if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) {
-            continue;
-        }
-        if (!p->ifa_name || iface != p->ifa_name) {
-            continue;
-        }
-        auto* sin = reinterpret_cast<sockaddr_in*>(p->ifa_addr);
-        const uint32_t addr = ntohl(sin->sin_addr.s_addr);
-        // Skip 169.254.0.0/16 (link-local / APIPA) and 127.0.0.0/8.
-        if ((addr & 0xFFFF0000u) == 0xA9FE0000u) {
-            continue;
-        }
-        if ((addr & 0xFF000000u) == 0x7F000000u) {
-            continue;
-        }
-        found = true;
-        break;
-    }
-    freeifaddrs(ifap);
-    return found;
-#endif
+bool iface_has_global_ipv4(const std::string& iface) {
+    return !iface_global_ipv4(iface).empty();
 }
 
 } // namespace
@@ -230,6 +198,42 @@ std::string wifi_get_device_mac(const std::string& interface) {
 
     spdlog::debug("[wifi_ui] Found MAC address for '{}': {}", interface, helix::redact::mac(mac));
     return mac;
+#endif
+}
+
+std::string iface_global_ipv4([[maybe_unused]] const std::string& iface) {
+#if defined(__APPLE__) || defined(HELIX_PLATFORM_ESP32)
+    return {};
+#else
+    ifaddrs* ifap = nullptr;
+    if (getifaddrs(&ifap) != 0) {
+        return {};
+    }
+    std::string found;
+    for (auto* p = ifap; p; p = p->ifa_next) {
+        if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) {
+            continue;
+        }
+        if (!p->ifa_name || iface != p->ifa_name) {
+            continue;
+        }
+        auto* sin = reinterpret_cast<sockaddr_in*>(p->ifa_addr);
+        const uint32_t addr = ntohl(sin->sin_addr.s_addr);
+        // Skip 169.254.0.0/16 (link-local / APIPA) and 127.0.0.0/8.
+        if ((addr & 0xFFFF0000u) == 0xA9FE0000u) {
+            continue;
+        }
+        if ((addr & 0xFF000000u) == 0x7F000000u) {
+            continue;
+        }
+        char text[INET_ADDRSTRLEN] = {};
+        if (inet_ntop(AF_INET, &sin->sin_addr, text, sizeof(text)) != nullptr) {
+            found = text;
+            break;
+        }
+    }
+    freeifaddrs(ifap);
+    return found;
 #endif
 }
 

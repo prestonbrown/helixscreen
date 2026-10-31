@@ -91,7 +91,11 @@ def main(argv=None) -> int:
     if base == "auto":
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from diff_base import resolve_base  # noqa: E402
-        base, _ = resolve_base(root)
+        base, why = resolve_base(root)
+        if base == "HEAD":
+            print(f"❌ Test budget: no fork point to measure from ({why}). A shallow or "
+                  f"single-branch checkout has no upstream; fetch one, or pass --base REV")
+            return 1
     if base == "HEAD" or git(root, "rev-parse", base) == git(root, "rev-parse", "HEAD"):
         print("✅ Test budget: no committed work to measure")
         return 0

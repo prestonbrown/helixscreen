@@ -87,9 +87,11 @@ make dev-timing                      # What the dev loop costs, measured (ledger
 #   answered from data. Derived + gitignored; rebuilding it takes a few seconds.
 
 scripts/syntax_check.py <file>...    # "does this compile?" in seconds
-#   Takes the file's own flags from compile_commands.json and runs -fsyntax-only,
-#   instead of the minutes `make test` spends re-linking. Proves nothing about
-#   behaviour: run the tag for that. A brand-new file borrows a sibling's flags.
+#   Takes the file's own flags and runs -fsyntax-only, instead of the minutes
+#   `make test` spends re-linking. Proves nothing about behaviour: run the tag for
+#   that. Flags: a current database entry, else `make print-compile-command F=<file>`
+#   (works in an unbuilt tree), else a neighbour's (scripts/compile_command.py,
+#   shared with the clang gate).
 ./build/bin/helix-tests "[tag]"      # Run specific test tags
 make pi-test                         # Build on thelio + deploy + run
 
@@ -104,6 +106,10 @@ make remote-native                   # build the app there
 scripts/test-host-run.sh mutate --tests '[tag]'   # mutation gate on the test host
 scripts/test-host-run.sh asan '[tag]'            # AddressSanitizer on the test host
 scripts/test-host-run.sh sweep                   # make unit-sweep on the test host
+scripts/test-host-run.sh test -# '[#test_foo]'   # helix-tests there, every argument passed through
+scripts/test-host-run.sh exec [--build] -- bash ./x.sh   # any command in the synced mirror
+#   test and exec quote each argument (printf %q): a space, quote or `;` in one
+#   arrives as data, never as shell, so no quote-splicing to smuggle a command in.
 #   The test host is any Linux box with Docker, named in
 #   ~/.config/helixscreen/build-hosts.env (HELIX_TEST_HOST=..., zeus here) and set
 #   up once by scripts/test-host-setup.sh; docs/devel/BUILD_SYSTEM.md "Using your
@@ -111,7 +117,7 @@ scripts/test-host-run.sh sweep                   # make unit-sweep on the test h
 #   bats stays local (`make test-shell`): the container runs as root with no
 #   shellcheck, so about 190 shell tests fail there on the environment alone.
 #   All three are expensive and non-interactive, so they belong on the idle
-#   big box. `test-host-run.sh test` with no tag runs the suite in ONE process,
+#   big box. `test-host-run.sh test` with no arguments runs the suite in ONE process,
 #   where cross-test contamination fails cases no branch touched: not a gate.
 #   ASAN especially: thelio's /etc/ld.so.preload makes ASAN's runtime load
 #   second, so the binary produces NO test output and exits 0 - a pass that ran

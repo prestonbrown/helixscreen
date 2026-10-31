@@ -216,11 +216,11 @@ class AfcTestAccess {
     template <class B, class... A> static decltype(auto) on_started(B& b, A&&... a) {
         return b.on_started(std::forward<A>(a)...);
     }
-    template <class B, class... A> static decltype(auto) parse_afc_state(B& b, A&&... a) {
-        return b.parse_afc_state(std::forward<A>(a)...);
+    template <class B, class... A> static decltype(auto) apply_afc_state(B& b, A&&... a) {
+        return b.apply_afc_state(std::forward<A>(a)...);
     }
-    template <class B, class... A> static decltype(auto) parse_lane_data(B& b, A&&... a) {
-        return b.parse_lane_data(std::forward<A>(a)...);
+    template <class B, class... A> static decltype(auto) apply_lane_data(B& b, A&&... a) {
+        return b.apply_lane_data(std::forward<A>(a)...);
     }
     template <class B, class... A> static decltype(auto) apply_lane_data_response(B& b, A&&... a) {
         return b.apply_lane_data_response(std::forward<A>(a)...);
@@ -264,10 +264,6 @@ class AfcTestAccess {
     }
     template <class B, class... A> static decltype(auto) ensure_homed_then(B& b, A&&... a) {
         return b.ensure_homed_then(std::forward<A>(a)...);
-    }
-    /// Static private method, so it takes no backend object.
-    template <class... A> static decltype(auto) database_item_value(A&&... a) {
-        return AmsBackendAfc::database_item_value(std::forward<A>(a)...);
     }
     template <class B, class... A> static decltype(auto) clear_values(B& b, A&&... a) {
         return b.clear_values(std::forward<A>(a)...);

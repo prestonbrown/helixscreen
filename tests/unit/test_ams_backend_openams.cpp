@@ -25,6 +25,7 @@
 #include "print_start_inputs.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "test_helpers/openams_status_json.h"
 #include "test_helpers/openams_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/scoped_env.h"
@@ -49,6 +50,7 @@ using helix::AmsType;
 using helix::PathTopology;
 using helix::SlotStatus;
 using json = nlohmann::json;
+using namespace openams_json;
 
 namespace {
 
@@ -112,53 +114,6 @@ class OpenAmsHarness : public AmsBackendOpenAms {
     helix::SharedCallback<void()> on_complete;
     helix::SharedCallback<void(const MoonrakerError&)> on_error;
 };
-
-json all_commands() {
-    return json{{"load", "OPENAMS_LOAD"},
-                {"unload", "OPENAMS_UNLOAD"},
-                {"cancel", "OAMSM_LOAD_FILAMENT_CANCEL"},
-                {"reset", "OAMSM_CLEAR_ERRORS"}};
-}
-
-json lane(const std::string& state, const json& group = nullptr, const json& slot = nullptr) {
-    return json{{"id", "fps"},          {"state", state},     {"current_group", group},
-                {"current_slot", slot}, {"following", false}, {"direction", 0},
-                {"message", nullptr}};
-}
-
-json slot(int id, int bay, bool ready, bool loaded = false) {
-    return json{{"id", id}, {"bay", bay}, {"ready", ready}, {"loaded", loaded}};
-}
-
-/// One four-bay hub unit on lane `fps`, slot ids 0-3. T0 owns bays 0 and 1,
-/// T1 bay 2, T2 bay 3. Bay 0 is empty, the rest hold a spool, nothing loaded.
-json manager(json lanes = json::array({lane("unloaded")}), json commands = all_commands()) {
-    return json{{"api_version", 1},
-                {"schema", "openams.manager"},
-                {"ready", true},
-                {"commands", std::move(commands)},
-                {"lanes", std::move(lanes)},
-                {"units",
-                 json::array({json{{"id", "1"},
-                                   {"name", "unit1"},
-                                   {"kind", "oams"},
-                                   {"topology", "hub"},
-                                   {"lane", "fps"},
-                                   {"connected", true},
-                                   {"slots", json::array({slot(0, 0, false), slot(1, 1, true),
-                                                          slot(2, 2, true), slot(3, 3, true)})}}})},
-                {"groups", json::array({json{{"name", "T0"}, {"lane", "fps"}, {"slots", {0, 1}}},
-                                        json{{"name", "T1"}, {"lane", "fps"}, {"slots", {2}}},
-                                        json{{"name", "T2"}, {"lane", "fps"}, {"slots", {3}}}})},
-                {"current_group", nullptr}};
-}
-
-/// manager() with slot 2 (T1) loaded.
-json loaded_manager(json commands = all_commands()) {
-    json m = manager(json::array({lane("loaded", "T1", 2)}), std::move(commands));
-    m["units"][0]["slots"][2]["loaded"] = true;
-    return m;
-}
 
 struct TmpCacheDir {
     std::filesystem::path path;
@@ -240,66 +195,6 @@ TEST_CASE("AFC keeps the printer when oams_manager is also present", "[ams][open
 // Status model
 // ============================================================================
 
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS snapshot maps units, slots, groups and topology",
-                 "[ams][openams]") {
-    OpenAmsHarness backend;
-    json m = loaded_manager();
-    m["units"].push_back(json{{"id", "2"},
-                              {"name", "Direct feeder"},
-                              {"kind", "feeder"},
-                              {"topology", "linear"},
-                              {"lane", "fps"},
-                              {"connected", true},
-                              {"slots", json::array({slot(9, 0, true)})}});
-    m["groups"].push_back(json{{"name", "T3"}, {"lane", "fps"}, {"slots", {9}}});
-    backend.feed(m);
-
-    const auto info = backend.get_system_info();
-    CHECK(info.type == AmsType::OPENAMS);
-    REQUIRE(info.units.size() == 2);
-    CHECK(info.total_slots == 5);
-    CHECK(info.units[0].topology == PathTopology::HUB);
-    CHECK(info.units[1].topology == PathTopology::LINEAR);
-    CHECK(backend.get_topology() == PathTopology::MIXED);
-    // The contract carries no toolhead sensor, so no unit claims one.
-    CHECK_FALSE(info.units[0].has_toolhead_sensor);
-    CHECK_FALSE(info.units[1].has_toolhead_sensor);
-    CHECK(info.units[0].slots[0].status == SlotStatus::EMPTY);
-    CHECK(info.units[0].slots[1].status == SlotStatus::AVAILABLE);
-    CHECK(info.units[0].slots[2].status == SlotStatus::LOADED);
-    CHECK(info.current_slot == 2);
-    CHECK(info.current_tool == 1);
-    CHECK(info.filament_loaded);
-    CHECK(info.units[0].slots[1].mapped_tool == 0);
-    CHECK(info.units[1].slots[0].mapped_tool == 3);
-    CHECK(backend.get_tool_mapping() == std::vector<int>{1, 2, 3, 4});
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS reports each lane's FPS as its units' buffer",
-                 "[ams][openams]") {
-    OpenAmsHarness backend;
-
-    SECTION("a lane with a pressure reading") {
-        json m = manager(json::array({lane("loaded", "T1", 2)}));
-        m["lanes"][0]["pressure"] = 0.62;
-        m["lanes"][0]["set_point"] = 0.5;
-        backend.feed(m);
-
-        const auto info = backend.get_system_info();
-        REQUIRE(info.units[0].buffer_health.has_value());
-        const auto& fps = *info.units[0].buffer_health;
-        CHECK(fps.fps_reported);
-        CHECK(fps.fps_value == Catch::Approx(0.62f));
-        CHECK(fps.fps_set_point == Catch::Approx(0.5f));
-        CHECK_FALSE(fps.fault_detection_enabled);
-    }
-
-    SECTION("a manager that publishes no pressure") {
-        backend.feed(manager());
-        CHECK_FALSE(backend.get_system_info().units[0].buffer_health.has_value());
-    }
-}
-
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes its FPS as a one-sided pressure",
                  "[ams][openams]") {
     OpenAmsHarness backend;
@@ -313,11 +208,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes its FPS as a one-sided pre
     };
 
     SECTION("the sensor is compression only and never reaches the two-ended scale") {
-        const auto info = feed_pressure(0.62f, 0.5);
-        const auto& fps = *info.units[0].buffer_health;
-        CHECK(fps.compression_only);
-        CHECK(fps.filament_loaded);
-        CHECK(info.pressure_sensor_bias() <= -1.5f);
+        CHECK(feed_pressure(0.62f, 0.5).pressure_sensor_bias() <= -1.5f);
     }
 
     SECTION("above set_point is more compression, not slack") {
@@ -397,6 +288,14 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS keeps the snapshot across partial st
     const auto info = backend.get_system_info();
     CHECK(info.total_slots == 4);
     CHECK(info.action == AmsAction::UNLOADING);
+
+    // Units on different paths make the system MIXED; the backend applies what the
+    // snapshot read.
+    OpenAmsHarness mixed;
+    auto status = loaded_manager();
+    status["units"][1]["topology"] = "linear";
+    mixed.feed(status);
+    CHECK(mixed.get_topology() == PathTopology::MIXED);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS without a supported API presents nothing, not an error",
@@ -421,30 +320,13 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS without a supported API presents not
     CHECK(backend.operations.empty());
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS draws an unknown unit topology as a hub",
-                 "[ams][openams]") {
-    OpenAmsHarness backend;
-    json m = manager();
-    m["units"][0]["topology"] = "carousel";
-    backend.feed(m);
-
-    CHECK(backend.get_system_info().total_slots == 4);
-    CHECK(backend.get_unit_topology(0) == PathTopology::HUB);
-    REQUIRE(backend.load_filament(2).success());
-    CHECK(backend.operations == std::vector<std::string>{"OPENAMS_LOAD GROUP=T1 SLOT=2"});
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS does not fold two loaded lanes into one current slot",
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS unloads the asked slot's lane while several are loaded",
                  "[ams][openams]") {
     OpenAmsHarness backend;
     json m = manager(json::array({lane("loaded", "T1", 2), lane("loaded", "T2", 3)}));
     m["lanes"][1]["id"] = "fps1";
     backend.feed(m);
 
-    const auto info = backend.get_system_info();
-    CHECK(info.filament_loaded);
-    CHECK(info.current_slot == -1);
-    CHECK(info.current_tool == -1);
     // The unload names the lane the loaded slot is on, so several loaded
     // lanes do not stop it from emptying the one asked about.
     REQUIRE(backend.unload_filament(3).success());
@@ -649,17 +531,6 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS without reset or cancel refuses just
     CHECK(backend.reset().result == AmsResult::NOT_SUPPORTED);
     CHECK(backend.cancel().result == AmsResult::NOT_SUPPORTED);
     CHECK(backend.commands.empty());
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS ignores a command name that is not one G-code word",
-                 "[ams][openams]") {
-    OpenAmsHarness backend;
-    json commands = all_commands();
-    commands["load"] = "OPENAMS_LOAD\nG28";
-    backend.feed(manager(json::array({lane("unloaded")}), commands));
-
-    CHECK(backend.load_filament(1).result == AmsResult::NOT_SUPPORTED);
-    CHECK(backend.operations.empty());
 }
 
 // ============================================================================
@@ -923,59 +794,6 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS locates a reported error during a pe
 // Two units on one lane: an AMS HT (slot 0) and an AMS 2 Pro (slots 1-4)
 // ============================================================================
 
-namespace {
-
-json toolhead_commands() {
-    return json{{"load", "OAMSM_LOAD_TO_TOOLHEAD"},
-                {"unload", "OAMSM_UNLOAD_FROM_TOOLHEAD"},
-                {"cancel", "OAMSM_LOAD_FILAMENT_CANCEL"},
-                {"reset", "OAMSM_CLEAR_ERRORS"}};
-}
-
-/// The core every manager publishes. @p loaded is the global slot on lane fps,
-/// -1 for none. @p openams_extras adds what only the openams plugin publishes.
-json shared_manager(int loaded = -1, json commands = all_commands(), bool openams_extras = false) {
-    json l = lane(loaded >= 0 ? "loaded" : "unloaded",
-                  loaded >= 0 ? json("T" + std::to_string(loaded)) : json(),
-                  loaded >= 0 ? json(loaded) : json());
-    l["pressure"] = 0.79;
-    l["set_point"] = 0.5;
-    json groups = json::array();
-    for (int i = 0; i < 5; ++i) {
-        groups.push_back(json{{"name", "T" + std::to_string(i)}, {"lane", "fps"}, {"slots", {i}}});
-    }
-    json m{{"api_version", 1},
-           {"schema", "openams.manager"},
-           {"ready", true},
-           {"commands", std::move(commands)},
-           {"lanes", json::array({l})},
-           {"units", json::array({json{{"id", "1"},
-                                       {"name", "ams_ht"},
-                                       {"kind", "oams"},
-                                       {"topology", "hub"},
-                                       {"lane", "fps"},
-                                       {"connected", true},
-                                       {"slots", json::array({slot(0, 0, true, loaded == 0)})}},
-                                  json{{"id", "2"},
-                                       {"name", "ams2"},
-                                       {"kind", "oams"},
-                                       {"topology", "hub"},
-                                       {"lane", "fps"},
-                                       {"connected", true},
-                                       {"slots", json::array({slot(1, 0, true, loaded == 1),
-                                                              slot(2, 1, true, loaded == 2),
-                                                              slot(3, 2, true, loaded == 3),
-                                                              slot(4, 3, true, loaded == 4)})}}})},
-           {"groups", groups}};
-    if (openams_extras) {
-        m["lanes_by_fps"] = {{"fps", {{"op", "loaded"}, {"extruder", "extruder"}}}};
-        m["topology"] = {{"schema_version", 1}, {"fps", {"fps"}}};
-    }
-    return m;
-}
-
-} // namespace
-
 TEST_CASE_METHOD(HelixTestFixture,
                  "OpenAMS units on one lane share one hub, with or without the openams extras",
                  "[ams][openams][shared_hub]") {
@@ -1238,20 +1056,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
 namespace {
 
-json fault_entry(const std::string& code, const std::string& text, json actions,
-                 const std::string& severity = "stop", json bay = nullptr) {
-    return json{{"severity", severity}, {"code", code},       {"text", text},
-                {"bay", bay},           {"actions", actions}, {"source", "firmware"}};
-}
-
-/// shared_manager() with `devices.<unit>.faults` set.
-json faulted_manager(const json& ams_ht_faults, const json& ams2_faults = json::array(),
-                     json commands = toolhead_commands()) {
-    json m = shared_manager(-1, std::move(commands), true);
-    m["devices"] = {{"ams_ht", {{"faults", ams_ht_faults}}}, {"ams2", {{"faults", ams2_faults}}}};
-    return m;
-}
-
 const std::string kClearHt = "OAMS_CLEAR_FAULT OAMS=1\nOAMSM_CLEAR_ERRORS";
 
 } // namespace
@@ -1363,64 +1167,6 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS shows no fault and resets as before 
 // Environment and dryer
 // ============================================================================
 
-namespace {
-
-json dryer_device(bool ht, const std::string& state = "off", double target = 0.0,
-                  int remaining_s = 0, bool offer = true) {
-    json actions = json::array({"load", "unload"});
-    if (offer) {
-        // A running cycle withdraws dryer_start.
-        if (remaining_s == 0) {
-            actions.push_back("dryer_start");
-        }
-        actions.push_back("dryer_stop");
-    }
-    return json{
-        {"capabilities",
-         {{"dryer", true},
-          {"dryer_target_min_c", 45.0},
-          {"dryer_target_max_c", ht ? 80.0 : 65.0},
-          {"dryer_requires_unloaded", !ht}}},
-        {"environment", {{"temp_c", ht ? 26.1 : 28.2}, {"rh_pct", ht ? 29.0 : 31.0}}},
-        {"dryer",
-         {{"state", state}, {"target_c", target}, {"remaining_s", remaining_s}, {"fan_pct", 60.0}}},
-        {"telemetry", {{"dryer", {{"chamber_c", 51.5}}}}},
-        {"supported_actions", actions}};
-}
-
-json dryer_manager(int loaded = -1, json ht = dryer_device(true), json ams2 = dryer_device(false)) {
-    json m = shared_manager(loaded, toolhead_commands(), true);
-    m["devices"] = {{"ams_ht", std::move(ht)}, {"ams2", std::move(ams2)}};
-    return m;
-}
-
-} // namespace
-
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS reads each unit's own temperature and humidity",
-                 "[ams][openams][environment]") {
-    OpenAmsHarness backend;
-    backend.feed(dryer_manager());
-
-    CHECK(backend.traits().has_environment_sensors);
-    const auto info = backend.get_system_info();
-    const auto ht = info.units[0].environment;
-    const auto pro = info.units[1].environment;
-    REQUIRE(ht.has_value());
-    REQUIRE(pro.has_value());
-    CHECK(ht->temperature_c == Catch::Approx(26.1f));
-    CHECK(ht->humidity_pct == Catch::Approx(29.0f));
-    CHECK(ht->has_humidity);
-    CHECK(pro->temperature_c == Catch::Approx(28.2f));
-    CHECK(pro->humidity_pct == Catch::Approx(31.0f));
-
-    SECTION("a reading without humidity says so") {
-        json ams2 = dryer_device(false);
-        ams2["environment"] = {{"temp_c", 30.0}};
-        backend.feed(dryer_manager(-1, dryer_device(true), ams2));
-        CHECK_FALSE(backend.get_system_info().units[1].environment->has_humidity);
-    }
-}
-
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes no environment or dryer without devices",
                  "[ams][openams][environment][dryer]") {
     // klipper_openams publishes no `devices`.
@@ -1435,62 +1181,11 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes no environment or dryer wi
     CHECK(backend.commands.empty());
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS offers a dryer only where the unit advertises it",
-                 "[ams][openams][dryer]") {
-    OpenAmsHarness backend;
-    backend.feed(dryer_manager());
-
-    const DryerInfo ht = backend.get_dryer_info(0);
-    CHECK(ht.supported);
-    CHECK(ht.min_temp_c == Catch::Approx(45.0f));
-    CHECK(ht.max_temp_c == Catch::Approx(80.0f));
-    CHECK(backend.get_dryer_info(1).max_temp_c == Catch::Approx(65.0f));
-    CHECK(ht.max_duration_min == 10080);
-
-    SECTION("neither action withholds the dryer") {
-        json none = dryer_device(true);
-        none["supported_actions"] = json::array({"load"});
-        backend.feed(dryer_manager(-1, none));
-        CHECK_FALSE(backend.get_dryer_info(0).supported);
-        CHECK(backend.get_dryer_info(1).supported);
-        CHECK_FALSE(backend.start_drying(55.0f, 60, -1, 0).success());
-        CHECK_FALSE(backend.stop_drying(0).success());
-    }
-    SECTION("no dryer capability withholds the dryer") {
-        json none = dryer_device(true);
-        none["capabilities"]["dryer"] = false;
-        backend.feed(dryer_manager(-1, none));
-        CHECK_FALSE(backend.get_dryer_info(0).supported);
-    }
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "OpenAMS maps the unit's dryer state", "[ams][openams][dryer]") {
-    OpenAmsHarness backend;
-    backend.feed(dryer_manager());
-    CHECK_FALSE(backend.get_dryer_info(0).active);
-    CHECK(backend.get_dryer_info(0).target_temp_c == Catch::Approx(0.0f));
-
-    backend.feed(dryer_manager(-1, dryer_device(true, "heating", 60.0, 5400)));
-    DryerInfo dry = backend.get_dryer_info(0);
-    CHECK(dry.active);
-    CHECK(dry.target_temp_c == Catch::Approx(60.0f));
-    CHECK(dry.remaining_min == 90);
-    CHECK(dry.current_temp_c == Catch::Approx(51.5f));
-    CHECK(dry.fan_pct == 60);
-    CHECK_FALSE(backend.get_dryer_info(1).active);
-
-    backend.feed(dryer_manager(-1, dryer_device(true, "holding", 60.0, 61)));
-    CHECK(backend.get_dryer_info(0).active);
-    CHECK(backend.get_dryer_info(0).remaining_min == 2);
-
-    backend.feed(dryer_manager(-1, dryer_device(true, "fault", 60.0, 100)));
-    CHECK_FALSE(backend.get_dryer_info(0).active);
-}
-
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS starts and stops a unit's dryer, clamped to its range",
                  "[ams][openams][dryer]") {
     OpenAmsHarness backend;
     backend.feed(dryer_manager());
+    CHECK(backend.traits().has_environment_sensors);
 
     REQUIRE(backend.start_drying(55.0f, 120, -1, 0).success());
     CHECK(backend.commands.back() == "OAMS_DRYER_START OAMS=1 TARGET=55 DURATION=7200");

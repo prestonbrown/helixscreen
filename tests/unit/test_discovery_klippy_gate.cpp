@@ -391,6 +391,30 @@ TEST_CASE("Discovery resolves the sensor toggle command from configfile.settings
     }
 }
 
+TEST_CASE("Discovery reads whether the firmware starts the print before the file",
+          "[discovery][klippy_gate][start_macro]") {
+    LVGLTestFixture fixture;
+    ConfigfileSettingsClient client(MoonrakerClientMock::PrinterType::VORON_24);
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+
+    auto discover = [&client]() {
+        bool completed = false;
+        client.discover_printer_real([&completed]() { completed = true; },
+                                     [](const std::string& reason) { FAIL(reason); });
+        REQUIRE(completed);
+        return client.hardware().firmware_runs_start_macro_before_file();
+    };
+
+    SECTION("OpenCreator's virtual_sdcard runs C5_PRINT_START before the file") {
+        client.extra_settings = json{{"virtual_sdcard", {{"auto_creator5_start", true}}}};
+        CHECK(discover());
+    }
+
+    SECTION("a stock virtual_sdcard streams the file from its first line") {
+        CHECK_FALSE(discover());
+    }
+}
+
 TEST_CASE("A Centauri Carbon's Bed Screws runs the wrapped builtin, or stock without a wrapper",
           "[discovery][klippy_gate][screws_tilt]") {
     LVGLTestFixture fixture;
