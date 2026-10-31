@@ -37,6 +37,7 @@ struct ResolvedLane {
     std::optional<std::string> product_name;
     std::optional<int> spoolman_id;
     std::optional<int> spoolman_filament_id;
+    std::optional<std::string> spoolman_orca_filament_id;
     std::optional<int> spoolman_vendor_id;
 
     std::optional<float> remaining_weight_g;

@@ -5022,6 +5022,7 @@ void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slo
     // lane while the exhausted spool's id stops being re-asserted onto it.
     o.spoolman_id = 0;
     o.spoolman_filament_id = 0;
+    o.spoolman_orca_filament_id.clear();
     o.spoolman_vendor_id = 0;
     o.updated_at = std::chrono::system_clock::now();
 
@@ -5032,6 +5033,7 @@ void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slo
     // paint would put it back on the very next poll.
     slot.spoolman_id = 0;
     slot.spoolman_filament_id = 0;
+    slot.spoolman_orca_filament_id.clear();
     slot.spoolman_vendor_id = 0;
 
     // The lane's own records lose the handle too, and only the handle: #1390 is
@@ -5042,6 +5044,7 @@ void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slo
     helix::ams::retract_lane_declarations(lane_id(slot_index), [](helix::ams::Observation& kept) {
         kept.spoolman_id.reset();
         kept.spoolman_filament_id.reset();
+        kept.spoolman_orca_filament_id.reset();
         kept.spoolman_vendor_id.reset();
     });
 

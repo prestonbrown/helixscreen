@@ -1202,12 +1202,13 @@ struct SlotInfo {
         extruder_name; ///< Physical extruder name (e.g., "extruder2") for shared-extruder dedup
 
     // Spoolman integration
-    int spoolman_id = 0;           ///< Spoolman spool ID (0=not tracked)
-    int spoolman_filament_id = 0;  ///< Spoolman filament definition ID (0=unknown)
-    int spoolman_vendor_id = 0;    ///< Spoolman vendor ID (0=unknown)
-    std::string spool_name;        ///< Spool name from Spoolman
-    float remaining_weight_g = -1; ///< Remaining filament weight in grams (-1=unknown)
-    float total_weight_g = -1;     ///< Total spool weight in grams (-1=unknown)
+    int spoolman_id = 0;                   ///< Spoolman spool ID (0=not tracked)
+    std::string spoolman_orca_filament_id; // Explicit Orca preset id of the linked spool
+    int spoolman_filament_id = 0;          ///< Spoolman filament definition ID (0=unknown)
+    int spoolman_vendor_id = 0;            ///< Spoolman vendor ID (0=unknown)
+    std::string spool_name;                ///< Spool name from Spoolman
+    float remaining_weight_g = -1;         ///< Remaining filament weight in grams (-1=unknown)
+    float total_weight_g = -1;             ///< Total spool weight in grams (-1=unknown)
 
     // Endless spool support (Happy Hare)
     int endless_spool_group = -1; ///< Endless spool group (-1=not grouped)
@@ -1333,7 +1334,8 @@ struct SlotInfo {
     template <class S> static auto identity_fields(S& s) {
         return std::tie(s.color_rgb, s.color_name, s.material, s.brand, s.catalog_id,
                         s.product_name, s.spool_name, s.spoolman_id, s.spoolman_filament_id,
-                        s.spoolman_vendor_id, s.remaining_weight_g, s.total_weight_g);
+                        s.spoolman_orca_filament_id, s.spoolman_vendor_id, s.remaining_weight_g,
+                        s.total_weight_g);
     }
 
     /**
@@ -1376,6 +1378,7 @@ struct SlotInfo {
     void clear_spoolman_link() {
         spoolman_id = 0;
         spoolman_filament_id = 0;
+        spoolman_orca_filament_id.clear();
         spoolman_vendor_id = 0;
         spool_name.clear();
     }

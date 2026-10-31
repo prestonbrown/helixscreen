@@ -60,6 +60,8 @@ ResolvedLane resolve(const LaneSources& sources) {
             out.spoolman_id = *obs->spoolman_id;
         if (obs->spoolman_filament_id.has_value())
             out.spoolman_filament_id = *obs->spoolman_filament_id;
+        if (obs->spoolman_orca_filament_id.has_value())
+            out.spoolman_orca_filament_id = *obs->spoolman_orca_filament_id;
         if (obs->spoolman_vendor_id.has_value())
             out.spoolman_vendor_id = *obs->spoolman_vendor_id;
     }

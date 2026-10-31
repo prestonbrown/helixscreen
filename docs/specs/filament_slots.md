@@ -1,6 +1,6 @@
 # Filament Slot Metadata — `lane_data` Convention
 
-**Status**: Informational, v1.17 (2026-10). See [Changelog](#changelog).
+**Status**: Informational, v1.18 (2026-10). See [Changelog](#changelog).
 
 This document describes HelixScreen's use of the `lane_data` Moonraker database
 namespace to share per-slot filament metadata with OrcaSlicer and other tools.
@@ -57,7 +57,8 @@ and the consumed fields (`lane`, `color`, `material`, `bed_temp`,
 [PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) also read a
 string `filament_id` and select the exact filament preset carrying that id
 (OrcaSlicer's docs/HLSD/filament_id.md); HelixScreen writes it for a slot whose
-catalog product has a known OrcaSlicer id (§3).
+linked Spoolman filament explicitly carries an OrcaSlicer id, falling back to
+the catalog product when it has a known id (§3).
 
 The convention is intentionally permissive:
 
@@ -181,7 +182,7 @@ reference below.
 | `lane` | string | yes | stringified integer, 0-based | Tool / slot index as interpreted by the slicer. Matches OrcaSlicer's tool-index convention. See §4 for the intentional off-by-one versus the outer DB key. | HelixScreen writes slot index as string. |
 | `color` | string | optional | `#RRGGBB` hex | Slot color. Leading `#` is conventional; HelixScreen's parser also accepts `0x`-prefixed forms on read. Emitted whenever the record carries a colour at all, pure black `#000000` included: black is a real filament colour, not an unset one. | User-edited, or firmware-reported on backends where the user has no override. |
 | `material` | string | optional | short code (`PLA`, `PETG`, `ABS`, `TPU`, …) | The **slicer-matchable** material string. OrcaSlicer matches a lane to a preset by this value alone, so a writer should emit a string the slicer's library actually carries. HelixScreen derives it from the user's precise type (see `helix_material`): explicit override → exact library type → base polymer, and **omits the field entirely** when nothing safely matches, rather than emit a string the slicer would resolve to a wrong (Generic PLA) preset. Readers should still treat unknown values as opaque strings — do NOT silently map them. | Derived by HelixScreen (`orca_match_type()`), or user-edited on writers without a match table. |
-| `filament_id` | string | optional | OrcaSlicer preset `filament_id` | The OrcaSlicer filament preset id of the catalog product the user picked for this slot. OrcaSlicer (since PR #14423) matches it against its installed presets' `filament_id` and selects that exact preset; an id no installed preset carries falls back to the generic preset for `material`, with a notice. OrcaSlicer ignores a numeric value, which is what Happy Hare's records carry under this key (Spoolman's filament id). HelixScreen emits it only when the record's `helix_catalog_id` names a catalog product with a recorded Orca id (`orca_id` in assets/filaments.json or the user overlay) that no other product in the catalog carries. An ambiguous id, one several products share, is never written, since it would select another product's preset, possibly of another material. A user-overlay entry for a built-in product uses its own `orca_id` and carries none when it has none. HelixScreen never derives an id from brand or name. HelixScreen does not read it back. | HelixScreen's filament catalog (`to_lane_data_record()`). |
+| `filament_id` | string | optional | OrcaSlicer preset id | The exact preset id explicitly supplied by a linked Spoolman filament, otherwise the catalog product the user picked. OrcaSlicer (since PR #14423) matches it against installed presets; an unknown id falls back to material matching. Numeric values are never Orca ids (Happy Hare uses this key for Spoolman numeric filament ids). A catalog fallback is emitted only when its recorded `orca_id` is unique to that product. HelixScreen never derives an id from brand or name, and does not read this shared field back. See [Spoolman exact preset IDs](#spoolman-exact-preset-ids) below. | Linked Spoolman filament, then HelixScreen filament catalog. |
 | `vendor` | string | optional | free-form | Brand / manufacturer. Readers match case-insensitively when pairing with their own filament databases. | User-edited. |
 | `vendor_name` | string | optional | free-form | Alias of `vendor`, mirroring Happy Hare's key convention (`push_lane_data` in components/mmu_server.py). Emitted with the same value as `vendor` for forward-compat: as OrcaSlicer moves toward vendor-aware preset matching, `vendor_name` is the key it is most likely to consume. Zero-cost today — Orca ignores unknown keys. HelixScreen's reader accepts either key. | Same as `vendor`. |
 | `spool_id` | integer | optional | positive integer | Spoolman spool ID for the physical spool currently loaded. Omitted when zero. | User-selected from Spoolman, if configured. |
@@ -208,6 +209,7 @@ throw on unknown keys).
 | `name` | string | optional | free-form | Alias of `spool_name`, mirroring Happy Hare's key convention (`push_lane_data` in components/mmu_server.py). Emitted with the same value as `spool_name` for forward-compat. HelixScreen's reader accepts either key. | Same as `spool_name`. |
 | `spoolman_vendor_id` | integer | optional | positive integer | Spoolman vendor ID, paired with `spool_id` for full Spoolman round-tripping. Omitted when zero. | From Spoolman when a spool is selected. |
 | `helix_spoolman_filament_id` | integer | optional | positive integer | The Spoolman filament definition ID behind the `spool_id`: the specific filament record whose vendor, material and colour the spool instantiates. Filed with the spool id and dropped with it, since a definition id whose spool is unlinked names nothing. `helix_`-prefixed because the unprefixed `filament_id` is OrcaSlicer's preset id in HelixScreen's records and Spoolman's numeric filament id in Happy Hare's. Omitted when zero. | From Spoolman when a spool is selected. |
+| `helix_spoolman_orca_filament_id` | string | optional | OrcaSlicer preset id | Explicit Orca id of the linked Spoolman filament. Stored separately from the shared `filament_id` so reloads preserve its source and priority. Omitted when unlinked or invalid; removed on unlink, spool replacement, or removal of the extra from the same spool. | Spoolman `filament.extra.orca_filament_id`. |
 | `remaining_weight_g` | float | optional | grams | Remaining filament weight. Negative = unset / unknown. | Spoolman, or user-entered. |
 | `total_weight_g` | float | optional | grams | Full-spool nominal weight. Negative = unset / unknown. | Spoolman, or user-entered. |
 | `color_name` | string | optional | free-form | Human-readable color label (e.g. `"Orange"`), distinct from the `color` hex value. Some user workflows care about the marketing name as well as the RGB. | User-edited, or auto-filled from Spoolman. |
@@ -228,6 +230,25 @@ them, and none should try to interpret them. But dropping them on a rewrite
 silently reassigns authorship: a colour the user chose comes back as a value
 nobody claimed, and the next firmware report overwrites it. Carry the three
 keys through unchanged, or leave the record alone.
+
+### Spoolman exact preset IDs
+
+Define a filament extra field named `orca_filament_id` with type text, then set it
+to the `filament_id` carried by the desired OrcaSlicer preset. All physical spools
+of that filament use the same value. This is an explicit mapping, not the numeric
+Spoolman filament or spool id, and HelixScreen does not create the field. The
+preset must be installed and eligible for matching in OrcaSlicer.
+
+Spoolman JSON-encodes extra values. The API representation is:
+
+    {"extra": {"orca_filament_id": "\"P123abcd\""}}
+
+HelixScreen decodes exactly once and accepts a nonempty token consisting of ASCII
+letters, digits, underscores and hyphens, containing at least one letter. Absent,
+malformed, unencoded, numeric, empty and whitespace-containing values are ignored.
+A valid explicit Spoolman id takes priority while the spool is linked because it
+can name a local preset absent from the catalog. Otherwise the existing unique
+catalog id is used, or `filament_id` is omitted if neither source supplies one.
 
 ---
 
@@ -656,6 +677,11 @@ reader can resolve.
 ---
 
 ## Changelog
+
+- **v1.18 (2026-10-28)**: Explicit Spoolman Orca preset ids take priority over
+  catalog ids while linked. Document the filament text extra orca_filament_id,
+  its JSON encoding and validation, and the provenance extension
+  helix_spoolman_orca_filament_id used for reloads.
 
 - **v1.17 (2026-10-27)**: §3: new optional field `filament_id`, OrcaSlicer's
   preset id for the slot's catalog product, which OrcaSlicer builds carrying

@@ -3139,6 +3139,7 @@ void AmsBackendSnapmaker::clear_override_fields(SlotInfo& slot) const {
     slot.spoolman_id = 0;
     slot.spoolman_vendor_id = 0;
     slot.spoolman_filament_id = 0;
+    slot.spoolman_orca_filament_id.clear();
     slot.remaining_weight_g = -1.0f;
     slot.color_name.clear();
     slot.catalog_id.clear();

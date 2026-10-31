@@ -44,6 +44,7 @@ constexpr auto kFieldRoster = std::make_tuple(
     // in-flight race on a re-bind belongs to own_write_expectation. The
     // filament definition id rides the same statement as the spool id.
     field<false>(&Observation::spoolman_id), field<false>(&Observation::spoolman_filament_id),
+    field<false>(&Observation::spoolman_orca_filament_id),
     field<false>(&Observation::spoolman_vendor_id),
     // A weight write reseeds a real meter, and what the meter reports
     // afterwards is its own state decrementing as filament is consumed.

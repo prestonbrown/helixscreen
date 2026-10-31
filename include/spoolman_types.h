@@ -94,11 +94,12 @@ struct FilamentInfo {
  * @brief Filament spool information from Spoolman
  */
 struct SpoolInfo {
-    int id = 0;           ///< Spoolman spool ID
-    int filament_id = 0;  ///< Spoolman filament definition ID (for filament-level edits)
-    int vendor_id = 0;    ///< Spoolman vendor ID (for vendor updates)
-    std::string vendor;   ///< Filament vendor (e.g., "Hatchbox", "Prusament")
-    std::string material; ///< Material type (e.g., "PLA", "PETG", "ABS", "TPU")
+    int id = 0;                   ///< Spoolman spool ID
+    int filament_id = 0;          ///< Spoolman filament definition ID (for filament-level edits)
+    int vendor_id = 0;            ///< Spoolman vendor ID (for vendor updates)
+    std::string orca_filament_id; // Orca preset id from filament.extra.orca_filament_id
+    std::string vendor;           ///< Filament vendor (e.g., "Hatchbox", "Prusament")
+    std::string material;         ///< Material type (e.g., "PLA", "PETG", "ABS", "TPU")
     /// Spoolman's `filament.name` — the filament's own display name
     /// ("PLA Matte Charcoal", "Ambrosia Pink"). NOT a colour word: a Spoolman
     /// spool record has no colour-name field, only `color_hex`. This is the
@@ -335,6 +336,8 @@ inline helix::ams::Observation spool_identity_observation(const SpoolInfo& spool
     if (spool.filament_id > 0) {
         stated.spoolman_filament_id = spool.filament_id;
     }
+    // Empty is authoritative too: removing the extra must retire a cached id.
+    stated.spoolman_orca_filament_id = spool.orca_filament_id;
     if (spool.vendor_id > 0) {
         stated.spoolman_vendor_id = spool.vendor_id;
     }
@@ -387,6 +390,7 @@ inline void apply_spool_to_slot(helix::SlotInfo& info, const SpoolInfo& spool) {
     const helix::ams::Observation stated = helix::ams::spool_identity_observation(spool);
     info.spoolman_id = stated.spoolman_id.value_or(0);
     info.spoolman_filament_id = spool.filament_id;
+    info.spoolman_orca_filament_id = spool.orca_filament_id;
     info.spoolman_vendor_id = stated.spoolman_vendor_id.value_or(0);
     info.material = stated.material.value_or(std::string{});
     info.brand = stated.brand.value_or(std::string{});

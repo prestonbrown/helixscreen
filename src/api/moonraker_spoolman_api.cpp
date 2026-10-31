@@ -6,6 +6,7 @@
 #include "hv/hurl.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
+#include "orca_filament_id.h"
 #include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -69,6 +70,13 @@ SpoolInfo helix::spoolman_detail::parse_spool_info(const nlohmann::json& spool_j
         info.bed_temp_min = info.bed_temp_max = info.bed_temp_recommended;
 
         if (filament.contains("extra") && filament["extra"].is_object()) {
+            const auto encoded = safe_string(filament["extra"], "orca_filament_id");
+            const auto decoded = nlohmann::json::parse(encoded, nullptr, false);
+            if (decoded.is_string()) {
+                const auto id = decoded.get<std::string>();
+                if (helix::is_orca_filament_id(id))
+                    info.orca_filament_id = id;
+            }
             if (auto k = parse_extra_number(filament["extra"], kSpoolmanPaExtraKey)) {
                 info.pressure_advance = static_cast<float>(*k);
             }

@@ -272,6 +272,7 @@ void SpoolmanManager::fetch_linked_external_spool(int ext_spoolman_id) {
                         SlotInfo kept = *kept_view;
                         kept.spoolman_id = 0;
                         kept.spoolman_filament_id = 0;
+                        kept.spoolman_orca_filament_id.clear();
                         const helix::ams::Observation nothing_declared(
                             helix::ams::ObservationSource::Remembered);
                         helix::ams::file_kept_identity(
@@ -379,6 +380,7 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                             SlotInfo kept = bound->get_slot_info(slot_index);
                             kept.spoolman_id = 0;
                             kept.spoolman_filament_id = 0;
+                            kept.spoolman_orca_filament_id.clear();
                             const helix::ams::Observation nothing_declared(
                                 helix::ams::ObservationSource::Remembered);
                             helix::ams::file_kept_identity(

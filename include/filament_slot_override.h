@@ -97,6 +97,7 @@ struct FilamentSlotOverride {
     std::string brand;
     std::string spool_name;
     int spoolman_id = 0;
+    std::string spoolman_orca_filament_id; // Explicit Orca preset id of the linked spool
     int spoolman_filament_id = 0;
     int spoolman_vendor_id = 0;
     float remaining_weight_g = -1.0f;

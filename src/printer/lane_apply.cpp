@@ -45,6 +45,8 @@ void apply_resolved(SlotInfo& slot, const ResolvedLane& resolved) {
         slot.spoolman_id = *resolved.spoolman_id;
     if (resolved.spoolman_filament_id.has_value())
         slot.spoolman_filament_id = *resolved.spoolman_filament_id;
+    if (resolved.spoolman_orca_filament_id.has_value())
+        slot.spoolman_orca_filament_id = *resolved.spoolman_orca_filament_id;
     if (resolved.spoolman_vendor_id.has_value())
         slot.spoolman_vendor_id = *resolved.spoolman_vendor_id;
     if (resolved.remaining_weight_g.has_value())
@@ -86,6 +88,8 @@ void clear_lane_only_identity(SlotInfo& slot, const FilamentSlotOverride* ovr) {
     } else {
         slot.spoolman_filament_id = 0;
     }
+    slot.spoolman_orca_filament_id =
+        ovr != nullptr && ovr->spoolman_id > 0 ? ovr->spoolman_orca_filament_id : std::string{};
     if (ovr != nullptr && ovr->spoolman_vendor_id > 0) {
         slot.spoolman_vendor_id = ovr->spoolman_vendor_id;
     } else {

@@ -76,7 +76,7 @@ namespace {
 /// ties them. A field added to that struct has no name here, so the
 /// static_assert below stops the build and whoever added it has to say which
 /// backends are expected to file it.
-constexpr std::array<const char*, 14> kFieldNames = {"present",
+constexpr std::array<const char*, 15> kFieldNames = {"present",
                                                      "tool_docked",
                                                      "color_rgb",
                                                      "color_name",
@@ -87,6 +87,7 @@ constexpr std::array<const char*, 14> kFieldNames = {"present",
                                                      "product_name",
                                                      "spoolman_id",
                                                      "spoolman_filament_id",
+                                                     "spoolman_orca_filament_id",
                                                      "spoolman_vendor_id",
                                                      "remaining_weight_g",
                                                      "total_weight_g"};
@@ -418,7 +419,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // and the record translation. Nothing a machine's own frame says carries
     // any of them.
     const std::vector<std::string> dead = {"catalog_id", "spoolman_vendor_id", "color_name",
-                                           "spoolman_filament_id"};
+                                           "spoolman_filament_id", "spoolman_orca_filament_id"};
 
     for (const auto& entry : census_of_every_backend()) {
         INFO("backend: " << entry.backend);

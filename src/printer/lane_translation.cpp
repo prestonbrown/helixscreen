@@ -138,6 +138,9 @@ constexpr auto kFieldRoster = std::make_tuple(
     field<FieldKind::PositiveId>("spoolman_filament_id", nullptr,
                                  &FilamentSlotOverride::spoolman_filament_id,
                                  &Observation::spoolman_filament_id),
+    field<FieldKind::Text>("spoolman_orca_filament_id", nullptr,
+                           &FilamentSlotOverride::spoolman_orca_filament_id,
+                           &Observation::spoolman_orca_filament_id),
     field<FieldKind::PositiveId, Authorship::DeclaredSet, Owner::SpoolWhenLinked>(
         "spoolman_vendor_id", &SlotInfo::spoolman_vendor_id,
         &FilamentSlotOverride::spoolman_vendor_id, &Observation::spoolman_vendor_id),
