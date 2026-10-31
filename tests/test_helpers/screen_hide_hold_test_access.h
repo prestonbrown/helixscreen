@@ -12,7 +12,7 @@ namespace helix {
 class ScreenHideHoldTestAccess {
   public:
     // Drops every outstanding acquire and unhides only the screen the hold hid, under
-    // the same live-screen checks as release().
+    // the same checks as release().
     static void reset(ScreenHideHold& hold) {
         hold.m_count = 0;
         hold.show_hidden_screen();

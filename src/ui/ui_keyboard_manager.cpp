@@ -1564,7 +1564,7 @@ bool KeyboardManager::is_visible() const {
 }
 
 bool KeyboardManager::is_password_context() const {
-    if (context_textarea_ == nullptr || !lv_obj_is_valid(context_textarea_)) {
+    if (context_textarea_ == nullptr) {
         return false;
     }
     return lv_textarea_get_password_mode(context_textarea_);

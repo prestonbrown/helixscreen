@@ -462,7 +462,7 @@ void QrScannerOverlay::on_camera_frame(lv_draw_buf_t* frame) {
 
     // Display the frame on the UI thread.
     lifetime_.token().defer("QrScannerOverlay::on_camera_frame", [this, frame]() {
-        if (scan_active_.load() && viewfinder_ && lv_obj_is_valid(viewfinder_)) {
+        if (scan_active_.load() && viewfinder_) {
             lv_image_set_src(viewfinder_, frame);
         }
     });

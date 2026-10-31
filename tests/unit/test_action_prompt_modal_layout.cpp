@@ -34,7 +34,8 @@
 // White-box accessor (declared friend in action_prompt_modal.h) — avoids adding
 // _for_testing() methods to the production class ([L065]/[L088]).
 struct ActionPromptModalTestAccess {
-    static const std::vector<lv_obj_t*>& buttons(const helix::ui::ActionPromptModal& m) {
+    static const std::vector<helix::ui::WeakWidget>&
+    buttons(const helix::ui::ActionPromptModal& m) {
         return m.created_buttons_;
     }
 };
@@ -480,6 +481,20 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     for (lv_obj_t* btn : ActionPromptModalTestAccess::buttons(modal_)) {
         CHECK(lv_obj_get_height(btn) == theme_manager_get_spacing("button_height"));
     }
+
+    modal_.hide();
+}
+
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: a button deleted while shown is skipped at hide",
+                 "[action_prompt][layout][ui_integration]") {
+    REQUIRE(modal_.show_prompt(test_screen(), make_regular_prompt(2)));
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 2);
+
+    lv_obj_delete(btns[0]);
+    CHECK(btns[0].get() == nullptr);
+    CHECK(btns[1].get() != nullptr);
 
     modal_.hide();
 }
