@@ -201,7 +201,7 @@ void PrintSelectCardView::ensure_gradient_cache(int32_t card_width, int32_t card
     cached_gradient_dark_ = dark;
 
     // Update ALL pool cards to reference the new buffer immediately
-    for (auto* card : card_pool_) {
+    for (lv_obj_t* card : card_pool_) {
         apply_gradient_to_card(card);
     }
 
@@ -211,7 +211,7 @@ void PrintSelectCardView::ensure_gradient_cache(int32_t card_width, int32_t card
 }
 
 void PrintSelectCardView::apply_gradient_to_card(lv_obj_t* card) {
-    if (!cached_gradient_ || !card || !lv_obj_is_valid(card))
+    if (!cached_gradient_ || !card)
         return;
 
     lv_obj_t* gradient_bg = lv_obj_find_by_name(card, "gradient_bg");
@@ -360,7 +360,7 @@ void PrintSelectCardView::grow_pool(size_t count, const CardDimensions& dims) {
             }
 
             apply_gradient_to_card(card);
-            card_pool_.push_back(card);
+            card_pool_.emplace_back(card);
             card_data_pool_.push_back(std::move(data));
         } else {
             break;
@@ -678,8 +678,10 @@ void PrintSelectCardView::populate(const std::vector<PrintFileData>& file_list,
 void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_list,
                                          const CardDimensions& dims) {
     if (!container_ || !pool_initialized_ || file_list.empty()) {
-        for (auto* card : card_pool_) {
-            lv_obj_add_flag(card, LV_OBJ_FLAG_HIDDEN);
+        for (lv_obj_t* card : card_pool_) {
+            if (card) {
+                lv_obj_add_flag(card, LV_OBJ_FLAG_HIDDEN);
+            }
         }
         std::fill(card_pool_indices_.begin(), card_pool_indices_.end(), -1);
         if (container_) {
@@ -731,7 +733,7 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
 
     show_window(
         container_, card_pool_indices_, first_visible_idx, last_visible_idx, data_changed,
-        [this](size_t slot) { return card_pool_[slot]; },
+        [this](size_t slot) -> lv_obj_t* { return card_pool_[slot]; },
         [&](size_t slot, ssize_t file_idx) {
             configure_card(card_pool_[slot], slot, static_cast<size_t>(file_idx),
                            file_list[static_cast<size_t>(file_idx)], dims);
@@ -755,16 +757,14 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
 
 void PrintSelectCardView::refresh_content(const std::vector<PrintFileData>& file_list,
                                           const CardDimensions& dims) {
-    if (!container_ || !lv_obj_is_valid(container_) || !pool_initialized_ ||
-        visible_start_row_ < 0) {
+    if (!container_ || !pool_initialized_ || visible_start_row_ < 0) {
         return;
     }
 
     // Re-configure each visible pool card with latest data
     for (size_t i = 0; i < card_pool_.size(); i++) {
         ssize_t file_idx = card_pool_indices_[i];
-        if (file_idx >= 0 && static_cast<size_t>(file_idx) < file_list.size() &&
-            lv_obj_is_valid(card_pool_[i])) {
+        if (file_idx >= 0 && static_cast<size_t>(file_idx) < file_list.size()) {
             configure_card(card_pool_[i], i, static_cast<size_t>(file_idx), file_list[file_idx],
                            dims);
         }

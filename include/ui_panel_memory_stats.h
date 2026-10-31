@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl/lvgl.h"
 
 /**
@@ -69,7 +71,7 @@ class MemoryStatsOverlay {
     MemoryStatsOverlay(const MemoryStatsOverlay&) = delete;
     MemoryStatsOverlay& operator=(const MemoryStatsOverlay&) = delete;
 
-    lv_obj_t* overlay_ = nullptr;
+    helix::ui::WidgetRef overlay_;
     lv_obj_t* rss_label_ = nullptr;
     lv_obj_t* hwm_label_ = nullptr;
     lv_obj_t* private_label_ = nullptr;

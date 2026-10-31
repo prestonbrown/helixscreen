@@ -229,13 +229,12 @@ void TempGraphWidget::refresh_series_names() {
 }
 
 void TempGraphWidget::rebuild_in_place() {
-    // Snapshot the *current* widget pointers before detach() nulls them. They
-    // can also have been freed underneath us (a panel rebuild between
-    // modal-open and save — bundle RP293UCW), hence the validity check.
-    auto* current_widget = widget_obj_;
-    auto* current_parent = parent_screen_;
+    // detach() nulls the members, and a panel rebuild between modal-open and
+    // save can free the container too (bundle RP293UCW): handles read nullptr then.
+    const helix::ui::WeakWidget current_widget(widget_obj_);
+    const helix::ui::WeakWidget current_parent(parent_screen_);
     detach();
-    if (!current_widget || !lv_obj_is_valid(current_widget)) {
+    if (!current_widget) {
         spdlog::warn("[TempGraphWidget] '{}' rebuild: widget container gone, skipping reattach",
                      instance_id_);
         return;

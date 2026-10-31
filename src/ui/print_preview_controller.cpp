@@ -51,7 +51,7 @@ void PrintPreviewController::attach_widgets(lv_obj_t* thumbnail, lv_obj_t* viewe
 }
 
 void PrintPreviewController::detach_widgets() {
-    if (gcode_viewer_ && lv_obj_is_valid(gcode_viewer_)) {
+    if (gcode_viewer_) {
         helix::ui::gcode_viewer_set_load_callback(gcode_viewer_, nullptr, nullptr);
     }
     gcode_viewer_ = nullptr;
@@ -322,15 +322,8 @@ void PrintPreviewController::on_viewer_loaded(lv_obj_t* viewer, void* user_data,
 
     // CRITICAL: Defer to avoid lv_obj_invalidate() during render phase
     // This callback runs during lv_timer_handler() which may be mid-render
-    struct ViewerProgressCtx {
-        lv_obj_t* viewer;
-        int layer;
-    };
-    auto ctx = std::make_unique<ViewerProgressCtx>(ViewerProgressCtx{viewer, viewer_layer});
-    helix::ui::queue_update<ViewerProgressCtx>(std::move(ctx), [](ViewerProgressCtx* c) {
-        if (c->viewer && lv_obj_is_valid(c->viewer)) {
-            helix::ui::gcode_viewer_set_print_progress(c->viewer, c->layer);
-        }
+    helix::ui::queue_widget_update(viewer, [viewer_layer](lv_obj_t* live) {
+        helix::ui::gcode_viewer_set_print_progress(live, viewer_layer);
     });
 
     spdlog::debug("[{}] G-code loaded: initial layer progress set to {} "

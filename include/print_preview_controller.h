@@ -148,7 +148,7 @@ class PrintPreviewController {
     GcodePreviewFetcher fetcher_;
 
     helix::ui::WidgetRef print_thumbnail_;
-    lv_obj_t* gcode_viewer_ = nullptr;
+    helix::ui::WidgetRef gcode_viewer_;
 
     std::string displayed_file_;
     std::string gcode_displayed_file_;
