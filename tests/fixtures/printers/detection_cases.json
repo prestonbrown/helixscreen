@@ -7,6 +7,13 @@
     "expect": "FlashForge Adventurer 5M Pro"
   },
   {
+    "name": "Detect FlashForge AD5M Pro from the fuller hardware snapshot",
+    "note": "A second extruder, mcu_temp sensor and hotend fan must not cost the Pro its lead",
+    "capture": "flashforge_ad5m_pro_extended",
+    "autosave": true,
+    "expect": "FlashForge Adventurer 5M Pro"
+  },
+  {
     "name": "Detect by hostname - Creality K1",
     "note": "Hostname \"k1-max\" matches K1 Max specifically",
     "hardware": {
