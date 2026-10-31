@@ -1196,7 +1196,7 @@ TEST_CASE("remap restore: our own optimistic write never counts as confirmation"
     CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
 }
 
-TEST_CASE("remap restore: firmware report matching the snapshot confirms it",
+TEST_CASE("remap restore: firmware confirms only the mapping that matches the snapshot",
           "[remap-restore][1270]") {
     LVGLTestFixture fx;
     ScopedCountingBackend be{{1, 2}};
@@ -1206,23 +1206,6 @@ TEST_CASE("remap restore: firmware report matching the snapshot confirms it",
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
     PrintStartControllerTestAccess::restore(h.controller);
     REQUIRE_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-
-    be.backend->firmware_reports({2, 1});
-    Harness::ams_data_tick();
-
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == -1);
-}
-
-TEST_CASE("remap restore: firmware reporting the wrong mapping keeps waiting",
-          "[remap-restore][1270]") {
-    LVGLTestFixture fx;
-    ScopedCountingBackend be{{1, 2}};
-    be.backend->echoes_firmware = true;
-    Harness h;
-    h.set_klippy(KlippyState::READY);
-    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
-    PrintStartControllerTestAccess::restore(h.controller);
 
     // A multi-lane restore lands one delta at a time, so a partial match is a
     // normal intermediate state — keep the record rather than declaring failure.
@@ -1234,6 +1217,7 @@ TEST_CASE("remap restore: firmware reporting the wrong mapping keeps waiting",
     be.backend->firmware_reports({2, 1});
     Harness::ams_data_tick();
     CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == -1);
 }
 
 // ============================================================================
