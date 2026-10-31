@@ -27,7 +27,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
-#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -127,29 +126,53 @@ TEST_CASE("QIDI Box parse_save_variables: enable_box drives the unit's connectio
 // boxes / 16 slots. The backend must model one AmsUnit per physical box so
 // the UI stacks boxes instead of drawing one clipped slot row.
 
-TEST_CASE("QIDI Box parse_save_variables: box_count sets one 4-slot unit per box",
+TEST_CASE("QIDI Box parse_save_variables: box_count=2 expands to two 4-slot units",
           "[ams][qidi_box]") {
-    for (int boxes : {0, 2, 4}) {
-        DYNAMIC_SECTION("box_count=" << boxes) {
-            AmsBackendQidi backend(nullptr, nullptr);
-            REQUIRE(backend.get_system_info().total_slots == 4);
+    AmsBackendQidi backend(nullptr, nullptr);
+    REQUIRE(backend.get_system_info().total_slots == 4);
 
-            QidiBoxTestAccess::parse_vars(backend, json{{"box_count", boxes}});
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
 
-            auto info = backend.get_system_info();
-            CHECK(info.total_slots == boxes * 4);
-            REQUIRE(info.units.size() == static_cast<size_t>(boxes));
-            for (int u = 0; u < boxes; ++u) {
-                const auto& unit = info.units[static_cast<size_t>(u)];
-                CHECK(unit.slot_count == 4);
-                CHECK(unit.first_slot_global_index == u * 4);
-                for (size_t i = 0; i < unit.slots.size(); ++i) {
-                    CHECK(unit.slots[i].slot_index == static_cast<int>(i));
-                    CHECK(unit.slots[i].global_index ==
-                          unit.first_slot_global_index + static_cast<int>(i));
-                }
-            }
+    auto info = backend.get_system_info();
+    REQUIRE(info.total_slots == 8);
+    REQUIRE(info.units.size() == 2);
+    REQUIRE(info.units[0].slot_count == 4);
+    REQUIRE(info.units[1].slot_count == 4);
+    REQUIRE(info.units[0].first_slot_global_index == 0);
+    REQUIRE(info.units[1].first_slot_global_index == 4);
+
+    for (const auto& unit : info.units) {
+        for (size_t i = 0; i < unit.slots.size(); ++i) {
+            REQUIRE(unit.slots[i].slot_index == static_cast<int>(i));
+            REQUIRE(unit.slots[i].global_index ==
+                    unit.first_slot_global_index + static_cast<int>(i));
         }
+    }
+}
+
+TEST_CASE("QIDI Box parse_save_variables: box_count=0 removes all physical units",
+          "[ams][qidi_box]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 0}});
+
+    auto info = backend.get_system_info();
+    REQUIRE(info.total_slots == 0);
+    REQUIRE(info.units.empty());
+}
+
+TEST_CASE("QIDI Box parse_save_variables: box_count=4 expands to sixteen slots",
+          "[ams][qidi_box]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 4}});
+
+    auto info = backend.get_system_info();
+    REQUIRE(info.total_slots == 16);
+    REQUIRE(info.units.size() == 4);
+    for (int unit = 0; unit < 4; ++unit) {
+        REQUIRE(info.units[static_cast<size_t>(unit)].slot_count == 4);
+        REQUIRE(info.units[static_cast<size_t>(unit)].first_slot_global_index == unit * 4);
     }
 }
 
@@ -407,30 +430,45 @@ TEST_CASE("QIDI Box moves the LOADED stamp on a tool change", "[ams][qidi_box][1
 // to material/color happens in a follow-up cycle once the cfg resolver
 // lands.
 
-TEST_CASE("QIDI Box filament/color/vendor_slot<N> capture the raw RFID indices",
-          "[ams][qidi_box]") {
+TEST_CASE("QIDI Box filament_slot<N> captures raw RFID material index", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
 
     QidiBoxTestAccess::parse_vars(backend, json{
                                                {"filament_slot0", 42},
                                                {"filament_slot1", 7},
-                                               {"color_slot0", 3},
+                                           });
+
+    REQUIRE(QidiBoxTestAccess::filament_id(backend, 0) == 42);
+    REQUIRE(QidiBoxTestAccess::filament_id(backend, 1) == 7);
+    // Unset slots default to 0 (= unknown).
+    REQUIRE(QidiBoxTestAccess::filament_id(backend, 2) == 0);
+    REQUIRE(QidiBoxTestAccess::filament_id(backend, 3) == 0);
+}
+
+TEST_CASE("QIDI Box color_slot<N> captures raw RFID color index", "[ams][qidi_box]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+
+    QidiBoxTestAccess::parse_vars(backend, json{
+                                               {"color_slot0", 3},  // some palette index
                                                {"color_slot2", 24}, // max palette index
+                                           });
+
+    REQUIRE(QidiBoxTestAccess::color_id(backend, 0) == 3);
+    REQUIRE(QidiBoxTestAccess::color_id(backend, 2) == 24);
+    REQUIRE(QidiBoxTestAccess::color_id(backend, 1) == 0);
+}
+
+TEST_CASE("QIDI Box vendor_slot<N> captures raw RFID vendor index", "[ams][qidi_box]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+
+    QidiBoxTestAccess::parse_vars(backend, json{
                                                {"vendor_slot0", 1},
                                                {"vendor_slot3", 1},
                                            });
 
-    CHECK(QidiBoxTestAccess::filament_id(backend, 0) == 42);
-    CHECK(QidiBoxTestAccess::filament_id(backend, 1) == 7);
-    CHECK(QidiBoxTestAccess::color_id(backend, 0) == 3);
-    CHECK(QidiBoxTestAccess::color_id(backend, 2) == 24);
-    CHECK(QidiBoxTestAccess::vendor_id(backend, 0) == 1);
-    CHECK(QidiBoxTestAccess::vendor_id(backend, 3) == 1);
-    // Unset slots read 0 (= unknown).
-    CHECK(QidiBoxTestAccess::filament_id(backend, 2) == 0);
-    CHECK(QidiBoxTestAccess::filament_id(backend, 3) == 0);
-    CHECK(QidiBoxTestAccess::color_id(backend, 1) == 0);
-    CHECK(QidiBoxTestAccess::vendor_id(backend, 1) == 0);
+    REQUIRE(QidiBoxTestAccess::vendor_id(backend, 0) == 1);
+    REQUIRE(QidiBoxTestAccess::vendor_id(backend, 3) == 1);
+    REQUIRE(QidiBoxTestAccess::vendor_id(backend, 1) == 0);
 }
 
 TEST_CASE("QIDI Box RFID side-table resizes with box_count", "[ams][qidi_box]") {
@@ -572,148 +610,230 @@ TEST_CASE("QIDI Box manages preheat itself (no UI-driven heat on load)", "[ams][
     REQUIRE(backend.supports_auto_heat_on_load());
 }
 
-// Every write is one script. A load preheats, EXTRUDER_LOADs the slot by name
-// (value_t mapping is for the slicer's T<n>, not for which slot loads), clears
-// the nozzle and cools; it first unloads a different seated slot so the load
-// does not jam on top of it, but never the slot it is reloading. Unload is the
-// stock M603. Firmware without M603 or CLEAR_NOZZLE gets EXTRUDER_UNLOAD and no
-// clear. change_tool resolves the tool to its slot and drives the load. Global
-// slots from later boxes address their own slot.
-TEST_CASE("QIDI Box write path sends the stock script for each operation",
-          "[ams][qidi_box][write_path]") {
-    using B = RecordingQidiBackend;
-    const std::string load2 = "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0";
-    const std::string unload = "M603 S250\nENABLE_ALL_SENSOR";
-    struct Row {
-        const char* name;
-        json vars;
-        bool m603;
-        bool clear_nozzle;
-        bool force_move;
-        std::function<helix::AmsError(B&)> op;
-        std::string sent; // empty: refused, nothing sent
-    };
-    const Row rows[] = {
-        {"load", nullptr, true, true, false, [](B& b) { return b.load_filament(2); }, load2},
-        {"load ignores value_t",
-         {{"value_t0", "slot3"}},
-         true,
-         true,
-         false,
-         [](B& b) { return b.load_filament(3); },
-         "M109 S250\nEXTRUDER_LOAD SLOT=slot3\nCLEAR_NOZZLE\nM104 S0"},
-        {"load over another seated slot",
-         {{"last_load_slot", "slot0"}},
-         true,
-         true,
-         false,
-         [](B& b) { return b.load_filament(2); },
-         unload + "\n" + load2},
-        {"reload of the seated slot",
-         {{"last_load_slot", "slot2"}},
-         true,
-         true,
-         false,
-         [](B& b) { return b.load_filament(2); },
-         load2},
-        {"load in a later box",
-         {{"box_count", 2}},
-         true,
-         true,
-         false,
-         [](B& b) { return b.load_filament(5); },
-         "M109 S250\nEXTRUDER_LOAD SLOT=slot5\nCLEAR_NOZZLE\nM104 S0"},
-        {"load without CLEAR_NOZZLE", nullptr, true, false, false,
-         [](B& b) { return b.load_filament(2); }, "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nM104 S0"},
-        {"unload", nullptr, true, true, false, [](B& b) { return b.unload_filament(1); }, unload},
-        {"unload of the seated slot",
-         {{"last_load_slot", "slot2"}},
-         true,
-         true,
-         false,
-         [](B& b) { return b.unload_filament(-1); },
-         unload},
-        {"unload in a later box",
-         {{"box_count", 2}},
-         true,
-         true,
-         false,
-         [](B& b) { return b.unload_filament(5); },
-         unload},
-        {"unload of the seated slot with none seated", nullptr, true, true, false,
-         [](B& b) { return b.unload_filament(-1); }, ""},
-        {"unload without M603", nullptr, false, true, false,
-         [](B& b) { return b.unload_filament(1); },
-         "M109 S250\nEXTRUDER_UNLOAD SLOT=slot1\nM104 S0"},
-        {"change_tool", nullptr, true, true, false, [](B& b) { return b.change_tool(3); },
-         "M109 S250\nEXTRUDER_LOAD SLOT=slot3\nCLEAR_NOZZLE\nM104 S0"},
-        {"change_tool mapped into a later box",
-         {{"box_count", 2}, {"value_t0", "slot5"}},
-         true,
-         true,
-         false,
-         [](B& b) { return b.change_tool(0); },
-         "M109 S250\nEXTRUDER_LOAD SLOT=slot5\nCLEAR_NOZZLE\nM104 S0"},
-        {"set_tool_mapping", nullptr, true, true, false,
-         [](B& b) { return b.set_tool_mapping(1, 3); },
-         "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot3\""},
-        {"set_tool_mapping into a later box",
-         {{"box_count", 2}},
-         true,
-         true,
-         false,
-         [](B& b) { return b.set_tool_mapping(1, 5); },
-         "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot5\""},
-        {"eject without force_move", nullptr, true, true, false,
-         [](B& b) { return b.eject_lane(0); }, ""},
-        {"eject", nullptr, true, true, true, [](B& b) { return b.eject_lane(1); },
-         "FORCE_MOVE STEPPER=\"box_stepper slot1\" VELOCITY=100 DISTANCE=-878"},
-        {"eject in a later box",
-         {{"box_count", 2}},
-         true,
-         true,
-         true,
-         [](B& b) { return b.eject_lane(5); },
-         "FORCE_MOVE STEPPER=\"box_stepper slot5\" VELOCITY=100 DISTANCE=-878"},
-    };
-    for (const Row& r : rows) {
-        DYNAMIC_SECTION(r.name) {
-            B backend;
-            if (!r.vars.is_null()) {
-                QidiBoxTestAccess::parse_vars(backend, r.vars);
-            }
-            if (!r.m603 || !r.clear_nozzle) {
-                QidiBoxTestAccess::set_fw_caps(backend, r.m603, r.clear_nozzle);
-            }
-            if (r.force_move) {
-                QidiBoxTestAccess::apply_config_settings(
-                    backend, json{{"force_move", {{"enable_force_move", true}}}});
-            }
-
-            const auto err = r.op(backend);
-
-            if (r.sent.empty()) {
-                CHECK_FALSE(err.success());
-                CHECK(backend.sent.empty());
-            } else {
-                CHECK(err.success());
-                REQUIRE(backend.sent.size() == 1);
-                CHECK(backend.sent[0] == r.sent);
-            }
-        }
-    }
-}
-
-TEST_CASE("QIDI Box lane eject is offered once [force_move] enables it",
+TEST_CASE("QIDI Box load_filament: heats, EXTRUDER_LOADs the slot, clears, cools",
           "[ams][qidi_box][write_path]") {
     RecordingQidiBackend backend;
+
+    // Fresh load into an empty extruder; no profile temp → default load temp.
+    auto err = backend.load_filament(2);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
+}
+
+TEST_CASE("QIDI Box load_filament: addresses the slot directly, not value_t mapping",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+
+    // value_t mapping is for the slicer's T<n> commands; EXTRUDER_LOAD takes the
+    // slot name directly, so a mapping must not change which slot is loaded.
+    QidiBoxTestAccess::parse_vars(backend, json{{"value_t0", "slot3"}});
+
+    auto err = backend.load_filament(3);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot3\nCLEAR_NOZZLE\nM104 S0");
+}
+
+TEST_CASE("QIDI Box load_filament: unloads a different loaded slot first",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    // Slot 0 is in the extruder; loading slot 2 must retract slot 0 first so
+    // EXTRUDER_LOAD doesn't jam on top of loaded filament.
+    QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot0"}});
+
+    auto err = backend.load_filament(2);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(
+        backend.sent[0] ==
+        "M603 S250\nENABLE_ALL_SENSOR\nM109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
+}
+
+TEST_CASE("QIDI Box load_filament accepts global slots from later boxes",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
+
+    auto err = backend.load_filament(5);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot5\nCLEAR_NOZZLE\nM104 S0");
+}
+
+TEST_CASE("QIDI Box load_filament: reloading the active slot does not self-unload",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot2"}});
+
+    auto err = backend.load_filament(2);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    // No leading M603 — slot 2 is already the loaded slot.
+    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
+}
+
+TEST_CASE("QIDI Box unload_filament: emits M603 (stock unload)", "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+
+    auto err = backend.unload_filament(1);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
+}
+
+TEST_CASE("QIDI Box unload_filament with -1 unloads the active slot via M603",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    // Seed slot 2 as LOADED so unload_filament(-1) targets it.
+    QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot2"}});
+
+    auto err = backend.unload_filament(-1);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
+}
+
+TEST_CASE("QIDI Box unload_filament accepts global slots from later boxes",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
+
+    auto err = backend.unload_filament(5);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
+}
+
+TEST_CASE("QIDI Box unload_filament with -1 and nothing loaded errors",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+
+    auto err = backend.unload_filament(-1);
+
+    REQUIRE_FALSE(err.success());
+    REQUIRE(backend.sent.empty());
+}
+
+TEST_CASE("QIDI Box unload falls back to EXTRUDER_UNLOAD when M603 is absent",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    // Simulate a firmware revision without the M603 macro.
+    QidiBoxTestAccess::set_fw_caps(backend, /*m603=*/false, /*clear_nozzle=*/true);
+
+    auto err = backend.unload_filament(1);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_UNLOAD SLOT=slot1\nM104 S0");
+}
+
+TEST_CASE("QIDI Box load omits CLEAR_NOZZLE when the macro is absent",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::set_fw_caps(backend, /*m603=*/true, /*clear_nozzle=*/false);
+
+    auto err = backend.load_filament(2);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot2\nM104 S0");
+}
+
+TEST_CASE("QIDI Box change_tool resolves to the slot and drives the load path",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+
+    // Default mapping is tool=slot, so changing to tool 3 loads slot 3 via the
+    // verified EXTRUDER_LOAD sequence rather than a non-existent T3 macro.
+    auto err = backend.change_tool(3);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot3\nCLEAR_NOZZLE\nM104 S0");
+}
+
+TEST_CASE("QIDI Box change_tool resolves tool mappings in later boxes",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}, {"value_t0", "slot5"}});
+
+    auto err = backend.change_tool(0);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "M109 S250\nEXTRUDER_LOAD SLOT=slot5\nCLEAR_NOZZLE\nM104 S0");
+}
+
+TEST_CASE("QIDI Box set_tool_mapping emits SAVE_VARIABLE for value_t<N>",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+
+    auto err = backend.set_tool_mapping(/*tool=*/1, /*slot_idx=*/3);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot3\"");
+}
+
+TEST_CASE("QIDI Box set_tool_mapping accepts global slots from later boxes",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
+
+    auto err = backend.set_tool_mapping(/*tool=*/1, /*slot_idx=*/5);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot5\"");
+}
+
+TEST_CASE("QIDI Box lane eject is unsupported until force_move is enabled",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+
     REQUIRE_FALSE(backend.supports_lane_eject());
-    QidiBoxTestAccess::apply_config_settings(backend,
-                                             json{{"force_move", {{"enable_force_move", false}}}});
-    CHECK_FALSE(backend.supports_lane_eject());
+    auto err = backend.eject_lane(0);
+    REQUIRE_FALSE(err.success());
+    REQUIRE(backend.sent.empty());
+}
+
+TEST_CASE("QIDI Box [force_move] enable_force_move turns on lane eject",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
     QidiBoxTestAccess::apply_config_settings(backend,
                                              json{{"force_move", {{"enable_force_move", true}}}});
-    CHECK(backend.supports_lane_eject());
+
+    REQUIRE(backend.supports_lane_eject());
+
+    auto err = backend.eject_lane(1);
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] ==
+            "FORCE_MOVE STEPPER=\"box_stepper slot1\" VELOCITY=100 DISTANCE=-878");
+}
+
+TEST_CASE("QIDI Box lane eject accepts global slots from later boxes",
+          "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"force_move", {{"enable_force_move", true}}}});
+
+    auto err = backend.eject_lane(5);
+
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] ==
+            "FORCE_MOVE STEPPER=\"box_stepper slot5\" VELOCITY=100 DISTANCE=-878");
 }
 
 TEST_CASE("QIDI Box eject sliders set the distance and speed lane eject uses",
@@ -793,6 +913,14 @@ TEST_CASE("QIDI Box supplies its own eject defaults while none is stored",
     settings.set_ams_eject_velocity(saved_vel);
 }
 
+TEST_CASE("QIDI Box [force_move] disabled keeps lane eject off", "[ams][qidi_box][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"force_move", {{"enable_force_move", false}}}});
+
+    REQUIRE_FALSE(backend.supports_lane_eject());
+}
+
 // ---------------------------------------------------------------------------
 // Controller dialect (multi_color_controller): the Max 4 box rejects the
 // box_stepper FORCE_MOVE with "Invalid pin value" and drives load, unload and
@@ -802,73 +930,102 @@ TEST_CASE("QIDI Box supplies its own eject defaults while none is stored",
 // (prestonbrown/helixscreen#1083)
 // ---------------------------------------------------------------------------
 
-// A [multi_color_controller] section (instanced or not) drives load, unload and
-// eject through the controller. The controller swaps a seated slot itself, so no
-// unload goes first; eject needs no [force_move] and never sends the FORCE_MOVE
-// that errors on the Max 4, even with force_move enabled; the slot-range guard
-// still runs first.
-TEST_CASE("QIDI Box multi_color_controller dialect drives the controller commands",
+TEST_CASE("QIDI Box multi_color_controller dialect loads through the controller",
           "[ams][qidi_box][write_path][max4]") {
-    using B = RecordingQidiBackend;
-    const json controller = {{"multi_color_controller", json::object()}};
-    struct Row {
-        const char* name;
-        json config;
-        json vars;
-        std::function<helix::AmsError(B&)> op;
-        std::string sent; // empty: refused, nothing sent
-    };
-    const Row rows[] = {
-        {"load", controller, nullptr, [](B& b) { return b.load_filament(2); },
-         "MULTI_COLOR_LOAD SLOT=slot2"},
-        {"load over a seated slot",
-         controller,
-         {{"last_load_slot", "slot0"}},
-         [](B& b) { return b.load_filament(2); },
-         "MULTI_COLOR_LOAD SLOT=slot2"},
-        {"unload", controller, nullptr, [](B& b) { return b.unload_filament(1); },
-         "MULTI_COLOR_UNLOAD SLOT=slot1"},
-        {"unload of the seated slot",
-         controller,
-         {{"last_load_slot", "slot3"}},
-         [](B& b) { return b.unload_filament(-1); },
-         "MULTI_COLOR_UNLOAD SLOT=slot3"},
-        {"eject", controller, nullptr, [](B& b) { return b.eject_lane(1); },
-         "MULTI_COLOR_BOX_UNLOAD SLOT=slot1"},
-        {"eject with an instanced section",
-         {{"multi_color_controller box0", json::object()}},
-         nullptr,
-         [](B& b) { return b.eject_lane(0); },
-         "MULTI_COLOR_BOX_UNLOAD SLOT=slot0"},
-        {"eject with force_move also enabled",
-         {{"multi_color_controller", json::object()},
-          {"force_move", {{"enable_force_move", true}}}},
-         nullptr,
-         [](B& b) { return b.eject_lane(2); },
-         "MULTI_COLOR_BOX_UNLOAD SLOT=slot2"},
-        {"eject out of range", controller, nullptr, [](B& b) { return b.eject_lane(99); }, ""},
-    };
-    for (const Row& r : rows) {
-        DYNAMIC_SECTION(r.name) {
-            B backend;
-            QidiBoxTestAccess::apply_config_settings(backend, r.config);
-            if (!r.vars.is_null()) {
-                QidiBoxTestAccess::parse_vars(backend, r.vars);
-            }
-            CHECK(backend.supports_lane_eject());
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()}});
 
-            const auto err = r.op(backend);
-
-            if (r.sent.empty()) {
-                CHECK_FALSE(err.success());
-                CHECK(backend.sent.empty());
-            } else {
-                CHECK(err.success());
-                REQUIRE(backend.sent.size() == 1);
-                CHECK(backend.sent[0] == r.sent);
-            }
-        }
+    SECTION("an empty extruder") {
+        REQUIRE(backend.load_filament(2).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_LOAD SLOT=slot2");
     }
+    SECTION("another slot loaded: the controller swaps it, so no unload goes first") {
+        QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot0"}});
+        REQUIRE(backend.load_filament(2).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_LOAD SLOT=slot2");
+    }
+}
+
+TEST_CASE("QIDI Box multi_color_controller dialect unloads through the controller",
+          "[ams][qidi_box][write_path][max4]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()}});
+
+    SECTION("a named slot") {
+        REQUIRE(backend.unload_filament(1).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_UNLOAD SLOT=slot1");
+    }
+    SECTION("the active slot") {
+        QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot3"}});
+        REQUIRE(backend.unload_filament(-1).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_UNLOAD SLOT=slot3");
+    }
+}
+
+TEST_CASE("QIDI Box Max 4 dialect ejects via MULTI_COLOR_BOX_UNLOAD",
+          "[ams][qidi_box][write_path][max4]") {
+    RecordingQidiBackend backend;
+    // [multi_color_controller] present, force_move absent — the Max 4 shape.
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()}});
+
+    // Eject is available on the Max 4 without [force_move] enable_force_move.
+    REQUIRE(backend.supports_lane_eject());
+
+    auto err = backend.eject_lane(1);
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "MULTI_COLOR_BOX_UNLOAD SLOT=slot1");
+}
+
+TEST_CASE("QIDI Box Max 4 dialect is detected from an instanced section key",
+          "[ams][qidi_box][write_path][max4]") {
+    RecordingQidiBackend backend;
+    // Some configs instance the section (e.g. "[multi_color_controller box0]").
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller box0", json::object()}});
+
+    REQUIRE(backend.supports_lane_eject());
+    auto err = backend.eject_lane(0);
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "MULTI_COLOR_BOX_UNLOAD SLOT=slot0");
+}
+
+TEST_CASE("QIDI Box Max 4 dialect takes precedence over box_stepper FORCE_MOVE",
+          "[ams][qidi_box][write_path][max4]") {
+    RecordingQidiBackend backend;
+    // Even if force_move is also enabled, a multi_color_controller printer must
+    // use MULTI_COLOR_BOX_UNLOAD, never the FORCE_MOVE that errors on the Max 4.
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()},
+                                                  {"force_move", {{"enable_force_move", true}}}});
+
+    auto err = backend.eject_lane(2);
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "MULTI_COLOR_BOX_UNLOAD SLOT=slot2");
+    REQUIRE(backend.sent[0].find("FORCE_MOVE") == std::string::npos);
+}
+
+TEST_CASE("QIDI Box Max 4 dialect still rejects an out-of-range slot",
+          "[ams][qidi_box][write_path][max4]") {
+    // The slot-range guard must run before the dialect branch — a bad index must
+    // never reach MULTI_COLOR_BOX_UNLOAD. With no unit configured, any index is
+    // out of range.
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()}});
+
+    auto err = backend.eject_lane(99);
+    REQUIRE_FALSE(err.success());
+    REQUIRE(backend.sent.empty());
 }
 
 // =====================================================================
@@ -932,7 +1089,7 @@ TEST_CASE("QIDI Box write-path rejects out-of-range slot/tool indices",
 // system_info_. Mirroring last_load_slot onto slot.status alone left the
 // rest of the system at -1 / false even when something was clearly loaded.
 
-TEST_CASE("QIDI Box last_load_slot drives current_slot/current_tool", "[ams][qidi_box]") {
+TEST_CASE("QIDI Box last_load_slot populates current_slot/current_tool", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
 
     QidiBoxTestAccess::parse_vars(backend, json{
@@ -944,12 +1101,19 @@ TEST_CASE("QIDI Box last_load_slot drives current_slot/current_tool", "[ams][qid
     // Default tool=slot mapping, so current_tool == current_slot.
     REQUIRE(backend.get_current_tool() == 2);
     REQUIRE(backend.is_filament_loaded());
+}
+
+TEST_CASE("QIDI Box last_load_slot=slot-1 clears current_*", "[ams][qidi_box]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    // Seed loaded first.
+    QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot1"}});
+    REQUIRE(backend.is_filament_loaded());
 
     QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot-1"}});
 
-    CHECK_FALSE(backend.is_filament_loaded());
-    CHECK(backend.get_current_slot() == -1);
-    CHECK(backend.get_current_tool() == -1);
+    REQUIRE_FALSE(backend.is_filament_loaded());
+    REQUIRE(backend.get_current_slot() == -1);
+    REQUIRE(backend.get_current_tool() == -1);
 }
 
 TEST_CASE("QIDI Box current_tool follows value_t mapping", "[ams][qidi_box]") {
@@ -971,17 +1135,13 @@ TEST_CASE("QIDI Box current_tool follows value_t mapping", "[ams][qidi_box]") {
 // _BOX_CHANGE_FILAMENT is running, clears it on completion. Map this
 // onto AmsAction so the UI shows an in-flight indicator.
 
-TEST_CASE("QIDI Box is_tool_change shows LOADING while set", "[ams][qidi_box]") {
+TEST_CASE("QIDI Box is_tool_change=1 sets action to LOADING", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
     REQUIRE(backend.get_system_info().action == AmsAction::IDLE);
 
     QidiBoxTestAccess::parse_vars(backend, json{{"is_tool_change", 1}});
 
     REQUIRE(backend.get_system_info().action == AmsAction::LOADING);
-
-    QidiBoxTestAccess::parse_vars(backend, json{{"is_tool_change", 0}});
-
-    CHECK(backend.get_system_info().action == AmsAction::IDLE);
 }
 
 TEST_CASE("QIDI Box get_slot_info returns valid SlotInfo for expanded slots (box_count>1)",
@@ -998,6 +1158,16 @@ TEST_CASE("QIDI Box get_slot_info returns valid SlotInfo for expanded slots (box
     REQUIRE(info.status == SlotStatus::LOADED);
     // Index past the expanded count still rejects.
     REQUIRE(backend.get_slot_info(99).slot_index == -1);
+}
+
+TEST_CASE("QIDI Box is_tool_change=0 returns action to IDLE", "[ams][qidi_box]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(backend, json{{"is_tool_change", 1}});
+    REQUIRE(backend.get_system_info().action == AmsAction::LOADING);
+
+    QidiBoxTestAccess::parse_vars(backend, json{{"is_tool_change", 0}});
+
+    REQUIRE(backend.get_system_info().action == AmsAction::IDLE);
 }
 
 TEST_CASE("QIDI Box parse_save_variables applies cached profile to SlotInfo temps",
@@ -1041,27 +1211,26 @@ TEST_CASE("QIDI Box heater status populates dryer current/target temp", "[ams][q
     REQUIRE(d.target_temp_c == Catch::Approx(55.0f).epsilon(0.01));
 }
 
-TEST_CASE("QIDI Box drying_state end_time drives active and remaining minutes",
-          "[ams][qidi_box][dryer]") {
-    struct Row {
-        std::time_t now;
-        int dry_state;
-        bool active;
-        int remaining_min;
-    };
-    for (const Row& r : {Row{1000, 1, true, 30}, Row{5000, 0, false, 0}}) {
-        DYNAMIC_SECTION("now=" << r.now) {
-            AmsBackendQidi backend(nullptr, nullptr);
-            QidiBoxTestAccess::set_clock(backend, [now = r.now] { return now; });
-            QidiBoxTestAccess::apply_box_extras(
-                backend,
-                json{{"box_drying_state",
-                      json{{"box1", json{{"dry_state", r.dry_state}, {"end_time", 2800}}}}}});
-            DryerInfo d = QidiBoxTestAccess::get_dryer(backend);
-            CHECK(d.active == r.active);
-            CHECK(d.remaining_min == r.remaining_min);
-        }
-    }
+TEST_CASE("QIDI Box drying_state end_time drives remaining minutes", "[ams][qidi_box][dryer]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::set_clock(backend, [] { return std::time_t{1000}; });
+    QidiBoxTestAccess::apply_box_extras(
+        backend,
+        json{{"box_drying_state", json{{"box1", json{{"dry_state", 1}, {"end_time", 2800}}}}}});
+    DryerInfo d = QidiBoxTestAccess::get_dryer(backend);
+    REQUIRE(d.active);
+    REQUIRE(d.remaining_min == 30);
+}
+
+TEST_CASE("QIDI Box drying_state past end_time means not drying", "[ams][qidi_box][dryer]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::set_clock(backend, [] { return std::time_t{5000}; });
+    QidiBoxTestAccess::apply_box_extras(
+        backend,
+        json{{"box_drying_state", json{{"box1", json{{"dry_state", 0}, {"end_time", 2800}}}}}});
+    DryerInfo d = QidiBoxTestAccess::get_dryer(backend);
+    REQUIRE_FALSE(d.active);
+    REQUIRE(d.remaining_min == 0);
 }
 
 TEST_CASE("QIDI Box derives duration for externally-started drying (progress ring)",
@@ -1123,43 +1292,49 @@ TEST_CASE("QIDI Box config query refines max temp (heater_generic section)",
 // Dryer write-path: start_drying / stop_drying (issue #1019)
 // =====================================================================
 
-// With the box's drying timer the box commands own the run; without it the
-// heater is driven directly. An out-of-range temperature sends nothing.
-TEST_CASE("QIDI Box start_drying and stop_drying send the box's commands",
+TEST_CASE("QIDI Box start_drying uses ENABLE_BOX_DRY when timer supported",
           "[ams][qidi_box][dryer][write_path]") {
-    using B = RecordingQidiBackend;
-    struct Row {
-        const char* name;
-        bool timer;
-        std::function<helix::AmsError(B&)> op;
-        std::string sent; // empty: refused, nothing sent
-    };
-    const Row rows[] = {
-        {"start with the timer", true, [](B& b) { return b.start_drying(55.0f, 240); },
-         "ENABLE_BOX_DRY BOX=1 TEMP=55 END_TIME=4"},
-        {"start without it", false, [](B& b) { return b.start_drying(55.0f, 240); },
-         "SET_HEATER_TEMPERATURE HEATER=heater_box1 TARGET=55"},
-        {"start out of range", false, [](B& b) { return b.start_drying(150.0f, 240); }, ""},
-        {"stop with the timer", true, [](B& b) { return b.stop_drying(0); },
-         "DISABLE_BOX_DRY BOX=1"},
-        {"stop without it", false, [](B& b) { return b.stop_drying(0); },
-         "SET_HEATER_TEMPERATURE HEATER=heater_box1 TARGET=0"},
-    };
-    for (const Row& r : rows) {
-        DYNAMIC_SECTION(r.name) {
-            B backend;
-            QidiBoxTestAccess::set_drying_timer_supported(backend, r.timer);
-            const auto err = r.op(backend);
-            if (r.sent.empty()) {
-                CHECK_FALSE(err.success());
-                CHECK(backend.sent.empty());
-            } else {
-                CHECK(err.success());
-                REQUIRE(backend.sent.size() == 1);
-                CHECK(backend.sent[0] == r.sent);
-            }
-        }
-    }
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::set_drying_timer_supported(backend, true);
+    auto err = backend.start_drying(55.0f, 240);
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "ENABLE_BOX_DRY BOX=1 TEMP=55 END_TIME=4");
+}
+
+TEST_CASE("QIDI Box start_drying falls back to SET_HEATER_TEMPERATURE",
+          "[ams][qidi_box][dryer][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::set_drying_timer_supported(backend, false);
+    auto err = backend.start_drying(55.0f, 240);
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "SET_HEATER_TEMPERATURE HEATER=heater_box1 TARGET=55");
+}
+
+TEST_CASE("QIDI Box start_drying rejects out-of-range temp", "[ams][qidi_box][dryer][write_path]") {
+    RecordingQidiBackend backend;
+    auto err = backend.start_drying(150.0f, 240);
+    REQUIRE_FALSE(err.success());
+    REQUIRE(backend.sent.empty());
+}
+
+TEST_CASE("QIDI Box stop_drying uses DISABLE_BOX_DRY when timer supported",
+          "[ams][qidi_box][dryer][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::set_drying_timer_supported(backend, true);
+    auto err = backend.stop_drying(0);
+    REQUIRE(err.success());
+    REQUIRE(backend.sent.size() == 1);
+    REQUIRE(backend.sent[0] == "DISABLE_BOX_DRY BOX=1");
+}
+
+TEST_CASE("QIDI Box stop_drying falls back to TARGET=0", "[ams][qidi_box][dryer][write_path]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::set_drying_timer_supported(backend, false);
+    auto err = backend.stop_drying(0);
+    REQUIRE(err.success());
+    REQUIRE(backend.sent[0] == "SET_HEATER_TEMPERATURE HEATER=heater_box1 TARGET=0");
 }
 
 // =====================================================================
@@ -1570,75 +1745,107 @@ TEST_CASE("QIDI Box apply_user_edit carries an explicit zero for a cleared field
 // Error-center bridge: current_error()
 // ---------------------------------------------------------------------------
 
-// The first BLOCKED slot, counted across every box, names the error by its
-// 1-based slot label; no blocked slot means no error, and unblocking clears it.
-TEST_CASE("QIDI Box current_error names the first blocked slot", "[ams][qidi_box][error-center]") {
-    struct Row {
-        const char* name;
-        json vars;
-        const char* label; // nullptr: no error
-    };
-    const Row rows[] = {
-        {"none blocked",
-         {{"enable_box", 1},
-          {"box_count", 1},
-          {"slot0", 1},
-          {"slot1", 2},
-          {"slot2", 0},
-          {"slot3", 1}},
-         nullptr},
-        {"one blocked (-3, runout during print)",
-         {{"enable_box", 1},
-          {"box_count", 1},
-          {"slot0", 1},
-          {"slot1", -3},
-          {"slot2", 1},
-          {"slot3", 1}},
-         "Slot 2"},
-        {"several blocked",
-         {{"enable_box", 1},
-          {"box_count", 1},
-          {"slot0", -1},
-          {"slot1", -2},
-          {"slot2", 1},
-          {"slot3", 1}},
-         "Slot 1"},
-        {"blocked in a later box", {{"enable_box", 1}, {"box_count", 2}, {"slot5", -3}}, "Slot 6"},
-    };
-    for (const Row& r : rows) {
-        DYNAMIC_SECTION(r.name) {
-            RecordingQidiBackend backend;
-            REQUIRE_FALSE(backend.current_error().has_value());
-            QidiBoxTestAccess::parse_vars(backend, r.vars);
+TEST_CASE("QIDI Box current_error returns nullopt when no slots are blocked",
+          "[ams][qidi_box][error-center]") {
+    RecordingQidiBackend backend;
+    // Default state: all slots UNKNOWN
+    REQUIRE_FALSE(backend.current_error().has_value());
 
-            auto ev = backend.current_error();
-            if (!r.label) {
-                CHECK_FALSE(ev.has_value());
-                continue;
-            }
-            REQUIRE(ev.has_value());
-            CHECK(ev->source == helix::ErrorSource::QIDI);
-            CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
-            CHECK_FALSE(ev->title.empty());
-            // The whole label: the noun from lane_noun(), the number from lane_number().
-            CHECK(ev->detail.find(r.label) != std::string::npos);
-            CHECK(ev->sticky);
-            // One dismiss affordance: a button-less recovery modal cannot be closed.
-            // Empty gcode closes it and sends nothing (#1172).
-            REQUIRE(ev->recovery_actions.size() == 1);
-            CHECK(ev->recovery_actions[0].gcode.empty());
+    // Slots with non-BLOCKED statuses also return nullopt
+    QidiBoxTestAccess::parse_vars(backend, json{
+                                               {"enable_box", 1},
+                                               {"box_count", 1},
+                                               {"slot0", 1}, // AVAILABLE
+                                               {"slot1", 2}, // LOADED
+                                               {"slot2", 0}, // EMPTY
+                                               {"slot3", 1}, // AVAILABLE
+                                           });
+    REQUIRE_FALSE(backend.current_error().has_value());
+}
 
-            // The slot recovering clears it.
-            json recovered = r.vars;
-            for (auto& [key, value] : recovered.items()) {
-                if (key.rfind("slot", 0) == 0 && value.get<int>() < 0) {
-                    value = 1;
-                }
-            }
-            QidiBoxTestAccess::parse_vars(backend, recovered);
-            CHECK_FALSE(backend.current_error().has_value());
-        }
-    }
+TEST_CASE("QIDI Box current_error returns CRITICAL event for first blocked slot",
+          "[ams][qidi_box][error-center]") {
+    RecordingQidiBackend backend;
+    // slot1 blocked (value -3 = runout-during-print)
+    QidiBoxTestAccess::parse_vars(backend, json{
+                                               {"enable_box", 1},
+                                               {"box_count", 1},
+                                               {"slot0", 1},  // AVAILABLE
+                                               {"slot1", -3}, // BLOCKED
+                                               {"slot2", 1},  // AVAILABLE
+                                               {"slot3", 1},  // AVAILABLE
+                                           });
+
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->source == helix::ErrorSource::QIDI);
+    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+    CHECK_FALSE(ev->title.empty());
+    // The whole label, not just the digit: the noun comes from the backend's
+    // lane_noun() and the number from lane_number(), and a user reads both.
+    CHECK(ev->detail.find("Slot 2") != std::string::npos);
+    CHECK(ev->sticky);
+    // Recovery has one dismiss affordance — a button-less modal is a non-dismissible
+    // UI trap (RecoveryModalPresenter with 0 buttons hides the button container).
+    CHECK(ev->recovery_actions.size() == 1);
+    // Empty gcode == dismiss: closes the modal, sends nothing. Previously this
+    // had to be a Klipper comment because a blank gcode was sent as the LABEL
+    // ("OK" to Klipper); that fallback is gone (#1172).
+    CHECK(ev->recovery_actions[0].gcode.empty());
+}
+
+TEST_CASE("QIDI Box current_error scans slots from later boxes", "[ams][qidi_box][error-center]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend,
+                                  json{
+                                      {"enable_box", 1}, {"box_count", 2}, {"slot5", -3}, // BLOCKED
+                                  });
+
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->detail.find("Slot 6") != std::string::npos); // 1-based: global slot 5
+}
+
+TEST_CASE("QIDI Box current_error picks the first blocked slot when multiple blocked",
+          "[ams][qidi_box][error-center]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend, json{
+                                               {"enable_box", 1},
+                                               {"box_count", 1},
+                                               {"slot0", -1}, // BLOCKED (slot-load-fail)
+                                               {"slot1", -2}, // BLOCKED (extruder-load-fail)
+                                               {"slot2", 1},
+                                               {"slot3", 1},
+                                           });
+
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    // First blocked slot is index 0 → lane 1
+    CHECK(ev->detail.find("Slot 1") != std::string::npos);
+}
+
+TEST_CASE("QIDI Box current_error clears when slot unblocks", "[ams][qidi_box][error-center]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::parse_vars(backend, json{
+                                               {"enable_box", 1},
+                                               {"box_count", 1},
+                                               {"slot0", -1}, // BLOCKED
+                                               {"slot1", 1},
+                                               {"slot2", 1},
+                                               {"slot3", 1},
+                                           });
+    REQUIRE(backend.current_error().has_value());
+
+    // Slot recovers (positive value = AVAILABLE)
+    QidiBoxTestAccess::parse_vars(backend, json{
+                                               {"enable_box", 1},
+                                               {"box_count", 1},
+                                               {"slot0", 1}, // was BLOCKED, now AVAILABLE
+                                               {"slot1", 1},
+                                               {"slot2", 1},
+                                               {"slot3", 1},
+                                           });
+    REQUIRE_FALSE(backend.current_error().has_value());
 }
 
 // =====================================================================
