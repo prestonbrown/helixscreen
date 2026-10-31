@@ -537,6 +537,10 @@ class ModalStack {
   private:
     ModalStack() = default;
 
+    /// Drop entries whose backdrop was deleted behind the stack, which no owner
+    /// can name any more.
+    void prune_dead();
+
     struct ModalEntry {
         helix::ui::WeakWidget backdrop;
         helix::ui::WeakWidget dialog;

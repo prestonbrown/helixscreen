@@ -11,6 +11,24 @@
 
 namespace helix::ui {
 
+void WidgetRef::reset(lv_obj_t* obj) {
+    if (obj && obj->is_deleting) {
+        obj = nullptr;
+    }
+    if (obj == obj_) {
+        return;
+    }
+    // obj_ is non-null only while its widget is alive: the hook clears it
+    // first. After lv_deinit() nothing is left to unhook from.
+    if (obj_ != nullptr && lv_is_initialized()) {
+        lv_obj_remove_event_cb_with_user_data(obj_, on_deleted, this);
+    }
+    obj_ = obj;
+    if (obj_ != nullptr) {
+        lv_obj_add_event_cb(obj_, on_deleted, LV_EVENT_DELETE, this);
+    }
+}
+
 struct WeakWidget::Slot {
     lv_obj_t* obj = nullptr;
     // The hook's share of the slot, dropped when the widget dies. A slot naming a

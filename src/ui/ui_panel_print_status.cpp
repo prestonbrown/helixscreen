@@ -936,11 +936,12 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     // Find thumbnail section for nested widgets
     lv_obj_t* thumbnail_section = find_required(overlay_content, "thumbnail_section", get_name());
     if (!thumbnail_section) {
+        // Half built and unregistered: a root left set would be pushed by the next open.
+        uninstall_root_delete_hook(delete_hook_root_, on_root_deleted, this);
+        helix::ui::safe_delete_deferred(overlay_root_);
         return nullptr;
     }
 
-    // A failed create() leaves its hook on a root that never got a tree number,
-    // so a replacement is logged only while the last numbered tree is alive.
     if (replaces_previous_tree && s_last_destroyed_tree != s_tree_number) {
         log_tree_destroyed(PrintStatusTreeDestroyCause::ReplacedByRebuild,
                            printer_state_.print_state().get_print_lifecycle());

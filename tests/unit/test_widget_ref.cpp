@@ -168,6 +168,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef converts to lv_obj_t* for LVGL call
     CHECK(ref == nullptr);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef assigned during its widget's delete is empty",
+                 "[widget_ref]") {
+    WidgetRef ref;
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    lv_obj_add_event_cb(
+        obj,
+        [](lv_event_t* e) {
+            *static_cast<WidgetRef*>(lv_event_get_user_data(e)) = lv_event_get_target_obj(e);
+        },
+        LV_EVENT_DELETE, &ref);
+
+    lv_obj_delete(obj);
+
+    CHECK(ref.get() == nullptr);
+}
+
 // ============================================================================
 // WeakWidget
 // ============================================================================

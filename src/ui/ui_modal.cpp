@@ -146,6 +146,11 @@ void ModalStack::push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& c
     sync_chrome_cover(*this);
     if (backdrop) {
         lv_obj_move_foreground(backdrop);
+        // Added after the entry's handle hook, so the handle reads nullptr by now.
+        // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
+        lv_obj_add_event_cb(
+            backdrop, [](lv_event_t*) { ModalStack::instance().prune_dead(); }, LV_EVENT_DELETE,
+            nullptr);
     }
     spdlog::debug("[ModalStack] Pushed modal '{}' (stack depth: {})", component_name,
                   stack_.size());
@@ -198,6 +203,28 @@ void ModalStack::remove(lv_obj_t* backdrop, bool free_owned_now) {
                                         [doomed]() { free_owned_instance(doomed); });
             }
         }
+    }
+}
+
+void ModalStack::prune_dead() {
+    // Backwards, so an erase leaves the earlier indices valid.
+    bool pruned = false;
+    for (size_t i = stack_.size(); i-- > 0;) {
+        if (stack_[i].backdrop) {
+            continue;
+        }
+        spdlog::debug("[ModalStack] Dropping modal '{}': its backdrop was deleted",
+                      stack_[i].component_name);
+        Modal* doomed = stack_[i].owned_instance.release();
+        stack_.erase(stack_.begin() + static_cast<std::ptrdiff_t>(i));
+        pruned = true;
+        if (doomed) {
+            helix::ui::queue_update("ModalStack::free_owned",
+                                    [doomed]() { free_owned_instance(doomed); });
+        }
+    }
+    if (pruned) {
+        sync_chrome_cover(*this);
     }
 }
 
@@ -492,7 +519,7 @@ void ModalStack::exit_animation_done(lv_anim_t* anim) {
 }
 
 void ModalStack::finish_exit(lv_obj_t* backdrop) {
-    // Animations die with their object, so a backdrop reaching here is live.
+    // The no-animation exit passes nullptr when the backdrop died before its tick.
     if (!backdrop) {
         return;
     }
@@ -556,8 +583,9 @@ void ModalStack::animate_exit(lv_obj_t* backdrop, lv_obj_t* dialog) {
         // finish_exit frees an owned instance before it queues the tree's delete;
         // this runs inside hide()'s frame, so the whole sequence waits a tick.
         lv_obj_add_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::queue_update("ModalStack::finish_exit",
-                                [backdrop]() { ModalStack::finish_exit(backdrop); });
+        helix::ui::queue_update(
+            "ModalStack::finish_exit",
+            [backdrop = helix::ui::WeakWidget(backdrop)]() { ModalStack::finish_exit(backdrop); });
         return;
     }
 

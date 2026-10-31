@@ -301,6 +301,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(stack.stack_empty());
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "A deleted backdrop leaves the stack and uncovers the chrome",
+                 "[modal][1983]") {
+    auto& stack = ModalStack::instance();
+    lv_obj_t* dialog = Modal::show(kTestComponent);
+    REQUIRE(dialog != nullptr);
+    REQUIRE(stack.covers_chrome());
+
+    lv_obj_delete(stack.backdrop_for(dialog));
+
+    CHECK_FALSE(stack.covers_chrome());
+    CHECK(stack.stack_empty());
+    CHECK(stack.top_component_name().empty());
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "Static show/hide still tears a modal down", "[modal][1230]") {
     lv_obj_t* dialog = Modal::show(kTestComponent);
     REQUIRE(dialog != nullptr);

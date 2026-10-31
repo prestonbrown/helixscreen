@@ -29,6 +29,7 @@
 #include "display_settings_manager.h"
 #include "memory_utils.h"
 #include "printer_state.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
@@ -254,6 +255,25 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     lv_obj_t* percent = lv_obj_find_by_name(rebuilt, "print_percent");
     REQUIRE(percent != nullptr);
     CHECK(std::string(lv_label_get_text(percent)) == "42%");
+}
+
+TEST_CASE_METHOD(PrintStatusCloseFixture, "A failed print status create leaves no tree to push",
+                 "[print_status][destroy_on_close][1983]") {
+    const bool strict = helix::ui::strict_ui_checks();
+    helix::ui::set_strict_ui_checks(false);
+    REQUIRE(lv_xml_register_component_from_data(
+                "print_status_panel", "<component><view extends=\"lv_obj\"/></component>") ==
+            LV_RESULT_OK);
+
+    CHECK_FALSE(PrintStatusPanel::push_overlay(test_screen()));
+    CHECK(PrintStatusPanel::get_cached_overlay() == nullptr);
+
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/print_status_panel.xml") == LV_RESULT_OK);
+    helix::ui::set_strict_ui_checks(strict);
+    settle();
+    lv_obj_t* tree = open_print_status();
+    CHECK(NavigationManagerTestAccess::lifecycle_of(NavigationManager::instance(), tree) !=
+          nullptr);
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture, "Print status decides from the print state at close",

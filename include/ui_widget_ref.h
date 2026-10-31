@@ -26,7 +26,8 @@ namespace helix::ui {
  *
  * The hook's user_data is this handle's address, so a WidgetRef neither copies
  * nor moves; hold it as a member or in a fixed-size array. Assigning a new
- * widget, or nullptr, unhooks the old one; the destructor unhooks too.
+ * widget, or nullptr, unhooks the old one; the destructor unhooks too. A widget
+ * already inside its own delete reads as nullptr, because its hook could never fire.
  * LVGL thread only, like the widget it names.
  */
 class WidgetRef {
@@ -47,20 +48,7 @@ class WidgetRef {
         return *this;
     }
 
-    void reset(lv_obj_t* obj = nullptr) {
-        if (obj == obj_) {
-            return;
-        }
-        // obj_ is non-null only while its widget is alive: the hook clears it
-        // first. After lv_deinit() nothing is left to unhook from.
-        if (obj_ != nullptr && lv_is_initialized()) {
-            lv_obj_remove_event_cb_with_user_data(obj_, on_deleted, this);
-        }
-        obj_ = obj;
-        if (obj_ != nullptr) {
-            lv_obj_add_event_cb(obj_, on_deleted, LV_EVENT_DELETE, this);
-        }
-    }
+    void reset(lv_obj_t* obj = nullptr);
 
     [[nodiscard]] lv_obj_t* get() const {
         return obj_;

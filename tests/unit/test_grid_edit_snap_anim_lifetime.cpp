@@ -171,6 +171,23 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: exit() cancels an in-flight snap
     lv_obj_delete(scene.container);
 }
 
+TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: snap page deleted before the cancel is skipped",
+                 "[grid_edit][grid_edit_snap_anim]") {
+    helix::ui::ScopedAnimationsEnabled animations_on;
+    GridEditScene scene(test_screen(), "test_grid_edit_snap_anim_page_death");
+
+    GridEditMode em;
+    lv_obj_t* preview = arm_resize(em, scene);
+    commit_snap_resize(em);
+    REQUIRE(lv_anim_get(preview, nullptr) != nullptr);
+
+    lv_obj_delete(scene.container);
+    em.exit(); // the outline is on the top layer; the page lookup must not run
+
+    CHECK(lv_anim_get(preview, nullptr) == nullptr);
+    process_lvgl(50);
+}
+
 TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: destruction cancels an in-flight snap animation",
                  "[grid_edit][grid_edit_snap_anim]") {
     helix::ui::ScopedAnimationsEnabled animations_on;
