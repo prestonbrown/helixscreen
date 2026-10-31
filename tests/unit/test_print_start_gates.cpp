@@ -1224,38 +1224,6 @@ TEST_CASE("insufficient_lane_weights_in: warns when the mapped lane is short",
     CHECK(shortfalls[0].needed_g > 860.0f);
 }
 
-TEST_CASE("insufficient_lane_weights_in: silent once remapped to a full lane",
-          "[print-start][gate-pipeline]") {
-    // The whole point: the SAME file, remapped, must stop warning.
-    CHECK(insufficient_lane_weights_in(orca_ctx(/*slot=*/2, /*remaining=*/1000.0f)).empty());
-}
-
-TEST_CASE("insufficient_lane_weights_in: an unknown lane weight is not zero",
-          "[print-start][gate-pipeline]") {
-    // -1 is the "no figure on record" sentinel. Reading it as 0 g would make
-    // every unlinked bay a false alarm - the same collision class as the black
-    // bypass swatch that read as unset.
-    CHECK(insufficient_lane_weights_in(orca_ctx(/*slot=*/3, /*remaining=*/-1.0f)).empty());
-}
-
-TEST_CASE("insufficient_lane_weights_in: resolves on the (slot, backend) pair",
-          "[print-start][gate-pipeline]") {
-    // slot_index is unique only WITHIN a backend. Matching on slot alone picks
-    // the wrong lane - the live bug in preflight_validator.cpp's find_slot().
-    auto ctx = ctx_with([](PrintStartContext& c) {
-        FileMetadata md;
-        md.filament_weight_total = 863.07;
-        c.metadata = md;
-        c.tool_grams = {0.0, 863.07};
-        c.tools_used = {1};
-        c.mappings = {map_tool(1, /*slot=*/0, /*backend=*/1)};
-        // Backend 0 slot 0 is nearly empty; backend 1 slot 0 is full. Only the
-        // backend-1 lane is mapped, so there must be no shortfall.
-        c.available_slots = {lane(0, 0, 10.0f), lane(0, 1, 1000.0f)};
-    });
-    CHECK(insufficient_lane_weights_in(ctx).empty());
-}
-
 TEST_CASE("insufficient_lane_weights_in: single tool falls back to the file total",
           "[print-start][gate-pipeline]") {
     // No per-tool line (older slicer / Moonraker metadata only), one tool used:
@@ -1274,58 +1242,50 @@ TEST_CASE("insufficient_lane_weights_in: single tool falls back to the file tota
     CHECK(shortfalls[0].needed_g > 860.0f);
 }
 
-TEST_CASE("insufficient_lane_weights_in: multi-tool with no breakdown stays silent",
+TEST_CASE("insufficient_lane_weights_in: no shortfall when the lane cannot be priced or is fine",
           "[print-start][gate-pipeline]") {
-    // Deliberate: dividing the total across tools would fabricate a split that
-    // is wrong in both directions on any uneven print.
-    auto ctx = ctx_with([](PrintStartContext& c) {
-        FileMetadata md;
-        md.filament_weight_total = 863.07;
-        c.metadata = md;
-        c.tool_grams = {};
-        c.tools_used = {0, 1};
-        c.mappings = {map_tool(0, 0), map_tool(1, 1)};
-        c.available_slots = {lane(0, 0, 10.0f), lane(1, 0, 10.0f)};
-    });
-    CHECK(insufficient_lane_weights_in(ctx).empty());
-}
+    auto with_total = [](std::vector<double> tool_grams, std::set<int> tools_used,
+                         std::vector<helix::ToolMapping> mappings,
+                         std::vector<helix::AvailableSlot> slots) {
+        return ctx_with([&](PrintStartContext& c) {
+            FileMetadata md;
+            md.filament_weight_total = 863.07;
+            c.metadata = md;
+            c.tool_grams = tool_grams;
+            c.tools_used = tools_used;
+            c.mappings = mappings;
+            c.available_slots = slots;
+        });
+    };
+    auto bypassed = orca_ctx(/*slot=*/1, /*remaining=*/65.0f);
+    bypassed.any_bypass_active = true;
 
-TEST_CASE("insufficient_lane_weights_in: a mapping to no known lane is silent",
-          "[print-start][gate-pipeline]") {
-    // A mapped_slot outside the connected units (e.g. the synthetic external
-    // lane index) must never be priced - no lane, no opinion.
-    auto ctx = ctx_with([](PrintStartContext& c) {
-        FileMetadata md;
-        md.filament_weight_total = 863.07;
-        c.metadata = md;
-        c.tool_grams = {0.0, 863.07};
-        c.tools_used = {1};
-        c.mappings = {map_tool(1, /*slot=*/4)};
-        c.available_slots = {lane(0, 0, 1000.0f), lane(1, 0, 1000.0f)};
-    });
-    CHECK(insufficient_lane_weights_in(ctx).empty());
-}
-
-TEST_CASE("insufficient_lane_weights_in: an unused tool is not a shortfall",
-          "[print-start][gate-pipeline]") {
-    // tool 0 is mapped to an empty lane but the file never prints with it.
-    auto ctx = ctx_with([](PrintStartContext& c) {
-        FileMetadata md;
-        md.filament_weight_total = 863.07;
-        c.metadata = md;
-        c.tool_grams = {0.0, 863.07};
-        c.tools_used = {1};
-        c.mappings = {map_tool(0, 0), map_tool(1, 2)};
-        c.available_slots = {lane(0, 0, 0.0f), lane(2, 0, 1000.0f)};
-    });
-    CHECK(insufficient_lane_weights_in(ctx).empty());
-}
-
-TEST_CASE("insufficient_lane_weights_in: bypass single-lane prints defer to the spool check",
-          "[print-start][gate-pipeline]") {
-    auto ctx = orca_ctx(/*slot=*/1, /*remaining=*/65.0f);
-    ctx.any_bypass_active = true;
-    CHECK(insufficient_lane_weights_in(ctx).empty());
+    const std::pair<const char*, PrintStartContext> rows[] = {
+        // The same file, remapped to a full lane, stops warning.
+        {"remapped to a full lane", orca_ctx(/*slot=*/2, /*remaining=*/1000.0f)},
+        // -1 is the "no figure on record" sentinel, not 0 g.
+        {"unknown lane weight", orca_ctx(/*slot=*/3, /*remaining=*/-1.0f)},
+        // slot_index is unique only within a backend: backend 1's full lane is
+        // the mapped one, not backend 0's nearly empty slot 0.
+        {"resolves on the (slot, backend) pair",
+         with_total({0.0, 863.07}, {1}, {map_tool(1, /*slot=*/0, /*backend=*/1)},
+                    {lane(0, 0, 10.0f), lane(0, 1, 1000.0f)})},
+        // Dividing the total across tools would fabricate a split.
+        {"multi-tool with no breakdown", with_total({}, {0, 1}, {map_tool(0, 0), map_tool(1, 1)},
+                                                    {lane(0, 0, 10.0f), lane(1, 0, 10.0f)})},
+        // A mapped_slot outside the connected units is never priced.
+        {"mapping to no known lane", with_total({0.0, 863.07}, {1}, {map_tool(1, /*slot=*/4)},
+                                                {lane(0, 0, 1000.0f), lane(1, 0, 1000.0f)})},
+        // Tool 0 is mapped to an empty lane but the file never prints with it.
+        {"unused tool", with_total({0.0, 863.07}, {1}, {map_tool(0, 0), map_tool(1, 2)},
+                                   {lane(0, 0, 0.0f), lane(2, 0, 1000.0f)})},
+        // A bypass single-lane print defers to the spool check.
+        {"bypass single-lane print", bypassed},
+    };
+    for (const auto& [label, ctx] : rows) {
+        INFO(label);
+        CHECK(insufficient_lane_weights_in(ctx).empty());
+    }
 }
 
 TEST_CASE("gate_insufficient_lane_weight: names the short slot", "[print-start][gate-pipeline]") {
