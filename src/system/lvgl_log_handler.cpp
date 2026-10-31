@@ -493,6 +493,12 @@ const char* anomaly_code_for_warning(std::string_view msg) {
     } else if (msg.find(kSubjectTypeCheck) != std::string_view::npos) {
         // XML binding wired wrong subject type — real bug in panel XML.
         return "subject_type_mismatch";
+    } else if (msg.find("Column position was") != std::string_view::npos ||
+               msg.find("Row position was") != std::string_view::npos ||
+               msg.find("Column span is too large") != std::string_view::npos ||
+               msg.find("Row span is too large") != std::string_view::npos) {
+        // LVGL clamps the cell and lays the child out; the bad cell's producer is a bug here.
+        return "grid_update_cell_oob";
     } else if (msg.find("coordinates out of range") != std::string_view::npos) {
         return "coord_out_of_range";
     } else if (msg.find("duplicate schedule") != std::string_view::npos) {
@@ -500,8 +506,6 @@ const char* anomaly_code_for_warning(std::string_view msg) {
         // but kept so the log + telemetry paths stay in sync if either
         // is ever missed.
         return "obj_delete_async_dup";
-    } else if (msg.find("skipping invalid obj") != std::string_view::npos) {
-        return "obj_delete_async_cb_invalid";
     } else if (msg.find("observer->subject is NULL") != std::string_view::npos) {
         // XML component scope tore down subject before the observing
         // widget's delete event fired — real ordering bug.

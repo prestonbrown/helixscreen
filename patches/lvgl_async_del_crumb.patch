@@ -49,9 +49,9 @@ index 9abf7425f..8207b159d 100644
      lv_obj_invalidate(obj);
  
 @@ -689,6 +721,18 @@ static void lv_obj_delete_async_cb(void * obj)
-         return;
-     }
  
+ static void lv_obj_delete_async_cb(void * obj)
+ {
 +    /* Crumb the async-delete root before recursing into children. */
 +    if(helix_crash_note_async_del) {
 +        lv_obj_t * lvobj = (lv_obj_t *)obj;

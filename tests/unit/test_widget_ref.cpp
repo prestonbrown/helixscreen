@@ -58,6 +58,37 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef clears itself on a deferred delete"
     CHECK(ref.get() == nullptr);
 }
 
+namespace {
+int timer_count() {
+    int n = 0;
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        ++n;
+    }
+    return n;
+}
+} // namespace
+
+// lv_obj_delete_async_cb and its dedup read the object without a validity check. They rely on
+// obj_delete_core cancelling every pending async delete before it frees the object.
+TEST_CASE_METHOD(LVGLTestFixture, "Deleting an object cancels its pending async deletes",
+                 "[widget_ref][1983]") {
+    lv_obj_t* parent = lv_obj_create(test_screen());
+    lv_obj_t* child = lv_obj_create(parent);
+    const int before = timer_count();
+
+    lv_obj_delete_async(child);
+    lv_obj_delete_async(parent);
+    REQUIRE(timer_count() == before + 2);
+
+    SECTION("a sync delete of the ancestor takes the child's entry with it") {
+        lv_obj_delete(parent);
+    }
+    SECTION("the ancestor's own async delete does too") {
+        process_lvgl(20);
+    }
+    CHECK(timer_count() == before);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef rebind unhooks the previous widget", "[widget_ref]") {
     lv_obj_t* first = lv_obj_create(test_screen());
     lv_obj_t* second = lv_obj_create(test_screen());
