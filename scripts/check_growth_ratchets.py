@@ -34,6 +34,10 @@ lv_obj_is_valid() or lv_obj_is_in_widget_tree() anywhere under src/, include/ or
 freed address; hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h), and
 in a test use helix::test::widget_in_tree() (prestonbrown/helixscreen#1983).
 
+Also on the whole tree at HEAD: inside an LV_EVENT_DELETE callback, a WidgetRef is never
+compared with the event's target. Its own hook can run first, so it already reads nullptr
+and the comparison is silently false; the callback asks names_dying() instead.
+
 Usage:
   check_growth_ratchets.py --base auto     # the fork point diff_base.py picks
   check_growth_ratchets.py --base REV      # REV...HEAD
@@ -308,6 +312,89 @@ def banned_validity_calls(root: Path) -> list[str]:
     return sorted(hits)
 
 
+_EVENT_TARGET = r"(?:static_cast<[^<>]*>\s*\(\s*)?lv_event_get_(?:current_)?target(?:_obj)?\s*\(\s*\w+\s*\)\s*\)?"
+_DELETE_CB_RE = re.compile(r"lv_obj_add_event_cb\(\s*[^,;]+,\s*&?(?:\w+::)*(\w+)\s*,\s*LV_EVENT_DELETE\b")
+_DELETE_LAMBDA_RE = re.compile(r"lv_obj_add_event_cb\(\s*[^,;]+,\s*\[[^\]]*\]\s*\([^)]*\)\s*(?=\{)")
+_CLASS_RE = re.compile(r"\b(?:class|struct)\s+(?:\[\[[^\]]*\]\]\s*)?(\w+)\s*(?:final\s*)?(?::([^;{}()]*))?\{")
+_REF_MEMBER_RE = re.compile(r"\bWidgetRef\s+(\w+)\s*(?:;|\{|=|\[)")
+
+
+def _braced(code: str, start: int) -> str:
+    """The balanced `{...}` opening at `start`."""
+    depth = 0
+    for i in range(start, len(code)):
+        if code[i] == "{":
+            depth += 1
+        elif code[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return code[start:i + 1]
+    return code[start:]
+
+
+def _class_table(blobs: dict[str, str]) -> dict[str, tuple[set[str], list[str]]]:
+    """class name -> (its own WidgetRef members, its bases)."""
+    table: dict[str, tuple[set[str], list[str]]] = {}
+    for text in blobs.values():
+        code = strip_code(text)
+        for m in _CLASS_RE.finditer(code):
+            members, bases = table.setdefault(m.group(1), (set(), []))
+            members.update(_REF_MEMBER_RE.findall(_braced(code, m.end() - 1)))
+            bases.extend(re.findall(r"(\w+)\s*(?:<[^,{]*>)?\s*(?:,|$)", m.group(2) or ""))
+    return table
+
+
+def _ref_members(table, name: str, seen=None) -> set[str]:
+    seen = seen if seen is not None else set()
+    if name in seen or name not in table:
+        return set()
+    seen.add(name)
+    members, bases = table[name]
+    found = set(members)
+    for base in bases:
+        found |= _ref_members(table, base, seen)
+    return found
+
+
+def _target_compare(body: str, handles: set[str]) -> list[int]:
+    """Offsets in `body` where a name in `handles` meets the event's target in == or !=."""
+    if not handles:
+        return []
+    locals_ = re.findall(rf"\b(\w+)\s*=\s*{_EVENT_TARGET}\s*;", body)
+    target = "|".join([_EVENT_TARGET] + [rf"\b{re.escape(n)}\b" for n in locals_])
+    handle = rf"(?:\w+(?:->|\.))*(?:{'|'.join(map(re.escape, sorted(handles)))})\b(?:\.get\(\))?"
+    shapes = (rf"(?<![\w.>]){handle}\s*[!=]=\s*(?:{target})|(?:->|\.){handle}\s*[!=]=\s*(?:{target})",
+              rf"(?:{target})\s*[!=]=\s*{handle}")
+    return sorted({m.start() for rx in shapes for m in re.finditer(rx, body)})
+
+
+def delete_callback_ref_compares(root: Path) -> list[str]:
+    """`path:line` for every comparison of a WidgetRef with the target in a DELETE callback."""
+    blobs = read_blobs(root, "HEAD", list_files(root, "HEAD", tests=False))
+    table = _class_table(blobs)
+    hits = []
+    for path, text in blobs.items():
+        if "LV_EVENT_DELETE" not in text:
+            continue
+        code = strip_code(text)
+        file_refs = set(_REF_MEMBER_RE.findall(code))
+        bodies = []
+        names = set(_DELETE_CB_RE.findall(code))
+        for name in names:
+            for m in re.finditer(rf"(?:\b(\w+)\s*::\s*)?\b{name}\s*\([^()]*lv_event_t\s*\*[^()]*\)\s*\{{", code):
+                bodies.append((m.end() - 1, m.group(1)))
+        for m in _DELETE_LAMBDA_RE.finditer(code):
+            body = _braced(code, m.end())
+            if re.match(r"\s*,\s*LV_EVENT_DELETE\b", code[m.end() + len(body):]):
+                bodies.append((m.end(), None))
+        for start, owner in bodies:
+            body = _braced(code, start)
+            handles = file_refs | (_ref_members(table, owner) if owner else set())
+            for off in _target_compare(body, handles):
+                hits.append(f"{path}:{code.count(chr(10), 0, start + off) + 1}")
+    return sorted(set(hits))
+
+
 def is_source(path: str, tests: bool = True) -> bool:
     roots = ("src/", "include/", "tests/") if tests else ("src/", "include/")
     if not path.startswith(roots):
@@ -416,6 +503,12 @@ def main(argv=None) -> int:
             print(f"❌ {hit}: banned, it cannot tell a live widget from a new one at a freed "
                   f"address. Hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h); "
                   f"a test uses helix::test::widget_in_tree()")
+        return 1
+    compares = delete_callback_ref_compares(root)
+    if compares:
+        for hit in compares:
+            print(f"❌ {hit}: a WidgetRef compared with the target in an LV_EVENT_DELETE callback. "
+                  f"Its hook can run first and read nullptr; use names_dying(target)")
         return 1
     if not args.base:
         ap.error("--base is required")

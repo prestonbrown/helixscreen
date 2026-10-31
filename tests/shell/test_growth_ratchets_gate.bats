@@ -392,6 +392,84 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+# --- WidgetRef against the delete target -------------------------------------
+
+@test "a WidgetRef compared with the target in a DELETE callback fails, in every spelling" {
+    cat > "$REPO/include/o.h" <<'EOF'
+class Base {
+  protected:
+    helix::ui::WidgetRef root_;
+};
+class Over : public Base {
+    static void a(lv_event_t* e);
+    static void b(lv_event_t* e);
+    static void c(lv_event_t* e);
+};
+EOF
+    cat > "$REPO/src/ui/o.cpp" <<'EOF'
+static helix::ui::WidgetRef s_root;
+void Over::a(lv_event_t* e) {
+    if (self->root_ != lv_event_get_target_obj(e)) return;
+}
+void Over::b(lv_event_t* e) {
+    auto* dying = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    if (dying == self->root_.get()) return;
+}
+void Over::c(lv_event_t* e) {
+    if (lv_event_get_target(e) == root_) return;
+}
+void wire(lv_obj_t* o) {
+    lv_obj_add_event_cb(o, Over::a, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(o, &Over::b, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(o, Over::c, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(
+        o, [](lv_event_t* e) { if (s_root == lv_event_get_target_obj(e)) return; },
+        LV_EVENT_DELETE, nullptr);
+}
+EOF
+    commit_all "four compares"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/o.cpp:3: a WidgetRef compared" "$output"
+    contains "src/ui/o.cpp:7: a WidgetRef compared" "$output"
+    contains "src/ui/o.cpp:10: a WidgetRef compared" "$output"
+    contains "src/ui/o.cpp:17: a WidgetRef compared" "$output"
+}
+
+@test "names_dying, a raw member, other events, other functions and comments all pass" {
+    cat > "$REPO/include/q.h" <<'EOF'
+class Holder {
+    helix::ui::WidgetRef ref_;
+    lv_obj_t* raw_ = nullptr;
+    static void gone(lv_event_t* e);
+    static void raw_gone(lv_event_t* e);
+    static void clicked(lv_event_t* e);
+    void elsewhere(lv_obj_t* o);
+};
+EOF
+    cat > "$REPO/src/ui/q.cpp" <<'EOF'
+void Holder::gone(lv_event_t* e) {
+    // ref_ == lv_event_get_target_obj(e) is what this avoids
+    if (self->ref_.names_dying(lv_event_get_target_obj(e))) self->ref_ = nullptr;
+}
+void Holder::raw_gone(lv_event_t* e) {
+    if (self->raw_ != lv_event_get_target_obj(e)) return;
+}
+void Holder::clicked(lv_event_t* e) {
+    if (self->ref_ == lv_event_get_target_obj(e)) return;
+}
+void Holder::elsewhere(lv_obj_t* o) {
+    if (ref_ == o) return;
+    lv_obj_add_event_cb(o, Holder::gone, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(o, Holder::raw_gone, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(o, Holder::clicked, LV_EVENT_CLICKED, nullptr);
+}
+EOF
+    commit_all "quiet shapes"
+    ratchets
+    [ "$status" -eq 0 ]
+}
+
 @test "a branch with no commits is not measured" {
     run python3 "$GATE" --root "$REPO" --base HEAD
     [ "$status" -eq 0 ]
