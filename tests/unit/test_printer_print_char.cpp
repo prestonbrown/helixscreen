@@ -226,6 +226,12 @@ TEST_CASE("Print characterization: terminal state persistence",
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
     }
+
+    SECTION("set_print_outcome publishes to the outcome subject") {
+        state.print_state().set_print_outcome(PrintOutcome::CANCELLED);
+        REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::CANCELLED));
+    }
 }
 
 // ============================================================================
