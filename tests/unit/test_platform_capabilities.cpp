@@ -136,6 +136,34 @@ BogoMIPS	: 270.00
     REQUIRE(cpu_info.bogomips >= 250.0f);
 }
 
+TEST_CASE("CPU detection: only an all in-order Arm core set counts as efficiency cores",
+          "[platform][cpuinfo]") {
+    const auto cores = [](std::initializer_list<std::pair<const char*, const char*>> list) {
+        std::string s;
+        int n = 0;
+        for (const auto& [implementer, part] : list) {
+            s += "processor\t: " + std::to_string(n++) + "\nCPU implementer\t: " + implementer +
+                 "\nCPU part\t: " + part + "\n\n";
+        }
+        return parse_cpuinfo(s).efficiency_cores_only;
+    };
+    CHECK(cores({{"0x41", "0xd03"}, {"0x41", "0xd03"}, {"0x41", "0xd03"}, {"0x41", "0xd03"}}));
+    CHECK(cores({{"0x41", "0xd05"}, {"0x41", "0xd05"}}));
+    // Big and little cores together (four A55 and four A76), an A72, another implementer.
+    CHECK_FALSE(cores({{"0x41", "0xd05"},
+                       {"0x41", "0xd05"},
+                       {"0x41", "0xd05"},
+                       {"0x41", "0xd05"},
+                       {"0x41", "0xd0b"},
+                       {"0x41", "0xd0b"},
+                       {"0x41", "0xd0b"},
+                       {"0x41", "0xd0b"}}));
+    CHECK_FALSE(cores({{"0x41", "0xd08"}}));
+    CHECK_FALSE(cores({{"0x51", "0xd03"}}));
+    CHECK_FALSE(parse_cpuinfo("processor\t: 0\nmodel name\t: x86\nbogomips\t: 4800.00\n")
+                    .efficiency_cores_only);
+}
+
 TEST_CASE("CPU detection: parse single-core ARM (AD5M)", "[platform][cpuinfo]") {
     // Typical /proc/cpuinfo from AD5M printer (single-core ARM)
     const std::string cpuinfo_content = R"(processor	: 0

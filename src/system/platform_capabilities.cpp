@@ -18,6 +18,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
+#include <iterator>
+#include <optional>
+#include <sstream>
 
 #ifdef __APPLE__
 #include <sys/sysctl.h>
@@ -186,6 +190,37 @@ CpuInfo parse_cpuinfo(const std::string& content) {
             static_cast<int>(helix::text_io::parse_leading<float>(match[1].str()).value_or(0.0f));
     }
 
+    // Each core's design. A block per core carries its implementer and part; only
+    // Arm's own (implementer 0x41) part numbers are known here.
+    static constexpr int kEfficiencyParts[] = {0xc05, 0xc07, 0xd04, 0xd03, 0xd05, 0xd46, 0xd80};
+    int named_cores = 0;
+    bool all_efficiency = true;
+    std::istringstream blocks(content);
+    std::string line;
+    int implementer = -1;
+    auto field = [](const std::string& l, const char* key) -> std::optional<int> {
+        if (l.rfind(key, 0) != 0) {
+            return std::nullopt;
+        }
+        const auto colon = l.find(':');
+        if (colon == std::string::npos) {
+            return std::nullopt;
+        }
+        return static_cast<int>(std::strtol(l.c_str() + colon + 1, nullptr, 0));
+    };
+    while (std::getline(blocks, line)) {
+        if (auto v = field(line, "CPU implementer")) {
+            implementer = *v;
+        } else if (auto part = field(line, "CPU part")) {
+            named_cores++;
+            all_efficiency = all_efficiency && implementer == 0x41 &&
+                             std::find(std::begin(kEfficiencyParts), std::end(kEfficiencyParts),
+                                       *part) != std::end(kEfficiencyParts);
+            implementer = -1;
+        }
+    }
+    info.efficiency_cores_only = named_cores > 0 && all_efficiency;
+
     // CPU name. No architecture publishes it under the same key: x86 has
     // "model name", ARM has "Hardware", MIPS has "cpu model", and some boards
     // only carry "Processor". First hit wins; a kernel with none of them leaves
@@ -236,6 +271,7 @@ PlatformCapabilities PlatformCapabilities::detect() {
         CpuInfo cpu_info = parse_cpuinfo(cpuinfo_content);
         caps.cpu_cores = cpu_info.core_count;
         caps.bogomips = cpu_info.bogomips;
+        caps.efficiency_cores_only = cpu_info.efficiency_cores_only;
     }
 #endif
 

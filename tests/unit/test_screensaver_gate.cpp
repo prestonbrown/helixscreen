@@ -41,19 +41,19 @@ CpuSample at(double wall_s, double cpu_s) {
 TEST_CASE("the saver budget follows the core count and drops while printing",
           "[screensaver][screensaver_gate]") {
     using helix::ui::saver_budget_share;
-    CHECK(saver_budget_share(8, 0.0f, false) == Catch::Approx(1.00));
-    CHECK(saver_budget_share(4, 108.0f, false) == Catch::Approx(1.00));
-    CHECK(saver_budget_share(4, 38.4f, false) == Catch::Approx(0.50)); // slow: A53-class timer
-    CHECK(saver_budget_share(3, 0.0f, false) == Catch::Approx(0.75));
-    CHECK(saver_budget_share(2, 0.0f, false) == Catch::Approx(0.50));
-    CHECK(saver_budget_share(1, 0.0f, false) == Catch::Approx(0.10));
-    CHECK(saver_budget_share(0, 0.0f, false) == Catch::Approx(0.10));
+    CHECK(saver_budget_share(8, false, false) == Catch::Approx(1.00));
+    CHECK(saver_budget_share(4, false, false) == Catch::Approx(1.00));
+    CHECK(saver_budget_share(4, true, false) == Catch::Approx(0.50)); // every core in-order
+    CHECK(saver_budget_share(3, false, false) == Catch::Approx(0.75));
+    CHECK(saver_budget_share(2, false, false) == Catch::Approx(0.50));
+    CHECK(saver_budget_share(1, false, false) == Catch::Approx(0.10));
+    CHECK(saver_budget_share(0, false, false) == Catch::Approx(0.10));
     // klippy shares the SoC while printing: these stay where they are on purpose.
-    CHECK(saver_budget_share(4, 38.4f, true) == Catch::Approx(0.25));
-    CHECK(saver_budget_share(3, 0.0f, true) == Catch::Approx(0.185));
-    CHECK(saver_budget_share(2, 0.0f, true) == Catch::Approx(0.125));
-    CHECK(saver_budget_share(1, 0.0f, true) == Catch::Approx(0.05));
-    CHECK(saver_budget_share(0, 0.0f, true) == Catch::Approx(0.05));
+    CHECK(saver_budget_share(4, true, true) == Catch::Approx(0.25));
+    CHECK(saver_budget_share(3, false, true) == Catch::Approx(0.185));
+    CHECK(saver_budget_share(2, false, true) == Catch::Approx(0.125));
+    CHECK(saver_budget_share(1, false, true) == Catch::Approx(0.05));
+    CHECK(saver_budget_share(0, false, true) == Catch::Approx(0.05));
 }
 
 TEST_CASE("over budget steps down one level, at the bottom it is too heavy",
