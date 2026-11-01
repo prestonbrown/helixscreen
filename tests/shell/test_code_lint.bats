@@ -3688,6 +3688,30 @@ def scrub(text):
             out.append(c); i += 1
     return ''.join(out)
 
+NAME_BEFORE = re.compile(r'([A-Za-z_]\w*)\s*$')
+CTOR_INIT = re.compile(r'\)\s*(?:noexcept\s*)?:(?!:)')
+NOT_A_NAME = {'if', 'while', 'for', 'switch', 'return', 'else', 'do', 'try', 'sizeof'}
+
+def named_opener(text, idx):
+    """The identifier right before the bracket at idx, or None."""
+    m = NAME_BEFORE.search(text, 0, idx)
+    if not m or m.group(1) in NOT_A_NAME:
+        return None
+    return m
+
+def brace_initializer(text, idx):
+    """`name{` - a variable or member initialised by braces."""
+    return named_opener(text, idx) is not None
+
+def member_initializer(text, start, idx):
+    """`name(` inside a constructor's member-initializer list."""
+    m = named_opener(text, idx)
+    if m is None:
+        return False
+    before = text[start:m.start()].rstrip()
+    return before.endswith((':', ',')) and not before.endswith('::') and \
+        CTOR_INIT.search(before) is not None
+
 for path in sys.argv[1:]:
     try:
         raw = open(path, encoding='utf-8', errors='replace').read()
@@ -3715,14 +3739,20 @@ for path in sys.argv[1:]:
             continue
         seen.add(start)
         stmt = text[start:m.start()]
-        depth = 0
-        for ch in stmt:
-            depth += ch == '('
-            depth -= ch == ')'
-        if depth > 0:
-            continue  # an argument of a call: it lives for that call
-        if not re.search(r'(?<![=!<>])=(?!=)|\breturn\b', stmt):
-            continue
+        opens = []
+        for i, ch in enumerate(stmt):
+            if ch == '(':
+                opens.append(start + i)
+            elif ch == ')' and opens:
+                opens.pop()
+        if opens:
+            # Inside parentheses: a call argument lives for that call, but a
+            # constructor's member initializer `: keys_(c ? ...)` stores it.
+            if not member_initializer(text, start, opens[-1]):
+                continue
+        elif not (start > 0 and text[start - 1] == '{' and brace_initializer(text, start - 1)):
+            if not re.search(r'(?<![=!<>])=(?!=)|\breturn\b', stmt):
+                continue
         line = text.count('\n', 0, m.start()) + 1
         span = raw_lines[text.count('\n', 0, start):line + 2]
         if any('INIT_LIST_TERNARY_OK' in s for s in span):
@@ -3743,7 +3773,7 @@ init_list_ternary_files() {
     [ -z "$output" ] || { echo "initializer_list stored from a ternary (it dangles):"; echo "$output"; false; }
 }
 
-@test "the initializer_list ternary gate flags a stored pick and stays quiet on a call argument" {
+@test "the initializer_list ternary gate flags stored, braced and member picks and stays quiet on a call argument" {
     local f="${BATS_TEST_TMPDIR}/init_list_shapes.cpp"
     cat > "$f" <<'SHAPES'
 void stored(bool c) {
@@ -3760,6 +3790,19 @@ void argument(bool c) {
     const bool ok = known(c ? std::initializer_list<int>{1} : std::initializer_list<int>{2});
     c ? std::initializer_list<int>{1} : std::initializer_list<int>{2};
 }
+void braced(bool c) {
+    std::initializer_list<int> k{c ? std::initializer_list<int>{1} : std::initializer_list<int>{2}};
+}
+struct Keys {
+    Keys(bool c) : n_(0), keys_(c ? std::initializer_list<int>{1} : std::initializer_list<int>{2}) {}
+    Keys(int c) : keys_{c ? std::initializer_list<int>{1} : std::initializer_list<int>{2}} {}
+    std::initializer_list<int> keys_;
+    int n_;
+};
+void braced_argument(bool c) {
+    use({c ? std::initializer_list<int>{1} : std::initializer_list<int>{2}});
+    if (known(c ? std::initializer_list<int>{1} : std::initializer_list<int>{2})) {}
+}
 void hatch(bool c) {
     // INIT_LIST_TERNARY_OK: test fixture
     auto k = c ? std::initializer_list<int>{1} : std::initializer_list<int>{2};
@@ -3769,19 +3812,24 @@ std::initializer_list<int> plain = {1, 2};
 SHAPES
     run init_list_ternary_offenders "$f"
     [ "$status" -eq 0 ]
-    [ "${#lines[@]}" -eq 2 ]
+    [ "${#lines[@]}" -eq 5 ]
     contains "init_list_shapes.cpp:2:" "$output"
     contains "init_list_shapes.cpp:6:" "$output"
+    contains "init_list_shapes.cpp:16:" "$output"
+    contains "init_list_shapes.cpp:19:" "$output"
+    contains "init_list_shapes.cpp:20:" "$output"
     lacks "check_opts" "$output"
     lacks ":10:" "$output"
     lacks ":12:" "$output"
     lacks ":13:" "$output"
-    lacks ":17:" "$output"
+    lacks ":25:" "$output"
+    lacks ":26:" "$output"
+    lacks ":30:" "$output"
 }
 
 @test "the initializer_list ternary gate flags the AFC lane-name keys as they were before the fix" {
     local f="${BATS_TEST_TMPDIR}/afc_status_parse.cpp"
-    git show 40318bf81d^:src/printer/afc_status_parse.cpp > "$f"
+    cp "$BATS_TEST_DIRNAME/fixtures/afc_status_parse_pre_40318bf81d.cpp.txt" "$f"
     run init_list_ternary_offenders "$f"
     [ "$status" -eq 0 ]
     contains "afc_status_parse.cpp:" "$output"
