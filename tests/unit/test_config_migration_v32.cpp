@@ -90,3 +90,13 @@ TEST_CASE("v32 reads a root ad5x preset as the active printer's only",
     CHECK(sensors_of(config, "a")[0]["klipper_name"] == kStale);
     CHECK(sensors_of(config, "b")[0]["klipper_name"] == kHead);
 }
+
+TEST_CASE("v32 lets an active printer's own type outrank a root ad5x preset",
+          "[config][migration][ad5x]") {
+    json config = migrate({{"preset", "ad5x"},
+                           {"active_printer_id", "a"},
+                           {"printers",
+                            {{"a", printer_with({{"type", "Voron 2.4"}},
+                                                json::array({sensor(kStale, "runout")}))}}}});
+    CHECK(sensors_of(config, "a")[0]["klipper_name"] == kStale);
+}
