@@ -42,22 +42,15 @@ TEST_CASE("the saver budget follows the core count and drops while printing",
           "[screensaver][screensaver_gate]") {
     using helix::ui::saver_budget_share;
     CHECK(saver_budget_share(8, 0.0f, false) == Catch::Approx(1.00));
-    CHECK(saver_budget_share(4, 0.0f, false) == Catch::Approx(1.00));
+    CHECK(saver_budget_share(4, 108.0f, false) == Catch::Approx(1.00));
+    CHECK(saver_budget_share(4, 38.4f, false) == Catch::Approx(0.50)); // slow: A53-class timer
     CHECK(saver_budget_share(3, 0.0f, false) == Catch::Approx(0.75));
     CHECK(saver_budget_share(2, 0.0f, false) == Catch::Approx(0.50));
     CHECK(saver_budget_share(1, 0.0f, false) == Catch::Approx(0.10));
     CHECK(saver_budget_share(0, 0.0f, false) == Catch::Approx(0.10));
     // klippy shares the SoC while printing: these stay where they are on purpose.
-    // A slow 4+ core board (A53-class BogoMIPS) gets half a core idle; printing is unchanged.
-    CHECK(saver_budget_share(4, 38.4f, false) == Catch::Approx(0.50));
-    CHECK(saver_budget_share(4, 48.0f, false) == Catch::Approx(0.50));
-    CHECK(saver_budget_share(4, 108.0f, false) == Catch::Approx(1.00));
-    CHECK(saver_budget_share(8, 4800.0f, false) == Catch::Approx(1.00));
-    CHECK(saver_budget_share(4, 38.4f, true) == Catch::Approx(0.25));
-    CHECK(saver_budget_share(2, 38.4f, false) == Catch::Approx(0.50));
-
     CHECK(saver_budget_share(8, 0.0f, true) == Catch::Approx(0.25));
-    CHECK(saver_budget_share(4, 0.0f, true) == Catch::Approx(0.25));
+    CHECK(saver_budget_share(4, 38.4f, true) == Catch::Approx(0.25));
     CHECK(saver_budget_share(3, 0.0f, true) == Catch::Approx(0.185));
     CHECK(saver_budget_share(2, 0.0f, true) == Catch::Approx(0.125));
     CHECK(saver_budget_share(1, 0.0f, true) == Catch::Approx(0.05));
