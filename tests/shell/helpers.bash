@@ -14,13 +14,16 @@ export -f log_info log_warn log_error log_success log_note
 export HELIX_INSTALL_VERBOSE=1
 
 # Ensure BATS_TEST_TMPDIR exists (added in bats 1.4.1, Ubuntu 22.04 ships 1.2.1).
-# This file can be sourced more than once in a test, and an export reaches the next
-# test too, so a value this file set is kept for its own test and replaced for another.
-if [ -z "$BATS_TEST_TMPDIR" ] ||
-    { [ -n "$HELIX_BATS_TMPDIR_TEST" ] && [ "$HELIX_BATS_TMPDIR_TEST" != "$BATS_TEST_NAME" ]; }; then
+# There a file-level load runs before BATS_TEST_NAME is set, a load in a test body runs
+# after it, and the export reaches the next test. So a load with no name starts a new
+# test, and a load with a name keeps its own test's dir and claims an unclaimed one.
+if [ -z "$BATS_TEST_TMPDIR" ] || { [ -n "$HELIX_BATS_TMPDIR_FILLED" ] &&
+    { [ -z "$BATS_TEST_NAME" ] ||
+        { [ -n "$HELIX_BATS_TMPDIR_TEST" ] && [ "$HELIX_BATS_TMPDIR_TEST" != "$BATS_TEST_NAME" ]; }; }; }; then
     BATS_TEST_TMPDIR=$(mktemp -d "${BATS_TMPDIR:-/tmp}/bats-test-XXXXXX")
-    export HELIX_BATS_TMPDIR_TEST="$BATS_TEST_NAME"
+    export HELIX_BATS_TMPDIR_FILLED=1
 fi
+[ -z "$HELIX_BATS_TMPDIR_FILLED" ] || export HELIX_BATS_TMPDIR_TEST="$BATS_TEST_NAME"
 export BATS_TEST_TMPDIR
 
 # helix-claim treats two claims carrying one session id as one owner. A suite
