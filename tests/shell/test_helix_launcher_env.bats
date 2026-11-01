@@ -534,6 +534,22 @@ run_launcher_as_root() {
     run_launcher_as_root
     [ "$(cat "$BATS_TEST_TMPDIR/value.out")" = "" ]
     grep -q "owned by uid 1000" "$BATS_TEST_TMPDIR/gate.log"
+    # The owner is right and only the write bit is wrong: chowning the file to
+    # root would be undone by the next web-UI save.
+    local real_dir
+    real_dir=$(readlink -f "$MOCK_INSTALL/config/helixscreen.env")
+    grep -qF "fix: chmod g-w,o-w ${real_dir%/*})" "$BATS_TEST_TMPDIR/gate.log"
+    lacks "chown" "$(cat "$BATS_TEST_TMPDIR/gate.log")"
+}
+
+@test "a link directory with a write bit is named in the fix, not the file's owner" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    make_fake_stat_map
+    make_u1_layout 0 755 1000
+    sed -i.bak "s|^$MOCK_INSTALL/config 0 755\$|$MOCK_INSTALL/config 0 775|" "$BATS_TEST_TMPDIR/statmap"
+    run_launcher_as_root
+    [ "$(cat "$BATS_TEST_TMPDIR/value.out")" = "" ]
+    grep -qF "fix: chmod g-w,o-w $MOCK_INSTALL/config)" "$BATS_TEST_TMPDIR/gate.log"
 }
 
 @test "printer_data user trust needs the link itself placed by root or this user" {
