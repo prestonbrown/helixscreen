@@ -23,6 +23,7 @@
  * genuinely missing tag or a genuinely broken asset.
  */
 
+#include "../lvgl_test_fixture.h"
 #include "lvgl/lvgl.h"
 #include "lvgl_log_handler.h"
 #include "subject_debug_registry.h"
@@ -310,3 +311,17 @@ TEST_CASE("LVGL log handler: a deprecation notice stays out of the ring", "[logg
     CHECK(logs.total(call) == 1);
     CHECK(logs.in_ring(call) == 0);
 }
+
+#if !LV_DRAW_TRANSFORM_USE_MATRIX
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Asking for matrix rotation without matrix transforms logs nothing",
+                 "[logging][lvgl]") {
+    helix::logging::register_lvgl_log_handler();
+    LevelCapture logs;
+
+    // The DRM/EGL flush asks this for every flushed area.
+    REQUIRE(lv_display_get_default() != nullptr);
+    CHECK_FALSE(lv_display_get_matrix_rotation(lv_display_get_default()));
+    CHECK(logs.total("lv_display_get_matrix_rotation") == 0);
+}
+#endif

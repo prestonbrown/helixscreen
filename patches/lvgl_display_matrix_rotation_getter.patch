@@ -1,0 +1,21 @@
+lv_display_get_matrix_rotation() answers false when LV_DRAW_TRANSFORM_USE_MATRIX is 0
+instead of failing an LV_CHECK_ARG: without matrix transforms matrix rotation can never be
+on, so asking is not an argument error. The DRM/EGL flush callback asks once per flushed
+area; with LV_CHECK_ARG_LOG_MODE_VERBOSE each failed check formats and routes a warning,
+which on a Pi 3B starfield (hundreds of small areas a frame) cost more than the frame.
+
+diff --git a/src/display/lv_display.c b/src/display/lv_display.c
+index 6e505cfc1..4af9b9c39 100644
+--- a/src/display/lv_display.c
++++ b/src/display/lv_display.c
+@@ -1147,7 +1147,9 @@ bool lv_display_get_matrix_rotation(lv_display_t * disp)
+         disp = lv_display_get_default();
+     }
+     LV_CHECK_ARG(disp != NULL, return false);
+-    LV_CHECK_ARG_MSG(LV_DRAW_TRANSFORM_USE_MATRIX == 1, return false, "LV_DRAW_TRANSFORM_USE_MATRIX is not enabled");
++    /*Without matrix transforms matrix rotation can never be on, so the answer is false,
++     *not a failed argument check: drivers ask this for every flushed area.*/
++    if(!LV_DRAW_TRANSFORM_USE_MATRIX) return false;
+     return disp->matrix_rotation;
+ }
+ 
