@@ -215,7 +215,28 @@ pin_env_file() {
         log_warn "pin_env_file: could not chmod 0644 '$real' (the launcher will refuse this file until fixed)"
     fi
 
+    # Behind the printer_data symlink, the file belongs to whoever owns
+    # printer_data/config: Moonraker saves it as that user (lava on the U1, where
+    # the launcher and KLIPPER_USER are root), and the launcher trusts that owner
+    # only while the directory holding the file has no group or world write bit.
     local user="${KLIPPER_USER:-}"
+    if [ "$real" != "$file" ]; then
+        local data_dir="${real%/*}" pd_owner
+        pd_owner=$(_file_owner_name "${data_dir%/*}")
+        if [ -n "$pd_owner" ] && [ "$pd_owner" != "root" ]; then
+            user="$pd_owner"
+            local dgroup="$user"
+            if type _resolve_primary_group >/dev/null 2>&1; then
+                dgroup=$(_resolve_primary_group "$user")
+            fi
+            if ! $(file_sudo "$data_dir") chown "${user}:${dgroup}" "$data_dir" 2>/dev/null; then
+                log_warn "pin_env_file: could not chown ${user}:${dgroup} '$data_dir'"
+            fi
+        fi
+        if ! $(file_sudo "$data_dir") chmod 0755 "$data_dir" 2>/dev/null; then
+            log_warn "pin_env_file: could not chmod 0755 '$data_dir' (the launcher will refuse the env file until fixed)"
+        fi
+    fi
     if [ -n "$user" ]; then
         local group="$user"
         if type _resolve_primary_group >/dev/null 2>&1; then
