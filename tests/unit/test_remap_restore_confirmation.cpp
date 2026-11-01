@@ -1397,8 +1397,8 @@ TEST_CASE("reprint: a Fork print-map box sends the identity map for the file's t
     const auto reprint = [](Harness& h) {
         h.client.clear_gcode_script_history();
         h.controller.initiate_reprint("part.gcode", "part.gcode", {0, 1}, [] {}, [] {});
-        // Everything the reprint queues names this Harness: none of it may outlive the section.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
+        helix::ui::UpdateQueue::instance().drain(); // the answer queues work naming this Harness
     };
 
     SECTION("revision 4 sends every used tool at its own slot") {
