@@ -776,7 +776,7 @@ class NavigationManager {
     std::unordered_map<lv_obj_t*, helix::OverlayCloseCallback> overlay_close_callbacks_;
 
     // The dismiss backdrop behind the overlay stack, and its bookkeeping
-    helix::ui::OverlayBackdrop backdrop_;
+    helix::ui::OverlayBackdrop backdrop_{[this] { refresh_overlay_backdrop(); }};
 
     // Resolved width class per overlay (overlay → is_destination). Written by
     // apply_overlay_width() on every push, read by the next push to inherit and

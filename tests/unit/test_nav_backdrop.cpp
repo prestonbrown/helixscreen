@@ -10,6 +10,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/snapshot_backdrops_mode.h"
 #include "../test_helpers/widget_in_tree.h"
 
 #include "../catch_amalgamated.hpp"
@@ -99,4 +100,52 @@ TEST_CASE_METHOD(BackdropFixture, "rekey moves a backdrop to the rebuilt overlay
     b.retire(new_root);
     process_lvgl(50);
     CHECK_FALSE(helix::test::widget_in_tree(bd));
+}
+
+TEST_CASE_METHOD(BackdropFixture, "A transition caught mid-way is re-taken once it ends",
+                 "[navigation][nav_backdrop]") {
+    SnapshotBackdropsMode snapshots(true);
+    int retakes = 0;
+    OverlayBackdrop b([&retakes] { ++retakes; });
+
+    static const lv_style_prop_t kProps[] = {LV_STYLE_TRANSLATE_X, LV_STYLE_PROP_INV};
+    lv_style_transition_dsc_t fade;
+    lv_style_transition_dsc_init(&fade, kProps, lv_anim_path_linear, 100, 0, nullptr);
+    lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_transition(&style, &fade);
+    lv_obj_t* icon = make();
+    lv_obj_add_style(icon, &style, LV_PART_MAIN);
+    lv_obj_set_style_translate_x(icon, 20, LV_STATE_CHECKED);
+    lv_refr_now(lv_display_get_default()); // LVGL skips transitions on an unrendered widget
+    lv_obj_add_state(icon, LV_STATE_CHECKED);
+    const auto noop = [](lv_event_t*) {};
+
+    SECTION("mid-way") {
+        process_lvgl(20);
+        b.adopt(test_screen(), nullptr, noop);
+        REQUIRE(b.primary() != nullptr);
+        CHECK(retakes == 0);
+        process_lvgl(150);
+        CHECK(retakes == 1);
+        process_lvgl(150);
+        CHECK(retakes == 1);
+    }
+    SECTION("already settled") {
+        process_lvgl(150);
+        b.adopt(test_screen(), nullptr, noop);
+        process_lvgl(300);
+        CHECK(retakes == 0);
+    }
+    SECTION("released before it ends") {
+        process_lvgl(20);
+        b.adopt(test_screen(), nullptr, noop);
+        b.delete_primary_now();
+        process_lvgl(300);
+        CHECK(retakes == 0);
+    }
+
+    b.delete_primary_now();
+    lv_obj_delete(icon);
+    lv_style_reset(&style);
 }
