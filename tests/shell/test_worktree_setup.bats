@@ -368,6 +368,12 @@ PATCH
     git -C "$main" commit -qm "main-only patch"
     git -C "$main/lib/lvgl" apply "$main/patches/lvgl_main_only.patch"
 
+    # A Mac's sed has no GNU extensions; --posix gives GNU sed the same limits.
+    local real_sed
+    real_sed=$(command -v sed)
+    mock_command_script sed "if \"$real_sed\" --version >/dev/null 2>&1; then exec \"$real_sed\" --posix \"\$@\"; fi
+exec \"$real_sed\" \"\$@\""
+
     run bash "$main/scripts/setup-worktree.sh" --base rel --no-build feat/back
     [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
 
