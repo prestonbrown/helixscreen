@@ -1329,12 +1329,15 @@ static void migrate_v30_to_v31(json& config, const std::string& /*config_path*/)
 }
 
 /// Whether a saved printer is an AD5X, by the preset it was set up from or its saved type.
-/// A root preset marker counts for the active printer only.
+/// A root preset marker speaks only for an active printer that names neither: the seeder
+/// rewrites that marker on every update, so it can describe a different printer than the
+/// one now active.
 static bool printer_is_ad5x(const json& config, const std::string& printer_id,
                             const json& printer) {
-    if (helix::json_util::safe_string(printer, "preset") == "ad5x" ||
-        helix::json_util::safe_string(printer, "type") == "FlashForge Adventurer 5X") {
-        return true;
+    const std::string own_preset = helix::json_util::safe_string(printer, "preset");
+    const std::string own_type = helix::json_util::safe_string(printer, "type");
+    if (!own_preset.empty() || !own_type.empty()) {
+        return own_preset == "ad5x" || own_type == "FlashForge Adventurer 5X";
     }
     return helix::json_util::safe_string(config, "preset") == "ad5x" &&
            find_active_printer_key(config) == printer_id;
