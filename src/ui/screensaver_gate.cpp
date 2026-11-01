@@ -6,9 +6,9 @@
 
 namespace helix::ui {
 
-double saver_budget_share(int cores, bool printing) {
+double saver_budget_share(int cores, bool efficiency_cores_only, bool printing) {
     if (cores >= 4) {
-        return printing ? 0.25 : 1.00;
+        return printing ? 0.25 : (efficiency_cores_only ? 0.50 : 1.00);
     }
     if (cores == 3) {
         return printing ? 0.185 : 0.75;

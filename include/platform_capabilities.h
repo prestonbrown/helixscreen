@@ -68,6 +68,10 @@ struct CpuInfo {
     int core_count = 0;    ///< Number of logical CPU cores
     float bogomips = 0.0f; ///< BogoMIPS value (approximate speed indicator)
     int cpu_mhz = 0;       ///< CPU frequency in MHz (if available)
+    /// Every core reported is one of Arm's in-order efficiency designs (Cortex-A5,
+    /// A7, A35, A53, A55, A510, A520), read from "CPU implementer" and "CPU part".
+    /// False when any core is another design or no core names one (x86, MIPS).
+    bool efficiency_cores_only = false;
     /// Human-readable CPU name. Which key carries it is architecture-specific
     /// ("model name" on x86, "Hardware" on ARM, "cpu model" on MIPS), so the
     /// parser tries each; "" when none of them appears.
@@ -85,9 +89,10 @@ struct PlatformCapabilities {
     // Detected hardware metrics
     // ========================================================================
 
-    size_t total_ram_mb = 0; ///< Total RAM in MB from /proc/meminfo
-    int cpu_cores = 0;       ///< Number of CPU cores from /proc/cpuinfo
-    float bogomips = 0.0f;   ///< BogoMIPS value (speed indicator)
+    size_t total_ram_mb = 0;            ///< Total RAM in MB from /proc/meminfo
+    int cpu_cores = 0;                  ///< Number of CPU cores from /proc/cpuinfo
+    float bogomips = 0.0f;              ///< BogoMIPS value (speed indicator)
+    bool efficiency_cores_only = false; ///< CpuInfo::efficiency_cores_only
 
     // ========================================================================
     // Derived capabilities

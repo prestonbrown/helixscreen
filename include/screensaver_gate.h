@@ -20,11 +20,13 @@ namespace helix::ui {
 
 /// Share of one core a running saver may use. Idle: 4 or more cores 1.00 (the
 /// saver is the foreground activity, and one core of a 4+ core board leaves the
-/// machine responsive), 3 cores 0.75, 2 cores 0.50, otherwise 0.10 (a core count
-/// that failed to parse reads as one core). While printing: 0.25, 0.185, 0.125
-/// and 0.05, since klippy shares the SoC and a starved host faults the print
-/// with "Timer too close".
-double saver_budget_share(int cores, bool printing);
+/// machine responsive), or 0.50 when every core is an in-order efficiency design
+/// (PlatformCapabilities::efficiency_cores_only), where a whole core of drawing still
+/// leaves the UI behind; 3 cores 0.75, 2 cores 0.50, otherwise 0.10 (a core count
+/// that failed to parse reads as one core). While printing: 0.25, 0.185, 0.125 and
+/// 0.05, since klippy shares the SoC and a starved host faults the print with
+/// "Timer too close".
+double saver_budget_share(int cores, bool efficiency_cores_only, bool printing);
 
 enum class GateDecision {
     KEEP,      ///< within budget: the level stays

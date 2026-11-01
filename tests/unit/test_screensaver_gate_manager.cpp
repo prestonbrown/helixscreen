@@ -432,10 +432,11 @@ TEST_CASE_METHOD(
 TEST_CASE_METHOD(LVGLTestFixture,
                  "the budget follows the core count and drops when a print starts mid-run",
                  "[screensaver][screensaver_gate]") {
-    GateHarness gate;
+    const auto caps = helix::PlatformCapabilities::detect();
     const double full =
-        helix::ui::saver_budget_share(helix::PlatformCapabilities::detect().cpu_cores, false);
+        helix::ui::saver_budget_share(caps.cpu_cores, caps.efficiency_cores_only, false);
     const double load = full * 0.75;
+    GateHarness gate;
     gate.run(10.0, 0.0);
     gate.mgr.start(ScreensaverType::FLYING_TOASTERS);
     REQUIRE(gate.running() != nullptr);
