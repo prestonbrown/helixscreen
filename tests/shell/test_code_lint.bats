@@ -3703,6 +3703,14 @@ def brace_initializer(text, idx):
     """`name{` - a variable or member initialised by braces."""
     return named_opener(text, idx) is not None
 
+def copied_into_owner(decl):
+    """A declaration whose own type is not an initializer_list (std::vector<T> v)
+    copies the elements while the temporary array still lives."""
+    decl = decl.strip()
+    if 'initializer_list' in decl or re.search(r'\bauto\b', decl):
+        return False
+    return re.search(r'[\w>]\s*[&*]?\s+[A-Za-z_]\w*\s*$', decl) is not None
+
 def member_initializer(text, start, idx):
     """`name(` inside a constructor's member-initializer list."""
     m = named_opener(text, idx)
@@ -3750,8 +3758,14 @@ for path in sys.argv[1:]:
             # constructor's member initializer `: keys_(c ? ...)` stores it.
             if not member_initializer(text, start, opens[-1]):
                 continue
-        elif not (start > 0 and text[start - 1] == '{' and brace_initializer(text, start - 1)):
-            if not re.search(r'(?<![=!<>])=(?!=)|\breturn\b', stmt):
+        elif start > 0 and text[start - 1] == '{' and brace_initializer(text, start - 1):
+            if copied_into_owner(text[text.rfind(';', 0, start) + 1:start - 1]):
+                continue
+        else:
+            store = re.search(r'(?<![=!<>])=(?!=)|\breturn\b', stmt)
+            if not store:
+                continue
+            if store.group(0) == '=' and copied_into_owner(stmt[:store.start()]):
                 continue
         line = text.count('\n', 0, m.start()) + 1
         span = raw_lines[text.count('\n', 0, start):line + 2]
@@ -3803,6 +3817,10 @@ void braced_argument(bool c) {
     use({c ? std::initializer_list<int>{1} : std::initializer_list<int>{2}});
     if (known(c ? std::initializer_list<int>{1} : std::initializer_list<int>{2})) {}
 }
+void copied(bool c) {
+    std::vector<int> v = c ? std::initializer_list<int>{1} : std::initializer_list<int>{2};
+    std::vector<int> w{c ? std::initializer_list<int>{1} : std::initializer_list<int>{2}};
+}
 void hatch(bool c) {
     // INIT_LIST_TERNARY_OK: test fixture
     auto k = c ? std::initializer_list<int>{1} : std::initializer_list<int>{2};
@@ -3824,7 +3842,9 @@ SHAPES
     lacks ":13:" "$output"
     lacks ":25:" "$output"
     lacks ":26:" "$output"
+    lacks ":29:" "$output"
     lacks ":30:" "$output"
+    lacks ":34:" "$output"
 }
 
 @test "the initializer_list ternary gate flags the AFC lane-name keys as they were before the fix" {
