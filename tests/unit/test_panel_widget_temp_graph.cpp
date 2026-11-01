@@ -1063,6 +1063,7 @@ TEST_CASE("TempGraphWidget: default config lists aux heaters but not the chamber
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "TempGraphWidget config: series colours are painter circles that cycle",
                  "[temp_graph][panel_widget][config][swatch]") {
+    init_widget_registrations(); // the swatch's XML click callback is registered there
     TempGraphWidget widget("test_swatch");
     nlohmann::json config = {
         {"sensors",
@@ -1084,7 +1085,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(helix::ui::has_swatch_paint(disc));
     CHECK(lv_obj_get_style_radius(disc, LV_PART_MAIN) == LV_RADIUS_CIRCLE);
     CHECK(lv_color_eq(helix::ui::swatch_color_of(disc), kTempGraphSeriesColors[2]));
-
     lv_obj_send_event(swatch, LV_EVENT_CLICKED, nullptr);
     CHECK(lv_color_eq(helix::ui::swatch_color_of(disc), kTempGraphSeriesColors[3]));
 }

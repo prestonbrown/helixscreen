@@ -26,8 +26,8 @@ TEST_CASE("INIT_SUBJECT_INT macro", "[state][subject][macro]") {
     LVGLTestFixture fixture;
 
     SECTION("skips XML registration when flag is false") {
-        SubjectManager subjects;
         lv_subject_t no_xml_subject_;
+        SubjectManager subjects;
 
         INIT_SUBJECT_INT(no_xml_subject, 456, subjects, false);
 
@@ -49,8 +49,8 @@ TEST_CASE("INIT_SUBJECT_STRING macro", "[state][subject][macro]") {
     LVGLTestFixture fixture;
 
     SECTION("skips XML registration when flag is false") {
-        SubjectManager subjects;
         lv_subject_t no_xml_str_;
+        SubjectManager subjects;
         char no_xml_str_buf_[64];
 
         INIT_SUBJECT_STRING(no_xml_str, "Not in XML", subjects, false);

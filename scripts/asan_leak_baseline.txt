@@ -31,3 +31,8 @@ max-leaked-objects: 60
 #   frames carry no frame pointers, so the unwinder stops there and no frame of
 #   ours is ever recorded. libcrypto owns the allocation; nothing of ours can free it.
 <no-stack>
+#
+# tests/unit/test_camera_view.cpp::CATCH2_INTERNAL_TEST::test: "a reap job dropped
+#   unrun still leaks a detached stream" pins that a stream whose worker detached is
+#   leaked on purpose rather than freed under the worker.
+tests/unit/test_camera_view.cpp::CATCH2_INTERNAL_TEST::test

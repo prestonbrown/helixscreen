@@ -10006,9 +10006,9 @@ TEST_CASE("AD5X IFS execute_gcode dispatches silent with the AMS timeout ceiling
     }
 
     SECTION("on_complete execute_gcode overload") {
-        bool completed = false;
+        auto completed = std::make_shared<bool>(false);
         auto err = backend.execute_gcode("INSERT_PRUTOK_IFS PRUTOK=2",
-                                         [&completed]() { completed = true; });
+                                         [completed]() { *completed = true; });
         REQUIRE(err.success());
 
         REQUIRE(client.last_send_method() == "printer.gcode.script");

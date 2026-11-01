@@ -56,9 +56,12 @@
 #include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 
+#include <spdlog/spdlog.h>
+
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -334,6 +337,11 @@ void HelixTestFixture::reset_printer_state() {
             print.reset_for_new_print();
         }
     }
+}
+
+void HelixTestFixture::keep_logger_for_exit() {
+    static const auto* kept = new std::shared_ptr<spdlog::logger>(spdlog::default_logger());
+    (void)kept;
 }
 
 void HelixTestFixture::reset_all() {
