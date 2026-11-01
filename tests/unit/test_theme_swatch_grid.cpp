@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstring>
 #include <new>
+#include <set>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -240,41 +241,48 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 namespace {
-// Live draw-buffer allocations, counted through LVGL's default handlers.
-int g_live_draw_bufs = 0;
+// Draw buffers allocated while the picker lives and not yet freed, counted
+// through LVGL's default handlers. Buffers other code made before stay out.
+std::set<void*> g_picker_bufs;
+bool g_tracking = false;
 lv_draw_buf_malloc_cb_t g_real_buf_malloc = nullptr;
 lv_draw_buf_free_cb_t g_real_buf_free = nullptr;
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture, "color picker: closing it gives back the HSV picker's buffers",
                  "[xml][theme][swatch]") {
+    process_lvgl(50); // settle what earlier tests left queued before counting starts
     lv_draw_buf_handlers_t* handlers = lv_draw_buf_get_handlers();
     g_real_buf_malloc = handlers->buf_malloc_cb;
     g_real_buf_free = handlers->buf_free_cb;
     handlers->buf_malloc_cb = [](size_t size, lv_color_format_t cf) -> void* {
         void* buf = g_real_buf_malloc(size, cf);
-        g_live_draw_bufs += buf != nullptr;
+        if (buf && g_tracking) {
+            g_picker_bufs.insert(buf);
+        }
         return buf;
     };
     handlers->buf_free_cb = [](void* buf) {
-        g_live_draw_bufs -= buf != nullptr;
+        g_picker_bufs.erase(buf);
         g_real_buf_free(buf);
     };
-    const int before = g_live_draw_bufs;
+    g_picker_bufs.clear();
+    g_tracking = true;
 
     {
         helix::ui::ColorPicker picker;
         REQUIRE(picker.show_with_color(lv_screen_active(), 0x808080));
-        REQUIRE(g_live_draw_bufs > before);
-        picker.hide(); // disarms the tree, nulling every user_data in it
+        REQUIRE(g_picker_bufs.size() >= 2); // the SV square and the hue bar
+        picker.hide();                      // disarms the tree, nulling every user_data in it
         process_lvgl(50);
     }
     process_lvgl(50);
-    const int after = g_live_draw_bufs;
+    g_tracking = false;
+    const size_t left = g_picker_bufs.size();
     handlers->buf_malloc_cb = g_real_buf_malloc;
     handlers->buf_free_cb = g_real_buf_free;
 
-    CHECK(after == before);
+    CHECK(left == 0);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "color picker palette: General selects the shared grid",
