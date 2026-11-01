@@ -56,8 +56,16 @@ namespace {
 /// Label text keyed by its child-index path from the widget root, so a label is
 /// matched to itself across the switch without holding a pointer a rebuild
 /// could free.
+///
+/// The tips widget's title is content from printing_tips.json, which has no
+/// translations; one title shares its text with a UI string that does, so it
+/// is left out rather than judged on which tip the shuffle drew.
 void collect_labels(lv_obj_t* obj, const std::string& path,
                     std::map<std::string, std::string>& out) {
+    const char* name = lv_obj_get_name(obj);
+    if (name && std::string(name) == "status_text_label") {
+        return;
+    }
     if (lv_obj_check_type(obj, &lv_label_class)) {
         const char* text = lv_label_get_text(obj);
         out[path] = text ? text : "";
