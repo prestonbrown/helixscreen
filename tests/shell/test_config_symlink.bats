@@ -402,6 +402,31 @@ setup() {
     [ -L "$install/config/helixscreen.env" ]
 }
 
+@test "pin_env_file gives the printer_data directory and file to printer_data's owner, mode 755" {
+    # The U1: the launcher and KLIPPER_USER are root, Moonraker saves as lava.
+    local install="$BATS_TEST_TMPDIR/helixscreen"
+    local data="$BATS_TEST_TMPDIR/printer_data/config/helixscreen"
+    mkdir -p "$install/config" "$data" "$BATS_TEST_TMPDIR/fakebin"
+    printf 'HELIX_LOG_LEVEL=info\n' > "$data/helixscreen.env"
+    chmod 0775 "$data"
+    ln -s "$data/helixscreen.env" "$install/config/helixscreen.env"
+    printf '#!/bin/sh\necho "chown $*" >> "%s/chown.log"\n' "$BATS_TEST_TMPDIR" \
+        > "$BATS_TEST_TMPDIR/fakebin/chown"
+    chmod +x "$BATS_TEST_TMPDIR/fakebin/chown"
+    INSTALL_DIR="$install"
+    KLIPPER_USER="root"
+    local me group
+    me=$(id -un)
+    group=$(_resolve_primary_group "$me")
+
+    PATH="$BATS_TEST_TMPDIR/fakebin:$PATH" run pin_env_file
+    [ "$status" -eq 0 ]
+    [ "$(stat -c '%a' "$data")" = "755" ]
+    grep -qxF "chown $me:$group $data" "$BATS_TEST_TMPDIR/chown.log"
+    grep -qxF "chown $me:$group $data/helixscreen.env" "$BATS_TEST_TMPDIR/chown.log"
+    refute_grep "root:" "$BATS_TEST_TMPDIR/chown.log"
+}
+
 @test "pin_env_file without KLIPPER_USER pins the mode and leaves ownership alone" {
     local install="$BATS_TEST_TMPDIR/helixscreen"
     mkdir -p "$install/config"
