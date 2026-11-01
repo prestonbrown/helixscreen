@@ -14,11 +14,12 @@ export -f log_info log_warn log_error log_success log_note
 export HELIX_INSTALL_VERBOSE=1
 
 # Ensure BATS_TEST_TMPDIR exists (added in bats 1.4.1, Ubuntu 22.04 ships 1.2.1).
-# This file is sourced for every test, but the export reaches the next test too,
-# so a value this file set is replaced rather than kept: each test gets its own.
-if [ -z "$BATS_TEST_TMPDIR" ] || [ -n "$HELIX_BATS_TEST_TMPDIR_FILLED" ]; then
+# This file can be sourced more than once in a test, and an export reaches the next
+# test too, so a value this file set is kept for its own test and replaced for another.
+if [ -z "$BATS_TEST_TMPDIR" ] ||
+    { [ -n "$HELIX_BATS_TMPDIR_TEST" ] && [ "$HELIX_BATS_TMPDIR_TEST" != "$BATS_TEST_NAME" ]; }; then
     BATS_TEST_TMPDIR=$(mktemp -d "${BATS_TMPDIR:-/tmp}/bats-test-XXXXXX")
-    export HELIX_BATS_TEST_TMPDIR_FILLED=1
+    export HELIX_BATS_TMPDIR_TEST="$BATS_TEST_NAME"
 fi
 export BATS_TEST_TMPDIR
 

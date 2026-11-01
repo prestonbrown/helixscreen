@@ -24,6 +24,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "helix-xml/src/xml/lv_xml_expr.h"
 #include "printer_state.h"
 
 #include <filesystem>
@@ -343,4 +344,31 @@ TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads wi
     lv_subject_deinit(&setting);
     lv_xml_unregister_subject(nullptr, "cond_lifetime_tab");
     lv_xml_unregister_subject(nullptr, "cond_lifetime_setting");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a binding made on a deinitialised subject never reads it",
+                 "[xml][1983]") {
+    lv_subject_t gone;
+    lv_subject_init_int(&gone, 0);
+    lv_subject_deinit(&gone);
+    lv_subject_t live;
+    lv_subject_init_int(&live, 0);
+    REQUIRE(lv_xml_register_subject(nullptr, "bind_gone_subject", &gone) == LV_RESULT_OK);
+    REQUIRE(lv_xml_register_subject(nullptr, "bind_live_subject", &live) == LV_RESULT_OK);
+    lv_xml_expr_t* expr = lv_xml_expr_compile(
+        "bind_gone_subject + bind_live_subject",
+        [](void*, const char* name) { return lv_xml_get_subject(nullptr, name); }, nullptr);
+    REQUIRE(expr != nullptr);
+
+    int fires = 0;
+    lv_obj_t* owner = lv_obj_create(test_screen());
+    lv_xml_expr_bind(
+        expr, owner, [](void* fired, int32_t) { ++*static_cast<int*>(fired); }, &fires);
+    lv_subject_set_int(&live, 1);
+
+    CHECK(fires == 0);
+    lv_obj_delete(owner);
+    lv_subject_deinit(&live);
+    lv_xml_unregister_subject(nullptr, "bind_gone_subject");
+    lv_xml_unregister_subject(nullptr, "bind_live_subject");
 }

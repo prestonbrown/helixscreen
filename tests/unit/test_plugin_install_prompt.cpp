@@ -15,6 +15,7 @@
  * by a stub.
  */
 
+#include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_panel_advanced.h"
 #include "ui_panel_print_select.h"
@@ -198,6 +199,13 @@ TEST_CASE_METHOD(PromptFixture, "a failed install from the prompt restarts nothi
 
     CHECK(moonraker_restarts() == restarts_before);
     CHECK(result_message().find("restarting") == std::string::npos);
+
+    // The result icon is a label, whose text the failure replaces.
+    lv_obj_t* expected = lv_label_create(test_screen());
+    helix::ui::icon::set_source(expected, "alert_circle");
+    lv_obj_t* icon = lv_obj_find_by_name(prompt(), "result_icon");
+    REQUIRE(icon != nullptr);
+    CHECK(std::string(lv_label_get_text(icon)) == lv_label_get_text(expected));
 }
 
 TEST_CASE_METHOD(PromptFixture,
