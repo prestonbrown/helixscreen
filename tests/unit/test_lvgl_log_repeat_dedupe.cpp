@@ -300,3 +300,13 @@ TEST_CASE("LVGL log handler: a subject type mismatch names the subject and maps 
     SubjectDebugRegistry::instance().unregister_subject(&subject);
     lv_subject_deinit(&subject);
 }
+
+TEST_CASE("LVGL log handler: a deprecation notice stays out of the ring", "[logging][lvgl]") {
+    helix::logging::register_lvgl_log_handler();
+    LevelCapture logs;
+
+    const std::string call = unique_tag("deprecated_call");
+    LV_LOG_WARN("Deprecated: use %s instead.", call.c_str());
+    CHECK(logs.total(call) == 1);
+    CHECK(logs.in_ring(call) == 0);
+}

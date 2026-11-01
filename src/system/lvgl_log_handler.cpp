@@ -364,6 +364,11 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
     bool is_source_language_fallback =
         is_translation_warning && msg.find("`en` language is not found") != std::string::npos;
 
+    // LVGL warns once per process about each deprecated call it sees: API
+    // migration work for us, nothing a printer's log reader can act on.
+    bool is_deprecation_notice =
+        level == LV_LOG_LEVEL_WARN && msg.find("Deprecated: ") != std::string::npos;
+
     // init_translations() silences its own expected noise. Those hits must stay
     // OUT of the dedupe cache: recording them would spend each tag's one
     // reportable occurrence on a message nobody ever saw, and the first real
@@ -388,7 +393,8 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
         spdlog::info("[LVGL] {}", msg);
         break;
     case LV_LOG_LEVEL_WARN:
-        if (suppressed_translation || is_repeat_retry || is_source_language_fallback) {
+        if (suppressed_translation || is_repeat_retry || is_source_language_fallback ||
+            is_deprecation_notice) {
             spdlog::trace("[LVGL] {}", msg);
         } else if (is_scroll_boundary_warning || is_translation_warning) {
             spdlog::debug("[LVGL] {}", msg);
