@@ -201,6 +201,10 @@ class CapturingSnapmakerBackend : public AmsBackendSnapmaker {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
+    AmsError execute_gcode(const std::string& gcode, std::function<void()> /*on_complete*/) override {
+        captured_gcodes.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
 
     // current_slot is protected on the subscription base; expose a setter so
     // tests can stand in for "filament currently loaded in slot N".
@@ -287,6 +291,108 @@ TEST_CASE_METHOD(SnapmakerFixture, "The U1 homes and heats for its own loads",
                                          helix::ui::AmsCall::Load, 1};
     CHECK(helix::ui::preheat_skip_reason(helix::ui::FilamentHeatOp::Load, &load, &backend) ==
           helix::ui::PreheatSkip::BackendSelfHeats);
+}
+
+namespace {
+// Holds each feed command's completion callback so a test decides when the
+// firmware's answer lands relative to the status frames.
+class FeedAnswerSnapmakerBackend : public AmsBackendSnapmaker {
+  public:
+    FeedAnswerSnapmakerBackend() : AmsBackendSnapmaker(nullptr, nullptr) {
+        running_.store(true);
+        set_event_callback([this](const std::string& event, const std::string& data) {
+            events.emplace_back(event, data);
+        });
+    }
+
+    std::vector<std::string> captured_gcodes;
+    std::vector<std::function<void()>> pending_answers;
+    std::vector<std::pair<std::string, std::string>> events;
+
+    AmsError execute_gcode(const std::string& gcode) override {
+        captured_gcodes.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
+    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+        captured_gcodes.push_back(gcode);
+        pending_answers.push_back(std::move(on_complete));
+        return AmsErrorHelper::success();
+    }
+
+    void answer_ok() {
+        REQUIRE_FALSE(pending_answers.empty());
+        auto cb = std::move(pending_answers.front());
+        pending_answers.erase(pending_answers.begin());
+        if (cb) {
+            cb();
+        }
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    }
+
+    [[nodiscard]] bool saw_error() const {
+        for (const auto& [event, data] : events) {
+            if (event == EVENT_ERROR) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
+} // namespace
+
+// FEED_AUTO answers OK without doing anything when it declines a feed (module
+// out of automatic mode or absent, nothing at the inlet, head already loaded),
+// and the channel never leaves its resting state. A real feed blocks until it
+// is over, so its answer always follows the channel's own progress frames
+// (prestonbrown/helixscreen#1832).
+TEST_CASE_METHOD(SnapmakerFixture, "A feed the U1 declines reports an error for its lane",
+                 "[ams][snapmaker][declined_feed]") {
+    FeedAnswerSnapmakerBackend backend;
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "wait_insert", false));
+    backend.events.clear();
+
+    SECTION("a load answered with no channel movement fails with the lane named") {
+        REQUIRE(backend.load_filament(1).success());
+        REQUIRE(backend.captured_gcodes.back() == "AUTO_FEEDING EXTRUDER=1 LOAD=1");
+        backend.answer_ok();
+
+        CHECK(backend.get_system_info().action == AmsAction::ERROR);
+        CHECK(backend.get_system_info().operation_detail.find("Lane 2 did not start loading") !=
+              std::string::npos);
+        CHECK(backend.saw_error());
+    }
+
+    SECTION("a load that ran is not reported as declined") {
+        REQUIRE(backend.load_filament(1).success());
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_homing"));
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_feeding"));
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_finish"));
+        backend.answer_ok();
+
+        CHECK(backend.get_system_info().action == AmsAction::IDLE);
+        CHECK_FALSE(backend.saw_error());
+    }
+
+    SECTION("an unload answered with no channel movement fails with the lane named") {
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_finish"));
+        backend.events.clear();
+        REQUIRE(backend.unload_filament(1).success());
+        REQUIRE(backend.captured_gcodes.back() == "AUTO_FEEDING EXTRUDER=1 UNLOAD=1");
+        backend.answer_ok();
+
+        CHECK(backend.get_system_info().action == AmsAction::ERROR);
+        CHECK(backend.get_system_info().operation_detail.find("Lane 2 did not start unloading") !=
+              std::string::npos);
+    }
+
+    SECTION("an answer from an earlier feed does not judge a later one") {
+        REQUIRE(backend.load_filament(1).success());
+        REQUIRE(backend.load_filament(1).success());
+        backend.answer_ok(); // the first feed's answer
+        CHECK_FALSE(backend.saw_error());
+        backend.answer_ok(); // the second feed's answer, still no movement
+        CHECK(backend.saw_error());
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker construction", "[ams][snapmaker]") {

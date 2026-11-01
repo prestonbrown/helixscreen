@@ -65,6 +65,10 @@ class CapturingSnapmaker : public AmsBackendSnapmaker {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
+    AmsError execute_gcode(const string& gcode, std::function<void()> /*on_complete*/) override {
+        captured_gcodes.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
 
     void set_loaded_slot(int slot) {
         system_info_.current_slot = slot;

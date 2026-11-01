@@ -79,6 +79,10 @@ template <typename Backend> class PausedGateDouble : public Backend {
         dispatched.push_back(gcode);
         return AmsErrorHelper::success();
     }
+    AmsError execute_gcode(const std::string& gcode, std::function<void()> /*on_complete*/) override {
+        dispatched.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
 };
 
 struct PausedGateFixture : public LVGLTestFixture {

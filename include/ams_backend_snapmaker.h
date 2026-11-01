@@ -625,6 +625,27 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// lets preload_finish resolve the op. Under mutex_.
     std::array<bool, NUM_TOOLS> preload_in_flight_{};
 
+    /// Per channel: the channel as it stood when a feed command was sent. The
+    /// command blocks until the feed is over, so an answer arriving with the
+    /// channel unchanged means the firmware declined the feed. Under mutex_.
+    struct FeedWatch {
+        bool armed{false};
+        bool load{false};
+        uint64_t id{0};
+        std::string channel_state;
+        std::string action_state;
+    };
+    std::array<FeedWatch, NUM_TOOLS> feed_watch_{};
+    uint64_t next_feed_id_{0};
+
+    /// Sends a single-head AUTO_FEEDING command and watches its answer for a
+    /// feed the firmware declined (prestonbrown/helixscreen#1832).
+    AmsError dispatch_feed(int head, bool load, const std::string& gcode);
+
+    /// Main thread. Raises ERROR for @p head when feed @p id was answered with
+    /// its channel exactly as dispatch found it.
+    void on_feed_answered(int head, uint64_t id);
+
     /// Validate slot index is within range
     AmsError validate_slot_index(int slot_index) const;
 

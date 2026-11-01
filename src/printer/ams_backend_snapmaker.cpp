@@ -604,7 +604,54 @@ AmsError AmsBackendSnapmaker::do_load_filament(int slot_index) {
     //      which can be all-false on a partially-extruded paused print.
     // The firmware's cmd_FEED_AUTO is the definitive reference; see
     // /home/lava/klipper/klippy/extras/filament_feed.py around line 1681.
-    return execute_gcode(fmt::format("AUTO_FEEDING EXTRUDER={} LOAD=1", slot_index));
+    return dispatch_feed(slot_index, /*load=*/true,
+                         fmt::format("AUTO_FEEDING EXTRUDER={} LOAD=1", slot_index));
+}
+
+AmsError AmsBackendSnapmaker::dispatch_feed(int head, bool load, const std::string& gcode) {
+    uint64_t id = 0;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        id = ++next_feed_id_;
+        feed_watch_[head] = FeedWatch{true, load, id, held_channel_state_[head],
+                                      held_channel_action_state_[head]};
+    }
+    auto tok = lifetime_.token();
+    return execute_gcode(gcode, [this, tok, head, id]() {
+        tok.defer("AmsBackendSnapmaker::feed_answered",
+                  [this, head, id]() { on_feed_answered(head, id); });
+    });
+}
+
+void AmsBackendSnapmaker::on_feed_answered(int head, uint64_t id) {
+    std::string detail;
+    std::string channel_state;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        FeedWatch& watch = feed_watch_[head];
+        if (!watch.armed || watch.id != id) {
+            return;
+        }
+        watch.armed = false;
+        // A feed that ran moved channel_state through its steps, and its
+        // outcome stays in channel_action_state. Neither moving means FEED_AUTO
+        // returned without starting: module absent or out of automatic mode,
+        // nothing at the inlet, or the head already in the requested state.
+        if (held_channel_state_[head] != watch.channel_state ||
+            held_channel_action_state_[head] != watch.action_state) {
+            return;
+        }
+        detail = watch.load ? fmt::format("Lane {} did not start loading. Check that its feeder "
+                                          "is in automatic mode and that filament reaches it.",
+                                          head + 1)
+                            : fmt::format("Lane {} did not start unloading.", head + 1);
+        system_info_.action = AmsAction::ERROR;
+        system_info_.operation_detail = detail;
+        channel_state = watch.channel_state;
+    }
+    spdlog::warn("{} head {} feed declined by the firmware (channel_state '{}' unchanged)",
+                 backend_log_tag(), head, channel_state);
+    emit_event(EVENT_ERROR, detail);
 }
 
 bool AmsBackendSnapmaker::unload_heats_hotend(int slot_index) const {
@@ -648,7 +695,8 @@ AmsError AmsBackendSnapmaker::do_unload_filament(int slot_index) {
     if (err.result != AmsResult::SUCCESS)
         return err;
 
-    return execute_gcode(fmt::format("AUTO_FEEDING EXTRUDER={} UNLOAD=1", extruder));
+    return dispatch_feed(extruder, /*load=*/false,
+                         fmt::format("AUTO_FEEDING EXTRUDER={} UNLOAD=1", extruder));
 }
 
 bool AmsBackendSnapmaker::can_unload_from_toolhead(int slot_index) const {
@@ -719,6 +767,7 @@ void AmsBackendSnapmaker::on_klipper_restarted() {
         held_channel_action_state_ = {};
         preload_in_flight_ = {};
         held_op_outcome_ = {};
+        feed_watch_ = {};
     }
     AmsSubscriptionBackend::on_klipper_restarted();
 }
