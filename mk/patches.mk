@@ -12,6 +12,7 @@ LVGL_PATCHED_FILES := \
 	src/drivers/sdl/lv_sdl_sw.c \
 	src/themes/default/lv_theme_default.c \
 	src/core/lv_observer.c \
+	src/widgets/canvas/lv_canvas.c \
 	src/widgets/slider/lv_slider.c \
 	src/stdlib/builtin/lv_string_builtin.c \
 	src/stdlib/clib/lv_string_clib.c \
@@ -558,6 +559,7 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-drm-mmap64.patch "LVGL DRM 64-bit mmap offset patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_refr_reshape_null_guard.patch "LVGL refr reshape NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_img_null_guard.patch "LVGL img goto_xy NULL guard patch"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_canvas_destructor_cache_drop.patch "LVGL canvas destructor cache drop"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_img_warn_obj_name.patch "LVGL image-warn obj-name patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blur_null_guard.patch "LVGL blur goto_xy NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_pos_null_guards.patch "LVGL obj_pos NULL guards patch (blur_walk_cb + layout_update_core)"

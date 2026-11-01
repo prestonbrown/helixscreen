@@ -1,0 +1,18 @@
+diff --git a/src/widgets/canvas/lv_canvas.c b/src/widgets/canvas/lv_canvas.c
+index 5296eb5b2..2419147c7 100644
+--- a/src/widgets/canvas/lv_canvas.c
++++ b/src/widgets/canvas/lv_canvas.c
+@@ -466,10 +466,9 @@ static void lv_canvas_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
+     LV_TRACE_OBJ_CREATE("begin");
+     LV_ASSERT(obj != NULL);
+ 
+-    lv_canvas_t * canvas = (lv_canvas_t *)obj;
+-    if(canvas->draw_buf == NULL) return;
+-
+-    lv_image_cache_drop(&canvas->draw_buf);
++    /*The draw buffer belongs to whoever set it and may already be freed, so
++     *the owner drops it from the image cache, not this destructor.*/
++    LV_UNUSED(obj);
+ }
+ static bool layer_is_descendant(const lv_layer_t * layer, const lv_layer_t * ancestor)
+ {
