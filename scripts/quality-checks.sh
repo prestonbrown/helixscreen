@@ -177,6 +177,20 @@ qc_run_buffered() {
   echo $((t1 - t0)) > "$QC_TMP/$fn.ms"
 }
 
+# A gate that failed or ran past HELIX_QC_KEEP_LOG_MS (5 minutes) keeps its
+# output and its own logs (QC_TMP files named for it), which QC_TMP's cleanup
+# would otherwise delete, so a stall can be read afterwards.
+qc_keep_gate_log() {
+  # $1 = gate, $2 = exit status, $3 = ms, $4 = QC_TMP, $5 = where kept logs go
+  local fn="$1" stem="${1#qc_}" dir
+  [ "$2" != 0 ] || [ "$3" -gt "${HELIX_QC_KEEP_LOG_MS:-300000}" ] || return 0
+  dir="$5/$(date -u +%Y%m%dT%H%M%SZ)-$stem"
+  mkdir -p "$dir" || return 0
+  cp "$4/$fn.out" "$4/$stem".* "$dir/" 2>/dev/null || true
+  echo "$fn: exit $2 after $(($3 / 1000))s" > "$dir/summary"
+  echo "📁 $fn log kept: $dir"
+}
+
 # qc_xml_linter always regenerates the schema; qc_phase2 only rewrites files
 # when asked to fix them.
 QC_SERIAL="qc_xml_tools qc_xml_linter"
@@ -266,6 +280,8 @@ wait
 for fn in $QC_ALL; do
   [ -f "$QC_TMP/$fn.out" ] && cat "$QC_TMP/$fn.out"
   rc=$(cat "$QC_TMP/$fn.rc" 2>/dev/null || echo 0)
+  [ -f "$QC_TMP/$fn.ms" ] &&
+    qc_keep_gate_log "$fn" "$rc" "$(cat "$QC_TMP/$fn.ms")" "$QC_TMP" "build/qc-logs"
   [ "$rc" != "0" ] && EXIT_CODE=1
 done
 

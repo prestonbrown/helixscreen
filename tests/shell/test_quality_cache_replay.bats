@@ -74,3 +74,27 @@ with_stamp_helpers() {
   [ "$output" = "$STAMP" ]
 }
 
+@test "a gate that failed or ran long keeps its logs under a timestamped dir; a quick pass does not" {
+  local tmp="$BATS_TEST_TMPDIR/qc" kept="$BATS_TEST_TMPDIR/kept"
+  mkdir -p "$tmp"
+  echo "gate out" > "$tmp/qc_python_tests.out"
+  echo "pytest log" > "$tmp/python_tests.log"
+  eval "$(sed -n "/^qc_keep_gate_log() {/,/^}/p" scripts/quality-checks.sh)"
+
+  run qc_keep_gate_log qc_python_tests 0 2000 "$tmp" "$kept"
+  [ -z "$output" ]
+  [ ! -e "$kept" ]
+
+  run qc_keep_gate_log qc_python_tests 0 400000 "$tmp" "$kept"
+  contains "qc_python_tests log kept: $kept/" "$output"
+  run cat "$kept"/*-python_tests/python_tests.log "$kept"/*-python_tests/summary
+  contains "pytest log" "$output"
+  contains "exit 0 after 400s" "$output"
+
+  rm -rf "$kept"
+  run qc_keep_gate_log qc_python_tests 1 2000 "$tmp" "$kept"
+  contains "log kept" "$output"
+  run cat "$kept"/*-python_tests/qc_python_tests.out
+  contains "gate out" "$output"
+}
+
