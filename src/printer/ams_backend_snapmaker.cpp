@@ -613,8 +613,7 @@ AmsError AmsBackendSnapmaker::dispatch_feed(int head, bool load, const std::stri
     {
         std::lock_guard<std::mutex> lock(mutex_);
         id = ++next_feed_id_;
-        feed_watch_[head] = FeedWatch{true, load, id, held_channel_state_[head],
-                                      held_channel_action_state_[head]};
+        feed_watch_[head] = FeedWatch{true, load, false, id};
     }
     auto tok = lifetime_.token();
     return execute_gcode(gcode, [this, tok, head, id]() {
@@ -633,12 +632,12 @@ void AmsBackendSnapmaker::on_feed_answered(int head, uint64_t id) {
             return;
         }
         watch.armed = false;
-        // A feed that ran moved channel_state through its steps, and its
-        // outcome stays in channel_action_state. Neither moving means FEED_AUTO
-        // returned without starting: module absent or out of automatic mode,
-        // nothing at the inlet, or the head already in the requested state.
-        if (held_channel_state_[head] != watch.channel_state ||
-            held_channel_action_state_[head] != watch.action_state) {
+        // A feed that ran moved channel_state through its steps while it was
+        // armed, even when it came to rest where it started (a retried load
+        // failing again). No movement means FEED_AUTO returned without starting:
+        // module absent or out of automatic mode, nothing at the inlet, or the
+        // head already in the requested state.
+        if (watch.moved) {
             return;
         }
         detail = watch.load ? fmt::format("Lane {} did not start loading. Check that its feeder "
@@ -647,7 +646,7 @@ void AmsBackendSnapmaker::on_feed_answered(int head, uint64_t id) {
                             : fmt::format("Lane {} did not start unloading.", head + 1);
         system_info_.action = AmsAction::ERROR;
         system_info_.operation_detail = detail;
-        channel_state = watch.channel_state;
+        channel_state = held_channel_state_[head];
     }
     spdlog::warn("{} head {} feed declined by the firmware (channel_state '{}' unchanged)",
                  backend_log_tag(), head, channel_state);
@@ -1543,6 +1542,7 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // filament is. They differ only when the outcome
                         // survives in channel_action_state alone. Both fields
                         // are held across delta frames that omit them.
+                        const std::string prev_channel_state = held_channel_state_[i];
                         if (!state.empty()) {
                             held_channel_state_[i] = state;
                         }
@@ -1551,6 +1551,11 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         if (action_it != ch.end() && action_it->is_string()) {
                             held_channel_action_state_[i] =
                                 action_it->get_ref<const std::string&>();
+                        }
+                        if (feed_watch_[i].armed &&
+                            (held_channel_state_[i] != prev_channel_state ||
+                             held_channel_action_state_[i] != prev_action_state)) {
+                            feed_watch_[i].moved = true;
                         }
                         OpOutcome resolved =
                             resolve_op_outcome(held_channel_state_[i], prev_action_state,

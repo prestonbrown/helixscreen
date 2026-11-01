@@ -373,6 +373,19 @@ TEST_CASE_METHOD(SnapmakerFixture, "A feed the U1 declines reports an error for 
         CHECK_FALSE(backend.saw_error());
     }
 
+    SECTION("a retried load that runs and fails again keeps the firmware's failure") {
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_fail"));
+        backend.events.clear();
+        REQUIRE(backend.load_filament(1).success());
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_homing"));
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_fail"));
+        backend.answer_ok();
+
+        CHECK(backend.get_system_info().operation_detail.find("Load failed on lane 2") !=
+              std::string::npos);
+        CHECK_FALSE(backend.saw_error());
+    }
+
     SECTION("an unload answered with no channel movement fails with the lane named") {
         SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_finish"));
         backend.events.clear();
