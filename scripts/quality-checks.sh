@@ -179,7 +179,9 @@ qc_run_buffered() {
 
 # A gate that failed or ran past HELIX_QC_KEEP_LOG_MS (5 minutes) keeps its
 # output and its own logs (QC_TMP files named for it), which QC_TMP's cleanup
-# would otherwise delete, so a stall can be read afterwards.
+# would otherwise delete, so a stall can be read afterwards. They go to
+# HELIX_QC_LOG_DIR (pre-push names the pushing tree, since a push sweeps a
+# throwaway checkout), else this tree's build/qc-logs; the newest 20 are kept.
 qc_keep_gate_log() {
   # $1 = gate, $2 = exit status, $3 = ms, $4 = QC_TMP, $5 = where kept logs go
   local fn="$1" stem="${1#qc_}" dir
@@ -189,6 +191,10 @@ qc_keep_gate_log() {
   cp "$4/$fn.out" "$4/$stem".* "$dir/" 2>/dev/null || true
   echo "$fn: exit $2 after $(($3 / 1000))s" > "$dir/summary"
   echo "📁 $fn log kept: $dir"
+  # Names start with a UTC time, so the oldest sort first.
+  ls -1d "$5"/*/ 2>/dev/null | sort |
+    awk -v keep="${HELIX_QC_KEEP_LOG_COUNT:-20}" '{d[NR] = $0} END {for (i = 1; i <= NR - keep; i++) print d[i]}' |
+    while IFS= read -r old; do rm -rf -- "$old"; done
 }
 
 # qc_xml_linter always regenerates the schema; qc_phase2 only rewrites files
@@ -281,7 +287,7 @@ for fn in $QC_ALL; do
   [ -f "$QC_TMP/$fn.out" ] && cat "$QC_TMP/$fn.out"
   rc=$(cat "$QC_TMP/$fn.rc" 2>/dev/null || echo 0)
   [ -f "$QC_TMP/$fn.ms" ] &&
-    qc_keep_gate_log "$fn" "$rc" "$(cat "$QC_TMP/$fn.ms")" "$QC_TMP" "build/qc-logs"
+    qc_keep_gate_log "$fn" "$rc" "$(cat "$QC_TMP/$fn.ms")" "$QC_TMP" "${HELIX_QC_LOG_DIR:-$PWD/build/qc-logs}"
   [ "$rc" != "0" ] && EXIT_CODE=1
 done
 

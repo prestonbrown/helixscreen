@@ -30,8 +30,9 @@
 # (lib/push-range.sh).
 #
 # One push, one gated ref: when several refs go up together, the last one read
-# is the commit swept and the range drift is measured over. Push refs one at a
-# time to gate each.
+# is the commit swept and the range drift is measured over. A push that would
+# leave a main, release/* or tag commit unswept that way is refused; push the
+# protected ref alone, or last.
 #
 # A tip `make land-gate` passed skips the quality sweep and its clang/GCC
 # divergence gate: the gate ran quality-checks.sh on exactly that commit
@@ -67,6 +68,7 @@ cd "$REPO_ROOT"
 TARGET=""
 REMOTE_SHA=""
 WORK_BRANCHES_ONLY=1
+PROTECTED_SHAS=""
 while read -r _local_ref local_sha remote_ref remote_sha; do
     # All zeros is a branch deletion: it publishes no content to gate.
     case "$local_sha" in
@@ -74,17 +76,27 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
         *) continue ;;
     esac
     case "$remote_ref" in
-        refs/heads/main | refs/heads/release/* | refs/tags/*) WORK_BRANCHES_ONLY="" ;;
+        refs/heads/main | refs/heads/release/* | refs/tags/*)
+            WORK_BRANCHES_ONLY=""
+            PROTECTED_SHAS="$PROTECTED_SHAS $local_sha"
+            ;;
         refs/heads/?*) ;;
         *) WORK_BRANCHES_ONLY="" ;;
     esac
 done
 [ -n "$TARGET" ] || exit 0
+for protected_sha in $PROTECTED_SHAS; do
+    [ "$protected_sha" = "$TARGET" ] && continue
+    echo "❌ pre-push: this push sweeps only ${TARGET:0:9}, its last ref, and would leave"
+    echo "   ${protected_sha:0:9} (main, release/* or a tag) unswept. Push that ref alone, or last."
+    exit 1
+done
 [ -z "${HELIX_PREPUSH_FULL:-}" ] || WORK_BRANCHES_ONLY=""
-SWEEP_ENV=""
+# Set both ways, so a value the caller exported never reaches a full sweep.
+SWEEP_ENV="HELIX_QC_SKIP_PUSH_ONLY=0 HELIX_QC_LOG_DIR=$REPO_ROOT/build/qc-logs"
 SWEEP_NOTE="full quality sweep (pre-commit only checked what you staged)"
 if [ -n "$WORK_BRANCHES_ONLY" ]; then
-    SWEEP_ENV="HELIX_QC_SKIP_PUSH_ONLY=1"
+    SWEEP_ENV="HELIX_QC_SKIP_PUSH_ONLY=1 HELIX_QC_LOG_DIR=$REPO_ROOT/build/qc-logs"
     SWEEP_NOTE="work-branch sweep: the commit-level gates; make land-gate and CI run the rest before main (HELIX_PREPUSH_FULL=1 runs everything)"
 fi
 

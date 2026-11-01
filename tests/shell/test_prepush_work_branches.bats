@@ -18,7 +18,7 @@ setup() {
     git -C "$ROOT" config user.email t@t
     git -C "$ROOT" config user.name t
     mkdir -p "$ROOT/scripts" "$ROOT/lib"
-    printf '#!/bin/sh\necho "ran: quality-checks skip_push_only=${HELIX_QC_SKIP_PUSH_ONLY:-0}"\n' \
+    printf '#!/bin/sh\necho "ran: quality-checks skip_push_only=${HELIX_QC_SKIP_PUSH_ONLY:-unset} logs=$HELIX_QC_LOG_DIR"\n' \
         >"$ROOT/scripts/quality-checks.sh"
     chmod +x "$ROOT/scripts/quality-checks.sh"
     local gate
@@ -35,9 +35,13 @@ setup() {
     TIP=$(git -C "$ROOT" rev-parse HEAD)
 }
 
-push() { # <remote ref>...: one stdin line per ref, each pushing TIP over BASE
-    local lines="" ref
-    for ref in "$@"; do lines="${lines}refs/heads/x $TIP $ref $BASE"$'\n'; done
+push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or <sha>) over BASE
+    local lines="" ref sha
+    for ref in "$@"; do
+        sha=$TIP
+        case "$ref" in *=*) sha=${ref#*=} ref=${ref%%=*} ;; esac
+        lines="${lines}refs/heads/x $sha $ref $BASE"$'\n'
+    done
     run env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
         bash -c 'cd "$1" && printf "%s" "$2" | bash "$3"' _ "$ROOT" "$lines" "$HOOK"
 }
@@ -81,3 +85,27 @@ push() { # <remote ref>...: one stdin line per ref, each pushing TIP over BASE
     [ "$status" -eq 0 ]
     contains "skip_push_only=0" "$output"
 }
+
+@test "an exported HELIX_QC_SKIP_PUSH_ONLY=1 does not reach a push to main" {
+    HELIX_QC_SKIP_PUSH_ONLY=1 push refs/heads/main
+    [ "$status" -eq 0 ]
+    contains "skip_push_only=0" "$output"
+}
+
+@test "a push that would sweep another ref's commit instead of main's is refused" {
+    push refs/heads/main=$BASE refs/heads/fix/thing
+    [ "$status" -eq 1 ]
+    contains "would leave" "$output"
+    lacks "ran: quality-checks" "$output"
+    push refs/heads/fix/thing=$BASE refs/heads/main
+    [ "$status" -eq 0 ]
+    contains "skip_push_only=0" "$output"
+}
+
+@test "kept gate logs go to the pushing tree, not the throwaway checkout" {
+    echo dirty >"$ROOT/f"
+    push refs/heads/fix/thing
+    [ "$status" -eq 0 ]
+    contains "logs=$(cd "$ROOT" && pwd -P)/build/qc-logs" "$output"
+}
+

@@ -98,3 +98,14 @@ with_stamp_helpers() {
   contains "gate out" "$output"
 }
 
+@test "kept gate logs are capped at the newest few" {
+  local tmp="$BATS_TEST_TMPDIR/qc" kept="$BATS_TEST_TMPDIR/kept"
+  mkdir -p "$tmp" "$kept/20200101T000000Z-old" "$kept/20200102T000000Z-older-but-kept"
+  echo out > "$tmp/qc_phase1.out"
+  eval "$(sed -n "/^qc_keep_gate_log() {/,/^}/p" scripts/quality-checks.sh)"
+  HELIX_QC_KEEP_LOG_COUNT=2 qc_keep_gate_log qc_phase1 1 10 "$tmp" "$kept" >/dev/null
+  [ ! -e "$kept/20200101T000000Z-old" ]
+  [ -d "$kept/20200102T000000Z-older-but-kept" ]
+  [ "$(ls "$kept" | wc -l | tr -d ' ')" = 2 ]
+}
+
