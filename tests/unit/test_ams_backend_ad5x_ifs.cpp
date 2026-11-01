@@ -10432,8 +10432,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         REQUIRE(ev->recovery_actions[0].gcode == "RESUME");
         REQUIRE(ev->recovery_actions[0].style == "primary");
         REQUIRE(ev->recovery_actions[0].needs_hot_nozzle);
-        // A plain extruder move, not zmod's PURGE_FILAMENT macro - no homing, so
-        // it cannot reach the loadcell _G28 that shuts the AD5X down mid-job.
+        // A plain extruder move in place, no homing, so it cannot reach the
+        // loadcell _G28 that shuts the AD5X down mid-job.
         REQUIRE(ev->recovery_actions[1].gcode == "M83\nG1 E50 F600");
         REQUIRE(ev->recovery_actions[1].needs_hot_nozzle);
         REQUIRE(ev->recovery_actions[2].gcode == "IFS_UNLOCK");
@@ -10445,6 +10445,13 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
             CHECK(a.gcode.find("INSERT_PRUTOK_IFS") == std::string::npos);
             CHECK(a.gcode.find("A_CHANGE_FILAMENT") == std::string::npos);
         }
+
+        // The same runout on zMod: over the bin with the stock purge, no _G28.
+        helix::PrinterDiscovery zmod;
+        zmod.parse_objects(json::array(
+            {"gcode_macro _G28", "gcode_macro _GOTO_TRASH", "gcode_macro PURGE_FILAMENT"}));
+        backend.set_discovery(zmod);
+        CHECK(backend.current_error()->recovery_actions[1].gcode == "_GOTO_TRASH\nPURGE_FILAMENT");
     }
 
     SECTION("operation timeout keeps the historical single Recover action") {
@@ -12596,4 +12603,46 @@ TEST_CASE("AD5X IFS moves the LOADED stamp on a toolchange", "[ams][ad5x_ifs][11
     // exactly the failure the per-slot rule cannot self-correct.
     CHECK(ifs.get_slot_info(0).status == SlotStatus::AVAILABLE);
     CHECK_FALSE(ifs.slot_is_actively_loaded(0));
+}
+
+// ==========================================================================
+// Purge over the bin: zMod's stock _G28 + _GOTO_TRASH ahead of a purge
+// ==========================================================================
+
+TEST_CASE("AD5X IFS purge-bin gcode by macro set and job state",
+          "[ams][ad5x_ifs][ad5x_bin_purge]") {
+    struct Row {
+        std::vector<std::string> macros;
+        const char* idle;   // preamble with the machine free
+        const char* held;   // preamble while a job holds it: never _G28
+        const char* runout; // the runout recovery Purge
+    };
+    const char* bare_move = "M83\nG1 E50 F600";
+    const Row rows[] = {
+        {{"_G28", "_GOTO_TRASH", "PURGE_FILAMENT"},
+         "_G28\n_GOTO_TRASH",
+         "_GOTO_TRASH",
+         "_GOTO_TRASH\nPURGE_FILAMENT"},
+        {{"_G28", "_GOTO_TRASH"}, "_G28\n_GOTO_TRASH", "_GOTO_TRASH", bare_move},
+        {{"_GOTO_TRASH", "PURGE_FILAMENT"}, "", "", bare_move},
+        {{"_G28", "PURGE_FILAMENT"}, "", "", bare_move},
+        {{"IFS_PURGE", "IFS_LOAD"}, "", "", bare_move}, // Forge-X
+    };
+    for (const auto& row : rows) {
+        json objects = json::array({"save_variables"});
+        for (const auto& m : row.macros) {
+            objects.push_back("gcode_macro " + m);
+        }
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(objects);
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        const AmsBackend& base = backend;
+        CHECK(base.purge_preamble_gcode(false).empty()); // nothing until discovery
+        backend.set_discovery(hw);
+        INFO(objects.dump());
+        CHECK(base.purge_preamble_gcode(false) == row.idle);
+        CHECK(base.purge_preamble_gcode(true) == row.held);
+        CHECK(AmsBackendAd5xIfs::runout_purge_gcode(AmsBackendAd5xIfs::bin_purge_macros(hw)) ==
+              row.runout);
+    }
 }
