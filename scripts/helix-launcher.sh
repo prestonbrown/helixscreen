@@ -495,6 +495,31 @@ helix_env_dir_owner() {
     unset _hed_link _hed_real _hed_out
 }
 
+# "OWNER_UID DIR" when the only fault helix_env_dir_owner found with REAL_DIR
+# (args as there) is a group or world write bit on REAL_DIR or LINK_DIR: the
+# link sits where only root or UID could have put it, so chmod is the fix and
+# chown is not. Prints nothing for any other fault.
+helix_env_writable_dir() {
+    _hew_link=$(helix_env_stat "$2")
+    _hew_real=$(helix_env_stat "$1")
+    case "${_hew_link%% *}" in
+        0 | "$3") ;;
+        *) unset _hew_link _hew_real; return 0 ;;
+    esac
+    case "${_hew_link##* }${_hew_real##* }" in
+        '' | *[!0-9]*) ;;
+        *)
+            if [ -n "$_hew_real" ] && [ "$((0${_hew_real##* } & 022))" != "0" ]; then
+                echo "${_hew_real%% *} $1"
+            elif [ -n "$_hew_real" ] && [ "$((0${_hew_link##* } & 022))" != "0" ]; then
+                echo "${_hew_real%% *} $2"
+            fi
+            ;;
+    esac
+    unset _hew_link _hew_real
+    return 0
+}
+
 # Refuse the env file: log the detailed reason with the full fix, and hand a
 # structured record to the app (prestonbrown/helixscreen#1712) so the app
 # words the on-screen warning; the launcher's longer hint stays in the log.
@@ -545,6 +570,7 @@ helix_env_file_trusted() {
     [ -n "$_hef_real" ] || _hef_real="$1"
     _hef_uid=$(id -u 2>/dev/null) || _hef_uid=""
     _hef_dir_owner=0
+    _hef_wdir=""
     if [ -L "$1" ] && [ -n "$_hef_uid" ]; then
         # Only a link aimed straight at the file: a chain would let whoever
         # owns the middle link choose which file this is.
@@ -556,6 +582,11 @@ helix_env_file_trusted() {
         esac
         if [ -n "$_hef_hop" ] && [ ! -L "$_hef_hop" ]; then
             _hef_dir_owner=$(helix_env_dir_owner "${_hef_real%/*}" "${1%/*}" "$_hef_uid")
+            # A directory refused only for a write bit: the file's owner is right,
+            # and chowning it to root would be undone by the next web-UI save.
+            if [ "$_hef_dir_owner" = "0" ]; then
+                _hef_wdir=$(helix_env_writable_dir "${_hef_real%/*}" "${1%/*}" "$_hef_uid")
+            fi
         fi
     fi
     if [ "$_hef_dir_owner" = "0" ]; then
@@ -572,6 +603,15 @@ helix_env_file_trusted() {
     fi
     _hef_owner="${_hef_stat%% *}"
     _hef_mode="${_hef_stat##* }"
+    if [ "$_hef_owner" != "0" ] && [ "$_hef_owner" != "$_hef_uid" ] &&
+        [ "$_hef_owner" != "$_hef_dir_owner" ] && [ -n "$_hef_wdir" ] &&
+        [ "${_hef_wdir%% *}" = "$_hef_owner" ]; then
+        _hef_wdir="${_hef_wdir#* }"
+        _hef_fix="fix: chmod g-w,o-w $_hef_wdir"
+        _hef_detail="its directory $_hef_wdir is writable by other users"
+        helix_env_refuse "$1 is owned by uid $_hef_owner, the owner of its directory, but $_hef_wdir is group- or world-writable"
+        return 1
+    fi
     if [ "$_hef_owner" != "0" ] && [ "$_hef_owner" != "$_hef_uid" ] &&
         [ "$_hef_owner" != "$_hef_dir_owner" ]; then
         _hef_kind=owner
@@ -619,7 +659,7 @@ helix_env_file_trusted() {
 
 helix_env_trust_cleanup() {
     unset _hef_stat _hef_uid _hef_owner _hef_mode _hef_real _hef_dir_owner \
-        _hef_hop _hef_fix _hef_again _hef_again_mode _hef_kind _hef_detail \
+        _hef_hop _hef_wdir _hef_fix _hef_again _hef_again_mode _hef_kind _hef_detail \
         _hef_expected _hef_file
 }
 
