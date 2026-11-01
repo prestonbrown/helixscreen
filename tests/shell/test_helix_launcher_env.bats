@@ -993,6 +993,34 @@ print_env_from_file() {
     [ "$(print_env_from_file HELIX_REMOTE_SOCKET 'HELIX_REMOTE_SOCKET=/tmp/../etc/x')" = "" ]
 }
 
+@test "HELIX_SCREENSAVER_NOW from the env file reaches the app" {
+    [ "$(print_env_from_file HELIX_SCREENSAVER_NOW 'HELIX_SCREENSAVER_NOW=starfield')" = "starfield" ]
+}
+
+@test "HELIX_EGL_PARTIAL_UPLOAD from the env file reaches the app" {
+    [ "$(print_env_from_file HELIX_EGL_PARTIAL_UPLOAD 'HELIX_EGL_PARTIAL_UPLOAD=0')" = "0" ]
+}
+
+@test "the display, screensaver and sound tunables the env-var reference documents pass through" {
+    local kv k
+    for kv in HELIX_EGL_VSYNC=0 HELIX_EGL_XRGB=0 HELIX_REFR_PERIOD_MS=16 \
+        HELIX_REFR_PERIOD_SCOPE=all HELIX_LOOP_MIN_SLEEP_MS=1 HELIX_IMAGE_CACHE_KB=2048 \
+        HELIX_KEY_DEPTH=flat HELIX_GLASS=0 HELIX_BED_MESH_2D=1 HELIX_HANG_THRESHOLD_SEC=120 \
+        HELIX_SCREENSAVER_LEVEL=1 HELIX_SCREENSAVER_BUDGET_PCT=5 \
+        HELIX_SCREENSAVER_REFR_PERIOD_MS=0 HELIX_PWM_MIN_NOTE_MS=30 HELIX_ALSA_KEEPALIVE=1; do
+        k="${kv%%=*}"
+        [ "$(print_env_from_file "$k" "$kv")" = "${kv#*=}" ] || fail "$k was dropped"
+    done
+}
+
+@test "HELIX_IMAGE_CACHE_KB takes 0-65536 KB" {
+    [ "$(print_env_from_file HELIX_IMAGE_CACHE_KB 'HELIX_IMAGE_CACHE_KB=65536')" = "65536" ]
+    [ "$(print_env_from_file HELIX_IMAGE_CACHE_KB 'HELIX_IMAGE_CACHE_KB=65537')" = "" ]
+    grep -q "HELIX_IMAGE_CACHE_KB must be 0-65536" "$BATS_TEST_TMPDIR/parse.log"
+    [ "$(print_env_from_file HELIX_IMAGE_CACHE_KB 'HELIX_IMAGE_CACHE_KB=4194304')" = "" ]
+    [ "$(print_env_from_file HELIX_IMAGE_CACHE_KB 'HELIX_IMAGE_CACHE_KB=2M')" = "" ]
+}
+
 @test "directory keys that steer where the app loads code from are refused" {
     local k
     for k in HELIX_DATA_DIR HELIX_CONFIG_DIR HELIX_CACHE_DIR HELIX_TMP_DIR; do
