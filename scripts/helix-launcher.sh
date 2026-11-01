@@ -343,6 +343,11 @@ helix_env_value_refusal() {
             echo "must be 0-19 (a negative nice would let the UI starve Klipper)"
             return 0
             ;;
+        HELIX_IMAGE_CACHE_KB)
+            helix_env_uint_in "$2" 0 65536 && return 1
+            echo "must be 0-65536 (KB of decoded images held in RAM; the app takes any size it is given)"
+            return 0
+            ;;
         HELIX_OOM_SCORE_ADJ)
             helix_env_uint_in "$2" 0 1000 && return 1
             echo "must be 0-1000 (a negative score would have the OOM killer take Klipper before the UI)"
