@@ -6,9 +6,10 @@
 
 namespace helix::ui {
 
-double saver_budget_share(int cores, bool printing) {
+double saver_budget_share(int cores, float bogomips, bool printing) {
     if (cores >= 4) {
-        return printing ? 0.25 : 1.00;
+        const bool slow = bogomips > 0.0f && bogomips < kSaverSlowBoardBogomips;
+        return printing ? 0.25 : (slow ? 0.50 : 1.00);
     }
     if (cores == 3) {
         return printing ? 0.185 : 0.75;

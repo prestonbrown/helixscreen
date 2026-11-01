@@ -44,9 +44,9 @@ struct SaverLoad {
     }
 };
 
-/// A saver's budget on a `cores`-core board while the printer is idle, as a percent of a core.
+/// A saver's budget on a fast `cores`-core board while the printer is idle, as a percent of a core.
 inline double budget_pct(int cores) {
-    return 100.0 * helix::ui::saver_budget_share(cores, false);
+    return 100.0 * helix::ui::saver_budget_share(cores, 0.0f, false);
 }
 
 } // namespace helix::test

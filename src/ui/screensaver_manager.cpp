@@ -237,6 +237,7 @@ bool ScreensaverManager::too_heavy_for_identity(ScreensaverType type) const {
 void ScreensaverManager::refresh_identity() {
     const helix::PlatformCapabilities caps = helix::PlatformCapabilities::detect();
     cores_ = caps.cpu_cores;
+    bogomips_ = caps.bogomips;
     version_ = helix_version_full();
     board_ = helix::ui::board_fingerprint(board_facts(caps));
 }
@@ -383,7 +384,7 @@ void ScreensaverManager::on_idle_check_tick() {
 
     const bool printing = host_.is_printing && host_.is_printing();
     const double budget =
-        budget_override_.value_or(helix::ui::saver_budget_share(cores_, printing));
+        budget_override_.value_or(helix::ui::saver_budget_share(cores_, bogomips_, printing));
     switch (helix::ui::decide_saver_level(*share, budget, gated_level_, active_->level_count())) {
     case GateDecision::KEEP:
         // Comfort at this rung accumulates toward raising the level again: a

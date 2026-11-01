@@ -301,6 +301,7 @@ class ScreensaverManager {
     bool gate_enabled_ = false;
     std::optional<double> budget_override_;
     int cores_ = 0;
+    float bogomips_ = 0.0f;
     size_t gated_level_ = 0;
     size_t requested_level_ = 0;
     /// The highest rung a raise may reach this run: a rung that stepped down stays closed.

@@ -18,13 +18,19 @@
 
 namespace helix::ui {
 
+/// Below this BogoMIPS a 4+ core board is slow. On ARM the figure follows the
+/// architected timer, not the clock, and the timer moved with the core generation:
+/// Cortex-A53 boards read 38.4 to 48, A72 and later 108, x86 thousands. 0 is unknown.
+inline constexpr float kSaverSlowBoardBogomips = 100.0f;
+
 /// Share of one core a running saver may use. Idle: 4 or more cores 1.00 (the
 /// saver is the foreground activity, and one core of a 4+ core board leaves the
-/// machine responsive), 3 cores 0.75, 2 cores 0.50, otherwise 0.10 (a core count
-/// that failed to parse reads as one core). While printing: 0.25, 0.185, 0.125
-/// and 0.05, since klippy shares the SoC and a starved host faults the print
-/// with "Timer too close".
-double saver_budget_share(int cores, bool printing);
+/// machine responsive) or 0.50 on a slow one (kSaverSlowBoardBogomips), where a
+/// whole core of drawing still leaves the UI behind; 3 cores 0.75, 2 cores 0.50,
+/// otherwise 0.10 (a core count that failed to parse reads as one core). While
+/// printing: 0.25, 0.185, 0.125 and 0.05, since klippy shares the SoC and a starved
+/// host faults the print with "Timer too close".
+double saver_budget_share(int cores, float bogomips, bool printing);
 
 enum class GateDecision {
     KEEP,      ///< within budget: the level stays

@@ -434,7 +434,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "[screensaver][screensaver_gate]") {
     GateHarness gate;
     const double full =
-        helix::ui::saver_budget_share(helix::PlatformCapabilities::detect().cpu_cores, false);
+        helix::ui::saver_budget_share(helix::PlatformCapabilities::detect().cpu_cores,
+                                      helix::PlatformCapabilities::detect().bogomips, false);
     const double load = full * 0.75;
     gate.run(10.0, 0.0);
     gate.mgr.start(ScreensaverType::FLYING_TOASTERS);
