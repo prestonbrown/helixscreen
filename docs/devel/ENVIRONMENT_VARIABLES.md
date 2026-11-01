@@ -443,7 +443,7 @@ Size of LVGL's decoded-image cache. `0` (the built-in default) means no image is
 
 | Property | Value |
 |----------|-------|
-| **Values** | kilobytes of decoded-image cache; `0` or unset disables caching |
+| **Values** | kilobytes of decoded-image cache, at most `65536` (64 MB; larger values are capped with a warning); `0` or unset disables caching |
 | **Default** | `0` (K1 hook: `2048`) |
 | **File** | `src/application/display_manager.cpp#apply_image_cache_env`, exported by `assets/config/platform/hooks-k1.sh` |
 
