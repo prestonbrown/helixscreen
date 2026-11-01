@@ -1328,6 +1328,61 @@ static void migrate_v30_to_v31(json& config, const std::string& /*config_path*/)
     }
 }
 
+/// Whether a saved printer is an AD5X, by the preset it was set up from or its saved type.
+/// A root preset marker counts for the active printer only.
+static bool printer_is_ad5x(const json& config, const std::string& printer_id,
+                            const json& printer) {
+    if (helix::json_util::safe_string(printer, "preset") == "ad5x" ||
+        helix::json_util::safe_string(printer, "type") == "FlashForge Adventurer 5X") {
+        return true;
+    }
+    return helix::json_util::safe_string(config, "preset") == "ad5x" &&
+           find_active_printer_key(config) == printer_id;
+}
+
+/// Drop an AD5X's "filament_switch_sensor runout_sensor" entry. That name is zMod's client
+/// variable, not a Klipper object, so Hardware Health reports it missing on every boot. A
+/// printer with no head_switch_sensor entry gets the stale entry renamed to it instead, so
+/// the role and switch the user chose carry over to the sensor the printer really has.
+static void migrate_v31_to_v32(json& config, const std::string& /*config_path*/) {
+    static constexpr const char* kStale = "filament_switch_sensor runout_sensor";
+    static constexpr const char* kHead = "filament_switch_sensor head_switch_sensor";
+    if (!config.contains("printers") || !config["printers"].is_object()) {
+        return;
+    }
+    for (auto& [printer_id, printer] : config["printers"].items()) {
+        // VENDOR_OK: a migration freezes the printers it repairs
+        if (!printer.is_object() || !printer_is_ad5x(config, printer_id, printer)) {
+            continue;
+        }
+        const json::json_pointer sensors_ptr("/filament_sensors/sensors");
+        if (!printer.contains(sensors_ptr) || !printer.at(sensors_ptr).is_array()) {
+            continue;
+        }
+        json& sensors = printer.at(sensors_ptr);
+        bool has_head = false;
+        for (const auto& s : sensors) {
+            has_head = has_head || helix::json_util::safe_string(s, "klipper_name") == kHead;
+        }
+        for (auto it = sensors.begin(); it != sensors.end();) {
+            if (helix::json_util::safe_string(*it, "klipper_name") != kStale) {
+                ++it;
+            } else if (!has_head) {
+                (*it)["klipper_name"] = kHead;
+                has_head = true;
+                spdlog::info("[Config] Migration v32: renamed runout_sensor to "
+                             "head_switch_sensor for printer '{}'",
+                             printer_id);
+                ++it;
+            } else {
+                it = sensors.erase(it);
+                spdlog::info("[Config] Migration v32: dropped runout_sensor for printer '{}'",
+                             printer_id);
+            }
+        }
+    }
+}
+
 using MigrationFn = void (*)(json& config, const std::string& config_path);
 
 /// The ladder, oldest first. A row runs when the document's stamp is below
@@ -1343,7 +1398,7 @@ constexpr struct {
     {22, migrate_v21_to_v22}, {23, migrate_v22_to_v23}, {24, migrate_v23_to_v24},
     {25, migrate_v24_to_v25}, {26, migrate_v25_to_v26}, {27, migrate_v26_to_v27},
     {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29}, {30, migrate_v29_to_v30},
-    {31, migrate_v30_to_v31},
+    {31, migrate_v30_to_v31}, {32, migrate_v31_to_v32},
 };
 
 static_assert(kMigrations[std::size(kMigrations) - 1].to_version == kCurrentConfigVersion,
