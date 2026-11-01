@@ -32,6 +32,7 @@
 namespace helix {
 class AmsBackend;
 struct AmsError;
+class IMoonrakerAPI;
 class PrinterState;
 } // namespace helix
 
@@ -344,7 +345,21 @@ void execute_filament_unload(AmsBackend* backend, int slot, bool target_is_loade
 /// Purge counterpart. Two tiers only (the configured macro, then
 /// filament_purge_fallback_gcode() from filament_op_router.h) — no AmsBackend
 /// exposes a purge entry point, so there is no plan_purge() to route through.
-/// Heats for the loaded lane's material first, like the load and unload.
+/// Heats for the loaded lane's material first, like the load and unload, and
+/// sends the backend's purge preamble ahead of the purge itself.
 void execute_filament_purge(const char* log_tag);
+
+/// Run @p purge once the active filament backend's purge preamble
+/// (AmsBackend::purge_preamble_gcode(), asked with whether a job holds the
+/// machine right now) has completed. Every Purge surface sends its macro or raw
+/// fallback through this, so the preamble cannot be skipped by one of them.
+///
+/// No backend or an empty preamble: @p purge runs synchronously, nothing is
+/// sent. Otherwise the preamble goes out first and @p purge runs on the main
+/// thread once it succeeds; if it fails, @p on_error runs on the main thread
+/// instead and @p purge never does.
+void run_after_purge_preamble(helix::IMoonrakerAPI* api, const char* log_tag,
+                              std::function<void()> purge,
+                              std::function<void(const MoonrakerError&)> on_error);
 
 } // namespace helix::ui

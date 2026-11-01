@@ -44,6 +44,7 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "bed_drying_controller.h"
+#include "filament_op_execute.h"
 #include "filament_op_router.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
@@ -135,6 +136,15 @@ class DispatchSurfaceFixture : public LVGLTestFixture {
         StandardMacros::instance().reset();
         StandardMacros::instance().init(hardware);
         REQUIRE_FALSE(StandardMacros::instance().get(StandardMacroSlot::LoadFilament).is_empty());
+    }
+
+    /// Give StandardMacros a PURGE macro for the Purge slot.
+    void configure_purge_macro() {
+        helix::PrinterDiscovery hardware;
+        hardware.parse_objects(nlohmann::json{"extruder", "gcode_macro PURGE"});
+        StandardMacros::instance().reset();
+        StandardMacros::instance().init(hardware);
+        REQUIRE_FALSE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
     }
 
     /// No macro configured anywhere — forces the tier-3 raw gcode fallback.
@@ -505,12 +515,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
 
 TEST_CASE_METHOD(DispatchSurfaceFixture, "Runout purge routes through the shared macro tier",
                  "[filament][dispatch][wiring][runout]") {
-    helix::PrinterDiscovery hardware;
-    nlohmann::json objects = {"extruder", "gcode_macro PURGE"};
-    hardware.parse_objects(objects);
-    StandardMacros::instance().reset();
-    StandardMacros::instance().init(hardware);
-    REQUIRE_FALSE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
+    configure_purge_macro();
 
     FilamentRunoutHandler handler(api.get());
     FilamentRunoutHandlerTestAccess::dispatch_purge(handler);
@@ -532,6 +537,74 @@ TEST_CASE_METHOD(DispatchSurfaceFixture, "Runout purge with no macro falls back 
 
     CHECK(prompt_count == 0);
     CHECK(gcode_sent_containing("G1 E50"));
+}
+
+// -----------------------------------------------------------------------------
+// Purge preamble: the active backend's "go to the bin" runs before the purge
+// -----------------------------------------------------------------------------
+
+namespace {
+/// A backend whose purge preamble is fixed, recording what it was asked.
+class PreambleBackend : public helix::AmsBackendMock {
+  public:
+    PreambleBackend() : helix::AmsBackendMock(2) {}
+    std::string preamble = "TEST_BIN_PREAMBLE";
+    mutable std::optional<bool> asked_job_holds;
+    [[nodiscard]] std::string purge_preamble_gcode(bool job_holds_machine) const override {
+        asked_job_holds = job_holds_machine;
+        return preamble;
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(DispatchSurfaceFixture, "A purge runs only after the backend's purge preamble",
+                 "[filament][dispatch][wiring][purge_preamble]") {
+    helix::test::RegisteredBackend<PreambleBackend> reg;
+    const auto sent = [this](const char* needle) {
+        return mock_client.last_send_script().find(needle) != std::string::npos;
+    };
+
+    SECTION("the macro waits for the preamble's answer") {
+        configure_purge_macro();
+        mock_client.defer_next("printer.gcode.script");
+        helix::ui::execute_filament_purge("[test]");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent("TEST_BIN_PREAMBLE"));
+        CHECK_FALSE(gcode_sent_containing("PURGE"));
+        REQUIRE(reg->asked_job_holds.has_value());
+        CHECK_FALSE(*reg->asked_job_holds);
+
+        mock_client.fire_deferred("printer.gcode.script");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(mock_client.last_send_script().find("PURGE") == 0);
+    }
+    SECTION("the raw fallback waits for it too") {
+        clear_filament_macros();
+        mock_client.defer_next("printer.gcode.script");
+        helix::ui::execute_filament_purge("[test]");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent("TEST_BIN_PREAMBLE"));
+        CHECK_FALSE(gcode_sent_containing("G1 E50"));
+        mock_client.fire_deferred("printer.gcode.script");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent("G1 E50"));
+    }
+    SECTION("a failed preamble sends no purge") {
+        configure_purge_macro();
+        mock_client.fail_next("printer.gcode.script");
+        helix::ui::execute_filament_purge("[test]");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent("TEST_BIN_PREAMBLE"));
+        CHECK_FALSE(gcode_sent_containing("PURGE"));
+    }
+    SECTION("an empty preamble sends the purge alone") {
+        configure_purge_macro();
+        reg->preamble.clear();
+        helix::ui::execute_filament_purge("[test]");
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(mock_client.gcode_script_history().size() == 1);
+        CHECK(mock_client.gcode_script_history().front().find("PURGE") == 0);
+    }
 }
 
 // =============================================================================

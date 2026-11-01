@@ -19,7 +19,9 @@ ALL_STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lin
 # loudly instead of forking without bound.
 setup() {
     export JOBPOOL=0
-    unset FAKE_MAKE_DEPTH LAND_GATE_ACTIVE
+    # A `make land-gate STAGES=...` rerun exports STAGES to every step it runs,
+    # bats included; left set, it reaches the make fragments these tests drive.
+    unset FAKE_MAKE_DEPTH LAND_GATE_ACTIVE STAGES
     export TMPDIR="$BATS_TEST_TMPDIR"
     export CALLS="$BATS_TEST_TMPDIR/calls"
     export LAND_GATE_LOGDIR="$BATS_TEST_TMPDIR/logs"
