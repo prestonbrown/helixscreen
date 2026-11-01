@@ -398,6 +398,13 @@ TEST_CASE_METHOD(SnapmakerFixture, "A feed the U1 declines reports an error for 
               std::string::npos);
     }
 
+    SECTION("a Klipper restart drops the watch on a feed sent before it") {
+        REQUIRE(backend.load_filament(1).success());
+        backend.on_klipper_restarted();
+        backend.answer_ok();
+        CHECK_FALSE(backend.saw_error());
+    }
+
     SECTION("an answer from an earlier feed does not judge a later one") {
         REQUIRE(backend.load_filament(1).success());
         REQUIRE(backend.load_filament(1).success());
