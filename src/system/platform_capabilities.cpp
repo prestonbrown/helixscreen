@@ -21,7 +21,6 @@
 #include <cstdlib>
 #include <iterator>
 #include <optional>
-#include <sstream>
 
 #ifdef __APPLE__
 #include <sys/sysctl.h>
@@ -195,20 +194,19 @@ CpuInfo parse_cpuinfo(const std::string& content) {
     static constexpr int kEfficiencyParts[] = {0xc05, 0xc07, 0xd04, 0xd03, 0xd05, 0xd46, 0xd80};
     int named_cores = 0;
     bool all_efficiency = true;
-    std::istringstream blocks(content);
-    std::string line;
     int implementer = -1;
-    auto field = [](const std::string& l, const char* key) -> std::optional<int> {
-        if (l.rfind(key, 0) != 0) {
+    auto field = [](std::string_view l, std::string_view key) -> std::optional<int> {
+        if (l.substr(0, key.size()) != key) {
             return std::nullopt;
         }
         const auto colon = l.find(':');
-        if (colon == std::string::npos) {
+        if (colon == std::string_view::npos) {
             return std::nullopt;
         }
-        return static_cast<int>(std::strtol(l.c_str() + colon + 1, nullptr, 0));
+        const std::string value(l.substr(colon + 1));
+        return static_cast<int>(std::strtol(value.c_str(), nullptr, 0));
     };
-    while (std::getline(blocks, line)) {
+    for (std::string_view line : helix::text_io::lines(content)) {
         if (auto v = field(line, "CPU implementer")) {
             implementer = *v;
         } else if (auto part = field(line, "CPU part")) {
