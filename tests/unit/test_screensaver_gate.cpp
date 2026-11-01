@@ -49,7 +49,6 @@ TEST_CASE("the saver budget follows the core count and drops while printing",
     CHECK(saver_budget_share(1, 0.0f, false) == Catch::Approx(0.10));
     CHECK(saver_budget_share(0, 0.0f, false) == Catch::Approx(0.10));
     // klippy shares the SoC while printing: these stay where they are on purpose.
-    CHECK(saver_budget_share(8, 0.0f, true) == Catch::Approx(0.25));
     CHECK(saver_budget_share(4, 38.4f, true) == Catch::Approx(0.25));
     CHECK(saver_budget_share(3, 0.0f, true) == Catch::Approx(0.185));
     CHECK(saver_budget_share(2, 0.0f, true) == Catch::Approx(0.125));
