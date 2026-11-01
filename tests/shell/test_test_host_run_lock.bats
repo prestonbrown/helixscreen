@@ -59,7 +59,8 @@ case "$*" in
     *) echo "unhandled git call: $*" >&2; exit 1 ;;
 esac'
     # docker: enough behavior for the container checks, and an exec that
-    # records instead of running, so no git or make ever executes. The pgrep
+    # records instead of running, so no git or make ever executes; the
+    # mutate_diff exec also prints the verdict a finished run ends with. The pgrep
     # probe is stateful when MOCK_PGREP_HITS names a file: the first poll
     # reports a running make, later polls report none, and the file counts
     # the polls. Without the knob every poll reports no make.
@@ -83,6 +84,10 @@ case "$1" in
             *"base64 -d | sh"*)
                 echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
                 [ -z "${MOCK_CONTAINER_MEM_KB:-}" ] || echo "$MOCK_CONTAINER_MEM_KB"
+                ;;
+            *mutate_diff*)
+                echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
+                echo "VERDICT: CLEAN"
                 ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG" ;;
         esac ;;
@@ -430,7 +435,7 @@ exit 0'
 # python3 that prints the scheduling it inherited and the jobserver it was handed.
 run_mutate_for_real() {
     mock_command_script make 'echo "MAKE: $*" >> "$BATS_TEST_TMPDIR/make.log"'
-    mock_command_script python3 'echo "POLICY: $(chrt -p $$)"; echo "NICE: $(nice)"; echo "MAKEFLAGS=${MAKEFLAGS:-}"'
+    mock_command_script python3 'echo "POLICY: $(chrt -p $$)"; echo "NICE: $(nice)"; echo "MAKEFLAGS=${MAKEFLAGS:-}"; echo "VERDICT: CLEAN"'
     mock_command_script docker '
 case "$1" in
     ps) echo helix-test ;;
@@ -454,11 +459,35 @@ exit 0'
 
 @test "mutate hands each argument through whole, spaces included" {
     run_mutate_for_real
-    mock_command_script python3 'case "$*" in *import*) exit 0 ;; esac; printf "ARG<%s>\n" "$@"'
+    mock_command_script python3 'case "$*" in *import*) exit 0 ;; esac; printf "ARG<%s>\n" "$@"; echo "VERDICT: CLEAN"'
     cd "$BATS_TEST_TMPDIR" || return 1
     run "$SCRIPT" mutate --tests-for 'src/a b.cpp=[one case]'
     [ "$status" -eq 0 ]
     contains "ARG<src/a b.cpp=[one case]>" "$output"
+}
+
+@test "a mutate run that printed no verdict is not reported clean" {
+    run_mutate_for_real
+    mock_command_script python3 'exit 0'
+    cd "$BATS_TEST_TMPDIR" || return 1
+    run "$SCRIPT" mutate --tests '[x]'
+    [ "$status" -eq 1 ]
+    contains "no mutation verdict" "$output"
+}
+
+@test "mutate passes --workers only to a mutate_diff.py that takes it" {
+    run_mutate_for_real
+    mock_command_script python3 'case "$*" in *import*) exit 0 ;; esac; printf "ARG<%s>\n" "$@"; echo "VERDICT: CLEAN"'
+    cd "$BATS_TEST_TMPDIR" || return 1
+    mkdir -p scripts
+    echo "ap.add_argument('--jobs')" > scripts/mutate_diff.py
+    run "$SCRIPT" mutate --tests '[x]'
+    [ "$status" -eq 0 ]
+    lacks "ARG<--workers>" "$output"
+    echo "ap.add_argument('--workers')" >> scripts/mutate_diff.py
+    run "$SCRIPT" mutate --tests '[x]'
+    [ "$status" -eq 0 ]
+    contains "ARG<--workers>" "$output"
 }
 
 @test "mutate makes the checkout's venv when it cannot import pytest" {
