@@ -323,6 +323,8 @@ void check_action_labels(XMLTestFixture& fx, std::initializer_list<const char*> 
 TEST_CASE_METHOD(XMLTestFixture,
                  "AMS sidebar action labels stay inside their buttons in every language",
                  "[ui_integration][ams][i18n]") {
+    // A component keeps the tokens of the screen it was registered on.
+    reregister_ams_components();
     check_action_labels(*this, {"en", "de", "fr", "es", "pt", "it", "ru", "ja", "zh"});
 }
 

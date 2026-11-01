@@ -450,6 +450,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // ScopedAmsBackend leaves them; a test that published them and walked away
     // would bind the bypass card hidden and shorten the column.
     helix::AmsState::instance().deinit_subjects();
+    // A name published through register_xml_subject_names() survives the deinit.
+    lv_xml_unregister_subject(nullptr, "ams_bypass_active");
     REQUIRE(lv_xml_get_subject(nullptr, "ams_bypass_active") == nullptr);
 
     // No filament card: the options column is short enough to fit whole

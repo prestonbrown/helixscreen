@@ -35,6 +35,7 @@
 #include "src/ui/panel_widgets/print_status_widget.h"
 #include "src/ui/panel_widgets/temp_graph_widget.h"
 #include "src/ui/panel_widgets/thermistor_widget.h"
+#include "static_subject_registry.h"
 #include "system_settings_manager.h"
 #include "temp_graph_controller.h"
 #include "temp_graph_internal.h"
@@ -335,6 +336,11 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     CHECK(lv_subject_get_int(tools.get_tools_version_subject()) > version);
     CHECK(state().temperature_state().extruders().at("extruder1").display_name ==
           std::string(lv_tr("Nozzle")) + " 2");
+
+    // Observers and tools set up here would answer for a later test's.
+    StaticSubjectRegistry::instance().deinit_one("AmsToolTextObservers");
+    ams.deinit_subjects();
+    tools.deinit_subjects();
 }
 
 namespace helix {

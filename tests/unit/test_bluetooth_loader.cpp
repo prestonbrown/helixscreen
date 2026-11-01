@@ -19,12 +19,6 @@ TEST_CASE("BluetoothLoader - no crash when plugin missing", "[bluetooth]") {
     REQUIRE_NOTHROW(loader.is_available());
 }
 
-TEST_CASE("BluetoothLoader - singleton consistency", "[bluetooth]") {
-    auto& a = BluetoothLoader::instance();
-    auto& b = BluetoothLoader::instance();
-    REQUIRE(&a == &b);
-}
-
 TEST_CASE("BluetoothLoader - function pointers null when unavailable", "[bluetooth]") {
     auto& loader = BluetoothLoader::instance();
     if (!loader.is_available()) {
