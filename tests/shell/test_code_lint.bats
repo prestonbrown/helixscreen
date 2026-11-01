@@ -3653,3 +3653,137 @@ SHAPES
     lacks "require_app" "$output"
     lacks "venv" "$output"
 }
+
+# An initializer_list is a view of a temporary array that dies with the full
+# expression that makes it. One picked by a ternary and then stored (a variable,
+# a return value) is a view of freed stack, and whether that crashes depends on
+# what reuses the slot, so no unit test catches it. Passed straight to a call it
+# lives for that call and is fine. Opt-out: // INIT_LIST_TERNARY_OK: <reason>.
+init_list_ternary_offenders() {
+    python3 - "$@" <<'EOF'
+import re
+import sys
+
+OPERAND = re.compile(r'(\?|(?<!:):(?!:))\s*std\s*::\s*initializer_list\s*<')
+
+def scrub(text):
+    """Blank comments and literal contents, keeping offsets and newlines."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        c = text[i]
+        if text.startswith('//', i):
+            j = text.find('\n', i)
+            j = n if j < 0 else j
+            out.append(' ' * (j - i)); i = j
+        elif text.startswith('/*', i):
+            j = text.find('*/', i + 2)
+            j = n if j < 0 else j + 2
+            out.append(re.sub(r'[^\n]', ' ', text[i:j])); i = j
+        elif c in '"\'':
+            j = i + 1
+            while j < n and text[j] != c:
+                j += 2 if text[j] == '\\' else 1
+            out.append(c + re.sub(r'[^\n]', ' ', text[i + 1:j]) + c); i = j + 1
+        else:
+            out.append(c); i += 1
+    return ''.join(out)
+
+for path in sys.argv[1:]:
+    try:
+        raw = open(path, encoding='utf-8', errors='replace').read()
+    except OSError:
+        continue
+    text = scrub(raw)
+    raw_lines = raw.split('\n')
+    seen = set()
+    for m in OPERAND.finditer(text):
+        # The statement holding the ternary starts after the last ; or unmatched
+        # {, stepping over the braces of the lists themselves.
+        start, depth = m.start(), 0
+        while start > 0:
+            ch = text[start - 1]
+            if ch == '}':
+                depth += 1
+            elif ch == '{':
+                if depth == 0:
+                    break
+                depth -= 1
+            elif ch == ';' and depth == 0:
+                break
+            start -= 1
+        if start in seen:
+            continue
+        seen.add(start)
+        stmt = text[start:m.start()]
+        depth = 0
+        for ch in stmt:
+            depth += ch == '('
+            depth -= ch == ')'
+        if depth > 0:
+            continue  # an argument of a call: it lives for that call
+        if not re.search(r'(?<![=!<>])=(?!=)|\breturn\b', stmt):
+            continue
+        line = text.count('\n', 0, m.start()) + 1
+        span = raw_lines[text.count('\n', 0, start):line + 2]
+        if any('INIT_LIST_TERNARY_OK' in s for s in span):
+            continue
+        print(f'{path}:{line}: {raw_lines[line - 1].strip()}')
+EOF
+}
+
+init_list_ternary_files() {
+    git ls-files --cached --others --exclude-standard src include firmware |
+        grep -E '\.(cpp|h|hpp)$'
+}
+
+@test "no initializer_list picked by a ternary is stored past its expression" {
+    # shellcheck disable=SC2046  # paths have no spaces; word splitting is intended
+    run init_list_ternary_offenders $(init_list_ternary_files)
+    [ "$status" -eq 0 ]
+    [ -z "$output" ] || { echo "initializer_list stored from a ternary (it dangles):"; echo "$output"; false; }
+}
+
+@test "the initializer_list ternary gate flags a stored pick and stays quiet on a call argument" {
+    local f="${BATS_TEST_TMPDIR}/init_list_shapes.cpp"
+    cat > "$f" <<'SHAPES'
+void stored(bool c) {
+    const auto keys = c ? std::initializer_list<const char*>{"a", "b"}
+                        : std::initializer_list<const char*>{"a"};
+}
+std::initializer_list<int> returned(bool c) {
+    return c ? std::initializer_list<int>{1} : std::initializer_list<int>{2};
+}
+void argument(bool c) {
+    check_opts(L, 1,
+               c ? std::initializer_list<const char*>{"fill", "radius"}
+                 : std::initializer_list<const char*>{"fill"});
+    const bool ok = known(c ? std::initializer_list<int>{1} : std::initializer_list<int>{2});
+    c ? std::initializer_list<int>{1} : std::initializer_list<int>{2};
+}
+void hatch(bool c) {
+    // INIT_LIST_TERNARY_OK: test fixture
+    auto k = c ? std::initializer_list<int>{1} : std::initializer_list<int>{2};
+}
+// Prose: c ? std::initializer_list<int>{1} : std::initializer_list<int>{2} = bad
+std::initializer_list<int> plain = {1, 2};
+SHAPES
+    run init_list_ternary_offenders "$f"
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 2 ]
+    contains "init_list_shapes.cpp:2:" "$output"
+    contains "init_list_shapes.cpp:6:" "$output"
+    lacks "check_opts" "$output"
+    lacks ":10:" "$output"
+    lacks ":12:" "$output"
+    lacks ":13:" "$output"
+    lacks ":17:" "$output"
+}
+
+@test "the initializer_list ternary gate flags the AFC lane-name keys as they were before the fix" {
+    local f="${BATS_TEST_TMPDIR}/afc_status_parse.cpp"
+    git show 40318bf81d^:src/printer/afc_status_parse.cpp > "$f"
+    run init_list_ternary_offenders "$f"
+    [ "$status" -eq 0 ]
+    contains "afc_status_parse.cpp:" "$output"
+    contains "std::initializer_list<const char*>{\"name\", \"filament_name\"}" "$output"
+}
