@@ -22,7 +22,7 @@ with_stamp_helpers() {
   bash -c '
     QC_COUNTS="$1"
     . scripts/qc/_lib.sh
-    eval "$(sed -n "/^qc_stamp_write() {/,/^}/p; /^qc_stamp_replay() {/,/^}/p" scripts/quality-checks.sh)"
+    eval "$(sed -n "/^qc_stamp_write() {/,/^}/p; /^qc_stamp_replay() {/,/^}/p; /^qc_stamp_for_run() {/,/^}/p; /^qc_stamp_covering() {/,/^}/p" scripts/quality-checks.sh)"
     eval "$2"
   ' _ "$COUNTS" "$1"
 }
@@ -59,3 +59,53 @@ with_stamp_helpers() {
   contains "recorded no counts" "$output"
   lacks "file(s)" "$output"
 }
+
+@test "a work-branch pass never stands in for a full sweep; a full pass covers both" {
+  mkdir -p "$(dirname "$STAMP")"
+  : > "$STAMP.commit-level"
+  run with_stamp_helpers 'qc_stamp_covering "$STAMP"'
+  [ -z "$output" ]
+  run with_stamp_helpers 'HELIX_QC_SKIP_PUSH_ONLY=1 qc_stamp_covering "$STAMP"'
+  [ "$output" = "$STAMP.commit-level" ]
+  run with_stamp_helpers 'HELIX_QC_SKIP_PUSH_ONLY=1 qc_stamp_for_run "$STAMP"'
+  [ "$output" = "$STAMP.commit-level" ]
+  : > "$STAMP"
+  run with_stamp_helpers 'qc_stamp_covering "$STAMP"'
+  [ "$output" = "$STAMP" ]
+}
+
+@test "a gate that failed or ran long keeps its logs under a timestamped dir; a quick pass does not" {
+  local tmp="$BATS_TEST_TMPDIR/qc" kept="$BATS_TEST_TMPDIR/kept"
+  mkdir -p "$tmp"
+  echo "gate out" > "$tmp/qc_python_tests.out"
+  echo "pytest log" > "$tmp/python_tests.log"
+  eval "$(sed -n "/^qc_keep_gate_log() {/,/^}/p" scripts/quality-checks.sh)"
+
+  run qc_keep_gate_log qc_python_tests 0 2000 "$tmp" "$kept"
+  [ -z "$output" ]
+  [ ! -e "$kept" ]
+
+  run qc_keep_gate_log qc_python_tests 0 400000 "$tmp" "$kept"
+  contains "qc_python_tests log kept: $kept/" "$output"
+  run cat "$kept"/*-python_tests/python_tests.log "$kept"/*-python_tests/summary
+  contains "pytest log" "$output"
+  contains "exit 0 after 400s" "$output"
+
+  rm -rf "$kept"
+  run qc_keep_gate_log qc_python_tests 1 2000 "$tmp" "$kept"
+  contains "log kept" "$output"
+  run cat "$kept"/*-python_tests/qc_python_tests.out
+  contains "gate out" "$output"
+}
+
+@test "kept gate logs are capped at the newest few" {
+  local tmp="$BATS_TEST_TMPDIR/qc" kept="$BATS_TEST_TMPDIR/kept"
+  mkdir -p "$tmp" "$kept/20200101T000000Z-old" "$kept/20200102T000000Z-older-but-kept"
+  echo out > "$tmp/qc_phase1.out"
+  eval "$(sed -n "/^qc_keep_gate_log() {/,/^}/p" scripts/quality-checks.sh)"
+  HELIX_QC_KEEP_LOG_COUNT=2 qc_keep_gate_log qc_phase1 1 10 "$tmp" "$kept" >/dev/null
+  [ ! -e "$kept/20200101T000000Z-old" ]
+  [ -d "$kept/20200102T000000Z-older-but-kept" ]
+  [ "$(ls "$kept" | wc -l | tr -d ' ')" = 2 ]
+}
+
