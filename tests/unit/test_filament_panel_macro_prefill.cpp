@@ -26,6 +26,7 @@
 #include "../test_helpers/lane_material_backend.h"
 #include "../test_helpers/load_filament_expression_default.h"
 #include "../test_helpers/macro_param_modal_test_access.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
@@ -177,6 +178,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Purge sends PURGE_TEMP as a value, with no 
     TA::execute_purge(*h.panel);
 
     CHECK(h.prompt_count == 0);
+    CHECK(h.sent_for("PURGE") == Scripts{"PURGE PURGE_TEMP=255"});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Purge sends its macro only once the bin preamble is answered",
+                 "[filament][prefill][purge_preamble]") {
+    struct BinBackend : helix::AmsBackendMock {
+        BinBackend() : helix::AmsBackendMock(2) {}
+        std::string purge_preamble_gcode(bool) const override {
+            return "TEST_BIN_PREAMBLE";
+        }
+    };
+    PrefillPanelHarness h(std::make_unique<BinBackend>());
+    h.cache_macros({{"PURGE", "{% set t = params.PURGE_TEMP|default(240)|int %}\nM109 S{t}"}});
+    h.set_extruder_target(255.0);
+
+    h.client.defer_next("printer.gcode.script");
+    TA::execute_purge(*h.panel);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(h.client.last_send_script().find("TEST_BIN_PREAMBLE") != std::string::npos);
+    CHECK(h.sent_for("PURGE").empty());
+
+    h.client.fire_deferred("printer.gcode.script");
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(h.sent_for("PURGE") == Scripts{"PURGE PURGE_TEMP=255"});
 }
 
