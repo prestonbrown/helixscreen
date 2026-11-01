@@ -900,6 +900,10 @@ void run_after_purge_preamble(helix::IMoonrakerAPI* api, const char* log_tag,
         return;
     }
     spdlog::info("{} Purge preamble: {}", log_tag, preamble);
+    // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, the purge's
+    // own failure path, which every caller surfaces as a "purge failed" toast.
+    // The gate reads only the callback body, where that hand-off looks like
+    // logging and nothing else.
     api->execute_gcode(
         preamble, [purge = std::move(purge)]() { run_on_main("purge_preamble_ok", purge); },
         [log_tag, on_error = std::move(on_error)](const MoonrakerError& err) {
