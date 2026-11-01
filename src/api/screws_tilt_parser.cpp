@@ -25,6 +25,12 @@ bool parse_screws_tilt_line(const std::string& line, ScrewTiltResult& out) {
         name_start++;
     }
 
+    // "// action:..." is a host-action command (a macro's prompt dialog), which
+    // can quote screw-shaped text but is never one of Klipper's result lines.
+    if (line.compare(name_start, 7, "action:") == 0) {
+        return false;
+    }
+
     size_t name_end = line.find(" :");
     size_t base_pos = line.find(" (base)");
 
