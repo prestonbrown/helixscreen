@@ -25,7 +25,7 @@ elif [ -x "$VENV_PYTHON" ]; then
   # Git exports GIT_INDEX_FILE and friends to hooks; a test that builds a
   # throwaway repo would otherwise read this commit's index.
   if ( for v in $(compgen -e); do case "$v" in GIT_*) unset "$v" ;; esac; done
-       "$VENV_PYTHON" -m pytest -q -p no:cacheprovider tests/python/ ) \
+       "$VENV_PYTHON" -m pytest -q -p no:cacheprovider --durations=15 tests/python/ ) \
      >"$QC_TMP/python_tests.log" 2>&1; then
     section_time $SECTION_START
     echo ""
