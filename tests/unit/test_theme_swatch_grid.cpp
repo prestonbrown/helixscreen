@@ -18,6 +18,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "draw/lv_draw_buf_private.h" // the handlers the buffer count wraps
 
 #include <algorithm>
 #include <cmath>
@@ -236,6 +237,44 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_event_cb_t cancel = lv_xml_get_event_cb(nullptr, "color_picker_cancel_cb");
     REQUIRE(cancel != nullptr);
     cancel(nullptr);
+}
+
+namespace {
+// Live draw-buffer allocations, counted through LVGL's default handlers.
+int g_live_draw_bufs = 0;
+lv_draw_buf_malloc_cb_t g_real_buf_malloc = nullptr;
+lv_draw_buf_free_cb_t g_real_buf_free = nullptr;
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "color picker: closing it gives back the HSV picker's buffers",
+                 "[xml][theme][swatch]") {
+    lv_draw_buf_handlers_t* handlers = lv_draw_buf_get_handlers();
+    g_real_buf_malloc = handlers->buf_malloc_cb;
+    g_real_buf_free = handlers->buf_free_cb;
+    handlers->buf_malloc_cb = [](size_t size, lv_color_format_t cf) -> void* {
+        void* buf = g_real_buf_malloc(size, cf);
+        g_live_draw_bufs += buf != nullptr;
+        return buf;
+    };
+    handlers->buf_free_cb = [](void* buf) {
+        g_live_draw_bufs -= buf != nullptr;
+        g_real_buf_free(buf);
+    };
+    const int before = g_live_draw_bufs;
+
+    {
+        helix::ui::ColorPicker picker;
+        REQUIRE(picker.show_with_color(lv_screen_active(), 0x808080));
+        REQUIRE(g_live_draw_bufs > before);
+        picker.hide(); // disarms the tree, nulling every user_data in it
+        process_lvgl(50);
+    }
+    process_lvgl(50);
+    const int after = g_live_draw_bufs;
+    handlers->buf_malloc_cb = g_real_buf_malloc;
+    handlers->buf_free_cb = g_real_buf_free;
+
+    CHECK(after == before);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "color picker palette: General selects the shared grid",
