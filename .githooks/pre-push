@@ -46,6 +46,12 @@
 # Doc anchors are not checked here: `make check-doc-anchors` is advisory, takes
 # over a minute, and blocks nothing, so a push would wait on a report it ignores.
 #
+# A push that only updates work branches runs the commit-level gates and leaves
+# the push-only ones (QC_PUSH_ONLY in scripts/quality-checks.sh) and the clang
+# divergence gate to make land-gate and CI: nothing reaches main without both.
+# A push that touches main, release/* or a tag, or any ref this hook cannot
+# read, runs the full sweep as before.
+#
 # Escape hatches: HELIX_PREPUSH_IN_PLACE=1 forces the old in-place behaviour,
 # HELIX_PREPUSH_FULL=1 sweeps a gated tip anyway, and `git push --no-verify`
 # skips the hook entirely. Expect CI to find whatever you skipped.
@@ -60,13 +66,27 @@ cd "$REPO_ROOT"
 # all-zero local sha is a branch deletion, which publishes no content to gate.
 TARGET=""
 REMOTE_SHA=""
-while read -r _local_ref local_sha _remote_ref remote_sha; do
+WORK_BRANCHES_ONLY=1
+while read -r _local_ref local_sha remote_ref remote_sha; do
     # All zeros is a branch deletion: it publishes no content to gate.
     case "$local_sha" in
         "" | *[!0]*) TARGET="$local_sha" REMOTE_SHA="$remote_sha" ;;
+        *) continue ;;
+    esac
+    case "$remote_ref" in
+        refs/heads/main | refs/heads/release/* | refs/tags/*) WORK_BRANCHES_ONLY="" ;;
+        refs/heads/?*) ;;
+        *) WORK_BRANCHES_ONLY="" ;;
     esac
 done
 [ -n "$TARGET" ] || exit 0
+[ -z "${HELIX_PREPUSH_FULL:-}" ] || WORK_BRANCHES_ONLY=""
+SWEEP_ENV=""
+SWEEP_NOTE="full quality sweep (pre-commit only checked what you staged)"
+if [ -n "$WORK_BRANCHES_ONLY" ]; then
+    SWEEP_ENV="HELIX_QC_SKIP_PUSH_ONLY=1"
+    SWEEP_NOTE="work-branch sweep: the commit-level gates; make land-gate and CI run the rest before main (HELIX_PREPUSH_FULL=1 runs everything)"
+fi
 
 # shellcheck source=lib/push-range.sh
 . "$(dirname "$0")/lib/push-range.sh"
@@ -106,10 +126,10 @@ if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ]; then
     if [ -n "$GATE_PASSED" ]; then
         gate_passed_note
     else
-        echo "🚦 pre-push: full quality sweep (pre-commit only checked what you staged)"
+        echo "🚦 pre-push: $SWEEP_NOTE"
         # Drift is asked once, below, where patches the push ships can be told
         # apart from drift the push does not explain.
-        HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh || STATUS=$?
+        env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh || STATUS=$?
     fi
     prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
     esp32_syntax_check "$REPO_ROOT" || STATUS=1
@@ -180,8 +200,9 @@ STATUS=0
 if [ -n "$GATE_PASSED" ]; then
     gate_passed_note
 else
+    echo "🚦 pre-push: $SWEEP_NOTE"
     ( cd "$ISOLATED/tree" \
-        && HELIX_QC_SKIP_PATCH_DRIFT=1 HELIX_QC_SKIP_CLANG_DIVERGENCE=1 \
+        && env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 HELIX_QC_SKIP_CLANG_DIVERGENCE=1 \
            ./scripts/quality-checks.sh ) || STATUS=$?
 fi
 
@@ -195,7 +216,8 @@ fi
 
 prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
 
-if [ -z "$GATE_PASSED" ] && [ -f "$REPO_ROOT/scripts/check_clang_diagnostics.py" ]; then
+if [ -z "$GATE_PASSED" ] && [ -z "$WORK_BRANCHES_ONLY" ] &&
+    [ -f "$REPO_ROOT/scripts/check_clang_diagnostics.py" ]; then
     echo ""
     echo "🐉 Checking clang/GCC divergence in your working tree (it has the compile database)..."
     if ! ( cd "$REPO_ROOT" && python3 scripts/check_clang_diagnostics.py ); then

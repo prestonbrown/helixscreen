@@ -122,13 +122,29 @@ qc_stamp_replay() {
   esac
   echo "   Force a re-run with QC_NO_CACHE=1"
 }
+# A work-branch sweep (HELIX_QC_SKIP_PUSH_ONLY) records its pass apart from a full
+# one: a full pass covers it, but it never stands in for a full sweep.
+qc_stamp_for_run() {
+  # $1 = the state's full-sweep stamp
+  if [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ]; then echo "$1.commit-level"; else echo "$1"; fi
+}
+qc_stamp_covering() {
+  # $1 = the state's full-sweep stamp; prints a stamp that covers this run, if any
+  if [ -f "$1" ]; then
+    echo "$1"
+  elif [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ] && [ -f "$1.commit-level" ]; then
+    echo "$1.commit-level"
+  fi
+}
 QC_STAMP=""
 if [ "$STAGED_ONLY" != true ] && [ -z "${QC_NO_CACHE:-}" ]; then
-  QC_STAMP="$QC_STAMP_DIR/$(qc_state_hash)"
-  if [ -n "$QC_STAMP" ] && [ -f "$QC_STAMP" ]; then
-    qc_stamp_replay "$QC_STAMP"
+  QC_STAMP_FULL="$QC_STAMP_DIR/$(qc_state_hash)"
+  QC_COVERING="$(qc_stamp_covering "$QC_STAMP_FULL")"
+  if [ -n "$QC_COVERING" ]; then
+    qc_stamp_replay "$QC_COVERING"
     exit 0
   fi
+  QC_STAMP="$(qc_stamp_for_run "$QC_STAMP_FULL")"
 fi
 
 QC_TMP="$(mktemp -d)"
@@ -206,8 +222,16 @@ qc_trigger_re() {
 
 QC_SKIPPED=""
 QC_DEFERRED=""
+QC_LEFT=""
 qc_wanted() {
   local re
+  # A work-branch push (.githooks/pre-push) leaves the push-only gates to the
+  # land gate and CI, which every branch passes before it reaches main.
+  if [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ]; then
+    case " $QC_PUSH_ONLY " in
+      *" $1 "*) QC_LEFT="$QC_LEFT $1"; return 1 ;;
+    esac
+  fi
   [ "$STAGED_ONLY" = true ] || return 0
   case " $QC_PUSH_ONLY " in
     *" $1 "*)
@@ -248,6 +272,10 @@ done
 if [ -n "$QC_DEFERRED" ]; then
   echo ""
   echo "⏩ Deferred to pre-push (slow; HELIX_QC_ALL_AT_COMMIT=1 runs them now):$QC_DEFERRED"
+fi
+if [ -n "$QC_LEFT" ]; then
+  echo ""
+  echo "⏩ Left to make land-gate and CI (a work-branch push):$QC_LEFT"
 fi
 if [ -n "$QC_SKIPPED" ]; then
   echo ""

@@ -22,7 +22,7 @@ with_stamp_helpers() {
   bash -c '
     QC_COUNTS="$1"
     . scripts/qc/_lib.sh
-    eval "$(sed -n "/^qc_stamp_write() {/,/^}/p; /^qc_stamp_replay() {/,/^}/p" scripts/quality-checks.sh)"
+    eval "$(sed -n "/^qc_stamp_write() {/,/^}/p; /^qc_stamp_replay() {/,/^}/p; /^qc_stamp_for_run() {/,/^}/p; /^qc_stamp_covering() {/,/^}/p" scripts/quality-checks.sh)"
     eval "$2"
   ' _ "$COUNTS" "$1"
 }
@@ -59,3 +59,18 @@ with_stamp_helpers() {
   contains "recorded no counts" "$output"
   lacks "file(s)" "$output"
 }
+
+@test "a work-branch pass never stands in for a full sweep; a full pass covers both" {
+  mkdir -p "$(dirname "$STAMP")"
+  : > "$STAMP.commit-level"
+  run with_stamp_helpers 'qc_stamp_covering "$STAMP"'
+  [ -z "$output" ]
+  run with_stamp_helpers 'HELIX_QC_SKIP_PUSH_ONLY=1 qc_stamp_covering "$STAMP"'
+  [ "$output" = "$STAMP.commit-level" ]
+  run with_stamp_helpers 'HELIX_QC_SKIP_PUSH_ONLY=1 qc_stamp_for_run "$STAMP"'
+  [ "$output" = "$STAMP.commit-level" ]
+  : > "$STAMP"
+  run with_stamp_helpers 'qc_stamp_covering "$STAMP"'
+  [ "$output" = "$STAMP" ]
+}
+
