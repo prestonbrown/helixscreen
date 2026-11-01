@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <initializer_list>
+#include <iterator>
 
 namespace helix::afc {
 namespace {
@@ -208,11 +208,15 @@ LaneIdentity read_lane_identity(const nlohmann::json& lane, LaneSurface surface)
     // `filament_name`, AFCLane's attribute; lane_data uses `name`, the shared
     // spelling Happy Hare publishes (#833), and the attribute name defensively.
     // get_status is not offered `name`: there it would be the lane's own name.
-    const auto name_keys = surface == LaneSurface::LaneData
-                               ? std::initializer_list<const char*>{"name", "filament_name"}
-                               : std::initializer_list<const char*>{"filament_name"};
-    for (const char* key : name_keys) {
-        if (auto v = ams::read_field<std::string>(lane, key)) {
+    // The key lists are static: an initializer_list chosen by a ternary dies with
+    // the full expression, leaving the loop reading freed storage.
+    static constexpr const char* kLaneDataNameKeys[] = {"name", "filament_name"};
+    static constexpr const char* kStatusNameKeys[] = {"filament_name"};
+    const bool lane_data = surface == LaneSurface::LaneData;
+    const char* const* keys = lane_data ? kLaneDataNameKeys : kStatusNameKeys;
+    const size_t key_count = lane_data ? std::size(kLaneDataNameKeys) : std::size(kStatusNameKeys);
+    for (size_t i = 0; i < key_count; ++i) {
+        if (auto v = ams::read_field<std::string>(lane, keys[i])) {
             id.spool_name = std::move(*v);
             break;
         }
