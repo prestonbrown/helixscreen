@@ -710,10 +710,12 @@ fi
 case "$WHAT" in
     # The mutate checkout is a standalone clone on a reflink filesystem, which
     # is what --workers needs; a later --workers in the caller's arguments wins.
+    # A release branch's older mutate_diff.py has no --workers and would refuse
+    # the whole run, so it is passed only where the checkout's script takes it.
     # Script hunks are judged by bats AND pytest, and the image has no pytest:
     # without the checkout's own venv (requirements.txt) every one of them is
     # NOT COVERED, however narrowly --shell-tests scopes them.
-    mutate) CMD='{ [ -x .venv/bin/python3 ] && .venv/bin/python3 -c "import pytest" 2>/dev/null || make venv-setup >/dev/null; }; '"$YIELD_PRIORITY"'python3 scripts/mutate_diff.py --jobs $HELIX_J --workers auto '"$(printf '%q ' "$@")"
+    mutate) CMD='{ [ -x .venv/bin/python3 ] && .venv/bin/python3 -c "import pytest" 2>/dev/null || make venv-setup >/dev/null; }; '"$YIELD_PRIORITY"'python3 scripts/mutate_diff.py --jobs $HELIX_J $(grep -qs -- --workers scripts/mutate_diff.py && echo --workers auto) '"$(printf '%q ' "$@")"
             YIELD=1 ;;
     asan)   _tag="${1:-}"; [ $# -gt 0 ] && shift
             # Trailing args become make overrides, so ASAN_RUN_OPTIONS can be
@@ -1009,6 +1011,15 @@ if [ "$WHAT" = tsan ]; then
         echo "✗ no '$_want' in $LOG — the suite did not run, so this is not a clean TSAN result" >&2
         exit 1
     fi
+fi
+
+# mutate_diff.py ends every run it completes with a verdict: VERDICT: on main, the
+# hunk tally or FAIL: on a release branch. A run that refused its arguments or never
+# started prints none, and can still exit 0.
+if [ "$WHAT" = mutate ] && ! grep -qE '^VERDICT: |^FAIL: |^[0-9]+ hunk\(s\): ' "$LOG"; then
+    echo ""
+    echo "✗ no mutation verdict in $LOG — mutate_diff.py did not run to the end" >&2
+    exit 1
 fi
 
 # An app run has no Catch2 summary to check; its evidence is the verdict line
