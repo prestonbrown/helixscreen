@@ -94,7 +94,8 @@ case "$1" in
                    mkdir -p "$MOCK_SWEEP_FAILS/build/shard-artifacts/helix-shards-T1"
                    echo "hung in: a teardown case" > "$MOCK_SWEEP_FAILS/build/shard-artifacts/helix-shards-T1/92.log"
                    exit 2
-               fi ;;
+               fi
+               case "$*" in *mutate_diff*) echo "VERDICT: CLEAN" ;; esac ;;
         esac ;;
     *) echo "unhandled docker call: $*" >&2; exit 1 ;;
 esac

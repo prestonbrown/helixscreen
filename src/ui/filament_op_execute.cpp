@@ -19,6 +19,7 @@
 #include "i_moonraker_client.h"
 #include "lvgl.h"
 #include "moonraker_api.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "standard_macros.h"
@@ -886,6 +887,32 @@ void execute_filament_unload(AmsBackend* backend, int slot, bool target_is_loade
 // Purge
 // ============================================================================
 
+void run_after_purge_preamble(helix::IMoonrakerAPI* api, const char* log_tag,
+                              std::function<void()> purge,
+                              std::function<void(const MoonrakerError&)> on_error) {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const bool job_holds =
+        get_printer_state().are_subjects_initialized() &&
+        job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+    const std::string preamble = backend ? backend->purge_preamble_gcode(job_holds) : std::string{};
+    if (preamble.empty() || !api) {
+        purge();
+        return;
+    }
+    spdlog::info("{} Purge preamble: {}", log_tag, preamble);
+    // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, the purge's
+    // own failure path, which every caller surfaces as a "purge failed" toast.
+    // The gate reads only the callback body, where that hand-off looks like
+    // logging and nothing else.
+    api->execute_gcode(
+        preamble, [purge = std::move(purge)]() { run_on_main("purge_preamble_ok", purge); },
+        [log_tag, on_error = std::move(on_error)](const MoonrakerError& err) {
+            spdlog::error("{} Purge preamble failed: {}", log_tag, err.message);
+            run_on_main("purge_preamble_err", [on_error, err]() { on_error(err); });
+        },
+        IMoonrakerAPI::kHomingTimeoutMs);
+}
+
 namespace {
 
 void dispatch_purge(const char* log_tag, FilamentOpTicket ticket) {
@@ -894,6 +921,11 @@ void dispatch_purge(const char* log_tag, FilamentOpTicket ticket) {
         heat_failed(ticket);
         return;
     }
+    const auto purge_failed = [log_tag, ticket](const MoonrakerError& err) {
+        heat_failed(ticket);
+        spdlog::error("{} Failed to purge: {}", log_tag, err.message);
+        helix::ui::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
+    };
 
     // Two tiers, not three: no AmsBackend exposes a purge entry point, so there
     // is no plan_purge() to route through. The macro tier and the fallback are
@@ -904,39 +936,40 @@ void dispatch_purge(const char* log_tag, FilamentOpTicket ticket) {
         spdlog::info("{} Using StandardMacros purge: {}", log_tag, macro_name);
         helix::ui::dispatch_filament_macro(
             macro_name, helix::ui::ParamPolicy::Suppress,
-            [api, log_tag, ticket](const helix::MacroParamResult& result) {
-                const bool dispatched = StandardMacros::instance().execute(
-                    StandardMacroSlot::Purge, api, result.params,
-                    [log_tag, ticket]() {
-                        spdlog::info("{} Purge finished", log_tag);
-                        finished(FilamentOpSurface{}, nullptr, ticket);
+            [api, log_tag, ticket, purge_failed](const helix::MacroParamResult& result) {
+                run_after_purge_preamble(
+                    api, log_tag,
+                    [api, log_tag, ticket, purge_failed, params = result.params]() {
+                        const bool dispatched = StandardMacros::instance().execute(
+                            StandardMacroSlot::Purge, api, params,
+                            [log_tag, ticket]() {
+                                spdlog::info("{} Purge finished", log_tag);
+                                finished(FilamentOpSurface{}, nullptr, ticket);
+                            },
+                            purge_failed);
+                        if (!dispatched) {
+                            // Neither callback will fire.
+                            heat_failed(ticket);
+                        }
                     },
-                    [log_tag, ticket](const MoonrakerError& err) {
-                        heat_failed(ticket);
-                        spdlog::error("{} Failed to purge: {}", log_tag, err.message);
-                        helix::ui::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
-                    });
-                if (!dispatched) {
-                    // Neither callback will fire.
-                    heat_failed(ticket);
-                }
+                    purge_failed);
             });
         return;
     }
 
     spdlog::info("{} No purge macro configured — raw gcode fallback", log_tag);
-    api->execute_gcode(
-        helix::ui::filament_purge_fallback_gcode(),
-        [log_tag, ticket]() {
-            spdlog::info("{} Purge fallback gcode sent", log_tag);
-            finished(FilamentOpSurface{}, nullptr, ticket);
+    run_after_purge_preamble(
+        api, log_tag,
+        [api, log_tag, ticket, purge_failed]() {
+            api->execute_gcode(
+                helix::ui::filament_purge_fallback_gcode(),
+                [log_tag, ticket]() {
+                    spdlog::info("{} Purge fallback gcode sent", log_tag);
+                    finished(FilamentOpSurface{}, nullptr, ticket);
+                },
+                purge_failed, IMoonrakerAPI::kExtrusionTimeoutMs);
         },
-        [log_tag, ticket](const MoonrakerError& err) {
-            heat_failed(ticket);
-            spdlog::error("{} Purge fallback failed: {}", log_tag, err.message);
-            helix::ui::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
-        },
-        IMoonrakerAPI::kExtrusionTimeoutMs);
+        purge_failed);
 }
 
 } // namespace

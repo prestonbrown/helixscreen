@@ -666,7 +666,9 @@ unapply_main_tree_patches() {
             else
                 rm -f "$dst/$f"
             fi
-        done < <(sed -n 's#^\(---\|+++\) [ab]/##p' "${patches[@]}" | sort -u)
+        # -E, because `\|` in a basic regex is a GNU extension: BSD sed reads it
+        # literally, matches nothing, and the main tree's patches all survive.
+        done < <(sed -nE 's#^(---|\+\+\+) [ab]/##p' "${patches[@]}" | sort -u)
     done
 }
 

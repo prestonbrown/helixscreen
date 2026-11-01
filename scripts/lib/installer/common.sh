@@ -208,20 +208,47 @@ pin_env_file() {
     fi
     [ -n "$real" ] && [ -f "$real" ] || real="$file"
 
+    # printer_data is writable by the Klipper user, who can swap any name in it
+    # for a symlink after readlink resolved it. chown -h changes the link, never
+    # its target, and chmod has no such form, so it skips a name that is a link.
     # Failures warn rather than fail the install, but never silently: an
     # unpinned file is one the launcher refuses on every boot, and an
     # unreported chmod is indistinguishable from a pinned one at install time.
-    if ! $(file_sudo "$real") chmod 0644 "$real" 2>/dev/null; then
+    if [ -L "$real" ] || ! $(file_sudo "$real") chmod 0644 "$real" 2>/dev/null; then
         log_warn "pin_env_file: could not chmod 0644 '$real' (the launcher will refuse this file until fixed)"
     fi
 
+    # Behind the printer_data symlink, the file belongs to whoever owns
+    # printer_data/config: Moonraker saves it as that user (lava on the U1, where
+    # the launcher and KLIPPER_USER are root), and the launcher trusts that owner
+    # only while the directory holding the file has no group or world write bit.
+    # The directory also holds settings.json, which the app writes as its own
+    # user, so it changes hands only when the app runs as root or as that owner.
     local user="${KLIPPER_USER:-}"
+    if [ "$real" != "$file" ]; then
+        local data_dir="${real%/*}" pd_owner
+        pd_owner=$(_file_owner_name "${data_dir%/*}")
+        if [ -n "$pd_owner" ] && [ "$pd_owner" != "root" ] &&
+            { [ "$user" = "root" ] || [ "$user" = "$pd_owner" ]; }; then
+            user="$pd_owner"
+            local dgroup="$user"
+            if type _resolve_primary_group >/dev/null 2>&1; then
+                dgroup=$(_resolve_primary_group "$user")
+            fi
+            if ! $(file_sudo "$data_dir") chown -h "${user}:${dgroup}" "$data_dir" 2>/dev/null; then
+                log_warn "pin_env_file: could not chown ${user}:${dgroup} '$data_dir'"
+            fi
+            if [ -L "$data_dir" ] || ! $(file_sudo "$data_dir") chmod 0755 "$data_dir" 2>/dev/null; then
+                log_warn "pin_env_file: could not chmod 0755 '$data_dir' (the launcher will refuse the env file until fixed)"
+            fi
+        fi
+    fi
     if [ -n "$user" ]; then
         local group="$user"
         if type _resolve_primary_group >/dev/null 2>&1; then
             group=$(_resolve_primary_group "$user")
         fi
-        if ! $(file_sudo "$real") chown "${user}:${group}" "$real" 2>/dev/null; then
+        if ! $(file_sudo "$real") chown -h "${user}:${group}" "$real" 2>/dev/null; then
             log_warn "pin_env_file: could not chown ${user}:${group} '$real'"
         fi
     fi
