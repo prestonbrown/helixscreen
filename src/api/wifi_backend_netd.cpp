@@ -566,7 +566,7 @@ bool WifiBackendNetd::handle_line(const std::string& line) {
     }
 
     if (const auto row = helix::netd::parse_scan_row(line)) {
-        if (row->frequency_mhz >= 4900) {
+        if (wifi_band_flag_from_frequency(row->frequency_mhz) == WIFI_BAND_5GHZ) {
             // A 5 GHz BSS answers supports_5ghz() better than any static
             // claim: the radio demonstrably sees the band. True of ANY row
             // the daemon broadcasts, including another client's scan — the
