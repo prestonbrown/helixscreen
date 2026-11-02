@@ -50,6 +50,12 @@ class MoonrakerClientTestAccess {
         c.on_ws_close();
     }
 
+    // Mark the client as having had an open session, as on_ws_open() does, so a
+    // following fire_ws_close() takes the dropped-session path.
+    static void mark_was_connected(MoonrakerClient& c) {
+        c.was_connected_ = true;
+    }
+
     // Run one health-timer tick, as the libhv timer does every 5s.
     static void health_tick(MoonrakerClient& c) {
         c.on_health_tick();
