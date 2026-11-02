@@ -71,7 +71,7 @@ The AD5X's four-color **IFS (Intelligent Filament System)** is fully integrated,
 Runs on the K1's built-in screen. K1C and K1 Max are the most thoroughly tested of the family.
 
 **What works:**
-- Full temperature, motion, bed mesh, fan, camera, and macro control on the printer's own display
+- Full temperature, motion, bed mesh, fan, and macro control on the printer's own display (the on-screen build has no camera view; see [Camera](camera.md#printers-without-a-camera-view))
 - **Chamber heater control** on the K1 Max
 - **Optional CFS support** — with Creality's official CFS upgrade kit and firmware (v2.3.5.33+), HelixScreen detects and drives the K1-series filament system (see [Creality Filament System](filament.md#creality-filament-system-cfs))
 
