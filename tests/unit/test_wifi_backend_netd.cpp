@@ -1384,14 +1384,20 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd rows with no scan outstanding are dro
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd unowned 5GHz row still proves band support",
                  "[netd][wifi]") {
+    // Band edges: 4.9 GHz and UNII-4 are 5 GHz, Wi-Fi 6E (5925+) is not
+    // (prestonbrown/helixscreen#1985).
+    const auto [frequency_mhz, is_5ghz] = GENERATE(
+        table<int, bool>({{5180, true}, {4900, true}, {5895, true}, {4899, false}, {5925, false}}));
+    CAPTURE(frequency_mhz);
     REQUIRE(start_and_settle());
     REQUIRE_FALSE(backend_->supports_5ghz());
 
-    server_->push_line("FREQUENCY=5180 SIGNAL=-61 SECURITY=WPA2-PSK NETWORK=" + b64("Foreign 5G"));
+    server_->push_line("FREQUENCY=" + std::to_string(frequency_mhz) +
+                       " SIGNAL=-61 SECURITY=WPA2-PSK NETWORK=" + b64("Foreign"));
     server_->push_line("SSID=" + b64("probe"));
     REQUIRE(wait_until([&] { return backend_->get_status().ssid == "probe"; }));
 
-    REQUIRE(backend_->supports_5ghz());
+    REQUIRE(backend_->supports_5ghz() == is_5ghz);
 }
 
 // ============================================================================
