@@ -251,8 +251,6 @@ void QrScannerOverlay::start_scanning() {
     // Start USB barcode scanner monitor
     auto tok_usb = lifetime_.token();
     usb_monitor_.start([this, tok_usb](int spool_id) {
-        if (tok_usb.expired())
-            return;
         tok_usb.defer([this, spool_id]() { on_spool_id_detected(spool_id); });
     });
     spdlog::debug("[{}] USB scanner monitor started", get_name());
@@ -299,7 +297,10 @@ void QrScannerOverlay::start_camera() {
         camera_->start(
             stream_url, snapshot_url,
             [this, tok](lv_draw_buf_t* frame) {
-                if (!tok.expired()) {
+                // L081_OK: the overlay is a process-lifetime singleton and
+                // on_camera_frame() works on stream-thread buffers, deferring
+                // anything that reaches LVGL.
+                if (!tok.expired_no_lvgl()) {
                     on_camera_frame(frame);
                 }
             },
@@ -319,20 +320,13 @@ void QrScannerOverlay::start_camera() {
             snapshot_scanner_->start(
                 snapshot_url,
                 [this, snap_tok](lv_draw_buf_t* frame) {
-                    if (snap_tok.expired())
-                        return;
-                    on_snapshot_frame(frame);
+                    snap_tok.defer("QrScannerOverlay::on_snapshot_frame",
+                                   [this, frame]() { on_snapshot_frame(frame); });
                 },
                 [this, snap_tok](int spool_id) {
-                    if (snap_tok.expired())
-                        return;
                     snap_tok.defer([this, spool_id]() { on_spool_id_detected(spool_id); });
                 },
-                [snap_tok](const char* msg) {
-                    if (!snap_tok.expired()) {
-                        spdlog::warn("[QR Scanner] Snapshot error: {}", msg);
-                    }
-                });
+                [](const char* msg) { spdlog::warn("[QR Scanner] Snapshot error: {}", msg); });
             spdlog::info("[{}] Snapshot QR scanner started (no stream): {}", get_name(),
                          snapshot_url);
         } else {
@@ -356,20 +350,13 @@ void QrScannerOverlay::start_camera() {
             snapshot_scanner_->start(
                 snapshot_url,
                 [this, tok](lv_draw_buf_t* frame) {
-                    if (tok.expired())
-                        return;
-                    on_snapshot_frame(frame);
+                    tok.defer("QrScannerOverlay::on_snapshot_frame",
+                              [this, frame]() { on_snapshot_frame(frame); });
                 },
                 [this, tok](int spool_id) {
-                    if (tok.expired())
-                        return;
                     tok.defer([this, spool_id]() { on_spool_id_detected(spool_id); });
                 },
-                [tok](const char* msg) {
-                    if (!tok.expired()) {
-                        spdlog::warn("[QR Scanner] Snapshot error: {}", msg);
-                    }
-                });
+                [](const char* msg) { spdlog::warn("[QR Scanner] Snapshot error: {}", msg); });
             spdlog::info("[{}] Snapshot QR scanner started: {}", get_name(), snapshot_url);
         } else {
             update_status(lv_tr("No camera — use USB barcode scanner"));
@@ -484,9 +471,6 @@ void QrScannerOverlay::on_camera_frame(lv_draw_buf_t* frame) {
                 auto result = qr_decoder_->decode(qr_buf->data(), qr_w, qr_h);
                 decode_busy_ = false;
 
-                if (decode_tok.expired())
-                    return;
-
                 if (result.success && result.spool_id >= 0) {
                     int spool_id = result.spool_id;
                     decode_tok.defer([this, spool_id]() { on_spool_id_detected(spool_id); });
@@ -508,18 +492,12 @@ void QrScannerOverlay::on_snapshot_frame(lv_draw_buf_t* frame) {
         return;
     }
 
-    // The frame_consumed() call used to sit outside the token check, so it read
-    // snapshot_scanner_ off `this` whether or not the overlay was still alive.
-    // Inside the guard is correct: if the overlay is gone the scanner it owns is
-    // gone too, and there is nothing left to tell to continue (#1165).
-    lifetime_.token().defer("QrScannerOverlay::on_snapshot_frame", [this, frame]() {
-        if (scan_active_.load() && viewfinder_) {
-            lv_image_set_src(viewfinder_, frame);
-        }
-        if (snapshot_scanner_) {
-            snapshot_scanner_->frame_consumed();
-        }
-    });
+    if (viewfinder_) {
+        lv_image_set_src(viewfinder_, frame);
+    }
+    if (snapshot_scanner_) {
+        snapshot_scanner_->frame_consumed();
+    }
 }
 
 // ============================================================================
@@ -556,8 +534,6 @@ void QrScannerOverlay::lookup_spool(int spool_id) {
     api->spoolman().get_spoolman_spool(
         spool_id,
         [this, tok, spool_id](const std::optional<SpoolInfo>& spool) {
-            if (tok.expired())
-                return;
             tok.defer([this, spool_id, spool]() {
                 if (spool.has_value()) {
                     on_spool_found(spool.value());
@@ -569,8 +545,6 @@ void QrScannerOverlay::lookup_spool(int spool_id) {
             });
         },
         [this, tok, spool_id](const MoonrakerError& err) {
-            if (tok.expired())
-                return;
             tok.defer([this, spool_id, err]() {
                 spdlog::error("[{}] Spool lookup failed: {}", get_name(), err.message);
                 update_status("Spool #" + std::to_string(spool_id) + " lookup failed");

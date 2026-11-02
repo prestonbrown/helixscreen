@@ -272,8 +272,6 @@ void JobQueueModal::toggle_queue() {
     auto token = lifetime_.token();
 
     auto on_success = [token, this]() {
-        if (token.expired())
-            return;
         token.defer("JobQueueModal::toggle_queue", [this]() {
             auto* jqs2 = get_job_queue_state();
             if (jqs2)
@@ -304,8 +302,6 @@ void JobQueueModal::remove_job(const std::string& job_id) {
     api->queue().remove_jobs(
         {job_id},
         [token, this]() {
-            if (token.expired())
-                return;
             token.defer("JobQueueModal::remove_job", [this]() {
                 // Fetch refreshed data — count observer will auto-rebuild the list
                 auto* jqs = get_job_queue_state();

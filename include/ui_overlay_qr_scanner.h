@@ -113,6 +113,7 @@ class QrScannerOverlay : public OverlayBase {
 #if HELIX_HAS_CAMERA
     void on_camera_frame(lv_draw_buf_t* frame);
 #endif
+    /// Main thread: shows the frame and lets the snapshot scanner fetch the next.
     void on_snapshot_frame(lv_draw_buf_t* frame);
 
     // State

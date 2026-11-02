@@ -350,7 +350,7 @@ void ChamberStallPrompt::on_try_again() {
     refresh_content();
     auto tok = lifetime_.token();
     controller->retry_chamber_target(target, [this, tok](const ChamberRouteReply& reply) {
-        if (tok.expired()) {
+        if (tok.expired()) { // L081_OK: retry_chamber_target replies on the main thread
             return;
         }
         retry_busy_ = false;

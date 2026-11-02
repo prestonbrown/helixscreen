@@ -637,18 +637,16 @@ void InputShaperPanel::proceed_with_preflight(char axis) {
     auto tok = lifetime_.token();
     calibrator_->check_accelerometer(
         [this, tok, cal_tok](float noise_level) {
-            if (tok.expired())
-                return;
-            if (cal_tok.expired())
-                return;
-            tok.defer([this, noise_level]() { on_preflight_complete(noise_level); });
+            tok.defer([this, cal_tok, noise_level]() {
+                if (!cal_tok.expired())
+                    on_preflight_complete(noise_level);
+            });
         },
         [this, tok, cal_tok](const std::string& err) {
-            if (tok.expired())
-                return;
-            if (cal_tok.expired())
-                return;
-            tok.defer([this, err]() { on_preflight_error(err); });
+            tok.defer([this, cal_tok, err]() {
+                if (!cal_tok.expired())
+                    on_preflight_error(err);
+            });
         });
 }
 

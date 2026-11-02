@@ -206,11 +206,6 @@ void DebugBundleModal::handle_upload() {
 
     helix::DebugBundleCollector::upload_async(
         options, [this, token](const helix::BundleResult& result) {
-            if (token.expired()) {
-                spdlog::debug("[DebugBundleModal] Modal destroyed "
-                              "during upload, ignoring result");
-                return;
-            }
             // Marshal to UI thread — this callback fires from the upload thread
             token.defer([this, result]() {
                 if (result.success) {

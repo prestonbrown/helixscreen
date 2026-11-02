@@ -337,9 +337,7 @@ void PrintExcludeObjectManager::exclude_undo_timer_cb(lv_timer_t* timer) {
     if (self->api_) {
         self->api_->exclude_object(
             object_name,
-            [self, token, object_name]() {
-                if (token.expired())
-                    return;
+            [object_name]() {
                 spdlog::info("[PrintExcludeObjectManager] EXCLUDE_OBJECT '{}' RPC returned success",
                              object_name);
                 // Note: we do NOT insert into excluded_objects_ here. The subscription-driven

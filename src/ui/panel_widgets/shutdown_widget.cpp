@@ -236,8 +236,6 @@ void execute_both_shutdown(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
         [tok, api]() {
             spdlog::info("[ShutdownDialog] Printer shutdown ack'd — now shutting down screen");
             schedule_host_down_verification(api, /*is_reboot=*/false);
-            if (tok.expired())
-                return;
             tok.defer([]() { execute_screen_shutdown(); });
         },
         [tok](const MoonrakerError& err) {
@@ -247,8 +245,6 @@ void execute_both_shutdown(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
             helix::ui::run_on_main("ShutdownDialog::shutdown_failed", []() {
                 ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Shutdown failed"), 6000);
             });
-            if (tok.expired())
-                return;
             tok.defer([]() { execute_screen_shutdown(); });
         });
 }
@@ -262,8 +258,6 @@ void execute_both_reboot(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
         [tok, api]() {
             spdlog::info("[ShutdownDialog] Printer reboot ack'd — now rebooting screen");
             schedule_host_down_verification(api, /*is_reboot=*/true);
-            if (tok.expired())
-                return;
             tok.defer([]() { execute_screen_reboot(); });
         },
         [tok](const MoonrakerError& err) {
@@ -273,8 +267,6 @@ void execute_both_reboot(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
             helix::ui::run_on_main("ShutdownDialog::reboot_failed", []() {
                 ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Reboot failed"), 6000);
             });
-            if (tok.expired())
-                return;
             tok.defer([]() { execute_screen_reboot(); });
         });
 }

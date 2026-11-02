@@ -1972,8 +1972,8 @@ void AmsOperationSidebar::run_backend_op_after_preheat(FilamentHeatOp op, Prehea
     const uint64_t mine = ++stepper_owner_;
     auto token = lifetime_.token();
     req.on_progress = [this, token, slot_index, mine](const PreheatProgress& progress) {
-        if (token.expired()) {
-            return; // main thread: the sidebar closed, the heater carries on
+        if (token.expired()) { // L081_OK: preheat progress arrives on the main thread
+            return;            // main thread: the sidebar closed, the heater carries on
         }
         switch (progress.phase) {
         case PreheatPhase::Heating:
