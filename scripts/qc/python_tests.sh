@@ -24,17 +24,27 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 elif [ -x "$VENV_PYTHON" ]; then
   # Git exports GIT_INDEX_FILE and friends to hooks; a test that builds a
   # throwaway repo would otherwise read this commit's index.
-  if ( for v in $(compgen -e); do case "$v" in GIT_*) unset "$v" ;; esac; done
-       "$VENV_PYTHON" -m pytest -q -p no:cacheprovider --durations=15 tests/python/ ) \
+  # Each launch step is stamped, so a kept log (scripts/quality-checks.sh) shows
+  # whether a slow run was spent before pytest's session, inside it, or after.
+  if ( qc_stamp() { echo "[$(date -u +%H:%M:%S)] $*"; }
+       qc_stamp "gate start"
+       for v in $(compgen -e); do case "$v" in GIT_*) unset "$v" ;; esac; done
+       qc_stamp "env cleared; starting $VENV_PYTHON"
+       "$VENV_PYTHON" -c 'pass'
+       qc_stamp "interpreter started and exited"
+       "$VENV_PYTHON" -m pytest -q -p no:cacheprovider --durations=15 tests/python/
+       rc=$?
+       qc_stamp "pytest exited $rc"
+       exit $rc ) \
      >"$QC_TMP/python_tests.log" 2>&1; then
     section_time $SECTION_START
     echo ""
-    echo "✅ $(tail -1 "$QC_TMP/python_tests.log")"
+    echo "✅ $(grep -E ' in [0-9.]+s' "$QC_TMP/python_tests.log" | tail -1)"
   else
     section_time $SECTION_START
     echo ""
     grep -E "^(FAILED|ERROR) " "$QC_TMP/python_tests.log" | head -20
-    tail -1 "$QC_TMP/python_tests.log"
+    grep -E ' in [0-9.]+s' "$QC_TMP/python_tests.log" | tail -1
     echo "   Reproduce: .venv/bin/pytest tests/python/"
     EXIT_CODE=1
   fi

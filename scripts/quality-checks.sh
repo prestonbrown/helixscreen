@@ -21,6 +21,17 @@ for arg in "$@"; do
   esac
 done
 
+# A full sweep runs for minutes, and a laptop that idles into sleep freezes it
+# mid-gate: on a Mac the gates of one push have each stood still 15 minutes at a
+# time while the machine slept. caffeinate holds the machine awake for exactly
+# this run. A commit's staged sweep is too short to need it.
+qc_hold_awake() {
+  [ "$STAGED_ONLY" != true ] && [ -z "${HELIX_QC_AWAKE:-}" ] || return 0
+  command -v caffeinate >/dev/null 2>&1 || return 0
+  HELIX_QC_AWAKE=1 exec caffeinate -i -s "$@"
+}
+qc_hold_awake "$0" "$@"
+
 # Change to repo root
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$REPO_ROOT"
