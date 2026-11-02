@@ -13,6 +13,7 @@
 
 #include "display_manager.h"
 
+#include "image_cache_env.h"
 #include "print_lifecycle_state.h"
 
 // Private LVGL header for direct flush_cb capture (matches application.cpp pattern)
@@ -144,10 +145,16 @@ long env_count(const char* name, long fallback) {
 /// any cache worth giving an embedded board.
 void apply_image_cache_env() {
     const long cache_kb = env_count("HELIX_IMAGE_CACHE_KB", 0);
-    if (cache_kb > 0) {
-        lv_image_cache_resize(static_cast<uint32_t>(cache_kb) * 1024u, false);
-        spdlog::info("[DisplayManager] Image cache: {} KB", cache_kb);
+    const uint32_t bytes = helix::image_cache_bytes(cache_kb);
+    if (bytes == 0) {
+        return;
     }
+    if (cache_kb > helix::kImageCacheMaxKb) {
+        spdlog::warn("[DisplayManager] HELIX_IMAGE_CACHE_KB={} is over the {} KB cap, using {} KB",
+                     cache_kb, helix::kImageCacheMaxKb, helix::kImageCacheMaxKb);
+    }
+    lv_image_cache_resize(bytes, false);
+    spdlog::info("[DisplayManager] Image cache: {} KB", bytes / 1024u);
 }
 
 } // namespace
