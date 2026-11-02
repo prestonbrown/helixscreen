@@ -23,7 +23,7 @@ namespace helix::plugin {
 
 namespace {
 
-RegistryKey g_io_state_key;
+RegistryKey g_io_state_key{"io_state"};
 constexpr size_t kMaxStorageBytes = 256 * 1024;
 constexpr size_t kMaxSettingString = 1024;
 constexpr size_t kMaxInflightHttp = 2;

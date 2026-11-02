@@ -21,9 +21,9 @@ namespace helix::plugin {
 
 namespace {
 
-RegistryKey g_context_key;
-RegistryKey g_timers_key;
-RegistryKey g_i18n_key;
+RegistryKey g_context_key{"context"};
+RegistryKey g_timers_key{"timers"};
+RegistryKey g_i18n_key{"i18n"};
 const char kTimerMeta[] = "helix.timer";
 constexpr size_t kMaxLiveTimers = 64;
 
