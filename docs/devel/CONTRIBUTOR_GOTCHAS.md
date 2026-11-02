@@ -120,13 +120,10 @@ lv_xml_register_event_cb(nullptr, "on_my_button_clicked", on_my_button_clicked);
 
 **Cause:** You added a codepoint to `include/ui_icon_codepoints.h` but didn't regenerate the icon fonts.
 
-**Fix:** Three steps, all required:
-
-1. Add the icon name + codepoint to `include/ui_icon_codepoints.h`.
-2. Add the icon to `scripts/regen_mdi_fonts.sh` (one line in the codepoints list).
-3. Run `make regen-fonts`, then rebuild.
-
-Skipping step 2 is the most common mistake — the codepoint is defined but the font file doesn't contain the glyph.
+**Fix:** Run `make regen-fonts`, then rebuild. The fonts' glyph list is computed from
+`include/ui_icon_codepoints.h` and the `ICON_*` macros in `include/ui_fonts.h`
+(`scripts/mdi_icon_codepoints.py`), so adding the entry there is the only edit; the
+regeneration is the step that gets skipped.
 
 Reference: lesson **L009**.
 
