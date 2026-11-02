@@ -1168,6 +1168,9 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
     bool state_changed = false;
     std::string deferred_error_event; // Collect error event to emit outside lock
 
+    // Read the whole frame before taking mutex_; only applying it needs the lock.
+    const afc::StatusFrame frame = afc::parse_status_frame(params);
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -1185,16 +1188,16 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         bool afc_stated_unloaded = false;
 
         // Parse global AFC state if present
-        if (params.contains("AFC") && params["AFC"].is_object()) {
-            apply_afc_state(afc::parse_state(params["AFC"]), deferred_error_event,
-                            current_slot_set_by_afc_state, afc_stated_unloaded);
+        if (frame.afc) {
+            apply_afc_state(*frame.afc, deferred_error_event, current_slot_set_by_afc_state,
+                            afc_stated_unloaded);
             state_changed = true;
         }
 
         // Legacy: also check for lowercase "afc" (older AFC versions)
-        if (params.contains("afc") && params["afc"].is_object()) {
-            apply_afc_state(afc::parse_state(params["afc"]), deferred_error_event,
-                            current_slot_set_by_afc_state, afc_stated_unloaded);
+        if (frame.afc_legacy) {
+            apply_afc_state(*frame.afc_legacy, deferred_error_event, current_slot_set_by_afc_state,
+                            afc_stated_unloaded);
             state_changed = true;
         }
 
@@ -1206,22 +1209,10 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         // arrive here on any AFC version. Reading a frame reported "legacy" on a
         // confirmed v1.2.0 BoxTurtle. Only an explicit unscoped
         // printer.objects.query returns the whole lane object.
-        if (!feature_level_checked_ && lane_object_prefix_.empty()) {
-            for (auto it = params.begin(); it != params.end(); ++it) {
-                const std::string& k = it.key();
-                if (!it.value().is_object()) {
-                    continue;
-                }
-                if (k.rfind("AFC_stepper ", 0) == 0) {
-                    lane_object_prefix_ = "AFC_stepper ";
-                } else if (k.rfind("AFC_lane ", 0) == 0) {
-                    lane_object_prefix_ = "AFC_lane ";
-                } else {
-                    continue;
-                }
-                probe_feature_level(k);
-                break;
-            }
+        if (!feature_level_checked_ && lane_object_prefix_.empty() && frame.first_lane_key) {
+            const std::string& k = *frame.first_lane_key;
+            lane_object_prefix_ = k.rfind("AFC_stepper ", 0) == 0 ? "AFC_stepper " : "AFC_lane ";
+            probe_feature_level(k);
         }
 
         // Parse AFC_stepper lane objects for sensor states
@@ -1229,9 +1220,8 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         bool lanes_updated = false;
         for (int i = 0; i < slots_.slot_count(); ++i) {
             std::string lane_name = slots_.name_of(i);
-            std::string key = "AFC_stepper " + lane_name;
-            if (params.contains(key) && params[key].is_object()) {
-                apply_lane_status(i, lane_name, afc::parse_lane_status(params[key]));
+            if (auto it = frame.stepper_lanes.find(lane_name); it != frame.stepper_lanes.end()) {
+                apply_lane_status(i, lane_name, it->second);
                 state_changed = true;
                 lanes_updated = true;
             }
@@ -1241,9 +1231,8 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         // Same schema as AFC_stepper
         for (int i = 0; i < slots_.slot_count(); ++i) {
             std::string lane_name = slots_.name_of(i);
-            std::string key = "AFC_lane " + lane_name;
-            if (params.contains(key) && params[key].is_object()) {
-                apply_lane_status(i, lane_name, afc::parse_lane_status(params[key]));
+            if (auto it = frame.lane_lanes.find(lane_name); it != frame.lane_lanes.end()) {
+                apply_lane_status(i, lane_name, it->second);
                 state_changed = true;
                 lanes_updated = true;
             }
@@ -1282,14 +1271,13 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         // Parse AFC_hub objects for hub sensor state
         // Keys like "AFC_hub Turtle_1"
         for (const auto& hub_name : hub_names_) {
-            std::string key = "AFC_hub " + hub_name;
-            if (params.contains(key) && params[key].is_object()) {
-                apply_hub(hub_name, afc::parse_hub(params[key]));
+            if (auto it = frame.hubs.find(hub_name); it != frame.hubs.end()) {
+                apply_hub(hub_name, it->second);
                 state_changed = true;
             }
         }
 
-        if (apply_oams_environment(afc::parse_oams_environment(params))) {
+        if (apply_oams_environment(frame.environment)) {
             state_changed = true;
         }
 
@@ -1301,18 +1289,15 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         bool extruder_set_active_slot = false;
         if (!extruder_names_.empty()) {
             for (const auto& ext_name : extruder_names_) {
-                std::string key = "AFC_extruder " + ext_name;
-                if (params.contains(key) && params[key].is_object()) {
-                    apply_extruder_object(ext_name, afc::parse_extruder_object(params[key]));
+                if (auto it = frame.extruders.find(ext_name); it != frame.extruders.end()) {
+                    apply_extruder_object(ext_name, it->second);
                     state_changed = true;
                 }
             }
         } else {
             // Backward compat: single extruder fallback
-            if (params.contains("AFC_extruder extruder") &&
-                params["AFC_extruder extruder"].is_object()) {
-                apply_extruder_object("extruder",
-                                      afc::parse_extruder_object(params["AFC_extruder extruder"]));
+            if (auto it = frame.extruders.find("extruder"); it != frame.extruders.end()) {
+                apply_extruder_object("extruder", it->second);
                 state_changed = true;
             }
         }
@@ -1330,18 +1315,16 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         // initialize_slots() creates, and a five-unit rig put all five buffers on
         // unit 0 (bundle XGVDYEB5).
         for (auto& unit_info : unit_infos_) {
-            if (params.contains(unit_info.klipper_key) &&
-                params[unit_info.klipper_key].is_object()) {
-                apply_unit_object(unit_info, afc::parse_unit_object(params[unit_info.klipper_key]));
+            if (auto it = frame.units.find(unit_info.klipper_key); it != frame.units.end()) {
+                apply_unit_object(unit_info, it->second);
                 state_changed = true;
             }
         }
 
         // Parse AFC_buffer objects for buffer health and fault data
         for (const auto& buf_name : buffer_names_) {
-            std::string key = "AFC_buffer " + buf_name;
-            if (params.contains(key) && params[key].is_object()) {
-                apply_buffer(buf_name, afc::parse_buffer(params[key]));
+            if (auto it = frame.buffers.find(buf_name); it != frame.buffers.end()) {
+                apply_buffer(buf_name, it->second);
                 state_changed = true;
             }
         }
@@ -1352,10 +1335,10 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         // toolchanger.tool_number before AFC firmware sends its own update.
         // Without this, current_tool stays stale and the reconciliation
         // block below picks the wrong slot.
-        if (params.contains("toolchanger") && params["toolchanger"].is_object()) {
-            const auto& tc_data = params["toolchanger"];
-            if (tc_data.contains("tool_number") && tc_data["tool_number"].is_number_integer()) {
-                int tool_num = tc_data["tool_number"].get<int>();
+        if (frame.toolchanger) {
+            const afc::ToolchangerDelta& tc = *frame.toolchanger;
+            if (tc.tool_number) {
+                int tool_num = *tc.tool_number;
                 if (tool_num != system_info_.current_tool) {
                     spdlog::debug("[AMS AFC] Toolchanger tool_number update: T{} (was T{})",
                                   tool_num, system_info_.current_tool);
@@ -1370,12 +1353,7 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
             // incoming tool before it is physically picked up, so a raw read
             // would report MOUNTED during the swap.
             const MountState previous_mount = system_info_.mount_state;
-            std::string tc_status;
-            if (auto v = ams::read_field<std::string>(tc_data, "status")) {
-                tc_status = std::move(*v);
-            }
-
-            if (!tc_status.empty() && tc_status != "ready") {
+            if (!tc.status.empty() && tc.status != "ready") {
                 system_info_.mount_state = MountState::CHANGING;
                 system_info_.mounted_tool = -1;
             } else if (system_info_.current_tool >= 0) {
