@@ -467,8 +467,9 @@ struct TouchRangeSettings {
  *
  * The display backends resolve this loudest-first, and the answer changes what a
  * disagreement between the declaration and the digitizer means: a Declared range
- * that the panel overshoots is a lying driver, while a Stored one that it
- * overshoots is a calibration that needs redoing.
+ * that the panel overshoots is a lying driver, while a Stored one is the
+ * display's edges in digitizer units, and a panel whose overlay extends past the
+ * visible area overshoots it in normal use.
  */
 enum class TouchRangeSource {
     None = 0,    ///< no evdev range stage at all (libinput pointer, SDL, no touch)
@@ -593,7 +594,11 @@ TouchObservedExtremes touch_observed_in_configured_axes(const TouchObservedExtre
  * the panel onto one pixel - so nothing can be said to fall outside it.
  *
  * Under a DisplaySize range a reading escapes only when it is outside both the
- * programmed and the declared range: either one may be the panel's truth.
+ * programmed and the declared range: either one may be the panel's truth. A
+ * Stored range is judged the same way: it maps the display's edges, so a reading
+ * between it and the declared range is a touch past the visible area (lv_evdev
+ * clamps it to the edge), not proof the range is wrong. Without a declared range
+ * the configured one alone decides.
  */
 TouchRangeViolation touch_range_violation(const TouchObservedExtremes& observed,
                                           const TouchPipelineInfo& configured);
