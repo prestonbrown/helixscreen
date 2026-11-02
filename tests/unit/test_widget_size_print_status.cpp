@@ -672,12 +672,32 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             lv_subject_set_int(lv_xml_get_subject(nullptr, name), 0);
         }
 
-        helix::test::set_wire_state(ps, PrintJobState::PRINTING);
-        process_lvgl(30);
-        REQUIRE(h.child("detailed_time_row") != nullptr);
-        for (const char* name : fits) {
-            INFO(name);
-            CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, name)) == 1);
+        auto check_fits = [&](int expected) {
+            for (const char* name : fits) {
+                INFO(name);
+                CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, name)) == expected);
+            }
+        };
+
+        SECTION("on the dashboard") {
+            helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+            process_lvgl(30);
+            REQUIRE(h.child("detailed_time_row") != nullptr);
+            check_fits(1);
+        }
+
+        SECTION("started while the dashboard is hidden") {
+            lv_obj_add_flag(h.root(), LV_OBJ_FLAG_HIDDEN);
+            helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+            process_lvgl(30);
+            REQUIRE(h.child("detailed_time_row") != nullptr);
+            lv_obj_remove_flag(h.root(), LV_OBJ_FLAG_HIDDEN);
+            process_lvgl(30);
+            check_fits(0);
+
+            h.widget().on_activate();
+            process_lvgl(30);
+            check_fits(1);
         }
     }
     PrintStatusWidget::destroy_formatter_for_test();
