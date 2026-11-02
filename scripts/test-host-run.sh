@@ -134,6 +134,8 @@ SHARD_ARTIFACTS=build/shard-artifacts                    # failing shard logs, m
 # it throws away the run's verdict. ConnectTimeout bounds one that never answers.
 SSH_OPTS=(-o ConnectTimeout=3 -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=12)
 ORPHAN_POLL_SECS="${HELIX_TEST_ORPHAN_POLL_SECS:-30}"    # how often to re-check an orphaned build
+RECONNECT_SECS="${HELIX_TEST_RECONNECT_SECS:-900}"       # how long a dropped job follow keeps reconnecting
+RECONNECT_PAUSE_SECS="${HELIX_TEST_RECONNECT_PAUSE_SECS:-5}"  # between reconnect attempts
 
 # --probe: offloading pays when the test host is on the LAN, or when the bytes
 # this run would send cross the link in under PROBE_MAX_SYNC_SECS.
@@ -579,6 +581,71 @@ LOCK
     return 1
 }
 
+# Runs the script on stdin on the test host detached from this connection, its
+# output going to a log there, and follows that log here into stdout and $LOG.
+# A build can print nothing for many minutes, and the keepalives cannot save a
+# link that is down for longer than they wait: the job then keeps running on
+# the host, so a dropped follow reconnects and resumes from the bytes already
+# received, and the result lines and exit status still arrive. Returns the
+# job's exit status, or 255 when the host stays unreachable for RECONNECT_SECS.
+run_detached() {
+    local job="$LOCK_DIR/$LOCK_PREFIX.job-$LABEL.$$" b64 got rc status down_since="" phase=follow
+    b64=$(base64 | tr -d '\n')
+    # shellcheck disable=SC2087  # the job path and script resolve here
+    if ! ssh "${SSH_OPTS[@]}" "$HOST" bash -s <<START; then
+set -eu
+mkdir -p "$job"
+printf '%s' '$b64' | base64 -d > "$job/script"
+_s=""; command -v setsid >/dev/null 2>&1 && _s=setsid
+nohup \$_s bash -c 'bash "\$0/script" > "\$0/log" 2>&1; echo \$? > "\$0/rc.new"; mv "\$0/rc.new" "\$0/rc"' "$job" < /dev/null > /dev/null 2>&1 &
+START
+        echo "✗ could not start the job on $HOST" >&2
+        return 255
+    fi
+    : > "$LOG"
+    while :; do
+        got=$(( $(wc -c < "$LOG") ))
+        rc=0
+        if [ "$phase" = follow ]; then
+            # Prints the log from byte $got on, and exits 0 once the job has
+            # finished and every byte it wrote has been printed. A follow
+            # stranded by a dropped link prints nothing to fail on while the
+            # job is silent, so it exits once the job's directory is collected.
+            # shellcheck disable=SC2087
+            ssh "${SSH_OPTS[@]}" "$HOST" bash -s <<FOLLOW | tee -a "$LOG" || rc=$?
+cd "$job" || exit 3
+off=$got
+while :; do
+    [ -d "$job" ] || exit 3
+    fin=0; [ ! -e rc ] || fin=1
+    size=\$(( \$( { wc -c < log; } 2>/dev/null || echo 0) ))
+    if [ "\$size" -gt "\$off" ]; then tail -c +\$((off + 1)) log | head -c \$((size - off)); off=\$size; fi
+    [ "\$fin" = 0 ] || exit 0
+    sleep 1
+done
+FOLLOW
+            [ "$rc" -ne 0 ] || { phase=status; continue; }
+        else
+            # shellcheck disable=SC2087
+            if status=$(ssh "${SSH_OPTS[@]}" "$HOST" bash -s <<STATUS
+cat "$job/rc" && rm -rf "$job"
+STATUS
+            ); then
+                return "$status"
+            fi
+            rc=255
+        fi
+        [ "$rc" -ne 3 ] || { echo "✗ the job's directory $job is gone from $HOST" >&2; return 255; }
+        if [ -z "$down_since" ] || [ "$(( $(wc -c < "$LOG") ))" -gt "$got" ]; then down_since=$(date +%s); fi
+        if [ $(( $(date +%s) - down_since )) -ge "$RECONNECT_SECS" ]; then
+            echo "✗ $HOST unreachable for ${RECONNECT_SECS}s; the job may still be running there: $job/log" >&2
+            return 255
+        fi
+        echo "→ lost the connection to $HOST (ssh exit $rc); the job keeps running there; reconnecting" >&2
+        sleep "$RECONNECT_PAUSE_SECS"
+    done
+}
+
 # Nanoseconds since the epoch. BSD date (a Mac) has no %N and prints it
 # literally, which is not a number.
 now_ns() {
@@ -836,7 +903,7 @@ if [ "$WHAT" = plugin-host ]; then
     PH_OUT="${HELIX_TEST_PLUGIN_HOST_OUT:-/tmp}/helix-plugin-host-$TREE"
     rc=0
     # shellcheck disable=SC2087  # the paths and the command resolve here
-    ssh "${SSH_OPTS[@]}" "$HOST" bash -se <<REMOTE | tee "$LOG" || rc=$?
+    run_detached <<REMOTE || rc=$?
 set -uo pipefail
 echo "→ $PROVENANCE"
 rm -rf "$PH_OUT"
@@ -858,7 +925,7 @@ fi
 # shellcheck disable=SC2087  # client-side expansion is the point: the sha, the
 # container name and the caller's arguments are resolved HERE, and the one value
 # that has to stay server-side ($1 in D) is escaped.
-ssh "${SSH_OPTS[@]}" "$HOST" bash -se <<REMOTE | tee "$LOG"
+run_detached <<REMOTE
 set -euo pipefail
 echo "→ $PROVENANCE"
 # What a later tree's first run reads to pick the nearest mirror to seed from.

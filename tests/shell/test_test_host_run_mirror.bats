@@ -1069,3 +1069,44 @@ EOF2
     contains "exec takes [--build] -- COMMAND" "$output"
     [ ! -s "$MOCK_DOCKER_LOG" ]
 }
+
+@test "a connection that drops during a silent job reconnects and still reports its output and exit status" {
+    job_runner
+    export MOCK_SSH_DROP="$BATS_TEST_TMPDIR/link-down" HELIX_TEST_RECONNECT_PAUSE_SECS=0
+    # ssh that relays its command's output, and drops (exit 255, output cut,
+    # the command left running as on a real host) every connection that is
+    # open when MOCK_SSH_DROP appears. Connections made after it stay up.
+    cat > "$BATS_TEST_TMPDIR/ssh-drop" <<'SSH'
+#!/usr/bin/env bash
+while [ $# -gt 0 ]; do
+    case "$1" in -o) shift 2 ;; -*) shift ;; *) break ;; esac
+done
+shift
+case "$1" in bash) ;; *) exec bash -c "$*" ;; esac
+pre=0; [ ! -e "$MOCK_SSH_DROP" ] || pre=1
+out=$(mktemp "$BATS_TEST_TMPDIR/ssh-out.XXXXXX")
+bash -c "$*" <&0 > "$out" &
+pid=$!; sent=0
+flush() {
+    local size
+    size=$(( $(wc -c < "$out") ))
+    if [ "$size" -gt "$sent" ]; then tail -c +$((sent + 1)) "$out" | head -c $((size - sent)); sent=$size; fi
+}
+while kill -0 "$pid" 2>/dev/null; do
+    flush
+    if [ "$pre" = 0 ] && [ -e "$MOCK_SSH_DROP" ]; then exit 255; fi
+    sleep 0.05
+done
+wait "$pid"; rc=$?; flush; exit "$rc"
+SSH
+    chmod +x "$BATS_TEST_TMPDIR/ssh-drop"
+    mock_command_script ssh 'exec "$BATS_TEST_TMPDIR/ssh-drop" "$@"'
+
+    run "$TEST_HOST_RUN" exec -- bash -c 'echo before-drop; touch "$MOCK_SSH_DROP"; sleep 1; echo done-marker; exit 3'
+    [ "$status" -eq 3 ]
+    contains "lost the connection" "$output"
+    contains "done-marker" "$output"
+    # The resumed follow starts where the dropped one stopped: nothing twice.
+    [ "$(cat "$TMPDIR"/test-host-exec-*.log | grep -c before-drop)" -eq 1 ]
+    [ "$(cat "$TMPDIR"/test-host-exec-*.log | grep -c done-marker)" -eq 1 ]
+}
