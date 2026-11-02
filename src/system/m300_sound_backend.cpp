@@ -8,13 +8,20 @@
 #include <algorithm>
 #include <string>
 
-M300SoundBackend::M300SoundBackend(GcodeSender sender) : sender_(std::move(sender)) {}
+M300SoundBackend::M300SoundBackend(GcodeSender sender, PrinterBusy busy)
+    : sender_(std::move(sender)), busy_(std::move(busy)) {}
 
 void M300SoundBackend::set_tone(float freq_hz, float amplitude, float duty_cycle) {
     (void)duty_cycle;
 
     if (!sender_)
         return;
+
+    if (printer_busy()) {
+        // Nothing is ringing either: each note's P duration ends it on its own.
+        last_freq_ = 0;
+        return;
+    }
 
     // Skip if same frequency (avoid spamming redundant commands)
     int freq_int = static_cast<int>(freq_hz);
@@ -46,6 +53,9 @@ void M300SoundBackend::silence() {
     if (last_freq_ == 0)
         return;
     last_freq_ = 0;
+    if (printer_busy()) {
+        return;
+    }
     // M300 S0 = silence on most firmware
     if (sender_) {
         sender_("M300 S0 P1");
