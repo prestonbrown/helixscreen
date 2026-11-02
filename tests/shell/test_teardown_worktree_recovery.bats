@@ -405,20 +405,30 @@ stub_test_host_run() { # <exit code>
     make_worktree cached
     local wt="$MAIN/.worktrees/cached"
     mkdir -p "$wt/.cache/clangd/index"
-    (
-        for i in 1 2 3 4 5 6 7 8; do
-            sleep 0.1
-            mkdir -p "$wt/.cache/clangd/index" 2>/dev/null
-            echo x > "$wt/.cache/clangd/index/f$i.idx" 2>/dev/null
-        done
-    ) &
-    local writer=$!
-    HELIX_TEARDOWN_CACHE_RETRY_SLEEP=0.25 run "$SCRIPT" cached --into master
-    wait "$writer" 2>/dev/null || true
+    echo x > "$wt/.cache/clangd/index/f0.idx"
+    # The writer runs inside the script's retry pause, which is exactly when a
+    # live clangd lands an index write after rm -rf: the first two pauses each
+    # recreate .cache, so removal needs a third attempt. Driving it from the
+    # pause, not a background loop, makes the overlap independent of load.
+    local shim="$BATS_TEST_TMPDIR/shim"
+    mkdir -p "$shim"
+    cat > "$shim/sleep" <<SHIM
+#!/usr/bin/env bash
+n=\$(cat "$shim/writes" 2>/dev/null || echo 0)
+if [ -d "$wt" ] && [ ! -e "$wt/.cache" ] && [ "\$n" -lt 2 ]; then
+    mkdir -p "$wt/.cache/clangd/index"
+    echo x > "$wt/.cache/clangd/index/f\$n.idx"
+    echo \$((n + 1)) > "$shim/writes"
+fi
+exec $(command -v sleep) "\$@"
+SHIM
+    chmod +x "$shim/sleep"
+    PATH="$shim:$PATH" HELIX_TEARDOWN_CACHE_RETRY_SLEEP=0 run "$SCRIPT" cached --into master
     [ "$status" -eq 0 ]
+    [ "$(cat "$shim/writes")" -eq 2 ]
     contains "Teardown complete" "$output"
     lacks "files remain" "$output"
-    contains ".cache/ was still being written" "$output"
+    contains ".cache/ was still being written; removed it on attempt 3" "$output"
     [ ! -d "$wt" ]
 }
 
