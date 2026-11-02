@@ -243,6 +243,113 @@ def _blank_noise(src: str) -> str:
     return ''.join(out)
 
 
+# A lambda is provably main-thread when the factory that receives it says so:
+# `observe<V>(subj, owner, [..](Owner* self, V v) {..})` and the other observer
+# factories hand the callback `Owner* self`, LVGL timers and event callbacks
+# take `lv_timer_t*` / `lv_event_t*`, `queue_update` / `defer` / `bg_cb`
+# bodies run from the UI drain, and a modal's `set_on_*` button callbacks and
+# `dispatch_cancel_print`'s confirmation run from a click. An `expired()` check
+# there is the correct liveness test and reports nothing at runtime. Every other
+# lambda (an API, HTTP, WebSocket, worker or scanner callback) is treated as
+# background; a main-thread one the patterns cannot see takes `// L081_OK:`.
+MAIN_THREAD_PARAMS_RE = re.compile(
+    r'^\s*(?:const\s+)?[\w:]+\s*\*\s*self\b'
+    r'|\blv_(?:timer|event)_t\s*\*'
+)
+MAIN_THREAD_CALLEE_RE = re.compile(
+    r'(?:^|::|\.|->)(?:observe\w*|queue_update\w*|defer\w*|bg_cb|lv_timer_create'
+    r'|lv_obj_add_event_cb|lv_async_call|dispatch_cancel_print)$'
+    r'|modal\w*(?:\.|->)set_on_\w+$'
+)
+LAMBDA_TRAILER_RE = re.compile(r'(?:->\s*[\w:<>\s*&,]+|\bmutable|\bnoexcept)\s*$')
+
+
+def _match_back(text: str, i: int, close: str, open_: str) -> int:
+    """Index of the `open_` balancing the `close` at text[i], or -1."""
+    depth = 0
+    while i >= 0:
+        c = text[i]
+        if c == close:
+            depth += 1
+        elif c == open_:
+            depth -= 1
+            if depth == 0:
+                return i
+        i -= 1
+    return -1
+
+
+def _lambda_header(code: str, brace: int):
+    """(params, callee) when the `{` at `brace` opens a lambda body, else None.
+
+    `callee` is the name of the call the lambda is an argument of, with any
+    template arguments dropped, or '' when the lambda is not a call argument.
+    """
+    head = code[:brace].rstrip()
+    while True:
+        trimmed = LAMBDA_TRAILER_RE.sub('', head).rstrip()
+        if trimmed == head:
+            break
+        head = trimmed
+    params = ''
+    if head.endswith(')'):
+        k = _match_back(head, len(head) - 1, ')', '(')
+        if k < 0:
+            return None
+        params = head[k + 1:-1]
+        head = head[:k].rstrip()
+    if not head.endswith(']'):
+        return None
+    k = _match_back(head, len(head) - 1, ']', '[')
+    if k < 0:
+        return None
+    # The call this lambda is an argument of: the nearest unclosed `(`.
+    depth = 0
+    m = k - 1
+    while m >= 0:
+        c = head[m]
+        if c in ')]}':
+            depth += 1
+        elif c in '([{':
+            if depth == 0:
+                if c != '(':
+                    break
+                callee = head[:m].rstrip()
+                while callee.endswith('>'):
+                    t = _match_back(callee, len(callee) - 1, '>', '<')
+                    if t < 0:
+                        break
+                    callee = callee[:t].rstrip()
+                name = re.search(r'[\w:.>-]*\w$', callee)
+                return params, name.group(0) if name else ''
+            depth -= 1
+        elif c == ';' and depth == 0:
+            break
+        m -= 1
+    return params, ''
+
+
+def in_main_thread_lambda(code: str, pos: int) -> bool:
+    """True when the innermost lambda around `pos` is provably main-thread."""
+    depth = 0
+    i = pos
+    while i >= 0:
+        c = code[i]
+        if c == '}':
+            depth += 1
+        elif c == '{':
+            if depth == 0:
+                header = _lambda_header(code, i)
+                if header is not None:
+                    params, callee = header
+                    return bool(MAIN_THREAD_PARAMS_RE.search(params)
+                                or MAIN_THREAD_CALLEE_RE.search(callee))
+            else:
+                depth -= 1
+        i -= 1
+    return False
+
+
 def is_only_return(line: str) -> bool:
     """True if the line after the expired-check predicate is just `return;` (with optional braces)."""
     s = line.strip()
@@ -309,7 +416,11 @@ def scan_source(src: str, checks: tuple = LIFETIME_CHECK_RES) -> list[tuple[int,
         return []
     # Patterns match against `code` (comments/literals blanked); `lines` stays
     # raw so the L081_OK opt-out and the reported snippet still read correctly.
-    code = _blank_noise(src).splitlines()
+    blanked = _blank_noise(src)
+    code = blanked.splitlines()
+    line_offsets = [0]
+    for raw in blanked.splitlines(keepends=True):
+        line_offsets.append(line_offsets[-1] + len(raw))
     hits: list[tuple[int, str, str, str]] = []
     for i, line in enumerate(lines):
         if OPT_OUT in line:
@@ -329,9 +440,15 @@ def scan_source(src: str, checks: tuple = LIFETIME_CHECK_RES) -> list[tuple[int,
         same_line_after = trailing_after_paren(code[i])
         if same_line_after.startswith('return'):
             continue
+        if in_main_thread_lambda(blanked, line_offsets[i]):
+            continue
         # Look ahead a few lines INSIDE the lambda for either a `.defer(`
         # call (REDUNDANT) or a `this`/member access (UAF). Stop at obvious
         # block-end markers so we don't bleed into the enclosing scope.
+        # Track brace depth from the check: an inner block closing (`}` of a
+        # loop or of the check's own `{ return; }`) keeps scanning, and only
+        # the brace that closes the enclosing lambda ends it.
+        depth = code[i].count('{') - code[i].count('}')
         for j in range(i + 1, min(i + 1 + LOOKAHEAD_LINES, len(lines))):
             if OPT_OUT in lines[j]:
                 break
@@ -339,7 +456,8 @@ def scan_source(src: str, checks: tuple = LIFETIME_CHECK_RES) -> list[tuple[int,
             stripped = look.strip()
             if stripped == '':
                 continue
-            if stripped in ('}', '});', '},', '});;'):
+            depth += look.count('{') - look.count('}')
+            if depth < 0:
                 break
             if DEFER_CALL_RE.search(look):
                 snippet = '\n  '.join(lines[i:j + 1])
@@ -504,9 +622,9 @@ def staged_files() -> list[Path]:
 
 
 # Directories scanned for Mechanism C (bg-thread tok.expired() + member access).
-# src/ui/ is intentionally excluded because observer callbacks (queue_update +
-# observe<int>) run on the main thread, where `tok.expired()` is fine —
-# the script can't tell observer cbs from HTTP cbs without AST-level context.
+# src/ui/ is scanned too: its observer, timer and drain callbacks are main-thread
+# and in_main_thread_lambda() recognises them, so what remains there is the API
+# and worker callbacks that reach the runtime detector.
 DEFAULT_SCAN_DIRS = (
     'src/printer',
     'src/calibration',
@@ -517,25 +635,12 @@ DEFAULT_SCAN_DIRS = (
     'src/api',
     'src/network',
     'src/bluetooth',
+    'src/ui',
 )
 
 # Mechanism D (freeze-drop) is restricted by REGISTER_CB_RE to register_method_callback
 # / register_notify_update entry points, which are inherently bg-thread WS handlers.
-# That restriction makes scanning src/ui/ safe — observer-cb false positives don't
-# apply. Files like src/ui/job_queue_state.cpp register notification handlers and
-# must be linted for Mechanism D even though they're excluded from Mechanism C.
-FREEZE_SCAN_DIRS = DEFAULT_SCAN_DIRS + ('src/ui',)
-
-# Directories scanned for the `ctx.is_valid()` spelling ONLY. The exclusion of
-# src/ui/ above is about generic `tok.expired()`, whose false-positive case is a
-# main-thread observer callback. That case cannot arise here: a
-# ThumbnailLoadContext exists only to be handed to ThumbnailCache::fetch_*, and
-# those callbacks are invoked from an HttpExecutor worker or a
-# ThumbnailProcessor pool thread — never from an observer. So the pattern is
-# unambiguously background wherever it appears, and src/ui/ is exactly where it
-# appears (5 of the 7 sites in the tree). Excluding src/ui/ from this spelling
-# too is what kept ui_panel_print_select.cpp's callbacks unlinted (#960).
-CTX_ONLY_SCAN_DIRS = ('src/ui',)
+FREEZE_SCAN_DIRS = DEFAULT_SCAN_DIRS
 
 
 def discover_files(roots: Iterable[Path]) -> list[Path]:
@@ -570,26 +675,22 @@ def main() -> int:
         staged = staged_files()
         mech_c_files = [f for f in staged
                         if any(str(f).startswith(d) for d in DEFAULT_SCAN_DIRS)]
-        ctx_only_files = [f for f in staged
-                          if any(str(f).startswith(d) for d in CTX_ONLY_SCAN_DIRS)]
         freeze_files = [f for f in staged
                         if any(str(f).startswith(d) for d in FREEZE_SCAN_DIRS)]
         # The set above is the staged diff; the CONTENT has to come from the
         # same place - the index, not whatever a re-read of the path finds on
         # disk, which may have been reverted after staging a violation.
         staged_src = dict(read_index_blobs(
-            sorted({str(f) for f in mech_c_files + ctx_only_files})))
+            sorted({str(f) for f in mech_c_files})))
     elif args.files:
         # An explicitly named file is checked for every pattern regardless of
         # directory — naming it is the request. Keeps `<gate> src/ui/foo.cpp`
         # useful for spot-checks without loosening the default scan.
         files = [Path(f) for f in args.files if Path(f).exists()]
         mech_c_files = files
-        ctx_only_files = []
         freeze_files = files
     else:
         mech_c_files = discover_files([Path(d) for d in DEFAULT_SCAN_DIRS])
-        ctx_only_files = discover_files([Path(d) for d in CTX_ONLY_SCAN_DIRS])
         freeze_files = discover_files([Path(d) for d in FREEZE_SCAN_DIRS])
 
     # Skip the detector implementation itself and the header that defines the API.
@@ -599,8 +700,7 @@ def main() -> int:
     freeze_files = [f for f in freeze_files if f not in skip]
 
     total = 0
-    scan_plan = ([(f, LIFETIME_CHECK_RES) for f in mech_c_files]
-                 + [(f, (CTX_VALID_CHECK_RE,)) for f in ctx_only_files])
+    scan_plan = [(f, LIFETIME_CHECK_RES) for f in mech_c_files]
     for f, checks in scan_plan:
         if args.staged_only:
             src = staged_src.get(str(f))
