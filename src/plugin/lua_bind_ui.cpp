@@ -31,7 +31,7 @@ namespace helix::plugin {
 namespace {
 
 const char kSubjectMeta[] = "helix.subject";
-RegistryKey g_ui_state_key;
+RegistryKey g_ui_state_key{"ui_state"};
 constexpr size_t kMaxString = 1024;
 constexpr size_t kMaxSubjects = 128;
 constexpr size_t kMaxOpenConfirms = 1;

@@ -12,7 +12,7 @@ namespace helix::plugin {
 
 namespace {
 
-RegistryKey g_sound_state_key;
+RegistryKey g_sound_state_key{"sound_state"};
 
 // The cues of the app's sound themes a plugin may request. The boot chime and the
 // urgent alarm stay the app's own, so a plugin can never sound like a printer fault.

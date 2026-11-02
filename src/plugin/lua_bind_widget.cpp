@@ -14,7 +14,7 @@ namespace helix::plugin {
 
 namespace {
 
-RegistryKey g_widget_state_key;
+RegistryKey g_widget_state_key{"widget_state"};
 constexpr int kHookCount = 5;
 
 // The helix.widget handlers one runtime registered, keyed by full widget id. The state

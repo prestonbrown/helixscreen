@@ -77,7 +77,7 @@ bool file_exists(const std::string& path) {
     return ::stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
 }
 
-RegistryKey g_loaded_key; // its address keys the require cache in the registry
+RegistryKey g_loaded_key{"loaded"}; // its address keys the require cache in the registry
 
 std::string budget_reason(const LuaRuntime::Limits& limits) {
     return "exceeded its time budget (" + std::to_string(limits.time_budget.count()) +

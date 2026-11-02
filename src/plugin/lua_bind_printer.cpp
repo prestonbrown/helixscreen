@@ -12,7 +12,7 @@ namespace helix::plugin {
 
 namespace {
 
-RegistryKey g_printer_state_key;
+RegistryKey g_printer_state_key{"printer_state"};
 
 struct Watch {
     LuaRuntime* rt;

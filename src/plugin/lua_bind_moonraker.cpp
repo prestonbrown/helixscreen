@@ -88,7 +88,7 @@ int push_rpc_capped_body(lua_State* co, const json& value, size_t body_bytes) {
 
 namespace {
 
-RegistryKey g_moonraker_state_key;
+RegistryKey g_moonraker_state_key{"moonraker_state"};
 constexpr size_t kMaxAgentHandlers = 16;
 constexpr size_t kMaxSubscriptions = 8;
 constexpr size_t kMaxSubscribedObjects = 16;
