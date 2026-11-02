@@ -38,7 +38,8 @@
         "led M1_led",
         "fan_generic auxiliary_fan",
         "heater_fan _ptc_fan",
-        "fan_generic _Secondary_Fan"
+        "fan_generic _Secondary_Fan",
+        "heater_generic chamber"
       ]
     },
     "leds": {

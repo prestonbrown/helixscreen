@@ -85,7 +85,9 @@
         "filament_motion_sensor e0_filament",
         "filament_motion_sensor e1_filament",
         "filament_motion_sensor e2_filament",
-        "filament_motion_sensor e3_filament"
+        "filament_motion_sensor e3_filament",
+        "fan_generic circulation_fan",
+        "fan_generic exhaust_fan"
       ]
     },
     "default_macros": {
