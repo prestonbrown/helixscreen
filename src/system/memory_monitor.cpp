@@ -49,8 +49,10 @@ MemoryThresholds MemoryThresholds::for_device(const MemoryInfo& info) {
         t.critical_available_kb = 8 * 1024;
         t.growth_5min_kb = 1 * 1024;
     } else if (info.is_normal_device()) {
-        // 256-448MB
-        t.warn_rss_kb = std::max<size_t>(120 * 1024, info.total_kb * 30 / 100);
+        // 256-448MB. Warn at 40%: a ~415MB Pi driving a printer holds ~130MB
+        // RSS mid-print with ~165MB still free, which 30% (124MB) called a
+        // warning. 40% of the band's top meets the next band's 180MB floor.
+        t.warn_rss_kb = std::max<size_t>(120 * 1024, info.total_kb * 40 / 100);
         t.critical_rss_kb = std::max<size_t>(180 * 1024, info.total_kb * 50 / 100);
         t.warn_available_kb = 32 * 1024;
         t.critical_available_kb = 16 * 1024;
@@ -272,52 +274,52 @@ void MemoryMonitor::log_now(const char* context, spdlog::level::level_enum level
     }
 }
 
-MemoryPressureLevel compute_pressure_level(const MemoryStats& stats,
-                                           const MemoryThresholds& thresholds,
-                                           MemoryPressureLevel current_level,
-                                           const MemoryInfo& sys_info, int64_t growth_kb,
-                                           uint32_t sustained_warning_secs) {
-    MemoryPressureLevel level = MemoryPressureLevel::none;
+MemoryPressureAssessment assess_memory_pressure(const MemoryStats& stats,
+                                                const MemoryThresholds& thresholds,
+                                                MemoryPressureLevel current_level,
+                                                const MemoryInfo& sys_info, int64_t growth_kb,
+                                                uint32_t sustained_warning_secs) {
+    using Level = MemoryPressureLevel;
+    using Cause = MemoryPressureCause;
 
     // RSS thresholds — check escalations first, then hysteresis holds
+    MemoryPressureAssessment rss;
     if (stats.vm_rss_kb >= thresholds.critical_rss_kb) {
-        level = MemoryPressureLevel::critical;
-    } else if (current_level >= MemoryPressureLevel::critical &&
+        rss = {Level::critical, Cause::rss_critical};
+    } else if (current_level >= Level::critical &&
                stats.vm_rss_kb >= thresholds.clear_critical_rss_kb) {
-        level = MemoryPressureLevel::critical; // Hold critical — hasn't cleared
+        rss = {Level::critical, Cause::hysteresis};
     } else if (stats.vm_rss_kb >= thresholds.warn_rss_kb) {
-        level = MemoryPressureLevel::warning;
-    } else if (current_level >= MemoryPressureLevel::warning &&
-               stats.vm_rss_kb >= thresholds.clear_warn_rss_kb) {
-        level = MemoryPressureLevel::warning; // Hold warning — hasn't cleared
+        rss = {Level::warning, Cause::rss_warning};
+    } else if (current_level >= Level::warning && stats.vm_rss_kb >= thresholds.clear_warn_rss_kb) {
+        rss = {Level::warning, Cause::hysteresis};
     }
 
-    // System available memory (may escalate level)
-    // Note: lower available_kb = worse, so clear thresholds are ABOVE trigger thresholds
+    // System available memory. Lower available_kb = worse, so clear thresholds
+    // are ABOVE trigger thresholds.
+    MemoryPressureAssessment avail;
     if (sys_info.available_kb > 0) {
-        if (sys_info.available_kb <= thresholds.critical_available_kb &&
-            level < MemoryPressureLevel::critical) {
-            level = MemoryPressureLevel::critical;
-        } else if (current_level >= MemoryPressureLevel::critical &&
-                   sys_info.available_kb <= thresholds.clear_critical_available_kb &&
-                   level < MemoryPressureLevel::critical) {
-            level = MemoryPressureLevel::critical; // Hold critical
-        } else if (sys_info.available_kb <= thresholds.warn_available_kb &&
-                   level < MemoryPressureLevel::warning) {
-            level = MemoryPressureLevel::warning;
-        } else if (current_level >= MemoryPressureLevel::warning &&
-                   sys_info.available_kb <= thresholds.clear_warn_available_kb &&
-                   level < MemoryPressureLevel::warning) {
-            level = MemoryPressureLevel::warning; // Hold warning
+        if (sys_info.available_kb <= thresholds.critical_available_kb) {
+            avail = {Level::critical, Cause::available_critical};
+        } else if (current_level >= Level::critical &&
+                   sys_info.available_kb <= thresholds.clear_critical_available_kb) {
+            avail = {Level::critical, Cause::hysteresis};
+        } else if (sys_info.available_kb <= thresholds.warn_available_kb) {
+            avail = {Level::warning, Cause::available_warning};
+        } else if (current_level >= Level::warning &&
+                   sys_info.available_kb <= thresholds.clear_warn_available_kb) {
+            avail = {Level::warning, Cause::hysteresis};
         }
     }
+
+    // The worse band wins; on a tie the RSS band names the cause.
+    MemoryPressureAssessment result = avail.level > rss.level ? avail : rss;
 
     // Growth rate (may trigger elevated) — but ONLY when the device is already
     // approaching its limits. A fast one-time climb is benign when there is
     // ample headroom and must not warn: the 3D G-code viewer loading at print
     // start adds ~13MB over 5 minutes, which on a 512MB-class AD5X (RSS ~48MB,
-    // hundreds of MB free) is well under every absolute band. Before this gate,
-    // every AD5X print start emitted a spurious `elevated` telemetry warning.
+    // hundreds of MB free) is well under every absolute band.
     //
     // Genuinely tight devices (AD5M 128MB, RSS baseline ~20MB vs warn_rss 30MB)
     // sit above warn_rss/2 essentially all the time, so growth still escalates
@@ -326,22 +328,81 @@ MemoryPressureLevel compute_pressure_level(const MemoryStats& stats,
     const bool low_available =
         sys_info.available_kb > 0 && sys_info.available_kb <= thresholds.warn_available_kb * 2;
     if ((near_rss_limit || low_available) &&
-        growth_kb > static_cast<int64_t>(thresholds.growth_5min_kb)) {
-        if (level < MemoryPressureLevel::elevated) {
-            level = MemoryPressureLevel::elevated;
-        }
+        growth_kb > static_cast<int64_t>(thresholds.growth_5min_kb) &&
+        result.level < Level::elevated) {
+        result = {Level::elevated, Cause::growth};
     }
 
-    // A warning that will not clear is the steady state, not a spike. Escalate
-    // it so the responders gated at critical are reachable on a device whose
-    // idle free memory never rises out of the warning band. Escalation reads
-    // the level computed above, so it can only promote real pressure.
-    if (level == MemoryPressureLevel::warning &&
+    // Free memory that sits in the warning band and will not clear is the
+    // steady state, not a spike. Escalate it so the responders gated at
+    // critical are reachable on a device whose idle free memory never rises
+    // out of the warning band. RSS alone never escalates: a large footprint
+    // with ample free memory is not pressure, however long it lasts.
+    if (result.level == Level::warning && avail.level == Level::warning &&
         sustained_warning_secs >= thresholds.sustained_warning_secs_to_critical) {
-        level = MemoryPressureLevel::critical;
+        result = {Level::critical, Cause::sustained_low_available};
     }
 
-    return level;
+    return result;
+}
+
+MemoryPressureLevel compute_pressure_level(const MemoryStats& stats,
+                                           const MemoryThresholds& thresholds,
+                                           MemoryPressureLevel current_level,
+                                           const MemoryInfo& sys_info, int64_t growth_kb,
+                                           uint32_t sustained_warning_secs) {
+    return assess_memory_pressure(stats, thresholds, current_level, sys_info, growth_kb,
+                                  sustained_warning_secs)
+        .level;
+}
+
+std::string describe_memory_pressure(const MemoryPressureAssessment& assessment,
+                                     const MemoryStats& stats, const MemoryThresholds& thresholds,
+                                     const MemoryInfo& sys_info, int64_t growth_kb) {
+    switch (assessment.cause) {
+    case MemoryPressureCause::rss_critical:
+        return fmt::format("RSS {}MB exceeds critical threshold {}MB", stats.vm_rss_kb / 1024,
+                           thresholds.critical_rss_kb / 1024);
+    case MemoryPressureCause::rss_warning:
+        return fmt::format("RSS {}MB exceeds warning threshold {}MB", stats.vm_rss_kb / 1024,
+                           thresholds.warn_rss_kb / 1024);
+    case MemoryPressureCause::available_critical:
+        return fmt::format("System available {}MB below critical threshold {}MB",
+                           sys_info.available_mb(), thresholds.critical_available_kb / 1024);
+    case MemoryPressureCause::available_warning:
+        return fmt::format("System available {}MB below warning threshold {}MB",
+                           sys_info.available_mb(), thresholds.warn_available_kb / 1024);
+    case MemoryPressureCause::growth:
+        return fmt::format("RSS growth {:+}KB over 5 minutes exceeds threshold {}KB", growth_kb,
+                           thresholds.growth_5min_kb);
+    case MemoryPressureCause::sustained_low_available:
+        return fmt::format("System available {}MB held below warning threshold {}MB",
+                           sys_info.available_mb(), thresholds.warn_available_kb / 1024);
+    case MemoryPressureCause::hysteresis:
+        return fmt::format("Pressure level {} held by hysteresis (RSS {}MB, available {}MB)",
+                           pressure_level_to_string(assessment.level), stats.vm_rss_kb / 1024,
+                           sys_info.available_mb());
+    case MemoryPressureCause::none:
+        break;
+    }
+    return "No memory pressure";
+}
+
+bool should_report_memory_pressure(MemoryReportState& state, MemoryPressureLevel level,
+                                   size_t rss_kb, size_t growth_step_kb, bool interval_elapsed) {
+    if (level == MemoryPressureLevel::none || level < state.level) {
+        state.level = level;
+        state.rss_kb = rss_kb;
+        return false;
+    }
+    const bool rose = level > state.level;
+    const bool grew = growth_step_kb > 0 && rss_kb >= state.rss_kb + growth_step_kb;
+    if (!(rose || grew) || !interval_elapsed) {
+        return false;
+    }
+    state.level = level;
+    state.rss_kb = rss_kb;
+    return true;
 }
 
 void MemoryMonitor::evaluate_thresholds(const MemoryStats& stats) {
@@ -382,92 +443,72 @@ void MemoryMonitor::evaluate_thresholds(const MemoryStats& stats) {
     const auto sustained =
         std::chrono::duration_cast<std::chrono::seconds>(now_tp - warning_since_);
 
-    MemoryPressureLevel level = compute_pressure_level(
+    const MemoryPressureAssessment assessment = assess_memory_pressure(
         stats, thresholds_, current, sys_info, growth_kb, static_cast<uint32_t>(sustained.count()));
+    const MemoryPressureLevel level = assessment.level;
 
-    // Update atomic level
     pressure_level_.store(level);
 
-    // Rate-limited log and fire callback on non-none levels
-    if (level != MemoryPressureLevel::none) {
-        auto now = std::chrono::steady_clock::now();
-        int level_idx = static_cast<int>(level);
-        if (now - last_warning_time_[level_idx] >= kRateLimitInterval) {
-            last_warning_time_[level_idx] = now;
+    const auto now = std::chrono::steady_clock::now();
+    const int level_idx = static_cast<int>(level);
 
-            std::string reason;
-            if (stats.vm_rss_kb >= thresholds_.critical_rss_kb) {
-                reason = fmt::format("RSS {}MB exceeds critical threshold {}MB",
-                                     stats.vm_rss_kb / 1024, thresholds_.critical_rss_kb / 1024);
-            } else if (stats.vm_rss_kb >= thresholds_.warn_rss_kb) {
-                reason = fmt::format("RSS {}MB exceeds warning threshold {}MB",
-                                     stats.vm_rss_kb / 1024, thresholds_.warn_rss_kb / 1024);
-            } else if (sys_info.available_kb > 0 &&
-                       sys_info.available_kb <= thresholds_.critical_available_kb) {
-                reason =
-                    fmt::format("System available {}MB below critical threshold {}MB",
-                                sys_info.available_mb(), thresholds_.critical_available_kb / 1024);
-            } else if (sys_info.available_kb > 0 &&
-                       sys_info.available_kb <= thresholds_.warn_available_kb) {
-                reason = fmt::format("System available {}MB below warning threshold {}MB",
-                                     sys_info.available_mb(), thresholds_.warn_available_kb / 1024);
-            } else if (growth_kb > static_cast<int64_t>(thresholds_.growth_5min_kb)) {
-                reason = fmt::format("RSS growth {:+}KB over 5 minutes exceeds threshold {}KB",
-                                     growth_kb, thresholds_.growth_5min_kb);
-            } else {
-                reason = fmt::format("Pressure level {} held by hysteresis",
-                                     pressure_level_to_string(level));
-            }
-
-            // Always include our own memory footprint so logs can distinguish
-            // "we are the cause" from "we are a victim of system pressure".
-            std::string our_footprint = fmt::format(
-                "our RSS={}MB VmSize={}MB VmSwap={}MB growth_5min={:+}KB sys_avail={}MB",
-                stats.vm_rss_kb / 1024, stats.vm_size_kb / 1024, stats.vm_swap_kb / 1024, growth_kb,
-                sys_info.available_mb());
-
-            switch (level) {
-            case MemoryPressureLevel::elevated:
-                spdlog::info("[MemoryMonitor] ELEVATED: {} ({})", reason, our_footprint);
-                break;
-            case MemoryPressureLevel::warning:
-                spdlog::warn("[MemoryMonitor] WARNING: {} ({})", reason, our_footprint);
-                break;
-            case MemoryPressureLevel::critical:
-                spdlog::error("[MemoryMonitor] CRITICAL: {} ({})", reason, our_footprint);
-                break;
-            default:
-                break;
-            }
-
-            fire_warning(level, reason, stats, sys_info, growth_kb);
-        }
+    // Reports go out on a change worth knowing about, never on a timer while
+    // nothing moves: a level held for hours is one event, not one per tick.
+    const bool report = should_report_memory_pressure(
+        report_state_, level, stats.vm_rss_kb, thresholds_.growth_5min_kb,
+        now - last_report_time_[level_idx] >= kRateLimitInterval);
+    if (report) {
+        last_report_time_[level_idx] = now;
     }
+
+    // Responders re-run on a cadence while pressure holds: the caches they
+    // drop refill.
+    bool dispatch = false;
+    if (level != MemoryPressureLevel::none &&
+        now - last_warning_time_[level_idx] >= kRateLimitInterval) {
+        last_warning_time_[level_idx] = now;
+        dispatch = true;
+    }
+
+    if (!report && !dispatch) {
+        return;
+    }
+
+    const std::string reason =
+        describe_memory_pressure(assessment, stats, thresholds_, sys_info, growth_kb);
+
+    // Always include our own memory footprint so logs can distinguish
+    // "we are the cause" from "we are a victim of system pressure".
+    const std::string our_footprint =
+        fmt::format("our RSS={}MB VmSize={}MB VmSwap={}MB growth_5min={:+}KB sys_avail={}MB",
+                    stats.vm_rss_kb / 1024, stats.vm_size_kb / 1024, stats.vm_swap_kb / 1024,
+                    growth_kb, sys_info.available_mb());
+
+    if (report) {
+        switch (level) {
+        case MemoryPressureLevel::elevated:
+            spdlog::info("[MemoryMonitor] ELEVATED: {} ({})", reason, our_footprint);
+            break;
+        case MemoryPressureLevel::warning:
+            spdlog::warn("[MemoryMonitor] WARNING: {} ({})", reason, our_footprint);
+            break;
+        case MemoryPressureLevel::critical:
+            spdlog::error("[MemoryMonitor] CRITICAL: {} ({})", reason, our_footprint);
+            break;
+        default:
+            break;
+        }
+    } else {
+        spdlog::debug("[MemoryMonitor] {} unchanged: {} ({})", pressure_level_to_string(level),
+                      reason, our_footprint);
+    }
+
+    fire_warning(level, reason, stats, sys_info, growth_kb, report, dispatch);
 }
 
 void MemoryMonitor::fire_warning(MemoryPressureLevel level, const std::string& reason,
                                  const MemoryStats& stats, const MemoryInfo& sys_info,
-                                 int64_t growth_kb) {
-    // Build event and read smaps BEFORE acquiring the lock (smaps_rollup can be slow)
-    MemoryWarningEvent event;
-    event.level = level;
-    event.reason = reason;
-    event.stats = stats;
-    event.system_info = sys_info;
-    event.growth_5min_kb = growth_kb;
-    bool smaps_ok = read_smaps_rollup(event.smaps);
-
-    // On warning+, log the smaps breakdown so we can tell what kind of memory
-    // we're holding (heap/anon vs mapped files vs shared). This is the
-    // diagnostic we keep wishing we had when reading crash-bundle log tails.
-    if (smaps_ok && level >= MemoryPressureLevel::warning) {
-        spdlog::warn("[MemoryMonitor] smaps: rss={}kB pss={}kB private_dirty={}kB "
-                     "private_clean={}kB shared_clean={}kB shared_dirty={}kB swap={}kB",
-                     event.smaps.rss_kb, event.smaps.pss_kb, event.smaps.private_dirty_kb,
-                     event.smaps.private_clean_kb, event.smaps.shared_clean_kb,
-                     event.smaps.shared_dirty_kb, event.smaps.swap_kb);
-    }
-
+                                 int64_t growth_kb, bool report, bool dispatch) {
     // Copy callbacks under lock, then invoke outside to minimize hold time
     WarningCallback warning_cb;
     std::vector<std::pair<PressureResponderId, std::function<void(MemoryPressureLevel)>>>
@@ -478,8 +519,33 @@ void MemoryMonitor::fire_warning(MemoryPressureLevel level, const std::string& r
         responders = pressure_responders_;
     }
 
-    if (warning_cb) {
-        warning_cb(event);
+    if (report) {
+        // Build the event and read smaps outside the lock (smaps_rollup can be slow)
+        MemoryWarningEvent event;
+        event.level = level;
+        event.reason = reason;
+        event.stats = stats;
+        event.system_info = sys_info;
+        event.growth_5min_kb = growth_kb;
+        const bool smaps_ok = read_smaps_rollup(event.smaps);
+
+        // On warning+, log the smaps breakdown so we can tell what kind of memory
+        // we're holding (heap/anon vs mapped files vs shared).
+        if (smaps_ok && level >= MemoryPressureLevel::warning) {
+            spdlog::warn("[MemoryMonitor] smaps: rss={}kB pss={}kB private_dirty={}kB "
+                         "private_clean={}kB shared_clean={}kB shared_dirty={}kB swap={}kB",
+                         event.smaps.rss_kb, event.smaps.pss_kb, event.smaps.private_dirty_kb,
+                         event.smaps.private_clean_kb, event.smaps.shared_clean_kb,
+                         event.smaps.shared_dirty_kb, event.smaps.swap_kb);
+        }
+
+        if (warning_cb) {
+            warning_cb(event);
+        }
+    }
+
+    if (!dispatch) {
+        return;
     }
 
     // Snapshot RSS around the responder loop so we can log how much memory

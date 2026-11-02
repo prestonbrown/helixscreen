@@ -57,11 +57,19 @@ struct MemoryThresholds {
     /// A device whose idle free memory falls between warn_available_kb and
     /// critical_available_kb is in warning permanently and reaches critical
     /// only by running out, so every responder gated at critical never runs.
-    /// A dip that does not recover is not a dip.
+    /// A dip that does not recover is not a dip. Only low available memory
+    /// escalates: an RSS warning with ample free memory is our footprint, not
+    /// pressure, and holding it does not make it critical.
     uint32_t sustained_warning_secs_to_critical = 60;
 
     /// Build thresholds appropriate for the device tier
     static MemoryThresholds for_device(const MemoryInfo& info);
+};
+
+/// What the monitor last reported, so a level held steady is reported once.
+struct MemoryReportState {
+    MemoryPressureLevel level = MemoryPressureLevel::none;
+    size_t rss_kb = 0; ///< RSS at the last report (or at the last drop in level)
 };
 
 /**
@@ -209,7 +217,8 @@ class MemoryMonitor {
     void check_main_loop_liveness();
     void evaluate_thresholds(const MemoryStats& stats);
     void fire_warning(MemoryPressureLevel level, const std::string& reason,
-                      const MemoryStats& stats, const MemoryInfo& sys_info, int64_t growth_kb);
+                      const MemoryStats& stats, const MemoryInfo& sys_info, int64_t growth_kb,
+                      bool report, bool dispatch);
 
     friend class MemoryMonitorTestAccess;
 
@@ -240,9 +249,12 @@ class MemoryMonitor {
     size_t rss_history_count_ = 0;
     int deep_sample_counter_ = 0; ///< Counts 5s ticks; deep sample every 6th (30s)
 
-    // Rate limiting: last warning time per level
+    // Rate limiting per level: responder dispatch and reports are separate,
+    // because responders re-run on a cadence while reports go out on change.
     static constexpr int kNumLevels = 4;
     std::array<std::chrono::steady_clock::time_point, kNumLevels> last_warning_time_{};
+    std::array<std::chrono::steady_clock::time_point, kNumLevels> last_report_time_{};
+    MemoryReportState report_state_{};
 
     /// When the level first reached `warning` and stayed there; reset whenever
     /// it drops below warning. Feeds compute_pressure_level's escalation.
@@ -250,6 +262,47 @@ class MemoryMonitor {
 };
 
 const char* pressure_level_to_string(MemoryPressureLevel level);
+
+/// Which band put the level where it is. Drives the reason text, so the text
+/// always names the band that produced the level.
+enum class MemoryPressureCause {
+    none,
+    rss_critical,
+    rss_warning,
+    available_critical,
+    available_warning,
+    growth,
+    sustained_low_available, ///< available held in the warning band, escalated
+    hysteresis,              ///< a band was breached and has not cleared yet
+};
+
+struct MemoryPressureAssessment {
+    MemoryPressureLevel level = MemoryPressureLevel::none;
+    MemoryPressureCause cause = MemoryPressureCause::none;
+};
+
+/// Classify memory pressure and name the band responsible.
+MemoryPressureAssessment assess_memory_pressure(const MemoryStats& stats,
+                                                const MemoryThresholds& thresholds,
+                                                MemoryPressureLevel current_level,
+                                                const MemoryInfo& sys_info, int64_t growth_kb,
+                                                uint32_t sustained_warning_secs = 0);
+
+/// Human-readable reason for an assessment, naming the band in its cause.
+std::string describe_memory_pressure(const MemoryPressureAssessment& assessment,
+                                     const MemoryStats& stats, const MemoryThresholds& thresholds,
+                                     const MemoryInfo& sys_info, int64_t growth_kb);
+
+/// Decide whether this sample is worth a log line and a telemetry event.
+///
+/// Reports a rise to a higher level, and growth of at least @p growth_step_kb
+/// in RSS since the last report at the same level. A level held steady, a
+/// drop, or a return to none reports nothing; a drop re-arms the higher level
+/// so a later rise reports again. @p interval_elapsed is the per-level floor
+/// against a level flapping: a report it blocks is not consumed, and fires on
+/// the first sample after the floor if the condition still holds.
+bool should_report_memory_pressure(MemoryReportState& state, MemoryPressureLevel level,
+                                   size_t rss_kb, size_t growth_step_kb, bool interval_elapsed);
 
 /// Compute pressure level from stats — extracted for testability
 /// @param sustained_warning_secs How long the level has already been at
