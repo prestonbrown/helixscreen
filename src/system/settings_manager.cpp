@@ -16,7 +16,7 @@
 #include "i_moonraker_client.h"
 #include "input_settings_manager.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "material_settings_manager.h"
 #include "mount_feed_sequence.h"
 #include "printer_detector.h"

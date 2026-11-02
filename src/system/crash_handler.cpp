@@ -6,6 +6,7 @@
 #include "helix_thread.h"
 #include "helix_version.h"
 #include "system/crash_record.h"
+#include "system/crash_version_lines.h"
 
 #include <spdlog/spdlog.h>
 
@@ -30,11 +31,9 @@
 #define HAVE_GLIBC_MALLINFO 1
 #endif
 
-// LVGL heap monitor
-#include "core/lv_obj_tree.h" // lv_obj_get_name() for delete crumbs
-#include "lv_init.h"          // lv_is_initialized() — guards the lv_mem_monitor read
-#include "misc/lv_types.h"
-#include "stdlib/lv_mem.h"
+// LVGL heap monitor, lv_obj_get_name() for delete crumbs, lv_is_initialized() guarding
+// the lv_mem_monitor read, and LVGL_VERSION_* for the crash record
+#include "lvgl.h"
 
 // AddressSanitizer opt-out for the raw stack readers further down. Both the
 // frame-pointer walk and the linear stack scan deliberately read memory they
@@ -717,9 +716,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     safe_write(fd, "\n");
 
     // Write version
-    safe_write(fd, "version:");
-    safe_write(fd, HELIX_VERSION);
-    safe_write(fd, "\n");
+    safe_write(fd, helix::crash_record::kCrashVersionLines);
 
     // Write timestamp (time() is async-signal-safe per POSIX)
     time_t now = time(nullptr);
@@ -1836,9 +1833,7 @@ void crash_handler::write_exception_record(const char* what) noexcept {
     safe_write(fd, "signal:0\n");
     safe_write(fd, "name:EXCEPTION\n");
 
-    safe_write(fd, "version:");
-    safe_write(fd, HELIX_VERSION);
-    safe_write(fd, "\n");
+    safe_write(fd, helix::crash_record::kCrashVersionLines);
 
     // time(nullptr) is async-signal-safe per POSIX.
     time_t now = time(nullptr);
@@ -1907,6 +1902,8 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
                 result["recorded_by"] = value;
             } else if (key == "version") {
                 result["app_version"] = value;
+            } else if (key == "lvgl_version") {
+                result["lvgl_version"] = value;
             } else if (key == "timestamp") {
                 try {
                     // Convert unix timestamp to ISO 8601
@@ -2064,7 +2061,7 @@ void crash_handler::write_mock_crash_file(const std::string& crash_file_path) {
 
     ofs << "signal:11\n";
     ofs << "name:SIGSEGV\n";
-    ofs << "version:" << HELIX_VERSION << "\n";
+    ofs << helix::crash_record::kCrashVersionLines;
     ofs << "timestamp:" << now << "\n";
     ofs << "uptime:1234\n";
     ofs << "fault_addr:0x00000000\n";

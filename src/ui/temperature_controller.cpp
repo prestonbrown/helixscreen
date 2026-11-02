@@ -10,7 +10,7 @@
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"

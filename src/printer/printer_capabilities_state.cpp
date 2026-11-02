@@ -14,7 +14,7 @@
 
 #include "chamber_air_modes.h"
 #include "layer_pause.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "pa_calibration.h"
 #include "printer_fan_state.h"
 #include "sound_manager.h"

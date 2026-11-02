@@ -1,19 +1,55 @@
+diff --git a/include/lvgl/core/lv_translation.h b/include/lvgl/core/lv_translation.h
+index 0cf979973..f8d2b5e38 100644
+--- a/include/lvgl/core/lv_translation.h
++++ b/include/lvgl/core/lv_translation.h
+@@ -72,7 +72,8 @@ void lv_translation_set_language(const char * lang);
+ 
+ /**
+  * Get the current selected language
+- * @return the current selected language
++ * @return the current selected language. Freed by the next
++ *         `lv_translation_set_language()`, so main thread only.
+  */
+ const char * lv_translation_get_language(void);
+ 
+@@ -84,6 +85,11 @@ const char * lv_translation_get_language(void);
+  *                      - if the tag is found on the selected language return it
+  *                      - if the tag is not found on the selected language, use the fist language
+  *                      - if the tag is not found on the first language, return the tag
++ * @note            Safe from any thread. Lookups, language switches and pack
++ *                  registration serialize on one lock, and the returned string
++ *                  stays valid until `lv_translation_deinit()` unless that same
++ *                  tag's translation is replaced with
++ *                  `lv_translation_set_tag_translation()`.
+  */
+ const char * lv_translation_get(const char * tag);
+ 
+@@ -108,6 +114,8 @@ lv_result_t lv_translation_add_language(lv_translation_pack_t * pack, const char
+  * @param pack      pointer to a static or dynamic language pack
+  * @param lang_name name of the language to find
+  * @return          index of the language or -1 if not found.
++ * @note            Main thread only: it reads the pack without the lock, so it
++ *                  must not run beside pack registration on another thread.
+  */
+ int32_t lv_translation_get_language_index(lv_translation_pack_t * pack, const char * lang_name);
+ 
+diff --git a/src/others/translation/lv_translation.c b/src/others/translation/lv_translation.c
+index 45ca85377..690c9c523 100644
 --- a/src/others/translation/lv_translation.c
 +++ b/src/others/translation/lv_translation.c
-@@ -18,6 +18,8 @@
+@@ -11,6 +11,8 @@
+ 
  #include "../../core/lv_global.h"
- #include "../../lvgl_private.h"
  
 +#include <pthread.h>
 +
  /*********************
   *      DEFINES
   *********************/
-@@ -33,6 +35,11 @@
-  **********************/
+@@ -27,6 +29,10 @@
  
  static lv_obj_tree_walk_res_t send_language_change_event(lv_obj_t * obj, void * lang);
-+static const char * translation_get_locked(const char * tag);
+ static const char * get_translation(const char * tag);
 +static lv_result_t add_language_locked(lv_translation_pack_t * pack, const char * lang);
 +static lv_translation_tag_dsc_t * add_tag_locked(lv_translation_pack_t * pack, const char * tag_name);
 +static lv_result_t set_tag_translation_locked(lv_translation_pack_t * pack, lv_translation_tag_dsc_t * tag,
@@ -21,7 +57,7 @@
  
  /**********************
   *  STATIC VARIABLES
-@@ -48,6 +55,14 @@
+@@ -42,6 +48,14 @@ static const char * get_translation(const char * tag);
   * warning, never a behaviour change. */
  static bool missing_lang_warned;
  
@@ -36,7 +72,7 @@
  /**********************
   *      MACROS
   **********************/
-@@ -65,6 +80,7 @@
+@@ -59,6 +73,7 @@ void lv_translation_init(void)
  
  void lv_translation_deinit(void)
  {
@@ -44,19 +80,17 @@
      lv_translation_pack_t * pack;
      LV_LL_READ(&packs_ll, pack) {
          if(pack->is_static == false) {
-@@ -93,7 +109,9 @@
-     lv_ll_clear(&packs_ll);
- 
+@@ -89,6 +104,7 @@ void lv_translation_deinit(void)
      lv_free((void *)selected_lang);
-+    selected_lang = NULL;
+     selected_lang = NULL;
      missing_lang_warned = false;
 +    pthread_mutex_unlock(&translation_lock);
  }
  
  lv_translation_pack_t * lv_translation_add_static(const char * const languages[], const char * const tags[],
-@@ -103,9 +121,13 @@
-     LV_ASSERT_NULL(tags);
-     LV_ASSERT_NULL(translations);
+@@ -98,9 +114,13 @@ lv_translation_pack_t * lv_translation_add_static(const char * const languages[]
+     LV_CHECK_ARG(tags != NULL, return NULL);
+     LV_CHECK_ARG(translations != NULL, return NULL);
  
 +    pthread_mutex_lock(&translation_lock);
      lv_translation_pack_t * pack = lv_ll_ins_head(&packs_ll);
@@ -69,7 +103,7 @@
      lv_memzero(pack, sizeof(lv_translation_pack_t));
      pack->is_static = 1;
  
-@@ -117,19 +139,25 @@
+@@ -112,19 +132,25 @@ lv_translation_pack_t * lv_translation_add_static(const char * const languages[]
      pack->languages = (const char **)languages;
      pack->tag_p = (const char **)tags;
      pack->translation_p = (const char **)translations;
@@ -96,13 +130,21 @@
  
      return pack;
  }
-@@ -141,14 +169,25 @@
- 
- void lv_translation_set_language(const char * lang)
+@@ -138,32 +164,50 @@ void lv_translation_set_language(const char * lang)
  {
+     LV_CHECK_ARG(lang != NULL, return);
+ 
 +    pthread_mutex_lock(&translation_lock);
-     if(selected_lang) lv_free((void *)selected_lang);
-     selected_lang = lv_strdup(lang);
+     size_t new_len = lv_strlen(lang) + 1;
+     char * new_lang = lv_realloc((void *)selected_lang, new_len);
+     LV_ASSERT_MALLOC(new_lang);
+     if(!new_lang) {
++        pthread_mutex_unlock(&translation_lock);
+         LV_LOG_WARN("Not enough memory to modify the language");
+         return;
+     }
+     lv_strcpy(new_lang, lang);
+     selected_lang = new_lang;
      missing_lang_warned = false;
 +    pthread_mutex_unlock(&translation_lock);
 +    /*Unlocked: the event handlers look translations up*/
@@ -111,21 +153,26 @@
  
  const char * lv_translation_get(const char * tag)
  {
+     LV_CHECK_ARG(tag != NULL, return NULL);
+-    return get_translation(tag);
 +    pthread_mutex_lock(&translation_lock);
-+    const char * tr = translation_get_locked(tag);
++    const char * tr = get_translation(tag);
 +    pthread_mutex_unlock(&translation_lock);
 +    return tr;
-+}
-+
-+static const char * translation_get_locked(const char * tag)
-+{
-     if(selected_lang == NULL) {
-         LV_LOG_WARN("No language is selected to get the translation of `%s`", tag);
-         return tag;
-@@ -209,6 +248,14 @@
+ }
+ 
+ const char * lv_tr(const char * tag)
+ {
+     LV_CHECK_ARG(tag != NULL, return NULL);
+-    return get_translation(tag);
++    pthread_mutex_lock(&translation_lock);
++    const char * tr = get_translation(tag);
++    pthread_mutex_unlock(&translation_lock);
++    return tr;
+ }
  
  lv_result_t lv_translation_add_language(lv_translation_pack_t * pack, const char * lang)
- {
++{
 +    pthread_mutex_lock(&translation_lock);
 +    lv_result_t res = add_language_locked(pack, lang);
 +    pthread_mutex_unlock(&translation_lock);
@@ -133,14 +180,14 @@
 +}
 +
 +static lv_result_t add_language_locked(lv_translation_pack_t * pack, const char * lang)
-+{
-     if(pack->is_static) {
-         LV_LOG_WARN("Can't add language `%s` to static translation pack `%p`", lang, (void *)pack);
-         return LV_RESULT_INVALID;
-@@ -245,6 +292,14 @@
+ {
+     LV_CHECK_ARG(pack != NULL, return LV_RESULT_INVALID);
+     LV_CHECK_ARG(lang != NULL, return LV_RESULT_INVALID);
+@@ -206,6 +250,14 @@ int32_t lv_translation_get_language_index(lv_translation_pack_t * pack, const ch
+ 
  
  lv_translation_tag_dsc_t * lv_translation_add_tag(lv_translation_pack_t * pack, const char * tag_name)
- {
++{
 +    pthread_mutex_lock(&translation_lock);
 +    lv_translation_tag_dsc_t * tag = add_tag_locked(pack, tag_name);
 +    pthread_mutex_unlock(&translation_lock);
@@ -148,14 +195,14 @@
 +}
 +
 +static lv_translation_tag_dsc_t * add_tag_locked(lv_translation_pack_t * pack, const char * tag_name)
-+{
-     if(pack->is_static) {
-         LV_LOG_WARN("Can't add tag `%s` to static translation pack `%p`", tag_name, (void *)pack);
-         return NULL;
-@@ -278,6 +333,15 @@
+ {
+     LV_CHECK_ARG(pack != NULL, return NULL);
+     LV_CHECK_ARG(tag_name != NULL, return NULL);
+@@ -238,6 +290,15 @@ lv_translation_tag_dsc_t * lv_translation_add_tag(lv_translation_pack_t * pack,
+ 
  lv_result_t lv_translation_set_tag_translation(lv_translation_pack_t * pack, lv_translation_tag_dsc_t * tag,
                                                 uint32_t lang_idx, const char * trans)
- {
++{
 +    pthread_mutex_lock(&translation_lock);
 +    lv_result_t res = set_tag_translation_locked(pack, tag, lang_idx, trans);
 +    pthread_mutex_unlock(&translation_lock);
@@ -164,40 +211,6 @@
 +
 +static lv_result_t set_tag_translation_locked(lv_translation_pack_t * pack, lv_translation_tag_dsc_t * tag,
 +                                              uint32_t lang_idx, const char * trans)
-+{
-     if(pack->is_static) {
-         LV_LOG_WARN("Can't set tag translation`%s` in static translation pack `%p`", trans, (void *)pack);
-         return LV_RESULT_INVALID;
---- a/src/others/translation/lv_translation.h
-+++ b/src/others/translation/lv_translation.h
-@@ -72,7 +72,8 @@
- 
- /**
-  * Get the current selected language
-- * @return the current selected language
-+ * @return the current selected language. Freed by the next
-+ *         `lv_translation_set_language()`, so main thread only.
-  */
- const char * lv_translation_get_language(void);
- 
-@@ -84,6 +85,11 @@
-  *                      - if the tag is found on the selected language return it
-  *                      - if the tag is not found on the selected language, use the fist language
-  *                      - if the tag is not found on the first language, return the tag
-+ * @note            Safe from any thread. Lookups, language switches and pack
-+ *                  registration serialize on one lock, and the returned string
-+ *                  stays valid until `lv_translation_deinit()` unless that same
-+ *                  tag's translation is replaced with
-+ *                  `lv_translation_set_tag_translation()`.
-  */
- const char * lv_translation_get(const char * tag);
- 
-@@ -111,6 +117,8 @@
-  * @param pack      pointer to a static or dynamic language pack
-  * @param lang_name name of the language to find
-  * @return          index of the language or -1 if not found.
-+ * @note            Main thread only: it reads the pack without the lock, so it
-+ *                  must not run beside pack registration on another thread.
-  */
- int32_t lv_translation_get_language_index(lv_translation_pack_t * pack, const char * lang_name);
- 
+ {
+     LV_CHECK_ARG(pack != NULL, return LV_RESULT_INVALID);
+     LV_CHECK_ARG(tag != NULL, return LV_RESULT_INVALID);

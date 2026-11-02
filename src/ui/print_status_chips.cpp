@@ -2,7 +2,7 @@
 
 #include "print_status_chips.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widgets/callout_chip.h"
 #include "tune_controller.h"
 

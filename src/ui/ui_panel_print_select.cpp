@@ -49,7 +49,7 @@
 #include "i_moonraker_api.h"
 #include "job_queue_state.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_auth.h"
 #include "observe_language.h"
 #include "observer_factory.h"

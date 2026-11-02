@@ -1,5 +1,5 @@
 diff --git a/src/widgets/image/lv_image.c b/src/widgets/image/lv_image.c
-index bb5ae693e..6e1293def 100644
+index 213846c15..d9a257d62 100644
 --- a/src/widgets/image/lv_image.c
 +++ b/src/widgets/image/lv_image.c
 @@ -180,11 +180,21 @@ void lv_image_set_src(lv_obj_t * obj, const void * src)

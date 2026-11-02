@@ -3,7 +3,7 @@
 #include "helix_plugin_features.h"
 
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <algorithm>
 #include <iterator>

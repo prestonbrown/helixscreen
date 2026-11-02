@@ -36,7 +36,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "filament_chip_model.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "settings_manager.h"

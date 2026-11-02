@@ -502,10 +502,13 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     lv_obj_set_style_text_color(data_ptr->current_label, text_color, LV_PART_MAIN);
 
     if (data_ptr->show_target) {
-        // Create separator label " / "
+        // Create separator label. A label's trailing space adds nothing to its
+        // width, so the gap after the slash is a margin of one space.
         data_ptr->separator_label = lv_label_create(container);
-        lv_label_set_text(data_ptr->separator_label, " / ");
+        lv_label_set_text(data_ptr->separator_label, " /");
         helix::ui::apply_font_style(data_ptr->separator_label, font);
+        lv_obj_set_style_margin_right(data_ptr->separator_label,
+                                      lv_font_get_glyph_width(font, ' ', 0), LV_PART_MAIN);
         lv_obj_set_style_text_color(data_ptr->separator_label, muted_color, LV_PART_MAIN);
 
         // Create target temp label

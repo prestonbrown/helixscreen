@@ -10,9 +10,8 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "display_numbering.h"
+#include "lvgl.h"
 #include "static_panel_registry.h"
-
-#include <lvgl/src/others/translation/lv_translation.h>
 
 #include <memory>
 #include <optional>

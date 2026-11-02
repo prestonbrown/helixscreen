@@ -15,7 +15,7 @@
 #include "chamber_heater_backend.h"
 #include "display_numbering.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "state/subject_macros.h"
 #include "unit_conversions.h"
 

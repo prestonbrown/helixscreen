@@ -8,7 +8,7 @@
 
 #include "helix_thread.h"
 #include "log_redact.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 #include "system/run_capture.h"

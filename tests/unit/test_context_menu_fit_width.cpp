@@ -20,7 +20,7 @@
 #include "../test_helpers/layout_manager_test_access.h"
 #include "config.h"
 #include "layout_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "theme_manager.h"
 #include "translation_loader.h"
 

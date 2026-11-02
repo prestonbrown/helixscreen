@@ -20,7 +20,7 @@
 #include "config.h"
 #include "hardware_role_registry.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_fan_state.h"

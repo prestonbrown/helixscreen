@@ -13,7 +13,7 @@
 #include "ui_utils.h"
 
 #include "i18n_plural.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "system/telemetry_manager.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

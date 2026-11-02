@@ -4,7 +4,7 @@
 #include "../test_helpers/load_filament_expression_default.h"
 #include "../ui_test_utils.h"
 #include "favorite_macro_widget.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include "../catch_amalgamated.hpp"
 

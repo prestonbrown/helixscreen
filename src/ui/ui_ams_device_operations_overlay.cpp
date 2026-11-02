@@ -20,7 +20,7 @@
 #include "ams_bypass_policy.h"
 #include "ams_state.h"
 #include "ams_types.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "settings_manager.h"
 #include "sort_small.h"

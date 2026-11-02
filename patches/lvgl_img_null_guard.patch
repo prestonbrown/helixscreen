@@ -1,8 +1,8 @@
 diff --git a/src/draw/sw/lv_draw_sw_img.c b/src/draw/sw/lv_draw_sw_img.c
-index b401a0885..b435788aa 100644
+index 7e6780010..3d3e3f159 100644
 --- a/src/draw/sw/lv_draw_sw_img.c
 +++ b/src/draw/sw/lv_draw_sw_img.c
-@@ -1044,6 +1044,12 @@ static bool apply_mask(const lv_draw_image_dsc_t * draw_dsc)
+@@ -1062,6 +1062,12 @@ static bool apply_mask(const lv_draw_image_dsc_t * draw_dsc)
                                                 masked_area.x1 - mask_area.x1,
                                                 masked_area.y1 - mask_area.y1);
  

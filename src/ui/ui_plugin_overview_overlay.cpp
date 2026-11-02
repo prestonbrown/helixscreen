@@ -12,7 +12,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "printer_state.h"
 #include "ui/ui_widget_helpers.h"

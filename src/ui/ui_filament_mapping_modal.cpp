@@ -9,7 +9,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "display_numbering.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "settings_manager.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"

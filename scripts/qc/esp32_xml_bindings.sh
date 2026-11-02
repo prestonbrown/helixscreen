@@ -12,7 +12,7 @@
 QC_ESP32_BINDING_HUNK_RE='lv_xml_register_subject|lv_xml_register_event_cb|register_xml_callbacks|register_subject|publish[[:space:]]*\(|_SUBJECT_|SUBJECT_INIT|^[+-][[:space:]]*#[[:space:]]*(if|el|endif)'
 
 # Paths that change the gate's answer whatever the hunk says.
-QC_ESP32_BINDING_ALWAYS_RE='^ui_xml/.*\.xml$|^firmware/helixscreen-esp32/components/|^scripts/(check_esp32_xml_bindings|check_orphan_callbacks|check_orphan_subjects|check_esp32_app_srcs)\.py$|^scripts/esp32_xml_binding_baseline\.txt$'
+QC_ESP32_BINDING_ALWAYS_RE='^ui_xml/.*\.xml$|^firmware/helixscreen-esp32/(components|ui_xml_overrides)/|^lib/helix-xml/src/xml/lv_xml\.c$|^scripts/(check_esp32_xml_bindings|check_orphan_callbacks|check_orphan_subjects|check_esp32_app_srcs)\.py$|^scripts/esp32_xml_binding_baseline\.txt$'
 
 # Whether the staged change can alter which bindings the firmware registers.
 qc_esp32_bindings_touched() {

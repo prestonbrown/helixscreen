@@ -12,7 +12,7 @@
 #include "label_printer_settings.h"
 #include "label_printer_utils.h"
 #include "label_renderer.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "sheet_label_layout.h"
 
 #include <spdlog/spdlog.h>

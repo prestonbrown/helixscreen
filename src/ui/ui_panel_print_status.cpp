@@ -49,7 +49,7 @@
 #include "job_queue_state.h"
 #include "layout_manager.h"
 #include "led/led_controller.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
 #include "non_filament_pause.h"

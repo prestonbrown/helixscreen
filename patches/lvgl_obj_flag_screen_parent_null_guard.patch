@@ -1,42 +1,75 @@
-diff --git a/src/core/lv_obj.h b/src/core/lv_obj.h
---- a/src/core/lv_obj.h
-+++ b/src/core/lv_obj.h
-@@ -35,6 +35,9 @@
+diff --git a/include/lvgl/core/lv_obj.h b/include/lvgl/core/lv_obj.h
+index 25c79c09e..c04c98035 100644
+--- a/include/lvgl/core/lv_obj.h
++++ b/include/lvgl/core/lv_obj.h
+@@ -35,6 +35,10 @@ extern "C" {
   *      DEFINES
   *********************/
  
-+/*lv_obj_add_flag/lv_obj_remove_flag tolerate a parentless object (a screen)*/
++/*lv_obj_add_flag/lv_obj_remove_flag and the lv_obj_set_<flag>() setters tolerate a
++ *parentless object (a screen)*/
 +#define HELIX_LV_OBJ_FLAG_SCREEN_PARENT_GUARD 1
 +
  /**********************
   *      TYPEDEFS
   **********************/
 diff --git a/src/core/lv_obj.c b/src/core/lv_obj.c
+index dd84f7c56..58313e5ee 100644
 --- a/src/core/lv_obj.c
 +++ b/src/core/lv_obj.c
-@@ -277,7 +277,7 @@
-     }
+@@ -441,7 +441,7 @@ void lv_obj_add_flag(lv_obj_t * obj, lv_obj_flag_t f)
+     if(f & LV_OBJ_FLAG_USER_4)                obj->spec_attr->user_flags |= 1 << 7;
  
-     if((was_on_layout != lv_obj_is_layout_positioned(obj)) || (f & (LV_OBJ_FLAG_LAYOUT_1 |  LV_OBJ_FLAG_LAYOUT_2))) {
+     if((f & LV_OBJ_FLAG_LAYOUT_1) || (f & LV_OBJ_FLAG_LAYOUT_2)) {
 -        lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
 +        if(lv_obj_get_parent(obj)) lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
          lv_obj_mark_layout_as_dirty(obj);
      }
+ }
+@@ -489,7 +489,7 @@ void lv_obj_remove_flag(lv_obj_t * obj, lv_obj_flag_t f)
+     if(f & LV_OBJ_FLAG_USER_4)                obj->spec_attr->user_flags &= ~(1 << 7);
  
-@@ -307,12 +307,14 @@
- 
-     if(f & LV_OBJ_FLAG_HIDDEN) {
-         lv_obj_invalidate(obj);
+     if((f & LV_OBJ_FLAG_LAYOUT_1) || (f & LV_OBJ_FLAG_LAYOUT_2)) {
 -        lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
-+        /*A screen has no parent: unhiding one must not dereference NULL*/
++        if(lv_obj_get_parent(obj)) lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
+         lv_obj_mark_layout_as_dirty(obj);
+     }
+ }
+@@ -536,7 +536,9 @@ void lv_obj_set_hidden(lv_obj_t * obj, bool en)
+     }
+ 
+     if((was_on_layout != lv_obj_is_layout_positioned(obj))) {
+-        lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
++        /*A screen has no parent: hiding or unhiding one must not dereference NULL*/
 +        lv_obj_t * parent = lv_obj_get_parent(obj);
 +        if(parent) lv_obj_mark_layout_as_dirty(parent);
          lv_obj_mark_layout_as_dirty(obj);
      }
+ }
+@@ -675,7 +677,7 @@ void lv_obj_set_ignore_layout(lv_obj_t * obj, bool en)
+     obj->ignore_layout = en;
  
-     if((was_on_layout != lv_obj_is_layout_positioned(obj)) || (f & (LV_OBJ_FLAG_LAYOUT_1 |  LV_OBJ_FLAG_LAYOUT_2))) {
+     if((was_on_layout != lv_obj_is_layout_positioned(obj))) {
 -        lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
 +        if(lv_obj_get_parent(obj)) lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
+         lv_obj_mark_layout_as_dirty(obj);
+     }
+ }
+@@ -691,7 +693,7 @@ void lv_obj_set_floating(lv_obj_t * obj, bool en)
+     obj->floating = en;
+ 
+     if((was_on_layout != lv_obj_is_layout_positioned(obj))) {
+-        lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
++        if(lv_obj_get_parent(obj)) lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
+         lv_obj_mark_layout_as_dirty(obj);
+     }
+ }
+@@ -743,7 +745,7 @@ void lv_obj_set_flex_in_new_track(lv_obj_t * obj, bool en)
+         if(obj->spec_attr) obj->spec_attr->user_flags &= ~(1 << 0);
      }
  
+-    lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
++    if(lv_obj_get_parent(obj)) lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
+     lv_obj_mark_layout_as_dirty(obj);
  }
+ 

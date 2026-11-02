@@ -6,7 +6,6 @@
 #include "ui_toast_manager.h"
 
 #include "display_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "system/crash_reporter.h"
 #include "system/debug_bundle_collector.h"
 #include "system/diag_upload_gate.h"

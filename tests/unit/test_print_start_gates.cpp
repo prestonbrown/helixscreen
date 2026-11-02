@@ -9,7 +9,7 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_types.h"
 #include "filament_mapper.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_types.h"
 #include "print_start_checks.h"
 #include "translation_loader.h"

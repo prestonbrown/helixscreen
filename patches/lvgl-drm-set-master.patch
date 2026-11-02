@@ -1,8 +1,8 @@
 diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv_linux_drm.c
-index 2a6ca6ed0..2b1506809 100644
+index f295b0cd7..e4a84f857 100644
 --- a/src/drivers/display/drm/lv_linux_drm.c
 +++ b/src/drivers/display/drm/lv_linux_drm.c
-@@ -764,6 +764,38 @@ static int drm_setup(drm_dev_t * drm_dev, const char * device_path, int64_t conn
+@@ -957,6 +957,38 @@ static int drm_setup(drm_dev_t * drm_dev, const char * device_path, int64_t conn
          goto err;
      }
  

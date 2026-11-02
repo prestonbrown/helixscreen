@@ -8,8 +8,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <draw/lv_image_decoder_private.h>
 #include <filesystem>
+#include <image/lv_image_decoder_private.h>
 #include <memory>
 #include <unordered_map>
 

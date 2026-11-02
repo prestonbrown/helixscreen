@@ -37,7 +37,7 @@
 #include "http_executor.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "memory_utils.h"
 #include "moonraker_types.h"
 #include "moonraker_validation.h"

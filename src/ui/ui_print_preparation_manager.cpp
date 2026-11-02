@@ -17,7 +17,7 @@
 #include "gcode_tool_remapper.h"
 #include "helix_fs.h"
 #include "http_executor.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_param_cache.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"

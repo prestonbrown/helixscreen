@@ -1,29 +1,18 @@
 diff --git a/src/core/lv_obj_tree.c b/src/core/lv_obj_tree.c
+index b90528ac6..9abf7425f 100644
 --- a/src/core/lv_obj_tree.c
 +++ b/src/core/lv_obj_tree.c
-@@ -15,6 +15,10 @@
- #include "../misc/lv_async.h"
- #include "../core/lv_global.h"
+@@ -296,10 +296,23 @@ lv_obj_t * lv_obj_get_screen(const lv_obj_t * obj)
  
-+/* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
-+ * with backtrace + device context for remote crash diagnostics. */
-+extern void helix_lvgl_anomaly(const char * code, const char * context);
-+
- /*********************
-  *      DEFINES
-  *********************/
-@@ -313,10 +313,24 @@ lv_obj_t * lv_obj_get_screen(const lv_obj_t * obj)
-
      const lv_obj_t * par = obj;
      const lv_obj_t * act_par;
 +    /* Cap iterations so a cyclic parent chain (UAF / double-reparent / memory
 +     * reuse after lv_obj_delete) becomes a recoverable error instead of an
-+     * infinite spin that hangs the UI thread. Seen on v0.99.35 after
-+     * grid-edit rebuild: safe_delete_deferred called lv_obj_set_parent on a
-+     * freed object whose memory had been reused, producing a cycle.
++     * infinite spin that hangs the UI thread: lv_obj_set_parent() on a freed
++     * object whose memory was reused can produce such a cycle.
 +     * No real UI has a parent chain deeper than 128. */
 +    uint32_t depth = 0;
-
+ 
      do {
          act_par = par;
          par = lv_obj_get_parent(act_par);
@@ -35,5 +24,5 @@ diff --git a/src/core/lv_obj_tree.c b/src/core/lv_obj_tree.c
 +            break;
 +        }
      } while(par != NULL);
-
+ 
      return (lv_obj_t *)act_par;

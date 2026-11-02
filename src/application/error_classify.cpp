@@ -3,7 +3,7 @@
 
 #include "gcode_error_router.h" // clean_error_text
 #include "klipper_error_table.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 namespace helix::error_classify {
 

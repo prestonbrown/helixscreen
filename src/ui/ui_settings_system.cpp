@@ -18,7 +18,7 @@
 
 #include "app_globals.h"
 #include "config.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "system_settings_manager.h"
 
 #include <spdlog/spdlog.h>

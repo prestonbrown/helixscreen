@@ -4,7 +4,7 @@
 #include "print_start_profile.h"
 
 #include "data_root_resolver.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>

@@ -14,7 +14,7 @@
 #include "ams_error.h"
 #include "ams_types.h"
 #include "display_numbering.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "translation_loader.h"
 
 #include "../catch_amalgamated.hpp"

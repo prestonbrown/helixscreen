@@ -3,7 +3,7 @@
 
 #include "buffer_reading.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/fmt/fmt.h>
 

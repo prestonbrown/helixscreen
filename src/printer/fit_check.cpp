@@ -3,7 +3,7 @@
 
 #include "gcode_wait_line.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>

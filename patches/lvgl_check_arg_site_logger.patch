@@ -1,0 +1,58 @@
+A check-argument log mode that costs a call per site instead of strings.
+
+LV_CHECK_ARG_LOG_MODE_SITE routes every failed LV_CHECK_ARG / LV_CHECK_OBJ
+through one cold lv_check_arg_failed_at(file, line), so each of the thousand-odd
+check sites costs a call, not its condition text, function name and format
+string. The check still runs and still takes its action; a failure logs
+"Check failed" with the check's file and line. The ESP32 firmware selects it.
+
+diff --git a/include/lvgl/config/lv_conf_internal.h b/include/lvgl/config/lv_conf_internal.h
+index 8a77f5f3a..12111a8ea 100644
+--- a/include/lvgl/config/lv_conf_internal.h
++++ b/include/lvgl/config/lv_conf_internal.h
+@@ -119,6 +119,7 @@
+ #define LV_CHECK_ARG_LOG_MODE_NONE      0
+ #define LV_CHECK_ARG_LOG_MODE_MINIMAL   1
+ #define LV_CHECK_ARG_LOG_MODE_VERBOSE   2
++#define LV_CHECK_ARG_LOG_MODE_SITE      3
+ 
+ /** Handle special Kconfig options. */
+ #ifndef LV_KCONFIG_IGNORE
+diff --git a/include/lvgl/debugging/lv_check_arg.h b/include/lvgl/debugging/lv_check_arg.h
+index d510a4605..07dfacd04 100644
+--- a/include/lvgl/debugging/lv_check_arg.h
++++ b/include/lvgl/debugging/lv_check_arg.h
+@@ -65,6 +65,12 @@ extern "C" {
+ #    define LV_CHECK_ARG_LOG_(cond_str, msg) LV_LOG_WARN("Check failed: %s" msg, cond_str)
+ #    define LV_CHECK_ARG_LOG_FORMAT_(cond_str, format, ...) \
+     LV_LOG_WARN("Check failed: %s" format, cond_str, __VA_ARGS__)
++#  elif LV_CHECK_ARG_LOG_MODE == LV_CHECK_ARG_LOG_MODE_SITE
++/* One out-of-line logger taking the check's file and line, so a check site costs a
++ * call rather than its condition text, function name and format string. */
++void lv_check_arg_failed_at(const char * file, int line);
++#    define LV_CHECK_ARG_LOG_(cond_str, msg) lv_check_arg_failed_at(__FILE__, __LINE__)
++#    define LV_CHECK_ARG_LOG_FORMAT_(cond_str, format, ...) lv_check_arg_failed_at(__FILE__, __LINE__)
+ #  elif LV_CHECK_ARG_LOG_MODE == LV_CHECK_ARG_LOG_MODE_MINIMAL
+ #    define LV_CHECK_ARG_LOG_(cond_str, msg) LV_LOG_WARN("Check failed")
+ #    define LV_CHECK_ARG_LOG_FORMAT_(cond_str, format, ...) LV_LOG_WARN("Check failed")
+diff --git a/src/logging/lv_log.c b/src/logging/lv_log.c
+index 0eddaef0a..74c2846c2 100644
+--- a/src/logging/lv_log.c
++++ b/src/logging/lv_log.c
+@@ -65,6 +65,16 @@ void lv_log_register_print_cb(lv_log_print_g_cb_t print_cb)
+     custom_print_cb = print_cb;
+ }
+ 
++#if LV_USE_CHECK_ARG && LV_CHECK_ARG_LOG_MODE == LV_CHECK_ARG_LOG_MODE_SITE
++#if defined(__GNUC__)
++__attribute__((cold, noinline))
++#endif
++void lv_check_arg_failed_at(const char * file, int line)
++{
++    lv_log_add(LV_LOG_LEVEL_WARN, file, line, "check", "Check failed");
++}
++#endif
++
+ void lv_log_add(lv_log_level_t level, const char * file, int line, const char * func, const char * format, ...)
+ {
+     LV_CHECK_ARG(format != NULL, return);

@@ -9,7 +9,7 @@
 #include "ui_toast_manager.h"
 
 #include "helix_version.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "platform_info.h"
 #include "system/config_trust.h"
 #include "system/update_checker.h"

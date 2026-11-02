@@ -19,7 +19,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.h"
 #include "lv_draw_buf_guard.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
 #include "system/run_capture.h"

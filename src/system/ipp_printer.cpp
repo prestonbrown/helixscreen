@@ -10,7 +10,7 @@
 #include "http_executor.h"
 #include "hv/HttpClient.h"
 #include "ipp_protocol.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "pwg_raster.h"
 #include "sheet_label_layout.h"
 #include "translation_loader.h"

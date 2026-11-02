@@ -17,7 +17,7 @@
 #include "console_filter_engine.h"
 #include "console_line.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "settings_manager.h"

@@ -12,7 +12,7 @@
 #include "helix_fs.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_start_analyzer.h"
 #include "printer_discovery.h"
 #include "printer_image_variants.h"

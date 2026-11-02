@@ -37,6 +37,7 @@ from pathlib import Path
 # path (an egl-variant/ directory); every other entry must match an object.
 EGL = "egl"
 ALLOWED = {
+    "obj/lvgl/src/drivers/display/drm/lv_linux_drm_common.o": "lv_linux_drm_find_device_path() is never called",
     "obj/api/display_backend.o": "panel orientation and no-display diagnostics check Lib::Drm",
     "display/display_backend.o": "the same source, in the splash/watchdog display library",
     "obj/api/display_backend_drm.o": "constructor and is_available() check drm_libs_present()",

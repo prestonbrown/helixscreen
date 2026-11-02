@@ -32,7 +32,7 @@
 #include "i_moonraker_api.h"
 #include "input_sensor_manager.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "pre_start_exclude.h"
 #include "print_job_ref.h"

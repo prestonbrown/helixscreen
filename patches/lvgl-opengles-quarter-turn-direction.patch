@@ -1,18 +1,25 @@
 Subject: [PATCH] opengles: present quarter turns in LVGL's direction on DRM/EGL
 
-The swap is specific to the DRM/EGL presentation path. That path flushes with
-v_flip=false and scans the render target's row 0 out at the panel's physical
-top, where the vertex table turns a quarter turn clockwise while
-lv_display_rotate_point() maps pointer input counter-clockwise. The SDL-EGL
-(lv_sdl_egl.c) and Wayland (lv_wl_egl_backend.c) presentation paths call
-lv_opengles_render_display() with v_flip=true, and their correct direction is
-the opposite one: a build that presents through either of them with
-LV_USE_OPENGLES needs this swap made conditional on the caller.
+lv_opengles_render_display() fills its vertex table a quarter turn clockwise,
+while lv_display_rotate_point() maps pointer input counter-clockwise. On the
+DRM/EGL path with software rendering, which presents through
+lv_opengles_texture_present_display() with v_flip=false and scans the render
+target's row 0 out at the panel's physical top, that leaves touch reversed on
+both axes of a GPU-rotated display, so the two quarter turns trade places.
+
+The SDL-EGL (lv_sdl_egl.c) and Wayland (lv_wayland_backend_egl.c) paths reach
+the same function through lv_opengles_texture_render_display(): with software
+rendering they pass v_flip=false as DRM does, and with LV_USE_DRAW_OPENGLES
+they pass v_flip=true, where the correct direction is the opposite one. Only
+the DRM software path is verified; a build presenting through either of the
+others needs the swap checked, and made conditional on the caller if it is
+wrong there.
 
 diff --git a/src/drivers/opengles/lv_opengles_driver.c b/src/drivers/opengles/lv_opengles_driver.c
+index 24b164191..d373f4347 100644
 --- a/src/drivers/opengles/lv_opengles_driver.c
 +++ b/src/drivers/opengles/lv_opengles_driver.c
-@@ -215,6 +215,10 @@
+@@ -351,6 +351,10 @@ void lv_opengles_render_display(lv_display_t * display, const lv_opengles_render
      GL_CALL(glBindTexture(GL_TEXTURE_2D, texture));
  
      lv_display_rotation_t rotation = lv_display_get_rotation(display);

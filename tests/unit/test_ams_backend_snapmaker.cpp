@@ -24,7 +24,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "lvgl_ui_test_fixture.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

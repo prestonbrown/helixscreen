@@ -28,7 +28,7 @@
           <icon src="video" size="xs" variant="secondary"/>
           <text_small name="frame_count_label" width="content" bind_text="timelapse_frame_count"/>
           <text_small text=" frames" style_text_color="#text_muted"/>
-          <text_small width="content" text=" · " style_text_color="#text_muted"/>
+          <text_small width="content" text="·" style_pad_hor="#space_xs" style_text_color="#text_muted"/>
           <text_small name="capture_info_label"
                       bind_text="timelapse_capture_info" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
         </lv_obj>

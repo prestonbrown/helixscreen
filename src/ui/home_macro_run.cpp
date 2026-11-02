@@ -8,7 +8,7 @@
 #include "app_globals.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
 #include "macro_param_defaults.h"

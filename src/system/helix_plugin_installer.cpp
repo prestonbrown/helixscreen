@@ -8,7 +8,7 @@
 #include "helix_version.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "system/child_process.h"
 #include "system/update_checker.h"
 #include "text_io.h"

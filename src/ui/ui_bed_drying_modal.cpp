@@ -12,7 +12,6 @@
 #include "display_manager.h"
 #include "filament_op_execute.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "sound_manager.h"
 

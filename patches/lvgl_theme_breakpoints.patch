@@ -1,28 +1,28 @@
 diff --git a/src/themes/default/lv_theme_default.c b/src/themes/default/lv_theme_default.c
-index 1234567..abcdefg 100644
+index 9331a12aa..bf407c819 100644
 --- a/src/themes/default/lv_theme_default.c
 +++ b/src/themes/default/lv_theme_default.c
-@@ -40,9 +40,9 @@
+@@ -40,9 +40,9 @@ typedef struct _my_theme_t my_theme_t;
  #define BORDER_WIDTH            LV_DPX_CALC(theme->disp_dpi, 2)
  #define OUTLINE_WIDTH           LV_DPX_CALC(theme->disp_dpi, 3)
-
+ 
 -#define PAD_DEF     LV_DPX_CALC(theme->disp_dpi, theme->disp_size == DISP_LARGE ? 24 : theme->disp_size == DISP_MEDIUM ? 20 : 16)
 -#define PAD_SMALL   LV_DPX_CALC(theme->disp_dpi, theme->disp_size == DISP_LARGE ? 14 : theme->disp_size == DISP_MEDIUM ? 12 : 10)
 -#define PAD_TINY    LV_DPX_CALC(theme->disp_dpi, theme->disp_size == DISP_LARGE ? 8 : theme->disp_size == DISP_MEDIUM ? 6 : 2)
 +#define PAD_DEF     LV_DPX_CALC(theme->disp_dpi, theme->disp_size == DISP_LARGE ? 20 : theme->disp_size == DISP_MEDIUM ? 16 : 12)
 +#define PAD_SMALL   LV_DPX_CALC(theme->disp_dpi, theme->disp_size == DISP_LARGE ? 12 : theme->disp_size == DISP_MEDIUM ? 10 : 8)
 +#define PAD_TINY    LV_DPX_CALC(theme->disp_dpi, theme->disp_size == DISP_LARGE ? 6 : theme->disp_size == DISP_MEDIUM ? 4 : 2)
-
+ 
  /**********************
   *      TYPEDEFS
-@@ -643,8 +643,8 @@ lv_theme_t * lv_theme_default_init(lv_display_t * disp, lv_color_t color_prima
+@@ -652,8 +652,8 @@ lv_theme_t * lv_theme_default_init(lv_display_t * disp, lv_color_t color_primary
      int32_t greater_res = LV_MAX(hor_res, ver_res);
      disp_size_t new_size;
-
+ 
 -    if(greater_res <= 320) new_size = DISP_SMALL;
 -    else if(greater_res < 720) new_size = DISP_MEDIUM;
 +    if(greater_res <= 480) new_size = DISP_SMALL;
 +    else if(greater_res <= 800) new_size = DISP_MEDIUM;
      else new_size = DISP_LARGE;
-
+ 
      /* check theme information whether will change or not*/

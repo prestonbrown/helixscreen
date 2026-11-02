@@ -5,7 +5,7 @@
 
 #include "ui_utils.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_start_phase_label.h"
 
 #include <spdlog/spdlog.h>

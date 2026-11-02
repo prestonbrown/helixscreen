@@ -1,10 +1,10 @@
 diff --git a/src/core/lv_obj_event.c b/src/core/lv_obj_event.c
-index 03fc68672..2b5dbabe7 100644
+index 200bea5e1..49d7e8785 100644
 --- a/src/core/lv_obj_event.c
 +++ b/src/core/lv_obj_event.c
-@@ -59,7 +59,13 @@ lv_result_t lv_obj_send_event(lv_obj_t * obj, lv_event_code_t event_code, void *
- 
-     LV_ASSERT_OBJ(obj, MY_CLASS);
+@@ -60,7 +60,13 @@ lv_result_t lv_obj_send_event(lv_obj_t * obj, lv_event_code_t event_code, void *
+ {
+     LV_CHECK_OBJ(obj, MY_CLASS, return 0);
  
 -    lv_event_t e;
 +    /* HelixScreen: __cleanup__ pop fires on every scope exit including C++
@@ -18,10 +18,10 @@ index 03fc68672..2b5dbabe7 100644
      e.original_target = obj;
      e.code = event_code;
 diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
-index 65e107258..33f9db243 100644
+index 671753fd7..fb0320261 100644
 --- a/src/misc/lv_event.c
 +++ b/src/misc/lv_event.c
-@@ -88,11 +88,26 @@ void lv_event_pop(lv_event_t * e)
+@@ -82,11 +82,26 @@ void lv_event_pop(lv_event_t * e)
      event_head = e->prev;
  }
  
@@ -50,10 +50,10 @@ index 65e107258..33f9db243 100644
      e.code = code;
      e.current_target = original_target;
 diff --git a/src/misc/lv_event_private.h b/src/misc/lv_event_private.h
-index 92efc3e81..22ae88655 100644
+index 2266f4e63..40baab742 100644
 --- a/src/misc/lv_event_private.h
 +++ b/src/misc/lv_event_private.h
-@@ -63,6 +63,15 @@ void lv_event_push(lv_event_t * e);
+@@ -70,6 +70,15 @@ void lv_event_push(lv_event_t * e);
  
  void lv_event_pop(lv_event_t * e);
  

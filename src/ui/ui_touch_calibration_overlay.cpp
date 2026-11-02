@@ -11,7 +11,7 @@
 
 #include "config.h"
 #include "display_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "touch_calibration.h"
 #include "touch_calibration_layout.h"
 #include "touch_calibration_wrapper.h"

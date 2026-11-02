@@ -6,7 +6,6 @@
 
 #include "app_globals.h"
 #include "display_numbering.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_executor.h"
 #include "printer_state.h"
 #include "stepper_resonance_calibration.h"

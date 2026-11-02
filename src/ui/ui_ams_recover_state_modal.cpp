@@ -6,7 +6,6 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "display_numbering.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 
 #include <spdlog/spdlog.h>
 

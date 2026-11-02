@@ -1,7 +1,8 @@
-diff --git a/src/drivers/opengles/lv_opengles_driver.h b/src/drivers/opengles/lv_opengles_driver.h
---- a/src/drivers/opengles/lv_opengles_driver.h
-+++ b/src/drivers/opengles/lv_opengles_driver.h
-@@ -24,6 +24,9 @@
+diff --git a/include/lvgl/drivers/opengles/lv_opengles_driver.h b/include/lvgl/drivers/opengles/lv_opengles_driver.h
+index 4e83c29a5..61ef8f27a 100644
+--- a/include/lvgl/drivers/opengles/lv_opengles_driver.h
++++ b/include/lvgl/drivers/opengles/lv_opengles_driver.h
+@@ -24,6 +24,9 @@ extern "C" {
   *      DEFINES
   *********************/
  
@@ -11,62 +12,64 @@ diff --git a/src/drivers/opengles/lv_opengles_driver.h b/src/drivers/opengles/lv
  /**********************
   *      TYPEDEFS
   **********************/
+diff --git a/src/drivers/opengles/assets/lv_opengles_shader.c b/src/drivers/opengles/assets/lv_opengles_shader.c
+index 1b84a54ec..220faf226 100644
+--- a/src/drivers/opengles/assets/lv_opengles_shader.c
++++ b/src/drivers/opengles/assets/lv_opengles_shader.c
+@@ -101,6 +101,8 @@ static const char * src_fragment_shader_v100 = "\n"
+                                                "        if (abs(u_ColorDepth - 8.0) < 0.1) {\n"
+                                                "            float gray = texColor.r;\n"
+                                                "            gl_FragColor = vec4(vec3(gray * u_Opa), u_Opa);\n"
++                                               "        } else if (abs(u_ColorDepth - 24.0) < 0.1) {\n"
++                                               "            gl_FragColor = vec4(texColor.rgb * u_Opa, u_Opa);\n"
+                                                "        } else {\n"
+                                                "            float combinedAlpha = texColor.a * u_Opa;\n"
+                                                "            float rgbScale = u_PremultipliedSrc ? u_Opa : combinedAlpha;\n"
+@@ -175,6 +177,7 @@ static const char * src_vertex_shader_v300es = "\n"
+                                                "    out vec2 v_TexCoord;\n"
+                                                "    flat out lowp vec4 fill_color_alpha;\n"
+                                                "    flat out lowp int is_gray;\n"
++                                               "    flat out lowp int ignore_alpha;\n"
+                                                "\n"
+                                                "    uniform lowp float u_Opa;\n"
+                                                "    uniform bool u_IsFill;\n"
+@@ -187,6 +190,7 @@ static const char * src_vertex_shader_v300es = "\n"
+                                                "        gl_Position = vec4((u_VertexTransform * vec3(position.xy, 1)).xy, position.zw);\n"
+                                                "        v_TexCoord = texCoord;\n"
+                                                "        is_gray = (abs(u_ColorDepth - 8.0) < 0.1) ? 1 : 0;\n"
++                                               "        ignore_alpha = (abs(u_ColorDepth - 24.0) < 0.1) ? 1 : 0;\n"
+                                                "\n"
+                                                "        if (u_IsFill) {\n"
+                                                "            if (is_gray == 1) {\n"
+@@ -207,6 +211,7 @@ static const char * src_fragment_shader_v300es = "\n"
+                                                  "    in vec2 v_TexCoord;\n"
+                                                  "    flat in lowp vec4 fill_color_alpha;\n"
+                                                  "    flat in lowp int is_gray;\n"
++                                                 "    flat in lowp int ignore_alpha;\n"
+                                                  "    \n"
+                                                  "    uniform sampler2D u_Texture;\n"
+                                                  "    uniform lowp float u_Opa;\n"
+@@ -231,6 +236,8 @@ static const char * src_fragment_shader_v300es = "\n"
+                                                  "            if (is_gray != 0) {\n"
+                                                  "                color.r *= u_Opa;\n"
+                                                  "                color.gba = vec3(color.rr, u_Opa);\n"
++                                                 "            } else if (ignore_alpha != 0) {\n"
++                                                 "                color = vec4(color.rgb * u_Opa, u_Opa);\n"
+                                                  "            } else {\n"
+                                                  "                color.a *= u_Opa;\n"
+                                                  "                color.rgb *= u_PremultipliedSrc ? u_Opa : color.a;\n"
 diff --git a/src/drivers/opengles/lv_opengles_driver.c b/src/drivers/opengles/lv_opengles_driver.c
+index c931639a4..24b164191 100644
 --- a/src/drivers/opengles/lv_opengles_driver.c
 +++ b/src/drivers/opengles/lv_opengles_driver.c
-@@ -236,7 +236,9 @@
+@@ -372,7 +372,9 @@ void lv_opengles_render_display(lv_display_t * display, const lv_opengles_render
      };
  
      lv_opengles_shader_bind();
--    lv_opengles_shader_set_uniform1f("u_ColorDepth", LV_COLOR_DEPTH);
+-    lv_opengles_shader_set_uniform1f("u_ColorDepth", lv_color_format_get_bpp(params->cf));
 +    /*An XRGB8888 display leaves its X byte undefined, so it is drawn as 24-bit, without alpha*/
 +    lv_opengles_shader_set_uniform1f("u_ColorDepth",
-+                                     lv_display_get_color_format(display) == LV_COLOR_FORMAT_XRGB8888 ? 24 : LV_COLOR_DEPTH);
++                                     params->cf == LV_COLOR_FORMAT_XRGB8888 ? 24 : lv_color_format_get_bpp(params->cf));
      lv_opengles_shader_set_uniform1i("u_Texture", 0);
      lv_opengles_shader_set_uniformmatrix3fv("u_VertexTransform", 1, transposed_matrix);
      lv_opengles_shader_set_uniform1f("u_Opa", 1);
-diff --git a/src/drivers/opengles/assets/lv_opengles_shader.c b/src/drivers/opengles/assets/lv_opengles_shader.c
---- a/src/drivers/opengles/assets/lv_opengles_shader.c
-+++ b/src/drivers/opengles/assets/lv_opengles_shader.c
-@@ -102,6 +102,8 @@
-         if (abs(u_ColorDepth - 8.0) < 0.1) {
-             float gray = texColor.r;
-             gl_FragColor = vec4(vec3(gray * u_Opa), u_Opa);
-+        } else if (abs(u_ColorDepth - 24.0) < 0.1) {
-+            gl_FragColor = vec4(texColor.rgb * u_Opa, u_Opa);
-         } else {
-             float combinedAlpha = texColor.a * u_Opa;
-             gl_FragColor = vec4(texColor.rgb * combinedAlpha, combinedAlpha);
-@@ -176,6 +178,7 @@
-     out vec2 v_TexCoord;
-     flat out lowp vec4 fill_color_alpha;
-     flat out lowp int is_gray;
-+    flat out lowp int ignore_alpha;
- 
-     uniform lowp float u_Opa;
-     uniform bool u_IsFill;
-@@ -188,6 +191,7 @@
-         gl_Position = vec4((u_VertexTransform * vec3(position.xy, 1)).xy, position.zw);
-         v_TexCoord = texCoord;
-         is_gray = (abs(u_ColorDepth - 8.0) < 0.1) ? 1 : 0;
-+        ignore_alpha = (abs(u_ColorDepth - 24.0) < 0.1) ? 1 : 0;
- 
-         if (u_IsFill) {
-             if (is_gray == 1) {
-@@ -209,6 +213,7 @@
-     in vec2 v_TexCoord;
-     flat in lowp vec4 fill_color_alpha;
-     flat in lowp int is_gray;
-+    flat in lowp int ignore_alpha;
-     
-     uniform sampler2D u_Texture;
-     uniform lowp float u_Opa;
-@@ -232,6 +237,8 @@
-             if (is_gray != 0) {
-                 color.r *= u_Opa;
-                 color.gba = vec3(color.rr, u_Opa);
-+            } else if (ignore_alpha != 0) {
-+                color = vec4(color.rgb * u_Opa, u_Opa);
-             } else {
-                 color.a *= u_Opa;
-                 color.rgb *= color.a;

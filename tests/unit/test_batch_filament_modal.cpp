@@ -11,7 +11,7 @@
 
 #include "ui_batch_filament_modal.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <optional>
 #include <string>

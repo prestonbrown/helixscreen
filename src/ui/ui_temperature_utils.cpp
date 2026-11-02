@@ -5,7 +5,7 @@
 
 #include "app_globals.h"
 #include "config.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"

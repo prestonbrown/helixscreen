@@ -18,7 +18,7 @@
 
 #include "border_radius_sizes.h"
 #include "display_settings_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

@@ -19,7 +19,7 @@
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "memory_utils.h"
 #include "platform_capabilities.h"
 #include "printer_state.h"

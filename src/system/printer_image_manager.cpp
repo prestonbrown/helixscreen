@@ -33,7 +33,7 @@
 #include "stb_image_resize.h"
 
 // LVGL for color format constant
-#include <lvgl/src/draw/lv_image_dsc.h>
+#include "lvgl.h"
 
 namespace hfs = helix::fs;
 

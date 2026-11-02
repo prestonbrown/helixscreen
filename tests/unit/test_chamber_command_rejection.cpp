@@ -16,6 +16,7 @@
 #include "app_globals.h"
 #include "chamber_heater_backend.h"
 #include "chamber_stall_prompt.h"
+#include "lvgl.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -24,8 +25,6 @@
 #include "settings_manager.h"
 #include "temperature_controller.h"
 #include "temperature_service.h"
-
-#include <lvgl/src/others/translation/lv_translation.h>
 
 #include <memory>
 #include <string>

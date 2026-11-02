@@ -33,7 +33,7 @@
 #include "i_moonraker_client.h"
 #include "job_queue_state.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api.h"
 #include "observe_language.h"
 #include "observer_factory.h"
@@ -417,8 +417,7 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
             self->apply_card_layout();
             if (v >= 3)
                 self->defer_apply_active_thumbnail();
-            else
-                self->schedule_library_fit();
+            self->schedule_library_fit();
         },
         subject_never_freed());
 
@@ -1492,14 +1491,18 @@ void PrintStatusWidget::schedule_library_fit() {
     // Same next-tick escape as defer_reset_print_card_to_idle(): the fit reads a
     // settled layout, and its subjects restyle the column it measured.
     library_fit_timer_.schedule_once([this]() {
-        if (widget_obj_) {
-            fit_library_actions();
-            fit_nozzle_picker();
-            fit_row("detailed_layer_row", &layer_z_fits_subject_);
-            fit_row("detailed_time_row", &elapsed_fits_subject_);
-            fit_speed_row();
-            fit_row("detailed_filament_row", &flow_fits_subject_);
-        }
+        if (!widget_obj_)
+            return;
+        fit_library_actions();
+        // LVGL gives the flex rows of a hidden card no real size, so a verdict
+        // measured there would be wrong; the card is measured once it shows.
+        if (!helix::ui::is_shown(lv_obj_find_by_name(widget_obj_, "print_card_printing_detailed")))
+            return;
+        fit_nozzle_picker();
+        fit_row("detailed_layer_row", &layer_z_fits_subject_);
+        fit_row("detailed_time_row", &elapsed_fits_subject_);
+        fit_speed_row();
+        fit_row("detailed_filament_row", &flow_fits_subject_);
     });
 }
 

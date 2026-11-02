@@ -27,6 +27,12 @@ platform's real value (0 hides a row bound hidden-if-0), or a callback that
 gives the tap feedback. A RATCHET keyed on names: --baseline lists accepted
 debt (bindings inside panels the firmware never opens).
 
+Also a hard failure, with no baseline: firmware-shipped XML (ui_xml/ less micro/,
+with ui_xml_overrides/ winning) using a widget tag whose LV_USE_* the firmware's
+lv_conf.h sets to 0. helix-xml registers each tag under its LV_USE_*, so the device
+would only log "Couldn't create widget" and leave the element out. The tag-to-option
+map is read from helix-xml's own registration table.
+
 Usage:
   check_esp32_xml_bindings.py                    # count
   check_esp32_xml_bindings.py --list             # every finding
@@ -36,6 +42,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -90,6 +97,61 @@ def findings(root: Path) -> dict[str, str]:
     return out
 
 
+def registered_widgets(lv_xml_c: str) -> dict[str, list[str]]:
+    """helix-xml's widget tag -> every LV_USE_* option its registration sits under."""
+    tags: dict[str, list[str]] = {}
+    guards: list[str | None] = []
+    for line in lv_xml_c.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#if"):
+            m = re.match(r"#if\s+(LV_USE_\w+)\s*$", stripped)
+            guards.append(m.group(1) if m else None)
+        elif stripped.startswith("#endif"):
+            if guards:
+                guards.pop()
+        else:
+            m = re.search(r'lv_xml_register_widget\("([\w-]+)"', stripped)
+            options = [g for g in guards if g]
+            if m and options:
+                tags[m.group(1)] = options
+    return tags
+
+
+def firmware_xml_files(root: Path) -> dict[Path, Path]:
+    """The XML the firmware ships, by staged path: ui_xml/ less micro/ and translations/,
+    with ui_xml_overrides/ replacing the file at the same path."""
+    files = {}
+    ui_xml = root / "ui_xml"
+    for src in sorted(ui_xml.rglob("*.xml")):
+        rel = src.relative_to(ui_xml)
+        if rel.parts[0] not in ("micro", "translations"):
+            files[rel] = src
+    overrides = root / FIRMWARE / "ui_xml_overrides"
+    if overrides.is_dir():
+        for src in sorted(overrides.rglob("*.xml")):
+            files[src.relative_to(overrides)] = src
+    return files
+
+
+def disabled_widget_uses(root: Path) -> list[str]:
+    """Each firmware-shipped use of a widget tag the firmware's lv_conf.h compiles out."""
+    conf = root / FIRMWARE / "components/helixcore/lv_conf.h"
+    lv_xml_c = root / "lib/helix-xml/src/xml/lv_xml.c"
+    if not conf.is_file() or not lv_xml_c.is_file():
+        return []
+    disabled = set(re.findall(r"^\s*#define\s+(LV_USE_\w+)\s+0\b", conf.read_text(), re.M))
+    tags = registered_widgets(lv_xml_c.read_text())
+    if not tags:
+        return [f"{lv_xml_c}: no lv_xml_register_widget under an LV_USE_* guard; cannot judge"]
+    off = {tag: option for tag, options in tags.items() for option in options if option in disabled}
+    uses = []
+    for rel, src in firmware_xml_files(root).items():
+        for tag in re.findall(r"<([\w-]+)", src.read_text(encoding="utf-8", errors="replace")):
+            if tag in off:
+                uses.append(f"{rel}: <{tag}> needs {off[tag]}, which the firmware lv_conf.h sets to 0")
+    return sorted(set(uses))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--list", action="store_true")
@@ -97,6 +159,13 @@ def main() -> int:
     ap.add_argument("--write-baseline", action="store_true")
     ap.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parent.parent)
     args = ap.parse_args()
+
+    uses = disabled_widget_uses(args.repo_root.resolve())
+    if uses:
+        print(f"❌ ESP32 XML: {len(uses)} use(s) of a widget the firmware compiles out:")
+        for use in uses:
+            print(f"     {use}")
+        return 1
 
     found = findings(args.repo_root.resolve())
     if args.list:

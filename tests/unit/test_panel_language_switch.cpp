@@ -18,7 +18,7 @@
 #include "hardware_validator.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i18n_plural.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_state.h"
 #include "system_settings_manager.h"
 #include "tool_state.h"

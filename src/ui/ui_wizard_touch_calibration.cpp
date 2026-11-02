@@ -10,7 +10,7 @@
 
 #include "config.h"
 #include "display_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"

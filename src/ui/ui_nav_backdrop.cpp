@@ -7,10 +7,13 @@
 #include "ui_utils.h"
 
 #include "backdrop_blur.h"
+#include "lvgl/src/core/lv_obj_private.h"       // styles[]: no public getter
+#include "lvgl/src/core/lv_obj_style_private.h" // is_trans: no public getter
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -31,6 +34,31 @@ std::string active_palette_key() {
 /// A snapshot backdrop is an image; a dim layer is a translucent plain object.
 bool is_snapshot_backdrop(lv_obj_t* backdrop) {
     return backdrop && lv_obj_check_type(backdrop, &lv_image_class);
+}
+
+/// Longest transition, delay included, among the shown widgets on @p screen that
+/// are mid-transition right now; 0 when none is.
+uint32_t longest_running_transition(lv_obj_t* screen) {
+    uint32_t longest = 0;
+    lv_obj_tree_walk(
+        screen,
+        [](lv_obj_t* obj, void* user) {
+            if (lv_obj_is_hidden(obj))
+                return LV_OBJ_TREE_WALK_SKIP_CHILDREN;
+            for (uint32_t i = 0; i < obj->style_cnt; i++) {
+                if (!obj->styles[i].is_trans)
+                    continue;
+                if (const lv_style_transition_dsc_t* tr =
+                        lv_obj_get_style_transition(obj, LV_PART_MAIN)) {
+                    auto* out = static_cast<uint32_t*>(user);
+                    *out = std::max(*out, tr->time + tr->delay);
+                }
+                break;
+            }
+            return LV_OBJ_TREE_WALK_NEXT;
+        },
+        &longest);
+    return longest;
 }
 
 } // namespace
@@ -57,6 +85,26 @@ void OverlayBackdrop::adopt(lv_obj_t* screen, lv_obj_t* arriving, lv_event_cb_t 
     // DECLARATIVE_OK: the snapshot backdrop is created in C++, it has no XML layer.
     lv_obj_add_event_cb(primary_, click_cb, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(primary_, click_cb, LV_EVENT_CLICKED, nullptr);
+
+    cancel_settle_retake();
+    if (!retake_ || !is_snapshot_backdrop(primary_))
+        return;
+    const uint32_t settle_ms = longest_running_transition(screen);
+    if (settle_ms == 0)
+        return;
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<OverlayBackdrop*>(lv_timer_get_user_data(t));
+            self->settle_timer_.release(); // a one-shot timer deletes itself
+            self->retake_();
+        },
+        settle_ms, this);
+    lv_timer_set_repeat_count(timer, 1);
+    settle_timer_.reset(timer);
+}
+
+void OverlayBackdrop::cancel_settle_retake() {
+    settle_timer_.reset();
 }
 
 void OverlayBackdrop::refresh(lv_obj_t* app_layout, lv_obj_t* base_panel) {
@@ -126,6 +174,7 @@ bool OverlayBackdrop::palette_changed() const {
 }
 
 void OverlayBackdrop::release_primary() {
+    cancel_settle_retake();
     if (primary_) {
         safe_delete_deferred(primary_);
         primary_ = nullptr;
@@ -133,6 +182,7 @@ void OverlayBackdrop::release_primary() {
 }
 
 void OverlayBackdrop::delete_primary_now() {
+    cancel_settle_retake();
     if (primary_) {
         lv_obj_del(primary_);
         primary_ = nullptr;

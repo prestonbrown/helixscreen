@@ -1,8 +1,8 @@
 diff --git a/src/draw/sw/blend/lv_draw_sw_blend.c b/src/draw/sw/blend/lv_draw_sw_blend.c
-index 54a7294ac..730fd9be4 100644
+index b7aedcfb9..2ef430213 100644
 --- a/src/draw/sw/blend/lv_draw_sw_blend.c
 +++ b/src/draw/sw/blend/lv_draw_sw_blend.c
-@@ -81,6 +81,11 @@ void lv_draw_sw_blend(lv_draw_task_t * t, const lv_draw_sw_blend_dsc_t * blend_d
+@@ -80,6 +80,11 @@ void lv_draw_sw_blend(lv_draw_task_t * t, const lv_draw_sw_blend_dsc_t * dsc)
  
      LV_PROFILER_DRAW_BEGIN;
      lv_layer_t * layer = t->target_layer;
@@ -14,7 +14,7 @@ index 54a7294ac..730fd9be4 100644
      uint32_t layer_stride_byte = layer->draw_buf->header.stride;
  
      lv_draw_sw_blend_handler_t handler = lv_draw_sw_get_blend_handler(layer->color_format);
-@@ -108,6 +113,10 @@ void lv_draw_sw_blend(lv_draw_task_t * t, const lv_draw_sw_blend_dsc_t * blend_d
+@@ -107,6 +112,10 @@ void lv_draw_sw_blend(lv_draw_task_t * t, const lv_draw_sw_blend_dsc_t * dsc)
          lv_area_move(&fill_dsc.relative_area, -layer->buf_area.x1, -layer->buf_area.y1);
          fill_dsc.dest_buf = lv_draw_layer_go_to_xy(layer, blend_area.x1 - layer->buf_area.x1,
                                                     blend_area.y1 - layer->buf_area.y1);
@@ -23,9 +23,9 @@ index 54a7294ac..730fd9be4 100644
 +            return;
 +        }
          if(fill_dsc.mask_buf) {
-             fill_dsc.mask_stride = blend_dsc->mask_stride == 0  ? lv_area_get_width(blend_dsc->mask_area) : blend_dsc->mask_stride;
-             fill_dsc.mask_buf += fill_dsc.mask_stride * (blend_area.y1 - blend_dsc->mask_area->y1) +
-@@ -164,6 +173,10 @@ void lv_draw_sw_blend(lv_draw_task_t * t, const lv_draw_sw_blend_dsc_t * blend_d
+             fill_dsc.mask_stride = dsc->mask_stride == 0  ? lv_area_get_width(dsc->mask_area) : dsc->mask_stride;
+             fill_dsc.mask_buf += fill_dsc.mask_stride * (blend_area.y1 - dsc->mask_area->y1) +
+@@ -163,6 +172,10 @@ void lv_draw_sw_blend(lv_draw_task_t * t, const lv_draw_sw_blend_dsc_t * dsc)
  
          image_dsc.dest_buf = lv_draw_layer_go_to_xy(layer, blend_area.x1 - layer->buf_area.x1,
                                                      blend_area.y1 - layer->buf_area.y1);

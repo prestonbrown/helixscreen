@@ -21,7 +21,6 @@
 #include "i_moonraker_client.h"
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_auth.h"
 #include "platform_info.h"
 #include "printer_discovery.h"

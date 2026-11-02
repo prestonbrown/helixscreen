@@ -12,7 +12,7 @@
 #include "abort_manager.h"
 #include "app_globals.h" // get_printer_state()
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h" // lv_tr
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "observer_factory.h"
 #include "print_job_ref.h"

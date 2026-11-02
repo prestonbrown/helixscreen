@@ -13,7 +13,7 @@
 #include "label_printer_settings.h"
 #include "label_renderer.h"
 #include "log_redact.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "spoolman_types.h"
 
 #include <spdlog/spdlog.h>

@@ -31,7 +31,7 @@
 #include "filament_display_name.h"
 #include "lane_resolver.h"
 #include "lane_source_store.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"

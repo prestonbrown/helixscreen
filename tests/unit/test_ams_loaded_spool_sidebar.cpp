@@ -23,7 +23,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "translation_loader.h"
 
 #include <cmath>

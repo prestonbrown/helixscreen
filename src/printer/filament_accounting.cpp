@@ -7,7 +7,7 @@
 #include "display_numbering.h"
 #include "format_utils.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_discovery.h"
 
 #include <spdlog/fmt/fmt.h>

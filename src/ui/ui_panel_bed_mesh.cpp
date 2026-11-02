@@ -37,7 +37,7 @@
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
 #include "layout_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "observer_factory.h"
 #include "printer_detector.h"

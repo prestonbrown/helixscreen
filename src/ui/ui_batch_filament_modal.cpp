@@ -11,7 +11,7 @@
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "text_io.h"

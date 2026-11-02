@@ -1,30 +1,19 @@
 // Copyright (C) 2025-2026 356C LLC
-// TEST_MIRROR_OK: exercises patches/lvgl_grid_update_guard.patch — shipped LVGL code with no
+// TEST_MIRROR_OK: exercises LVGL's grid layout and patches/lvgl_grid_update_guard.patch — no
 // HelixScreen header SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
  * @file test_grid_cell_out_of_range.cpp
- * @brief LVGL grid guards: out-of-range cells are skipped, zero-track templates do not crash.
+ * @brief LVGL grid: out-of-range cells clamp to the grid, zero-track templates do not crash.
  *
  * item_repos() reads c->x[col_pos + col_span - 1] / c->y[row_pos + row_span - 1]
- * to position each grid child. calc() sizes those track arrays to col_num/row_num
- * only — it never validates that an item's cell actually fits the grid. A child
- * carrying a cell position/span beyond the track count (a still-valid object
- * whose grid-cell style was never set and reads back as a huge default, or a
- * position approved against a larger logical grid than the live descriptor) makes
- * item_repos() index past the array and walk off the heap end -> SIGSEGV.
- * Observed in production on an AD5X (MIPS32, v0.99.75, debug bundle P234RYCL):
- * crash inside grid_update -> item_repos with reg_v1=0x1fffffff (a garbage
- * ~half-billion cell index) and fault_addr exactly on the heap-end page boundary,
- * triggered while drag-editing dashboard widgets.
+ * to position each grid child, and calc() sizes those arrays to col_num/row_num
+ * only. LVGL clamps an out-of-range cell into the grid before reading them, so
+ * the child lands exactly where the nearest in-range cell would put it.
+ * helix_lvgl_anomaly() still reports the clamp through the log handler's
+ * grid_update_cell_oob code: a bad cell means a bug in whatever produced it.
  *
- * The fix (patches/lvgl_grid_update_guard.patch) makes item_repos() skip — and
- * report via helix_lvgl_anomaly() — any item whose cell exceeds the calculated
- * track count. The tests give the child a size no track would stretch it to
- * and assert it keeps that size, so a missing guard fails the assertion even
- * where the over-read itself does not crash.
- *
- * The same patch makes calc_cols()/calc_rows() return LV_RESULT_INVALID on a
+ * patches/lvgl_grid_update_guard.patch makes calc_cols()/calc_rows() return LV_RESULT_INVALID on a
  * zero-track template ({LV_GRID_TEMPLATE_LAST} alone). Without it count_tracks()
  * returns 0, grid_align() evaluates `track_num - 1` as a uint32_t, and its
  * position loop walks ~4 billion entries off the heap (seen on a BIQU CB1 /
@@ -37,8 +26,11 @@
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
+#include "lvgl_log_handler.h"
 
 #include <spdlog/spdlog.h>
+
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -50,7 +42,7 @@ static const int32_t kOneFrDsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
 
 class GridCellOutOfRangeFixture : public LVGLTestFixture {
   public:
-    // An odd size no track of the 400x300 grid stretches a child to.
+    // An odd size, so only a track stretching the child can produce the expected size.
     static constexpr int32_t kChildW = 37;
     static constexpr int32_t kChildH = 23;
 
@@ -95,20 +87,26 @@ class GridCellOutOfRangeFixture : public LVGLTestFixture {
         return grid;
     }
 
-    // item_repos() skipped the child: no track stretched or moved it.
-    static void expect_skipped(lv_obj_t* child) {
-        REQUIRE(lv_obj_get_width(child) == kChildW);
-        REQUIRE(lv_obj_get_height(child) == kChildH);
+    // The grid's child sits and sizes exactly as one placed at the given in-range cell.
+    void expect_clamped_to(lv_obj_t* grid, int32_t col, int32_t row) {
+        lv_obj_t* reference = make_grid_with_cell(col, 1, row, 1);
+        lv_obj_update_layout(screen);
+        lv_obj_t* child = lv_obj_get_child(grid, 0);
+        lv_obj_t* expected = lv_obj_get_child(reference, 0);
+        REQUIRE(lv_obj_get_width(expected) != kChildW);
+        CHECK(lv_obj_get_width(child) == lv_obj_get_width(expected));
+        CHECK(lv_obj_get_height(child) == lv_obj_get_height(expected));
+        CHECK(lv_obj_get_x(child) == lv_obj_get_x(expected));
+        CHECK(lv_obj_get_y(child) == lv_obj_get_y(expected));
     }
 };
 
 TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid child at out-of-range column does not crash",
                  "[grid][regression][cell_oob]") {
-    // 2-column grid, child placed at column 5 -> c->x[5] is off the 2-element
-    // array; item_repos() must skip the child rather than read it.
+    // 2-column grid, child placed at column 5: clamps to the last column.
     lv_obj_t* grid = make_grid_with_cell(5, 1, 0, 1);
     lv_obj_update_layout(screen);
-    expect_skipped(lv_obj_get_child(grid, 0));
+    expect_clamped_to(grid, 1, 0);
 }
 
 TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid child with overflowing colspan does not crash",
@@ -116,7 +114,7 @@ TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid child with overflowing colspan
     // Valid start column but a span that runs off the end: col 1 + span 4 = 5 > 2.
     lv_obj_t* grid = make_grid_with_cell(1, 4, 0, 1);
     lv_obj_update_layout(screen);
-    expect_skipped(lv_obj_get_child(grid, 0));
+    expect_clamped_to(grid, 1, 0);
 }
 
 TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid child at out-of-range row does not crash",
@@ -124,12 +122,12 @@ TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid child at out-of-range row does
     // 1-row grid, child placed at row 9 -> c->y[9] is off the 1-element array.
     lv_obj_t* grid = make_grid_with_cell(0, 1, 9, 1);
     lv_obj_update_layout(screen);
-    expect_skipped(lv_obj_get_child(grid, 0));
+    expect_clamped_to(grid, 0, 0);
 }
 
 TEST_CASE_METHOD(GridCellOutOfRangeFixture, "In-range grid child still lays out",
                  "[grid][regression][cell_oob]") {
-    // Guard against the fix over-rejecting: a child whose cell fits the tracks
+    // A child whose cell fits the tracks
     // must still be placed with a non-zero size.
     lv_obj_t* grid = lv_obj_create(screen);
     lv_obj_set_size(grid, 400, 300);
@@ -144,6 +142,19 @@ TEST_CASE_METHOD(GridCellOutOfRangeFixture, "In-range grid child still lays out"
 
     CHECK(lv_obj_get_width(child) > 0);
     CHECK(lv_obj_get_height(child) > 0);
+}
+
+TEST_CASE("LVGL's cell clamp warnings report grid_update_cell_oob",
+          "[grid][regression][cell_oob]") {
+    for (const char* msg : {"item_repos: Column position was 5, setting to 1",
+                            "item_repos: Row position was 9, setting to 0",
+                            "item_repos: Column span is too large, limiting it to 1",
+                            "item_repos: Row span is too large, limiting it to 1"}) {
+        INFO(msg);
+        const char* code = helix::logging::anomaly_code_for_warning(msg);
+        REQUIRE(code != nullptr);
+        CHECK(std::string(code) == "grid_update_cell_oob");
+    }
 }
 
 TEST_CASE_METHOD(GridCellOutOfRangeFixture, "Grid with empty column template does not crash",

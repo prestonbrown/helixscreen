@@ -7,7 +7,7 @@
 
 #include "filament_favorites.h"
 #include "filament_variants.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "sort_small.h"
 #include "text_io.h"
 #include "theme_manager.h"

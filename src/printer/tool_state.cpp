@@ -23,7 +23,7 @@
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_cache_registry.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"

@@ -130,3 +130,64 @@ staging_repo() {
     echo '<component/>' > "$REPO/ui_xml/x.xml" && git -C "$REPO" add ui_xml/x.xml
     bindings_touched "$REPO"
 }
+
+# --- a widget the firmware compiles out ---
+
+disabled_widget_tree() {
+    mkdir -p "$ROOT/firmware/helixscreen-esp32/components/helixcore" "$ROOT/lib/helix-xml/src/xml"
+    cat > "$ROOT/firmware/helixscreen-esp32/components/helixcore/lv_conf.h" <<'CONF'
+#define LV_USE_XML 1
+#define LV_USE_SCALE 0
+#define LV_USE_SCALE_SECTION 1
+#define LV_USE_ROLLER 1
+CONF
+    cat > "$ROOT/lib/helix-xml/src/xml/lv_xml.c" <<'C'
+#if LV_USE_XML
+#if LV_USE_SCALE
+    lv_xml_register_widget("lv_scale", create, apply);
+#if LV_USE_SCALE_SECTION
+    lv_xml_register_widget("lv_scale-section", create, apply);
+#endif
+#endif
+#if LV_USE_ROLLER
+    lv_xml_register_widget("lv_roller", create, apply);
+#endif
+#endif
+C
+}
+
+@test "firmware XML using a widget lv_conf.h compiles out fails, naming tag and option" {
+    disabled_widget_tree
+    echo '<component><view><lv_scale-section/></view></component>' > "$ROOT/ui_xml/gauge.xml"
+    run python3 "$GATE" --repo-root "$ROOT"
+    [ "$status" -eq 1 ]
+    contains "gauge.xml: <lv_scale-section> needs LV_USE_SCALE" "$output"
+}
+
+@test "a firmware override using a compiled-out widget fails" {
+    disabled_widget_tree
+    mkdir -p "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides"
+    echo '<component><view><lv_scale/></view></component>' > "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides/o.xml"
+    run python3 "$GATE" --repo-root "$ROOT"
+    [ "$status" -eq 1 ]
+    contains "o.xml: <lv_scale>" "$output"
+}
+
+@test "an enabled widget, an XML file the firmware does not ship, and an overridden file stay silent" {
+    disabled_widget_tree
+    mkdir -p "$ROOT/ui_xml/micro" "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides"
+    echo '<component><view><lv_roller/></view></component>' > "$ROOT/ui_xml/ok.xml"
+    echo '<component><view><lv_scale/></view></component>' > "$ROOT/ui_xml/micro/small.xml"
+    echo '<component><view><lv_scale/></view></component>' > "$ROOT/ui_xml/swapped.xml"
+    echo '<component><view/></component>' > "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides/swapped.xml"
+    run python3 "$GATE" --repo-root "$ROOT"
+    [ "$status" -eq 0 ]
+}
+
+@test "a registration table the gate cannot read fails rather than passing" {
+    disabled_widget_tree
+    echo '/* no registrations */' > "$ROOT/lib/helix-xml/src/xml/lv_xml.c"
+    run python3 "$GATE" --repo-root "$ROOT"
+    [ "$status" -eq 1 ]
+    contains "cannot judge" "$output"
+}

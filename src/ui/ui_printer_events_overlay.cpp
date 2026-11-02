@@ -8,7 +8,7 @@
 #include "app_globals.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
 

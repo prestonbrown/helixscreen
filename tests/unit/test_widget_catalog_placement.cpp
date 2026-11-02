@@ -43,7 +43,7 @@
 #include "config.h"
 #include "grid_edit_mode.h"
 #include "grid_layout.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_config.h"
 #include "panel_widget_registry.h"
 #include "theme_manager.h"

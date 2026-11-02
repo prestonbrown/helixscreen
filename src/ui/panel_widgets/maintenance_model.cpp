@@ -11,7 +11,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observe_language.h"
 #include "observer_factory.h"
 #include "printer_state.h"

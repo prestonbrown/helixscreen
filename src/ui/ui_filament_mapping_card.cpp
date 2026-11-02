@@ -14,7 +14,7 @@
 #include "filament_variants.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observe_language.h"
 #include "print_start_checks.h"
 #include "settings_manager.h"

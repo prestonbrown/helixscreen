@@ -18,7 +18,6 @@
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "klipper_config_editor.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "preset_materials.h"
 #include "static_panel_registry.h"

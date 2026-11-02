@@ -3,7 +3,7 @@
 
 #include "i18n_plural.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 namespace helix::ui {
 

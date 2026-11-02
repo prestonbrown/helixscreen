@@ -16,7 +16,7 @@
 #include "fault_modal_registry.h"
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_recovery_service.h"

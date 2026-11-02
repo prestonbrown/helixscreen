@@ -6,7 +6,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "text_io.h"

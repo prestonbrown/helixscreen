@@ -220,17 +220,17 @@ void* parse_pointer(const char* hex_str) {
     return reinterpret_cast<void*>(addr);
 }
 
+/// LVGL's subject accessors check the type with LV_CHECK_ARG_FORMAT_MSG, which logs
+/// "Check failed: subject->type == LV_SUBJECT_TYPE_<X> (ptr=0x..., type=N)".
+constexpr const char kSubjectTypeCheck[] = "Check failed: subject->type == LV_SUBJECT_TYPE_";
+
 /**
  * @brief Check if the log message is a subject type mismatch warning
- *
- * LVGL warns with: "Subject type is not X"
- * After patching LVGL, we may also see: "(ptr=0x..., type=N)"
- *
  * @param buf The log message buffer
  * @return true if this is a subject type mismatch warning
  */
 bool is_subject_type_mismatch(const char* buf) {
-    return std::strstr(buf, "Subject type is not") != nullptr;
+    return std::strstr(buf, kSubjectTypeCheck) != nullptr;
 }
 
 /**
@@ -255,18 +255,17 @@ lv_subject_t* extract_subject_pointer(const char* buf) {
 }
 
 /**
- * @brief Extract expected type from "Subject type is not X" message
+ * @brief Extract the expected type (the X of LV_SUBJECT_TYPE_X) from a type check failure
  * @param buf The log message buffer
  * @return Expected type name or empty string
  */
 std::string extract_expected_type(const char* buf) {
-    const char* pattern = "Subject type is not ";
-    const char* start = std::strstr(buf, pattern);
+    const char* start = std::strstr(buf, kSubjectTypeCheck);
     if (start == nullptr) {
         return "";
     }
 
-    start += std::strlen(pattern);
+    start += std::strlen(kSubjectTypeCheck);
 
     // Find end of type name (next space, newline, or end)
     const char* end = start;
@@ -365,6 +364,11 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
     bool is_source_language_fallback =
         is_translation_warning && msg.find("`en` language is not found") != std::string::npos;
 
+    // LVGL warns once per process about each deprecated call it sees: API
+    // migration work for us, nothing a printer's log reader can act on.
+    bool is_deprecation_notice =
+        level == LV_LOG_LEVEL_WARN && msg.find("Deprecated: ") != std::string::npos;
+
     // init_translations() silences its own expected noise. Those hits must stay
     // OUT of the dedupe cache: recording them would spend each tag's one
     // reportable occurrence on a message nobody ever saw, and the first real
@@ -389,7 +393,8 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
         spdlog::info("[LVGL] {}", msg);
         break;
     case LV_LOG_LEVEL_WARN:
-        if (suppressed_translation || is_repeat_retry || is_source_language_fallback) {
+        if (suppressed_translation || is_repeat_retry || is_source_language_fallback ||
+            is_deprecation_notice) {
             spdlog::trace("[LVGL] {}", msg);
         } else if (is_scroll_boundary_warning || is_translation_warning) {
             spdlog::debug("[LVGL] {}", msg);
@@ -491,9 +496,15 @@ const char* anomaly_code_for_warning(std::string_view msg) {
         return "glyph_draw_skip";
     } else if (msg.find("subject is NULL") != std::string_view::npos) {
         return "null_subject";
-    } else if (msg.find("Subject type is not") != std::string_view::npos) {
+    } else if (msg.find(kSubjectTypeCheck) != std::string_view::npos) {
         // XML binding wired wrong subject type — real bug in panel XML.
         return "subject_type_mismatch";
+    } else if (msg.find("Column position was") != std::string_view::npos ||
+               msg.find("Row position was") != std::string_view::npos ||
+               msg.find("Column span is too large") != std::string_view::npos ||
+               msg.find("Row span is too large") != std::string_view::npos) {
+        // LVGL clamps the cell and lays the child out; the bad cell's producer is a bug here.
+        return "grid_update_cell_oob";
     } else if (msg.find("coordinates out of range") != std::string_view::npos) {
         return "coord_out_of_range";
     } else if (msg.find("duplicate schedule") != std::string_view::npos) {
@@ -501,8 +512,6 @@ const char* anomaly_code_for_warning(std::string_view msg) {
         // but kept so the log + telemetry paths stay in sync if either
         // is ever missed.
         return "obj_delete_async_dup";
-    } else if (msg.find("skipping invalid obj") != std::string_view::npos) {
-        return "obj_delete_async_cb_invalid";
     } else if (msg.find("observer->subject is NULL") != std::string_view::npos) {
         // XML component scope tore down subject before the observing
         // widget's delete event fired — real ordering bug.

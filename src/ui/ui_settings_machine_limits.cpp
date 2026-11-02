@@ -11,7 +11,7 @@
 
 #include "format_utils.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "settings_manager.h"
 #include "ui/ui_widget_helpers.h"
 

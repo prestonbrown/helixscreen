@@ -25,7 +25,7 @@
 #include "i_moonraker_api.h"
 #include "job_queue_start.h"
 #include "led/ui_led_control_overlay.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_capabilities_state.h"
 #include "printer_fan_state.h"
 #include "printer_state.h"

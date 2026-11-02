@@ -26,7 +26,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "job_queue_state.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/job_queue_widget.h"

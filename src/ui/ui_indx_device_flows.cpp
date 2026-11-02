@@ -12,7 +12,7 @@
 #include "display_numbering.h"
 #include "filament_action_set.h"
 #include "indx_contract.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "save_config_restart.h"

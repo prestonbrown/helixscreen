@@ -13,7 +13,7 @@
 #include "app_globals.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
 

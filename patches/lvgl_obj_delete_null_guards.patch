@@ -1,9 +1,10 @@
 diff --git a/src/core/lv_obj.c b/src/core/lv_obj.c
+index db6554680..1a9cd4982 100644
 --- a/src/core/lv_obj.c
 +++ b/src/core/lv_obj.c
-@@ -28,6 +28,10 @@
- #include "../stdlib/lv_string.h"
+@@ -19,6 +19,10 @@
  #include "lv_obj_draw_private.h"
+ #include "lv_obj_style_internal.h"
  
 +/* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
 + * via TelemetryManager::record_error. */
@@ -12,9 +13,9 @@ diff --git a/src/core/lv_obj.c b/src/core/lv_obj.c
  /*********************
   *      DEFINES
   *********************/
-@@ -602,6 +606,10 @@ static void lv_obj_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
- static void lv_obj_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
- {
+@@ -1519,6 +1523,10 @@ static void lv_obj_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
+     LV_ASSERT(obj != NULL);
+ 
      LV_UNUSED(class_p);
 +    if(obj == NULL) {
 +        helix_lvgl_anomaly("obj_destructor_null", "");

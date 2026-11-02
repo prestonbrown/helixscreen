@@ -7,7 +7,7 @@
 
 #include "config.h"
 #include "http_executor.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "runtime_config.h"

@@ -1218,7 +1218,9 @@ void DisplayBackendDRM::set_display_rotation(lv_display_t* disp, lv_display_rota
 
     if (lvgl_rotation_action_for(strategy) == LvglRotationAction::CLEAR_TO_ZERO) {
         lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_0);
+#if LV_DRAW_TRANSFORM_USE_MATRIX
         lv_display_set_matrix_rotation(disp, false);
+#endif
     } else {
         lv_display_set_rotation(disp, rot);
     }

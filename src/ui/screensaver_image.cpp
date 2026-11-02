@@ -8,7 +8,7 @@
 
 #include <spdlog/spdlog.h>
 
-#include <draw/lv_image_decoder_private.h>
+#include <image/lv_image_decoder_private.h>
 
 namespace helix::ui {
 

@@ -2,7 +2,7 @@
 
 #include "firmware_fault_codes.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_discovery.h"
 #include "snapmaker_exceptions.h"
 

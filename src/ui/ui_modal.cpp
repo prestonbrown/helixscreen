@@ -14,7 +14,7 @@
 #include "display_settings_manager.h"
 #include "exception_policy.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "memory_utils.h"
 #include "settings_manager.h"
 #include "system/crash_handler.h"

@@ -16,7 +16,7 @@
 #endif
 #include "color_utils.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "spoolman_slot_saver.h"
 #include "theme_manager.h"
 

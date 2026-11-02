@@ -20,7 +20,7 @@
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_executor.h"
 #include "observer_factory.h"
 #include "ui/fan_spin_animation.h"

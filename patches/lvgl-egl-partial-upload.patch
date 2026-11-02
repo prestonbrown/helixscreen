@@ -1,7 +1,8 @@
-diff --git a/src/drivers/display/drm/lv_linux_drm.h b/src/drivers/display/drm/lv_linux_drm.h
---- a/src/drivers/display/drm/lv_linux_drm.h
-+++ b/src/drivers/display/drm/lv_linux_drm.h
-@@ -114,6 +114,30 @@
+diff --git a/include/lvgl/drivers/display/lv_linux_drm.h b/include/lvgl/drivers/display/lv_linux_drm.h
+index cbd44337f..31f74ab51 100644
+--- a/include/lvgl/drivers/display/lv_linux_drm.h
++++ b/include/lvgl/drivers/display/lv_linux_drm.h
+@@ -116,6 +116,30 @@ char * lv_linux_drm_find_device_path(void);
   * @param vsync  true to wait for each flip
   */
  void lv_linux_drm_egl_set_vsync(lv_display_t * disp, bool vsync);
@@ -32,39 +33,30 @@ diff --git a/src/drivers/display/drm/lv_linux_drm.h b/src/drivers/display/drm/lv
  #endif
  
  /**
-diff --git a/src/drivers/display/drm/lv_linux_drm_egl_private.h b/src/drivers/display/drm/lv_linux_drm_egl_private.h
---- a/src/drivers/display/drm/lv_linux_drm_egl_private.h
-+++ b/src/drivers/display/drm/lv_linux_drm_egl_private.h
-@@ -24,6 +24,7 @@
- #include "../../opengles/lv_opengles_egl.h"
- #include "../../opengles/lv_opengles_egl_private.h"
- #include "lv_linux_drm.h"
-+#include "lv_linux_drm_egl_upload.h"
- 
- /*********************
-  *      DEFINES
-@@ -52,6 +53,7 @@
-     struct gbm_bo * gbm_bo_presented;
- 
-     lv_linux_drm_select_mode_cb_t mode_select_cb;
-+    lv_linux_drm_egl_upload_state_t upload;
-     int fd;
-     bool crtc_isset;
- } lv_drm_ctx_t;
 diff --git a/src/drivers/display/drm/lv_linux_drm_egl.c b/src/drivers/display/drm/lv_linux_drm_egl.c
+index fd274a8d7..5374d6e8c 100644
 --- a/src/drivers/display/drm/lv_linux_drm_egl.c
 +++ b/src/drivers/display/drm/lv_linux_drm_egl.c
-@@ -66,6 +66,9 @@
+@@ -22,6 +22,7 @@
+ #include <unistd.h>
+ #include "lv_linux_drm_egl_private.h"
+ #include "../../opengles/lv_opengles_private.h"
++#include "../../opengles/lv_opengles_debug.h"
+ 
+ /**********************
+  *      TYPEDEFS
+@@ -57,6 +58,10 @@ static void drm_flip_cb(void * driver_data, bool vsync);
+ static void * drm_create_window(void * driver_data, const lv_egl_native_window_properties_t * properties);
  static void drm_destroy_window(void * driver_data, void * native_window);
  static size_t drm_egl_select_config_cb(void * driver_data, const lv_egl_config_t * configs, size_t config_count);
- static inline void set_viewport(lv_display_t * display);
 +#if !(LV_USE_DRAW_OPENGLES || LV_USE_DRAW_NANOVG)
 +static bool sub_image_upload_supported(void);
++static void upload_area(lv_display_t * disp, unsigned int texture_id, const uint8_t * buf, const lv_area_t * area);
 +#endif
  
  /**********************
   *  STATIC VARIABLES
-@@ -166,6 +169,46 @@
+@@ -161,6 +166,46 @@ void lv_linux_drm_egl_set_vsync(lv_display_t * disp, bool vsync)
      lv_opengles_egl_set_vsync(ctx->egl_ctx, vsync);
  }
  
@@ -111,7 +103,7 @@ diff --git a/src/drivers/display/drm/lv_linux_drm_egl.c b/src/drivers/display/dr
  /**********************
   *   STATIC FUNCTIONS
   **********************/
-@@ -192,6 +235,8 @@
+@@ -187,6 +232,8 @@ static void event_cb(lv_event_t * e)
                  if(res != LV_RESULT_OK) {
                      LV_LOG_ERROR("Failed to resize display");
                  }
@@ -120,10 +112,21 @@ diff --git a/src/drivers/display/drm/lv_linux_drm_egl.c b/src/drivers/display/dr
              }
              break;
          default:
-@@ -240,34 +285,74 @@
+@@ -201,6 +248,8 @@ static uint32_t tick_cb(void)
+     return ts.tv_sec * 1000 + (ts.tv_nsec / 1000000);;
+ }
  
- #else
++#if LV_USE_DRAW_OPENGLES || LV_USE_DRAW_NANOVG
++
+ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map)
+ {
+     LV_UNUSED(area);
+@@ -213,6 +262,79 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_m
+     lv_display_flush_ready(disp);
+ }
  
++#else
++
 +static bool sub_image_upload_supported(void)
 +{
 +    /*GL_UNPACK_ROW_LENGTH is core in OpenGL ES 3 and an extension in OpenGL ES 2*/
@@ -137,16 +140,30 @@ diff --git a/src/drivers/display/drm/lv_linux_drm_egl.c b/src/drivers/display/dr
 +    return extensions && strstr(extensions, "GL_EXT_unpack_subimage") != NULL;
 +}
 +
- static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map)
- {
-     LV_UNUSED(px_map);
--    LV_UNUSED(area);
--    if(lv_display_flush_is_last(disp)) {
--        lv_drm_ctx_t * ctx = lv_display_get_driver_data(disp);
--        int32_t disp_width = lv_display_get_horizontal_resolution(disp);
--        int32_t disp_height = lv_display_get_vertical_resolution(disp);
--
--        set_viewport(disp);
++static void upload_area(lv_display_t * disp, unsigned int texture_id, const uint8_t * buf, const lv_area_t * area)
++{
++    lv_color_format_t cf = lv_display_get_color_format(disp);
++    lv_opengles_gl_format_t gl_format;
++    if(lv_opengles_gl_format_from_color_format(cf, &gl_format) != LV_RESULT_OK) {
++        return;
++    }
++    uint32_t px_size = lv_color_format_get_size(cf);
++    uint32_t stride = lv_draw_buf_width_to_stride(lv_display_get_horizontal_resolution(disp), cf);
++    /*GL_UNPACK_ROW_LENGTH steps each row by the buffer's stride, so the sub-image
++     *starts at the area's first pixel inside the whole buffer*/
++    const uint8_t * first_px = buf + lv_linux_drm_egl_upload_first_byte(area, stride, px_size);
++
++    GL_CALL(glBindTexture(GL_TEXTURE_2D, texture_id));
++    GL_CALL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
++    GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, (GLint)(stride / px_size)));
++    GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, area->x1, area->y1, lv_area_get_width(area), lv_area_get_height(area),
++                            gl_format.format, gl_format.type, first_px));
++    GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
++}
++
++static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map)
++{
++    LV_UNUSED(px_map);
 +    lv_drm_ctx_t * ctx = lv_display_get_driver_data(disp);
 +    int32_t disp_width = lv_display_get_horizontal_resolution(disp);
 +    int32_t disp_height = lv_display_get_vertical_resolution(disp);
@@ -154,66 +171,62 @@ diff --git a/src/drivers/display/drm/lv_linux_drm_egl.c b/src/drivers/display/dr
 +
 +    bool in_place = lv_linux_drm_egl_upload_in_place(lv_display_get_render_mode(disp),
 +                                                     lv_display_get_matrix_rotation(disp));
-+    lv_area_t upload_area;
++    lv_area_t clipped;
 +    lv_linux_drm_egl_upload_t upload = lv_linux_drm_egl_upload_plan(&ctx->upload, ctx->texture.texture_id,
 +                                                                     disp_width, disp_height, in_place, last,
-+                                                                     area, &upload_area);
- 
-+    if(upload != LV_LINUX_DRM_EGL_UPLOAD_NONE) {
-         lv_color_format_t cf = lv_display_get_color_format(disp);
--        uint32_t stride = lv_draw_buf_width_to_stride(lv_display_get_horizontal_resolution(disp), cf);
-+        uint32_t px_size = lv_color_format_get_size(cf);
-+        uint32_t stride = lv_draw_buf_width_to_stride(disp_width, cf);
-         GL_CALL(glBindTexture(GL_TEXTURE_2D, ctx->texture.texture_id));
- 
-         GL_CALL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
--        GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, stride / lv_color_format_get_size(cf)));
--        /*Color depth: 16 (RGB565), 32 (ARGB8888)*/
-+        GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, stride / px_size));
-+        if(upload == LV_LINUX_DRM_EGL_UPLOAD_FULL) {
-+            /*Color depth: 16 (RGB565), 32 (ARGB8888)*/
- #if LV_COLOR_DEPTH == 16
--        GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB565, disp_width, disp_height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
--                             ctx->texture.fb1));
-+            GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB565, disp_width, disp_height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-+                                 ctx->texture.fb1));
- #elif LV_COLOR_DEPTH == 32
--        GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, disp_width, disp_height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
--                             ctx->texture.fb1));
-+            GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, disp_width, disp_height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-+                                 ctx->texture.fb1));
- #else
- #error("Unsupported color format")
- #endif
++                                                                     area, &clipped);
++
++    if(upload == LV_LINUX_DRM_EGL_UPLOAD_FULL) {
++        /*Uploads the whole buffer, then presents it*/
++        lv_opengles_texture_render_display(&ctx->texture, disp);
++    }
++    else {
++        if(upload == LV_LINUX_DRM_EGL_UPLOAD_AREA) {
++            upload_area(disp, ctx->texture.texture_id, ctx->texture.fb1, &clipped);
 +        }
-+        else {
-+            /*GL_UNPACK_ROW_LENGTH steps each row by the buffer's stride, so the sub-image
-+             *starts at the area's first pixel inside the whole buffer*/
-+            const uint8_t * first_px = ctx->texture.fb1 +
-+                                       lv_linux_drm_egl_upload_first_byte(&upload_area, stride, px_size);
-+            int32_t upload_w = lv_area_get_width(&upload_area);
-+            int32_t upload_h = lv_area_get_height(&upload_area);
-+#if LV_COLOR_DEPTH == 16
-+            GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, upload_area.x1, upload_area.y1, upload_w, upload_h, GL_RGB,
-+                                    GL_UNSIGNED_SHORT_5_6_5, first_px));
-+#elif LV_COLOR_DEPTH == 32
-+            GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, upload_area.x1, upload_area.y1, upload_w, upload_h, GL_RGBA,
-+                                    GL_UNSIGNED_BYTE, first_px));
-+#endif
++        if(last) {
++            lv_opengles_texture_present_display(disp);
 +        }
 +    }
 +    lv_linux_drm_egl_upload_record(&ctx->upload, upload, ctx->texture.texture_id, disp_width, disp_height);
- 
++
 +    if(last) {
-+        set_viewport(disp);
-         lv_opengles_render_params_t params = {
-             .h_flip = false,
-             .v_flip = false,
++        lv_opengles_egl_update(ctx->egl_ctx);
++    }
++    lv_display_flush_ready(disp);
++}
++
++#endif /*LV_USE_DRAW_OPENGLES || LV_USE_DRAW_NANOVG*/
++
+ void drm_device_deinit(lv_drm_ctx_t * ctx)
+ {
+     if(ctx->drm_crtc) {
+diff --git a/src/drivers/display/drm/lv_linux_drm_egl_private.h b/src/drivers/display/drm/lv_linux_drm_egl_private.h
+index 47559444d..4b72880a6 100644
+--- a/src/drivers/display/drm/lv_linux_drm_egl_private.h
++++ b/src/drivers/display/drm/lv_linux_drm_egl_private.h
+@@ -24,6 +24,7 @@ extern "C" {
+ #include "../../opengles/lv_opengles_texture_private.h"
+ #include "../../opengles/lv_opengles_egl.h"
+ #include "../../opengles/lv_opengles_egl_private.h"
++#include "lv_linux_drm_egl_upload.h"
+ 
+ /*********************
+  *      DEFINES
+@@ -52,6 +53,7 @@ typedef struct {
+     struct gbm_bo * gbm_bo_presented;
+ 
+     lv_linux_drm_select_mode_cb_t mode_select_cb;
++    lv_linux_drm_egl_upload_state_t upload;
+     int fd;
+     bool crtc_isset;
+ } lv_drm_ctx_t;
 diff --git a/src/drivers/display/drm/lv_linux_drm_egl_upload.h b/src/drivers/display/drm/lv_linux_drm_egl_upload.h
 new file mode 100644
+index 000000000..9fe236cf6
 --- /dev/null
 +++ b/src/drivers/display/drm/lv_linux_drm_egl_upload.h
-@@ -0,0 +1,158 @@
+@@ -0,0 +1,156 @@
 +/**
 + * @file lv_linux_drm_egl_upload.h
 + *
@@ -232,9 +245,7 @@ new file mode 100644
 + *      INCLUDES
 + *********************/
 +
-+#include "../../../misc/lv_area.h"
-+#include "../../../misc/lv_math.h"
-+#include "../../../display/lv_display.h"
++#include "../../../lvgl_public.h"
 +
 +#include <stdbool.h>
 +#include <stddef.h>
@@ -372,3 +383,56 @@ new file mode 100644
 +#endif
 +
 +#endif /*LV_LINUX_DRM_EGL_UPLOAD_H*/
+diff --git a/src/drivers/opengles/lv_opengles_texture.c b/src/drivers/opengles/lv_opengles_texture.c
+index 0ed8b1b9c..ce80e0b34 100644
+--- a/src/drivers/opengles/lv_opengles_texture.c
++++ b/src/drivers/opengles/lv_opengles_texture.c
+@@ -204,6 +204,18 @@ void lv_opengles_texture_render_display(lv_opengles_texture_t * texture, lv_disp
+     if(lv_opengles_texture_upload_display_buf(texture->texture_id, display, texture->fb1) != LV_RESULT_OK) {
+         return;
+     }
++    lv_opengles_texture_present_display(display);
++#endif /*LV_USE_DRAW_OPENGLES*/
++}
++
++#if !LV_USE_DRAW_OPENGLES && !LV_USE_DRAW_NANOVG
++void lv_opengles_texture_present_display(lv_display_t * display)
++{
++    LV_ASSERT(display != NULL);
++
++    /*The rotation is applied while rendering, so the viewport is never rotated*/
++    lv_opengles_viewport(0, 0, lv_display_get_original_horizontal_resolution(display),
++                         lv_display_get_original_vertical_resolution(display));
+ 
+     const lv_color_format_t cf = lv_display_get_color_format(display);
+     lv_opengles_render_params_t params;
+@@ -213,8 +225,8 @@ void lv_opengles_texture_render_display(lv_opengles_texture_t * texture, lv_disp
+     params.rb_swap = lv_opengles_color_format_is_rb_swap(cf);
+     params.cf = cf;
+     lv_opengles_render_display(display, &params);
+-#endif /*LV_USE_DRAW_OPENGLES*/
+ }
++#endif /*!LV_USE_DRAW_OPENGLES && !LV_USE_DRAW_NANOVG*/
+ 
+ unsigned int lv_opengles_texture_get_texture_id(lv_display_t * disp)
+ {
+diff --git a/src/drivers/opengles/lv_opengles_texture_private.h b/src/drivers/opengles/lv_opengles_texture_private.h
+index d75b61a69..457439edd 100644
+--- a/src/drivers/opengles/lv_opengles_texture_private.h
++++ b/src/drivers/opengles/lv_opengles_texture_private.h
+@@ -50,6 +50,15 @@ void lv_opengles_texture_deinit(lv_opengles_texture_t * texture);
+  */
+ void lv_opengles_texture_render_display(lv_opengles_texture_t * texture, lv_display_t * display);
+ 
++#if !LV_USE_DRAW_OPENGLES && !LV_USE_DRAW_NANOVG
++/**
++ * Render what the display's texture already holds to the current OpenGL framebuffer,
++ * without uploading the software rendered buffer first
++ * @param display   the display to render
++ */
++void lv_opengles_texture_present_display(lv_display_t * display);
++#endif /*!LV_USE_DRAW_OPENGLES && !LV_USE_DRAW_NANOVG*/
++
+ /**********************
+  *      MACROS
+  **********************/

@@ -24,7 +24,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "locale_formats.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_history_api.h"

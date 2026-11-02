@@ -5,7 +5,7 @@
 #include "ui_toast_manager.h"
 
 #include "i_moonraker_client.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 
 #include <spdlog/fmt/fmt.h>

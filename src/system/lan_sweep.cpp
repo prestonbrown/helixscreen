@@ -3,7 +3,7 @@
 
 #include "lan_sweep.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_auth.h"
 #include "moonraker_events.h"
 #include "platform_info.h"

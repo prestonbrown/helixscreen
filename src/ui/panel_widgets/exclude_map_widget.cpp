@@ -15,7 +15,7 @@
 #include "app_globals.h"
 #include "bed_dimensions.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observe_language.h"
 #include "observer_factory.h"
 #include "panel_widget_registry.h"

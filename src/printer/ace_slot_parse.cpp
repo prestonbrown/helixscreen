@@ -6,7 +6,7 @@
 #include "ams_status_json.h"
 #include "json_utils.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>

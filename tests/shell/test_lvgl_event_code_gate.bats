@@ -29,10 +29,10 @@ setup() {
     # derived from its own path, so this is enough of a tree - and it keeps
     # every mutation below out of the real working copy.
     TREE="${BATS_TEST_TMPDIR:-$(mktemp -d)}/tree"
-    mkdir -p "$TREE/scripts" "$TREE/lib/lvgl/src/misc" "$TREE/server/crash-worker/src"
+    mkdir -p "$TREE/scripts" "$TREE/lib/lvgl/include/lvgl/core" "$TREE/server/crash-worker/src"
     cp "$GEN" "$TREE/scripts/"
     cp lv_conf.h "$TREE/lv_conf.h"
-    cp lib/lvgl/src/misc/lv_event.h "$TREE/lib/lvgl/src/misc/"
+    cp lib/lvgl/include/lvgl/core/lv_event.h "$TREE/lib/lvgl/include/lvgl/core/"
     cp "$WORKER" "$TREE/$WORKER"
     GEN_COPY="$TREE/scripts/gen_lvgl_event_codes.py"
     WORKER_COPY="$TREE/$WORKER"
@@ -52,16 +52,16 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "the table decodes 42 as DELETE" {
-    # The specific regression. 42 was labelled SCREEN_UNLOAD_START on #1356.
-    run grep -qE '^ *42: "DELETE",' "$WORKER"
+@test "the table decodes 48 as DELETE" {
+    # The regression shape of #1356: DELETE's code labelled with another event's name.
+    run grep -qE '^ *48: "DELETE",' "$WORKER"
     [ "$status" -eq 0 ]
 }
 
 @test "the codes LVGL 9.5 inserted are present" {
     run grep -qE '^ *5: "SINGLE_CLICKED",' "$WORKER"
     [ "$status" -eq 0 ]
-    run grep -qE '^ *40: "STATE_CHANGED",' "$WORKER"
+    run grep -qE '^ *44: "STATE_CHANGED",' "$WORKER"
     [ "$status" -eq 0 ]
 }
 
@@ -69,7 +69,7 @@ setup() {
 
 @test "a hand-edited table name fails --check" {
     require_gnu_sed
-    sed -i 's/42: "DELETE",/42: "SCREEN_UNLOAD_START",/' "$WORKER_COPY"
+    sed -i 's/48: "DELETE",/48: "SCREEN_UNLOAD_START",/' "$WORKER_COPY"
     run python3 "$GEN_COPY" --check
     [ "$status" -eq 1 ]
     [[ "$output" == *"drifted"* ]]
@@ -80,21 +80,21 @@ setup() {
     # What LVGL 9.5 did: an enumerator inserted mid-list shifts everything after
     # it. This is the shape the old hand-maintained table slept through.
     sed -i 's/    LV_EVENT_DELETE,/    LV_EVENT_BRAND_NEW,\n    LV_EVENT_DELETE,/' \
-        "$TREE/lib/lvgl/src/misc/lv_event.h"
+        "$TREE/lib/lvgl/include/lvgl/core/lv_event.h"
     run python3 "$GEN_COPY" --check
     [ "$status" -eq 1 ]
     run python3 "$GEN_COPY"
     [ "$status" -eq 0 ]
-    run grep -qE '^ *43: "DELETE",' "$WORKER_COPY"
+    run grep -qE '^ *49: "DELETE",' "$WORKER_COPY"
     [ "$status" -eq 0 ]
 }
 
 @test "--diff names the code that moved" {
     require_gnu_sed
-    sed -i 's/42: "DELETE",/42: "NOPE",/' "$WORKER_COPY"
+    sed -i 's/48: "DELETE",/48: "NOPE",/' "$WORKER_COPY"
     run python3 "$GEN_COPY" --diff
     [ "$status" -eq 1 ]
-    [[ "$output" == *'42: "DELETE"'* ]]
+    [[ "$output" == *'48: "DELETE"'* ]]
 }
 
 # --- the quiet half ---
@@ -113,7 +113,7 @@ setup() {
     # that name rather than leave a code pointing at nothing.
     run grep -q 'TRANSLATION_LANGUAGE_CHANGED' "$WORKER_COPY"
     [ "$status" -eq 0 ]
-    sed -i 's/#define LV_USE_TRANSLATION    1/#define LV_USE_TRANSLATION    0/' "$TREE/lv_conf.h"
+    sed -i 's/^#define LV_USE_TRANSLATION 1$/#define LV_USE_TRANSLATION 0/' "$TREE/lv_conf.h"
     run python3 "$GEN_COPY"
     [ "$status" -eq 0 ]
     run grep -q 'TRANSLATION_LANGUAGE_CHANGED' "$WORKER_COPY"
@@ -123,7 +123,7 @@ setup() {
 @test "an unevaluable conditional aborts instead of renumbering silently" {
     require_gnu_sed
     sed -i 's/^#if LV_USE_TRANSLATION$/#if defined(SOMETHING) \&\& OTHER/' \
-        "$TREE/lib/lvgl/src/misc/lv_event.h"
+        "$TREE/lib/lvgl/include/lvgl/core/lv_event.h"
     run python3 "$GEN_COPY"
     [ "$status" -ne 0 ]
     [[ "$output" == *"cannot evaluate"* ]]

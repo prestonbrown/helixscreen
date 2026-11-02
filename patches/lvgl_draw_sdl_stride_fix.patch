@@ -55,14 +55,13 @@ be safely enabled again for GPU-accelerated drawing.
 ---
  src/draw/sdl/lv_draw_sdl.c | 61 +++++++++++++++++++++++++++++++++++-----------
  1 file changed, 47 insertions(+), 14 deletions(-)
-
 diff --git a/src/draw/sdl/lv_draw_sdl.c b/src/draw/sdl/lv_draw_sdl.c
-index e3fe6b02c..fbd2c2ce4 100644
+index 565c15c9d..c7848f5a4 100644
 --- a/src/draw/sdl/lv_draw_sdl.c
 +++ b/src/draw/sdl/lv_draw_sdl.c
-@@ -181,8 +181,22 @@ static int32_t evaluate(lv_draw_unit_t * draw_unit, lv_draw_task_t * task)
+@@ -205,8 +205,22 @@ static int32_t evaluate(lv_draw_unit_t * draw_unit, lv_draw_task_t * task)
      }
-
+ 
      /*If not refreshing the display probably it's a canvas rendering
 -     *which his not support in SDL as it's not a texture.*/
 -    if(lv_refr_get_disp_refreshing() == NULL) return 0;
@@ -82,10 +81,10 @@ index e3fe6b02c..fbd2c2ce4 100644
 +       task->target_layer->draw_buf != NULL) {
 +        return 0;
 +    }
-
+ 
      if(((lv_draw_dsc_base_t *)task->draw_dsc)->user_data == NULL) {
          task->preference_score = 0;
-@@ -219,7 +233,12 @@ static bool draw_to_texture(lv_draw_sdl_unit_t * u, cache_data_t * cache_data)
+@@ -243,7 +257,12 @@ static bool draw_to_texture(lv_draw_sdl_unit_t * u, cache_data_t * cache_data)
      dest_layer.buf_area = task->_real_area;
      dest_layer._clip_area = task->_real_area;
      dest_layer.phy_clip_area = task->_real_area;
@@ -96,10 +95,10 @@ index e3fe6b02c..fbd2c2ce4 100644
 +     * renders bleed into transparent areas of later textures (ghost dots
 +     * under labels, stale tail rows on small widgets). */
 +    lv_memzero(u->render_draw_buf.data, u->render_draw_buf.header.stride * texture_h);
-
+ 
      lv_display_t * disp = lv_refr_get_disp_refreshing();
-
-@@ -323,7 +342,12 @@ static bool draw_to_texture(lv_draw_sdl_unit_t * u, cache_data_t * cache_data)
+ 
+@@ -348,7 +367,12 @@ static bool draw_to_texture(lv_draw_sdl_unit_t * u, cache_data_t * cache_data)
      SDL_Texture * texture = SDL_CreateTexture(lv_sdl_window_get_renderer(disp), SDL_PIXELFORMAT_ARGB8888,
                                                SDL_TEXTUREACCESS_STATIC, texture_w, texture_h);
      SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -110,10 +109,10 @@ index e3fe6b02c..fbd2c2ce4 100644
 +     * — producing a diagonal streak pattern in images and small labels. Use
 +     * the real stride from the draw buffer header. */
 +    SDL_UpdateTexture(texture, NULL, u->render_draw_buf.data, u->render_draw_buf.header.stride);
-
+ 
      lv_draw_dsc_base_t * base_dsc = task->draw_dsc;
-
-@@ -412,10 +436,29 @@ static void draw_from_cached_texture(lv_draw_sdl_unit_t * u)
+ 
+@@ -439,10 +463,29 @@ static void draw_from_cached_texture(lv_draw_sdl_unit_t * u)
      }
      else if(t->type == LV_DRAW_TASK_TYPE_LINE) {
          lv_draw_line_dsc_t * line_dsc = (lv_draw_line_dsc_t *)data_to_find.draw_dsc;
@@ -147,5 +146,3 @@ index e3fe6b02c..fbd2c2ce4 100644
      }
      else if(t->type == LV_DRAW_TASK_TYPE_ARC) {
          lv_draw_arc_dsc_t * arc_dsc = (lv_draw_arc_dsc_t *)data_to_find.draw_dsc;
---
-2.39.0

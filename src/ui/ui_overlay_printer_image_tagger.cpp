@@ -8,7 +8,7 @@
 #include "ui_panel_common.h"
 
 #include "callout_layout.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widgets/callout_chip.h"
 #include "printer_image_manager.h"
 #include "printer_images.h"

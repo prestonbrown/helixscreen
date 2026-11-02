@@ -7,7 +7,7 @@
 
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observer_factory.h"
 #include "panel_widget_size.h"
 #include "settings_manager.h"

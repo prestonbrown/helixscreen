@@ -34,7 +34,7 @@ inline constexpr int kContributorCount = sizeof(kContributors) / sizeof(kContrib
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "replace_method_callback.h"
 #include "system/diagnostics.h"
 #include "system/update_checker.h"

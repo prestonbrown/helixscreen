@@ -17,7 +17,7 @@
 #include "config.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"

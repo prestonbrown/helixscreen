@@ -53,10 +53,11 @@ set(HELIX_FONT_SRCS
 
 # ESP32-S3 PIE SIMD blend/fill assembly (vendored esp_lvgl_port, Apache-2.0 —
 # see simd/esp_lvgl_port_lv_blend.h for provenance). The *_esp32s3.S files
-# define the generic lv_*_esp symbols the glue header's static inlines call
-# from inside LVGL's blend translation units; lv_macro_*.S are include-only
-# macro libraries the others pull in.
+# define the generic lv_*_esp symbols that esp_lvgl_port_lv_blend.c's wrappers
+# call for LVGL's blend translation units; lv_macro_*.S are include-only macro
+# libraries the others pull in.
 file(GLOB HELIX_SIMD_SRCS ${CMAKE_CURRENT_LIST_DIR}/simd/*_esp32s3.S)
+list(APPEND HELIX_SIMD_SRCS ${CMAKE_CURRENT_LIST_DIR}/simd/esp_lvgl_port_lv_blend.c)
 
 idf_component_register(
     SRCS ${LVGL_SRCS} ${HELIX_XML_SRCS} ${HELIX_FONT_SRCS} ${HELIX_SIMD_SRCS}
@@ -80,7 +81,10 @@ idf_component_register(
 file(GLOB_RECURSE LVGL_DRAW_SRCS ${REPO_ROOT}/lib/lvgl/src/draw/*.c)
 file(GLOB_RECURSE LVGL_CORE_SRCS ${REPO_ROOT}/lib/lvgl/src/core/*.c ${REPO_ROOT}/lib/lvgl/src/misc/*.c
      ${REPO_ROOT}/lib/lvgl/src/layouts/*.c)
-set_source_files_properties(${LVGL_DRAW_SRCS} ${LVGL_CORE_SRCS} ${HELIX_XML_SRCS} PROPERTIES COMPILE_OPTIONS "-O2")
+set(LVGL_MOVED_CORE_SRCS ${REPO_ROOT}/lib/lvgl/src/image/lv_image_decoder.c
+    ${REPO_ROOT}/lib/lvgl/src/fs/lv_fs.c ${REPO_ROOT}/lib/lvgl/src/logging/lv_log.c)
+set_source_files_properties(${LVGL_DRAW_SRCS} ${LVGL_CORE_SRCS} ${LVGL_MOVED_CORE_SRCS} ${HELIX_XML_SRCS}
+    PROPERTIES COMPILE_OPTIONS "-O2")
 
 # LV_KCONFIG_IGNORE: helix-xml ships lv_conf_internal.h without the sibling
 # lv_conf_kconfig.h; we configure via lv_conf.h, not ESP-IDF Kconfig.

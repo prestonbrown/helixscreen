@@ -4,7 +4,7 @@
 #include "audio_settings_manager.h"
 
 #include "config.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "sound_manager.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"

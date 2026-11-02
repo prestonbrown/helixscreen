@@ -11,7 +11,7 @@
 #include "dryer_summary.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "motion_presets.h"
 #include "observer_factory.h"
 #include "panel_widget_manager.h"
