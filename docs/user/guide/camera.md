@@ -22,6 +22,22 @@ Cameras on an `https` address work too. In the Android app, an `https` camera is
 
 ---
 
+## Printers Without a Camera View
+
+HelixScreen running on the printer's own screen is built without the camera view on these printers:
+
+- Creality K1, K1C, K1 Max, K1 SE and Ender-3 V3 KE
+- Creality K2 series
+- FlashForge Adventurer 5M, Adventurer 5X and Creator 5
+- Elegoo Centauri Carbon
+- Snapmaker U1
+
+On these builds there is no Camera widget, no camera entry under **Settings**, and no camera on the print screen, even when Moonraker has a webcam configured. Your camera still works in Mainsail, Fluidd and other clients. A separate screen or device pointed at the same printer (a Raspberry Pi, a desktop, the Android app) shows the camera as usual.
+
+These boards share a small amount of memory and two slow processor cores with Klipper, and the camera view has not been tuned and measured on them yet. A lighter camera view for these printers is planned.
+
+---
+
 ## Choosing Between Several Cameras
 
 When Moonraker lists more than one enabled webcam, HelixScreen picks one automatically: the first camera whose service is an MJPEG streamer (mjpegstreamer, ustreamer) and whose serving process is running, otherwise the first camera with a usable snapshot image, polled. That automatic choice is what the standalone fullscreen viewer and the QR scanner always show.
