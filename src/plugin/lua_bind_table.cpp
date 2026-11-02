@@ -15,7 +15,7 @@ namespace helix::plugin {
 
 namespace {
 
-RegistryKey g_table_state_key;
+RegistryKey g_table_state_key{"table_state"};
 const char kTableMeta[] = "helix.table";
 constexpr size_t kMaxTitleBytes = 256;
 

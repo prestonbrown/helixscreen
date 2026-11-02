@@ -18,12 +18,14 @@
 
 namespace helix::plugin {
 
-/// A Lua registry slot keyed by this object's address (lua_rawsetp / lua_rawgetp). Never
-/// declare one const: the MIPS and K2 builds pass -fmerge-all-constants, which folds
-/// identical constants onto one address, so every const key would name the same slot
-/// (#1995). A writable object always has an address of its own.
+/// A Lua registry slot keyed by this object's address (lua_rawsetp / lua_rawgetp). The
+/// MIPS and K2 builds pass -fmerge-all-constants with LTO, which folds objects with
+/// identical contents onto one address, and keys that share an address share a slot
+/// (#1995). So a key is never const, and each carries its own name: two objects whose
+/// contents differ can never be folded together. The name must be unique per key.
 struct RegistryKey {
-    char unused = 0;
+    explicit constexpr RegistryKey(const char* key_name) : name(key_name) {}
+    const char* name;
 };
 
 /// Counts errors in a sliding window. `record` returns true when this error reaches the

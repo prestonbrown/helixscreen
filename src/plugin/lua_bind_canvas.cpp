@@ -21,7 +21,7 @@ namespace helix::plugin {
 
 namespace {
 
-RegistryKey g_canvas_state_key;
+RegistryKey g_canvas_state_key{"canvas_state"};
 const char kCanvasMeta[] = "helix.canvas";
 constexpr int32_t kMaxStroke = 64;
 constexpr int32_t kMaxOpaPercent = 100; // opa is authored 0-100; stored as 0-255
