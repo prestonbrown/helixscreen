@@ -110,13 +110,18 @@ setup() {
 @test "a conditional enumerator is resolved from lv_conf.h, not guessed" {
     require_gnu_sed
     # LV_USE_TRANSLATION gates the last enumerator. Turning it off must drop
-    # that name rather than leave a code pointing at nothing.
-    run grep -q 'TRANSLATION_LANGUAGE_CHANGED' "$WORKER_COPY"
+    # that name rather than leave a code pointing at nothing. Only the generated
+    # table follows lv_conf.h; the frozen 9.5 table beside it keeps the name.
+    local generated="$TREE/generated_table.txt"
+    sed -n '/BEGIN GENERATED lv_event_code_t/,/END GENERATED lv_event_code_t/p' "$WORKER_COPY" >"$generated"
+    run grep -q 'TRANSLATION_LANGUAGE_CHANGED' "$generated"
     [ "$status" -eq 0 ]
     sed -i 's/^#define LV_USE_TRANSLATION 1$/#define LV_USE_TRANSLATION 0/' "$TREE/lv_conf.h"
     run python3 "$GEN_COPY"
     [ "$status" -eq 0 ]
-    run grep -q 'TRANSLATION_LANGUAGE_CHANGED' "$WORKER_COPY"
+    sed -n '/BEGIN GENERATED lv_event_code_t/,/END GENERATED lv_event_code_t/p' "$WORKER_COPY" >"$generated"
+    [ -s "$generated" ]
+    run grep -q 'TRANSLATION_LANGUAGE_CHANGED' "$generated"
     [ "$status" -ne 0 ]
 }
 
