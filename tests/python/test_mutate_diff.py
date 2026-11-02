@@ -783,9 +783,9 @@ def test_a_hung_shard_is_measured_against_its_own_baseline(tmp_path):
 
 
 def test_the_baseline_records_each_shard_and_orders_the_next_run(tmp_path):
-    # Whole seconds apart: on a loaded host a process can take hundreds of
-    # milliseconds just to start, which would reorder shards spaced closer.
-    exe = _shard_bin(tmp_path, 'sleep "$i"\n'
+    # Two seconds apart: on a loaded host a process can take over a second
+    # just to start, which would reorder shards spaced closer.
+    exe = _shard_bin(tmp_path, 'sleep "$((i * 2))"\n'
                                'echo "All tests passed (1 assertion in 1 test case)"\n')
     plan = md.Catch2Plan(3, 1)
     state, _, _ = md.run_catch2(tmp_path, exe, '[x]', plan, open(os.devnull, 'w'))
@@ -1157,11 +1157,12 @@ def test_a_merge_time_run_over_the_cap_is_refused_without_release(minutes):
     assert "--release" in p.stderr
 
 
-def test_release_lifts_the_cap():
-    p = subprocess.run([sys.executable, str(SCRIPTS_DIR / "mutate_diff.py"), "--list-only",
-                        "--max-minutes", "240", "--release", "--base", "HEAD"],
-                       cwd=REPO_ROOT, capture_output=True, text=True)
-    assert p.returncode == 0, p.stderr
+def test_release_lifts_the_cap(tmp_path):
+    # A fixture repo, not this checkout: the pre-push sweep runs in a throwaway
+    # checkout whose submodules are symlinks, and git diff refuses those.
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    r = _mutate(work, "--list-only", "--max-minutes", "240", "--release", "--base", base)
+    assert r.returncode == 0, r.stdout
 
 
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
