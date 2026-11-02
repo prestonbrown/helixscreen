@@ -138,6 +138,14 @@ struct PlatformCapabilities {
     static PlatformCapabilities detect();
 
     /**
+     * @brief Capabilities from the contents of /proc/meminfo and /proc/cpuinfo
+     *
+     * What detect() does on Linux once it has read the two files. Either string
+     * may be empty, which leaves its metrics at zero.
+     */
+    static PlatformCapabilities detect_from(const std::string& meminfo, const std::string& cpuinfo);
+
+    /**
      * @brief Create capabilities from explicit metrics (for testing)
      *
      * @param ram_mb Total RAM in megabytes
