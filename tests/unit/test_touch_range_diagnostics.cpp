@@ -373,6 +373,69 @@ TEST_CASE("touch_range_violation: under the DisplaySize guess either reading of 
                     .any());
 }
 
+namespace {
+
+/// A three-point calibration's range, programmed over the kernel declaration.
+TouchPipelineInfo make_stored_pipeline(int declared_max_x, int declared_max_y, int min_x, int max_x,
+                                       int min_y, int max_y, bool swap_axes = false) {
+    TouchPipelineInfo p = make_pipeline(0, declared_max_x, 0, declared_max_y);
+    p.source = TouchRangeSource::Stored;
+    p.swap_axes = swap_axes;
+    p.min_x = min_x;
+    p.max_x = max_x;
+    p.min_y = min_y;
+    p.max_y = max_y;
+    return p;
+}
+
+} // namespace
+
+TEST_CASE("touch_range_violation: a stored range is the display's edges, not the panel's",
+          "[touch][touch-diagnostics][stored-range]") {
+    SECTION("AD5X TSC2007: a touch past the top edge stays inside the declaration") {
+        // Declared 0..800 x 0..480; calibration put the display at 53..732 x 73..390.
+        const TouchPipelineInfo cfg = make_stored_pipeline(800, 480, 53, 732, 73, 390);
+        CHECK_FALSE(
+            touch_range_violation(observe_all({{92, 200}, {713, 390}, {400, 2}}), cfg).any());
+    }
+    SECTION("Goodix: a few units past the right edge") {
+        const TouchPipelineInfo cfg = make_stored_pipeline(799, 479, 7, 473, 4, 261);
+        CHECK_FALSE(touch_range_violation(observe_all({{9, 7}, {476, 259}}), cfg).any());
+    }
+    SECTION("ns2009: a full-scale reading is inside a 12-bit declaration") {
+        const TouchPipelineInfo cfg = make_stored_pipeline(4095, 4095, 148, 3906, 219, 3790);
+        CHECK_FALSE(touch_range_violation(observe_all({{3351, 2914}, {4095, 3135}}), cfg).any());
+    }
+    SECTION("a reading past the declaration itself still reports") {
+        const TouchPipelineInfo cfg = make_stored_pipeline(800, 480, 53, 732, 73, 390);
+        const TouchRangeViolation v =
+            touch_range_violation(observe_all({{400, 200}, {400, 481}}), cfg);
+        CHECK_FALSE(v.x);
+        CHECK(v.y);
+    }
+}
+
+TEST_CASE("touch_range_violation: a swapped stored range is judged against the raw axis's "
+          "declaration",
+          "[touch][touch-diagnostics][stored-range]") {
+    // Declared raw X 0..4000, raw Y 0..300. Swapped, configured X is fed by raw Y.
+    const TouchPipelineInfo cfg = make_stored_pipeline(4000, 300, 20, 280, 100, 3900, true);
+
+    // Raw y=290 is past the stored 20..280 but inside raw Y's declared 0..300.
+    CHECK_FALSE(touch_range_violation(observe_all({{2000, 290}}), cfg).x);
+    // Raw y=301 is outside raw Y's declaration too.
+    CHECK(touch_range_violation(observe_all({{2000, 301}}), cfg).x);
+    // Raw x=3950 is past the stored 100..3900 but inside raw X's declared 0..4000.
+    CHECK_FALSE(touch_range_violation(observe_all({{3950, 150}}), cfg).y);
+}
+
+TEST_CASE("touch_range_violation: a stored range with no declaration is judged on its own",
+          "[touch][touch-diagnostics][stored-range]") {
+    TouchPipelineInfo cfg = make_stored_pipeline(800, 480, 53, 732, 73, 390);
+    cfg.declared_valid = false;
+    CHECK(touch_range_violation(observe_all({{400, 2}}), cfg).y);
+}
+
 // ============================================================================
 // The read-callback seam that feeds it
 // ============================================================================
