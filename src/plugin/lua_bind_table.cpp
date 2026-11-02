@@ -15,7 +15,7 @@ namespace helix::plugin {
 
 namespace {
 
-const char kTableStateKey = 0;
+RegistryKey g_table_state_key;
 const char kTableMeta[] = "helix.table";
 constexpr size_t kMaxTitleBytes = 256;
 
@@ -33,7 +33,7 @@ struct TableState {
 };
 
 TableState* table_state(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kTableStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_table_state_key);
     auto* s = static_cast<TableState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return s;
@@ -255,7 +255,7 @@ void install_table_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     auto* state = new TableState{&ctx.rt, ctx.rt.token(), {}};
     lua_pushlightuserdata(L, state);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kTableStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_table_state_key);
     ctx.rt.on_close([state] {
         // An unloaded plugin's tables go empty and stop answering taps.
         for (const auto& e : state->tables) {

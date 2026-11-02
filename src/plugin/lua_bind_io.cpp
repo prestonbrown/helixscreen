@@ -23,7 +23,7 @@ namespace helix::plugin {
 
 namespace {
 
-const char kIoStateKey = 0;
+RegistryKey g_io_state_key;
 constexpr size_t kMaxStorageBytes = 256 * 1024;
 constexpr size_t kMaxSettingString = 1024;
 constexpr size_t kMaxInflightHttp = 2;
@@ -76,7 +76,7 @@ struct IoState {
 };
 
 IoState& io_state(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kIoStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_io_state_key);
     auto* s = static_cast<IoState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *s;
@@ -343,7 +343,7 @@ void install_io_bindings(PluginContext& ctx) {
     state->storage_path = ctx.storage_path;
     state->plugin_id = ctx.rt.plugin_id();
     lua_pushlightuserdata(L, state);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kIoStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_io_state_key);
     // Unload and app shutdown both close the runtime, so a pending change is written here.
     state->storage_write.write = [state] { write_storage(*state); };
     state->settings_write.write = [&ctx] { ctx.save_settings(); };

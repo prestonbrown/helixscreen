@@ -31,7 +31,7 @@ namespace helix::plugin {
 namespace {
 
 const char kSubjectMeta[] = "helix.subject";
-const char kUiStateKey = 0;
+RegistryKey g_ui_state_key;
 constexpr size_t kMaxString = 1024;
 constexpr size_t kMaxSubjects = 128;
 constexpr size_t kMaxOpenConfirms = 1;
@@ -81,7 +81,7 @@ struct UiState {
 };
 
 UiState& ui_state(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kUiStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_ui_state_key);
     auto* s = static_cast<UiState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *s;
@@ -868,7 +868,7 @@ void install_ui_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     auto* state = new UiState;
     lua_pushlightuserdata(L, state);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kUiStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_ui_state_key);
     ctx.rt.on_close([state] {
         // The plugin is going away; take its still-unanswered question off screen. A
         // dialog the user already closed cleared the pointer on its close path.

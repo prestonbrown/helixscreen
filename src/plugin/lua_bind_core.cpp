@@ -21,9 +21,9 @@ namespace helix::plugin {
 
 namespace {
 
-const char kContextKey = 0;
-const char kTimersKey = 0;
-const char kI18nKey = 0;
+RegistryKey g_context_key;
+RegistryKey g_timers_key;
+RegistryKey g_i18n_key;
 const char kTimerMeta[] = "helix.timer";
 constexpr size_t kMaxLiveTimers = 64;
 
@@ -57,7 +57,7 @@ struct TimerRegistry {
 };
 
 TimerRegistry& timers_of(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kTimersKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_timers_key);
     auto* r = static_cast<TimerRegistry*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *r;
@@ -355,7 +355,7 @@ struct I18nState {
 };
 
 I18nState& i18n_state(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kI18nKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_i18n_key);
     auto* st = static_cast<I18nState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *st;
@@ -409,7 +409,7 @@ void forbid_in_check(lua_State* L, const char* call) {
 }
 
 PluginContext& context(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kContextKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_context_key);
     auto* ctx = static_cast<PluginContext*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *ctx;
@@ -418,11 +418,11 @@ PluginContext& context(lua_State* L) {
 void install_core_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     lua_pushlightuserdata(L, &ctx);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kContextKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_context_key);
 
     auto* reg = new TimerRegistry;
     lua_pushlightuserdata(L, reg);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kTimersKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_timers_key);
     ctx.rt.on_close([reg] {
         for (auto& [id, s] : reg->timers)
             stop(*s);
@@ -431,7 +431,7 @@ void install_core_bindings(PluginContext& ctx) {
 
     auto* i18n = new I18nState{&ctx.rt};
     lua_pushlightuserdata(L, i18n);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kI18nKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_i18n_key);
     ctx.rt.on_close([i18n] {
         if (i18n->listener != 0)
             helix::ui::locale_remove_language_listener(i18n->listener);
