@@ -77,7 +77,7 @@ bool file_exists(const std::string& path) {
     return ::stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
 }
 
-const char kLoadedKey = 0; // its address keys the require cache in the registry
+RegistryKey g_loaded_key; // its address keys the require cache in the registry
 
 std::string budget_reason(const LuaRuntime::Limits& limits) {
     return "exceeded its time budget (" + std::to_string(limits.time_budget.count()) +
@@ -241,7 +241,7 @@ void LuaRuntime::install_sandbox() {
         lua_pop(L_, 1);
     }
     lua_newtable(L_);
-    lua_rawsetp(L_, LUA_REGISTRYINDEX, &kLoadedKey);
+    lua_rawsetp(L_, LUA_REGISTRYINDEX, &g_loaded_key);
     lua_pushcfunction(L_, &LuaRuntime::lua_require);
     lua_setglobal(L_, "require");
     // A C function rather than prelude Lua: the prelude runs before the helix global
@@ -280,7 +280,7 @@ int LuaRuntime::lua_require(lua_State* L) {
         return luaL_error(L, "require is not allowed in %s %s", rt.check_article(),
                           rt.check_label_);
     std::string name = luaL_checkstring(L, 1);
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kLoadedKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_loaded_key);
     lua_getfield(L, -1, name.c_str());
     if (!lua_isnil(L, -1))
         return 1;

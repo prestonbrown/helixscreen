@@ -88,7 +88,7 @@ int push_rpc_capped_body(lua_State* co, const json& value, size_t body_bytes) {
 
 namespace {
 
-const char kMoonrakerStateKey = 0;
+RegistryKey g_moonraker_state_key;
 constexpr size_t kMaxAgentHandlers = 16;
 constexpr size_t kMaxSubscriptions = 8;
 constexpr size_t kMaxSubscribedObjects = 16;
@@ -132,7 +132,7 @@ struct MoonrakerBindState {
 };
 
 MoonrakerBindState& moonraker_state_of(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kMoonrakerStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_moonraker_state_key);
     auto* s = static_cast<MoonrakerBindState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *s;
@@ -558,7 +558,7 @@ void install_moonraker_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     auto* state = new MoonrakerBindState;
     lua_pushlightuserdata(L, state);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kMoonrakerStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_moonraker_state_key);
     ctx.rt.on_close([state] { delete state; });
     // Runs before the state's own closer (closers run in reverse registration order):
     // drops the status handler, stops every delivery and clears the plugin's objects, so
