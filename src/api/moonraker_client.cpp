@@ -24,6 +24,7 @@
 #include "helix_version.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
+#include "json_nonfinite.h"
 #include "json_utils.h"
 #include "klippy_notification.h"
 #include "moonraker_auth.h"
@@ -716,10 +717,19 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
         try {
             j = json::parse(msg);
         } catch (const json::parse_error& e) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] JSON parse error: {}", e.what());
-            TelemetryManager::instance().record_error("websocket", "parse_error",
-                                                      fmt::format("JSON parse: {}", e.what()));
-            return;
+            // Moonraker without orjson writes a NaN sensor reading as a bare NaN;
+            // read it as null rather than dropping every other field in the frame.
+            std::string repaired;
+            if (json_util::nonfinite_literals_to_null(msg, repaired)) {
+                j = json::parse(repaired, nullptr, false);
+            }
+            if (j.is_null() || j.is_discarded()) {
+                LOG_ERROR_INTERNAL("[Moonraker Client] JSON parse error: {}", e.what());
+                TelemetryManager::instance().record_error("websocket", "parse_error",
+                                                          fmt::format("JSON parse: {}", e.what()));
+                return;
+            }
+            spdlog::trace("[Moonraker Client] Read non-finite numbers in a frame as null");
         }
 
         // Route responses with request IDs through the tracker
@@ -879,8 +889,13 @@ void MoonrakerClient::on_ws_close() {
 
         if (was_connected_) {
             spdlog::warn("[Moonraker Client] WebSocket connection closed");
-            TelemetryManager::instance().record_error("websocket", "disconnected",
-                                                      "connection closed unexpectedly");
+            // A close inside the suppression window is one this app asked for
+            // (disconnect(), an expected Klippy restart), not a dropped link, so it
+            // is not reported as an error. connection_stability still counts it.
+            if (!suppressed) {
+                TelemetryManager::instance().record_error("websocket", "disconnected",
+                                                          "connection closed unexpectedly");
+            }
             was_connected_ = false;
             // Reset so re-identification + retry-on-klippy-state happen on reconnect
             discovery_.reset_identified();
