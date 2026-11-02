@@ -230,9 +230,11 @@ TEST_CASE_METHOD(PresetConfigFixture,
     REQUIRE(config.apply_preset_file("ad5m_pro_forgex") == true);
 
     auto& pd = printer_data();
-    REQUIRE(pd["fans"]["chamber"] == "fan_generic chamber_fan");
+    // chamber_fan is the side fan FlashForge's M106 P2 drives across the bed;
+    // internal_fan is the enclosure's circulation fan.
+    REQUIRE(pd["fans"]["chamber"] == "fan_generic internal_fan");
     REQUIRE(pd["fans"]["exhaust"] == "fan_generic external_fan");
-    REQUIRE(pd["fans"]["aux"] == "fan_generic internal_fan");
+    REQUIRE(pd["fans"]["aux"] == "fan_generic chamber_fan");
     // leds/strip is not seeded post-wizard: a preset LED name the machine does not
     // have would raise "Configured LED strip not found", which outranks the toast
     // this migration exists to silence.
