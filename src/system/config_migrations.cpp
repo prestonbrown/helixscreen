@@ -1386,6 +1386,66 @@ static void migrate_v31_to_v32(json& config, const std::string& /*config_path*/)
     }
 }
 
+/// Which AD5M Pro firmware a saved printer was set up for, by its own preset or type.
+/// Empty when it is not an AD5M Pro set up from a Forge-X or Z-Mod preset.
+static std::string ad5m_pro_firmware(const json& printer) {
+    const std::string own_preset = helix::json_util::safe_string(printer, "preset");
+    if (own_preset == "ad5m_pro_forgex" ||
+        (own_preset.empty() && helix::json_util::safe_string(printer, "type") ==
+                                   "FlashForge Adventurer 5M Pro (ForgeX)")) {
+        return "forgex";
+    }
+    if (own_preset == "ad5m_pro_zmod") {
+        return "zmod";
+    }
+    return {};
+}
+
+/// Correct the AD5M Pro fan roles its Forge-X and Z-Mod presets once swapped. chamber_fan is
+/// the side fan FlashForge's M106 P2 drives across the bed, so it is the aux fan, and
+/// internal_fan is the enclosure's circulation fan. Z-Mod exposes neither internal_fan nor
+/// external_fan to Klipper (AIR_CIRCULATION_* drives them), so there the chamber and exhaust
+/// roles go. Only a role still holding the old preset's exact value changes: anything else
+/// is a choice the user made.
+static void migrate_v32_to_v33(json& config, const std::string& /*config_path*/) {
+    static constexpr const char* kSideFan = "fan_generic chamber_fan";
+    static constexpr const char* kCirculation = "fan_generic internal_fan";
+    static constexpr const char* kExhaust = "fan_generic external_fan";
+    if (!config.contains("printers") || !config["printers"].is_object()) {
+        return;
+    }
+    for (auto& [printer_id, printer] : config["printers"].items()) {
+        // VENDOR_OK: a migration freezes the printers it repairs
+        const std::string firmware = printer.is_object() ? ad5m_pro_firmware(printer) : "";
+        if (firmware.empty() || !printer.contains("fans") || !printer["fans"].is_object()) {
+            continue;
+        }
+        json& fans = printer["fans"];
+        if (helix::json_util::safe_string(fans, "aux") != kCirculation) {
+            continue;
+        }
+        const bool chamber_is_old_default =
+            helix::json_util::safe_string(fans, "chamber") == kSideFan;
+        if (firmware == "forgex") {
+            if (!chamber_is_old_default) {
+                continue;
+            }
+            fans["aux"] = kSideFan;
+            fans["chamber"] = kCirculation;
+        } else {
+            fans["aux"] = kSideFan;
+            if (chamber_is_old_default) {
+                fans.erase("chamber");
+            }
+            if (helix::json_util::safe_string(fans, "exhaust") == kExhaust) {
+                fans.erase("exhaust");
+            }
+        }
+        spdlog::info("[Config] Migration v33: corrected AD5M Pro ({}) fan roles for printer '{}'",
+                     firmware, printer_id);
+    }
+}
+
 using MigrationFn = void (*)(json& config, const std::string& config_path);
 
 /// The ladder, oldest first. A row runs when the document's stamp is below
@@ -1401,7 +1461,7 @@ constexpr struct {
     {22, migrate_v21_to_v22}, {23, migrate_v22_to_v23}, {24, migrate_v23_to_v24},
     {25, migrate_v24_to_v25}, {26, migrate_v25_to_v26}, {27, migrate_v26_to_v27},
     {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29}, {30, migrate_v29_to_v30},
-    {31, migrate_v30_to_v31}, {32, migrate_v31_to_v32},
+    {31, migrate_v30_to_v31}, {32, migrate_v31_to_v32}, {33, migrate_v32_to_v33},
 };
 
 static_assert(kMigrations[std::size(kMigrations) - 1].to_version == kCurrentConfigVersion,
