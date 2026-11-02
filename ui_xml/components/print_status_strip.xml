@@ -140,7 +140,7 @@
                  height="100%" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs" variant="ghost"
                  style_bg_color="#elevated_bg" style_bg_opa="255" icon="dots_vertical" text="More" icon_position="top">
         <bind_style_if_eq name="button_square" subject="ps_strip_stacked" ref_value="0"/>
-        <bind_flag_if cond="(printer_has_webcam and moonraker_is_remote and platform_extras_available) or printer_has_timelapse or led_controllable"
+        <bind_flag_if cond="print_status_camera_available or printer_has_timelapse or led_controllable"
                       flag="hidden" invert="true"/>
         <event_cb trigger="clicked" callback="on_print_status_more"/>
       </ui_button>

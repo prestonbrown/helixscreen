@@ -95,6 +95,7 @@ static lv_subject_t g_show_beta_features_subject;
 static lv_subject_t g_home_edit_mode_subject;
 static lv_subject_t g_host_power_supported_subject;
 static lv_subject_t g_platform_extras_subject;
+static lv_subject_t g_camera_supported_subject;
 static bool g_subjects_initialized = false;
 
 lv_subject_t& get_notification_subject() {
@@ -133,6 +134,9 @@ void app_globals_init_subjects() {
     // Rows for hardware features outside the firmware cut bind hidden on 0.
     lv_subject_init_int(&g_platform_extras_subject, 0);
     lv_xml_register_subject(nullptr, "platform_extras_available", &g_platform_extras_subject);
+    // The firmware cut has no camera view (HELIX_HAS_CAMERA=0): camera rows bind hidden.
+    lv_subject_init_int(&g_camera_supported_subject, 0);
+    lv_xml_register_subject(nullptr, "platform_camera_supported", &g_camera_supported_subject);
     // The shutdown home widget's hardware gate reads it by name.
     lv_subject_init_int(&g_host_power_supported_subject,
                         helix::platform_host_power_supported() ? 1 : 0);

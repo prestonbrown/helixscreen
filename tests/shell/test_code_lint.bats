@@ -3910,3 +3910,70 @@ SHAPES
     contains "afc_status_parse.cpp:" "$output"
     contains "std::initializer_list<const char*>{\"name\", \"filament_name\"}" "$output"
 }
+
+# --- An address used as a key is never a constant ---
+# The MIPS and K2 builds pass -fmerge-all-constants with LTO, which folds
+# objects with identical contents onto one address. Lua registry keys (lua_rawsetp / lua_rawgetp) are
+# addresses, so a `const char key = 0` per binding made every binding share one
+# registry slot and read each other's state (#1995). Keys are writable
+# RegistryKey objects with a unique name each (include/lua_runtime.h). Unavoidable? // ADDRESS_KEY_OK: <reason>
+address_key_pattern() {
+    local q='(^|[^_[:alnum:]])(const|constexpr)[[:space:]]+'
+    printf '%s' "${q}((helix::)?(plugin::)?RegistryKey)[[:space:]]|RegistryKey[[:space:]]+const[[:space:]]|${q}((un)?signed[[:space:]]+)?char[[:space:]]+[_[:alnum:]]+[[:space:]]*(=[[:space:]]*0|\{[[:space:]]*0?[[:space:]]*\})[[:space:]]*;"
+}
+
+check_no_constant_address_keys() {
+    local offenders
+    # shellcheck disable=SC2046  # paths have no spaces; word splitting is intended
+    offenders=$(code_offenders "$(address_key_pattern)" ADDRESS_KEY_OK $(rtti_lint_files))
+    [ -z "$offenders" ] && return 0
+    echo "A constant whose address is a key (merged with every other such constant on MIPS/K2):"
+    printf '%s\n' "$offenders"
+    echo "Declare a writable \`RegistryKey g_name_key{"name"};\` with a unique name. Unavoidable? // ADDRESS_KEY_OK: <reason>"
+    return 1
+}
+
+@test "no constant is used as an address key (#1995)" {
+    run check_no_constant_address_keys
+    [ "$status" -eq 0 ]
+}
+
+@test "every RegistryKey carries a name no other key has (#1995)" {
+    local dupes
+    dupes=$(grep -rhoE 'RegistryKey[[:space:]]+[_[:alnum:]]+[[:space:]]*\{"[^"]*"\}' \
+        "$BATS_TEST_DIRNAME/../../src" "$BATS_TEST_DIRNAME/../../include" |
+        sed -E 's/.*\{"([^"]*)"\}/\1/' | sort | uniq -d)
+    [ -z "$dupes" ] || { echo "RegistryKey names used twice: $dupes"; return 1; }
+}
+
+@test "the address-key gate catches constant keys, and stays quiet on writable keys and char values" {
+    local f="${BATS_TEST_TMPDIR}/key_shapes.cpp"
+    cat > "$f" <<'SHAPES'
+const char kStateKey = 0;
+static const char kStaticKey = 0;
+constexpr char kConstexprKey{};
+const unsigned char kByteKey = 0;
+const RegistryKey kConstRegistry;
+static const helix::plugin::RegistryKey kQualified;
+RegistryKey const kEastConst;
+RegistryKey g_state_key{"state"};
+static RegistryKey g_static_key{"static"};
+char g_plain_key;
+constexpr char kSeparator = '/';
+const char* kName = "x";
+const char kHatch = 0; // ADDRESS_KEY_OK: test fixture
+// const char kInComment = 0;
+SHAPES
+    run code_offenders "$(address_key_pattern)" ADDRESS_KEY_OK "$f"
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 7 ]
+    contains "key_shapes.cpp:1: " "$output"
+    contains "kEastConst" "$output"
+    lacks "g_state_key" "$output"
+    lacks "g_static_key" "$output"
+    lacks "g_plain_key" "$output"
+    lacks "kSeparator" "$output"
+    lacks "kName" "$output"
+    lacks "ADDRESS_KEY_OK" "$output"
+    lacks "kInComment" "$output"
+}

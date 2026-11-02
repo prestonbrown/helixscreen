@@ -12,7 +12,7 @@ namespace helix::plugin {
 
 namespace {
 
-const char kPrinterStateKey = 0;
+RegistryKey g_printer_state_key{"printer_state"};
 
 struct Watch {
     LuaRuntime* rt;
@@ -29,7 +29,7 @@ struct PrinterBindState {
 };
 
 PrinterBindState& printer_state_of(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kPrinterStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_printer_state_key);
     auto* s = static_cast<PrinterBindState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *s;
@@ -162,7 +162,7 @@ void install_printer_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     auto* state = new PrinterBindState;
     lua_pushlightuserdata(L, state);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kPrinterStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_printer_state_key);
     ctx.rt.on_close([state] {
         for (auto& w : state->watches) {
             if (w->observer)

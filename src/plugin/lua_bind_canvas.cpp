@@ -21,7 +21,7 @@ namespace helix::plugin {
 
 namespace {
 
-const char kCanvasStateKey = 0;
+RegistryKey g_canvas_state_key{"canvas_state"};
 const char kCanvasMeta[] = "helix.canvas";
 constexpr int32_t kMaxStroke = 64;
 constexpr int32_t kMaxOpaPercent = 100; // opa is authored 0-100; stored as 0-255
@@ -48,7 +48,7 @@ struct CanvasState {
 };
 
 CanvasState* canvas_state(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kCanvasStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_canvas_state_key);
     auto* s = static_cast<CanvasState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return s;
@@ -628,7 +628,7 @@ void install_canvas_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     auto* state = new CanvasState{&ctx.rt, ctx.rt.token(), {}};
     lua_pushlightuserdata(L, state);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kCanvasStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_canvas_state_key);
     ctx.rt.on_close([state] {
         // Cleared from outside any executing handler, so a listener that
         // removed itself is not destroyed under its own feet.

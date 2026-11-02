@@ -468,6 +468,22 @@ TEST_CASE_METHOD(Landscape800, "More hides when its menu has nothing to offer", 
     set_int(leds, 1);
     CHECK_FALSE(hidden(root_, "btn_more"));
     set_int(leds, 0);
+
+    // A webcam on a remote screen offers the Camera entry, unless the build has no camera.
+    lv_subject_t* camera = lv_xml_get_subject(nullptr, "print_status_camera_available");
+    REQUIRE(camera != nullptr);
+    set_int(webcam, 1);
+    state().set_moonraker_is_remote(true);
+    UpdateQueue::instance().drain(); // the deferred set, then the observer it fires
+    UpdateQueue::instance().drain();
+    CHECK(subject_int("print_status_camera_available") == HELIX_HAS_CAMERA);
+    set_int(camera, 1);
+    CHECK_FALSE(hidden(root_, "btn_more"));
+    set_int(camera, 0);
+    CHECK(hidden(root_, "btn_more"));
+    set_int(webcam, 0);
+    state().set_moonraker_is_remote(false);
+    UpdateQueue::instance().drain();
 }
 
 TEST_CASE_METHOD(Landscape800, "strip buttons are square beside the progress", "[print_status]") {
