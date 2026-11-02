@@ -317,7 +317,7 @@ bool WizardTouchCalibrationStep::should_skip() const {
 
     // Skip if not on framebuffer display
 #ifndef HELIX_DISPLAY_FBDEV
-    spdlog::info("[{}] Skipping touch calibration: not a framebuffer build", get_name());
+    spdlog::debug("[{}] Skipping touch calibration: not a framebuffer build", get_name());
     return true;
 #endif
 
@@ -331,14 +331,14 @@ bool WizardTouchCalibrationStep::should_skip() const {
     // undetectable orientation mismatch gets in (prestonbrown/helixscreen#1259).
     DisplayManager* dm = DisplayManager::instance();
     if (dm && !dm->needs_touch_calibration()) {
-        spdlog::info("[{}] Skipping touch calibration: device doesn't require it", get_name());
+        spdlog::debug("[{}] Skipping touch calibration: device doesn't require it", get_name());
         return true;
     }
 
     // Skip if already calibrated
     Config* config = Config::get_instance();
     if (config->get<bool>("/input/calibration/valid", false)) {
-        spdlog::info("[{}] Skipping touch calibration: already calibrated", get_name());
+        spdlog::debug("[{}] Skipping touch calibration: already calibrated", get_name());
         return true;
     }
 

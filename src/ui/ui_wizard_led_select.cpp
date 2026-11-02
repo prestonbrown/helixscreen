@@ -199,7 +199,7 @@ bool WizardLedSelectStep::should_skip() const {
     bool should_skip = leds.empty();
 
     if (should_skip) {
-        spdlog::info("[{}] No LEDs discovered, skipping step", get_name());
+        spdlog::debug("[{}] No LEDs discovered, skipping step", get_name());
     } else {
         spdlog::debug("[{}] Found {} LED(s), showing step", get_name(), leds.size());
     }

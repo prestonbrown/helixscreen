@@ -1315,7 +1315,7 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
             // If we haven't caught up yet, caller should check needs_more_frames()
             // and invalidate the widget to trigger another frame
             if (cached_up_to_layer_ < target_layer) {
-                spdlog::debug(
+                spdlog::trace(
                     "[GCodeLayerRenderer] Progressive: rendered to layer {}/{}, more needed",
                     cached_up_to_layer_, target_layer);
             }

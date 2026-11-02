@@ -62,6 +62,24 @@ TEST_CASE("write_backup_file returns false when source does not exist", "[config
     REQUIRE_FALSE(write_backup_file(dir.file("nonexistent"), dir.file("backup")));
 }
 
+TEST_CASE("write_backup_file names the failing step and errno", "[config_backup]") {
+    TmpDir dir("why");
+    std::string src = dir.file("source.txt");
+    write_file(src, "hello");
+    // A regular file where the backup's parent directory should be: mkdir fails.
+    write_file(dir.file("blocker"), "x");
+    std::string dst = (dir.path / "blocker" / "sub" / "backup.txt").string();
+
+    std::string why;
+    REQUIRE_FALSE(write_backup_file(src, dst, &why));
+    REQUIRE(why.rfind("mkdir: ", 0) == 0);
+    REQUIRE(why.size() > std::string("mkdir: ").size());
+
+    std::string untouched = "unchanged";
+    REQUIRE(write_backup_file(src, dir.file("ok.txt"), &untouched));
+    REQUIRE(untouched == "unchanged");
+}
+
 TEST_CASE("write_backup_file creates parent directories for backup path", "[config_backup]") {
     TmpDir dir("mkdirs");
     std::string src = dir.file("source.txt");
