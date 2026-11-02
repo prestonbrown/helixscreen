@@ -572,6 +572,23 @@ run_launcher_as_root() {
     grep -qF "chown 1000 " "$BATS_TEST_TMPDIR/gate.log"
 }
 
+@test "a writable directory inherited from the environment does not shape the refusal" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    make_fake_stat_map
+    printf 'MOONRAKER_HOST=planted.local\n' > "$MOCK_INSTALL/config/helixscreen.env"
+    local real
+    real=$(readlink -f "$MOCK_INSTALL/config/helixscreen.env")
+    {
+        echo "$MOCK_INSTALL/config/helixscreen.env 1000 644"
+        echo "$real 1000 644"
+        echo "$MOCK_INSTALL/config 0 755"
+    } > "$BATS_TEST_TMPDIR/statmap"
+    _hef_wdir="1000 /inherited" run_launcher_as_root
+    [ "$(cat "$BATS_TEST_TMPDIR/value.out")" = "" ]
+    grep -qF "chown root:root" "$BATS_TEST_TMPDIR/gate.log"
+    lacks "/inherited" "$(cat "$BATS_TEST_TMPDIR/gate.log")"
+}
+
 @test "env file owned by the launcher's own user at 0644 loads" {
     cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
     printf 'MOONRAKER_HOST=self-owned.local\n' > "$MOCK_INSTALL/config/helixscreen.env"

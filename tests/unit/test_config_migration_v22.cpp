@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
@@ -44,7 +45,9 @@ class MigrationV22Fixture {
     bool had_config_dir_ = false;
 
     void SetUp() {
-        temp_dir = (fs::temp_directory_path() / "helix_migration_v22_test").string();
+        temp_dir =
+            (fs::temp_directory_path() / ("helix_migration_v22_test_" + std::to_string(::getpid())))
+                .string();
         fs::remove_all(temp_dir);
         fs::create_directories(temp_dir);
 
