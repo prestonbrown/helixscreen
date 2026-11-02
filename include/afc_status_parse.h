@@ -297,5 +297,34 @@ struct OamsEnvironmentReading {
 [[nodiscard]] std::vector<OamsEnvironmentReading>
 parse_oams_environment(const nlohmann::json& params);
 
+/// The `toolchanger` object, as the AFC backend reads it.
+struct ToolchangerDelta {
+    std::optional<int> tool_number; ///< Only an integer counts
+    std::string status;             ///< Empty when absent or not a string
+};
+
+/// Every object a status frame carries that the AFC backend reads, keyed by
+/// object name. The frame does not know which lanes, hubs or units the backend
+/// has; it parses every object of each kind and the backend picks the ones it
+/// knows.
+struct StatusFrame {
+    std::optional<StateDelta> afc;        ///< `AFC`
+    std::optional<StateDelta> afc_legacy; ///< `afc`, published by older AFC versions
+    /// The first object-valued `AFC_stepper ` or `AFC_lane ` key, in frame order.
+    std::optional<std::string> first_lane_key;
+    std::map<std::string, LaneStatusDelta> stepper_lanes; ///< `AFC_stepper <lane>`
+    std::map<std::string, LaneStatusDelta> lane_lanes;    ///< `AFC_lane <lane>` (OpenAMS)
+    std::map<std::string, HubDelta> hubs;                 ///< `AFC_hub <hub>`
+    std::map<std::string, ExtruderObjectDelta> extruders; ///< `AFC_extruder <extruder>`
+    std::map<std::string, BufferDelta> buffers;           ///< `AFC_buffer <buffer>`
+    /// Any other `AFC_<type> <name>` object, keyed by the whole status key
+    /// (unit_klipper_key()).
+    std::map<std::string, UnitObjectDelta> units;
+    std::vector<OamsEnvironmentReading> environment;
+    std::optional<ToolchangerDelta> toolchanger;
+};
+
+[[nodiscard]] StatusFrame parse_status_frame(const nlohmann::json& params);
+
 } // namespace afc
 } // namespace helix

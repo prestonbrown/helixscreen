@@ -659,4 +659,65 @@ std::vector<OamsEnvironmentReading> parse_oams_environment(const nlohmann::json&
     return out;
 }
 
+namespace {
+
+/// The object name after @p prefix, when @p key starts with it.
+std::optional<std::string> object_name(const std::string& key, const char* prefix) {
+    const std::string p(prefix);
+    if (key.size() <= p.size() || key.compare(0, p.size(), p) != 0) {
+        return std::nullopt;
+    }
+    return key.substr(p.size());
+}
+
+} // namespace
+
+StatusFrame parse_status_frame(const nlohmann::json& params) {
+    StatusFrame f;
+    if (!params.is_object()) {
+        return f;
+    }
+    for (auto it = params.begin(); it != params.end(); ++it) {
+        const std::string& key = it.key();
+        const nlohmann::json& value = it.value();
+        if (!value.is_object()) {
+            continue;
+        }
+        if (key == "AFC") {
+            f.afc = parse_state(value);
+        } else if (key == "afc") {
+            f.afc_legacy = parse_state(value);
+        } else if (key == "toolchanger") {
+            ToolchangerDelta tc;
+            if (value.contains("tool_number") && value["tool_number"].is_number_integer()) {
+                tc.tool_number = value["tool_number"].get<int>();
+            }
+            if (auto v = ams::read_field<std::string>(value, "status")) {
+                tc.status = std::move(*v);
+            }
+            f.toolchanger = std::move(tc);
+        } else if (auto lane = object_name(key, "AFC_stepper ")) {
+            if (!f.first_lane_key) {
+                f.first_lane_key = key;
+            }
+            f.stepper_lanes[*lane] = parse_lane_status(value);
+        } else if (auto lane = object_name(key, "AFC_lane ")) {
+            if (!f.first_lane_key) {
+                f.first_lane_key = key;
+            }
+            f.lane_lanes[*lane] = parse_lane_status(value);
+        } else if (auto hub = object_name(key, "AFC_hub ")) {
+            f.hubs[*hub] = parse_hub(value);
+        } else if (auto ext = object_name(key, "AFC_extruder ")) {
+            f.extruders[*ext] = parse_extruder_object(value);
+        } else if (auto buf = object_name(key, "AFC_buffer ")) {
+            f.buffers[*buf] = parse_buffer(value);
+        } else if (key.rfind("AFC_", 0) == 0 && key.find(' ') != std::string::npos) {
+            f.units[key] = parse_unit_object(value);
+        }
+    }
+    f.environment = parse_oams_environment(params);
+    return f;
+}
+
 } // namespace helix::afc
