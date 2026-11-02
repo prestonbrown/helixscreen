@@ -50,6 +50,7 @@ Applied in order by `mk/patches.mk`. Grouped by subsystem.
 | `lvgl_draw_sw_label_null_guard.patch` | `lv_draw_sw_letter.c` | NULL check for font/glyph before all glyph format rendering | PR #9831 |
 | `lvgl_draw_buf_oom_guard.patch` | `lv_draw_buf.c` | Remove redundant LV_ASSERT_MALLOC before NULL check | PR #9831 |
 | `lvgl_refr_reshape_null_guard.patch` | `lv_refr.c` | NULL guard on draw_buf reshape failure, skip render gracefully | PR #9831 |
+| `lvgl_style_invalidate_drawn_only.patch` | `lv_obj_style.c` | A style change invalidates a widget's old area only once the widget has been rendered; LVGL 9.6 otherwise invalidates a 1x1 area for every widget it constructs |
 | `lvgl_display_matrix_rotation_getter.patch` | `lv_display.c` | `lv_display_get_matrix_rotation()` answers false without `LV_DRAW_TRANSFORM_USE_MATRIX` instead of failing an argument check; the DRM/EGL flush asks once per area, and the logged failures halved a Pi 3B's frame rate |
 | `lvgl_canvas_destructor_cache_drop.patch` | `lv_canvas.c` | Removes a cache drop that passed the address of the buffer pointer, which matched no entry and logged `invalid magic` for some heap addresses |
 | `lvgl_img_null_guard.patch` | `lv_draw_sw_img.c` | NULL guard after go_to_xy in image mask path | PR #9831 |
