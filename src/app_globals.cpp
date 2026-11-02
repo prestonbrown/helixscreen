@@ -83,6 +83,7 @@ static lv_subject_t g_show_beta_features_subject;
 static lv_subject_t g_home_edit_mode_subject;
 static lv_subject_t g_platform_extras_subject;
 static lv_subject_t g_host_power_supported_subject;
+static lv_subject_t g_camera_supported_subject;
 static lv_subject_t g_platform_tier_subject;
 static lv_subject_t g_wizard_active_subject;
 
@@ -251,6 +252,14 @@ void app_globals_init_subjects() {
     lv_subject_init_int(&g_host_power_supported_subject,
                         helix::platform_host_power_supported() ? 1 : 0);
     g_subjects.publish("platform_host_power_supported", &g_host_power_supported_subject);
+
+    // Whether this build can show a camera at all. HELIX_HAS_CAMERA (lv_conf.h)
+    // compiles the camera view out of the low-RAM printer-embedded builds, where
+    // a webcam Moonraker reports must still not offer a camera entry point. XML
+    // gates via:
+    //   <bind_flag_if_eq subject="platform_camera_supported" flag="hidden" ref_value="0"/>
+    lv_subject_init_int(&g_camera_supported_subject, HELIX_HAS_CAMERA ? 1 : 0);
+    g_subjects.publish("platform_camera_supported", &g_camera_supported_subject);
 
     // Hardware tier (helix::PlatformTier as an int: 0 EMBEDDED, 1 BASIC,
     // 2 STANDARD), the same classification that turns animations off. XML

@@ -22,20 +22,15 @@
                               callback="on_hardware_health_clicked"/>
         </lv_obj>
         <!-- ================================================================== -->
-        <!-- CAMERA (hidden when no enabled webcam configured in Moonraker) -->
+        <!-- CAMERA (hidden without an enabled webcam in Moonraker or camera support in the build) -->
         <!-- ================================================================== -->
         <lv_obj name="container_camera" width="100%" style_pad_all="0" scrollable="false">
           <bind_flag_if_eq subject="printer_has_webcam" flag="hidden" ref_value="0"/>
+          <!-- Builds without camera support (HELIX_HAS_CAMERA=0) have no view to open -->
+          <bind_flag_if_eq subject="platform_camera_supported" flag="hidden" ref_value="0"/>
           <setting_action_row name="row_camera"
                               label="Camera" icon="webcam" description="View live camera feed"
-                              callback="on_camera_view_clicked">
-            <!-- Hidden on the v1 (ESP32/K-Touch) cut — camera streaming is
-                 compiled out (HELIX_HAS_CAMERA=0); printer_has_webcam alone
-                 would still show this row (and an inert tap) for any printer
-                 with a webcam configured in Moonraker. Desktop
-                 (platform_extras_available==1) renders it exactly as before. -->
-            <bind_flag_if_eq subject="platform_extras_available" flag="hidden" ref_value="0"/>
-          </setting_action_row>
+                              callback="on_camera_view_clicked"/>
         </lv_obj>
         <!-- PRINT PHOTOS: the plugin's photos feature, or this screen's own (hidden without a webcam) -->
         <lv_obj name="container_print_photos" width="100%" height="content" style_pad_all="0" scrollable="false">
