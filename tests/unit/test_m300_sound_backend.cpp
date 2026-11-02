@@ -406,3 +406,43 @@ TEST_CASE("M300 backend negative frequency with positive amplitude triggers sile
     REQUIRE(commands.size() == 2);
     REQUIRE(commands[1] == "M300 S100 P50");
 }
+
+TEST_CASE("M300 backend sends nothing while the printer is busy", "[sound][m300]") {
+    std::vector<std::string> sent;
+    bool busy = true;
+    M300SoundBackend backend(
+        [&sent](const std::string& gcode) {
+            sent.push_back(gcode);
+            return 0;
+        },
+        [&busy] { return busy; });
+
+    backend.set_tone(1000.0f, 0.8f, 0.5f);
+    backend.silence();
+    REQUIRE(sent.empty());
+
+    // The first note after the queue frees plays, rather than being taken for a repeat.
+    busy = false;
+    backend.set_tone(1000.0f, 0.8f, 0.5f);
+    REQUIRE(sent.size() == 1);
+    CHECK(sent[0].rfind("M300 S1000", 0) == 0);
+}
+
+TEST_CASE("M300 backend drops a tune's remaining notes once the printer turns busy",
+          "[sound][m300]") {
+    std::vector<std::string> sent;
+    bool busy = false;
+    M300SoundBackend backend(
+        [&sent](const std::string& gcode) {
+            sent.push_back(gcode);
+            return 0;
+        },
+        [&busy] { return busy; });
+
+    backend.set_tone(800.0f, 0.8f, 0.5f);
+    REQUIRE(sent.size() == 1);
+    busy = true;
+    backend.set_tone(1200.0f, 0.8f, 0.5f);
+    backend.silence();
+    CHECK(sent.size() == 1);
+}
