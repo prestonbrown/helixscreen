@@ -742,6 +742,43 @@ TEST_CASE_METHOD(PresetConfigFixture,
 }
 
 TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file takes a preset's sound default on the device only",
+                 "[config][preset][device-scope]") {
+    SetUp();
+    json preset = {{"printer", {{"heaters", {{"bed", "heater_bed"}}}}}, {"sounds_enabled", false}};
+    write_preset("quiet_preset", preset);
+
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = "127.0.0.1";
+    REQUIRE(config.apply_preset_file("quiet_preset") == true);
+    CHECK(data()["sounds_enabled"] == false);
+
+    // A separate host plays through its own speaker, never the printer's beeper.
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = kRemoteTestHost;
+    REQUIRE(config.apply_preset_file("quiet_preset") == true);
+    CHECK(data()["sounds_enabled"] == true);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file leaves sound alone once the wizard is done",
+                 "[config][preset]") {
+    SetUp();
+    json preset = {{"printer", {{"heaters", {{"bed", "heater_bed"}}}}}, {"sounds_enabled", false}};
+    write_preset("quiet_preset", preset);
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = "127.0.0.1";
+    printer_data()["wizard_completed"] = true;
+
+    config.apply_preset_file("quiet_preset");
+    CHECK(data()["sounds_enabled"] == true);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
                  "Config::apply_preset_file seeds device display/input when no host is set yet",
                  "[config][preset][device-scope]") {
     SetUp();

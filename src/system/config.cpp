@@ -1974,6 +1974,14 @@ bool Config::apply_preset_file(const std::string& preset_name) {
         data["input"].merge_patch(preset_json["input"]);
     }
 
+    // A printer whose only speaker is its own beeper sounds through M300, which waits in
+    // the same G-code queue as the print, so its preset can ship sound off. The host case
+    // keeps its own audio. Pre-wizard only, like the blocks above: a user's choice stands.
+    if (on_this_device && preset_json.contains("sounds_enabled") &&
+        preset_json["sounds_enabled"].is_boolean()) {
+        data["sounds_enabled"] = preset_json["sounds_enabled"].get<bool>();
+    }
+
 #if !defined(HELIX_SPLASH_ONLY) && !defined(HELIX_WATCHDOG)
     // Populate per-printer `type` from the database entry whose `preset` field matches.
     // Without this, the home panel's image widget has no printer_type to look up and
