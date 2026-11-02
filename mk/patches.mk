@@ -372,6 +372,8 @@ define record_applied_stamp_id
 		|| printf "%s" "$$id_now" > $(APPLIED_STAMP_ID)
 endef
 
+CHECK_PATCH_DRIFT := python3 scripts/check_patch_drift.py
+
 # Restore one submodule's patched files to upstream state.
 #   $(1) submodule dir, $(2) file list (paths relative to it)
 #
@@ -379,8 +381,22 @@ endef
 # patch that CREATES a file leaves that file untracked, where checkout fails with
 # "did not match any file(s) known to git". It has to be deleted instead, or the
 # re-apply then fails the other way with "already exists".
+#
+# The list is this commit's, but the hunks in the checkout are those of the
+# commit that last applied here. Once the superproject moves to a commit whose
+# patch set differs, the old set's files are in no list here, `git submodule
+# update` refuses to overwrite them, and the tree is stuck. The drift stamp in
+# the submodule's git dir records every file the applied set touched, so those
+# are restored too; trackedness is judged against the submodule's own HEAD,
+# which has not moved yet, so a file the old set created is deleted by name.
+# No stamp (never applied, or applied by a build that predates stamping) leaves
+# just the list.
 define reset_submodule_patches
-	$(Q)for file in $(2); do \
+	$(Q)files="$(2)"; \
+	if command -v python3 >/dev/null 2>&1; then \
+		files="$$files $$($(CHECK_PATCH_DRIFT) --stamped-files $(1) 2>/dev/null)"; \
+	fi; \
+	for file in $$(printf '%s\n' $$files | sort -u); do \
 		if ! git -C $(1) ls-files --error-unmatch "$$file" >/dev/null 2>&1; then \
 			if [ -e "$(1)/$$file" ]; then \
 				echo "$(YELLOW)→ Removing (patch-created):$(RESET) $$file"; \
@@ -421,7 +437,7 @@ reset-patches:
 	@# in place it would report every restored file as "changed since apply" and
 	@# block the force-apply-patches half of reapply-patches.
 	$(Q)if command -v python3 >/dev/null 2>&1; then \
-		python3 scripts/check_patch_drift.py --clear-stamp || true; \
+		$(CHECK_PATCH_DRIFT) --clear-stamp || true; \
 	fi
 	$(ECHO) "$(GREEN)✓ All patches reset$(RESET)"
 

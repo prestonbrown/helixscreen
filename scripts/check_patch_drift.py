@@ -51,6 +51,14 @@ Modes:
   --write-stamp record the current state; run by mk/patches.mk after applying
   --clear-stamp forget the recorded state; run by `make reset-patches`, which
                 puts the submodule back to pristine and so invalidates it
+  --stamped-files DIR
+                the files the stamp of the submodule checked out at DIR says
+                the applied patches touch, one per line; nothing when it has no
+                stamp. `make reset-patches` restores these as well as the files
+                the current patches/ touch, because the patches applied are
+                the ones of whatever commit last built here: after the
+                superproject moves to a commit with another patch set, only the
+                stamp still names what has to be undone.
   --list        one bare finding per line, no remedy text
   --pending-since REV [--pending-head REV]
                 what .githooks/pre-push runs. A patch-unapplied, patch-edited
@@ -561,6 +569,31 @@ def write_stamps(subs: list[Submodule], patch_dir: Path) -> int:
     return written
 
 
+def stamped_files(sub_dir: Path) -> list[str]:
+    """Submodule-relative paths recorded in the stamp of the checkout at SUB_DIR.
+
+    Read straight from the checkout's git dir rather than through parse_layout,
+    which describes the patches/ of the commit checked out NOW. A path that is
+    absolute or climbs out with `..` is dropped: the caller deletes untracked
+    files by these names.
+    """
+    gd = Submodule("", ".", sub_dir).git_dir()
+    if gd is None:
+        return []
+    try:
+        stamp = json.loads((gd / STAMP_NAME).read_text())
+    except (OSError, ValueError):
+        return []
+    files = stamp.get("files", {}) if isinstance(stamp, dict) else {}
+    out: list[str] = []
+    for rel in sorted(files):
+        p = Path(rel)
+        if not rel or p.is_absolute() or ".." in p.parts:
+            continue
+        out.append(rel)
+    return out
+
+
 def clear_stamps(subs: list[Submodule]) -> int:
     cleared = 0
     for sub in subs:
@@ -622,6 +655,11 @@ def main(argv: list[str]) -> int:
         help="forget the recorded state (run by `make reset-patches`)",
     )
     ap.add_argument(
+        "--stamped-files",
+        metavar="DIR",
+        help="print the files the stamp of the submodule at DIR records (run by `make reset-patches`)",
+    )
+    ap.add_argument(
         "--pre-apply",
         action="store_true",
         help="mk/patches.mk mode: a patch new since the last stamp is not drift",
@@ -639,6 +677,11 @@ def main(argv: list[str]) -> int:
         help="the end of the --pending-since range (default HEAD)",
     )
     args = ap.parse_args(argv[1:])
+
+    if args.stamped_files:
+        for rel in stamped_files(Path(args.stamped_files)):
+            print(rel)
+        return 0
 
     root = Path(args.repo_root).resolve()
     subs, exempt, patch_dir = parse_layout(root)
