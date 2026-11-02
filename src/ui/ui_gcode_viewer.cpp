@@ -763,7 +763,10 @@ static void gcode_viewer_watchdog_cb(lv_timer_t* timer) {
                      decision.stall_streak, cached, target, st->print_progress_layer_);
         st->viewer_state = GcodeViewerState::Error;
         ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Failed to load G-code preview"));
-        TelemetryManager::instance().record_error("gcode_viewer", "render_stall_giveup", "");
+        TelemetryManager::instance().record_error(
+            "gcode_viewer", "render_stall_giveup",
+            fmt::format("cached={} target={} progress_layer={} streak={} kicks={}", cached, target,
+                        st->print_progress_layer_, decision.stall_streak, st->watchdog_kicks_));
         lv_obj_invalidate(obj);
     }
 
