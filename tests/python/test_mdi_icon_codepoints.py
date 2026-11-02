@@ -68,6 +68,13 @@ def test_a_glyph_outside_the_icon_blocks_fails(tmp_path, capsys):
     assert "outside the icon blocks" in out.err
 
 
+def test_an_entry_the_patterns_cannot_read_fails(tmp_path, capsys):
+    root = _tree(tmp_path, [f'    {{"fan-auto", {ALERT}}},  // F0026'], [])
+    code, out = _run(capsys, root, "--mdi")
+    assert code == 1
+    assert "ui_icon_codepoints.h:2" in out.err and "fan-auto" in out.err
+
+
 def test_an_empty_list_fails(tmp_path, capsys):
     root = _tree(tmp_path, [f'    {{"spoolman", {SPOOLMAN}}},'], [])
     code, out = _run(capsys, root, "--mdi")

@@ -537,6 +537,9 @@ void PrintStatusWidget::on_activate() {
         !job_holds_machine(printer_state_.print_state().get_print_lifecycle())) {
         defer_reset_print_card_to_idle();
     }
+    // The detailed rows are measured only while they show, so a view change
+    // made while the dashboard was hidden gets its measurement here.
+    schedule_library_fit();
 }
 
 namespace helix {

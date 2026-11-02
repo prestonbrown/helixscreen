@@ -36,6 +36,9 @@ ESCAPES = r'"((?:\\x[0-9A-Fa-f]{2})+)"'
 COMMENT_CP = r'(?://\s*(?:U\+)?([0-9A-Fa-f]{5})\b\s*(.*))?'
 TABLE_ENTRY = re.compile(r'\{"([a-z0-9_]+)",\s*' + ESCAPES + r'\s*\},?\s*' + COMMENT_CP)
 MACRO_ENTRY = re.compile(r'^#define\s+(ICON_\w+)\s+' + ESCAPES + r'\s*' + COMMENT_CP)
+# Any line carrying a glyph's bytes in an entry's position, readable or not.
+TABLE_LIKE = re.compile(r'\{\s*"[^"]*"\s*,\s*"\\x')
+MACRO_LIKE = re.compile(r'^\s*#define\s+ICON_\w+\s+"\\x')
 
 
 def decode_glyph(escapes):
@@ -49,14 +52,19 @@ def decode_glyph(escapes):
 def collect(root):
     """codepoint -> description, from both headers. Raises ValueError on a bad entry."""
     sources = [
-        (root / "include" / "ui_icon_codepoints.h", TABLE_ENTRY, False),
-        (root / "include" / "ui_fonts.h", MACRO_ENTRY, True),
+        (root / "include" / "ui_icon_codepoints.h", TABLE_ENTRY, False, TABLE_LIKE),
+        (root / "include" / "ui_fonts.h", MACRO_ENTRY, True, MACRO_LIKE),
     ]
     glyphs = {}
-    for path, pattern, anchored in sources:
+    for path, pattern, anchored, entry_like in sources:
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             m = pattern.match(line) if anchored else pattern.search(line)
             if not m:
+                # A glyph on a line the entry pattern rejects would be left out of
+                # every font while the XML name check still accepts the icon.
+                if entry_like.search(line):
+                    where = f"{path.relative_to(root)}:{lineno}"
+                    raise ValueError(f"{where}: a glyph entry this script cannot read: {line.strip()}")
                 continue
             name, escapes, comment_cp, comment = m.groups()
             where = f"{path.relative_to(root)}:{lineno} {name}"

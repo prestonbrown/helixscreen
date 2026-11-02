@@ -191,15 +191,20 @@ inline bool is_on_active_screen(lv_obj_t* obj) {
     return lv_obj_get_screen(obj) == lv_display_get_screen_active(disp);
 }
 
-/// True when @p obj exists and neither it nor any ancestor is hidden.
-inline bool is_shown(lv_obj_t* obj) {
-    if (!obj)
-        return false;
+/// The first of @p obj and its ancestors carrying LV_OBJ_FLAG_HIDDEN, or nullptr.
+/// Hidden is inherited: an object inside a hidden parent is neither drawn nor
+/// hit-tested, however unhidden it is itself.
+inline lv_obj_t* hidden_ancestor(lv_obj_t* obj) {
     for (; obj; obj = lv_obj_get_parent(obj)) {
         if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN))
-            return false;
+            return obj;
     }
-    return true;
+    return nullptr;
+}
+
+/// True when @p obj exists and neither it nor any ancestor is hidden.
+inline bool is_shown(lv_obj_t* obj) {
+    return obj && !hidden_ancestor(obj);
 }
 
 /**

@@ -3,6 +3,8 @@
 
 #include "widget_resolution.h"
 
+#include "ui_utils.h"
+
 #include "lvgl.h"
 #include "lvgl/src/misc/lv_area_private.h" // lv_area_intersect
 
@@ -417,22 +419,11 @@ lv_obj_t* topmost_visible(const std::vector<lv_obj_t*>& matches) {
     return best;
 }
 
-lv_obj_t* hidden_ancestor(lv_obj_t* obj) {
-    // Hidden is inherited: an object inside a hidden parent is not drawn and
-    // never hit-tested, however unhidden it is itself.
-    for (lv_obj_t* o = obj; o != nullptr; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
-            return o;
-        }
-    }
-    return nullptr;
-}
-
 const char* click_blocker(lv_obj_t* obj) {
     if (obj == nullptr) {
         return "not found";
     }
-    if (hidden_ancestor(obj) != nullptr) {
+    if (ui::hidden_ancestor(obj) != nullptr) {
         return "hidden";
     }
     if (!lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE)) {
@@ -461,7 +452,7 @@ lv_obj_t* view_clipper(lv_obj_t* obj) {
     if (obj == nullptr) {
         return nullptr;
     }
-    if (lv_obj_t* hidden = hidden_ancestor(obj)) {
+    if (lv_obj_t* hidden = ui::hidden_ancestor(obj)) {
         return hidden;
     }
     // Only the loaded screen and the layers drawn over it are on the display.
