@@ -1,6 +1,7 @@
 {
   "preset": "ad5m_pro",
   "wizard_completed": false,
+  "sounds_enabled": false,
   "display": {
     "animations_enabled": false
   },
