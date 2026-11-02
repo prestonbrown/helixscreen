@@ -355,18 +355,14 @@ void NetworkSettingsOverlay::on_activate() {
     if (wifi_manager_ && wifi_manager_->is_enabled()) {
         lv_subject_set_int(&wifi_scanning_, 1);
 
-        std::weak_ptr<WiFiManager> weak_mgr = wifi_manager_;
         auto token = lifetime_.token();
 
-        wifi_manager_->start_scan(
-            [this, token, weak_mgr](const std::vector<WiFiNetwork>& networks) {
-                if (token.expired() || weak_mgr.expired())
-                    return;
-                token.defer([this, networks]() {
-                    lv_subject_set_int(&wifi_scanning_, 0);
-                    populate_network_list(networks);
-                });
+        wifi_manager_->start_scan([this, token](const std::vector<WiFiNetwork>& networks) {
+            token.defer([this, networks]() {
+                lv_subject_set_int(&wifi_scanning_, 0);
+                populate_network_list(networks);
             });
+        });
     }
 }
 
@@ -1056,18 +1052,14 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
     } else if (outcome.enabled) {
         lv_subject_set_int(&wifi_scanning_, 1);
 
-        std::weak_ptr<WiFiManager> weak_mgr = wifi_manager_;
         auto token = lifetime_.token();
 
-        wifi_manager_->start_scan(
-            [this, token, weak_mgr](const std::vector<WiFiNetwork>& networks) {
-                if (token.expired() || weak_mgr.expired())
-                    return;
-                token.defer([this, networks]() {
-                    lv_subject_set_int(&wifi_scanning_, 0);
-                    populate_network_list(networks);
-                });
+        wifi_manager_->start_scan([this, token](const std::vector<WiFiNetwork>& networks) {
+            token.defer([this, networks]() {
+                lv_subject_set_int(&wifi_scanning_, 0);
+                populate_network_list(networks);
             });
+        });
     } else {
         if (wifi_manager_) {
             wifi_manager_->stop_scan();
@@ -1150,12 +1142,9 @@ void NetworkSettingsOverlay::handle_refresh_clicked() {
 
     lv_subject_set_int(&wifi_scanning_, 1);
 
-    std::weak_ptr<WiFiManager> weak_mgr = wifi_manager_;
     auto token = lifetime_.token();
 
-    wifi_manager_->start_scan([this, token, weak_mgr](const std::vector<WiFiNetwork>& networks) {
-        if (token.expired() || weak_mgr.expired())
-            return;
+    wifi_manager_->start_scan([this, token](const std::vector<WiFiNetwork>& networks) {
         token.defer([this, networks]() {
             lv_subject_set_int(&wifi_scanning_, 0);
             populate_network_list(networks);
@@ -1226,8 +1215,6 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
 
     network_tester_->start_test(
         [this, token](NetworkTester::TestState state, const NetworkTester::TestResult& result) {
-            if (token.expired())
-                return;
             token.defer([this, state, result]() {
                 update_test_state(state, result);
 
@@ -1407,8 +1394,6 @@ void NetworkSettingsOverlay::handle_hidden_connect_clicked() {
     wifi_manager_->connect(
         ssid_str, password,
         [this, token, ssid_str](bool success, const std::string& error, WiFiResult result) {
-            if (token.expired())
-                return;
             token.defer([this, success, ssid_str, error, result]() {
                 lv_subject_set_int(&hidden_connecting_, 0);
 
@@ -1422,8 +1407,6 @@ void NetworkSettingsOverlay::handle_hidden_connect_clicked() {
                         auto scan_token = lifetime_.token();
                         wifi_manager_->start_scan(
                             [this, scan_token](const std::vector<WiFiNetwork>& networks) {
-                                if (scan_token.expired())
-                                    return;
                                 scan_token.defer(
                                     [this, networks]() { populate_network_list(networks); });
                             });
@@ -1488,8 +1471,6 @@ void NetworkSettingsOverlay::handle_network_item_clicked(lv_event_t* e) {
         wifi_manager_->connect(
             item_data->ssid, "",
             [this, token](bool success, const std::string& error, WiFiResult result) {
-                if (token.expired())
-                    return;
                 token.defer([this, success, error, result]() {
                     if (success) {
                         spdlog::info("[NetworkSettingsOverlay] Connected to {}",
@@ -1577,8 +1558,6 @@ void NetworkSettingsOverlay::handle_network_forget_confirm() {
 
     auto token = lifetime_.token();
     wifi_manager_->forget(ssid, [this, token, ssid](bool success, const std::string& error) {
-        if (token.expired())
-            return;
         token.defer([this, success, ssid, error]() {
             if (success) {
                 spdlog::info("[NetworkSettingsOverlay] Forgot network: {}",
@@ -1592,8 +1571,6 @@ void NetworkSettingsOverlay::handle_network_forget_confirm() {
                     auto scan_token = lifetime_.token();
                     wifi_manager_->start_scan([this, scan_token](
                                                   const std::vector<WiFiNetwork>& networks) {
-                        if (scan_token.expired())
-                            return;
                         scan_token.defer([this, networks]() { populate_network_list(networks); });
                     });
                 }
@@ -1720,8 +1697,6 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
 
     wifi_manager_->connect(
         ssid, pwd, [this, token, ssid](bool success, const std::string& error, WiFiResult result) {
-            if (token.expired())
-                return;
             token.defer([this, success, ssid, error, result]() {
                 // Reset connecting state
                 lv_subject_set_int(&wifi_connecting_, 0);
@@ -1737,8 +1712,6 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
                         auto scan_token = lifetime_.token();
                         wifi_manager_->start_scan(
                             [this, scan_token](const std::vector<WiFiNetwork>& networks) {
-                                if (scan_token.expired())
-                                    return;
                                 scan_token.defer(
                                     [this, networks]() { populate_network_list(networks); });
                             });

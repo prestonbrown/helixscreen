@@ -457,9 +457,6 @@ void SpoolEditModal::handle_save() {
 
     // Completion handler — called after all PATCHes succeed
     auto on_all_saved = [this, token, spool_id]() {
-        if (token.expired()) {
-            return;
-        }
         spdlog::info("[SpoolEditModal] All changes saved for spool {}", spool_id);
         token.defer("SpoolEditModal::on_all_saved", [this]() {
             ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Spool saved"), 2000);

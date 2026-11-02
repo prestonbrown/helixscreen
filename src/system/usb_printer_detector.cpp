@@ -164,7 +164,7 @@ void UsbPrinterDetector::request_scan() {
     }
     scan_in_flight_ = true;
     scan_async([this, tok = poll_lifetime_.token()](std::vector<UsbPrinterInfo> detected) {
-        if (tok.expired()) {
+        if (tok.expired()) { // L081_OK: scan_async answers through queue_update
             return;
         }
         scan_in_flight_ = false;

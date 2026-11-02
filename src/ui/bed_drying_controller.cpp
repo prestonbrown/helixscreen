@@ -306,9 +306,6 @@ void BedDryingController::prepare(const Material& material, bool with_appliance,
 
     auto tok = lifetime_.token();
     auto fail = [this, tok, gen, on_error](const MoonrakerError& err) {
-        if (tok.expired()) {
-            return;
-        }
         tok.defer("BedDrying::prepare_failed", [this, gen, on_error, msg = err.message]() {
             if (gen != prep_gen_) {
                 return;
@@ -323,9 +320,6 @@ void BedDryingController::prepare(const Material& material, bool with_appliance,
         api_->execute_gcode(
             move,
             [this, tok, gen, on_ready, on_error]() {
-                if (tok.expired()) {
-                    return;
-                }
                 tok.defer("BedDrying::placed_ready", [this, gen, on_ready, on_error]() {
                     if (gen != prep_gen_) {
                         return;
@@ -357,9 +351,6 @@ void BedDryingController::prepare(const Material& material, bool with_appliance,
     api_->motion().home_axes(
         "",
         [this, tok, gen, do_move]() {
-            if (tok.expired()) {
-                return;
-            }
             tok.defer("BedDrying::homed", [this, gen, do_move]() {
                 if (gen == prep_gen_) {
                     do_move();
@@ -391,8 +382,9 @@ bool BedDryingController::begin_placement() {
     // while spools go onto the plate.
     if (tc_) {
         auto tok = lifetime_.token();
+        // read_configured_idle_timeout answers on the main thread.
         tc_->read_configured_idle_timeout([this, tok](int configured_s) {
-            if (tok.expired() || !record_.latched) {
+            if (tok.expired() || !record_.latched) { // L081_OK: main thread
                 return;
             }
             record_.idle_restore_s = configured_s;

@@ -96,6 +96,11 @@ class TimelapseInstallOverlay : public OverlayBase {
 
     // Config file modification (private: requires API)
     void download_and_modify_config();
+    /// Main thread: fetch helixscreen.conf and write the timelapse sections.
+    /// `moonraker_found` is false when moonraker.conf was missing.
+    void download_helix_config(const std::string& moonraker_content, bool moonraker_found);
+    /// Main thread: add the [include helixscreen.conf] line to moonraker.conf.
+    void upload_moonraker_include(const std::string& moonraker_content);
     void write_timelapse_config(const std::string& helix_content,
                                 const std::string& moonraker_content);
 

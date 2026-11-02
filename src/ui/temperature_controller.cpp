@@ -520,9 +520,6 @@ void TemperatureController::start_chamber_drying(float temp_c, int duration_min,
     dry_run_ = {true, false, 0, 0, run_id};
     auto tok = lifetime_.token();
     api_->execute_gcode(gcode, nullptr, [this, tok, run_id](const MoonrakerError&) {
-        if (tok.expired()) {
-            return;
-        }
         tok.defer("TemperatureController::drying_refused", [this, run_id]() {
             if (dry_run_.id == run_id) {
                 end_dry_run("drying start refused");

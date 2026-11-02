@@ -499,7 +499,8 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
         "timelapse", companion, dest_path,
         [this, tok, thumb_tok, dest_path, cache_key, target,
          filename_copy](const std::string& /*path*/) {
-            if (tok.expired() || thumb_tok.expired())
+            // L081_OK: skips the file read for a dead overlay; only locals until the defer.
+            if (tok.expired_no_lvgl() || thumb_tok.expired_no_lvgl())
                 return;
 
             // Read the downloaded file into memory for ThumbnailProcessor
@@ -532,11 +533,8 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
             helix::ThumbnailProcessor::instance().process_async(
                 data, cache_key, target,
                 [this, tok, thumb_tok, filename_copy](const std::string& lvbin_path) {
-                    if (tok.expired() || thumb_tok.expired())
-                        return;
-
-                    thumb_tok.defer([this, filename_copy, lvbin_path]() {
-                        if (!video_grid_container_)
+                    thumb_tok.defer([this, tok, filename_copy, lvbin_path]() {
+                        if (tok.expired() || !video_grid_container_)
                             return;
 
                         // Find the card for this filename by scanning children

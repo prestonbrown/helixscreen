@@ -1032,8 +1032,6 @@ void ProbeOverlay::handle_config_save() {
                                 *api_, section, field, new_value,
                                 [this, token]() {
                                     spdlog::info("[Probe] Config edit saved successfully");
-                                    if (token.expired())
-                                        return;
                                     token.defer([this]() {
                                         // Reload config values to reflect the change
                                         load_config_values();
