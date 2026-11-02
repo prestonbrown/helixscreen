@@ -79,6 +79,7 @@ static lv_subject_t g_show_beta_features_subject;
 static lv_subject_t g_home_edit_mode_subject;
 static lv_subject_t g_platform_extras_subject;
 static lv_subject_t g_host_power_supported_subject;
+static lv_subject_t g_camera_supported_subject;
 static lv_subject_t g_wizard_active_subject;
 
 // Application quit flag (volatile sig_atomic_t for async-signal-safety)
@@ -243,6 +244,15 @@ void app_globals_init_subjects() {
     g_subjects.register_subject(&g_host_power_supported_subject);
     lv_xml_register_subject(nullptr, "platform_host_power_supported",
                             &g_host_power_supported_subject);
+
+    // Whether this build can show a camera at all. HELIX_HAS_CAMERA (lv_conf.h)
+    // compiles the camera view out of the low-RAM printer-embedded builds, where
+    // a webcam Moonraker reports must still not offer a camera entry point. XML
+    // gates via:
+    //   <bind_flag_if_eq subject="platform_camera_supported" flag="hidden" ref_value="0"/>
+    lv_subject_init_int(&g_camera_supported_subject, HELIX_HAS_CAMERA ? 1 : 0);
+    g_subjects.register_subject(&g_camera_supported_subject);
+    lv_xml_register_subject(nullptr, "platform_camera_supported", &g_camera_supported_subject);
 
     // Initialize wizard-active subject (observable mirror of is_wizard_active()).
     // Seed from the current flag so it is correct even when set_wizard_active()

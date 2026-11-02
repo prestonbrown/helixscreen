@@ -17,6 +17,22 @@ The feed is decoded as an MJPEG stream when one is available. If only a snapshot
 
 ---
 
+## Printers Without a Camera View
+
+HelixScreen running on the printer's own screen is built without the camera view on these printers:
+
+- Creality K1, K1C, K1 Max, K1 SE and Ender-3 V3 KE
+- Creality K2 series
+- FlashForge Adventurer 5M, Adventurer 5X and Creator 5
+- Elegoo Centauri Carbon
+- Snapmaker U1
+
+On these builds there is no Camera widget and no camera entry under **Settings**, even when Moonraker has a webcam configured. Your camera still works in Mainsail, Fluidd and other clients. A separate screen or device pointed at the same printer (a Raspberry Pi, a desktop, the Android app) shows the camera as usual.
+
+These boards share a small amount of memory and two slow processor cores with Klipper, and the camera view has not been tuned and measured on them yet. A lighter camera view for these printers is planned.
+
+---
+
 ## Stream Status
 
 While the camera is connecting or unavailable, the widget shows a status message over a spinner:

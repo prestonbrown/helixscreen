@@ -1046,6 +1046,7 @@ static lv_subject_t s_test_notification_subject;
 static lv_subject_t s_test_home_edit_mode_subject;
 static lv_subject_t s_test_wizard_active_subject;
 static lv_subject_t s_test_host_power_supported_subject;
+static lv_subject_t s_test_camera_supported_subject;
 static bool s_test_notification_subject_initialized = false;
 
 void app_globals_init_subjects() {
@@ -1062,6 +1063,12 @@ void app_globals_init_subjects() {
             lv_xml_register_subject(nullptr, "platform_host_power_supported",
                                     &s_test_host_power_supported_subject);
         }
+        // Mirrors app_globals.cpp: seeded from the build's HELIX_HAS_CAMERA.
+        lv_subject_init_int(&s_test_camera_supported_subject, HELIX_HAS_CAMERA ? 1 : 0);
+        if (!lv_xml_get_subject(nullptr, "platform_camera_supported")) {
+            lv_xml_register_subject(nullptr, "platform_camera_supported",
+                                    &s_test_camera_supported_subject);
+        }
         spdlog::debug("[Test Stub] app_globals_init_subjects: subjects initialized");
     }
 }
@@ -1072,6 +1079,7 @@ void app_globals_deinit_subjects() {
         lv_subject_deinit(&s_test_home_edit_mode_subject);
         lv_subject_deinit(&s_test_wizard_active_subject);
         lv_subject_deinit(&s_test_host_power_supported_subject);
+        lv_subject_deinit(&s_test_camera_supported_subject);
         s_test_notification_subject_initialized = false;
         spdlog::debug("[Test Stub] app_globals_deinit_subjects: subjects deinitialized");
     }
