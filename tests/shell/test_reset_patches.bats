@@ -148,3 +148,73 @@ patch_paths() { sed -n 's|^+++ b/||p' "$1" | sort -u; }
     [ -z "$missing" ] || fail "not in a *_PATCHED_FILES list, so a reset leaves it patched:$missing"
 }
 
+
+# A superproject at "commit A" applied alpha (edits one.txt) and gamma (creates
+# three.txt) into a fixture submodule and stamped it, then moved to "commit B",
+# whose patch set touches only two.txt. Runs the real reset-patches recipe
+# against that fixture; nothing under lib/ in this checkout is touched.
+switched_fixture() {
+    FIX="$BATS_TEST_TMPDIR/super"
+    SUB="$FIX/lib/fake"
+    mkdir -p "$FIX/patches" "$FIX/mk" "$SUB"
+    git -C "$SUB" init -q
+    git -C "$SUB" config user.email t@example.invalid
+    git -C "$SUB" config user.name Fixture
+    printf 'one\n' >"$SUB/one.txt"
+    printf 'two\n' >"$SUB/two.txt"
+    git -C "$SUB" add one.txt two.txt
+    git -C "$SUB" commit -qm pristine
+
+    printf 'one\nALPHA\n' >"$SUB/one.txt"
+    git -C "$SUB" diff -- one.txt >"$FIX/patches/alpha.patch"
+    git -C "$SUB" checkout -q -- one.txt
+    printf 'three\n' >"$SUB/three.txt"
+    git -C "$SUB" add -N three.txt
+    git -C "$SUB" diff -- three.txt >"$FIX/patches/gamma.patch"
+    git -C "$SUB" reset -q -- three.txt
+    rm -f "$SUB/three.txt"
+
+    printf 'FAKE_DIR := lib/fake\n' >"$FIX/Makefile"
+    printf '\t$(APPLY_PATCH) $(FAKE_DIR) $(PATCH_DIR)/%s.patch "x"\n' alpha gamma >"$FIX/mk/patches.mk"
+    git -C "$SUB" apply "$FIX/patches/alpha.patch"
+    git -C "$SUB" apply "$FIX/patches/gamma.patch"
+    python3 "$REPO_ROOT/scripts/check_patch_drift.py" --repo-root "$FIX" --write-stamp >/dev/null
+}
+
+run_switched_reset() {
+    local none="$BATS_TEST_TMPDIR/none"
+    run run_mk_fragment "$PATCHES_MK" '^CHECK_PATCH_DRIFT :=' reset-patches \
+        CHECK_PATCH_DRIFT="python3 $REPO_ROOT/scripts/check_patch_drift.py --repo-root $FIX" \
+        LVGL_DIR="$SUB" LVGL_PATCHED_FILES=two.txt \
+        LIBHV_DIR="$none" LIBHV_PATCHED_FILES= LUA_DIR="$none" LUA_PATCHED_FILES=
+}
+
+@test "reset-patches undoes the applied patch set after the superproject moves to another" {
+    switched_fixture
+    [ -n "$(git -C "$SUB" status --porcelain)" ]
+    [ -f "$SUB/three.txt" ]
+    run_switched_reset
+    [ "$status" -eq 0 ] || fail "reset failed: $output"
+    [ ! -e "$SUB/three.txt" ] || fail "patch-created three.txt left behind"
+    [ -z "$(git -C "$SUB" status --porcelain)" ] || fail "not pristine: $(git -C "$SUB" status --porcelain)"
+}
+
+@test "reset-patches deletes only the untracked files the stamp names" {
+    switched_fixture
+    printf 'mine\n' >"$SUB/other.txt"
+    run_switched_reset
+    [ "$status" -eq 0 ] || fail "reset failed: $output"
+    [ -f "$SUB/other.txt" ]
+    [ ! -e "$SUB/three.txt" ]
+}
+
+@test "the stamp's file list drops paths outside the submodule" {
+    switched_fixture
+    local gd
+    gd="$(git -C "$SUB" rev-parse --absolute-git-dir)"
+    printf '{"files": {"one.txt": null, "../escape.txt": null, "/etc/passwd": null}}\n' \
+        >"$gd/helix-patches-applied.json"
+    run python3 "$REPO_ROOT/scripts/check_patch_drift.py" --stamped-files "$SUB"
+    [ "$status" -eq 0 ]
+    [ "$output" = "one.txt" ]
+}

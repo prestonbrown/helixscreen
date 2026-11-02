@@ -1041,7 +1041,13 @@ if [ "$MODE" = commit ]; then
     # file. Refreshed first, git compares content and rewrites only what
     # differs; unrefreshed, the reset rewrites every file and make rebuilds all.
     D 'git update-index -q --refresh >/dev/null; git submodule foreach --quiet --recursive "git update-index -q --refresh >/dev/null; true"'
-    D 'git reset --hard --quiet $SHA && git submodule update --init --recursive --quiet'
+    # The submodules carry the patches of the commit the last job built, and
+    # `git submodule update` refuses to overwrite them when the new pin moves a
+    # patched file. Undo them twice: with the old commit's rules, which name its
+    # own set, and with the new commit's, which also read the drift stamp; a
+    # checkout of a commit older than the stamp-reading reset needs the first.
+    D 'make reset-patches >/dev/null 2>&1 || true'
+    D 'git reset --hard --quiet $SHA && make reset-patches >/dev/null && git submodule update --init --recursive --quiet'
     # A submodule already at its pin keeps the patches an earlier job applied, so a
     # commit that edits a patch in patches/ meets the old revision and the build's
     # drift check refuses. Reapply against this commit's patches/ every run.

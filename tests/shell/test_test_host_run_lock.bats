@@ -262,6 +262,20 @@ wait_for_line() { # <substring> <file>
     [ "$reset_line" -lt "$reapply_line" ]
 }
 
+@test "the applied patches are undone before the submodules move to the new pins" {
+    # `git submodule update` refuses to overwrite a patched file the new pin
+    # changes, which strands the checkout whenever the patch set differs.
+    run "$SCRIPT" --commit mutate
+    [ "$status" -eq 0 ]
+    local first_reset hard_reset update
+    first_reset=$(grep -nF "make reset-patches" "$MOCK_DOCKER_LOG" | head -1 | cut -d: -f1)
+    hard_reset=$(grep -nF "git reset --hard" "$MOCK_DOCKER_LOG" | head -1 | cut -d: -f1)
+    update=$(grep -nF "git submodule update" "$MOCK_DOCKER_LOG" | head -1 | cut -d: -f1)
+    [ -n "$first_reset" ] && [ -n "$update" ]
+    [ "$first_reset" -lt "$hard_reset" ]
+    grep -F "git submodule update" "$MOCK_DOCKER_LOG" | grep -qF "make reset-patches >/dev/null && git submodule update"
+}
+
 @test "tsan with tags runs test-tsan-one with the tags as one TEST argument" {
     # Stub the Catch2 summary a real tagged run tees into the log.
     mock_command_script docker '
