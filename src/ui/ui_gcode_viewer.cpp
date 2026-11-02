@@ -42,7 +42,9 @@
 // FPS tracking constants (for diagnostic logging, not mode selection)
 constexpr float kMinActualRenderMs = 2.0f; // Minimum render time to count as actual render
 constexpr float kFpsEmaAlpha = 0.1f;       // Exponential moving average smoothing factor
-constexpr int kFpsLogIntervalFrames = 30;  // Log FPS every N frames
+// About one line every 10s of animation: the debug ring a bundle carries holds a
+// few thousand lines, and a once-a-second line crowds everything else out of it.
+constexpr int kFpsLogIntervalFrames = 300;
 
 #include <spdlog/spdlog.h>
 

@@ -642,7 +642,7 @@ bool WizardInputShaperStep::should_skip() const {
     bool has_accel = has_accelerometer();
 
     if (!has_accel) {
-        spdlog::info("[{}] No accelerometer detected, skipping step", get_name());
+        spdlog::debug("[{}] No accelerometer detected, skipping step", get_name());
     } else {
         spdlog::debug("[{}] Accelerometer detected, showing step", get_name());
     }
