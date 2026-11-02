@@ -191,6 +191,17 @@ inline bool is_on_active_screen(lv_obj_t* obj) {
     return lv_obj_get_screen(obj) == lv_display_get_screen_active(disp);
 }
 
+/// True when @p obj exists and neither it nor any ancestor is hidden.
+inline bool is_shown(lv_obj_t* obj) {
+    if (!obj)
+        return false;
+    for (; obj; obj = lv_obj_get_parent(obj)) {
+        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN))
+            return false;
+    }
+    return true;
+}
+
 /**
  * @brief Queue LVGL object deletion for the next timer tick
  *
