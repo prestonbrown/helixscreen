@@ -385,7 +385,8 @@ std::string describe_memory_pressure(const MemoryPressureAssessment& assessment,
     case MemoryPressureCause::none:
         break;
     }
-    return "No memory pressure";
+    return fmt::format("No memory pressure (RSS {}MB, available {}MB)", stats.vm_rss_kb / 1024,
+                       sys_info.available_mb());
 }
 
 bool should_report_memory_pressure(MemoryReportState& state, MemoryPressureLevel level,
