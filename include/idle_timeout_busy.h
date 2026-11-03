@@ -2,9 +2,48 @@
 // include/idle_timeout_busy.h
 #pragma once
 
+#include <atomic>
 #include <chrono>
 
 namespace helix {
+
+/**
+ * The busy trackers' time source: steady_clock plus an offset that only moves
+ * forward.
+ *
+ * Every decision IdleTimeoutBusy and BusyEpisodeOwner make compares two
+ * readings of this clock, so advance() is indistinguishable to them from that
+ * much real time passing. It lets a test cross kSettle or kGraceWindow without
+ * sleeping through it; nothing else reads this clock, so moving it reaches no
+ * other timer. Production never advances it.
+ */
+class BusyClock {
+  public:
+    using duration = std::chrono::steady_clock::duration;
+    using rep = duration::rep;
+    using period = duration::period;
+    using time_point = std::chrono::steady_clock::time_point;
+    static constexpr bool is_steady = true;
+
+    static time_point now() {
+        return std::chrono::steady_clock::now() +
+               duration{offset().load(std::memory_order_relaxed)};
+    }
+
+    /// Moves now() forward by @p by. Never backward: a reading already taken
+    /// must not land in the future.
+    static void advance(duration by) {
+        if (by.count() > 0) {
+            offset().fetch_add(by.count(), std::memory_order_relaxed);
+        }
+    }
+
+  private:
+    static std::atomic<rep>& offset() {
+        static std::atomic<rep> value{0};
+        return value;
+    }
+};
 
 /**
  * Debounces Klipper's idle_timeout "Printing" flag before it counts as a
@@ -32,11 +71,11 @@ namespace helix {
  * Not thread-safe; fed from PrinterCalibrationState::update_from_status and read
  * at gcode send time, both on the main thread. Mirrors the shape of
  * AppMotionActivity (app_motion_activity.h): header-only, with a defaulted
- * `now` so tests drive it without a clock injection seam.
+ * `now` so unit tests pass explicit times; end-to-end tests advance BusyClock.
  */
 class IdleTimeoutBusy {
   public:
-    using clock = std::chrono::steady_clock;
+    using clock = BusyClock;
 
     /// How long idle_timeout must report "Printing" before it counts as blocking.
     static constexpr std::chrono::milliseconds kSettle{1000};

@@ -18,8 +18,8 @@
  * would leave both existing suites green.
  *
  * So this drives real status payloads and asserts on the real refusal path.
- * Tagged [slow] because it waits out a genuine 1 s settle; CI runs the [slow]
- * job separately (nightly.yml), so it stays covered without slowing iteration.
+ * The settle window is crossed with helix::BusyClock::advance(), which the tracker
+ * cannot tell apart from the time really passing.
  */
 
 #include "../busy_guard_fixture.h"
@@ -36,7 +36,7 @@ nlohmann::json idle_timeout(const char* state) {
 
 TEST_CASE_METHOD(helix::BusyGuardFixture,
                  "A fresh idle_timeout Printing does not block until it settles",
-                 "[blocking_op][idle_timeout][e2e][slow]") {
+                 "[blocking_op][idle_timeout][e2e]") {
     state.update_from_status(idle_timeout("Printing"));
 
     // Anti-vacuity: the payload MUST have been parsed. Without this the next
@@ -49,7 +49,8 @@ TEST_CASE_METHOD(helix::BusyGuardFixture,
     CHECK_FALSE(state.is_external_blocking_operation_active());
 
     SECTION("and then does block once the window elapses") {
-        REQUIRE(wait_until([this] { return state.is_blocking_operation_active(); }, 3000));
+        helix::BusyClock::advance(helix::IdleTimeoutBusy::kSettle);
+        REQUIRE(state.is_blocking_operation_active());
         CHECK(state.is_external_blocking_operation_active());
 
         // The real consumer: a discretionary jog is refused, and never reaches
@@ -75,7 +76,7 @@ TEST_CASE_METHOD(helix::BusyGuardFixture,
 
 TEST_CASE_METHOD(helix::BusyGuardFixture,
                  "A short housekeeping burst never reaches the blocking state",
-                 "[blocking_op][idle_timeout][e2e][regression][slow]") {
+                 "[blocking_op][idle_timeout][e2e][regression]") {
     // The L53W5PKG shape end to end: Printing, then Ready ~0.7 s later, forever.
     // Replayed at full speed here — the burst is shorter than the settle, so the
     // guard must never engage no matter how many cycles run.
@@ -100,11 +101,12 @@ TEST_CASE_METHOD(helix::BusyGuardFixture,
 }
 
 TEST_CASE_METHOD(helix::BusyGuardFixture, "Clearing idle_timeout releases the guard immediately",
-                 "[blocking_op][idle_timeout][e2e][slow]") {
+                 "[blocking_op][idle_timeout][e2e]") {
     // Asymmetric by design: no settle on the way down. Making the user wait an
     // extra second after a real homing finishes would be its own bug.
     state.update_from_status(idle_timeout("Printing"));
-    REQUIRE(wait_until([this] { return state.is_blocking_operation_active(); }, 3000));
+    helix::BusyClock::advance(helix::IdleTimeoutBusy::kSettle);
+    REQUIRE(state.is_blocking_operation_active());
 
     state.update_from_status(idle_timeout("Ready"));
     CHECK_FALSE(state.is_blocking_operation_active());
@@ -116,21 +118,21 @@ TEST_CASE_METHOD(helix::BusyGuardFixture, "Clearing idle_timeout releases the gu
 }
 
 TEST_CASE_METHOD(helix::BusyGuardFixture, "Repeated Printing reports do not re-arm the settle",
-                 "[blocking_op][idle_timeout][e2e][regression][slow]") {
+                 "[blocking_op][idle_timeout][e2e][regression]") {
     // Moonraker re-sends idle_timeout in status batches. If every repeat
     // restarted the window, a printer reporting faster than SETTLE would never
     // reach the blocking state at all — the debounce would be a hole in the
     // guard rather than a filter. Driven through the parse path because that is
     // where the repeats actually arrive.
-    const auto start = std::chrono::steady_clock::now();
+    const auto reports = 3 * (helix::IdleTimeoutBusy::kSettle / std::chrono::milliseconds(20));
     bool blocked = false;
-    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(3)) {
+    for (long long report = 0; report < reports; ++report) {
         state.update_from_status(idle_timeout("Printing"));
         if (state.is_blocking_operation_active()) {
             blocked = true;
             break;
         }
-        process_lvgl(20);
+        helix::BusyClock::advance(std::chrono::milliseconds(20));
     }
     CHECK(blocked);
 }

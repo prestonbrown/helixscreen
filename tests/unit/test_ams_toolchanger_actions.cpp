@@ -18,6 +18,7 @@
 #include "ams_backend_mock.h"
 #include "runtime_config.h"
 
+#include <atomic>
 #include <chrono>
 #include <mutex>
 #include <thread>
@@ -60,6 +61,29 @@ bool wait_until_ams_idle(helix::AmsBackendMock& backend, std::chrono::millisecon
     } while (std::chrono::steady_clock::now() < deadline);
     return false;
 }
+
+/// Releases a held backend after two seconds unless destroyed first, so a
+/// missing lockout fails its assertion instead of deadlocking: a second
+/// operation the backend accepts joins the held one before it returns.
+class HoldReleaseGuard {
+  public:
+    explicit HoldReleaseGuard(helix::AmsBackendMock& backend)
+        : thread_([this, &backend] {
+              const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+              while (!done_ && std::chrono::steady_clock::now() < deadline) {
+                  std::this_thread::sleep_for(std::chrono::milliseconds(5));
+              }
+              backend.hold_operations(false);
+          }) {}
+    ~HoldReleaseGuard() {
+        done_ = true;
+        thread_.join();
+    }
+
+  private:
+    std::atomic<bool> done_{false};
+    std::thread thread_;
+};
 
 // =============================================================================
 // Mock toolchanger mode basics
@@ -173,15 +197,14 @@ TEST_CASE("change_tool sets SELECTING immediately in mock toolchanger mode",
 
 TEST_CASE("Lockout rejects operations during in-flight tool change",
           "[ams][toolchanger][toolchanger_actions]") {
-    // NOTE: deliberately NOT using FastTimingScopeTC here. The 1000x sim_speedup
-    // would shrink the operation delay below to ~1ms, so the async completion
-    // thread can clear the in-flight state before the immediate second call runs
-    // — racing this test's whole premise. Use a real (un-scaled) delay long
-    // enough that the operation is reliably still in-flight on slow CI.
+    // Held, the first operation stays in flight through the second call, so
+    // the completion thread cannot clear it first at any delay.
     helix::AmsBackendMock backend(4);
     backend.set_tool_changer_mode(true);
-    backend.set_operation_delay(500); // real ms — kept in-flight for the immediate reject check
+    backend.set_operation_delay(0);
+    backend.hold_operations(true);
     REQUIRE(backend.start());
+    HoldReleaseGuard release_guard(backend);
 
     SECTION("change_tool rejected while a park is in progress") {
         // The mock starts with T0 mounted.
@@ -193,7 +216,7 @@ TEST_CASE("Lockout rejects operations during in-flight tool change",
         CHECK_FALSE(result2);
         CHECK(result2.result == helix::AmsResult::BUSY);
 
-        // Wait for first operation to complete
+        backend.hold_operations(false);
         REQUIRE(wait_until_ams_idle(backend, std::chrono::seconds(10)));
     }
 
@@ -205,6 +228,7 @@ TEST_CASE("Lockout rejects operations during in-flight tool change",
         CHECK_FALSE(result2);
         CHECK(result2.result == helix::AmsResult::BUSY);
 
+        backend.hold_operations(false);
         REQUIRE(wait_until_ams_idle(backend, std::chrono::seconds(10)));
     }
 
