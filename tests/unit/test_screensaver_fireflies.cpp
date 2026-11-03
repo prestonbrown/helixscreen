@@ -45,11 +45,14 @@ namespace {
 constexpr uint32_t W = 320;
 constexpr uint32_t H = 200;
 constexpr uint32_t kFrameMs = 33;
+/// Motion depends on the canvas's shape alone, so motion cases draw into W x H scaled down.
+constexpr uint32_t kMotionW = 32;
+constexpr uint32_t kMotionH = 20;
 
 /// A sim and its frame.
 struct Swarm : helix::test::SimRun<FirefliesSim> {
     Swarm(uint32_t seed, size_t level = 0, PixelFormat format = PixelFormat::XRGB8888,
-          uint32_t w = W, uint32_t h = H)
+          uint32_t w = kMotionW, uint32_t h = kMotionH)
         : SimRun(seed, w, h, format) {
         init(level);
     }
@@ -139,8 +142,9 @@ TEST_CASE("a cleared fireflies sim holds nothing", "[screensaver][fireflies_sim]
 }
 
 TEST_CASE("fireflies move identically at 16 ms and 48 ms frames", "[screensaver][fireflies_sim]") {
+    // b draws at full size, so the match also holds motion apart from the canvas size.
     Swarm a(11);
-    Swarm b(11);
+    Swarm b(11, 0, PixelFormat::XRGB8888, W, H);
     for (int i = 0; i < 300; i++) {
         a.step(16);
     }
@@ -402,7 +406,7 @@ bool every_fly_chases_a_live_bait(const FirefliesSim& sim) {
 
 TEST_CASE("ten minutes of fireflies runs every mode and never orphans a fly",
           "[screensaver][fireflies_sim]") {
-    Swarm s(31, 0, PixelFormat::XRGB8888, 160, 96);
+    Swarm s(31, 0, PixelFormat::XRGB8888, 20, 12);
     for (uint32_t t = 0; t < 600000; t += 100) {
         s.step(100);
         REQUIRE(s.sim.baits_alive() >= 2);
@@ -632,7 +636,7 @@ TEST_CASE("every changed fireflies pixel lies in a dirty box", "[screensaver][fi
     for (const PixelFormat format : {PixelFormat::XRGB8888, PixelFormat::RGB565}) {
         for (const size_t level : {size_t{0}, helix::ui::kFirefliesLevelCount - 1}) {
             CAPTURE(static_cast<int>(format), level);
-            Swarm s(41, level, format);
+            Swarm s(41, level, format, W, H);
             bool changed_any = false;
             // Split first unless every slot is taken; the other change follows.
             const bool split_first = s.sim.baits_alive() < kFirefliesMaxBaits;
@@ -695,8 +699,8 @@ TEST_CASE("fireflies draw only light on black, and never past a row",
 
 TEST_CASE("an RGB565 swarm shows at least 60% of the light an XRGB8888 one does",
           "[screensaver][fireflies_sim]") {
-    Swarm wide(44, 0, PixelFormat::XRGB8888);
-    Swarm narrow(44, 0, PixelFormat::RGB565);
+    Swarm wide(44, 0, PixelFormat::XRGB8888, W, H);
+    Swarm narrow(44, 0, PixelFormat::RGB565, W, H);
     wide.run_for(3000);
     narrow.run_for(3000);
     const size_t wide_lit = lit_pixels(wide.frame.target);
@@ -706,8 +710,8 @@ TEST_CASE("an RGB565 swarm shows at least 60% of the light an XRGB8888 one does"
 }
 
 TEST_CASE("glow brightens the swarm", "[screensaver][fireflies_sim]") {
-    Swarm plain(42);
-    Swarm glowing(42);
+    Swarm plain(42, 0, PixelFormat::XRGB8888, W, H);
+    Swarm glowing(42, 0, PixelFormat::XRGB8888, W, H);
     REQUIRE(glowing.sim.begin_mode(FirefliesMode::GLOW, 5000, glowing.rng));
     plain.run_for(3000);
     glowing.run_for(3000);
@@ -816,7 +820,7 @@ TEST_CASE("a new wind heading during a gust never compounds the gust",
     constexpr float kGustMax = 4.0f * kWindMax;
     for (uint32_t seed = 1; seed <= 40; seed++) {
         CAPTURE(seed);
-        Swarm s(seed, helix::ui::kFirefliesLevelCount - 1, PixelFormat::XRGB8888, 160, 96);
+        Swarm s(seed, helix::ui::kFirefliesLevelCount - 1, PixelFormat::XRGB8888, 20, 12);
         // Gust back to back, so every heading change lands inside a gust.
         const uint32_t changes_before = s.sim.wind_changes();
         float strongest = 0.0f;

@@ -319,12 +319,13 @@ TEST_CASE("every pixel a high fly frame changes lies in one of its dirty boxes",
     HighFlySim sim;
     int32_t sod = 10 * 3600 + 59 * 60;
     sim.init(frame.target, rng, 0, reading_at(sod));
+    HighFlySimTestAccess::set_fly_start(sim, 30.0);
     std::vector<DirtyRect> dirty;
     size_t changed = 0;
     size_t uncovered = 0;
     bool flew = false;
     // Long enough for towers to come and go and one fly-through.
-    for (int i = 0; i < 1300; i++) {
+    for (int i = 0; i < 700; i++) {
         sod += i % 10 == 0 ? 1 : 0;
         const std::vector<uint8_t> before = frame.bytes;
         sim.step(100, frame.target, rng, reading_at(sod), dirty);
@@ -342,11 +343,13 @@ TEST_CASE("every pixel a high fly frame changes lies in one of its dirty boxes",
 TEST_CASE("each frame repaints where the towers and the clock just were, through a busy drift",
           "[screensaver][highfly]") {
     const ClockReading r = reading_at(10 * 3600);
+    constexpr int32_t kW = 200;
+    constexpr int32_t kH = 120;
     // Find a drift step with both towers up; the towers' schedule does not depend on when the
     // fly-through comes, so a probe run with none finds it.
     double drift_at = -1.0;
     {
-        TestFrame probe_frame(400, 240, PixelFormat::RGB565);
+        TestFrame probe_frame(kW, kH, PixelFormat::RGB565);
         std::minstd_rand rng(3);
         HighFlySim probe;
         probe.init(probe_frame.target, rng, 0, r);
@@ -365,7 +368,7 @@ TEST_CASE("each frame repaints where the towers and the clock just were, through
     }
     REQUIRE(drift_at > 0.0);
 
-    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    TestFrame frame(kW, kH, PixelFormat::XRGB8888);
     std::minstd_rand rng(3);
     HighFlySim sim;
     sim.init(frame.target, rng, 0, r);
@@ -392,8 +395,8 @@ TEST_CASE("each frame repaints where the towers and the clock just were, through
             busy_drift = busy_drift || (sim.towers_visible() == 2 && sim.next_fly_s() < 32.0f);
         }
         for (const DirtyRect& w : was) {
-            for (int32_t y = std::max(0, w.y1); y <= std::min(239, w.y2); y++) {
-                for (int32_t x = std::max(0, w.x1); x <= std::min(399, w.x2); x++) {
+            for (int32_t y = std::max(0, w.y1); y <= std::min(kH - 1, w.y2); y++) {
+                for (int32_t x = std::max(0, w.x1); x <= std::min(kW - 1, w.x2); x++) {
                     missed += covers(dirty, x, y) ? 0 : 1;
                 }
             }

@@ -594,15 +594,16 @@ TEST_CASE("the ladder steps to coarser water and ends standing still", "[screens
 
 TEST_CASE("emission follows time, not frame rate", "[screensaver][aqua][droplets]") {
     // Which crests qualify depends on the rate of rise each frame measures, so one seed's
-    // count wanders a little between frame rates; summed over several it holds.
+    // count wanders a little between frame rates; summed over several it holds. Rung 2 is the
+    // coarsest water that still splashes.
     const auto emitted = [](uint32_t period, uint32_t seed) {
         TestFrame frame(80, 48, PixelFormat::RGB565);
         std::minstd_rand rng(seed);
         AquaSim sim;
         const ClockReading r = reading_at(9 * 3600);
-        sim.init(frame.target, rng, 1, r);
+        sim.init(frame.target, rng, 2, r);
         std::vector<DirtyRect> dirty;
-        for (uint32_t t = 0; t < 60000; t += period) {
+        for (uint32_t t = 0; t < 30000; t += period) {
             sim.step(period, frame.target, rng, r, dirty);
         }
         return static_cast<double>(sim.splashes().emitted());
