@@ -78,11 +78,18 @@ _watchdog_runs() {
     [ "$output" = "NOTCRASH" ]
 }
 
-@test "_is_crash_exit: real crash signals still retryable" {
-    for code in 134 136 138 139; do
-        run _probe_is_crash_exit "$code"
-        [ "$output" = "CRASH" ]
+@test "_is_crash_exit: every crash signal is retryable, by this host's numbering" {
+    for sig in ILL TRAP ABRT BUS FPE SEGV SYS; do
+        num=$(kill -l "$sig")
+        run _probe_is_crash_exit "$((128 + num))"
+        [ "$output" = "CRASH" ] || { echo "SIG$sig ($((128 + num))) not retryable"; false; }
     done
+}
+
+@test "_is_crash_exit: a non-crash signal at a crash signal's number elsewhere is not retryable" {
+    # SIGUSR1 has SIGBUS's MIPS number (10) on ARM and x86; only the name decides.
+    run _probe_is_crash_exit "$((128 + $(kill -l USR1)))"
+    [ "$output" = "NOTCRASH" ]
 }
 
 @test "_is_crash_exit: ordinary non-signal failures still retryable" {

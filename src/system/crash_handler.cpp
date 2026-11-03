@@ -263,11 +263,14 @@ static size_t copy_truncated(char* dst, size_t dst_size, const char* src) noexce
     return i;
 }
 
-/// Saved previous signal actions for restoration
-static struct sigaction s_old_sigsegv = {};
-static struct sigaction s_old_sigabrt = {};
-static struct sigaction s_old_sigbus = {};
-static struct sigaction s_old_sigfpe = {};
+/// The fatal signals the handler records. SIGILL is what a jump into non-code
+/// bytes raises on ARM (a zero word is `udf #0`), SIGTRAP what `__builtin_trap`
+/// raises there, SIGSYS a syscall a seccomp filter refuses.
+static constexpr int kCrashSignals[] = {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGTRAP, SIGSYS};
+static constexpr size_t kCrashSignalCount = sizeof(kCrashSignals) / sizeof(kCrashSignals[0]);
+
+/// Saved previous signal actions for restoration, one per kCrashSignals entry
+static struct sigaction s_old_actions[kCrashSignalCount] = {};
 
 /// Mirror of glibc's private `struct abort_msg_s`. `__libc_message()` mmaps one
 /// of these, writes the abort reason ("free(): invalid pointer", "double free
@@ -438,6 +441,12 @@ static const char* signal_name(int sig) {
         return "SIGBUS";
     case SIGFPE:
         return "SIGFPE";
+    case SIGILL:
+        return "SIGILL";
+    case SIGTRAP:
+        return "SIGTRAP";
+    case SIGSYS:
+        return "SIGSYS";
     default:
         return "UNKNOWN";
     }
@@ -471,6 +480,21 @@ static const char* get_fault_code_name(int sig, int code) {
             return "FPE_FLTDIV";
         case FPE_FLTOVF:
             return "FPE_FLTOVF";
+        default:
+            return "UNKNOWN";
+        }
+    } else if (sig == SIGILL) {
+        switch (code) {
+        case ILL_ILLOPC:
+            return "ILL_ILLOPC";
+        case ILL_ILLOPN:
+            return "ILL_ILLOPN";
+        case ILL_ILLADR:
+            return "ILL_ILLADR";
+        case ILL_ILLTRP:
+            return "ILL_ILLTRP";
+        case ILL_PRVOPC:
+            return "ILL_PRVOPC";
         default:
             return "UNKNOWN";
         }
@@ -1701,10 +1725,9 @@ void crash_handler::install(const std::string& crash_file_path) {
     // SA_SIGINFO: pass siginfo_t and ucontext to handler for fault/register capture
     sa.sa_flags = SA_RESETHAND | SA_SIGINFO;
 
-    sigaction(SIGSEGV, &sa, &s_old_sigsegv);
-    sigaction(SIGABRT, &sa, &s_old_sigabrt);
-    sigaction(SIGBUS, &sa, &s_old_sigbus);
-    sigaction(SIGFPE, &sa, &s_old_sigfpe);
+    for (size_t i = 0; i < kCrashSignalCount; ++i) {
+        sigaction(kCrashSignals[i], &sa, &s_old_actions[i]);
+    }
 
     s_installed = 1;
     spdlog::info("[CrashHandler] Installed signal handlers (crash file: {})", s_crash_path);
@@ -1721,10 +1744,9 @@ void crash_handler::uninstall() {
     }
 
     // Restore previous handlers
-    sigaction(SIGSEGV, &s_old_sigsegv, nullptr);
-    sigaction(SIGABRT, &s_old_sigabrt, nullptr);
-    sigaction(SIGBUS, &s_old_sigbus, nullptr);
-    sigaction(SIGFPE, &s_old_sigfpe, nullptr);
+    for (size_t i = 0; i < kCrashSignalCount; ++i) {
+        sigaction(kCrashSignals[i], &s_old_actions[i], nullptr);
+    }
 
     s_installed = 0;
     s_crash_path[0] = '\0';

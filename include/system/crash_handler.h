@@ -7,7 +7,7 @@
  * @file crash_handler.h
  * @brief Async-signal-safe crash handler for telemetry
  *
- * Installs signal handlers for SIGSEGV, SIGABRT, SIGBUS, SIGFPE.
+ * Installs signal handlers for SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGTRAP, SIGSYS.
  * On crash, writes a minimal crash file to disk using only
  * async-signal-safe functions (open, write, close, _exit).
  * NO heap allocation, NO mutex, NO spdlog in the signal handler.
@@ -42,7 +42,7 @@ inline constexpr unsigned int ERROR_LOG_RING_CAPACITY = 4;
 /**
  * @brief Install crash signal handlers
  *
- * Registers handlers for SIGSEGV, SIGABRT, SIGBUS, SIGFPE via sigaction().
+ * Registers handlers for SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGTRAP, SIGSYS via sigaction().
  * The path is copied into a static buffer so the signal handler can use it
  * without heap allocation.
  *

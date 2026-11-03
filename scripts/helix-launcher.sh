@@ -1135,8 +1135,9 @@ fi
 
 # Runtime crash fallback predicate. Defined before the run loop so it is
 # available on every iteration.
-# Only retry on genuine crashes, NOT on signal-based exits (SIGTERM=143 from systemctl stop,
-# SIGKILL=137, SIGINT=130, SIGHUP=129). Crash signals: SIGABRT=134, SIGFPE=136, SIGBUS=138, SIGSEGV=139.
+# Only retry on genuine crashes, NOT on signal-based exits (SIGTERM from systemctl stop,
+# SIGKILL, SIGINT, SIGHUP). A crash signal is named rather than numbered: signal
+# numbers differ by architecture (SIGBUS is 7 on ARM and x86, 10 on MIPS).
 #
 # 42 is helix-watchdog's RESTART_LOOP_EXIT_CODE: the supervisor already retried
 # and concluded the failure will not resolve itself. Re-running the whole
@@ -1148,9 +1149,13 @@ _is_crash_exit() {
     if [ "$1" = "$WATCHDOG_GIVE_UP_EXIT_CODE" ]; then
         return 1
     fi
-    case "$1" in
-        134|136|138|139) return 0 ;;  # ABRT, FPE, BUS, SEGV
-    esac
+    if [ "$1" -gt 128 ] 2>/dev/null; then
+        _crash_sig=$(kill -l "$(($1 - 128))" 2>/dev/null)
+        case "${_crash_sig#SIG}" in
+            ILL|TRAP|ABRT|IOT|BUS|FPE|SEGV|SYS) return 0 ;;
+        esac
+        return 1
+    fi
     # Non-signal exits (1-127) are also worth retrying (e.g., GL init failure)
     [ "$1" -gt 0 ] && [ "$1" -lt 128 ]
 }

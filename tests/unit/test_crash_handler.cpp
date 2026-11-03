@@ -20,12 +20,14 @@
 #include <spdlog/spdlog.h>
 
 #include <chrono>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
 
@@ -232,6 +234,31 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: parse handles all signal types", "[te
         REQUIRE(result["signal"] == sig.number);
         REQUIRE(result["signal_name"] == sig.name);
     }
+}
+
+TEST_CASE_METHOD(CrashTestFixture,
+                 "Crash: illegal instruction and trap and bad syscall leave a crash file",
+                 "[telemetry][crash][subprocess]") {
+    const int sig = GENERATE(SIGILL, SIGTRAP, SIGSYS);
+    const char* const expected = sig == SIGILL ? "SIGILL" : sig == SIGTRAP ? "SIGTRAP" : "SIGSYS";
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        crash_handler::install(crash_path());
+        raise(sig);
+        _exit(99);
+    }
+    REQUIRE(pid > 0);
+
+    int status = 0;
+    REQUIRE(waitpid(pid, &status, 0) == pid);
+    REQUIRE(WIFEXITED(status));
+    CHECK(WEXITSTATUS(status) == 128 + sig);
+
+    auto result = crash_handler::read_crash_file(crash_path());
+    REQUIRE_FALSE(result.is_null());
+    CHECK(result["signal"] == sig);
+    CHECK(result["signal_name"] == expected);
 }
 
 // ============================================================================
