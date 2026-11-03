@@ -12,6 +12,7 @@
 
 #include "config.h"
 #include "device_display_name.h"
+#include "fan_gcode.h"
 #include "hardware_role_registry.h"
 #include "state/subject_macros.h"
 #include "unit_conversions.h"
@@ -193,6 +194,10 @@ FanType PrinterFanState::classify_fan_type(const std::string& object_name) const
     } else if (object_name.rfind("output_pin ", 0) == 0) {
         // Check if the short name starts with "fan" (e.g., "output_pin fan0")
         std::string short_name = object_name.substr(11);
+        // A hotend-area pin is driven with the heater: shown like a heater_fan, never commanded.
+        if (output_pin_fan_is_firmware_driven(short_name)) {
+            return FanType::HEATER_FAN;
+        }
         if (short_name.rfind("fan", 0) == 0) {
             return FanType::OUTPUT_PIN_FAN;
         }

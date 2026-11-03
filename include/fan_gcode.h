@@ -1,17 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <cctype>
 #include <cmath>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace helix {
+
+/// Whether an output_pin fan's name (without "output_pin ") marks a hotend,
+/// extruder or heatbreak fan. The firmware drives those with the heater; the
+/// screen shows them read-only and never commands them.
+inline bool output_pin_fan_is_firmware_driven(std::string_view short_name) {
+    std::string lower(short_name);
+    for (auto& c : lower) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return lower.find("hotend") != std::string::npos ||
+           lower.find("extruder") != std::string::npos ||
+           lower.find("heatbreak") != std::string::npos;
+}
 
 /// Generate the gcode command to set a fan's speed.
 /// @param fan Full Moonraker object name (e.g., "fan", "output_pin fan0", "fan_generic aux")
 /// @param speed_percent 0.0-100.0
-/// @return Gcode string ready for execute_gcode()
+/// @return Gcode string ready for execute_gcode(); empty for a fan the screen
+///         must not command (output_pin_fan_is_firmware_driven)
 inline std::string fan_gcode(const std::string& fan, double speed_percent) {
     int s_value = static_cast<int>(std::round(speed_percent * 255.0 / 100.0));
 
@@ -46,6 +62,9 @@ inline std::string fan_gcode(const std::string& fan, double speed_percent) {
             }
         }
 
+        if (output_pin_fan_is_firmware_driven(short_name)) {
+            return {};
+        }
         // Non-numeric output_pin fan or non-fan output_pin: SET_PIN
         std::ostringstream ss;
         ss << std::fixed << std::setprecision(2) << "SET_PIN PIN=" << short_name
