@@ -573,6 +573,24 @@ else
   EXIT_CODE=1
 fi
 
+SECTION_START=$(date +%s)
+echo -n "🙈 Checking for XML views hidden right after they are built..."
+
+# A view hidden on return from lv_xml_create() was laid out and queued for
+# redraw while visible, a wasted full render per open on slow displays. Build it
+# with helix::ui::create_xml_hidden(); annotate a deliberate one
+# `// XML_HIDDEN_OK: <reason>`.
+if python3 scripts/check_xml_create_then_hide.py >/tmp/xml_create_then_hide.out 2>&1; then
+  section_time $SECTION_START
+  echo ""
+  tail -1 /tmp/xml_create_then_hide.out
+else
+  section_time $SECTION_START
+  echo ""
+  cat /tmp/xml_create_then_hide.out
+  EXIT_CODE=1
+fi
+
 echo ""
 
   return $EXIT_CODE

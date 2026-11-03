@@ -25,6 +25,7 @@ setup() {
     PATH="$STUBBIN:$PATH"
 
     load helpers
+    skip_line_tracking
     # From here helpers.bash owns systemctl: its inert shim, scripted with
     # mock_command_script. The rest of the stubs go back in front of
     # everything, the test sandbox included.

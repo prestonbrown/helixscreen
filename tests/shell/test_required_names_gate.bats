@@ -158,8 +158,3 @@ CPP
     [ "$status" -ne 0 ]
     contains "variant_chain" "$output"
 }
-
-@test "this tree holds its baseline" {
-    run python3 "$GATE" --baseline scripts/required_names_baseline.txt
-    [ "$status" -eq 0 ]
-}

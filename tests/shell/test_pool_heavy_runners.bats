@@ -108,14 +108,14 @@ test_shell() {
     printf '#!/bin/sh\n' > "$BIN/parallel"
     chmod +x "$BIN/bats" "$BIN/parallel"
     mkdir -p "$BATS_TEST_TMPDIR/tmp"
-    (cd "$(scratch_tree)" && env TMPDIR="$BATS_TEST_TMPDIR/tmp" PATH="$BIN:$(path_without_jobpool)" make -s --no-print-directory test-shell 2>&1)
+    (cd "$(scratch_tree)" && env TMPDIR="$BATS_TEST_TMPDIR/tmp" BATS_ALL=1 PATH="$BIN:$(path_without_jobpool)" make -s --no-print-directory test-shell 2>&1)
 }
 
 @test "make test-shell runs bats on the pool's growing slot file" {
     fake_pool
     run test_shell
     [ "$status" -eq 0 ]
-    contains "BATS --jobs 2 --parallel-binary-name $(scratch_tree)/scripts/parallel-jobs-file.sh --no-parallelize-within-files tests/shell/" "$output"
+    contains "BATS --jobs 2 --parallel-binary-name $(scratch_tree)/scripts/parallel-jobs-file.sh --no-parallelize-within-files tests/shell/test_" "$output"
     contains "FILE 5" "$output"
     # A third of the fake pool's target of 7, and a slot file to grow.
     grep -q '^hold --min 2 --grow .*/slots -- ' "$FAKE_LOG"
@@ -131,7 +131,7 @@ test_shell() {
     export FAKE_NO_GROW=1
     run test_shell
     [ "$status" -eq 0 ]
-    contains "BATS --jobs 5 --no-parallelize-within-files tests/shell/" "$output"
+    contains "BATS --jobs 5 --no-parallelize-within-files tests/shell/test_" "$output"
     ! contains "FILE" "$output"
     grep -q '^hold --min 2 -- ' "$FAKE_LOG"
     [ -z "$(ls -A "$BATS_TEST_TMPDIR/tmp")" ]
@@ -142,7 +142,7 @@ test_shell() {
     export FAKE_NO_GROW=1
     FAKE_SLOTS=1 run test_shell
     [ "$status" -eq 0 ]
-    contains "BATS tests/shell/" "$output"
+    contains "BATS tests/shell/test_" "$output"
     ! contains "--jobs" "$output"
 }
 
@@ -150,7 +150,7 @@ test_shell() {
     no_pool
     run test_shell
     [ "$status" -eq 0 ]
-    contains "BATS --jobs $(nproc) --no-parallelize-within-files tests/shell/" "$output"
+    contains "BATS --jobs $(nproc) --no-parallelize-within-files tests/shell/test_" "$output"
     ! contains "FILE" "$output"
 }
 

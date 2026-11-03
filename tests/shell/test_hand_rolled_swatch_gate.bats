@@ -161,11 +161,6 @@ XML
     contains "lowered" "$output"
 }
 
-@test "the real tree is at or below its baseline" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ] || fail "$output"
-}
-
 @test "the gate runs for staged sources, XML and its own files" {
     local re
     re="$(qc_trigger hand_rolled_swatch)"

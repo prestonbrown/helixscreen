@@ -12,6 +12,10 @@
 
 load helpers
 
+setup() {
+    skip_line_tracking
+}
+
 REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 
 # Overridable so each guard can be proven to FIRE against a hand-broken copy

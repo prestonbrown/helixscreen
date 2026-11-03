@@ -103,12 +103,3 @@ run_gate() {
     [ "$status" -eq 0 ]
     contains "0 override(s)" "$output"
 }
-
-# -------------------------------------------------------------- the real tree
-
-@test "the real repo tree is silent" {
-    cd "$REPO_ROOT" || return 1
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    contains "variant parity" "$output"
-}

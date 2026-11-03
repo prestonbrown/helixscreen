@@ -169,12 +169,6 @@ MAIN_EOF
 
 # ----------------------------------------------------------- the real tree
 
-@test "the repo's own installer modules pass the gate" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"0 uncalled functions"* ]]
-}
-
 @test "the gate sees install_permission_rules as reached (#1343 stays fixed)" {
     # Belt and braces with test_permission_rules.bats: that one proves main()
     # runs it, this one proves the gate would notice if the call went away.

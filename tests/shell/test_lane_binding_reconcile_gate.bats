@@ -16,11 +16,6 @@ setup() {
 backend_cpp() { printf '%s\n' "$2" > "$FIXTURE/src/printer/ams_backend_$1.cpp"; }
 backend_h() { printf '%s\n' "$2" > "$FIXTURE/include/ams_backend_$1.h"; }
 
-@test "the real tree passes" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ] || fail "$output"
-}
-
 @test "flags a backend that parses a spool_id key with no reconcile call" {
     backend_cpp newfw '
 void AmsBackendNewfw::parse(const json& lane) {

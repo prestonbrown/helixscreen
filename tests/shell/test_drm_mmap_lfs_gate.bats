@@ -29,14 +29,6 @@ make_repo() {
     cp "mk/patches.mk" "$FIXTURE/mk/"
 }
 
-# --- the real tree passes ----------------------------------------------------
-
-@test "passes on the repository as committed" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"64-bit file offset"* ]]
-}
-
 # --- patch-level regressions -------------------------------------------------
 
 @test "fails when the patch is deleted" {

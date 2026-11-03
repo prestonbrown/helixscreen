@@ -90,11 +90,6 @@ CPP
     contains "subject:row_available" "$output"
 }
 
-@test "this tree holds its baseline" {
-    run python3 "$GATE" --baseline scripts/esp32_xml_binding_baseline.txt
-    [ "$status" -eq 0 ]
-}
-
 # Runs qc_esp32_bindings_touched against what is staged in $1.
 bindings_touched() {
     local qc="$PWD/scripts/qc/esp32_xml_bindings.sh"

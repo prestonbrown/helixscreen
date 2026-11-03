@@ -8,6 +8,7 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
 setup() {
     load helpers
+    skip_line_tracking
 
     # Reset globals before each test
     KLIPPER_USER=""

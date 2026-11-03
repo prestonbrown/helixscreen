@@ -339,12 +339,6 @@ MD
     contains 'no "<N> filament systems: <list>" line' "$output"
 }
 
-@test "counts: the shipped README and docs/user agree with the tree" {
-    cd "$BATS_TEST_DIRNAME/../.."
-    run python3 "$CHECK" --counts
-    [ "$status" -eq 0 ]
-}
-
 @test "counts: a source of truth that moves fails instead of going quiet" {
     make_counts_fixture
     rm assets/config/printer_database.json

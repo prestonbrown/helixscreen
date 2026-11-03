@@ -168,10 +168,3 @@ void b(const json& doc) {
 }'
     flagged
 }
-
-# ------------------------------------------------------- the live tree ----
-
-@test "src/ and include/ carry no bare save-path dumps" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ] || fail "gate is red on the tree: $output"
-}

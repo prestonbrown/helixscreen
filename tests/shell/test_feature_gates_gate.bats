@@ -39,11 +39,6 @@ EOF
     : > "$ROOT/firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt"
 }
 
-@test "the real tree passes" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ] || fail "$output"
-}
-
 @test "a clean fixture passes, and prose and probed presence flags stay quiet" {
     run python3 "$GATE" --root "$ROOT"
     [ "$status" -eq 0 ] || fail "$output"

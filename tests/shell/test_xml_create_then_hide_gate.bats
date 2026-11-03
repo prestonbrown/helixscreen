@@ -14,11 +14,6 @@ setup() {
     FILE="${BATS_TEST_TMPDIR:-$(mktemp -d)}/demo.cpp"
 }
 
-@test "this tree passes" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}
-
 @test "a create followed by a hide of the same object is reported" {
     cat > "$FILE" <<'SHAPES'
     overlay_root_ =
@@ -42,4 +37,10 @@ SHAPES
 SHAPES
     run python3 "$GATE" "$FILE"
     [ "$status" -eq 0 ]
+}
+
+@test "quality-checks.sh runs the gate over the tree" {
+    run grep -c 'python3 scripts/check_xml_create_then_hide.py >' scripts/qc/decl_ui.sh
+    [ "$status" -eq 0 ]
+    [ "$output" -ge 1 ]
 }

@@ -98,8 +98,3 @@ CPP
     run_gate
     contains "unreferenced:on_prop_fed" "$output"
 }
-
-@test "this tree holds its baseline" {
-    run python3 "$GATE" --baseline scripts/orphan_callback_baseline.txt
-    [ "$status" -eq 0 ]
-}

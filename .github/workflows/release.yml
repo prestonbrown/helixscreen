@@ -91,7 +91,12 @@ jobs:
       working-directory: server/telemetry-worker
       run: npm ci --no-audit --no-fund
 
+    # A release runs the product files only: BATS_BASE=HEAD leaves no change to
+    # trigger a build-tooling file, which the commit already passed on its way
+    # to main and the nightly runs every day.
     - name: Run shell tests
+      env:
+        BATS_BASE: HEAD
       run: make test-shell
 
   # ============================================================================

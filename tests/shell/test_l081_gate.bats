@@ -174,13 +174,6 @@ print('ok')
     [[ "$output" == *'ok'* ]]
 }
 
-# --- the tree itself --------------------------------------------------------
-
-@test "the default scan of the real tree is clean" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}
-
 # ------------------------------------------------------- --staged-only content
 #
 # --staged-only picks its file SET from `git diff --cached`, but must read

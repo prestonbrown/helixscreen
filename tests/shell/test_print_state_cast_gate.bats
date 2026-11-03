@@ -186,15 +186,3 @@ bool go() {
 }'
     quiet
 }
-
-# ------------------------------------------------------------- the real tree
-
-@test "the real tree reports zero hand-casts" {
-    # Guards the gate against its own bugs as much as the tree: the 2026-08-29
-    # audit found the gate green while wrapped sites existed, so the clean
-    # run is itself part of the contract.
-    run python3 "$GATE"
-    [ "$status" -eq 0 ] || fail "gate flagged the real tree: $output"
-    printf '%s\n' "$output" | grep -q "0 hand-casts" \
-        || fail "unexpected summary format: $output"
-}

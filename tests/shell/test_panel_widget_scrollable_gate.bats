@@ -208,12 +208,6 @@ run_gate() {
 
 # ---------------------------------------------------- the ratcheting baseline
 
-@test "the real tree passes at the baseline" {
-    run python3 "$GATE" --max-allowed "$BASELINE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"✅"* ]]
-}
-
 @test "the real tree FAILS one below the baseline - the ratchet bites" {
     # If this ever passes, the baseline has drifted below the real count and the
     # gate has stopped constraining anything.

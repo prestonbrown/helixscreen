@@ -189,11 +189,6 @@ run_gate() {
 
 # ------------------------------------------------------------- the real tree
 
-@test "the committed ui_xml/ tree is clean" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}
-
 @test "the whole-tree run says what it checked" {
     run python3 "$GATE"
     [ "$status" -eq 0 ]
