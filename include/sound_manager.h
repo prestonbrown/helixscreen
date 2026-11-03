@@ -65,11 +65,14 @@ class SoundManager {
     /// re-opening audio hardware there is wasted work.
     void set_moonraker_client(IMoonrakerClient* client, bool host_recovery = true);
 
-    /// Klipper's idle_timeout "Printing" state: the G-code queue is executing
-    /// moves or macros. The M300 backend stays silent while it holds, since a
-    /// beep queued behind print moves stalls them. Any thread may call it.
+    /// Whether a print job is running (print_stats "printing"). The M300 backend
+    /// stays silent while it holds, since a beep queued among print moves stalls
+    /// them. A paused or idle printer still beeps. Any thread may call it.
     void set_printer_busy(bool busy) {
         printer_busy_.store(busy, std::memory_order_relaxed);
+    }
+    bool printer_busy() const {
+        return printer_busy_.load(std::memory_order_relaxed);
     }
 
     /// Auto-detect backend, load theme, start sequencer.

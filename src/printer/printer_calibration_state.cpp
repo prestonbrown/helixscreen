@@ -11,7 +11,6 @@
 
 #include "printer_calibration_state.h"
 
-#include "sound_manager.h"
 #include "state/subject_macros.h"
 #include "unit_conversions.h"
 
@@ -122,7 +121,6 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
             // guard reads (the raw subject stays the literal Klipper state for
             // display consumers).
             idle_timeout_busy_.set_printing(new_printing != 0);
-            SoundManager::instance().set_printer_busy(new_printing != 0);
 
             if (old_printing != new_printing) {
                 lv_subject_set_int(&idle_timeout_printing_, new_printing);

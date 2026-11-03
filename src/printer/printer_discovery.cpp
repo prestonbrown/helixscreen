@@ -6,6 +6,7 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "audio_settings_manager.h"
 #include "i_moonraker_client.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
@@ -41,10 +42,11 @@ void remember_printer_hostname(const std::string& hostname) {
     }
 }
 
-void reload_sensor_roles_after_preset() {
+void reload_settings_after_preset() {
     for (auto* m : helix::sensors::sensor_managers()) {
         m->load_settings();
     }
+    AudioSettingsManager::instance().reload_from_config();
 }
 
 void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerAPI* api,

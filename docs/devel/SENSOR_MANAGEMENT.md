@@ -263,7 +263,7 @@ Every fan-out walks it, so a manager listed here gets all of them with no furthe
 | Walker | What it does |
 |--------|--------------|
 | `src/application/subject_initializer.cpp` | `init_subjects()`; each manager registers its own `deinit_subjects()` with `StaticSubjectRegistry` |
-| `src/printer/printer_discovery.cpp#init_subsystems_from_hardware` | `discover()` then `load_settings()`; also `reload_sensor_roles_after_preset()` |
+| `src/printer/printer_discovery.cpp#init_subsystems_from_hardware` | `discover()` then `load_settings()`; also `reload_settings_after_preset()` |
 | `rediscover_from_config()` | the configfile pass |
 | `src/printer/status_dispatch.cpp#dispatch_status_frame` | `update_from_status()` for every frame |
 | `src/api/moonraker_discovery_sequence.cpp#build_subscription_objects` | `extra_subscriptions()` |
