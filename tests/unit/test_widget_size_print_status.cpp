@@ -686,6 +686,22 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             check_fits(1);
         }
 
+        SECTION("a view change while the dashboard is hidden keeps the shown verdict") {
+            helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+            process_lvgl(30);
+            check_fits(1);
+
+            // A hidden flex column lays out at 0px; measuring it would publish 0.
+            lv_obj_add_flag(h.root(), LV_OBJ_FLAG_HIDDEN);
+            lv_subject_t* view = lv_xml_get_subject(nullptr, "print_status_view");
+            REQUIRE(lv_subject_get_int(view) == 4);
+            lv_subject_set_int(view, 3);
+            lv_subject_set_int(view, 4);
+            process_lvgl(30);
+            REQUIRE(h.child("detailed_time_row") != nullptr);
+            check_fits(1);
+        }
+
         SECTION("started while the dashboard is hidden") {
             lv_obj_add_flag(h.root(), LV_OBJ_FLAG_HIDDEN);
             helix::test::set_wire_state(ps, PrintJobState::PRINTING);
