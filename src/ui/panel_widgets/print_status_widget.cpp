@@ -417,7 +417,6 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
             self->apply_card_layout();
             if (v >= 3)
                 self->defer_apply_active_thumbnail();
-            self->schedule_library_fit();
         },
         subject_never_freed());
 
