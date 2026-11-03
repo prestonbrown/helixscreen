@@ -459,6 +459,27 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     CHECK(ThermistorTestAccess::carousel_name_label(*widget, 1) == nullptr);
 }
 
+// A carousel that shows every sensor can attach before discovery lists any;
+// the pages must still appear once sensors arrive.
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "thermistor carousel built with no sensors fills in once sensors arrive",
+                 "[thermistor][carousel]") {
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    tsm.discover({});
+
+    auto widget = std::make_unique<ThermistorWidget>("thermistor");
+    widget->set_config({{"display_mode", "carousel"}});
+    lv_obj_t* page = make_page();
+    widget->attach(make_tile(page, "panel_widget_thermistor_carousel"), test_screen());
+    UpdateQueue::instance().drain();
+    REQUIRE(ThermistorTestAccess::carousel_page_count(*widget) == 0);
+
+    tsm.discover({THERMISTOR_SENSOR_A, THERMISTOR_SENSOR_B});
+    ThermistorTestAccess::bind_carousel(*widget);
+    CHECK(ThermistorTestAccess::carousel_page_count(*widget) == 2);
+    widget->detach();
+}
+
 // ============================================================================
 // Rebuild early-returns must drop the cached pill/label containers first
 // ============================================================================

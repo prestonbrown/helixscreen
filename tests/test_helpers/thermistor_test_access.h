@@ -28,6 +28,11 @@ class ThermistorTestAccess {
         return widget.carousel_pages_.size();
     }
 
+    /// Rebuild the carousel pages, as a TemperatureSensorManager revision does.
+    static void bind_carousel(ThermistorWidget& widget) {
+        widget.bind_carousel_sensors();
+    }
+
     static lv_obj_t* carousel_temp_label(const ThermistorWidget& widget, size_t index) {
         return index < widget.carousel_pages_.size() ? widget.carousel_pages_[index].temp_label
                                                      : nullptr;

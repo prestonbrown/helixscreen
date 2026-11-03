@@ -306,6 +306,7 @@ void ThermistorWidget::bind_carousel_sensors() {
 
     if (display_sensors.empty()) {
         spdlog::debug("[ThermistorWidget] Carousel: no sensors available");
+        binding_in_progress_ = false;
         return;
     }
 
