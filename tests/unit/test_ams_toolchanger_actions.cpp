@@ -18,6 +18,7 @@
 #include "ams_backend_mock.h"
 #include "runtime_config.h"
 
+#include <atomic>
 #include <chrono>
 #include <mutex>
 #include <thread>
@@ -60,6 +61,29 @@ bool wait_until_ams_idle(helix::AmsBackendMock& backend, std::chrono::millisecon
     } while (std::chrono::steady_clock::now() < deadline);
     return false;
 }
+
+/// Releases a held backend after two seconds unless destroyed first, so a
+/// missing lockout fails its assertion instead of deadlocking: a second
+/// operation the backend accepts joins the held one before it returns.
+class HoldReleaseGuard {
+  public:
+    explicit HoldReleaseGuard(helix::AmsBackendMock& backend)
+        : thread_([this, &backend] {
+              const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+              while (!done_ && std::chrono::steady_clock::now() < deadline) {
+                  std::this_thread::sleep_for(std::chrono::milliseconds(5));
+              }
+              backend.hold_operations(false);
+          }) {}
+    ~HoldReleaseGuard() {
+        done_ = true;
+        thread_.join();
+    }
+
+  private:
+    std::atomic<bool> done_{false};
+    std::thread thread_;
+};
 
 // =============================================================================
 // Mock toolchanger mode basics
@@ -180,6 +204,7 @@ TEST_CASE("Lockout rejects operations during in-flight tool change",
     backend.set_operation_delay(0);
     backend.hold_operations(true);
     REQUIRE(backend.start());
+    HoldReleaseGuard release_guard(backend);
 
     SECTION("change_tool rejected while a park is in progress") {
         // The mock starts with T0 mounted.
