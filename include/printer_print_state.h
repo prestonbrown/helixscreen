@@ -27,7 +27,7 @@
 
 #include "hv/json.hpp"
 
-struct MoonrakerError;
+struct MoonrakerError; // NAMESPACE_OK: MoonrakerError itself is global (moonraker_error.h)
 
 // Forward declaration - enums are defined in printer_state.h
 namespace helix {
