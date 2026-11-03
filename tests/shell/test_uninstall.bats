@@ -8,6 +8,7 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
 setup() {
     load helpers
+    skip_line_tracking
     install_gnu_sed_shim
 
     # Source the bundled uninstall.sh (the case guard skips main)

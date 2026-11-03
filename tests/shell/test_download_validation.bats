@@ -25,6 +25,7 @@ source_installer_modules() {
 
 setup() {
     source tests/shell/helpers.bash
+    skip_line_tracking
     export GITHUB_REPO="prestonbrown/helixscreen"
 
     source_installer_modules

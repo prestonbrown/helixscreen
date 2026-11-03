@@ -427,6 +427,19 @@ last_line() {
 # file on failure, which is usually what you want to see).
 # ---------------------------------------------------------------------------
 
+# Stop bats tracking the current line, for a file whose tests run installer or
+# launcher code in-process. bats records every simple command through a DEBUG
+# trap that bash inherits into each function (set -T); that costs about 1 ms a
+# command, a third or more of such a file's time. A failing assertion still
+# fails its test, but bats names this function as the place it failed; rerun
+# with HELIX_BATS_TRAP=1, which keeps the trap, to see the failing line. Call
+# right after `load helpers` in setup().
+skip_line_tracking() {
+    [ "${HELIX_BATS_TRAP:-0}" = 1 ] && return 0
+    trap - DEBUG
+    set +T
+}
+
 # Abort the current test with a message. bats-core does not ship `fail` (it
 # comes from the optional bats-assert library), so a test body calling it dies
 # with "fail: command not found" — which still fails the test, but reports the
