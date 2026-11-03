@@ -318,10 +318,11 @@ static void hue_touch_handler(lv_event_t* e) {
 }
 
 static void picker_delete_cb(lv_event_t* e) {
-    lv_obj_t* obj = lv_event_get_target_obj(e);
-    // Transfer ownership to unique_ptr for RAII cleanup (exception-safe)
-    std::unique_ptr<HsvPickerData> data(static_cast<HsvPickerData*>(lv_obj_get_user_data(obj)));
-    lv_obj_set_user_data(obj, nullptr);
+    // The hook's own user_data owns the allocation, not the widget's slot: a closing
+    // modal nulls every user_data in its tree to stop dispatch, and reading ownership
+    // back from that slot would strand it and both draw buffers.
+    std::unique_ptr<HsvPickerData> data(static_cast<HsvPickerData*>(lv_event_get_user_data(e)));
+    lv_obj_set_user_data(lv_event_get_target_obj(e), nullptr);
 
     if (data) {
         // Both buffers are live image sources until this delete; a blend from
@@ -356,8 +357,9 @@ static void* ui_hsv_picker_xml_create(lv_xml_parser_state_t* state, const char**
     data_ptr->callback = nullptr;
     data_ptr->callback_user_data = nullptr;
 
-    // Transfer ownership to LVGL widget
-    lv_obj_set_user_data(picker, data_ptr.release());
+    // The delete hook below owns it; the widget's slot only reaches it.
+    HsvPickerData* data = data_ptr.release();
+    lv_obj_set_user_data(picker, data);
 
     // Container styling - NO flex, use explicit positioning
     lv_obj_set_style_bg_opa(picker, LV_OPA_TRANSP, 0);
@@ -366,7 +368,7 @@ static void* ui_hsv_picker_xml_create(lv_xml_parser_state_t* state, const char**
     lv_obj_remove_flag(picker, LV_OBJ_FLAG_SCROLLABLE);
 
     // Cleanup handler
-    lv_obj_add_event_cb(picker, picker_delete_cb, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(picker, picker_delete_cb, LV_EVENT_DELETE, data);
 
     spdlog::debug("[HsvPicker] Created picker container");
     return static_cast<void*>(picker);
