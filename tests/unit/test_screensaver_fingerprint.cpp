@@ -217,11 +217,11 @@ void write_fingerprints(const std::map<std::string, std::string>& values) {
 /// Fingerprints are recorded with the Linux x86-64 test builds; another compiler or target may
 /// contract floating point differently and draw a pixel one step apart. A line may list one
 /// value per toolchain that draws the saver differently (clang on thelio, g++ in CI's image).
-void skip_off_the_recording_platform() {
-#if !(defined(__linux__) && defined(__x86_64__))
-    SKIP("screensaver fingerprints are recorded on x86-64 Linux");
+#if defined(__linux__) && defined(__x86_64__)
+constexpr bool kOnRecordingPlatform = true;
+#else
+constexpr bool kOnRecordingPlatform = false;
 #endif
-}
 
 void check_fingerprint(const std::string& name, uint64_t value) {
     if (std::getenv("HELIX_SCREENSAVER_FINGERPRINT_WRITE") != nullptr) {
@@ -241,90 +241,89 @@ void check_fingerprint(const std::string& name, uint64_t value) {
     CHECK(accepts(recorded.at(name), hex(value)));
 }
 
-} // namespace
-
-TEST_CASE_METHOD(LVGLTestFixture, "every canvas saver matches its recorded pixel fingerprint",
-                 "[screensaver][screensaver_fingerprint]") {
-    skip_off_the_recording_platform();
-    SECTION("pipes") {
-        check_fingerprint("pipes", pipes_run(42));
-    }
-    SECTION("starfield") {
-        check_fingerprint("starfield", starfield_run(5));
-    }
-    SECTION("fireworks") {
-        check_fingerprint("fireworks", fireworks_run(7));
-    }
-    SECTION("hyperspace") {
-        check_fingerprint("hyperspace", hyperspace_run(11));
-    }
-    SECTION("fireflies") {
-        check_fingerprint("fireflies", fireflies_run(13));
-    }
-    SECTION("maze") {
-        check_fingerprint("maze", maze_run(17));
-    }
-    SECTION("flip clock") {
-        check_fingerprint("flip_clock", flip_clock_run(25, false));
-    }
-    SECTION("flip clock counting a print down") {
-        check_fingerprint("flip_clock_print", flip_clock_run(25, true));
-    }
-    SECTION("aqua") {
-        check_fingerprint("aqua", aqua_run(19, false));
-    }
-    SECTION("aqua counting a print down") {
-        check_fingerprint("aqua_print", aqua_run(19, true));
-    }
-    SECTION("high fly") {
-        check_fingerprint("highfly", highfly_run(23, false));
-    }
-    SECTION("high fly counting a print down") {
-        check_fingerprint("highfly_print", highfly_run(23, true));
+/**
+ * @brief `value` is the run `name` records, which proves the run replays exactly
+ *
+ * A recorded value was drawn by another process, so matching it is a replay. Off the
+ * recording platform no value applies, and `rerun` must match `value` instead. Callers run
+ * the saver with another seed first, so state one run leaks into the next changes `value`.
+ */
+template <typename Rerun> void check_replay(const std::string& name, uint64_t value, Rerun rerun) {
+    if (kOnRecordingPlatform) {
+        check_fingerprint(name, value);
+    } else {
+        CHECK(value == rerun());
     }
 }
 
+} // namespace
+
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "a fingerprint run replays exactly and a different seed draws different pixels",
+                 "every canvas saver replays its recorded pixel fingerprint and a different seed "
+                 "draws different pixels",
                  "[screensaver][screensaver_fingerprint]") {
     SECTION("pipes") {
-        CHECK(pipes_run(42) == pipes_run(42));
-        CHECK(pipes_run(42) != pipes_run(43));
+        const uint64_t other = pipes_run(43);
+        const uint64_t run = pipes_run(42);
+        check_replay("pipes", run, [] { return pipes_run(42); });
+        CHECK(run != other);
     }
     SECTION("starfield") {
-        CHECK(starfield_run(5) == starfield_run(5));
-        CHECK(starfield_run(5) != starfield_run(6));
+        const uint64_t other = starfield_run(6);
+        const uint64_t run = starfield_run(5);
+        check_replay("starfield", run, [] { return starfield_run(5); });
+        CHECK(run != other);
     }
     SECTION("fireworks") {
-        CHECK(fireworks_run(7) == fireworks_run(7));
-        CHECK(fireworks_run(7) != fireworks_run(8));
+        const uint64_t other = fireworks_run(8);
+        const uint64_t run = fireworks_run(7);
+        check_replay("fireworks", run, [] { return fireworks_run(7); });
+        CHECK(run != other);
     }
     SECTION("hyperspace") {
-        CHECK(hyperspace_run(11) == hyperspace_run(11));
-        CHECK(hyperspace_run(11) != hyperspace_run(12));
+        const uint64_t other = hyperspace_run(12);
+        const uint64_t run = hyperspace_run(11);
+        check_replay("hyperspace", run, [] { return hyperspace_run(11); });
+        CHECK(run != other);
     }
     SECTION("fireflies") {
-        CHECK(fireflies_run(13) == fireflies_run(13));
-        CHECK(fireflies_run(13) != fireflies_run(14));
+        const uint64_t other = fireflies_run(14);
+        const uint64_t run = fireflies_run(13);
+        check_replay("fireflies", run, [] { return fireflies_run(13); });
+        CHECK(run != other);
     }
     SECTION("maze") {
-        CHECK(maze_run(17) == maze_run(17));
-        CHECK(maze_run(17) != maze_run(18));
+        const uint64_t other = maze_run(18);
+        const uint64_t run = maze_run(17);
+        check_replay("maze", run, [] { return maze_run(17); });
+        CHECK(run != other);
     }
     SECTION("flip clock") {
-        CHECK(flip_clock_run(25, false) == flip_clock_run(25, false));
-        CHECK(flip_clock_run(25, false) != flip_clock_run(85, false));
-        CHECK(flip_clock_run(25, false) != flip_clock_run(25, true));
+        const uint64_t other = flip_clock_run(85, false);
+        const uint64_t run = flip_clock_run(25, false);
+        const uint64_t print = flip_clock_run(25, true);
+        check_replay("flip_clock", run, [] { return flip_clock_run(25, false); });
+        check_replay("flip_clock_print", print, [] { return flip_clock_run(25, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("aqua") {
-        CHECK(aqua_run(19, false) == aqua_run(19, false));
-        CHECK(aqua_run(19, false) != aqua_run(20, false));
-        CHECK(aqua_run(19, false) != aqua_run(19, true));
+        const uint64_t other = aqua_run(20, false);
+        const uint64_t run = aqua_run(19, false);
+        const uint64_t print = aqua_run(19, true);
+        check_replay("aqua", run, [] { return aqua_run(19, false); });
+        check_replay("aqua_print", print, [] { return aqua_run(19, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("high fly") {
-        CHECK(highfly_run(23, false) == highfly_run(23, false));
-        CHECK(highfly_run(23, false) != highfly_run(24, false));
-        CHECK(highfly_run(23, false) != highfly_run(23, true));
+        const uint64_t other = highfly_run(24, false);
+        const uint64_t run = highfly_run(23, false);
+        const uint64_t print = highfly_run(23, true);
+        check_replay("highfly", run, [] { return highfly_run(23, false); });
+        check_replay("highfly_print", print, [] { return highfly_run(23, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
 }
 
