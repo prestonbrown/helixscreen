@@ -319,13 +319,12 @@ TEST_CASE("every pixel a high fly frame changes lies in one of its dirty boxes",
     HighFlySim sim;
     int32_t sod = 10 * 3600 + 59 * 60;
     sim.init(frame.target, rng, 0, reading_at(sod));
-    HighFlySimTestAccess::set_fly_start(sim, 30.0);
     std::vector<DirtyRect> dirty;
     size_t changed = 0;
     size_t uncovered = 0;
     bool flew = false;
     // Long enough for towers to come and go and one fly-through.
-    for (int i = 0; i < 700; i++) {
+    for (int i = 0; i < 1300; i++) {
         sod += i % 10 == 0 ? 1 : 0;
         const std::vector<uint8_t> before = frame.bytes;
         sim.step(100, frame.target, rng, reading_at(sod), dirty);
