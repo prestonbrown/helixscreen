@@ -10,6 +10,9 @@
 #include "spdlog/spdlog.h"
 #include "wifi_5ghz_detection.h"
 #include "wifi_saved_config.h"
+#include "wifi_ui_utils.h"
+
+#include <string_view>
 
 // find_network_id() is pure string parsing with no OS dependency, and its
 // declaration in the header sits outside the __APPLE__ guard so it can be
@@ -80,6 +83,15 @@ std::string validate_wpa_string(const std::string& input, const std::string& fie
         LOG_ERROR_INTERNAL("Invalid character in {}", field_name);
     }
     return "";
+}
+
+bool is_hidden_scan_ssid(const std::string& ssid) {
+    static constexpr std::string_view kNulEscape = "\\x00";
+    std::string_view rest = ssid;
+    while (rest.substr(0, kNulEscape.size()) == kNulEscape) {
+        rest.remove_prefix(kNulEscape.size());
+    }
+    return rest.empty();
 }
 } // namespace helix::wifi::detail
 
@@ -2134,6 +2146,14 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         }
     }
 
+    // STATUS leaves out ip_address on some builds while the kernel holds one.
+    if (status.connected && status.ip_address.empty()) {
+        if (const auto iface = resolved_interface(); iface && !iface->netdev.empty()) {
+            status.ip_address = ipv4_lookup_ ? ipv4_lookup_(iface->netdev)
+                                             : helix::ui::wifi::iface_global_ipv4(iface->netdev);
+        }
+    }
+
     // Only log when status actually changes (reduces log noise)
     bool status_changed =
         (status.connected != last_logged_status_.connected ||
@@ -2239,8 +2259,8 @@ std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std:
         // SSID may be missing entirely for hidden networks
         std::string ssid = (fields.size() >= 5) ? fields[4] : "";
 
-        // Skip hidden networks (empty or missing SSID)
-        if (ssid.empty()) {
+        // Skip hidden networks (empty, missing or zero-byte SSID)
+        if (helix::wifi::detail::is_hidden_scan_ssid(ssid)) {
             spdlog::trace("[WifiBackend] Skipping hidden network: {}", bssid);
             continue;
         }

@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <map>
 #include <mutex>
 #include <string>
 #include <sys/socket.h>
@@ -83,6 +84,12 @@ class WpaFakeSupplicant {
         }
     }
 
+    /// Answer @p cmd with @p reply from now on, in place of the built-in one.
+    void set_reply(const std::string& cmd, const std::string& reply) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        replies_[cmd] = reply;
+    }
+
     /// Commands received so far, in order (SCAN, ATTACH, PING, ...).
     std::vector<std::string> commands() const {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -122,7 +129,13 @@ class WpaFakeSupplicant {
         }
     }
 
-    static std::string answer_to(const std::string& cmd) {
+    std::string answer_to(const std::string& cmd) {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            const auto it = replies_.find(cmd);
+            if (it != replies_.end())
+                return it->second;
+        }
         if (cmd == "PING")
             return "PONG";
         if (cmd == "LIST_NETWORKS") {
@@ -149,6 +162,7 @@ class WpaFakeSupplicant {
     mutable std::mutex mutex_;
     std::vector<Peer> monitors_;
     std::vector<std::string> commands_;
+    std::map<std::string, std::string> replies_;
 };
 
 /// RAII HELIX_WPA_SOCKET_DIR pin, so a failing assertion cannot leak the env
