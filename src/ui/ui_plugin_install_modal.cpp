@@ -5,6 +5,7 @@
 
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_icon.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
@@ -223,18 +224,16 @@ void PluginInstallModal::show_result_state(bool success, const std::string& mess
 
     if (success) {
         if (result_icon) {
-            lv_image_set_src(result_icon, "check_circle");
-            lv_obj_set_style_image_recolor(result_icon, theme_manager_get_color("success"),
-                                           LV_PART_MAIN);
+            helix::ui::icon::set_source(result_icon, "check_circle");
+            helix::ui::icon::set_variant(result_icon, "success");
         }
         if (result_title) {
             lv_label_set_text(result_title, lv_tr("Success!"));
         }
     } else {
         if (result_icon) {
-            lv_image_set_src(result_icon, "alert_circle");
-            lv_obj_set_style_image_recolor(result_icon, theme_manager_get_color("danger"),
-                                           LV_PART_MAIN);
+            helix::ui::icon::set_source(result_icon, "alert_circle");
+            helix::ui::icon::set_variant(result_icon, "danger");
         }
         if (result_title) {
             lv_label_set_text(result_title, lv_tr("Installation Failed"));
