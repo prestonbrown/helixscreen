@@ -615,13 +615,19 @@ test-kiauh:
 # slot runs serially and more run at the fixed count.
 # BATS_REQUIRED=1 turns a missing bats into a failure instead of a skip, for a
 # gate that must not report a suite it never ran; BATS_BIN names the bats to run.
+# Which files run is scripts/bats_select.py's answer: every product file, and
+# each build-tooling file (tests/shell/tooling-triggers.tsv) whose paths differ
+# from BATS_BASE, by default the fork point. BATS_ALL=1 runs every file.
 BATS_BIN ?= bats
 BATS_REQUIRED ?=
+BATS_BASE ?=
+BATS_ALL ?=
 
 test-shell:
 	$(ECHO) "$(CYAN)$(BOLD)Running shell tests (bats)...$(RESET)"
 	@if command -v "$(BATS_BIN)" >/dev/null 2>&1; then \
 		START_TIME=$$(date +%s); \
+		BATS_FILES=$$(python3 scripts/bats_select.py $(if $(filter 1,$(BATS_ALL)),--all) $(if $(BATS_BASE),--base "$(BATS_BASE)")) || exit 1; \
 		if command -v parallel >/dev/null 2>&1; then \
 			jobs_dir=$$(mktemp -d); \
 			BATS_BIN="$(BATS_BIN)" HELIX_JOBS_FILE=$$jobs_dir/slots scripts/helix-claim hold --grow "$$jobs_dir/slots" -- \
@@ -629,11 +635,11 @@ test-shell:
 					exec "$$BATS_BIN" --jobs 2 --parallel-binary-name "$$PWD/scripts/parallel-jobs-file.sh" \
 						--no-parallelize-within-files "$$@"; fi; \
 				[ "$$JOBPOOL_SLOTS" -gt 1 ] || exec "$$BATS_BIN" "$$@"; \
-				exec "$$BATS_BIN" --jobs "$$JOBPOOL_SLOTS" --no-parallelize-within-files "$$@"' bats tests/shell/; \
+				exec "$$BATS_BIN" --jobs "$$JOBPOOL_SLOTS" --no-parallelize-within-files "$$@"' bats $$BATS_FILES; \
 			STATUS=$$?; \
 			rm -f "$$jobs_dir"/*; rmdir "$$jobs_dir"; \
 		else \
-			"$(BATS_BIN)" tests/shell/; \
+			"$(BATS_BIN)" $$BATS_FILES; \
 			STATUS=$$?; \
 		fi; \
 		END_TIME=$$(date +%s); \

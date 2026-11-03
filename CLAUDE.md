@@ -66,6 +66,10 @@ make full-test-run                   # unit-sweep + the bats suite (~2m) - the c
 #   Nothing else runs bats locally: not the commit hook, not test-xml. Without this
 #   the shell suite reaches CI unrun. [.] and [slow] stay outside it deliberately -
 #   quality-checks.sh runs [.] on any staged code change, nightly CI runs [slow].
+#   The bats half runs every product file, and a build-tooling file only when
+#   the branch touches a path it names (tests/shell/tooling-triggers.tsv, read by
+#   scripts/bats_select.py); land-gate and CI do the same, the nightly runs all.
+#   BATS_ALL=1 runs every file.
 #   `make test-run` runs nothing: it prints which of these fits the question
 #   you have and exits non-zero. Cadence table: tests/CLAUDE.md.
 make land-gate                       # THE pre-landing gate: ONCE per batch, before anything reaches main

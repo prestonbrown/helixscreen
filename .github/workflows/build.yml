@@ -742,6 +742,23 @@ jobs:
       working-directory: server/telemetry-worker
       run: npm ci --no-audit --no-fund
 
+    # make test-shell runs every product file and each build-tooling file whose
+    # trigger paths (tests/shell/tooling-triggers.tsv) the change touches,
+    # measured from BATS_BASE: the PR's base, or what the branch held before
+    # this push. The checkout is one commit deep, so that commit is fetched on
+    # its own. With nothing to measure from (a new branch) every file runs, and
+    # the nightly runs every file regardless.
+    - name: Fetch the commit the change is measured from
+      env:
+        BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      run: |
+        if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ] \
+           && git fetch --no-tags --depth=1 origin "$BASE"; then
+          echo "BATS_BASE=$BASE" >> "$GITHUB_ENV"
+        else
+          echo "BATS_ALL=1" >> "$GITHUB_ENV"
+        fi
+
     # make test-shell runs the files in parallel, one per slot of
     # `helix-claim jobs`; bare bats runs them one after another, which on this
     # 4-core runner takes most of the job's timeout. A runner without GNU

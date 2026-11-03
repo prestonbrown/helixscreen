@@ -7,7 +7,7 @@
 | `tests/unit/` | Catch2 unit tests. **Auto-globbed** (`Makefile#TEST_UNIT_DIR`) — drop a `.cpp` in and it builds |
 | `tests/unit/application/` | App-lifecycle tests (separate glob, own include path) |
 | `tests/mocks/` | Mock implementations |
-| `tests/shell/` | `bats` tests — installer, lint gates, packaging |
+| `tests/shell/` | `bats` tests — installer, lint gates, packaging. Product unless listed in `tooling-triggers.tsv` (§ "Which shell tests run") |
 | `tests/ui/` | Out-of-process pytest driving the real binary via `helix-screen ctl` |
 | `tests/test_helpers/` | `*TestAccess` friend classes for reaching private members |
 
@@ -624,3 +624,39 @@ it must catch, and the idioms it must stay quiet about. A gate that fires on leg
 gets switched off, so the silent cases matter as much as the loud ones.
 
 Verify a new gate by running it against known-good and known-bad fixtures before wiring it in.
+
+**The verdict over the real tree belongs to the gate, never the meta-test.** quality-checks.sh
+runs every gate over the tree at pre-push, in land-gate and in CI (the fast ones at commit
+too), so a bats case that
+runs the gate on the repo and expects it clean repeats that verdict at a cost of seconds to
+tens of seconds. The meta-test pins the script's behaviour on fixtures, plus its wiring into
+`scripts/qc/`. A check that exists only as a bats case over the tree (much of
+`test_code_lint.bats`) keeps the product paths it scans as its triggers.
+
+## Which shell tests run
+
+`tests/shell/tooling-triggers.tsv` lists the files that test build tooling (gates,
+quality-checks, land-gate, helix-claim, worktrees, patches, release and CI scripts, the
+makefiles), each with the paths it exercises. `scripts/bats_select.py` picks what a run needs:
+every file NOT listed (product: installer, uninstaller, launcher, platform hooks, plugin
+install, device scripts), plus each listed file whose own path or trigger paths differ from
+the fork point (`scripts/diff_base.py`), uncommitted and untracked files included. A change to
+`helpers.bash`, `setup_suite.bash`, `fixtures/`, the table or the selector runs every file.
+
+| Who | What runs |
+|---|---|
+| `make test-shell`, `full-test-run`, `land-gate` | the selection, from the fork point (`BATS_BASE=<ref>` overrides) |
+| build.yml (push, PR) | the selection, from the PR's base or the commit before the push |
+| release.yml | product files only (`BATS_BASE=HEAD`) |
+| nightly.yml, `BATS_ALL=1` | every file, so a trigger the table is missing is caught within a day |
+
+So a new test file runs on every change until it is listed. A tooling test adds its row,
+naming the scripts, makefiles, workflows and data it reads (its own `.bats` is implied). The
+selector fails the run on a listed file that does not exist and on a path that matches
+nothing tracked, so a rename cannot silently retire a trigger. `python3 scripts/bats_select.py
+--check` validates the table; tests: `tests/python/test_bats_select.py`.
+
+The heavy in-process installer and launcher files call `skip_line_tracking` (helpers.bash)
+in `setup()`, which turns off bats' per-command DEBUG trap: a third or more of their time. A
+failure still fails, but bats names the helper as its location; rerun with
+`HELIX_BATS_TRAP=1` to see the line.
