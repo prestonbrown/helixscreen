@@ -164,8 +164,8 @@ test_shell_without_parallel() {
     for d in $(path_without_jobpool); do
         if [ -e "$d/parallel" ]; then
             n=$((n + 1)); shadow="$BATS_TEST_TMPDIR/no-parallel-$n"
-            mkdir -p "$shadow"
-            ls "$d" | grep -vx parallel | sed "s|^|$d/|" | xargs sh -c 'ln -s "$@" "$0"' "$shadow"
+            [ -d "$shadow" ] || { mkdir "$shadow" &&
+                ls "$d" | grep -vx parallel | sed "s|^|$d/|" | xargs sh -c 'ln -s "$@" "$0"' "$shadow"; }
             d=$shadow
         fi
         p=${p:+$p:}$d
