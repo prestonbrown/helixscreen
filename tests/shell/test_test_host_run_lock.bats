@@ -140,17 +140,8 @@ wait_for_line() { # <substring> <file>
     ready="$BATS_TEST_TMPDIR/holder-ready"
     out="$BATS_TEST_TMPDIR/waiting.log"
 
-    # A stand-in holder: takes the lock, records a holder line in the format
-    # the script writes, then sleeps. fd 9 is closed for the sleep so killing
-    # the holder releases the lock instead of leaving it to the child.
-    (
-        exec 9>>"$lock"
-        flock 9
-        printf 'held by pid %s: mutate 0123456 since 2026-09-24 12:00:00\n' "$$" >&9
-        touch "$ready"
-        sleep 30 9>&-
-    ) &
-    holder=$!
+    # A stand-in holder with a holder line in the format the script writes.
+    holder=$(hold_flock "$lock" "$ready" 'held by pid %s: mutate 0123456 since 2026-09-24 12:00:00')
     wait_for_file "$ready"
 
     "$SCRIPT" --commit test >"$out" 2>&1 &
@@ -666,14 +657,7 @@ SYS_FREE=$((64 * 1024 * 1024 * 1024))
 @test "--commit excludes a client that still runs zeus-run.sh against the same checkout" {
     # zeus-run.sh locks helix-zeus-run-<checkout>.lock; both reset the checkout.
     local lock="$HELIX_TEST_LOCK_DIR/helix-zeus-run-helixscreen.lock" out runner holder
-    (
-        exec 9>>"$lock"
-        flock 9
-        printf 'held by pid %s: mutate abc1234 since 2026-10-08 12:00:00\n' "$$" >&9
-        touch "$BATS_TEST_TMPDIR/ready"
-        sleep 30 9>&-
-    ) &
-    holder=$!
+    holder=$(hold_flock "$lock" "$BATS_TEST_TMPDIR/ready" 'held by pid %s: mutate abc1234 since 2026-10-08 12:00:00')
     wait_for_file "$BATS_TEST_TMPDIR/ready"
     out="$BATS_TEST_TMPDIR/waiting.log"
     "$SCRIPT" --commit test >"$out" 2>&1 &

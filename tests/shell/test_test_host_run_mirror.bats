@@ -241,14 +241,7 @@ wait_for_line() { # <substring> <file>
 }
 
 hold_lock() { # <lock file> <ready marker>: prints the holder pid
-    (
-        exec 9>>"$1"
-        flock 9
-        printf 'held by pid %s: sweep 0123456 since 2026-10-08 12:00:00\n' "$$" >&9
-        touch "$2"
-        sleep 30 9>&-
-    ) >/dev/null 2>&1 &
-    echo $!
+    hold_flock "$1" "$2" 'held by pid %s: sweep 0123456 since 2026-10-08 12:00:00'
 }
 
 @test "two trees hold different locks and both proceed; two runs of one tree queue" {
