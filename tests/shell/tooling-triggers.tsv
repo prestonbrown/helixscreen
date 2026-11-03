@@ -22,7 +22,7 @@ tests/shell/test_android_asset_staging_gate.bats	android/.gitignore android/app/
 tests/shell/test_android_feature_gates.bats	Makefile android/app/build.gradle android/app/jni/CMakeLists.txt include/helix_features.h include/lvgl_pch.h lv_conf.h mk/cross.mk
 tests/shell/test_android_libhv_isolation.bats	android/app/jni/CMakeLists.txt lib/libhv
 tests/shell/test_android_release_abis.bats	.github/workflows/build.yml .github/workflows/cache-prune.yml .github/workflows/ccache-warm.yml .github/workflows/release.yml android/app/build.gradle
-tests/shell/test_android_version_code.bats	.github/workflows/release.yml VERSION.txt android/app/build.gradle scripts/android-version-code.sh scripts/generate-whatsnew.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp
+tests/shell/test_android_version_code.bats	.github/workflows/release.yml VERSION.txt android/app/build.gradle scripts/android-version-code.sh scripts/generate-whatsnew.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp scripts/changelog-section.sh
 tests/shell/test_apply_submodule_patch.bats	mk/patches.mk scripts/apply_submodule_patch.sh
 tests/shell/test_asan_leak_gate.bats	include/observer_factory.h scripts/check_asan_leaks.py src/api/moonraker_client_mock.cpp src/ui/observer_factory.cpp src/ui/ui_button.cpp src/ui/ui_panel_controls.cpp src/ui/ui_split_button.cpp tests/catch_amalgamated.hpp tests/unit/test_panel_widget_manager.cpp tests/unit/test_temp_graph_controller.cpp
 tests/shell/test_audit_codebase_staged_content.bats	scripts/audit_codebase.sh
@@ -46,11 +46,11 @@ tests/shell/test_competing_ui_state_gate.bats	scripts/lib/installer/common.sh sc
 tests/shell/test_completion_gate.bats	scripts/full-test-run.sh scripts/lib/build_hosts.sh scripts/lib/sweep_location.sh
 tests/shell/test_cov_diff_gate.bats	scripts/cov_diff.py scripts/diff_base.py scripts/untestable_paths.txt
 tests/shell/test_deploy_pi_ownership_sudo.bats	mk/cross.mk
-tests/shell/test_deploy_platform_hooks.bats	mk/cross.mk scripts/lib/installer/service.sh
+tests/shell/test_deploy_platform_hooks.bats	mk/cross.mk scripts/lib/installer/service.sh assets/config/platform/
 tests/shell/test_deploy_retired_binaries.bats	Makefile mk/cross.mk scripts/lib/installer/requirements.sh
 tests/shell/test_deploy_stop_app.bats	mk/cross.mk scripts/deploy-stop-app-remote.sh
 tests/shell/test_device_env_set.bats	config/helixscreen.env scripts/device-env-set-remote.sh scripts/device-env-set.sh
-tests/shell/test_device_profile.bats	mk/cross.mk scripts/device-profile.sh scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/main.sh scripts/lib/installer/platform.sh
+tests/shell/test_device_profile.bats	mk/cross.mk scripts/device-profile.sh scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/main.sh scripts/lib/installer/platform.sh assets/config/platform/
 tests/shell/test_doc_refs_gate.bats	Makefile assets/config/printer_database.json assets/config/themes/defaults/ docs/README.md docs/audits/ docs/devel/ docs/user/ include/ams_types.h mk/patches.mk patches/ scripts/check_doc_refs.py scripts/gen_patch_markers.py
 tests/shell/test_drm_mmap_lfs_gate.bats	mk/patches.mk patches/lvgl-drm-mmap64.patch scripts/check_drm_mmap_lfs.py
 tests/shell/test_duplicate_xml_names_gate.bats	scripts/check_duplicate_xml_names.py scripts/staged_content.py
