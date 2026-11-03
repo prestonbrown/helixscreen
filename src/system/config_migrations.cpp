@@ -1387,15 +1387,20 @@ static void migrate_v31_to_v32(json& config, const std::string& /*config_path*/)
 }
 
 /// Which AD5M Pro firmware a saved printer was set up for, by its own preset or type.
-/// Empty when it is not an AD5M Pro set up from a Forge-X or Z-Mod preset.
-static std::string ad5m_pro_firmware(const json& printer) {
-    const std::string own_preset = helix::json_util::safe_string(printer, "preset");
-    if (own_preset == "ad5m_pro_forgex" ||
-        (own_preset.empty() && helix::json_util::safe_string(printer, "type") ==
-                                   "FlashForge Adventurer 5M Pro (ForgeX)")) {
+/// Empty when it is not an AD5M Pro set up from a Forge-X or Z-Mod preset. A root preset
+/// marker speaks only for an active printer that names neither, as in printer_is_ad5x().
+static std::string ad5m_pro_firmware(const json& config, const std::string& printer_id,
+                                     const json& printer) {
+    std::string preset = helix::json_util::safe_string(printer, "preset");
+    const std::string type = helix::json_util::safe_string(printer, "type");
+    if (preset.empty() && type.empty() && find_active_printer_key(config) == printer_id) {
+        preset = helix::json_util::safe_string(config, "preset");
+    }
+    if (preset == "ad5m_pro_forgex" ||
+        (preset.empty() && type == "FlashForge Adventurer 5M Pro (ForgeX)")) {
         return "forgex";
     }
-    if (own_preset == "ad5m_pro_zmod") {
+    if (preset == "ad5m_pro_zmod") {
         return "zmod";
     }
     return {};
@@ -1416,7 +1421,8 @@ static void migrate_v32_to_v33(json& config, const std::string& /*config_path*/)
     }
     for (auto& [printer_id, printer] : config["printers"].items()) {
         // VENDOR_OK: a migration freezes the printers it repairs
-        const std::string firmware = printer.is_object() ? ad5m_pro_firmware(printer) : "";
+        const std::string firmware =
+            printer.is_object() ? ad5m_pro_firmware(config, printer_id, printer) : "";
         if (firmware.empty() || !printer.contains("fans") || !printer["fans"].is_object()) {
             continue;
         }
