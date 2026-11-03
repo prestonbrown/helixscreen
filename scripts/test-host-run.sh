@@ -553,8 +553,13 @@ REMOTE
 # the holder is a remote shell that waits for its stdin to close, which happens
 # when this process ends, however it ends. The lock has to cover the sync and
 # the job both, and they are two connections, so neither can hold it alone.
+# The holder is also what starts the job (run_detached), and the job inherits
+# its lock descriptor: a link that drops kills the holder, but the tree stays
+# locked until the job itself has finished.
 take_lock() { # <lock file name> <what it guards> <holder note>
     coproc LOCKER { ssh "${SSH_OPTS[@]}" "$HOST" bash -s 2>&1; }
+    # hold is defined before it is called on the script's last line, so bash
+    # has read the whole script by then and its read gets the JOB line.
     cat >&"${LOCKER[1]}" <<LOCK
 set -eu
 mkdir -p "$LOCK_DIR"
@@ -570,7 +575,25 @@ fi
 : > "\$LOCK"
 printf 'held by pid %s: %s since %s\n' "\$\$" "$3" "\$(date '+%F %T')" >&9
 echo LOCKED
-exec cat >/dev/null
+hold() {
+    if read -r _kw _b64 && [ "\$_kw" = JOB ]; then
+        mkdir -p "$JOB_DIR"
+        printf '%s' "\$_b64" | base64 -d > "$JOB_DIR/script"
+        _s=""; ! command -v setsid >/dev/null 2>&1 || _s=setsid
+        # The wrapper keeps fd 9 until the job's status is written; the job's
+        # own processes get none of it, so nothing they leave behind (a
+        # daemon) can hold the tree.
+        # Started from a subshell that exits at once, so it is not this
+        # shell's child: the cat below would never reap it.
+        (
+            nohup \$_s bash -c 'bash "\$0/script" 9>&- > "\$0/log" 2>&1; echo \$? > "\$0/rc.new"; mv "\$0/rc.new" "\$0/rc"' "$JOB_DIR" < /dev/null > /dev/null 2>&1 &
+            echo \$! > "$JOB_DIR/pid"
+        )
+        echo STARTED
+    fi
+    exec cat >/dev/null
+}
+hold
 LOCK
     local line
     while IFS= read -r line <&"${LOCKER[0]}"; do
@@ -587,63 +610,107 @@ LOCK
 # link that is down for longer than they wait: the job then keeps running on
 # the host, so a dropped follow reconnects and resumes from the bytes already
 # received, and the result lines and exit status still arrive. Returns the
-# job's exit status, or 255 when the host stays unreachable for RECONNECT_SECS.
+# job's exit status; 255 when the host stays unreachable for RECONNECT_SECS;
+# JOB_LOST_RC when the job's wrapper on the host died without writing one.
+# An INT, TERM or HUP here stops the job there (cancel_job); a dropped link
+# does not.
+JOB_LOST_RC=254
 run_detached() {
-    local job="$LOCK_DIR/$LOCK_PREFIX.job-$LABEL.$$" b64 got rc status down_since="" phase=follow
-    b64=$(base64 | tr -d '\n')
-    # shellcheck disable=SC2087  # the job path and script resolve here
-    if ! ssh "${SSH_OPTS[@]}" "$HOST" bash -s <<START; then
-set -eu
-mkdir -p "$job"
-printf '%s' '$b64' | base64 -d > "$job/script"
-_s=""; command -v setsid >/dev/null 2>&1 && _s=setsid
-nohup \$_s bash -c 'bash "\$0/script" > "\$0/log" 2>&1; echo \$? > "\$0/rc.new"; mv "\$0/rc.new" "\$0/rc"' "$job" < /dev/null > /dev/null 2>&1 &
-START
-        echo "✗ could not start the job on $HOST" >&2
-        return 255
-    fi
-    : > "$LOG"
+    local copy="${TMPDIR:-/tmp}/test-host-follow.$$" got rc status down_since="" phase=follow line
+    printf 'JOB %s\n' "$(base64 | tr -d '\n')" >&"${LOCKER[1]}"
     while :; do
-        got=$(( $(wc -c < "$LOG") ))
+        if ! IFS= read -r line <&"${LOCKER[0]}"; then
+            echo "✗ could not start the job on $HOST" >&2
+            return 255
+        fi
+        [ "$line" = STARTED ] && break
+        printf '%s\n' "$line"
+    done
+    trap 'cancel_job 2 "$copy"' INT
+    trap 'cancel_job 15 "$copy"' TERM
+    trap 'cancel_job 1 "$copy"' HUP
+    : > "$LOG"
+    : > "$copy"
+    while :; do
+        got=$(( $(wc -c < "$copy") ))
         rc=0
         if [ "$phase" = follow ]; then
             # Prints the log from byte $got on, and exits 0 once the job has
-            # finished and every byte it wrote has been printed. A follow
-            # stranded by a dropped link prints nothing to fail on while the
-            # job is silent, so it exits once the job's directory is collected.
+            # finished and every byte it wrote has been printed; 4 once its
+            # wrapper is gone without a status. A follow stranded by a dropped
+            # link prints nothing to fail on while the job is silent, so it
+            # exits once the job's directory is collected. It runs in the
+            # background so that a signal here is handled at once.
             # shellcheck disable=SC2087
-            ssh "${SSH_OPTS[@]}" "$HOST" bash -s <<FOLLOW | tee -a "$LOG" || rc=$?
-cd "$job" || exit 3
+            (ssh "${SSH_OPTS[@]}" "$HOST" bash -s <<FOLLOW | tee -a "$copy" "$LOG") &
+cd "$JOB_DIR" || exit 3
 off=$got
 while :; do
-    [ -d "$job" ] || exit 3
+    [ -d "$JOB_DIR" ] || exit 3
     fin=0; [ ! -e rc ] || fin=1
+    # A zombie counts as gone: a container's PID 1 may never reap it.
+    alive=0; case "\$(ps -o stat= -p "\$(cat pid 2>/dev/null)" 2>/dev/null)" in ""|Z*) ;; *) alive=1 ;; esac
     size=\$(( \$( { wc -c < log; } 2>/dev/null || echo 0) ))
     if [ "\$size" -gt "\$off" ]; then tail -c +\$((off + 1)) log | head -c \$((size - off)); off=\$size; fi
     [ "\$fin" = 0 ] || exit 0
+    if [ "\$alive" = 0 ]; then sleep 1; [ -e rc ] || exit 4; fi
     sleep 1
 done
 FOLLOW
+            wait $! || rc=$?
             [ "$rc" -ne 0 ] || { phase=status; continue; }
         else
             # shellcheck disable=SC2087
             if status=$(ssh "${SSH_OPTS[@]}" "$HOST" bash -s <<STATUS
-cat "$job/rc" && rm -rf "$job"
+cat "$JOB_DIR/rc" && rm -rf "$JOB_DIR"
 STATUS
             ); then
+                trap - INT TERM HUP
+                rm -f "$copy"
                 return "$status"
             fi
             rc=255
         fi
-        [ "$rc" -ne 3 ] || { echo "✗ the job's directory $job is gone from $HOST" >&2; return 255; }
-        if [ -z "$down_since" ] || [ "$(( $(wc -c < "$LOG") ))" -gt "$got" ]; then down_since=$(date +%s); fi
+        if [ "$rc" -eq 3 ] || [ "$rc" -eq 4 ]; then
+            trap - INT TERM HUP
+            rm -f "$copy"
+            if [ "$rc" -eq 3 ]; then
+                echo "✗ the job's directory $JOB_DIR is gone from $HOST" >&2
+                return 255
+            fi
+            echo "✗ the job's wrapper on $HOST died without an exit status (killed, or the host restarted it)" >&2
+            ssh "${SSH_OPTS[@]}" "$HOST" rm -rf "$JOB_DIR" 2>/dev/null || true
+            return "$JOB_LOST_RC"
+        fi
+        if [ -z "$down_since" ] || [ "$(( $(wc -c < "$copy") ))" -gt "$got" ]; then down_since=$(date +%s); fi
         if [ $(( $(date +%s) - down_since )) -ge "$RECONNECT_SECS" ]; then
-            echo "✗ $HOST unreachable for ${RECONNECT_SECS}s; the job may still be running there: $job/log" >&2
+            trap - INT TERM HUP
+            rm -f "$copy"
+            echo "✗ $HOST unreachable for ${RECONNECT_SECS}s; the job may still be running there: $JOB_DIR/log" >&2
             return 255
         fi
         echo "→ lost the connection to $HOST (ssh exit $rc); the job keeps running there; reconnecting" >&2
         sleep "$RECONNECT_PAUSE_SECS"
     done
+}
+
+# Stops the job run_detached started, as a signal here asks: whatever runs in
+# the container with its cwd in the run's directory, then the wrapper's
+# process group on the host, then its directory. Best effort: an unreachable
+# host leaves the job running, and says so.
+cancel_job() { # <signal number> <follow copy>
+    trap - INT TERM HUP
+    echo "→ interrupted: stopping the job on $HOST" >&2
+    # shellcheck disable=SC2016  # the snippet runs on the host
+    ssh "${SSH_OPTS[@]}" "$HOST" bash -s -- "$JOB_DIR" "$CONTAINER" "$RUNDIR" <<'CANCEL' ||
+job=$1 ctr=$2 dir=$3
+sudo -n docker exec -w / "$ctr" sh -c 'for d in /proc/[0-9]*; do case "$(readlink "$d/cwd")" in "$0"|"$0"/*) kill -TERM "${d#/proc/}" 2>/dev/null ;; esac; done' "$dir" 2>/dev/null || true
+p=$(cat "$job/pid" 2>/dev/null) && { kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true; }
+rm -rf "$job"
+CANCEL
+        echo "✗ could not reach $HOST to stop the job; it keeps running there: $JOB_DIR" >&2
+    rm -f "$2"
+    exit $((128 + $1))
 }
 
 # Nanoseconds since the epoch. BSD date (a Mac) has no %N and prints it
@@ -858,6 +925,7 @@ case "$WHAT" in
 esac
 
 LOG="${TMPDIR:-/tmp}/test-host-$WHAT-$LABEL.log"
+JOB_DIR="$LOCK_DIR/$LOCK_PREFIX.job-$LABEL.$$"           # on the test host: the detached job's script, log and status
 
 # The remote shell reads CMD inside single quotes; each ' in it (from a %q-quoted
 # argument) closes and reopens them around an escaped quote.
@@ -904,7 +972,7 @@ if [ "$WHAT" = plugin-host ]; then
     rc=0
     # shellcheck disable=SC2087  # the paths and the command resolve here
     run_detached <<REMOTE || rc=$?
-set -uo pipefail
+set -euo pipefail
 echo "→ $PROVENANCE"
 rm -rf "$PH_OUT"
 cd "$TREES_HOST/$TREE"

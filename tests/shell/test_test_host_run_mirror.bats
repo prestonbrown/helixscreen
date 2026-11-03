@@ -1070,12 +1070,13 @@ EOF2
     [ ! -s "$MOCK_DOCKER_LOG" ]
 }
 
-@test "a connection that drops during a silent job reconnects and still reports its output and exit status" {
-    job_runner
+# ssh that relays its command's output, and drops every connection open when
+# MOCK_SSH_DROP appears: the remote command is killed, as sshd's closing pipes
+# end a lock holder waiting on its stdin, the output is cut, and ssh exits 255.
+# A detached job is no child of the connection and keeps running. Connections
+# made after the drop stay up.
+install_drop_ssh() {
     export MOCK_SSH_DROP="$BATS_TEST_TMPDIR/link-down" HELIX_TEST_RECONNECT_PAUSE_SECS=0
-    # ssh that relays its command's output, and drops (exit 255, output cut,
-    # the command left running as on a real host) every connection that is
-    # open when MOCK_SSH_DROP appears. Connections made after it stay up.
     cat > "$BATS_TEST_TMPDIR/ssh-drop" <<'SSH'
 #!/usr/bin/env bash
 while [ $# -gt 0 ]; do
@@ -1094,19 +1095,91 @@ flush() {
 }
 while kill -0 "$pid" 2>/dev/null; do
     flush
-    if [ "$pre" = 0 ] && [ -e "$MOCK_SSH_DROP" ]; then exit 255; fi
+    if [ "$pre" = 0 ] && [ -e "$MOCK_SSH_DROP" ]; then kill "$pid" 2>/dev/null; exit 255; fi
     sleep 0.05
 done
 wait "$pid"; rc=$?; flush; exit "$rc"
 SSH
     chmod +x "$BATS_TEST_TMPDIR/ssh-drop"
     mock_command_script ssh 'exec "$BATS_TEST_TMPDIR/ssh-drop" "$@"'
+}
 
-    run "$TEST_HOST_RUN" exec -- bash -c 'echo before-drop; touch "$MOCK_SSH_DROP"; sleep 1; echo done-marker; exit 3'
+no_job_left() {
+    ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
+}
+
+@test "a connection that drops during a silent job reconnects and still reports its output and exit status" {
+    job_runner
+    install_drop_ssh
+    run "$TEST_HOST_RUN" exec -- bash -c 'echo before-drop; sleep 1; touch "$MOCK_SSH_DROP"; sleep 1; echo done-marker; exit 3'
     [ "$status" -eq 3 ]
     contains "lost the connection" "$output"
     contains "done-marker" "$output"
     # The resumed follow starts where the dropped one stopped: nothing twice.
     [ "$(cat "$TMPDIR"/test-host-exec-*.log | grep -c before-drop)" -eq 1 ]
     [ "$(cat "$TMPDIR"/test-host-exec-*.log | grep -c done-marker)" -eq 1 ]
+    no_job_left
+}
+
+@test "a dropped link leaves the tree locked until its job finishes" {
+    job_runner
+    install_drop_ssh
+    local order="$BATS_TEST_TMPDIR/order" first
+    export ORDER="$order"
+    "$TEST_HOST_RUN" exec -- bash -c 'sleep 1; touch "$MOCK_SSH_DROP"; sleep 6; echo first-end >> "$ORDER"' \
+        > "$BATS_TEST_TMPDIR/first.out" 2>&1 &
+    first=$!
+    for _ in $(seq 1 200); do [ -e "$MOCK_SSH_DROP" ] && break; sleep 0.05; done
+    [ -e "$MOCK_SSH_DROP" ]
+    sleep 0.3
+    run "$TEST_HOST_RUN" exec -- bash -c 'echo second-start >> "$ORDER"'
+    wait "$first"
+    [ "$status" -eq 0 ]
+    contains "busy" "$output"
+    [ "$(cat "$order")" = "$(printf 'first-end\nsecond-start')" ]
+}
+
+@test "a signal here stops the job on the test host and removes its directory" {
+    job_runner
+    local pidf="$BATS_TEST_TMPDIR/job.pid" runner rc=0
+    export PIDF="$pidf"
+    # TERM, since a background job may have started with SIGINT ignored; INT
+    # and HUP take the same trap.
+    "$TEST_HOST_RUN" exec -- bash -c 'echo $$ > "$PIDF"; exec sleep 30' > "$BATS_TEST_TMPDIR/run.out" 2>&1 &
+    runner=$!
+    for _ in $(seq 1 200); do [ -s "$pidf" ] && break; sleep 0.05; done
+    [ -s "$pidf" ]
+    kill -TERM "$runner"
+    wait "$runner" || rc=$?
+    [ "$rc" -eq 143 ]
+    grep -qF "stopping the job" "$BATS_TEST_TMPDIR/run.out"
+    for _ in $(seq 1 100); do kill -0 "$(cat "$pidf")" 2>/dev/null || break; sleep 0.05; done
+    ! kill -0 "$(cat "$pidf")" 2>/dev/null
+    no_job_left
+}
+
+@test "a job whose wrapper dies without a status fails with its own exit code" {
+    job_runner
+    run "$TEST_HOST_RUN" exec -- bash -c 'kill -9 "$(cat "$HELIX_TEST_LOCK_DIR"/*.job-*/pid)"; sleep 3'
+    [ "$status" -eq 254 ]
+    contains "died without an exit status" "$output"
+    no_job_left
+}
+
+@test "plugin-host stops at the first failing step instead of running the matrix elsewhere" {
+    [ "$(id -u)" != 0 ] || skip "root removes the read-only output directory"
+    local t out="$BATS_TEST_TMPDIR/ph-out"
+    t=$(make_tree tree-ph)
+    mkdir -p "$t/scripts"
+    echo 'touch "$PWD/MATRIX-RAN"' > "$t/scripts/plugin-host-matrix.sh"
+    # The step before the matrix fails: an output directory it cannot clear.
+    mkdir -p "$out/helix-plugin-host-tree-ph/sub"
+    touch "$out/helix-plugin-host-tree-ph/sub/f"
+    chmod 555 "$out/helix-plugin-host-tree-ph/sub"
+    export HELIX_TEST_PLUGIN_HOST_OUT="$out"
+    cd "$t"
+    run "$TEST_HOST_RUN" plugin-host
+    chmod -R u+w "$out" "$t/build"
+    [ "$status" -ne 0 ]
+    [ -z "$(find "$BATS_TEST_TMPDIR" -name MATRIX-RAN)" ]
 }
