@@ -5,6 +5,59 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-beta.15] - 2026-11-02
+
+The fifteenth beta of 1.1 is almost all fixes as we near 1.1.0. Lua plugins that send G-code or register callbacks no longer crash the screen at startup, and builds without a camera view no longer show a Camera button that does nothing. The WiFi radio gets its country back after a firmware update resets it, so 5 GHz networks reconnect on their own. A printer whose Moonraker requires a login can now take its API key on the screen. A K2 Pro running k2-improvements is recognized as a K2 Pro with its stock probe, a QIDI Box shows the material and color its own screen saved, and the Snapmaker U1 checks its heads before pressure advance calibration instead of pausing two minutes into a print.
+
+### Added
+
+- **Enter the Moonraker API key on the screen** (#1929, #1930) - Settings > Connection has an API Key row, and the Change Host dialog a masked key field beside the host and port; saving reconnects with the key at once. The setup wizard shows the field when Test Connection finds a printer that requires a login. A printer that refuses the login says so once, with a button to the key, instead of a toast for every refused request, and fixing the login on the Moonraker side clears the warning.
+- **Set a slot's material in one tap before printing** - when the filament check stops a print because a slot has no material set and a calibration needs one, it offers to set the slot to the material the file names. A file that names no material gets no button, since a guess would calibrate at another material's settings.
+
+### Changed
+
+- **WiFi country** - the United States, United Kingdom, Germany, Canada, Australia and France are listed first. A country the printer's own system set is remembered, so when a firmware update resets the radio to the restricted worldwide mode, HelixScreen sets it again at the next start and 5 GHz networks reconnect without a visit to the settings.
+- **Print Status shows the chamber temperature with the chamber heater off** - the chamber chip appeared only while the chamber heated or was above 50°C, so a QIDI Q2 printing PLA, or a printer with only a chamber sensor, never showed it. It now shows whenever the printer has a chamber.
+
+### Fixed
+
+**Printing**
+
+- **Pressure advance calibration on the Snapmaker U1** - a head holding filament with no material set made the printer pause two minutes into the start. The filament check now stops the print before it heats, and only when calibration needs the material; with calibration off the head prints as it is.
+- **Pre-print ends when the printer's own start macro does** - on the FlashForge Creator 5 with OpenCreator's Kalico, the start macro runs before the file streams, and the screen sat on Purge until the first layer. It now moves on when the macro returns, and this also works for the second and later prints in a session.
+- **K2 pre-print steps** - the checklist no longer marks Purge done while the nozzle is being cleaned. The cleaning step pushes a little filament to check flow, which read as the purge; Purge now shows once, after the bed mesh, when the real purge runs.
+
+**Filament systems**
+
+- **K2 with a CFS at boot** (#1933) - a K2 that has a CFS no longer looks like a single-spool printer for a moment while the CFS is still answering at boot, after a Klipper restart, or after Refresh RFID or Comm test.
+- **QIDI Box with newer Box firmware** - slots set on the Box's own screen (Box firmware 02.03.01.21 and later) showed no color or material; they now show both, and the same spool is no longer mistaken for a new one before the Box has described it.
+- **AD5X purge on Z-Mod** - Purge moves to the bin first, using Z-Mod's own bin macros, instead of extruding wherever the nozzle happened to be. Forge-X is unchanged.
+- **Filament use with a multiACE on a Snapmaker U1** - filament a nozzle drew from an ACE bay was charged to the head's lane instead of the bay's spool, so the bay's remaining weight never went down.
+
+**Plugins**
+
+- **Lua plugins on K1, AD5X, Creator 5 and K2 builds** (#1995) - a plugin that sent G-code, or registered a `helix.ui.on` or `helix.settings.on_change` handler, crashed the screen at startup and kept it in a crash loop. On these builds the compiler gave every plugin binding's private state one shared slot, so each binding read another's state as its own. Each binding now keeps its own.
+
+**Printers and calibration**
+
+- **K2 Pro with k2-improvements** - it was detected as a K2 Plus, because the mod had an entry only for the Plus. The K2 Pro has its own now, and on both a K2 that kept the stock PRTouch probe no longer shows it as a Cartographer, so its probe tools work. A fitted Cartographer still shows as one.
+- **Centauri Carbon bed screws** - Bed Screws shows Klipper's own turns again, measured from a base screw, instead of COSMOS's manual-leveling numbers that asked for about two turns on every corner of a nearly level bed. The Bed Screws and Bed Mesh quick actions run again instead of failing with "Invalid macro name".
+- **AD5X stale filament sensor** - AD5X installs first set up on 1.0.x stop reporting a missing `runout_sensor` on every boot. The settings migration drops or renames the stale entry and keeps your role for it.
+
+**Screen and devices**
+
+- **Camera button on builds without a camera view** (#1993) - the K1-family, AD5X, AD5M, K2, Centauri Carbon and Snapmaker U1 builds have no on-screen camera view, but still showed a Camera row in Settings > Hardware that did nothing, and on a remote screen a More button with an empty menu. Both are hidden on those builds now. The camera guide lists which printers have no camera view.
+- **WiFi says 5 GHz when it sees 5 GHz** - the country row stopped claiming "2.4 GHz only" on radios whose 5 GHz support shows up only in scan results, and the WiFi address shows even when wpa_supplicant leaves it out.
+- **Ethernet status** - an unplugged port reads No cable and shows no address, even when the old address is still on the interface. Hidden networks no longer appear in the scan list as rows of dots, and with WiFi and Ethernet both connected the Test Network button stays on screen.
+- **Color picker crash** (#1836) - closing a screen while a color picker was open could crash the next color picker opened.
+- **Closing a camera view** no longer freezes the screen for up to 3 seconds on a camera that stopped answering.
+- **Smaller fixes** - the uptime text is translated, the Last print failed icon is red, and an idle Centauri Carbon no longer re-reads print-time estimates four times a second.
+
+**Updates and installing**
+
+- **Snapmaker U1 env file permissions** (#1682) - the directory holding `helixscreen.env` belongs to the printer_data owner with mode 755, so a save from the web UI no longer leaves the launcher refusing it. When it does refuse, it gives the `chmod` that fixes it instead of a `chown` the next save undoes.
+- **Installs on ZFS** - a freshly downloaded update is no longer rejected as "too small" on a ZFS filesystem.
+
 ## [1.1.0-beta.14] - 2026-10-28
 
 The fourteenth beta of 1.1, and the first after the 1.1 feature freeze, so most of it is fixes. Stop during a print's preparation now cancels a start the printer has already accepted instead of letting it go on to print, the AD5X IFS unloads the lane that is really loaded, a K2 without a CFS is treated as the single-spool printer it is, and the Android app shows https cameras. The fit check reads the nozzle each Snapmaker U1 head really has and judges only the tools a file uses. The last features before the freeze arrive with it: a Toolhead widget you can move the toolhead from, moves that lift clear of a print still on the bed, filament chips on the file screen that change a tool's slot in place, warnings for an open door and for files that mix high- and low-temperature materials, QIDI's full M604 load wizard, and Creator 5 calibrations and chamber air modes on Z-Mod.
@@ -10055,6 +10108,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-beta.15]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.14...v1.1.0-beta.15
 [1.1.0-beta.14]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.13...v1.1.0-beta.14
 [1.1.0-beta.13]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.12...v1.1.0-beta.13
 [1.1.0-beta.12]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.11...v1.1.0-beta.12
