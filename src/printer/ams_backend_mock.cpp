@@ -1534,6 +1534,11 @@ AmsError AmsBackendMock::resume() {
     return AmsErrorHelper::success();
 }
 
+void AmsBackendMock::hold_operations(bool held) {
+    operations_held_ = held;
+    shutdown_cv_.notify_all();
+}
+
 void AmsBackendMock::set_operation_delay(int delay_ms) {
     operation_delay_ms_ = std::max(0, delay_ms);
 }
@@ -4048,6 +4053,13 @@ void AmsBackendMock::schedule_completion(AmsAction action, const std::string& co
                     return shutdown_requested_.load() || cancel_requested_.load();
                 });
             };
+
+            // Sliced so a notify sent between the check and the wait costs one
+            // slice instead of the whole hold.
+            while (operations_held_ && !shutdown_requested_ && !cancel_requested_) {
+                std::unique_lock<std::mutex> lock(shutdown_mutex_);
+                shutdown_cv_.wait_for(lock, std::chrono::milliseconds(10));
+            }
 
             if (is_tool_change) {
                 // Tool change uses special operation with SELECTING phase

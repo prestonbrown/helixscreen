@@ -173,14 +173,12 @@ TEST_CASE("change_tool sets SELECTING immediately in mock toolchanger mode",
 
 TEST_CASE("Lockout rejects operations during in-flight tool change",
           "[ams][toolchanger][toolchanger_actions]") {
-    // NOTE: deliberately NOT using FastTimingScopeTC here. The 1000x sim_speedup
-    // would shrink the operation delay below to ~1ms, so the async completion
-    // thread can clear the in-flight state before the immediate second call runs
-    // — racing this test's whole premise. Use a real (un-scaled) delay long
-    // enough that the operation is reliably still in-flight on slow CI.
+    // Held, the first operation stays in flight through the second call, so
+    // the completion thread cannot clear it first at any delay.
     helix::AmsBackendMock backend(4);
     backend.set_tool_changer_mode(true);
-    backend.set_operation_delay(500); // real ms — kept in-flight for the immediate reject check
+    backend.set_operation_delay(0);
+    backend.hold_operations(true);
     REQUIRE(backend.start());
 
     SECTION("change_tool rejected while a park is in progress") {
@@ -193,7 +191,7 @@ TEST_CASE("Lockout rejects operations during in-flight tool change",
         CHECK_FALSE(result2);
         CHECK(result2.result == helix::AmsResult::BUSY);
 
-        // Wait for first operation to complete
+        backend.hold_operations(false);
         REQUIRE(wait_until_ams_idle(backend, std::chrono::seconds(10)));
     }
 
@@ -205,6 +203,7 @@ TEST_CASE("Lockout rejects operations during in-flight tool change",
         CHECK_FALSE(result2);
         CHECK(result2.result == helix::AmsResult::BUSY);
 
+        backend.hold_operations(false);
         REQUIRE(wait_until_ams_idle(backend, std::chrono::seconds(10)));
     }
 

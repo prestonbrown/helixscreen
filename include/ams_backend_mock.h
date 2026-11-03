@@ -364,6 +364,16 @@ class AmsBackendMock : public AmsBackend {
     void set_operation_delay(int delay_ms);
 
     /**
+     * @brief Hold every simulated operation in flight until released
+     *
+     * While held, an operation's thread waits before its first phase, so the
+     * transient AmsAction it set stays put for as long as a caller needs to
+     * look at it, at any operation delay. cancel() and destruction still end
+     * a held operation.
+     */
+    void hold_operations(bool held);
+
+    /**
      * @brief Block until the current simulated operation has finished
      *
      * Every load / unload / tool change runs on a real std::thread spawned by
@@ -1068,6 +1078,7 @@ class AmsBackendMock : public AmsBackend {
     std::atomic<bool> operation_thread_running_{false}; ///< Guards against double-join
     std::atomic<bool> shutdown_requested_{false};       ///< Signal thread to exit
     std::atomic<bool> cancel_requested_{false};         ///< Signal operation cancellation
+    std::atomic<bool> operations_held_{false};          ///< See hold_operations()
     std::condition_variable shutdown_cv_;               ///< For interruptible sleep
     mutable std::mutex shutdown_mutex_;                 ///< Protects shutdown_cv_ wait
 
