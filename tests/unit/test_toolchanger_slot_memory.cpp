@@ -208,7 +208,7 @@ TEST_CASE("An edit that also remaps a tool keeps both", "[ams][toolchanger][slot
     REQUIRE(h.set_slot_info(1, info, /*persist=*/true).success());
 
     REQUIRE(h.sent().size() == 1);
-    CHECK(h.sent()[0] == "ASSIGN_TOOL TOOL=T1 N=3");
+    CHECK(h.sent()[0] == "ASSIGN_TOOL TOOL=\"tool T1\" N=3");
 
     h.set_tools(4);
     CHECK(h.get_slot_info(1).color_rgb == 0x1E5AA8);

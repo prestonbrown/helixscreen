@@ -128,7 +128,7 @@ TEST_CASE("AmsBackendToolChanger: set_slot_info emits ASSIGN_TOOL on mapped_tool
 
     bool emitted = false;
     for (const auto& g : backend.captured) {
-        if (g == "ASSIGN_TOOL TOOL=tool0 N=2") {
+        if (g == "ASSIGN_TOOL TOOL=\"tool tool0\" N=2") {
             emitted = true;
             break;
         }

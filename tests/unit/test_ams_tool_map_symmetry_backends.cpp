@@ -420,7 +420,7 @@ TEST_CASE("ToolChanger set_tool_mapping moves the lane badge with the map",
     require_symmetric(info);
 
     REQUIRE_FALSE(backend.captured.empty());
-    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=T2 N=0");
+    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=\"tool T2\" N=0");
 }
 
 TEST_CASE("ToolChanger set_slot_info remap moves the lane badge with the map",
@@ -443,7 +443,7 @@ TEST_CASE("ToolChanger set_slot_info remap moves the lane badge with the map",
     require_symmetric(info);
 
     REQUIRE_FALSE(backend.captured.empty());
-    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=T1 N=3");
+    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=\"tool T1\" N=3");
 }
 
 TEST_CASE("ToolChanger reset_tool_mappings restores identity in both directions",
@@ -504,7 +504,7 @@ TEST_CASE("ToolChanger with klipper-toolchanger keeps its remap route",
 
     backend.captured.clear();
     REQUIRE(backend.set_tool_mapping(/*tool_number=*/2, /*slot_index=*/4).success());
-    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=T4 N=2");
+    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=\"tool T4\" N=2");
 }
 
 TEST_CASE("ToolChanger change_tool takes a SLOT and bypasses the remap",

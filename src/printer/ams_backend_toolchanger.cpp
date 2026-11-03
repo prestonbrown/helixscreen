@@ -1292,7 +1292,10 @@ AmsError AmsBackendToolChanger::assign_tool(const std::string& physical_tool_nam
                      tool_commands_.provider_name, tool_number, physical_tool_name);
         return AmsErrorHelper::not_supported("Tool remapping");
     }
-    return execute_gcode(fmt::format("ASSIGN_TOOL TOOL={} N={}", physical_tool_name, tool_number));
+    // ASSIGN_TOOL is a mux command keyed on the [tool ...] object's full name,
+    // which has a space in it; Klipper reads quoted parameter values.
+    return execute_gcode(
+        fmt::format("ASSIGN_TOOL TOOL=\"tool {}\" N={}", physical_tool_name, tool_number));
 }
 
 AmsError AmsBackendToolChanger::set_tool_mapping(int tool_number, int slot_index) {
@@ -1300,7 +1303,7 @@ AmsError AmsBackendToolChanger::set_tool_mapping(int tool_number, int slot_index
     // ASSIGN_TOOL command. This makes Klipper's T<tool_number> command activate the
     // physical tool at slot_index instead of tool_number.
     //
-    // Example: set_tool_mapping(0, 2) sends "ASSIGN_TOOL TOOL=T2 N=0"
+    // Example: set_tool_mapping(0, 2) sends ASSIGN_TOOL TOOL="tool T2" N=0
     //   → G-code "T0" now activates physical tool T2
     std::string physical_tool_name;
     {
