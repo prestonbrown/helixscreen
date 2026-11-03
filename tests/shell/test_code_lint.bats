@@ -2797,9 +2797,15 @@ for arg in sys.argv[1:]:
         if path.suffix not in ('.cpp', '.h', '.cc', '.hpp', '.c'):
             continue
         try:
-            lines = strip_comments_and_strings(path.read_text(errors='replace').splitlines())
+            raw = path.read_text(errors='replace')
         except OSError:
             continue
+        # A read flags only after a setenv()/unsetenv() call, and a file that
+        # never spells setenv has none: skip it before the character-level
+        # strip that dominates the scan's cost.
+        if 'setenv' not in raw:
+            continue
+        lines = strip_comments_and_strings(raw.splitlines())
         text = '\n'.join(lines)
         completions = env_call_completions(text)
         starts = []
@@ -3779,6 +3785,10 @@ for path in sys.argv[1:]:
     try:
         raw = open(path, encoding='utf-8', errors='replace').read()
     except OSError:
+        continue
+    # scrub() keeps every code character in place, so OPERAND cannot match in
+    # a file that never spells initializer_list; skip it before the scrub.
+    if 'initializer_list' not in raw:
         continue
     text = scrub(raw)
     raw_lines = raw.split('\n')
