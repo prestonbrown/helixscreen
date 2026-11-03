@@ -613,10 +613,15 @@ test-kiauh:
 # scripts/parallel-jobs-file.sh as its parallel, which hands GNU parallel the
 # file instead; parallel re-reads it as the suite runs. With no file, one
 # slot runs serially and more run at the fixed count.
+# Without GNU parallel bats can only run the files one after another, which
+# takes the better part of an hour, so a missing parallel is an error naming
+# the install. BATS_ALLOW_SERIAL=1 runs the serial suite anyway, except under
+# BATS_REQUIRED=1.
 # BATS_REQUIRED=1 turns a missing bats into a failure instead of a skip, for a
 # gate that must not report a suite it never ran; BATS_BIN names the bats to run.
 BATS_BIN ?= bats
 BATS_REQUIRED ?=
+BATS_ALLOW_SERIAL ?=
 
 test-shell:
 	$(ECHO) "$(CYAN)$(BOLD)Running shell tests (bats)...$(RESET)"
@@ -632,9 +637,14 @@ test-shell:
 				exec "$$BATS_BIN" --jobs "$$JOBPOOL_SLOTS" --no-parallelize-within-files "$$@"' bats tests/shell/; \
 			STATUS=$$?; \
 			rm -f "$$jobs_dir"/*; rmdir "$$jobs_dir"; \
-		else \
+		elif [ "$(BATS_ALLOW_SERIAL)" = 1 ] && [ "$(BATS_REQUIRED)" != 1 ]; then \
 			"$(BATS_BIN)" tests/shell/; \
 			STATUS=$$?; \
+		else \
+			echo "$(RED)$(BOLD)✗ GNU parallel not found: bats would run the shell suite serially, for most of an hour$(RESET)"; \
+			echo "  Install with: brew install parallel (macOS) or apt install parallel (Linux)"; \
+			[ "$(BATS_REQUIRED)" = 1 ] || echo "  BATS_ALLOW_SERIAL=1 runs it serially anyway"; \
+			exit 1; \
 		fi; \
 		END_TIME=$$(date +%s); \
 		DURATION=$$((END_TIME - START_TIME)); \

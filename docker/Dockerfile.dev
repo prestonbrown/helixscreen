@@ -38,9 +38,10 @@ ARG USER_HOME=/home/dev
 ARG DOCKER_GID=999
 
 # What the bats suite and quality-checks.sh call that the test image lacks:
-# the same tools CI's ubuntu-latest runner carries.
+# the same tools CI's ubuntu-latest runner carries. GNU parallel is how bats
+# runs files at once; `make test-shell` refuses to run without it.
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        shellcheck python3-pip python3-venv python3-yaml openssh-server rsync busybox less \
+        parallel shellcheck python3-pip python3-venv python3-yaml openssh-server rsync busybox less \
         jq zip unzip bsdextrautils xxd file xz-utils zstd wget imagemagick cmake locales iproute2 \
     && sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen && locale-gen && update-locale LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*

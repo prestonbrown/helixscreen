@@ -1323,7 +1323,10 @@ Where it is installed:
   count while the suite runs; bats is handed `scripts/parallel-jobs-file.sh` as
   its parallel, which gives GNU parallel that file (re-read about once a second)
   in place of the number bats insists on. Without it the suite runs at the
-  start-time `JOBPOOL_SLOTS`.
+  start-time `JOBPOOL_SLOTS`. With no GNU parallel installed at all,
+  `make test-shell` stops with the install line rather than run the files one
+  after another, which takes most of an hour; `BATS_ALLOW_SERIAL=1` runs them
+  serially anyway, except under `BATS_REQUIRED=1` (land-gate and CI).
 - Container builds go through `scripts/pool-docker.sh`: a container's make
   joins the pool (state dir mounted, FIFO opened inside, `-j` dropped, kept as
   the fallback when the container cannot open the FIFO). An idf.py or ninja
