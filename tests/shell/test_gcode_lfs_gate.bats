@@ -41,14 +41,6 @@ write_rules() {
 
 GOOD_RULES='$(OBJ_DIR)/rendering/gcode_data_source.o: CXXFLAGS += -D_FILE_OFFSET_BITS=64'
 
-# --- the real tree passes -----------------------------------------------------
-
-@test "passes on the repository as committed" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"64-bit off_t"* ]]
-}
-
 # --- the regression this gate exists for --------------------------------------
 
 @test "fails when the mk/rules.mk override is removed" {

@@ -1074,28 +1074,11 @@ SHAPES
 # friends -- see scripts/translations/cpp_tables.py). If a dry run would still
 # add keys, someone shipped a user-facing string that no locale can translate.
 # That is silent at runtime: lv_translation_get() falls back to the tag, so the
-# string renders in English in all nine languages and only a debug-level log
-# line says so. One bundle carried 1445 of those lines, 294 KB of ring buffer.
+# string renders in English in all nine languages.
 #
-# Fix by running `make translation-sync && make translations`, then translating
-# the new keys (consult translations/GLOSSARY.md and reuse the canonical term).
-# A string that genuinely should not be translated gets `// i18n: do not
-# translate` on its line or the line above.
-
-@test "no user-facing strings are missing from the translation catalogs" {
-  if [ ! -x .venv/bin/python ]; then
-    skip "translations venv not set up (run 'make venv-setup')"
-  fi
-  run .venv/bin/python scripts/translation_sync.py sync --dry-run
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"All XML strings already in YAML files"* ]]
-}
-
-# The same gate has to run from quality-checks.sh, not only from here. v0.99.116
-# was tagged with five untranslated strings because this file is the only place
-# that checked: quality-checks.sh was green on the same tree, so the pre-commit
-# hook, the pre-push hook and the Code Quality workflow all passed it through,
-# and `make test-shell` only runs late in the release. These pin the wiring.
+# The verdict over the tree is qc_translation_coverage in quality-checks.sh,
+# which the pre-push hook, land-gate and the Code Quality workflow run. These
+# cases pin that wiring.
 
 @test "the translation coverage gate is wired into quality-checks.sh" {
   run grep -q 'QC_ALL=.*qc_translation_coverage' scripts/quality-checks.sh
@@ -3535,12 +3518,8 @@ home_widget_flex_styles_without_layout() {
 
 # --- Vendor branches in generic code ---
 # A vendor name belongs to one module per capability (.claude/rules/vendor-abstraction.md).
-# The ratchet lets counts fall and never rise.
-
-@test "no new vendor branches in generic code" {
-    run python3 scripts/check_vendor_branches.py
-    [ "$status" -eq 0 ]
-}
+# The ratchet lets counts fall and never rise. qc_vendor_branches in
+# quality-checks.sh runs it over the tree; these cases pin the script.
 
 @test "the vendor-branch gate catches each shape and honours VENDOR_OK" {
     local root="$BATS_TEST_TMPDIR/root"

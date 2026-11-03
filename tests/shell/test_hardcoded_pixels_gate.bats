@@ -291,21 +291,6 @@ tree_count() {
     python3 "$GATE" --summary 2>/dev/null | awk '/^  TOTAL/ { print $2 }'
 }
 
-@test "the committed tree is at or under the baseline recorded in quality-checks.sh" {
-    # The wiring is the thing that actually gates commits, so pin it rather than
-    # a number duplicated here. Converting a site lowers the count; this keeps
-    # passing, and the recorded baseline can be ratcheted down at leisure.
-    #
-    # --staged-only scans the post-commit tree (HEAD when nothing is staged, as
-    # in CI), so a dirty local working tree — another session's WIP — cannot
-    # false-fail this the way a whole-WT scan would.
-    baseline=$(grep -oE 'check_hardcoded_pixels\.py --max-allowed [0-9]+' \
-                 scripts/qc/design_pixels.sh | grep -oE '[0-9]+$')
-    [ -n "$baseline" ]
-    run python3 "$GATE" --staged-only --max-allowed "$baseline" --summary
-    [ "$status" -eq 0 ]
-}
-
 @test "the gate goes red when one more hardcoded pixel is added to the tree" {
     # The proof that the ratchet works on the REAL tree, not just a fixture:
     # one below the current count must fail. Derived, not hardcoded, so a

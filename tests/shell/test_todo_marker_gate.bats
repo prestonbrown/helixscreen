@@ -133,15 +133,6 @@ echo \"Checking for $T/$F markers\"")
     contains "sh" "$output"
 }
 
-@test "the quality-checks baseline matches the tree" {
-    # A baseline that drifted above the real count silently stops ratcheting:
-    # the gate would pass while new markers accumulate underneath it.
-    baseline=$(grep -oE 'check_todo_markers.py --max-allowed [0-9]+' scripts/qc/todo_markers.sh | grep -oE '[0-9]+')
-    actual=$(python3 "$GATE" --summary | awk '/TOTAL/{print $2}')
-    [ -n "$baseline" ]
-    [ "$actual" -le "$baseline" ]
-}
-
 @test "adding a marker to the tree turns the wired gate red" {
     # The mutation the ratchet exists for: one more marker than the baseline.
     baseline=$(grep -oE 'check_todo_markers.py --max-allowed [0-9]+' scripts/qc/todo_markers.sh | grep -oE '[0-9]+')

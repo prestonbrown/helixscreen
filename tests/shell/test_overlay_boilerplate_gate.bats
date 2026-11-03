@@ -60,8 +60,3 @@ CPP
     [ "$status" -eq 1 ]
     contains "static_unique 1 -> 2" "$output"
 }
-
-@test "this tree holds its baseline" {
-    run python3 "$GATE" --baseline scripts/overlay_boilerplate_baseline.txt
-    [ "$status" -eq 0 ]
-}

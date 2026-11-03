@@ -19,11 +19,6 @@ hold_xml() {
         "</view></component>" > "$ROOT/ui_xml/row.xml"
 }
 
-@test "every hold handler in the tree ends its press or declines" {
-    run python3 scripts/check_hold_ends_press.py
-    [ "$status" -eq 0 ] || fail "$output"
-}
-
 @test "the gate fires on an XML hold handler that never ends its press" {
     hold_xml on_row_hold
     cat > "$ROOT/src/row.cpp" <<'EOF'

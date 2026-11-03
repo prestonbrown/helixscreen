@@ -67,13 +67,6 @@ BASE_TOKENS='<px name="space_md" value="6"/>
   <px name="gap_large" value="8"/>
   <color name="accent" value="#112233"/>'
 
-@test "the real tree's artefacts are current" {
-    cd "$REPO_ROOT" || return 1
-    run python3 "$GATE" --staged-only
-    [ "$status" -eq 0 ]
-    contains "Theme artefacts match" "$output"
-}
-
 @test "an unchanged tree passes" {
     run_staged
     [ "$status" -eq 0 ]

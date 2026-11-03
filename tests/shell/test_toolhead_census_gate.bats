@@ -53,13 +53,6 @@ run_staged() {
     run python3 "$GATE" --staged-only
 }
 
-@test "the shipped census test parses and the real tree passes" {
-    cd "$REPO_ROOT" || return 1
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    contains "every control-bearing one classified" "$output"
-}
-
 @test "a classified tree passes" {
     run_staged
     [ "$status" -eq 0 ]

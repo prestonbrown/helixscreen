@@ -223,11 +223,3 @@ int32_t g = theme_manager_get_spacing("gizmo");'
     run_gate
     [ "$status" -eq 0 ]
 }
-
-# ------------------------------------------------------------- the real tree
-
-@test "the committed tree ships every token its C++ reads" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"✓"* ]]
-}

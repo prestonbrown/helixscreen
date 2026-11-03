@@ -108,10 +108,3 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"missing"* ]]
 }
-
-# ------------------------------------------------------------- the real tree
-
-@test "the checked-in backends satisfy the gate" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}

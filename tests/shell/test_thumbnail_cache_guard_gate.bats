@@ -250,15 +250,6 @@ void Panel::load() {
 
 # --- the tree itself --------------------------------------------------------
 
-@test "src/ is clean under the gate today" {
-    # The ratchet. src/ was migrated off the legacy overloads entirely; this
-    # pins that state, and is what fails the moment a new consumer reaches for
-    # the unguarded form.
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [ -z "$output" ]
-}
-
 @test "the gate is wired into quality-checks.sh" {
     # A gate nothing runs is not a gate.
     run grep -c 'check_thumbnail_cache_guard.py' scripts/qc/decl_ui.sh

@@ -115,10 +115,3 @@ run_gate() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"improved"* ]]
 }
-
-# ------------------------------------------------------------------- the real tree
-
-@test "the checked-in tree is within its committed baseline" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}

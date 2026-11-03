@@ -224,13 +224,6 @@ void f(const nlohmann::json& response) {
 
 # --- gate wiring ------------------------------------------------------------
 
-@test "the repo is at or below the rule-2 baseline" {
-    # The invocation quality-checks.sh makes. Both rules must be green.
-    run python3 "$GATE" --max-allowed 0 --summary
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Uncatchable const json operator[]"* ]]
-}
-
 @test "rule 1 behaviour is unchanged by the rule-2 addition" {
     run python3 "$GATE" --rule 1 --max-allowed 0 --summary
     [ "$status" -eq 0 ]

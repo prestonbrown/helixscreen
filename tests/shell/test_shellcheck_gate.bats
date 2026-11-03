@@ -144,26 +144,6 @@ gate_scripts() {
     fi
 }
 
-@test "every non-baselined script under scripts/ is clean" {
-    # This is the assertion CI enforces. If it fails, either fix the script or
-    # you are about to widen the baseline, which is not allowed to grow.
-    local baseline dirty=""
-    baseline=$(gate_baseline)
-
-    while IFS= read -r f; do
-        [ -z "$f" ] && continue
-        printf '%s\n' "$baseline" | grep -Fxq "$f" && continue
-        if ! check_as_gate_does "$f" >/dev/null; then
-            dirty="$dirty $f"
-        fi
-    done <<< "$(gate_scripts)"
-
-    if [ -n "$dirty" ]; then
-        echo "unbaselined scripts fail shellcheck:$dirty" >&2
-        return 1
-    fi
-}
-
 @test "the baseline extractor matches the file's shape" {
     # Canary against a silently-broken extractor: with the baseline empty,
     # tests 7-9 above pass vacuously, so the extractor must provably return
