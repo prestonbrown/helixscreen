@@ -50,6 +50,15 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     PrintStartCollector(helix::IMoonrakerClient& client, helix::PrinterState& state);
 
+    /**
+     * @brief Create a PrintStartCollector whose destruction always runs on the main thread
+     *
+     * Network callbacks hold references, so the last one can drop on any thread, and the
+     * destructor deletes an LVGL timer.
+     */
+    static std::shared_ptr<PrintStartCollector> create(helix::IMoonrakerClient& client,
+                                                       helix::PrinterState& state);
+
     ~PrintStartCollector();
 
     // Non-copyable

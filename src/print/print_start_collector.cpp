@@ -101,6 +101,15 @@ PrintStartCollector::PrintStartCollector(IMoonrakerClient& client, PrinterState&
     spdlog::debug("[PrintStartCollector] Constructed");
 }
 
+std::shared_ptr<PrintStartCollector> PrintStartCollector::create(IMoonrakerClient& client,
+                                                                 PrinterState& state) {
+    return std::shared_ptr<PrintStartCollector>(
+        new PrintStartCollector(client, state), [](PrintStartCollector* collector) {
+            helix::ui::run_on_main("PrintStartCollector::destroy",
+                                   [collector]() { delete collector; });
+        });
+}
+
 PrintStartCollector::~PrintStartCollector() {
     // Don't call stop() here - it uses client_ and state_ references which may
     // already be destroyed during static destruction order. Callers should
@@ -305,7 +314,9 @@ void PrintStartCollector::start() {
         eta_timer_ = lv_timer_create(
             [](lv_timer_t* timer) {
                 auto* collector = static_cast<PrintStartCollector*>(lv_timer_get_user_data(timer));
-                if (collector) {
+                // An unowned collector is waiting for its queued destruction:
+                // shared_from_this() would throw.
+                if (collector && !collector->weak_from_this().expired()) {
                     collector->update_eta_display();
                     collector->check_fallback_completion();
                 }
