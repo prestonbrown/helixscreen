@@ -988,3 +988,19 @@ TEST_CASE("DebugBundleCollector: collect() carries a touch section",
     // the honest "unavailable" shape rather than a wall of zeroes.
     REQUIRE(bundle["touch"].contains("available"));
 }
+
+TEST_CASE("touch_range_violation: a guessed range with no declaration proves nothing",
+          "[touch][touch-diagnostics]") {
+    TouchPipelineInfo cfg = make_display_size_pipeline(4095, 4095, 800, 480);
+    cfg.declared_valid = false;
+    cfg.declared_min_x = cfg.declared_max_x = 0;
+    cfg.declared_min_y = cfg.declared_max_y = 0;
+    const TouchObservedExtremes obs = observe_all({{3000, 3000}, {100, 100}});
+
+    CHECK_FALSE(touch_range_violation(obs, cfg).any());
+
+    // A Declared range is judged on its own edges whatever the query said.
+    TouchPipelineInfo declared = make_pipeline(0, 800, 0, 480);
+    declared.declared_valid = false;
+    CHECK(touch_range_violation(obs, declared).any());
+}

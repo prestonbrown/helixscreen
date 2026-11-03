@@ -20,13 +20,13 @@ bool write_backup_file(const std::string& src_path, const std::string& backup_pa
                        std::string* why) {
     auto fail = [&](const char* step) {
         const int err = errno;
+        const std::string reason = err != 0 ? std::strerror(err) : "unknown error";
         if (why) {
-            *why = std::string(step) + ": " + std::strerror(err);
+            *why = std::string(step) + ": " + reason;
         }
         // Debug only: write_rolling_backup() warns once if BOTH tiers fail, and a
         // primary-only failure (/var/lib not writable, the $HOME tier works) is normal.
-        spdlog::debug("[Config] Backup to {} failed at {}: {}", backup_path, step,
-                      std::strerror(err));
+        spdlog::debug("[Config] Backup to {} failed at {}: {}", backup_path, step, reason);
         return false;
     };
 
@@ -41,15 +41,18 @@ bool write_backup_file(const std::string& src_path, const std::string& backup_pa
     // Ensure parent directory exists (create if needed for $HOME fallback)
     std::string parent{hfs::parent_path(backup_path)};
     if (!parent.empty() && !hfs::exists(parent)) {
+        errno = 0;
         if (!hfs::create_directories(parent)) {
             return fail("mkdir");
         }
     }
 
+    errno = 0;
     const auto data = helix::text_io::read_file(src_path);
     if (!data) {
         return fail("read");
     }
+    errno = 0;
     if (!helix::text_io::write_file_atomic(backup_path, *data)) {
         return fail("write");
     }

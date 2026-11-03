@@ -670,6 +670,11 @@ TouchRangeViolation touch_range_violation(const TouchObservedExtremes& observed,
     // raw axes, so the raw axis feeding each configured one is the one compared.
     const bool judged_against_declared = configured.source == TouchRangeSource::DisplaySize ||
                                          configured.source == TouchRangeSource::Stored;
+    if (configured.source == TouchRangeSource::DisplaySize && !configured.declared_valid) {
+        // A guess with no declaration behind it proves no reading impossible. A
+        // Stored range came from a calibration, so it stands on its own.
+        return TouchRangeViolation{};
+    }
     if (judged_against_declared && configured.declared_valid) {
         const bool swap = configured.swap_axes;
         violation.x = violation.x &&
