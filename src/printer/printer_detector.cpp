@@ -1285,7 +1285,7 @@ std::string PrinterDetector::apply_preset_with_variants(helix::Config* config,
     }
 
     config->set_preset(applied);
-    helix::reload_sensor_roles_after_preset();
+    helix::reload_settings_after_preset();
     return applied;
 }
 
@@ -1887,7 +1887,7 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         std::string saved_preset = get_preset_for_name(saved_type);
         if (!saved_preset.empty()) {
             if (config->apply_preset_file(saved_preset)) {
-                helix::reload_sensor_roles_after_preset();
+                helix::reload_settings_after_preset();
             }
         }
         // Apply the saved type to PrinterState for the same reason the

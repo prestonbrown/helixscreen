@@ -22,8 +22,8 @@ class M300SoundBackend : public SoundBackend {
   public:
     /// Callback type for sending G-code strings (e.g., wrapping MoonrakerClient::gcode_script)
     using GcodeSender = std::function<int(const std::string&)>;
-    /// Whether Klipper is executing G-code (idle_timeout "Printing"); called on
-    /// the sequencer thread, so it must be thread-safe.
+    /// Whether a print job is running; called on the sequencer thread, so it
+    /// must be thread-safe.
     using PrinterBusy = std::function<bool()>;
 
     /// @param sender  Function that sends a G-code string. May be empty/null (safe no-op).

@@ -21,6 +21,7 @@
 #include "plr_backend.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h" // For enum definitions
+#include "sound_manager.h"
 #include "state/subject_macros.h"
 #include "unit_conversions.h"
 
@@ -649,6 +650,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
                               state_str, static_cast<int>(new_state),
                               static_cast<int>(current_state));
                 lv_subject_set_int(&print_state_enum_, static_cast<int>(new_state));
+                SoundManager::instance().set_printer_busy(new_state == PrintJobState::PRINTING);
                 publish_lifecycle_state();
                 reconcile_preparing();
             }
