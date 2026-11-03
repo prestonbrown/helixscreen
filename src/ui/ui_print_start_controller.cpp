@@ -790,6 +790,13 @@ bool PrintStartController::apply_filament_remaps() {
         if (!sends_remap(m)) {
             continue;
         }
+        // A slot number names a lane only within its own backend.
+        if ((m.mapped_backend < 0 ? 0 : m.mapped_backend) != backend_idx) {
+            spdlog::warn("[PrintStartController] T{} is mapped to backend {}, not the remapped "
+                         "backend {}: not sent",
+                         m.tool_index, m.mapped_backend, backend_idx);
+            continue;
+        }
 
         // Check if this mapping differs from current firmware mapping
         int current_slot = -1;

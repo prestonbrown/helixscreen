@@ -804,6 +804,25 @@ TEST_CASE("identity_filtered_remap agrees with the seed under the same routing",
     }
 }
 
+TEST_CASE("identity_filtered_remap sends only the primary backend's slots",
+          "[filament_mapper][remap][multi_backend]") {
+    // The remap goes out against backend 0's routing, where slot 2 is backend 0's
+    // own lane 3. A pick of backend 1's slot 2 names a different lane.
+    std::vector<ToolMapping> m(3);
+    m[0].tool_index = 0;
+    m[0].mapped_slot = 1;
+    m[0].mapped_backend = 0;
+    m[1].tool_index = 1;
+    m[1].mapped_slot = 2;
+    m[1].mapped_backend = 1;
+    m[2].tool_index = 2;
+    m[2].mapped_slot = 3;
+    m[2].mapped_backend = -1; // primary
+    const std::map<int, int> expected = {{0, 1}, {2, 3}};
+    CHECK(FilamentMapper::identity_filtered_remap(m, helix::FirmwareRouting::identity()) ==
+          expected);
+}
+
 // =============================================================================
 // compute_defaults — backend index propagation
 // =============================================================================

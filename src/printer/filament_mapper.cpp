@@ -131,6 +131,11 @@ std::map<int, int> FilamentMapper::identity_filtered_remap(const std::vector<Too
                                                            const FirmwareRouting& routing) {
     std::map<int, int> remap;
     for (const auto& m : mappings) {
+        // The routing and the slot numbers sent are the primary backend's; a slot
+        // on another backend shares only its number with a lane there.
+        if (m.mapped_backend > 0) {
+            continue;
+        }
         if (m.mapped_slot >= 0 && m.mapped_slot != routing.head(m.tool_index)) {
             remap[m.tool_index] = m.mapped_slot;
         }

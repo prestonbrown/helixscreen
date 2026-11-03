@@ -320,7 +320,9 @@ class FilamentMapper {
     ///
     /// Identity mappings are omitted: the firmware already routes a tool to
     /// @p routing.head(tool), so emitting them would be noise. Entries with no
-    /// real slot assignment (mapped_slot < 0) are skipped.
+    /// real slot assignment (mapped_slot < 0) are skipped, and so are entries on
+    /// a backend other than the primary (mapped_backend > 0): @p routing and the
+    /// slot numbers sent are the primary backend's.
     ///
     /// @p routing MUST be the same map the seed used, or a lane-per-tool
     /// identity reads as a genuine remap and gets emitted.
