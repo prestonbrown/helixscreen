@@ -60,7 +60,7 @@ namespace helix {
  */
 class BusyEpisodeOwner {
   public:
-    using clock = std::chrono::steady_clock;
+    using clock = BusyClock;
     static constexpr std::chrono::seconds kGraceWindow{2};
     /// Longest a busy episode can pass as the app's own after its last activity.
     static constexpr std::chrono::seconds kMaxSelfBusy{30};

@@ -23,7 +23,7 @@ namespace helix {
  */
 class AppMotionActivity {
   public:
-    using clock = std::chrono::steady_clock;
+    using clock = BusyClock;
     static constexpr std::chrono::seconds kGraceWindow = BusyEpisodeOwner::kGraceWindow;
     /// Longest a busy episode can pass as the app's own after its last send.
     static constexpr std::chrono::seconds kMaxSelfBusy = BusyEpisodeOwner::kMaxSelfBusy;
