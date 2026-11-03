@@ -103,3 +103,15 @@ TEST_CASE("v33 touches no other printer", "[config][migration][ad5m]") {
         CHECK(config["printers"]["a"] == printer);
     }
 }
+
+TEST_CASE("v33 reads a root-level preset marker for the active printer only",
+          "[config][migration][ad5m]") {
+    json config =
+        migrate({{"active_printer_id", "a"},
+                 {"preset", "ad5m_pro_zmod"},
+                 {"printers",
+                  {{"a", {{"fans", old_preset_fans()}}}, {"b", {{"fans", old_preset_fans()}}}}}});
+    CHECK(config["printers"]["a"]["fans"]["aux"] == kSideFan);
+    CHECK_FALSE(config["printers"]["a"]["fans"].contains("exhaust"));
+    CHECK(config["printers"]["b"]["fans"] == old_preset_fans());
+}
