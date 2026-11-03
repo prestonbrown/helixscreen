@@ -678,6 +678,27 @@ helix_app_lock_release() {
     return 0
 }
 
+# A stand-in for another process holding a flock: takes <lock file> on fd 9,
+# writes <holder format> into it (its %s is the test's pid), touches
+# <ready marker> and holds the lock until killed. Prints the holder's pid.
+#
+# Killing that pid releases the lock and ends the holder's sleep with it.
+# Neither keeps bats' output fd 3 open, which bats waits on before it ends
+# the file, so a holder never adds its sleep to the file's run time.
+hold_flock() { # <lock file> <ready marker> <holder format>
+    (
+        exec 9>>"$1"
+        flock 9
+        # shellcheck disable=SC2059
+        printf "$3\n" "$$" >&9
+        sleep 30 9>&- &
+        trap 'kill $! 2>/dev/null; exit 0' TERM
+        touch "$2"
+        wait
+    ) >/dev/null 2>&1 3>&- &
+    echo $!
+}
+
 # A SUDO stand-in that runs everything for real except an rm outside $1.
 #
 # clean_old_installation rm -f's real /etc paths (polkit and udev rules) that a

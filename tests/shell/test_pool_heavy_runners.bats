@@ -154,6 +154,44 @@ test_shell() {
     ! contains "FILE" "$output"
 }
 
+# make test-shell with the fake bats on a PATH from which GNU parallel is
+# gone: each directory that holds one is replaced by a copy of its links
+# without it.
+test_shell_without_parallel() {
+    printf '#!/bin/sh\necho "BATS $*"\n' > "$BIN/bats"
+    chmod +x "$BIN/bats"
+    local d p="" n=0 shadow IFS=:
+    for d in $(path_without_jobpool); do
+        if [ -e "$d/parallel" ]; then
+            n=$((n + 1)); shadow="$BATS_TEST_TMPDIR/no-parallel-$n"
+            [ -d "$shadow" ] || { mkdir "$shadow" &&
+                ls "$d" | grep -vx parallel | sed "s|^|$d/|" | xargs sh -c 'ln -s "$@" "$0"' "$shadow"; }
+            d=$shadow
+        fi
+        p=${p:+$p:}$d
+    done
+    unset IFS
+    (cd "$(scratch_tree)" && env PATH="$BIN:$p" make -s --no-print-directory test-shell "$@" 2>&1)
+}
+
+@test "make test-shell without GNU parallel refuses to run serially unless allowed" {
+    no_pool
+    run test_shell_without_parallel
+    [ "$status" -ne 0 ]
+    contains "GNU parallel not found" "$output"
+    contains "apt install parallel" "$output"
+    contains "BATS_ALLOW_SERIAL=1" "$output"
+    ! contains "BATS " "$output"
+    run test_shell_without_parallel BATS_ALLOW_SERIAL=1
+    [ "$status" -eq 0 ]
+    contains "BATS tests/shell/" "$output"
+    # A gate never runs it serially, allowed or not.
+    run test_shell_without_parallel BATS_ALLOW_SERIAL=1 BATS_REQUIRED=1
+    [ "$status" -ne 0 ]
+    contains "GNU parallel not found" "$output"
+    ! contains "BATS " "$output"
+}
+
 # ---------------------------------------------------------------------------
 # parallel-jobs-file.sh: bats's parallel, reading the slot file
 # ---------------------------------------------------------------------------

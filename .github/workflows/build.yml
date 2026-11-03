@@ -744,12 +744,10 @@ jobs:
 
     # make test-shell runs the files in parallel, one per slot of
     # `helix-claim jobs`; bare bats runs them one after another, which on this
-    # 4-core runner takes most of the job's timeout. A runner without GNU
-    # parallel would fall back to the serial run, so its absence is an error.
+    # 4-core runner takes most of the job's timeout. Under BATS_REQUIRED=1 it
+    # fails rather than run serially when GNU parallel is missing.
     - name: Run shell tests
-      run: |
-        command -v parallel >/dev/null || { echo "::error::GNU parallel is missing: make test-shell would run bats serially"; exit 1; }
-        make test-shell BATS_REQUIRED=1
+      run: make test-shell BATS_REQUIRED=1
 
   # The plugin runs inside each printer's own Moonraker, on Python 3.8 (K1C,
   # Buildroot 2020.02) up to 3.13; test-ubuntu runs the suite on 3.11. This
