@@ -12,7 +12,9 @@
 #include <spdlog/spdlog.h>
 
 #include <chrono>
+#include <mutex>
 #include <string>
+#include <unordered_set>
 
 using namespace helix;
 
@@ -72,6 +74,8 @@ SpoolInfo helix::spoolman_detail::parse_spool_info(const nlohmann::json& spool_j
             if (auto k = parse_extra_number(filament["extra"], kSpoolmanPaExtraKey)) {
                 info.pressure_advance = static_cast<float>(*k);
             }
+            info.orca_filament_id =
+                helix::spoolman_detail::parse_extra_orca_filament_id(filament["extra"]);
         }
 
         // Fallback: use filament definition weight when spool initial_weight is null/0.
@@ -121,6 +125,32 @@ std::optional<double> helix::spoolman_detail::parse_extra_number(const nlohmann:
         return helix::text_io::parse_leading<double>(decoded.get<std::string>());
     }
     return std::nullopt;
+}
+
+std::string helix::spoolman_detail::parse_extra_orca_filament_id(const nlohmann::json& extra) {
+    if (!extra.is_object()) {
+        return {};
+    }
+    auto it = extra.find(kSpoolmanOrcaIdExtraKey);
+    if (it == extra.end() || !it->is_string()) {
+        return {};
+    }
+    const std::string& raw = it->get_ref<const std::string&>();
+    const auto decoded = nlohmann::json::parse(raw, nullptr, false);
+    std::string id = decoded.is_string() ? decoded.get<std::string>() : std::string{};
+    if (is_usable_orca_filament_id(id)) {
+        return id;
+    }
+    // Every poll reparses every linked spool, so a refused value is reported
+    // the first time it is seen rather than once per fetch.
+    static std::mutex s_logged_mutex;
+    static std::unordered_set<std::string> s_logged;
+    std::lock_guard<std::mutex> lock(s_logged_mutex);
+    if (s_logged.insert(raw).second) {
+        spdlog::debug("[Spoolman] Ignoring filament extra {}={}: not a usable OrcaSlicer id",
+                      kSpoolmanOrcaIdExtraKey, raw);
+    }
+    return {};
 }
 
 std::string helix::spoolman_detail::encode_extra_number(const std::string& field_type,

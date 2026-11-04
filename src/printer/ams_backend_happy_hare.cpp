@@ -1412,6 +1412,7 @@ void AmsBackendHappyHare::retire_departed_identity_locked(int gate) {
     entry->info.product_name.clear();
     entry->info.spoolman_vendor_id = 0;
     entry->info.spoolman_filament_id = 0;
+    entry->info.spoolman_orca_filament_id.clear();
     entry->info.remaining_weight_g = -1.0F;
     entry->info.total_weight_g = -1.0F;
 }

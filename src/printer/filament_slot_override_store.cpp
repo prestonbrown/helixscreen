@@ -14,6 +14,7 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "moonraker_error.h"
+#include "spoolman_types.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
@@ -38,6 +39,10 @@
 namespace helix::ams {
 
 namespace {
+
+/// helix_filament_id_source's value on a record whose `filament_id` is the
+/// linked spool's own Orca id rather than the catalog pick's.
+constexpr const char* kFilamentIdSourceSpoolman = "spoolman";
 
 // Outer Moonraker DB key for a slot. NOTE the two styles have DIFFERENT bases:
 //   Lane -> "lane<i+1>"  (1-based, AFC/Happy Hare convention)
@@ -390,14 +395,20 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     // namespace. Emitted independently: a pick whose id later stops resolving
     // still has a name worth keeping, and a name with no id is a legitimate
     // half-record rather than a reason to drop both.
-    if (!o.catalog_id.empty()) {
+    if (!o.catalog_id.empty())
         j["helix_catalog_id"] = o.catalog_id;
-        // OrcaSlicer matches a string `filament_id` against its presets' own
-        // filament_id and picks that exact preset over the generic one for the
-        // material. Only an id the catalog records for this one product goes
-        // here, never a guess and never one several products share. Orca
-        // ignores a numeric `filament_id` (Happy Hare's Spoolman id, in its own
-        // records).
+    // OrcaSlicer matches a string `filament_id` against its presets' own
+    // filament_id and picks that exact preset over the generic one for the
+    // material. The linked spool's own id comes first, because the tracker
+    // wins on identity (lane-status-spec RFC 0001 §6); otherwise only an id the
+    // catalog records for this one product goes here, never a guess and never
+    // one several products share. Orca ignores a numeric `filament_id` (Happy
+    // Hare's Spoolman id, in its own records). helix_filament_id_source names
+    // the Spoolman case so a read-back can tell the two apart.
+    if (!o.spoolman_orca_filament_id.empty()) {
+        j["filament_id"] = o.spoolman_orca_filament_id;
+        j["helix_filament_id_source"] = kFilamentIdSourceSpoolman;
+    } else if (!o.catalog_id.empty()) {
         if (std::string orca = helix::printer::FilamentCatalog::orca_id_for(o.catalog_id);
             !orca.empty())
             j["filament_id"] = std::move(orca);
@@ -536,6 +547,13 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     // different field, and reading it here would file a foreign statement as a
     // Spoolman binding's definition id.
     o.spoolman_filament_id = helix::json_util::safe_int(j, "helix_spoolman_filament_id", 0);
+    // Only an id our own record says came from Spoolman: a catalog-derived one
+    // is recomputed on emit, and another tool's `filament_id` is not ours.
+    if (helix::json_util::safe_string(j, "helix_filament_id_source") == kFilamentIdSourceSpoolman) {
+        std::string orca = helix::json_util::safe_string(j, "filament_id");
+        if (helix::is_usable_orca_filament_id(orca))
+            o.spoolman_orca_filament_id = std::move(orca);
+    }
     o.remaining_weight_g = helix::json_util::safe_float(j, "remaining_weight_g", -1.0f);
     o.total_weight_g = helix::json_util::safe_float(j, "total_weight_g", -1.0f);
     o.color_name = helix::json_util::safe_string(j, "color_name");
@@ -601,6 +619,7 @@ nlohmann::json to_json(const FilamentSlotOverride& o) {
         {"spoolman_id", o.spoolman_id},
         {"spoolman_filament_id", o.spoolman_filament_id},
         {"spoolman_vendor_id", o.spoolman_vendor_id},
+        {"spoolman_orca_filament_id", o.spoolman_orca_filament_id},
         {"remaining_weight_g", o.remaining_weight_g},
         {"total_weight_g", o.total_weight_g},
         {"color_rgb", o.color_rgb},
@@ -630,6 +649,7 @@ FilamentSlotOverride from_json(const nlohmann::json& j) {
     o.spoolman_id = helix::json_util::safe_int(j, "spoolman_id", 0);
     o.spoolman_filament_id = helix::json_util::safe_int(j, "spoolman_filament_id", 0);
     o.spoolman_vendor_id = helix::json_util::safe_int(j, "spoolman_vendor_id", 0);
+    o.spoolman_orca_filament_id = helix::json_util::safe_string(j, "spoolman_orca_filament_id");
     o.remaining_weight_g = helix::json_util::safe_float(j, "remaining_weight_g", -1.0f);
     o.total_weight_g = helix::json_util::safe_float(j, "total_weight_g", -1.0f);
     // Read color_rgb through the u64 helper rather than safe_int: the field is a
@@ -701,6 +721,7 @@ FilamentSlotOverride user_override_from_slot_info(const Observation& declaration
     ovr.spoolman_id = edited.spoolman_id;
     ovr.spoolman_filament_id = edited.spoolman_filament_id;
     ovr.spoolman_vendor_id = edited.spoolman_vendor_id;
+    ovr.spoolman_orca_filament_id = edited.spoolman_orca_filament_id;
     ovr.remaining_weight_g = edited.remaining_weight_g;
     ovr.total_weight_g = edited.total_weight_g;
     ovr.color_name = edited.color_name;
@@ -2143,6 +2164,10 @@ bool persist_override_external_identity(FilamentSlotOverrideStore* store,
     take(ovr.spool_name, spoolman.spool_name);
     take(ovr.spoolman_vendor_id, spoolman.spoolman_vendor_id);
     take(ovr.spoolman_filament_id, spoolman.spoolman_filament_id);
+    // A fetch states the filament whole, so a filament that no longer names an
+    // Orca preset takes the record's id away with it.
+    take(ovr.spoolman_orca_filament_id,
+         std::optional<std::string>(spoolman.spoolman_orca_filament_id.value_or(std::string{})));
 
     // The colour is the one identity field a linked record can declare, and a
     // declared colour is the user's to keep.
@@ -2214,6 +2239,7 @@ FilamentSlotOverride external_lane_record(const SlotInfo& spool) {
     ovr.spoolman_id = spool.spoolman_id;
     ovr.spoolman_filament_id = spool.spoolman_filament_id;
     ovr.spoolman_vendor_id = spool.spoolman_vendor_id;
+    ovr.spoolman_orca_filament_id = spool.spoolman_orca_filament_id;
     ovr.remaining_weight_g = spool.remaining_weight_g;
     ovr.total_weight_g = spool.total_weight_g;
     ovr.catalog_id = spool.catalog_id;

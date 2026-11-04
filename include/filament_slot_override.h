@@ -99,6 +99,10 @@ struct FilamentSlotOverride {
     int spoolman_id = 0;
     int spoolman_filament_id = 0;
     int spoolman_vendor_id = 0;
+    // The linked spool's OrcaSlicer preset id, from its Spoolman filament.
+    // Emitted as the lane_data record's `filament_id` ahead of the catalog
+    // pick's, and dropped with the rest of the binding on unlink.
+    std::string spoolman_orca_filament_id;
     float remaining_weight_g = -1.0f;
     float total_weight_g = -1.0f;
     // Hardware-truth fields, override-wins.
