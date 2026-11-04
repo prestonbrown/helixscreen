@@ -2088,7 +2088,7 @@ The build compiles ~566 app source files. The dominant cost is **template instan
 
 With ccache installed, touching these headers without content changes costs ~8s (direct cache hit). Actual content changes recompile all dependents (~2 min at `-O2`, ~1 min at `-O0`).
 
-**Forced include** (`include/lvgl_pch.h`, `$(FORCED_INCLUDE)` in the Makefile): covers LVGL, helix-xml, spdlog, nlohmann JSON, and common STL headers, and is passed as `-include` to every app and test C++ source, so many sources compile only because of it. It is an ordinary header, not precompiled: every TU parses it and tracks it through its `.d` file, so editing it rebuilds every C++ object. Don't add project headers to it — only stable external libraries. LVGL's own C++ sources (ThorVG, compiled out by `lv_conf.h`) do not get it.
+**Forced include** (`include/lvgl_pch.h`, `$(FORCED_INCLUDE)` in the Makefile): covers LVGL, helix-xml and common STL headers, and is passed as `-include` to every app and test C++ source, so many sources compile only because of it. It is an ordinary header, not precompiled: every TU parses it and tracks it through its `.d` file, so editing it rebuilds every C++ object. Don't add project headers to it — only stable external libraries. spdlog and nlohmann JSON stay out: a source that logs or builds a json includes them itself, and a header that only names `json` by reference, pointer or return type includes `json_fwd.h`. LVGL's own C++ sources (ThorVG, compiled out by `lv_conf.h`) do not get it.
 
 #### ccache across worktrees and Docker cross-builds
 

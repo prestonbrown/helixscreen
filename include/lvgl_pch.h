@@ -8,6 +8,8 @@
 // 1. Used frequently across many translation units
 // 2. Rarely change (external libraries, stable APIs)
 // 3. Heavy to parse (LVGL, STL containers)
+// spdlog and nlohmann json are heavy too, but a source that logs or builds a json
+// includes them itself, and one that does neither should not pay to parse them.
 
 #pragma once
 
@@ -33,7 +35,3 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
-// spdlog (used in nearly every file)
-#include "spdlog/fmt/fmt.h"
-#include "spdlog/spdlog.h"
