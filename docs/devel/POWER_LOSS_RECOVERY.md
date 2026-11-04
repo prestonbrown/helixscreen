@@ -14,12 +14,12 @@ Code map:
 |------|------|
 | `include/plr_backend.h`, `src/printer/plr_backend.cpp` | The one module that knows which firmware carries which mechanism: a provider table (status fields to subscribe, selection markers, availability and recovery-file rules) with the capability questions as free functions (`plr_required_status_fields`, `plr_parse_*`, `plr_offer_availability`, `plr_build_plan`). No LVGL, no network. |
 | `include/plr_offer.h`, `src/printer/plr_offer.cpp` | Pure offer decision (`plr_should_offer`) and latch re-arm rule (`plr_should_rearm`). |
-| `include/plr_offer_controller.h`, `src/ui/ui_plr_offer_controller.cpp` | App-lifetime controller. Observers, one-shot latches, firing the recovery probe; asks `plr_offer_availability` for the one "recovery available" signal and never names a firmware. |
+| `include/plr_offer_controller.h`, `src/ui/print/ui_plr_offer_controller.cpp` | App-lifetime controller. Observers, one-shot latches, firing the recovery probe; asks `plr_offer_availability` for the one "recovery available" signal and never names a firmware. |
 | `src/ui/ui_plr_prompt.{h,cpp}` | The modal and its two button actions. Backend-agnostic — it executes a `PlrRecoveryPlan`. |
 | `src/printer/printer_print_state.cpp` | Feeds the status payload through the `plr_parse_*` readers into the capability subjects. |
 | `include/plr_wizard.h`, `src/printer/plr_wizard.cpp` | GENERIC: readers for the plugin's `server.helix.plr.*` replies and the wizard's pure decisions (bed state, confirmations, commit gate, step machine). |
 | `include/plr_plugin_rpc.h`, `src/printer/plr_plugin_rpc.cpp` | The endpoints as calls: the plugin's (GENERIC), and the firmware's recovery probe (`request_recovery_probe`) and RPC discard (`discard_with_rpc`). |
-| `include/ui_plr_wizard_overlay.h`, `src/ui/ui_plr_wizard_overlay.cpp`, `ui_xml/plr_wizard_overlay.xml` | GENERIC: the resume wizard. |
+| `include/ui_plr_wizard_overlay.h`, `src/ui/print/ui_plr_wizard_overlay.cpp`, `ui_xml/plr_wizard_overlay.xml` | GENERIC: the resume wizard. |
 | `include/plr_profile.h`, `src/printer/plr_profile.cpp` | GENERIC: the printer database `plr` block, its resolution with the user's overrides, and the `plr_profile` / `plr_user` records. |
 | `src/api/moonraker_client_mock_plr.cpp` | The mock plugin's endpoints (`HELIX_MOCK_PLR*`, `MOCK_ENVIRONMENT_VARIABLES.md`). |
 
@@ -905,7 +905,7 @@ unchanged.
 
 The `printer_idle` input comes from the derived lifecycle, not the wire: the
 controller computes `idle = !job_holds_machine(get_print_lifecycle())`
-(`src/ui/ui_plr_offer_controller.cpp#idle`). During a host-side pre-print block
+(`src/ui/print/ui_plr_offer_controller.cpp#idle`). During a host-side pre-print block
 `print_stats` still reads `standby` — it describes the previous job — so an
 idle check derived from the wire would offer "Resume interrupted print?" on top
 of a start the user has already committed to, and the Resume button would start

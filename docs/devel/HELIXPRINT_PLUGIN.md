@@ -748,7 +748,7 @@ Who already switches the active spool (source survey, 2026-10-20):
 | `include/ams_backend.h#feed_slot_signals` | Capability: the status fields that say which slot feeds now. INDX: `save_variables.variables.active_tool` (one extruder with docked nozzles, so `toolhead.extruder` never changes) |
 | `include/ams_backend.h#sets_active_spool_on_link` | Capability: the firmware sets the active spool itself when the loaded lane is linked (AFC) |
 | `src/printer/ams_state.cpp#commit_slot_edit`, `src/printer/ams_state_external_spool.cpp` | The explicit edits: a lane link or unlink, the external spool |
-| `src/ui/ui_panel_history_list.cpp#fetch_spool_usage` | History detail's Spools lines |
+| `src/ui/print/ui_panel_history_list.cpp#fetch_spool_usage` | History detail's Spools lines |
 
 **Records.** The app writes `helix-screen` / `filament_spools` = `{"version": 1,
 "manages_active_spool", "printer_switches_active_spool", "macros_set_active_spool", "signals":
@@ -917,7 +917,7 @@ switch: Settings > Devices > Print photos.
 | `moonraker-plugin/helix_photos.py` | Pure rules (`layer_two_done`, `pick_webcam`, `pick_snapshot_url`, `snapshot_candidates`, `redirect_allowed`, `photo_path`, `with_photo`, `newer_record`, `history_matches`, `prune_plan`, `orphan_files`) and `HelixPhotos` (history and status handlers, reachability, capture, record, aux link, prune, `delete_older_than`) |
 | `include/print_photos.h`, `src/printer/print_photos.cpp` | Constants (`kPhotosDir`), `photo_taker`, `layer_two_done`, `ends_with_photo`, `is_photo_path`, record and aux parsers, `photo_record_with`, `photo_record_is_newer`, `merge_photo_lists`, `photo_records_to_prune`; firmware-compiled |
 | `include/print_photos_controller.h`, `src/printer/print_photos_controller.cpp` | `PrintPhotosController`, the app fallback, owned by `SubjectInitializer` |
-| `include/ui_history_photos.h`, `src/ui/ui_history_photos.cpp` | `HistoryPhotoViewer`: the detail card's photos, `default_photo_view`, `photo_for_view`, `delete_photos` |
+| `include/ui_history_photos.h`, `src/ui/print/ui_history_photos.cpp` | `HistoryPhotoViewer`: the detail card's photos, `default_photo_view`, `photo_for_view`, `delete_photos` |
 | `include/webcam_selection.h#photo_pick`, `src/api/webcam_selection.cpp#view_config_for` | The camera both sides photograph; the flip and rotation a photo is shown with |
 | `include/camera_stream.h#camera_view_transform` | That transform as the camera widget applies it |
 

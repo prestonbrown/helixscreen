@@ -371,7 +371,7 @@ void QueuedJobStarter::finish(Outcome outcome) {
 }
 
 namespace {
-// Never destructed, for the reason src/ui/job_queue_start.cpp#queue_modal
+// Never destructed, for the reason src/ui/print/job_queue_start.cpp#queue_modal
 // gives: its controller would tear down after lv_deinit().
 QueuedJobStarter* s_starter = nullptr;
 } // namespace

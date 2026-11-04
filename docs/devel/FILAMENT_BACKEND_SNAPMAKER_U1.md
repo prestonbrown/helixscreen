@@ -553,7 +553,7 @@ the unload-at-end list (`end_unload_gcode()`), which needs no routing. So an emp
 exactly that: a reprint with no recorded task map
 (`src/ui/print/ui_print_start_controller.cpp#reprint_impl`) and a restart from the beginning,
 which appends them after its `CANCEL_PRINT_BASE`
-(`src/ui/ui_resume_dispatch.cpp#restart_print_from_beginning`). Full command
+(`src/ui/print/ui_resume_dispatch.cpp#restart_print_from_beginning`). Full command
 semantics — logical (0-31) vs physical (0-3) index rules, persistence behavior, the
 `filament_official` FORCE gate — live in
 [Firmware API: `print_task_config`](#firmware-api-print_task_config) below.

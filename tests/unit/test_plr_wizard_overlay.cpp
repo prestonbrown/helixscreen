@@ -17,7 +17,7 @@
 #include "ui_nav_manager.h"
 #include "ui_plr_wizard_overlay.h"
 
-#include "../../src/ui/ui_plr_prompt.h"
+#include "../../src/ui/print/ui_plr_prompt.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/plr_offer_controller_test_access.h"
 #include "../test_helpers/plr_wizard_overlay_test_access.h"

@@ -278,7 +278,7 @@ for the flags). It is the single place subjects are written.
 **Every cancel affordance confirms.** The Stop button is not the only way to end a
 print: the runout guidance dialog and the home "Filament Sensor" tile both offer
 **Cancel Print** while paused. Both route through the shared
-`dispatch_cancel_print()` (`src/ui/ui_resume_dispatch.cpp`), which raises its own
+`dispatch_cancel_print()` (`src/ui/print/ui_resume_dispatch.cpp`), which raises its own
 confirmation before running the `Cancel` standard macro. This was not always true -
 the runout dialog cancelled unconfirmed while the Stop button asked, so one printer
 had a confirmed cancel and an unconfirmed one side by side. Keep any new cancel

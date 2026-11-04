@@ -223,7 +223,7 @@ wins and the caller's report becomes the fallback.
 - `already_reported_via_rpc()` never suppresses a `command_refusal` event, and
   `present_recovery_modal()` clears the presenter's handled-fault memory first, so a second
   refusal shows even after the user dismissed an identical one.
-- Callers today: `dispatch_prepared_resume()` (`src/ui/ui_resume_dispatch.cpp`, the
+- Callers today: `dispatch_prepared_resume()` (`src/ui/print/ui_resume_dispatch.cpp`, the
   "Failed to resume:" toast) and `RecoveryModalPresenter::dispatch_recovery()` (the
   "Recovery failed:" toast). Pinned by `tests/unit/test_resume_refusal_report.cpp`
   (`[resume][error-router]`).

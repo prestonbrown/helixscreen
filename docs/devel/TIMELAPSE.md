@@ -218,10 +218,10 @@ not by a hostname check in the thumbnailer.
 | File | Purpose |
 |------|---------|
 | `include/ui_overlay_timelapse_install.h` | Install wizard overlay class |
-| `src/ui/ui_overlay_timelapse_install.cpp` | Wizard step implementation |
+| `src/ui/print/ui_overlay_timelapse_install.cpp` | Wizard step implementation |
 | `ui_xml/timelapse_install_overlay.xml` | Install wizard layout (step progress, SSH instructions, action button) |
 | `include/ui_overlay_timelapse_settings.h` | Settings overlay class |
-| `src/ui/ui_overlay_timelapse_settings.cpp` | Settings fetch/save, event handlers |
+| `src/ui/print/ui_overlay_timelapse_settings.cpp` | Settings fetch/save, event handlers |
 | `ui_xml/timelapse_settings_overlay.xml` | Settings layout (toggles, dropdowns) |
 | `include/ui_print_light_timelapse.h` | Print status light + timelapse button helper |
 | `src/ui/print/ui_print_light_timelapse.cpp` | Toggle handlers, subject management |
@@ -238,7 +238,7 @@ not by a hostname check in the thumbnailer.
 | `src/printer/timelapse_state.cpp` | Event dispatch, subject management, render notifications |
 | `tests/unit/test_timelapse_state.cpp` | Unit tests for TimelapseState event handling and notifications |
 | `include/ui_overlay_timelapse_videos.h` | Video browser overlay class |
-| `src/ui/ui_overlay_timelapse_videos.cpp` | Video grid, thumbnails, playback, render controls |
+| `src/ui/print/ui_overlay_timelapse_videos.cpp` | Video grid, thumbnails, playback, render controls |
 | `ui_xml/timelapse_videos_overlay.xml` | Video browser layout (render section, grid, empty state) |
 | `ui_xml/timelapse_video_card.xml` | Individual video card component (thumbnail, gradient, labels) |
 | `include/timelapse_thumbnailer.h` | Thumbnail extraction and playback utilities |

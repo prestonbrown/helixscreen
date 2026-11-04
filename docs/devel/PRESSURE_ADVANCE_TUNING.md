@@ -11,7 +11,7 @@ firmware-measured calibration is a separate screen (`include/ui_panel_calibratio
 |------|------|
 | `include/pa_tuning.h`, `src/printer/pa_tuning.cpp` | Pure logic: tower geometry, gcode generator, ramp, `BandLog`, `TuningSession` state machine, Moonraker record merge |
 | `include/ui_overlay_pa_tuning.h`, `src/ui/ui_overlay_pa_tuning.cpp`, `ui_xml/pa_tuning_overlay.xml` | The tuner: setup, running dial, band picker, result |
-| `src/ui/tune_controller.cpp#set_pressure_advance` | The one send path, shared by the tuner, the Tune overlay row and spool activation |
+| `src/ui/print/tune_controller.cpp#set_pressure_advance` | The one send path, shared by the tuner, the Tune overlay row and spool activation |
 | `ui_xml/components/tune_pa_row.xml` | The Tune overlay's live K row, both orientations |
 | `src/printer/printer_temperature_state.cpp` | Parses `extruder*.pressure_advance` / `smooth_time`; `extruder_pressure_advance` subject (K x 10000, -1 unknown) |
 | `src/api/moonraker_spoolman_api.cpp#set_spoolman_filament_extra_number` | Writes the Spoolman filament extra field, defining it first |

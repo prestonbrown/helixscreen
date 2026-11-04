@@ -28,8 +28,8 @@ filament_material_nozzle_temp  # src/ui/ui_panel_filament.cpp:299
 filament_material_selected  # src/ui/ui_panel_filament.cpp:285
 filament_temp_display  # src/ui/ui_panel_filament.cpp:281
 filament_warning_temps  # src/ui/ui_panel_filament.cpp:292
-history_detail_status_icon  # src/ui/ui_panel_history_list.cpp:938
-history_detail_status_variant  # src/ui/ui_panel_history_list.cpp:940
+history_detail_status_icon  # src/ui/print/ui_panel_history_list.cpp:938
+history_detail_status_variant  # src/ui/print/ui_panel_history_list.cpp:940
 is_current_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:269
 is_result_x_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:305
 is_result_x_quality  # src/ui/calibration/ui_panel_input_shaper.cpp:307

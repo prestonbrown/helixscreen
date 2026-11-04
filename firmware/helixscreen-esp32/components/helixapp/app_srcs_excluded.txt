@@ -271,7 +271,7 @@ src/ui/board_fingerprint.cpp  # read only by the screensaver and glass gates, ne
 src/ui/glass_painter.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
 src/ui/glass_gate.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
 src/ui/glass_shading.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
-src/ui/ipp_print_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/print/ipp_print_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/modals/ui_spaghetti_detection_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/modals/toolhead_preset_config_modal.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
 src/ui/panel_widgets/toolhead_preset_slots.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
@@ -289,9 +289,9 @@ src/ui/ui_frequency_response_chart.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_icon_loader.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_overlay_printer_image_tagger.cpp  # compiled out by HELIX_HAS_IMAGE_TAGGER=0
 src/ui/ui_overlay_qr_scanner.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_overlay_timelapse_install.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
-src/ui/ui_overlay_timelapse_settings.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
-src/ui/ui_overlay_timelapse_videos.cpp  # viewer UI is gated off here; its helix::ui entry points and the global accessors are stubbed in excluded_subsystems_stub.cpp, which is where kept callers resolve them
+src/ui/print/ui_overlay_timelapse_install.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
+src/ui/print/ui_overlay_timelapse_settings.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
+src/ui/print/ui_overlay_timelapse_videos.cpp  # viewer UI is gated off here; its helix::ui entry points and the global accessors are stubbed in excluded_subsystems_stub.cpp, which is where kept callers resolve them
 src/ui/calibration/ui_panel_bed_mesh.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_belt_path_sketch.cpp  # only the Belt Tension panel draws it; not in the v1 Core+AMS cut
 src/ui/calibration/ui_belt_gap_gauge.cpp  # only the Belt Tension panel draws it; not in the v1 Core+AMS cut

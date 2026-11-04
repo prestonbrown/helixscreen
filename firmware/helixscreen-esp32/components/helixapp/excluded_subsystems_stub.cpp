@@ -74,7 +74,7 @@ PIDCalibrationPanel& get_global_pid_cal_panel() {
     return *reinterpret_cast<PIDCalibrationPanel*>(storage);
 }
 
-// src/ui/ui_overlay_timelapse_videos.cpp
+// src/ui/print/ui_overlay_timelapse_videos.cpp
 TimelapseVideosOverlay& get_global_timelapse_videos() {
     alignas(TimelapseVideosOverlay)
         EXT_RAM_BSS_ATTR static unsigned char storage[sizeof(TimelapseVideosOverlay)];
@@ -85,11 +85,11 @@ TimelapseVideosOverlay& get_global_timelapse_videos() {
 // Global-scope free functions (no-op wiring).
 // ===========================================================================
 
-// src/ui/ui_overlay_timelapse_videos.cpp
+// src/ui/print/ui_overlay_timelapse_videos.cpp
 void init_global_timelapse_videos(helix::IMoonrakerAPI*) {}
 void open_timelapse_videos() {}
 
-// src/ui/ui_overlay_timelapse_videos.cpp, helix::ui entry points. Kept code calls
+// src/ui/print/ui_overlay_timelapse_videos.cpp, helix::ui entry points. Kept code calls
 // both: ui_panel_history_list.cpp gates a row on the availability query and opens a
 // job's video from it. Returning false is what makes the row inert here.
 namespace helix::ui {
@@ -119,7 +119,7 @@ bool timelapse_viewer_available() {
 // nothing; install registers one event_cb for XML that is never created), so
 // the no-op bodies leave no binding unsatisfied.
 //
-// src/ui/ui_overlay_timelapse_install.cpp
+// src/ui/print/ui_overlay_timelapse_install.cpp
 TimelapseInstallOverlay::TimelapseInstallOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
 void TimelapseInstallOverlay::register_callbacks() {}
 lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t*) {
@@ -136,7 +136,7 @@ TimelapseInstallOverlay& get_global_timelapse_install() {
 void init_global_timelapse_install(helix::IMoonrakerAPI*) {}
 void open_timelapse_install() {}
 
-// src/ui/ui_overlay_timelapse_settings.cpp
+// src/ui/print/ui_overlay_timelapse_settings.cpp
 TimelapseSettingsOverlay::TimelapseSettingsOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
 void TimelapseSettingsOverlay::register_callbacks() {}
 lv_obj_t* TimelapseSettingsOverlay::create(lv_obj_t*) {
