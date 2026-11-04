@@ -8,6 +8,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "i_moonraker_api.h"
+#include "printer_discovery.h"
 #include "quick_action_slots.h"
 #include "standard_macros.h"
 #include "ui/ui_widget_helpers.h"

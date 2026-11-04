@@ -15,6 +15,7 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "moonraker_error.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"

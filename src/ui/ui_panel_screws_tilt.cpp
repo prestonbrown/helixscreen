@@ -17,6 +17,7 @@
 #include "i_moonraker_client.h"
 #include "lv_draw_buf_guard.h"
 #include "moonraker_error.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "screw_tilt_surface.h"
 #include "screws_tilt_dialect.h"

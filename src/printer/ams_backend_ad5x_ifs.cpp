@@ -27,6 +27,7 @@
 #include "lane_translation.h"
 #include "post_op_cooldown_manager.h"
 #include "print_lifecycle_state.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "static_subject_registry.h"

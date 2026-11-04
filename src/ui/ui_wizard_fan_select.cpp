@@ -14,6 +14,7 @@
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
+#include "printer_discovery.h"
 #include "printer_hardware.h"
 #include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"

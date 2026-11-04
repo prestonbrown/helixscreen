@@ -21,6 +21,7 @@
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "printer_detector.h"
+#include "printer_discovery.h"
 #include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 

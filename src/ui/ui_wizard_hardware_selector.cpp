@@ -11,6 +11,7 @@
 #include "config.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
+#include "printer_discovery.h"
 #include "printer_hardware.h"
 
 #include <spdlog/spdlog.h>

@@ -390,7 +390,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
 
     /**
      * @brief Get discovered hardware data
-     * @return Reference to PrinterDiscovery containing all discovered hardware
+     * @return A snapshot of the discovered hardware, copied under the discovery lock
      */
     [[nodiscard]] helix::PrinterDiscovery hardware() const override {
         return discovery_.hardware();
