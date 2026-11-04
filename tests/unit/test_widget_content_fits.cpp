@@ -886,10 +886,16 @@ TEST_CASE_METHOD(ContentFitsFixture,
         const CellMetrics m =
             grid_cell_metrics(g.content_w, g.content_h, dims.cols, dims.rows, g.gutter);
 
-        for (const Span sp : spans) {
-            const std::string where =
-                std::string(g.name) + " @ " + std::to_string(sp.c) + "x" + std::to_string(sp.r);
-            for (const PanelWidgetDef* def : {queue_def, stats_def}) {
+        // The spans each tile is offered here. Every queue state is then applied
+        // once per geometry and rendered at each of them: applying one settles the
+        // update queue several times, which costs more than the render.
+        std::vector<Span> offered[2];
+        const PanelWidgetDef* const tiles[2] = {queue_def, stats_def};
+        for (int t = 0; t < 2; ++t) {
+            const PanelWidgetDef* def = tiles[t];
+            for (const Span sp : spans) {
+                const std::string where =
+                    std::string(g.name) + " @ " + std::to_string(sp.c) + "x" + std::to_string(sp.r);
                 if (sp.c > dims.cols || sp.r > dims.rows) {
                     refused.push_back(std::string(def->id) + " " + where + " (grid " +
                                       std::to_string(dims.cols) + "x" + std::to_string(dims.rows) +
@@ -907,23 +913,28 @@ TEST_CASE_METHOD(ContentFitsFixture,
                     refused.push_back(std::string(def->id) + " " + where + " (fits_at)");
                     continue;
                 }
-                if (def == queue_def) {
-                    for (const QueueState& qs : queue_states) {
-                        (queue.*qs.apply)();
-                        INFO(def->id << " " << where << " " << qs.name);
-                        const Rendered r = render_at(test_screen(), *def, m, sp.c, sp.r);
-                        REQUIRE(r.built);
-                        ++rendered_count;
-                        check_clean(r);
-                    }
-                } else {
-                    INFO(def->id << " " << where << " Activity");
-                    const Rendered r = render_at(test_screen(), *def, m, sp.c, sp.r, nullptr, true);
-                    REQUIRE(r.built);
-                    ++rendered_count;
-                    check_clean(r);
-                }
+                offered[t].push_back(sp);
             }
+        }
+        for (const QueueState& qs : queue_states) {
+            if (offered[0].empty())
+                break;
+            (queue.*qs.apply)();
+            for (const Span sp : offered[0]) {
+                INFO(queue_def->id << " " << g.name << " @ " << sp.c << "x" << sp.r << " "
+                                   << qs.name);
+                const Rendered r = render_at(test_screen(), *queue_def, m, sp.c, sp.r);
+                REQUIRE(r.built);
+                ++rendered_count;
+                check_clean(r);
+            }
+        }
+        for (const Span sp : offered[1]) {
+            INFO(stats_def->id << " " << g.name << " @ " << sp.c << "x" << sp.r << " Activity");
+            const Rendered r = render_at(test_screen(), *stats_def, m, sp.c, sp.r, nullptr, true);
+            REQUIRE(r.built);
+            ++rendered_count;
+            check_clean(r);
         }
     }
     for (const auto& x : refused) {
