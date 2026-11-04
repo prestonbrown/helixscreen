@@ -66,29 +66,24 @@ void free_row_data(RowData* rd) {
 namespace helix {
 
 bool JobQueueModal::callbacks_registered_ = false;
-JobQueueModal* JobQueueModal::s_active_instance_ = nullptr;
 
 JobQueueModal::JobQueueModal() = default;
 
-JobQueueModal::~JobQueueModal() {
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
-}
+JobQueueModal::~JobQueueModal() = default;
 
 void JobQueueModal::register_callbacks() {
     if (callbacks_registered_)
         return;
 
-    lv_xml_register_event_cb(nullptr, "on_jq_modal_close", [](lv_event_t*) {
-        if (s_active_instance_) {
-            s_active_instance_->hide();
+    lv_xml_register_event_cb(nullptr, "on_jq_modal_close", [](lv_event_t* e) {
+        if (auto* self = Modal::from_event<JobQueueModal>(e)) {
+            self->hide();
         }
     });
 
-    lv_xml_register_event_cb(nullptr, "on_jq_modal_toggle_queue", [](lv_event_t*) {
-        if (s_active_instance_) {
-            s_active_instance_->toggle_queue();
+    lv_xml_register_event_cb(nullptr, "on_jq_modal_toggle_queue", [](lv_event_t* e) {
+        if (auto* self = Modal::from_event<JobQueueModal>(e)) {
+            self->toggle_queue();
         }
     });
 
@@ -97,16 +92,18 @@ void JobQueueModal::register_callbacks() {
     lv_xml_register_event_cb(nullptr, "on_jq_row_start", [](lv_event_t* e) {
         auto* row = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
         auto* rd = static_cast<RowData*>(lv_obj_get_user_data(row));
-        if (rd && s_active_instance_) {
-            s_active_instance_->start_job(rd->job_id, rd->filename);
+        auto* self = Modal::from_event<JobQueueModal>(e);
+        if (rd && self) {
+            self->start_job(rd->job_id, rd->filename);
         }
     });
 
     lv_xml_register_event_cb(nullptr, "on_jq_row_delete", [](lv_event_t* e) {
         auto* icon = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
         auto* rd = static_cast<RowData*>(lv_obj_get_user_data(lv_obj_get_parent(icon)));
-        if (rd && s_active_instance_) {
-            s_active_instance_->remove_job(rd->job_id);
+        auto* self = Modal::from_event<JobQueueModal>(e);
+        if (rd && self) {
+            self->remove_job(rd->job_id);
         }
     });
 
@@ -115,7 +112,6 @@ void JobQueueModal::register_callbacks() {
 
 bool JobQueueModal::show(lv_obj_t* parent) {
     register_callbacks();
-    s_active_instance_ = this;
 
     // Refresh data before showing
     auto* jqs = get_job_queue_state();
@@ -145,7 +141,7 @@ void JobQueueModal::on_show() {
                     self->list_rebuild_pending_ = true;
                     self->lifetime_.defer("JobQueueModal::rebuild", [self]() {
                         self->list_rebuild_pending_ = false;
-                        if (s_active_instance_ == self) {
+                        if (self->is_visible()) {
                             self->populate_job_list();
                             self->update_queue_state_ui();
                         }
@@ -163,7 +159,6 @@ void JobQueueModal::on_hide() {
     count_observer_ = {};
     list_rebuild_pending_ = false;
     // lifetime_.invalidate() already called by Modal::hide() before on_hide()
-    s_active_instance_ = nullptr;
 }
 
 void JobQueueModal::on_ok() {

@@ -29,4 +29,21 @@ template <typename T> std::size_t type_tag() {
     return tag;
 }
 
+/// The kind_tag() of a class that declares none. No type_tag<T>() ever equals
+/// it, so a typed lookup over such a class answers nullptr for every T.
+inline constexpr std::size_t kUndeclaredKind = static_cast<std::size_t>(-1);
+
 } // namespace helix
+
+/**
+ * @brief Declare a class's concrete kind for its base's typed lookup
+ *
+ * One line in the body of every class a `from_event<T>()` (Modal, OverlayBase)
+ * must resolve: `HELIX_KIND_TAG(MyModal)`, naming the class being declared.
+ * Emits no access specifier, so it can sit anywhere in the body; the override
+ * may be private, since every call goes through the base's public declaration.
+ */
+#define HELIX_KIND_TAG(T)                                                                          \
+    std::size_t kind_tag() const override {                                                        \
+        return helix::type_tag<T>();                                                               \
+    }

@@ -329,6 +329,17 @@ Modal* ModalStack::owner_for(lv_obj_t* dialog) const {
     return nullptr;
 }
 
+std::optional<Modal*> ModalStack::owner_of(lv_obj_t* obj) const {
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        for (const auto& entry : stack_) {
+            if (handle_names(entry.dialog, o) || handle_names(entry.backdrop, o)) {
+                return entry.owner;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 void ModalStack::reassign_owner(lv_obj_t* backdrop, Modal* new_owner) {
     for (auto& entry : stack_) {
         if (handle_names(entry.backdrop, backdrop)) {
@@ -933,6 +944,32 @@ void Modal::set_covers_chrome(lv_obj_t* dialog, bool covers) {
     if (lv_obj_t* backdrop = stack.backdrop_for(dialog)) {
         stack.set_covers_chrome(backdrop, covers);
     }
+}
+
+Modal* Modal::from_event(lv_event_t* e) {
+    if (!e) {
+        return nullptr;
+    }
+    auto& stack = ModalStack::instance();
+    if (auto owner = stack.owner_of(lv_event_get_current_target_obj(e))) {
+        return *owner;
+    }
+    lv_obj_t* top = stack.top_dialog();
+    return top ? stack.owner_for(top) : nullptr;
+}
+
+Modal* Modal::from_event_of_kind(lv_event_t* e, std::size_t kind) {
+    Modal* modal = from_event(e);
+    if (!modal) {
+        return nullptr;
+    }
+    if (modal->kind_tag() == helix::kUndeclaredKind) {
+        spdlog::warn("[Modal] from_event<T>: '{}' declares no kind (HELIX_KIND_TAG), so no "
+                     "typed lookup can resolve it",
+                     modal->get_name());
+        return nullptr;
+    }
+    return modal->kind_tag() == kind ? modal : nullptr;
 }
 
 lv_obj_t* Modal::get_top() {

@@ -267,6 +267,44 @@ The generic XML callbacks (`on_modal_ok_clicked`, `on_modal_cancel_clicked`) are
 
 If both an XML callback and `wire_*_button()` are present on the same button, the handler may fire twice — this is safe because `hide()` guards against double-execution.
 
+### Finding the instance from an XML callback
+
+An XML `<event_cb callback="...">` handler is registered once per process with
+`lv_xml_register_event_cb()` and arrives with no `this`. The one sanctioned way for it to
+reach its instance is `Modal::from_event<T>(e)`: the widget that fired is walked up to the
+dialog `ModalStack` tracks, and that entry's owner is returned when it is a `T`. A widget a
+modal parents outside its dialog (a dropdown's list, the keyboard) resolves to the modal on
+top. Two instances of one class can be open at once, each answering for its own widgets.
+
+```cpp
+class JobQueueModal : public Modal {
+  public:
+    const char* component_name() const override { return "job_queue_modal"; }
+    HELIX_KIND_TAG(JobQueueModal) // what from_event<JobQueueModal>() compares; no RTTI
+    // ...
+};
+
+lv_xml_register_event_cb(nullptr, "on_jq_modal_close", [](lv_event_t* e) {
+    if (auto* self = Modal::from_event<JobQueueModal>(e)) {
+        self->hide();
+    }
+});
+```
+
+`HELIX_KIND_TAG(Self)` (`include/helix_type_tag.h`) is required: a subclass without it keeps
+`helix::kUndeclaredKind`, so `from_event<T>()` returns nullptr for every `T` and logs the
+mismatch. The untyped `Modal::from_event(e)` returns the owner without the check. A dialog
+from the static `Modal::show()` factory has no owner and resolves to nothing, as does a
+modal that is already closing.
+
+Overlays have the same shape: `OverlayBase::from_event<T>(e)` answers the open overlay whose
+tree holds the widget, on top of the stack or buried under another, from the create inside
+`show()` until `destroy_overlay_ui()` or `cleanup()`.
+
+A `static Foo* active_instance_` pointing at "the current instance" is the pattern this
+replaces: it cannot tell two open instances apart, and it goes stale when an owner destroys
+a modal without `hide()`. `scripts/check_growth_ratchets.py` refuses new ones.
+
 ### Protected Members
 
 | Member | Type | Purpose |
@@ -803,7 +841,7 @@ If your XML used `extends="ui_card"`, simply change to `extends="ui_dialog"`. Th
    something shorter-lived than the dialog. Helper otherwise. This is a lifetime question,
    not a question of how many buttons the dialog has.
 2. **Create XML** in `ui_xml/` using `extends="ui_dialog"` and `modal_button_row`
-3. **Register callbacks** via `lv_xml_register_event_cb()` in your C++ code (the XML itself registers on first use; no list to edit)
+3. **Register callbacks** via `lv_xml_register_event_cb()` in your C++ code (the XML itself registers on first use; no list to edit); a callback reaches its instance with `Modal::from_event<T>(e)`, so declare `HELIX_KIND_TAG(T)` in the class
 4. **If subclass**: Create header in `include/`, implement `get_name()` and `component_name()`
 5. **Wire buttons** in `on_show()` using `wire_ok_button()` / `wire_cancel_button()`
 6. **Store the modal** as a member (subclass) or in a `ModalGuard` (static API)

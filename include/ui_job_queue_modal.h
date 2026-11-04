@@ -34,6 +34,7 @@ class JobQueueModal : public Modal {
     const char* component_name() const override {
         return "job_queue_modal";
     }
+    HELIX_KIND_TAG(JobQueueModal)
 
     /// Show the modal, refreshing job list from current state
     bool show(lv_obj_t* parent);
@@ -46,7 +47,6 @@ class JobQueueModal : public Modal {
   private:
     static void register_callbacks();
     static bool callbacks_registered_;
-    static JobQueueModal* s_active_instance_;
 
     void populate_job_list();
     /// Hangs a job's id and filename on a job_queue_row for its callbacks.

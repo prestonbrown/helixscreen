@@ -29,6 +29,7 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "barcode_scanner_settings";
     }
+    HELIX_KIND_TAG(BarcodeScannerSettingsOverlay)
 
     void init_subjects() override;
     void register_callbacks() override;
@@ -87,8 +88,6 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
     helix::bluetooth::DiscoveryRun bt_discovery_;
     std::vector<BtDeviceInfo> bt_devices_;
     bool bt_discovering_ = false;
-
-    static BarcodeScannerSettingsOverlay* s_active_instance_;
 };
 
 inline BarcodeScannerSettingsOverlay& get_barcode_scanner_settings_overlay() {

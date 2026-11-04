@@ -20,10 +20,13 @@ inline bool descends_from(lv_obj_t* obj, lv_obj_t* ancestor) {
 /// The live instances of a component whose XML event callbacks are registered
 /// once for the whole app. A callback finds the instance it belongs to by the
 /// widget that fired, so any number can be open at once. T needs root().
+/// add() ignores an instance already listed, so an owner may add on every build.
 template <typename T> class OpenInstances {
   public:
     void add(T* instance) {
-        instances_.push_back(instance);
+        if (std::find(instances_.begin(), instances_.end(), instance) == instances_.end()) {
+            instances_.push_back(instance);
+        }
     }
     void remove(T* instance) {
         instances_.erase(std::remove(instances_.begin(), instances_.end(), instance),

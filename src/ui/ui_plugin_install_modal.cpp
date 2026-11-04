@@ -66,7 +66,6 @@ bool helix::ui::request_moonraker_restart_for_plugin(helix::IMoonrakerAPI* api) 
 
 // Static member initialization
 bool PluginInstallModal::callbacks_registered_ = false;
-PluginInstallModal* PluginInstallModal::s_active_instance_ = nullptr;
 
 // ============================================================================
 // Constructor
@@ -154,15 +153,9 @@ void PluginInstallModal::on_show() {
     wire_cancel_button("btn_cancel");
     wire_cancel_button("btn_done");
     wire_ok_button("btn_ok");
-
-    // Set active instance for static XML callbacks
-    s_active_instance_ = this;
 }
 
 void PluginInstallModal::on_hide() {
-    // Clear active instance
-    s_active_instance_ = nullptr;
-
     // Clear widget references
     local_description_ = nullptr;
     remote_description_ = nullptr;
@@ -342,8 +335,8 @@ void PluginInstallModal::on_copy_clicked() {
 void PluginInstallModal::install_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PluginInstallModal] install_clicked_cb");
 
-    if (s_active_instance_) {
-        s_active_instance_->on_install_clicked();
+    if (auto* self = Modal::from_event<PluginInstallModal>(e)) {
+        self->on_install_clicked();
     }
 
     LVGL_SAFE_EVENT_CB_END();
@@ -352,8 +345,8 @@ void PluginInstallModal::install_clicked_cb(lv_event_t* e) {
 void PluginInstallModal::copy_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PluginInstallModal] copy_clicked_cb");
 
-    if (s_active_instance_) {
-        s_active_instance_->on_copy_clicked();
+    if (auto* self = Modal::from_event<PluginInstallModal>(e)) {
+        self->on_copy_clicked();
     }
 
     LVGL_SAFE_EVENT_CB_END();
@@ -362,8 +355,8 @@ void PluginInstallModal::copy_clicked_cb(lv_event_t* e) {
 void PluginInstallModal::cancel_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PluginInstallModal] cancel_clicked_cb");
 
-    if (s_active_instance_) {
-        s_active_instance_->on_cancel();
+    if (auto* self = Modal::from_event<PluginInstallModal>(e)) {
+        self->on_cancel();
     }
 
     LVGL_SAFE_EVENT_CB_END();
@@ -372,8 +365,8 @@ void PluginInstallModal::cancel_clicked_cb(lv_event_t* e) {
 void PluginInstallModal::ok_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PluginInstallModal] ok_clicked_cb");
 
-    if (s_active_instance_) {
-        s_active_instance_->on_ok();
+    if (auto* self = Modal::from_event<PluginInstallModal>(e)) {
+        self->on_ok();
     }
 
     LVGL_SAFE_EVENT_CB_END();

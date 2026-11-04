@@ -260,16 +260,16 @@ TEST_CASE_METHOD(QueuedStartFixture,
 
 namespace {
 
-/// A job_queue_row carrying @p job_id, its callbacks acting on @p modal.
+/// A job_queue_row carrying @p job_id inside @p modal's dialog, which is how its
+/// callbacks find the modal they act on.
 lv_obj_t* make_queue_row(JobQueueModal& modal, const std::string& job_id,
                          const std::string& filename) {
-    JobQueueModalTestAccess::register_callbacks();
     REQUIRE(lv_xml_register_component_from_file("A:ui_xml/components/job_queue_row.xml") ==
             LV_RESULT_OK);
-    auto* row = static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "job_queue_row", nullptr));
+    REQUIRE(modal.show(lv_screen_active()));
+    auto* row = static_cast<lv_obj_t*>(lv_xml_create(modal.dialog(), "job_queue_row", nullptr));
     REQUIRE(row != nullptr);
     JobQueueModalTestAccess::attach_row_data(row, job_id, filename);
-    JobQueueModalTestAccess::set_active(&modal);
     return row;
 }
 
