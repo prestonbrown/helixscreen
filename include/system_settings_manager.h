@@ -161,6 +161,24 @@ class SystemSettingsManager {
     void set_wifi_country_last_seen(const std::string& code);
 
     // =========================================================================
+    // PLUGIN INSTALL PROMPT
+    // =========================================================================
+
+    /// The user asked never to be offered the HelixPrint plugin again.
+    /// Readable before init_subjects(), like the rest of this group.
+    bool get_plugin_install_declined() const;
+    void set_plugin_install_declined();
+
+    /// Seconds since the epoch the prompt was last snoozed; 0 when never. See
+    /// decide_plugin_prompt_snooze() in helix_plugin_installer.h.
+    int64_t get_plugin_prompt_snoozed_at() const;
+
+    /// Starts since the snooze on which the clock could not measure it.
+    int get_plugin_prompt_unmeasured_starts() const;
+
+    void set_plugin_prompt_snooze(int64_t snoozed_at_s, int unmeasured_starts);
+
+    // =========================================================================
     // LOG LEVEL SETTINGS
     // =========================================================================
 

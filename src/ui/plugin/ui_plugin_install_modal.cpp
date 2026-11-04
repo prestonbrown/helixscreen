@@ -171,8 +171,16 @@ void PluginInstallModal::on_hide() {
 }
 
 void PluginInstallModal::on_cancel() {
-    check_dont_ask_preference();
-    hide();
+    record_prompt_answer();
+    hide(ModalCloseReason::ButtonPress);
+}
+
+void PluginInstallModal::on_dismissed() {
+    // Tapping away is a Not Now. A programmatic close is no answer at all.
+    if (installer_ && (close_reason_ == ModalCloseReason::BackdropTap ||
+                       close_reason_ == ModalCloseReason::EscKey)) {
+        installer_->snooze_install_prompt();
+    }
 }
 
 // ============================================================================
@@ -238,14 +246,16 @@ void PluginInstallModal::show_result_state(bool success, const std::string& mess
     }
 }
 
-void PluginInstallModal::check_dont_ask_preference() {
-    if (dont_ask_checkbox_ && installer_) {
-        bool checked = lv_obj_has_state(dont_ask_checkbox_, LV_STATE_CHECKED);
-        if (checked) {
-            spdlog::info("[Plugin Install] User selected 'Don't ask again'");
-            installer_->set_install_declined();
-        }
+void PluginInstallModal::record_prompt_answer() {
+    if (!installer_) {
+        return;
     }
+    if (dont_ask_checkbox_ && lv_obj_has_state(dont_ask_checkbox_, LV_STATE_CHECKED)) {
+        spdlog::info("[Plugin Install] User selected 'Don't ask again'");
+        installer_->set_install_declined();
+        return;
+    }
+    installer_->snooze_install_prompt();
 }
 
 // ============================================================================
@@ -288,7 +298,7 @@ void PluginInstallModal::on_install_clicked() {
     }
 
     show_result_state(install_result.success, message);
-    check_dont_ask_preference();
+    record_prompt_answer();
 }
 
 void PluginInstallModal::on_copy_clicked() {

@@ -40,8 +40,10 @@ few seconds. Once the plugin is installed, the Advanced screen shows **HelixPrin
 
 HelixScreen also offers the plugin itself, after setup, when it connects and finds none. The
 offer waits for any print to finish and appears at most once each time HelixScreen starts.
-Closing it lasts until the next start. Tick **Don't ask again** to stop it for good; the
-Advanced row still installs the plugin whenever you want it.
+Closing it holds the offer off for seven days. A printer that cannot tell the time, with no
+clock and no network time, asks again after seven starts instead. Tick **Don't ask again** to
+stop it for good; uninstalling the plugin stops it too. The Advanced row still installs the
+plugin whenever you want it.
 
 The plugin needs the standard Moonraker. Replacements that do not run Python add-ons, such as
 Moonruster on the Centauri Carbon, cannot load it.
