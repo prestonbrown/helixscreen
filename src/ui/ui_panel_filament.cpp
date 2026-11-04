@@ -1499,6 +1499,9 @@ void FilamentPanel::execute_purge() {
                 helix::ui::run_after_purge_preamble(
                     api_, "[FilamentPanel]",
                     [this, macro_name, result]() {
+                        if (!purge_still_running()) {
+                            return;
+                        }
                         run_filament_macro(macro_name, "Purg", result);
                     },
                     [this](const MoonrakerError& error) { purge_failed(error); });
@@ -1520,6 +1523,9 @@ void FilamentPanel::execute_purge() {
     helix::ui::run_after_purge_preamble(
         api_, "[FilamentPanel]",
         [this, gcode]() {
+            if (!purge_still_running()) {
+                return;
+            }
             begin_operation_guard();
             api_->execute_gcode(
                 gcode,
@@ -1537,6 +1543,17 @@ void FilamentPanel::execute_purge() {
                 IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
         },
         [this](const MoonrakerError& error) { purge_failed(error); });
+}
+
+// A purge that failed while its preamble ran (an unknown command, the guard's
+// timeout) has already told the user so; the preamble's late answer must not
+// purge after that.
+bool FilamentPanel::purge_still_running() const {
+    if (op_showing_busy_ == FilamentOp::Purge) {
+        return true;
+    }
+    spdlog::info("[{}] Purge preamble answered after the purge ended; not purging", get_name());
+    return false;
 }
 
 void FilamentPanel::purge_failed(const MoonrakerError& error) {

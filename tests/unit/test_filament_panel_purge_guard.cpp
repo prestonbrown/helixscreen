@@ -155,3 +155,33 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The purge fallback's guard outlasts a slow 
     outlast_operation_budget();
     CHECK_FALSE(TA::operation_active(*h.panel));
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A purge macro that failed during its bin preamble does not run late",
+                 "[filament][purge_preamble][purge_guard][unknown_command]") {
+    PurgeHarness h(std::make_unique<BinBackend>());
+    use_purge_macro(h);
+    start_purge(h);
+
+    h.panel->fail_op_on_unknown_command("STATUS_PURGING");
+    REQUIRE_FALSE(TA::operation_active(*h.panel));
+
+    h.api.answer(kBinPreamble);
+    CHECK_FALSE(h.api.sent_containing("PURGE PURGE_TEMP"));
+    CHECK_FALSE(TA::operation_active(*h.panel));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A purge fallback that failed during its bin preamble does not run late",
+                 "[filament][purge_preamble][purge_guard][unknown_command]") {
+    PurgeHarness h(std::make_unique<BinBackend>());
+    use_purge_fallback();
+    start_purge(h);
+
+    h.panel->fail_op_on_unknown_command("STATUS_PURGING");
+    REQUIRE_FALSE(TA::operation_active(*h.panel));
+
+    h.api.answer(kBinPreamble);
+    CHECK_FALSE(h.api.sent_containing("G1 E50"));
+    CHECK_FALSE(TA::operation_active(*h.panel));
+}
