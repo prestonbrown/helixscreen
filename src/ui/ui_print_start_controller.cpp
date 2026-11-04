@@ -283,17 +283,16 @@ void PrintStartController::execute_print_start() {
             // NOTE: Called from background HTTP thread - must defer LVGL calls to main thread
             // The object picks follow it: Klipper resets exclude_object as a print starts.
             helix::ui::with_pre_start_exclusions(
-                [filename_to_print, path, thumbnail_path, on_started]() {
+                [ps, filename_to_print, path, thumbnail_path, on_started]() {
                     // Construct full path for metadata lookup (e.g., usb/flowrate_0.gcode)
                     std::string full_path = gcode::join_gcode_path(path, filename_to_print);
                     helix::ui::queue_update(
                         "PrintStartController::execute_print_start",
-                        [full_path, thumbnail_path, on_started]() {
+                        [ps, full_path, thumbnail_path, on_started]() {
                             // begin_preparing() already recorded this job's identity, but a
                             // start that never opened a preparing window still needs it, and
                             // re-stating it is idempotent.
-                            get_printer_state().print_state().set_print_identity_override(
-                                full_path);
+                            ps->print_state().set_print_identity_override(full_path);
 
                             // If we have a pre-extracted thumbnail (USB/embedded), set it directly
                             // This bypasses Moonraker metadata lookup which doesn't have USB file

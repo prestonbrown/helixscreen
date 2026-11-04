@@ -139,6 +139,18 @@ namespace {
 /// at create() time; the handlers themselves don't matter to this subject.
 void detail_noop_cb(lv_event_t* /*e*/) {}
 
+void register_detail_callbacks() {
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_select_more_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
+    });
+}
+
 using CacheDirGuard = helix::test::ScopedCacheDir;
 
 } // namespace
@@ -156,15 +168,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[print_select][detail_view][subjects][pre_print_options][job_queue]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), make_skip_and_addon_set());
 
@@ -215,15 +219,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "rows come from the macro analysis when the 
                  "[print_select][detail_view][pre_print_options][macro_rows]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), PrePrintOptionSet{});
 
@@ -268,15 +264,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[print_select][detail_view][pre_print_options][macro_rows]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     const bool local_copies = GENERATE(true, false);
     CAPTURE(local_copies);
@@ -326,20 +314,44 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) == !local_copies);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "the detail view observes the printer it was handed",
+                 "[print_select][detail_view]") {
+    CacheDirGuard guard;
+    MockPrinter device;
+    device.state.set_helix_plugin_installed(false);
+    get_printer_state().set_helix_plugin_installed(false);
+    helix::ui::UpdateQueue::instance().drain();
+
+    helix::ui::PrintSelectDetailView view;
+    view.set_dependencies(&device.api, &device.state);
+    view.init_subjects();
+    lv_subject_t* const available = lv_xml_get_subject(nullptr, "detail_gcode_rewrite_available");
+    REQUIRE(available != nullptr);
+    const int plugin_absent = lv_subject_get_int(available);
+
+    // One drain applies the setter, the next runs the observer it queued.
+    auto settle = [] {
+        helix::ui::UpdateQueue::instance().drain();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    get_printer_state().set_helix_plugin_installed(true);
+    settle();
+    CHECK(lv_subject_get_int(available) == plugin_absent);
+
+    device.state.set_helix_plugin_installed(true);
+    settle();
+    CHECK(lv_subject_get_int(available) != plugin_absent);
+
+    get_printer_state().set_helix_plugin_installed(false);
+    settle();
+}
+
 // An open view follows the analysis as it lands, adding rows and dropping stale ones.
 TEST_CASE_METHOD(LVGLUITestFixture, "an open detail view rebuilds its rows when an analysis lands",
                  "[print_select][detail_view][pre_print_options][macro_rows]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), PrePrintOptionSet{});
 
@@ -394,15 +406,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
 
     // The fixture doesn't init PrintSelectPanel, so the panel's XML callbacks
     // aren't registered — install no-ops before creating the detail view.
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -561,15 +565,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Built through the real view rather than make_detail_root(): the two
     // subjects below are registered by PrintSelectDetailView::init_subjects(),
     // so a bare lv_xml_create() finds the toggle but not the subjects driving it.
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -678,15 +674,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // pairing it set up rather than one the seeding chose.
     ScopedAmsBackend ams(1);
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -825,15 +813,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
     // would hide it for an unrelated reason and prove nothing about bypass.
     ScopedAmsBackend ams(4);
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -912,15 +892,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
 TEST_CASE_METHOD(LVGLUITestFixture, "AMS slots landing after show() reveal the mapping card",
                  "[print_select][detail_view][subjects][filament_mapping]") {
     CacheDirGuard guard;
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     // The view observes AmsState's slots version from init_subjects(), so the
     // subjects exist before any backend does.
@@ -973,15 +945,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Bypass engaging after show() hides the mapp
     CacheDirGuard guard;
     ScopedAmsBackend ams(4);
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1027,18 +991,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
     // so a one-tool file is not what decides visibility in any section below.
     ScopedAmsBackend ams(4);
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
+    view.set_analysis_dependencies(nullptr, &get_printer_state());
     lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
 
@@ -1237,15 +1194,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap 
     // remap strategy).
     ams.backend->set_snapmaker_mode(true);
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1285,18 +1234,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A chip tap runs the card's remap gate",
                  "[print_select][detail_view][remap][filament_mapping][chip_tap]") {
     CacheDirGuard guard;
     ScopedAmsBackend ams(4);
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
+    view.set_analysis_dependencies(nullptr, &get_printer_state());
     lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
     struct CloseOnExit {
@@ -1394,15 +1336,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A chip tap runs the card's remap gate",
 TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used tools",
                  "[print_select][detail_view][filament_chip]") {
     CacheDirGuard guard;
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
     lv_obj_t* const root = view.create(test_screen());
@@ -1445,15 +1379,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "No filament system: the loaded chip shows and a tap opens nothing",
                  "[print_select][detail_view][filament_mapping][chip_tap][loaded]") {
     CacheDirGuard guard;
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
     auto& ams = helix::AmsState::instance();
     ams.init_subjects(true);
     ams.clear_backends();
@@ -1607,15 +1533,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
 TEST_CASE_METHOD(LVGLUITestFixture, "More-below subject tracks the options scroll area",
                  "[print_select][detail][xml]") {
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
     lv_obj_t* const root = view.create(test_screen());
@@ -1669,15 +1587,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // toggled and no direct subject write.
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1843,15 +1753,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[print_select][detail][xml][estimate]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -2449,15 +2351,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A scan answering after cleanup never reache
 TEST_CASE_METHOD(LVGLUITestFixture, "cleanup after the tree is deleted forgets the dead viewer",
                  "[print_select][detail_view]") {
     CacheDirGuard guard;
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.set_dependencies(nullptr, &get_printer_state());

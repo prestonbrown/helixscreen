@@ -805,6 +805,7 @@ class PrintSelectDetailView : public OverlayBase {
     // === Dependencies ===
     IMoonrakerAPI* api_ = nullptr;
     PrinterState* printer_state_ = nullptr;
+    PrinterState* observed_printer_ = nullptr; ///< see observe_printer()
     lv_subject_t* visible_subject_ = nullptr;
     lv_subject_t* material_text_subject_ = nullptr; ///< see set_material_text_subject()
 
@@ -1326,6 +1327,10 @@ class PrintSelectDetailView : public OverlayBase {
      * backfill, a fresh used-tool set) must run `update()` BEFORE this.
      */
     void publish_card_visibility();
+
+    /// Hooks the card and exclude-object observers to the injected printer, once its
+    /// state and this view's subjects both exist, whichever the caller arranged first.
+    void observe_printer();
     /// Why a job rewrite cannot run right now, or None.
     [[nodiscard]] helix::GcodeRewriteBlock rewrite_block() const;
     void publish_rewrite_availability();
