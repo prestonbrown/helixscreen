@@ -678,40 +678,6 @@ class AmsBackend : public AmsCapabilityHost {
         return {};
     }
 
-    /// Map one `//` narration body (prefix already stripped) to a phase id.
-    /// nullopt (default) => not a recognized phase line.
-    ///
-    /// A `//` body came from a macro's own respond_info, so implementations may
-    /// use loose substring needles here and tolerate upstream rewording. Do NOT
-    /// route bare console lines through this — see match_bare_narration_phase().
-    [[nodiscard]] virtual std::optional<std::string>
-    match_narration_phase(const std::string& /*narration*/) const {
-        return std::nullopt;
-    }
-
-    /// Map one console line that arrived WITHOUT the `//` prefix to a phase id.
-    /// nullopt (default) => backend narrates nothing outside `//`.
-    ///
-    /// Separate from match_narration_phase() because the input is a different
-    /// kind of text: unprefixed responses are the printer's open console, mixing
-    /// M105 reports, `echo:` output and USER-CONTROLLED gcode filenames in with
-    /// any narration. Implementations must match anchored line shapes, never
-    /// loose substrings — a needle like `cut` would fire on `haircut.gcode`.
-    [[nodiscard]] virtual std::optional<std::string>
-    match_bare_narration_phase(const std::string& /*line*/) const {
-        return std::nullopt;
-    }
-
-    /// True when an UNMATCHED console line looks like this backend's narration,
-    /// i.e. is worth a drift hint in the log. Deliberately looser than the two
-    /// matchers — its whole job is catching wording this backend used to emit —
-    /// but it must exclude the lines the backend emits that have no phase by
-    /// design, or every operation reports itself as drift.
-    /// false (default) => backend opts out of drift hints.
-    [[nodiscard]] virtual bool is_narration_drift_candidate(const std::string& /*line*/) const {
-        return false;
-    }
-
     // ========================================================================
     // Operation Step Model (backend-driven step bar)
     // ========================================================================

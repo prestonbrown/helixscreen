@@ -3659,6 +3659,8 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   `get_bowden_progress()`.
 - `ILaneRecovery` (`include/ams_lane_recovery.h`) -- `recover_lane_position()`, the physical retract
   of a stranded lane, and the two questions that decide whether to offer it. AFC implements it.
+- `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
+  bar; see the toolchange narration seam below. AFC implements it.
 
 **Optional overrides (with default implementations):**
 

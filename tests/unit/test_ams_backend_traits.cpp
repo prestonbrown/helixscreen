@@ -214,20 +214,21 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const ICfsCalibration* calibration;
         const IGateSelector* gates;
         const ILaneRecovery* recovery;
+        const INarrationMatcher* narration;
     };
     const Row rows[] = {
-        {&ace, nullptr, nullptr, nullptr},
-        {&ad5x, nullptr, nullptr, nullptr},
-        {&afc, nullptr, nullptr, &afc},
-        {&cfs, &cfs, nullptr, nullptr},
-        {&happy_hare, nullptr, &happy_hare, nullptr},
-        {&indx, nullptr, nullptr, nullptr},
-        {&multi_ace, nullptr, nullptr, nullptr},
-        {&openams, nullptr, nullptr, nullptr},
-        {&qidi, nullptr, nullptr, nullptr},
-        {&snapmaker, nullptr, nullptr, nullptr},
-        {&tool_changer, nullptr, nullptr, nullptr},
-        {&mock, nullptr, &mock, nullptr},
+        {&ace, nullptr, nullptr, nullptr, nullptr},
+        {&ad5x, nullptr, nullptr, nullptr, nullptr},
+        {&afc, nullptr, nullptr, &afc, &afc},
+        {&cfs, &cfs, nullptr, nullptr, nullptr},
+        {&happy_hare, nullptr, &happy_hare, nullptr, nullptr},
+        {&indx, nullptr, nullptr, nullptr, nullptr},
+        {&multi_ace, nullptr, nullptr, nullptr, nullptr},
+        {&openams, nullptr, nullptr, nullptr, nullptr},
+        {&qidi, nullptr, nullptr, nullptr, nullptr},
+        {&snapmaker, nullptr, nullptr, nullptr, nullptr},
+        {&tool_changer, nullptr, nullptr, nullptr, nullptr},
+        {&mock, nullptr, &mock, nullptr, nullptr},
     };
     struct NothingImplementsThis {};
     for (const Row& row : rows) {
@@ -235,6 +236,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<ICfsCalibration>() == row.calibration);
         CHECK(row.backend->as<IGateSelector>() == row.gates);
         CHECK(row.backend->as<ILaneRecovery>() == row.recovery);
+        CHECK(row.backend->as<INarrationMatcher>() == row.narration);
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
 }
