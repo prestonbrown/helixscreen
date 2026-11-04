@@ -30,14 +30,14 @@ Tests are tagged by **feature/importance**, not layer/speed. This enables runnin
 
 ### Importance Tags
 
-| Tag | Count | Purpose |
-|-----|-------|---------|
-| `[core]` | ~12 | Critical tests - if these fail, the app is fundamentally broken |
-| `[slow]` | ~36 | Tests with network/timing - excluded from `unit-sweep` |
-| `[eventloop]` | ~2 | Uses `hv::EventLoop` - very slow, always paired with `[slow]` |
-| `[serial]` | 0 | A `[slow]` test that fails when it shares the box with other `[slow]` shards - `test-all` and `test-slow` run it alone, after the sharded tier. Add it only for a failure seen sharded and not serially |
+| Tag | Purpose |
+|-----|---------|
+| `[core]` | Critical tests - if these fail, the app is fundamentally broken |
+| `[slow]` | Tests with network/timing - excluded from `unit-sweep` |
+| `[eventloop]` | Uses `hv::EventLoop` - very slow, always paired with `[slow]` |
+| `[serial]` | A `[slow]` test that fails when it shares the box with other `[slow]` shards - `test-all` and `test-slow` run it alone, after the sharded tier. Add it only for a failure seen sharded and not serially |
 
-*Counts are TEST_CASE definitions; each can have multiple SECTIONs expanding the actual test paths.*
+The binary counts them: `./build/bin/helix-tests --list-tags` prints every tag with its number of test cases, and `./build/bin/helix-tests "[core]" --list-tests | tail -2` gives one tag's total. Each case can have multiple SECTIONs expanding the actual test paths.
 
 ### Feature Tags
 
@@ -75,14 +75,14 @@ Tests are tagged by **feature/importance**, not layer/speed. This enables runnin
 
 - `[.pending]` - Test not yet implemented
 - `[.integration]` - Requires full environment
-- `[.slow]` - Long-running (deprecated, use `[slow]`)
+- `[.slow]` - Long-running and hidden; prefer `[slow]` for a new test
 - `[.disabled]` - Temporarily disabled
 
 Run `./build/bin/helix-tests "[.]" --list-tests` to see all hidden tests.
 
 ---
 
-## Core Tests (~12 Must Pass)
+## Core Tests (Must Pass)
 
 These validate fundamental functionality:
 
@@ -227,50 +227,49 @@ The default `make unit-sweep` uses filter `~[.] ~[slow]` to exclude tests that w
 
 ### Test Count Summary
 
-| Category | Count | Notes |
-|----------|------:|-------|
-| **Test files** | 627 | All in `tests/unit/` |
-| **TEST_CASE macros** | thousands | Individual test definitions |
-| **SECTION blocks** | thousands | Subsections within test cases |
-| **Slow tests** `[slow]` | ~200 | Excluded from `unit-sweep` |
-| **Hidden tests** `[.]` | dozens | Require explicit invocation |
+These commands produce the counts, from the repo root:
 
-*Counts drift as the suite grows — regenerate with `grep -rc` if you need exact figures.*
+```bash
+ls tests/unit/test_*.cpp | wc -l                          # test files
+./build/bin/helix-tests --list-tests | tail -2            # test cases in a default run: no hidden ones
+./build/bin/helix-tests "[.]" --list-tests | tail -2      # hidden tests
+./build/bin/helix-tests "[slow]~[.]" --list-tests | tail -2  # slow tests that make test-slow runs
+```
 
-*Note: Some overlap exists between [slow] and [.]*
+A `[.slow]` test is both hidden and `[slow]`, so a bare `"[slow]"` filter counts it too.
 
-### Hidden Tests `[.]` (90 tests)
+### Hidden Tests `[.]`
 
 Hidden tests never run automatically. They require explicit invocation, and the
 `ui_xml/`-dependent ones must be run **from the repo root**. Full inventory and
 per-file coverage notes: `HIDDEN_TESTS_TRACKER.md`.
 
-| Category | Count | Purpose |
-|----------|------:|---------|
-| `[.xml_required]` | 41 | Panel subject-binding tests needing XML components |
-| `[.ui_integration]` | 17 | Real widget tree built from `ui_xml/` |
-| `[.disabled]` | 11 | Known broken (macOS WiFi Location permission) |
-| `[.]` (generic) | 9 | Destructive global state, event-loop concurrency |
-| `[.skip]` | 7 | Superseded `ams_slot` binding tests |
-| `[.slow]` / `[.benchmark]` / `[.memprobe]` / `[.integration]` | 5 | Stress, timing, memory probe |
+| Category | Purpose |
+|----------|---------|
+| `[.xml_required]` | Subject-binding tests needing XML components |
+| `[.ui_integration]` | Real widget tree built from `ui_xml/` |
+| `[.slow]` | WiFiManager integration against the mock backend, 2-3s of simulated scan or connect per case |
+| `[.]` (generic) | Security injection fixtures, galleries that write files, cost benchmarks |
+| `[.benchmark]` / `[.memprobe]` / `[.integration]` | Timing, memory probe, timeout-callback deadlock check |
 
-### Slow Tests `[slow]` (~185 tests)
+### Slow Tests `[slow]`
 
 Slow tests are excluded from `unit-sweep` but can be run with `make test-slow`.
 
-| File | Count | Why Slow |
-|------|------:|----------|
-| `test_print_history_api.cpp` | 18 | History database operations |
-| `test_moonraker_client_subscription_cancel.cpp` | 17 | WebSocket event loops |
-| `test_moonraker_client_security.cpp` | 14 | Security test fixtures |
-| `test_moonraker_client_robustness.cpp` | 14 | Concurrent access tests |
-| `test_notification_history.cpp` | 13 | History/persistence |
-| `test_moonraker_mock_behavior.cpp` | 12 | Mock client simulation |
-| `test_gcode_streaming_controller.cpp` | 12 | Layer processing loops |
-| `test_moonraker_events.cpp` | 11 | Event dispatch timing |
-| `test_printer_hardware.cpp` | 10 | Hardware detection |
-| `test_spoolman.cpp` | 9 | Spoolman API calls |
-| Other (16 files) | ~55 | Various timing/network tests |
+| File | Why Slow |
+|------|----------|
+| `test_moonraker_mock_behavior.cpp` | Mock client simulation |
+| `test_moonraker_client_subscription_cancel.cpp` | WebSocket event loops |
+| `test_moonraker_client_security.cpp` | Security test fixtures |
+| `test_notification_history.cpp` | History/persistence |
+| `test_moonraker_client_robustness.cpp` | Concurrent access tests |
+| `test_moonraker_events.cpp` | Event dispatch timing |
+
+Rank the rest by how many cases each file tags:
+
+```bash
+grep -c '\[slow\]' tests/unit/*.cpp | sort -t: -k2 -nr | head -20
+```
 
 **When to add `[slow]`:**
 - Test creates `hv::EventLoop` (network operations) - also add `[eventloop]`
@@ -317,7 +316,7 @@ make test-all
 
 Tests fall into three timing categories based on their execution characteristics. Understanding these helps plan CI/CD pipelines and local development workflows.
 
-### Fast Tests (~2,000+ test cases, ~27s parallel)
+### Fast Tests (~27s parallel)
 
 The majority of tests complete quickly and are suitable for rapid iteration during development.
 
@@ -330,12 +329,13 @@ make unit-sweep  # Default: runs fast tests in parallel shards
 - Pure logic, parsing, state management
 - Typical test: <100ms
 
-### Slow Non-EventLoop Tests (~52 tests)
+### Slow Non-EventLoop Tests
 
 Tests marked `[slow]` that do NOT use `hv::EventLoop`. These are slow due to deliberate delays, database operations, or simulation work.
 
 ```bash
 make test-slow   # Run only [slow] tagged tests
+./build/bin/helix-tests "[slow]~[eventloop]~[.]" --list-tests | tail -2   # how many
 ```
 
 **Why slow:**
@@ -350,11 +350,14 @@ make test-slow   # Run only [slow] tagged tests
 | `test_moonraker_mock_behavior.cpp` | 12 | Mock simulation delays |
 | `test_gcode_streaming_controller.cpp` | 12 | Layer processing |
 
-### EventLoop Tests (~54 tests, 5-10 min total)
+### EventLoop Tests (5-10 min total)
 
 Tests using `hv::EventLoop` for real network operations. These are the slowest tests and are tagged with BOTH `[eventloop]` AND `[slow]`.
 
 ```bash
+# How many
+./build/bin/helix-tests "[eventloop]~[.]" --list-tests | tail -2
+
 # Run eventloop tests specifically
 ./build/bin/helix-tests "[eventloop]" "~[.]"
 
