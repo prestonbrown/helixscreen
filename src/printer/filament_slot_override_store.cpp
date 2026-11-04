@@ -404,8 +404,9 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     // catalog records for this one product goes here, never a guess and never
     // one several products share. Orca ignores a numeric `filament_id` (Happy
     // Hare's Spoolman id, in its own records). helix_filament_id_source names
-    // the Spoolman case so a read-back can tell the two apart.
-    if (!o.spoolman_orca_filament_id.empty()) {
+    // the Spoolman case so a read-back can tell the two apart. The spool's id
+    // speaks for the lane only while the lane is linked to it.
+    if (o.spoolman_id > 0 && !o.spoolman_orca_filament_id.empty()) {
         j["filament_id"] = o.spoolman_orca_filament_id;
         j["helix_filament_id_source"] = kFilamentIdSourceSpoolman;
     } else if (!o.catalog_id.empty()) {

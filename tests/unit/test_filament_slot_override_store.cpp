@@ -3995,6 +3995,18 @@ TEST_CASE("an orca_filament_id removed in Spoolman leaves the live lane",
     CHECK_FALSE(helix::ams::spool_identity_observation(unlinked).spoolman_orca_filament_id);
 }
 
+TEST_CASE("a record with no live Spoolman link never emits the spool's orca id",
+          "[filament_slot_override][orca][spoolman]") {
+    FilamentSlotOverride ovr =
+        linked_record(spool_with_orca_extra("\"OGFL99\""), "bambu-lab-bambu-abs");
+    REQUIRE(ovr.spoolman_id > 0);
+    ovr.spoolman_id = 0;
+    REQUIRE(ovr.spoolman_orca_filament_id == "OGFL99");
+    const json wire = helix::ams::to_lane_data_record(0, ovr);
+    CHECK(wire.value("filament_id", "") == "OFhuaUQB");
+    CHECK_FALSE(wire.contains("helix_filament_id_source"));
+}
+
 TEST_CASE("unlinking the spool drops the Spoolman-sourced filament_id",
           "[filament_slot_override][orca][spoolman]") {
     helix::SlotInfo slot;
