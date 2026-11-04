@@ -3,14 +3,14 @@
 
 #pragma once
 
+#include "json_fwd.h"
+
 #include <array>
 #include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file snapmaker_nozzle_offset.h

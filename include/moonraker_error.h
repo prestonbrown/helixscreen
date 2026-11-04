@@ -13,6 +13,8 @@
 #include <string>
 #include <string_view>
 
+#include "hv/json.hpp"
+
 /**
  * @brief Error types for Moonraker operations
  */

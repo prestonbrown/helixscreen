@@ -4,7 +4,8 @@
 #pragma once
 
 #include <cmath>
-#include <json.hpp> // nlohmann/json from libhv
+
+#include "hv/json.hpp"
 
 namespace helix::units {
 

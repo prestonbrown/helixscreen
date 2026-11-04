@@ -25,6 +25,7 @@
 
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "json_fwd.h"
 #include "lvgl_test_fixture.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -35,8 +36,6 @@
 
 #include <functional>
 #include <optional>
-
-#include "hv/json.hpp"
 
 namespace helix::test {
 

@@ -37,6 +37,8 @@
 
 #include <algorithm>
 
+#include "hv/json.hpp"
+
 namespace helix {
 void register_fan_stack_widget() {
     register_widget_factory("fan_stack", [](const std::string& instance_id) {

@@ -3,6 +3,7 @@
 
 #include "async_lifetime_guard.h"
 #include "detection_source.h"
+#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 
 #include <functional>
@@ -10,8 +11,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerClient;

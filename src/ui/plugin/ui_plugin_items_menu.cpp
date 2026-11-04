@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 bool PluginItemsMenu::show_for(lv_obj_t* parent, lv_obj_t* anchor, plugin_menu::MenuKind kind,

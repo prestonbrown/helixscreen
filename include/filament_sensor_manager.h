@@ -4,9 +4,8 @@
 #pragma once
 
 #include "filament_sensor_types.h"
+#include "json_fwd.h"
 #include "sensor_manager.h"
-
-#include "hv/json.hpp"
 
 // Forward declarations
 namespace helix {

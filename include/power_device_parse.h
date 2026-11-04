@@ -3,12 +3,11 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "json_utils.h"
 #include "moonraker_types.h"
 
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

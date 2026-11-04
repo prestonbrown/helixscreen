@@ -839,7 +839,7 @@ WPA_CLIENT_LIB := $(BUILD_DIR)/lib/libwpa_client.a
 WPA_INC := -isystem $(WPA_DIR)/src/common -isystem $(WPA_DIR)/src/utils
 
 # Force-included ahead of every app and test C++ source. It supplies LVGL,
-# helix-xml, spdlog and the common STL headers, and many sources compile only
+# helix-xml and the common STL headers, and many sources compile only
 # because of it. It is an ordinary header, tracked through each object's .d
 # file; nothing is precompiled.
 FORCED_INCLUDE := -include $(INC_DIR)/lvgl_pch.h

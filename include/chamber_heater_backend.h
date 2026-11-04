@@ -3,14 +3,13 @@
 #pragma once
 
 #include "ams_drying_types.h"
+#include "json_fwd.h"
 
 #include <cmath>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::chamber {
 

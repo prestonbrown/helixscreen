@@ -5,6 +5,7 @@
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "json_fwd.h"
 #include "moonraker_types.h"
 
 #include <lvgl/lvgl.h>
@@ -13,8 +14,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerAPI;

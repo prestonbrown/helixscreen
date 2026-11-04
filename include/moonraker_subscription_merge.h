@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "hv/json.hpp"
+#include "json_fwd.h"
 
 namespace helix {
 

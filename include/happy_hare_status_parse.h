@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ams_types.h"
+#include "json_fwd.h"
 #include "lane_translation.h"
 
 #include <array>
@@ -12,8 +13,6 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file happy_hare_status_parse.h

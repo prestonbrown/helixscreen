@@ -5,6 +5,7 @@
 #include "printer_temperature_state.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 

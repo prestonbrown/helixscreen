@@ -3,11 +3,10 @@
 
 #include "ams_types.h"
 #include "error_event.h"
+#include "json_fwd.h"
 
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::printer {
 

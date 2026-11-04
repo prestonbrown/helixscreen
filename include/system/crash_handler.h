@@ -27,13 +27,13 @@
  * @endcode
  */
 
+#include "json_fwd.h"
+
 #include <cstdint>
 #include <cstdlib>
 #include <cxxabi.h>
 #include <string>
 #include <typeinfo>
-
-#include "hv/json.hpp"
 
 namespace crash_handler {
 

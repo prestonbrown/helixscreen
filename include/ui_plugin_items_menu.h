@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 /// A context menu holding only plugin items: the print details more button and a

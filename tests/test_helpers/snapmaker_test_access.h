@@ -6,6 +6,7 @@
 #include "ams_backend_snapmaker.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "json_fwd.h"
 #include "print_start_inputs.h"
 #include "test_helpers/seeded_override.h"
 
@@ -14,8 +15,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

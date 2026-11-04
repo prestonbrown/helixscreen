@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <atomic>
@@ -9,8 +10,6 @@
 #include <mutex>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 // Forward declare ConnectionState and KlippyState (defined in moonraker_client.h and
 // printer_state.h)

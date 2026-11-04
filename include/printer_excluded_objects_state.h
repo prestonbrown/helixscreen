@@ -3,6 +3,7 @@
 
 #include "ui_observer_guard.h"
 
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <glm/vec2.hpp>
@@ -12,8 +13,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

@@ -21,6 +21,8 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include "hv/json.hpp"
+
 namespace helix::settings {
 
 TelemetryDataOverlay::~TelemetryDataOverlay() {

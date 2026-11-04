@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

@@ -3,14 +3,13 @@
 #pragma once
 
 #include "ams_types.h"
+#include "json_fwd.h"
 
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file openams_status_parse.h

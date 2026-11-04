@@ -2,11 +2,10 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "platform_capabilities.h"
 
 #include <optional>
-
-#include "hv/json.hpp"
 
 namespace helix::config_testing {
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
 #include "snapmaker_print_preferences.h"
 
 #include <array>
@@ -9,8 +10,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file snapmaker_status_parse.h

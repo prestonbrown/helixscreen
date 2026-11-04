@@ -14,6 +14,8 @@
 #include <memory>
 #include <string>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 /// Home widget displaying a user-selected fan speed reading.

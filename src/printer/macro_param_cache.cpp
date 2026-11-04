@@ -10,6 +10,8 @@
 #include <cctype>
 #include <string_view>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 namespace {

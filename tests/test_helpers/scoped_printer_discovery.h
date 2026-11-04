@@ -5,11 +5,10 @@
 // the macro cache) for one test, and reset both when it ends.
 
 #include "app_globals.h"
+#include "json_fwd.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-
-#include "hv/json.hpp"
 
 namespace helix::test {
 

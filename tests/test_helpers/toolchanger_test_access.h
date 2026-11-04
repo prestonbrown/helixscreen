@@ -7,6 +7,7 @@
 #include "ams_error.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "json_fwd.h"
 #include "test_helpers/seeded_override.h"
 
 #include <chrono>
@@ -15,8 +16,6 @@
 #include <mutex>
 #include <string>
 #include <utility>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

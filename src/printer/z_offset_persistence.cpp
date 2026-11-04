@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "printer_discovery.h"
+#include "spdlog/spdlog.h"
 
 #include <cmath>
 #include <string>

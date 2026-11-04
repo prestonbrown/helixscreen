@@ -18,6 +18,8 @@
 #include <algorithm>
 #include <glm/common.hpp>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 void PrinterExcludedObjectsState::init_subjects(bool register_xml) {

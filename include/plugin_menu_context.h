@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ams_types.h"
+#include "json_fwd.h"
 #include "moonraker_types.h"
 #include "spoolman_types.h"
 
@@ -10,8 +11,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /// The context tables plugin menu handlers receive (docs/devel/PLUGIN_DEVELOPMENT.md,
 /// "Menu items"). Pure: built from the facts each menu already holds. A fact the

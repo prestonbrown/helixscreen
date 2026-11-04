@@ -6,13 +6,12 @@
 #include "calibration_types.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
+#include "json_fwd.h"
 
 #include <functional>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file snapmaker_screws_tilt.h

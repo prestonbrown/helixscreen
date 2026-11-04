@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "printer_discovery.h"
 
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::test {
 

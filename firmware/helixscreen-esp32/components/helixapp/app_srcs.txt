@@ -369,6 +369,7 @@ src/system/sound_theme.cpp
 src/system/subject_debug_registry.cpp
 src/system/system_power.cpp
 src/system/system_settings_manager.cpp
+src/core/json_fwd_check.cpp
 src/core/text_io.cpp
 src/system/helix_fs.cpp
 src/system/timezone_env.cpp

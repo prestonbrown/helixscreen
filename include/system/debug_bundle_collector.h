@@ -2,6 +2,7 @@
 #pragma once
 
 #include "board_identity.h"
+#include "json_fwd.h"
 #include "platform_table.h"
 #include "printer_event_journal.h"
 #include "system/diagnostics.h"
@@ -12,8 +13,6 @@
 #include <functional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

@@ -8,6 +8,7 @@
 #include "console_filter_engine.h"
 #include "core/static_panel_registry.h"
 #include "in_flight_guard.h"
+#include "json_fwd.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
@@ -19,8 +20,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 /**
  * @file ui_panel_console.h

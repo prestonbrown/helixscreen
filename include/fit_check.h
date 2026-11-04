@@ -7,6 +7,7 @@
 // moonraker-plugin/helix_fitcheck.py; tests/fixtures/fit_check/cases.json
 // pins both to one table. Pure: no LVGL objects, no subjects, no I/O.
 
+#include "json_fwd.h"
 #include "moonraker_types.h"
 
 #include <array>
@@ -15,8 +16,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

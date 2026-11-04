@@ -8,6 +8,8 @@
 #include <cctype>
 #include <cstdlib>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 namespace {

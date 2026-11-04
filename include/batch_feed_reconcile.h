@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <string>
+#include "json_fwd.h"
 
-#include "hv/json.hpp"
+#include <string>
 
 namespace helix {
 

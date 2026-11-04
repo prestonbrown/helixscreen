@@ -13,6 +13,8 @@
 //
 // Pure functions, no I/O: AmsBackendIndx owns the state and the sends.
 
+#include "json_fwd.h"
+
 #include <array>
 #include <cstdint>
 #include <map>
@@ -21,8 +23,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterDiscovery;

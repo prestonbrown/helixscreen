@@ -17,6 +17,7 @@
  *   server.stop();
  */
 
+#include "json_fwd.h"
 #include "remote_transport.h"
 
 #include <atomic>
@@ -26,8 +27,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 struct _lv_timer_t;
 

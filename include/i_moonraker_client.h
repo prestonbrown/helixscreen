@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 using ::json; // Make global json alias visible in this namespace

@@ -8,13 +8,12 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "json_fwd.h"
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "spoolman_manager.h"
 #include "spoolman_types.h"
-
-#include "hv/json.hpp"
 
 namespace helix::test {
 

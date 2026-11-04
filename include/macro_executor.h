@@ -4,6 +4,7 @@
 #pragma once
 
 #include "filament_database.h"
+#include "json_fwd.h"
 #include "macro_param_cache.h"
 #include "macro_params.h"
 
@@ -12,8 +13,6 @@
 #include <map>
 #include <string>
 #include <unordered_set>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerAPI;

@@ -9,6 +9,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "helix_shared_callback.h"
+#include "json_fwd.h"
 #include "test_helpers/seeded_override.h"
 
 #include <functional>
@@ -17,8 +18,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

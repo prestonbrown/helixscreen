@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
+
 #include <array>
 #include <cstdint>
 #include <map>
@@ -10,8 +12,6 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file qidi_status_parse.h

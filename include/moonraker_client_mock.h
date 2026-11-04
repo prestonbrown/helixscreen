@@ -7,6 +7,7 @@
 #include "async_lifetime_guard.h"
 #include "axis.h"
 #include "helix_shared_callback.h"
+#include "json_fwd.h"
 #include "mock_persona.h"
 #include "moonraker_client.h"
 #include "moonraker_client_mock_spoolman.h"
@@ -26,8 +27,6 @@
 #include <string>
 #include <thread>
 #include <vector>
-
-#include "hv/json.hpp"
 
 // Forward declaration for shared state
 class MockPrinterState;
