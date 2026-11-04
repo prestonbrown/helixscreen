@@ -8,9 +8,9 @@
 #
 # Wiring means: widget names, subject bindings, event callbacks, <api> <prop>
 # declarations, and cond=/[*]_cond= attribute presence. Props are compared by
-# NAME ONLY — ui_xml/micro/header_bar.xml legitimately narrows
-# action_button_2_min_width to 72 against the base's 90, so a defaults
-# comparison would fail on correct code. Conditions are compared by PRESENCE
+# NAME ONLY — a variant may legitimately narrow a width floor or pick a
+# smaller font for its tier, so a defaults comparison would fail on correct
+# code. Conditions are compared by PRESENCE
 # keyed element@attribute; the expression text is free to differ.
 #
 # The script roots itself at its own location (Path(__file__).parent.parent)

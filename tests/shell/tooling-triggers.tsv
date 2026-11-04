@@ -197,8 +197,8 @@ tests/shell/test_update_platform_coverage.bats	.github/workflows/release.yml mk/
 tests/shell/test_update_queue_leak_gate.bats	scripts/check_update_queue_leaks.py scripts/update_queue_leak_baseline.txt
 tests/shell/test_upload_gating.bats	.github/workflows/release.yml Makefile mk/cross.mk mk/pi-dual-link.mk mk/rules.mk src/system/crash_reporter.cpp src/system/debug_bundle_collector.cpp src/ui/ui_crash_report_modal.cpp src/ui/ui_debug_bundle_modal.cpp tests/unit/test_diag_upload_gate.cpp
 tests/shell/test_vacuous_test_gate.bats	scripts/check_vacuous_tests.py scripts/vacuous_test_baseline.txt
-tests/shell/test_variant_content_drift_gate.bats	scripts/check_variant_content_drift.py scripts/check_variant_parity.py ui_xml/portrait/print_status_panel.xml ui_xml/print_status_panel.xml ui_xml/translations/en.xml
-tests/shell/test_variant_parity_gate.bats	scripts/check_variant_parity.py ui_xml/micro/header_bar.xml
+tests/shell/test_variant_content_drift_gate.bats	scripts/check_variant_content_drift.py scripts/check_variant_parity.py ui_xml/portrait/print_tune_panel.xml ui_xml/print_tune_panel.xml ui_xml/translations/en.xml
+tests/shell/test_variant_parity_gate.bats	scripts/check_variant_parity.py ui_xml/micro/controls_panel.xml
 tests/shell/test_version_compare.bats	.github/workflows/ scripts/version-compare.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp
 tests/shell/test_wifi_pii_gate.bats	scripts/check_wifi_pii_logging.py scripts/staged_content.py src/network/
 tests/shell/test_workflow_concurrency_gate.bats	.github/workflows/ tests/shell/helpers.bash

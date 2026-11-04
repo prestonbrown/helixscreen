@@ -14,9 +14,9 @@
 # This gate closes that gap, but only for CONTENT-bearing attributes (src=,
 # text=, translation_tag=) touched by the STAGED diff of one half of a pair
 # while its sibling is not staged. It warns and never fails: additive
-# divergence is legitimate (ui_xml/portrait/print_status_panel.xml carries
-# three icons the base does not, because portrait has room for a temperature
-# section landscape lacks), and a hard gate cannot tell that apart from rot.
+# divergence is legitimate (ui_xml/portrait/print_tune_panel.xml carries its
+# own help text and splits the z-offset controls into rows the base keeps on
+# one line), and a hard gate cannot tell that apart from rot.
 #
 # These tests pin both halves of the contract. The silent half matters as much
 # as the loud half — a gate that fires on a legitimate landscape-only padding

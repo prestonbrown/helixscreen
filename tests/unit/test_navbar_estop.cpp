@@ -505,9 +505,9 @@ TEST_CASE("the navbar is the one E-stop where the navbar shows, and screens that
     }
 
     // These sit beside the navbar and drew a second E-stop over their content.
-    for (const char* path : {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml",
-                             "ui_xml/micro/controls_panel.xml", "ui_xml/print_status_panel.xml",
-                             "ui_xml/portrait/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
+    for (const char* path :
+         {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml", "ui_xml/micro/controls_panel.xml",
+          "ui_xml/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
         INFO(path);
         const std::string xml = read_xml(path);
         CHECK(xml.find("estop_visible") == std::string::npos);
