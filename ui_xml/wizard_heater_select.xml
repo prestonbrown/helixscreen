@@ -22,14 +22,14 @@
       <!-- Bed heater selection -->
       <text_body text="Bed Heater" style_pad_bottom="#space_sm"/>
       <lv_dropdown name="bed_heater_dropdown"
-                   width="100%" height="#header_height" options="heater_bed" style_border_opa="100%"
+                   width="100%" height="#wizard_dropdown_height" options="heater_bed" style_border_opa="100%"
                    style_radius="#border_radius" style_pad_all="#space_lg">
         <event_cb trigger="value_changed" callback="on_bed_heater_dropdown_changed"/>
       </lv_dropdown>
       <!-- Hotend heater selection -->
       <text_body text="Hotend Heater" style_pad_top="#space_md" style_pad_bottom="#space_sm"/>
       <lv_dropdown name="hotend_heater_dropdown"
-                   width="100%" height="#header_height" options="extruder" style_border_opa="100%"
+                   width="100%" height="#wizard_dropdown_height" options="extruder" style_border_opa="100%"
                    style_radius="#border_radius" style_pad_all="#space_lg">
         <event_cb trigger="value_changed" callback="on_hotend_heater_dropdown_changed"/>
       </lv_dropdown>
