@@ -505,6 +505,7 @@ Issue references are welcome as pointers, not summaries:
 | `src/ui/` | All UI code — flat dir, prefixed: `ui_panel_*.cpp`, `ui_overlay_*.cpp`, `ui_modal*.cpp` |
 | `src/ui/modals/` | Additional modal implementations |
 | `src/printer/` | PrinterState, MoonrakerAPI, macro/filament managers |
+| `src/core/` | Foundation below every layer: update queue, observer factory, static registries, text and HTTP plumbing (headers in `include/core/`) |
 | `src/system/` | Config, settings, update checker, sound, telemetry |
 | `src/application/` | App lifecycle, display, input, runtime config |
 | `ui_xml/` | All XML layouts (loaded at runtime — no rebuild needed) |
