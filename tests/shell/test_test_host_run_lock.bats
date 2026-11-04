@@ -91,9 +91,14 @@ case "$1" in
                 echo "VERDICT: CLEAN"
                 ;;
             *MOCK-JOB*)
-                # A job that outlives a dropped link.
+                # A job that outlives a dropped link: its first line drops
+                # the link that relays it (MOCK_SSH_DROP_AFTER), and it ends
+                # only once the run has reconnected.
                 echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
-                touch "$MOCK_SSH_DROP"; sleep 1; echo job-done; exit 3
+                echo job-start
+                for _ in $(seq 1 600); do [ -e "$MOCK_SSH_RECONNECTED" ] && break; sleep 0.05; done
+                [ -e "$MOCK_SSH_RECONNECTED" ] || { echo job-never-reconnected; exit 9; }
+                echo job-done; exit 3
                 ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG" ;;
         esac ;;
@@ -167,11 +172,13 @@ wait_for_line() { # <substring> <file>
 
 @test "a job outlives a dropped link: the run reconnects and reports its output and exit status" {
     install_drop_ssh
+    export MOCK_SSH_DROP_AFTER=job-start
     # HELIX_TEST_RECONNECT_SECS is left at its default: a default of 0 gives up
     # on the first drop.
     run "$SCRIPT" --commit exec -- MOCK-JOB
     [ "$status" -eq 3 ]
-    contains "lost the connection to testhost.invalid (ssh exit 255); the job keeps running there" "$output"
+    [ "$(grep -c "lost the connection to testhost.invalid (ssh exit 255); the job keeps running there" <<<"$output")" -eq 1 ]
+    [ "$(grep -c job-start <<<"$output")" -eq 1 ]
     contains "job-done" "$output"
     ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
 }

@@ -15,9 +15,15 @@
 # stdin. Set, it keeps running with its stdin open and its output going
 # nowhere, as when sshd has not yet noticed the link is dead; the stand-in
 # holding that stdin open is recorded in $BATS_TEST_TMPDIR/ssh-keepers.
+#
+# MOCK_SSH_DROP_AFTER names a string: the first connection to relay it creates
+# MOCK_SSH_DROP, so the link drops while the job printing it is mid-run, with
+# no race against the job. Every connection opened after the drop touches
+# MOCK_SSH_RECONNECTED, so a job can hold its end until the run has reconnected.
 
 install_drop_ssh() {
     export MOCK_SSH_DROP="$BATS_TEST_TMPDIR/link-down" HELIX_TEST_RECONNECT_PAUSE_SECS=0
+    export MOCK_SSH_RECONNECTED="$BATS_TEST_TMPDIR/link-back"
     cat > "$BATS_TEST_TMPDIR/ssh-drop" <<'SSH'
 #!/usr/bin/env bash
 while [ $# -gt 0 ]; do
@@ -25,7 +31,7 @@ while [ $# -gt 0 ]; do
 done
 shift
 case "$1" in bash) ;; *) exec bash -c "$*" ;; esac
-pre=0; [ ! -e "$MOCK_SSH_DROP" ] || pre=1
+pre=0; [ ! -e "$MOCK_SSH_DROP" ] || { pre=1; touch "$MOCK_SSH_RECONNECTED"; }
 out=$(mktemp "$BATS_TEST_TMPDIR/ssh-out.XXXXXX")
 if [ -n "${MOCK_SSH_DROP_KEEP:-}" ]; then
     fifo="$out.in"
@@ -48,6 +54,7 @@ flush() {
 }
 while kill -0 "$pid" 2>/dev/null; do
     flush
+    if [ -n "${MOCK_SSH_DROP_AFTER:-}" ] && grep -qF -- "$MOCK_SSH_DROP_AFTER" "$out"; then touch "$MOCK_SSH_DROP"; fi
     if [ "$pre" = 0 ] && [ -e "$MOCK_SSH_DROP" ]; then
         if [ -n "${MOCK_SSH_DROP_KEEP:-}" ]; then
             ( exec 6>"$fifo"; exec sleep 60 ) </dev/null >/dev/null 2>&1 &
