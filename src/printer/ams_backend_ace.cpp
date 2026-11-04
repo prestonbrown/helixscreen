@@ -837,22 +837,19 @@ AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info,
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendAce::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
+SlotInfo* AmsBackendAce::identity_slot_locked(int slot_index) {
+    return mutable_slot_locked(slot_index);
+}
 
-        SlotInfo* slot = mutable_slot_locked(slot_index);
-        if (!slot) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0);
-        }
-        // overrides_ is left alone: a synced value lives in memory only, and
-        // the next firmware parse overwrites it.
-        write_filament_fields(*slot, info);
+AmsSubscriptionBackend::IdentityWrite
+AmsBackendAce::write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) {
+    if (!slot) {
+        // The refusal offers no span: its highest slot is 0 whatever the unit count.
+        return {AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0)};
     }
-
+    write_filament_fields(*slot, info);
     spdlog::info("[ACE] Synced slot {} info: {} {}", slot_index, info.material, info.color_name);
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
+    return {};
 }
 
 void AmsBackendAce::persist_external_identity_impl(int slot_index,
@@ -2708,21 +2705,8 @@ void AmsBackendAce::judge_insert_locked(SlotInfo& slot, int slot_index,
     forget_user_temps_locked(slot_index);
 }
 
-void AmsBackendAce::clear_slot_override(int slot_index) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        auto* slot = mutable_slot_locked(slot_index);
-        if (!slot) {
-            spdlog::warn("{} clear_slot_override: no slot entry for index {}", backend_log_tag(),
-                         slot_index);
-            return;
-        }
-        spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
-        clear_override_locked(slot_index, slot);
-        forget_user_temps_locked(slot_index);
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
+void AmsBackendAce::after_override_cleared_locked(int slot_index, SlotInfo& /*slot*/) {
+    forget_user_temps_locked(slot_index);
 }
 
 } // namespace helix

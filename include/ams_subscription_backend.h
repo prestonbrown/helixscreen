@@ -234,6 +234,19 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// mutex_. Call without holding mutex_.
     void repaint_slot_from_lane(int slot_index) override;
 
+    /// Under mutex_, hands the slot identity_slot_locked() names to
+    /// write_synced_identity_locked(), then announces kEventSlotChanged for a
+    /// write that moved something. A refusal announces nothing.
+    AmsError sync_external_identity(int slot_index, const SlotInfo& info) final;
+
+    /// Under mutex_, clear_override_locked() on the slot identity_slot_locked()
+    /// names, then after_override_cleared_locked(), then kEventSlotChanged. An
+    /// index naming no cached slot is logged and nothing moves, unless
+    /// clears_override_without_slot() says the stores are cleared anyway. A
+    /// backend whose firmware keeps its own copy of the identity clears that in
+    /// an override around this.
+    void clear_slot_override(int slot_index) override;
+
   protected:
     // --- Hooks for derived classes ---
 
@@ -304,6 +317,46 @@ class AmsSubscriptionBackend : public AmsBackend {
     virtual SlotInfo* cached_slot_locked(int slot_index) {
         (void)slot_index;
         return nullptr;
+    }
+
+    /// The SlotInfo an outside identity write or an override clear lands on,
+    /// or nullptr when @p slot_index names none. The default reads
+    /// system_info_; a backend keeping its slots in a SlotRegistry answers
+    /// from that. Caller holds mutex_.
+    [[nodiscard]] virtual SlotInfo* identity_slot_locked(int slot_index) {
+        return system_info_.get_slot_global(slot_index);
+    }
+
+    /// What one sync_external_identity() did to the slot.
+    struct IdentityWrite {
+        AmsError err = AmsErrorHelper::success();
+        /// kEventSlotChanged once the lock drops. False for a write that kept
+        /// nothing, so a backend with no store for the value announces nothing.
+        bool emit = true;
+    };
+
+    /// sync_external_identity()'s write, under mutex_. @p slot is what
+    /// identity_slot_locked() found, nullptr when @p slot_index names none.
+    /// The default refuses a missing slot as out of range and assigns the
+    /// filament fields; a backend whose tool-map registry, firmware mirror or
+    /// stored record also has to move does that here.
+    virtual IdentityWrite write_synced_identity_locked(int slot_index, SlotInfo* slot,
+                                                       const SlotInfo& info);
+
+    /// clear_slot_override()'s vendor half, once clear_override_locked() has
+    /// run on @p slot, still under mutex_. Default does nothing.
+    virtual void after_override_cleared_locked(int slot_index, SlotInfo& slot) {
+        (void)slot_index;
+        (void)slot;
+    }
+
+    /// Whether clear_slot_override() still erases the stored override, resets
+    /// the lane and announces the slot when identity_slot_locked() finds no
+    /// SlotInfo for the index: a slot not cached yet, before the first frame or
+    /// after a topology change. Default false: the clear is logged and nothing
+    /// moves.
+    [[nodiscard]] virtual bool clears_override_without_slot() const {
+        return false;
     }
 
     /// Extra checks before subscribing (e.g., ToolChanger requires tools discovered).

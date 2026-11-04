@@ -378,7 +378,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
                              const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// The channel's last tag reading. An entry whose CARD_UID names no card
     /// was written over the API, not read off a spool, and is none.
@@ -389,15 +388,15 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
                                         const helix::ams::Observation& spoolman) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
 
-    // Explicit user-initiated override clear (e.g. "Clear slot metadata" button
-    // in the AMS edit modal). Erases overrides_[slot_index], resets the
-    // override-exclusive fields (spool_name, spoolman_*, remaining_weight_g) on
-    // the live SlotInfo, and fires override_store_->clear_async. Brand /
-    // color_name / total_weight_g are preserved — on Snapmaker those fields
-    // are populated from the RFID tag, so they reflect firmware truth.
-    // The hardware-event detector calls this internally once a CARD_UID change
-    // confirms a physical swap.
-    void clear_slot_override(int slot_index) override;
+    /// The index is checked against the tool count before anything is written.
+    AmsSubscriptionBackend::IdentityWrite
+    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
+    // clear_slot_override()'s Snapmaker half: the pending head record write is
+    // dropped and the spool name goes back to the tag's product line. Brand /
+    // color_name / total_weight_g survive the base's clear: on Snapmaker those
+    // come from the RFID tag, so they are firmware truth. The hardware-event
+    // detector runs the clear once a CARD_UID change confirms a physical swap.
+    void after_override_cleared_locked(int slot_index, SlotInfo& slot) override;
 
     // Bypass (not applicable for tool changers)
     AmsError enable_bypass() override;

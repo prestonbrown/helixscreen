@@ -457,8 +457,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
                              const helix::ams::Observation& declared) override;
-    void clear_slot_override(int slot_index) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsSubscriptionBackend::IdentityWrite
+    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
     void persist_slot_weight(int slot_index, float remaining_weight_g,
                              float total_weight_g) override;
     void persist_external_identity_impl(int slot_index,
@@ -560,6 +560,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return "[AMS ToolChanger]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
+    /// The stored override and the lane are cleared even for a tool not cached
+    /// yet, so a clear before the first frame sticks.
+    [[nodiscard]] bool clears_override_without_slot() const override {
+        return true;
+    }
     [[nodiscard]] std::optional<AmsAction> step_action_locked() const override {
         return step_action_;
     }

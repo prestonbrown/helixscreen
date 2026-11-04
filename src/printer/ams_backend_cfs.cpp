@@ -2456,24 +2456,17 @@ AmsError AmsBackendCfs::apply_user_edit(int slot_index, const SlotInfo& info,
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendCfs::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        SlotInfo* target = bay_locked(slot_index);
-        if (!target) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                                system_info_.total_slots - 1);
-        }
-        // overrides_ is left alone: a synced value lives in memory only, and
-        // the next firmware parse overwrites it.
-        write_filament_fields(*target, info);
+AmsSubscriptionBackend::IdentityWrite
+AmsBackendCfs::write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) {
+    if (!slot || system_info_.slot_absent(slot_index)) {
+        return {
+            AmsErrorHelper::invalid_slot(lane_noun(), slot_index, system_info_.total_slots - 1)};
     }
-
+    // The resolver-owned identity only: the fields the lane model paints.
+    write_filament_fields(*slot, info);
     spdlog::info("[AMS CFS] Synced slot {} info: {} {}", slot_index, info.material,
                  info.color_name);
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
+    return {};
 }
 
 void AmsBackendCfs::persist_external_identity_impl(int slot_index,

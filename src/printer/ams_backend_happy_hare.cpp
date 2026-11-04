@@ -2719,15 +2719,6 @@ void AmsBackendHappyHare::persist_override(int slot_index, const SlotInfo& info,
     }
 }
 
-void AmsBackendHappyHare::clear_slot_override(int slot_index) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        helix::printer::SlotEntry* entry = slots_.get_mut(slot_index);
-        clear_override_locked(slot_index, entry ? &entry->info : nullptr);
-    }
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-}
-
 void AmsBackendHappyHare::publish_external_spool_lane(const SlotInfo* spool) {
     // Same shape as AFC's publish: capability + gate count under the lock,
     // lazy shared-namespace store from api_, send outside. Lane key style —
@@ -3057,25 +3048,18 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
+SlotInfo* AmsBackendHappyHare::identity_slot_locked(int slot_index) {
+    return cached_slot_locked(slot_index);
+}
 
-        if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1);
-        }
-
-        auto* entry = slots_.get_mut(slot_index);
-        if (!entry) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1);
-        }
-
-        write_gate_locked(slot_index, entry->info, info);
+AmsSubscriptionBackend::IdentityWrite
+AmsBackendHappyHare::write_synced_identity_locked(int slot_index, SlotInfo* slot,
+                                                  const SlotInfo& info) {
+    if (!slot) {
+        return {AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1)};
     }
-
-    // Emit OUTSIDE the lock to avoid deadlock with callbacks
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
+    write_gate_locked(slot_index, *slot, info);
+    return {};
 }
 
 void AmsBackendHappyHare::persist_external_identity_impl(int slot_index,

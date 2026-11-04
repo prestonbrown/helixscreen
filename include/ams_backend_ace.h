@@ -150,7 +150,8 @@ class AmsBackendAce : public AmsSubscriptionBackend {
 
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
                              const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsSubscriptionBackend::IdentityWrite
+    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
 
     /// A bay's last identified tag read (rfid true, or 2): material, colour and
     /// the temperatures the frame carried. Dropped when the bay empties or a
@@ -161,15 +162,12 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     void persist_external_identity_impl(int slot_index,
                                         const helix::ams::Observation& spoolman) override;
 
-    // Explicit user-initiated override clear (e.g. "Clear slot metadata" button
-    // in the AMS edit modal). Erases overrides_[slot_index], resets the
-    // override-exclusive fields on the live SlotInfo, and fires
-    // override_store_->clear_async. ACE firmware doesn't populate brand /
-    // spool_name / spoolman_* / weights / color_name — those are override-only,
-    // so they're all zeroed. Color/material come from firmware so they stay.
-    // The hardware-event detector calls this internally once an EMPTY -> present
-    // transition confirms a physical swap.
-    void clear_slot_override(int slot_index) override;
+    // clear_slot_override()'s ACE half: the user's temperature claims go with
+    // the override. ACE firmware doesn't populate brand / spool_name /
+    // spoolman_* / weights / color_name, so the base clears them all; colour and
+    // material come from firmware and stay. The hardware-event detector runs the
+    // clear once an EMPTY -> present transition confirms a physical swap.
+    void after_override_cleared_locked(int slot_index, SlotInfo& slot) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
 
     // Nothing here can re-aim a tool: the backend declares RemapStrategy::None
@@ -676,6 +674,7 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     /// only refreshes slot_count when the slot count actually changes.
     /// Caller holds mutex_.
     SlotInfo* mutable_slot_locked(int slot_index);
+    SlotInfo* identity_slot_locked(int slot_index) override;
     /// Reads the slots the same way, so a read sees what a write through
     /// mutable_slot_locked() left.
     [[nodiscard]] const SlotInfo* slot_info_locked(int slot_index) const override {

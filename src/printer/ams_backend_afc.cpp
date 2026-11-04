@@ -5314,21 +5314,17 @@ std::optional<helix::ams::TagReading> AmsBackendAfc::tag_reading(int slot_index)
     return reading;
 }
 
-AmsError AmsBackendAfc::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
+SlotInfo* AmsBackendAfc::identity_slot_locked(int slot_index) {
+    return cached_slot_locked(slot_index);
+}
 
-        auto* entry = slots_.get_mut(slot_index);
-        if (!entry) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                                system_info_.total_slots - 1);
-        }
-        write_lane_locked(slot_index, entry->info, info);
+AmsSubscriptionBackend::IdentityWrite
+AmsBackendAfc::write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) {
+    if (!slot) {
+        return AmsSubscriptionBackend::write_synced_identity_locked(slot_index, nullptr, info);
     }
-
-    // Emit OUTSIDE the lock to avoid deadlock with callbacks
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
+    write_lane_locked(slot_index, *slot, info);
+    return {};
 }
 
 void AmsBackendAfc::persist_external_identity_impl(int slot_index,

@@ -385,6 +385,47 @@ void AmsSubscriptionBackend::apply_reread_lane_records(
     on_lane_reread_finished(taken);
 }
 
+AmsError AmsSubscriptionBackend::sync_external_identity(int slot_index, const SlotInfo& info) {
+    IdentityWrite write;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        write = write_synced_identity_locked(slot_index, identity_slot_locked(slot_index), info);
+    }
+    if (write.err.success() && write.emit) {
+        emit_event(kEventSlotChanged, std::to_string(slot_index));
+    }
+    return write.err;
+}
+
+AmsSubscriptionBackend::IdentityWrite
+AmsSubscriptionBackend::write_synced_identity_locked(int slot_index, SlotInfo* slot,
+                                                     const SlotInfo& info) {
+    if (!slot) {
+        return {
+            AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slot_index_bound_locked() - 1)};
+    }
+    slot->assign_filament_fields(info);
+    return {};
+}
+
+void AmsSubscriptionBackend::clear_slot_override(int slot_index) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        SlotInfo* slot = identity_slot_locked(slot_index);
+        if (!slot && !clears_override_without_slot()) {
+            spdlog::warn("{} clear_slot_override: no slot entry for index {}", backend_log_tag(),
+                         slot_index);
+            return;
+        }
+        spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
+        clear_override_locked(slot_index, slot);
+        if (slot) {
+            after_override_cleared_locked(slot_index, *slot);
+        }
+    }
+    emit_event(kEventSlotChanged, std::to_string(slot_index));
+}
+
 void AmsSubscriptionBackend::repaint_slot_from_lane(int slot_index) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (SlotInfo* slot = cached_slot_locked(slot_index)) {

@@ -193,7 +193,8 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
 
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
                              const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsSubscriptionBackend::IdentityWrite
+    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
 
     /// The Box's saved RFID ids, resolved, kept while our own write-back holds
     /// the saved ids (helix::ams::fold_tag_frame).
