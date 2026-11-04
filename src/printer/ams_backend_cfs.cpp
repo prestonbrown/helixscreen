@@ -4517,19 +4517,29 @@ AmsError AmsBackendCfs::start_chute_calibration(
     return err;
 }
 
-AmsError AmsBackendCfs::jog_chute_y(float delta_mm) {
+AmsError AmsBackendCfs::jog_chute_axis(char axis, float delta_mm) {
     if (macro_variant_ != CfsMacroVariant::K1) {
         return AmsErrorHelper::not_supported("Purge chute jog is K1-stock only");
     }
+    if (auto e = refuse_motion_if_printing(); !e.success()) {
+        return e;
+    }
     // The stock screen's script form, verbatim: the state save/restore keeps
     // the caller's absolute/relative mode intact and M400 makes the RPC ack
-    // wait for the move to finish, so back-to-back jogs cannot accumulate
-    // uncommitted travel.
+    // wait for the move to finish.
     const std::string script =
-        fmt::format("SAVE_GCODE_STATE NAME=myMoveState\n G91\n G0 Y{:.3f} F3000\n M400\n"
+        fmt::format("SAVE_GCODE_STATE NAME=myMoveState\n G91\n G0 {}{:.3f} F3000\n M400\n"
                     " RESTORE_GCODE_STATE NAME=myMoveState",
-                    delta_mm);
+                    axis, delta_mm);
     return execute_gcode(script);
+}
+
+AmsError AmsBackendCfs::jog_chute_y(float delta_mm) {
+    return jog_chute_axis('Y', delta_mm);
+}
+
+AmsError AmsBackendCfs::jog_chute_x(float delta_mm) {
+    return jog_chute_axis('X', delta_mm);
 }
 
 AmsError

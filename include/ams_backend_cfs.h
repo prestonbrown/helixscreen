@@ -443,9 +443,13 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
 
     /// Jog Y by @p delta_mm using the stock screen's exact script form
     /// (SAVE_GCODE_STATE/G91/G0/M400/RESTORE_GCODE_STATE). The caller clamps
-    /// the delta against live axis bounds; the stepper's own position_min/max
-    /// is the hard limit either way.
+    /// the delta (ChuteJogGuard); the stepper's own position_min/max is the
+    /// hard limit either way. Refused while a print owns the machine.
     AmsError jog_chute_y(float delta_mm) override;
+
+    /// Jog X the same way. The stock screen never moves X in this flow, so the
+    /// caller's ChuteJogGuard keeps it near the park and out of the rear zone.
+    AmsError jog_chute_x(float delta_mm) override;
 
     /// Chute save: COORDINATES_ADJUST_SAVE_POS (the firmware reads the LIVE
     /// toolhead position and rewrites extrude_pos_x/y in box.cfg; HelixScreen
@@ -819,6 +823,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
     /// The dialect the ctor read from the model, which macro_variant_ returns
     /// to when a box that spoke the Fork dialect reports stock units again.
     CfsMacroVariant model_macro_variant_ = CfsMacroVariant::K2;
+
+    /// One chute jog on @p axis ('X' or 'Y').
+    AmsError jog_chute_axis(char axis, float delta_mm);
 
     /// Save-response line captured by the last chute save (main thread only:
     /// written when the save completes, read by last_chute_saved_position).

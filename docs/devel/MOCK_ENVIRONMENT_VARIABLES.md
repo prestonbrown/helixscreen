@@ -944,7 +944,7 @@ lines on a short timer: `Found cut position y: â€¦`, `MODIFY_BOX_CFG: success, â
 `COORDINATES_ADJUST_SAVE_POS`, `Y_SAFE`), with park/extrude geometry scaled off the
 persona envelope so a K1 Max persona reproduces the captured 291.5/304.0 values. The
 chute jog script rides the existing `SAVE_GCODE_STATE`/`G91`/`G0` simulation, so the
-live Y readout moves as the overlay jogs.
+live X and Y readouts move as the overlay jogs.
 
 ```bash
 HELIX_MOCK_PRINTER=k1 HELIX_MOCK_AMS=cfs ./build/bin/helix-screen --test -vv

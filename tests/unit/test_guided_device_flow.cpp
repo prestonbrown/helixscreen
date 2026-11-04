@@ -73,6 +73,9 @@ class CountingMock : public AmsBackendMock, public ICfsCalibration {
                                      std::shared_ptr<std::atomic<bool>>) override {
         return AmsErrorHelper::success();
     }
+    AmsError jog_chute_x(float) override {
+        return AmsErrorHelper::success();
+    }
     AmsError jog_chute_y(float) override {
         return AmsErrorHelper::success();
     }

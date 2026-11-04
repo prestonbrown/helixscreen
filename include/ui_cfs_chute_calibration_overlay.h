@@ -5,6 +5,7 @@
 
 #include "ui_observer_guard.h"
 
+#include "chute_jog_guard.h"
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
@@ -13,6 +14,11 @@
 #include <atomic>
 #include <memory>
 
+namespace helix {
+enum class JogDirection;
+enum class JogMode;
+} // namespace helix
+
 namespace helix::ui {
 
 /**
@@ -20,10 +26,11 @@ namespace helix::ui {
  * printers (K1 stock command dialect).
  *
  * Walks the stock screen's verified choreography (prestonbrown/helixscreen#1282):
- * full home (XYZ_ZERO), prepare (COORDINATES_ADJUST_PREPARE), Y-only jogging
- * to line the toolhead up with the chute, then save (COORDINATES_ADJUST_SAVE_POS
- * + Y_SAFE). All gcode goes through AmsBackendCfs; this overlay owns only the
- * step machine, the live-Y readout and the jog clamping.
+ * full home (XYZ_ZERO), prepare (COORDINATES_ADJUST_PREPARE), jogging to line
+ * the toolhead up with the chute, then save (COORDINATES_ADJUST_SAVE_POS +
+ * Y_SAFE). The stock screen jogs Y only; X jogging is an addition here, limited
+ * by ChuteJogGuard. All gcode goes through AmsBackendCfs; this overlay owns only
+ * the step machine and the live readouts.
  *
  * @pattern Overlay (lazy init, singleton via get_cfs_chute_calibration_overlay())
  * @threading Main thread only
@@ -54,6 +61,9 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
 
+  protected:
+    void on_ui_destroyed() override;
+
   private:
     /// Step machine values published on s_cfs_chute_state. Order matters: the
     /// cancel path treats everything before ADJUSTING as "nothing to unwind".
@@ -67,15 +77,27 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
 
     void set_state(State state);
     void start_calibration();
-    void handle_jog(double delta_mm);
+    enum class Axis { X, Y };
+    /// True when the jog went out, which is what lets a hold keep repeating.
+    bool jog(Axis axis, double delta_mm);
+    static bool jog_pad_jog_cb(helix::JogDirection direction, float distance_mm, bool is_repeat,
+                               void* user_data);
+    void set_jog_mode(helix::JogMode mode);
+    void fit_jog_pad();
     void save_position();
+    void update_x_display(int centimm);
     void update_y_display(int centimm);
 
-    /// Live toolhead Y in mm, from the position subject; drives the readout
-    /// and the jog clamp.
+    /// Live toolhead X/Y in mm, from the position subjects; drives the readouts
+    /// and the jog limits.
+    double current_x_mm_ = 0.0;
+    bool x_known_ = false;
     double current_y_mm_ = 0.0;
     bool y_known_ = false;
-    bool edge_warned_y_ = false;
+
+    helix::ChuteJogGuard jog_guard_;
+    /// Child of the overlay tree; on_ui_destroyed() clears it.
+    lv_obj_t* jog_pad_ = nullptr;
 
     /// Set the moment the overlay starts leaving; the backend polls it at
     /// each step boundary so a cancel during the home drops the flow instead
@@ -83,7 +105,9 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     std::shared_ptr<std::atomic<bool>> cancel_requested_ =
         std::make_shared<std::atomic<bool>>(false);
 
+    ObserverGuard x_observer_;
     ObserverGuard y_observer_;
+    ObserverGuard motion_blocked_observer_;
     SubjectManager subjects_;
 };
 

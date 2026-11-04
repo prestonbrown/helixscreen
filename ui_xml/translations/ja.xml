@@ -109,6 +109,7 @@
   <translation tag="180° Upside Down" ja="180° 上下反転"/>
   <translation tag="2 min" ja="2分"/>
   <translation tag="2 minutes" ja="2分"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" ja="2. XとYをジョグして、ノズルがシュートの開口部の中心に来るようにします"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" ja="2. Yをジョグして、ノズルがシュートの開口部の中心に来るようにします"/>
   <translation tag="2. Place paper between nozzle and bed" ja="2. ノズルとベッドの間に紙を置いてください"/>
   <translation tag="2. Results show how much to turn each screw" ja="2. 各ネジをどれだけ回すか結果が表示されます"/>
@@ -1858,6 +1859,7 @@
   <translation tag="Jog Pad" ja="ジョグパッド"/>
   <translation tag="Jog Speed XY" ja="XY ジョグ速度"/>
   <translation tag="Jog Speed Z" ja="Z ジョグ速度"/>
+  <translation tag="Jog Y back to {:.1f} mm before moving X" ja="Xを動かす前にYを{:.1f} mmまでジョグして戻します"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." ja="Yをジョグしてノズルがシュートの開口部の中心に来たら、保存をタップします。"/>
   <translation tag="Jog failed: {}" ja="ジョグに失敗しました: {}"/>
   <translation tag="Jog layout, speeds and step distances" ja="ジョグのレイアウト、速度とステップ距離"/>
@@ -3983,6 +3985,7 @@
   <translation tag="Toolhead Offset Calibration" ja="ツールヘッドオフセットのキャリブレーション"/>
   <translation tag="Toolhead Sensor" ja="ツールヘッドセンサー"/>
   <translation tag="Toolhead Style" ja="ツールヘッドスタイル"/>
+  <translation tag="Toolhead X" ja="ツールヘッド X"/>
   <translation tag="Toolhead Y" ja="ツールヘッド Y"/>
   <translation tag="Toolhead jam" ja="ツールヘッドの詰まり"/>
   <translation tag="Toolhead offset calibration" ja="ツールヘッドオフセットのキャリブレーション"/>
@@ -4284,6 +4287,7 @@
   <translation tag="X and Y jog feedrate" ja="X/Y軸のジョグ移動速度"/>
   <translation tag="X axis applied, but Y axis failed" ja="X軸は適用されましたが、Y軸は失敗しました"/>
   <translation tag="X axis done, starting Y..." ja="X軸が完了しました。Y軸を開始します..."/>
+  <translation tag="X axis limit reached" ja="X軸のリミットに達しました"/>
   <translation tag="X is at its limit ({}mm)" ja="X軸は限界に達しています ({}mm)"/>
   <translation tag="X:" ja="X:"/>
   <translation tag="XY" ja="XY"/>

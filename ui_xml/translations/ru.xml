@@ -142,6 +142,7 @@
   <translation tag="180° Upside Down" ru="180° вверх ногами"/>
   <translation tag="2 min" ru="2 мин"/>
   <translation tag="2 minutes" ru="2 минуты"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" ru="2. Двигайте X и Y, пока сопло не встанет по центру отверстия жёлоба"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" ru="2. Двигайте Y, пока сопло не встанет по центру отверстия жёлоба"/>
   <translation tag="2. Place paper between nozzle and bed" ru="2. Положите бумагу между соплом и столом"/>
   <translation tag="2. Results show how much to turn each screw" ru="2. Результаты покажут, насколько повернуть каждый винт"/>
@@ -1903,6 +1904,7 @@
   <translation tag="Jog Pad" ru="Джог-панель"/>
   <translation tag="Jog Speed XY" ru="Скорость перемещения XY"/>
   <translation tag="Jog Speed Z" ru="Скорость перемещения Z"/>
+  <translation tag="Jog Y back to {:.1f} mm before moving X" ru="Верните Y на {:.1f} мм, прежде чем двигать X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." ru="Двигайте Y, пока сопло не встанет по центру отверстия жёлоба, затем нажмите «Сохранить»."/>
   <translation tag="Jog failed: {}" ru="Перемещение не удалось: {}"/>
   <translation tag="Jog layout, speeds and step distances" ru="Раскладка, скорости и шаги перемещения"/>
@@ -4043,6 +4045,7 @@
   <translation tag="Toolhead Offset Calibration" ru="Калибровка смещений головок"/>
   <translation tag="Toolhead Sensor" ru="Датчик печатающей головки"/>
   <translation tag="Toolhead Style" ru="Стиль печатающей головки"/>
+  <translation tag="Toolhead X" ru="Печатающая головка X"/>
   <translation tag="Toolhead Y" ru="Печатающая головка Y"/>
   <translation tag="Toolhead jam" ru="Замятие в печатающей головке"/>
   <translation tag="Toolhead offset calibration" ru="Калибровка смещений головок"/>
@@ -4344,6 +4347,7 @@
   <translation tag="X and Y jog feedrate" ru="Скорость перемещения по осям X и Y"/>
   <translation tag="X axis applied, but Y axis failed" ru="Ось X применена, но ось Y не удалась"/>
   <translation tag="X axis done, starting Y..." ru="Ось X готова, запуск Y..."/>
+  <translation tag="X axis limit reached" ru="Достигнут предел оси X"/>
   <translation tag="X is at its limit ({}mm)" ru="X на пределе ({}mm)"/>
   <translation tag="X:" ru="X:"/>
   <translation tag="XY" ru="XY"/>

@@ -109,6 +109,7 @@
   <translation tag="180° Upside Down" zh="180° 上下颠倒"/>
   <translation tag="2 min" zh="2分钟"/>
   <translation tag="2 minutes" zh="2 分钟"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" zh="2. 点动 X 和 Y 轴，直到喷嘴位于排料口开口中心"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" zh="2. 点动 Y 轴，直到喷嘴位于排料口开口中心"/>
   <translation tag="2. Place paper between nozzle and bed" zh="2. 将纸张放在喷嘴和热床之间"/>
   <translation tag="2. Results show how much to turn each screw" zh="2. 结果显示每个螺丝需要旋转多少"/>
@@ -1858,6 +1859,7 @@
   <translation tag="Jog Pad" zh="点动盘"/>
   <translation tag="Jog Speed XY" zh="XY 移动速度"/>
   <translation tag="Jog Speed Z" zh="Z 移动速度"/>
+  <translation tag="Jog Y back to {:.1f} mm before moving X" zh="移动 X 轴前，请将 Y 轴点动回 {:.1f} mm"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." zh="点动 Y 轴，直到喷嘴位于排料口开口中心，然后点击保存。"/>
   <translation tag="Jog failed: {}" zh="移动失败: {}"/>
   <translation tag="Jog layout, speeds and step distances" zh="点动布局、速度与步进距离"/>
@@ -3983,6 +3985,7 @@
   <translation tag="Toolhead Offset Calibration" zh="工具头偏移校准"/>
   <translation tag="Toolhead Sensor" zh="工具头传感器"/>
   <translation tag="Toolhead Style" zh="工具头样式"/>
+  <translation tag="Toolhead X" zh="工具头 X"/>
   <translation tag="Toolhead Y" zh="工具头 Y"/>
   <translation tag="Toolhead jam" zh="工具头堵塞"/>
   <translation tag="Toolhead offset calibration" zh="工具头偏移校准"/>
@@ -4284,6 +4287,7 @@
   <translation tag="X and Y jog feedrate" zh="X/Y 轴移动速度"/>
   <translation tag="X axis applied, but Y axis failed" zh="X 轴已应用，但 Y 轴失败"/>
   <translation tag="X axis done, starting Y..." zh="X 轴完成，开始 Y 轴..."/>
+  <translation tag="X axis limit reached" zh="已到达 X 轴限位"/>
   <translation tag="X is at its limit ({}mm)" zh="X 轴已到达限位 ({}mm)"/>
   <translation tag="X:" zh="X："/>
   <translation tag="XY" zh="XY"/>

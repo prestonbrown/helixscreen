@@ -109,6 +109,7 @@ translations:
   180° Upside Down: 180° 上下颠倒
   2 min: '2分钟'
   2 minutes: 2 分钟
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. 点动 X 和 Y 轴，直到喷嘴位于排料口开口中心
   2. Jog Y until the nozzle is centered over the chute opening: 2. 点动 Y 轴，直到喷嘴位于排料口开口中心
 
   2. Place paper between nozzle and bed: 2. 将纸张放在喷嘴和热床之间
@@ -1926,6 +1927,7 @@ translations:
   Jog Pad: '点动盘'
   Jog Speed XY: XY 移动速度
   Jog Speed Z: Z 移动速度
+  Jog Y back to {:.1f} mm before moving X: 移动 X 轴前，请将 Y 轴点动回 {:.1f} mm
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: 点动 Y 轴，直到喷嘴位于排料口开口中心，然后点击保存。
 
   'Jog failed: {}': '移动失败: {}'
@@ -4155,6 +4157,7 @@ translations:
   Toolhead Offset Calibration: 工具头偏移校准
   Toolhead Sensor: 工具头传感器
   Toolhead Style: 工具头样式
+  Toolhead X: 工具头 X
   Toolhead Y: 工具头 Y
   Toolhead jam: 工具头堵塞
   Toolhead offset calibration: 工具头偏移校准
@@ -4452,6 +4455,7 @@ translations:
   X and Y jog feedrate: X/Y 轴移动速度
   X axis applied, but Y axis failed: X 轴已应用，但 Y 轴失败
   X axis done, starting Y...: 'X 轴完成，开始 Y 轴...'
+  X axis limit reached: 已到达 X 轴限位
   X is at its limit ({}mm): X 轴已到达限位 ({}mm)
   'X:': X：
   XY: XY
