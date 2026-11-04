@@ -39,6 +39,7 @@ echo ""
   return $EXIT_CODE
 }
 
-# Builds the validator binaries the XML gates run; also wakes on the
+# Builds the validator binary the XML attribute gate runs. A commit runs that gate
+# on staged XML only, so a staged .cpp has no use for the tool; wakes on the
 # validators' own sources so an edit to a tool rebuilds it.
-QC_TRIGGER_qc_xml_tools='\.xml$|^src/ui/|^tools/validate_xml|^tools/xml-linter/'
+QC_TRIGGER_qc_xml_tools='\.xml$|^tools/validate_xml|^tools/xml-linter/'

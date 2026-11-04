@@ -290,7 +290,11 @@ for fn in $QC_PARALLEL; do
   qc_wanted "$fn" || continue
   qc_run_buffered "$fn" &
   running=$((running + 1))
-  if [ "$running" -ge "$QC_JOBS" ]; then wait -n 2>/dev/null || wait; running=$((running - 1)); fi
+  # bash 3.2 (a Mac's /bin/bash) has no wait -n: waiting for the whole batch frees
+  # every slot, and counting it as one would run each remaining gate alone.
+  if [ "$running" -ge "$QC_JOBS" ]; then
+    if wait -n 2>/dev/null; then running=$((running - 1)); else wait; running=0; fi
+  fi
 done
 wait
 

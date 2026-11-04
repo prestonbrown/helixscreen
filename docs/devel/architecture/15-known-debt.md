@@ -8,7 +8,7 @@ The debt is deliberately bounded. The imperative-UI count is frozen by a ratchet
 flowchart TD
     NEW["New code"] -->|"fully declarative or annotated"| GATE
 
-    subgraph LEDGER["The ledger - 319 sites (issue #1140)"]
+    subgraph LEDGER["The ledger - 531 sites (issue #1140)"]
         V["visibility 136"]
         T["text 83"]
         S["style 59"]
@@ -53,14 +53,14 @@ Six catalogues: the ledger and its ratchet, the duplication debt, the open corre
 
 ### The imperative-UI ledger and the ratchet
 
-[`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) flags one specific shape: a widget fetched from an XML tree by name (`lv_obj_find_by_name()`, `find_required()`, `find_optional()`) and then mutated in C++: `lv_label_set_text()` instead of `bind_text`, `lv_obj_add_flag(HIDDEN)` instead of `<bind_flag_if_eq>`, `lv_obj_set_style_*` instead of XML styles, `lv_obj_add_event_cb()` instead of `<event_cb>`. At this writing the count is **319**:
+[`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) flags one specific shape: a widget fetched from an XML tree by name (`lv_obj_find_by_name()`, `find_required()`, `find_optional()`, `find_widget()`) and then mutated in C++, anywhere in the file, since the lookup usually sits in `setup()` and the mutation in `update_*()`: `lv_label_set_text()` instead of `bind_text`, `lv_obj_add_flag(HIDDEN)` instead of `<bind_flag_if_eq>`, `lv_obj_set_style_*` instead of XML styles, `lv_obj_add_event_cb()` instead of `<event_cb>`. At this writing the count is **531**:
 
 ```
-  event          41   → <event_cb trigger="clicked" callback="name"/> + lv_xml_register_event_cb()
-  style          59   → XML style attribute (style_bg_color="#card_bg") or bind_style
-  text           83   → bind_text="subject" on the XML element
-  visibility    136   → <bind_flag_if_eq subject=... flag="hidden"> or <if cond=...>
-  kTotal         319
+  event          55   → <event_cb trigger="clicked" callback="name"/> + lv_xml_register_event_cb()
+  style          80   → XML style attribute (style_bg_color="#card_bg") or bind_style
+  text          162   → bind_text="subject" on the XML element
+  visibility    234   → <bind_flag_if_eq subject=... flag="hidden"> or <if cond=...>
+  TOTAL         531
 ```
 
 (verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/qc/decl_ui.sh#qc_decl_ui`](../../../scripts/qc/decl_ui.sh) runs the gate with `--max-allowed` set to the baseline, so a change that adds a site past it fails the commit, and a port lowers both the count and the baseline. The baseline can sit a few sites above the live count after ports land; lowering it to the count is a one-line change. The porting epic is prestonbrown/helixscreen#1140.
@@ -69,13 +69,14 @@ Where the sites live, by directory:
 
 | Area | Sites | Notes |
 |------|-------|-------|
-| `src/ui/` flat files | 276 | panels, overlays, wizards, services |
-| `src/ui/panel_widgets/` | 21 | home-screen widgets |
-| `src/ui/modals/` | 11 | modal dialogs |
+| `src/ui/` flat files | 434 | panels, overlays, wizards, services |
+| `src/ui/panel_widgets/` | 55 | home-screen widgets |
+| `src/ui/modals/` | 15 | modal dialogs |
 | `src/ui/tour/` | 5 | first-run tour |
-| `src/ui/widgets/`, `src/xml_registration.cpp`, `src/plugin/` | 6 | two each |
+| `src/ui/widgets/` | 18 | home-screen widget helpers |
+| `src/xml_registration.cpp`, `src/plugin/` | 4 | two each |
 
-The worst files: [`src/ui/ui_overlay_network_settings.cpp`](../../../src/ui/ui_overlay_network_settings.cpp) (18), [`src/ui/ui_filament_mapping_modal.cpp`](../../../src/ui/ui_filament_mapping_modal.cpp) (15), [`src/ui/ui_panel_ams.cpp`](../../../src/ui/ui_panel_ams.cpp) (12), then [`ui_pin_utils.cpp`](../../../src/ui/ui_pin_utils.cpp) and [`ui_fan_dial.cpp`](../../../src/ui/ui_fan_dial.cpp) at 11.
+The worst files: [`src/ui/ui_plugin_install_modal.cpp`](../../../src/ui/ui_plugin_install_modal.cpp) and [`src/ui/ui_fan_dial.cpp`](../../../src/ui/ui_fan_dial.cpp) (27 each), [`src/ui/ui_overlay_network_settings.cpp`](../../../src/ui/ui_overlay_network_settings.cpp) and [`src/ui/ui_panel_filament.cpp`](../../../src/ui/ui_panel_filament.cpp) (18 each), then [`src/ui/ui_panel_ams.cpp`](../../../src/ui/ui_panel_ams.cpp) and [`src/ui/widgets/power_device_widget.cpp`](../../../src/ui/widgets/power_device_widget.cpp) at 16.
 
 Why the sites exist: most were written when the XML engine could not yet express what was needed (`<if>`, `<repeat>`, `<subject_expr>` and the word-form `cond` operators came after chunks of this UI were built). Others are plain mistakes that got through review. Both are debt. **None of it is precedent**: do not imitate a nearby imperative site just because it is there, and do not port one opportunistically inside an unrelated change; the ratchet falls through dedicated, reviewable port commits.
 
@@ -125,7 +126,7 @@ AI-assisted design and build at this project's scale produced duplicated logic i
   ```
 
   This one is arguably *correct*: the gates are reactive, and `<if>` builds only one branch at creation time, so `bind_flag_if_eq` is the right primitive (the caveat is spelled out in [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md)). The debt is that the wrapper is retyped by hand at every gated settings surface, not that it exists.
-- **A family of sibling files stamped from one mold.** Five `ui_filament_*` files carry 41 ledger sites between them ([`ui_filament_mapping_modal.cpp`](../../../src/ui/ui_filament_mapping_modal.cpp) 15, [`ui_filament_catalog_selector.cpp`](../../../src/ui/ui_filament_catalog_selector.cpp) 10, [`ui_filament_mapping_card.cpp`](../../../src/ui/ui_filament_mapping_card.cpp) 8, [`ui_filament_slot_picker.cpp`](../../../src/ui/ui_filament_slot_picker.cpp) 6, [`ui_filament_catalog_picker.cpp`](../../../src/ui/ui_filament_catalog_picker.cpp) 2): the same find-then-mutate patterns repeated across near-identical pickers, down to the same four-line warning-swatch style block in the modal and the slot picker.
+- **A family of sibling files stamped from one mold.** Four `ui_filament_*` files carry 28 ledger sites between them ([`ui_filament_mapping_modal.cpp`](../../../src/ui/ui_filament_mapping_modal.cpp) 13, [`ui_filament_catalog_selector.cpp`](../../../src/ui/ui_filament_catalog_selector.cpp) 10, [`ui_filament_product_edit_modal.cpp`](../../../src/ui/ui_filament_product_edit_modal.cpp) 3, [`ui_filament_catalog_picker.cpp`](../../../src/ui/ui_filament_catalog_picker.cpp) 2): the same find-then-mutate patterns repeated across near-identical pickers, down to the same four-line warning-swatch style block in the modal and the slot picker.
 
 The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/ui_temperature_utils.cpp)) consolidated two hand-rolled current/target string subjects into one widget-owned formatter, and [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) records the measured reason string formatting cannot move into XML formulas (the evaluator is integer-only). Consolidations like that are the template.
 
@@ -217,8 +218,8 @@ When you genuinely hit a site that cannot be declarative and fits none of these 
 Each entry verified against the tree at this writing; counts regenerate with `python3 scripts/check_imperative_ui.py --list`.
 
 1. **Port the connection wizard step's event block**: [`src/ui/ui_wizard_connection.cpp#create`](../../../src/ui/ui_wizard_connection.cpp) holds three `find_required()` + `lv_obj_add_event_cb()` pairs (test button, IP input, port input). Each becomes `<event_cb trigger="..." callback="..."/>` in [`ui_xml/wizard_connection.xml`](../../../ui_xml/wizard_connection.xml) plus one registration (see the worked sketch above). A good first project: one self-contained wizard step with no print-state risk, purely mechanical, and it exercises rule 1 end to end.
-2. **Port the network settings overlay**: [`src/ui/ui_overlay_network_settings.cpp`](../../../src/ui/ui_overlay_network_settings.cpp) is the single worst file (18 sites: 8 text, 10 visibility, in `src/ui/ui_overlay_network_settings.cpp#build_network_list`, `show_placeholder`, `update_signal_icons`, `handle_hidden_connect_clicked` and the password modal's `handle_password_connect_clicked`). Every binding is `bind_text` or `<bind_flag_if_eq>`, the cheapest vocabulary, and one overlay owns the whole change.
-3. **Port the filament picker family**: the five `ui_filament_*` files (41 sites) share one mold; porting them in sequence is the same learning applied five times, and each file is small (the largest, the modal, is about 430 lines). It converts a *family* of duplicates into one declarative pattern, addressing both ledgers at once.
+2. **Port the network settings overlay**: [`src/ui/ui_overlay_network_settings.cpp`](../../../src/ui/ui_overlay_network_settings.cpp) is among the worst files (18 sites: 8 text, 10 visibility, in `src/ui/ui_overlay_network_settings.cpp#build_network_list`, `show_placeholder`, `update_signal_icons`, `handle_hidden_connect_clicked` and the password modal's `handle_password_connect_clicked`). Every binding is `bind_text` or `<bind_flag_if_eq>`, the cheapest vocabulary, and one overlay owns the whole change.
+3. **Port the filament picker family**: the four `ui_filament_*` files (28 sites) share one mold; porting them in sequence is the same learning applied four times, and each file is small (the largest, the modal, is about 430 lines). It converts a *family* of duplicates into one declarative pattern, addressing both ledgers at once.
 4. **Build `state_icon`**: the prop-based variant from [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) (comma-separated `icons`/`variants` lists, built as a C++ custom widget) collapses the six network icons and every future state-mapped icon row. The design work is already done and measured; it only needs building.
 
 Every port verifies the same three ways:

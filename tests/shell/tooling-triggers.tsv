@@ -60,7 +60,7 @@ tests/shell/test_esp32_build_debug_heap.bats	scripts/esp32_build_debug_heap.sh s
 tests/shell/test_esp32_compile_gate.bats	firmware/helixscreen-esp32/CMakeLists.txt include/printer_state.h scripts/esp32_syntax_check.py scripts/qc/_lib.sh scripts/qc/esp32_compile.sh src/printer/ams_state.cpp tests/python/test_esp32_syntax_check.py ui_xml/globals.xml
 tests/shell/test_esp32_pack_assets_ci.bats	tests/python/test_esp32_pack_assets.py
 tests/shell/test_esp32_package_release.bats	scripts/esp32_package_release.sh
-tests/shell/test_esp32_xml_bindings_gate.bats	firmware/helixscreen-esp32/components/helixcore/lv_conf.h lv_conf.h scripts/check_esp32_app_srcs.py scripts/check_esp32_xml_bindings.py scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/qc/esp32_xml_bindings.sh scripts/quality-checks.sh
+tests/shell/test_esp32_xml_bindings_gate.bats	firmware/helixscreen-esp32/components/helixcore/lv_conf.h lv_conf.h scripts/check_esp32_app_srcs.py scripts/check_esp32_xml_bindings.py scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/esp32_xml_binding_baseline.txt scripts/qc/esp32_xml_bindings.sh scripts/quality-checks.sh
 tests/shell/test_feature_gates_gate.bats	Makefile android/app/jni/CMakeLists.txt firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt include/helix_features.h scripts/check_feature_gates.py
 tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_filament_ops_neutral.py src/ui/filament_op_execute.cpp src/ui/ui_ams_sidebar.cpp src/ui/ui_wizard_ams_identify.cpp
 tests/shell/test_font_tier_coverage_gate.bats	assets/fonts/noto_sans_10.c assets/fonts/noto_sans_12.c assets/fonts/noto_sans_14.c assets/fonts/noto_sans_16.c assets/fonts/noto_sans_26.c assets/fonts/noto_sans_28.c assets/fonts/noto_sans_32.c assets/fonts/noto_sans_40.c assets/fonts/noto_sans_8.c mk/cross.mk mk/fonts.mk scripts/check_font_tier_coverage.py src/application/asset_manager.cpp src/system/cjk_font_manager.cpp
@@ -89,6 +89,7 @@ tests/shell/test_helixctl_json.bats	src/remote/ tests/ui/helix/app.py
 tests/shell/test_helpers_systemctl_shim.bats	tests/shell/helpers.bash tests/shell/setup_suite.bash
 tests/shell/test_hold_ends_press_gate.bats	scripts/check_hold_ends_press.py scripts/quality-checks.sh
 tests/shell/test_icon_names_gate.bats	include/ui_icon_codepoints.h scripts/check_icon_names.py
+tests/shell/test_imperative_ui_gate.bats	scripts/check_imperative_ui.py
 tests/shell/test_index_sync_gate.bats	.githooks/
 tests/shell/test_installer_archive_ownership.bats	Makefile mk/cross.mk scripts/lib/installer/release.sh
 tests/shell/test_installer_step_reachability_gate.bats	scripts/check_installer_step_reachability.py scripts/install-dev.sh scripts/lib/installer/ scripts/qc/installer_reachability.sh scripts/quality-checks.sh
@@ -194,7 +195,7 @@ tests/shell/test_tsan_resplit_shard.bats	scripts/tsan_resplit_shard.sh
 tests/shell/test_update_platform_coverage.bats	.github/workflows/release.yml mk/cross.mk scripts/lib/installer/platform.sh server/crash-worker/src/index.ts src/system/platform_table.cpp tests/unit/test_update_checker.cpp
 tests/shell/test_update_queue_leak_gate.bats	scripts/check_update_queue_leaks.py scripts/update_queue_leak_baseline.txt
 tests/shell/test_upload_gating.bats	.github/workflows/release.yml Makefile mk/cross.mk mk/pi-dual-link.mk mk/rules.mk src/system/crash_reporter.cpp src/system/debug_bundle_collector.cpp src/ui/ui_crash_report_modal.cpp src/ui/ui_debug_bundle_modal.cpp tests/unit/test_diag_upload_gate.cpp
-tests/shell/test_vacuous_test_gate.bats	scripts/check_vacuous_tests.py
+tests/shell/test_vacuous_test_gate.bats	scripts/check_vacuous_tests.py scripts/vacuous_test_baseline.txt
 tests/shell/test_variant_content_drift_gate.bats	scripts/check_variant_content_drift.py scripts/check_variant_parity.py ui_xml/portrait/print_status_panel.xml ui_xml/print_status_panel.xml ui_xml/translations/en.xml
 tests/shell/test_variant_parity_gate.bats	scripts/check_variant_parity.py ui_xml/micro/header_bar.xml
 tests/shell/test_version_compare.bats	.github/workflows/ scripts/version-compare.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp
