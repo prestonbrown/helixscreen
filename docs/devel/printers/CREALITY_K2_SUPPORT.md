@@ -204,7 +204,7 @@ HelixScreen uses evdev and auto-detects the capacitive touch controller. Running
 
 The K2 Plus reports a Goodix `gt9xxnew_ts` on `/dev/input/event0`, which is the only input node on the machine. **The name contains no "touch" substring**, so `grep -i touch /proc/bus/input/devices` returns nothing on a healthy K2 - match on `gt9`/`goodix` or just read the whole file.
 
-Selection is scored, not name-matched: `src/api/input_device_scanner.cpp#"find_touch_device(const"` (shared by the fbdev and DRM backends) requires ABS capabilities, then adds points for a known name (`include/touch_calibration.h#is_known_touchscreen_name`), `INPUT_PROP_DIRECT`, and USB. Some K2 hardware revisions carry a `tlsc6x` controller instead. Its kernel name `tlsc6x_touch` matches the generic `touch` pattern, so it scores as a known panel (the Snapmaker U1 uses the same controller). No K2 with that variant has been observed yet.
+Selection is scored, not name-matched: `src/platform/input/input_device_scanner.cpp#"find_touch_device(const"` (shared by the fbdev and DRM backends) requires ABS capabilities, then adds points for a known name (`include/touch_calibration.h#is_known_touchscreen_name`), `INPUT_PROP_DIRECT`, and USB. Some K2 hardware revisions carry a `tlsc6x` controller instead. Its kernel name `tlsc6x_touch` matches the generic `touch` pattern, so it scores as a known panel (the Snapmaker U1 uses the same controller). No K2 with that variant has been observed yet.
 
 ## Spaghetti Detection
 

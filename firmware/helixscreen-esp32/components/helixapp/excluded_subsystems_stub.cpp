@@ -260,7 +260,7 @@ ToolOffsetCalibrationPanel& get_global_tool_offset_cal_panel() {
 }
 } // namespace helix::ui
 
-// src/api/touch_calibration_wrapper.cpp is not in the cut, but the touch
+// src/platform/input/touch_calibration_wrapper.cpp is not in the cut, but the touch
 // calibration UI that drives it is (ui_touch_calibration_overlay.cpp,
 // touch_calibration_session.cpp). Both entry points below are the wrapper's
 // evdev-facing half: the raw reading only exists behind lv_evdev, and the ABS

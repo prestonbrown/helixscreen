@@ -29,8 +29,8 @@ else
     DISPLAY_API_SRCS += src/platform/display/display_backend_drm.cpp
     DISPLAY_API_SRCS += src/platform/display/gpu_libs.cpp
     DISPLAY_API_SRCS += src/platform/display/drm_rotation_strategy.cpp
-    DISPLAY_API_SRCS += src/api/input_device_scanner.cpp
-    DISPLAY_API_SRCS += src/api/touch_calibration_wrapper.cpp
+    DISPLAY_API_SRCS += src/platform/input/input_device_scanner.cpp
+    DISPLAY_API_SRCS += src/platform/input/touch_calibration_wrapper.cpp
     ifeq ($(ENABLE_SDL),yes)
         # Native Linux desktop also gets SDL
         DISPLAY_API_SRCS += src/platform/display/display_backend_sdl.cpp
@@ -51,7 +51,7 @@ $(BUILD_DIR)/display/%.o: src/platform/display/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_H
 	@echo "[CXX] $<"
 	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/display/%.o: src/api/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/display
+$(BUILD_DIR)/display/%.o: src/platform/input/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/display
 	@echo "[CXX] $<"
 	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

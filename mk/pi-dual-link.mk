@@ -57,8 +57,8 @@ FBDEV_DISPLAY_API_SRCS := \
     src/platform/display/display_backend.cpp \
     src/platform/display/display_backend_fbdev.cpp \
     src/platform/display/drm_rotation_strategy.cpp \
-    src/api/touch_calibration_wrapper.cpp \
-    src/api/input_device_scanner.cpp
+    src/platform/input/touch_calibration_wrapper.cpp \
+    src/platform/input/input_device_scanner.cpp
 
 FBDEV_DISPLAY_UI_SRCS := \
     src/ui/calibration/touch_calibration.cpp
@@ -72,7 +72,7 @@ $(FBDEV_DISPLAY_DIR)/%.o: src/platform/display/%.cpp $(LIBHV_LIB) $(ABI_STAMP) |
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
-$(FBDEV_DISPLAY_DIR)/%.o: src/api/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+$(FBDEV_DISPLAY_DIR)/%.o: src/platform/input/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -203,8 +203,8 @@ DRM_DISPLAY_APP_OBJS := \
     $(OBJ_DIR)/platform/display/display_backend_drm.o \
     $(OBJ_DIR)/platform/display/drm_rotation_strategy.o \
     $(OBJ_DIR)/platform/display/display_backend_fbdev.o \
-    $(OBJ_DIR)/api/touch_calibration_wrapper.o \
-    $(OBJ_DIR)/api/input_device_scanner.o \
+    $(OBJ_DIR)/platform/input/touch_calibration_wrapper.o \
+    $(OBJ_DIR)/platform/input/input_device_scanner.o \
     $(OBJ_DIR)/ui/calibration/touch_calibration.o
 
 # All common app objects (swap out DRM-specific and GLES-specific objects)
