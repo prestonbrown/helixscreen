@@ -15,6 +15,7 @@
 #include <ctime>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 namespace helix {
 
@@ -316,7 +317,7 @@ void MacroManager::install_files(SuccessCallback on_success, ErrorCallback on_er
     // callbacks to main too (see the queue pin test), because the caller's
     // continuation touches LVGL-adjacent state.
     upload_macro_file(
-        kHelixMacrosFilename, get_macro_content(),
+        kHelixMacrosFilename, macro_content_for(hardware_),
         [this, on_success, on_error]() {
             upload_skips_file(
                 [this, on_success, on_error]() {
@@ -332,7 +333,7 @@ void MacroManager::update_files(SuccessCallback on_success, ErrorCallback on_err
     spdlog::info("[HelixMacroManager] Staging macro update...");
 
     upload_macro_file(
-        kHelixMacrosFilename, get_macro_content(),
+        kHelixMacrosFilename, macro_content_for(hardware_),
         [this, on_success, on_error]() {
             if (!stages_skips()) {
                 if (on_success) {
@@ -418,6 +419,24 @@ void MacroManager::remove_skips(SuccessCallback on_success, ErrorCallback on_err
 
 std::string MacroManager::get_macro_content() {
     return load_macro_file();
+}
+
+std::string MacroManager::with_visible_signal_names(std::string content) {
+    for (const char* hidden : {"_HELIX_READY", "_HELIX_ENDED", "_HELIX_RESET", "_HELIX_PHASE_"}) {
+        for (size_t pos = content.find(hidden); pos != std::string::npos;
+             pos = content.find(hidden, pos)) {
+            content.erase(pos, 1);
+        }
+    }
+    return content;
+}
+
+std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware) {
+    std::string content = get_macro_content();
+    if (hardware.has_helix_macro("HELIX_READY")) {
+        return with_visible_signal_names(std::move(content));
+    }
+    return content;
 }
 
 std::string MacroManager::get_version() {
