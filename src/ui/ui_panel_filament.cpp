@@ -1257,10 +1257,10 @@ void FilamentPanel::op_failed(FilamentOp op) {
 // through one entry point is what keeps the timeout handler from silently
 // diverging per path — it used to be an inlined capture-nothing lambda copied
 // eight times, and none of the copies cleared any of the op state.
-void FilamentPanel::begin_operation_guard() {
+void FilamentPanel::begin_operation_guard(uint32_t timeout_ms) {
     // Capturing `this` is safe: operation_guard_ is a member and ~OperationTimeoutGuard
     // cancels the timer, so the callback cannot outlive the panel.
-    operation_guard_.begin(OPERATION_TIMEOUT_MS, [this] { handle_operation_timeout(); });
+    operation_guard_.begin(timeout_ms, [this] { handle_operation_timeout(); });
 }
 
 // Runs on the main thread from the guard's one-shot timer. OperationTimeoutGuard
@@ -1475,6 +1475,14 @@ void FilamentPanel::execute_purge() {
         return;
     }
 
+    // The purge preamble (home, then travel to the bin) answers within the homing
+    // budget, which outlasts OPERATION_TIMEOUT_MS. The guard covers the preamble's
+    // whole budget, so its own timeout reports a stalled preamble rather than this
+    // guard firing while the toolhead is still travelling. The purge that follows
+    // re-arms the guard with the panel's normal budget.
+    constexpr uint32_t kPurgePreambleTimeoutMs =
+        IMoonrakerAPI::HOMING_TIMEOUT_MS + OPERATION_TIMEOUT_MS;
+
     // Try StandardMacros Purge slot first (PURGE, PURGE_LINE, PRIME_LINE, etc.)
     const auto& info = StandardMacros::instance().get(StandardMacroSlot::Purge);
     if (!info.is_empty()) {
@@ -1484,8 +1492,9 @@ void FilamentPanel::execute_purge() {
         helix::ui::dispatch_filament_macro(
             macro_name, helix::ui::ParamPolicy::Prompt,
             [this, macro_name](const MacroParamResult& result) {
-                // The button spins and the guard holds through the preamble too.
-                begin_operation_guard();
+                // The button spins and the guard holds through the preamble too;
+                // run_filament_macro() re-arms it for the purge itself.
+                begin_operation_guard(kPurgePreambleTimeoutMs);
                 op_started(FilamentOp::Purge);
                 helix::ui::run_after_purge_preamble(
                     api_, "[FilamentPanel]",
@@ -1501,7 +1510,7 @@ void FilamentPanel::execute_purge() {
     // Fallback: extrude a fixed 50mm at 10mm/s (M83 = relative extrusion)
     constexpr int PURGE_FALLBACK_MM = 50;
     constexpr int PURGE_FALLBACK_SPEED_MM_MIN = 10 * 60; // 10 mm/s → 600 mm/min
-    begin_operation_guard();
+    begin_operation_guard(kPurgePreambleTimeoutMs);
     spdlog::info("[{}] Purge fallback: extruding {}mm at F{}", get_name(), PURGE_FALLBACK_MM,
                  PURGE_FALLBACK_SPEED_MM_MIN);
     std::string gcode =
@@ -1511,6 +1520,7 @@ void FilamentPanel::execute_purge() {
     helix::ui::run_after_purge_preamble(
         api_, "[FilamentPanel]",
         [this, gcode]() {
+            begin_operation_guard();
             api_->execute_gcode(
                 gcode,
                 [this]() {

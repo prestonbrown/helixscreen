@@ -29,10 +29,11 @@ namespace helix::test {
 
 /// A real FilamentPanel over a mock printer, so the gcode every op sends is
 /// observable. With no AMS backend every op reaches the configured-macro tier.
-struct FilamentPanelHarness {
+/// @tparam Api the MoonrakerAPI the panel talks to; a test subclass can hold replies.
+template <typename Api = MoonrakerAPI> struct BasicFilamentPanelHarness {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     helix::PrinterState state;
-    MoonrakerAPI api{client, state};
+    Api api{client, state};
     std::unique_ptr<FilamentPanel> panel;
 
     int prompt_count = 0;
@@ -41,7 +42,7 @@ struct FilamentPanelHarness {
 
     /// @p backend, when given, is installed before the panel is built. More than one
     /// of @p extruders makes a multi-tool printer with one tool per extruder, in order.
-    explicit FilamentPanelHarness(std::unique_ptr<AmsBackend> backend = nullptr,
+    explicit BasicFilamentPanelHarness(std::unique_ptr<AmsBackend> backend = nullptr,
                                   const std::vector<std::string>& extruders = {"extruder"}) {
         ToolState::instance().init_subjects(true);
         AmsState::instance().init_subjects(true);
@@ -81,7 +82,7 @@ struct FilamentPanelHarness {
         client.clear_gcode_script_history();
     }
 
-    ~FilamentPanelHarness() {
+    ~BasicFilamentPanelHarness() {
         // A macro that ran queued its completion callbacks, which reach the panel,
         // so they run while it is still alive. Completing an op can schedule the
         // post-op cooldown, whose timer would otherwise outlive this test.
@@ -100,8 +101,8 @@ struct FilamentPanelHarness {
         ToolState::instance().deinit_subjects();
     }
 
-    FilamentPanelHarness(const FilamentPanelHarness&) = delete;
-    FilamentPanelHarness& operator=(const FilamentPanelHarness&) = delete;
+    BasicFilamentPanelHarness(const BasicFilamentPanelHarness&) = delete;
+    BasicFilamentPanelHarness& operator=(const BasicFilamentPanelHarness&) = delete;
 
     /// populate_from_configfile() replaces the cache, so every macro goes in one call.
     static void cache_macros(std::initializer_list<std::pair<const char*, const char*>> macros) {
@@ -149,5 +150,7 @@ struct FilamentPanelHarness {
         return out;
     }
 };
+
+using FilamentPanelHarness = BasicFilamentPanelHarness<>;
 
 } // namespace helix::test

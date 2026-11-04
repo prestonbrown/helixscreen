@@ -4,6 +4,7 @@
 
 #include "ui_panel_filament.h"
 
+#include <cstdint>
 #include <lvgl.h>
 
 namespace helix::ui {
@@ -83,6 +84,9 @@ struct FilamentPanelTestAccess {
     static lv_timer_t* operation_timer(FilamentPanel& p) {
         return p.operation_guard_.pending_timer();
     }
+
+    /// The panel's normal operation budget.
+    static constexpr uint32_t kOperationTimeoutMs = FilamentPanel::OPERATION_TIMEOUT_MS;
 
     static bool operation_active(const FilamentPanel& p) {
         return p.operation_guard_.is_active();
