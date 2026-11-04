@@ -66,9 +66,11 @@ MODES
                      excluded file defines, which the source checks cannot see.
                      A symbol the firmware's own sources stub, or a reference whose
                      every mention sits in a branch the firmware does not compile,
-                     is fine. Known references are ratcheted in --baseline
-                     (default scripts/esp32_link_baseline.txt).
-                     Exit 2 when listed objects are missing (no native build yet).
+                     is fine. Known references are ratcheted, symbol by symbol, in
+                     --baseline (default scripts/esp32_link_baseline.txt).
+                     Exit 2 is "no verdict": listed objects are missing, an object
+                     is older than its source or a header in its depfile, or nm or
+                     c++filt is not on PATH.
   --write-exclusions SEEDING/BULK-ADD tool, not the answer to routine drift.
                      Adds the currently-undecided files to the baseline,
                      compressing whole directories to dir-level entries.
@@ -85,6 +87,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -535,9 +538,9 @@ def compute(manifest: Path, exclusions: Path, src_root: Path) -> Findings:
                     exception_constructs=exception_constructs, universe=universe)
 
 
-def load_link_baseline(path: Path) -> tuple[set[tuple[str, str]], int | None]:
-    """(edges, max-edges ceiling) from a `listed -> excluded` per-line baseline."""
-    edges: set[tuple[str, str]] = set()
+def load_link_baseline(path: Path) -> tuple[set[tuple[str, str, str]], int | None]:
+    """(entries, max-edges ceiling) from a `listed -> excluded  symbol` per-line baseline."""
+    edges: set[tuple[str, str, str]] = set()
     ceiling = None
     if not path.exists():
         return edges, ceiling
@@ -546,8 +549,9 @@ def load_link_baseline(path: Path) -> tuple[set[tuple[str, str]], int | None]:
         if line.startswith(LINK_CEILING_KEY + ":"):
             ceiling = int(line.split(":", 1)[1])
         elif " -> " in line:
-            user, _, definer = line.partition(" -> ")
-            edges.add((user.strip(), definer.strip()))
+            user, _, target = line.partition(" -> ")
+            definer, _, symbol = target.strip().partition(" ")
+            edges.add((user.strip(), definer, symbol.strip()))
     return edges, ceiling
 
 
@@ -558,6 +562,37 @@ INCLUDE = re.compile(r'^\s*#\s*include\s*["<]([^">]+)[">]', re.M)
 def object_path(obj_root: Path, rel: str) -> Path:
     """build/obj/<path under src/>.o, the native build's object for src/<path>."""
     return obj_root / Path(rel).relative_to("src").with_suffix(".o")
+
+
+def older_than_inputs(objects: dict[str, Path], base: Path) -> list[str]:
+    """Files whose object predates the source or a header its depfile names.
+
+    A depfile input that no longer exists counts: make would rebuild that object.
+    """
+    mtimes: dict[Path, int | None] = {}
+
+    def mtime(p: Path) -> int | None:
+        if p not in mtimes:
+            try:
+                mtimes[p] = p.stat().st_mtime_ns
+            except OSError:
+                mtimes[p] = None
+        return mtimes[p]
+
+    stale = []
+    for rel, obj in sorted(objects.items()):
+        built = mtime(obj)
+        inputs = [base / rel]
+        depfile = obj.with_suffix(".d")
+        if depfile.exists():
+            rule = depfile.read_text(errors="replace").replace("\\\n", " ").split("\n", 1)[0]
+            inputs += [base / d for d in rule.partition(":")[2].split()]
+        for i in inputs:
+            m = mtime(i)
+            if m is None or built is None or m > built:
+                stale.append(rel)
+                break
+    return stale
 
 
 def nm_symbols(objects: dict[str, Path], flag: str) -> dict[str, set[str]]:
@@ -640,19 +675,22 @@ def firmware_defines_symbol(parts: list[str], defined: set[str], namespaces: set
 
 @dataclass
 class LinkFindings:
-    new: dict[tuple[str, str], list[str]] = field(default_factory=dict)  # edge -> symbols
-    stale_baseline: list[tuple[str, str]] = field(default_factory=list)
+    new: list[tuple[str, str, str]] = field(default_factory=list)  # (listed, excluded, symbol)
+    stale_baseline: list[tuple[str, str, str]] = field(default_factory=list)
     over_ceiling: tuple[int, int | None] | None = None  # (entries, ceiling)
     missing_objects: list[str] = field(default_factory=list)
+    stale_objects: list[str] = field(default_factory=list)
+    missing_tools: list[str] = field(default_factory=list)
 
 
 def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Path,
-                 firmware_root: Path, baseline: set[tuple[str, str]]) -> LinkFindings:
+                 firmware_root: Path, baseline: set[tuple[str, str, str]]) -> LinkFindings:
     """References from firmware-listed objects that only an excluded object satisfies.
 
     A symbol counts as supplied when a listed object defines it, or when one of the
     firmware's own sources (stubs, platform seams) gives it a body. A reference counts as live unless every mention of the name in
-    the referencing source sits in a branch the firmware does not compile.
+    the referencing source sits in a branch the firmware does not compile, or
+    nothing the firmware compiles for that source names the symbol's class.
     """
     included, _ = load_manifest(manifest)
     ex_files, ex_dirs = split_exclusions(load_exclusions(exclusions))
@@ -661,6 +699,9 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
     excluded = sorted(f for f in universe
                       if f not in included and is_excluded(f, ex_files, ex_dirs))
     found = LinkFindings()
+    found.missing_tools = [t for t in ("nm", "c++filt") if shutil.which(t) is None]
+    if found.missing_tools:
+        return found
     listed_objs = {}
     for f in listed:
         o = object_path(obj_root, f)
@@ -670,6 +711,12 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
             found.missing_objects.append(f)
     excluded_objs = {f: object_path(obj_root, f) for f in excluded
                      if object_path(obj_root, f).exists()}
+
+    # Only the listed objects: `make` leaves excluded files it does not link into the
+    # app (the Bluetooth plugin, test-only backends) as old as the last test build.
+    found.stale_objects = older_than_inputs(listed_objs, src_root.parent)
+    if found.missing_objects or found.stale_objects:
+        return found
 
     undefined = nm_symbols(listed_objs, "--undefined-only")
     supplied = {sym for syms in nm_symbols(listed_objs, "--defined-only").values()
@@ -681,7 +728,7 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
     wanted = sorted({sym for syms in undefined.values() for sym in syms
                      if sym in owner and sym not in supplied})
     if not wanted:
-        found.stale_baseline = sorted(e for e in baseline if e[0] in listed_objs)
+        found.stale_baseline = sorted(baseline)
         return found
     demangled = dict(zip(wanted, subprocess.run(
         ["c++filt"], input="\n".join(wanted), capture_output=True, text=True,
@@ -714,30 +761,45 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
     forced = [base / h for h in re.findall(r"-include\b[^$]*?\$\{REPO_ROOT\}/([\w./-]+)",
                                            cmake_text, re.S) if (base / h).is_file()]
     header_words: dict[Path, set[str]] = {}
-    header_includes: dict[Path, list[Path]] = {}
+    header_live_words: dict[Path, set[str]] = {}
+    header_includes: dict[tuple[Path, bool], list[Path]] = {}
 
     def resolve(names, includer: Path) -> list[Path]:
         return [Path(os.path.normpath(hits[0])) for h in names
                 if (hits := [d / h for d in (includer.parent, *header_dirs) if (d / h).is_file()])]
 
     def words_of(header: Path) -> set[str]:
+        """Every identifier the header spells, in any branch."""
         if header not in header_words:
             code = STRING_LITERAL.sub('""', header.read_text(errors="replace"))
             code = re.sub(r"/\*.*?\*/|//[^\n]*", " ", code, flags=re.S)
             header_words[header] = set(IDENTIFIER.findall(code))
         return header_words[header]
 
-    def closure(roots: list[Path]) -> set[Path]:
-        """Every header `roots` reach. A header's own #if branches all count."""
+    def live_words_of(header: Path) -> set[str]:
+        """The identifiers in the header's branches the firmware compiles."""
+        if header not in header_live_words:
+            header_live_words[header] = {
+                w for _, c in firmware_code_lines(header.read_text(errors="replace"), defines)
+                for w in IDENTIFIER.findall(c)}
+        return header_live_words[header]
+
+    def includes_of(text: str, includer: Path, live: bool) -> list[Path]:
+        names = ([h for _, c in firmware_code_lines(text, defines, includes=True)
+                  for h in INCLUDE.findall(c)] if live else INCLUDE.findall(text))
+        return resolve(names, includer)
+
+    def closure(roots: list[Path], live: bool) -> set[Path]:
+        """Every header `roots` reach, through compiled branches only when `live`."""
         out, todo = set(), list(roots)
         while todo:
             h = todo.pop()
             if h in out:
                 continue
             out.add(h)
-            if h not in header_includes:
-                header_includes[h] = resolve(INCLUDE.findall(h.read_text(errors="replace")), h)
-            todo += header_includes[h]
+            if (h, live) not in header_includes:
+                header_includes[(h, live)] = includes_of(h.read_text(errors="replace"), h, live)
+            todo += header_includes[(h, live)]
         return out
 
     seen: set[tuple[str, str]] = set()
@@ -750,22 +812,24 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
         live_words = {w for _, c in firmware_code_lines(text, defines)
                       for w in IDENTIFIER.findall(c)}
         src = base / f
-        live_headers = closure(forced + resolve(
-            [h for _, c in firmware_code_lines(text, defines, includes=True)
-             for h in INCLUDE.findall(c)], src))
-        all_headers = live_headers | closure(resolve(INCLUDE.findall(text), src))
+        live_headers = closure(forced + includes_of(text, src, True), True)
+        all_headers = live_headers | closure(includes_of(text, src, False), False)
 
         def dead(word: str) -> bool:
             """Every mention of `word` sits in a branch the firmware does not compile.
 
             A name the source never spells comes from an inline in a header; it is
-            dead when some header mentions it and none the firmware's compiled
-            includes reach does.
+            dead when some header mentions it and none the firmware compiles does.
             """
             if word in words:
                 return word not in live_words
-            return (any(word in words_of(h) for h in all_headers - live_headers)
-                    and not any(word in words_of(h) for h in live_headers))
+            return (any(word in words_of(h) for h in all_headers)
+                    and not any(word in live_words_of(h) for h in live_headers))
+
+        def unnameable(scope: str) -> bool:
+            """No code or header the firmware compiles for this source spells `scope`."""
+            return (scope not in live_words
+                    and not any(scope in live_words_of(h) for h in live_headers))
 
         for sym in syms:
             parts = symbol_name(demangled[sym])
@@ -774,33 +838,31 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
                     continue
             elif firmware_defines_symbol(parts, firmware_defined, firmware_namespaces):
                 continue
-            if dead(parts[-1].lstrip("~")):
+            if dead(parts[-1].lstrip("~")) or (len(parts) > 1 and unnameable(parts[-2])):
                 continue
-            edge = (f, owner[sym])
+            edge = (f, owner[sym], "::".join(parts))
+            if edge not in seen and edge not in baseline:
+                found.new.append(edge)
             seen.add(edge)
-            if edge not in baseline:
-                found.new.setdefault(edge, []).append(demangled[sym])
-    found.stale_baseline = sorted(e for e in baseline - seen if e[0] in listed_objs)
+    found.stale_baseline = sorted(baseline - seen)
     return found
 
 
 def report_link(f: LinkFindings) -> None:
     if f.new:
-        print(f"FAIL: {len(f.new)} firmware-listed file(s) reference symbols only an "
+        print(f"FAIL: {len(f.new)} reference(s) from firmware-listed files to symbols only an "
               "app_srcs_excluded.txt file defines.\n      The ESP32 link has no definition "
               "for them:", file=sys.stderr)
-        for (user, definer), syms in sorted(f.new.items()):
-            print(f"        {user} -> {definer}", file=sys.stderr)
-            for sym in syms:
-                print(f"            {sym}", file=sys.stderr)
+        for user, definer, symbol in sorted(f.new):
+            print(f"        {user} -> {definer}  {symbol}", file=sys.stderr)
         print("\n      Guard the call with the subsystem's HELIX_HAS_* macro, compile the "
               "defining file\n      on the firmware (move it to app_srcs.txt), or stub it in "
               "firmware/helixscreen-esp32/.", file=sys.stderr)
     if f.stale_baseline:
         print(f"FAIL: {len(f.stale_baseline)} link baseline entr(ies) no longer occur; "
               "delete them and lower max-edges:", file=sys.stderr)
-        for user, definer in f.stale_baseline:
-            print(f"        {user} -> {definer}", file=sys.stderr)
+        for user, definer, symbol in f.stale_baseline:
+            print(f"        {user} -> {definer}  {symbol}", file=sys.stderr)
     if f.over_ceiling:
         entries, ceiling = f.over_ceiling
         print(f"FAIL: the link baseline holds {entries} entries against max-edges: {ceiling}.\n"
@@ -970,7 +1032,7 @@ def main() -> int:
     ap.add_argument("--obj-root", type=Path, default=DEFAULT_OBJ_ROOT)
     ap.add_argument("--firmware-root", type=Path, default=DEFAULT_FIRMWARE_ROOT)
     ap.add_argument("--baseline", type=Path, default=DEFAULT_LINK_BASELINE,
-                    help="with --link: the known `listed -> excluded` edges and their "
+                    help="with --link: the known `listed -> excluded  symbol` entries and their "
                          f"{LINK_CEILING_KEY}: ceiling")
     args = ap.parse_args()
 
@@ -978,9 +1040,17 @@ def main() -> int:
         baseline, ceiling = load_link_baseline(args.baseline)
         lf = compute_link(args.manifest, args.exclusions, args.src_root, args.obj_root,
                           args.firmware_root, baseline)
+        if lf.missing_tools:
+            print(f"SKIP: {' and '.join(lf.missing_tools)} not on PATH.", file=sys.stderr)
+            return 2
         if lf.missing_objects:
             print(f"SKIP: {len(lf.missing_objects)} listed file(s) have no object under "
                   f"{display(args.obj_root)}; build first (make).", file=sys.stderr)
+            return 2
+        if lf.stale_objects:
+            print(f"SKIP: {len(lf.stale_objects)} object(s) under {display(args.obj_root)} are "
+                  f"older than their inputs; build first (make). First: {lf.stale_objects[0]}",
+                  file=sys.stderr)
             return 2
         if ceiling is None or len(baseline) > ceiling:
             lf.over_ceiling = (len(baseline), ceiling)

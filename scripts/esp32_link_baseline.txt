@@ -1,45 +1,58 @@
-# Firmware-listed files whose native objects reference a symbol that only an
-# app_srcs_excluded.txt file defines (scripts/check_esp32_app_srcs.py --link).
-# Each still links on the ESP32: the IDF link takes objects from a static archive
-# and drops sections nothing reaches, which nm on the native objects cannot see.
+# Symbols that firmware-listed files reference and only an app_srcs_excluded.txt file
+# defines, as native objects show them (scripts/check_esp32_app_srcs.py --link).
+# Each still links on the ESP32: the IDF link takes objects from a static archive and
+# drops sections nothing reaches, which nm on the native objects cannot see.
 #
-# An edge NOT listed here fails. A listed edge that no longer occurs fails, so
-# delete it and lower the ceiling. The ceiling makes adding an entry fail too:
-# the answer to a new edge is a HELIX_HAS_* guard, a firmware stub, or moving
-# the defining file into app_srcs.txt.
-max-edges: 35
-src/api/wifi_manager.cpp -> src/api/wifi_backend_wpa_supplicant.cpp
-src/application/moonraker_manager.cpp -> src/api/mock_http_file_server.cpp
-src/rendering/gcode_file_modifier.cpp -> src/rendering/gcode_streaming_config.cpp
-src/system/sound_manager.cpp -> src/system/alsa_sound_backend.cpp
-src/system/sound_manager.cpp -> src/system/pwm_sound_backend.cpp
-src/system/sound_manager.cpp -> src/system/sdl_sound_backend.cpp
-src/system/sound_manager.cpp -> src/system/tracker_player.cpp
-src/ui/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp
-src/ui/ui_ams_context_menu.cpp -> src/ui/ui_overlay_qr_scanner.cpp
-src/ui/ui_ams_edit_overlay.cpp -> src/system/label_printer_settings.cpp
-src/ui/ui_ams_edit_overlay.cpp -> src/ui/ui_overlay_qr_scanner.cpp
-src/ui/ui_external_spool_menu.cpp -> src/ui/ui_overlay_qr_scanner.cpp
-src/ui/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp
-src/ui/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp
-src/ui/ui_wizard.cpp -> src/app_globals.cpp
-src/ui/ui_wizard.cpp -> src/system/platform_info.cpp
-src/ui/ui_wizard.cpp -> src/system/wizard_step.cpp
-src/ui/ui_wizard.cpp -> src/ui/ui_wizard_ams_identify.cpp
-src/ui/ui_wizard.cpp -> src/ui/ui_wizard_filament_sensor_select.cpp
-src/ui/ui_wizard.cpp -> src/ui/ui_wizard_printer_identify.cpp
-src/ui/ui_wizard.cpp -> src/ui/ui_wizard_touch_calibration.cpp
-src/ui/ui_wizard.cpp -> src/ui/ui_wizard_wifi.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_ams_identify.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_connection.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_fan_select.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_filament_sensor_select.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_heater_select.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_input_shaper.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_language_chooser.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_led_select.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_printer_identify.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_summary.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_telemetry.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_touch_calibration.cpp
-src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_wifi.cpp
+# A reference NOT listed here fails, a listed one that no longer occurs fails (delete it
+# and lower the ceiling), and the ceiling makes adding an entry fail too. The answer to a
+# new reference is a HELIX_HAS_* guard, a firmware stub, or moving the defining file into
+# app_srcs.txt.
+#
+# Format: <listed file> -> <excluded file>  <qualified name, no arguments>
+max-edges: 46
+src/api/wifi_manager.cpp -> src/api/wifi_backend_wpa_supplicant.cpp  WifiBackendWpaSupplicant::WifiBackendWpaSupplicant
+src/rendering/gcode_file_modifier.cpp -> src/rendering/gcode_streaming_config.cpp  helix::should_use_gcode_streaming
+src/system/sound_manager.cpp -> src/system/pwm_sound_backend.cpp  PWMSoundBackend::initialize
+src/ui/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_load_file
+src/ui/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_set_layer_index_sidecar
+src/ui/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_would_stream
+src/ui/ui_ams_context_menu.cpp -> src/ui/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::QrScannerOverlay
+src/ui/ui_ams_edit_overlay.cpp -> src/system/label_printer_settings.cpp  helix::LabelPrinterSettingsManager::init_subjects
+src/ui/ui_ams_edit_overlay.cpp -> src/system/label_printer_settings.cpp  helix::LabelPrinterSettingsManager::instance
+src/ui/ui_ams_edit_overlay.cpp -> src/ui/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::QrScannerOverlay
+src/ui/ui_ams_edit_overlay.cpp -> src/ui/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::show
+src/ui/ui_external_spool_menu.cpp -> src/ui/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::QrScannerOverlay
+src/ui/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::GCodeLayerRenderer
+src/ui/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::restore_ssao_shading
+src/ui/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::~GCodeLayerRenderer
+src/ui/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_load_file
+src/ui/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_set_layer_index_sidecar
+src/ui/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_would_stream
+src/ui/ui_wizard.cpp -> src/app_globals.cpp  get_wizard_cancel_callback
+src/ui/ui_wizard.cpp -> src/system/platform_info.cpp  helix::is_printer_embedded
+src/ui/ui_wizard.cpp -> src/system/wizard_step.cpp  helix::wizard::to_string
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_ams_identify.cpp  WizardAmsIdentifyStep::should_skip
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_ams_identify.cpp  get_wizard_ams_identify_step
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_filament_sensor_select.cpp  WizardFilamentSensorSelectStep::auto_configure_single_sensor
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_filament_sensor_select.cpp  WizardFilamentSensorSelectStep::get_standalone_sensor_count
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_filament_sensor_select.cpp  WizardFilamentSensorSelectStep::schedule_deferred_refresh
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_filament_sensor_select.cpp  WizardFilamentSensorSelectStep::should_skip
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_filament_sensor_select.cpp  get_wizard_filament_sensor_select_step
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_printer_identify.cpp  get_wizard_printer_identify_step
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_touch_calibration.cpp  WizardTouchCalibrationStep::commit_calibration
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_touch_calibration.cpp  get_wizard_touch_calibration_step
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_wifi.cpp  WizardWifiStep::init_wifi_manager
+src/ui/ui_wizard.cpp -> src/ui/ui_wizard_wifi.cpp  get_wizard_wifi_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_ams_identify.cpp  get_wizard_ams_identify_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_connection.cpp  get_wizard_connection_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_fan_select.cpp  get_wizard_fan_select_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_filament_sensor_select.cpp  get_wizard_filament_sensor_select_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_heater_select.cpp  get_wizard_heater_select_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_input_shaper.cpp  get_wizard_input_shaper_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_language_chooser.cpp  get_wizard_language_chooser_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_led_select.cpp  get_wizard_led_select_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_printer_identify.cpp  get_wizard_printer_identify_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_summary.cpp  get_wizard_summary_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_telemetry.cpp  get_wizard_telemetry_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_touch_calibration.cpp  get_wizard_touch_calibration_step
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_wifi.cpp  get_wizard_wifi_step

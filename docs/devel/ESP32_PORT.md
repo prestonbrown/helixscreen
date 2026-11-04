@@ -18,7 +18,9 @@ Most firmware breakage comes from ordinary `src/` changes, because nothing in `m
 firmware. Before you commit:
 
 - **New `src/` file:** add it to `firmware/helixscreen-esp32/components/helixapp/app_srcs.txt` or to
-  `app_srcs_excluded.txt` with a reason. `scripts/check_esp32_app_srcs.py` fails the commit otherwise.
+  `app_srcs_excluded.txt` with a reason. `scripts/check_esp32_app_srcs.py` fails the push otherwise.
+- **New call from a compiled file into an excluded one:** guard it, stub it, or inline it in the header. The land gate
+  fails on the symbol; a stub for another member of the same class does not cover it.
 - **New XML subject or callback:** its registration must be in a file and an `#if` branch the firmware compiles, or
   on the device the binding resolves to nothing. `scripts/check_esp32_xml_bindings.py` ratchets it.
 - **Exceptions:** no `try`/`catch`/`throw`, and none of the calls that compile and then abort (`j.value("k", d)`,
@@ -148,7 +150,7 @@ diagnostics); the boot heap gates print as `heap before pthread` and `internal h
 
 | Tool | When | What |
 |------|------|------|
-| `scripts/check_esp32_app_srcs.py` | commit (`scripts/qc/esp32_app_srcs.sh`) | Manifest coverage, stale lines, locale-pulling includes, exception sites. `--link` (advisory) reads native objects for a kept file calling a symbol only an excluded file defines |
+| `scripts/check_esp32_app_srcs.py` | push and land gate (`scripts/qc/esp32_app_srcs.sh`) | Manifest coverage, stale lines, locale-pulling includes, exception sites. `--link` reads native objects for a kept file calling a symbol only an excluded file defines, ratcheted by `scripts/esp32_link_baseline.txt`. It has a verdict only on Linux, with objects newer than their inputs; the land gate fails without one |
 | `scripts/check_esp32_xml_bindings.py` | commit (`scripts/qc/esp32_xml_bindings.sh`) | XML bindings the firmware does not register; baseline `scripts/esp32_xml_binding_baseline.txt` |
 | `scripts/esp32_syntax_check.py` | pre-push | Xtensa `-fsyntax-only` on touched firmware units |
 | `scripts/check_esp32_size.py` | `esp32-build.yml` | App image vs `app_max_bytes`, `.dram0.bss`/`.data` vs their ceilings, exception support or `std::locale` linked. A breach prints the eight largest inputs of the section (size, input section, object file) so the offending static is named; read that list before raising a ceiling |
