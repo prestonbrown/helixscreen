@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <functional>
 #include <string>
@@ -210,6 +211,12 @@ class HannWindowedSignal {
 
     /// |X|^2 at `omega` radians per sample.
     [[nodiscard]] double power(double omega) const;
+    /// power() of three signals of one length at each of @p count frequencies,
+    /// into out[0..count). Each result is bit-identical to that signal's own
+    /// power(omega): the axes share one phasor per frequency, and several
+    /// frequencies advance together so their serial chains overlap.
+    static void power(const std::array<HannWindowedSignal, 3>& axes, const double* omegas,
+                      size_t count, std::array<double, 3>* out);
     [[nodiscard]] double sum_w2() const {
         return sum_w2_;
     }

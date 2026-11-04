@@ -409,6 +409,62 @@ double HannWindowedSignal::power(double omega) const {
     return acc_re * acc_re + acc_im * acc_im;
 }
 
+namespace {
+
+// The same operations, in the same order, as HannWindowedSignal::power() runs
+// for each axis and frequency. The phasor update is the loop's serial chain:
+// three axes share one, and B frequencies run B chains side by side.
+template <size_t B>
+void power_block(const double* const (&v)[3], size_t n, const double* omegas,
+                 std::array<double, 3>* out) {
+    double bc[B], bs[B], ph_re[B], ph_im[B];
+    double re[3][B] = {}, im[3][B] = {};
+    for (size_t b = 0; b < B; ++b) {
+        bc[b] = std::cos(omegas[b]);
+        bs[b] = std::sin(omegas[b]);
+        ph_re[b] = 1.0;
+        ph_im[b] = 0.0;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t b = 0; b < B; ++b) {
+            for (size_t a = 0; a < 3; ++a) {
+                re[a][b] += v[a][i] * ph_re[b];
+                im[a][b] += v[a][i] * ph_im[b];
+            }
+            const double npr = ph_re[b] * bc[b] + ph_im[b] * bs[b];
+            ph_im[b] = ph_im[b] * bc[b] - ph_re[b] * bs[b];
+            ph_re[b] = npr;
+        }
+    }
+    for (size_t b = 0; b < B; ++b) {
+        for (size_t a = 0; a < 3; ++a) {
+            out[b][a] = re[a][b] * re[a][b] + im[a][b] * im[a][b];
+        }
+    }
+}
+
+} // namespace
+
+void HannWindowedSignal::power(const std::array<HannWindowedSignal, 3>& axes, const double* omegas,
+                               size_t count, std::array<double, 3>* out) {
+    const size_t n = axes[0].v_.size();
+    if (axes[1].v_.size() != n || axes[2].v_.size() != n) {
+        for (size_t k = 0; k < count; ++k) {
+            out[k] = {axes[0].power(omegas[k]), axes[1].power(omegas[k]), axes[2].power(omegas[k])};
+        }
+        return;
+    }
+    const double* const v[3] = {axes[0].v_.data(), axes[1].v_.data(), axes[2].v_.data()};
+    constexpr size_t kBlock = 4;
+    size_t k = 0;
+    for (; k + kBlock <= count; k += kBlock) {
+        power_block<kBlock>(v, n, omegas + k, out + k);
+    }
+    for (; k < count; ++k) {
+        power_block<1>(v, n, omegas + k, out + k);
+    }
+}
+
 // ============================================================================
 // compute_psd()
 // ============================================================================
@@ -454,24 +510,30 @@ std::vector<std::pair<float, float>> compute_psd(const std::vector<AccelSample>&
 
     psd.resize(max_bin, {0.0f, 0.0f});
 
-    // Process each axis independently, accumulating power into psd.
+    // Each axis is windowed on its own, and its power is summed into psd in
+    // X, Y, Z order.
     std::vector<float> signal(n);
-    auto process_axis = [&](auto accessor) {
+    auto windowed_axis = [&](float AccelSample::*field) {
         for (size_t i = 0; i < n; ++i) {
-            signal[i] = accessor(samples[i]);
+            signal[i] = samples[i].*field;
         }
-        const HannWindowedSignal windowed(signal.data(), n);
-        const double scale = static_cast<double>(n) * sample_rate;
-        for (size_t k = 1; k <= max_bin; ++k) {
-            const double omega = 2.0 * M_PI * static_cast<double>(k) / static_cast<double>(n);
-            psd[k - 1].second += static_cast<float>(windowed.power(omega) / scale);
-        }
+        return HannWindowedSignal(signal.data(), n);
     };
-
-    // Process X, Y, Z axes
-    process_axis([](const AccelSample& s) { return s.x; });
-    process_axis([](const AccelSample& s) { return s.y; });
-    process_axis([](const AccelSample& s) { return s.z; });
+    const std::array<HannWindowedSignal, 3> axes{windowed_axis(&AccelSample::x),
+                                                 windowed_axis(&AccelSample::y),
+                                                 windowed_axis(&AccelSample::z)};
+    std::vector<double> omegas(max_bin);
+    for (size_t k = 1; k <= max_bin; ++k) {
+        omegas[k - 1] = 2.0 * M_PI * static_cast<double>(k) / static_cast<double>(n);
+    }
+    std::vector<std::array<double, 3>> power(max_bin);
+    HannWindowedSignal::power(axes, omegas.data(), max_bin, power.data());
+    const double scale = static_cast<double>(n) * sample_rate;
+    for (size_t k = 0; k < max_bin; ++k) {
+        for (const double p : power[k]) {
+            psd[k].second += static_cast<float>(p / scale);
+        }
+    }
 
     // Fill in frequency values
     for (size_t k = 0; k < max_bin; ++k) {
