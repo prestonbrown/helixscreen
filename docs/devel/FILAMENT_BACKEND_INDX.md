@@ -192,8 +192,18 @@ the status line is visible at `--sim-speed 6`. Knobs in
 
 ## Not yet hardware-verified
 
-No INDX is in the test fleet; verification goes through the #1333 reporter. Open: whether
-Kalico's `[indx]` lists as an object, and how the reporter's `spool_id` macros persist a spool.
+No INDX is in the test fleet; verification goes through the #1333 reporter. Open:
+
+- Whether Kalico's `[indx]` lists as an object. Detection handles both.
+- How the head engages a docked tool's filament, and whether a retract can unload one. Unload
+  stays Manual until the reporter confirms; a built-in mount, heat and retract waits on that.
+- What the induction heater does with no tool on the head. It is treated as unsafe because
+  upstream refuses it.
+- Where the reporter's `INDX_FORCE_STATE`, `VERIFY_TOOL_PRESENT` and `spool_id` macros come
+  from, and how `spool_id` persists a spool. `T<n>.spool_id` stays read-only until then, so a
+  spool assigned on the screen lives in HelixScreen's store.
+- Whether a user's own `T<n>` without `variable_active` behaves differently from upstream's.
+  Nothing here reads `active`.
 
 Part of the filament system: see [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md) and the
 base this backend extends, [FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md).

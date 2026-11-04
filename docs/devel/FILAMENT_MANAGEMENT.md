@@ -2108,6 +2108,7 @@ their head from the runout itself: `FilamentSensorManager::real_runout_lane()` t
 | Creator 5 with the afclite feed | one per tool | Load Automatic (the feed), Unload Manual (cut at the head) |
 | MedusaHC (one extruder drive) | one per tool | Automatic: the backend mounts the tool, heats, prompts the operator, purges and restores the carriage ([FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md#loading-and-unloading-filament)) |
 | klipper-toolchanger with no feed | one per tool | Manual: the sidebar shows Mount and Park |
+| AFC with a toolchanger | one per tool | Automatic: Load is `CHANGE_TOOL LANE=<lane>` and AFC swaps heads itself |
 
 ### The dispatch ladder
 
@@ -3596,18 +3597,30 @@ Add any component discovery (lane names, tool names, etc.) as needed.
 
 ### 3. Implement the Backend Class
 
-Create include/ams_backend_mysystem.h and src/printer/ams_backend_mysystem.cpp. Implement all pure virtual methods from `AmsBackend`:
+Create include/ams_backend_mysystem.h and src/printer/ams_backend_mysystem.cpp. Derive from `AmsSubscriptionBackend` (`include/ams_subscription_backend.h`), as every real backend does: directly, or through a backend it extends (`AmsBackendIndx` through `AmsBackendToolChanger`, `AmsBackendMultiAce` through `AmsBackendSnapmaker`). Only the mock derives from `AmsBackend` directly.
 
-**Required overrides:**
+**What the subscription base implements.** Do not write these:
 
-- `start()`, `stop()`, `is_running()` -- Lifecycle
-- `set_event_callback()` -- Event registration
-- `get_system_info()`, `get_type()`, `get_slot_info()`, `get_current_action()`, `get_current_tool()`, `get_current_slot()`, `is_filament_loaded()` -- State queries
+- `start()`, `stop()`, `is_running()`, `set_event_callback()` -- Lifecycle and events (`final`). Use the `on_started()`, `on_stopping()`, `on_stopped()` and `additional_start_checks()` hooks instead
+- `get_current_action()`, `get_current_tool()`, `get_current_slot()`, `is_filament_loaded()` -- State queries (`final`). `get_slot_info()` is implemented too and stays overridable
+- `load_filament()`, `unload_filament()`, `select_slot()`, `change_tool()`, `park_active_tool()`, `load_filament_batch()`, `unload_filament_batch()` -- Filament operations (`final`). Each runs the print-active gate and the one-operation claim, then calls your `do_*` hook, so a backend cannot skip the gate
+
+**Required overrides.** The subscription base's own pure virtuals:
+
+- `handle_status()` -- Parse your status object
+- `backend_log_tag()` -- The log prefix, like `"[AMS AFC]"`
+- `do_load_filament()`, `do_unload_filament()`, `do_select_slot()`, `do_change_tool()` -- The operations, reached only after the gate has passed. When one operation is really another, forward to the sibling `do_*`, never to the public entry point
+
+And the pure virtuals of `AmsBackend` (`include/ams_backend.h`) that the subscription base leaves to you:
+
+- `get_type()`, `get_system_info()` -- State queries
 - `get_topology()`, `get_filament_segment()`, `get_slot_filament_segment()`, `infer_error_segment()` -- Path visualization
-- `load_filament()`, `unload_filament()`, `select_slot()`, `change_tool()` -- Operations
 - `recover()`, `reset()`, `cancel()` -- Recovery
-- `apply_user_edit()`, `sync_external_identity()`, `set_tool_mapping()` -- Configuration
+- `apply_user_edit()`, `sync_external_identity()` -- Filament identity
+- `can_set_tool_mapping()`, `set_tool_mapping_impl()` -- Tool mapping. `set_tool_mapping()` is non-virtual and calls them
 - `enable_bypass()`, `disable_bypass()`, `is_bypass_active()` -- Bypass mode
+
+**Optional `do_*` hooks**, each behind the same gate as its public entry point and each refusing with not-supported by default: `do_park_active_tool()`, `do_filament_batch()`, `do_execute_device_action()`, `do_run_device_action()` (which by default runs `do_execute_device_action()`) and `do_run_edit_follow_up()`. Two more questions shape the gate: `select_slot_moves_toolhead()` and `filament_op_gate()`.
 
 **Constant capabilities go in `kTraits`, not in overrides.** A capability your backend
 answers the same way for its whole life (`has_physical_tray`, `supports_auto_heat_on_load`,
@@ -3639,7 +3652,7 @@ static constexpr BackendTraits kTraits = [] {
 - `get_dryer_info()`, `start_drying()`, `stop_drying()`, `update_drying()` -- Dryer control
 - `get_endless_spool_capabilities()`, `get_endless_spool_config()` -- Endless spool state. `set_endless_spool_backup()` is **not** an override point: it is non-virtual and owns every rejection. Supply `apply_endless_spool_backup()` (protected, transport only), `endless_spool_slot_count()` (protected, only if `total_slots` is wrong for you), and `endless_spool_backup_eligibility()` (only to tighten the default polymer-plus-grade rule; return `Eligible`/`Incompatible` only, unless your firmware genuinely has a soft case). `reset_endless_spool()` already works for any editable backend by looping the setter with -1 - override it only if your firmware has a real reset primitive. See § [Endless Spool](#endless-spool-shared-model).
 - `get_remap_strategy()`, `remap_ready()`, `owns_tool_mapping_table()`, `get_tool_mapping()` -- Tool mapping. **Three questions, one spelling each.** `get_remap_strategy()` says HOW a user's tool->lane pick is carried out (`Native` writes your table, `GcodeRewrite` rewrites the job, `PrePrintSend` is a firmware pre-print send, `None` means it cannot be). `remap_ready()` says whether that route is usable YET -- default true, override only where discovery gates it, as AD5X IFS does on `_IFS_VARS`. `owns_tool_mapping_table()` says whether you hold a tool->slot table for `ToolState` to adopt; the Snapmaker U1 answers **no** and still honors every pick, through its pre-print send, which is why this is not the same question as the first two. Ask them through `ams_remap.h` -- never by combining them at a call site, which is how one question came to have six answers that could disagree. Three named predicates there, and the difference between them is `GcodeRewrite`: `can_remap()` asks whether the user's pick will be honored at all (yes), `remap_is_persistent()` whether the answer outlives the send (yes, it is in the job file), `can_write_mapping_table()` whether a `set_tool_mapping()` write lands (no, there is no table).
-- `get_device_sections()`, `get_device_actions()`, `execute_device_action()` -- Device-specific actions
+- `get_device_sections()`, `get_device_actions()`, `do_execute_device_action()` -- Device-specific actions. `execute_device_action()` is `final` in the subscription base and refuses an id the two lists do not offer
 - `set_discovery()` -- Discovery configuration: pull and resolve what this backend needs from the `PrinterDiscovery` snapshot, before `start()`
 - `supports_auto_heat_on_unload` (`kTraits`) -- The unload counterpart: the backend's unload command heats the hotend itself, or (a tool changer's unmount) moves no filament through it. Set only where what the backend sends provably heats: a wrong claim runs a cold extrude, a missing one costs a second wait. A backend whose unloads differ answers per call through `unload_heats_hotend(slot)` (Snapmaker's bare fallback does not heat); CFS makes no claim. Read through `preheat_skip_reason()` like the load claim.
 - `supports_auto_heat_on_load` (`kTraits`) -- Auto-heat capability. It is one of three reasons a surface skips its own preheat, and **no surface should read it directly**: ask `helix::ui::preheat_skip_reason()` (`include/filament_op_execute.h`), which also covers the "Allow cold load/unload" setting and a stock macro that heats in its own body (`helix::filament_macros::macro_heats_hotend()`, `include/filament_macro_profiles.h`). The AMS sidebar reading only this one is what left that setting ignored on the AMS panel (prestonbrown/helixscreen#1494).

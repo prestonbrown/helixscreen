@@ -1,7 +1,7 @@
 # ESP32 Display Device — Design
 
 **Date:** 2026-06-10
-**Status:** Approved (brainstorm complete)
+**Status:** Phases 0 and 2 shipped as the native port (`docs/devel/ESP32_NATIVE_AUDIT.md`, `docs/devel/ESP32_PORT.md`) and phase 1a as `docs/devel/PAGE_SCROLL_BUTTONS.md`. Phases 1b and 1c, the remote display terminal, are deferred and not started.
 **Scope:** Sequenced program — remote display terminal first, native ESP32 firmware contingent on a feasibility audit.
 
 ## Context & Motivation
