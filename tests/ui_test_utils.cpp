@@ -37,6 +37,20 @@ void lv_init_safe() {
     // queue() until init() is called again. This is idempotent — if already
     // initialized, init() returns immediately.
     helix::ui::UpdateQueue::instance().init();
+
+    // UpdateQueue::shutdown() drops its drain timer without deleting it (the app
+    // frees it in lv_deinit()), and the suite cycles the queue once per case, so
+    // each cycle leaves a dead periodic timer in LVGL's list that every later pump
+    // pass walks. Only the queue's current timer is its own; any other carrying the
+    // queue as user_data is unreachable. Every case starts here (reset_all()).
+    auto& queue = helix::ui::UpdateQueue::instance();
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr;) {
+        lv_timer_t* next = lv_timer_get_next(t);
+        if (t->user_data == &queue && t != queue.timer()) {
+            lv_timer_delete(t);
+        }
+        t = next;
+    }
 }
 
 void ensure_displays_never_block_on_flush() {
