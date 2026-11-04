@@ -48,16 +48,14 @@ bool same_choice(const ToolheadPresetSlot& a, const ToolheadPresetSlot& b) {
     return a.kind != ToolheadPresetSlot::Kind::Position || a.position == b.position;
 }
 
-void slot_tab_cb(lv_event_t* /*e*/, std::size_t index) {
+void slot_tab_cb(lv_event_t* e, std::size_t index) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadPresetConfigModal] slot_tab_cb");
-    if (auto* modal = ToolheadPresetConfigModal::active())
+    if (auto* modal = Modal::from_event<ToolheadPresetConfigModal>(e))
         modal->select_slot(index);
     LVGL_SAFE_EVENT_CB_END();
 }
 
 } // namespace
-
-ToolheadPresetConfigModal* ToolheadPresetConfigModal::s_active_ = nullptr;
 
 void register_toolhead_preset_config() {
     if (s_registered)
@@ -79,9 +77,9 @@ void register_toolhead_preset_config() {
         },
         StaticSubjectRegistry::Lifetime::Process);
 
-    lv_xml_register_event_cb(nullptr, "toolhead_preset_cfg_close_cb", [](lv_event_t*) {
+    lv_xml_register_event_cb(nullptr, "toolhead_preset_cfg_close_cb", [](lv_event_t* e) {
         LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadPresetConfigModal] close_cb");
-        if (auto* modal = ToolheadPresetConfigModal::active())
+        if (auto* modal = Modal::from_event<ToolheadPresetConfigModal>(e))
             modal->hide();
         LVGL_SAFE_EVENT_CB_END();
     });
@@ -96,14 +94,7 @@ void register_toolhead_preset_config() {
 
 ToolheadPresetConfigModal::ToolheadPresetConfigModal(ToolheadPresetSlots slots,
                                                      ChangeCallback on_change)
-    : slots_(std::move(slots)), on_change_(std::move(on_change)) {
-    s_active_ = this;
-}
-
-ToolheadPresetConfigModal::~ToolheadPresetConfigModal() {
-    if (s_active_ == this)
-        s_active_ = nullptr;
-}
+    : slots_(std::move(slots)), on_change_(std::move(on_change)) {}
 
 std::vector<ToolheadPresetSlot> ToolheadPresetConfigModal::choices() {
     std::vector<ToolheadPresetSlot> out;
@@ -124,7 +115,6 @@ std::vector<ToolheadPresetSlot> ToolheadPresetConfigModal::choices() {
 }
 
 void ToolheadPresetConfigModal::on_show() {
-    s_active_ = this;
     list_ = find_widget("toolhead_preset_cfg_list");
     selected_ = 0;
     showing_macros_ = false;
@@ -194,10 +184,10 @@ void ToolheadPresetConfigModal::populate_list() {
     const ToolheadPresetSlot& current = slots_[selected_];
 
     if (showing_macros_) {
-        add_row(list_, lv_tr("Back"), false, [] {
-            if (auto* modal = active()) {
-                modal->showing_macros_ = false;
-                modal->populate_list();
+        add_row(list_, lv_tr("Back"), false, [this, tok = lifetime_.token()] {
+            if (!tok.expired()) { // L081_OK: a row click runs on the main thread
+                showing_macros_ = false;
+                populate_list();
             }
         });
         IMoonrakerAPI* api = get_moonraker_api();
@@ -208,10 +198,11 @@ void ToolheadPresetConfigModal::populate_list() {
         for (const auto& macro : pickable_macro_names(api->hardware().macros())) {
             const bool selected =
                 current.kind == ToolheadPresetSlot::Kind::Macro && current.macro == macro;
-            add_row(list_, get_display_name(macro, DeviceType::MACRO), selected, [macro] {
-                if (auto* modal = active())
-                    modal->pick_macro(macro);
-            });
+            add_row(list_, get_display_name(macro, DeviceType::MACRO), selected,
+                    [this, tok = lifetime_.token(), macro] {
+                        if (!tok.expired())
+                            pick_macro(macro);
+                    });
         }
         return;
     }
@@ -232,9 +223,9 @@ void ToolheadPresetConfigModal::populate_list() {
             label = toolhead_preset_slot_label(all[i]);
             break;
         }
-        add_row(list_, label, same_choice(all[i], current), [i] {
-            if (auto* modal = active())
-                modal->pick_choice(i);
+        add_row(list_, label, same_choice(all[i], current), [this, tok = lifetime_.token(), i] {
+            if (!tok.expired())
+                pick_choice(i);
         });
     }
 }

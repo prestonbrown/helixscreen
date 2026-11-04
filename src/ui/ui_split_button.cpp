@@ -41,7 +41,7 @@ struct SplitButtonData {
 };
 
 // Store data on main_btn (first child), NOT on sb itself.
-// Callers (preheat_widget) may overwrite sb's user_data.
+// Callers may overwrite sb's user_data.
 SplitButtonData* get_data(lv_obj_t* sb) {
     if (!sb)
         return nullptr;

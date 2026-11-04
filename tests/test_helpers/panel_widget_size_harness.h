@@ -155,6 +155,7 @@ class PanelWidgetHarnessBase {
                 sizing->set_cell_metrics(cell_metrics_);
             }
         }
+        lv_obj_add_flag(obj_, kPanelWidgetTileFlag);
         widget.attach_tile(obj_, screen);
         return true;
     }

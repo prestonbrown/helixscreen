@@ -44,6 +44,7 @@ class CrashReportModal : public Modal {
     const char* component_name() const override {
         return "crash_report_modal";
     }
+    HELIX_KIND_TAG(CrashReportModal)
 
   protected:
     void on_show() override;
@@ -77,9 +78,8 @@ class CrashReportModal : public Modal {
     // Callback registration (idempotent)
     static void register_callbacks();
     static bool callbacks_registered_;
-    static CrashReportModal* active_instance_;
 
-    // Static event callbacks (dispatch to active instance)
+    // Static event callbacks
     static void on_send_cb(lv_event_t* e);
     static void on_dismiss_cb(lv_event_t* e);
 

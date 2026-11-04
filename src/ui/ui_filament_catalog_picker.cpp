@@ -9,24 +9,23 @@
 namespace helix::ui {
 
 bool FilamentCatalogPickerModal::callbacks_registered_ = false;
-FilamentCatalogPickerModal* FilamentCatalogPickerModal::active_instance_ = nullptr;
 
 void FilamentCatalogPickerModal::register_callbacks() {
     if (callbacks_registered_)
         return;
     FilamentCatalogSelector::register_callbacks();
-    lv_xml_register_event_cb(nullptr, "catalog_picker_close_cb", [](lv_event_t*) {
-        if (active_instance_)
-            active_instance_->hide();
+    lv_xml_register_event_cb(nullptr, "catalog_picker_close_cb", [](lv_event_t* e) {
+        if (auto* self = Modal::from_event<FilamentCatalogPickerModal>(e))
+            self->hide();
     });
-    lv_xml_register_event_cb(nullptr, "catalog_picker_select_cb", [](lv_event_t*) {
-        if (active_instance_)
-            active_instance_->handle_select_button();
+    lv_xml_register_event_cb(nullptr, "catalog_picker_select_cb", [](lv_event_t* e) {
+        if (auto* self = Modal::from_event<FilamentCatalogPickerModal>(e))
+            self->handle_select_button();
     });
-    lv_xml_register_event_cb(nullptr, "catalog_picker_reset_cb", [](lv_event_t*) {
-        if (!active_instance_)
+    lv_xml_register_event_cb(nullptr, "catalog_picker_reset_cb", [](lv_event_t* e) {
+        auto* self = Modal::from_event<FilamentCatalogPickerModal>(e);
+        if (!self)
             return;
-        FilamentCatalogPickerModal* self = active_instance_;
         if (self->reset_callback_)
             self->reset_callback_();
         self->hide();
@@ -54,8 +53,6 @@ void FilamentCatalogPickerModal::show(lv_obj_t* parent, std::optional<std::strin
 }
 
 void FilamentCatalogPickerModal::on_show() {
-    active_instance_ = this;
-
     lv_obj_t* fragment = helix::ui::find_required(dialog(), "catalog_selector", get_name());
     selector_.attach(fragment);
     selector_.configure(seed_type_, allowed_types_);
@@ -78,16 +75,7 @@ void FilamentCatalogPickerModal::on_show() {
     }
 }
 
-FilamentCatalogPickerModal::~FilamentCatalogPickerModal() {
-    // A shown modal's owner can destroy it without on_hide() running, and the static
-    // XML callbacks would then reach a freed instance.
-    if (active_instance_ == this)
-        active_instance_ = nullptr;
-}
-
 void FilamentCatalogPickerModal::on_hide() {
-    if (active_instance_ == this)
-        active_instance_ = nullptr;
     selector_.detach();
     selector_.clear_catalog(); // free the catalog; reloaded on next show()
 }

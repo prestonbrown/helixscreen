@@ -26,7 +26,6 @@ extern "C" {
 // =============================================================================
 
 bool CrashReportModal::callbacks_registered_ = false;
-CrashReportModal* CrashReportModal::active_instance_ = nullptr;
 
 // =============================================================================
 // Constructor / Destructor
@@ -40,9 +39,6 @@ CrashReportModal::~CrashReportModal() {
     deinit_subjects();
     // clear()-path teardown frees the instance without on_hide(), which is
     // normally the one that drops the static pointer.
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
     spdlog::trace("[CrashReportModal] Destroyed");
 }
 
@@ -73,12 +69,7 @@ bool CrashReportModal::show_modal(lv_obj_t* parent) {
                            lv_tr("Send this crash report to help improve HelixScreen."));
 
     // Call base class show
-    bool result = show(parent);
-    if (result && dialog()) {
-        active_instance_ = this;
-    }
-
-    return result;
+    return show(parent);
 }
 
 bool CrashReportModal::show_owned(CrashReporter& reporter,
@@ -116,7 +107,6 @@ void CrashReportModal::on_show() {
 
 void CrashReportModal::on_hide() {
     spdlog::debug("[CrashReportModal] on_hide");
-    active_instance_ = nullptr;
 
     // Clear the framebuffer so stale crash dialog pixels don't bleed through
     // during app shutdown or LVGL re-init (the dialog renders before the
@@ -178,15 +168,15 @@ void CrashReportModal::register_callbacks() {
 // Static Event Callbacks
 // =============================================================================
 
-void CrashReportModal::on_send_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_send();
+void CrashReportModal::on_send_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<CrashReportModal>(e)) {
+        self->handle_send();
     }
 }
 
-void CrashReportModal::on_dismiss_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_dismiss();
+void CrashReportModal::on_dismiss_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<CrashReportModal>(e)) {
+        self->handle_dismiss();
     }
 }
 

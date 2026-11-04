@@ -113,8 +113,8 @@ class SettingsPanel : public PanelBase {
     helix::ui::WidgetRef restart_prompt_dialog_;
 
     // Change host modal is owned by helix::ui::show_change_host_modal(); the
-    // connection-failed prompt reaches the same dialog, and ChangeHostModal keeps
-    // a static active_instance_, so a second owner here would fight it.
+    // connection-failed prompt reaches the same dialog, and ChangeHostModal publishes
+    // its subjects under fixed XML names, so a second owner here would fight it.
 
     //
     // === Reactive Subjects ===

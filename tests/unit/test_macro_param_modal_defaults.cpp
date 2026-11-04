@@ -16,9 +16,7 @@
 #include "macro_param_defaults.h"
 #include "macro_param_modal.h"
 
-#include <cstring>
 #include <map>
-#include <new>
 #include <string>
 #include <vector>
 
@@ -41,13 +39,15 @@ class SaveModeFixture : public LVGLUITestFixture {
     }
 
     ~SaveModeFixture() override {
-        // A failed assertion can leave the modal up with its static instance
-        // pointer aimed at this soon-dead object.
-        if (modal.dialog()) {
-            helix::MacroParamModal::cancel_cb(nullptr);
-        }
+        modal.hide();
         process_lvgl(20);
         helix::DisplaySettingsManager::instance().set_animations_enabled(prev_animations_);
+    }
+
+    void press_primary(const char* row_name) {
+        lv_obj_t* row = lv_obj_find_by_name(modal.dialog(), row_name);
+        REQUIRE(row != nullptr);
+        lv_obj_send_event(lv_obj_find_by_name(row, "btn_primary"), LV_EVENT_CLICKED, nullptr);
     }
 
     void show_defaults(const ParamValues& values, bool ask = true) {
@@ -170,7 +170,7 @@ TEST_CASE_METHOD(SaveModeFixture, "Saved values prefill the fields and Save hand
 
     CHECK(field_texts() == std::vector<std::string>{"210", "40"});
 
-    helix::MacroParamModal::save_cb(nullptr);
+    press_primary("save_button_row");
     process_lvgl(20);
 
     CHECK(saves == 1);
@@ -189,7 +189,7 @@ TEST_CASE_METHOD(SaveModeFixture, "An edited field and a toggled Ask both reach 
 
     lv_textarea_set_text(widget("field_input"), "220");
 
-    helix::MacroParamModal::save_cb(nullptr);
+    press_primary("save_button_row");
     process_lvgl(20);
 
     CHECK(saves == 1);
@@ -211,37 +211,23 @@ TEST_CASE_METHOD(SaveModeFixture, "An emptied field is not saved as a value",
 
     lv_textarea_set_text(widget("field_input"), "");
 
-    helix::MacroParamModal::save_cb(nullptr);
+    press_primary("save_button_row");
     process_lvgl(20);
 
     CHECK(saved_record.values == ParamValues{{"SPEED", "40"}});
 }
 
-TEST_CASE_METHOD(SaveModeFixture, "A backdrop close leaves no live instance behind",
+TEST_CASE_METHOD(SaveModeFixture, "A press on the closing dialog reaches nothing",
                  "[macro][macro_params][macro_param_defaults_modal][dismiss]") {
     show_run();
+    lv_obj_t* run_row = lv_obj_find_by_name(modal.dialog(), "run_button_row");
+    REQUIRE(run_row != nullptr);
+    lv_obj_t* run = lv_obj_find_by_name(run_row, "btn_primary");
     lv_obj_send_event(modal.backdrop(), LV_EVENT_CLICKED, nullptr);
-    process_lvgl(20);
     REQUIRE(modal.dialog() == nullptr);
 
-    // A late Run press from the closed dialog's callbacks reaches nothing.
-    helix::MacroParamModal::run_cb(nullptr);
+    lv_obj_send_event(run, LV_EVENT_CLICKED, nullptr);
     process_lvgl(20);
-    CHECK(runs == 0);
-}
-
-TEST_CASE_METHOD(SaveModeFixture, "A modal destroyed while shown leaves no live instance behind",
-                 "[macro][macro_params][macro_param_defaults_modal][dismiss]") {
-    alignas(helix::MacroParamModal) unsigned char storage[sizeof(helix::MacroParamModal)];
-    auto* doomed = new (storage) helix::MacroParamModal;
-    doomed->show_for_macro(lv_screen_active(), "MY_MACRO", params(),
-                           [this](const auto&) { ++runs; });
-    REQUIRE(doomed->dialog() != nullptr);
-    doomed->~MacroParamModal();
-    std::memset(storage, 0, sizeof(storage));
-
-    // A pointer left at the freed instance dispatches through its zeroed vtable.
-    helix::MacroParamModal::run_cb(nullptr);
     CHECK(runs == 0);
 }
 
@@ -264,7 +250,7 @@ TEST_CASE_METHOD(SaveModeFixture, "Saving free-form text stores its pairs with u
     show_unknown_defaults({});
 
     lv_textarea_set_text(widget("field_input"), "purge=1  Lane=lane2 SKIP=");
-    helix::MacroParamModal::save_cb(nullptr);
+    press_primary("save_button_row");
     process_lvgl(20);
 
     CHECK(saves == 1);
@@ -278,7 +264,7 @@ TEST_CASE_METHOD(SaveModeFixture, "Free-form text that is not KEY=VALUE refuses 
     show_unknown_defaults({{"PURGE", "1"}});
 
     lv_textarea_set_text(widget("field_input"), "PURGE=1 wipe");
-    helix::MacroParamModal::save_cb(nullptr);
+    press_primary("save_button_row");
     process_lvgl(20);
 
     CHECK(saves == 0);
@@ -292,7 +278,7 @@ TEST_CASE_METHOD(SaveModeFixture, "The free-form run prompt starts with the save
     show_unknown_run({{"PURGE", "1"}});
 
     CHECK(field_texts() == std::vector<std::string>{"PURGE=1"});
-    helix::MacroParamModal::run_cb(nullptr);
+    press_primary("run_button_row");
     process_lvgl(20);
 
     CHECK(runs == 1);
@@ -304,7 +290,7 @@ TEST_CASE_METHOD(SaveModeFixture, "The free-form run prompt refuses text that is
     show_unknown_run({});
 
     lv_textarea_set_text(widget("field_input"), "PURGE=1 wipe");
-    helix::MacroParamModal::run_cb(nullptr);
+    press_primary("run_button_row");
     process_lvgl(20);
 
     CHECK(runs == 0);

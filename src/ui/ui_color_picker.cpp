@@ -47,7 +47,6 @@ namespace helix::ui {
 
 // Static member initialization
 bool ColorPicker::callbacks_registered_ = false;
-ColorPicker* ColorPicker::active_instance_ = nullptr;
 
 namespace {
 
@@ -154,11 +153,6 @@ ColorPicker::ColorPicker() {
 }
 
 ColorPicker::~ColorPicker() {
-    // Modal's destructor cannot reach this class's on_hide(), and the static
-    // callbacks of the next picker's show() would run on this freed instance.
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
     // Modal destructor will call hide() if visible
     deinit_subjects();
     spdlog::trace("[ColorPicker] Destroyed");
@@ -200,9 +194,6 @@ bool ColorPicker::show_with_color(lv_obj_t* parent, uint32_t initial_color) {
     if (!Modal::show(parent)) {
         return false;
     }
-
-    // Track active instance for static callbacks
-    active_instance_ = this;
 
     spdlog::info("[ColorPicker] Shown with initial color #{:06X}", initial_color);
     return true;
@@ -303,11 +294,6 @@ void ColorPicker::on_show() {
 }
 
 void ColorPicker::on_hide() {
-    // Clear active instance
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
-
     spdlog::debug("[ColorPicker] on_hide()");
 
     // Clear all cached widget pointers
@@ -496,44 +482,44 @@ void ColorPicker::register_callbacks() {
     register_xml_callbacks({
         {"color_picker_close_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<ColorPicker>(e)) {
                  self->hide();
              }
          }},
         {"color_swatch_clicked_cb", on_swatch_cb},
         {"color_picker_cancel_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<ColorPicker>(e)) {
                  self->on_cancel();
              }
          }},
         {"color_picker_select_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<ColorPicker>(e)) {
                  self->handle_select();
              }
          }},
         {"hex_input_changed_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<ColorPicker>(e)) {
                  self->handle_hex_input_changed();
              }
          }},
         {"hex_input_defocused_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<ColorPicker>(e)) {
                  self->handle_hex_input_defocused();
              }
          }},
         {"color_picker_tab_presets_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<ColorPicker>(e)) {
                  self->switch_tab(false);
              }
          }},
         {"color_picker_tab_custom_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<ColorPicker>(e)) {
                  self->switch_tab(true);
              }
          }},
@@ -589,16 +575,11 @@ void ColorPicker::switch_tab(bool show_custom) {
 }
 
 // ============================================================================
-// Static Callbacks (Instance Lookup via User Data)
+// Static Callbacks
 // ============================================================================
 
-ColorPicker* ColorPicker::get_instance_from_event(lv_event_t* e) {
-    (void)e; // Not needed - we use static instance tracking
-    return active_instance_;
-}
-
 void ColorPicker::on_swatch_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
+    auto* self = Modal::from_event<ColorPicker>(e);
     if (self) {
         auto* swatch = static_cast<lv_obj_t*>(lv_event_get_target(e));
         self->handle_swatch_clicked(swatch);

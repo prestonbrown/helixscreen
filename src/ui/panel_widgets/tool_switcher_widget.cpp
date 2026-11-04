@@ -366,9 +366,6 @@ std::string detail_line(const std::string& head, const std::string& material,
 
 namespace helix {
 
-// Static instance for event callback routing
-ToolSwitcherWidget* ToolSwitcherWidget::s_active_instance = nullptr;
-
 void register_tool_switcher_widget() {
     register_widget_factory("tool_switcher", [](const std::string&) {
         auto& ps = get_printer_state();
@@ -404,17 +401,12 @@ std::string ToolSwitcherWidget::short_text(const ToolInfo& tool) {
     return tool_text(tool, ui::ToolLabelForm::Code);
 }
 
-ToolSwitcherWidget::~ToolSwitcherWidget() {
-    if (s_active_instance == this) {
-        s_active_instance = nullptr;
-    }
-}
+ToolSwitcherWidget::~ToolSwitcherWidget() = default;
 
 void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
     install_delete_hook(widget_obj);
-    s_active_instance = this;
 
     auto& tool_state = ToolState::instance();
     auto token = lifetime_.token();
@@ -530,9 +522,6 @@ void ToolSwitcherWidget::detach() {
     head_temps_.clear();
     uninstall_delete_hook();
     forget_tile_widgets();
-    if (s_active_instance == this) {
-        s_active_instance = nullptr;
-    }
 }
 
 void ToolSwitcherWidget::on_hooked_root_deleted() {
@@ -1151,13 +1140,9 @@ void ToolSwitcherWidget::handle_tool_selected(int head_index) {
     // The published heads follow ToolState's active-tool subject, so a refused
     // change never moved the highlight. Resync anyway: a backend that got
     // partway before failing leaves the subject as the only truth.
-    hooks.on_failed = [] {
-        helix::ui::queue_update("ToolSwitcherWidget::resync_after_error", []() {
-            if (s_active_instance) {
-                s_active_instance->on_active_tool_changed(
-                    ToolState::instance().active_tool_index());
-            }
-        });
+    hooks.on_failed = [this, tok = lifetime_.token()] {
+        tok.defer("ToolSwitcherWidget::resync_after_error",
+                  [this] { on_active_tool_changed(ToolState::instance().active_tool_index()); });
     };
     helix::ui::offer_tool_change(printer_state_, tool_index, std::move(hooks));
 }
@@ -1166,25 +1151,32 @@ void ToolSwitcherWidget::handle_tool_selected(int head_index) {
 // Static XML event callbacks (registered at startup, used in XML if needed)
 // ============================================================================
 
+ToolSwitcherWidget* ToolSwitcherWidget::from_event(lv_event_t* e) {
+    if (auto* self = panel_widget_from_event<ToolSwitcherWidget>(e)) {
+        return self;
+    }
+    auto* picker = helix::ui::ContextMenu::active_as<ToolPicker>();
+    return picker ? &picker->owner() : nullptr;
+}
+
 void ToolSwitcherWidget::tool_park_cb(lv_event_t* e) {
-    (void)e;
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] tool_park_cb");
+    auto* self = from_event(e);
     // The picker's Park row closes the picker like any other row.
     if (auto* picker = helix::ui::ContextMenu::active_as<ToolPicker>()) {
         picker->hide();
     }
-    if (s_active_instance) {
-        s_active_instance->handle_park_requested();
+    if (self) {
+        self->handle_park_requested();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void ToolSwitcherWidget::tool_feeder_cb(lv_event_t* e) {
-    (void)e;
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] tool_feeder_cb");
     // The picker stays open, so its feeder button shows the state it reaches.
-    if (s_active_instance) {
-        s_active_instance->handle_feeder_toggled();
+    if (auto* self = from_event(e)) {
+        self->handle_feeder_toggled();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -1203,24 +1195,24 @@ void ToolSwitcherWidget::tool_segment_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] tool_segment_cb");
     // XML event user_data is the segment's index as a string.
     const char* index = static_cast<const char*>(lv_event_get_user_data(e));
-    if (s_active_instance && index) {
+    auto* self = from_event(e);
+    if (self && index) {
         // A picker cell closes the picker like any other choice; a rail cell
         // raises it when its head is the mounted one.
         if (auto* picker = helix::ui::ContextMenu::active_as<ToolPicker>()) {
             picker->hide();
-            s_active_instance->handle_tool_selected(std::atoi(index));
+            self->handle_tool_selected(std::atoi(index));
         } else {
-            s_active_instance->handle_segment_tapped(std::atoi(index));
+            self->handle_segment_tapped(std::atoi(index));
         }
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void ToolSwitcherWidget::tool_face_cb(lv_event_t* e) {
-    (void)e;
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] tool_face_cb");
-    if (s_active_instance) {
-        s_active_instance->show_tool_picker();
+    if (auto* self = from_event(e)) {
+        self->show_tool_picker();
     }
     LVGL_SAFE_EVENT_CB_END();
 }

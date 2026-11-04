@@ -9,19 +9,31 @@
  * Run with: ./build/bin/helix-tests "[from_event]"
  */
 
+#include "ui_change_host_modal.h"
+#include "ui_color_picker.h"
+#include "ui_crash_report_modal.h"
+#include "ui_debug_bundle_modal.h"
+#include "ui_filament_catalog_picker.h"
+#include "ui_filament_product_edit_modal.h"
 #include "ui_guided_load_modal.h"
 #include "ui_job_queue_modal.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_plugin_install_modal.h"
+#include "ui_preflight_check_modal.h"
 #include "ui_settings_barcode_scanner.h"
 #include "ui_spoolman_edit_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "camera_config_modal.h"
 #include "core/update_queue.h"
+#include "favorite_macro_config_modal.h"
 #include "lvgl/src/misc/lv_event_private.h"
+#include "macro_param_modal.h"
 #include "overlay_base.h"
+#include "panel_widget_registry.h"
+#include "toolhead_preset_config_modal.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -105,6 +117,18 @@ class FromEventFixture : public LVGLUITestFixture {
   private:
     lv_obj_t* base_ = nullptr;
 };
+
+/// a's real @p widget fires: a closes, its twin stays open.
+template <typename M, typename Open>
+void check_widget_closes_own_modal(M& a, M& b, const char* widget, Open open) {
+    open(a);
+    open(b);
+    REQUIRE(a.is_visible());
+    REQUIRE(b.is_visible());
+    lv_obj_send_event(named(a.dialog(), widget), LV_EVENT_CLICKED, nullptr);
+    CHECK_FALSE(a.is_visible());
+    CHECK(b.is_visible());
+}
 
 } // namespace
 
@@ -190,28 +214,6 @@ TEST_CASE_METHOD(FromEventFixture,
     settle();
 }
 
-TEST_CASE_METHOD(FromEventFixture, "JobQueueModal: the close button closes the modal it belongs to",
-                 "[modal][job_queue][from_event]") {
-    helix::JobQueueModal a;
-    helix::JobQueueModal b;
-    REQUIRE(a.show(test_screen()));
-    REQUIRE(b.show(test_screen()));
-    lv_obj_send_event(named(a.dialog(), "btn_close"), LV_EVENT_CLICKED, nullptr);
-    CHECK_FALSE(a.is_visible());
-    CHECK(b.is_visible());
-}
-
-TEST_CASE_METHOD(FromEventFixture, "PluginInstallModal: Done closes the modal it belongs to",
-                 "[modal][plugin_install][from_event]") {
-    PluginInstallModal a;
-    PluginInstallModal b;
-    REQUIRE(a.show(test_screen()));
-    REQUIRE(b.show(test_screen()));
-    lv_obj_send_event(named(a.dialog(), "btn_done"), LV_EVENT_CLICKED, nullptr);
-    CHECK_FALSE(a.is_visible());
-    CHECK(b.is_visible());
-}
-
 TEST_CASE_METHOD(FromEventFixture,
                  "GuidedLoadModal: Cancel on the buried wizard closes it and leaves the top one",
                  "[modal][guided_load][from_event]") {
@@ -273,3 +275,126 @@ TEST_CASE_METHOD(FromEventFixture,
     b.destroy_overlay_ui();
     settle();
 }
+
+TEST_CASE_METHOD(FromEventFixture, "each modal's own widget closes it and leaves its twin open",
+                 "[modal][from_event]") {
+    using namespace helix;
+    using namespace helix::ui;
+    init_widget_registrations();
+    lv_obj_t* screen = test_screen();
+
+    SECTION("JobQueueModal") {
+        JobQueueModal a;
+        JobQueueModal b;
+        check_widget_closes_own_modal(a, b, "btn_close", [&](auto& m) { m.show(screen); });
+    }
+    SECTION("PluginInstallModal") {
+        PluginInstallModal a;
+        PluginInstallModal b;
+        check_widget_closes_own_modal(a, b, "btn_done", [&](auto& m) { m.show(screen); });
+    }
+    SECTION("FavoriteMacroConfigModal") {
+        FavoriteMacroConfigModal a("w", "home", nullptr);
+        FavoriteMacroConfigModal b("w", "home", nullptr);
+        check_widget_closes_own_modal(a, b, "btn_close", [&](auto& m) { m.show(screen); });
+    }
+    SECTION("ToolheadPresetConfigModal") {
+        ToolheadPresetConfigModal a(ToolheadPresetSlots{}, nullptr);
+        ToolheadPresetConfigModal b(ToolheadPresetSlots{}, nullptr);
+        check_widget_closes_own_modal(a, b, "btn_close", [&](auto& m) { m.show(screen); });
+    }
+    SECTION("MacroParamModal") {
+        MacroParamModal a;
+        MacroParamModal b;
+        check_widget_closes_own_modal(a, b, "btn_close",
+                                      [&](auto& m) { m.show_for_macro(screen, "M", {}, nullptr); });
+    }
+    SECTION("ColorPicker") {
+        ColorPicker a;
+        ColorPicker b;
+        check_widget_closes_own_modal(a, b, "btn_close",
+                                      [&](auto& m) { m.show_with_color(screen, 0xFF0000); });
+    }
+    SECTION("DebugBundleModal") {
+        DebugBundleModal a;
+        DebugBundleModal b;
+        check_widget_closes_own_modal(a, b, "btn_cancel", [&](auto& m) { m.show_modal(screen); });
+    }
+    SECTION("CrashReportModal: top-layer dialog") {
+        CrashReporter reporter;
+        CrashReportModal a(reporter);
+        CrashReportModal b(reporter);
+        check_widget_closes_own_modal(a, b, "modal_cancel_btn",
+                                      [&](auto& m) { m.show_modal(screen); });
+    }
+    SECTION("FilamentCatalogPickerModal") {
+        FilamentCatalogPickerModal a;
+        FilamentCatalogPickerModal b;
+        check_widget_closes_own_modal(a, b, "btn_close", [&](auto& m) {
+            m.show(screen, std::nullopt, FilamentCatalogPickerModal::SelectCallback{});
+        });
+    }
+    SECTION("FilamentProductEditModal") {
+        FilamentProductEditModal a;
+        FilamentProductEditModal b;
+        check_widget_closes_own_modal(a, b, "btn_close", [&](auto& m) { m.show_for_add(screen); });
+    }
+    SECTION("PreflightCheckModal: Set Material with nothing to set closes") {
+        PreflightCheckModal a;
+        PreflightCheckModal b;
+        check_widget_closes_own_modal(a, b, "btn_set_material", [&](auto& m) { m.show(screen); });
+    }
+    SECTION("ChangeHostModal") {
+        ChangeHostModal a;
+        ChangeHostModal b;
+        check_widget_closes_own_modal(a, b, "modal_cancel_btn",
+                                      [&](auto& m) { m.show_modal(screen); });
+    }
+}
+
+TEST_CASE_METHOD(FromEventFixture, "ToolheadPresetConfigModal: a list row picks for its own modal",
+                 "[modal][toolhead][from_event]") {
+    using namespace helix;
+    init_widget_registrations();
+    const auto empty = ToolheadPresetSlot::Kind::Empty;
+    ToolheadPresetConfigModal a(ToolheadPresetSlots{}, nullptr);
+    ToolheadPresetConfigModal b(ToolheadPresetSlots{}, nullptr);
+    REQUIRE(a.show(test_screen()));
+    REQUIRE(b.show(test_screen()));
+    lv_obj_t* a_row = lv_obj_get_child(named(a.dialog(), "toolhead_preset_cfg_list"), 0);
+    REQUIRE(a_row != nullptr);
+
+    lv_obj_send_event(a_row, LV_EVENT_CLICKED, nullptr);
+    CHECK(a.slots()[0].kind != empty);
+    CHECK(b.slots()[0].kind == empty);
+
+    // The row outlives the close by the exit animation, and answers nothing in it.
+    lv_obj_t* last_row = lv_obj_get_child(named(a.dialog(), "toolhead_preset_cfg_list"), -1);
+    const auto kept = a.slots()[0].kind;
+    a.hide();
+    lv_obj_send_event(last_row, LV_EVENT_CLICKED, nullptr);
+    CHECK(a.slots()[0].kind == kept);
+}
+
+#if HELIX_HAS_CAMERA
+TEST_CASE_METHOD(FromEventFixture, "CameraConfigModal: a rotation button sets its own modal",
+                 "[modal][camera][from_event]") {
+    using namespace helix;
+    init_widget_registrations();
+    int a_rotation = -1;
+    int b_rotation = -1;
+    auto saved_to = [](int& out) {
+        return [&out](const nlohmann::json& config) { out = config.value("rotation", 0); };
+    };
+    CameraConfigModal a("w", "home", saved_to(a_rotation));
+    REQUIRE(a.show(test_screen()));
+    CameraConfigModal b("w", "home", saved_to(b_rotation));
+    REQUIRE(b.show(test_screen()));
+
+    lv_obj_send_event(named(a.dialog(), "btn_rot_90"), LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(named(a.dialog(), "btn_primary"), LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(named(b.dialog(), "btn_primary"), LV_EVENT_CLICKED, nullptr);
+    CHECK(a_rotation == 90);
+    CHECK(b_rotation == 0);
+}
+#endif

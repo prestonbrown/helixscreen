@@ -33,7 +33,6 @@ using MacroParamSaveCallback = std::function<void(const MacroParamDefaultRecord&
 class MacroParamModal : public Modal {
   public:
     MacroParamModal() = default;
-    ~MacroParamModal() override;
 
     const char* get_name() const override {
         return "Macro Parameters";
@@ -41,6 +40,7 @@ class MacroParamModal : public Modal {
     const char* component_name() const override {
         return "macro_param_modal";
     }
+    HELIX_KIND_TAG(MacroParamModal)
 
     /// Show the modal for a specific macro with its detected parameters.
     /// @param parent Parent object (usually lv_screen_active())
@@ -82,8 +82,8 @@ class MacroParamModal : public Modal {
     void on_show() override;
     void on_ok() override;
     void on_cancel() override;
-    /// Every close, answered or not, drops the widget pointers and the static
-    /// instance pointer: the widgets are about to be deleted.
+    /// Every close, answered or not, drops the widget pointers: the widgets are
+    /// about to be deleted.
     void on_hide() override;
 
   private:
@@ -108,8 +108,6 @@ class MacroParamModal : public Modal {
     /// true, so Run and Save refuse instead of dropping what the user typed.
     bool refuse_unparsed_raw_text() const;
     void on_save_clicked();
-
-    static MacroParamModal* s_active_instance_;
 };
 
 /**

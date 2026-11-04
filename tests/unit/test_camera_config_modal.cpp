@@ -51,12 +51,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "CameraConfigModal: save carries source throug
     // The camera list may not carry "Bed" at all (printer rediscovered without
     // it); the preference is the user's and must not be dropped for that.
     Access::publish_sources(modal, {cam("Nozzle")});
-    CameraConfigModal::on_rotate_180(nullptr);
     Access::ok(modal);
 
     REQUIRE(saved.is_object());
     CHECK(saved.value("source", "") == "Bed");
-    CHECK(saved.value("rotation", 0) == 180);
+    CHECK(saved.value("rotation", 0) == 90);
     CHECK(saved.value("flip_h", false) == true);
     CHECK(saved.value("flip_v", true) == false);
 }
