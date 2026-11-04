@@ -29,9 +29,9 @@ any theme works with any layout.
 |--------|--------|-------------|
 | `standard` | **Complete** | All panels — this is the default UI everyone uses today |
 | `ultrawide` | Not started | Directory doesn't exist yet |
-| `portrait` | **Started** | `print_status_panel.xml`, `print_tune_panel.xml` |
-| `micro` | **Started** | `controls_panel.xml`, `header_bar.xml`, `material_temps_overlay.xml`, `theme_editor_overlay.xml`, `theme_preview_overlay.xml` |
-| `micro_portrait` | **Started** | `material_temps_overlay.xml` |
+| `portrait` | **Started** | `print_tune_panel.xml` |
+| `micro` | **Started** | `controls_panel.xml` |
+| `micro_portrait` | Not started | Directory doesn't exist yet; the `portrait/` layer serves it |
 | `tiny` | Not started | Directory doesn't exist yet |
 | `tiny_portrait` | Not started | Directory doesn't exist yet |
 
@@ -43,7 +43,7 @@ single file and branches in place on the `ui_is_portrait` subject:
 
 | Mechanism | Use when | Examples in the tree |
 |-----------|----------|----------------------|
-| `ui_xml/<variant>/<panel>.xml` | The panel is genuinely a different design in that orientation | `portrait/print_status_panel.xml`, `portrait/print_tune_panel.xml` |
+| `ui_xml/<variant>/<panel>.xml` | The panel is genuinely a different design in that orientation | `portrait/print_tune_panel.xml`, `micro/controls_panel.xml` |
 | `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `temp_graph_overlay.xml` (3 sites) |
 | `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `ui_xml/app_layout.xml` and `ui_xml/navigation_bar.xml` (the app shell and nav bar switch axis and position), `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row) |
 | `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `ui_xml/components/bed_mesh_current_mesh_card.xml#mesh_max_coord_inline` |
@@ -110,9 +110,9 @@ ui_xml/
   settings_panel.xml       ← ...and ~200 more XML files (226 total)
   ...
 
-  portrait/                ← Portrait overrides (print_status_panel.xml, print_tune_panel.xml)
-  micro/                   ← Micro landscape overrides (480x272, e.g. Ender 3 V3 KE)
-  micro_portrait/          ← Micro portrait overrides (material_temps_overlay.xml)
+  portrait/                ← Portrait overrides (print_tune_panel.xml)
+  micro/                   ← Micro landscape overrides (480x272: controls_panel.xml)
+  micro_portrait/          ← Doesn't exist yet — the portrait/ layer serves 272x480
 
   ultrawide/               ← Doesn't exist yet — create it to override for ultrawide!
   tiny/                    ← Tiny landscape overrides (doesn't exist yet)

@@ -2057,7 +2057,7 @@ EOF
     printf '<lv_obj name="unrelated"/>\n' | put ui_xml/panel.xml
     run lint_zoffset_save_rule
     [ "$status" -eq 1 ]
-    contains "fewer than 4" "$output"
+    contains "fewer than 3" "$output"
 }
 
 @test "the OverlayBase cleanup lint fails closed when it finds too few overrides" {

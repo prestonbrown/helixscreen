@@ -664,7 +664,7 @@
 
     <!-- Other component dimensions -->
     <!-- header_height is responsive: _small/_medium/_large registered as header_height based on screen height -->
-    <px name="header_height_micro" value="28"/>
+    <px name="header_height_micro" value="40"/>
     <px name="header_height_tiny" value="33"/>
     <px name="header_height_small" value="48"/>
     <px name="header_height_medium" value="56"/>

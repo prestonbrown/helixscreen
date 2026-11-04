@@ -25,14 +25,30 @@
          are already correct — a cap leaves them alone and clamps only the
          oversized ones.
          Roughly 80% of the corresponding header_height at each tier. -->
-    <px name="header_button_height_micro" value="22"/>
+    <px name="header_button_height_micro" value="32"/>
     <px name="header_button_height_tiny" value="26"/>
     <px name="header_button_height_small" value="38"/>
     <px name="header_button_height_medium" value="44"/>
     <px name="header_button_height_large" value="48"/>
     <px name="header_button_height_xlarge" value="54"/>
     <px name="header_button_height_xxlarge" value="64"/>
+    <!-- Floor for the labelled second action slot (action_button_2_min_width's
+         default). 72 on the 480x272 tier, where the bar is 40px tall and every
+         slot-2 px comes out of the title; 90 everywhere else. -->
+    <px name="header_slot2_min_width_micro" value="72"/>
+    <px name="header_slot2_min_width_tiny" value="90"/>
+    <px name="header_slot2_min_width_small" value="90"/>
+    <px name="header_slot2_min_width_medium" value="90"/>
+    <px name="header_slot2_min_width_large" value="90"/>
+    <px name="header_slot2_min_width_xlarge" value="90"/>
+    <px name="header_slot2_min_width_xxlarge" value="90"/>
   </consts>
+  <styles>
+    <!-- The title slot's left inset: a step tighter at 480x272, where the
+         title gives up every px the bar's chrome takes. -->
+    <style name="header_title_inset" pad_left="#space_sm"/>
+    <style name="header_title_inset_micro" pad_left="#space_xs"/>
+  </styles>
   <!-- API Properties -->
   <api>
     <prop name="title" type="string"/>
@@ -107,9 +123,9 @@
     <prop name="action_button_2_icon" type="string" default=""/>
     <prop name="action_button_2_icon_size" type="string" default="sm"/>
     <prop name="action_button_2_bg_color" type="string" default="#secondary"/>
-    <!-- Floor for the labelled slot; a consumer whose label may hide passes a
-         smaller one. -->
-    <prop name="action_button_2_min_width" type="string" default="90"/>
+    <!-- Floor for the labelled slot, per tier (header_slot2_min_width in the
+         consts above); a consumer whose label may hide passes a smaller one. -->
+    <prop name="action_button_2_min_width" type="string" default="#header_slot2_min_width"/>
     <prop name="action_button_2_callback" type="string" default=""/>
     <prop name="hide_action_button_2" type="string" default="true"/>
     <prop name="action_button_2_hidden_subject" type="string" default=""/>
@@ -138,9 +154,11 @@
         style_flex_cross_place="center" scrollable="false">
     <!-- Back button: flex_grow region covers arrow + title = huge touch target -->
     <lv_obj name="back_button"
-            height="100%" flex_grow="1" style_pad_left="#space_sm" style_pad_right="0" style_pad_top="0"
-            style_pad_bottom="0" scrollable="false" clickable="true" style_flex_cross_place="center"
-            style_flex_track_place="center" flex_flow="row" style_pad_gap="#space_xs">
+            height="100%" flex_grow="1" style_pad_right="0" style_pad_top="0" style_pad_bottom="0" scrollable="false"
+            clickable="true" style_flex_cross_place="center" style_flex_track_place="center" flex_flow="row"
+            style_pad_gap="#space_xs">
+      <bind_style_if_eq name="header_title_inset_micro" subject="ui_breakpoint" ref_value="0"/>
+      <bind_style_if_ge name="header_title_inset" subject="ui_breakpoint" ref_value="1"/>
       <event_cb trigger="clicked" callback="$back_button_callback"/>
       <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
       <!-- bind_text is deliberately FIRST. An unsupplied title_subject resolves to the
@@ -234,7 +252,7 @@
          AND something is dirty, machine-wide or per-tool - published by
          helix::zoffset so every save surface and the save path itself ask one
          question and cannot disagree.
-         Icon-only: the micro header is 28px tall with 22px buttons and the
+         Icon-only: the micro header is 40px tall with 32px buttons and the
          title already flex-grows, so a labelled button here eats the title. -->
     <ui_button name="header_save_z_offset"
                width="content" height="$action_button_height" style_max_height="#header_button_height"

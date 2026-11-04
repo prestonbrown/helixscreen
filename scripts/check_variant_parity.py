@@ -27,9 +27,9 @@ What this gate compares, per (base, variant) pair:
 
 Deliberately NOT compared: attributes, element structure, ordering, consts,
 styles. Reflowing a panel is the entire point of a variant — only the wiring has
-to match. Prop defaults are part of that reflow: ui_xml/micro/header_bar.xml
-legitimately narrows action_button_2_min_width to 72 against the base's 90, so
-comparing defaults would fail on correct code. A condition's expression text is
+to match. Prop defaults are part of that reflow: a variant may legitimately
+narrow a width floor or pick a smaller font for its tier, so comparing defaults
+would fail on correct code. A condition's expression text is
 likewise free to be reworded as long as the binding still installs — parsing
 expressions to name the subjects inside them would false-positive on legitimate
 rewordings, and presence is what catches the defect (a variant lacking the
@@ -184,8 +184,9 @@ def report(kind: str, base_rel: str, variant_rel: str, base: set[str], variant: 
     The two directions are not symmetric. Wiring the base has and the variant
     lacks is a silent runtime failure: a subject that never binds, a name the
     C++ resolves to nullptr, a button whose callback is gone. Wiring the variant
-    adds is how a variant earns its keep — ui_xml/micro/theme_preview_overlay.xml
-    observes ui_breakpoint that the base has no need for. Only the first fails.
+    adds is how a variant earns its keep — ui_xml/micro/controls_panel.xml
+    binds styles on ui_breakpoint that the base has no need for. Only the first
+    fails.
     """
     allowed = ALLOWED_OMISSIONS.get(variant_rel, {}).get(kind, {})
     missing = {item for item in (base - variant) if item not in allowed}
