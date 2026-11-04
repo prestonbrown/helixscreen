@@ -332,6 +332,17 @@ TEST_CASE_METHOD(PresetConfigFixture, "Config::apply_preset_file returns false f
     TearDown();
 }
 
+TEST_CASE_METHOD(PresetConfigFixture, "Config::apply_preset_file refuses a preset it cannot parse",
+                 "[config][preset]") {
+    SetUp();
+
+    std::ofstream(temp_dir + "/presets/broken.json") << "{not json";
+    REQUIRE(config.apply_preset_file("broken") == false);
+    REQUIRE(printer_data()["fans"].size() == 2);
+
+    TearDown();
+}
+
 TEST_CASE_METHOD(PresetConfigFixture,
                  "Config::apply_preset_file preserves scaffolded keys not mentioned in preset",
                  "[config][preset]") {

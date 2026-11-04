@@ -265,3 +265,47 @@ TEST_CASE("small-footprint storage writes a below-floor copy compact", "[config]
     CHECK(doc.value("marker", "") == "kept");
     cfg.clear_path();
 }
+
+TEST_CASE("init tops up a stored file's missing keys and leaves its own values alone",
+          "[config][storage]") {
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
+    ConfigDirGuard guard("topup");
+    const std::string path = (guard.dir / "settings.json").string();
+    const auto read_stored = [&path] {
+        std::ifstream file(path);
+        return nlohmann::json::parse(file);
+    };
+    // A first boot migrates the fixture, so only the top-up below can dirty the file.
+    fs::copy_file("tests/fixtures/config/ktouch_3_printers.json", path);
+    helix::Config{}.init(path);
+    const bool junk_calibration = GENERATE(false, true);
+    nlohmann::json doc = read_stored();
+    doc["display"] = {{"sleep_sec", 7}};
+    doc["input"] = {{"scroll_limit", 3}, {"calibration", {{"a", 2.0}}}};
+    if (junk_calibration) {
+        doc["input"]["calibration"] = "junk";
+    }
+    std::ofstream(path) << doc.dump();
+
+    helix::Config{}.init(path);
+
+    // Read from disk: a top-up the file never receives repeats on every boot.
+    nlohmann::json stored = read_stored();
+    CHECK(stored["display"]["sleep_sec"] == 7);
+    CHECK(stored["display"]["dim_sec"] == 600);
+    CHECK(stored["input"]["scroll_limit"] == 3);
+    CHECK(stored["input"].contains("scroll_throw"));
+    CHECK_FALSE(stored["input"].contains("long_press_time"));
+    CHECK(stored["input"]["calibration"]["a"] == (junk_calibration ? 1.0 : 2.0));
+    CHECK(stored["input"]["calibration"]["valid"] == false);
+}
+
+TEST_CASE("a config written whole carries the touch range slot", "[config][storage]") {
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
+    ConfigDirGuard guard("fresh");
+    helix::Config cfg;
+    cfg.init((guard.dir / "settings.json").string());
+    CHECK(cfg.get<bool>("/input/touch_range/valid", true) == false);
+}
