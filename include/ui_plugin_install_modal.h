@@ -48,9 +48,9 @@ bool refuse_plugin_change_during_job(PrinterState& printer_state);
  * - LOCAL: Connected to localhost - shows "Install Plugin" button for auto-install
  * - REMOTE: Connected to remote printer - shows curl command with "Copy" button
  *
- * Closing it with "Don't ask again" ticked declines for good
- * (HelixPluginInstaller::set_install_declined()); closing it any other way
- * snoozes the prompt (HelixPluginInstaller::snooze_install_prompt()).
+ * Any close with "Don't ask again" ticked declines for good
+ * (HelixPluginInstaller::set_install_declined()), which outranks the snooze a
+ * user's close also leaves (HelixPluginInstaller::snooze_install_prompt()).
  *
  * Usage:
  * @code
@@ -105,7 +105,6 @@ class PluginInstallModal : public Modal {
     void on_show() override;
     void on_hide() override;
     void on_cancel() override;
-    // ESC closes without recording the "don't ask again" choice.
     void on_escape() override {
         hide(ModalCloseReason::EscKey);
     }
@@ -140,7 +139,6 @@ class PluginInstallModal : public Modal {
     void on_copy_clicked();
     void show_installing_state();
     void show_result_state(bool success, const std::string& message);
-    void record_prompt_answer();
 
     // Static event handlers for XML callbacks
     static void install_clicked_cb(lv_event_t* e);

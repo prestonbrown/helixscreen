@@ -12,6 +12,7 @@
 #include "lane_translation.h"
 #include "lvgl.h"
 #include "system/child_process.h"
+#include "system/moonraker_local_probe.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
 
@@ -688,6 +689,18 @@ std::string HelixPluginInstaller::get_install_script_path() const {
     return "";
 }
 
+namespace {
+
+bool local_moonraker_loads_addons() {
+#if defined(ESP_PLATFORM)
+    return true;
+#else
+    return diag::moonraker_loads_python_addons(diag::find_moonraker_processes());
+#endif
+}
+
+} // namespace
+
 bool HelixPluginInstaller::should_prompt_install() const {
     Config* config = Config::get_instance();
 
@@ -709,6 +722,11 @@ bool HelixPluginInstaller::should_prompt_install() const {
         return false;
     }
 
+    if (is_local_moonraker() && !(addon_check_ ? addon_check_() : local_moonraker_loads_addons())) {
+        spdlog::debug("[PluginInstaller] This Moonraker cannot load the plugin, not offering it");
+        return false;
+    }
+
     const PluginPromptSnooze stored{settings.get_plugin_prompt_snoozed_at(),
                                     settings.get_plugin_prompt_unmeasured_starts()};
     const PluginPromptSnoozeTurn turn =
@@ -727,6 +745,11 @@ bool HelixPluginInstaller::should_prompt_install() const {
 bool HelixPluginInstaller::prompt_settled_for_session_ = false;
 bool HelixPluginInstaller::snooze_checked_this_start_ = false;
 HelixPluginInstaller::PromptClock HelixPluginInstaller::prompt_clock_ = nullptr;
+HelixPluginInstaller::AddonCheck HelixPluginInstaller::addon_check_ = nullptr;
+
+void HelixPluginInstaller::set_addon_check(AddonCheck check) {
+    addon_check_ = check;
+}
 
 void HelixPluginInstaller::set_prompt_clock(PromptClock clock) {
     prompt_clock_ = clock;
