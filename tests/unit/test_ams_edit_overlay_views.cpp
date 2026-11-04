@@ -37,7 +37,6 @@
 #include "spoolman_slot_saver.h"
 #include "src/ui/panel_widgets/active_spool_widget.h"
 #include "tool_state.h"
-#include "xml_registration.h"
 
 #include <algorithm>
 #include <cmath>
@@ -3360,8 +3359,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         {
             ScopedResolution res(disp, sz.w, sz.h);
             theme_manager_refresh_layout_constants(disp);
-            // The picker at the size a device of this resolution boots with.
-            helix::refresh_color_picker_constants();
+            CHECK(std::string(lv_xml_get_const(nullptr, "color_preview_size")) ==
+                  (sz.w == 800 ? "56" : "48"));
             auto& overlay = get_ams_edit_overlay();
             AmsEditOverlayViewTestAccess access(overlay);
             REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
@@ -3419,7 +3418,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             close_editor_overlay();
         }
         theme_manager_refresh_layout_constants(disp);
-        helix::refresh_color_picker_constants();
     }
 }
 
