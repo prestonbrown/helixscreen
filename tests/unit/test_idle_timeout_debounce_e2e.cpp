@@ -18,7 +18,7 @@
  * would leave both existing suites green.
  *
  * So this drives real status payloads and asserts on the real refusal path.
- * The settle window is crossed with helix::BusyClock::advance(), which the tracker
+ * The settle window is crossed with helix::BusyClock::advance_for_test(), which the tracker
  * cannot tell apart from the time really passing.
  */
 
@@ -49,7 +49,7 @@ TEST_CASE_METHOD(helix::BusyGuardFixture,
     CHECK_FALSE(state.is_external_blocking_operation_active());
 
     SECTION("and then does block once the window elapses") {
-        helix::BusyClock::advance(helix::IdleTimeoutBusy::kSettle);
+        helix::BusyClock::advance_for_test(helix::IdleTimeoutBusy::kSettle);
         REQUIRE(state.is_blocking_operation_active());
         CHECK(state.is_external_blocking_operation_active());
 
@@ -77,14 +77,16 @@ TEST_CASE_METHOD(helix::BusyGuardFixture,
 TEST_CASE_METHOD(helix::BusyGuardFixture,
                  "A short housekeeping burst never reaches the blocking state",
                  "[blocking_op][idle_timeout][e2e][regression]") {
-    // The L53W5PKG shape end to end: Printing, then Ready ~0.7 s later, forever.
-    // Replayed at full speed here — the burst is shorter than the settle, so the
-    // guard must never engage no matter how many cycles run.
+    // The L53W5PKG shape end to end: Printing for ~0.7 s, then Ready, forever. Each
+    // burst is under the settle, so the guard never engages, though together they outlast it.
+    constexpr auto kBurst = std::chrono::milliseconds(700);
+    static_assert(kBurst < helix::IdleTimeoutBusy::kSettle, "the burst must be under the settle");
     for (int cycle = 0; cycle < 3; ++cycle) {
         INFO("cycle " << cycle);
         state.update_from_status(idle_timeout("Printing"));
         REQUIRE(lv_subject_get_int(state.calibration_state().get_idle_timeout_printing_subject()) ==
                 1);
+        helix::BusyClock::advance_for_test(kBurst);
         CHECK_FALSE(state.is_blocking_operation_active());
 
         state.update_from_status(idle_timeout("Ready"));
@@ -105,7 +107,7 @@ TEST_CASE_METHOD(helix::BusyGuardFixture, "Clearing idle_timeout releases the gu
     // Asymmetric by design: no settle on the way down. Making the user wait an
     // extra second after a real homing finishes would be its own bug.
     state.update_from_status(idle_timeout("Printing"));
-    helix::BusyClock::advance(helix::IdleTimeoutBusy::kSettle);
+    helix::BusyClock::advance_for_test(helix::IdleTimeoutBusy::kSettle);
     REQUIRE(state.is_blocking_operation_active());
 
     state.update_from_status(idle_timeout("Ready"));
@@ -132,7 +134,7 @@ TEST_CASE_METHOD(helix::BusyGuardFixture, "Repeated Printing reports do not re-a
             blocked = true;
             break;
         }
-        helix::BusyClock::advance(std::chrono::milliseconds(20));
+        helix::BusyClock::advance_for_test(std::chrono::milliseconds(20));
     }
     CHECK(blocked);
 }

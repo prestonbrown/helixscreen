@@ -12,27 +12,32 @@ namespace helix {
  * forward.
  *
  * Every decision IdleTimeoutBusy and BusyEpisodeOwner make compares two
- * readings of this clock, so advance() is indistinguishable to them from that
- * much real time passing. It lets a test cross kSettle or kGraceWindow without
- * sleeping through it; nothing else reads this clock, so moving it reaches no
- * other timer. Production never advances it.
+ * readings of this clock, so advancing it is indistinguishable to them from
+ * that much real time passing. That lets a test cross kSettle or kGraceWindow
+ * without sleeping through it; nothing else reads this clock, so moving it
+ * reaches no other timer.
+ *
+ * Its time_point is its own type, not steady_clock's: a steady_clock reading
+ * handed to a busy tracker would ignore the offset, so the mix is a compile
+ * error rather than a reading that lands in the past.
  */
 class BusyClock {
   public:
     using duration = std::chrono::steady_clock::duration;
     using rep = duration::rep;
     using period = duration::period;
-    using time_point = std::chrono::steady_clock::time_point;
+    using time_point = std::chrono::time_point<BusyClock, duration>;
     static constexpr bool is_steady = true;
 
     static time_point now() {
-        return std::chrono::steady_clock::now() +
-               duration{offset().load(std::memory_order_relaxed)};
+        return time_point{std::chrono::steady_clock::now().time_since_epoch() +
+                          duration{offset().load(std::memory_order_relaxed)}};
     }
 
     /// Moves now() forward by @p by. Never backward: a reading already taken
-    /// must not land in the future.
-    static void advance(duration by) {
+    /// must not land in the future. Tests only; tests/shell/test_code_lint.bats
+    /// refuses a call under src/ or include/.
+    static void advance_for_test(duration by) {
         if (by.count() > 0) {
             offset().fetch_add(by.count(), std::memory_order_relaxed);
         }
