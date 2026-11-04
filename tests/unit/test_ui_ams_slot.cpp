@@ -587,6 +587,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: refresh updates from AmsState",
     info.status = SlotStatus::AVAILABLE;
     mock_ptr->set_slot_info(0, info);
 
+    // The slot reads its material from AmsState's subjects, which exist only
+    // once init_subjects() has run in this process.
+    AmsState::instance().init_subjects(true);
     AmsState::instance().set_backend(std::move(mock));
     AmsState::instance().sync_from_backend();
     process_lvgl(50);
