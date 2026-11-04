@@ -1969,8 +1969,34 @@
       },
       "inherits": "lv_obj"
     },
-    "setting_group": {
+    "leader_line": {
       "attributes": {},
+      "inherits": "lv_obj"
+    },
+    "swatch_paint": {
+      "attributes": {
+        "color": {
+          "type": "color"
+        },
+        "bind_color": {
+          "type": "color"
+        },
+        "colors": {
+          "type": "color"
+        },
+        "bind_colors": {
+          "type": "color"
+        },
+        "finish": {
+          "type": "string"
+        },
+        "bind_finish": {
+          "type": "string"
+        },
+        "edge": {
+          "type": "string"
+        }
+      },
       "inherits": "lv_obj"
     },
     "ams_lane_bar": {
@@ -2016,36 +2042,6 @@
       },
       "inherits": "lv_obj"
     },
-    "leader_line": {
-      "attributes": {},
-      "inherits": "lv_obj"
-    },
-    "swatch_paint": {
-      "attributes": {
-        "color": {
-          "type": "color"
-        },
-        "bind_color": {
-          "type": "color"
-        },
-        "colors": {
-          "type": "color"
-        },
-        "bind_colors": {
-          "type": "color"
-        },
-        "finish": {
-          "type": "string"
-        },
-        "bind_finish": {
-          "type": "string"
-        },
-        "edge": {
-          "type": "string"
-        }
-      },
-      "inherits": "lv_obj"
-    },
     "lv_obj-bind_tile_rung": {
       "attributes": {
         "subject": {
@@ -2064,6 +2060,10 @@
           "type": "string"
         }
       },
+      "inherits": "lv_obj"
+    },
+    "setting_group": {
+      "attributes": {},
       "inherits": "lv_obj"
     }
   },
@@ -3020,13 +3020,13 @@
     "belt_gap_gauge",
     "belt_path_sketch",
     "helix_sparkline",
-    "setting_group",
+    "leader_line",
+    "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
     "humidity_drop",
-    "leader_line",
-    "swatch_paint",
-    "lv_obj-bind_tile_rung"
+    "lv_obj-bind_tile_rung",
+    "setting_group"
   ],
   "runtime_constants": [
     "accent_bar_gap",
