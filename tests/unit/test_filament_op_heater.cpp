@@ -19,6 +19,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/armed_timers.h"
 #include "../test_helpers/filament_runout_handler_test_access.h"
 #include "../test_helpers/filament_sensor_widget_test_access.h"
 #include "../test_helpers/scoped_shared_resource.h"
@@ -243,10 +244,8 @@ class HeaterFixture : public LVGLTestFixture {
 
     /// Fire the heater's deadline check, as its LVGL timer does every second.
     void fire_deadline_timer() {
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            if (lv_timer_get_user_data(t) == heater->ptr() && t->timer_cb) {
-                t->timer_cb(t);
-            }
+        for (lv_timer_t* t : helix::test::armed_timers_for(heater->ptr())) {
+            t->timer_cb(t);
         }
         drain_all();
     }

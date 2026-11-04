@@ -8,6 +8,7 @@
 #include "board_identity.h"
 #include "display_manager.h"
 #include "lvgl_test_fixture.h"
+#include "test_helpers/armed_timers.h"
 #include "test_helpers/display_manager_test_access.h"
 #include "test_helpers/scoped_board.h"
 
@@ -38,14 +39,6 @@ int timer_count() {
     int n = 0;
     for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
         ++n;
-    }
-    return n;
-}
-
-int timers_pointing_at(const void* owner) {
-    int n = 0;
-    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
-        n += lv_timer_get_user_data(t) == owner ? 1 : 0;
     }
     return n;
 }
@@ -85,8 +78,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a destroyed DisplayManager leaves no brightne
         dm_addr = &dm;
         DisplayManagerTestAccess::set_backlight(dm, std::make_unique<NamedBacklight>());
         DisplayManagerTestAccess::schedule_brightness_reassert(dm);
-        REQUIRE(timers_pointing_at(dm_addr) == 1);
+        REQUIRE(helix::test::armed_timer_count(dm_addr) == 1);
     }
     process_lvgl(1); // a cancelled timer is reaped on the next handler pass
-    CHECK(timers_pointing_at(dm_addr) == 0);
+    CHECK(helix::test::armed_timer_count(dm_addr) == 0);
 }

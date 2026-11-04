@@ -16,6 +16,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/armed_timers.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_board.h"
@@ -728,14 +729,7 @@ class TelemetrySchedulerFixture : public LVGLTestFixture {
     /// keeps the count independent of how many timers start_auto_send()
     /// happens to create.
     static int telemetry_timer_count() {
-        void* self = &TelemetryManager::instance();
-        int n = 0;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
-            if (lv_timer_get_user_data(t) == self) {
-                n++;
-            }
-        }
-        return n;
+        return helix::test::armed_timer_count(&TelemetryManager::instance());
     }
 
   protected:

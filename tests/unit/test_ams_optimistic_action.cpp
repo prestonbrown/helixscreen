@@ -21,6 +21,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/armed_timers.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_afc.h"
@@ -32,7 +33,6 @@
 #include "ams_types.h"
 #include "filament_op_heater.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "moonraker_client_mock.h"
 #include "post_op_cooldown_manager.h"
 #include "test_helpers/afc_test_access.h"
@@ -256,17 +256,9 @@ struct OptimisticSidebarFixture : public XMLTestFixture {
     void let_watchdog_run() {
         // A deferred callback can queue another, so drain until quiet.
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-        // A cancelled timer keeps its user_data and a null callback until the
-        // next lv_timer_handler() reaps it, so one left by an object freed
-        // earlier can carry the address this sidebar was allocated at.
-        int fired = 0;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            if (lv_timer_get_user_data(t) == sidebar_.get() && t->timer_cb != nullptr) {
-                t->timer_cb(t);
-                ++fired;
-            }
-        }
-        REQUIRE(fired == 1);
+        const auto armed = helix::test::armed_timers_for(sidebar_.get());
+        REQUIRE(armed.size() == 1);
+        armed[0]->timer_cb(armed[0]);
     }
 
     [[nodiscard]] helix::HhOptimisticBackend& build_hh() {
