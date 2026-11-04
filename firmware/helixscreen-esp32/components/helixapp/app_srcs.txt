@@ -849,14 +849,14 @@ src/rendering/gcode_color_metadata.cpp
 #   hand-written gcode half of excluded_subsystems_stub.cpp — and unlike that
 #   stub it actually registers the widget. Deps (gcode_parser types, lv_xml
 #   parser) are all in this build.
-src/ui/ui_gcode_viewer.cpp
+src/ui/gcode/ui_gcode_viewer.cpp
 #   preview-card wiring shared by print-status and print-select-detail (render
 #   mode ladder + bottom-occluder handoff). Both those panels are in this build
 #   and call it ungated; its only deps are the ui_gcode_viewer_* API above (the
 #   no-op branch defines all of it), DisplaySettingsManager and RuntimeConfig.
-src/ui/gcode_preview_fetcher.cpp
-src/ui/gcode_preview_gate.cpp
-src/ui/gcode_preview_setup.cpp
+src/ui/gcode/gcode_preview_fetcher.cpp
+src/ui/gcode/gcode_preview_gate.cpp
+src/ui/gcode/gcode_preview_setup.cpp
 src/ui/print/print_preview_controller.cpp
 #   bed-mesh viewer, compiled-out branch (HELIX_HAS_BED_MESH_3D=0): same trick
 #   as ui_gcode_viewer above — its #else no-op defines ui_bed_mesh_register()

@@ -988,7 +988,7 @@ Force the G-code preview rendering mode.
 |----------|-------|
 | **Values** | `2D`, `3D` |
 | **Default** | unset — Auto, which resolves to 3D on GLES-capable builds and 2D elsewhere |
-| **Files** | `include/gcode_render_mode_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/ui/print/ui_panel_print_status.cpp` |
+| **Files** | `include/gcode_render_mode_policy.h`, `src/ui/gcode/ui_gcode_viewer.cpp`, `src/ui/print/ui_panel_print_status.cpp` |
 
 Only the exact strings `2D` and `3D` are honored — matching is case-sensitive, so
 `3d` is an unrecognized value. An unrecognized value resolves to 2D (the renderer
@@ -1077,7 +1077,7 @@ forced comparison covers all of it; the device tier sets them independently.
 |----------|-------|
 | **Values** | `1` (force both on), `0` (force both off), unset (device tier decides) |
 | **Default** | Unconstrained: both on. Constrained: outline on, antialiasing off. |
-| **File** | `include/gcode_ssao_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/rendering/gcode_layer_renderer.cpp` |
+| **File** | `include/gcode_ssao_policy.h`, `src/ui/gcode/ui_gcode_viewer.cpp`, `src/rendering/gcode_layer_renderer.cpp` |
 
 Only the exact strings `0` and `1` are honoured; anything else (including empty,
 `true`, `yes`) falls through to the tier.

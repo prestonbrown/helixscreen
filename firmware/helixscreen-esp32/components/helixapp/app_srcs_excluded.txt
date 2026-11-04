@@ -265,8 +265,8 @@ src/system/usb_printer_detector.cpp  # not in the v1 Core+AMS cut
 src/system/usb_scanner_monitor.cpp  # not in the v1 Core+AMS cut
 src/system/wizard_step.cpp  # not in the v1 Core+AMS cut
 src/ui/action_prompt_modal.cpp  # not in the v1 Core+AMS cut
-src/ui/gcode_viewer_loader.cpp  # G-code viewer file loading, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
-src/ui/gcode_viewer_input.cpp  # G-code viewer touch input, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
+src/ui/gcode/gcode_viewer_loader.cpp  # G-code viewer file loading, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
+src/ui/gcode/gcode_viewer_input.cpp  # G-code viewer touch input, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
 src/ui/board_fingerprint.cpp  # read only by the screensaver and glass gates, neither in the firmware
 src/ui/glass_painter.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
 src/ui/glass_gate.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
@@ -338,7 +338,7 @@ src/ui/wizard/ui_wizard_telemetry.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_touch_calibration.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_wifi.cpp  # not in the v1 Core+AMS cut
 src/ui/upgrade_banner.cpp  # not in the v1 Core+AMS cut
-src/ui/view_gestures.cpp  # two-finger gestures for the 3D G-code viewer and 3D bed mesh, both compiled out (HELIX_HAS_GCODE_VIEWER=0, HELIX_HAS_BED_MESH_3D=0)
+src/ui/gcode/view_gestures.cpp  # two-finger gestures for the 3D G-code viewer and 3D bed mesh, both compiled out (HELIX_HAS_GCODE_VIEWER=0, HELIX_HAS_BED_MESH_3D=0)
 
 src/system/jz_pwm_sound_backend.cpp  # AD5X-only: exec's the Linux fx-pwm child; no process model on ESP32
 src/ui/ui_selector_model.cpp  # selector model for the wizard printer step, not in the v1 Core+AMS cut

@@ -118,9 +118,9 @@ FBDEV_GLES_CXXFLAGS := $(filter-out -DENABLE_GLES_3D -DHELIX_DISPLAY_DRM -DHELIX
 
 FBDEV_GLES_VARIANT_SRCS := \
     src/rendering/gcode_gles_renderer.cpp \
-    src/ui/ui_gcode_viewer.cpp \
-    src/ui/gcode_viewer_input.cpp \
-    src/ui/gcode_viewer_loader.cpp \
+    src/ui/gcode/ui_gcode_viewer.cpp \
+    src/ui/gcode/gcode_viewer_input.cpp \
+    src/ui/gcode/gcode_viewer_loader.cpp \
     src/ui/backdrop_blur.cpp \
     src/application/probe_egl_cmd.cpp
 
@@ -136,9 +136,9 @@ FBDEV_GLES_VARIANT_OBJS := \
 # DRM-compiled originals to exclude from fbdev link
 DRM_GLES_APP_OBJS := \
     $(OBJ_DIR)/rendering/gcode_gles_renderer.o \
-    $(OBJ_DIR)/ui/ui_gcode_viewer.o \
-    $(OBJ_DIR)/ui/gcode_viewer_input.o \
-    $(OBJ_DIR)/ui/gcode_viewer_loader.o \
+    $(OBJ_DIR)/ui/gcode/ui_gcode_viewer.o \
+    $(OBJ_DIR)/ui/gcode/gcode_viewer_input.o \
+    $(OBJ_DIR)/ui/gcode/gcode_viewer_loader.o \
     $(OBJ_DIR)/ui/backdrop_blur.o \
     $(OBJ_DIR)/application/probe_egl_cmd.o
 
@@ -146,15 +146,15 @@ $(FBDEV_GLES_VARIANT_DIR)/gcode_gles_renderer.o: src/rendering/gcode_gles_render
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-$(FBDEV_GLES_VARIANT_DIR)/ui_gcode_viewer.o: src/ui/ui_gcode_viewer.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(FBDEV_GLES_VARIANT_DIR)/ui_gcode_viewer.o: src/ui/gcode/ui_gcode_viewer.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-$(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_input.o: src/ui/gcode_viewer_input.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_input.o: src/ui/gcode/gcode_viewer_input.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-$(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_loader.o: src/ui/gcode_viewer_loader.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_loader.o: src/ui/gcode/gcode_viewer_loader.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 

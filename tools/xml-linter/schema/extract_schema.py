@@ -1207,7 +1207,7 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["temp_display"],
         "inherits": "lv_obj",
     },
-    "ui_gcode_viewer.cpp": {
+    "gcode/ui_gcode_viewer.cpp": {
         "widgets": ["gcode_viewer"],
         "inherits": "lv_obj",
     },

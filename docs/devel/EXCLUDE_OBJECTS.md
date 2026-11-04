@@ -183,7 +183,7 @@ The `PrintExcludeObjectManager` implements a state machine with three states:
 
 ### Step-by-step
 
-1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `kLongPressThresholdMs` in `src/ui/gcode_viewer_input.cpp#kLongPressThresholdMs`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
+1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `kLongPressThresholdMs` in `src/ui/gcode/gcode_viewer_input.cpp#kLongPressThresholdMs`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
 
 2. **Guard checks**: Empty names, already-excluded objects, and pending exclusions are rejected.
 
@@ -249,7 +249,7 @@ screen and draw.
   `defined_objects_version` / `excluded_objects_version` bump of the host's state, through
   the controller's own version observers (the current object bumps the latter). Closing
   the list pushes an empty set. The viewer draws them in its `LV_EVENT_DRAW_POST`
-  pass after the renderer (`src/ui/ui_gcode_viewer.cpp#draw_object_badges`),
+  pass after the renderer (`src/ui/gcode/ui_gcode_viewer.cpp#draw_object_badges`),
   projecting each anchor through the transform of the image on screen, so they follow pan,
   zoom and rotation. In 2D that is `GCodeLayerRenderer::project_to_screen()`: every 2D
   transform change invalidates both caches, so what is drawn always uses the live transform.
@@ -279,7 +279,7 @@ excluded rect (`object_badge_opa()`). Anchors that project outside the widget ar
 Badges can overlap when objects sit close together; nothing spreads them apart.
 
 A tap inside a drawn (non-excluded) badge picks that badge's object before the renderer's
-own picker runs, checking badges in reverse paint order so the one on top wins (`src/ui/gcode_viewer_input.cpp#ui_gcode_viewer_pick_object`), since a badge
+own picker runs, checking badges in reverse paint order so the one on top wins (`src/ui/gcode/gcode_viewer_input.cpp#ui_gcode_viewer_pick_object`), since a badge
 can sit over empty space, e.g. the hole of a ring. Badges are drawn, not widgets, so they
 never take input themselves.
 
