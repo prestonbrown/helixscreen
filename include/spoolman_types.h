@@ -31,6 +31,18 @@
 /// filament: K belongs to the material and the extruder, not to one spool.
 namespace helix {
 inline constexpr const char* kSpoolmanPaExtraKey = "pressure_advance";
+
+/// Spoolman filament extra field that names the OrcaSlicer preset the filament
+/// is (its `filament_id`, e.g. "OGFL99"). The convention spoolman-lane-sync
+/// and AFC read, and the one lane-status-spec RFC 0001 §6 names.
+inline constexpr const char* kSpoolmanOrcaIdExtraKey = "orca_filament_id";
+
+/// True when @p id can go out as a lane's OrcaSlicer `filament_id`. Empty names
+/// nothing, and a `GF` id is a Bambu catalog code that only Orca's Bambu agent
+/// translates: on the Moonraker path it never matches a preset.
+inline bool is_usable_orca_filament_id(const std::string& id) {
+    return !id.empty() && id.rfind("GF", 0) != 0;
+}
 } // namespace helix
 
 /**
@@ -129,6 +141,11 @@ struct SpoolInfo {
     /// Pressure advance K saved on the filament (extra field
     /// kSpoolmanPaExtraKey), nullopt when none is saved.
     std::optional<float> pressure_advance;
+
+    /// OrcaSlicer preset id saved on the filament (extra field
+    /// kSpoolmanOrcaIdExtraKey), empty when none is saved or the saved one is
+    /// not usable (is_usable_orca_filament_id).
+    std::string orca_filament_id;
 
     /**
      * @brief Get remaining percentage
@@ -338,6 +355,9 @@ inline helix::ams::Observation spool_identity_observation(const SpoolInfo& spool
     if (spool.vendor_id > 0) {
         stated.spoolman_vendor_id = spool.vendor_id;
     }
+    if (!spool.orca_filament_id.empty()) {
+        stated.spoolman_orca_filament_id = spool.orca_filament_id;
+    }
     if (!spool.vendor.empty()) {
         stated.brand = spool.vendor;
     }
@@ -388,6 +408,7 @@ inline void apply_spool_to_slot(helix::SlotInfo& info, const SpoolInfo& spool) {
     info.spoolman_id = stated.spoolman_id.value_or(0);
     info.spoolman_filament_id = spool.filament_id;
     info.spoolman_vendor_id = stated.spoolman_vendor_id.value_or(0);
+    info.spoolman_orca_filament_id = stated.spoolman_orca_filament_id.value_or(std::string{});
     info.material = stated.material.value_or(std::string{});
     info.brand = stated.brand.value_or(std::string{});
     info.spool_name = stated.spool_name.value_or(std::string{});
