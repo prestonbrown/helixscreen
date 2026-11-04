@@ -159,7 +159,7 @@ XML hot reload closes the loop on the same lifecycle hooks: on native dev builds
 
 ### Modals: three tiers of effort
 
-Tier 1, no subclass and no custom XML: `modal_confirm()` / `modal_alert()` ([`include/ui_modal.h#helix::ui`](../../../include/ui_modal.h), [`include/ui_modal.h#helix::ui`](../../../include/ui_modal.h)) configure severity, button text, and callbacks on the shared `modal_dialog` component. This is the right answer for most "are you sure?" moments - [`src/ui/ui_panel_macros.cpp`](../../../src/ui/ui_panel_macros.cpp) uses it for macro confirmation - and it is one call: title, message, severity, confirm text, callback, options struct (cancel callback, dismissal report, owner token). Tier 2, custom XML, no subclass: `Modal::show("print_cancel_confirm_modal")` returns a dialog pointer; wire buttons by name and `Modal::hide(dialog)` later; hold the pointer in a `helix::ui::WidgetRef` ([`include/ui_widget_ref.h`](../../../include/ui_widget_ref.h)), which reads `nullptr` once the dialog is deleted, whoever deleted it. Tier 3, subclass: extend `Modal`, implement the two pure virtuals `get_name()` (logging) and `component_name()` (the XML component), override `on_show()`/`on_ok()`/`on_cancel()` and the extra button hooks as needed - the hook ladder runs `on_tertiary()` through `on_senary()` because runout guidance grew to five buttons.
+Tier 1, no subclass and no custom XML: `modal_confirm()` / `modal_alert()` ([`include/ui_modal.h#helix::ui`](../../../include/ui_modal.h), [`include/ui_modal.h#helix::ui`](../../../include/ui_modal.h)) configure severity, button text, and callbacks on the shared `modal_dialog` component. This is the right answer for most "are you sure?" moments - [`src/ui/controls/ui_panel_macros.cpp`](../../../src/ui/controls/ui_panel_macros.cpp) uses it for macro confirmation - and it is one call: title, message, severity, confirm text, callback, options struct (cancel callback, dismissal report, owner token). Tier 2, custom XML, no subclass: `Modal::show("print_cancel_confirm_modal")` returns a dialog pointer; wire buttons by name and `Modal::hide(dialog)` later; hold the pointer in a `helix::ui::WidgetRef` ([`include/ui_widget_ref.h`](../../../include/ui_widget_ref.h)), which reads `nullptr` once the dialog is deleted, whoever deleted it. Tier 3, subclass: extend `Modal`, implement the two pure virtuals `get_name()` (logging) and `component_name()` (the XML component), override `on_show()`/`on_ok()`/`on_cancel()` and the extra button hooks as needed - the hook ladder runs `on_tertiary()` through `on_senary()` because runout guidance grew to five buttons.
 
 The ladder measures effort, not safety. Tier 1 is backed by an internal `ConfirmationModal`
 instance, so its teardown, disarm and `on_hide()` all run: pass `on_dismiss` (and
@@ -218,7 +218,7 @@ Current limitations: a toolchanger's idle tools are not shown on this screen (on
 
 ### The Motion panel's plate
 
-Two surfaces move the head by touching a top-down plate: the Motion overlay's Bed tab (`MotionPanel`, `src/ui/ui_panel_motion.cpp`) and the home Toolhead widget (chapter 09). They share every rule, in four pieces, so the two cannot drift:
+Two surfaces move the head by touching a top-down plate: the Motion overlay's Bed tab (`MotionPanel`, `src/ui/controls/ui_panel_motion.cpp`) and the home Toolhead widget (chapter 09). They share every rule, in four pieces, so the two cannot drift:
 
 | Piece | What it decides |
 |---|---|

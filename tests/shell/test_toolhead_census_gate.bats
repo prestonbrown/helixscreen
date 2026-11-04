@@ -150,7 +150,7 @@ run_staged() {
     for p in ui_xml/new_panel.xml ui_xml/components/row.xml tests/unit/test_job_holds_machine.cpp; do
         echo "$p" | grep -qE "$re" || fail "$p should trigger"
     done
-    for p in src/ui/ui_panel_motion.cpp docs/devel/README.md ui_xml/notes.txt; do
+    for p in src/ui/controls/ui_panel_motion.cpp docs/devel/README.md ui_xml/notes.txt; do
         if echo "$p" | grep -qE "$re"; then fail "$p should not trigger"; fi
     done
 }

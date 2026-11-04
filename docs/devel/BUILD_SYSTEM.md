@@ -313,7 +313,7 @@ The K1 dynamic build uses a custom GCC 7.5 toolchain targeting the K1's native g
 |---------|-------------|------------|---------|
 | **`std::from_chars` (integers)** | Not available | Use `std::strtol` / `std::strtod` | `src/util/version.cpp` |
 | **`std::atomic<time_point>`** | Doesn't compile | Store as `std::atomic<int64_t>` (nanoseconds) | `include/gcode_streaming_controller.h` |
-| **C++20 designated initializers** | Not supported (`{.foo = 1}`) | Initialize struct explicitly, then assign fields | `src/ui/ui_fan_control_overlay.cpp` |
+| **C++20 designated initializers** | Not supported (`{.foo = 1}`) | Initialize struct explicitly, then assign fields | `src/ui/controls/ui_fan_control_overlay.cpp` |
 | **`directory_entry` member functions** | `.is_regular_file()`, `.file_size()`, `.last_write_time()` missing | Use free functions: `std::filesystem::is_regular_file(entry.path())` | `src/print/thumbnail_cache.cpp` |
 | **`-lstdc++fs`** | Required for `<experimental/filesystem>` | Added automatically for `k1-dynamic` in `mk/cross.mk` and `mk/watchdog.mk` | — |
 | **LTO (`-flto`)** | GCC 7.5 static toolchain lacks `liblto_plugin.so` | Disabled for `k1-dynamic`; uses plain `ar`/`ranlib` instead of `gcc-ar`/`gcc-ranlib` | `mk/cross.mk` |

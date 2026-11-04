@@ -185,10 +185,10 @@ gcc_ui_button_log() {
     frame 0 'operator new(unsigned long) (/usr/lib/.../libasan.so+0x351a24d)'
     frame 1 'helix::ui::detail::observe_core(_lv_subject_t*, void const*, std::function<void (int)>, helix::ui::Dispatch, std::shared_ptr<bool> const&, std::function<void ()>) /home/runner/work/helixscreen/helixscreen/src/core/observer_factory.cpp:128:16'
     frame 2 'ObserverGuard helix::ui::observe_int_sync<ControlsPanel, ControlsPanel::register_observers()::$_0>(_lv_subject_t*, ControlsPanel*, ControlsPanel::register_observers()::$_0&&, std::shared_ptr<bool> const&) /home/runner/work/helixscreen/helixscreen/include/core/observer_factory.h:84:12'
-    frame 3 'ControlsPanel::register_observers() /home/runner/work/helixscreen/helixscreen/src/ui/ui_panel_controls.cpp:210:19'
+    frame 3 'ControlsPanel::register_observers() /home/runner/work/helixscreen/helixscreen/src/ui/controls/ui_panel_controls.cpp:210:19'
     finish_run 48 1
     run python3 "$GATE" --write-baseline "$BASE" "$LOG"
-    grep -q '^src/ui/ui_panel_controls\.cpp::ControlsPanel::register_observers$' "$BASE"
+    grep -q '^src/ui/controls/ui_panel_controls\.cpp::ControlsPanel::register_observers$' "$BASE"
     ! grep -q 'observer_factory' "$BASE"
 }
 

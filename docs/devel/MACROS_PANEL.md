@@ -2,7 +2,7 @@
 
 The Macros Panel system: full-screen overlay for browsing and executing Klipper macros, parameter detection and input, home panel widgets, and standard macro slot resolution.
 
-**Key files**: `include/ui_panel_macros.h`, `src/ui/ui_panel_macros.cpp`, `ui_xml/macro_panel.xml`, `ui_xml/macro_card.xml`
+**Key files**: `include/ui_panel_macros.h`, `src/ui/controls/ui_panel_macros.cpp`, `ui_xml/macro_panel.xml`, `ui_xml/macro_card.xml`
 
 ---
 
@@ -49,7 +49,7 @@ MacrosPanel (overlay)
 | File | Purpose |
 |------|---------|
 | `include/ui_panel_macros.h` | MacrosPanel class (extends OverlayBase) |
-| `src/ui/ui_panel_macros.cpp` | Implementation -- macro list, click handling, execution |
+| `src/ui/controls/ui_panel_macros.cpp` | Implementation -- macro list, click handling, execution |
 | `ui_xml/macro_panel.xml` | Layout: overlay_panel with scrollable macro_list + empty_state |
 | `ui_xml/macro_card.xml` | Reusable card component: icon + name + chevron, clicked callback |
 | `include/macro_param_cache.h` | Pre-parsed macro parameters (populated during discovery) |

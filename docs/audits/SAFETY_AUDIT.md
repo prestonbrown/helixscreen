@@ -30,7 +30,7 @@ If the display is asleep and Klipper enters SHUTDOWN (thermal runaway, heater fa
 
 The motion panel does not check print state. A user could accidentally jog X/Y during a print, crashing the nozzle into the part or dragging it across the build plate.
 
-- **Location:** `src/ui/ui_panel_motion.cpp:488` — `jog()` has no `is_printing` guard
+- **Location:** `src/ui/controls/ui_panel_motion.cpp:488` — `jog()` has no `is_printing` guard
 - **Fix:** Disable XY jog buttons during PRINTING/PAUSED states. Z adjustment should remain enabled (intentional live tuning).
 - **Effort:** Small — add state observer to motion panel, bind hidden flag on XY jog buttons
 
@@ -38,7 +38,7 @@ The motion panel does not check print state. A user could accidentally jog X/Y d
 
 The "Disable Motors" button has a confirmation dialog but does not check if a print is active. Sending M84 mid-print causes instant failure — the toolhead drops, potentially crashing into a hot part.
 
-- **Location:** `src/ui/ui_panel_controls.cpp:1333-1373`
+- **Location:** `src/ui/controls/ui_panel_controls.cpp:1333-1373`
 - **Fix:** Grey out the button when `PrintJobState::PRINTING` or `PAUSED`. The confirmation dialog text could also warn about consequences.
 - **Effort:** Small — add state check before showing confirmation
 
@@ -50,7 +50,7 @@ The "Disable Motors" button has a confirmation dialog but does not check if a pr
 
 Motion panel allows jogging unhomed axes. Whether Klipper rejects this depends on the printer's `printer.cfg` configuration. If it doesn't reject, the printer moves without knowing its position, risking crashes into endstops or the bed.
 
-- **Location:** `src/ui/ui_panel_motion.cpp:488` — no check against `homed_axes_` state
+- **Location:** `src/ui/controls/ui_panel_motion.cpp:488` — no check against `homed_axes_` state
 - **Fix:** Disable jog buttons for unhomed axes. Show a prompt like "Home X/Y/Z first" with a home button.
 - **Effort:** Medium — need to track per-axis homing state and bind to jog button visibility
 
@@ -99,7 +99,7 @@ No state check before starting `PID_CALIBRATE`. Running PID tuning mid-print wou
 
 Users can set the part cooling fan to 0% at any time via the controls panel slider. With high-temp materials (ABS, PETG, nylon) this could cause heat creep or, in extreme cases, thermal issues.
 
-- **Location:** `src/ui/ui_panel_controls.cpp:1305-1327`, `src/ui/ui_fan_control_overlay.cpp:175-176`
+- **Location:** `src/ui/controls/ui_panel_controls.cpp:1305-1327`, `src/ui/controls/ui_fan_control_overlay.cpp:175-176`
 - **Suggestion:** Show a one-time warning if setting fan to 0% while nozzle temp > 230°C: "Part cooling fan disabled while nozzle is hot. This may affect print quality."
 - **Effort:** Small
 
@@ -179,7 +179,7 @@ All communication is over unencrypted WebSocket (`ws://`). Expected for local ne
 
 The largest jog distance is 100mm. On small printers, repeated 100mm jogs could move the toolhead into endstops. Klipper's firmware limits should catch this, but a visual warning for large jogs could help.
 
-- **Location:** `src/ui/ui_panel_motion.cpp`, `ui_xml/motion_panel.xml:114-127`
+- **Location:** `src/ui/controls/ui_panel_motion.cpp`, `ui_xml/motion_panel.xml:114-127`
 - **Suggestion:** Consider a confirmation for jog distances > 50mm, or scale max jog to printer dimensions from config.
 
 ### L5. Filament database preset values not clamped to SafetyLimits

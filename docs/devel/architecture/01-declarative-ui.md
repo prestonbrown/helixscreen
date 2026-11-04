@@ -145,7 +145,7 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
 
   (verbatim from [`src/system/preset_materials.cpp#init_subjects`](../../../src/system/preset_materials.cpp)). `SubjectManager::publish()` ([`include/subject_managed_panel.h#publish`](../../../include/subject_managed_panel.h)) registers the name in the current XML scope, globals at boot, and remembers it so teardown can withdraw the name before freeing the subject. When preset names load from settings, C++ writes the subject once and every bound button across every panel updates.
 
-- `<event_cb ... callback="on_temp_graph_preset_clicked"/>` resolves the name against C++ registrations, here the overlay's own table in [`src/ui/ui_overlay_temp_graph.cpp#register_callbacks`](../../../src/ui/ui_overlay_temp_graph.cpp):
+- `<event_cb ... callback="on_temp_graph_preset_clicked"/>` resolves the name against C++ registrations, here the overlay's own table in [`src/ui/controls/ui_overlay_temp_graph.cpp#register_callbacks`](../../../src/ui/controls/ui_overlay_temp_graph.cpp):
 
   ```cpp
   register_xml_callbacks({
@@ -154,7 +154,7 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
   });
   ```
 
-  The handler at [`src/ui/ui_overlay_temp_graph.cpp#on_temp_graph_preset_clicked`](../../../src/ui/ui_overlay_temp_graph.cpp) receives the click with the button's user data.
+  The handler at [`src/ui/controls/ui_overlay_temp_graph.cpp#on_temp_graph_preset_clicked`](../../../src/ui/controls/ui_overlay_temp_graph.cpp) receives the click with the button's user data.
 
 Three files, no direct references between them. The XML names a subject and a callback; C++ publishes both by name; the engine ties them at instantiation. This is the shape essentially every interactive element in the app takes.
 

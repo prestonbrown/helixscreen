@@ -1203,7 +1203,7 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["status_pill"],
         "inherits": "lv_obj",
     },
-    "ui_temp_display.cpp": {
+    "controls/ui_temp_display.cpp": {
         "widgets": ["temp_display"],
         "inherits": "lv_obj",
     },

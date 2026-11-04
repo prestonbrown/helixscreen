@@ -195,7 +195,7 @@ by any XML, so both were removed rather than migrated. The rule now lives in a w
               bind_current="bed_temp" bind_target="bed_target"/>
 ```
 
-and in exactly one function, `format_temperature_pair()` in `src/ui/ui_temperature_utils.cpp`.
+and in exactly one function, `format_temperature_pair()` in `src/ui/controls/ui_temperature_utils.cpp`.
 The heater-off form is an em dash, not `--`:
 
 ```cpp

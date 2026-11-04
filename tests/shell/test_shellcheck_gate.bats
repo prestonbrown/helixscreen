@@ -104,7 +104,7 @@ gate_scripts() {
 
 @test "non-shell files are not selected" {
     ! filter_selects docs/devel/BUILD_SYSTEM.md
-    ! filter_selects src/ui/ui_panel_macros.cpp
+    ! filter_selects src/ui/controls/ui_panel_macros.cpp
     ! filter_selects ui_xml/globals.xml
 }
 

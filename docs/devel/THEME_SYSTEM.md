@@ -635,7 +635,7 @@ lv_color_t text = theme_manager_get_contrast_color(bg_color);
 For widgets that need custom update logic beyond a shared style, observe the theme-changed
 subject (a monotonically increasing generation counter) exposed by
 `theme_manager_get_changed_subject()`. Use an `ObserverGuard` member so cleanup is automatic
-(see `src/ui/ui_heating_animator.cpp`):
+(see `src/ui/controls/ui_heating_animator.cpp`):
 
 ```cpp
 lv_subject_t* theme_subject = theme_manager_get_changed_subject();

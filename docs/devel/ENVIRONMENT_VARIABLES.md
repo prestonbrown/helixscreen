@@ -1469,7 +1469,7 @@ tenth of a degree every sample, so a value hash never matches and nothing is eve
 |----------|-------|
 | **Values** | `0` (skip disabled, always render), anything else or unset (skip enabled) |
 | **Default** | Skip **enabled** |
-| **File** | `src/ui/ui_temp_graph.cpp`, `include/temp_graph_column_map.h` |
+| **File** | `src/ui/controls/ui_temp_graph.cpp`, `include/temp_graph_column_map.h` |
 
 ```bash
 # Baseline: every dirtied frame renders. Pair with -vv for the per-render timing.

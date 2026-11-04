@@ -92,7 +92,7 @@ lock and no gesture bubbling. A widget opts in by marking the object from `attac
 toolhead plate is the worked example (`src/ui/panel_widgets/toolhead_widget.cpp#attach`). To
 make a surface inert, clear its `clickable` flag: the press then lands on the tile, and a hold
 there enters edit mode as anywhere else. The fan control overlay asks the same question
-(`src/ui/ui_fan_control_overlay.cpp#press_consumed_by_value_widget`).
+(`src/ui/controls/ui_fan_control_overlay.cpp#press_consumed_by_value_widget`).
 
 `enter()` sets `home_edit_mode` to 1, marks the entering hold inert (`gesture_inert_`, see below)
 when it runs inside a pointer read, and runs `attach_to_current_page()`: it disarms the

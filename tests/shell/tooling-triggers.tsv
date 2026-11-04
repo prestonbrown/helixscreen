@@ -24,7 +24,7 @@ tests/shell/test_android_libhv_isolation.bats	android/app/jni/CMakeLists.txt lib
 tests/shell/test_android_release_abis.bats	.github/workflows/build.yml .github/workflows/cache-prune.yml .github/workflows/ccache-warm.yml .github/workflows/release.yml android/app/build.gradle
 tests/shell/test_android_version_code.bats	.github/workflows/release.yml VERSION.txt android/app/build.gradle scripts/android-version-code.sh scripts/generate-whatsnew.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp scripts/changelog-section.sh
 tests/shell/test_apply_submodule_patch.bats	mk/patches.mk scripts/apply_submodule_patch.sh
-tests/shell/test_asan_leak_gate.bats	include/core/observer_factory.h scripts/check_asan_leaks.py src/api/moonraker_client_mock.cpp src/core/observer_factory.cpp src/ui/ui_button.cpp src/ui/ui_panel_controls.cpp src/ui/ui_split_button.cpp tests/catch_amalgamated.hpp tests/unit/test_panel_widget_manager.cpp tests/unit/test_temp_graph_controller.cpp
+tests/shell/test_asan_leak_gate.bats	include/core/observer_factory.h scripts/check_asan_leaks.py src/api/moonraker_client_mock.cpp src/core/observer_factory.cpp src/ui/ui_button.cpp src/ui/controls/ui_panel_controls.cpp src/ui/ui_split_button.cpp tests/catch_amalgamated.hpp tests/unit/test_panel_widget_manager.cpp tests/unit/test_temp_graph_controller.cpp
 tests/shell/test_audit_codebase_staged_content.bats	scripts/audit_codebase.sh
 tests/shell/test_bats_inert_assertions_gate.bats	scripts/check_bats_inert_assertions.py scripts/qc/bats_inert.sh scripts/quality-checks.sh scripts/staged_content.py
 tests/shell/test_build_flags_stamp.bats	Makefile mk/rules.mk
@@ -159,7 +159,7 @@ tests/shell/test_sandbox_gate.bats	Makefile lib/lvgl
 tests/shell/test_screensaver_perf_names.bats	include/screensaver_registry.h scripts/screensaver-perf/
 tests/shell/test_screenshot_printer_ids.bats	include/mock_persona.h scripts/screenshot.sh
 tests/shell/test_shard_batching.bats	mk/tests.mk
-tests/shell/test_shellcheck_gate.bats	config/creality-backend.init config/helixscreen.init docs/devel/BUILD_SYSTEM.md scripts/helix-launcher.sh scripts/install-dev.sh scripts/lib/installer/main.sh scripts/qc/shellcheck.sh src/ui/ui_panel_macros.cpp ui_xml/globals.xml
+tests/shell/test_shellcheck_gate.bats	config/creality-backend.init config/helixscreen.init docs/devel/BUILD_SYSTEM.md scripts/helix-launcher.sh scripts/install-dev.sh scripts/lib/installer/main.sh scripts/qc/shellcheck.sh src/ui/controls/ui_panel_macros.cpp ui_xml/globals.xml
 tests/shell/test_shipped_spacing_tokens_gate.bats	mk/cross.mk scripts/check_shipped_spacing_tokens.py
 tests/shell/test_size_flags_gate.bats	Makefile mk/cross.mk
 tests/shell/test_subagent_brief.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/resource-advisor.sh scripts/subagent-brief.sh
@@ -184,7 +184,7 @@ tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scri
 tests/shell/test_thirdparty_abi_stamp.bats	Makefile mk/bluetooth.mk mk/display-lib.mk mk/patches.mk mk/pi-dual-link.mk mk/rules.mk mk/splash.mk mk/tests.mk mk/tools.mk mk/watchdog.mk
 tests/shell/test_thumbnail_cache_guard_gate.bats	scripts/check_thumbnail_cache_guard.py scripts/qc/decl_ui.sh scripts/staged_content.py tests/unit/test_thumbnail_cache.cpp
 tests/shell/test_todo_marker_gate.bats	scripts/check_todo_markers.py scripts/qc/todo_markers.sh scripts/quality-checks.sh
-tests/shell/test_toolhead_census_gate.bats	scripts/check_toolhead_census.py scripts/staged_content.py src/ui/ui_panel_motion.cpp tests/unit/test_job_holds_machine.cpp
+tests/shell/test_toolhead_census_gate.bats	scripts/check_toolhead_census.py scripts/staged_content.py src/ui/controls/ui_panel_motion.cpp tests/unit/test_job_holds_machine.cpp
 tests/shell/test_touch_rotation_source_gate.bats	scripts/check_touch_rotation_source.py src/api/display_backend_drm.cpp src/api/display_backend_fbdev.cpp
 tests/shell/test_translation_duplicate_keys.bats	scripts/translations/ translations/
 tests/shell/test_translation_format_specifiers_gate.bats	scripts/check_translation_format_specifiers.py

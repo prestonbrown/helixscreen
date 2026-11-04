@@ -50,7 +50,7 @@ each of the old selection's jobs lives now.
 | File | Purpose |
 |------|---------|
 | `include/led/ui_led_control_overlay.h` | `LedControlOverlay` — the LEDs overlay: tabs, focus, and the two-column device page |
-| `src/ui/ui_led_control_overlay.cpp` | Tab rebuild, page publishing, control handlers |
+| `src/ui/controls/ui_led_control_overlay.cpp` | Tab rebuild, page publishing, control handlers |
 | `include/ui_settings_led.h` | `LedSettingsOverlay` — settings configuration overlay |
 | `src/ui/settings/ui_settings_led.cpp` | Startup section, Automatic LED Control's "Applies to" row and per-state editors, macro device editor |
 | `include/ui_led_chip_factory.h` | Chip factory shared by Settings' macro-device editor |

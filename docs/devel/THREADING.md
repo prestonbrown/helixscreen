@@ -622,7 +622,7 @@ not expire the guard's `weak_ptr`.
 
 Correct-today examples that the old rule would have flagged:
 `FanStackWidget::bind_fan_observer()` (`src/ui/panel_widgets/fan_stack_widget.cpp`),
-`FanControlOverlay::subscribe_to_fan_speeds()` (`src/ui/ui_fan_control_overlay.cpp`),
+`FanControlOverlay::subscribe_to_fan_speeds()` (`src/ui/controls/ui_fan_control_overlay.cpp`),
 `src/ui/widgets/power_device_widget.cpp`.
 
 Parallel **members** are still the shape to reach for, but for weaker reasons than "otherwise it

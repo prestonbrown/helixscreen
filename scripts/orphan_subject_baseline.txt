@@ -62,4 +62,4 @@ total_steps  # src/ui/wizard/ui_wizard.cpp:384
 touch_cal_accept_text  # src/ui/calibration/ui_touch_calibration_overlay.cpp:272
 touch_cal_current_step  # src/ui/wizard/ui_wizard_touch_calibration.cpp:133
 touch_cal_valid  # src/ui/wizard/ui_wizard_touch_calibration.cpp:134
-z_offset_delta_display  # src/ui/ui_panel_controls.cpp:172
+z_offset_delta_display  # src/ui/controls/ui_panel_controls.cpp:172

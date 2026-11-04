@@ -333,8 +333,8 @@ During a print, shows each tool's temperature with its tool name prefix. Uses `T
 |------|---------|
 | `include/printer_temperature_state.h` | ExtruderInfo struct, PrinterTemperatureState class, `ChamberMode` enum |
 | `src/printer/printer_temperature_state.cpp` | Discovery, status parsing, subject management, chamber setpoint synthesis |
-| `include/ui_temperature_utils.h` / `src/ui/ui_temperature_utils.cpp` | `chamber_effective_setpoint()`, `chamber_mode_word()`, `chamber_status_text()` single-source helpers; `build_heater_gcode()` / `chamber_uses_m141()` |
-| `include/temperature_controller.h` / `src/ui/temperature_controller.cpp` | `TemperatureController::set_target(HeaterType::Chamber, ...)` send path |
+| `include/ui_temperature_utils.h` / `src/ui/controls/ui_temperature_utils.cpp` | `chamber_effective_setpoint()`, `chamber_mode_word()`, `chamber_status_text()` single-source helpers; `build_heater_gcode()` / `chamber_uses_m141()` |
+| `include/temperature_controller.h` / `src/ui/controls/temperature_controller.cpp` | `TemperatureController::set_target(HeaterType::Chamber, ...)` send path |
 | `src/api/moonraker_api_controls.cpp` | `MoonrakerAPI::set_temperature()` — M141 routing gate |
 | `include/unit_conversions.h` | `json_to_decidegrees()` conversion helper |
 | `include/printer_discovery.h` | Heater discovery: `heaters()` list |

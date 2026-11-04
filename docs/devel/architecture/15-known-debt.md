@@ -44,7 +44,7 @@ flowchart TD
 | [`ui_xml/components/panel_widget_network.xml`](../../../ui_xml/components/panel_widget_network.xml) | Duplication example: six state-mapped icons, five hidden at any moment, starting at `ui_xml/components/panel_widget_network.xml#net_disconnected` |
 | [`ui_xml/settings_hardware_overlay.xml`](../../../ui_xml/settings_hardware_overlay.xml) | Duplication example: capability-gated wrapper rows, e.g. `ui_xml/settings_hardware_overlay.xml#container_fan_settings` |
 | [`src/ui/wizard/ui_wizard_connection.cpp`](../../../src/ui/wizard/ui_wizard_connection.cpp) | First-project target: three find-then-wire event registrations in `src/ui/wizard/ui_wizard_connection.cpp#create` |
-| [`src/ui/ui_temperature_utils.cpp`](../../../src/ui/ui_temperature_utils.cpp) | The consolidation exemplar: `format_temperature_pair()` (`src/ui/ui_temperature_utils.cpp#format_temperature_pair`) |
+| [`src/ui/controls/ui_temperature_utils.cpp`](../../../src/ui/controls/ui_temperature_utils.cpp) | The consolidation exemplar: `format_temperature_pair()` (`src/ui/controls/ui_temperature_utils.cpp#format_temperature_pair`) |
 | [`01-declarative-ui.md`](01-declarative-ui.md) | The rules this ledger is measured against; the ratchet gotcha lives there too |
 
 ## How it works
@@ -76,7 +76,7 @@ Where the sites live, by directory:
 | `src/ui/widgets/` | 18 | home-screen widget helpers |
 | `src/xml_registration.cpp`, `src/plugin/` | 4 | two each |
 
-The worst files: [`src/ui/ui_plugin_install_modal.cpp`](../../../src/ui/ui_plugin_install_modal.cpp) and [`src/ui/ui_fan_dial.cpp`](../../../src/ui/ui_fan_dial.cpp) (27 each), [`src/ui/settings/ui_overlay_network_settings.cpp`](../../../src/ui/settings/ui_overlay_network_settings.cpp) and [`src/ui/filament/ui_panel_filament.cpp`](../../../src/ui/filament/ui_panel_filament.cpp) (18 each), then [`src/ui/filament/ui_panel_ams.cpp`](../../../src/ui/filament/ui_panel_ams.cpp) and [`src/ui/widgets/power_device_widget.cpp`](../../../src/ui/widgets/power_device_widget.cpp) at 16.
+The worst files: [`src/ui/ui_plugin_install_modal.cpp`](../../../src/ui/ui_plugin_install_modal.cpp) and [`src/ui/controls/ui_fan_dial.cpp`](../../../src/ui/controls/ui_fan_dial.cpp) (27 each), [`src/ui/settings/ui_overlay_network_settings.cpp`](../../../src/ui/settings/ui_overlay_network_settings.cpp) and [`src/ui/filament/ui_panel_filament.cpp`](../../../src/ui/filament/ui_panel_filament.cpp) (18 each), then [`src/ui/filament/ui_panel_ams.cpp`](../../../src/ui/filament/ui_panel_ams.cpp) and [`src/ui/widgets/power_device_widget.cpp`](../../../src/ui/widgets/power_device_widget.cpp) at 16.
 
 Why the sites exist: most were written when the XML engine could not yet express what was needed (`<if>`, `<repeat>`, `<subject_expr>` and the word-form `cond` operators came after chunks of this UI were built). Others are plain mistakes that got through review. Both are debt. **None of it is precedent**: do not imitate a nearby imperative site just because it is there, and do not port one opportunistically inside an unrelated change; the ratchet falls through dedicated, reviewable port commits.
 
@@ -96,7 +96,7 @@ The declarative target is the shape the [`ui_xml/temp_graph_overlay.xml`](../../
 </ui_button>
 ```
 
-and publish the handler by name from C++, either in a `{"name", fn}` table like `src/ui/temperature_service.cpp#TemperatureService/"on_chamber_fault_reset_clicked"` or with a direct `lv_xml_register_event_cb()` as [`src/xml_registration.cpp#register_xml_components`](../../../src/xml_registration.cpp) does. The static wrapper, the null-check, and the ledger entry all disappear.
+and publish the handler by name from C++, either in a `{"name", fn}` table like `src/ui/controls/temperature_service.cpp#TemperatureService/"on_chamber_fault_reset_clicked"` or with a direct `lv_xml_register_event_cb()` as [`src/xml_registration.cpp#register_xml_components`](../../../src/xml_registration.cpp) does. The static wrapper, the null-check, and the ledger entry all disappear.
 
 ### Duplication debt
 
@@ -128,7 +128,7 @@ AI-assisted design and build at this project's scale produced duplicated logic i
   This one is arguably *correct*: the gates are reactive, and `<if>` builds only one branch at creation time, so `bind_flag_if_eq` is the right primitive (the caveat is spelled out in [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md)). The debt is that the wrapper is retyped by hand at every gated settings surface, not that it exists.
 - **A family of sibling files stamped from one mold.** Four `ui_filament_*` files carry 28 ledger sites between them ([`ui_filament_mapping_modal.cpp`](../../../src/ui/filament/ui_filament_mapping_modal.cpp) 13, [`ui_filament_catalog_selector.cpp`](../../../src/ui/filament/ui_filament_catalog_selector.cpp) 10, [`ui_filament_product_edit_modal.cpp`](../../../src/ui/filament/ui_filament_product_edit_modal.cpp) 3, [`ui_filament_catalog_picker.cpp`](../../../src/ui/filament/ui_filament_catalog_picker.cpp) 2): the same find-then-mutate patterns repeated across near-identical pickers, down to the same four-line warning-swatch style block in the modal and the slot picker.
 
-The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/ui_temperature_utils.cpp)) consolidated two hand-rolled current/target string subjects into one widget-owned formatter, and [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) records the measured reason string formatting cannot move into XML formulas (the evaluator is integer-only). Consolidations like that are the template.
+The direction is proven: `format_temperature_pair()` ([`src/ui/controls/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/controls/ui_temperature_utils.cpp)) consolidated two hand-rolled current/target string subjects into one widget-owned formatter, and [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) records the measured reason string formatting cannot move into XML formulas (the evaluator is integer-only). Consolidations like that are the template.
 
 ### Open correctness residue in lane identity
 
@@ -262,4 +262,4 @@ Read in this order; about 25 minutes total.
 8. [`ui_xml/components/panel_widget_network.xml#net_disconnected`](../../../ui_xml/components/panel_widget_network.xml) - the six state-mapped icons; count the attributes that differ (three).
 9. [`ui_xml/settings_hardware_overlay.xml#container_fan_settings`](../../../ui_xml/settings_hardware_overlay.xml) - the wrapper rows; note each is reactive gating, which is why this is duplication but not a bug.
 10. [`src/ui/ui_button.cpp#UiButtonData`](../../../src/ui/ui_button.cpp) - the in-code note that documents the `user_data` toleration row better than any doc could.
-11. [`src/ui/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/ui_temperature_utils.cpp) - `format_temperature_pair()`: what consolidation done right looks like.
+11. [`src/ui/controls/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/controls/ui_temperature_utils.cpp) - `format_temperature_pair()`: what consolidation done right looks like.
