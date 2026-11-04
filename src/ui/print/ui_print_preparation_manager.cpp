@@ -302,6 +302,7 @@ bool PrintPreparationManager::restart_stale_macro_analysis() {
 void PrintPreparationManager::ensure_estimate_subject_initialized() {
     if (!estimate_subject_initialized_) {
         lv_subject_init_int(&preprint_estimate_subject_, 0);
+        subjects_.register_subject(&preprint_estimate_subject_);
         estimate_subject_initialized_ = true;
     }
 }
@@ -317,8 +318,7 @@ lv_subject_t* PrintPreparationManager::get_preprint_estimate_subject() {
 
 void PrintPreparationManager::recalculate_estimate(const FileMetadata* file_metadata,
                                                    const std::string& file_key) {
-    // Callers reach this before any getter fetch (the detail view computes
-    // the estimate on open), so the subject is initialised here.
+    // The detail view computes the estimate on open, before any getter fetch.
     ensure_estimate_subject_initialized();
 
     // The heat-up runs to the file's own temperatures. Until its metadata is

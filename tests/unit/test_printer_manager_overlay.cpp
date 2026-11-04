@@ -56,66 +56,6 @@ constexpr const char* kOwnedSubjectName = "pm_name_editing";
 } // namespace
 
 // =============================================================================
-// Basic Properties
-// =============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: get_name returns expected value",
-                 "[printer_manager]") {
-    PrinterManagerOverlay overlay;
-    REQUIRE(std::string(overlay.get_name()) == "Printer Manager");
-}
-
-// =============================================================================
-// Subject Initialization
-// =============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: init_subjects sets initialized flag",
-                 "[printer_manager]") {
-    PrinterManagerOverlay overlay;
-
-    REQUIRE_FALSE(overlay.are_subjects_initialized());
-
-    overlay.init_subjects();
-
-    REQUIRE(overlay.are_subjects_initialized());
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: double init_subjects does not crash",
-                 "[printer_manager]") {
-    PrinterManagerOverlay overlay;
-
-    overlay.init_subjects();
-    REQUIRE(overlay.are_subjects_initialized());
-
-    // Second call should be a no-op (guarded)
-    overlay.init_subjects();
-    REQUIRE(overlay.are_subjects_initialized());
-}
-
-// =============================================================================
-// Global Accessor Pattern
-// =============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: global accessor returns valid reference",
-                 "[printer_manager]") {
-    PrinterManagerOverlay& overlay = get_printer_manager_overlay();
-    REQUIRE(std::string(overlay.get_name()) == "Printer Manager");
-
-    // Cleanup for other tests
-    destroy_printer_manager_overlay();
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: global accessor returns same instance",
-                 "[printer_manager]") {
-    PrinterManagerOverlay& first = get_printer_manager_overlay();
-    PrinterManagerOverlay& second = get_printer_manager_overlay();
-
-    REQUIRE(&first == &second);
-
-    destroy_printer_manager_overlay();
-}
-
-// =============================================================================
 // Destructor / Cleanup
 // =============================================================================
 

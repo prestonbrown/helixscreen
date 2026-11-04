@@ -21,6 +21,7 @@
 #include "print_start_checks.h"
 #include "printer_detector.h"
 #include "printer_state.h"
+#include "subject_managed_panel.h"
 #include "thermal_rate_model.h"
 #include "versioned_lru.h"
 #include "zip_reader.h"
@@ -677,6 +678,9 @@ class PrintPreparationManager {
 
     // === Checkbox State Subjects (LT2 - from PrintSelectDetailView) ===
     // === Pre-print estimate ===
+    /// Read by the detail view through its getter, never bound by name: every
+    /// manager has its own, and the XML engine's one scope could publish only one.
+    SubjectManager subjects_;
     lv_subject_t preprint_estimate_subject_{};
     bool estimate_subject_initialized_ = false;
 

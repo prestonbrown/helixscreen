@@ -29,6 +29,9 @@ class ConsoleSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "console_settings_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 };
 
 inline ConsoleSettingsOverlay& get_global_console_settings() {

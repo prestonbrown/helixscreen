@@ -28,6 +28,7 @@
 #include "printer_state.h"
 #include "spoolman_types.h"
 #include "ui/ui_widget_helpers.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -35,9 +36,15 @@
 
 namespace helix::ui {
 
+namespace {
+// Bound only by the menu's XML and written only by its own setters, so the
+// subjects stay up across a printer switch while their owners stay alive.
+helix::WidgetSubjects s_subjects{"AmsContextMenuSubjects",
+                                 StaticSubjectRegistry::Lifetime::Process};
+} // namespace
+
 // Static member initialization
 bool AmsContextMenu::callbacks_registered_ = false;
-bool AmsContextMenu::subjects_initialized_ = false;
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_is_loaded_subject_;
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_can_load_subject_;
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_can_purge_subject_;
@@ -63,50 +70,31 @@ HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_park_subject_;
 // ============================================================================
 
 void AmsContextMenu::init_subjects() {
-    if (subjects_initialized_)
-        return;
-
-    lv_subject_init_int(&slot_is_loaded_subject_, 0);
-    lv_subject_init_int(&slot_can_load_subject_, 1);
-    lv_subject_init_int(&slot_can_purge_subject_, 1);
-    lv_subject_init_int(&slot_unload_hint_visible_subject_, 0);
-    lv_subject_init_string(&slot_unload_hint_subject_, slot_unload_hint_buf_, nullptr,
-                           sizeof(slot_unload_hint_buf_), "");
-    lv_subject_init_int(&slot_eject_hint_visible_subject_, 0);
-    lv_subject_init_string(&slot_eject_hint_subject_, slot_eject_hint_buf_, nullptr,
-                           sizeof(slot_eject_hint_buf_), "");
-    lv_subject_init_int(&slot_can_clear_subject_, 1);
-    lv_subject_init_int(&slot_clear_hint_visible_subject_, 0);
-    lv_subject_init_string(&slot_clear_hint_subject_, slot_clear_hint_buf_, nullptr,
-                           sizeof(slot_clear_hint_buf_), "");
-    lv_subject_init_int(&slot_preload_subject_, 0);
-    lv_subject_init_int(&slot_load_hint_visible_subject_, 0);
-    lv_subject_init_string(&slot_load_hint_subject_, slot_load_hint_buf_, nullptr,
-                           sizeof(slot_load_hint_buf_), "");
-    lv_subject_init_int(&slot_mount_subject_, 0);
-    lv_subject_init_int(&slot_park_subject_, 0);
-
-    lv_xml_register_subject(nullptr, "ams_slot_is_loaded", &slot_is_loaded_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_can_load", &slot_can_load_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_can_purge", &slot_can_purge_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_unload_hint", &slot_unload_hint_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_unload_hint_visible",
-                            &slot_unload_hint_visible_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_eject_hint", &slot_eject_hint_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_eject_hint_visible",
-                            &slot_eject_hint_visible_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_can_clear", &slot_can_clear_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_clear_hint", &slot_clear_hint_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_clear_hint_visible",
-                            &slot_clear_hint_visible_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_preload", &slot_preload_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_load_hint", &slot_load_hint_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_load_hint_visible",
-                            &slot_load_hint_visible_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_mount", &slot_mount_subject_);
-    lv_xml_register_subject(nullptr, "ams_slot_park", &slot_park_subject_);
-
-    subjects_initialized_ = true;
+    s_subjects.ensure_init([] {
+        UI_MANAGED_SUBJECT_INT(slot_is_loaded_subject_, 0, "ams_slot_is_loaded", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_can_load_subject_, 1, "ams_slot_can_load", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_can_purge_subject_, 1, "ams_slot_can_purge", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(slot_unload_hint_subject_, slot_unload_hint_buf_, "",
+                                  "ams_slot_unload_hint", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_unload_hint_visible_subject_, 0, "ams_slot_unload_hint_visible",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_STRING(slot_eject_hint_subject_, slot_eject_hint_buf_, "",
+                                  "ams_slot_eject_hint", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_eject_hint_visible_subject_, 0, "ams_slot_eject_hint_visible",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_can_clear_subject_, 1, "ams_slot_can_clear", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(slot_clear_hint_subject_, slot_clear_hint_buf_, "",
+                                  "ams_slot_clear_hint", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_clear_hint_visible_subject_, 0, "ams_slot_clear_hint_visible",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_preload_subject_, 0, "ams_slot_preload", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(slot_load_hint_subject_, slot_load_hint_buf_, "",
+                                  "ams_slot_load_hint", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_load_hint_visible_subject_, 0, "ams_slot_load_hint_visible",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_mount_subject_, 0, "ams_slot_mount", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_park_subject_, 0, "ams_slot_park", s_subjects);
+    });
 }
 
 AmsContextMenu::AmsContextMenu() {
@@ -115,20 +103,14 @@ AmsContextMenu::AmsContextMenu() {
 }
 
 AmsContextMenu::~AmsContextMenu() {
-    // Subjects are static and stay registered for the process lifetime — see the
-    // header. Deiniting them here is what left the XML registry resolving
-    // "ams_slot_can_load" to dead storage once any one of the three owners went
-    // away, whether or not another was still using the name.
+    // The subjects are static and shared by every owner; see the header.
     spdlog::trace("[AmsContextMenu] Destroyed");
 }
 
 AmsContextMenu::AmsContextMenu(AmsContextMenu&& other) noexcept
     : ContextMenu(std::move(other)), action_callback_(std::move(other.action_callback_)),
       backend_(other.backend_), pending_is_loaded_(other.pending_is_loaded_) {
-    // Nothing to transfer for the subjects: they are static and shared. Copying
-    // the lv_subject_t values here was never sound anyway — observers hold the
-    // address they were registered against, so a by-value move left every one of
-    // them pointing at the moved-from object.
+    // Nothing to transfer for the subjects: they are static and shared.
     other.backend_ = nullptr;
 }
 

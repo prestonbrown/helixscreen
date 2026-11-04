@@ -33,6 +33,9 @@ class StorageSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "settings_storage_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void init_subjects() override;
     void register_callbacks() override;

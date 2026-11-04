@@ -5,6 +5,7 @@
 #include "detection_source.h"
 #include "json_fwd.h"
 #include "lvgl/lvgl.h"
+#include "subject_managed_panel.h"
 
 #include <functional>
 #include <map>
@@ -157,6 +158,7 @@ class DetectionManager {
 
     static void show_bed_check_refusal(const std::string& refusal);
 
+    SubjectManager subjects_;
     lv_subject_t detection_available_subject_{};
     lv_subject_t detection_pause_applicable_subject_{};
     lv_subject_t bed_check_available_subject_{};

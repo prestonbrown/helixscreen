@@ -47,6 +47,9 @@ class PrintingSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "settings_printing_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void register_callbacks() override;
     void on_activate() override;

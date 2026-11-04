@@ -58,6 +58,9 @@ class TelemetryDataOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "telemetry_data_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void register_callbacks() override;
 

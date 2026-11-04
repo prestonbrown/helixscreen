@@ -4,6 +4,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_toast_manager.h"
 
+#include "core/static_subject_registry.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "i_moonraker_client.h"
 #include "non_filament_pause.h"
@@ -25,22 +26,16 @@ void DetectionManager::ensure_availability_subject() {
     if (availability_subject_ready_) {
         return;
     }
-    lv_subject_init_int(&detection_available_subject_, any_available() ? 1 : 0);
-    helix::xml::register_subject_in_current_scope("detection_available",
-                                                  &detection_available_subject_);
-    lv_subject_init_int(&detection_pause_applicable_subject_, any_pause_applicable() ? 1 : 0);
-    helix::xml::register_subject_in_current_scope("detection_pause_applicable",
-                                                  &detection_pause_applicable_subject_);
-    lv_subject_init_int(&bed_check_available_subject_, bed_check_source() ? 1 : 0);
-    helix::xml::register_subject_in_current_scope("detection_bed_check_available",
-                                                  &bed_check_available_subject_);
+    UI_MANAGED_SUBJECT_INT(detection_available_subject_, any_available() ? 1 : 0,
+                           "detection_available", subjects_);
+    UI_MANAGED_SUBJECT_INT(detection_pause_applicable_subject_, any_pause_applicable() ? 1 : 0,
+                           "detection_pause_applicable", subjects_);
+    UI_MANAGED_SUBJECT_INT(bed_check_available_subject_, bed_check_source() ? 1 : 0,
+                           "detection_bed_check_available", subjects_);
     // The firmware's default until the printer answers.
-    lv_subject_init_int(&bed_check_enabled_subject_, 1);
-    helix::xml::register_subject_in_current_scope("detection_bed_check_enabled",
-                                                  &bed_check_enabled_subject_);
-    lv_subject_init_int(&bed_check_switchable_subject_, 1);
-    helix::xml::register_subject_in_current_scope("detection_bed_check_switchable",
-                                                  &bed_check_switchable_subject_);
+    UI_MANAGED_SUBJECT_INT(bed_check_enabled_subject_, 1, "detection_bed_check_enabled", subjects_);
+    UI_MANAGED_SUBJECT_INT(bed_check_switchable_subject_, 1, "detection_bed_check_switchable",
+                           subjects_);
     // The Safety & Alerts row's toggle. Registered with its subject so the
     // row and what it drives exist together.
     register_xml_callbacks({
@@ -50,6 +45,14 @@ void DetectionManager::ensure_availability_subject() {
          }},
     });
     availability_subject_ready_ = true;
+    // Bound only by XML and written only here, so a printer switch leaves them up.
+    StaticSubjectRegistry::instance().register_deinit(
+        "DetectionManager",
+        [this] {
+            subjects_.deinit_all();
+            availability_subject_ready_ = false;
+        },
+        StaticSubjectRegistry::Lifetime::Process);
 }
 
 void DetectionManager::update_availability() {

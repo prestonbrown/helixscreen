@@ -30,6 +30,9 @@ class HardwareSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "settings_hardware_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Default create() plus the live Hardware Health row binding.
     lv_obj_t* create(lv_obj_t* parent) override;

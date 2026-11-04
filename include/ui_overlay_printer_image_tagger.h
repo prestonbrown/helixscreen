@@ -55,6 +55,9 @@ class PrinterImageTaggerOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "printer_image_tagger_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void on_activate() override;
 

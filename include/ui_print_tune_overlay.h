@@ -154,6 +154,9 @@ class PrintTuneOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "print_tune_panel";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void init_subjects() override;
     void register_callbacks() override;
