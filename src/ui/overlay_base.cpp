@@ -4,6 +4,7 @@
 #include "overlay_base.h"
 
 #include "ui_nav_manager.h"
+#include "ui_open_instances.h"
 #include "ui_panel_common.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
@@ -17,7 +18,38 @@
 #include <string>
 #include <utility>
 
+namespace {
+
+/// Every overlay with a widget tree, for from_event(). Never freed: an overlay
+/// destroyed on the static-destruction path still removes itself here.
+helix::ui::OpenInstances<OverlayBase>& open_overlays() {
+    static auto* overlays = new helix::ui::OpenInstances<OverlayBase>();
+    return *overlays;
+}
+
+} // namespace
+
+OverlayBase* OverlayBase::from_event(lv_event_t* e) {
+    return e ? open_overlays().owner_of(lv_event_get_current_target_obj(e)) : nullptr;
+}
+
+OverlayBase* OverlayBase::from_event_of_kind(lv_event_t* e, std::size_t kind) {
+    OverlayBase* overlay = from_event(e);
+    if (!overlay) {
+        return nullptr;
+    }
+    if (overlay->kind_tag() == helix::kUndeclaredKind) {
+        spdlog::warn("[OverlayBase] from_event<T>: '{}' declares no kind (HELIX_KIND_TAG), so "
+                     "no typed lookup can resolve it",
+                     overlay->get_name());
+        return nullptr;
+    }
+    return overlay->kind_tag() == kind ? overlay : nullptr;
+}
+
 OverlayBase::~OverlayBase() {
+    open_overlays().remove(this);
+
     // Fallback unregister in case cleanup() wasn't called. A no-op once
     // NavigationManager is destroyed (static destruction order at shutdown).
     if (overlay_root_) {
@@ -54,6 +86,7 @@ void OverlayBase::on_view_hidden() {
 
 void OverlayBase::cleanup() {
     spdlog::trace("[OverlayBase] cleanup() - {}", get_name());
+    open_overlays().remove(this);
     lifetime_.invalidate();
     object_lifetime_.invalidate();
     cleanup_called_ = true;
@@ -98,6 +131,7 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
             return false;
         }
         overlay_root_ = root;
+        open_overlays().add(this);
         if (destroy_on_close()) {
             if (nav.has_overlay_close_callback(overlay_root_)) {
                 report_foreign_close_callback();
@@ -138,6 +172,7 @@ void OverlayBase::destroy_overlay_ui(lv_obj_t*& cached_panel) {
     auto hooks = helix::ui::TeardownHooks::after([this]() {
         shown_root_ = nullptr;
         shown_root_ref_ = nullptr;
+        open_overlays().remove(this);
         on_ui_destroyed();
     });
     hooks.owner = teardown_owner_.token();

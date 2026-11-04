@@ -30,6 +30,7 @@ class GuidedLoadModal : public Modal {
     const char* component_name() const override {
         return "guided_load_modal";
     }
+    HELIX_KIND_TAG(GuidedLoadModal)
 
     /// Show on the active screen and hand the instance to ModalStack. Declines
     /// while a print job holds the machine: the wizard's buttons move the
@@ -71,8 +72,6 @@ class GuidedLoadModal : public Modal {
     bool subjects_initialized_ = false;
     ObserverGuard runout_observer_;
     int last_runout_ = -1;
-
-    static GuidedLoadModal* active_instance_;
 };
 
 } // namespace helix::ui

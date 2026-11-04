@@ -16,6 +16,7 @@
 
 #include "async_lifetime_guard.h"
 #include "helix_shared_callback.h"
+#include "helix_type_tag.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -203,6 +204,46 @@ class Modal {
      *         or the top modal is instance-backed and was hidden instead
      */
     static bool rebuild_top();
+
+    // ========================================================================
+    // INSTANCE LOOKUP (for XML event callbacks)
+    // ========================================================================
+
+    /**
+     * @brief The instance whose dialog the event's widget sits in
+     *
+     * XML event callbacks are registered once per process and carry no `this`;
+     * this is how they find their instance. The widget that fired is walked up
+     * to the dialog (or backdrop) ModalStack tracks, and that entry's owner is
+     * returned. A widget a modal parents outside its dialog (a dropdown's list,
+     * the keyboard) belongs to the modal on top. nullptr when the widget is in
+     * no open modal's tree, the modal is already closing, or the dialog came
+     * from the static Modal::show() factory, which has no instance.
+     */
+    static Modal* from_event(lv_event_t* e);
+
+    /**
+     * @brief from_event(), narrowed to a `T`
+     *
+     * Exact-type match through kind_tag(), the same way ContextMenu::active_as<T>()
+     * downcasts: a subclass declares HELIX_KIND_TAG(Self) in its body, or no
+     * typed lookup resolves it (the base's tag is helix::kUndeclaredKind, which
+     * matches no T, and the mismatch is logged).
+     */
+    template <typename T> static T* from_event(lv_event_t* e) {
+        return static_cast<T*>(from_event_of_kind(e, helix::type_tag<T>()));
+    }
+
+    /**
+     * @brief This modal's concrete type as a helix::type_tag<T>() value
+     *
+     * The RTTI-free stand-in for typeid(*this) that from_event<T>() compares.
+     * Declared with HELIX_KIND_TAG(Self); a subclass without it keeps the
+     * base's helix::kUndeclaredKind.
+     */
+    [[nodiscard]] virtual std::size_t kind_tag() const {
+        return helix::kUndeclaredKind;
+    }
 
     // ========================================================================
     // INSTANCE API (for subclassed modals)
@@ -405,6 +446,9 @@ class Modal {
     ///        on every button it wires - without this strip those are dangling.
     static void disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner = nullptr);
 
+    /// from_event() when the instance's kind_tag() is @p kind, else nullptr.
+    static Modal* from_event_of_kind(lv_event_t* e, std::size_t kind);
+
     // Static event handlers
     static void backdrop_click_cb(lv_event_t* e);
     static void esc_key_cb(lv_event_t* e);
@@ -445,6 +489,10 @@ class ModalStack {
     /// Return the Modal instance that owns this dialog, or nullptr when the
     /// dialog is untracked or was created through the static factory.
     Modal* owner_for(lv_obj_t* dialog) const;
+
+    /// The owner of the entry whose dialog or backdrop is @p obj or contains it
+    /// (nullptr for a static-factory dialog), or nullopt when no entry does.
+    std::optional<Modal*> owner_of(lv_obj_t* obj) const;
 
     /// Point an existing entry at a different owner (nullptr = no owner).
     /// No-op if the backdrop is not tracked.

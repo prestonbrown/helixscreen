@@ -16,17 +16,12 @@
 
 namespace helix::ui {
 
-GuidedLoadModal* GuidedLoadModal::active_instance_ = nullptr;
-
 GuidedLoadModal::GuidedLoadModal(filament_macros::GuidedLoad steps, bool waits_for_push)
     : flow_(std::move(steps), waits_for_push) {}
 
 GuidedLoadModal::~GuidedLoadModal() {
     runout_observer_.reset();
     deinit_subjects(); // before the members the subjects point into go
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
 }
 
 GuidedLoadModal::View GuidedLoadModal::view_for(GuidedLoadStage stage) {
@@ -58,7 +53,6 @@ bool GuidedLoadModal::show_owned(filament_macros::GuidedLoad steps, bool waits_f
         modal->deinit_subjects();
         return false;
     }
-    active_instance_ = modal.get();
     lv_obj_t* backdrop = modal->backdrop();
     ModalStack::instance().assume_ownership(backdrop, std::move(modal));
     return true;
@@ -86,19 +80,19 @@ void GuidedLoadModal::register_callbacks() {
     if (registered) {
         return;
     }
-    lv_xml_register_event_cb(nullptr, "on_guided_load_extrude", [](lv_event_t*) {
-        if (active_instance_) {
-            active_instance_->handle_extrude();
+    lv_xml_register_event_cb(nullptr, "on_guided_load_extrude", [](lv_event_t* e) {
+        if (auto* self = Modal::from_event<GuidedLoadModal>(e)) {
+            self->handle_extrude();
         }
     });
-    lv_xml_register_event_cb(nullptr, "on_guided_load_done", [](lv_event_t*) {
-        if (active_instance_) {
-            active_instance_->handle_done();
+    lv_xml_register_event_cb(nullptr, "on_guided_load_done", [](lv_event_t* e) {
+        if (auto* self = Modal::from_event<GuidedLoadModal>(e)) {
+            self->handle_done();
         }
     });
-    lv_xml_register_event_cb(nullptr, "on_guided_load_cancel", [](lv_event_t*) {
-        if (active_instance_) {
-            active_instance_->handle_cancel();
+    lv_xml_register_event_cb(nullptr, "on_guided_load_cancel", [](lv_event_t* e) {
+        if (auto* self = Modal::from_event<GuidedLoadModal>(e)) {
+            self->handle_cancel();
         }
     });
     registered = true;
@@ -120,9 +114,6 @@ void GuidedLoadModal::on_show() {
 
 void GuidedLoadModal::on_hide() {
     runout_observer_.reset();
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
 }
 
 void GuidedLoadModal::on_dismissed() {
@@ -178,22 +169,16 @@ void GuidedLoadModal::send(const std::string& script, bool report_outcome) {
             /*silent=*/false, /*on_queued=*/nullptr, /*caller_surfaces_errors=*/false);
         return;
     }
+    // hide() invalidates lifetime_ before the stack frees this instance, so a
+    // completion deferred through its token never reaches a freed `this`.
     auto tok = lifetime_.token();
     api->execute_gcode(
         script,
-        [tok]() {
-            tok.defer("GuidedLoadModal::sent", []() {
-                if (active_instance_) {
-                    active_instance_->on_command_finished(true);
-                }
-            });
+        [tok, this]() {
+            tok.defer("GuidedLoadModal::sent", [this]() { on_command_finished(true); });
         },
-        [tok](const MoonrakerError&) {
-            tok.defer("GuidedLoadModal::failed", []() {
-                if (active_instance_) {
-                    active_instance_->on_command_finished(false);
-                }
-            });
+        [tok, this](const MoonrakerError&) {
+            tok.defer("GuidedLoadModal::failed", [this]() { on_command_finished(false); });
         },
         IMoonrakerAPI::kExtrusionTimeoutMs, /*silent=*/false, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);

@@ -68,11 +68,6 @@ class PluginInstallModal : public Modal {
     ~PluginInstallModal() override {
         // Signal destruction to prevent async callbacks from accessing destroyed object
         is_destroying_.store(true);
-        // A shown modal's owner can destroy it without on_hide() running, and the static
-        // XML callbacks would then reach a freed instance.
-        if (s_active_instance_ == this) {
-            s_active_instance_ = nullptr;
-        }
     }
 
     const char* get_name() const override {
@@ -81,6 +76,7 @@ class PluginInstallModal : public Modal {
     const char* component_name() const override {
         return "plugin_install_modal";
     }
+    HELIX_KIND_TAG(PluginInstallModal)
 
     /**
      * @brief Set the plugin installer instance
@@ -153,7 +149,4 @@ class PluginInstallModal : public Modal {
     // Register XML event callbacks (called once in constructor)
     static void register_callbacks();
     static bool callbacks_registered_;
-
-    // Active instance pointer for static XML callbacks (only one modal visible at a time)
-    static PluginInstallModal* s_active_instance_;
 };

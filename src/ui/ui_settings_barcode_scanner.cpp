@@ -27,8 +27,6 @@
 
 namespace helix::ui {
 
-BarcodeScannerSettingsOverlay* BarcodeScannerSettingsOverlay::s_active_instance_ = nullptr;
-
 namespace {
 struct RowData {
     std::string vendor_product; // empty = auto-detect
@@ -42,11 +40,6 @@ struct RowData {
 // ============================================================================
 
 BarcodeScannerSettingsOverlay::~BarcodeScannerSettingsOverlay() {
-    // An overlay destroyed while active never reaches on_deactivating(), and the static
-    // XML callbacks would then reach a freed instance.
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
     stop_bt_discovery();
 }
 
@@ -76,8 +69,8 @@ void BarcodeScannerSettingsOverlay::init_subjects() {
 void BarcodeScannerSettingsOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_bs_scan_bluetooth",
-         [](lv_event_t*) {
-             auto* self = s_active_instance_;
+         [](lv_event_t* e) {
+             auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e);
              if (!self)
                  return;
              if (self->bt_discovering_)
@@ -86,18 +79,18 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
                  self->start_bt_discovery();
          }},
         {"on_bs_refresh_usb",
-         [](lv_event_t*) {
-             if (s_active_instance_)
-                 s_active_instance_->populate_device_list();
+         [](lv_event_t* e) {
+             if (auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e))
+                 self->populate_device_list();
          }},
         {"on_bs_keymap_changed",
          [](lv_event_t* e) {
-             if (s_active_instance_)
-                 s_active_instance_->handle_keymap_changed(event_selected(e));
+             if (auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e))
+                 self->handle_keymap_changed(event_selected(e));
          }},
         {"on_bs_row_clicked",
          [](lv_event_t* e) {
-             auto* self = s_active_instance_;
+             auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e);
              if (!self)
                  return;
              auto* row = lv_event_get_current_target_obj(e);
@@ -108,7 +101,7 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
          }},
         {"on_bs_row_forget",
          [](lv_event_t* e) {
-             auto* self = s_active_instance_;
+             auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e);
              if (!self)
                  return;
              // The forget button is a child of the row; walk up to find the RowData.
@@ -120,8 +113,8 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
              self->handle_bt_forget(data->bt_mac);
          }},
         {"on_bs_bt_scanner_selected",
-         [](lv_event_t*) {
-             auto* self = s_active_instance_;
+         [](lv_event_t* e) {
+             auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e);
              if (!self)
                  return;
              self->update_bt_action_buttons();
@@ -146,8 +139,8 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
              self->refresh_current_selection_label();
          }},
         {"on_bs_bt_pair",
-         [](lv_event_t*) {
-             auto* self = s_active_instance_;
+         [](lv_event_t* e) {
+             auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e);
              if (!self)
                  return;
              const int idx = self->selected_bt_index();
@@ -159,8 +152,8 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
              self->pair_bt_device(dev.mac, dev.name);
          }},
         {"on_bs_bt_forget",
-         [](lv_event_t*) {
-             auto* self = s_active_instance_;
+         [](lv_event_t* e) {
+             auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e);
              if (!self)
                  return;
              const int idx = self->selected_bt_index();
@@ -180,7 +173,6 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
 
 void BarcodeScannerSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
-    s_active_instance_ = this;
 
     usb_list_ = find_required(overlay_root_, "usb_device_list", get_name());
 
@@ -259,7 +251,6 @@ void BarcodeScannerSettingsOverlay::seed_known_bt_devices() {
 
 void BarcodeScannerSettingsOverlay::on_deactivating(DeactivateReason) {
     stop_bt_discovery();
-    s_active_instance_ = nullptr;
     usb_list_ = nullptr;
     bt_dropdown_ = nullptr;
     btn_bt_pair_ = nullptr;
@@ -550,23 +541,23 @@ void BarcodeScannerSettingsOverlay::pair_bt_device(const std::string& mac,
     opts.owner_token = lifetime_.token(); // gates the confirm on this overlay
     auto* dialog = helix::ui::modal_confirm(
         lv_tr("Pair Bluetooth Scanner"), msg.c_str(), ModalSeverity::Info, lv_tr("Pair"),
-        [mac, name] {
+        [this, mac, name] {
             auto& loader = helix::bluetooth::BluetoothLoader::instance();
             if (!loader.is_available() || !loader.pair) {
                 ToastManager::instance().show(ToastSeverity::ERROR,
                                               lv_tr("Bluetooth not available"));
-            } else if (!s_active_instance_) {
-                ToastManager::instance().show(ToastSeverity::ERROR,
-                                              lv_tr("Bluetooth not initialized"));
             } else {
                 ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Pairing..."), 5000);
 
-                auto shared_ctx = s_active_instance_->bt_ctx_;
-                auto token = s_active_instance_->lifetime_.token();
+                // The confirm is gated on lifetime_ (owner_token above), so this
+                // overlay is live here; the thread's completion defers through the
+                // same token and is dropped once the overlay deactivates.
+                auto shared_ctx = bt_ctx_;
+                auto token = lifetime_.token();
 
                 // Wrap spawn in try/catch per feedback_no_bare_threads_arm.md (#724).
                 try {
-                    helix::make_thread([mac, name, shared_ctx, token]() {
+                    helix::make_thread([this, mac, name, shared_ctx, token]() {
                         auto& ldr = helix::bluetooth::BluetoothLoader::instance();
                         auto* bt_ctx = shared_ctx->get();
                         int ret = bt_ctx ? ldr.pair(bt_ctx, mac.c_str()) : -ENODEV;
@@ -618,77 +609,70 @@ void BarcodeScannerSettingsOverlay::pair_bt_device(const std::string& mac,
                             }
                         }
 
-                        helix::ui::queue_update(
-                            "BarcodeScannerSettingsOverlay::pair_bt_device",
-                            [ret, mac, name, token, err, paired_r, bonded_r, hid_ok]() {
-                                if (token.expired())
-                                    return;
+                        token.defer("BarcodeScannerSettingsOverlay::pair_bt_device", [this, ret,
+                                                                                      mac, name,
+                                                                                      err, paired_r,
+                                                                                      bonded_r,
+                                                                                      hid_ok]() {
+                            if (ret >= 0 && hid_ok) {
+                                ToastManager::instance().show(ToastSeverity::SUCCESS,
+                                                              lv_tr("Paired successfully"), 2000);
+                            } else if (ret >= 0 && bonded_r != 1) {
+                                // Paired but not bonded - Just-Works SSP left no
+                                // persistent key, so BlueZ's input plugin will
+                                // refuse HID. Almost always means the scanner
+                                // wasn't in pairing mode when Pair ran.
+                                spdlog::warn("[BarcodeScannerSettings] Paired but not bonded - "
+                                             "scanner needs to be in pairing mode");
+                                ToastManager::instance().show(
+                                    ToastSeverity::WARNING,
+                                    lv_tr("Pairing did not complete — the scanner did not bond. "
+                                          "Try turning it off and on, then tap Pair again."),
+                                    10000);
+                            } else if (ret >= 0) {
+                                // Bonded but HID profile still never came up.
+                                // Rarer - device-specific firmware quirk or HID
+                                // descriptor rejected by the kernel. Keep the
+                                // technical escape hatch here for operators who
+                                // can edit system config.
+                                spdlog::warn("[BarcodeScannerSettings] Bonded but HID profile "
+                                             "did not connect within 5s - scanner will not be "
+                                             "usable");
+                                ToastManager::instance().show(
+                                    ToastSeverity::WARNING,
+                                    lv_tr("Scanner bonded but didn't attach as a keyboard. Try "
+                                          "turning the scanner off and on, then tap Pair again. "
+                                          "If that fails, add ClassicBondedOnly=false to "
+                                          "/etc/bluetooth/input.conf."),
+                                    10000);
+                            }
 
-                                if (ret >= 0 && hid_ok) {
-                                    ToastManager::instance().show(
-                                        ToastSeverity::SUCCESS, lv_tr("Paired successfully"), 2000);
-                                } else if (ret >= 0 && bonded_r != 1) {
-                                    // Paired but not bonded - Just-Works SSP left no
-                                    // persistent key, so BlueZ's input plugin will
-                                    // refuse HID. Almost always means the scanner
-                                    // wasn't in pairing mode when Pair ran.
-                                    spdlog::warn("[BarcodeScannerSettings] Paired but not bonded - "
-                                                 "scanner needs to be in pairing mode");
-                                    ToastManager::instance().show(
-                                        ToastSeverity::WARNING,
-                                        lv_tr(
-                                            "Pairing did not complete — the scanner did not bond. "
-                                            "Try turning it off and on, then tap Pair again."),
-                                        10000);
-                                } else if (ret >= 0) {
-                                    // Bonded but HID profile still never came up.
-                                    // Rarer - device-specific firmware quirk or HID
-                                    // descriptor rejected by the kernel. Keep the
-                                    // technical escape hatch here for operators who
-                                    // can edit system config.
-                                    spdlog::warn("[BarcodeScannerSettings] Bonded but HID profile "
-                                                 "did not connect within 5s - scanner will not be "
-                                                 "usable");
-                                    ToastManager::instance().show(
-                                        ToastSeverity::WARNING,
-                                        lv_tr(
-                                            "Scanner bonded but didn't attach as a keyboard. Try "
-                                            "turning the scanner off and on, then tap Pair again. "
-                                            "If that fails, add ClassicBondedOnly=false to "
-                                            "/etc/bluetooth/input.conf."),
-                                        10000);
-                                }
-
-                                if (ret >= 0) {
-                                    if (s_active_instance_) {
-                                        for (auto& dev : s_active_instance_->bt_devices_) {
-                                            if (dev.mac == mac) {
-                                                dev.paired = (paired_r == 1);
-                                                break;
-                                            }
-                                        }
-
-                                        // Only adopt this scanner as the active one when
-                                        // the HID link actually came up. Persisting a
-                                        // broken bond means the app would keep "using" a
-                                        // scanner that can't send any input.
-                                        if (hid_ok) {
-                                            helix::SettingsManager::instance()
-                                                .set_scanner_bt_address(mac);
-                                            helix::SettingsManager::instance()
-                                                .set_scanner_device_name(name);
-                                            s_active_instance_->refresh_current_selection_label();
-                                        }
-                                        s_active_instance_->populate_device_list();
-                                        s_active_instance_->populate_bt_dropdown();
+                            if (ret >= 0) {
+                                for (auto& dev : bt_devices_) {
+                                    if (dev.mac == mac) {
+                                        dev.paired = (paired_r == 1);
+                                        break;
                                     }
-                                } else {
-                                    spdlog::error("[BarcodeScannerSettings] Pairing failed: {}",
-                                                  err);
-                                    ToastManager::instance().show(ToastSeverity::ERROR,
-                                                                  lv_tr("Pairing failed"), 3000);
                                 }
-                            });
+
+                                // Only adopt this scanner as the active one when
+                                // the HID link actually came up. Persisting a
+                                // broken bond means the app would keep "using" a
+                                // scanner that can't send any input.
+                                if (hid_ok) {
+                                    helix::SettingsManager::instance().set_scanner_bt_address(mac);
+                                    helix::SettingsManager::instance().set_scanner_device_name(
+                                        name);
+                                    refresh_current_selection_label();
+                                }
+                                populate_device_list();
+                                populate_bt_dropdown();
+                            } else {
+                                spdlog::error("[BarcodeScannerSettings] Pairing failed: {}", err);
+                                ToastManager::instance().show(ToastSeverity::ERROR,
+                                                              lv_tr("Pairing failed"), 3000);
+                            }
+                        });
                     }).detach();
                 } catch (const std::system_error& ex) {
                     spdlog::error("[BarcodeScannerSettings] Failed to spawn BT pair thread: {}",
@@ -703,8 +687,7 @@ void BarcodeScannerSettingsOverlay::pair_bt_device(const std::string& mac,
                     // any ambient state (e.g. selection updated while the modal
                     // was open) is reflected - matches what the normal failure
                     // path achieves implicitly via populate_bt_dropdown().
-                    if (s_active_instance_)
-                        s_active_instance_->update_bt_action_buttons();
+                    update_bt_action_buttons();
                 }
             }
         },

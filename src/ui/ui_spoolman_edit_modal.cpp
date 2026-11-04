@@ -32,7 +32,6 @@ namespace helix::ui {
 
 // Static member initialization
 bool SpoolEditModal::callbacks_registered_ = false;
-SpoolEditModal* SpoolEditModal::active_instance_ = nullptr;
 
 // ============================================================================
 // Construction / Destruction
@@ -43,9 +42,6 @@ SpoolEditModal::SpoolEditModal() {
 }
 
 SpoolEditModal::~SpoolEditModal() {
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
     subjects_.deinit_all();
     subjects_initialized_ = false;
     spdlog::trace("[SpoolEditModal] Destroyed");
@@ -80,8 +76,6 @@ bool SpoolEditModal::show_for_spool(lv_obj_t* parent, const SpoolInfo& spool, IM
 // ============================================================================
 
 void SpoolEditModal::on_show() {
-    active_instance_ = this;
-
     // Suppress field change events during initial population — setting textarea
     // text fires VALUE_CHANGED which would read formatted values back, and
     // float→string→float round-trips can drift (e.g. 999.7 → "1000" → 1000.0)
@@ -100,7 +94,6 @@ void SpoolEditModal::on_show() {
 }
 
 void SpoolEditModal::on_hide() {
-    active_instance_ = nullptr;
     deinit_subjects();
     spdlog::debug("[SpoolEditModal] on_hide()");
 }
@@ -570,38 +563,38 @@ void SpoolEditModal::register_callbacks() {
     register_xml_callbacks({
         {"spoolman_edit_close_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<SpoolEditModal>(e)) {
                  self->handle_close();
              }
          }},
         {"spoolman_edit_field_changed_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<SpoolEditModal>(e)) {
                  self->handle_field_changed();
              }
          }},
         {"spoolman_edit_reset_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<SpoolEditModal>(e)) {
                  self->handle_reset();
              }
          }},
         {"spoolman_edit_save_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<SpoolEditModal>(e)) {
                  self->handle_save();
              }
          }},
         {"spoolman_edit_color_clicked_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<SpoolEditModal>(e)) {
                  self->handle_color_clicked();
              }
          }},
 #if HELIX_HAS_LABEL_PRINTER
         {"spoolman_edit_print_label_cb",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = Modal::from_event<SpoolEditModal>(e)) {
                  self->handle_print_label();
              }
          }},
@@ -610,21 +603,6 @@ void SpoolEditModal::register_callbacks() {
 
     callbacks_registered_ = true;
     spdlog::debug("[SpoolEditModal] Callbacks registered");
-}
-
-// ============================================================================
-// Static Callbacks (Instance Lookup via User Data)
-// ============================================================================
-
-SpoolEditModal* SpoolEditModal::get_instance_from_event(lv_event_t* e) {
-    (void)e;
-    // Use static instance — parent chain traversal is unsafe because text_input
-    // widgets store keyboard hint magic values in user_data, which would be
-    // misinterpreted as a SpoolEditModal pointer.
-    if (!active_instance_) {
-        spdlog::warn("[SpoolEditModal] No active instance for event");
-    }
-    return active_instance_;
 }
 
 } // namespace helix::ui
