@@ -63,6 +63,14 @@ locate_by_symbol() {
     [ "$status" -eq 1 ]  # grep returns 1 when no matches found
 }
 
+# Advancing BusyClock in a shipped build would skew the idle_timeout settle and
+# the busy-episode ownership windows. Only its declaration may name it.
+@test "BusyClock::advance_for_test is called only from tests" {
+    run bash -c "grep -rn 'advance_for_test' src include | grep -v '^include/idle_timeout_busy.h:.*static void advance_for_test('"
+    [ "$status" -eq 1 ]
+    [ -z "$output" ]
+}
+
 # A friend accessor defined in two test TUs is an ODR violation: the linker keeps
 # one copy of each inline member, so a test can silently run another file's body.
 # Define it once in tests/test_helpers/<name>_test_access.h and include that.
