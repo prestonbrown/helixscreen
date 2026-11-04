@@ -2047,6 +2047,7 @@
   <translation tag="Load failed" ru="Ошибка загрузки"/>
   <translation tag="Load filament" ru="Загрузка филамента"/>
   <translation tag="Load filament first" ru="Сначала загрузите филамент"/>
+  <translation tag="Load filament to the toolhead, then tap Resume." ru="Загрузите филамент в печатающую головку, затем нажмите «Продолжить»."/>
   <translation tag="Load into which tool?" ru="В какой инструмент загрузить?"/>
   <translation tag="Load it in the filament panel, then tap Resume." ru="Загрузите его на панели филамента, затем нажмите «Продолжить»."/>
   <translation tag="Load or unload filament." ru="Загружайте или выгружайте филамент."/>
@@ -3870,6 +3871,7 @@
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" ru="Текущая смена инструмента завершена, {} не возвращён на каретку"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Принтер может отказаться загружать слот, пока она не будет очищена. Всё равно начать?"/>
+  <translation tag="The toolhead is not homed, so this would home into the print" ru="Печатающая головка не запаркована, парковка ударит её о модель"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ru="Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ru="Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?"/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" ru="Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис"/>

@@ -1256,6 +1256,23 @@ class AmsBackend {
     }
 
     /**
+     * @brief Is the home buried in this backend's LOAD macro skipped on a
+     *        toolhead that already reports "xyz" homed?
+     *
+     * Meaningful only where filament_ops_self_home() is true. True means the
+     * firmware's load homes conditionally (zMod's `_G28` is
+     * `{% if "xyz" not in printer.toolhead.homed_axes %} _HOME {% endif %}`), so
+     * a paused, homed job can load without a home reaching the part:
+     * print_blocks_filament_load() is the rule that reads it.
+     *
+     * Default: false. Answer true only with the macro source in hand; an
+     * unconditional home answering true drives the nozzle into the print.
+     */
+    [[nodiscard]] virtual bool self_home_skipped_when_homed() const {
+        return false;
+    }
+
+    /**
      * @brief Does the printer-side system arrange its own homing for filament
      *        load/unload ops, so HelixScreen should not send G28 first?
      *

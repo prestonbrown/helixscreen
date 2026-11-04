@@ -2002,6 +2002,7 @@
   <translation tag="Load failed" en="Load failed"/>
   <translation tag="Load filament" en="Load filament"/>
   <translation tag="Load filament first" en="Load filament first"/>
+  <translation tag="Load filament to the toolhead, then tap Resume." en="Load filament to the toolhead, then tap Resume."/>
   <translation tag="Load into which tool?" en="Load into which tool?"/>
   <translation tag="Load it in the filament panel, then tap Resume." en="Load it in the filament panel, then tap Resume."/>
   <translation tag="Load or unload filament." en="Load or unload filament."/>
@@ -3810,6 +3811,7 @@
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" en="The tool change under way finished, and {} was not put back on the carriage"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?"/>
+  <translation tag="The toolhead is not homed, so this would home into the print" en="The toolhead is not homed, so this would home into the print"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" en="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" en="The toolhead sensor indicates no filament is present. Proceed with unload anyway?"/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" en="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck"/>

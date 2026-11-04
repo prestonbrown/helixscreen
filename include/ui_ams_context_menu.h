@@ -299,7 +299,8 @@ class AmsContextMenu : public ContextMenu {
     // covers the state by letting the firmware resolve the channel.
     static SlotOpDecision decide_slot_ops(const AmsBackend* backend, int slot_index,
                                           bool pending_is_loaded, bool system_busy,
-                                          bool print_blocks_op, bool toolhead_unaccounted);
+                                          bool print_blocks_op, bool toolhead_unaccounted,
+                                          std::optional<bool> print_blocks_load = std::nullopt);
 
     // Pure: selects the Unload button's operation for the open slot.
     //
@@ -339,9 +340,14 @@ class AmsContextMenu : public ContextMenu {
     // directions — offering what will be refused strands a runout-paused user
     // (bundle JX2FVRB9), and refusing what the backend accepts hides the
     // pause-then-swap recovery Klipper just told them to perform.
+    //
+    // `print_blocks_load` is helix::ui::print_blocks_load_now(): a paused job may
+    // load where the backend's firmware home is skipped on a homed toolhead.
+    // Unset, Load answers to print_blocks_op.
     static bool decide_can_load(bool system_busy, bool toolhead_unload,
                                 std::optional<bool> slot_has_filament, bool print_blocks_op,
-                                bool load_feeds_filament = false);
+                                bool load_feeds_filament = false,
+                                std::optional<bool> print_blocks_load = std::nullopt);
 
     // Pure: whether the Unload button is offered for the open slot.
     //

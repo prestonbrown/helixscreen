@@ -534,8 +534,10 @@ AmsError AmsSubscriptionBackend::run_filament_op(FilamentOp op, int arg,
     if (op_moves_toolhead(op)) {
         // Parking leaves no tool for a paused job to resume with, so a paused
         // job refuses it on every backend, whatever the others allow.
-        if (auto e = refuse_if_printing(/*paused_blocks=*/op == FilamentOp::ParkTool);
-            !e.success()) {
+        const AmsError e = op == FilamentOp::Load
+                               ? refuse_load_if_printing()
+                               : refuse_if_printing(/*paused_blocks=*/op == FilamentOp::ParkTool);
+        if (!e.success()) {
             return e;
         }
     }
@@ -643,6 +645,30 @@ AmsError AmsSubscriptionBackend::check_preconditions(bool requires_toolhead_moti
     return AmsErrorHelper::success();
 }
 
+namespace {
+
+/// Map a print-block verdict onto an AmsError. @p self_homes: the op would run a
+/// firmware home now, so pausing is not a recovery to suggest.
+AmsError refuse_print_block(const char* tag, PrintState lifecycle, bool blocked, bool self_homes) {
+    const bool is_paused = (lifecycle == PrintState::Paused);
+    if (!blocked) {
+        if (is_paused) {
+            spdlog::info("{} Allowing filament operation on a PAUSED print "
+                         "(no firmware home will run; Layer 1 still blocks any G28)",
+                         tag);
+        }
+        return AmsErrorHelper::success();
+    }
+    spdlog::warn("{} Refusing filament operation while a print is active (lifecycle={}, "
+                 "self_homes={})",
+                 tag, static_cast<int>(lifecycle), self_homes);
+    // A non-self-homing backend that reaches here is PRINTING, and pausing is a
+    // recovery it can actually offer — say so instead of "finish or cancel".
+    return AmsErrorHelper::print_active(is_paused, /*pause_allows_ops=*/!self_homes);
+}
+
+} // namespace
+
 AmsError AmsSubscriptionBackend::refuse_if_printing(bool paused_blocks) const {
     // The AmsError face of print_blocks_filament_op(), which states the rule and
     // why each lifecycle answers as it does. Only the parts specific to being
@@ -663,25 +689,28 @@ AmsError AmsSubscriptionBackend::refuse_if_printing(bool paused_blocks) const {
         return AmsErrorHelper::success();
     }
     const auto lifecycle = api_->printer_state().print_state().get_print_lifecycle();
-    const bool is_paused = (lifecycle == PrintState::Paused);
     const bool self_homes = paused_blocks || filament_ops_self_home();
     // print_blocks_filament_op() is the rule, shared with every surface that
     // greys a filament-op button. This function's job is to map its answer onto
     // an AmsError, not to decide it a second time.
-    if (!print_blocks_filament_op(lifecycle, self_homes)) {
-        if (is_paused) {
-            spdlog::info("{} Allowing filament operation on a PAUSED print "
-                         "(backend does not self-home; Layer 1 still blocks any G28)",
-                         backend_log_tag());
-        }
+    return refuse_print_block(backend_log_tag(), lifecycle,
+                              print_blocks_filament_op(lifecycle, self_homes), self_homes);
+}
+
+AmsError AmsSubscriptionBackend::refuse_load_if_printing() const {
+    if (!api_) {
         return AmsErrorHelper::success();
     }
-    spdlog::warn("{} Refusing filament operation while a print is active (lifecycle={}, "
-                 "self_homes={})",
-                 backend_log_tag(), static_cast<int>(lifecycle), self_homes);
-    // A non-self-homing backend that reaches here is PRINTING, and pausing is a
-    // recovery it can actually offer — say so instead of "finish or cancel".
-    return AmsErrorHelper::print_active(is_paused, /*pause_allows_ops=*/!self_homes);
+    const auto lifecycle = api_->printer_state().print_state().get_print_lifecycle();
+    // A homed toolhead skips the firmware's own home where the backend says so,
+    // and the load then homes no more than a backend that never self-homes.
+    const bool homes_now =
+        filament_ops_self_home() && !(self_home_skipped_when_homed() && toolhead_homed());
+    return refuse_print_block(backend_log_tag(), lifecycle,
+                              print_blocks_filament_load(lifecycle, filament_ops_self_home(),
+                                                         self_home_skipped_when_homed(),
+                                                         toolhead_homed()),
+                              homes_now);
 }
 
 bool AmsSubscriptionBackend::print_holds_printer() const {

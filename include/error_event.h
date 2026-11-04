@@ -49,6 +49,11 @@ struct RecoveryAction {
     /// Asked before the gcode is sent, as the body of a confirm titled with
     /// label; empty sends on the tap.
     std::string confirm_message;
+    /// The gcode runs a firmware macro that homes the toolhead itself when it is
+    /// not homed, which mid-print drives the nozzle into the part. Offered only
+    /// on a homed toolhead, and refused on the tap unless homed_axes still reads
+    /// "xyz": an M84 or a Klipper error can clear it while the dialog is up.
+    bool requires_homed = false;
 };
 
 /// Result of classifying one gcode-response line. Produced by the pure

@@ -19,6 +19,10 @@ bool gated(const FilamentHeadView& view) {
     return view.system_busy || view.print_blocks_op;
 }
 
+bool load_gated(const FilamentHeadView& view) {
+    return view.system_busy || view.print_blocks_load.value_or(view.print_blocks_op);
+}
+
 /// Why no head can do this direction by machine, or empty when one can.
 std::string capability_reason(const FilamentHeadView& view, bool load) {
     for (const HeadState& head : view.heads) {
@@ -95,9 +99,9 @@ FilamentActionSet decide_filament_actions(const FilamentHeadView& view) {
 
     out.load.visible = true;
     out.load.enabled =
-        !gated(view) && std::any_of(view.heads.begin(), view.heads.end(),
-                                    [](const HeadState& h) { return head_can_load(h); });
-    if (!out.load.enabled && !gated(view)) {
+        !load_gated(view) && std::any_of(view.heads.begin(), view.heads.end(),
+                                         [](const HeadState& h) { return head_can_load(h); });
+    if (!out.load.enabled && !load_gated(view)) {
         out.load.reason = capability_reason(view, /*load=*/true);
         const bool any_source =
             std::any_of(view.heads.begin(), view.heads.end(), [](const HeadState& head) {
@@ -135,7 +139,7 @@ FilamentActionSet decide_slot_actions(const FilamentHeadView& view, int head) {
     }
 
     const HeadState& state = view.heads[static_cast<size_t>(head)];
-    out.load.enabled = !gated(view) && automatic(state.ops.load);
+    out.load.enabled = !load_gated(view) && automatic(state.ops.load);
     if (!automatic(state.ops.load)) {
         out.load.reason = state.ops.load_reason;
     }

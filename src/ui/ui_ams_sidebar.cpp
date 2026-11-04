@@ -1521,7 +1521,8 @@ AmsOperationSidebar::OpInputs AmsOperationSidebar::read_op_inputs() const {
     // refuses on, instead of a fourth open-coded `action != IDLE && != ERROR`.
     return {/*system_busy=*/info && info->is_busy(),
             printer_state_.print_state().get_print_lifecycle(),
-            /*backend_self_homes=*/backend && backend->filament_ops_self_home()};
+            /*backend_self_homes=*/backend && backend->filament_ops_self_home(),
+            helix::ui::print_blocks_load_now(backend, printer_state_)};
 }
 
 helix::ui::FilamentActionSet AmsOperationSidebar::read_filament_actions() const {
@@ -1580,7 +1581,7 @@ void AmsOperationSidebar::refresh_button_gating() {
         backend && ams_action_is_busy(action) && backend->can_cancel_operation() ? 1 : 0);
 }
 
-bool AmsOperationSidebar::refuse_if_busy_or_printing() const {
+bool AmsOperationSidebar::refuse_if_busy_or_printing(bool load) const {
     // The reads behind one shared refusal: an op already running, or a print
     // owning the toolhead. The one-tap Unload and both picker directions stop
     // on the same two conditions; the messages name unloading.
@@ -1590,11 +1591,17 @@ bool AmsOperationSidebar::refuse_if_busy_or_printing() const {
         NOTIFY_WARNING(lv_tr("Wait for the current filament operation to finish"));
         return true;
     }
-    if (helix::ui::print_blocks_filament_op(in.lifecycle, in.backend_self_homes)) {
+    if (load ? in.print_blocks_load
+             : helix::ui::print_blocks_filament_op(in.lifecycle, in.backend_self_homes)) {
         const bool self_homes = in.backend_self_homes;
-        spdlog::info("[AmsSidebar] Filament op refused: a print owns the toolhead (self_homes={})",
-                     self_homes);
-        if (self_homes) {
+        spdlog::info("[AmsSidebar] Filament op refused: a print owns the toolhead (self_homes={}, "
+                     "load={})",
+                     self_homes, load);
+        if (load && in.lifecycle == PrintState::Paused) {
+            // Only a self-homing backend refuses a paused load, and only on an
+            // unhomed toolhead, where its buried home would reach the part.
+            NOTIFY_WARNING(lv_tr("The toolhead is not homed, so this would home into the print"));
+        } else if (self_homes) {
             // AD5X IFS: the unload macro homes itself, so pausing does not help
             // - recommending it would send the user into the exact loadcell-Z
             // collision the backend guard exists to prevent.
@@ -1613,7 +1620,7 @@ void AmsOperationSidebar::handle_load() {
     // The picker opens on every printer: it names the slot the load will feed
     // (each head's Assigned Tool slot), which on a one-head printer is the
     // whole question. A load of any other slot is a slot tap.
-    if (refuse_if_busy_or_printing()) {
+    if (refuse_if_busy_or_printing(/*load=*/true)) {
         return;
     }
     open_head_picker(HeadPickOp::Load);
@@ -1641,7 +1648,7 @@ void AmsOperationSidebar::run_picked(HeadPickOp op, const std::vector<HeadPickRo
         helix::ui::offer_tool_change(printer_state_, chosen.front().head);
         return;
     }
-    if (refuse_if_busy_or_printing()) {
+    if (refuse_if_busy_or_printing(/*load=*/op == HeadPickOp::Load)) {
         return;
     }
     // One head takes the per-slot path, with its preheat and stepper; several
