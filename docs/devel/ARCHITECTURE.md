@@ -190,8 +190,8 @@ which `--report` prints as a directory-to-directory include matrix.
 | Layer, low to high | Directories | Holds |
 |---|---|---|
 | core | `core`, `util`, `utils`, `config`, `generated` | text, logging, thread-to-main and registry plumbing every layer uses |
-| platform | `network`, `bluetooth`, `input` | the OS and the hardware, never printer state |
-| moonraker | `api` | the Moonraker client, its API façade and the mock printer |
+| platform | `network`, `bluetooth`, `input`, `platform` | the OS and the hardware, never printer state |
+| moonraker | `api`, `mock` | the Moonraker client, its API façade and the mock printer |
 | state | `printer`, `temperature`, `spoolman`, `print`, `calibration`, `sensors`, `led`, `plugin`, `system` | subjects, backends and services |
 | rendering | `rendering` | G-code geometry and thumbnails |
 | ui | `ui` | LVGL widgets, panels, overlays, modals |

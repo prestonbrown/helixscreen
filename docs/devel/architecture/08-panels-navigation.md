@@ -11,7 +11,7 @@ How many of each, with the command that counts it so you can re-run it:
 | `OverlayBase` subclasses | 71 | `rg -l '^class \w+ : public OverlayBase' include src -g '*.h'` |
 | `Modal` subclasses | 33 | `rg 'class \w+ : public Modal \{' include src -g '*.{h,cpp}'` minus the doc comment in [`include/ui_modal.h`](../../../include/ui_modal.h) |
 | XML overlay/modal/panel files | 56 / 43 / 34 | `ls ui_xml | grep -c overlay` (and `modal`, `_panel`) out of ~250 top-level XML files plus ~130 in `ui_xml/components/` |
-| `src/ui` file prefixes | 29 / 12 / 10 | `ls src/ui/ui_panel_*.cpp`, `ui_overlay_*.cpp`, `ui_modal*.cpp` + `src/ui/modals/` - the prefix spread is itself evidence of the naming trap |
+| `src/ui` file prefixes | 29 / 12 / 10 | `find src/ui -name 'ui_panel_*.cpp'`, `ui_overlay_*.cpp`, `ui_modal*.cpp` - the prefix spread is itself evidence of the naming trap |
 
 Filename counts are the trap, in both directions: [`console_panel.xml`](../../../ui_xml/console_panel.xml), [`bed_mesh_panel.xml`](../../../ui_xml/bed_mesh_panel.xml), and [`ams_panel.xml`](../../../ui_xml/ams_panel.xml) are pushed as *overlays* (the first two classes derive from `OverlayBase`; `AmsPanel` is a `PanelBase` opened by hand), while only 11 of the 71 overlay classes live in `src/ui/ui_overlay_*.cpp` files - the rest are spread across `ui_panel_*.cpp`, `ui_settings_*.cpp`, and feature files. The C++ base class is the taxonomy; the filename is not.
 

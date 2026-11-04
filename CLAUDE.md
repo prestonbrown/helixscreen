@@ -502,9 +502,12 @@ Issue references are welcome as pointers, not summaries:
 **Key directories**:
 | Path | Contents |
 |------|----------|
-| `src/ui/` | All UI code, prefixed: `ui_panel_*.cpp`, `ui_overlay_*.cpp`, `ui_modal*.cpp`. One level of group directories: `screensaver/`, `theme/`, `wizard/`, `print/`, `calibration/`, `panel_widgets/`, `widgets/`, `tour/` (the Makefile globs no deeper) |
+| `src/ui/` | The UI framework at the top level (navigation, modal and overlay bases, shared utilities); everything else in one level of group directories: `screensaver/`, `theme/`, `wizard/`, `print/`, `calibration/`, `settings/`, `filament/`, `gcode/`, `home/`, `controls/`, `printers/`, `plugin/`, `notify/`, `components/`, `effects/`, `debug/`, `panel_widgets/`, `widgets/`, `tour/`. The Makefile globs no deeper |
 | `src/ui/modals/` | Additional modal implementations |
 | `src/printer/` | PrinterState, MoonrakerAPI, macro/filament managers |
+| `src/api/` | The Moonraker client and API facade |
+| `src/network/`, `src/platform/` | WiFi, Ethernet, mDNS; `platform/display`, `platform/input`, `platform/usb` |
+| `src/mock/` | The mock Moonraker client and API behind `--test` |
 | `src/core/` | Foundation below every layer: update queue, observer factory, static registries, text and HTTP plumbing (headers in `include/core/`) |
 | `src/system/` | Config, settings, update checker, sound, telemetry |
 | `src/application/` | App lifecycle, display, input, runtime config |

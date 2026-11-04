@@ -324,7 +324,7 @@ src/
   application/subject_initializer.cpp    ← edit to call init_global_*()
 ```
 
-That's the full shape of a real settings overlay contribution. Every other overlay in `src/ui/ui_overlay_*.cpp` and every `ui_settings_*.cpp` follows this same pattern. If you're stuck, find the closest sibling, open its three files side-by-side, and diff against yours.
+That's the full shape of a real settings overlay contribution. Every other overlay in `src/ui/**/ui_overlay_*.cpp` and every `ui_settings_*.cpp` follows this same pattern. If you're stuck, find the closest sibling, open its three files side-by-side, and diff against yours.
 
 ### Going forward: dynamic overlays
 
