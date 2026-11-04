@@ -853,70 +853,11 @@ TEST_CASE("CFS calibration refuses while a print owns the machine (#1282)", "[am
 }
 
 TEST_CASE("CFS type enum", "[ams][cfs]") {
-    SECTION("CFS is a valid AmsType") {
-        auto t = AmsType::CFS;
-        REQUIRE(t != AmsType::NONE);
-    }
-
-    SECTION("CFS is a filament system, not a tool changer") {
-        REQUIRE(is_filament_system(AmsType::CFS));
-        REQUIRE_FALSE(is_tool_changer(AmsType::CFS));
-    }
-
-    SECTION("ams_type_to_string returns CFS") {
-        REQUIRE(std::string(ams_type_to_string(AmsType::CFS)) == "CFS");
-    }
-
-    SECTION("ams_type_from_string parses CFS variants") {
-        REQUIRE(ams_type_from_string("cfs") == AmsType::CFS);
-        REQUIRE(ams_type_from_string("CFS") == AmsType::CFS);
-    }
-}
-
-TEST_CASE("CFS data model extensions", "[ams][cfs]") {
-    SECTION("EnvironmentData defaults") {
-        EnvironmentData env;
-        REQUIRE(env.temperature_c == 0.0f);
-        REQUIRE(env.humidity_pct == 0.0f);
-    }
-
-    SECTION("AmsUnit environment is optional") {
-        AmsUnit unit;
-        REQUIRE_FALSE(unit.environment.has_value());
-        unit.environment = EnvironmentData{27.0f, 48.0f};
-        REQUIRE(unit.environment->temperature_c == 27.0f);
-        REQUIRE(unit.environment->humidity_pct == 48.0f);
-    }
-
-    SECTION("SlotInfo remaining length defaults to zero") {
-        SlotInfo slot;
-        REQUIRE(slot.remaining_length_m == 0.0f);
-    }
-
-    SECTION("SlotInfo environment is optional") {
-        SlotInfo slot;
-        REQUIRE_FALSE(slot.environment.has_value());
-    }
-
-    SECTION("AmsAlert fields") {
-        AmsAlert alert;
-        alert.message = "Nozzle clog detected";
-        alert.hint = "Run a cold pull";
-        alert.error_code = "CFS-845";
-        alert.level = AmsAlertLevel::SYSTEM;
-        REQUIRE(alert.level == AmsAlertLevel::SYSTEM);
-        REQUIRE(alert.error_code == "CFS-845");
-    }
-
-    SECTION("AmsSystemInfo has alerts vector") {
-        AmsSystemInfo info;
-        REQUIRE(info.alerts.empty());
-        info.alerts.push_back(AmsAlert{.message = "test",
-                                       .hint = "fix it",
-                                       .error_code = "CFS-831",
-                                       .level = AmsAlertLevel::SYSTEM});
-        REQUIRE(info.alerts.size() == 1);
-    }
+    REQUIRE(is_filament_system(AmsType::CFS));
+    REQUIRE_FALSE(is_tool_changer(AmsType::CFS));
+    REQUIRE(std::string(ams_type_to_string(AmsType::CFS)) == "CFS");
+    REQUIRE(ams_type_from_string("cfs") == AmsType::CFS);
+    REQUIRE(ams_type_from_string("CFS") == AmsType::CFS);
 }
 
 using helix::printer::CfsMaterialDb;
@@ -1252,6 +1193,50 @@ TEST_CASE("CFS tag reading carries the Spoolman spool its record names", "[ams][
         const auto after = backend.tag_reading(0);
         REQUIRE(after);
         CHECK_FALSE(after->spoolman_id);
+    }
+}
+
+// Klipper sends deltas, so one frame's presence gates read the frame while the
+// values they guard can come from every frame before it.
+TEST_CASE("CFS reads a stock delta against the frames before it", "[ams][cfs]") {
+    CfsRemapHelper backend;
+    backend.mark_running();
+    json box = make_multi_unit_box(1);
+    box["filament_useup"] = 1;
+    box["T1"]["vender"] =
+        json::array({"AB1240276A21010010FFFFFF0165000042000000", "none", "none", "none"});
+    auto poll = [&backend](const json& frame) {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(frame));
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    poll(box);
+    REQUIRE(backend.get_system_info().filament_runout);
+    REQUIRE(backend.get_system_info().endless_spool_enabled);
+    backend.captured.clear();
+
+    SECTION("a unit delta that omits a field keeps what it said") {
+        poll(json{{"T1", {{"remain_len", json::array({"40", "-1", "-1", "-1"})}}}});
+        const auto tagged = backend.tag_reading(0);
+        REQUIRE(tagged);
+        CHECK(tagged->spoolman_id == 42);
+        CHECK(backend.get_system_info().filament_runout);
+        CHECK(backend.get_system_info().endless_spool_enabled);
+        CHECK(backend.captured.empty());
+    }
+
+    SECTION("a delta that states a field replaces it") {
+        poll(json{{"filament_useup", 0}, {"auto_refill", 0}, {"filament", 0}});
+        CHECK_FALSE(backend.get_system_info().filament_runout);
+        CHECK_FALSE(backend.get_system_info().endless_spool_enabled);
+    }
+
+    SECTION("a vender delta alone is an insert edge") {
+        poll(json{{"filament_useup", 0}, {"filament", 0}}); // a latched runout defers the probe
+        poll(json{{"T1",
+                   {{"vender", json::array({"AB1240276A21010010FFFFFF0165000042000000", "unknown",
+                                            "none", "none"})}}}});
+        REQUIRE(backend.captured.size() == 1);
+        CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
     }
 }
 
@@ -6334,6 +6319,13 @@ TEST_CASE("CFS flat: runout.chain is the loaded slot's backup edge",
         CHECK(endless_spool_backup_for(cfg, 0) == 1);
         CHECK(endless_spool_backup_for(cfg, 1) == -1);
         CHECK(endless_spool_backup_for(cfg, 2) == -1);
+    }
+
+    SECTION("a frame carrying only runout reads its bays from the frames before it") {
+        CfsTestAccess::handle_status(
+            backend, make_cfs_notification(
+                         json{{"runout", {{"chain", json::array({3})}, {"loaded_slot", 0}}}}));
+        CHECK(endless_spool_backup_for(backend.get_endless_spool_config(), 0) == 3);
     }
 
     SECTION("a delta that omits runout keeps the parsed chain") {

@@ -25,6 +25,7 @@ namespace helix::ad5x {
 
 constexpr int kNumPorts = 4;
 constexpr int kToolMapSize = 16;
+constexpr int kUnmappedPort = 5;
 
 /// One slot of a GET_ZCOLOR answer, or of a zmod_color / ifs_materials object.
 struct ZColorSlot {
@@ -167,6 +168,33 @@ struct IfsVarsMacro {
 
 /// nullopt for the empty dict Klipper returns for a macro that does not exist.
 [[nodiscard]] std::optional<IfsVarsMacro> parse_ifs_vars_macro(const nlohmann::json& macro_status);
+
+/// tool_map[tool] = port (1..kNumPorts, kUnmappedPort when nothing routes it).
+using ToolMap = std::array<int, kToolMapSize>;
+
+/// The `tool_map` of a `printer.ifs` status object, whose presence is both the
+/// table and the remap capability. Wire shape, as the module serialises it:
+///   "tool_map": {"0": 1, "1": 2, "2": 3, "3": 4}
+/// Keys are STRING tool numbers (0-based, the T<n> a slicer writes; a JSON
+/// object's keys are strings whatever Python held). Values are INT lanes,
+/// 1-BASED, the numbering IFS_LOAD SLOT= and loaded_channels speak. A frame
+/// carries the COMPLETE table, so entries it omits unmap. nullopt when the
+/// object has no such table.
+[[nodiscard]] std::optional<ToolMap> parse_ifs_tool_map(const nlohmann::json& ifs_object);
+
+/// The objects of one status frame that AmsBackendAd5xIfs applies under its
+/// lock, each nullopt when the frame does not state it.
+struct StatusFrame {
+    std::optional<SaveVariables> save_variables; ///< `save_variables.variables`
+    std::optional<IfsVarsMacro> ifs_vars_macro;  ///< `gcode_macro _ifs_vars`
+    std::optional<ToolMap> ifs_tool_map;         ///< `ifs.tool_map`
+    SensorFrame sensors;
+};
+
+/// @p known_prefix is the plugin prefix the caller already knows, as in
+/// parse_save_variables().
+[[nodiscard]] StatusFrame parse_status_frame(const nlohmann::json& status,
+                                             const std::string& known_prefix);
 
 /// filament.json: per-material {filament_tube_length, filament_ifs_speed}.
 struct FilamentEjectTable {

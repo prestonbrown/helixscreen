@@ -431,6 +431,46 @@ SaveVariables parse_save_variables(const json& vars, const std::string& known_pr
     return out;
 }
 
+std::optional<ToolMap> parse_ifs_tool_map(const json& ifs_object) {
+    const auto it = ifs_object.find("tool_map");
+    if (it == ifs_object.end() || !it->is_object()) {
+        return std::nullopt;
+    }
+    ToolMap parsed{};
+    parsed.fill(kUnmappedPort);
+    for (auto entry = it->begin(); entry != it->end(); ++entry) {
+        const auto tool_number = helix::text_io::parse_leading<int>(entry.key());
+        if (!tool_number || *tool_number < 0 || *tool_number >= kToolMapSize) {
+            continue;
+        }
+        const json& lane = entry.value();
+        if (lane.is_number_integer()) {
+            const int port = lane.get<int>();
+            if (port >= 1 && port <= kNumPorts) {
+                parsed[static_cast<size_t>(*tool_number)] = port;
+            }
+        }
+    }
+    return parsed;
+}
+
+StatusFrame parse_status_frame(const json& status, const std::string& known_prefix) {
+    StatusFrame frame;
+    if (const auto sv = status.find("save_variables"); sv != status.end()) {
+        if (const auto vars = sv->find("variables"); vars != sv->end() && vars->is_object()) {
+            frame.save_variables = parse_save_variables(*vars, known_prefix);
+        }
+    }
+    if (const auto macro = status.find("gcode_macro _ifs_vars"); macro != status.end()) {
+        frame.ifs_vars_macro = parse_ifs_vars_macro(*macro);
+    }
+    if (const auto ifs = status.find("ifs"); ifs != status.end()) {
+        frame.ifs_tool_map = parse_ifs_tool_map(*ifs);
+    }
+    frame.sensors = parse_sensor_frame(status);
+    return frame;
+}
+
 std::optional<IfsVarsMacro> parse_ifs_vars_macro(const json& macro_status) {
     if (!macro_status.is_object() || macro_status.empty()) {
         return std::nullopt;

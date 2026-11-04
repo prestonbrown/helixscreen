@@ -211,6 +211,28 @@ std::optional<int> tag_record_spoolman_id(std::string_view vender) {
     return id;
 }
 
+std::vector<BayVender> parse_bay_venders(const nlohmann::json& box) {
+    std::vector<BayVender> out;
+    for (int n = 1; n <= 4; ++n) {
+        const auto unit_it = box.find("T" + std::to_string(n));
+        if (unit_it == box.end() || !unit_it->is_object()) {
+            continue;
+        }
+        const auto vender_it = unit_it->find("vender");
+        if (vender_it == unit_it->end() || !vender_it->is_array()) {
+            continue;
+        }
+        const int bays = std::min(kBaysPerBox, static_cast<int>(vender_it->size()));
+        for (int bay = 0; bay < bays; ++bay) {
+            const auto& v = (*vender_it)[static_cast<size_t>(bay)];
+            if (v.is_string()) {
+                out.push_back({n, bay, v.get<std::string>()});
+            }
+        }
+    }
+    return out;
+}
+
 void reserve_address_gaps(AmsSystemInfo& info) {
     std::sort(info.units.begin(), info.units.end(), [](const AmsUnit& a, const AmsUnit& b) {
         return a.first_slot_global_index < b.first_slot_global_index;

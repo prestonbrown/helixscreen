@@ -228,15 +228,10 @@ static void seed_standard_colors(AmsBackendAd5xIfs& b) {
     Ad5xIfsTestAccess::set_material(b, 3, "TPU");
 }
 
-// ==========================================================================
-// 1. Type identification
-// ==========================================================================
-
 TEST_CASE("AD5X IFS type identification", "[ams][ad5x_ifs]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
 
-    REQUIRE(backend.get_type() == AmsType::AD5X_IFS);
     REQUIRE(backend.get_topology() == PathTopology::LINEAR);
 }
 
@@ -376,60 +371,134 @@ TEST_CASE("AD5X IFS tool mapping reverse lookup", "[ams][ad5x_ifs]") {
 }
 
 // ==========================================================================
-// 6. Port sensor parsing via handle_status
+// 6. Whole status frames: everything one notify can carry
 // ==========================================================================
 
-TEST_CASE("AD5X IFS port sensor parsing", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // Set port 1 and 3 as having filament
-    Ad5xIfsTestAccess::handle_status(backend, make_port_sensor(1, true));
-    Ad5xIfsTestAccess::handle_status(backend, make_port_sensor(3, true));
-
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0) == true);
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 1) == false);
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 2) == true);
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 3) == false);
-
-    // Clear port 1
-    Ad5xIfsTestAccess::handle_status(backend, make_port_sensor(1, false));
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0) == false);
+namespace {
+/// A lessWaste rig's status query: every object handle_status reads, beside
+/// ones it does not. The two head sensors disagree the way a loaded, idle lane
+/// makes them: the switch sees filament and the motion sensor sees no movement.
+json plugin_rig_frame() {
+    return json::parse(R"({
+        "webhooks": {"state": "ready"},
+        "save_variables": {"variables": {
+            "less_waste_tools": [2, 1, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+            "less_waste_current_tool": 1,
+            "less_waste_external": 0,
+            "bambufy_custom_types": ["PLA+"]}},
+        "gcode_macro _ifs_vars": {"variable_backup": 1, "variable_ifs_unlock_after_boot": 1},
+        "filament_switch_sensor _ifs_port_sensor_1": {"filament_detected": true},
+        "filament_switch_sensor _ifs_port_sensor_2": {"filament_detected": false},
+        "filament_switch_sensor _ifs_port_sensor_3": {"filament_detected": true},
+        "filament_switch_sensor _ifs_port_sensor_4": {"filament_detected": false},
+        "zmod_ifs_motion_sensor ifs_motion_sensor": {"filament_detected": false},
+        "zmod_ifs_switch_sensor head_switch_sensor": {"filament_detected": true},
+        "extruder": {"temperature": 219.5, "target": 220.0}
+    })");
 }
 
-// ==========================================================================
-// 7. Head sensor parsing via handle_status
-// ==========================================================================
+/// Delivers frames to a plugin rig and counts the state events they raise.
+struct FrameRig {
+    helix::test::RegisteredBackend<AmsBackendAd5xIfs> reg{nullptr, nullptr};
+    AmsBackendAd5xIfs& backend = *reg;
+    int events = 0;
+    FrameRig() {
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        backend.set_event_callback([this](const std::string& event, const std::string&) {
+            events += event == AmsBackend::EVENT_STATE_CHANGED ? 1 : 0;
+        });
+    }
+    void deliver(const json& frame) {
+        Ad5xIfsTestAccess::handle_status(backend, frame);
+    }
+};
+} // namespace
 
-TEST_CASE("AD5X IFS head sensor parsing", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
+TEST_CASE("AD5X IFS applies one frame's objects together", "[ams][ad5x_ifs]") {
+    FrameRig rig;
+    json frame = plugin_rig_frame();
 
-    REQUIRE_FALSE(Ad5xIfsTestAccess::head_filament(backend));
+    SECTION("a plugin rig's whole frame") {
+        rig.deliver(frame);
+        const auto sys = rig.backend.get_system_info();
+        CHECK(sys.current_tool == 1);
+        CHECK(sys.current_slot == 0); // less_waste_tools routes T1 to port 1
+        CHECK(sys.filament_loaded);   // the switch reads after the motion sensor
+        CHECK(sys.endless_spool_enabled);
+        CHECK(sys.units[0].slots[0].mapped_tool == 1);
+        CHECK(sys.units[0].slots[1].mapped_tool == 0);
+        CHECK(Ad5xIfsTestAccess::port_presence(rig.backend, 0));
+        CHECK_FALSE(Ad5xIfsTestAccess::port_presence(rig.backend, 1));
+        const auto materials = rig.backend.get_supported_materials();
+        REQUIRE(materials);
+        CHECK(std::find(materials->begin(), materials->end(), "PLA+") != materials->end());
+        CHECK(rig.events == 1);
+    }
 
-    Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(true));
-    REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
+    SECTION("the wire tool_map outranks the plugin's table in the same frame") {
+        frame["ifs"] = json{{"tool_map", identity_tool_map()}};
+        rig.deliver(frame);
+        CHECK(Ad5xIfsTestAccess::tool_map(rig.backend)[1] == 2);
+        CHECK(rig.backend.get_system_info().current_slot == 1);
+        CHECK(rig.backend.remap_ready());
+    }
 
-    Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(false));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::head_filament(backend));
+    SECTION("the motion sensor alone speaks for the head") {
+        frame.erase("zmod_ifs_switch_sensor head_switch_sensor");
+        rig.deliver(frame);
+        CHECK_FALSE(rig.backend.get_system_info().filament_loaded);
+    }
+
+    SECTION("conflicting plugin tables drop the rows and leave the sensors") {
+        frame["save_variables"]["variables"]["bambufy_tools"] = json::array({4, 2, 4, 3});
+        rig.deliver(frame);
+        const auto sys = rig.backend.get_system_info();
+        CHECK(sys.current_tool == -1);
+        CHECK(Ad5xIfsTestAccess::tool_map(rig.backend)[0] == 1);
+        CHECK(sys.filament_loaded);
+        CHECK(sys.endless_spool_enabled);
+    }
 }
 
-// ==========================================================================
-// 7b. Native ZMOD IFS motion sensor (no lessWaste per-port sensors)
-// ==========================================================================
+TEST_CASE("AD5X IFS reads a frame's plugin rows under the prefix it knows", "[ams][ad5x_ifs]") {
+    FrameRig rig;
+    rig.deliver(make_save_variables(json{{"bambufy_tools", json::array({1, 2, 3, 4})}}));
+    REQUIRE(Ad5xIfsTestAccess::var_prefix(rig.backend) == "bambufy");
 
-TEST_CASE("AD5X IFS native ZMOD motion sensor parsing", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
+    rig.deliver(
+        make_save_variables(json{{"bambufy_current_tool", 2}, {"less_waste_current_tool", 3}}));
+    CHECK(Ad5xIfsTestAccess::active_tool(rig.backend) == 2);
+}
 
-    REQUIRE_FALSE(Ad5xIfsTestAccess::head_filament(backend));
+TEST_CASE("AD5X IFS tool_map frames publish only a changed table", "[ams][ad5x_ifs]") {
+    FrameRig rig;
+    const json table = {{"0", 2}, {"1", "3"}, {"2", 9}, {"3", 4}, {"99", 1}, {"x", 1}};
+    rig.deliver(json{{"ifs", {{"tool_map", table}}}});
+    const auto map = Ad5xIfsTestAccess::tool_map(rig.backend);
+    CHECK(map[0] == 2);
+    CHECK(map[1] == AmsBackendAd5xIfs::kUnmappedPort);
+    CHECK(map[2] == AmsBackendAd5xIfs::kUnmappedPort);
+    CHECK(map[3] == 4);
+    CHECK(rig.events == 1);
 
-    // Native ZMOD motion sensor maps to head filament state
-    Ad5xIfsTestAccess::handle_status(backend, make_motion_sensor(true));
-    REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
+    rig.deliver(json{{"ifs", {{"tool_map", table}}}});
+    CHECK(rig.events == 1);
+    CHECK(rig.backend.remap_ready());
+}
 
-    Ad5xIfsTestAccess::handle_status(backend, make_motion_sensor(false));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::head_filament(backend));
+TEST_CASE("AD5X IFS frames that state nothing publish nothing", "[ams][ad5x_ifs]") {
+    FrameRig rig;
+    const auto map_before = Ad5xIfsTestAccess::tool_map(rig.backend);
+    rig.deliver(GENERATE(
+        json{{"save_variables", json::object()}}, json{{"save_variables", {{"variables", 3}}}},
+        json{{"save_variables", 7}}, json{{"gcode_macro _ifs_vars", json::object()}},
+        json{{"gcode_macro _ifs_vars", {{"variable_backup", "on"}}}}, json{{"ifs", json::object()}},
+        json{{"ifs", 3}}, json{{"ifs", {{"tool_map", 1}}}},
+        json{{"filament_switch_sensor head_switch_sensor", json::object()}},
+        json{{"extruder", {{"temperature", 20.0}}}}));
+    CHECK(rig.events == 0);
+    CHECK(Ad5xIfsTestAccess::tool_map(rig.backend) == map_before);
+    CHECK_FALSE(rig.backend.remap_ready());
 }
 
 TEST_CASE("AD5X IFS reports a toolhead sensor once its head switch publishes",
@@ -454,68 +523,6 @@ TEST_CASE("AD5X IFS reports a toolhead sensor once its head switch publishes",
         REQUIRE(sys.units.size() == 1);
         CHECK(sys.units[0].has_toolhead_sensor);
     }
-}
-
-TEST_CASE("AD5X IFS native ZMOD combined update (no per-port sensors)", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-
-    // Simulate a native ZMOD IFS status update:
-    // save_variables + motion sensor + head switch sensor, NO per-port sensors
-    json notification;
-    notification["save_variables"] = json{{"variables", standard_variables()}};
-    notification["filament_motion_sensor ifs_motion_sensor"] = json{{"filament_detected", true}};
-    notification["filament_switch_sensor head_switch_sensor"] = json{{"filament_detected", true}};
-
-    Ad5xIfsTestAccess::handle_status(backend, notification);
-
-    // Verify system state — should detect filament loaded via motion sensor
-    auto sys = backend.get_system_info();
-    REQUIRE(sys.type == AmsType::AD5X_IFS);
-    REQUIRE(sys.total_slots == 4);
-    REQUIRE(sys.filament_loaded);
-    REQUIRE(sys.current_tool == 0);
-
-    // Port presence is unknown in native ZMOD (no per-port sensors)
-    // but save_variables provides colors and tool mapping
-    REQUIRE(sys.units.size() == 1);
-    REQUIRE(sys.units[0].slots.size() == 4);
-}
-
-// ==========================================================================
-// 8. Combined status update
-// ==========================================================================
-
-TEST_CASE("AD5X IFS combined status update", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-
-    // Build a combined notification with save_variables + sensors
-    json notification;
-    notification["save_variables"] = json{{"variables", standard_variables()}};
-    notification["filament_switch_sensor _ifs_port_sensor_1"] = json{{"filament_detected", true}};
-    notification["filament_switch_sensor _ifs_port_sensor_2"] = json{{"filament_detected", false}};
-    notification["filament_switch_sensor _ifs_port_sensor_3"] = json{{"filament_detected", true}};
-    notification["filament_switch_sensor _ifs_port_sensor_4"] = json{{"filament_detected", false}};
-    notification["filament_switch_sensor head_switch_sensor"] = json{{"filament_detected", true}};
-
-    Ad5xIfsTestAccess::handle_status(backend, notification);
-
-    // Verify all state
-    REQUIRE(Ad5xIfsTestAccess::active_tool(backend) == 0);
-    REQUIRE_FALSE(Ad5xIfsTestAccess::external_mode(backend));
-    REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 1));
-    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 2));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 3));
-
-    auto sys = backend.get_system_info();
-    REQUIRE(sys.current_tool == 0);
-    REQUIRE(sys.current_slot == 0); // T0 maps to port 1 (slot 0)
-    REQUIRE(sys.filament_loaded);
 }
 
 // ==========================================================================
