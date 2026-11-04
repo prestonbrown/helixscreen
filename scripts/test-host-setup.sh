@@ -81,10 +81,14 @@ on_host 'command -v flock >/dev/null && printf "a\0" | sort -z | comm -z -23 - /
     die "$HOST needs flock and GNU sort/comm with -z"
 
 # The build context goes over the ssh connection as a tar, so the host builds
-# exactly this tree's Dockerfile.
+# exactly this tree's Dockerfile. It is unpacked into a directory there first:
+# buildx refuses a stdin context named together with -f ("ambiguous Dockerfile
+# source").
 step "image $IMAGE from docker/Dockerfile.sanitizer"
-tar -C "$(dirname "${BASH_SOURCE[0]}")/../docker" -cf - . |
-    on_host "sudo -n docker build -q -t $IMAGE -f Dockerfile.sanitizer -" >/dev/null ||
+COPYFILE_DISABLE=1 tar -C "$(dirname "${BASH_SOURCE[0]}")/../docker" -cf - . |
+    on_host "set -e; d=\$(mktemp -d); trap 'rm -rf \"\$d\"' EXIT
+tar -xf - -C \"\$d\"
+sudo -n docker build -q -t $IMAGE -f \"\$d/Dockerfile.sanitizer\" \"\$d\"" >/dev/null ||
     die "image build failed on $HOST"
 
 step "container $CONTAINER: $HOST:$WORK_HOST mounted at $WORK"
