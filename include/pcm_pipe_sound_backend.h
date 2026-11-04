@@ -33,9 +33,9 @@ class PcmPipeSoundBackend : public SoundBackend {
   public:
     static constexpr int kSampleRate = 44100;
     static constexpr size_t kFramesPerChunk = 512;
-    /// How far the render clock runs ahead of wall time. Bounds the audio
-    /// buffered in the pipe and the player, so a note published mid-sound
-    /// lands this late at most instead of a pipe-buffer-full late.
+    /// How far the render clock runs ahead of wall time, so a note published
+    /// mid-sound lands this late. A player that starts behind the clock adds
+    /// up to what the pipe and its own buffer hold, no more.
     static constexpr int kLeadMs = 60;
     /// The player's ALSA buffer (and start threshold), slightly above the lead.
     static constexpr int kPlayerBufferUs = 80000;
@@ -49,7 +49,7 @@ class PcmPipeSoundBackend : public SoundBackend {
     ~PcmPipeSoundBackend() override;
 
     /// The player binary for @p env_override (the HELIX_PCM_PLAYER value, or
-    /// null): "0"/"off" disables, a path names the binary (empty if it is not
+    /// null): "0"/"off"/"no" disables, a path names the binary (empty if it is not
     /// executable), unset falls back to the first executable in @p candidates.
     static std::string find_player(const char* env_override,
                                    const std::vector<std::string>& candidates = default_players());
@@ -113,15 +113,24 @@ class PcmPipeSoundBackend : public SoundBackend {
     int spawn_count() const {
         return spawn_count_.load(std::memory_order_acquire);
     }
+    int consecutive_failures() const {
+        return consecutive_failures_.load(std::memory_order_acquire);
+    }
+    /// Test timing, read by the render thread: call before initialize().
     void set_idle_grace_ms(int ms) {
         idle_grace_ms_ = ms;
+    }
+    void set_failure_timeouts_ms(int write_stall_ms, int reap_timeout_ms) {
+        write_stall_ms_ = write_stall_ms;
+        reap_timeout_ms_ = reap_timeout_ms;
     }
 
   private:
     void render_loop();
     bool spawn_player();
-    /// Close the pipe (EOF drains the player) and reap it; SIGKILL after a bounded wait.
-    void stop_player();
+    /// Close the pipe (EOF drains the player) and reap it; SIGKILL after a bounded
+    /// wait. True when the player exited 0, or there was none.
+    bool stop_player();
     bool write_all(const void* buf, size_t len);
     void render_chunk(std::vector<float>& mix, std::vector<int16_t>& out);
     void ack_pass();
@@ -130,13 +139,17 @@ class PcmPipeSoundBackend : public SoundBackend {
     int pipe_wr_ = -1;
     pid_t player_pid_ = -1;
     int idle_grace_ms_ = kIdleGraceMs;
+    /// A write that makes no progress for this long means the player stopped reading.
+    int write_stall_ms_ = 2000;
+    /// How long the player gets to exit after EOF, and again after SIGKILL.
+    int reap_timeout_ms_ = 2000;
 
     std::thread render_thread_;
     std::atomic<bool> running_{false};
     std::atomic<bool> disabled_{false};
     std::atomic<bool> parked_{false};
     std::atomic<int> spawn_count_{0};
-    int consecutive_failures_ = 0;
+    std::atomic<int> consecutive_failures_{0};
 
     // Sequencer <-> render thread handoff, same shape as the ALSA backend:
     // active_ flips under state_mutex_, resume() waits for one completed pass.
@@ -153,10 +166,12 @@ class PcmPipeSoundBackend : public SoundBackend {
     static constexpr int kMaxVoices = 4;
     VoiceSlot voice_slots_[kMaxVoices];
 
+    // Held across each render call, so clearing the source waits out a call in flight.
     std::function<void(float*, size_t, int)> render_source_;
     std::mutex render_source_mutex_;
 
-    // Shared filter for the external render source (tracker); voices filter per slot.
+    // Shared filter for the external render source (tracker), guarded by
+    // render_source_mutex_; voices filter per slot.
     std::atomic<helix::audio::FilterType> filter_type_{helix::audio::FilterType::NONE};
     std::atomic<float> filter_cutoff_{20000.0f};
     helix::audio::BiquadFilter filter_;

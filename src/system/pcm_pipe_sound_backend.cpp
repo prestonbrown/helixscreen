@@ -25,17 +25,48 @@ extern char** environ;
 namespace {
 
 constexpr const char* kSndDir = "/dev/snd";
-/// A write that makes no progress for this long means the player stopped reading.
-constexpr int kWriteStallMs = 2000;
 constexpr int kWritePollMs = 200;
-/// Bounded wait for the player to drain and exit after EOF before SIGKILL.
-constexpr int kReapTimeoutMs = 2000;
-/// A run that streamed this long without error clears the failure count.
-constexpr uint64_t kHealthyFrames = PcmPipeSoundBackend::kSampleRate / 2;
+/// A run that streamed this much without error clears the failure count. More
+/// than a default 64 KiB pipe holds: frames still sitting in the pipe prove
+/// nothing about the player.
+constexpr uint64_t kHealthyFrames = PcmPipeSoundBackend::kSampleRate;
 constexpr int kResumeHandoffMs = 200;
+/// Audio queued in the pipe is heard late however the render clock paces, so
+/// keep it short: 4 KiB is about 46 ms.
+constexpr int kPipeCapacityBytes = 4096;
 
 bool env_disables(const char* v) {
     return std::strcmp(v, "0") == 0 || std::strcmp(v, "off") == 0 || std::strcmp(v, "no") == 0;
+}
+
+/// A pipe whose ends do not leak into any other child the app spawns.
+bool open_cloexec_pipe(int fds[2]) {
+#ifdef __linux__
+    return pipe2(fds, O_CLOEXEC) == 0;
+#else
+    if (pipe(fds) != 0)
+        return false;
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+    return true;
+#endif
+}
+
+/// Reap @p pid within @p timeout_ms. A pid already gone (ECHILD) reads as a clean exit.
+bool reap_within(pid_t pid, int timeout_ms, int& status) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    for (;;) {
+        const pid_t r = waitpid(pid, &status, WNOHANG);
+        if (r == pid)
+            return true;
+        if (r < 0 && errno != EINTR) {
+            status = 0;
+            return true;
+        }
+        if (std::chrono::steady_clock::now() >= deadline)
+            return false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 }
 
 } // namespace
@@ -81,18 +112,12 @@ bool PcmPipeSoundBackend::has_playback_device(const std::string& snd_dir) {
 }
 
 std::vector<std::string> PcmPipeSoundBackend::player_args(const std::string& player) {
-    return {player,
-            "-q",
-            "-t",
-            "raw",
-            "-f",
-            "S16_LE",
-            "-c",
-            "1",
-            "-r",
-            std::to_string(kSampleRate),
-            "-B",
-            std::to_string(kPlayerBufferUs),
+    return {player, "-q",
+            "-t",   "raw",
+            "-f",   "S16_LE",
+            "-c",   "1",
+            "-r",   std::to_string(kSampleRate),
+            "-B",   std::to_string(kPlayerBufferUs),
             "-"};
 }
 
@@ -158,7 +183,7 @@ void PcmPipeSoundBackend::shutdown() {
 
 bool PcmPipeSoundBackend::spawn_player() {
     int fds[2];
-    if (pipe2(fds, O_CLOEXEC) < 0) {
+    if (!open_cloexec_pipe(fds)) {
         spdlog::warn("[PcmPipeSound] pipe: {}", std::strerror(errno));
         return false;
     }
@@ -206,6 +231,10 @@ bool PcmPipeSoundBackend::spawn_player() {
     // Non-blocking so a player that stops reading is a bounded stall, never a
     // render thread wedged in write() that shutdown() can no longer join.
     fcntl(fds[1], F_SETFL, fcntl(fds[1], F_GETFL) | O_NONBLOCK);
+#ifdef F_SETPIPE_SZ
+    // Best effort: a kernel that refuses keeps its default, which only adds latency.
+    fcntl(fds[1], F_SETPIPE_SZ, kPipeCapacityBytes);
+#endif
     pipe_wr_ = fds[1];
     player_pid_ = pid;
     spawn_count_.fetch_add(1, std::memory_order_acq_rel);
@@ -213,27 +242,28 @@ bool PcmPipeSoundBackend::spawn_player() {
     return true;
 }
 
-void PcmPipeSoundBackend::stop_player() {
+bool PcmPipeSoundBackend::stop_player() {
     if (pipe_wr_ >= 0) {
         close(pipe_wr_);
         pipe_wr_ = -1;
     }
     if (player_pid_ <= 0)
-        return;
-    int status = 0;
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kReapTimeoutMs);
-    while (waitpid(player_pid_, &status, WNOHANG) == 0) {
-        if (std::chrono::steady_clock::now() >= deadline) {
-            spdlog::warn("[PcmPipeSound] player (pid {}) did not exit after EOF; killing",
-                         player_pid_);
-            kill(player_pid_, SIGKILL);
-            waitpid(player_pid_, &status, 0);
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-    spdlog::debug("[PcmPipeSound] player (pid {}) exited", player_pid_);
+        return true;
+    const pid_t pid = player_pid_;
     player_pid_ = -1;
+
+    int status = 0;
+    if (reap_within(pid, reap_timeout_ms_, status)) {
+        spdlog::debug("[PcmPipeSound] player (pid {}) exited, status {}", pid, status);
+        return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    }
+    spdlog::warn("[PcmPipeSound] player (pid {}) did not exit after EOF; killing", pid);
+    kill(pid, SIGKILL);
+    // Bounded too: a player stuck in the audio driver cannot die, and an
+    // unbounded wait here would wedge shutdown() in its join.
+    if (!reap_within(pid, reap_timeout_ms_, status))
+        spdlog::warn("[PcmPipeSound] player (pid {}) survived SIGKILL; not waiting", pid);
+    return false;
 }
 
 bool PcmPipeSoundBackend::write_all(const void* buf, size_t len) {
@@ -256,12 +286,12 @@ bool PcmPipeSoundBackend::write_all(const void* buf, size_t len) {
         if (!running_.load(std::memory_order_relaxed))
             return false;
         pollfd pfd{pipe_wr_, POLLOUT, 0};
-        int r = poll(&pfd, 1, kWritePollMs);
+        int r = poll(&pfd, 1, std::min(kWritePollMs, write_stall_ms_));
         if (r < 0 && errno != EINTR)
             return false;
         if (r == 0) {
-            stalled_ms += kWritePollMs;
-            if (stalled_ms >= kWriteStallMs) {
+            stalled_ms += std::min(kWritePollMs, write_stall_ms_);
+            if (stalled_ms >= write_stall_ms_) {
                 spdlog::warn("[PcmPipeSound] player stopped reading for {} ms", stalled_ms);
                 return false;
             }
@@ -291,13 +321,11 @@ void PcmPipeSoundBackend::render_chunk(std::vector<float>& mix, std::vector<int1
     const float sr = static_cast<float>(kSampleRate);
 
     {
-        std::function<void(float*, size_t, int)> source;
-        {
-            std::lock_guard<std::mutex> lock(render_source_mutex_);
-            source = render_source_;
-        }
-        if (source) {
-            source(mix.data(), frames, kSampleRate);
+        // Held across the call: the source captures a tracker its owner destroys
+        // right after clear_render_source() returns.
+        std::lock_guard<std::mutex> lock(render_source_mutex_);
+        if (render_source_) {
+            render_source_(mix.data(), frames, kSampleRate);
             auto ft = filter_type_.load(std::memory_order_acquire);
             if (ft != helix::audio::FilterType::NONE) {
                 float cutoff = filter_cutoff_.load(std::memory_order_relaxed);
@@ -335,9 +363,8 @@ void PcmPipeSoundBackend::render_loop() {
         {
             std::unique_lock<std::mutex> lock(state_mutex_);
             parked_.store(true, std::memory_order_release);
-            state_cv_.wait(lock, [this] {
-                return active_ || !running_.load(std::memory_order_relaxed);
-            });
+            state_cv_.wait(lock,
+                           [this] { return active_ || !running_.load(std::memory_order_relaxed); });
             parked_.store(false, std::memory_order_release);
         }
         if (!running_.load(std::memory_order_relaxed))
@@ -375,39 +402,42 @@ void PcmPipeSoundBackend::render_loop() {
                 frames += kFramesPerChunk;
                 if (!healthy && frames >= kHealthyFrames) {
                     healthy = true;
-                    consecutive_failures_ = 0;
+                    consecutive_failures_.store(0, std::memory_order_release);
                 }
                 ack_pass();
 
                 // Pace against our own clock: never more than kLeadMs of audio
                 // ahead of wall time, so a note published mid-sound is heard
                 // at most that late. Behind schedule, catch up without sleeping.
-                const auto deadline =
-                    t0 + std::chrono::microseconds(frames * 1000000ULL / kSampleRate) -
-                    std::chrono::milliseconds(kLeadMs);
+                const auto deadline = t0 +
+                                      std::chrono::microseconds(frames * 1000000ULL / kSampleRate) -
+                                      std::chrono::milliseconds(kLeadMs);
                 std::this_thread::sleep_until(deadline);
             }
         }
 
-        if (failed) {
-            stop_player();
-            if (++consecutive_failures_ >= kMaxConsecutiveFailures &&
-                !disabled_.exchange(true)) {
-                spdlog::warn("[PcmPipeSound] {} failed {} times in a row; sound disabled",
-                             player_, consecutive_failures_);
+        if (!running_.load(std::memory_order_relaxed))
+            break;
+
+        // Idle grace over or the stream broke: EOF lets the player drain its
+        // buffer and exit. A clean burst does not vouch for a player that then
+        // exits nonzero, as one that could not open the card does.
+        const bool clean_exit = stop_player();
+        if (failed || !clean_exit) {
+            const int failures = consecutive_failures_.fetch_add(1, std::memory_order_acq_rel) + 1;
+            if (failures >= kMaxConsecutiveFailures && !disabled_.exchange(true)) {
+                spdlog::warn("[PcmPipeSound] {} failed {} times in a row; sound disabled", player_,
+                             failures);
             }
-            {
+            // After a clean stream a resume() may have landed during the reap;
+            // only a broken stream or the latch drops it.
+            if (failed || disabled_.load(std::memory_order_acquire)) {
                 std::lock_guard<std::mutex> lock(state_mutex_);
                 active_ = false;
                 suspend_requested_ = false;
             }
             ack_pass();
-            continue;
         }
-        if (!running_.load(std::memory_order_relaxed))
-            break;
-        // Idle grace over: EOF lets the player drain its buffer and exit.
-        stop_player();
     }
     stop_player();
 }
@@ -510,6 +540,7 @@ void PcmPipeSoundBackend::clear_render_source() {
 }
 
 void PcmPipeSoundBackend::set_filter(const std::string& type, float cutoff) {
+    std::lock_guard<std::mutex> lock(render_source_mutex_);
     if (type.empty()) {
         filter_type_.store(helix::audio::FilterType::NONE, std::memory_order_relaxed);
         return;
