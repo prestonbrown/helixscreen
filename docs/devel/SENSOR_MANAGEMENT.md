@@ -297,7 +297,7 @@ All values are integers so XML can bind them. Fixed-name subjects register globa
 | `filament_width_diameter`, `filament_diameter_text` | Width | microns, string (`"--"` default) |
 | `input_door_check` | Input | 0/1, the door-check setting |
 
-The count subjects double as hardware gates: `src/ui/panel_widget_registry.cpp` names `temp_sensor_count`, `filament_sensor_count`, `humidity_sensor_count` and `width_sensor_count` as `hardware_gate_subject`s, and `ui_xml/sensors_overlay.xml` hides each section with `bind_flag_if_eq ... ref_value="0"`.
+The count subjects double as hardware gates: `src/ui/home/panel_widget_registry.cpp` names `temp_sensor_count`, `filament_sensor_count`, `humidity_sensor_count` and `width_sensor_count` as `hardware_gate_subject`s, and `ui_xml/sensors_overlay.xml` hides each section with `bind_flag_if_eq ... ref_value="0"`.
 
 Each manager exposes `subjects_lifetime()`. Pass it as the fourth argument of `observe<int>()` for any observer that can outlive the manager's teardown, as `src/ui/settings/ui_settings_sensors.cpp#watch` does with the revision subject.
 
@@ -596,7 +596,7 @@ Add a row to `kRows` in `src/printer/hardware_object_table.cpp` (or a chip to `h
 4. **Register** the manager in `src/sensors/sensor_manager.cpp`: one line. Subject init, discovery, the configfile pass (when `rediscover_on_config` is set), the status fan-out, subscriptions, telemetry and the Settings section's subjects all follow.
 5. **Settings section.** Add a `setting_group` to `ui_xml/sensors_overlay.xml` gated on the manager's count subject, with a `<repeat count="sensor_<slug>_row_count">` of `sensor_row` (`role_options` in `Options::roles` order if roles are offered).
 6. **Source lists.** A new `.cpp` under `src/` goes into `firmware/helixscreen-esp32/components/helixapp/app_srcs.txt` (or `app_srcs_excluded.txt` with a reason).
-7. **Home widget**, if any: a `hardware_gate_subject` in `src/ui/panel_widget_registry.cpp` (see [PANEL_WIDGET_GUIDE.md](PANEL_WIDGET_GUIDE.md)).
+7. **Home widget**, if any: a `hardware_gate_subject` in `src/ui/home/panel_widget_registry.cpp` (see [PANEL_WIDGET_GUIDE.md](PANEL_WIDGET_GUIDE.md)).
 8. **Mock.** Add the objects and an initial status to the mock client so `--test` shows the category.
 9. **Tests.** A tagged test that discovers the new names, feeds a status frame, and round-trips settings if it persists.
 

@@ -43,7 +43,7 @@ each of the old selection's jobs lives now.
 | `include/led/led_device_page.h`, `src/led/led_device_page.cpp` | `classify_device_page()` — the capability table mapping a device (plus macro type and whether `led_effect` defines anything for it) to the sections its LEDs-overlay page shows; `white_tone()`, `fit_look()`, `ring_for_look()`, `output_rgb()`, `LEVEL_CHIPS` |
 | `include/led/led_auto_state.h` | `LedAutoState` singleton — automatic state-to-LED mapping; `stage_light_selection()`, the one-time legacy-selection migration's write path |
 | `src/led/led_auto_state.cpp` | Observer-based state tracking, action application, config I/O |
-| `include/light_button_config.h`, `src/ui/light_button_config.cpp` | Per-instance home light button config: `home_light_button_keys()`, `adopt_pending_light_button()`, `home_light_button_targets()` |
+| `include/light_button_config.h`, `src/ui/home/light_button_config.cpp` | Per-instance home light button config: `home_light_button_keys()`, `adopt_pending_light_button()`, `home_light_button_targets()` |
 
 ### UI
 

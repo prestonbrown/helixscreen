@@ -40,7 +40,7 @@ namespace {
 
 /// Forwards LV_EVENT_PRESSING to the GridEditMode instance under test — the
 /// same wiring HomePanel::on_home_grid_pressing uses in production
-/// (src/ui/ui_panel_home.cpp), minus the safe-event-cb exception handling this
+/// (src/ui/home/ui_panel_home.cpp), minus the safe-event-cb exception handling this
 /// test doesn't need.
 void forward_pressing(lv_event_t* e) {
     auto* em = static_cast<GridEditMode*>(lv_event_get_user_data(e));
@@ -92,7 +92,7 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: real drag lands on the gutter-aw
 
     // Real grid descriptor + pad_column/pad_row = gutter, matching what
     // PanelWidgetManager installs on the live home-panel container
-    // (src/ui/panel_widget_manager.cpp) — this is what current_metrics()
+    // (src/ui/home/panel_widget_manager.cpp) — this is what current_metrics()
     // needs a REAL grid for: not its own cols/rows count (it does not read
     // the descriptor for that), but so LVGL's own grid engine positions our
     // child widget for real, which is what the press points below are read

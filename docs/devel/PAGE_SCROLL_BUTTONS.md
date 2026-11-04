@@ -21,8 +21,8 @@ on top of somebody's content.
 | Path | Role |
 |------|------|
 | `include/page_scroll_math.h` | Pure paging math. No LVGL state, trivially testable |
-| `include/page_scroll_controller.h` + `src/ui/page_scroll_controller.cpp` | One controller per managed container. Owns the gutter, the reserved padding, and the scroll wiring |
-| `include/page_scroll_auto_inject.h` + `src/ui/page_scroll_auto_inject.cpp` | The policy. Walks a shown root and decides what gets a controller |
+| `include/page_scroll_controller.h` + `src/ui/home/page_scroll_controller.cpp` | One controller per managed container. Owns the gutter, the reserved padding, and the scroll wiring |
+| `include/page_scroll_auto_inject.h` + `src/ui/home/page_scroll_auto_inject.cpp` | The policy. Walks a shown root and decides what gets a controller |
 | `ui_xml/components/page_scroll_gutter.xml` | The chevron column itself. Created by the controller, never placed in screen XML |
 | `src/system/display_settings_manager.cpp#init_subjects` | The setting and its per-platform default |
 
@@ -70,7 +70,7 @@ activate), `src/ui/ui_nav_manager.cpp#activate_initial_panel` (initial panel) an
 the setting live, prunes dead controllers, forces a layout pass so overflow is
 measurable, then walks.
 
-A container qualifies when all three hold (`src/ui/page_scroll_auto_inject.cpp#qualifies`):
+A container qualifies when all three hold (`src/ui/home/page_scroll_auto_inject.cpp#qualifies`):
 
 | Condition | Why |
 |---|---|
@@ -112,7 +112,7 @@ attaching to whatever was scrollable inside. Marking the root and returning
 there is what actually stops it.
 
 Tiles are marked at the single place one is created,
-`src/ui/panel_widget_manager.cpp`, right after `lv_obj_set_name()`. There is no
+`src/ui/home/panel_widget_manager.cpp`, right after `lv_obj_set_name()`. There is no
 second path: the widget pool recycles `PanelWidget` C++ instances, not LVGL
 objects, and the object tree is always cleaned and rebuilt.
 
@@ -126,24 +126,24 @@ needs paging, add a narrow opt-back-in rather than removing the cut.
 
 ## How a gutter behaves once attached
 
-The controller (`src/ui/page_scroll_controller.cpp`) creates the gutter as a
-child of the container it manages (`src/ui/page_scroll_controller.cpp#attach`) and positions it with
+The controller (`src/ui/home/page_scroll_controller.cpp`) creates the gutter as a
+child of the container it manages (`src/ui/home/page_scroll_controller.cpp#attach`) and positions it with
 `floating="true" align="right_mid"`, so it neither participates in the parent's
 flex or grid layout nor scrolls with the content.
 
 To keep the chevrons off the content,
-`apply_reserved_padding()` (`src/ui/page_scroll_controller.cpp#apply_reserved_padding`)
+`apply_reserved_padding()` (`src/ui/home/page_scroll_controller.cpp#apply_reserved_padding`)
 grows the container's `pad_right` by the gutter width and translates the gutter
 back out over the strip it just freed. The original `pad_right` and scrollbar
-mode are saved at attach (`src/ui/page_scroll_controller.cpp#attach`) and
-restored on detach (`src/ui/page_scroll_controller.cpp#detach`).
+mode are saved at attach (`src/ui/home/page_scroll_controller.cpp#attach`) and
+restored on detach (`src/ui/home/page_scroll_controller.cpp#detach`).
 
-`refresh_reach_state()` (`src/ui/page_scroll_controller.cpp#refresh_reach_state`)
+`refresh_reach_state()` (`src/ui/home/page_scroll_controller.cpp#refresh_reach_state`)
 runs on scroll and resize: it hides the
 gutter and drops the padding when content fits, and otherwise disables the up or
 down chevron at each end. Paging is
 `lv_obj_scroll_by_bounded(container_, 0, -direction * step, anim)`
-(`src/ui/page_scroll_controller.cpp#scroll_by_page`),
+(`src/ui/home/page_scroll_controller.cpp#scroll_by_page`),
 where `step` is `page_scroll_step()` - 90% of the viewport, so a row overlaps
 between pages - and `anim` follows the Animations setting.
 

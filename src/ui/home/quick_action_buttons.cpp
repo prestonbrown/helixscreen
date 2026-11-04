@@ -14,7 +14,7 @@
 #include "macro_executor.h"
 #include "macro_param_defaults.h"
 #include "moonraker_api.h"
-#include "panel_widgets/led_widget.h"
+#include "src/ui/panel_widgets/led_widget.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 

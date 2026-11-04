@@ -57,7 +57,7 @@ The current head of the ladder:
   flat widget arrays into the page shape. The tag is all this migration writes: it runs
   at config load, before the screen size is known, so the actual coordinate conversion
   happens later, at the first square-cell grid build, in
-  `port_legacy_layout()` (`include/layout_port.h` + `src/ui/layout_port.cpp`), which
+  `port_legacy_layout()` (`include/layout_port.h` + `src/ui/home/layout_port.cpp`), which
   drops the tag when done. Three guards keep a replay from converting twice: a panel
   that already carries `grid`/`parked_grids` (per-grid storage postdates the
   migration), one already tagged, and one with no coordinates at all.

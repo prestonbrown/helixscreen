@@ -8,7 +8,7 @@
 # GridLayout::get_cols()/get_rows()/get_dimensions() directly; every other
 # grid_edit_mode.cpp path takes a CellMetrics from it instead of recomputing,
 # so gutter handling and int-vs-float rounding can't drift between call
-# sites. The gate counts matching LINES in src/ui/grid_edit_mode.cpp and
+# sites. The gate counts matching LINES in src/ui/home/grid_edit_mode.cpp and
 # fails once that count exceeds LIMIT (2 — one get_cols + one get_rows, both
 # inside current_metrics()), so a regrown duplicate stays caught.
 #
@@ -29,9 +29,9 @@ setup() {
     cp "$GATE_SRC" "$FIXTURE_DIR/scripts/check_grid_metrics_single_source.py"
 }
 
-# Write $1 into the fixture's src/ui/grid_edit_mode.cpp and run the copied gate.
+# Write $1 into the fixture's src/ui/home/grid_edit_mode.cpp and run the copied gate.
 run_gate() {
-    printf '%s\n' "$1" > "$FIXTURE_DIR/src/ui/grid_edit_mode.cpp"
+    printf '%s\n' "$1" > "$FIXTURE_DIR/src/ui/home/grid_edit_mode.cpp"
     run python3 "$FIXTURE_DIR/scripts/check_grid_metrics_single_source.py"
 }
 
@@ -62,7 +62,7 @@ int g(UiBreakpoint bp) {
 }
 
 @test "fails rather than silently passing when the target file is missing" {
-    # No run_gate call — the fixture's src/ui/grid_edit_mode.cpp never gets
+    # No run_gate call — the fixture's src/ui/home/grid_edit_mode.cpp never gets
     # written, so the copied gate must report the miss, not exit 0.
     run python3 "$FIXTURE_DIR/scripts/check_grid_metrics_single_source.py"
     [ "$status" -eq 1 ]

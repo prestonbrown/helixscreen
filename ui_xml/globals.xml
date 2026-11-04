@@ -1012,7 +1012,7 @@
     <!-- NO BASE icon_font_xl - registered at runtime -->
     <!-- tile_icon_xxl_size: the home tiles' top icon rung, twice the tier's xl
          glyph, so a tile only reaches it past a cell and a half. It names a
-         size, not a face: src/ui/ui_tile_rung.cpp draws it in the largest MDI
+         size, not a face: src/ui/home/ui_tile_rung.cpp draws it in the largest MDI
          face this build links at or below it, scaled up to at most 2x. -->
     <px name="tile_icon_xxl_size_micro" value="64"/>
     <px name="tile_icon_xxl_size_tiny" value="96"/>

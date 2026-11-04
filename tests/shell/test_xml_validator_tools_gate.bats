@@ -49,7 +49,7 @@ setup() {
 @test "tool-build gate sleeps through a staged UI source" {
     run qc_trigger xml_tools
     local trigger="$output"
-    run bash -c 'printf "%s\n" src/ui/ui_panel_home.cpp | grep -qE "$1"' _ "$trigger"
+    run bash -c 'printf "%s\n" src/ui/home/ui_panel_home.cpp | grep -qE "$1"' _ "$trigger"
     [ "$status" -eq 1 ] || fail "a staged .cpp woke the tool build: $trigger"
     run bash -c 'printf "%s\n" ui_xml/home_panel.xml | grep -qE "$1"' _ "$trigger"
     [ "$status" -eq 0 ] || fail "staged XML did not wake the tool build: $trigger"

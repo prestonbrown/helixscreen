@@ -74,7 +74,7 @@ tests/shell/test_generate_manifest.bats	scripts/generate-manifest.sh
 tests/shell/test_generate_whatsnew.bats	CHANGELOG.md VERSION.txt android/whatsnew/ scripts/android-version-code.sh scripts/changelog-section.sh scripts/generate-whatsnew.sh
 tests/shell/test_gpu_lib_callers_gate.bats	scripts/check_gpu_lib_callers.py
 tests/shell/test_gpu_libs_hidden_smoke.bats	.github/workflows/release.yml scripts/ci/gpu_libs_hidden_smoke.sh
-tests/shell/test_grid_metrics_gate.bats	scripts/check_grid_metrics_single_source.py src/ui/grid_edit_mode.cpp
+tests/shell/test_grid_metrics_gate.bats	scripts/check_grid_metrics_single_source.py src/ui/home/grid_edit_mode.cpp
 tests/shell/test_growth_ratchets_gate.bats	.github/workflows/quality.yml lib/lvgl scripts/check_growth_ratchets.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/growth_ratchets.sh ui_xml/globals.xml
 tests/shell/test_layering_gate.bats	scripts/check_layering.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/layering.sh
 tests/shell/test_hand_rolled_swatch_gate.bats	docs/devel/COLOR_SWATCHES.md scripts/check_hand_rolled_swatch.py scripts/hand_rolled_swatch_baseline.txt scripts/staged_content.py src/ui/ui_swatch.cpp ui_xml/components/color_swatch.xml
@@ -102,7 +102,7 @@ tests/shell/test_land_gate.bats	.githooks/lib/land-gate-stamp.sh .github/workflo
 tests/shell/test_lane_binding_reconcile_gate.bats	scripts/check_lane_binding_reconcile.py
 tests/shell/test_latest_green_sha.bats	scripts/latest-green-sha.sh
 tests/shell/test_libhv_dns_resolver_patch.bats	lib/libhv mk/patches.mk mk/rules.mk patches/libhv-dns-resolver-fallback.patch
-tests/shell/test_link_parity_gate.bats	Makefile mk/ scripts/check_link_parity.py scripts/mutate_diff.py scripts/qc/link_parity.sh scripts/quality-checks.sh src/ui/ui_panel_home.cpp
+tests/shell/test_link_parity_gate.bats	Makefile mk/ scripts/check_link_parity.py scripts/mutate_diff.py scripts/qc/link_parity.sh scripts/quality-checks.sh src/ui/home/ui_panel_home.cpp
 tests/shell/test_load_base_rule_conformance.bats	scripts/resolve-backtrace.sh scripts/telemetry-crashes.py server/crash-worker/src/symbol-resolver.ts tests/fixtures/load_base_rule.json
 tests/shell/test_lvgl_event_code_gate.bats	Makefile lib/lvgl lv_conf.h mk/tools.mk scripts/gen_lvgl_event_codes.py scripts/qc/lvgl_event_codes.sh scripts/quality-checks.sh server/crash-worker/
 tests/shell/test_make_t_timeout.bats	scripts/check_test_binary_current.sh scripts/qc/hidden_tests.sh
@@ -174,7 +174,7 @@ tests/shell/test_teardown_worktree_recovery.bats	lib/glm lib/helix-xml lib/lua l
 tests/shell/test_telemetry_pull_args.bats	scripts/telemetry-pull.sh tests/shell/helpers.bash
 tests/shell/test_telemetry_pull_download.bats	scripts/telemetry-pull.sh tests/shell/helpers.bash
 tests/shell/test_telemetry_update_printer_db.bats	scripts/telemetry-update-printer-db.py
-tests/shell/test_test_binary_current.bats	scripts/check_test_binary_current.sh scripts/qc/hidden_tests.sh src/system/helix_version.cpp src/ui/ui_panel_home.cpp
+tests/shell/test_test_binary_current.bats	scripts/check_test_binary_current.sh scripts/qc/hidden_tests.sh src/system/helix_version.cpp src/ui/home/ui_panel_home.cpp
 tests/shell/test_test_budget_gate.bats	scripts/check_test_budget.py scripts/qc/_lib.sh scripts/qc/test_budget.sh ui_xml/globals.xml
 tests/shell/test_test_host_run_lock.bats	scripts/diff_base.py scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/mutate_diff.py scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
 tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/plugin-host-matrix.sh scripts/test-host-run.sh tests/shell/test_host_run_drop.bash

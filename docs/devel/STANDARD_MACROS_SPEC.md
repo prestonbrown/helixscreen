@@ -51,7 +51,7 @@ The Standard Macros system provides a unified registry that maps semantic operat
 > resolves for this slot - an undetected, unconfigured `park_toolhead` answers
 > **Empty**. The Motion screen's Park button then falls back to its own move:
 > Z up 10mm (or to the plate's lift floor when a print may still be on the bed), then over
-> the rear of the plate (`src/ui/bed_plate_context.cpp#park_over_plate_target`,
+> the rear of the plate (`src/ui/home/bed_plate_context.cpp#park_over_plate_target`,
 > `helix::plate_rear_park()`). Park is disabled until every axis is homed and never homes by
 > itself. The home Toolhead widget's Park slot takes the same path. Detection is exact-name like every other slot, so underscore-prefixed
 > or suffixed variants (`_PARK`, `PARK_2`, ...) never match; a printer wanting

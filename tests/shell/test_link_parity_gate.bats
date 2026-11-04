@@ -129,7 +129,7 @@ edit_mk() {
     for path in Makefile mk/pi-dual-link.mk mk/egl-link.mk mk/rules.mk scripts/check_link_parity.py; do
         printf '%s\n' "$path" | grep -Eq "$re" || fail "$path does not trigger the gate"
     done
-    refute_sh "printf '%s\n' src/ui/ui_panel_home.cpp | grep -Eq '$re'"
+    refute_sh "printf '%s\n' src/ui/home/ui_panel_home.cpp | grep -Eq '$re'"
 }
 
 @test "qc_link_parity reports the gate's verdict" {

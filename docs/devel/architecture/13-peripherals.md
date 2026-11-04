@@ -73,7 +73,7 @@ flowchart LR
 | [`src/system/ipp_protocol.cpp`](../../../src/system/ipp_protocol.cpp) / [`sheet_label_layout.cpp`](../../../src/system/sheet_label_layout.cpp) | IPP 2.0 encoding + PWG Raster and the 10 Avery sheet templates (A4/Letter) |
 | [`include/bt_discovery_utils.h`](../../../include/bt_discovery_utils.h) | Brand-detection table (name prefix → protocol family) + BLE UUID matching |
 | [`include/camera_stream.h`](../../../include/camera_stream.h) / [`src/system/camera_stream.cpp`](../../../src/system/camera_stream.cpp) | `CameraStream` - MJPEG decode thread, turbojpeg dlopen, snapshot fallback |
-| [`include/camera_view.h`](../../../include/camera_view.h) / [`src/ui/camera_view.cpp`](../../../src/ui/camera_view.cpp) | `CameraView` - one displayed feed: owns the stream, marshals frames to the UI thread, safe stop |
+| [`include/camera_view.h`](../../../include/camera_view.h) / [`src/ui/home/camera_view.cpp`](../../../src/ui/home/camera_view.cpp) | `CameraView` - one displayed feed: owns the stream, marshals frames to the UI thread, safe stop |
 | [`include/usb_scanner_monitor.h`](../../../include/usb_scanner_monitor.h) / [`src/system/usb_scanner_monitor.cpp`](../../../src/system/usb_scanner_monitor.cpp) | `UsbScannerMonitor` - evdev reader for HID keyboard-wedge scanners |
 | [`include/snapshot_qr_scanner.h`](../../../include/snapshot_qr_scanner.h) / [`src/system/snapshot_qr_scanner.cpp`](../../../src/system/snapshot_qr_scanner.cpp) | `SnapshotQrScanner` - snapshot-polling viewfinder + QUIRC QR decode |
 | [`src/ui/settings/ui_settings_label_printer.cpp`](../../../src/ui/settings/ui_settings_label_printer.cpp) | Integration site: BT discovery/pairing UI, printer selection, test prints |
