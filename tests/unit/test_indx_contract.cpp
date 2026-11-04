@@ -3,6 +3,7 @@
 // Synthetic fixtures built from the shapes in Bondtech's upstream macros
 // (BondtechAB/INDX macros/indx.cfg, indx-tc-macros.cfg, indx-cal.cfg).
 
+#include "ams_types.h" // ams_type_from_string, is_tool_changer
 #include "display_numbering.h"
 #include "indx_contract.h"
 #include "macro_param_cache.h"
