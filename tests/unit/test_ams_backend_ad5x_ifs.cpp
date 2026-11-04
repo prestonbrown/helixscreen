@@ -8933,7 +8933,7 @@ TEST_CASE("AD5X IFS get_operation_step_model UNLOAD is the 3-phase synth sequenc
           "[ams][ad5x_ifs][stepmodel]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
-    auto model = backend.get_operation_step_model(StepOperationType::UNLOAD);
+    auto model = operation_step_model(backend, StepOperationType::UNLOAD);
     REQUIRE(model.steps.size() == 3);
     CHECK(std::string(model.steps[0].label) == "Heat nozzle");
     CHECK(std::string(model.steps[1].label) == "Cut filament");
@@ -8991,8 +8991,8 @@ TEST_CASE("AD5X IFS get_operation_step_index_subject is the AmsState phase subje
     AmsBackendAd5xIfs& backend = *backend_reg;
     for (auto op :
          {StepOperationType::LOAD_FRESH, StepOperationType::LOAD_SWAP, StepOperationType::UNLOAD}) {
-        CHECK(backend.get_operation_step_index_subject(op) != nullptr);
-        CHECK(backend.get_operation_step_index_subject(op) ==
+        CHECK(operation_step_index_subject(backend, op) != nullptr);
+        CHECK(operation_step_index_subject(backend, op) ==
               AmsState::instance().get_ams_operation_phase_subject());
     }
 }

@@ -3662,6 +3662,11 @@ A caller spells out what a backend without the interface means: the sidebar's bu
 - `IFeederControl` (`include/ams_feeder_control.h`) -- The frame-side gripper that holds the filament:
   `set_feeder_open()`, `feeder_open()`, and `supports_feeder_control()`, which is per machine because
   a controller reports the gripper during discovery. The tool changer backend implements it.
+- `IStepOperation` (`include/ams_step_model.h`) -- A step bar from a firmware phase source: the model,
+  the subject carrying the current step, the operation the backend knows it is running, each step's
+  heater, and which actions the bar follows. The Snapmaker U1, the AD5X IFS and the tool changer
+  implement it. Everything else gets its bar through `operation_step_model()`: the narration template
+  below, or the coarse fallback.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 

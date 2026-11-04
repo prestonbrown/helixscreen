@@ -14,6 +14,7 @@
 #include "../busy_guard_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/running_op_backend.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
@@ -1986,28 +1987,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "Every backend hears the connection drop, once
     set_connection(ConnectionState::CONNECTED);
 }
 
-namespace {
-
-class BusyBackend : public AmsBackendMock {
-  public:
-    BusyBackend() : AmsBackendMock(4) {}
-    AmsAction action = AmsAction::SELECTING;
-    std::optional<StepOperationType> running;
-    AmsAction get_current_action() const override {
-        return action;
-    }
-    std::optional<StepOperationType> running_step_operation() const override {
-        return running;
-    }
-};
-
-} // namespace
-
 TEST_CASE_METHOD(LVGLTestFixture,
                  "A print start waits only for a filament operation this screen runs",
                  "[toolchanger][mount_feed][ams]") {
     AmsState::instance().init_subjects(true);
-    auto owned = std::make_unique<BusyBackend>();
+    auto owned = std::make_unique<RunningOpBackend>();
     auto* backend = owned.get();
     AmsState::instance().set_backend(std::move(owned));
 
@@ -2038,7 +2022,7 @@ TEST_CASE("MedusaHC offers Cancel exactly while cancel() can act",
 
 TEST_CASE_METHOD(LVGLTestFixture, "Abort says Aborting before the backend reports its own result",
                  "[toolchanger][mount_feed][ams]") {
-    struct ReportingBackend : BusyBackend {
+    struct ReportingBackend : RunningOpBackend {
         std::vector<std::string>* infos = nullptr;
         size_t infos_at_cancel = 0;
         AmsError cancel() override {

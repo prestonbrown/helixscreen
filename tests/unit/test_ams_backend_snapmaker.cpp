@@ -321,7 +321,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
 
     SECTION("LOAD is a 5-step model ending in Purge with a live-temp Heat step") {
-        auto model = backend.get_operation_step_model(StepOperationType::LOAD_FRESH);
+        auto model = operation_step_model(backend, StepOperationType::LOAD_FRESH);
         // filament_feed.py sets load_homing, load_picking, load_feeding,
         // load_heating, load_extruding, load_flushing in that order.
         REQUIRE(model.steps.size() == 6);
@@ -371,7 +371,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     // phase, surfaced via AmsState's operation_phase subject (static singleton).
     for (auto op :
          {StepOperationType::LOAD_FRESH, StepOperationType::LOAD_SWAP, StepOperationType::UNLOAD}) {
-        CHECK(backend.get_operation_step_index_subject(op) ==
+        CHECK(operation_step_index_subject(backend, op) ==
               AmsState::instance().get_ams_operation_phase_subject());
     }
 }

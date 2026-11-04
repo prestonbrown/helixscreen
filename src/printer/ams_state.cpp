@@ -23,6 +23,7 @@
 #include "ams_runout_grace.h"
 #include "ams_standing_fault.h"
 #include "ams_state_internal.h"
+#include "ams_step_model.h"
 #include "ams_tool_topology.h"
 #include "app_globals.h"
 #include "core/data_root_resolver.h"
@@ -515,7 +516,8 @@ bool AmsState::any_bypass_active() const {
 bool AmsState::any_operation_running_here() const {
     assert_main_thread();
     for (const auto& backend : registry_.backends()) {
-        if (backend && backend->running_step_operation().has_value()) {
+        const IStepOperation* const steps = backend ? backend->as<IStepOperation>() : nullptr;
+        if (steps && steps->running_step_operation().has_value()) {
             return true;
         }
     }

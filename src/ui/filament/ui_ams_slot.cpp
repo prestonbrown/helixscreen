@@ -532,7 +532,7 @@ static void evaluate_pulse_state(AmsSlotData* data) {
     int target_slot = target_subject ? lv_subject_get_int(target_subject) : -1;
 
     // The "is anything happening" question, defined once in ams_types.h. Broader
-    // than what the step bar follows (AmsBackend::action_tracks_step_operation)
+    // than what the step bar follows (IStepOperation::action_tracks_step_operation)
     // and deliberately backend-independent: a pulse on a slot that turns out not
     // to move is harmless.
     const bool is_active_operation = ams_action_is_busy(action);

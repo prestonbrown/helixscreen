@@ -12,6 +12,7 @@
 #include "ams_backend_afc.h"
 #include "ams_remap.h"
 #include "ams_state.h"
+#include "ams_step_model.h"
 #include "ams_types.h"
 #include "config.h"
 #include "core/update_queue.h"
@@ -6330,13 +6331,11 @@ TEST_CASE("AFC LOAD_FRESH and UNLOAD templates match the real sequences",
     REQUIRE(ids(StepOperationType::UNLOAD) == std::vector<std::string>{"heat", "cut", "unload"});
 }
 
-TEST_CASE("AFC get_operation_step_model mirrors the narration phase template",
+TEST_CASE("AFC operation_step_model mirrors the narration phase template",
           "[unit][ams][afc][stepmodel]") {
     AmsBackendAfcTestHelper afc;
-    // The base AmsBackend default builds the step model from the backend's
-    // toolchange_phase_template — narration backends need no separate override.
     auto tmpl = afc.toolchange_phase_template(StepOperationType::LOAD_SWAP);
-    auto model = afc.get_operation_step_model(StepOperationType::LOAD_SWAP);
+    auto model = operation_step_model(afc, StepOperationType::LOAD_SWAP);
     REQUIRE_FALSE(model.steps.empty());
     REQUIRE(model.steps.size() == tmpl.size());
     for (size_t i = 0; i < tmpl.size(); ++i) {
@@ -6349,12 +6348,11 @@ TEST_CASE("AFC get_operation_step_model mirrors the narration phase template",
     }
 }
 
-TEST_CASE("AFC get_operation_step_index_subject is the narration toolchange-step subject",
+TEST_CASE("AFC operation_step_index_subject is the narration toolchange-step subject",
           "[unit][ams][afc][stepmodel]") {
     AmsBackendAfcTestHelper afc;
-    // The GcodeNarrationRouter drives AmsState's toolchange_step subject; the
-    // base default returns it for any operation with a non-empty template.
-    CHECK(afc.get_operation_step_index_subject(StepOperationType::LOAD_SWAP) ==
+    // The GcodeNarrationRouter drives AmsState's toolchange_step subject.
+    CHECK(operation_step_index_subject(afc, StepOperationType::LOAD_SWAP) ==
           AmsState::instance().get_toolchange_step_subject());
 }
 

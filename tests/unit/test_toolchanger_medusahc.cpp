@@ -435,7 +435,7 @@ TEST_CASE("A swap reported only as 'changing' still reads as busy",
 
 namespace {
 
-std::vector<std::string> step_labels(const AmsBackend::OperationStepModel& model) {
+std::vector<std::string> step_labels(const OperationStepModel& model) {
     std::vector<std::string> out;
     out.reserve(model.steps.size());
     for (const auto& s : model.steps) {

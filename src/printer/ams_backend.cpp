@@ -8,6 +8,7 @@
 #include "ams_backend_indx.h"
 #include "ams_backend_openams.h"
 #include "ams_state.h"
+#include "ams_step_model.h"
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"
 #ifdef HELIX_ENABLE_MOCKS
@@ -213,10 +214,22 @@ AmsBackend::endless_spool_backup_eligibility(int slot_index, int backup_slot) co
                                                              : BackupEligibility::GradeDiffers;
 }
 
-lv_subject_t* AmsBackend::get_operation_step_index_subject(StepOperationType op) {
-    // Narration-capable backends drive their step index through the
-    // GcodeNarrationRouter, which writes AmsState's toolchange_step subject.
-    if (!toolchange_phase_template(op).empty()) {
+OperationStepModel operation_step_model(const AmsBackend& backend, StepOperationType op) {
+    if (const IStepOperation* const steps = backend.as<IStepOperation>()) {
+        return steps->get_operation_step_model(op);
+    }
+    OperationStepModel model;
+    for (const auto& p : backend.toolchange_phase_template(op)) {
+        model.steps.push_back({p.label, -1, p.optional, false, std::nullopt});
+    }
+    return model;
+}
+
+lv_subject_t* operation_step_index_subject(AmsBackend& backend, StepOperationType op) {
+    if (IStepOperation* const steps = backend.as<IStepOperation>()) {
+        return steps->get_operation_step_index_subject(op);
+    }
+    if (!backend.toolchange_phase_template(op).empty()) {
         return AmsState::instance().get_toolchange_step_subject();
     }
     return nullptr;
