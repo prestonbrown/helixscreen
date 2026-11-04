@@ -19,6 +19,7 @@
 #include "macro_param_defaults.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
+#include "printer_discovery.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "tile_color.h"

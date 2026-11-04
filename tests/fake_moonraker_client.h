@@ -28,6 +28,7 @@
 
 #include "i_moonraker_client.h"
 #include "moonraker_error.h"
+#include "printer_discovery.h" // hardware() is defined here, so the type must be complete
 
 #include <algorithm>
 #include <cstdint>

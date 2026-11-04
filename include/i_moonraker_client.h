@@ -10,7 +10,6 @@
 #include "moonraker_events.h"          // for helix::MoonrakerEventCallback
 #include "moonraker_request_tracker.h" // for helix::RequestId
 #include "moonraker_types.h"           // for ::GcodeStoreEntry
-#include "printer_discovery.h"         // for helix::PrinterDiscovery
 
 #include <cstdint>
 #include <functional>
@@ -22,6 +21,10 @@
 namespace helix {
 
 using ::json; // Make global json alias visible in this namespace
+
+// hardware() returns a PrinterDiscovery by value, and a declaration may return an
+// incomplete type: a caller that reads the snapshot includes printer_discovery.h itself.
+class PrinterDiscovery;
 
 /**
  * @brief Unique identifier for notification subscriptions

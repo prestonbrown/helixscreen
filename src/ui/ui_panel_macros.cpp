@@ -26,6 +26,7 @@
 #include "macro_param_defaults.h"
 #include "observer_factory.h"
 #include "preprint_skip_wrappers.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "settings_manager.h"

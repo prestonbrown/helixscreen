@@ -15,6 +15,7 @@
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include "printer_detector.h"
+#include "printer_discovery.h"
 #include "printer_images.h"
 #include "printer_name_sync.h"
 #include "static_panel_registry.h"

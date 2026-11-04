@@ -30,6 +30,7 @@
 #include "panel_widget_manager.h"
 #include "platform_capabilities.h"
 #include "platform_table.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "random_bytes.h"
 #include "screen_locality.h"

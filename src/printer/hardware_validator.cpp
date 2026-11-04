@@ -7,6 +7,7 @@
 #include "ui_panel_settings.h"
 #include "ui_toast_manager.h"
 
+#include "ams_types.h" // ams_type_for_expected_hardware
 #include "config.h"
 #include "filament_sensor_manager.h"
 #include "hardware_object_table.h"

@@ -38,6 +38,7 @@
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include "platform_info.h"
+#include "printer_discovery.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"

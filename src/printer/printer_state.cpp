@@ -31,6 +31,7 @@
 #include "plr_backend.h"
 #include "pre_print_preferences.h"
 #include "printer_cache_registry.h"
+#include "printer_discovery.h"
 #include "probe_sensor_manager.h"
 #include "runtime_config.h"
 #include "settings_manager.h"
