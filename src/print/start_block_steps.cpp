@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "start_block_steps.h"
 
+#include "core/text_io.h"
 #include "gcode_ops_detector.h"
 #include "operation_patterns.h"
 #include "print_start_phase_label.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

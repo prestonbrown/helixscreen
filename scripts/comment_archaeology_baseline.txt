@@ -5,7 +5,7 @@
 1 include/ams_lane_state.h
 2 include/ams_subscription_backend.h
 1 include/filament_op_dispatch.h
-2 include/http_executor.h
+2 include/core/http_executor.h
 1 include/led/led_color_utils.h
 1 include/panel_widget_config.h
 1 include/rpc_error_policy.h

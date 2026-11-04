@@ -20,8 +20,8 @@
 
 #include "ams_error.h"
 #include "ams_types.h"
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
 

@@ -9,9 +9,9 @@
 #include "ui_spoolman_edit_modal.h"
 #include "ui_spoolman_list_view.h"
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "spoolman_types.h" // For SpoolInfo
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <memory>

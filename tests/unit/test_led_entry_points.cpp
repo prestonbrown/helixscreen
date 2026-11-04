@@ -2,12 +2,12 @@
 
 #include "ui_nav_manager.h"
 #include "ui_print_light_timelapse.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_home_layout.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "moonraker_api_mock.h"

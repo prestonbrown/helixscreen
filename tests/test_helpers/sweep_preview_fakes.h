@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_update_queue.h"
-
 #include "belt_stream_client.h"
+#include "core/update_queue.h"
 #include "hv/EventLoopThread.h"
 #include "live_sweep_preview.h"
 #include "sweep_synth.h"

@@ -7,8 +7,8 @@
 #include "ui_overlay_network_settings.h"
 #include "ui_timer_guard.h"
 
+#include "core/log_redact.h"
 #include "ethernet_manager.h"
-#include "log_redact.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "subject_debug_registry.h"

@@ -18,9 +18,9 @@
 //      these is expected to FAIL until 0b lands - that is the point.
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 

@@ -23,12 +23,12 @@
  * Per L053: static LVGL fixtures reset between tests as needed.
  */
 
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/moonraker_error.h"
 #include "../../include/printer_state.h"
 #include "../../include/ui_print_exclude_object_manager.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
@@ -74,7 +74,7 @@ class ExcludeManagerFixture : public LVGLTestFixture {
         manager = std::make_unique<PrintExcludeObjectManager>(api.get(), state, nullptr);
         manager->init();
         // observe<int> defers an initial-value callback through UpdateQueue
-        // (per L048 / observer_factory.h). Drain it now so the print-state
+        // (per L048 / core/observer_factory.h). Drain it now so the print-state
         // watchdog's STANDBY=0 fire-on-subscribe doesn't clear test-injected
         // awaiting_confirmation_ entries on the first real drain.
         UpdateQueue::instance().drain();

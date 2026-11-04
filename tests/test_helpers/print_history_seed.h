@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/print_history_manager_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix_shared_callback.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"

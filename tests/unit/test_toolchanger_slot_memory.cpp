@@ -23,8 +23,6 @@
  * the re-layering, not the Moonraker round-trip.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/toolchanger_test_access.h"
@@ -33,6 +31,7 @@
 #include "ams_types.h"
 #include "app_globals.h"
 #include "consumption_sink.h"
+#include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "lane_source_store.h"
 #include "moonraker_api_mock.h"

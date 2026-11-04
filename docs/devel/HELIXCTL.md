@@ -989,7 +989,7 @@ frame doesn't change again a moment later. It combines four things:
 
 **The skip list, and why a global `lv_timer_enable(false)` cannot be used
 instead:** `UpdateQueue`'s processor is itself an `lv_timer`
-(`include/ui_update_queue.h`), and `RemoteControlServer::execute_on_ui_thread`
+(`include/core/update_queue.h`), and `RemoteControlServer::execute_on_ui_thread`
 dispatches every handler — including `unfreeze` itself — through
 `helix::ui::queue_update()`. A global timer disable stops that processor along
 with everything else, so the very next command blocks for the 10s UI-thread

@@ -9,8 +9,8 @@
 #include "ams_backend_mock.h"
 #include "ams_lane_state.h"
 #include "ams_state.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 #include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"

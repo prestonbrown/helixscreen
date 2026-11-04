@@ -523,7 +523,7 @@ class DebugBundleCollector {
      *
      * Catches MACs, tokens, credentials and emails. It cannot catch an SSID —
      * that is an arbitrary user-chosen string with no pattern — so SSIDs are
-     * kept out of the logs at the call site instead (include/log_redact.h).
+     * kept out of the logs at the call site instead (include/core/log_redact.h).
      */
     static std::string sanitize_text_block(const std::string& body);
 

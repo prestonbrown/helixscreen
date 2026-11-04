@@ -6,7 +6,6 @@
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
@@ -15,6 +14,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "error_event.h"
 #include "filament_mapper.h"
 #include "filament_op_execute.h"

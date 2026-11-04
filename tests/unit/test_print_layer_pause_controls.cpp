@@ -10,9 +10,9 @@
 
 #include "ui_modal.h"
 #include "ui_print_layer_pause.h"
-#include "ui_update_queue.h"
 
 #include "config.h"
+#include "core/update_queue.h"
 #include "gcode_pause_scan.h"
 #include "lvgl_test_fixture.h"
 #include "moonraker_api_mock.h"

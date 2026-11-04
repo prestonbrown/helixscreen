@@ -3,8 +3,7 @@
 
 #include "ui_hsv_picker.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"

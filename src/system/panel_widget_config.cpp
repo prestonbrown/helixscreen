@@ -6,7 +6,8 @@
 #include "ui_timer_guard.h"
 
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "default_layout_resolver.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -18,7 +19,6 @@
 #include "layout_port.h"
 #include "panel_widget_registry.h"
 #include "runtime_config.h"
-#include "text_io.h"
 #include "theme_manager.h"
 
 #include <hv/json.hpp>

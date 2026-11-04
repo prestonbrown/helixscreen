@@ -8,14 +8,13 @@
  *        (prestonbrown/helixscreen#1730).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "bed_drying_controller.h"
 #include "chamber_heater_backend.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

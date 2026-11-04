@@ -3,10 +3,9 @@
 
 #include "post_op_cooldown_manager.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "temperature_controller.h"

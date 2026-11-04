@@ -9,13 +9,13 @@
 #endif
 #include "ui_z_offset_indicator.h"
 
+#include "core/observer_factory.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "filament_database.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "tool_state.h"
 #include "tune_controller.h"

@@ -6,11 +6,11 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "lvgl.h"
-#include "static_panel_registry.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

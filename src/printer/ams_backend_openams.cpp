@@ -4,9 +4,9 @@
 #include "ams_backend_openams.h"
 
 #include "ui_insert_notice.h"
-#include "ui_update_queue.h"
 
 #include "ams_fault_event.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lane_apply.h"
 #include "lane_legacy_migration.h"

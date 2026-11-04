@@ -10,12 +10,12 @@
 #include "async_lifetime_guard.h"
 #include "bed_mesh_calibration_plan.h"
 #include "bed_mesh_probe_temp.h"
+#include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h" // For BedMeshProfile
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <array>

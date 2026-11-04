@@ -4,10 +4,10 @@
 
 #include "screensaver_maze.h"
 
-#include "ui_filename_utils.h"
 #include "ui_panel_print_select.h"
 
 #include "app_globals.h"
+#include "core/gcode_filename.h"
 #include "helix_fs.h"
 #include "lv_draw_buf_guard.h"
 #include "moonraker_types.h"

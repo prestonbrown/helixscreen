@@ -13,8 +13,6 @@
  * - Uses generation counter for stale callback detection
  */
 
-#include "ui_filename_utils.h"
-
 #include "../test_helpers/active_print_media_manager_test_access.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
@@ -22,6 +20,7 @@
 #include "../ui_test_utils.h"
 #include "active_print_media_manager.h"
 #include "async_lifetime_guard.h"
+#include "core/gcode_filename.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_file_api.h"

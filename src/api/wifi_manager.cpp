@@ -15,11 +15,11 @@
 
 #include "ui_error_reporting.h"
 #include "ui_timer_guard.h"
-#include "ui_update_queue.h"
 
 #include "config.h"
-#include "http_executor.h"
-#include "log_redact.h"
+#include "core/http_executor.h"
+#include "core/log_redact.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "safe_log.h"
 #include "spdlog/spdlog.h"

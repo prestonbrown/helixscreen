@@ -6,12 +6,12 @@
 #include "ui_bed_mesh.h"
 
 #include "ui_fonts.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "bed_mesh_overlays.h"
 #include "bed_mesh_render_thread.h"
 #include "bed_mesh_renderer.h"
+#include "core/update_queue.h"
 #include "env_knobs.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"

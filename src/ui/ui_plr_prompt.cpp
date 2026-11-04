@@ -4,12 +4,12 @@
 #include "ui_plr_prompt.h"
 
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 #include "ui_modal.h"
 #include "ui_plr_wizard_overlay.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/gcode_filename.h"
+#include "core/update_queue.h"
 #include "exception_policy.h"
 #include "lvgl.h"
 #include "moonraker_api.h"

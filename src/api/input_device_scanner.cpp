@@ -3,8 +3,8 @@
 #include "input_device_scanner.h"
 
 #include "config.h"
-#include "log_redact.h"
-#include "text_io.h"
+#include "core/log_redact.h"
+#include "core/text_io.h"
 #include "touch_calibration.h"
 
 #include <spdlog/spdlog.h>

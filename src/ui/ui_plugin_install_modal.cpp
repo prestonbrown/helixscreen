@@ -7,8 +7,8 @@
 #include "ui_event_safety.h"
 #include "ui_icon.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"

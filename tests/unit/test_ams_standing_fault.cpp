@@ -8,7 +8,6 @@
 
 #include "ui_ams_loading_error_modal.h"
 #include "ui_panel_ams.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
@@ -19,6 +18,7 @@
 #include "ams_fault_event.h"
 #include "ams_standing_fault.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "fault_surface_correlation.h"
 #include "print_stop_reason.h"
 #include "printer_state.h"

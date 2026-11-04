@@ -12,8 +12,6 @@
  * Written TDD-style - tests WILL FAIL if TelemetryManager is removed.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
@@ -28,6 +26,7 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"

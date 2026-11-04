@@ -8,12 +8,11 @@
  *        landing after its owner is gone is dropped.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "async_lifetime_guard.h"
 #include "camera_frame.h"
 #include "camera_stream.h"
+#include "core/update_queue.h"
 
 #include <fstream>
 #include <iterator>

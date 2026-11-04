@@ -13,7 +13,6 @@
  */
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -22,6 +21,7 @@
 #include "../test_helpers/print_history_seed.h"
 #include "../test_helpers/tile_boxes.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "locale_formats.h"
 #include "lvgl.h"
 #include "moonraker_api.h"

@@ -4,9 +4,9 @@
 
 #include "async_lifetime_guard.h"
 #include "bt_discovery_run.h"
+#include "core/static_panel_registry.h"
 #include "input_device_scanner.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <memory>

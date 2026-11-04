@@ -16,12 +16,12 @@
 #include "ui_modal.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
-#include "ui_notification_threshold.h"
 #include "ui_observer_guard.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/notification_threshold.h"
+#include "core/update_queue.h"
 #include "fault_modal_registry.h"
 
 #include <spdlog/spdlog.h>

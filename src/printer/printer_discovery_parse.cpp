@@ -5,13 +5,13 @@
 #include "ace_vocabulary.h"         // ace::kInstanceObjectPrefix
 #include "ams_types.h"              // ams_type_to_string
 #include "chamber_heater_backend.h" // chamber::match, chamber::keyword_confidence
-#include "display_numbering.h"      // helix::ui::tool_label
+#include "core/text_io.h"
+#include "display_numbering.h" // helix::ui::tool_label
 #include "json_utils.h"
 #include "klipper_extruder_naming.h" // count_extruder_names
 #include "macro_patterns.h"
 #include "printer_discovery.h"
 #include "start_macro_injection.h"
-#include "text_io.h"
 #include "toolchanger_addon.h" // zmod_c5_present
 
 #include <spdlog/spdlog.h>

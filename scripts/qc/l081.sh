@@ -16,7 +16,7 @@ qc_l081() {
 # backtraces. The runtime detector emits `cluster:pstat-async-delete Mechanism C`
 # warnings; this gate catches new instances at commit time.
 #
-# Scope: known bg-thread directories only (src/printer, src/calibration,
+# Scope: known bg-thread directories only (src/core, src/printer, src/calibration,
 # src/led, src/print, src/system, src/sensors, src/api, src/network,
 # src/bluetooth). src/ui/ is excluded — observer cbs there fire on main thread
 # and would false-positive without AST-level lambda-context analysis.

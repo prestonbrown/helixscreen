@@ -6,13 +6,12 @@
 // units before it. A slot's tool is the `tool` the driver publishes for it
 // (instance*4 + slot on ACEPRO), never assumed from the slot's position.
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/ace_backend_test_helper.h"
 #include "../test_helpers/ace_test_access.h"
 #include "ams_backend_ace.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "fake_moonraker_client.h"
 #include "filament_chip_model.h"

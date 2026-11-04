@@ -22,14 +22,14 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "preset_materials.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

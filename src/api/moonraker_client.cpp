@@ -15,11 +15,11 @@
 #include "moonraker_client.h"
 
 #include "ui_error_reporting.h"
-#include "ui_update_queue.h"
 
 #include "abort_manager.h"
 #include "app_globals.h"
 #include "callback_drain.h"
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "helix_version.h"
 #include "host_identity.h"

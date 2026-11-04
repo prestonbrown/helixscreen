@@ -31,6 +31,7 @@
 #include "ams_backend_snapmaker.h"
 #endif
 #include "ams_backend_toolchanger.h"
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
@@ -42,7 +43,6 @@
 #include "lvgl.h"
 #include "printer_discovery.h"
 #include "runtime_config.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

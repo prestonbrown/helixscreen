@@ -6,9 +6,9 @@
 // 800x480 the card is wide: up to 4 tiles lay out 2x2, 5-6 as 3x2, 7 as 4x2.
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 
 #include <set>
 #include <string>

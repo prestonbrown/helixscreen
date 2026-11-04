@@ -2,10 +2,10 @@
 
 #include "ui_color_picker.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "lvgl/src/misc/lv_area_private.h" // lv_area_is_in
 

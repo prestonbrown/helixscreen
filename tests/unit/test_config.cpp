@@ -7,9 +7,9 @@
 #include "app_constants.h"
 #include "config.h"
 #include "config_testing.h"
+#include "core/text_io.h"
 #include "runtime_config.h"
 #include "test_helpers/unique_temp_dir.h"
-#include "text_io.h"
 #include "wizard_config_paths.h"
 
 #include <cstdlib>

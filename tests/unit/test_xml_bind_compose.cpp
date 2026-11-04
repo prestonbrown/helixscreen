@@ -19,10 +19,9 @@
 //
 // The count assertion at the bottom is what notices that you did not.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml_expr.h"
 #include "printer_state.h"
 

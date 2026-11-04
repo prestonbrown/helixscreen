@@ -3,14 +3,13 @@
 
 #pragma once
 
-#include "ui_heater_config.h" // helix::HeaterType
-
 #include "app_macro_activity.h"
 #include "app_motion_activity.h"
 #include "async_lifetime_guard.h"
 #include "busy_episode_owner.h"
 #include "capability_overrides.h"
 #include "hardware_validator.h"
+#include "heater_type.h" // helix::HeaterType
 #include "klippy_state.h"
 #include "lvgl/lvgl.h"
 #include "print_start_phase.h"

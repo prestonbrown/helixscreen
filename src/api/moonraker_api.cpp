@@ -3,9 +3,8 @@
 
 #include "moonraker_api.h"
 
-#include "ui_update_queue.h"
-
 #include "bed_mesh_presence.h"
+#include "core/update_queue.h"
 #include "json_utils.h"
 #include "moonraker_api_internal.h"
 #include "runtime_config.h"

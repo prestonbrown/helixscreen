@@ -3,8 +3,8 @@
 
 #include "wifi_regdomain.h"
 
-#include "system/run_capture.h"
-#include "text_io.h"
+#include "core/run_capture.h"
+#include "core/text_io.h"
 #include "wifi_country.h"
 
 #include <unistd.h>

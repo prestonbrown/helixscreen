@@ -3,7 +3,7 @@
 #include "zmod_color_status.h"
 
 #include "color_utils.h"
-#include "text_io.h"
+#include "core/text_io.h"
 
 namespace helix::zmod_color {
 

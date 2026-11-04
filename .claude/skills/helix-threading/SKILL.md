@@ -65,7 +65,7 @@ from corruption. (§3)
 | §3 No sync widget deletion | What counts as queued, banned-to-replacement table, true escape routes |
 | §4 `ScopedFreeze` | Drain + destroy, buffer-not-drop |
 | §5 Subject lifecycle | Static vs dynamic subjects, local vs member lifetimes, reset ordering, collections |
-| §6 Observers | `observer_factory.h` factories, deferred-by-default (#82), `reset()` vs `release()` (#579) |
+| §6 Observers | `core/observer_factory.h` factories, deferred-by-default (#82), `reset()` vs `release()` (#579) |
 | §7 Shutdown | Registries, ordering, self-registration, `deinit_subjects()` |
 | §8 Threads and pools | No detached spawns, workload-to-pool table |
 | §9 Input event processing | No sync deletion during `indev` dispatch |

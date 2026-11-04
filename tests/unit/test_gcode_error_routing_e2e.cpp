@@ -23,7 +23,6 @@
 // Tagged [.ui_integration]: needs the XML component tree on disk (modal_dialog).
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_error_router_test_access.h"
@@ -31,6 +30,7 @@
 #include "ams_backend_happy_hare.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "error_classify.h"
 #include "error_event.h"
 #include "gcode_error_router.h"

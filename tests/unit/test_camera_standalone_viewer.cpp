@@ -17,7 +17,6 @@
 #if HELIX_HAS_CAMERA
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/camera_stream_test_access.h"
@@ -26,8 +25,9 @@
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "app_globals.h"
 #include "camera_view.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
-#include "http_executor.h"
 #include "printer_state.h"
 
 #include <atomic>

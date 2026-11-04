@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 #include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>

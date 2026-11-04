@@ -7,12 +7,12 @@
  *        can move the radio (prestonbrown/helixscreen#1429).
  */
 
-#include "ui_update_queue.h"
 #include "ui_wizard_wifi.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wizard_wifi_test_access.h"
+#include "core/update_queue.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 

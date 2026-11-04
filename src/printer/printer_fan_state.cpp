@@ -11,6 +11,7 @@
 #include "printer_fan_state.h"
 
 #include "config.h"
+#include "core/text_io.h"
 #include "device_display_name.h"
 #include "fan_gcode.h"
 #include "hardware_object_table.h"
@@ -18,7 +19,6 @@
 #include "json_utils.h"
 #include "lvgl.h"
 #include "state/subject_macros.h"
-#include "text_io.h"
 #include "translation_loader.h"
 #include "unit_conversions.h"
 

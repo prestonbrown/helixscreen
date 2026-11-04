@@ -3,11 +3,10 @@
 // Home widgets on nozzles that share one heater (Bondtech INDX): only the
 // mounted nozzle reads the heater, and the one nozzle row is named after it.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/nozzle_temps_test_access.h"
 #include "../test_helpers/tool_switcher_test_access.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

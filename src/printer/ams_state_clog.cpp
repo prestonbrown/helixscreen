@@ -12,12 +12,12 @@
 #include "ams_state_internal.h"
 #include "app_globals.h"
 #include "clog_meter_geometry.h"
+#include "core/observer_factory.h"
+#include "core/text_io.h"
 #include "filament_sensor_manager.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

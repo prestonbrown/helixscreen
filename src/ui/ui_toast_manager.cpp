@@ -8,13 +8,13 @@
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
 #include "ui_panel_common.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "pending_startup_warnings.h"
 #include "sound_manager.h"
-#include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

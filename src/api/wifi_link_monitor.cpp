@@ -3,7 +3,7 @@
 
 #include "wifi_link_monitor.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 #include "wifi_backend.h"
 #include "wifi_manager.h"
 

@@ -19,11 +19,11 @@
 
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
-#include "static_panel_registry.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "theme_manager.h"
 
 #include <array>

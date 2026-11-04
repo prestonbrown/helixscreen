@@ -11,9 +11,8 @@
  * writers follow it with tool_offsets::activate_mounted_offset_gcode().
  */
 
-#include "ui_update_queue.h"
-
 #include "../busy_guard_fixture.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "printer_profile_state.h"
 #include "save_config_restart.h"

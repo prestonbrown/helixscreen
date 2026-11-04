@@ -22,10 +22,10 @@
  */
 
 #include "ui_filament_mapping_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_mapping_modal_test_access.h"
+#include "core/update_queue.h"
 #include "settings_manager.h"
 
 #include "../catch_amalgamated.hpp"

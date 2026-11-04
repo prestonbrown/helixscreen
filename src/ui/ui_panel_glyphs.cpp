@@ -7,8 +7,8 @@
 #include "ui_icon_codepoints.h"
 
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

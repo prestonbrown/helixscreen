@@ -2,8 +2,7 @@
 
 #include "storage_report.h"
 
-#include "ui_filename_utils.h"
-
+#include "core/gcode_filename.h"
 #include "json_utils.h"
 #include "print_photos.h"
 

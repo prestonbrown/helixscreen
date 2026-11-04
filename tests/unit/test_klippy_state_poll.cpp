@@ -5,11 +5,10 @@
 // settles, because Moonraker announces a successful start but never a failed
 // one: the poll is how a startup error reaches the klippy state.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 

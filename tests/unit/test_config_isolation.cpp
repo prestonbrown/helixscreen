@@ -18,7 +18,7 @@
 #include "../helix_test_fixture.h"
 #include "app_constants.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "tool_state.h"
 
 #include <string>

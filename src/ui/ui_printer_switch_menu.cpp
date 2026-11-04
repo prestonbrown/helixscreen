@@ -9,9 +9,9 @@
 #include "ui_event_safety.h"
 #include "ui_icon_codepoints.h"
 #include "ui_row_text.h"
-#include "ui_update_queue.h"
 
 #include "config.h"
+#include "core/update_queue.h"
 #include "layout_manager.h"
 #include "ui/ui_widget_helpers.h"
 

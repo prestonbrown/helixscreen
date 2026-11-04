@@ -5,11 +5,11 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/text_io.h"
 #include "helix_version.h"
 #include "logging_init.h"
 #include "mock_persona.h"
 #include "runtime_config.h"
-#include "text_io.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>

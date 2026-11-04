@@ -17,10 +17,10 @@
 // on the latch.
 
 #include "ui_emergency_stop.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
 

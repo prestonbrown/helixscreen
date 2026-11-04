@@ -8,11 +8,11 @@
 #include "ui_modal.h"
 #include "ui_panel_print_select.h"
 #include "ui_print_start_controller.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_job_api.h"

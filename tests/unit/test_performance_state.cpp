@@ -1,9 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/performance_state_test_access.h"
+#include "core/update_queue.h"
 #include "moonraker_performance_source.h"
 #include "performance_state.h"
 

@@ -8,7 +8,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scripted_recovery_api.h"
 #include "app_globals.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_recovery_service.h"

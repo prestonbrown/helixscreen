@@ -7,11 +7,11 @@
  *        hook behind when it lets go first (prestonbrown/helixscreen#1298)
  */
 
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 
 #include <memory>
 #include <thread>

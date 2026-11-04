@@ -4,6 +4,7 @@
 
 #include "accel_sensor_manager.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "filament_sensor_manager.h"
 #include "humidity_sensor_manager.h"
 #include "input_sensor_manager.h"
@@ -13,7 +14,6 @@
 #include "probe_sensor_manager.h"
 #include "sensor_state.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 #include "temperature_sensor_manager.h"
 #include "width_sensor_manager.h"
 

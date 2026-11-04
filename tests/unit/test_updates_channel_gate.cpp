@@ -24,10 +24,10 @@
 
 #include "ui_panel_settings.h"
 #include "ui_settings_updates.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include <lvgl.h>

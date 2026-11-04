@@ -9,6 +9,7 @@
 
 #include "ams_types.h" // ams_type_for_expected_hardware
 #include "config.h"
+#include "core/text_io.h"
 #include "filament_sensor_manager.h"
 #include "hardware_object_table.h"
 #include "hardware_role_registry.h"
@@ -19,7 +20,6 @@
 #include "printer_hardware.h"
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 #include "translation_loader.h"
 #include "wizard_config_paths.h"
 

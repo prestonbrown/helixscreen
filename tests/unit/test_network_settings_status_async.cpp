@@ -15,7 +15,7 @@
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "async_lifetime_guard.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "runtime_config.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"

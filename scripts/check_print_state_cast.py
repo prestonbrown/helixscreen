@@ -51,13 +51,13 @@ OPT_OUT = "PRINT_STATE_CAST_OK:"
 CAST_SPAN_LINES = 4
 
 # The derivation layer legitimately converts between the wire and the lifecycle,
-# and observer_factory.h is where the subject/enum pairing is SUPPOSED to live -
+# and core/observer_factory.h is where the subject/enum pairing is SUPPOSED to live -
 # observe_print_state() and observe_print_lifecycle() each name the one subject
 # they are for, which is what makes every call site checkable.
 ALLOWLIST = {
     "src/printer/printer_print_state.cpp",  # get_print_job_state / get_print_lifecycle themselves
     "src/printer/print_lifecycle_state.cpp",
-    "include/observer_factory.h",
+    "include/core/observer_factory.h",
 }
 
 

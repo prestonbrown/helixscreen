@@ -27,7 +27,6 @@
 #include "ui_filament_path_canvas.h"
 #include "ui_panel_ams.h"
 #include "ui_spool_canvas.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
@@ -36,6 +35,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_accounting_controller.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

@@ -3,11 +3,11 @@
 
 #include "temperature_sensor_manager.h"
 
+#include "core/text_io.h"
 #include "device_display_name.h"
 #include "humidity_sensor_types.h"
 #include "sort_small.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 #include "unit_conversions.h"
 
 #include <algorithm>

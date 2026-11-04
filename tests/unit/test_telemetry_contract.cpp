@@ -14,14 +14,13 @@
  * goldens instead of comparing; review the diff before committing it.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/display_manager_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_moonraker_api.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/telemetry_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"

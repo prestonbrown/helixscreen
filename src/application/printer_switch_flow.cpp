@@ -7,7 +7,6 @@
 #include "ui_modal.h"
 #include "ui_next_tick.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
 
@@ -15,8 +14,9 @@
 #include "boot_crash_guard.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 #include "home_layout_sync.h"
-#include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_cache_registry.h"
 #include "printer_state.h"

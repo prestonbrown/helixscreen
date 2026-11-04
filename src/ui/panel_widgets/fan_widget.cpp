@@ -8,9 +8,9 @@
 #include "ui_text.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
 #include "theme_manager.h"

@@ -4,15 +4,15 @@
 #include "ui_ams_environment_overlay.h"
 #include "ui_ams_zone_overview_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_zone_presentation.h"
 
 #include "../test_fixtures.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <algorithm>

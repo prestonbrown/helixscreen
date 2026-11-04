@@ -586,9 +586,8 @@ TEST_CASE("Update checker error scenarios", "[update_checker][error]") {
 
 // Interface tests for UpdateChecker - now enabled
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "platform_info.h"
 #include "platform_table.h"
 #include "print_lifecycle_state.h"

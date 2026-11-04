@@ -3,9 +3,9 @@
 
 #include "job_queue_state.h"
 
-#include "ui_filename_utils.h"
-
 #include "connection_staleness.h"
+#include "core/gcode_filename.h"
+#include "core/static_subject_registry.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -13,7 +13,6 @@
 #include "moonraker_types.h"
 #include "printer_print_state.h"
 #include "queued_job_options.h"
-#include "static_subject_registry.h"
 #include "subject_debug_registry.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_processor.h"

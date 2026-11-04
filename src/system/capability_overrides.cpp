@@ -4,9 +4,9 @@
 #include "capability_overrides.h"
 
 #include "config.h"
+#include "core/text_io.h"
 #include "sound_manager.h"
 #include "standard_macros.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

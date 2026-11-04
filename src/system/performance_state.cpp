@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "performance_state.h"
 
+#include "core/static_subject_registry.h"
 #include "helix_psram_attr.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>

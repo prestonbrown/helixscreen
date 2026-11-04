@@ -13,6 +13,7 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
 #include "default_layout_resolver.h"
 #include "filament_sensor_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -24,7 +25,6 @@
 #include "performance_state.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/dryer_model.h"
-#include "static_subject_registry.h"
 #include "temperature_sensor_manager.h"
 #include "width_sensor_manager.h"
 

@@ -9,11 +9,11 @@
 #include "ui_swatch.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_color_utils.h"
 #include "led/led_controller.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

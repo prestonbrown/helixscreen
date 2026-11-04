@@ -3,9 +3,9 @@
 #pragma once
 
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "job_queue_state.h"
-#include "static_subject_registry.h"
 
 #include <string>
 #include <vector>

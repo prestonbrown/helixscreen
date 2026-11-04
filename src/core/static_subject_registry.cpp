@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 

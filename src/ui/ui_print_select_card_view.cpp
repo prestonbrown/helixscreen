@@ -3,13 +3,13 @@
 
 #include "ui_print_select_card_view.h"
 
-#include "ui_filename_utils.h"
 #include "ui_gradient_canvas.h"
 #include "ui_panel_print_select.h" // For PrintFileData, CardDimensions
 #include "ui_subject_registry.h"
 #include "ui_utils.h"
 #include "ui_virtual_list.h"
 
+#include "core/gcode_filename.h"
 #include "helix_fs.h"
 #include "lv_draw_buf_guard.h"
 #include "sound_manager.h"

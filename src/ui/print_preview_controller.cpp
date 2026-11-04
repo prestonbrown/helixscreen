@@ -4,9 +4,9 @@
 #include "print_preview_controller.h"
 
 #include "ui_gcode_viewer.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/update_queue.h"
 #include "file_analysis.h"
 #include "gcode_preview_setup.h"
 #include "print_status_preview_decision.h"

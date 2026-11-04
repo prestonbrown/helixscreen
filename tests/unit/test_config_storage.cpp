@@ -6,8 +6,8 @@
 #include "../test_helpers/unique_temp_dir.h"
 #include "config.h"
 #include "config_storage.h"
+#include "core/text_io.h"
 #include "panel_widget_config.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cstdio>

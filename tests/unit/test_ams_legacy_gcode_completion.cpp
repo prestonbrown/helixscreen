@@ -13,11 +13,10 @@
  * already run when execute_gcode() returns ran inline.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/mock_printer.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "test_helpers/moonraker_client_mock_test_access.h"
 #include "test_helpers/update_queue_test_access.h"

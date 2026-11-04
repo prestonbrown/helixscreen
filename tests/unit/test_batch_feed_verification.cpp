@@ -7,13 +7,12 @@
 // will be built on top of it — has real transitions to observe in a unit
 // test, through the same handle_status() parse the live WebSocket drives.
 
-#include "ui_update_queue.h"
-
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_types.h"
 #include "batch_feed_reconcile.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"

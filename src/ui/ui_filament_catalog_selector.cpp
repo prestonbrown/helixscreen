@@ -5,11 +5,11 @@
 #include "ui_icon_codepoints.h"
 #include "ui_utils.h"
 
+#include "core/text_io.h"
 #include "filament_favorites.h"
 #include "filament_variants.h"
 #include "lvgl.h"
 #include "sort_small.h"
-#include "text_io.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

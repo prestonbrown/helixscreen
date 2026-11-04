@@ -2336,7 +2336,7 @@ Override the directory HelixScreen reads and writes its user configuration from 
 |----------|-------|
 | **Values** | Directory path (absolute recommended) |
 | **Default** | `config` (relative to the working directory, which `HELIX_DATA_DIR` may have changed) |
-| **File** | `src/application/data_root_resolver.cpp` (`get_user_config_dir()`) |
+| **File** | `src/core/data_root_resolver.cpp` (`get_user_config_dir()`) |
 
 ```bash
 # Yocto-style split layout: writable config away from a read-only data root

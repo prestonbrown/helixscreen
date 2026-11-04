@@ -6,11 +6,10 @@
 // expected Klippy restart) is not. A frame Moonraker wrote with a bare NaN is read,
 // not reported as a parse error.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/telemetry_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 

@@ -18,9 +18,9 @@
 #include "ui_swatch.h"
 
 #include "ams_state.h"
+#include "core/observer_factory.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
-#include "observer_factory.h"
 
 #include <spdlog/spdlog.h>
 

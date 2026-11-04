@@ -10,8 +10,8 @@
  */
 
 #include "android_asset_extractor.h"
+#include "core/text_io.h"
 #include "test_helpers/unique_temp_dir.h"
-#include "text_io.h"
 
 #include <filesystem>
 #include <fstream>

@@ -3,9 +3,8 @@
 
 #include "usb_printer_detector.h"
 
-#include "ui_update_queue.h"
-
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 
 #include <spdlog/spdlog.h>
 

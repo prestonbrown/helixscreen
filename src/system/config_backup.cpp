@@ -3,9 +3,9 @@
 
 #include "config_backup.h"
 
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 
 #include <cerrno>
 #include <cstring>

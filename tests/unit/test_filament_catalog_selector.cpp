@@ -1,10 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_filament_catalog_selector.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_favorites.h"
 #include "filament_variants.h"
 

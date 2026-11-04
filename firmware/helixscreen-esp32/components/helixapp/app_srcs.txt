@@ -81,7 +81,7 @@ lib/lv_markdown/src/lv_markdown.c
 lib/lv_markdown/src/lv_markdown_style.c
 src/abort/abort_manager.cpp
 src/application/asset_manager.cpp
-src/application/data_root_resolver.cpp
+src/core/data_root_resolver.cpp
 src/application/discovery_steps_core.cpp
 src/application/display_metrics.cpp
 # clean_error_text only (e-stop recovery dialog) — the full router stays excluded
@@ -94,8 +94,8 @@ src/application/printer_retarget.cpp
 src/application/printer_switch_flow.cpp
 src/application/home_layout_sync.cpp
 src/application/session_wiring.cpp
-src/application/static_panel_registry.cpp
-src/application/static_subject_registry.cpp
+src/core/static_panel_registry.cpp
+src/core/static_subject_registry.cpp
 src/application/subject_initializer.cpp
 src/color_utils.cpp
 src/device_display_name.cpp
@@ -329,7 +329,7 @@ src/system/diagnostics.cpp
 src/system/display_settings_manager.cpp
 src/system/filament_favorites.cpp
 src/system/helix_plugin_installer.cpp
-src/system/http_executor.cpp
+src/core/http_executor.cpp
 src/system/input_settings_manager.cpp
 src/system/helix_regex.cpp
 src/system/klipper_config_editor.cpp
@@ -350,7 +350,7 @@ src/system/persisted_setting.cpp
 src/system/platform_capabilities.cpp
 src/system/platform_table.cpp
 src/system/post_op_cooldown_manager.cpp
-src/system/log_redact.cpp
+src/core/log_redact.cpp
 src/system/preset_materials.cpp
 src/system/prerender_size_class.cpp
 src/system/prerendered_images.cpp
@@ -369,7 +369,7 @@ src/system/sound_theme.cpp
 src/system/subject_debug_registry.cpp
 src/system/system_power.cpp
 src/system/system_settings_manager.cpp
-src/system/text_io.cpp
+src/core/text_io.cpp
 src/system/helix_fs.cpp
 src/system/timezone_env.cpp
 src/system/tips_manager.cpp
@@ -419,7 +419,7 @@ src/ui/modals/clog_detection_config_modal.cpp
 src/ui/modals/favorite_macro_config_modal.cpp
 src/ui/modals/macro_param_modal.cpp
 src/ui/modals/ui_preflight_check_modal.cpp
-src/ui/observer_factory.cpp
+src/core/observer_factory.cpp
 src/ui/operation_timeout_guard.cpp
 src/ui/overlay_base.cpp
 src/ui/page_scroll_auto_inject.cpp
@@ -576,7 +576,7 @@ src/ui/ui_filament_path_plan.cpp
 src/ui/ui_filament_path_topology.cpp
 src/ui/ui_filament_runout_handler.cpp
 src/ui/ui_filament_slot_picker.cpp
-src/ui/ui_filename_utils.cpp
+src/core/gcode_filename.cpp
 src/ui/ui_format_utils.cpp
 src/ui/display_numbering.cpp
 src/ui/ui_gradient_canvas.cpp

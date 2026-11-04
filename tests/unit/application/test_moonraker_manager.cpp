@@ -1018,12 +1018,11 @@ TEST_CASE("should_stop_collector_on_klippy_state stops on shutdown and error",
 // is true, and it is true because this observer drove the phase subject off
 // IDLE. Drives the real manager with its mock client.
 
-#include "ui_update_queue.h"
-
 #include "../../test_helpers/moonraker_manager_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "application_test_fixture.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "print_start_collector.h"
 #include "print_start_phase.h"

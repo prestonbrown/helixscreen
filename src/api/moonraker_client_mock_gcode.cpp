@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../tests/mocks/mock_printer_state.h"
+#include "core/text_io.h"
 #include "gcode_parser.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>

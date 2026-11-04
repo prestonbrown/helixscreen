@@ -45,11 +45,11 @@
 
 #include "async_lifetime_guard.h"
 #include "boot_yield.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml_component_private.h"
 #include "helix_fs.h"
 #include "layout_manager.h"
 #include "page_scroll_auto_inject.h"
-#include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "z_offset_utils.h"
 

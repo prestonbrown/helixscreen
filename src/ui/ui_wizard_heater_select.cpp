@@ -11,11 +11,11 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
 #include "printer_discovery.h"
 #include "printer_hardware.h"
-#include "static_panel_registry.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>

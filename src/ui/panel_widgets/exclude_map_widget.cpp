@@ -14,10 +14,10 @@
 
 #include "app_globals.h"
 #include "bed_dimensions.h"
+#include "core/observer_factory.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_excluded_objects_state.h"

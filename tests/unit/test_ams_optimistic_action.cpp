@@ -18,7 +18,6 @@
 
 #include "ui_ams_sidebar.h"
 #include "ui_timer_guard.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/armed_timers.h"
@@ -30,6 +29,7 @@
 #include "ams_state.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_op_heater.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_client_mock.h"

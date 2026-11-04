@@ -5,18 +5,18 @@
 #include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 #include "ui_wizard_helpers.h"
 
 #include "app_globals.h"
 #include "calibration_types.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
 #include "lvgl/lvgl.h"
 #include "memory_utils.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>

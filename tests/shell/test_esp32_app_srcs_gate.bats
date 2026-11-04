@@ -201,7 +201,7 @@ CMAKE
     run_gate
     [ "$status" -eq 1 ]
     contains "src/printer/compiled.cpp:2: <sstream>" "$output"
-    contains "text_io.h" "$output"
+    contains "core/text_io.h" "$output"
 }
 
 @test "a locale-pulling include in an excluded file is not the firmware's problem" {

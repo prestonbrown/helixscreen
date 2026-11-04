@@ -48,7 +48,7 @@ def test_wait_idle_reports_which_counter_was_busy_on_timeout(helix_app):
     # The "http_busy" mock scenario sidesteps the race instead of tuning it:
     # it submits a 2-second synthetic job to HttpExecutor::fast(), whose
     # inflight() counter is incremented at submission and only decremented
-    # on job completion (see http_executor.h). That gives wait_idle a
+    # on job completion (see core/http_executor.h). That gives wait_idle a
     # multi-hundred-millisecond, load-insensitive window — 2s comfortably
     # exceeds subprocess-spawn latency even under heavy load — so a single
     # sample is enough; no retry loop needed.

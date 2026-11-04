@@ -15,10 +15,10 @@
 // during a pre-print block, so the de-duplication had no safety net.
 
 #include "ui_emergency_stop.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
 

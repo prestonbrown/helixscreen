@@ -14,11 +14,10 @@
 // from formatting. Sections of it are trimmed only where a subtree is
 // irrelevant to the parse under test; nothing is invented.
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "ams_backend_cfs.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "ui/ams_drawing_utils.h"

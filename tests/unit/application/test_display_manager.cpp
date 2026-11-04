@@ -13,7 +13,7 @@
 #include "app_constants.h"
 #include "application_test_fixture.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "runtime_config.h"

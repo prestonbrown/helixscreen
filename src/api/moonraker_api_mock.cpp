@@ -3,9 +3,9 @@
 
 #include "moonraker_api_mock.h"
 
-#include "ui_update_queue.h"
-
 #include "../tests/mocks/mock_printer_state.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
 #include "mock_planted_gcodes.h"
@@ -17,7 +17,6 @@
 #include "runtime_config.h"
 #include "screws_tilt_parser.h"
 #include "sensor_state.h"
-#include "text_io.h"
 #include "thumbnail_rules.h"
 #include "timelapse_state.h"
 

@@ -1,7 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 #include "ui_wizard_connection.h"
 
@@ -12,6 +11,7 @@
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "misc/lv_timer_private.h" // timer_cb — assert the cancel neutered it

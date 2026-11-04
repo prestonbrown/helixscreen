@@ -6,14 +6,14 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
-#include "ui_update_queue.h"
 
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "led/led_controller.h"
 #include "light_button_config.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 
 #include <spdlog/spdlog.h>
 

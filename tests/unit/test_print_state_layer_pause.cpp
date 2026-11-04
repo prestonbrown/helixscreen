@@ -9,9 +9,8 @@
  * two subjects the UI binds to say.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "gcode_pause_scan.h"
 #include "layer_pause.h"
 #include "printer_capabilities_state.h"

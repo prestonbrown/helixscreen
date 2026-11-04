@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "safety_settings_manager.h"
 #include "src/ui/panel_widgets/tool_switcher_widget.h"

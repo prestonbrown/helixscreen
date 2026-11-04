@@ -6,9 +6,9 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "fault_surface_correlation.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_state.h"
 

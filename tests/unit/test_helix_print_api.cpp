@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_job_api.h"
@@ -8,7 +9,6 @@
 #include "../../include/printer_state.h"
 #include "../../include/standing_print_options.h"
 #include "../../include/storage_report.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"

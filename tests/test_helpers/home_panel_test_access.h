@@ -3,9 +3,9 @@
 #pragma once
 
 #include "ui_panel_home.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/update_queue.h"
 #include "panel_widget_manager.h"
 
 #include <string>

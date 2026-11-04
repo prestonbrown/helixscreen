@@ -3,8 +3,8 @@
 
 #include "ethernet_backend_mock.h"
 
+#include "core/log_redact.h"
 #include "ifconfig.h" // libhv's cross-platform ifconfig utility
-#include "log_redact.h"
 
 #include <spdlog/spdlog.h>
 

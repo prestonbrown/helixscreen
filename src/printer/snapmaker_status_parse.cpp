@@ -4,9 +4,9 @@
 #include "snapmaker_status_parse.h"
 
 #include "ams_status_json.h"
+#include "core/text_io.h"
 #include "json_utils.h"
 #include "lane_translation.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 

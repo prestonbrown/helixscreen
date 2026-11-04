@@ -17,12 +17,11 @@
  * label refreshes without waiting for the next sync_from_backend().
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"

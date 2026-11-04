@@ -8,10 +8,10 @@
 
 #include "ams_remap.h"
 #include "ams_state.h"
+#include "core/static_subject_registry.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "settings_manager.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

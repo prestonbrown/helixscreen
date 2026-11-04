@@ -18,8 +18,8 @@
 #include "ui_color_picker.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 
 #include <algorithm>
 #include <string>

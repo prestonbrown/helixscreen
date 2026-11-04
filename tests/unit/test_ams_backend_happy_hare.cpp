@@ -3,7 +3,6 @@
 
 #include "ui_ams_device_section_detail_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_test_fixture.h"
@@ -15,6 +14,7 @@
 #include "ams_types.h"
 #include "buffer_reading.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_mapper.h"
 #include "hh_defaults.h"
 #include "lane_source_store.h"

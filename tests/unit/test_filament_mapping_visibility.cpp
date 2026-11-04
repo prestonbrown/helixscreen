@@ -22,12 +22,12 @@
  */
 
 #include "ui_filament_mapping_card.h"
-#include "ui_update_queue.h"
 
 #include "../mapping_card_render_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "tool_state.h"
 

@@ -9,12 +9,11 @@
  * discovery when Klippy is not ready (STARTUP/ERROR states).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_auth.h"
 #include "moonraker_client_mock.h"

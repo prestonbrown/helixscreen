@@ -8,8 +8,6 @@
  *        remote client's home layout takes from the printer's own screen.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/log_capture.h"
@@ -21,6 +19,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "home_layout_share.h"

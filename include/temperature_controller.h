@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_heater_config.h" // helix::HeaterType, kHeaterTypeCount
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
 #include "heater_limits.h"
+#include "heater_type.h" // helix::HeaterType, kHeaterTypeCount
 #include "moonraker_error.h"
 #include "preset_materials.h"
 
@@ -28,7 +28,7 @@ class ChamberHeaterBackend;
 namespace helix {
 class IMoonrakerAPI;
 
-// HeaterPresets lives in ui_heater_config.h (included above) so heater_config_t
+// HeaterPresets lives in heater_type.h (included above) so heater_config_t
 // and this controller share one definition instead of two parallel copies.
 
 /**

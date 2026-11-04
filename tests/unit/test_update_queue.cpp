@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/widget_in_tree.h"
+#include "core/observer_factory.h"
 #include "lvgl_test_fixture.h"
-#include "observer_factory.h"
 #include "test_helpers/log_capture.h"
 #include "test_helpers/update_queue_test_access.h"
 

@@ -10,17 +10,17 @@
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_subject_registry.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

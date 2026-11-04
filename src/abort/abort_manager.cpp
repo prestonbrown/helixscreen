@@ -5,17 +5,17 @@
 #include "ui_callback_helpers.h"
 #include "ui_effects.h"
 #include "ui_emergency_stop.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "moonraker_request_tracker.h"
-#include "observer_factory.h"
 #include "printer_recovery_service.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 

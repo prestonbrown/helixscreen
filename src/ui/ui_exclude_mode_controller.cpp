@@ -4,9 +4,9 @@
 
 #include "ui_gcode_viewer.h"
 
+#include "core/observer_factory.h"
 #include "gcode_parser.h"
 #include "layout_manager.h"
-#include "observer_factory.h"
 #include "print_status_layout_decision.h"
 #include "printer_excluded_objects_state.h"
 

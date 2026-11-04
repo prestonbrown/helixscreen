@@ -19,13 +19,14 @@
  */
 
 #include "ui_settings_sensors.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
 #include "app_globals.h"
 #include "chamber_assignment_options.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "input_sensor_manager.h"
@@ -33,7 +34,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 #include "temperature_sensor_manager.h"
 
 #include <algorithm>

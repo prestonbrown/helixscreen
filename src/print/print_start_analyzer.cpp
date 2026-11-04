@@ -3,13 +3,13 @@
 
 #include "print_start_analyzer.h"
 
+#include "core/text_io.h"
 #include "helix_regex.h"
 #include "i_moonraker_api.h"
 #include "klipper_config_includes.h"
 #include "macro_params.h"
 #include "moonraker_types.h"
 #include "operation_patterns.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

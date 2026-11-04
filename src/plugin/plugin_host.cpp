@@ -11,6 +11,7 @@
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
+#include "core/text_io.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
@@ -23,7 +24,6 @@
 #include "plugin_settings_overlay.h"
 #include "plugin_table.h"
 #include "plugin_xml_policy.h"
-#include "text_io.h"
 #include "translation_loader.h"
 #include "version.h"
 

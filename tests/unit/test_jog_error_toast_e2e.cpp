@@ -35,8 +35,6 @@
  * "how many toasts fired" question answerable here.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
@@ -47,6 +45,7 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "gcode_error_router.h"
 #include "recovery_modal_presenter.h"
 

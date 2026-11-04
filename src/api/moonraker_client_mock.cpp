@@ -3,13 +3,13 @@
 
 #include "moonraker_client_mock.h"
 
-#include "ui_filename_utils.h"
-#include "ui_update_queue.h"
-
 #include "../tests/mocks/mock_printer_state.h"
 #include "app_globals.h"
 #include "chamber_heater_backend.h"
 #include "color_utils.h"
+#include "core/gcode_filename.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
 #include "hardware_object_table.h"
@@ -24,7 +24,6 @@
 #include "runtime_config.h"
 #include "shaper_response.h"
 #include "simulated_clock.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -2,7 +2,7 @@
 
 #include "ui_print_select_path_navigator.h"
 
-#include "ui_filename_utils.h"
+#include "core/gcode_filename.h"
 
 namespace helix::ui {
 

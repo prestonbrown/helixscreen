@@ -13,12 +13,11 @@
  * (print_temp, flow_k*, vol_speed, is_soft, version, the flow ceilings,
  * process_*), which the parser must skip.
  */
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
 #include "active_material_provider.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_database.h"
 #include "filament_op_slot_resolver.h"
 #include "filament_temperature_source.h"

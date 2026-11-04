@@ -18,12 +18,11 @@
  * threaded mock backend.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "runtime_config.h"
 #include "wifi_manager.h"
 

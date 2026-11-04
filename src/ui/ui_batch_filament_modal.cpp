@@ -7,14 +7,14 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

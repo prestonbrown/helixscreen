@@ -12,8 +12,6 @@
  * every later callback.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/belt_tension_types.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
@@ -21,6 +19,7 @@
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <atomic>

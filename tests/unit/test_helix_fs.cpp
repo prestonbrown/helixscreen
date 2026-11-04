@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "test_helpers/unique_temp_dir.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cerrno>

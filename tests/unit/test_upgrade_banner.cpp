@@ -4,11 +4,10 @@
  * @brief UpgradeBanner's XML dismiss callback reaches the banner that owns it.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "system/update_checker.h"
 #include "test_helpers/printer_state_test_access.h"

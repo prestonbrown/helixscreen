@@ -4,18 +4,18 @@
 #include "wifi_backend_networkmanager.h"
 
 #include "app_globals.h"
+#include "core/log_redact.h"
+#include "core/run_capture.h"
 #include "helix_thread.h"
-#include "log_redact.h"
 #include "spdlog/spdlog.h"
 #include "system/child_process.h"
-#include "system/run_capture.h"
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
 // ============================================================================
 // Linux Implementation: NetworkManager fallback via nmcli
 // ============================================================================
 
-#include "text_io.h"
+#include "core/text_io.h"
 #include "wifi_5ghz_detection.h"
 #include "wifi_country.h"
 #include "wifi_regdomain.h"

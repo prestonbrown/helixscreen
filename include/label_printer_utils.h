@@ -3,10 +3,10 @@
 
 #pragma once
 
+#include "core/text_io.h"
 #include "label_printer.h"
 #include "mdns_discovery.h"
 #include "spoolman_types.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <string>

@@ -3,9 +3,9 @@
 
 #include "gcode_parser.h"
 
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "gcode_color_metadata.h"
-#include "text_io.h"
 #include "thumbnail_rules.h"
 #include "utils/decimal_parse.h"
 

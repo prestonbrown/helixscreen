@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "chamber_wait_line.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 namespace helix {
 

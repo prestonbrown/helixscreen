@@ -7,7 +7,6 @@
 
 #include "ui_panel_macros.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../test_fixtures.h"
@@ -16,6 +15,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "macro_param_cache.h"
 #include "moonraker_api_mock.h"

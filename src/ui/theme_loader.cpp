@@ -4,13 +4,13 @@
 #include "theme_loader.h"
 
 #include "border_radius_sizes.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "exception_policy.h"
 #include "helix_fs.h"
 #include "json_utils.h"
 #include "sort_small.h"
 #include "system/sha256_util.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

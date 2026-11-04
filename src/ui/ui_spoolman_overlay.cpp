@@ -20,11 +20,12 @@
 #include "ui_settings_barcode_scanner.h"
 #include "ui_spoolman_setup.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "moonraker_config_manager.h"
@@ -32,7 +33,6 @@
 #include "runtime_config.h"
 #include "settings_manager.h"
 #include "spoolman_manager.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>

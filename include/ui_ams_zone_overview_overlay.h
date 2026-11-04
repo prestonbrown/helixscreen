@@ -16,9 +16,9 @@
 #pragma once
 
 #include "ams_environment_zone.h"
+#include "core/static_panel_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl/lvgl.h>

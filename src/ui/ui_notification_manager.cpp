@@ -8,11 +8,11 @@
 #include "ui_panel_notification_history.h"
 #include "ui_printer_events_overlay.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 

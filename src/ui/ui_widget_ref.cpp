@@ -3,8 +3,7 @@
 
 #include "ui_widget_ref.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "lvgl/src/core/lv_obj_private.h" // obj->is_deleting: LVGL has no getter
 
 #include <spdlog/spdlog.h>

@@ -132,7 +132,7 @@ void method_name(
 
 ### HTTP Work Execution (HttpExecutor)
 
-**Location:** `include/http_executor.h`, `src/system/http_executor.cpp`
+**Location:** `include/core/http_executor.h`, `src/core/http_executor.cpp`
 
 HTTP requests from the Moonraker REST sub-APIs run on one of two process-wide `HttpExecutor` singletons, not on per-request threads.
 

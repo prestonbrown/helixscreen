@@ -5,16 +5,16 @@
 
 #include "ui_resume_dispatch.h"
 #include "ui_unload_lane_choice.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
 #include "non_filament_pause.h"
-#include "observer_factory.h"
 #include "print_control_buttons.h"
 #include "print_lifecycle_state.h" // For PrintState enum
 #include "runtime_config.h"

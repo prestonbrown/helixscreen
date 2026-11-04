@@ -20,9 +20,9 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
 #include "ui_probe_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/probe_overlay_test_access.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "overlay_base.h"
 #include "test_fixtures.h"

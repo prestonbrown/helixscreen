@@ -31,10 +31,10 @@
  * test_print_exclude_object_manager.cpp.
  */
 
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/printer_state.h"
 #include "../../include/ui_print_exclude_object_manager.h"
-#include "../../include/ui_update_queue.h"
 #include "../lvgl_ui_test_fixture.h"
 
 #include <memory>

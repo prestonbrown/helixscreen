@@ -5,10 +5,10 @@
 #include "ui_emergency_stop.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "i_moonraker_client.h"
-#include "observer_factory.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 

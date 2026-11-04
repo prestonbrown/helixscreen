@@ -7,15 +7,15 @@
 
 #include "ams_state.h"
 #include "chamber_heater_backend.h"
+#include "core/observer_factory.h"
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "spool_latch_gate.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 

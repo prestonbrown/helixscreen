@@ -5,7 +5,6 @@
 
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 #include "ui_wizard_ams_identify.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -17,6 +16,7 @@
 #include "../test_helpers/wizard_ams_identify_test_access.h"
 #include "ams_backend_indx.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"

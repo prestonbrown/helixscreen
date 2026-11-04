@@ -9,15 +9,14 @@
 #include "../catch_amalgamated.hpp"
 
 #if HELIX_HAS_CAMERA
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/camera_stream_test_access.h"
 #include "../test_helpers/camera_widget_test_access.h"
 #include "../test_helpers/loopback_http_server.h"
 #include "camera_stream.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 
 #include <atomic>
 #include <chrono>

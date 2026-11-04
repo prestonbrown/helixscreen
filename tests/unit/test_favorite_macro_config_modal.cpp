@@ -7,11 +7,12 @@
 //                 include/moonraker_api.h and include/theme_manager.h.
 #include "ui_modal.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "favorite_macro_config_modal.h"
 #include "favorite_macro_widget.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -20,7 +21,6 @@
 #include "macro_param_modal.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
-#include "static_subject_registry.h"
 
 #include <map>
 #include <memory>

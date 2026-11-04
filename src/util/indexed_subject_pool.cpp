@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "helix/xml/indexed_subject_pool.h"
 
+#include "core/text_io.h"
 #include "lvgl/lvgl.h"
-#include "text_io.h"
 
 extern "C" {
 #include "helix-xml/src/xml/lv_xml.h"

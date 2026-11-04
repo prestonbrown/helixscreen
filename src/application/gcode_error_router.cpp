@@ -6,10 +6,10 @@
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "error_classify.h"
 #include "error_event.h"
 #include "error_modal_view.h"

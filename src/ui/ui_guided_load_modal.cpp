@@ -4,9 +4,9 @@
 #include "ui_guided_load_modal.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

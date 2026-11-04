@@ -3,8 +3,8 @@
 #include "macro_param_defaults.h"
 
 #include "config.h"
+#include "core/text_io.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -6,11 +6,11 @@
 #include "ui_observer_guard.h"
 
 #include "console_filter_engine.h"
+#include "core/static_panel_registry.h"
 #include "in_flight_guard.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <chrono>

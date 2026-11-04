@@ -15,9 +15,9 @@
  */
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "temperature_controller.h"
 #include "temperature_service.h"
 #include "test_helpers/controls_panel_test_access.h"

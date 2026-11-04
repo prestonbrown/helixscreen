@@ -5,10 +5,10 @@
 
 #include "bluetooth_plugin.h"
 #include "bt_discovery_run.h"
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "mdns_discovery.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "usb_printer_detector.h"
 

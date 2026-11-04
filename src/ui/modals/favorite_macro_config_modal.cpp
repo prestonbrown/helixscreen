@@ -10,6 +10,7 @@
 #include "ui_picker_option_row.h"
 
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
 #include "device_display_name.h"
 #include "favorite_macro_config.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -20,7 +21,6 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "printer_discovery.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "tile_color.h"
 #include "ui/ui_widget_helpers.h"

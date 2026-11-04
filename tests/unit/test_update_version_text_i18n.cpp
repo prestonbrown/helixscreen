@@ -4,10 +4,9 @@
 // LVGL re-translates a label: it has to be re-rendered from the last check's
 // result when the language changes (prestonbrown/helixscreen#1023).
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/update_checker_test_access.h"
+#include "core/update_queue.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
 #include "version.h"

@@ -16,17 +16,16 @@
  */
 
 // Include the real implementation header
-#include "ui_update_queue.h"
-
+#include "../../include/core/update_queue.h"
 #include "../../include/printer_state.h"
 #include "../../include/temperature_history_manager.h"
 #include "../../include/temperature_sensor_manager.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/temperature_history_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <atomic>
 #include <chrono>

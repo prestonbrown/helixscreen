@@ -14,7 +14,6 @@
  */
 
 #include "ui_ams_mini_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -23,6 +22,7 @@
 #include "ams_backend_cfs.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 

@@ -4,8 +4,8 @@
 
 #include "ams_types.h"
 #include "color_utils.h"
+#include "core/text_io.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

@@ -170,7 +170,7 @@ CATCH2_BASENAME = 'catch_amalgamated.'
 # Our code, but shared allocation plumbing: every observer context is allocated
 # here, so keying on it would fold every caller's leak into one key and hide a
 # new one. The origin is the frame that asked for the observer.
-PLUMBING_PATHS = ('src/ui/observer_factory.cpp', 'include/observer_factory.h')
+PLUMBING_PATHS = ('src/core/observer_factory.cpp', 'include/core/observer_factory.h')
 
 CEILING_BYTES = 'max-leaked-bytes'
 CEILING_OBJECTS = 'max-leaked-objects'

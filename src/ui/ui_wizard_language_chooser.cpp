@@ -7,8 +7,8 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "display_settings_manager.h"
-#include "static_panel_registry.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

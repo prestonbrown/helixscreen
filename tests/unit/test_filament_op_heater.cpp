@@ -16,7 +16,6 @@
 
 #include "ui_ams_sidebar.h"
 #include "ui_filament_runout_handler.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
@@ -29,6 +28,7 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_op_heater.h"
 #include "filament_op_router.h"
 #include "macro_executor.h"

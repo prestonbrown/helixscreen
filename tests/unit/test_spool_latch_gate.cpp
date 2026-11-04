@@ -8,8 +8,6 @@
  *        (prestonbrown/helixscreen#1730).
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
@@ -19,6 +17,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <optional>

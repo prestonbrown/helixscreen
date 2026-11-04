@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "usb_scanner_monitor.h"
 
+#include "core/log_redact.h"
 #include "helix_thread.h"
 #include "input_device_scanner.h"
-#include "log_redact.h"
 #include "qr_decoder.h"
 #include "settings_manager.h"
 

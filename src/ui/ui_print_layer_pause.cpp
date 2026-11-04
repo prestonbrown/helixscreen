@@ -7,10 +7,10 @@
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
 
+#include "core/observer_factory.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

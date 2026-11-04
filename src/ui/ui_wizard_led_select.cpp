@@ -10,6 +10,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "led/led_auto_state.h"
@@ -17,7 +18,6 @@
 #include "lvgl/lvgl.h"
 #include "printer_discovery.h"
 #include "printer_hardware.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 

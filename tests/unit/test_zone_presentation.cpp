@@ -3,15 +3,15 @@
 
 #include "ui_ams_environment_overlay.h"
 #include "ui_ams_zone_overview_overlay.h"
-#include "ui_update_queue.h"
 #include "ui_zone_presentation.h"
 
 #include "../test_fixtures.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "lvgl.h"
-#include "static_panel_registry.h"
 
 #include <memory>
 #include <optional>

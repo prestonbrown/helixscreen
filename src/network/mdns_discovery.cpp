@@ -14,8 +14,7 @@
 #define MDNS_IMPLEMENTATION
 #include "mdns_discovery.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "mdns/mdns.h"
 

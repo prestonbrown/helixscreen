@@ -5,10 +5,10 @@
 
 #include "ui_tile_rung.h"
 
+#include "core/observer_factory.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "panel_widget_size.h"
 #include "settings_manager.h"
 #include "src/ui/panel_widgets/content_chrome.h"

@@ -96,7 +96,7 @@ endef
 `bin/` (`helix-screen`, plus `helix-splash` and `helix-watchdog` when built), `ui_xml/`,
 `assets/` (fonts, images, sounds, config including every preset and platform hook) and, after a
 Docker build, `certs/ca-certificates.crt`. Writable state is not installed.
-`src/application/data_root_resolver.cpp`
+`src/core/data_root_resolver.cpp`
 strips `/bin` from the binary's path to find `/opt/helixscreen/`, so no environment variables
 are needed.
 

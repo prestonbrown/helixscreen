@@ -11,8 +11,6 @@
  * - Hardware discovery reaching MoonrakerAPI::hardware()
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_client_mock.h"
@@ -22,6 +20,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_personas.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <chrono>
 #include <thread>

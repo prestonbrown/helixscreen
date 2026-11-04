@@ -12,9 +12,9 @@
 
 #include "ui_fonts.h"
 #include "ui_temp_display.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
 #include "printer_state.h"

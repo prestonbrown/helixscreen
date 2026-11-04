@@ -7,8 +7,8 @@
 #include "ui_component_keypad.h"
 #include "ui_slider_scale.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"

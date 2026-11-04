@@ -5,10 +5,10 @@
 
 #include "gcode_layer_index.h"
 
+#include "core/text_io.h"
 #include "gcode_color_metadata.h"
 #include "hv/sha1.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

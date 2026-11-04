@@ -12,7 +12,6 @@
  */
 
 #include "ui_error_reporting.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -25,6 +24,7 @@
 #include "../ui_test_utils.h"
 #include "abort_manager.h"
 #include "ams_backend_afc.h"
+#include "core/update_queue.h"
 #include "lvgl.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_auth.h"

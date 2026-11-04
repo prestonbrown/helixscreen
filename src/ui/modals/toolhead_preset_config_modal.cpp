@@ -8,6 +8,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
 #include "device_display_name.h"
 #include "favorite_macro_config.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -15,7 +16,6 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "printer_discovery.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 
 #include <spdlog/fmt/fmt.h>

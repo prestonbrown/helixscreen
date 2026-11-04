@@ -3,9 +3,9 @@
 
 #include "home_layout_share.h"
 
+#include "core/text_io.h"
 #include "json_utils.h"
 #include "panel_widget_registry.h"
-#include "text_io.h"
 
 #include <string_view>
 #include <utility>

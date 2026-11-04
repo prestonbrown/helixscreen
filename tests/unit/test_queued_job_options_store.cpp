@@ -18,10 +18,9 @@
  * helix-xml's process-global scope would dangle after the test.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "job_queue_state.h"
 #include "moonraker_api.h"

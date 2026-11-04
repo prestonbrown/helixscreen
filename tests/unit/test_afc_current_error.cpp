@@ -26,10 +26,9 @@
  * carry byte-identical detail while only the second carries the recovery set.
  */
 
-#include "ui_update_queue.h"
-
 #include "ams_backend_afc.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "error_event.h"
 #include "test_helpers/afc_test_access.h"
 

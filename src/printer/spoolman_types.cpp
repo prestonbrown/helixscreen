@@ -3,8 +3,8 @@
 
 #include "spoolman_types.h"
 
+#include "core/text_io.h"
 #include "filament_variants.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -13,12 +13,12 @@
 #include "ams_state_internal.h"
 #include "app_globals.h"
 #include "connection_state.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "printer_cache_registry.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "state/subject_macros.h"
-#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 

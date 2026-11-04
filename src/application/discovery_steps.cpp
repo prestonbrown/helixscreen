@@ -10,11 +10,11 @@
 
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_settings_about.h"
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_temperature_source.h"
 #include "hardware_setup_prompter.h"
 #include "power_device_state.h"

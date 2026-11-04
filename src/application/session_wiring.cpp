@@ -8,11 +8,11 @@
 #include "ui_notification_manager.h"
 #include "ui_printer_status_icon.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "abort_manager.h"
 #include "app_globals.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "display_settings_manager.h"
 #include "filament_consumption_tracker.h"

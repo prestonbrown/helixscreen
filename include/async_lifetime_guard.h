@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "ui_update_queue.h"
+#include "core/update_queue.h"
 
 #include <spdlog/spdlog.h>
 

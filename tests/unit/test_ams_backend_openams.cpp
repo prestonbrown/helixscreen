@@ -3,7 +3,6 @@
 
 #include "ui_ams_detail.h"
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/filament_slot_override_store_test_access.h"
@@ -13,6 +12,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "buffer_reading.h"
+#include "core/update_queue.h"
 #include "filament_chip_model.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"

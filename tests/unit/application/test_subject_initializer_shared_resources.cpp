@@ -12,11 +12,10 @@
  * Run with: ./build/bin/helix-tests "[shared_resources]"
  */
 
-#include "ui_update_queue.h"
-
 #include "../../lvgl_ui_test_fixture.h"
 #include "../../test_helpers/subject_initializer_test_access.h"
 #include "bed_drying_controller.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"

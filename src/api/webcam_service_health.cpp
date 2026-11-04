@@ -3,7 +3,7 @@
 
 #include "webcam_service_health.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <array>

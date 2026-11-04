@@ -4,10 +4,10 @@
 
 #include "color_utils.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "json_utils.h"
 #include "led/led_color_utils.h"
 #include "led/led_controller.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

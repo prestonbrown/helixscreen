@@ -3,11 +3,11 @@
 #include "temp_graph_controller.h"
 
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 #include "i_moonraker_client.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "system/crash_handler.h"
 #include "temperature_history_manager.h"
@@ -345,7 +345,7 @@ void TempGraphController::reattach_observers() {
     // fresh `now` — a phantom spike bridging the whole disconnect gap (#1245).
     //
     // The suppression cannot be scoped to this function: observe<int>'s
-    // LVGL callback only *queues* the handler (observer_factory.h:344), so the
+    // LVGL callback only *queues* the handler (core/observer_factory.h:344), so the
     // attach-time fires have not run yet when setup_observers() returns.
     // Restoring the flag inline here would restore it before a single one of
     // them executed — the no-op this replaces. Instead, clear it from a

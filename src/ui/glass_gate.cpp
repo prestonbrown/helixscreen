@@ -7,6 +7,7 @@
 
 #include "board_fingerprint.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
@@ -15,7 +16,6 @@
 #include "helix_version.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/display/lv_display_private.h" // disp->screens: LVGL has no screen iterator
-#include "observer_factory.h"
 #include "platform_capabilities.h"
 #include "theme_manager.h"
 

@@ -8,11 +8,11 @@
 #include "ui_modal.h"
 
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "jog_coalescer.h"
 #include "lvgl.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 #include "z_offset_utils.h"
 
 #include <spdlog/spdlog.h>

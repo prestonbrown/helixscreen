@@ -4,11 +4,11 @@
 
 #include "ui_observer_guard.h"
 
+#include "core/static_panel_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "led/led_backend.h"
 #include "led/led_device_page.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <memory>

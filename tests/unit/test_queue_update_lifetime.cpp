@@ -19,18 +19,18 @@
 #include "ui_panel_belt_tension.h"
 #include "ui_panel_input_shaper.h"
 #include "ui_spool_wizard.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_capabilities_state.h"
 #include "printer_print_state.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 
 #include "../catch_amalgamated.hpp"
 

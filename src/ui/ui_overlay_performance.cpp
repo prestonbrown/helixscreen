@@ -5,9 +5,9 @@
 #include "ui_panel_common.h"
 #include "ui_utils.h" // helix::ui::safe_clean_children
 
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "core/text_io.h"
 #include "performance_state.h" // helix::perf::PerformanceState::subjects_lifetime()
-#include "text_io.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

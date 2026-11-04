@@ -13,8 +13,7 @@
  * before the event fired.
  */
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 #include "wifi_ui_utils.h"

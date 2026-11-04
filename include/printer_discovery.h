@@ -14,6 +14,7 @@
  */
 
 #include "ams_type.h"
+#include "core/text_io.h"      // helix::text_io::to_upper
 #include "filament_database.h" // filament::kDefaultDiameterMm
 #include "fit_check.h"
 #include "hardware_object_table.h"
@@ -21,7 +22,6 @@
 #include "openams_api.h" // OpenAMS claims only a manager speaking its API
 #include "preprint_skip_wrappers.h"
 #include "printer_detector.h" // For BuildVolume struct
-#include "text_io.h"          // helix::text_io::to_upper
 
 #include <algorithm>
 #include <cctype>

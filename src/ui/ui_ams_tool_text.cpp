@@ -3,9 +3,9 @@
 #include "ui_ams_tool_text.h"
 
 #include "ams_state.h"
+#include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "display_numbering.h"
-#include "observer_factory.h"
-#include "static_subject_registry.h"
 #include "tool_state.h"
 
 #include <spdlog/spdlog.h>

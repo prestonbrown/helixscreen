@@ -6,7 +6,7 @@
 #include "../test_helpers/scoped_env.h"
 #include "app_globals.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "klipper_extruder_naming.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"

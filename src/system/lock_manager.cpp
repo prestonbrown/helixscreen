@@ -2,7 +2,7 @@
 #include "lock_manager.h"
 
 #include "config.h"
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "system/sha256_util.h"
 

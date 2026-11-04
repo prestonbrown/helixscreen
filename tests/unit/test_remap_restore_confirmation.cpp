@@ -21,7 +21,6 @@
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 #include "ui_resume_dispatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/cfs_test_access.h"
@@ -34,7 +33,9 @@
 #include "ams_backend_happy_hare.h"
 #include "ams_state.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_job_ref.h"
@@ -42,7 +43,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "slot_registry.h"
-#include "static_panel_registry.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -180,7 +180,7 @@ struct Harness {
 
     void set_klippy(KlippyState state) {
         // _sync writes the subject without the async hop, but observe<int>'s
-        // handler still lands on the UpdateQueue (observer_factory.h:371), so the
+        // handler still lands on the UpdateQueue (core/observer_factory.h:371), so the
         // deferred-restore observer only runs on a drain. Skipping it makes the
         // retry look like it never fired.
         ps.set_klippy_state_sync(state);

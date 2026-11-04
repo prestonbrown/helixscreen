@@ -6,11 +6,11 @@
 #include "ui_panel_advanced.h"
 
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_plugin_features.h"
 #include "i_moonraker_api.h"
 #include "plr_plugin_rpc.h"
-#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 

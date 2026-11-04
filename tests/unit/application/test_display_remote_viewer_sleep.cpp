@@ -10,10 +10,9 @@
  * DisplayManager feeds it the service's viewer signal.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../test_helpers/config_test_access.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "lvgl_test_fixture.h"

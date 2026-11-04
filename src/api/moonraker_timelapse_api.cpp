@@ -3,7 +3,7 @@
 
 #include "moonraker_timelapse_api.h"
 
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "hv/requests.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"

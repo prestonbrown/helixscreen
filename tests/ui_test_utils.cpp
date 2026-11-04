@@ -4,8 +4,8 @@
 #include "ui_test_utils.h"
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "env_knobs.h"
 #include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "platform_info.h"

@@ -21,7 +21,7 @@
 #include "ui_modal.h"
 
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #ifdef HELIX_ENABLE_MOCKS
@@ -29,12 +29,12 @@
 // set_moonraker_client().
 #include "moonraker_client_mock.h"
 #endif
+#include "core/static_subject_registry.h"
 #include "env_knobs.h"
 #include "panel_widget_manager.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 #include "system/child_process.h"
 #include "system/helix_paths.h"
 #include "temperature_controller.h"

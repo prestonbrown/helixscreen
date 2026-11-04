@@ -20,9 +20,9 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 

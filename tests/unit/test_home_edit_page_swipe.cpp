@@ -30,7 +30,6 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_home.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_widget_catalog_overlay.h"
 
@@ -49,6 +48,7 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "grid_edit_cross_page.h"
 #include "grid_edit_mode.h"

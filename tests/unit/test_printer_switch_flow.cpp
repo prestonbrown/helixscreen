@@ -14,7 +14,6 @@
 
 #include "ui_modal.h"
 #include "ui_spinner.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
@@ -24,6 +23,7 @@
 #include "boot_crash_guard.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "platform_capabilities.h"
 #include "printer_cache_registry.h"
 #include "printer_state.h"

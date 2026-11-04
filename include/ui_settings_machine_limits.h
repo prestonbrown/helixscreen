@@ -24,8 +24,8 @@
 #pragma once
 
 #include "calibration_types.h"
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 // Forward declarations

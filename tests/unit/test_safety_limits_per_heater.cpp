@@ -31,7 +31,6 @@
  */
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../../src/api/moonraker_api_internal.h"
 #include "../lvgl_test_fixture.h"
@@ -40,6 +39,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_types.h"

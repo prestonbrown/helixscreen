@@ -3,7 +3,6 @@
 
 #include "ui_batch_filament_modal.h"
 #include "ui_insert_notice.h"
-#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -18,6 +17,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_insert_watcher.h"
 #include "filament_op_execute.h"

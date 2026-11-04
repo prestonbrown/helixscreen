@@ -1,12 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // tests/unit/test_print_control_buttons.cpp
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_control_buttons_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "print_control_buttons.h"
 #include "printer_state.h"
 

@@ -5,7 +5,7 @@
 
 #include "ui_notification.h"
 #ifndef HELIX_SPLASH_ONLY
-#include "ui_update_queue.h"
+#include "core/update_queue.h"
 #endif
 
 #include "ams_error.h"

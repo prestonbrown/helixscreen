@@ -351,11 +351,11 @@ TEST_CASE("Mock backend supports toolchange simulation", "[afc][toolchange][mock
 // ============================================================================
 
 #include "ui_ams_tool_text.h"
-#include "ui_update_queue.h"
 
 #include "../ui_test_utils.h"
 #include "ams_state.h"
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "tool_state.h"
 
 #include <lvgl.h>

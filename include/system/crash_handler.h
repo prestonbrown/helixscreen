@@ -150,7 +150,7 @@ void set_terminate_context(const char* what) noexcept;
  *
  * The UpdateQueue stores the tag of the currently executing callback in a
  * volatile pointer. Registering it here lets the crash signal handler read
- * and write it to crash.txt without depending on ui_update_queue.h.
+ * and write it to crash.txt without depending on core/update_queue.h.
  *
  * @param tag_ptr Pointer to the volatile const char* that holds the current tag
  */

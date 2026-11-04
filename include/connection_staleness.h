@@ -6,7 +6,7 @@
 #include "ui_observer_guard.h"
 
 #include "connection_state.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

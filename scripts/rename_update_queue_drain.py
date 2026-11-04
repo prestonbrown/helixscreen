@@ -8,7 +8,7 @@
     UpdateQueueTestAccess::drain_all(q, 6)  -> q.drain_until_empty(6)
 
 A file left with no other use of the shim loses its `using` declaration, and its
-include becomes ui_update_queue.h. A file that still uses the shim without
+include becomes core/update_queue.h. A file that still uses the shim without
 including it (it arrived through a header this rewrite stops including from) gains
 the include. Formatting is left to the commit hook, whose clang-format is pinned.
 Idempotent: a branch that still spells the old calls runs this after rebasing:
@@ -38,7 +38,7 @@ CALL_RE = re.compile(r"(?<![\w:])(?:\w+::)*UpdateQueueTestAccess::(drain_all|dra
 LEFTOVER_RE = re.compile(r"UpdateQueueTestAccess::drain(?:_all)?\b")
 USING_RE = re.compile(r"^[ \t]*using\s+(?:\w+::)*UpdateQueueTestAccess\s*;[ \t]*\n", re.M)
 SHIM_INCLUDE_RE = re.compile(r'^#include\s+"[^"\n]*update_queue_test_access\.h"[ \t]*\n', re.M)
-QUEUE_INCLUDE_RE = re.compile(r'^#include\s+"ui_update_queue\.h"', re.M)
+QUEUE_INCLUDE_RE = re.compile(r'^#include\s+"core/update_queue\.h"', re.M)
 LAST_INCLUDE_RE = re.compile(r'^#include\s+"[^"\n]*"[ \t]*\n', re.M)
 # A receiver that can take `.method()` as written: names, calls, member chains.
 POSTFIX_RE = re.compile(r"^[\w:]+(?:\(\))?(?:(?:\.|->)\w+(?:\(\))?)*$")
@@ -114,7 +114,7 @@ def rewrite(text, rel):
         at = last[-1].end() if last else 0
         return f'{new[:at]}#include "{spelled}"\n{new[at:]}'
     new = USING_RE.sub("", new)
-    replacement = "" if QUEUE_INCLUDE_RE.search(new) else '#include "ui_update_queue.h"\n'
+    replacement = "" if QUEUE_INCLUDE_RE.search(new) else '#include "core/update_queue.h"\n'
     return SHIM_INCLUDE_RE.sub(lambda _: replacement, new)
 
 

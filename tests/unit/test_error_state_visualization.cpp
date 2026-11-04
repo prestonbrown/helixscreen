@@ -1,12 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/happy_hare_test_access.h"
 

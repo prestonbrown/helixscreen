@@ -2,8 +2,7 @@
 
 #include "xml_hot_reloader.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "layout_manager.h"
 #include "xml_registration.h"

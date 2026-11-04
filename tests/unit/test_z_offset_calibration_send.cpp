@@ -18,10 +18,10 @@
  */
 
 #include "ui_panel_calibration_zoffset.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"

@@ -3,13 +3,13 @@
 #include "indx_contract.h"
 
 #include "ams_backend.h"
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 

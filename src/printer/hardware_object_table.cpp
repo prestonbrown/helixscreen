@@ -3,11 +3,11 @@
 #include "hardware_object_table.h"
 
 #include "accel_sensor_types.h"
+#include "core/text_io.h"
 #include "filament_sensor_types.h"
 #include "humidity_sensor_types.h"
 #include "klipper_extruder_naming.h"
 #include "probe_sensor_types.h"
-#include "text_io.h"
 #include "width_sensor_types.h"
 
 #include <cctype>

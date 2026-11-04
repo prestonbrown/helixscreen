@@ -7,9 +7,9 @@
 #include "ui_maintenance_overlay.h"
 #include "ui_subject_registry.h"
 
+#include "core/observer_factory.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/content_chrome.h"

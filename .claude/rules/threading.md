@@ -14,7 +14,7 @@ later, usually on a customer's printer.
 1. **Never touch LVGL from a background thread.** WebSocket/libhv, HTTP and timer
    callbacks are background threads, and `lv_subject_set_*()` counts because it fires
    observers that call widget APIs. Route through `ui_queue_update()`
-   (`ui_update_queue.h`). Pattern: `src/printer/printer_state.cpp` `set_*_internal()`.
+   (`core/update_queue.h`). Pattern: `src/printer/printer_state.cpp` `set_*_internal()`.
 2. **Never write a bare `if (tok.expired()) return;` on a background thread and then
    touch `this`.** TOCTOU use-after-free (#707). Use `lifetime_.bg_cb(tag, fn)`, or
    `tok.defer(tag, fn)` when there is bg-side parsing worth keeping off the main thread.

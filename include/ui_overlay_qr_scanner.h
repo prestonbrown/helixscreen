@@ -18,11 +18,11 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "qr_decoder.h"
 #include "snapshot_qr_scanner.h"
 #include "spoolman_types.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "usb_scanner_monitor.h"
 

@@ -7,8 +7,8 @@
 #include "ui_keyboard_manager.h"
 #include "ui_spool_canvas.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "label_printer_settings.h"
 #if HELIX_HAS_LABEL_PRINTER
 #include "ipp_print_modal.h"

@@ -3,7 +3,7 @@
 //
 // EspHttpLane — Task 10's HTTP lane: one dedicated worker pthread + a small
 // bounded queue, the ESP32 equivalent of desktop's HttpExecutor lane
-// (include/http_executor.h). Used by esp_rest_api.cpp's MoonrakerFileTransferAPI
+// (include/core/http_executor.h). Used by esp_rest_api.cpp's MoonrakerFileTransferAPI
 // implementation for the print-select thumbnail/gcode-header fetch path.
 //
 // Threading model: submit_get() may be called from any thread (mirrors

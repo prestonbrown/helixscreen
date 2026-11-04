@@ -14,13 +14,13 @@
  */
 
 #include "ui_filament_mapping_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_mapping_modal_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_mapper.h"
 #include "printer_state.h"

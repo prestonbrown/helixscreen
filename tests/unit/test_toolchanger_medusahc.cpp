@@ -31,14 +31,13 @@
  * button already sends. Its feeder is a [servo my_servo] driven by OPEN/CLOSE.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "error_event.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"

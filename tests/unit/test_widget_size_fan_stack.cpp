@@ -53,10 +53,10 @@
  */
 
 #include "ui_fonts.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "core/update_queue.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/fan_stack_widget.h"
 

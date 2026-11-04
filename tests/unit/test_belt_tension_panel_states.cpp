@@ -34,7 +34,6 @@
 #include "ui_frequency_response_chart.h"
 #include "ui_modal.h"
 #include "ui_panel_belt_tension.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/mock_kinematics_env.h"
@@ -44,6 +43,7 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "belt_tension_types.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "mock_persona.h"
 #include "moonraker_api_mock.h"

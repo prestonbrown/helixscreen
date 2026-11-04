@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "lvgl/lvgl.h"

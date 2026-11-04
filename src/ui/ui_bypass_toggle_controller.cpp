@@ -8,8 +8,8 @@
 #include "ams_bypass_policy.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 

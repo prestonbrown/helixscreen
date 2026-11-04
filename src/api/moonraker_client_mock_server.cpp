@@ -1,8 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "core/http_executor.h"
 #include "env_knobs.h"
-#include "http_executor.h"
 #include "json_utils.h"
 #include "mock_disk_usage.h"
 #include "moonraker_client_mock_internal.h"

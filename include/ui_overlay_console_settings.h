@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 /**
  * @file ui_overlay_console_settings.h

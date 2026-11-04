@@ -7,13 +7,13 @@
 
 #include "ui_modal.h"
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "audio_settings_manager.h"
+#include "core/update_queue.h"
 #include "print_completion.h"
 #include "printer_state.h"
 

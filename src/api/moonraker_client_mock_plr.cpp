@@ -5,6 +5,7 @@
 // backend and HELIX_MOCK_HELIX_PLUGIN reports the plugin installed; the knobs
 // are documented in docs/devel/MOCK_ENVIRONMENT_VARIABLES.md.
 
+#include "core/text_io.h"
 #include "env_knobs.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock.h"
@@ -12,7 +13,6 @@
 #include "plr_backend.h"
 #include "plr_profile.h"
 #include "plr_wizard.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>

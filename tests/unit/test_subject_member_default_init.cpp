@@ -13,10 +13,10 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
+#include "core/update_queue.h"
 
 #include <cstdlib>
 #include <cstring>

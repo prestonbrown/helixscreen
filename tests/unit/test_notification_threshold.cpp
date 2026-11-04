@@ -24,10 +24,10 @@
  * gates, settings subject) lives in ui_notification.cpp / SafetySettingsManager.
  */
 
-#include "ui_notification_threshold.h"
 #include "ui_toast_manager.h"
 
 #include "../ui_test_utils.h"
+#include "core/notification_threshold.h"
 
 #include <string>
 #include <vector>

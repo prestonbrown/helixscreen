@@ -24,9 +24,9 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "fault_modal_registry.h"
 #include "moonraker_api.h"

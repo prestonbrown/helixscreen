@@ -12,11 +12,10 @@
  * backend loading the first one's records from the same mock Moonraker DB.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
 #include "ams_backend_afc.h"
+#include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/backend_user_edit.h"

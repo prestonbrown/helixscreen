@@ -9,10 +9,10 @@
 
 #include "ui_component_keypad.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "input_settings_manager.h"
 #include "input_settings_test_helpers.h"
 #include "settings_manager.h"

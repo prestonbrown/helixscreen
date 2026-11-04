@@ -4,8 +4,8 @@
 
 #if HELIX_HAS_CAMERA
 
+#include "core/http_executor.h"
 #include "display_manager.h"
-#include "http_executor.h"
 
 #include <spdlog/spdlog.h>
 

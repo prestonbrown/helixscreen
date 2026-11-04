@@ -19,14 +19,14 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
 #include "ui_panel_history_list.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
-#include "static_panel_registry.h"
 
 #include <string>
 #include <vector>

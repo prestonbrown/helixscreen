@@ -16,8 +16,8 @@
 
 #include "ui_event_safety.h"
 
+#include "core/text_io.h"
 #include "lvgl/lvgl.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

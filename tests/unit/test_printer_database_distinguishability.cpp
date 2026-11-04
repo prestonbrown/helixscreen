@@ -18,8 +18,8 @@
 // known_collisions() and ratcheted: a new one fails the gate, and a listed one
 // that stops reproducing fails it too, so the list never outlives the defect.
 
+#include "core/text_io.h"
 #include "printer_detector.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

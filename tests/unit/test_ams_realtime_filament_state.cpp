@@ -16,14 +16,13 @@
  *  - filament_loaded cleared on unload (active-lane subject clears).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 
 #include <functional>
 #include <memory>

@@ -173,7 +173,7 @@ not say why it needs the wire.
 
 Read each enum through its own accessor: `get_print_lifecycle()` for `PrintState`,
 `get_print_job_state()` for the wire's `PrintJobState`, and `observe_print_lifecycle()` /
-`observe_print_state()` from `include/observer_factory.h` to watch them. The two enums share
+`observe_print_state()` from `include/core/observer_factory.h` to watch them. The two enums share
 no numbering past 0, so `static_cast<PrintState>(lv_subject_get_int(...))` on the wrong
 subject compiles and answers a different question; `scripts/check_print_state_cast.py`
 rejects that cast.

@@ -26,10 +26,10 @@
 #include "ams_lane_state.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "display_settings_manager.h"
 #include "lvgl/src/core/lv_obj_draw_private.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 #include "ui/ams_drawing_utils.h"
 
 #include <array>

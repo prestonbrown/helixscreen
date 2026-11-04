@@ -8,12 +8,11 @@
  *        per-type subscriptions, the z_offset seed and the persisted settings shape.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/golden_json.h"
 #include "../test_helpers/sensor_manager_test_access.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "hardware_object_table.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"

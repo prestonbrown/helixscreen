@@ -245,7 +245,7 @@ src/system/pwg_raster.cpp  # not in the v1 Core+AMS cut
 src/system/pwm_sound_backend.cpp  # not in the v1 Core+AMS cut
 src/system/qr_decoder.cpp  # not in the v1 Core+AMS cut
 src/system/release_page.cpp  # not in the v1 Core+AMS cut
-src/system/run_capture.cpp  # popen, which the firmware has none of; only the Linux and macOS platform paths call it
+src/core/run_capture.cpp  # popen, which the firmware has none of; only the Linux and macOS platform paths call it
 src/system/screen_locality.cpp  # not in the v1 Core+AMS cut
 src/system/screensaver_usage.cpp  # not in the v1 Core+AMS cut
 src/system/screenshot.cpp  # not in the v1 Core+AMS cut

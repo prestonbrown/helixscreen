@@ -189,7 +189,7 @@ which `--report` prints as a directory-to-directory include matrix.
 
 | Layer, low to high | Directories | Holds |
 |---|---|---|
-| core | `util`, `utils`, `config`, `generated` | text, config and logging plumbing every layer uses |
+| core | `core`, `util`, `utils`, `config`, `generated` | text, logging, thread-to-main and registry plumbing every layer uses |
 | platform | `network`, `bluetooth`, `input` | the OS and the hardware, never printer state |
 | moonraker | `api` | the Moonraker client, its API façade and the mock printer |
 | state | `printer`, `temperature`, `spoolman`, `print`, `calibration`, `sensors`, `led`, `plugin`, `system` | subjects, backends and services |
@@ -198,9 +198,9 @@ which `--report` prints as a directory-to-directory include matrix.
 | app | `application`, `abort`, `remote`, `tools`, `lvgl-demo` | wiring and lifecycle |
 
 A header belongs to the directory holding the `.cpp` of the same stem; one with no
-`.cpp` belongs to the layer its name or `include/` subdirectory serves (`ui_*.h`,
-`include/ui/` and `include/helix/ui/` are ui's; `include/led/`, `include/system/` and
-`include/state/` are led's, system's and printer's), and one matching neither is
+`.cpp` belongs to the layer its name or `include/` subdirectory serves (`include/core/`
+is core's; `ui_*.h`, `include/ui/` and `include/helix/ui/` are ui's; `include/led/`,
+`include/system/` and `include/state/` are led's, system's and printer's), and one matching neither is
 header-only and belongs to nobody until it is moved under a layer. The
 gate (`qc_layering`, pre-push and land-gate) measures a branch from its fork point:
 a file may lose upward includes and may not gain one, a refactor that empties a

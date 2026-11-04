@@ -17,9 +17,9 @@
 #include "ui_plugin_install_modal.h"
 #include "ui_settings_barcode_scanner.h"
 #include "ui_spoolman_edit_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "lvgl/src/misc/lv_event_private.h"
 #include "overlay_base.h"
 

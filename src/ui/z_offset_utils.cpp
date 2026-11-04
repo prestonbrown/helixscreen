@@ -9,11 +9,11 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "i_moonraker_api.h"
 #include "save_config_restart.h"
 #include "settings_manager.h"
 #include "state/subject_macros.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "tool_offsets.h"
 #include "tool_state.h"

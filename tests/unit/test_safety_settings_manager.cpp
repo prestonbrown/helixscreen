@@ -1,11 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_notification_threshold.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "config.h"
+#include "core/notification_threshold.h"
 #include "safety_settings_manager.h"
 
 #include "../catch_amalgamated.hpp"

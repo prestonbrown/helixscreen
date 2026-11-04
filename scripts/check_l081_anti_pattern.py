@@ -626,6 +626,7 @@ def staged_files() -> list[Path]:
 # and in_main_thread_lambda() recognises them, so what remains there is the API
 # and worker callbacks that reach the runtime detector.
 DEFAULT_SCAN_DIRS = (
+    'src/core',
     'src/printer',
     'src/calibration',
     'src/led',

@@ -11,6 +11,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "filament_database.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
@@ -18,7 +19,6 @@
 #include "macro_executor.h"
 #include "material_settings_manager.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "preset_materials.h"
 #include "printer_state.h"

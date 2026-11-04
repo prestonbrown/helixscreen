@@ -6,8 +6,6 @@
 // tool change for nothing. AmsState ends it once, for every backend, on the
 // klippy_state transition into READY.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ad5x_ifs_test_access.h"
 #include "../test_helpers/afc_test_access.h"
@@ -23,6 +21,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <memory>

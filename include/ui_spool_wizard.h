@@ -5,11 +5,11 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/static_panel_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "spoolman_catalog_search.h"
 #include "spoolman_types.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <functional>

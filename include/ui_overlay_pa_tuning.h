@@ -7,11 +7,11 @@
 #include "ui_modal.h"
 #include "ui_observer_guard.h"
 
+#include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_tuning.h"
 #include "spoolman_types.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "tool_state.h"
 

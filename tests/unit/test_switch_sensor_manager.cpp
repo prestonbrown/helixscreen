@@ -15,16 +15,15 @@
  * - Missing sensor handling
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/golden_json.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
-#include "observer_factory.h"
 #include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>

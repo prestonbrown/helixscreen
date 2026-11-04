@@ -11,14 +11,13 @@
  * record starts it afresh, any other record amends it).
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/config_dir_guard.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/seeded_override.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_backend_toolchanger.h"
+#include "core/update_queue.h"
 #include "lane_source_store.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

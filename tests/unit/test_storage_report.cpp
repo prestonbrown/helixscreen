@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_filename_utils.h"
-
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
+#include "core/gcode_filename.h"
 #include "helix_plugin_features.h"
 #include "print_photos.h"
 #include "storage_report.h"

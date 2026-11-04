@@ -5,7 +5,6 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_filament_catalog_picker.h"
-#include "ui_heater_config.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
@@ -16,6 +15,7 @@
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_heater.h"
+#include "heater_type.h"
 #include "macro_param_modal.h"
 #include "moonraker_types.h"
 #include "operation_timeout_guard.h"

@@ -2,7 +2,7 @@
 
 #include "macro_param_cache.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <spdlog/spdlog.h>
 

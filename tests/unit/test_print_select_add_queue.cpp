@@ -14,14 +14,13 @@
  * call add_to_queue() twice before draining.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "job_queue_state.h"
 #include "printer_state.h"

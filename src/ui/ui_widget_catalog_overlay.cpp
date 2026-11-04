@@ -10,10 +10,10 @@
 #include "ui_selector_model.h"
 #include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
+#include "core/update_queue.h"
 #include "grid_layout.h"
 #include "home_layout_sync.h"
 #include "panel_widget_config.h"

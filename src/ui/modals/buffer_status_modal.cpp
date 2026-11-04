@@ -8,7 +8,7 @@
 #include "ams_state.h"
 #include "buffer_reading.h"
 #include "clog_meter_geometry.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

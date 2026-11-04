@@ -9,9 +9,9 @@
 #include "ui_swatch.h"
 
 #include "color_utils.h"
+#include "core/static_subject_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lane_translation.h"
-#include "static_subject_registry.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>

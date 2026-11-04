@@ -2,12 +2,12 @@
 
 #include "spoolman_slot_saver.h"
 
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "lane_translation.h"
 #include "spoolman_catalog_search.h"
 #include "spoolman_manager.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
