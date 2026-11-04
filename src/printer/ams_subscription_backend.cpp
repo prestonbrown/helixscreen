@@ -695,8 +695,8 @@ AmsError AmsSubscriptionBackend::refuse_load_if_printing() const {
     const auto lifecycle = api_->printer_state().print_state().get_print_lifecycle();
     // A homed toolhead skips the firmware's own home where the backend says so,
     // and the load then homes no more than a backend that never self-homes.
-    const bool homes_now =
-        filament_ops_self_home() && !(self_home_skipped_when_homed() && toolhead_homed());
+    const bool homes_now = filament_load_homes_now(
+        filament_ops_self_home(), self_home_skipped_when_homed(), toolhead_homed());
     return refuse_print_block(backend_log_tag(), lifecycle,
                               print_blocks_filament_load(lifecycle, filament_ops_self_home(),
                                                          self_home_skipped_when_homed(),
