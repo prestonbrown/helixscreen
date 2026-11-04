@@ -407,8 +407,10 @@ void SensorSettingsOverlay::refill_all() {
 
 void SensorSettingsOverlay::update_total() {
     size_t total = 0;
+    // Rows listed, not sensors discovered: a manager whose every sensor belongs
+    // to a filament system lists none, and its section stays hidden.
     for (const auto& section : sections_) {
-        total += section->manager().sensor_count();
+        total += section->row_count();
     }
     set_if_changed(total_count_, static_cast<int>(total));
 }
