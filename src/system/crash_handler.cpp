@@ -24,6 +24,8 @@
 #include <string>
 #include <unistd.h>
 
+#include "hv/json.hpp"
+
 // mallinfo2 (glibc >= 2.33). Fallback to mallinfo (deprecated, 32-bit) for older
 // systems like the AD5M (bullseye, glibc 2.31). Both are in <malloc.h>.
 #if __has_include(<malloc.h>) && !defined(__APPLE__) && !defined(__ANDROID__)

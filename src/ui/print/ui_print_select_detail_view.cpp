@@ -59,6 +59,8 @@
 #include <algorithm>
 #include <cstdio>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 namespace tio = ::helix::text_io;

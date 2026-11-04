@@ -13,6 +13,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 namespace {

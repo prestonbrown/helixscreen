@@ -12,6 +12,8 @@
 
 #include <cctype>
 
+#include "hv/json.hpp"
+
 namespace helix::hw {
 
 namespace {

@@ -10,6 +10,8 @@
 #include <iterator>
 #include <memory>
 
+#include "hv/json.hpp"
+
 namespace helix::tile_color {
 
 namespace {

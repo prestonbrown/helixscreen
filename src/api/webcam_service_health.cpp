@@ -12,6 +12,8 @@
 #include <string_view>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix::webcam {
 
 namespace {

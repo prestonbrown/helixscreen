@@ -20,6 +20,8 @@
 #include <cstring>
 #include <utility>
 
+#include "hv/json.hpp"
+
 namespace helix {
 void register_fan_widget() {
     register_widget_factory("fan",

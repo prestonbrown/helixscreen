@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 // --- bare path locators -------------------------------------------------
 

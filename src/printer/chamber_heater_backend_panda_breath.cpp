@@ -10,6 +10,8 @@
 #include <cmath>
 #include <string>
 
+#include "hv/json.hpp"
+
 namespace helix::chamber {
 namespace {
 

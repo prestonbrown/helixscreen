@@ -13,6 +13,8 @@
 #include <string>
 #include <utility>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 namespace {

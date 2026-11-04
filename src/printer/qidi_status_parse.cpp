@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cctype>
 
+#include "hv/json.hpp"
+
 namespace helix::qidi {
 
 namespace tio = helix::text_io;

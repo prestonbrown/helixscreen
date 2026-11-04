@@ -6,6 +6,8 @@
 #include <string>
 #include <unordered_set>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 namespace {

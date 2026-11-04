@@ -10,6 +10,8 @@
 #include <array>
 #include <cctype>
 
+#include "hv/json.hpp"
+
 namespace helix::snapmaker {
 namespace {
 

@@ -6,6 +6,8 @@
 
 #include <cctype>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 MacroFanAnalysis MacroFanAnalyzer::analyze(const nlohmann::json& config_settings) const {

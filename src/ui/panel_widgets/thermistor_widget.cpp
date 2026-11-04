@@ -34,6 +34,8 @@
 #include <set>
 #include <utility>
 
+#include "hv/json.hpp"
+
 namespace helix {
 void thermistor_widget_init_subjects();
 
