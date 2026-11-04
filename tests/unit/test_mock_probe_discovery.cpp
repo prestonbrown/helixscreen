@@ -18,7 +18,7 @@
  *  2. discover_printer() hands that section to ProbeSensorManager
  */
 
-#include "../../src/api/moonraker_client_mock_internal.h"
+#include "../../src/mock/moonraker_client_mock_internal.h"
 #include "../lvgl_test_fixture.h"
 #include "accel_sensor_manager.h"
 #include "core/update_queue.h"

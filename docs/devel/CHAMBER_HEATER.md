@@ -66,7 +66,7 @@ The invariant: **vendor JSON schemas are translated to the generic `ChamberHeate
 | `ui_xml/components/chamber_fault_banner.xml` | Shared one-row banner: reason text (or "Heater offline") plus a compact Reset that hides while the device is offline. Instantiated by both orientation branches of the chamber card; each ships it and the banner self-hides while healthy |
 | `ui_xml/components/chamber_dryer_row.xml` | Shared one-row dryer control on the chamber card: Start Drying while idle, the live temp against the target plus the countdown and Stop while a cycle runs. Hidden unless `printer_has_chamber_dryer` |
 | `src/ui/filament/ui_chamber_dryer_modal.cpp` + `ui_xml/chamber_dryer_modal.xml` | The start modal: the shared drying presets labelled as the dryer will run them, and the bed-assist switch |
-| `src/api/moonraker_client_mock.cpp` | Mock chamber backend shape (`HELIX_MOCK_OBJECTS` dragonbreath trio), registry-based chamber-status key |
+| `src/mock/moonraker_client_mock.cpp` | Mock chamber backend shape (`HELIX_MOCK_OBJECTS` dragonbreath trio), registry-based chamber-status key |
 | `tests/unit/test_chamber_*.cpp` | Backend match/parse, subjects, ceiling, actions, discovery, mock — tags under `[chamber]` |
 
 ---

@@ -24,7 +24,7 @@ tests/shell/test_android_libhv_isolation.bats	android/app/jni/CMakeLists.txt lib
 tests/shell/test_android_release_abis.bats	.github/workflows/build.yml .github/workflows/cache-prune.yml .github/workflows/ccache-warm.yml .github/workflows/release.yml android/app/build.gradle
 tests/shell/test_android_version_code.bats	.github/workflows/release.yml VERSION.txt android/app/build.gradle scripts/android-version-code.sh scripts/generate-whatsnew.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp scripts/changelog-section.sh
 tests/shell/test_apply_submodule_patch.bats	mk/patches.mk scripts/apply_submodule_patch.sh
-tests/shell/test_asan_leak_gate.bats	include/core/observer_factory.h scripts/check_asan_leaks.py src/api/moonraker_client_mock.cpp src/core/observer_factory.cpp src/ui/components/ui_button.cpp src/ui/controls/ui_panel_controls.cpp src/ui/components/ui_split_button.cpp tests/catch_amalgamated.hpp tests/unit/test_panel_widget_manager.cpp tests/unit/test_temp_graph_controller.cpp
+tests/shell/test_asan_leak_gate.bats	include/core/observer_factory.h scripts/check_asan_leaks.py src/mock/moonraker_client_mock.cpp src/core/observer_factory.cpp src/ui/components/ui_button.cpp src/ui/controls/ui_panel_controls.cpp src/ui/components/ui_split_button.cpp tests/catch_amalgamated.hpp tests/unit/test_panel_widget_manager.cpp tests/unit/test_temp_graph_controller.cpp
 tests/shell/test_audit_codebase_staged_content.bats	scripts/audit_codebase.sh
 tests/shell/test_bats_inert_assertions_gate.bats	scripts/check_bats_inert_assertions.py scripts/qc/bats_inert.sh scripts/quality-checks.sh scripts/staged_content.py
 tests/shell/test_build_flags_stamp.bats	Makefile mk/rules.mk

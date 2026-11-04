@@ -531,9 +531,9 @@ else
 endif
 
 ifneq ($(ENABLE_MOCKS),yes)
-    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/api/*_mock*.cpp $(SRC_DIR)/network/*_mock*.cpp $(SRC_DIR)/platform/usb/*_mock*.cpp),$(APP_SRCS))
+    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/mock/*_mock*.cpp $(SRC_DIR)/network/*_mock*.cpp $(SRC_DIR)/platform/usb/*_mock*.cpp),$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/printer/ams_backend_mock.cpp,$(APP_SRCS))
-    APP_SRCS := $(filter-out $(SRC_DIR)/api/moonraker_api_mock.cpp,$(APP_SRCS))
+    APP_SRCS := $(filter-out $(SRC_DIR)/mock/moonraker_api_mock.cpp,$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/system/mock_performance_source.cpp,$(APP_SRCS))
 endif
 

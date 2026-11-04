@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "../../src/api/moonraker_client_mock_internal.h"
+#include "../../src/mock/moonraker_client_mock_internal.h"
 #include "../helix_test_fixture.h"
 #include "core/update_queue.h"
 #include "mock_persona.h"

@@ -366,7 +366,7 @@ TEST_CASE("PrePrint adaptive: AD5M database entry forwards ADAPTIVE", "[adaptive
 TEST_CASE("PrePrint adaptive: AD5M mock identity resolves to adaptive-capable options",
           "[adaptive][preprint]") {
     // EXACT hostname the FLASHFORGE_AD5M mock reports from printer.info
-    // (src/api/moonraker_client_mock_server.cpp). If that string changes, this
+    // (src/mock/moonraker_client_mock_server.cpp). If that string changes, this
     // test must be updated in lockstep — that coupling is the point.
     PrinterHardwareData hardware{};
     hardware.heaters = {"extruder", "heater_bed"};

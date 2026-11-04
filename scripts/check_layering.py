@@ -50,7 +50,7 @@ from pathlib import Path
 LAYERS = (
     ("core", ("util", "utils", "config", "generated", "core")),
     ("platform", ("network", "bluetooth", "input", "platform")),
-    ("moonraker", ("api",)),
+    ("moonraker", ("api", "mock")),
     ("state", ("printer", "temperature", "spoolman", "print", "calibration", "sensors",
                "led", "plugin", "system")),
     ("rendering", ("rendering",)),

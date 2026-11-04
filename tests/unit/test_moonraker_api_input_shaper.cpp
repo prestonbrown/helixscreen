@@ -502,7 +502,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "API handles null callbacks gracefully"
 //   - include/calibration_types.h (ShaperOption, InputShaperConfig)
 //   - include/moonraker_api.h (measure_axes_noise, get_input_shaper_config)
 //   - src/api/moonraker_api_advanced.cpp (NoiseCheckCollector, enhanced collector)
-//   - src/api/moonraker_client_mock.cpp (mock implementations)
+//   - src/mock/moonraker_client_mock.cpp (mock implementations)
 // ============================================================================
 
 // ----------------------------------------------------------------------------

@@ -21,7 +21,7 @@ Code map:
 | `include/plr_plugin_rpc.h`, `src/printer/plr_plugin_rpc.cpp` | The endpoints as calls: the plugin's (GENERIC), and the firmware's recovery probe (`request_recovery_probe`) and RPC discard (`discard_with_rpc`). |
 | `include/ui_plr_wizard_overlay.h`, `src/ui/print/ui_plr_wizard_overlay.cpp`, `ui_xml/plr_wizard_overlay.xml` | GENERIC: the resume wizard. |
 | `include/plr_profile.h`, `src/printer/plr_profile.cpp` | GENERIC: the printer database `plr` block, its resolution with the user's overrides, and the `plr_profile` / `plr_user` records. |
-| `src/api/moonraker_client_mock_plr.cpp` | The mock plugin's endpoints (`HELIX_MOCK_PLR*`, `MOCK_ENVIRONMENT_VARIABLES.md`). |
+| `src/mock/moonraker_client_mock_plr.cpp` | The mock plugin's endpoints (`HELIX_MOCK_PLR*`, `MOCK_ENVIRONMENT_VARIABLES.md`). |
 
 Tests: `tests/unit/test_plr_backend.cpp`, `test_plr_offer.cpp`, `test_plr_state.cpp`,
 `test_plr_prompt.cpp`, `test_firmware_error_envelope.cpp`, and for GENERIC

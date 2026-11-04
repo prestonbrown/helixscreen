@@ -397,8 +397,8 @@ The following methods have been removed from `MoonrakerClient` and are now in `M
 |------|---------|
 | `src/api/moonraker_client.cpp` | Transport implementation |
 | `src/api/moonraker_api.cpp` | Domain logic (+ `moonraker_api_*.cpp` splits) |
-| `src/api/moonraker_client_mock.cpp` | Mock transport (+ `moonraker_client_mock_*.cpp` splits) |
-| `src/api/moonraker_api_mock.cpp` | Mock domain (local file access) |
+| `src/mock/moonraker_client_mock.cpp` | Mock transport (+ `moonraker_client_mock_*.cpp` splits) |
+| `src/mock/moonraker_api_mock.cpp` | Mock domain (local file access) |
 | `src/application/moonraker_manager.cpp` | Lifecycle wiring, profile loading, observer setup |
 
 ### Test Files

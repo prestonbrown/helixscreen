@@ -101,7 +101,7 @@ Z belts are deliberately unsupported; see the header comment on
 | `src/calibration/sweep_response_estimator.cpp`, `include/sweep_response_estimator.h` | Pure estimator: `SweepResponseAccumulator` turns accelerometer samples into one PSD point per Hz, `DriveLock` finds where the ramp is in the samples |
 | `src/ui/calibration/ui_frequency_response_chart.cpp` | Shared chart: series styles, muted ghost series, sweep cursor, numbered and hollow markers, percent gridline labels, label gutters sized from the font (see `INPUT_SHAPER.md` § Axis label gutters) |
 | `src/calibration/belt_gating.cpp` | The pure Start-gate predicate |
-| `src/api/moonraker_client_mock.cpp` | `dispatch_test_resonances_response`: the `--test` simulation of a sweep |
+| `src/mock/moonraker_client_mock.cpp` | `dispatch_test_resonances_response`: the `--test` simulation of a sweep |
 
 ## Flow
 
@@ -759,7 +759,7 @@ belt.
 
 The mock simulates the whole console sequence: "Testing frequency" lines, the terminal
 written-file line, and a CSV with a Lorentzian peak over a noise floor at the requested
-frequency (`dispatch_test_resonances_response` in `src/api/moonraker_client_mock.cpp`,
+frequency (`dispatch_test_resonances_response` in `src/mock/moonraker_client_mock.cpp`,
 `write_mock_belt_csv` for the file). Full reference: `MOCK_ENVIRONMENT_VARIABLES.md`,
 one `###` entry per variable.
 

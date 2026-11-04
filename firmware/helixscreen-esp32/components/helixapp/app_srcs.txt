@@ -909,17 +909,17 @@ src/calibration/resonance_console.cpp
 src/calibration/shaper_csv_parser.cpp
 
 # ===== mocks (CONFIG_HELIX_MOCK_PRINTER only) =====
-# MOCK: src/api/moonraker_api_mock.cpp
-# MOCK: src/api/moonraker_client_mock.cpp
-# MOCK: src/api/moonraker_client_mock_files.cpp
-# MOCK: src/api/moonraker_client_mock_history.cpp
-# MOCK: src/api/moonraker_client_mock_objects.cpp
-# MOCK: src/api/moonraker_client_mock_print.cpp
-# MOCK: src/api/moonraker_client_mock_queue.cpp
-# MOCK: src/api/moonraker_client_mock_server.cpp
-# MOCK: src/api/moonraker_client_mock_skips.cpp
-# MOCK: src/api/moonraker_client_mock_layer_pause.cpp
-# MOCK: src/api/moonraker_client_mock_plr.cpp
+# MOCK: src/mock/moonraker_api_mock.cpp
+# MOCK: src/mock/moonraker_client_mock.cpp
+# MOCK: src/mock/moonraker_client_mock_files.cpp
+# MOCK: src/mock/moonraker_client_mock_history.cpp
+# MOCK: src/mock/moonraker_client_mock_objects.cpp
+# MOCK: src/mock/moonraker_client_mock_print.cpp
+# MOCK: src/mock/moonraker_client_mock_queue.cpp
+# MOCK: src/mock/moonraker_client_mock_server.cpp
+# MOCK: src/mock/moonraker_client_mock_skips.cpp
+# MOCK: src/mock/moonraker_client_mock_layer_pause.cpp
+# MOCK: src/mock/moonraker_client_mock_plr.cpp
 # MOCK: src/printer/ams_backend_mock.cpp
 src/system/host_identity.cpp
 src/system/env_refusal_notice.cpp

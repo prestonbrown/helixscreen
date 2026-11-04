@@ -129,10 +129,10 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 80 byte(s) in 1 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (helix-tests-asan+0x351a24d)'
-    frame 1 'MoonrakerClientMock::dispatch_shaper_calibrate_response(char) src/api/moonraker_client_mock.cpp:4749:17'
+    frame 1 'MoonrakerClientMock::dispatch_shaper_calibrate_response(char) src/mock/moonraker_client_mock.cpp:4749:17'
     finish_run 80 1
     run python3 "$GATE" --list "$LOG"
-    contains 'src/api/moonraker_client_mock.cpp::MoonrakerClientMock::dispatch_shaper_calibrate_response' "$output"
+    contains 'src/mock/moonraker_client_mock.cpp::MoonrakerClientMock::dispatch_shaper_calibrate_response' "$output"
 
     : > "$LOG"
     leak_header

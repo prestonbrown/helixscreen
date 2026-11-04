@@ -309,7 +309,7 @@ Behaviour is pinned by `tests/unit/test_rpc_error_policy.cpp` (the matrix),
    through rather than re-deriving it (`std::optional<bool>` is the pattern
    `AmsSubscriptionBackend` uses, `include/ams_subscription_backend.h#AmsSubscriptionBackend`).
 6. Never re-implement the matrix. Call `rpc_error_policy::decide()` — the mock's inline gcode
-   path does exactly that (`src/api/moonraker_client_mock_print.cpp#register_print_handlers`) so its behaviour
+   path does exactly that (`src/mock/moonraker_client_mock_print.cpp#register_print_handlers`) so its behaviour
    cannot drift from the real tracker's.
 
 ## What was measured on hardware
