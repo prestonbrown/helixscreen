@@ -173,7 +173,7 @@ Languages that need this most heavily: Russian, Polish, Arabic, Czech, and most 
 
 ### Step 5: Register the language in code
 
-Registration lives in `src/system/system_settings_manager.cpp` (the `kLanguageOptionsText` list and `language_code_to_index`) and `src/ui/ui_wizard_language_chooser.cpp` (the first-run language picker). Open a PR without these changes — we'll guide you through the small code additions during review. The YAML file is the heavy lift; the registration is a few lines.
+Registration lives in `src/system/system_settings_manager.cpp` (the `kLanguageOptionsText` list and `language_code_to_index`) and `src/ui/wizard/ui_wizard_language_chooser.cpp` (the first-run language picker). Open a PR without these changes — we'll guide you through the small code additions during review. The YAML file is the heavy lift; the registration is a few lines.
 
 ---
 

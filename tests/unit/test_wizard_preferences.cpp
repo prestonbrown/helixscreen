@@ -2,7 +2,7 @@
 
 #include "ui_wizard_preferences.h"
 
-#include "../../src/ui/wizard_step_registry.h"
+#include "../../src/ui/wizard/wizard_step_registry.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "audio_settings_manager.h"
 #include "config.h"

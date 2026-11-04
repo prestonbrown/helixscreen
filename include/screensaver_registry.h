@@ -15,7 +15,7 @@
  *
  * Always compiled, including in builds without screensavers, so settings code can clamp a
  * stored type without the saver sources. The saver implementations are created in
- * src/ui/screensaver_manager.cpp.
+ * src/ui/screensaver/screensaver_manager.cpp.
  */
 
 /**

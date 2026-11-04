@@ -1953,6 +1953,14 @@
       "attributes": {},
       "inherits": "lv_obj"
     },
+    "belt_gap_gauge": {
+      "attributes": {},
+      "inherits": "lv_obj"
+    },
+    "belt_path_sketch": {
+      "attributes": {},
+      "inherits": "lv_obj"
+    },
     "helix_sparkline": {
       "attributes": {
         "source": {
@@ -1988,14 +1996,6 @@
           "type": "int"
         }
       },
-      "inherits": "lv_obj"
-    },
-    "belt_gap_gauge": {
-      "attributes": {},
-      "inherits": "lv_obj"
-    },
-    "belt_path_sketch": {
-      "attributes": {},
       "inherits": "lv_obj"
     },
     "humidity_drop": {
@@ -3017,12 +3017,12 @@
     "endless_spool_arrows",
     "ui_split_button",
     "z_offset_indicator",
+    "belt_gap_gauge",
+    "belt_path_sketch",
     "helix_sparkline",
     "setting_group",
     "ams_lane_bar",
     "ams_lane_spool",
-    "belt_gap_gauge",
-    "belt_path_sketch",
     "humidity_drop",
     "leader_line",
     "swatch_paint",

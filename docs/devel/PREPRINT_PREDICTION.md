@@ -364,7 +364,7 @@ line (`preprint_estimate_visible`, `ui_xml/print_file_detail.xml`, which also hi
 micro and tiny breakpoints). The detail view re-runs it when the file opens (reloading the
 cached history first), when the metadata arrives and on every option toggle. Metadata that
 arrives for a file the view no longer shows is dropped
-(`src/ui/ui_print_select_detail_view.cpp#apply_file_metadata`), so a
+(`src/ui/print/ui_print_select_detail_view.cpp#apply_file_metadata`), so a
 slow fetch never prices the next file with the previous file's temperatures. The label reads
 "~4:30 prep time", "~5 min prep time" or "~50 sec prep time", rounded to 30 seconds above two
 minutes and to 10 seconds at or below. A chamber target is in neither the metadata nor the thermal model; a
@@ -538,7 +538,7 @@ pure function from that struct to rows:
 - The expected order is the file's own start block when it has one, else the `PRINT_START` macro analysis the collector was handed through `set_macro_analysis()`, else empty. Upcoming rows come only from it, so with no prediction the list is the done rows plus the current one. A future step is never invented.
 - At most `kPreprintChecklistMaxRows` (8) rows show, the oldest done rows dropping first; the current row never drops. IDLE, INITIALIZING and COMPLETE never appear.
 
-`PrintStatusTiles::refresh_checklist()` (`src/ui/ui_print_status_tiles.cpp#refresh_checklist`) copies the rows into the `ps_step_<i>_name` / `_time` / `_status` subjects, and the compact form's `ps_step_position_text`, `ps_step_current_name` and `ps_step_current_time`. The collector fires no subject for elapsed time, a start block loading or a macro analysis arriving, so the panel re-reads on its own tick and on activation.
+`PrintStatusTiles::refresh_checklist()` (`src/ui/print/ui_print_status_tiles.cpp#refresh_checklist`) copies the rows into the `ps_step_<i>_name` / `_time` / `_status` subjects, and the compact form's `ps_step_position_text`, `ps_step_current_name` and `ps_step_current_time`. The collector fires no subject for elapsed time, a start block loading or a macro analysis arriving, so the panel re-reads on its own tick and on activation.
 
 ### PrintStatusPanel Observer Integration
 
@@ -680,12 +680,12 @@ The predictor has no LVGL or Config dependencies, making tests fast and determin
 | `src/print/print_start_collector.cpp` | Phase timing, history persistence, ETA display updates |
 | `include/printer_print_state.h` | Subject declarations (preprint_remaining, preprint_elapsed, etc.) |
 | `src/printer/printer_print_state.cpp` | Subject initialization and setters |
-| `src/ui/ui_panel_print_status.cpp` | Observer integration for elapsed/remaining display |
+| `src/ui/print/ui_panel_print_status.cpp` | Observer integration for elapsed/remaining display |
 | `include/preprint_checklist.h` | Pure checklist rows built from `checklist_input()` |
-| `src/ui/ui_print_status_tiles.cpp` | Publishes the checklist rows as subjects |
-| `src/ui/ui_panel_print_select.cpp` | Augments slicer time estimates with preprint prediction |
-| `src/ui/ui_print_preparation_manager.cpp` | The print details estimate (`recalculate_estimate()`) and the skipped phases a start hands the collector |
-| `src/ui/ui_print_select_detail_view.cpp` | Formats the details estimate line and decides when it is recomputed |
+| `src/ui/print/ui_print_status_tiles.cpp` | Publishes the checklist rows as subjects |
+| `src/ui/print/ui_panel_print_select.cpp` | Augments slicer time estimates with preprint prediction |
+| `src/ui/print/ui_print_preparation_manager.cpp` | The print details estimate (`recalculate_estimate()`) and the skipped phases a start hands the collector |
+| `src/ui/print/ui_print_select_detail_view.cpp` | Formats the details estimate line and decides when it is recomputed |
 | `include/thermal_rate_model.h` | Heating-time model - owns the two phases the predictor never records |
 | `assets/config/print_start_profiles/default.json` | Generic profile: the patterns and phase object that decide which phases get detected at all |
 | `tests/unit/test_preprint_predictor.cpp` | Unit tests for prediction logic |

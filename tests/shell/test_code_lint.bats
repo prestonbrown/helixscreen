@@ -2114,11 +2114,11 @@ EOF
         put include/tinfl_inflate.h
     run lint_esp32_psram_walk
     [ "$status" -eq 0 ]
-    printf 'size_t b = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);\n' | put src/ui/ui_panel_print_status.cpp
+    printf 'size_t b = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);\n' | put src/ui/print/ui_panel_print_status.cpp
     run lint_esp32_psram_walk
     [ "$status" -eq 1 ]
     contains "ui_panel_print_status.cpp" "$output"
-    printf 'int x = 0;\n' | put src/ui/ui_panel_print_status.cpp
+    printf 'int x = 0;\n' | put src/ui/print/ui_panel_print_status.cpp
     printf 'size_t n = 0;\n' | put include/tinfl_inflate.h
     run lint_esp32_psram_walk
     [ "$status" -eq 1 ]

@@ -61,10 +61,10 @@ FBDEV_DISPLAY_API_SRCS := \
     src/api/input_device_scanner.cpp
 
 FBDEV_DISPLAY_UI_SRCS := \
-    src/ui/touch_calibration.cpp
+    src/ui/calibration/touch_calibration.cpp
 
 FBDEV_DISPLAY_API_OBJS := $(FBDEV_DISPLAY_API_SRCS:src/api/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
-FBDEV_DISPLAY_UI_OBJS := $(FBDEV_DISPLAY_UI_SRCS:src/ui/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
+FBDEV_DISPLAY_UI_OBJS := $(FBDEV_DISPLAY_UI_SRCS:src/ui/calibration/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
 FBDEV_DISPLAY_OBJS := $(FBDEV_DISPLAY_API_OBJS) $(FBDEV_DISPLAY_UI_OBJS)
 
 # Build fbdev display objects
@@ -72,7 +72,7 @@ $(FBDEV_DISPLAY_DIR)/%.o: src/api/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISP
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
-$(FBDEV_DISPLAY_DIR)/%.o: src/ui/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+$(FBDEV_DISPLAY_DIR)/%.o: src/ui/calibration/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -201,7 +201,7 @@ DRM_DISPLAY_APP_OBJS := \
     $(OBJ_DIR)/api/display_backend_fbdev.o \
     $(OBJ_DIR)/api/touch_calibration_wrapper.o \
     $(OBJ_DIR)/api/input_device_scanner.o \
-    $(OBJ_DIR)/ui/touch_calibration.o
+    $(OBJ_DIR)/ui/calibration/touch_calibration.o
 
 # All common app objects (swap out DRM-specific and GLES-specific objects)
 FBDEV_APP_OBJS := $(filter-out $(DRM_DISPLAY_APP_OBJS) $(DRM_CRASH_OBJ) $(DRM_GLES_APP_OBJS),$(APP_OBJS))

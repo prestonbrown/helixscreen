@@ -420,7 +420,7 @@ Observer: `always_on`, no switch.
 | `include/file_analysis.h`, `src/printer/file_analysis.cpp` | `file_analysis_source`, `parse_file_analysis_reply` (the record's `bounds` and `header` into `FileAnalysisRecord::fit`), `apply_file_analysis`, `request_file_analysis`, `with_layer_index_sidecar`; exception-free, compiled for the K-Touch |
 | `src/printer/print_start_inputs.cpp#load` | `FileStartFactsLoader::load`: metadata, record, footer, scan, in that order |
 | `src/rendering/gcode_layer_index.cpp` | `GCodeLayerIndex::build_from_sidecar`, `layer_index_file_hash` |
-| `src/ui/ui_print_select_detail_view.cpp`, `src/ui/print_preview_controller.cpp` | The two previews: fetch the sidecar, then load |
+| `src/ui/print/ui_print_select_detail_view.cpp`, `src/ui/print/print_preview_controller.cpp` | The two previews: fetch the sidecar, then load |
 
 **Endpoint.** `server.helix.analysis {"filename"}` answers `ready` with the record, `pending`
 (queued at the front; `notify_analysis_ready {"filename"}` follows), `failed` (this version
@@ -509,7 +509,7 @@ Safety & Alerts > Hold slicer prints that do not fit.
 | `tests/fixtures/fit_check/cases.json` | The one table both checkers are held to (limit cases and check cases) |
 | `src/printer/print_start_checks.cpp#gate_fit_check` | The gate, right after `printer_stopping_command` in `default_print_start_gates` |
 | `src/printer/print_start_inputs.cpp#current_fit_machine` | Limits from `PrinterDiscovery::fit_machine()` (parsed from `configfile.settings` at discovery), plus the database model, the filament-system rule and the nozzles the extruders report (`ExtruderInfo::nozzle_diameter` / `nozzle_volume_type`, subscribed in `src/api/moonraker_discovery_sequence.cpp`) |
-| `src/ui/ui_print_select_detail_view.cpp#refresh_fit_check` | The detail card, above the filament card: `detail_fit_check_severity` (0 no finding, then one past the worst: 1 note, 2 warn, 3 block) and `detail_fit_check_text` (every finding) |
+| `src/ui/print/ui_print_select_detail_view.cpp#refresh_fit_check` | The detail card, above the filament card: `detail_fit_check_severity` (0 no finding, then one past the worst: 1 note, 2 warn, 3 block) and `detail_fit_check_text` (every finding) |
 
 **Limits.** A delta reads `print_radius` (else `delta_radius`), Z from `minimum_z_position`
 (0) to the lowest tower `position_endstop`; any other kinematics reads `stepper_[xyz]`
@@ -676,7 +676,7 @@ and starts the result through the same linked-print path as `print_modified`. Tr
 | `moonraker-plugin/helix_edits.py` | `parse_edits` / `resolve_spans`, `apply_plan` / `apply_file` (pure), `HelixEdits` (endpoint); run as a script, the worker that rewrites one file |
 | `moonraker-plugin/helix_print.py` | `_start_edits`; `resolve_original`, `resolve_temp`, `start_linked_print(..., kind)` shared with `print_modified` |
 | `include/gcode_edit_list.h`, `src/rendering/gcode_edit_list.cpp` | `EditList`, `to_server_edits`, `from_server_edits`, `choose_edit_transport` |
-| `src/ui/ui_print_preparation_manager.cpp` | `modify_and_print`, `modify_and_print_with_remap` fill the server-edits route; `rewrite_and_print` picks it; `start_staged_print` starts either |
+| `src/ui/print/ui_print_preparation_manager.cpp` | `modify_and_print`, `modify_and_print_with_remap` fill the server-edits route; `rewrite_and_print` picks it; `start_staged_print` starts either |
 | `src/api/moonraker_job_api.cpp#start_edited_print` | JSON-RPC `server.helix.print_edited` |
 | `src/rendering/gcode_file_modifier.cpp`, `src/rendering/gcode_tool_remapper.cpp` | The app's half of the grammar |
 | `tests/fixtures/gcode_edits/` | Golden cases both suites apply |

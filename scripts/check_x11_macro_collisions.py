@@ -87,7 +87,7 @@
 #   include/ams_types.h safe when main.cpp pulls it in early and something else
 #   would have pulled it late. A header exposed in ANY TU is exposed everywhere:
 #   a `::None` in include/theme_manager.h really would break src/main.cpp, even
-#   though src/ui/theme_manager.cpp includes that header first thing.
+#   though src/ui/theme/theme_manager.cpp includes that header first thing.
 #
 #   Includes behind #ifdef are followed -- <SDL.h> in application.cpp sits under
 #   `#ifdef HELIX_DISPLAY_SDL`, which is exactly the desktop build that has X11.

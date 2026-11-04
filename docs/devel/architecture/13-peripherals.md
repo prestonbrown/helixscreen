@@ -236,7 +236,7 @@ bg-callback-to-defer pattern chapter 03 prescribes.
 **`MdnsDiscovery`** ([`include/mdns_discovery.h#"class MdnsDiscovery : public IMdnsDiscovery {"`](../../../include/mdns_discovery.h)) finds Moonraker servers on the LAN: a PIMPL class with its
 own thread, re-querying every 3 seconds, results marshaled back through `helix::ui::queue_update()`. Consumers
 hold the `IMdnsDiscovery` interface (`include/mdns_discovery.h#IMdnsDiscovery`), not the concrete. Its consumers are the first-run connection
-wizard ([`src/ui/ui_wizard_connection.cpp`](../../../src/ui/ui_wizard_connection.cpp)), the label-printer settings screen (network Brother printers), and
+wizard ([`src/ui/wizard/ui_wizard_connection.cpp`](../../../src/ui/wizard/ui_wizard_connection.cpp)), the label-printer settings screen (network Brother printers), and
 the connection-failed prompt, which browses for the printer at a new address through a factory
 `MoonrakerManager` installs (`src/application/moonraker_manager.cpp#"set_printer_rediscovery_source("`; not installed for a mock printer or on the ESP32 firmware). A
 socket failure on a network-less box is expected and handled gracefully - discovery just returns nothing.

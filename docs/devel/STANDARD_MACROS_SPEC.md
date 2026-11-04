@@ -339,4 +339,4 @@ void FilamentPanel::execute_load() {
 - `src/application/moonraker_manager.cpp` - Init after discovery
 - `src/ui/ui_panel_controls.cpp/h` - Use StandardMacros
 - `src/ui/ui_panel_filament.cpp` - Use StandardMacros
-- `src/ui/ui_panel_print_status.cpp` - Use StandardMacros
+- `src/ui/print/ui_panel_print_status.cpp` - Use StandardMacros

@@ -304,7 +304,7 @@ themselves are read through the `tool_offset_*()` accessors rather than subjects
 
 This allows a tool changer where T0 feeds from an AFC (backend 0) and T1 feeds from a Happy Hare (backend 1), each with independent slot tracking.
 
-`ToolState::has_multiple_toolheads()` is true for a tool changer or more than one hotend and false for AMS slots feeding one hotend (`physical_heads().size() > 1`). Ask it instead of combining `is_multi_tool()` with `has_multiple_extruders()` and `ams_topology_active()`. Its callers: the toolhead widget's tool label (`src/ui/panel_widgets/toolhead_widget.cpp`) and the belt settling laps' central-half inset (`src/ui/ui_panel_belt_tension.cpp`, `BeltSettleInputs::tool_count`).
+`ToolState::has_multiple_toolheads()` is true for a tool changer or more than one hotend and false for AMS slots feeding one hotend (`physical_heads().size() > 1`). Ask it instead of combining `is_multi_tool()` with `has_multiple_extruders()` and `ams_topology_active()`. Its callers: the toolhead widget's tool label (`src/ui/panel_widgets/toolhead_widget.cpp`) and the belt settling laps' central-half inset (`src/ui/calibration/ui_panel_belt_tension.cpp`, `BeltSettleInputs::tool_count`).
 
 `ToolInfo.lane_seated` comes from `ToolTopology::tool_seated`, which `build_ams_topology()` fills from each lane's `slot_is_actively_loaded()` on every push. Where a hub feeds several lanes into one head, it names the lane the head holds, mounted or parked, and `PhysicalHead::representative_tool()` sends that lane when the head is selected rather than the head's lowest (prestonbrown/helixscreen#1811).
 

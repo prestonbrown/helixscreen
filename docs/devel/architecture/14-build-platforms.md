@@ -150,7 +150,7 @@ only, the FlashForge machine id and mod-tree probe, caches the answer, and `boar
 the row of per-board facts (camera probing, the jz_pwm piezo, reduced effects, backlight re-assert,
 firmware-owned updates, legacy release asset). Capability modules that own large per-board data
 key their own tables on `board::Board` the same way: touch fits
-(`src/ui/touch_calibration.cpp#factory_touch_fit`), panel geometry
+(`src/ui/calibration/touch_calibration.cpp#factory_touch_fit`), panel geometry
 (`src/application/display_metrics.cpp`) and cache rungs
 (`src/system/helix_cache_dir.cpp#board_cache_candidates`). Generic code asks the board; it never
 tests a `HELIX_PLATFORM_*` macro or probes the filesystem for a vendor. A new board is one enum

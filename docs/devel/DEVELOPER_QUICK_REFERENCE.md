@@ -62,7 +62,7 @@ private:
 
 ### Modal Pattern
 
-**Canonical example:** `src/ui/ui_wizard*.cpp`
+**Canonical example:** `src/ui/wizard/ui_wizard*.cpp`
 
 ```cpp
 class ConfirmDialog : public Modal {

@@ -37,7 +37,7 @@ Two things share the word "sensor". The managers consume **Klipper** objects, co
 | `src/application/subject_initializer.cpp` | Calls every manager's `init_subjects()` before any panel XML exists |
 | `ui_xml/sensor_row.xml`, `ui_xml/sensors_overlay.xml`, `src/ui/ui_settings_sensors.cpp` | Settings > Sensors: one row component, one section per manager |
 | `include/printer_hardware.h` | `PrinterHardware::is_ams_sensor()`: hides filament sensors an AMS backend owns |
-| `src/ui/ui_wizard_filament_sensor_select.cpp` | First-run wizard step that assigns the RUNOUT role |
+| `src/ui/wizard/ui_wizard_filament_sensor_select.cpp` | First-run wizard step that assigns the RUNOUT role |
 | `src/ui/ui_filament_runout_handler.cpp` | Runout guidance modal |
 | `src/ui/panel_widgets/thermistor_widget.cpp`, `humidity_widget.cpp`, `width_sensor_widget.cpp`, `filament_sensor_widget.cpp` | Home-panel widgets |
 

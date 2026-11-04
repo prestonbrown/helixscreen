@@ -774,7 +774,7 @@ struct ShippedFit {
     helix::TouchCalibration cal;
 };
 
-// Keep in sync with platform_default_calibration() in src/ui/touch_calibration.cpp.
+// Keep in sync with platform_default_calibration() in src/ui/calibration/touch_calibration.cpp.
 const ShippedFit kShippedFits[] = {
     {"ad5x",
      {true, 1.171731f, -0.043628f, -66.965828f, -0.006188f, 1.478954f, -118.906227f, false}},

@@ -59,12 +59,12 @@ Klipper SHAPER_CALIBRATE
 | `include/ui_frequency_response_chart.h` | Frequency response chart widget (C API) |
 | `src/ui/ui_frequency_response_chart.cpp` | Chart implementation with LVGL draw callbacks |
 | `include/ui_panel_input_shaper.h` | Input shaper panel (overlay) |
-| `src/ui/ui_panel_input_shaper.cpp` | Panel implementation |
+| `src/ui/calibration/ui_panel_input_shaper.cpp` | Panel implementation |
 | `ui_xml/input_shaper_panel.xml` | XML layout with subject bindings |
-| `include/ui_shaper_sweep_chart.h`, `src/ui/ui_shaper_sweep_chart.cpp` | `ShaperSweepChart`: the live chart shared by the panel's MEASURING view and the wizard step |
+| `include/ui_shaper_sweep_chart.h`, `src/ui/calibration/ui_shaper_sweep_chart.cpp` | `ShaperSweepChart`: the live chart shared by the panel's MEASURING view and the wizard step |
 | `include/live_sweep_preview.h`, `include/sweep_response_estimator.h` | The stream-to-points pipeline behind every live sweep chart (`BELT_TENSION.md` § Live preview) |
 | `include/ui_panel_calibration_pid.h` | PID calibration panel |
-| `src/ui/ui_panel_calibration_pid.cpp` | PID panel implementation |
+| `src/ui/calibration/ui_panel_calibration_pid.cpp` | PID panel implementation |
 | `ui_xml/calibration_pid_panel.xml` | PID panel XML layout |
 | `include/platform_capabilities.h` | Hardware tier detection and chart point limits |
 
@@ -614,7 +614,7 @@ The CSV parser auto-discovers shaper columns from the header, and the chip toggl
 Follow the existing pattern:
 
 1. Create header in `include/ui_panel_calibration_*.h` extending `OverlayBase`
-2. Create implementation in `src/ui/ui_panel_calibration_*.cpp`
+2. Create implementation in `src/ui/calibration/ui_panel_calibration_*.cpp`
 3. Create XML layout in `ui_xml/calibration_*_panel.xml`
 4. Register XML event callbacks at startup (called from `main.cpp` initialization)
 5. Register a row click handler for the Advanced panel

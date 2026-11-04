@@ -117,10 +117,10 @@ src/print/firmware_3mf_extract.cpp
 src/print/preprint_predictor.cpp
 src/print/preprint_checklist.cpp
 src/print/print_start_phase_label.cpp
-src/ui/print_status_chips.cpp
-src/ui/print_status_tile_layout.cpp
-src/ui/ui_print_status_more_menu.cpp
-src/ui/ui_print_status_tiles.cpp
+src/ui/print/print_status_chips.cpp
+src/ui/print/print_status_tile_layout.cpp
+src/ui/print/ui_print_status_more_menu.cpp
+src/ui/print/ui_print_status_tiles.cpp
 src/print/print_eta_estimator.cpp
 src/print/thumbnail_write_journal.cpp
 src/print/print_completion.cpp
@@ -385,7 +385,7 @@ src/ui/ams_tray_projection.cpp
 src/ui/ams_unit_pages.cpp
 src/ui/backdrop_blur.cpp
 src/ui/bed_coord_mapper.cpp
-src/ui/bed_mesh_profile_name.cpp
+src/ui/calibration/bed_mesh_profile_name.cpp
 src/ui/callout_presenter.cpp
 src/ui/camera_view.cpp
 src/ui/card_thumbnail_plan.cpp
@@ -475,8 +475,8 @@ src/ui/panel_widgets/thermistor_widget.cpp
 src/ui/panel_widgets/tips_widget.cpp
 src/ui/panel_widgets/tool_switcher_widget.cpp
 src/ui/panel_widgets/width_sensor_widget.cpp
-src/ui/print_control_buttons.cpp
-src/ui/print_control_view.cpp
+src/ui/print/print_control_buttons.cpp
+src/ui/print/print_control_view.cpp
 src/ui/save_config_restart.cpp
 src/ui/scroll_blit.cpp
 src/ui/setting_group.cpp
@@ -485,20 +485,20 @@ src/ui/shared_font_style.cpp
 src/ui/text_metrics.cpp
 src/ui/style_configs.cpp
 src/ui/temp_graph_controller.cpp
-src/ui/print_progress_text.cpp
-src/ui/print_status_layout_fitter.cpp
+src/ui/print/print_progress_text.cpp
+src/ui/print/print_status_layout_fitter.cpp
 src/ui/temp_graph_tooltip.cpp
 src/ui/temperature_controller.cpp
 src/ui/bed_drying_controller.cpp
 src/ui/temperature_service.cpp
-src/ui/theme_loader.cpp
-src/ui/theme_manager_new.cpp
+src/ui/theme/theme_loader.cpp
+src/ui/theme/theme_manager_new.cpp
 src/ui/tool_change_request.cpp
-src/ui/touch_calibration.cpp
-src/ui/touch_calibration_layout.cpp
-src/ui/touch_calibration_controller.cpp
-src/ui/touch_calibration_panel.cpp
-src/ui/touch_calibration_session.cpp
+src/ui/calibration/touch_calibration.cpp
+src/ui/calibration/touch_calibration_layout.cpp
+src/ui/calibration/touch_calibration_controller.cpp
+src/ui/calibration/touch_calibration_panel.cpp
+src/ui/calibration/touch_calibration_session.cpp
 src/ui/tour/first_run_tour.cpp
 src/ui/tour/tour_overlay.cpp
 src/ui/tour/tour_steps.cpp
@@ -553,11 +553,11 @@ src/ui/ui_dialog.cpp
 src/ui/ui_effects.cpp
 src/ui/ui_emergency_stop.cpp
 src/ui/ui_endless_spool_arrows.cpp
-src/ui/ui_exclude_mode_controller.cpp
-src/ui/ui_exclude_object_badges.cpp
-src/ui/ui_exclude_object_map_view.cpp
-src/ui/ui_exclude_object_modal.cpp
-src/ui/ui_exclude_object_side_list.cpp
+src/ui/print/ui_exclude_mode_controller.cpp
+src/ui/print/ui_exclude_object_badges.cpp
+src/ui/print/ui_exclude_object_map_view.cpp
+src/ui/print/ui_exclude_object_modal.cpp
+src/ui/print/ui_exclude_object_side_list.cpp
 src/ui/ui_external_spool_menu.cpp
 src/ui/ui_fan_arc_resize.cpp
 src/ui/ui_fan_control_overlay.cpp
@@ -644,11 +644,11 @@ src/ui/bed_plate_gesture.cpp
 src/ui/toolhead_move_sender.cpp
 src/ui/ui_panel_motion.cpp
 src/ui/ui_panel_power.cpp
-src/ui/ui_panel_print_select.cpp
-src/ui/ui_panel_print_status.cpp
+src/ui/print/ui_panel_print_select.cpp
+src/ui/print/ui_panel_print_status.cpp
 src/ui/ui_panel_settings.cpp
-src/ui/pre_start_exclude.cpp
-src/ui/print_select_button_view.cpp
+src/ui/print/pre_start_exclude.cpp
+src/ui/print/print_select_button_view.cpp
 src/ui/ui_plr_offer_controller.cpp
 src/ui/ui_chamber_stall_prompt.cpp
 src/ui/ui_plr_prompt.cpp
@@ -658,28 +658,28 @@ src/ui/ui_pin_utils.cpp
 src/ui/ui_plugin_install_modal.cpp
 src/ui/plugin_self_heal.cpp
 src/ui/ui_position_utils.cpp
-src/ui/ui_pre_print_options_renderer.cpp
-src/ui/ui_print_exclude_object_manager.cpp
-src/ui/ui_print_light_timelapse.cpp
-src/ui/ui_print_layer_pause.cpp
-src/ui/ui_print_preparation_manager.cpp
-src/ui/ui_print_select_card_view.cpp
-src/ui/ui_print_select_archive.cpp
-src/ui/ui_print_select_detail_view.cpp
-src/ui/ui_print_select_file_provider.cpp
-src/ui/ui_print_select_file_sorter.cpp
-src/ui/ui_print_select_history.cpp
-src/ui/ui_print_select_list_view.cpp
-src/ui/ui_print_select_path_navigator.cpp
-src/ui/ui_print_select_usb_source.cpp
-src/ui/ui_print_start_controller.cpp
-src/ui/ui_print_tune_overlay.cpp
+src/ui/print/ui_pre_print_options_renderer.cpp
+src/ui/print/ui_print_exclude_object_manager.cpp
+src/ui/print/ui_print_light_timelapse.cpp
+src/ui/print/ui_print_layer_pause.cpp
+src/ui/print/ui_print_preparation_manager.cpp
+src/ui/print/ui_print_select_card_view.cpp
+src/ui/print/ui_print_select_archive.cpp
+src/ui/print/ui_print_select_detail_view.cpp
+src/ui/print/ui_print_select_file_provider.cpp
+src/ui/print/ui_print_select_file_sorter.cpp
+src/ui/print/ui_print_select_history.cpp
+src/ui/print/ui_print_select_list_view.cpp
+src/ui/print/ui_print_select_path_navigator.cpp
+src/ui/print/ui_print_select_usb_source.cpp
+src/ui/print/ui_print_start_controller.cpp
+src/ui/print/ui_print_tune_overlay.cpp
 src/ui/ui_printer_list_overlay.cpp
 src/ui/ui_printer_manager_overlay.cpp
 src/ui/printer_manager_chips.cpp
 src/ui/ui_printer_status_icon.cpp
 src/ui/ui_printer_switch_menu.cpp
-src/ui/ui_probe_overlay.cpp
+src/ui/calibration/ui_probe_overlay.cpp
 src/ui/ui_progress_arc.cpp
 src/ui/ui_pause_markers.cpp
 src/ui/ui_resume_dispatch.cpp
@@ -737,20 +737,20 @@ src/ui/ui_tile_rung.cpp
 src/ui/ui_text_input.cpp
 src/ui/ui_theme_editor_overlay.cpp
 src/ui/ui_toast_manager.cpp
-src/ui/ui_touch_calibration_overlay.cpp
+src/ui/calibration/ui_touch_calibration_overlay.cpp
 src/ui/ui_unload_lane_choice.cpp
 src/ui/ui_utils.cpp
 src/ui/ui_variant.cpp
 src/ui/ui_widget_catalog_overlay.cpp
 src/ui/ui_widget_ref.cpp
-src/ui/ui_wizard.cpp
+src/ui/wizard/ui_wizard.cpp
 src/ui/ui_z_offset_indicator.cpp
 src/ui/ui_zone_presentation.cpp
 src/ui/widgets/favorite_macro_config.cpp
 src/ui/widgets/favorite_macro_widget.cpp
 src/ui/widgets/power_device_widget.cpp
 src/ui/widgets/tile_color.cpp
-src/ui/wizard_step_registry.cpp
+src/ui/wizard/wizard_step_registry.cpp
 src/ui/z_offset_utils.cpp
 src/util/indexed_subject_pool.cpp
 src/util/scoped_subject_registry.cpp
@@ -759,15 +759,15 @@ src/utils/network_validation.cpp
 src/xml_registration.cpp
 
 # ===== override->real swaps + Moonraker command surface + generated =====
-src/ui/theme_manager.cpp
-src/ui/theme_token_scan.cpp
-src/ui/theme_color_math.cpp
+src/ui/theme/theme_manager.cpp
+src/ui/theme/theme_token_scan.cpp
+src/ui/theme/theme_color_math.cpp
 src/ui/overlay_geometry.cpp
-src/ui/theme_fonts.cpp
-src/ui/theme_responsive.cpp
-src/ui/theme_lvgl_apply.cpp
-src/ui/theme_live_recolor.cpp
-src/ui/theme_tokens_register.cpp
+src/ui/theme/theme_fonts.cpp
+src/ui/theme/theme_responsive.cpp
+src/ui/theme/theme_lvgl_apply.cpp
+src/ui/theme/theme_live_recolor.cpp
+src/ui/theme/theme_tokens_register.cpp
 src/ui/grid_edit_mode.cpp
 src/ui/grid_edit_cross_page.cpp
 src/ui/grid_edit_drop.cpp
@@ -815,7 +815,7 @@ src/application/moonraker_manager.cpp
 src/generated/theme_token_table.cpp
 # New-since-audit core files the link pass proved are referenced by kept core:
 # theme_token_table_runtime.cpp: helix::theme_tokens::{for_element,for_suffix,enabled} (theme_manager token seam)
-src/ui/theme_token_table_runtime.cpp
+src/ui/theme/theme_token_table_runtime.cpp
 # config_storage_file.cpp: helix::make_file_config_storage() (config.cpp storage factory)
 src/system/config_storage_file.cpp
 # Re-included from the initial exclusion set: the link pass proved these are
@@ -857,12 +857,12 @@ src/ui/ui_gcode_viewer.cpp
 src/ui/gcode_preview_fetcher.cpp
 src/ui/gcode_preview_gate.cpp
 src/ui/gcode_preview_setup.cpp
-src/ui/print_preview_controller.cpp
+src/ui/print/print_preview_controller.cpp
 #   bed-mesh viewer, compiled-out branch (HELIX_HAS_BED_MESH_3D=0): same trick
 #   as ui_gcode_viewer above — its #else no-op defines ui_bed_mesh_register()
 #   (registers a stub <bed_mesh> widget so layouts parse) plus the rest of the
 #   API. Kept panels reference ui_bed_mesh_register() ungated.
-src/ui/ui_bed_mesh.cpp
+src/ui/calibration/ui_bed_mesh.cpp
 src/ui/ui_keycap_style.cpp
 
 # ===== link-loop additions: genuinely-referenced core the app_boot path pulls =====

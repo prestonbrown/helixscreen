@@ -1211,7 +1211,7 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["gcode_viewer"],
         "inherits": "lv_obj",
     },
-    "ui_bed_mesh.cpp": {
+    "calibration/ui_bed_mesh.cpp": {
         "widgets": ["bed_mesh"],
         "inherits": "lv_obj",
     },
@@ -1481,7 +1481,7 @@ def _add_cpp_enums(schema: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 # Responsive suffixes used by the theme system
-# Must mirror skip_suffixes in src/ui/theme_manager.cpp:793
+# Must mirror skip_suffixes in src/ui/theme/theme_manager.cpp:793
 _RESPONSIVE_SUFFIXES = [
     "_micro", "_tiny", "_small", "_medium", "_large", "_xlarge", "_xxlarge",
 ]

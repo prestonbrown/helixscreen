@@ -27,6 +27,7 @@ src/lvgl-demo/  # all 1 src/ files beneath
 src/network/  # all 2 src/ files beneath
 src/remote/  # all 8 src/ files beneath
 src/tools/  # all 1 src/ files beneath
+src/ui/screensaver/  # all 33 src/ files beneath
 
 # --- individual files (same dir, partially compiled) ---
 src/api/accel_batch_source_mock.cpp  # not in the v1 Core+AMS cut
@@ -275,41 +276,9 @@ src/ui/modals/ui_spaghetti_detection_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/modals/toolhead_preset_config_modal.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
 src/ui/panel_widgets/toolhead_preset_slots.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
 src/ui/panel_widgets/toolhead_widget.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
-src/ui/pid_progress_tracker.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/pid_progress_tracker.cpp  # not in the v1 Core+AMS cut
 src/ui/recovery_fault_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/recovery_modal_presenter.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_aqua.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_aqua_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_base.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_blur.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_bounce.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_canvas.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_clock.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_clock_reading.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_cpu_clock.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_fireflies.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_fireflies_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_fireworks.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_fireworks_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_flip_clock.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_flip_clock_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_hyperspace_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_frame.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_frame_timer.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_gate.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_heightfield.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_highfly.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_highfly_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_image.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_level_store.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_manager.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_maze.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_maze_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_overlay.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_pipes_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_pipes_teapot.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_starfield_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_stroke_digits.cpp  # not in the v1 Core+AMS cut
 src/system/splash_asset_choice.cpp  # not in the v1 Core+AMS cut
 src/ui/splash_screen.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_ams_tool_text.cpp  # not in the v1 Core+AMS cut
@@ -323,52 +292,51 @@ src/ui/ui_overlay_qr_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_overlay_timelapse_install.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
 src/ui/ui_overlay_timelapse_settings.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
 src/ui/ui_overlay_timelapse_videos.cpp  # viewer UI is gated off here; its helix::ui entry points and the global accessors are stubbed in excluded_subsystems_stub.cpp, which is where kept callers resolve them
-src/ui/ui_panel_bed_mesh.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_belt_path_sketch.cpp  # only the Belt Tension panel draws it; not in the v1 Core+AMS cut
-src/ui/ui_belt_gap_gauge.cpp  # only the Belt Tension panel draws it; not in the v1 Core+AMS cut
-src/ui/ui_belt_retest_menu.cpp  # only the Belt Tension panel raises it; not in the v1 Core+AMS cut
-src/ui/ui_belt_names_modal.cpp  # only the Belt Tension panel raises it; not in the v1 Core+AMS cut
-src/ui/ui_belt_path_names.cpp  # only the Belt Tension screens name paths; not in the v1 Core+AMS cut
-src/ui/ui_panel_belt_tension.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_panel_calibration_pid.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_panel_calibration_tool_offset.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_stepper_resonance_cal_modal.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_panel_calibration_pa.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_panel_bed_mesh.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_belt_path_sketch.cpp  # only the Belt Tension panel draws it; not in the v1 Core+AMS cut
+src/ui/calibration/ui_belt_gap_gauge.cpp  # only the Belt Tension panel draws it; not in the v1 Core+AMS cut
+src/ui/calibration/ui_belt_retest_menu.cpp  # only the Belt Tension panel raises it; not in the v1 Core+AMS cut
+src/ui/calibration/ui_belt_names_modal.cpp  # only the Belt Tension panel raises it; not in the v1 Core+AMS cut
+src/ui/calibration/ui_belt_path_names.cpp  # only the Belt Tension screens name paths; not in the v1 Core+AMS cut
+src/ui/calibration/ui_panel_belt_tension.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_panel_calibration_pid.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_panel_calibration_tool_offset.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_stepper_resonance_cal_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_panel_calibration_pa.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_overlay_pa_tuning.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_head_picker.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_panel_calibration_zoffset.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_panel_calibration_zoffset.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_glyphs.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_panel_input_shaper.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_panel_input_shaper.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_memory_stats.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_panel_screws_tilt.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_panel_screws_tilt.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_spoolman.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
-src/ui/ui_screensaver.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_screws_tilt_share_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_screws_tilt_share_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_settings_barcode_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_settings_label_printer.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_settings_telemetry_data.cpp  # the firmware has no telemetry queue to show; the row is hidden there
-src/ui/ui_shaper_sweep_chart.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_shaper_sweep_chart.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_spoolman_context_menu.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/ui/ui_spoolman_edit_modal.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/ui/ui_spoolman_list_view.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/ui/ui_spoolman_overlay.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_spoolman_setup.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_ams_identify.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_connection.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_fan_select.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_filament_sensor_select.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_hardware_selector.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_heater_select.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_helpers.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_input_shaper.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_language_chooser.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_led_select.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_printer_identify.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_preferences.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_summary.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_telemetry.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_touch_calibration.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_wifi.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_ams_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_connection.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_fan_select.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_filament_sensor_select.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_hardware_selector.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_heater_select.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_helpers.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_input_shaper.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_language_chooser.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_led_select.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_printer_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_preferences.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_summary.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_telemetry.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_touch_calibration.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_wifi.cpp  # not in the v1 Core+AMS cut
 src/ui/upgrade_banner.cpp  # not in the v1 Core+AMS cut
 src/ui/view_gestures.cpp  # two-finger gestures for the 3D G-code viewer and 3D bed mesh, both compiled out (HELIX_HAS_GCODE_VIEWER=0, HELIX_HAS_BED_MESH_3D=0)
 

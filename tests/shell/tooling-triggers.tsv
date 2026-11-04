@@ -62,7 +62,7 @@ tests/shell/test_esp32_pack_assets_ci.bats	tests/python/test_esp32_pack_assets.p
 tests/shell/test_esp32_package_release.bats	scripts/esp32_package_release.sh
 tests/shell/test_esp32_xml_bindings_gate.bats	firmware/helixscreen-esp32/components/helixcore/lv_conf.h lv_conf.h scripts/check_esp32_app_srcs.py scripts/check_esp32_xml_bindings.py scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/esp32_xml_binding_baseline.txt scripts/qc/esp32_xml_bindings.sh scripts/quality-checks.sh
 tests/shell/test_feature_gates_gate.bats	Makefile android/app/jni/CMakeLists.txt firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt include/helix_features.h scripts/check_feature_gates.py
-tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_filament_ops_neutral.py src/ui/filament_op_execute.cpp src/ui/ui_ams_sidebar.cpp src/ui/ui_wizard_ams_identify.cpp
+tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_filament_ops_neutral.py src/ui/filament_op_execute.cpp src/ui/ui_ams_sidebar.cpp src/ui/wizard/ui_wizard_ams_identify.cpp
 tests/shell/test_font_tier_coverage_gate.bats	assets/fonts/noto_sans_10.c assets/fonts/noto_sans_12.c assets/fonts/noto_sans_14.c assets/fonts/noto_sans_16.c assets/fonts/noto_sans_26.c assets/fonts/noto_sans_28.c assets/fonts/noto_sans_32.c assets/fonts/noto_sans_40.c assets/fonts/noto_sans_8.c mk/cross.mk mk/fonts.mk scripts/check_font_tier_coverage.py src/application/asset_manager.cpp src/system/cjk_font_manager.cpp
 tests/shell/test_fork_assertion_gate.bats	tests/shell/*.bats
 tests/shell/test_format_xml_gate.bats	scripts/format-xml.py scripts/qc/phase2.sh ui_xml/
@@ -153,7 +153,7 @@ tests/shell/test_required_names_gate.bats	scripts/check_required_names.py src/la
 tests/shell/test_reset_patches.bats	Makefile lib/libhv lib/lua lib/lvgl mk/patches.mk scripts/check_patch_drift.py
 tests/shell/test_resolve_backtrace.bats	scripts/resolve-backtrace.sh
 tests/shell/test_resource_advisor.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/pool-docker.sh scripts/resource-advisor.sh scripts/test-host-run.sh
-tests/shell/test_responsive_token_scope_gate.bats	scripts/check_responsive_token_scope.py src/ui/theme_token_scan.cpp ui_xml/components/color_swatch_grid.xml
+tests/shell/test_responsive_token_scope_gate.bats	scripts/check_responsive_token_scope.py src/ui/theme/theme_token_scan.cpp ui_xml/components/color_swatch_grid.xml
 tests/shell/test_runtime_file_lists.bats	android/app/build.gradle config/ mk/cross.mk scripts/lib/installer/platform.sh src/application/android_asset_extractor.cpp
 tests/shell/test_sandbox_gate.bats	Makefile lib/lvgl
 tests/shell/test_screensaver_perf_names.bats	include/screensaver_registry.h scripts/screensaver-perf/
@@ -180,7 +180,7 @@ tests/shell/test_test_host_run_lock.bats	scripts/diff_base.py scripts/lib/build_
 tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/plugin-host-matrix.sh scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
 tests/shell/test_test_host_setup.bats	scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/test-host-setup.sh
 tests/shell/test_test_tautology_gate.bats	include/version.h mk/tests.mk scripts/check_test_mirrors.py scripts/check_test_tautology.py src/ui/ui_toast_manager.cpp tests/ui_test_utils.cpp
-tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml
+tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml
 tests/shell/test_thirdparty_abi_stamp.bats	Makefile mk/bluetooth.mk mk/display-lib.mk mk/patches.mk mk/pi-dual-link.mk mk/rules.mk mk/splash.mk mk/tests.mk mk/tools.mk mk/watchdog.mk
 tests/shell/test_thumbnail_cache_guard_gate.bats	scripts/check_thumbnail_cache_guard.py scripts/qc/decl_ui.sh scripts/staged_content.py tests/unit/test_thumbnail_cache.cpp
 tests/shell/test_todo_marker_gate.bats	scripts/check_todo_markers.py scripts/qc/todo_markers.sh scripts/quality-checks.sh

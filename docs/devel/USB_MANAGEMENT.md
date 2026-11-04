@@ -36,8 +36,8 @@ USB mice, keyboards and touchscreens go through `input_device_scanner` and the d
 | `include/usb_backend_mock.h` / `src/api/usb_backend_mock.cpp` | `UsbBackendMock`: demo drive for `--test`, simulate insert/remove for tests |
 | `include/usb_manager.h` / `src/api/usb_manager.cpp` | `UsbManager`: owns the backend, single drive-event callback, locked queries |
 | `src/application/subject_initializer.cpp` | Creates the `UsbManager`, fans drive events out to the UI and toasts |
-| `include/ui_print_select_usb_source.h` / `src/ui/ui_print_select_usb_source.cpp` | `PrintSelectUsbSource`: Printer/USB source switch, subjects, file conversion |
-| `src/ui/ui_panel_print_select.cpp` | Hosts the USB source, copies a USB file to Moonraker before printing, Moonraker `usb/` symlink probe |
+| `include/ui_print_select_usb_source.h` / `src/ui/print/ui_print_select_usb_source.cpp` | `PrintSelectUsbSource`: Printer/USB source switch, subjects, file conversion |
+| `src/ui/print/ui_panel_print_select.cpp` | Hosts the USB source, copies a USB file to Moonraker before printing, Moonraker `usb/` symlink probe |
 | `ui_xml/print_select_panel.xml` | `source_selector` bindings |
 | `src/ui/ui_overlay_printer_image.cpp` | Image import from the first mounted drive |
 | `include/single_flight_walk.h` | `SingleFlightWalk`: one stick walk at a time on `HttpExecutor::fast()`, newest request wins |
@@ -75,7 +75,7 @@ UsbBackendLinux monitor thread          UI thread (LVGL)
 
 Two consumers hold a raw `UsbManager*`:
 
-- `PrintSelectPanel` gets push events (through the `SubjectInitializer` callback) and also reads `get_drives()` when the manager is attached, which covers a drive that was already mounted before the panel existed (`src/ui/ui_print_select_usb_source.cpp#set_usb_manager`).
+- `PrintSelectPanel` gets push events (through the `SubjectInitializer` callback) and also reads `get_drives()` when the manager is attached, which covers a drive that was already mounted before the panel existed (`src/ui/print/ui_print_select_usb_source.cpp#set_usb_manager`).
 - `PrinterImageOverlay` gets no events. It calls `get_drives()` on every `on_activate()` and walks only `drives[0]` for images, off the UI thread through its own `SingleFlightWalk` (`src/ui/ui_overlay_printer_image.cpp#scan_usb_drives`).
 
 ### Detection: watching the mount table
@@ -141,7 +141,7 @@ The volume label comes from the mount point leaf when it does not look like a de
 
 `scan_for_gcode()` refuses a mount path that is not in `cached_drives_`, then releases the backend mutex and walks it recursively to `max_depth` 3 by default (`src/api/usb_backend_linux.cpp#scan_directory`). Files are kept when `helix::gcode::has_printable_extension()` accepts the name, the same predicate the Moonraker file list uses, so 8.3 names like `3DBENC~1.GCO` from an `msdos` mount still match.
 
-`PrintSelectUsbSource::refresh_files()` takes the drive list and a `shared_ptr` to the backend (`UsbManager::backend_snapshot()`) on the UI thread, then hands the slow part to `HttpExecutor::fast()`: `scan_usb_drives()` walks every mounted drive into one flat list (a file's path already carries its mount point) and pulls each file's header thumbnail into the thumbnail cache, pre-scaled to the card target read on the UI thread before the walk (`src/ui/ui_print_select_usb_source.cpp#scan_usb_drives`):
+`PrintSelectUsbSource::refresh_files()` takes the drive list and a `shared_ptr` to the backend (`UsbManager::backend_snapshot()`) on the UI thread, then hands the slow part to `HttpExecutor::fast()`: `scan_usb_drives()` walks every mounted drive into one flat list (a file's path already carries its mount point) and pulls each file's header thumbnail into the thumbnail cache, pre-scaled to the card target read on the UI thread before the walk (`src/ui/print/ui_print_select_usb_source.cpp#scan_usb_drives`):
 
 ```cpp
     for (const auto& file : scan.files) {
@@ -169,7 +169,7 @@ That pre-extracted path rides along to `PrintStartController` and on to `ActiveP
 
 ### Starting a print from the USB source
 
-Moonraker usually cannot read a stick HelixScreen mounted itself (it runs as another user, in another mount namespace, or on another host), so a USB file is copied to Moonraker before it prints. When the selected file has a `local_path`, `PrintSelectPanel::start_print` and `add_to_queue` call `copy_usb_file_to_printer()` (`src/ui/ui_panel_print_select.cpp#copy_usb_file_to_printer`). It lists `gcodes/usb_prints` and names the copy with `choose_usb_copy_target()` (`src/print/print_file_data.cpp#choose_usb_copy_target`), then either reuses a file already there or, once `storage::check_upload_space` finds room for it (the copy must leave `storage::kFreeSpaceFloorBytes`, 100 MB, free on the gcodes volume; a volume it cannot read does not stop it), streams the stick file through `ITransfersAPI::upload_file_from_path`, under a `BusyOverlay` with progress. Without room it toasts that the printer is out of space and copies nothing. The panel then hands `PrintStartController` the copy's name with `usb_prints` as its directory (or queues `usb_prints/<name>`), and the normal start pipeline runs against the copy. The filename, tool colors and thumbnail are read when Print is tapped, not when the copy lands. On failure it toasts "Could not copy ... from USB" and starts nothing. Print and Add to Queue taps are ignored while a copy is in flight. `BusyOverlay` has no cancel and libhv's upload timeout is an hour, so a one-shot watchdog (`kUsbCopyStallMs`, 30s) abandons a copy that reports no progress for that long, toasts "Copying from USB stopped responding", and ignores the copy's late answer; each whole-percent progress report pushes the watchdog back.
+Moonraker usually cannot read a stick HelixScreen mounted itself (it runs as another user, in another mount namespace, or on another host), so a USB file is copied to Moonraker before it prints. When the selected file has a `local_path`, `PrintSelectPanel::start_print` and `add_to_queue` call `copy_usb_file_to_printer()` (`src/ui/print/ui_panel_print_select.cpp#copy_usb_file_to_printer`). It lists `gcodes/usb_prints` and names the copy with `choose_usb_copy_target()` (`src/print/print_file_data.cpp#choose_usb_copy_target`), then either reuses a file already there or, once `storage::check_upload_space` finds room for it (the copy must leave `storage::kFreeSpaceFloorBytes`, 100 MB, free on the gcodes volume; a volume it cannot read does not stop it), streams the stick file through `ITransfersAPI::upload_file_from_path`, under a `BusyOverlay` with progress. Without room it toasts that the printer is out of space and copies nothing. The panel then hands `PrintStartController` the copy's name with `usb_prints` as its directory (or queues `usb_prints/<name>`), and the normal start pipeline runs against the copy. The filename, tool colors and thumbnail are read when Print is tapped, not when the copy lands. On failure it toasts "Could not copy ... from USB" and starts nothing. Print and Add to Queue taps are ignored while a copy is in flight. `BusyOverlay` has no cancel and libhv's upload timeout is an hour, so a one-shot watchdog (`kUsbCopyStallMs`, 30s) abandons a copy that reports no progress for that long, toasts "Copying from USB stopped responding", and ignores the copy's late answer; each whole-percent progress report pushes the watchdog back.
 
 Policy, as implemented:
 

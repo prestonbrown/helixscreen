@@ -111,7 +111,7 @@ Override the theme loaded from config. Useful for testing themes or taking scree
 |----------|-------|
 | **Values** | Theme filename without `.json` extension (e.g., `gruvbox`, `dracula`, `nord`) |
 | **Default** | Read from config (`/display/theme`) |
-| **File** | `src/ui/theme_manager.cpp` |
+| **File** | `src/ui/theme/theme_manager.cpp` |
 
 ```bash
 # Test Gruvbox theme
@@ -131,7 +131,7 @@ Resolve design-token lookups from the compiled token table (`src/generated/theme
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` uses the compiled table; any other value uses the live scanner |
 | **Default** | Unset - on for ESP32 builds (`ui_xml/` ships there as a read-only frogfs image) and cross-built release targets (`HELIX_RELEASE_BUILD`), off for native dev builds |
-| **File** | `src/ui/theme_token_table_runtime.cpp` |
+| **File** | `src/ui/theme/theme_token_table_runtime.cpp` |
 
 Set, the flag rule decides, so `HELIX_TOKEN_TABLE=0` forces the live scanner back on - useful on a device to confirm an edited `ui_xml/` token still parses, and the only way to move tokens there without a rebuild. A build can also flip its default on by defining `HELIX_TOKEN_TABLE_DEFAULT_ON`, which nothing needs now that release builds default on.
 
@@ -641,7 +641,7 @@ Level 0 frame period of every screensaver, for manual testing: the saver draws a
 | **Values** | Whole milliseconds, `8` to `100`, or `0` to run savers at the global period |
 | **Default** | Unset: level 0 runs at 16 ms |
 | **Invalid** | Ignored with a warning |
-| **File** | `include/refresh_period_hold.h`, `src/ui/screensaver_manager.cpp`, `src/ui/screensaver_base.cpp` |
+| **File** | `include/refresh_period_hold.h`, `src/ui/screensaver/screensaver_manager.cpp`, `src/ui/screensaver/screensaver_base.cpp` |
 
 ```bash
 # Savers at the global period instead of 16 ms
@@ -659,7 +659,7 @@ Replaces the screensaver gate's CPU budget, as a whole percent of one core. Each
 | **Values** | Whole percent, `1` to `400` |
 | **Default** | Unset: the core-count budget |
 | **Invalid** | Anything else (`0`, `25%`, `-5`, empty) is ignored with a warning |
-| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver_manager.cpp` |
+| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver/screensaver_manager.cpp` |
 
 ```bash
 HELIX_SCREENSAVER_BUDGET_PCT=5 HELIX_SCREENSAVER_NOW=toasters ./build/bin/helix-screen --test -vv
@@ -676,7 +676,7 @@ Runs every saver that starts at this quality level and turns the gate off for th
 | **Values** | Whole level number, `0` to `99` |
 | **Default** | Unset: the stored level for this saver, app version and board |
 | **Invalid** | Ignored with a warning |
-| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver_manager.cpp` |
+| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver/screensaver_manager.cpp` |
 
 ```bash
 HELIX_SCREENSAVER_LEVEL=1 HELIX_SCREENSAVER_NOW=pipes ./build/bin/helix-screen --test -vv
@@ -988,7 +988,7 @@ Force the G-code preview rendering mode.
 |----------|-------|
 | **Values** | `2D`, `3D` |
 | **Default** | unset — Auto, which resolves to 3D on GLES-capable builds and 2D elsewhere |
-| **Files** | `include/gcode_render_mode_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/ui/ui_panel_print_status.cpp` |
+| **Files** | `include/gcode_render_mode_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/ui/print/ui_panel_print_status.cpp` |
 
 Only the exact strings `2D` and `3D` are honored — matching is case-sensitive, so
 `3d` is an unrecognized value. An unrecognized value resolves to 2D (the renderer
@@ -1114,7 +1114,7 @@ Force the bed mesh visualization to use 2D heatmap mode instead of 3D surface re
 |----------|-------|
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Off (3D surface when available) |
-| **File** | `src/ui/ui_bed_mesh.cpp` |
+| **File** | `src/ui/calibration/ui_bed_mesh.cpp` |
 
 ```bash
 # Force 2D heatmap visualization
@@ -1364,7 +1364,7 @@ Auto-start X-axis input shaper calibration when the panel loads.
 |----------|-------|
 | **Values** | Any value (presence enables) |
 | **Default** | Disabled |
-| **File** | `src/ui/ui_panel_input_shaper.cpp` |
+| **File** | `src/ui/calibration/ui_panel_input_shaper.cpp` |
 
 ```bash
 # Test input shaper panel with auto-start (drive the UI with helix-screen ctl —
@@ -1381,7 +1381,7 @@ Auto-start bed screw probing when the screws tilt panel loads.
 |----------|-------|
 | **Values** | Any value (presence enables) |
 | **Default** | Disabled |
-| **File** | `src/ui/ui_panel_screws_tilt.cpp` |
+| **File** | `src/ui/calibration/ui_panel_screws_tilt.cpp` |
 
 ```bash
 # Test screws panel with auto-start
@@ -1715,7 +1715,7 @@ Unified touch debugging variable that enables both touch point visualization and
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Disabled |
 | **CLI equivalent** | `--debug-touches` |
-| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/touch_calibration.cpp`, `src/ui/touch_calibration_panel.cpp`, `src/api/display_backend_fbdev.cpp` |
+| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/calibration/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/api/display_backend_fbdev.cpp` |
 | **Legacy alias** | `HELIX_DEBUG_TOUCHES` (still accepted) |
 
 ```bash

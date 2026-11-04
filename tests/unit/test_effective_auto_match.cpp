@@ -146,7 +146,7 @@ struct AutoMatchFixture : public LVGLTestFixture {
 } // namespace
 
 // ============================================================================
-// PrintSelectDetailView — src/ui/ui_print_select_detail_view.cpp
+// PrintSelectDetailView — src/ui/print/ui_print_select_detail_view.cpp
 // Consumed by effective_mappings() (swatches + pre-flight gate).
 // ============================================================================
 
