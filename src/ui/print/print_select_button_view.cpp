@@ -1,4 +1,4 @@
-// src/ui/print_select_button_view.cpp
+// src/ui/print/print_select_button_view.cpp
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "print_select_button_view.h"

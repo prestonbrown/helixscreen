@@ -224,7 +224,7 @@ not by a hostname check in the thumbnailer.
 | `src/ui/ui_overlay_timelapse_settings.cpp` | Settings fetch/save, event handlers |
 | `ui_xml/timelapse_settings_overlay.xml` | Settings layout (toggles, dropdowns) |
 | `include/ui_print_light_timelapse.h` | Print status light + timelapse button helper |
-| `src/ui/ui_print_light_timelapse.cpp` | Toggle handlers, subject management |
+| `src/ui/print/ui_print_light_timelapse.cpp` | Toggle handlers, subject management |
 | `include/printer_capabilities_state.h` | `printer_has_timelapse` subject |
 | `src/printer/printer_capabilities_state.cpp` | Capability-gated setter (`printer_has_timelapse`) |
 | `include/printer_discovery.h` | `has_timelapse()` detection from Moonraker objects |

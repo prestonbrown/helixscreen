@@ -13,9 +13,12 @@ max-edges: 46
 src/api/wifi_manager.cpp -> src/api/wifi_backend_wpa_supplicant.cpp  WifiBackendWpaSupplicant::WifiBackendWpaSupplicant
 src/rendering/gcode_file_modifier.cpp -> src/rendering/gcode_streaming_config.cpp  helix::should_use_gcode_streaming
 src/system/sound_manager.cpp -> src/system/pwm_sound_backend.cpp  PWMSoundBackend::initialize
-src/ui/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_load_file
-src/ui/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_set_layer_index_sidecar
-src/ui/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_would_stream
+src/ui/print/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_load_file
+src/ui/print/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_set_layer_index_sidecar
+src/ui/print/print_preview_controller.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_would_stream
+src/ui/print/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_load_file
+src/ui/print/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_set_layer_index_sidecar
+src/ui/print/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_would_stream
 src/ui/ui_ams_context_menu.cpp -> src/ui/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::QrScannerOverlay
 src/ui/ui_ams_edit_overlay.cpp -> src/system/label_printer_settings.cpp  helix::LabelPrinterSettingsManager::init_subjects
 src/ui/ui_ams_edit_overlay.cpp -> src/system/label_printer_settings.cpp  helix::LabelPrinterSettingsManager::instance
@@ -25,9 +28,6 @@ src/ui/ui_external_spool_menu.cpp -> src/ui/ui_overlay_qr_scanner.cpp  helix::ui
 src/ui/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::GCodeLayerRenderer
 src/ui/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::restore_ssao_shading
 src/ui/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::~GCodeLayerRenderer
-src/ui/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_load_file
-src/ui/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_set_layer_index_sidecar
-src/ui/ui_print_select_detail_view.cpp -> src/ui/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_would_stream
 src/ui/wizard/ui_wizard.cpp -> src/app_globals.cpp  get_wizard_cancel_callback
 src/ui/wizard/ui_wizard.cpp -> src/system/platform_info.cpp  helix::is_printer_embedded
 src/ui/wizard/ui_wizard.cpp -> src/system/wizard_step.cpp  helix::wizard::to_string

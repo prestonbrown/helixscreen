@@ -69,7 +69,7 @@ If HelixScreen crashes, Klipper keeps heaters on indefinitely. The watchdog reco
 
 Users can keep tapping the Z-offset adjust button during a print with no limit. Repeated taps in the wrong direction could crash the nozzle into the bed or lift it so far the print detaches.
 
-- **Location:** `src/ui/ui_print_tune_overlay.cpp:475` — `SET_GCODE_OFFSET Z_ADJUST=<delta>`
+- **Location:** `src/ui/print/ui_print_tune_overlay.cpp:475` — `SET_GCODE_OFFSET Z_ADJUST=<delta>`
 - **Step sizes available:** 0.025mm, 0.05mm, 0.1mm, 0.2mm
 - **Fix:** Track cumulative Z-offset change during a print session. Clamp to a configurable range (e.g., +/-2mm). Show a warning if approaching the limit.
 - **Effort:** Medium — need to track cumulative offset and reset on print start

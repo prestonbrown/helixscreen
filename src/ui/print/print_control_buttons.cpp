@@ -1,4 +1,4 @@
-// src/ui/print_control_buttons.cpp
+// src/ui/print/print_control_buttons.cpp
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "print_control_buttons.h"
 

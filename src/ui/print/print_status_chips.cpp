@@ -3,7 +3,7 @@
 #include "print_status_chips.h"
 
 #include "lvgl.h"
-#include "panel_widgets/callout_chip.h"
+#include "src/ui/panel_widgets/callout_chip.h"
 #include "tune_controller.h"
 
 #include <algorithm>

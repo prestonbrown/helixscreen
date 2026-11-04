@@ -988,7 +988,7 @@ Force the G-code preview rendering mode.
 |----------|-------|
 | **Values** | `2D`, `3D` |
 | **Default** | unset — Auto, which resolves to 3D on GLES-capable builds and 2D elsewhere |
-| **Files** | `include/gcode_render_mode_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/ui/ui_panel_print_status.cpp` |
+| **Files** | `include/gcode_render_mode_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/ui/print/ui_panel_print_status.cpp` |
 
 Only the exact strings `2D` and `3D` are honored — matching is case-sensitive, so
 `3d` is an unrecognized value. An unrecognized value resolves to 2D (the renderer

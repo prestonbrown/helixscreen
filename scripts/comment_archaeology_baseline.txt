@@ -30,10 +30,10 @@
 1 src/ui/panel_widgets/nozzle_temps_widget.h
 1 src/ui/panel_widgets/thermistor_widget.h
 1 src/ui/panel_widgets/tool_switcher_widget.h
+1 src/ui/print/ui_print_select_detail_view.cpp
 1 src/ui/ui_emergency_stop.cpp
 2 src/ui/ui_filament_catalog_selector.cpp
 1 src/ui/ui_panel_filament.cpp
-1 src/ui/ui_print_select_detail_view.cpp
 1 tests/shell/test_forgex_boot.bats
 1 tests/shell/test_json_const_subscript_gate.bats
 2 tests/shell/test_packaging_manifest.bats

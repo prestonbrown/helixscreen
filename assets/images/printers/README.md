@@ -1,7 +1,7 @@
 # Printer Images
 
 Shipped artwork for the printers HelixScreen knows about. Three places draw it: the
-first-run configuration wizard (`src/ui/ui_wizard_printer_identify.cpp`), the Printer
+first-run configuration wizard (`src/ui/wizard/ui_wizard_printer_identify.cpp`), the Printer
 Image picker overlay (`src/ui/ui_overlay_printer_image.cpp`), and the home panel's
 printer widget (`src/ui/panel_widgets/printer_image_widget.cpp`).
 

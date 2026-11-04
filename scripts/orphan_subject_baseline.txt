@@ -14,7 +14,7 @@
 abort_state  # src/abort/abort_manager.cpp:63
 about_version_description  # src/ui/ui_settings_about.cpp:103
 ams_env_overlay_preset_text  # src/ui/ui_ams_environment_overlay.cpp:124
-detail_view_visible  # src/ui/ui_panel_print_select.cpp:335
+detail_view_visible  # src/ui/print/ui_panel_print_select.cpp:335
 dryer_current_temp_text  # src/printer/ams_state.cpp:416; src/printer/ams_state.cpp:816
 dryer_progress_pct  # src/printer/ams_state.cpp:415; src/printer/ams_state.cpp:815
 dryer_remaining_min  # src/printer/ams_state.cpp:414; src/printer/ams_state.cpp:814
@@ -42,14 +42,14 @@ perf_host_cpu_temp_c10  # src/system/performance_state.cpp:28
 perf_host_cpu_temp_present  # src/system/performance_state.cpp:29
 perf_host_mem_free_mb  # src/system/performance_state.cpp:30
 pid_temp_hint  # src/ui/ui_panel_calibration_pid.cpp:120
-print_pending_action  # src/ui/print_control_buttons.cpp:42
+print_pending_action  # src/ui/print/print_control_buttons.cpp:42
 print_status_nozzle_text  # src/ui/panel_widgets/print_status_widget.cpp:2079
 printer_detection_status  # src/ui/wizard/ui_wizard_printer_identify.cpp:314
 printer_icon_state  # src/ui/ui_printer_status_icon.cpp:40
 probe_acc_median  # src/ui/ui_probe_overlay.cpp:364
 probe_overlay_state  # src/ui/ui_probe_overlay.cpp:309
-selected_filename  # src/ui/ui_panel_print_select.cpp:298
-selected_thumbnail  # src/ui/ui_panel_print_select.cpp:308
+selected_filename  # src/ui/print/ui_panel_print_select.cpp:298
+selected_thumbnail  # src/ui/print/ui_panel_print_select.cpp:308
 settings_has_backlight  # src/system/display_settings_manager.cpp:241
 spool_wizard_can_create_vendor  # src/ui/ui_spool_wizard.cpp:132
 spool_wizard_show_create_filament  # src/ui/ui_spool_wizard.cpp:119

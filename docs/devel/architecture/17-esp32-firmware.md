@@ -280,7 +280,7 @@ XML binds for square overlay corners, and overlays built under the "Loading..." 
   the panel, and G-code header thumbnail extraction is off
   (`include/thumbnail_cache.h#gcode_thumbnail_extraction_available`).
 - **A capped file list.** Print Files keeps the 50 newest files
-  (`src/ui/ui_panel_print_select.cpp#"constexpr size_t kEsp32MaxFileCount"`).
+  (`src/ui/print/ui_panel_print_select.cpp#"constexpr size_t kEsp32MaxFileCount"`).
 
 ### Networking
 

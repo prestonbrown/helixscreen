@@ -15,7 +15,7 @@
 #include "light_button_config.h"
 #include "lvgl.h"
 #include "moonraker_manager.h"
-#include "panel_widgets/callout_chip.h"
+#include "src/ui/panel_widgets/callout_chip.h"
 #include "print_start_collector.h"
 #include "print_start_phase_label.h"
 #include "printer_image_manager.h"

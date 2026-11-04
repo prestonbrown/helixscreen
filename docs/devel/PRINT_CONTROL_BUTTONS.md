@@ -22,11 +22,11 @@ widget — both binding to the same global subjects with no duplicated state.
 
 | File | Contents |
 |------|----------|
-| `include/print_control_buttons.h`, `src/ui/print_control_buttons.cpp` | The controller: owned subjects, dispatch, observer, pending-action machine |
-| `include/print_control_view.h`, `src/ui/print_control_view.cpp` | `compute_control_button_view()` — the pure, LVGL-free view function |
+| `include/print_control_buttons.h`, `src/ui/print/print_control_buttons.cpp` | The controller: owned subjects, dispatch, observer, pending-action machine |
+| `include/print_control_view.h`, `src/ui/print/print_control_view.cpp` | `compute_control_button_view()` — the pure, LVGL-free view function |
 | `src/ui/panel_widgets/control_buttons_widget.{h,cpp}` | The 2×1 home widget (declarative, no state) |
 | `ui_xml/components/panel_widget_control_buttons.xml` | The widget's XML layout + bindings |
-| `src/ui/ui_panel_print_status.cpp` | Delegates paused-overlay visibility to the controller |
+| `src/ui/print/ui_panel_print_status.cpp` | Delegates paused-overlay visibility to the controller |
 
 ---
 
@@ -393,7 +393,7 @@ still PAUSED), so the tap feels instantly acknowledged.
 | `tests/unit/test_timelapse_state.cpp` | `[timelapse_state]` | Timelapse control state. |
 
 > The print-status **light** button's `on_led_state_changed` handler
-> (`src/ui/ui_panel_print_status.cpp`) has no direct test. It was previously
+> (`src/ui/print/ui_panel_print_status.cpp`) has no direct test. It was previously
 > listed as covered by a characterization file that reimplemented the handler
 > in the test and asserted against that copy, so the coverage was nominal. LED
 > backends themselves are covered — see `docs/devel/LED_CONTROL.md`.

@@ -589,7 +589,7 @@ TEST_CASE_METHOD(ActionPromptStressFixture,
 //   modal+ action_prompt_modal 1
 //   modal- action_prompt_modal 0
 //   overlay Print Status
-//   pstat_t on_activate           ← from src/ui/ui_panel_print_status.cpp:739
+//   pstat_t on_activate           ← from src/ui/print/ui_panel_print_status.cpp:739
 //   <fault in lv_event_mark_deleted / get_prop_core / lv_ll_remove>
 //
 // The fault is reached via lv_timer_handler → lv_async_call →
