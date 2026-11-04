@@ -31,6 +31,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 **Upgrading from 1.0?**
 
+- **Your print signal macros keep their names.** If your printer already has HelixScreen's
+  helper macros, `HELIX_READY` and the `HELIX_PHASE_*` macros stay as they are, including when
+  you update the macro pack from Settings, so your `PRINT_START` needs no changes. They also
+  stay in your Fluidd or Mainsail macro list for now; you can hide them in Fluidd's macro
+  settings. A later release will move existing printers to the hidden names.
 - **Your home screen is converted, not reset.** The home screen moves to a square-cell
   grid, and your layout comes with it. Positions are converted onto the new grid in
   proportion: a widget that filled the left third of the screen still fills the left third,
@@ -924,6 +929,14 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 ### Changed
 
+- **HelixScreen's print signals stay out of your macro list** - a new install of the helper
+  macros names its signals with a leading underscore (`_HELIX_READY`, `_HELIX_ENDED`,
+  `_HELIX_RESET` and `_HELIX_PHASE_*`), so Fluidd and Mainsail no longer list macros nobody
+  runs by hand. On a new install, add `_HELIX_READY` to the end of `PRINT_START`. A guide that
+  still says `HELIX_READY` gets you an `Unknown command` message and no ready signal, and so
+  does a printer that removed the macros, kept those calls and then installs them again:
+  rename the calls. `HELIX_START_PRINT`, `HELIX_CLEAN_NOZZLE`, `HELIX_BED_MESH_IF_NEEDED` and
+  `HELIX_UNLOAD_FILAMENT` keep their names.
 - **The print status picture holds still** (#1879) - the chips around the printer picture no
   longer rearrange it when a fan spins up, the speed is tuned or the light turns on. The
   layout is decided once for preparing and once for printing; a reading that becomes unusual
@@ -1134,6 +1147,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 ### Fixed
 
+- **The sample Bed Level button runs a real macro** - the settings template and the
+  configuration guide named a macro the helper pack does not define, so a button copied from
+  them got `Unknown command`. They now use `HELIX_BED_MESH_IF_NEEDED`.
 - **Printers that require a Moonraker login connect** - with `force_logins` enabled,
   Moonraker refused every request from the screen. HelixScreen now sends the printer's
   `moonraker_api_key` setting to that printer's Moonraker, over the WebSocket and every HTTP
