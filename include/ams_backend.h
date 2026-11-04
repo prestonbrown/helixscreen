@@ -2190,6 +2190,22 @@ class AmsBackend {
     }
 
     /**
+     * @brief Gcode to run ahead of a user-requested purge, or "" for none.
+     *
+     * A machine whose firmware ships a "go to the purge bin" routine answers it
+     * here, so every Purge surface sends it before the purge macro or the raw
+     * extrude fallback and the filament lands in the bin instead of wherever the
+     * nozzle stopped. Callers dispatch the purge only once this has completed.
+     *
+     * @param job_holds_machine A print owns the toolhead (printing or paused):
+     *        the answer must not home then.
+     */
+    [[nodiscard]] virtual std::string purge_preamble_gcode(bool job_holds_machine) const {
+        (void)job_holds_machine;
+        return {};
+    }
+
+    /**
      * @brief Whether the backend assigns one spool per tool (tool-changer model).
      *
      * Drives the auto-assign-active-spool-to-tool path and the runout-guidance
@@ -2602,6 +2618,18 @@ class AmsBackend {
      */
     virtual void set_firmware_maps_tools_per_print(bool per_print) {
         (void)per_print;
+    }
+
+    /**
+     * @brief Hand the backend the hardware snapshot its printer reported.
+     *
+     * Called once before start(). Backends that read capabilities straight from
+     * discovery override it; the default ignores it.
+     *
+     * @param discovery Hardware snapshot this backend's printer reported
+     */
+    virtual void set_discovery(const helix::PrinterDiscovery& discovery) {
+        (void)discovery;
     }
 
     // ========================================================================

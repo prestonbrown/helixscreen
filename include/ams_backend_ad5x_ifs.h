@@ -191,6 +191,42 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
      */
     static std::vector<std::string> required_status_objects(const helix::PrinterDiscovery& hw);
 
+    /**
+     * @brief Which of zMod's stock purge-bin macros this printer defines.
+     *
+     * `_G28` (home only when an axis is unhomed) and `_GOTO_TRASH` (park over
+     * the bin) together are the bin route; `PURGE_FILAMENT` is the stock purge.
+     * Forge-X and other non-zMod firmware define none of them.
+     */
+    struct BinPurgeMacros {
+        bool home_if_needed = false; ///< gcode_macro _G28
+        bool goto_bin = false;       ///< gcode_macro _GOTO_TRASH
+        bool stock_purge = false;    ///< gcode_macro PURGE_FILAMENT
+
+        [[nodiscard]] bool bin_route() const {
+            return home_if_needed && goto_bin;
+        }
+    };
+
+    [[nodiscard]] static BinPurgeMacros bin_purge_macros(const helix::PrinterDiscovery& hw);
+
+    /**
+     * @brief The gcode run ahead of a user purge: home if needed, then go to the bin.
+     *
+     * Empty without the bin route. Never homes while @p job_holds_machine: the
+     * AD5X's loadcell `_G28` probes down into a paused part.
+     */
+    [[nodiscard]] static std::string bin_purge_preamble(const BinPurgeMacros& macros,
+                                                        bool job_holds_machine);
+
+    /**
+     * @brief The runout recovery Purge button's gcode.
+     *
+     * Over the bin with the stock purge when the printer has both, else a bare
+     * extruder move in place. Never homes: a runout is a paused job.
+     */
+    [[nodiscard]] static std::string runout_purge_gcode(const BinPurgeMacros& macros);
+
     // --- AmsBackend interface ---
     [[nodiscard]] AmsType get_type() const override {
         return AmsType::AD5X_IFS;
@@ -347,6 +383,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     void on_klipper_restarted() override;
 
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
+
+    void set_discovery(const helix::PrinterDiscovery& discovery) override;
+    [[nodiscard]] std::string purge_preamble_gcode(bool job_holds_machine) const override;
 
     /// Pre-print unaccounted gate: the SWITCH pair only, never head_filament_
     /// alone (motion-sensor false negatives, see the block comment above).
@@ -1421,6 +1460,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// IFS_SET_MATERIAL / T<n>). Mirrors zmod_status_live_: atomic because the
     /// poll stand-down gates read it unlocked.
     std::atomic<bool> ifs_module_live_{false};
+    /// zMod's purge-bin macros. Set once by set_discovery() before start() and
+    /// read-only afterwards, so any thread may read it unlocked.
+    BinPurgeMacros bin_purge_macros_;
     /// Last `active_channel` an `ifs` frame actually carried (1-based; 0 =
     /// none), re-supplied into Ports-only diff frames for the same reason
     /// zmod_last_chan_ exists. Guarded by mutex_.

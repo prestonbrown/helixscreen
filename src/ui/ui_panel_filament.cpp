@@ -1480,11 +1480,19 @@ void FilamentPanel::execute_purge() {
     if (!info.is_empty()) {
         std::string macro_name = info.get_macro();
         // See execute_load(): [this] is safe here only because the panel is
-        // immortal [L012].
+        // immortal [L012], which also covers the purge preamble's callbacks.
         helix::ui::dispatch_filament_macro(
             macro_name, helix::ui::ParamPolicy::Prompt,
             [this, macro_name](const MacroParamResult& result) {
-                run_filament_macro(macro_name, "Purg", result);
+                // The button spins and the guard holds through the preamble too.
+                begin_operation_guard();
+                op_started(FilamentOp::Purge);
+                helix::ui::run_after_purge_preamble(
+                    api_, "[FilamentPanel]",
+                    [this, macro_name, result]() {
+                        run_filament_macro(macro_name, "Purg", result);
+                    },
+                    [this](const MoonrakerError& error) { purge_failed(error); });
             },
             macro_temp_prefill(helix::ui::FilamentMacroOp::Purge));
         return;
@@ -1500,32 +1508,35 @@ void FilamentPanel::execute_purge() {
         fmt::format("M83\nG1 E{} F{}", PURGE_FALLBACK_MM, PURGE_FALLBACK_SPEED_MM_MIN);
     op_started(FilamentOp::Purge); // on-button spinner replaces the start toast
 
-    api_->execute_gcode(
-        gcode,
-        [this]() {
-            helix::ui::async_call(
-                [](void* ud) {
-                    auto* self = static_cast<FilamentPanel*>(ud);
-                    self->operation_guard_.end();
-                    self->op_succeeded(FilamentOp::Purge);
+    helix::ui::run_after_purge_preamble(
+        api_, "[FilamentPanel]",
+        [this, gcode]() {
+            api_->execute_gcode(
+                gcode,
+                [this]() {
+                    helix::ui::async_call(
+                        [](void* ud) {
+                            auto* self = static_cast<FilamentPanel*>(ud);
+                            self->operation_guard_.end();
+                            self->op_succeeded(FilamentOp::Purge);
+                        },
+                        this);
                 },
-                this);
+                lifetime_.bg_cb("FilamentPanel::purge_err",
+                                [this](const MoonrakerError& error) { purge_failed(error); }),
+                IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
         },
-        [this](const MoonrakerError& error) {
-            helix::ui::async_call(
-                [](void* ud) {
-                    auto* self = static_cast<FilamentPanel*>(ud);
-                    self->operation_guard_.end();
-                    self->op_failed(FilamentOp::Purge);
-                },
-                this);
-            if (error.type == MoonrakerErrorType::TIMEOUT) {
-                NOTIFY_WARNING(lv_tr("Purge may still be running — response timed out"));
-            } else {
-                NOTIFY_ERROR(lv_tr("Purge failed: {}"), error.user_message());
-            }
-        },
-        IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
+        [this](const MoonrakerError& error) { purge_failed(error); });
+}
+
+void FilamentPanel::purge_failed(const MoonrakerError& error) {
+    operation_guard_.end();
+    op_failed(FilamentOp::Purge);
+    if (error.type == MoonrakerErrorType::TIMEOUT) {
+        NOTIFY_WARNING(lv_tr("Purge may still be running — response timed out"));
+    } else {
+        NOTIFY_ERROR(lv_tr("Purge failed: {}"), error.user_message());
+    }
 }
 
 void FilamentPanel::handle_retract_button() {

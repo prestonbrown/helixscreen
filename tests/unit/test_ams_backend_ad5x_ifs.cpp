@@ -16,12 +16,14 @@
 #include "filament_variants.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -10156,8 +10158,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         REQUIRE(ev->recovery_actions[0].gcode == "RESUME");
         REQUIRE(ev->recovery_actions[0].style == "primary");
         REQUIRE(ev->recovery_actions[0].needs_hot_nozzle);
-        // A plain extruder move, not zmod's PURGE_FILAMENT macro - no homing, so
-        // it cannot reach the loadcell _G28 that shuts the AD5X down mid-job.
+        // No zMod bin macros discovered: a plain extruder move in place, which
+        // cannot reach the loadcell _G28 that shuts the AD5X down mid-job.
         REQUIRE(ev->recovery_actions[1].gcode == "M83\nG1 E50 F600");
         REQUIRE(ev->recovery_actions[1].needs_hot_nozzle);
         REQUIRE(ev->recovery_actions[2].gcode == "IFS_UNLOCK");
@@ -10169,6 +10171,28 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
             CHECK(a.gcode.find("INSERT_PRUTOK_IFS") == std::string::npos);
             CHECK(a.gcode.find("A_CHANGE_FILAMENT") == std::string::npos);
         }
+    }
+
+    SECTION("runout Purge on zMod goes to the bin with the stock purge, never homing") {
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        helix::PrinterDiscovery zmod;
+        zmod.parse_objects(nlohmann::json::array({"save_variables", "gcode_macro _G28",
+                                                  "gcode_macro _GOTO_TRASH",
+                                                  "gcode_macro PURGE_FILAMENT"}));
+        backend.set_discovery(zmod);
+        Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+        set_print_state(helix::PrintJobState::PAUSED);
+        Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(true));
+        Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(false));
+        Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
+        REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
+
+        auto ev = backend.current_error();
+        REQUIRE(ev.has_value());
+        REQUIRE(ev->recovery_actions.size() == 3);
+        CHECK(ev->recovery_actions[1].log_tag == "ifs::purge");
+        CHECK(ev->recovery_actions[1].gcode == "_GOTO_TRASH\nPURGE_FILAMENT");
+        CHECK(ev->recovery_actions[1].needs_hot_nozzle);
     }
 
     SECTION("operation timeout keeps the historical single Recover action") {
@@ -10719,4 +10743,85 @@ TEST_CASE("AD5X without IFS vars falls back to lane-per-tool", "[ams][ad5x][rout
 
     CHECK(routing.head(0) == 0);
     CHECK(routing.head(3) == 3);
+}
+
+// ==========================================================================
+// Purge over the bin: zMod's stock _G28 + _GOTO_TRASH ahead of a purge
+// ==========================================================================
+
+namespace {
+helix::PrinterDiscovery discovery_with(std::initializer_list<const char*> objects) {
+    nlohmann::json list = nlohmann::json::array({"save_variables", "webhooks"});
+    for (const char* o : objects) {
+        list.push_back(o);
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(list);
+    return hw;
+}
+
+const std::initializer_list<const char*> kZmodBinMacros = {
+    "gcode_macro _G28", "gcode_macro _GOTO_TRASH", "gcode_macro PURGE_FILAMENT"};
+} // namespace
+
+TEST_CASE("AD5X IFS purge preamble: home if needed, then go to the bin, on zMod",
+          "[ams][ad5x_ifs][ad5x_bin_purge]") {
+    const auto macros = AmsBackendAd5xIfs::bin_purge_macros(discovery_with(kZmodBinMacros));
+
+    SECTION("idle: _G28 first, then _GOTO_TRASH") {
+        CHECK(AmsBackendAd5xIfs::bin_purge_preamble(macros, /*job_holds_machine=*/false) ==
+              "_G28\n_GOTO_TRASH");
+    }
+    SECTION("a job holds the machine: no _G28") {
+        CHECK(AmsBackendAd5xIfs::bin_purge_preamble(macros, /*job_holds_machine=*/true) ==
+              "_GOTO_TRASH");
+    }
+    SECTION("the backend answers the same through the AmsBackend virtual") {
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        CHECK(static_cast<const AmsBackend&>(backend).purge_preamble_gcode(false).empty());
+        backend.set_discovery(discovery_with(kZmodBinMacros));
+        const AmsBackend& base = backend;
+        CHECK(base.purge_preamble_gcode(false) == "_G28\n_GOTO_TRASH");
+        CHECK(base.purge_preamble_gcode(true) == "_GOTO_TRASH");
+    }
+}
+
+TEST_CASE("AD5X IFS purge preamble is empty unless both bin macros exist",
+          "[ams][ad5x_ifs][ad5x_bin_purge]") {
+    SECTION("Forge-X shape: IFS_PURGE and friends, no zMod macros") {
+        const auto macros = AmsBackendAd5xIfs::bin_purge_macros(
+            discovery_with({"ifs", "gcode_macro IFS_PURGE", "gcode_macro IFS_LOAD"}));
+        CHECK(AmsBackendAd5xIfs::bin_purge_preamble(macros, false).empty());
+        CHECK(AmsBackendAd5xIfs::bin_purge_preamble(macros, true).empty());
+    }
+    SECTION("_GOTO_TRASH without _G28") {
+        const auto macros =
+            AmsBackendAd5xIfs::bin_purge_macros(discovery_with({"gcode_macro _GOTO_TRASH"}));
+        CHECK(AmsBackendAd5xIfs::bin_purge_preamble(macros, false).empty());
+        CHECK(AmsBackendAd5xIfs::bin_purge_preamble(macros, true).empty());
+    }
+    SECTION("_G28 without _GOTO_TRASH") {
+        const auto macros =
+            AmsBackendAd5xIfs::bin_purge_macros(discovery_with({"gcode_macro _G28"}));
+        CHECK(AmsBackendAd5xIfs::bin_purge_preamble(macros, false).empty());
+        CHECK(AmsBackendAd5xIfs::bin_purge_preamble(macros, true).empty());
+    }
+}
+
+TEST_CASE("AD5X IFS runout Purge gcode in both firmware shapes",
+          "[ams][ad5x_ifs][ad5x_bin_purge][runout]") {
+    SECTION("zMod: over the bin with the stock purge, no _G28") {
+        const auto macros = AmsBackendAd5xIfs::bin_purge_macros(discovery_with(kZmodBinMacros));
+        CHECK(AmsBackendAd5xIfs::runout_purge_gcode(macros) == "_GOTO_TRASH\nPURGE_FILAMENT");
+    }
+    SECTION("Forge-X: a bare extruder move in place") {
+        const auto macros =
+            AmsBackendAd5xIfs::bin_purge_macros(discovery_with({"ifs", "gcode_macro IFS_PURGE"}));
+        CHECK(AmsBackendAd5xIfs::runout_purge_gcode(macros) == "M83\nG1 E50 F600");
+    }
+    SECTION("bin route without PURGE_FILAMENT: still the bare move") {
+        const auto macros = AmsBackendAd5xIfs::bin_purge_macros(
+            discovery_with({"gcode_macro _G28", "gcode_macro _GOTO_TRASH"}));
+        CHECK(AmsBackendAd5xIfs::runout_purge_gcode(macros) == "M83\nG1 E50 F600");
+    }
 }

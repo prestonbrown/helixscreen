@@ -639,6 +639,8 @@ class FilamentPanel : public PanelBase {
     void execute_extrude();
     void execute_retract();
     void execute_purge();
+    /// Settle the Purge button and report @p error (main thread).
+    void purge_failed(const MoonrakerError& error);
     void run_filament_macro(const std::string& macro_name, const std::string& op_label,
                             const helix::MacroParamResult& params);
 

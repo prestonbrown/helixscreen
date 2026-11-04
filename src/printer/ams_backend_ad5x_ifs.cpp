@@ -65,11 +65,10 @@ namespace {
     return get_printer_state().get_print_lifecycle() == PrintState::Paused;
 }
 
-/// Fallback purge for a runout recovery: 50 mm of fresh filament at 10 mm/s.
-/// Same numbers the filament panel's purge fallback uses
-/// (ui_panel_filament.cpp, ui_filament_runout_handler.cpp) - deliberately a
-/// plain extruder move rather than zmod's `PURGE_FILAMENT` macro, because a bare
-/// `G1 E` needs no homing and cannot reach the loadcell `_G28` that shuts the
+/// Runout recovery purge on a printer without zMod's bin macros: 50 mm of fresh
+/// filament at 10 mm/s, in place. Same numbers the filament panel's purge
+/// fallback uses (ui_panel_filament.cpp, ui_filament_runout_handler.cpp). A bare
+/// `G1 E` needs no homing, so it cannot reach the loadcell `_G28` that shuts the
 /// AD5X down mid-job (see build_recovery_actions()).
 constexpr int RUNOUT_PURGE_MM = 50;
 constexpr int RUNOUT_PURGE_FEEDRATE_MM_MIN = 10 * 60;
@@ -209,6 +208,45 @@ AmsBackendAd5xIfs::required_status_objects(const helix::PrinterDiscovery& hw) {
         }
     }
     return objects;
+}
+
+AmsBackendAd5xIfs::BinPurgeMacros
+AmsBackendAd5xIfs::bin_purge_macros(const helix::PrinterDiscovery& hw) {
+    BinPurgeMacros macros;
+    macros.home_if_needed = hw.has_macro("_G28");
+    macros.goto_bin = hw.has_macro("_GOTO_TRASH");
+    macros.stock_purge = hw.has_macro("PURGE_FILAMENT");
+    return macros;
+}
+
+std::string AmsBackendAd5xIfs::bin_purge_preamble(const BinPurgeMacros& macros,
+                                                  bool job_holds_machine) {
+    if (!macros.bin_route()) {
+        return {};
+    }
+    // zMod's `_G28` homes only when an axis is unhomed, and `_GOTO_TRASH` is the
+    // same park its own pause uses. A job holding the machine has homed already,
+    // and homing then would probe the loadcell nozzle down into the part.
+    return job_holds_machine ? "_GOTO_TRASH" : "_G28\n_GOTO_TRASH";
+}
+
+std::string AmsBackendAd5xIfs::runout_purge_gcode(const BinPurgeMacros& macros) {
+    if (macros.bin_route() && macros.stock_purge) {
+        return bin_purge_preamble(macros, /*job_holds_machine=*/true) + "\nPURGE_FILAMENT";
+    }
+    return "M83\nG1 E" + std::to_string(RUNOUT_PURGE_MM) + " F" +
+           std::to_string(RUNOUT_PURGE_FEEDRATE_MM_MIN);
+}
+
+void AmsBackendAd5xIfs::set_discovery(const helix::PrinterDiscovery& discovery) {
+    bin_purge_macros_ = bin_purge_macros(discovery);
+    spdlog::debug("{} Purge bin route: _G28={} _GOTO_TRASH={} PURGE_FILAMENT={}", backend_log_tag(),
+                  bin_purge_macros_.home_if_needed, bin_purge_macros_.goto_bin,
+                  bin_purge_macros_.stock_purge);
+}
+
+std::string AmsBackendAd5xIfs::purge_preamble_gcode(bool job_holds_machine) const {
+    return bin_purge_preamble(bin_purge_macros_, job_holds_machine);
 }
 
 // --- Lifecycle ---
@@ -2302,14 +2340,12 @@ std::vector<helix::RecoveryAction> AmsBackendAd5xIfs::build_recovery_actions() c
     actions.push_back({lv_tr("Resume"), "RESUME", "ifs::resume", "primary",
                        /*needs_hot_nozzle=*/true});
 
-    // Clear the tail of the old spool and prime with the new one. A bare
-    // `M83` + `G1 E` and NOT zmod's PURGE_FILAMENT macro: this is a pure
-    // extruder move, so it needs no homing (see the no-Load note below) and it
-    // works on stock zMod as well as on either plugin. Obviously hot-only.
-    actions.push_back({lv_tr("Purge"),
-                       "M83\nG1 E" + std::to_string(RUNOUT_PURGE_MM) + " F" +
-                           std::to_string(RUNOUT_PURGE_FEEDRATE_MM_MIN),
-                       "ifs::purge", "",
+    // Clear the tail of the old spool and prime with the new one: over the bin
+    // with zMod's own `_GOTO_TRASH` + `PURGE_FILAMENT` where the printer has
+    // them, else a bare extruder move in place. Neither sends `_G28` (see the
+    // no-Load note below): the job is paused with its axes already homed.
+    // Obviously hot-only.
+    actions.push_back({lv_tr("Purge"), runout_purge_gcode(bin_purge_macros_), "ifs::purge", "",
                        /*needs_hot_nozzle=*/true});
 
     // NO "Load slot N" button, deliberately, even though a runout is exactly when

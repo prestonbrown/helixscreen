@@ -604,18 +604,30 @@ void run_purge(FilamentOpTicket ticket) {
     if (!purge_info.is_empty()) {
         const std::string macro_name = purge_info.get_macro();
         spdlog::info("{} Using StandardMacros purge: {}", kLogTag, macro_name);
-        dispatch_filament_macro(macro_name, ParamPolicy::Suppress,
-                                [api, ticket, on_error](const helix::MacroParamResult& result) {
-                                    StandardMacros::instance().execute(
-                                        StandardMacroSlot::Purge, api, result.params,
-                                        op_done(kLogTag, ticket, "Purge"), on_error);
-                                });
+        dispatch_filament_macro(
+            macro_name, ParamPolicy::Suppress,
+            [api, ticket, on_error](const helix::MacroParamResult& result) {
+                run_after_purge_preamble(
+                    api, kLogTag,
+                    [api, ticket, on_error, params = result.params]() {
+                        StandardMacros::instance().execute(StandardMacroSlot::Purge, api, params,
+                                                           op_done(kLogTag, ticket, "Purge"),
+                                                           on_error);
+                    },
+                    on_error);
+            });
         return;
     }
 
     spdlog::info("{} No purge macro configured — raw gcode fallback", kLogTag);
-    api->execute_gcode(purge_fallback_gcode(), op_done(kLogTag, ticket, "Purge fallback gcode"),
-                       on_error, IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
+    run_after_purge_preamble(
+        api, kLogTag,
+        [api, ticket, on_error]() {
+            api->execute_gcode(purge_fallback_gcode(),
+                               op_done(kLogTag, ticket, "Purge fallback gcode"), on_error,
+                               IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
+        },
+        on_error);
 }
 
 PreheatRequest runout_request(FilamentHeatOp op, PreheatSkip skip, int slot,

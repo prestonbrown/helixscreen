@@ -16,8 +16,10 @@
 
 #pragma once
 
+#include "i_moonraker_api.h"
 #include "macro_param_cache.h"
 #include "macro_param_modal.h"
+#include "moonraker_error.h"
 #include "moonraker_types.h"
 #include "tool_state.h"
 
@@ -172,5 +174,22 @@ slot_nozzle_temp_prefill(FilamentMacroOp op, int slot_index, std::optional<int> 
  *        long retract. M83 = relative extrusion.
  */
 [[nodiscard]] std::string filament_unload_fallback_gcode();
+
+/**
+ * @brief Run @p purge once the active filament backend's purge preamble
+ *        (AmsBackend::purge_preamble_gcode(), asked with whether a job holds the
+ *        machine right now) has completed.
+ *
+ * Every Purge surface sends its macro or raw fallback through this, so the
+ * preamble cannot be skipped by one of them.
+ *
+ * No backend or an empty preamble: @p purge runs synchronously, nothing is sent.
+ * Otherwise the preamble goes out first and @p purge runs on the main thread once
+ * it succeeds; if it fails, @p on_error runs on the main thread instead and
+ * @p purge never does.
+ */
+void run_after_purge_preamble(IMoonrakerAPI* api, const char* log_tag,
+                              std::function<void()> purge,
+                              std::function<void(const MoonrakerError&)> on_error);
 
 } // namespace helix::ui

@@ -4,10 +4,15 @@
 #include "filament_op_router.h"
 
 #include "ui_temperature_utils.h"
+#include "ui_update_queue.h"
 
+#include "ams_backend.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "filament_op_slot_resolver.h"
+#include "i_moonraker_api.h"
 #include "macro_executor.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -164,6 +169,31 @@ std::string filament_unload_fallback_gcode() {
     constexpr int TIP_PULL_SPEED = 60 * 60; // 60 mm/s → 3600 mm/min
     return fmt::format("M83\nG1 E3 F{}\nG1 E-5 F{}\nG4 P500\nG1 E-{} F{}", TIP_PUSH_SPEED,
                        TIP_PULL_SPEED, UNLOAD_MM, UNLOAD_SPEED);
+}
+
+void run_after_purge_preamble(IMoonrakerAPI* api, const char* log_tag,
+                              std::function<void()> purge,
+                              std::function<void(const MoonrakerError&)> on_error) {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const bool job_holds = get_printer_state().are_subjects_initialized() &&
+                           job_holds_machine(get_printer_state().get_print_lifecycle());
+    const std::string preamble = backend ? backend->purge_preamble_gcode(job_holds) : std::string{};
+    if (preamble.empty() || !api) {
+        purge();
+        return;
+    }
+    spdlog::info("{} Purge preamble: {}", log_tag, preamble);
+    // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, the purge's
+    // own failure path, which every caller surfaces as a "purge failed" toast.
+    // The gate reads only the callback body, where that hand-off looks like
+    // logging and nothing else.
+    api->execute_gcode(
+        preamble, [purge = std::move(purge)]() { run_on_main("purge_preamble_ok", purge); },
+        [log_tag, on_error = std::move(on_error)](const MoonrakerError& err) {
+            spdlog::error("{} Purge preamble failed: {}", log_tag, err.message);
+            run_on_main("purge_preamble_err", [on_error, err]() { on_error(err); });
+        },
+        IMoonrakerAPI::HOMING_TIMEOUT_MS);
 }
 
 } // namespace helix::ui

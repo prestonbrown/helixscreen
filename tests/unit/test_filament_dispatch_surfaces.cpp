@@ -37,6 +37,8 @@
 #include "../test_helpers/filament_runout_handler_test_access.h"
 #include "../test_helpers/lane_material_backend.h"
 #include "../test_helpers/load_filament_expression_default.h"
+#include "../test_helpers/registered_backend.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
@@ -50,6 +52,7 @@
 #include "standard_macros.h"
 #include "tool_state.h"
 
+#include <algorithm>
 #include <initializer_list>
 #include <map>
 #include <memory>
@@ -506,6 +509,168 @@ TEST_CASE_METHOD(DispatchSurfaceFixture, "Runout purge with no macro falls back 
 
     CHECK(prompt_count == 0);
     CHECK(gcode_sent_containing("G1 E50"));
+}
+
+// -----------------------------------------------------------------------------
+// Purge preamble: the active backend's "go to the bin" runs before the purge
+// -----------------------------------------------------------------------------
+
+namespace {
+
+constexpr const char* kTestPreamble = "TEST_BIN_PREAMBLE";
+
+/// A backend whose purge preamble is fixed, recording what it was asked.
+class PreambleBackend : public AmsBackendMock {
+  public:
+    PreambleBackend() : AmsBackendMock(2) {}
+    std::string preamble = kTestPreamble;
+    mutable std::optional<bool> asked_job_holds;
+    [[nodiscard]] std::string purge_preamble_gcode(bool job_holds_machine) const override {
+        asked_job_holds = job_holds_machine;
+        return preamble;
+    }
+};
+
+/// Holds the preamble's request so a test decides when, and how, it answers.
+/// Every other script goes to the mock client as usual.
+class PreambleHoldAPI : public MoonrakerAPI {
+  public:
+    using MoonrakerAPI::MoonrakerAPI;
+
+    void execute_gcode(const std::string& gcode, IMoonrakerAPI::SuccessCallback on_success,
+                       IMoonrakerAPI::ErrorCallback on_error, uint32_t timeout_ms = 0,
+                       bool silent = false, IMoonrakerAPI::SuccessCallback on_queued = nullptr,
+                       bool caller_surfaces_errors = true) override {
+        if (gcode.find(kTestPreamble) != std::string::npos) {
+            ++preamble_count;
+            preamble_ok = std::move(on_success);
+            preamble_err = std::move(on_error);
+            return;
+        }
+        MoonrakerAPI::execute_gcode(gcode, std::move(on_success), std::move(on_error), timeout_ms,
+                                    silent, std::move(on_queued), caller_surfaces_errors);
+    }
+
+    int preamble_count = 0;
+    IMoonrakerAPI::SuccessCallback preamble_ok;
+    IMoonrakerAPI::ErrorCallback preamble_err;
+};
+
+void configure_purge_macro() {
+    helix::PrinterDiscovery hardware;
+    nlohmann::json objects = {"extruder", "gcode_macro PURGE"};
+    hardware.parse_objects(objects);
+    StandardMacros::instance().reset();
+    StandardMacros::instance().init(hardware);
+    REQUIRE_FALSE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
+}
+
+} // namespace
+
+TEST_CASE_METHOD(DispatchSurfaceFixture,
+                 "Runout purge macro waits for the backend's purge preamble to complete",
+                 "[filament][dispatch][wiring][runout][purge_preamble]") {
+    configure_purge_macro();
+    helix::test::RegisteredBackend<PreambleBackend> reg;
+    PreambleHoldAPI held(mock_client, state);
+    set_moonraker_api(&held);
+
+    FilamentRunoutHandler handler(&held);
+    FilamentRunoutHandlerTestAccess::dispatch_purge(handler);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The preamble is out, the purge is not: it waits on the preamble's answer.
+    REQUIRE(held.preamble_count == 1);
+    CHECK_FALSE(gcode_sent_containing("PURGE"));
+    REQUIRE(reg->asked_job_holds.has_value());
+    CHECK_FALSE(*reg->asked_job_holds);
+
+    held.preamble_ok();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(gcode_sent_containing("PURGE"));
+}
+
+TEST_CASE_METHOD(DispatchSurfaceFixture,
+                 "Runout purge fallback waits for the backend's purge preamble",
+                 "[filament][dispatch][wiring][runout][purge_preamble]") {
+    clear_filament_macros();
+    helix::test::RegisteredBackend<PreambleBackend> reg;
+    PreambleHoldAPI held(mock_client, state);
+    set_moonraker_api(&held);
+
+    FilamentRunoutHandler handler(&held);
+    FilamentRunoutHandlerTestAccess::dispatch_purge(handler);
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(held.preamble_count == 1);
+    CHECK_FALSE(gcode_sent_containing("G1 E50"));
+
+    held.preamble_ok();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(gcode_sent_containing("G1 E50"));
+}
+
+TEST_CASE_METHOD(DispatchSurfaceFixture, "A failed purge preamble sends no purge",
+                 "[filament][dispatch][wiring][runout][purge_preamble]") {
+    configure_purge_macro();
+    helix::test::RegisteredBackend<PreambleBackend> reg;
+    PreambleHoldAPI held(mock_client, state);
+    set_moonraker_api(&held);
+
+    FilamentRunoutHandler handler(&held);
+    FilamentRunoutHandlerTestAccess::dispatch_purge(handler);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(held.preamble_count == 1);
+
+    MoonrakerError err;
+    err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+    err.message = "Must home axis first";
+    held.preamble_err(err);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(gcode_sent_containing("PURGE"));
+}
+
+TEST_CASE_METHOD(DispatchSurfaceFixture,
+                 "run_after_purge_preamble hands a preamble failure to on_error, never the purge",
+                 "[filament][dispatch][purge_preamble]") {
+    helix::test::RegisteredBackend<PreambleBackend> reg;
+    PreambleHoldAPI held(mock_client, state);
+
+    int purges = 0;
+    std::optional<std::string> failure;
+    helix::ui::run_after_purge_preamble(
+        &held, "[test]", [&purges]() { ++purges; },
+        [&failure](const MoonrakerError& err) { failure = err.message; });
+    REQUIRE(held.preamble_count == 1);
+    CHECK(purges == 0);
+
+    MoonrakerError err;
+    err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+    err.message = "Must home axis first";
+    held.preamble_err(err);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(purges == 0);
+    REQUIRE(failure.has_value());
+    CHECK(*failure == "Must home axis first");
+}
+
+TEST_CASE_METHOD(DispatchSurfaceFixture, "An empty purge preamble leaves the purge unchanged",
+                 "[filament][dispatch][wiring][runout][purge_preamble]") {
+    configure_purge_macro();
+    helix::test::RegisteredBackend<PreambleBackend> reg;
+    reg->preamble.clear();
+    PreambleHoldAPI held(mock_client, state);
+    set_moonraker_api(&held);
+
+    FilamentRunoutHandler handler(&held);
+    FilamentRunoutHandlerTestAccess::dispatch_purge(handler);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(held.preamble_count == 0);
+    REQUIRE(mock_client.gcode_script_history().size() == 1);
+    CHECK(mock_client.gcode_script_history().front().find("PURGE") == 0);
 }
 
 // =============================================================================
