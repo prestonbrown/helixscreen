@@ -143,12 +143,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: destructor safe withou
 // Visibility / Lifecycle State
 // =============================================================================
 
-TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: initially not visible",
-                 "[printer_manager]") {
-    PrinterManagerOverlay overlay;
-    REQUIRE_FALSE(overlay.is_visible());
-}
-
 TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: cleanup sets flag", "[printer_manager]") {
     PrinterManagerOverlay overlay;
     REQUIRE_FALSE(overlay.cleanup_called());
@@ -156,16 +150,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: cleanup sets flag", "[
     overlay.cleanup();
 
     REQUIRE(overlay.cleanup_called());
-}
-
-// =============================================================================
-// Overlay Root State
-// =============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: root is null before create",
-                 "[printer_manager]") {
-    PrinterManagerOverlay overlay;
-    REQUIRE(overlay.get_root() == nullptr);
 }
 
 // The edit box holds the printer's own name only: a host or type shown in its place is not

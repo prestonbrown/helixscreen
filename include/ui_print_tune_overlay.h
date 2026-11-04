@@ -154,8 +154,9 @@ class PrintTuneOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "print_tune_panel";
     }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return true;
+        return false;
     }
 
     void init_subjects() override;

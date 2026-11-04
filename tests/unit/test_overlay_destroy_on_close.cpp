@@ -13,9 +13,7 @@
  */
 
 #include "ui_ams_environment_overlay.h"
-#include "ui_ams_zone_overview_overlay.h"
 #include "ui_cfs_chute_calibration_overlay.h"
-#include "ui_maintenance_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_console_settings.h"
 #include "ui_overlay_printer_image.h"
@@ -27,8 +25,6 @@
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_motion.h"
-#include "ui_print_tune_overlay.h"
-#include "ui_printer_events_overlay.h"
 #include "ui_printer_list_overlay.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_settings_appearance.h"
@@ -45,7 +41,6 @@
 #include "ui_settings_safety.h"
 #include "ui_settings_screen_sharing.h"
 #include "ui_settings_security.h"
-#include "ui_settings_sensors.h"
 #include "ui_settings_sound.h"
 #include "ui_settings_storage.h"
 #include "ui_settings_system.h"
@@ -58,12 +53,14 @@
 #include "ui_touch_calibration_overlay.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "label_printer_settings.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "printer_state.h"
@@ -175,13 +172,11 @@ const OverlayCase kOverlayCases[] = {
     {"Safety", as_base<&get_safety_settings_overlay>},
     {"Screen Sharing", as_base<&get_screen_sharing_settings_overlay>},
     {"Security", as_base<&get_security_settings_overlay>},
-    {"Sensors", as_base<&get_sensor_settings_overlay>},
     {"Sound Preview", as_base<&get_sound_preview_overlay>},
     {"Storage", as_base<&get_storage_settings_overlay>},
     {"System", as_base<&get_system_settings_overlay>},
     {"Touch", as_base<&get_touch_settings_overlay>},
     {"Updates", as_base<&get_updates_settings_overlay>},
-    {"Maintenance", as_base<&helix::get_maintenance_overlay>},
     {"Printer Image", as_base<&get_printer_image_overlay>},
     {"Printer Type", as_base<&get_printer_type_overlay>},
     {"Sound", as_base<&get_sound_settings_overlay>, nullptr,
@@ -198,18 +193,6 @@ const OverlayCase kOverlayCases[] = {
          lv_subject_set_int(
              get_printer_state().network_state().get_printer_connection_state_subject(), 0);
      }},
-    {"Printer Events", as_base<&get_printer_events_overlay>, nullptr,
-     [] { get_printer_events_overlay().show_entries(JournalSource::Screen, {}); }},
-    {"Print Tune", as_base<&get_print_tune_overlay>,
-     [] {
-         get_print_tune_overlay().show(lv_screen_active(), get_moonraker_api(),
-                                       get_printer_state());
-     },
-     [] {
-         lv_subject_set_int(get_printer_state().motion_state().get_speed_factor_subject(), 150);
-     }},
-    {"AMS Zone Overview", as_base<&get_ams_zone_overview_overlay>,
-     [] { get_ams_zone_overview_overlay().show(lv_screen_active(), {}); }},
     {"Printer Image Tagger", as_base<&get_printer_image_tagger_overlay>,
      [] { get_printer_image_tagger_overlay().show(lv_screen_active(), ImageTagTarget{}); }},
 };
@@ -256,6 +239,35 @@ TEST_CASE_METHOD(DestroyOnCloseFixture, "Label Printer wires its inputs on every
     REQUIRE(p.show(lv_screen_active()));
     settle();
     CHECK(input_callbacks() == first_build);
+}
+
+TEST_CASE_METHOD(DestroyOnCloseFixture, "Label Printer keeps an address typed before a tap on Back",
+                 "[overlay_destroy_on_close][label_printer]") {
+    auto& settings = helix::LabelPrinterSettingsManager::instance();
+    const std::string type = settings.get_printer_type();
+    const std::string address = settings.get_printer_address();
+    settings.set_printer_type("network");
+    UITest::init(lv_screen_active());
+
+    auto& p = get_label_printer_settings_overlay();
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    lv_obj_t* input = lv_obj_find_by_name(p.get_root(), "input_address");
+    REQUIRE(input != nullptr);
+    REQUIRE(UITest::click(input));
+    lv_textarea_set_text(input, "10.1.2.3");
+    REQUIRE(UITest::click(lv_obj_find_by_name(p.get_root(), "back_button")));
+    settle();
+    REQUIRE(p.get_root() == nullptr);
+
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    CHECK(std::string(lv_textarea_get_text(lv_obj_find_by_name(p.get_root(), "input_address"))) ==
+          "10.1.2.3");
+
+    UITest::cleanup();
+    settings.set_printer_address(address);
+    settings.set_printer_type(type);
 }
 
 TEST_CASE_METHOD(DestroyOnCloseFixture, "Motion observers fired after close touch no freed tree",

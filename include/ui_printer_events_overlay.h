@@ -41,8 +41,9 @@ class PrinterEventsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "printer_events_overlay";
     }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return true;
+        return false;
     }
 
     /// Fill the list from @p entries, which came from @p source.

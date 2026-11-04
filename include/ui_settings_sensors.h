@@ -134,8 +134,9 @@ class SensorSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "sensors_overlay";
     }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return true;
+        return false;
     }
 
     /// Fills every section before the XML is built, so the first expansion
