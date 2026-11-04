@@ -10110,6 +10110,12 @@ struct Ad5xRunoutFixture : public LVGLTestFixture {
         Ad5xIfsTestAccess::handle_status(b, make_head_sensor(true));
         Ad5xIfsTestAccess::handle_status(b, make_head_sensor(false));
     }
+
+    /// Evaluate the detector with the dwell long past.
+    static bool runs_out_after_dwell(AmsBackendAd5xIfs& b) {
+        Ad5xIfsTestAccess::age_head_empty(b, std::chrono::seconds(600));
+        return Ad5xIfsTestAccess::evaluate_runout(b);
+    }
 };
 
 /// Gcode-capturing backend wired to a MoonrakerAPIMock, so the real
@@ -10223,8 +10229,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: the confirm dwell is load-
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
     REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
 
-    Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
-    REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
+    REQUIRE(runs_out_after_dwell(backend));
     REQUIRE(Ad5xIfsTestAccess::runout_active(backend));
 }
 
@@ -10357,8 +10362,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
 
     // And a candidate that re-arms inside the suppression window is still
     // attributed to that eject, not to a runout.
-    Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(true));
-    Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(false));
+    seat_then_drop_head(backend);
     Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
 
@@ -10372,10 +10376,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
                  "[ams][ad5x_ifs][runout][1250]") {
     auto raise = [this](AmsBackendAd5xIfs& b) {
         set_print_state(helix::PrintJobState::PAUSED);
-        Ad5xIfsTestAccess::handle_status(b, make_head_sensor(true));
-        Ad5xIfsTestAccess::handle_status(b, make_head_sensor(false));
-        Ad5xIfsTestAccess::age_head_empty(b, std::chrono::seconds(600));
-        REQUIRE(Ad5xIfsTestAccess::evaluate_runout(b));
+        seat_then_drop_head(b);
+        REQUIRE(runs_out_after_dwell(b));
         REQUIRE(Ad5xIfsTestAccess::action(b) == AmsAction::ERROR);
     };
 
@@ -10418,10 +10420,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         AmsBackendAd5xIfs backend(nullptr, nullptr);
         Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
         set_print_state(helix::PrintJobState::PAUSED);
-        Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(true));
-        Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(false));
-        Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
-        REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
+        seat_then_drop_head(backend);
+        REQUIRE(runs_out_after_dwell(backend));
 
         auto ev = backend.current_error();
         REQUIRE(ev.has_value());
@@ -10467,11 +10467,9 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
         set_print_state(helix::PrintJobState::PAUSED);
         set_homed_axes("xyz");
-        Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(true));
-        Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(false));
+        seat_then_drop_head(backend);
         Ad5xIfsTestAccess::set_current_slot(backend, 2);
-        Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
-        REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
+        REQUIRE(runs_out_after_dwell(backend));
         REQUIRE(Ad5xIfsTestAccess::runout_slot(backend) == 2);
 
         auto ev = backend.current_error();
@@ -10548,10 +10546,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: detail text names the plug
                  "[ams][ad5x_ifs][runout][1250]") {
     auto raise = [this](AmsBackendAd5xIfs& b) {
         set_print_state(helix::PrintJobState::PAUSED);
-        Ad5xIfsTestAccess::handle_status(b, make_head_sensor(true));
-        Ad5xIfsTestAccess::handle_status(b, make_head_sensor(false));
-        Ad5xIfsTestAccess::age_head_empty(b, std::chrono::seconds(600));
-        REQUIRE(Ad5xIfsTestAccess::evaluate_runout(b));
+        seat_then_drop_head(b);
+        REQUIRE(runs_out_after_dwell(b));
         return Ad5xIfsTestAccess::operation_detail(b);
     };
 

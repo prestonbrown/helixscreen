@@ -267,6 +267,10 @@ TEST_CASE_METHOD(PausedGateFixture, "a paused AD5X loads only on a homed toolhea
                  "[ams][safety][paused][ad5x]") {
     auto backend = make<helix::AmsBackendAd5xIfs>();
     REQUIRE(backend->self_home_skipped_when_homed());
+    auto seat_other_lane = [&](bool present) {
+        helix::Ad5xIfsTestAccess::set_seated_chan(*backend, 2);
+        helix::Ad5xIfsTestAccess::set_head_switch(*backend, /*seen=*/true, present);
+    };
 
     SECTION("paused + homed: the load goes through, everything else still refuses") {
         set_print_state(helix::PrintJobState::PAUSED);
@@ -287,8 +291,7 @@ TEST_CASE_METHOD(PausedGateFixture, "a paused AD5X loads only on a homed toolhea
     SECTION("paused + homed + another lane seated: the load would unload it, so refuse") {
         set_print_state(helix::PrintJobState::PAUSED);
         set_homed_axes("xyz");
-        helix::Ad5xIfsTestAccess::set_seated_chan(*backend, 2);
-        helix::Ad5xIfsTestAccess::set_head_switch(*backend, /*seen=*/true, /*present=*/true);
+        seat_other_lane(/*present=*/true);
         REQUIRE(backend->load_unloads_toolhead_now());
         AmsError err = backend->load_filament(0);
         REQUIRE_FALSE(err.success());
@@ -300,8 +303,7 @@ TEST_CASE_METHOD(PausedGateFixture, "a paused AD5X loads only on a homed toolhea
     SECTION("paused + homed + head switch empty: the load unloads nothing, so it goes through") {
         set_print_state(helix::PrintJobState::PAUSED);
         set_homed_axes("xyz");
-        helix::Ad5xIfsTestAccess::set_seated_chan(*backend, 2);
-        helix::Ad5xIfsTestAccess::set_head_switch(*backend, /*seen=*/true, /*present=*/false);
+        seat_other_lane(/*present=*/false);
         REQUIRE_FALSE(backend->load_unloads_toolhead_now());
         CHECK(backend->call_refuse_load_if_printing().success());
         CHECK_FALSE(helix::ui::print_blocks_load_now(backend.get(), state));
