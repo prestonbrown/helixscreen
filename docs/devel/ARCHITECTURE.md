@@ -180,6 +180,31 @@ explains it.
 | work on the G-code viewer, the print-status preview, or object picking | [ch. 16 - G-code pipeline](architecture/16-gcode-pipeline.md) |
 | work on the ESP32 (BTT K-Touch) firmware | [ch. 17 - ESP32 firmware](architecture/17-esp32-firmware.md) |
 
+## The layer map
+
+Every `src/<dir>` sits in one layer, and an include may point down the stack or
+sideways, never up: lower layers emit data and events, the UI presents them. The
+table is `LAYERS` in [`scripts/check_layering.py`](../../scripts/check_layering.py),
+which `--report` prints as a directory-to-directory include matrix.
+
+| Layer, low to high | Directories | Holds |
+|---|---|---|
+| core | `util`, `utils`, `config`, `generated` | text, config and logging plumbing every layer uses |
+| platform | `network`, `bluetooth`, `input` | the OS and the hardware, never printer state |
+| moonraker | `api` | the Moonraker client, its API façade and the mock printer |
+| state | `printer`, `temperature`, `spoolman`, `print`, `calibration`, `sensors`, `led`, `plugin`, `system` | subjects, backends and services |
+| rendering | `rendering` | G-code geometry and thumbnails |
+| ui | `ui` | LVGL widgets, panels, overlays, modals |
+| app | `application`, `abort`, `remote`, `tools`, `lvgl-demo` | wiring and lifecycle |
+
+A header belongs to the directory holding the `.cpp` of the same stem; a header with
+no `.cpp` is header-only and belongs to nobody until it is moved under a layer. The
+gate (`qc_layering`, pre-push and land-gate) measures a branch from its fork point:
+a file may lose upward includes and may not gain one, a refactor that empties a
+directory-to-header pair bans it tree-wide through `CLEARED_PAIRS`, and a commit
+message line `Layering: <path> <reason>` grants one file that cannot wait. The
+upward includes the tree still carries are chapter 15's debt (#1946, #1952).
+
 ## The rules with teeth
 
 New UI code is declarative, class-based, and token-styled: no
