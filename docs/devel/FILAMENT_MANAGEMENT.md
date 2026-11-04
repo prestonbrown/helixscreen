@@ -3625,7 +3625,7 @@ And the pure virtuals of `AmsBackend` (`include/ams_backend.h`) that the subscri
 
 **Constant capabilities go in `kTraits`, not in overrides.** A capability your backend
 answers the same way for its whole life (`has_physical_tray`, `supports_auto_heat_on_load`,
-`has_per_slot_loaded_authority`, ...) is a field of `BackendTraits` (`include/ams_backend.h#BackendTraits`).
+`has_per_slot_loaded_authority`, `lane_noun`, ...) is a field of `BackendTraits` (`include/ams_backend.h#BackendTraits`).
 Declare one `static constexpr BackendTraits kTraits` that sets the fields you differ on, and
 return it from `traits()`; the predicates of the same names read it and cannot be overridden.
 Any field you leave alone keeps the base answer. A capability that depends on discovery,
@@ -3645,6 +3645,12 @@ static constexpr BackendTraits kTraits = [] {
     return kTraits;
 }
 ```
+
+**Operations only one family has go behind a capability interface.** Generic code asks
+`backend->as<ICfsCalibration>()` and gets nullptr from every backend that lacks it
+(`include/ams_capability.h`). To publish one, inherit the interface and return
+`static_cast<I*>(this)` from `capability()` for `helix::type_tag<I>()`, deferring to the base for
+any other tag. The interface sits in its own header, so changing it rebuilds only its users.
 
 **Optional overrides (with default implementations):**
 

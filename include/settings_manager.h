@@ -10,6 +10,7 @@
 #include "mount_feed_sequence.h"
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
+#include "toolhead_style.h"
 
 #include <algorithm>
 #include <optional>
@@ -34,18 +35,6 @@ enum class ZMovementStyle { AUTO = 0, BED_MOVES = 1, NOZZLE_MOVES = 2 };
 /// distances.
 enum class MotionLayout { Pad = 0, Arrows = 1, ArrowsHome = 2, AxisRows = 3 };
 inline constexpr int kMotionLayoutCount = 4;
-
-/** @brief Toolhead rendering style (Auto=detect from printer type, or force) */
-enum class ToolheadStyle {
-    AUTO = 0,
-    DEFAULT = 1,
-    A4T = 2,
-    ANTHEAD = 3,
-    JABBERWOCKY = 4,
-    STEALTHBURNER = 5,
-    CREALITY_K1 = 6,
-    CREALITY_K2 = 7
-};
 
 /**
  * @brief Storage layer for the user-supplied console filter lists.

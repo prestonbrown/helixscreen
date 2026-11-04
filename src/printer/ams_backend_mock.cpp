@@ -862,6 +862,10 @@ AmsError AmsBackendMock::park_active_tool() {
 
 BackendTraits AmsBackendMock::traits() const {
     std::lock_guard<std::mutex> lock(mutex_);
+    return traits_locked();
+}
+
+BackendTraits AmsBackendMock::traits_locked() const {
     BackendTraits t;
     switch (system_info_.type) {
     case AmsType::HAPPY_HARE:

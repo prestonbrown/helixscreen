@@ -12,6 +12,7 @@
 
 #include "ams_backend.h"
 #include "ams_backend_cfs.h"
+#include "ams_cfs_calibration.h"
 #include "ams_state.h"
 #include "core/static_panel_registry.h"
 #include "lvgl.h"
@@ -75,10 +76,11 @@ void confirm_cutter_calibration() {
         ModalSeverity::Warning, lv_tr("Start"),
         []() {
             AmsBackend* backend = AmsState::instance().get_backend();
-            if (!backend) {
+            auto* calibration = backend ? backend->as<ICfsCalibration>() : nullptr;
+            if (!calibration) {
                 return;
             }
-            AmsError result = backend->calibrate_cutter([](bool ok, const std::string& line) {
+            AmsError result = calibration->calibrate_cutter([](bool ok, const std::string& line) {
                 char axis = '\0';
                 double value_mm = 0.0;
                 std::string text;

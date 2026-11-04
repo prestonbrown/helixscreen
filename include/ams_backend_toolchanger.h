@@ -117,6 +117,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         // Reset re-runs the changer's initialisation, which the toolchanger's own
         // recovery already offers.
         t.supports_reset = false;
+        t.lane_noun = helix::ui::LaneNoun::Tool;
         return t;
     }();
     /// With a firmware feed command (Z-Mod's afclite shim), Load feeds filament
@@ -206,10 +207,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// the head and pulls it out by hand.
     [[nodiscard]] bool unload_is_manual() const override {
         return zmod_c5_row_active();
-    }
-
-    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
-        return helix::ui::LaneNoun::Tool;
     }
 
     /// ASSIGN_TOOL belongs to klipper-toolchanger. A machine that drives swaps

@@ -57,8 +57,10 @@ class ManagesActiveSpoolMock : public AmsBackendMock {
     [[nodiscard]] bool manages_active_spool() const override {
         return true;
     }
-    [[nodiscard]] bool sets_active_spool_on_link() const override {
-        return true;
+    [[nodiscard]] BackendTraits traits() const override {
+        BackendTraits t = AmsBackendMock::traits();
+        t.sets_active_spool_on_link = true;
+        return t;
     }
 };
 

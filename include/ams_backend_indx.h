@@ -43,6 +43,7 @@ class AmsBackendIndx : public AmsBackendToolChanger {
         // preheats nor needs the head loaded first.
         t.load_feeds_filament = true;
         t.supports_auto_heat_on_load = true;
+        t.heads_share_heater = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
@@ -65,9 +66,6 @@ class AmsBackendIndx : public AmsBackendToolChanger {
         return std::nullopt;
     }
 
-    [[nodiscard]] bool heads_share_heater() const override {
-        return true;
-    }
     [[nodiscard]] std::string nozzle_heat_blocked_reason() const override;
 
     /// The macro homes; HelixScreen sends no G28 of its own.

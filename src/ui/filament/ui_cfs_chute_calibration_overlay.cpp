@@ -15,6 +15,7 @@
 #include "ui_position_utils.h"
 
 #include "ams_backend.h"
+#include "ams_cfs_calibration.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
@@ -43,10 +44,10 @@ static char s_cfs_chute_saved_buf[96];
 
 namespace {
 
-/// The active filament system, or nullptr when there is none. Backends without chute
-/// calibration answer every call with not_supported.
-AmsBackend* chute_backend() {
-    return AmsState::instance().get_backend();
+/// The active filament system's chute calibration, or nullptr when it has none.
+ICfsCalibration* chute_backend() {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    return backend ? backend->as<ICfsCalibration>() : nullptr;
 }
 
 } // namespace

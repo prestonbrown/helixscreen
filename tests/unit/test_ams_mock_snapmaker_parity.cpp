@@ -198,28 +198,6 @@ TEST_CASE("A non-Snapmaker mock stays lane-per-tool", "[ams][snapmaker][mock][ro
 // AmsSubscriptionBackend, and the mock derives straight from AmsBackend, so
 // there is no pair to compare.
 
-TEST_CASE("Mock Snapmaker answers capability questions like the U1",
-          "[ams][snapmaker][mock][capability]") {
-    AmsBackendMock mock(4);
-    mock.set_snapmaker_mode(true);
-    SnapmakerProbe real;
-
-    // Compared against the real backend, never a literal: a capability whose
-    // right answer changes on hardware must not need editing in two places.
-    CHECK(mock.lane_noun() == real.lane_noun());
-    // The BackendTraits answers are pinned in test_ams_backend_traits.cpp.
-}
-
-TEST_CASE("A non-Snapmaker mock keeps the base capability answers",
-          "[ams][snapmaker][mock][capability]") {
-    // The overrides are scoped to the emulated machine: every other mode this
-    // mock wears is a lane-per-tool system feeding one nozzle, so a U1's answers
-    // would describe hardware it is not standing in for.
-    AmsBackendMock mock(4); // defaults to Happy Hare
-    CHECK(mock.lane_noun() == helix::ui::LaneNoun::Gate);
-    // The BackendTraits answers are pinned in test_ams_backend_traits.cpp.
-}
-
 TEST_CASE("Mock Snapmaker lanes publish their entry sensor like the U1",
           "[ams][snapmaker][mock][entry_sensor]") {
     AmsBackendMock mock(4);

@@ -70,17 +70,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// The U1's own UI names these "Feeder 1".."Feeder 4" (verified against its
     /// firmware UI binary: zero occurrences of Slot, Lane, or capitalised
     /// Channel), never our "slot".
-    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
-        return helix::ui::LaneNoun::Feeder;
-    }
-
-    /// The U1's own UI names the printing end "Toolhead 1".."Toolhead 4" - a
-    /// different word from lane_noun()'s Feeder, naming a different physical
-    /// thing (where filament enters vs. where it prints) despite the 1:1 count.
-    [[nodiscard]] helix::ui::LaneNoun tool_noun() const override {
-        return helix::ui::LaneNoun::Toolhead;
-    }
-
     // State queries
     /// Four physical heads, up to 32 logical tools: [0,1,2,3,0,0,...]. Verified
     /// live against print_task_config.extruder_map_table on a U1.
@@ -170,6 +159,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         // Each head has its own lane and AUTO_FEEDING runs one direction, so
         // an unload is never the first half of a swap.
         t.unloads_stand_alone = true;
+        t.lane_noun = helix::ui::LaneNoun::Feeder;
+        // The U1's own firmware UI spells filament entry "Feeder 1".."Feeder 4"
+        // and the printing end "Toolhead 1".."Toolhead 4": two words for two
+        // physical things (where filament enters, where it prints), counted 1:1.
+        t.tool_noun = helix::ui::LaneNoun::Toolhead;
+        t.print_routing_resets_to_identity = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
@@ -422,10 +417,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
 
     /// print_task_config.py's reset_print_info() returns extruder_map_table to
     /// identity at every print end (complete, cancel, error).
-    [[nodiscard]] bool print_routing_resets_to_identity() const override {
-        return true;
-    }
-
     /// SET_PRINT_USED_EXTRUDERS for @p tools_used at their default heads, no
     /// map, plus the per-print unload choice. Only while the firmware's map
     /// still reads its default for every used tool: a map a failed start left

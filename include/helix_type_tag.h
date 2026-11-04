@@ -15,6 +15,9 @@ inline std::atomic<std::size_t>& type_tag_counter() {
 }
 } // namespace detail
 
+/// A value of type_tag<T>().
+using TypeTag = std::size_t;
+
 /// RTTI-free per-type identity: a process-local monotonic ID, assigned on
 /// first use. Replacement for std::type_index map keys under -fno-rtti.
 /// Tags are NOT stable across runs - never persist or log them as identity.

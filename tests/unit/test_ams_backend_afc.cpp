@@ -4734,12 +4734,6 @@ TEST_CASE("AFC backend reports manages_active_spool=true", "[ams][afc][spoolman]
     REQUIRE(helper.manages_active_spool() == true);
 }
 
-TEST_CASE("AFC sets the active spool itself on a link of the loaded lane",
-          "[ams][afc][spoolman][plugin_filament]") {
-    AmsBackendAfcTestHelper helper;
-    CHECK(helper.sets_active_spool_on_link());
-}
-
 TEST_CASE("AFC reports the manages_active_spool the shared case table claims",
           "[ams][afc][spoolman][plugin_filament]") {
     const auto rows = helix::test::ownership_rows_for("AFC");
@@ -8024,12 +8018,6 @@ TEST_CASE("AFC unresolvable extruder makes no lane attribution claim",
     helper.seed_extruder_klipper_names({{"e0", "extruder"}, {"e1", "extruder1"}});
     helper.feed_afc_extruder("e1", {{"lane_loaded", "lane3"}});
     REQUIRE(helper.get_system_info().current_slot == 2); // lane3
-}
-
-TEST_CASE("AFC names its positions lanes", "[ams][afc][numbering]") {
-    helix::test::RegisteredBackend<AmsBackendAfc> backend_reg(nullptr, nullptr);
-    AmsBackendAfc& backend = *backend_reg;
-    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Lane);
 }
 
 // A persisted override IS a user edit. The lock flags are how any consumer of
