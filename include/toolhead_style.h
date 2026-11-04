@@ -8,7 +8,7 @@
 namespace helix {
 
 /** @brief Toolhead rendering style (Auto=detect from printer type, or force) */
-enum class ToolheadStyle : uint8_t {
+enum class ToolheadStyle : int8_t {
     AUTO = 0,
     DEFAULT = 1,
     A4T = 2,
