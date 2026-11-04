@@ -1181,9 +1181,11 @@ struct SlotInfo {
         extruder_name; ///< Physical extruder name (e.g., "extruder2") for shared-extruder dedup
 
     // Spoolman integration
-    int spoolman_id = 0;           ///< Spoolman spool ID (0=not tracked)
-    int spoolman_filament_id = 0;  ///< Spoolman filament definition ID (0=unknown)
-    int spoolman_vendor_id = 0;    ///< Spoolman vendor ID (0=unknown)
+    int spoolman_id = 0;          ///< Spoolman spool ID (0=not tracked)
+    int spoolman_filament_id = 0; ///< Spoolman filament definition ID (0=unknown)
+    int spoolman_vendor_id = 0;   ///< Spoolman vendor ID (0=unknown)
+    /// OrcaSlicer preset id the linked spool's filament names (empty=none)
+    std::string spoolman_orca_filament_id;
     std::string spool_name;        ///< Spool name from Spoolman
     float remaining_weight_g = -1; ///< Remaining filament weight in grams (-1=unknown)
     float total_weight_g = -1;     ///< Total spool weight in grams (-1=unknown)
@@ -1312,7 +1314,8 @@ struct SlotInfo {
     template <class S> static auto identity_fields(S& s) {
         return std::tie(s.color_rgb, s.color_name, s.material, s.brand, s.catalog_id,
                         s.product_name, s.spool_name, s.spoolman_id, s.spoolman_filament_id,
-                        s.spoolman_vendor_id, s.remaining_weight_g, s.total_weight_g);
+                        s.spoolman_vendor_id, s.spoolman_orca_filament_id, s.remaining_weight_g,
+                        s.total_weight_g);
     }
 
     /**
@@ -1356,6 +1359,7 @@ struct SlotInfo {
         spoolman_id = 0;
         spoolman_filament_id = 0;
         spoolman_vendor_id = 0;
+        spoolman_orca_filament_id.clear();
         spool_name.clear();
     }
 

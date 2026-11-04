@@ -45,6 +45,8 @@ constexpr auto kFieldRoster = std::make_tuple(
     // filament definition id rides the same statement as the spool id.
     field<false>(&Observation::spoolman_id), field<false>(&Observation::spoolman_filament_id),
     field<false>(&Observation::spoolman_vendor_id),
+    // A Spoolman-only statement: no firmware carries it, so nothing echoes it.
+    field<false>(&Observation::spoolman_orca_filament_id),
     // A weight write reseeds a real meter, and what the meter reports
     // afterwards is its own state decrementing as filament is consumed.
     // Withholding it would blind the lane the moment the meter legitimately

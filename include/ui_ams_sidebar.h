@@ -393,6 +393,10 @@ class AmsOperationSidebar {
         bool system_busy = false;
         PrintState lifecycle{};
         bool backend_self_homes = false;
+        bool print_blocks_load = false; ///< helix::ui::print_blocks_load_now()
+        /// A paused load is refused only because the toolhead is unhomed: the
+        /// backend skips its home once homed and the load unloads nothing first.
+        bool paused_load_waits_on_home = false;
     };
     [[nodiscard]] OpInputs read_op_inputs() const;
 
@@ -418,7 +422,8 @@ class AmsOperationSidebar {
     /// an operation starting and the subject settling, so each entry re-checks
     /// and refuses with copy the user can act on rather than forwarding a
     /// guaranteed backend rejection. True means "refused, stop here".
-    [[nodiscard]] bool refuse_if_busy_or_printing() const;
+    /// @param load The op is a load, which answers to print_blocks_load_now().
+    [[nodiscard]] bool refuse_if_busy_or_printing(bool load = false) const;
     void handle_bypass_toggle();
     void handle_reset();
     void handle_check_gates();

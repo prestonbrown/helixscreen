@@ -550,6 +550,33 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "A fault button sends its own gcode and
     CHECK_FALSE(presenter().is_visible());
 }
 
+TEST_CASE_METHOD(RecoveryPreheatFixture,
+                 "A requires_homed recovery sends only while the toolhead is still homed",
+                 "[error-center][recovery-presenter][ad5x]") {
+    helix::ErrorEvent fault = make_afc_jam();
+    helix::RecoveryAction load{"Load", "INSERT_PRUTOK_IFS PRUTOK=1", "ifs::load", "primary"};
+    load.requires_homed = true;
+    fault.recovery_actions = {load, {"Resume", "RESUME", "t::resume", ""}};
+
+    SECTION("homed: sent") {
+        get_printer_state().update_from_status({{"toolhead", {{"homed_axes", "xyz"}}}});
+        presenter().present(fault);
+        process_lvgl(20);
+        TA::tap(presenter(), "INSERT_PRUTOK_IFS PRUTOK=1");
+        process_lvgl(20);
+        CHECK(gcode_count(mock_client_, "INSERT_PRUTOK_IFS") == 1);
+    }
+    SECTION("homing lost since the dialog was built: refused") {
+        get_printer_state().update_from_status({{"toolhead", {{"homed_axes", ""}}}});
+        presenter().present(fault);
+        process_lvgl(20);
+        TA::tap(presenter(), "INSERT_PRUTOK_IFS PRUTOK=1");
+        process_lvgl(20);
+        CHECK(gcode_count(mock_client_, "INSERT_PRUTOK_IFS") == 0);
+    }
+    get_printer_state().update_from_status({{"toolhead", {{"homed_axes", ""}}}});
+}
+
 TEST_CASE_METHOD(RecoveryPreheatFixture, "A dismiss-only fault button closes and sends nothing",
                  "[error-center][recovery-presenter][1838]") {
     helix::ErrorEvent fault = make_afc_jam();

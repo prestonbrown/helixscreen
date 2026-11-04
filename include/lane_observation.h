@@ -56,6 +56,9 @@ struct Observation {
     std::optional<int> spoolman_id;
     std::optional<int> spoolman_filament_id;
     std::optional<int> spoolman_vendor_id;
+    /// The OrcaSlicer preset id the linked spool's filament names
+    /// (kSpoolmanOrcaIdExtraKey). Only the Spoolman source states it.
+    std::optional<std::string> spoolman_orca_filament_id;
 
     std::optional<float> remaining_weight_g;
     std::optional<float> total_weight_g;
@@ -75,13 +78,15 @@ struct Observation {
     auto fields() {
         return std::tie(present, tool_docked, color_rgb, color_name, material, brand, spool_name,
                         catalog_id, product_name, spoolman_id, spoolman_filament_id,
-                        spoolman_vendor_id, remaining_weight_g, total_weight_g);
+                        spoolman_vendor_id, spoolman_orca_filament_id, remaining_weight_g,
+                        total_weight_g);
     }
 
     auto fields() const {
         return std::tie(present, tool_docked, color_rgb, color_name, material, brand, spool_name,
                         catalog_id, product_name, spoolman_id, spoolman_filament_id,
-                        spoolman_vendor_id, remaining_weight_g, total_weight_g);
+                        spoolman_vendor_id, spoolman_orca_filament_id, remaining_weight_g,
+                        total_weight_g);
     }
 };
 

@@ -136,6 +136,64 @@ namespace helix {
     return job_holds_machine(lifecycle);
 }
 
+/**
+ * @brief Would a filament LOAD run a firmware home right now?
+ *
+ * A self-homing backend homes unless its buried home is skipped on a toolhead
+ * that already reads "xyz" homed (AmsBackend::self_home_skipped_when_homed()).
+ *
+ * @param backend_self_homes            AmsBackend::filament_ops_self_home(); false with none.
+ * @param self_home_skipped_when_homed  AmsBackend::self_home_skipped_when_homed(); false with none.
+ * @param toolhead_homed                toolhead_is_homed(): homed_axes holds x, y and z.
+ */
+[[nodiscard]] constexpr bool filament_load_homes_now(bool backend_self_homes,
+                                                     bool self_home_skipped_when_homed,
+                                                     bool toolhead_homed) {
+    return backend_self_homes && !(self_home_skipped_when_homed && toolhead_homed);
+}
+
+/**
+ * @brief Would a print refuse a filament LOAD right now?
+ *
+ * print_blocks_filament_op() with one refinement on a self-homing backend:
+ * where that backend's buried home only runs on an unhomed toolhead
+ * (AmsBackend::self_home_skipped_when_homed()), a PAUSED job whose toolhead
+ * reports "xyz" homed homes nothing, so the load goes through. Not homed, the
+ * home would fire into the part, and the load stays refused.
+ *
+ *   PRINTING / PREPARING        -> refuse, as for every filament op.
+ *   PAUSED, self-homes, homed   -> ALLOW when the home is skipped once homed
+ *                                  and the load unloads nothing first.
+ *   PAUSED, self-homes, unhomed -> refuse.
+ *   idle                        -> allow.
+ *
+ * A load that first unloads filament already at the toolhead
+ * (AmsBackend::load_unloads_toolhead_now()) is an unload as far as the job is
+ * concerned, and answers to print_blocks_filament_op() like one.
+ *
+ * Load only: a runout pause leaves an empty toolhead that only a load can fix,
+ * so this is the op the refinement was made for. Unload, tool change and
+ * purge keep print_blocks_filament_op().
+ *
+ * @param lifecycle                     The derived PrintState.
+ * @param backend_self_homes            AmsBackend::filament_ops_self_home(); false with none.
+ * @param self_home_skipped_when_homed  AmsBackend::self_home_skipped_when_homed(); false with none.
+ * @param toolhead_homed                toolhead_is_homed(): homed_axes holds x, y and z.
+ * @param load_unloads_toolhead         AmsBackend::load_unloads_toolhead_now(); false with none.
+ */
+[[nodiscard]] constexpr bool print_blocks_filament_load(PrintState lifecycle,
+                                                        bool backend_self_homes,
+                                                        bool self_home_skipped_when_homed,
+                                                        bool toolhead_homed,
+                                                        bool load_unloads_toolhead) {
+    if (load_unloads_toolhead) {
+        return print_blocks_filament_op(lifecycle, backend_self_homes);
+    }
+    return print_blocks_filament_op(
+        lifecycle,
+        filament_load_homes_now(backend_self_homes, self_home_skipped_when_homed, toolhead_homed));
+}
+
 } // namespace helix
 
 /**

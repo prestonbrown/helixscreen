@@ -134,6 +134,11 @@ struct OpButtonState {
     /// affordance and AmsSubscriptionBackend::refuse_if_printing() cannot drift.
     bool print_blocks_op = false;
 
+    /// Whether a print refuses LOAD in particular: print_blocks_filament_load(),
+    /// which lets a paused job load on a backend whose firmware home is skipped
+    /// once homed. Unset means Load answers to print_blocks_op like the rest.
+    std::optional<bool> print_blocks_load{};
+
     /// Load feeds filament into a head the machine already shows as loaded
     /// (AmsBackend::load_feeds_filament()), so "loaded" does not refuse it.
     bool load_feeds_filament = false;
@@ -152,6 +157,7 @@ struct OpButtonState {
 /// its other caller and the printer layer must not reach through a UI header to
 /// get it. Re-exported here so this header stays the one place a filament-op
 /// surface has to read.
+using helix::print_blocks_filament_load;
 using helix::print_blocks_filament_op;
 
 /**
@@ -186,7 +192,7 @@ using helix::print_blocks_filament_op;
  */
 [[nodiscard]] inline OpButtonGating compute_op_button_gating(const OpButtonState& s) {
     const bool nothing_to_feed = s.slot_has_filament.has_value() && !*s.slot_has_filament;
-    return {/*load_disabled=*/s.system_busy || s.print_blocks_op ||
+    return {/*load_disabled=*/s.system_busy || s.print_blocks_load.value_or(s.print_blocks_op) ||
                 (s.slot_is_loaded && !s.load_feeds_filament) || nothing_to_feed,
             /*unload_disabled=*/s.system_busy || !s.unload_available ||
                 (s.print_blocks_op && !s.unload_is_cold_lane_op),

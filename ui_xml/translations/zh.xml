@@ -2002,6 +2002,7 @@
   <translation tag="Load failed" zh="装载失败"/>
   <translation tag="Load filament" zh="装载耗材"/>
   <translation tag="Load filament first" zh="请先装载耗材"/>
+  <translation tag="Load filament to the toolhead, then tap Resume." zh="请将耗材装载到工具头，然后点按恢复。"/>
   <translation tag="Load into which tool?" zh="装入哪个工具？"/>
   <translation tag="Load it in the filament panel, then tap Resume." zh="请在耗材面板中装载，然后点按恢复。"/>
   <translation tag="Load or unload filament." zh="装载或卸载耗材。"/>
@@ -3810,6 +3811,7 @@
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" zh="正在进行的换工具已完成，{}未放回打印头"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？"/>
+  <translation tag="The toolhead is not homed, so this would home into the print" zh="工具头尚未归位，归位会使喷嘴碰到打印件"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" zh="工具头传感器显示耗材已装载。仍要继续装载吗？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" zh="工具头传感器显示无耗材。仍要继续卸载吗？"/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" zh="该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS"/>

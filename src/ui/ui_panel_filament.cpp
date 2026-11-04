@@ -2116,6 +2116,7 @@ void FilamentPanel::update_filament_op_buttons() {
 
     helix::ui::OpButtonState state;
     state.print_blocks_op = print_blocks_op;
+    state.print_blocks_load = helix::ui::print_blocks_load_now(backend, printer_state_);
     state.system_busy = sys.is_busy();
     state.load_feeds_filament = backend->load_feeds_filament();
     // unload_target_is_loaded() with is_current_slot=false keeps the narrow

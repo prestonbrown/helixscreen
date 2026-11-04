@@ -64,9 +64,11 @@ class AmsContextMenuTestAccess {
     }
 
     static bool decide_can_load(bool system_busy, bool toolhead_unload,
-                                std::optional<bool> slot_has_filament, bool print_active) {
+                                std::optional<bool> slot_has_filament, bool print_active,
+                                std::optional<bool> print_blocks_load = std::nullopt) {
         return AmsContextMenu::decide_can_load(system_busy, toolhead_unload, slot_has_filament,
-                                               print_active);
+                                               print_active, /*load_feeds_filament=*/false,
+                                               print_blocks_load);
     }
 
     static bool decide_unload_enabled(bool system_busy, UnloadMode mode, bool print_active,
@@ -288,6 +290,24 @@ TEST_CASE("AmsContextMenu::decide_can_load agrees with the backend print guard",
     SECTION("Load is still refused on a paused print when the backend self-homes") {
         // AD5X IFS only.
         CHECK_FALSE(can_load(/*printing=*/false, /*paused=*/true, /*self_homes=*/true));
+    }
+
+    SECTION("A paused self-homing backend loads once homed, when its home is skipped") {
+        // AD5X on zMod: INSERT_PRUTOK_IFS's _G28 no-ops on a homed toolhead.
+        // Unload stays on print_blocks_op, so only Load opens.
+        const bool blocks_op = print_blocks_filament_op(PrintState::Paused, /*self_homes=*/true);
+        auto can_load_homed = [&](bool homed, bool head_loaded) {
+            return AmsContextMenuTestAccess::decide_can_load(
+                false, false, true, blocks_op,
+                helix::ui::print_blocks_filament_load(PrintState::Paused, true, true, homed,
+                                                      head_loaded));
+        };
+        CHECK(can_load_homed(/*homed=*/true, /*head_loaded=*/false));
+        CHECK_FALSE(can_load_homed(/*homed=*/false, /*head_loaded=*/false));
+        // Another lane at the head: the load would unload it mid-job.
+        CHECK_FALSE(can_load_homed(/*homed=*/true, /*head_loaded=*/true));
+        CHECK_FALSE(
+            AmsContextMenuTestAccess::decide_unload_enabled(false, UnloadMode::Unload, blocks_op));
     }
 
     SECTION("The pre-existing terms still hold") {

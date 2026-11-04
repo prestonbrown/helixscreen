@@ -32,6 +32,7 @@
 #include "settings_manager.h"
 #include "static_subject_registry.h"
 #include "text_io.h"
+#include "toolhead_homing.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -74,6 +75,20 @@ namespace {
     // from the "a live phase outranks the job state" rule, so the two can never
     // disagree — but expressed on the one axis everything else now reads.
     return get_printer_state().print_state().get_print_lifecycle() == PrintState::Paused;
+}
+
+/// The print lifecycle, or Idle before PrinterState's subjects exist.
+[[nodiscard]] PrintState current_print_lifecycle() {
+    if (!get_printer_state().are_subjects_initialized()) {
+        return PrintState::Idle;
+    }
+    return get_printer_state().print_state().get_print_lifecycle();
+}
+
+/// homed_axes holds x, y and z. Not homed before PrinterState's subjects exist,
+/// which keeps every homing-gated offer withdrawn rather than guessing.
+[[nodiscard]] bool toolhead_homed_now() {
+    return get_printer_state().are_subjects_initialized() && toolhead_is_homed(get_printer_state());
 }
 
 [[nodiscard]] bool job_holds_machine_now() {
@@ -1197,6 +1212,13 @@ bool AmsBackendAd5xIfs::head_empty_for_unload_routing_locked() const {
         return !head_switch_present_;
     }
     return !head_filament_;
+}
+
+bool AmsBackendAd5xIfs::load_unloads_toolhead_now() const {
+    // The routing predicate's bias toward "loaded" is the safe side here too:
+    // a head it cannot prove empty keeps a paused load refused.
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !head_empty_for_unload_routing_locked();
 }
 
 void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
@@ -2736,6 +2758,36 @@ AmsError AmsBackendAd5xIfs::cancel() {
 
 // --- Error-center bridge ---
 
+std::vector<helix::RecoveryAction>
+AmsBackendAd5xIfs::runout_recovery_actions(const RunoutRecoveryInputs& in) {
+    std::vector<helix::RecoveryAction> actions;
+    const bool offer_load = !in.head_has_filament && !in.load_gcode.empty();
+
+    // The firmware's macro resolves the lane's temperature and heats itself, so
+    // the load needs no preheat. Its leading `_G28` homes only an unhomed
+    // toolhead, which is why it is offered homed and re-checked on the tap.
+    if (offer_load) {
+        helix::RecoveryAction load{lv_tr("Load"), in.load_gcode, "ifs::load", "primary"};
+        load.requires_homed = true;
+        actions.push_back(std::move(load));
+    }
+
+    // Resuming extrudes on the very next move, so the hotend has to be up: the
+    // post-op cooldown or idle_timeout has usually taken it down by now. With
+    // the head empty it is not primary, since the firmware refuses it.
+    actions.push_back({lv_tr("Resume"), "RESUME", "ifs::resume",
+                       in.head_has_filament ? "primary" : "", /*needs_hot_nozzle=*/true});
+
+    // Clear the tail of the old spool and prime with the new one. Never sends
+    // `_G28`: the job is paused with its axes already homed. Hot-only.
+    actions.push_back(
+        {lv_tr("Purge"), in.purge_gcode, "ifs::purge", "", /*needs_hot_nozzle=*/true});
+
+    // Last resort: release the firmware's clamps if the IFS wedged. State only.
+    actions.push_back({lv_tr("Recover"), in.unlock_gcode, "ifs::unlock", "danger"});
+    return actions;
+}
+
 std::vector<helix::RecoveryAction> AmsBackendAd5xIfs::build_recovery_actions() const {
     // Caller holds mutex_. Atomic read is safe under the lock.
     const char* unlock_cmd = ifs_module_live_.load() ? "IFS_RESET_DRIVER" : "IFS_UNLOCK";
@@ -2746,43 +2798,23 @@ std::vector<helix::RecoveryAction> AmsBackendAd5xIfs::build_recovery_actions() c
         return {{lv_tr("Recover"), unlock_cmd, "ifs::unlock", "primary"}};
     }
 
-    // Unattended runout. The print is paused with an empty toolhead and the user
-    // has to put filament back before anything else is worth offering.
-    std::vector<helix::RecoveryAction> actions;
-
-    // Primary: carry on once filament is back at the nozzle. Resuming extrudes on
-    // the very next move, so the hotend has to be up - the post-op cooldown or
-    // idle_timeout has usually taken it down by the time anyone taps this.
-    actions.push_back({lv_tr("Resume"), "RESUME", "ifs::resume", "primary",
-                       /*needs_hot_nozzle=*/true});
-
-    // Clear the tail of the old spool and prime with the new one: over the bin
-    // with zMod's own `_GOTO_TRASH` + `PURGE_FILAMENT` where the printer has
-    // them, else a bare extruder move in place. Neither sends `_G28` (see the
-    // no-Load note below): the job is paused with its axes already homed.
-    // Obviously hot-only.
-    actions.push_back({lv_tr("Purge"), runout_purge_gcode(bin_purge_macros_), "ifs::purge", "",
-                       /*needs_hot_nozzle=*/true});
-
-    // NO "Load slot N" button, deliberately, even though a runout is exactly when
-    // the user wants one. Every load path this backend has runs
-    // INSERT_PRUTOK_IFS, whose macro homes itself before feeding
-    // (filament_ops_self_home() and its comment). On the loadcell-Z AD5X that
-    // `_G28` probes the nozzle DOWN into the part; with a job owning the toolhead
-    // it trips ZMOD's ZCONTROL_AUTO and shuts Klipper down, recoverable only by a
-    // firmware restart (bundle XWPBR2DX, commit 329e731e9). A runout state is
-    // PAUSED by construction, so the button would fire straight into that.
-    // refuse_if_printing() protects load_filament(); it does NOT protect a
-    // recovery button, which hands its gcode directly to
-    // IMoonrakerAPI::execute_gcode, and the `_G28` is buried inside the macro
-    // where reject_homing_during_active_print() never sees it. Until there is a
-    // verified non-homing load-to-toolhead command, the safe answer is to say so
-    // in the detail text and let the user load from the AMS panel after the job
-    // is cancelled or the print is resumed.
-
-    // Last resort: release the firmware's clamps if the IFS wedged. State only.
-    actions.push_back({lv_tr("Recover"), unlock_cmd, "ifs::unlock", "danger"});
-    return actions;
+    // Unattended runout: the print is paused with an empty toolhead. The load
+    // is the backend's own INSERT_PRUTOK_IFS for the lane that ran out, offered
+    // only where print_blocks_filament_load() lets a paused job load, which on
+    // the loadcell-Z AD5X means the buried `_G28` is skipped because the
+    // toolhead is homed. A home there would probe the nozzle into the part.
+    RunoutRecoveryInputs in;
+    in.head_has_filament = head_switch_seen_ && head_switch_present_;
+    in.purge_gcode = runout_purge_gcode(bin_purge_macros_);
+    in.unlock_gcode = unlock_cmd;
+    const bool load_blocked = print_blocks_filament_load(
+        current_print_lifecycle(), filament_ops_self_home(), self_home_skipped_when_homed(),
+        toolhead_homed_now(), !head_empty_for_unload_routing_locked());
+    if (runout_slot_ >= 0 && !load_blocked) {
+        const int port = runout_slot_ + 1; // DISPLAY_NUMBERING_OK: 1-based PRUTOK= gcode parameter
+        in.load_gcode = "INSERT_PRUTOK_IFS PRUTOK=" + std::to_string(port);
+    }
+    return runout_recovery_actions(in);
 }
 
 std::optional<helix::ErrorEvent> AmsBackendAd5xIfs::current_error() const {
@@ -6505,6 +6537,10 @@ helix::printer::EndlessSpoolCapabilities AmsBackendAd5xIfs::get_endless_spool_ca
 std::string AmsBackendAd5xIfs::build_runout_detail_locked() const {
     std::string detail =
         lv_tr("Filament ran out - nothing at the toolhead and the print is paused.");
+    detail += " ";
+    // The printer refuses RESUME until its toolhead switch reads filament, so
+    // the way out has to be said before anything about switchover.
+    detail += lv_tr("Load filament to the toolhead, then tap Resume.");
     detail += " ";
 
     // The "what will switch" suffix is identical across all three modes because

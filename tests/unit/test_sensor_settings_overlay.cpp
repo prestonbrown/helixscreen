@@ -582,6 +582,33 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_obj_has_flag(placeholder, LV_OBJ_FLAG_HIDDEN));
 }
 
+// Switch sensors a filament system owns are listed nowhere in Settings, so a
+// printer whose every switch sensor is one shows no switch section and no
+// monitoring toggle over an empty list.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Sensor settings: switch sensors a filament system owns leave no empty section",
+                 "[sensors][settings][filament_sensor]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"extruder", "filament_switch_sensor lane_1", "filament_switch_sensor slot_2"}));
+    ScopedSensorManagers sensors(hw);
+    REQUIRE(helix::FilamentSensorManager::instance().sensor_count() == 2);
+
+    lv_obj_t* root = activate_overlay(test_screen());
+    auto& overlay = helix::settings::get_sensor_settings_overlay();
+    SensorRowSection* section = overlay.section("filament");
+    REQUIRE(section != nullptr);
+    REQUIRE(section->row_count() == 0);
+
+    lv_obj_t* switches = lv_obj_find_by_name(root, "switch_sensors_section");
+    REQUIRE(switches != nullptr);
+    CHECK(lv_obj_has_flag(switches, LV_OBJ_FLAG_HIDDEN));
+    // Nothing is listed anywhere, so the placeholder says so.
+    lv_obj_t* placeholder = lv_obj_find_by_name(root, "no_sensors_placeholder");
+    REQUIRE(placeholder != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(placeholder, LV_OBJ_FLAG_HIDDEN));
+}
+
 // Temperature rows show no reading, so a status frame refills nothing; a change
 // to the entries still does.
 TEST_CASE_METHOD(LVGLUITestFixture,

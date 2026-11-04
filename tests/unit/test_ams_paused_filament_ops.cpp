@@ -46,11 +46,15 @@
 #include "ams_backend_qidi.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_error.h"
+#include "filament_op_execute.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/snapmaker_test_access.h"
+#if HELIX_HAS_IFS
+#include "test_helpers/ad5x_ifs_test_access.h"
+#endif
 
 #include <algorithm>
 #include <memory>
@@ -80,6 +84,9 @@ template <typename Backend> class PausedGateDouble : public Backend {
     AmsError call_refuse_if_printing() const {
         return this->refuse_if_printing();
     }
+    AmsError call_refuse_load_if_printing() const {
+        return this->refuse_load_if_printing();
+    }
 
     std::vector<std::string> dispatched;
 
@@ -102,6 +109,10 @@ struct PausedGateFixture : public LVGLTestFixture {
 
     void set_print_state(helix::PrintJobState s) {
         helix::test::set_wire_state(state, s);
+    }
+
+    void set_homed_axes(const char* axes) {
+        state.update_from_status({{"toolhead", {{"homed_axes", axes}}}});
     }
 
     /// A host-side pre-print block: the wire still reads standby.
@@ -221,6 +232,129 @@ TEST_CASE_METHOD(PausedGateFixture, "PAUSED still refuses on AD5X — the buried
     // No-motion ops (eject_lane, select, unlock) were never blocked and still
     // are not — blocking them would strand filament the user could have ejected.
     CHECK(backend->check_preconditions(/*requires_toolhead_motion=*/false).success());
+}
+#endif // HELIX_HAS_IFS
+
+// ============================================================================
+// The load refinement: a self-homing backend whose home is skipped once homed
+// ============================================================================
+
+TEST_CASE("print_blocks_filament_load: the paused cell follows the homed toolhead",
+          "[ams][safety][paused][ad5x]") {
+    using helix::print_blocks_filament_load;
+    // Self-homing, home skipped once homed (zMod's conditional _G28).
+    CHECK_FALSE(print_blocks_filament_load(PrintState::Paused, true, true, /*homed=*/true, false));
+    CHECK(print_blocks_filament_load(PrintState::Paused, true, true, /*homed=*/false, false));
+    // A home that always runs never lets a paused job load, homed or not.
+    CHECK(print_blocks_filament_load(PrintState::Paused, true, false, true, false));
+    // Printing and preparing refuse whatever the toolhead says.
+    CHECK(print_blocks_filament_load(PrintState::Printing, true, true, true, false));
+    CHECK(print_blocks_filament_load(PrintState::Preparing, true, true, true, false));
+    CHECK(print_blocks_filament_load(PrintState::Printing, false, false, true, false));
+    // Idle is unchanged.
+    CHECK_FALSE(print_blocks_filament_load(PrintState::Idle, true, true, false, false));
+    // A backend that never self-homes loads while paused, homed or not.
+    CHECK_FALSE(print_blocks_filament_load(PrintState::Paused, false, false, false, false));
+    // A load that unloads the toolhead first is an unload: paused and homed,
+    // a self-homing backend still refuses it; one that never homes allows it.
+    CHECK(print_blocks_filament_load(PrintState::Paused, true, true, true, /*unloads=*/true));
+    CHECK_FALSE(print_blocks_filament_load(PrintState::Paused, false, false, true, true));
+    CHECK_FALSE(print_blocks_filament_load(PrintState::Idle, true, true, true, true));
+}
+
+#if HELIX_HAS_IFS
+TEST_CASE_METHOD(PausedGateFixture, "a paused AD5X loads only on a homed toolhead",
+                 "[ams][safety][paused][ad5x]") {
+    auto backend = make<helix::AmsBackendAd5xIfs>();
+    REQUIRE(backend->self_home_skipped_when_homed());
+    auto seat_other_lane = [&](bool present) {
+        helix::Ad5xIfsTestAccess::set_seated_chan(*backend, 2);
+        helix::Ad5xIfsTestAccess::set_head_switch(*backend, /*seen=*/true, present);
+    };
+
+    SECTION("paused + homed: the load goes through, everything else still refuses") {
+        set_print_state(helix::PrintJobState::PAUSED);
+        set_homed_axes("xyz");
+        CHECK(backend->call_refuse_load_if_printing().success());
+        CHECK(backend->unload_filament(0).user_msg ==
+              "Can't move filament while the print is paused");
+        // The load reaches the firmware macro, and homes nothing on the way.
+        CHECK(backend->load_filament(0).success());
+        REQUIRE_FALSE(backend->dispatched.empty());
+        CHECK(backend->dispatched.front() == "INSERT_PRUTOK_IFS PRUTOK=1");
+        CHECK(
+            std::none_of(backend->dispatched.begin(), backend->dispatched.end(),
+                         [](const std::string& g) { return g.find("G28") != std::string::npos; }));
+        CHECK_FALSE(backend->call_refuse_if_printing().success());
+        CHECK_FALSE(backend->check_preconditions(/*requires_toolhead_motion=*/true).success());
+    }
+    SECTION("paused + homed + another lane seated: the load would unload it, so refuse") {
+        set_print_state(helix::PrintJobState::PAUSED);
+        set_homed_axes("xyz");
+        seat_other_lane(/*present=*/true);
+        REQUIRE(backend->load_unloads_toolhead_now());
+        AmsError err = backend->load_filament(0);
+        REQUIRE_FALSE(err.success());
+        CHECK(err.user_msg == "Can't move filament while the print is paused");
+        CHECK(backend->dispatched.empty());
+        // Every Load surface asks the same question.
+        CHECK(helix::ui::print_blocks_load_now(backend.get(), state));
+    }
+    SECTION("paused + homed + head switch empty: the load unloads nothing, so it goes through") {
+        set_print_state(helix::PrintJobState::PAUSED);
+        set_homed_axes("xyz");
+        seat_other_lane(/*present=*/false);
+        REQUIRE_FALSE(backend->load_unloads_toolhead_now());
+        CHECK(backend->call_refuse_load_if_printing().success());
+        CHECK_FALSE(helix::ui::print_blocks_load_now(backend.get(), state));
+    }
+    SECTION("paused + empty head: the head view's Load follows the homed toolhead") {
+        set_print_state(helix::PrintJobState::PAUSED);
+        helix::Ad5xIfsTestAccess::set_head_switch(*backend, /*seen=*/true, /*present=*/false);
+        REQUIRE_FALSE(backend->load_unloads_toolhead_now());
+
+        set_homed_axes("xyz");
+        auto view = helix::ui::read_filament_head_view(backend.get(), state);
+        REQUIRE_FALSE(view.heads.empty());
+        REQUIRE(view.heads[0].ops.load == helix::FilamentOpSupport::Automatic);
+        CHECK(view.print_blocks_op);
+        CHECK(view.print_blocks_load == std::optional<bool>(false));
+        CHECK(helix::ui::decide_slot_actions(view, 0).load.enabled);
+        // Unload still answers to the paused refusal.
+        CHECK_FALSE(helix::ui::decide_slot_actions(view, 0).unload.enabled);
+
+        set_homed_axes("xy");
+        view = helix::ui::read_filament_head_view(backend.get(), state);
+        CHECK(view.print_blocks_load == std::optional<bool>(true));
+        CHECK_FALSE(helix::ui::decide_slot_actions(view, 0).load.enabled);
+    }
+    SECTION("paused + homed on the standalone module: IFS_LOAD keeps the paused refusal") {
+        set_print_state(helix::PrintJobState::PAUSED);
+        set_homed_axes("xyz");
+        helix::Ad5xIfsTestAccess::set_module_live(*backend, true);
+        REQUIRE_FALSE(backend->load_unloads_toolhead_now());
+        AmsError err = backend->load_filament(0);
+        REQUIRE_FALSE(err.success());
+        CHECK(err.user_msg == "Can't move filament while the print is paused");
+        CHECK(backend->dispatched.empty());
+    }
+    SECTION("paused + not fully homed: the buried _G28 would fire, so refuse") {
+        set_print_state(helix::PrintJobState::PAUSED);
+        set_homed_axes("xy");
+        AmsError err = backend->call_refuse_load_if_printing();
+        REQUIRE_FALSE(err.success());
+        CHECK(err.user_msg == "Can't move filament while the print is paused");
+    }
+    SECTION("printing refuses the load even homed") {
+        set_print_state(helix::PrintJobState::PRINTING);
+        set_homed_axes("xyz");
+        CHECK_FALSE(backend->call_refuse_load_if_printing().success());
+    }
+    SECTION("idle loads unhomed") {
+        set_print_state(helix::PrintJobState::STANDBY);
+        set_homed_axes("");
+        CHECK(backend->call_refuse_load_if_printing().success());
+    }
 }
 #endif // HELIX_HAS_IFS
 

@@ -62,6 +62,8 @@ ResolvedLane resolve(const LaneSources& sources) {
             out.spoolman_filament_id = *obs->spoolman_filament_id;
         if (obs->spoolman_vendor_id.has_value())
             out.spoolman_vendor_id = *obs->spoolman_vendor_id;
+        if (obs->spoolman_orca_filament_id.has_value())
+            out.spoolman_orca_filament_id = *obs->spoolman_orca_filament_id;
     }
 
     // A colour the user picked for this lane outranks the linked spool's own.

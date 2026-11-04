@@ -24,6 +24,7 @@
 #include "safety_settings_manager.h"
 #include "standard_macros.h"
 #include "tool_state.h"
+#include "toolhead_homing.h"
 
 #include <spdlog/spdlog.h>
 
@@ -83,6 +84,13 @@ BackendCaps read_backend_caps(AmsBackend* backend, AmsSystemInfo& info_out, int 
     return caps;
 }
 
+bool print_blocks_load_now(const AmsBackend* backend, PrinterState& state) {
+    return print_blocks_filament_load(
+        state.print_state().get_print_lifecycle(), backend && backend->filament_ops_self_home(),
+        backend && backend->self_home_skipped_when_homed(), toolhead_is_homed(state),
+        backend && backend->load_unloads_toolhead_now());
+}
+
 FilamentHeadView read_filament_head_view(AmsBackend* backend, PrinterState& state,
                                          const AmsSystemInfo* snapshot) {
     FilamentHeadView view;
@@ -102,6 +110,7 @@ FilamentHeadView read_filament_head_view(AmsBackend* backend, PrinterState& stat
     view.system_busy = sys.is_busy();
     view.print_blocks_op = print_blocks_filament_op(state.print_state().get_print_lifecycle(),
                                                     backend->filament_ops_self_home());
+    view.print_blocks_load = print_blocks_load_now(backend, state);
     // Which head is on the carriage means something only where heads dock.
     if (view.heads_dock && sys.current_slot >= 0) {
         view.mounted_head = backend->head_for_slot(sys.current_slot).value_or(-1);
