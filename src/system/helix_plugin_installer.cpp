@@ -9,9 +9,11 @@
 #include "helix_version.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
+#include "lane_translation.h"
 #include "lvgl.h"
 #include "system/child_process.h"
 #include "system/update_checker.h"
+#include "system_settings_manager.h"
 
 #include <spdlog/spdlog.h>
 
@@ -21,6 +23,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <fcntl.h>
 #include <unistd.h>
 #include <vector>
@@ -688,12 +691,6 @@ std::string HelixPluginInstaller::get_install_script_path() const {
 bool HelixPluginInstaller::should_prompt_install() const {
     Config* config = Config::get_instance();
 
-    // Gate plugin install prompt behind beta_features flag
-    if (!config->is_beta_features_enabled()) {
-        spdlog::debug("[PluginInstaller] Beta features disabled, skipping plugin prompt");
-        return false;
-    }
-
     // Don't show plugin prompt until the first-run wizard is complete.
     // The prompt will be triggered when wizard completes and connects to Moonraker,
     // which fires PrintSelectPanel's connection observer.
@@ -707,22 +704,86 @@ bool HelixPluginInstaller::should_prompt_install() const {
         return false;
     }
 
-    // If user previously declined, don't prompt
-    bool declined = config->get<bool>(kPrefInstallDeclined, false);
-    return !declined;
+    SystemSettingsManager& settings = SystemSettingsManager::instance();
+    if (settings.get_plugin_install_declined()) {
+        return false;
+    }
+
+    const PluginPromptSnooze stored{settings.get_plugin_prompt_snoozed_at(),
+                                    settings.get_plugin_prompt_unmeasured_starts()};
+    const PluginPromptSnoozeTurn turn =
+        decide_plugin_prompt_snooze(stored, read_prompt_clock(), !snooze_checked_this_start_);
+    snooze_checked_this_start_ = true;
+    if (turn.snooze.snoozed_at_s != stored.snoozed_at_s ||
+        turn.snooze.unmeasured_starts != stored.unmeasured_starts) {
+        settings.set_plugin_prompt_snooze(turn.snooze.snoozed_at_s, turn.snooze.unmeasured_starts);
+    }
+    if (!turn.open) {
+        spdlog::debug("[PluginInstaller] Plugin prompt snoozed");
+    }
+    return turn.open;
 }
 
 bool HelixPluginInstaller::prompt_settled_for_session_ = false;
+bool HelixPluginInstaller::snooze_checked_this_start_ = false;
+HelixPluginInstaller::PromptClock HelixPluginInstaller::prompt_clock_ = nullptr;
+
+void HelixPluginInstaller::set_prompt_clock(PromptClock clock) {
+    prompt_clock_ = clock;
+}
+
+int64_t HelixPluginInstaller::read_prompt_clock() {
+    return prompt_clock_ ? prompt_clock_() : static_cast<int64_t>(std::time(nullptr));
+}
 
 void HelixPluginInstaller::settle_prompt_for_session() {
     prompt_settled_for_session_ = true;
 }
 
 void HelixPluginInstaller::set_install_declined() {
-    Config* config = Config::get_instance();
-    config->set<bool>(kPrefInstallDeclined, true);
-    config->save();
+    SystemSettingsManager::instance().set_plugin_install_declined();
     spdlog::debug("[PluginInstaller] User declined plugin install prompt");
+}
+
+void HelixPluginInstaller::snooze_install_prompt() {
+    const PluginPromptSnooze snooze = plugin_prompt_snooze_at(read_prompt_clock());
+    SystemSettingsManager::instance().set_plugin_prompt_snooze(snooze.snoozed_at_s,
+                                                               snooze.unmeasured_starts);
+}
+
+namespace {
+
+bool plugin_prompt_clock_trusted(int64_t s) {
+    return s >= std::chrono::duration_cast<std::chrono::seconds>(
+                    ams::k_unknown_stamp_before.time_since_epoch())
+                    .count();
+}
+
+} // namespace
+
+PluginPromptSnooze plugin_prompt_snooze_at(int64_t now_s) {
+    return {plugin_prompt_clock_trusted(now_s) ? now_s : kPluginPromptStampUnknown, 0};
+}
+
+PluginPromptSnoozeTurn decide_plugin_prompt_snooze(PluginPromptSnooze snooze, int64_t now_s,
+                                                   bool new_start) {
+    if (snooze.snoozed_at_s <= 0) {
+        return {true, snooze};
+    }
+    const bool now_trusted = plugin_prompt_clock_trusted(now_s);
+    if (now_trusted && !plugin_prompt_clock_trusted(snooze.snoozed_at_s)) {
+        return {false, {now_s, 0}};
+    }
+    if (now_trusted && now_s >= snooze.snoozed_at_s) {
+        if (now_s - snooze.snoozed_at_s >= kPluginPromptSnoozeSeconds) {
+            return {true, snooze};
+        }
+        return {false, {snooze.snoozed_at_s, 0}};
+    }
+    if (new_start) {
+        ++snooze.unmeasured_starts;
+    }
+    return {snooze.unmeasured_starts >= kPluginPromptMaxUnmeasuredStarts, snooze};
 }
 
 PluginInstallState HelixPluginInstaller::get_state() const {

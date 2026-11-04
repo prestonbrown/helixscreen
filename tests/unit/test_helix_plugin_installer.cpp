@@ -313,21 +313,77 @@ TEST_CASE("the remote install command for main fetches main's wrapper from GitHu
 // the logic but may need to be run in isolation or with a test config setup.
 
 TEST_CASE("HelixPluginInstaller preferences logic", "[plugin_installer][preferences]") {
-    SECTION("should_prompt_install requires beta features and a completed wizard") {
+    SECTION("should_prompt_install requires a completed wizard") {
         helix::HelixPluginInstaller installer;
         helix::Config* config = helix::Config::get_instance();
-        const bool result = installer.should_prompt_install();
+        if (config->is_wizard_required()) {
+            CHECK_FALSE(installer.should_prompt_install());
+        }
+    }
+}
 
-        // Whatever this environment's config happens to say, a true answer
-        // implies both gates were open.
-        if (result) {
-            CHECK(config->is_beta_features_enabled());
-            CHECK_FALSE(config->is_wizard_required());
+TEST_CASE("decide_plugin_prompt_snooze survives a clock it cannot trust", "[plugin_installer]") {
+    constexpr int64_t kDay = 24 * 60 * 60;
+    constexpr int64_t kReal = 1800000000;
+    constexpr int64_t kEpochBoot = 30;
+    constexpr int64_t kTrustFloor = 1577836800;
+
+    SECTION("never snoozed opens on any clock") {
+        CHECK(decide_plugin_prompt_snooze({}, kEpochBoot, true).open);
+        CHECK(decide_plugin_prompt_snooze({}, kReal, true).open);
+    }
+    SECTION("seven measured days, to the second") {
+        const PluginPromptSnooze snooze = plugin_prompt_snooze_at(kReal);
+        CHECK(snooze.snoozed_at_s == kReal);
+        CHECK_FALSE(decide_plugin_prompt_snooze(snooze, kReal + 7 * kDay - 1, true).open);
+        CHECK(decide_plugin_prompt_snooze(snooze, kReal + 7 * kDay, true).open);
+    }
+    SECTION("the trust floor is the first trusted second") {
+        CHECK(plugin_prompt_snooze_at(kTrustFloor - 1).snoozed_at_s == kPluginPromptStampUnknown);
+        CHECK(plugin_prompt_snooze_at(kTrustFloor).snoozed_at_s == kTrustFloor);
+    }
+    SECTION("dismissed at the epoch: the first trusted reading starts the seven days") {
+        const PluginPromptSnooze snooze = plugin_prompt_snooze_at(kEpochBoot);
+        const PluginPromptSnoozeTurn turn = decide_plugin_prompt_snooze(snooze, kReal, true);
+        CHECK_FALSE(turn.open);
+        CHECK(turn.snooze.snoozed_at_s == kReal);
+        CHECK_FALSE(decide_plugin_prompt_snooze(turn.snooze, kReal + 6 * kDay, true).open);
+        CHECK(decide_plugin_prompt_snooze(turn.snooze, kReal + 7 * kDay, true).open);
+    }
+    SECTION("no clock ever: closed for six starts, open on the seventh and until answered") {
+        PluginPromptSnooze snooze = plugin_prompt_snooze_at(kEpochBoot);
+        for (int start = 1; start < kPluginPromptMaxUnmeasuredStarts; ++start) {
+            const PluginPromptSnoozeTurn turn =
+                decide_plugin_prompt_snooze(snooze, kEpochBoot, true);
+            CHECK_FALSE(turn.open);
+            snooze = turn.snooze;
         }
-        // Contrapositive, so the false branch is not a free pass either.
-        if (!config->is_beta_features_enabled() || config->is_wizard_required()) {
-            CHECK_FALSE(result);
+        const PluginPromptSnoozeTurn last = decide_plugin_prompt_snooze(snooze, kEpochBoot, true);
+        CHECK(last.open);
+        CHECK(decide_plugin_prompt_snooze(last.snooze, kEpochBoot, true).open);
+    }
+    SECTION("a trusted stamp survives an epoch boot, and NTP then measures it") {
+        const PluginPromptSnooze snooze = plugin_prompt_snooze_at(kReal);
+        const PluginPromptSnoozeTurn boot = decide_plugin_prompt_snooze(snooze, kEpochBoot, true);
+        CHECK_FALSE(boot.open);
+        CHECK(boot.snooze.snoozed_at_s == kReal);
+        CHECK_FALSE(decide_plugin_prompt_snooze(boot.snooze, kReal + kDay, false).open);
+        CHECK(decide_plugin_prompt_snooze(boot.snooze, kReal + 7 * kDay, false).open);
+    }
+    SECTION("a stamp from a clock far ahead cannot lock the prompt out") {
+        PluginPromptSnooze snooze = plugin_prompt_snooze_at(kReal + 3650 * kDay);
+        PluginPromptSnoozeTurn turn{};
+        for (int start = 0; start < kPluginPromptMaxUnmeasuredStarts; ++start) {
+            CHECK_FALSE(turn.open);
+            turn = decide_plugin_prompt_snooze(snooze, kReal, true);
+            snooze = turn.snooze;
         }
+        CHECK(turn.open);
+    }
+    SECTION("a re-check within one run is not another start") {
+        const PluginPromptSnoozeTurn turn =
+            decide_plugin_prompt_snooze(plugin_prompt_snooze_at(kEpochBoot), kEpochBoot, false);
+        CHECK(turn.snooze.unmeasured_starts == 0);
     }
 }
 

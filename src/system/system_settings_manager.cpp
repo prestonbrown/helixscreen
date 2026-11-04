@@ -177,6 +177,31 @@ void SystemSettingsManager::set_wifi_country_last_seen(const std::string& code) 
     save_string_if_changed("/wifi_country_last_seen", code);
 }
 
+bool SystemSettingsManager::get_plugin_install_declined() const {
+    return Config::get_instance()->get<bool>("/plugin_install_declined", false);
+}
+
+void SystemSettingsManager::set_plugin_install_declined() {
+    Config* config = Config::get_instance();
+    config->set<bool>("/plugin_install_declined", true);
+    config->save();
+}
+
+int64_t SystemSettingsManager::get_plugin_prompt_snoozed_at() const {
+    return Config::get_instance()->get<int64_t>("/plugin_prompt_snoozed_at", 0);
+}
+
+int SystemSettingsManager::get_plugin_prompt_unmeasured_starts() const {
+    return Config::get_instance()->get<int>("/plugin_prompt_unmeasured_starts", 0);
+}
+
+void SystemSettingsManager::set_plugin_prompt_snooze(int64_t snoozed_at_s, int unmeasured_starts) {
+    Config* config = Config::get_instance();
+    config->set<int64_t>("/plugin_prompt_snoozed_at", snoozed_at_s);
+    config->set<int>("/plugin_prompt_unmeasured_starts", unmeasured_starts);
+    config->save();
+}
+
 void SystemSettingsManager::set_language(const std::string& lang) {
     int index = language_code_to_index(lang);
     spdlog::info("[SystemSettingsManager] set_language({}) -> index {}", lang, index);

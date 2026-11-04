@@ -34,9 +34,8 @@ When beta features are enabled, the following appear in the UI:
 | Feature | Location | Description | Status |
 |---------|----------|-------------|--------|
 | **Dev Update Channel** | Settings > Updates | Adds **Dev** to the Update Channel selector, which otherwise offers Stable and Beta to everyone | Functional; needs `dev_url` set in `/var/lib/helixscreen/update_urls.json` (root-owned) |
-| **HelixPrint Plugin Prompt** | After setup, once connected | Offers to install the HelixPrint Moonraker plugin when the printer does not have it. Declining stops the offer | Functional; the plugin's Install row on the Advanced screen works without beta features |
 
-> **Graduated from beta:** the **Sound System**, PID Calibration, Input Shaper, the **Spool Wizard**, the **G-code Console**, **Probe Management**, **Z-Offset Calibration**, **Timelapse**, the **Macro Browser**, **MPC Calibration**, **Belt Tension**, **Pressure Advance Tuning** (with the print Tune overlay's PA row and saving pressure advance to Spoolman), **Tool Offsets**, **Pause at a Layer** and **Choosing Lanes to Dry** are available to all users without enabling beta features. The **HelixPrint plugin** install/uninstall rows, the **Z Calibration** button, and **Multi-Printer Management** are likewise available to everyone.
+> **Graduated from beta:** the **Sound System**, PID Calibration, Input Shaper, the **Spool Wizard**, the **G-code Console**, **Probe Management**, **Z-Offset Calibration**, **Timelapse**, the **Macro Browser**, **MPC Calibration**, **Belt Tension**, **Pressure Advance Tuning** (with the print Tune overlay's PA row and saving pressure advance to Spoolman), **Tool Offsets**, **Pause at a Layer** and **Choosing Lanes to Dry** are available to all users without enabling beta features. The **HelixPrint plugin** install prompt and install/uninstall rows, the **Z Calibration** button, and **Multi-Printer Management** are likewise available to everyone.
 
 ---
 

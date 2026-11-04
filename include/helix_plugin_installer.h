@@ -16,6 +16,7 @@
  */
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -185,9 +186,9 @@ class HelixPluginInstaller {
     /**
      * @brief Check if we should prompt for plugin installation
      *
-     * Returns false with beta features off, before the first-run wizard is
-     * done, once the user checked "don't ask again", and once the prompt is
-     * settled for this session.
+     * Returns false before the first-run wizard is done, once the user checked
+     * "don't ask again", once the prompt is settled for this session, and
+     * while a snooze holds (decide_plugin_prompt_snooze()).
      *
      * @return true if we should show the install prompt
      */
@@ -206,9 +207,23 @@ class HelixPluginInstaller {
     /**
      * @brief Save preference to not prompt again
      *
-     * Called when user dismisses the install dialog with "don't ask again".
+     * Called when the user dismisses the install dialog with "don't ask
+     * again", and when the plugin is uninstalled: removing it is a firmer no
+     * than Not Now. The Advanced Install row still works afterwards.
      */
     void set_install_declined();
+
+    /**
+     * @brief Hold the prompt off for kPluginPromptSnoozeSeconds
+     *
+     * Called when the install dialog closes without "don't ask again".
+     */
+    void snooze_install_prompt();
+
+    /// Where the prompt reads the time. Process-wide, because each panel owns
+    /// its own installer. Null reads the wall clock.
+    using PromptClock = int64_t (*)();
+    static void set_prompt_clock(PromptClock clock);
 
     // === State ===
 
@@ -237,10 +252,52 @@ class HelixPluginInstaller {
 
     // Set by settle_prompt_for_session(); cleared only by a new process.
     static bool prompt_settled_for_session_;
-
-    // Config key for "don't ask again" preference
-    static constexpr const char* kPrefInstallDeclined = "/plugin_install_declined";
+    // Set by the first snooze check of this process, so a reconnect does not
+    // count as another start.
+    static bool snooze_checked_this_start_;
+    static PromptClock prompt_clock_;
+    static int64_t read_prompt_clock();
 };
+
+/// How long closing the install prompt without "don't ask again" holds it off.
+inline constexpr int64_t kPluginPromptSnoozeSeconds = 7 * 24 * 60 * 60;
+
+/// Starts a snooze outlasts while the clock cannot measure it. A printer with
+/// no RTC and no NTP never can, and it still gets asked again eventually.
+inline constexpr int kPluginPromptMaxUnmeasuredStarts = 7;
+
+/// Stored as the snooze time when the clock could not be trusted at dismissal.
+inline constexpr int64_t kPluginPromptStampUnknown = 1;
+
+struct PluginPromptSnooze {
+    int64_t snoozed_at_s = 0; ///< 0: never snoozed
+    int unmeasured_starts = 0;
+};
+
+struct PluginPromptSnoozeTurn {
+    bool open = false;
+    PluginPromptSnooze snooze; ///< what to store
+};
+
+/// The snooze to store for a dismissal at @p now_s.
+[[nodiscard]] PluginPromptSnooze plugin_prompt_snooze_at(int64_t now_s);
+
+/**
+ * @brief Whether a snooze lets the install prompt open at @p now_s
+ *
+ * A printer without an RTC reads 1970 or its build date until NTP reaches it,
+ * so the two readings cannot always be compared:
+ * - Both trusted and in order: open once kPluginPromptSnoozeSeconds passed.
+ * - Dismissed on an untrusted clock, now trusted: the snooze starts now.
+ * - Clock untrusted, or behind the stamp: the stamp stays, since a later NTP
+ *   reading measures it correctly, and this start counts. After
+ *   kPluginPromptMaxUnmeasuredStarts of them the prompt opens, so a stamp from
+ *   a clock that was wrong cannot lock it out.
+ *
+ * @param new_start false for a re-check within one run of the app
+ */
+[[nodiscard]] PluginPromptSnoozeTurn decide_plugin_prompt_snooze(PluginPromptSnooze snooze,
+                                                                 int64_t now_s, bool new_start);
 
 /**
  * @brief The git ref holding the plugin of app version @p version
