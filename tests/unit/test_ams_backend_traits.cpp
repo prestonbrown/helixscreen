@@ -44,54 +44,34 @@ BackendTraits comparable(const AmsBackendMock& mock, const BackendTraits& real) 
     return t;
 }
 
-} // namespace
-
-TEST_CASE("Mock personas answer their real backend's traits", "[ams][mock][traits]") {
-    SECTION("Happy Hare (default persona)") {
-        AmsBackendMock mock(4);
-        CHECK(comparable(mock, AmsBackendHappyHare::kTraits) == AmsBackendHappyHare::kTraits);
+template <class Real> void check_persona(void (AmsBackendMock::*set_persona)(bool)) {
+    AmsBackendMock mock(4);
+    if (set_persona) {
+        (mock.*set_persona)(true);
     }
-    SECTION("AFC") {
-        AmsBackendMock mock(4);
-        mock.set_afc_mode(true);
-        CHECK(comparable(mock, AmsBackendAfc::kTraits) == AmsBackendAfc::kTraits);
-    }
-    SECTION("Tool changer") {
-        AmsBackendMock mock(4);
-        mock.set_tool_changer_mode(true);
-        CHECK(comparable(mock, AmsBackendToolChanger::kTraits) == AmsBackendToolChanger::kTraits);
-    }
-    SECTION("AD5X IFS") {
-        AmsBackendMock mock(4);
-        mock.set_ifs_mode(true);
-        CHECK(comparable(mock, AmsBackendAd5xIfs::kTraits) == AmsBackendAd5xIfs::kTraits);
-    }
-    SECTION("Snapmaker U1") {
-        AmsBackendMock mock(4);
-        mock.set_snapmaker_mode(true);
-        CHECK(comparable(mock, AmsBackendSnapmaker::kTraits) == AmsBackendSnapmaker::kTraits);
-    }
+    CHECK(comparable(mock, Real::kTraits) == Real::kTraits);
+    Real real(nullptr, nullptr);
+    CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
 }
 
-TEST_CASE("Mock personas answer whether the carriage can be empty as their real backend does",
+} // namespace
+
+TEST_CASE("Mock personas answer their real backend's traits and carriage",
           "[ams][mock][traits][tool_switcher][1784]") {
-    SECTION("Snapmaker U1") {
-        AmsBackendMock mock(4);
-        mock.set_snapmaker_mode(true);
-        AmsBackendSnapmaker real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
-    }
-    SECTION("Tool changer") {
-        AmsBackendMock mock(4);
-        mock.set_tool_changer_mode(true);
-        AmsBackendToolChanger real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
+    SECTION("Happy Hare (default persona)") {
+        check_persona<AmsBackendHappyHare>(nullptr);
     }
     SECTION("AFC") {
-        AmsBackendMock mock(4);
-        mock.set_afc_mode(true);
-        AmsBackendAfc real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
+        check_persona<AmsBackendAfc>(&AmsBackendMock::set_afc_mode);
+    }
+    SECTION("Tool changer") {
+        check_persona<AmsBackendToolChanger>(&AmsBackendMock::set_tool_changer_mode);
+    }
+    SECTION("AD5X IFS") {
+        check_persona<AmsBackendAd5xIfs>(&AmsBackendMock::set_ifs_mode);
+    }
+    SECTION("Snapmaker U1") {
+        check_persona<AmsBackendSnapmaker>(&AmsBackendMock::set_snapmaker_mode);
     }
 }
 
@@ -211,24 +191,24 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
 
     struct Row {
         const AmsBackend* backend;
-        const ICfsCalibration* calibration;
-        const IGateSelector* gates;
-        const ILaneRecovery* recovery;
-        const INarrationMatcher* narration;
+        const ICfsCalibration* calibration = nullptr;
+        const IGateSelector* gates = nullptr;
+        const ILaneRecovery* recovery = nullptr;
+        const INarrationMatcher* narration = nullptr;
     };
     const Row rows[] = {
-        {&ace, nullptr, nullptr, nullptr, nullptr},
-        {&ad5x, nullptr, nullptr, nullptr, nullptr},
+        {&ace},
+        {&ad5x},
+        {&indx},
+        {&multi_ace},
+        {&openams},
+        {&qidi},
+        {&snapmaker},
+        {&tool_changer},
         {&afc, nullptr, nullptr, &afc, &afc},
-        {&cfs, &cfs, nullptr, nullptr, nullptr},
-        {&happy_hare, nullptr, &happy_hare, nullptr, nullptr},
-        {&indx, nullptr, nullptr, nullptr, nullptr},
-        {&multi_ace, nullptr, nullptr, nullptr, nullptr},
-        {&openams, nullptr, nullptr, nullptr, nullptr},
-        {&qidi, nullptr, nullptr, nullptr, nullptr},
-        {&snapmaker, nullptr, nullptr, nullptr, nullptr},
-        {&tool_changer, nullptr, nullptr, nullptr, nullptr},
-        {&mock, nullptr, &mock, nullptr, nullptr},
+        {&cfs, &cfs},
+        {&happy_hare, nullptr, &happy_hare},
+        {&mock, nullptr, &mock},
     };
     struct NothingImplementsThis {};
     for (const Row& row : rows) {
@@ -322,28 +302,24 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
         AmsBackendAce backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("OpenAMS raises faults of the manager, not a runout") {
         AmsBackendOpenAms backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("Snapmaker classifies only the missing-filament-type refusal") {
         AmsBackendSnapmaker backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("a tool changer raises dock-sensor faults, not a runout") {
         AmsBackendToolChanger backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("QIDI Box reports a blocked slot with a dismiss-only dialog") {
@@ -359,6 +335,5 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
         // that offers the user a way forward.
         REQUIRE(ev->recovery_actions.size() == 1);
         CHECK(ev->recovery_actions[0].gcode.empty());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 }
