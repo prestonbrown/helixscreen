@@ -360,6 +360,16 @@ remove_mirrors() { # <days|-> [tree...]
     ssh "${SSH_OPTS[@]}" "$HOST" bash -se <<REMOTE
 set -uo pipefail
 rc=0
+# mutate_diff.py's worker copies sit beside the checkout as .<tree>.mutate-w<i>.
+drop_workers() { # <root> <name>
+    local w found=
+    for w in "\$1/.\$2.mutate-w"*; do
+        [ -d "\$w" ] || continue
+        sudo -n rm -rf -- "\$w" || { echo "✗ could not remove \$w" >&2; rc=1; continue; }
+        found=1
+    done
+    [ -z "\$found" ] || echo "→ removed mutate worker copies \$2"
+}
 sweep() { # <root> <lock kind> <stamp, relative> <what> [name...]
     local root=\$1 kind=\$2 stamp_rel=\$3 what=\$4 d name stamp lock
     shift 4
@@ -367,7 +377,13 @@ sweep() { # <root> <lock kind> <stamp, relative> <what> [name...]
     for d in "\$@"; do
         name=\$(basename "\$d")
         d="\$root/\$name"
-        [ -d "\$d" ] || { [ -z "$*" ] || [ "\$kind" != tree ] || echo "→ no \$what \$name"; continue; }
+        if [ ! -d "\$d" ]; then
+            # A mutate run that died mid-copy leaves its worker copies with no
+            # checkout beside them, and the next run refuses to reuse them.
+            [ -n "$*" ] && [ "\$kind" = mutate ] && drop_workers "\$root" "\$name"
+            [ -z "$*" ] || [ "\$kind" != tree ] || echo "→ no \$what \$name"
+            continue
+        fi
         # <tree>+seeding is a copy in progress, or one a dead run left behind.
         case "\$name" in *+*) [ -n "\$(find "\$d" -maxdepth 0 -mmin +1440)" ] || continue ;; esac
         if [ "$days" != - ]; then
@@ -381,6 +397,7 @@ sweep() { # <root> <lock kind> <stamp, relative> <what> [name...]
             [ -z "$*" ] || rc=1
         elif sudo -n rm -rf -- "\$d"; then
             echo "→ removed \$what \$name"
+            [ "\$kind" != mutate ] || drop_workers "\$root" "\$name"
         else
             echo "✗ could not remove \$d" >&2; rc=1
         fi

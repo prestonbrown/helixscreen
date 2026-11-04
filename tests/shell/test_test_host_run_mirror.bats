@@ -904,6 +904,27 @@ shared_checkout() {
     [ -d "$BATS_TEST_TMPDIR/mutate/fresh" ]
 }
 
+@test "--prune and --drop remove a mutate checkout's worker copies, even with the checkout gone" {
+    local m=$BATS_TEST_TMPDIR/mutate
+    mkdir -p "$m/old/.git" "$m/.old.mutate-w1" "$m/.old.mutate-w2" \
+        "$m/fresh/.git" "$m/.fresh.mutate-w1" "$m/.orphan.mutate-w1" "$m/.orphan.mutate-w3"
+    touch -d '20 days ago' "$m/old/.git/index"
+    touch "$m/fresh/.git/index"
+    run "$TEST_HOST_RUN" --prune
+    [ "$status" -eq 0 ]
+    [ ! -e "$m/.old.mutate-w1" ]
+    [ ! -e "$m/.old.mutate-w2" ]
+    [ -d "$m/.fresh.mutate-w1" ]
+    # A run that died mid-copy leaves workers with no checkout beside them.
+    run "$TEST_HOST_RUN" --drop orphan
+    [ "$status" -eq 0 ]
+    contains "removed mutate worker copies orphan" "$output"
+    [ ! -e "$m/.orphan.mutate-w1" ]
+    [ ! -e "$m/.orphan.mutate-w3" ]
+    [ -d "$m/.fresh.mutate-w1" ]
+    [ -d "$m/fresh" ]
+}
+
 @test "a seed candidate with an orphaned build running in it is passed over" {
     local a b
     a=$(make_tree tree-a)
