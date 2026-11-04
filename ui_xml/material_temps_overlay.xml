@@ -10,7 +10,9 @@
          siblings, so the row_wrap container breaks after the second. -->
     <style name="temp_col_micro" min_width="45%"/>
   </styles>
-  <view name="material_temps_overlay" extends="overlay_panel" title="Material Temperatures" bg_color="#screen_bg">
+  <view name="material_temps_overlay"
+        extends="overlay_panel" title="Material Temperatures" bg_color="#screen_bg"
+        back_button_callback="on_material_back_clicked">
     <!-- Content Area -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"

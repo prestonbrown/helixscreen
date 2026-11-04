@@ -66,25 +66,6 @@ lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
     // Find panel widget (content container)
     panel_ = helix::ui::find_required(overlay_root_, "overlay_content", get_name());
 
-    // Wire up custom back button handler for dirty state check
-    // Exception to "NO lv_obj_add_event_cb" rule: Required for unsaved data protection
-    // The default XML callback (on_header_back_clicked) must be removed first
-    lv_obj_t* header = helix::ui::find_required(overlay_root_, "overlay_header", get_name());
-    if (header) {
-        lv_obj_t* back_button = helix::ui::find_required(header, "back_button", get_name());
-        if (back_button) {
-            // Remove ALL existing click handlers by index (passing nullptr doesn't work!)
-            // The XML-registered on_header_back_clicked would cause double navigation
-            uint32_t event_count = lv_obj_get_event_count(back_button);
-            for (uint32_t i = event_count; i > 0; --i) {
-                lv_obj_remove_event(back_button, i - 1);
-            }
-            lv_obj_add_event_cb(back_button, on_back_clicked, LV_EVENT_CLICKED, nullptr);
-            spdlog::debug("[{}] Wired custom back button handler for dirty state check",
-                          get_name());
-        }
-    }
-
     spdlog::debug("[{}] Created overlay", get_name());
     return overlay_root_;
 }
@@ -116,6 +97,8 @@ void ThemeEditorOverlay::register_callbacks() {
                  editor.handle_shadow_intensity_changed(value);
              }
          }},
+        // The header's back button: unsaved edits get a discard prompt first
+        {"on_theme_back_clicked", on_back_clicked},
         // Action button callbacks
         {"on_theme_save_clicked",
          [](lv_event_t*) { get_theme_editor_overlay().handle_save_clicked(); }},

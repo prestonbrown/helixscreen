@@ -57,6 +57,7 @@ constexpr HeightToken kHeightTokens[] = {
     // The wizard dropdowns carry header_height's ladder under their own name, so
     // the four rows on a 272px-tall fan step fit; the same axis, the same values.
     {"wizard_dropdown_height", "33", "56", "60", "80"},
+    {"ams_title_row_height", "33", "56", "60", "80"},
     {"temp_card_height", "48", "72", "80", "112"},
     {"dialog_content_max", "170", "320", "440", "800"},
     {"dialog_content_recovery_max", "167", "276", "352", "642"},

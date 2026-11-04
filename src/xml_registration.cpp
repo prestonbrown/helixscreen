@@ -182,13 +182,20 @@ static void register_color_picker_component_constants(const char* component_name
         // color_picker.xml already owns the name by the time we get here and
         // would pin every screen to 32 instead of the responsive 24/28/32.
         lv_xml_set_const(scope, "swatch_size", swatch_size);
-        // Never declared in XML anywhere, so register is silent and correct.
-        lv_xml_register_const(scope, "sv_size", sv_buf);
-        lv_xml_register_const(scope, "hue_height", hue_buf);
+        lv_xml_set_const(scope, "sv_size", sv_buf);
+        lv_xml_set_const(scope, "hue_height", hue_buf);
         spdlog::debug("[Color Picker] {}: swatch_size={}, sv_size={}, hue_height={} "
                       "for height {}px",
                       component_name, swatch_size, sv_buf, hue_buf, ver_res);
     }
+}
+
+void refresh_color_picker_constants() {
+    // Both embed <ui_hsv_picker sv_size="#sv_size">, and consts are scope-local.
+    // Looking the scope up registers the component here, at boot, so the consts
+    // are in place before its first instance.
+    register_color_picker_component_constants("ams_edit_overlay");
+    register_color_picker_component_constants("color_picker");
 }
 
 /**
@@ -439,11 +446,7 @@ void register_xml_components() {
     // AMS slot editor (single overlay, internal views — spec §13)
     helix::ui::get_ams_edit_overlay().register_callbacks();
     helix::ui::ensure_swatch_grid_subjects();
-    // Both embed <ui_hsv_picker sv_size="#sv_size">, and consts are scope-local.
-    // Looking the scope up registers the component here, at boot, so the consts
-    // are in place before its first instance.
-    register_color_picker_component_constants("ams_edit_overlay");
-    register_color_picker_component_constants("color_picker");
+    refresh_color_picker_constants();
 
     // Shared progress bar component (gradient indicator)
     ui_progress_bar_init();

@@ -682,6 +682,17 @@
     <px name="wizard_dropdown_height_xlarge" value="68"/>
     <px name="wizard_dropdown_height_xxlarge" value="80"/>
 
+    <!-- The AMS panels' left-column title row, which is not a header_bar. A
+         vertical-axis token: at 480x272 the path canvas below it needs these
+         heights to hold two label rows and the whole toolhead. -->
+    <px name="ams_title_row_height_micro" value="28"/>
+    <px name="ams_title_row_height_tiny" value="33"/>
+    <px name="ams_title_row_height_small" value="48"/>
+    <px name="ams_title_row_height_medium" value="56"/>
+    <px name="ams_title_row_height_large" value="60"/>
+    <px name="ams_title_row_height_xlarge" value="68"/>
+    <px name="ams_title_row_height_xxlarge" value="80"/>
+
     <!-- NOTE: spool_row_min_height_* and spool_swatch_size_* are component-scoped
          in ui_xml/spoolman_spool_item.xml (their only consumer). -->
 

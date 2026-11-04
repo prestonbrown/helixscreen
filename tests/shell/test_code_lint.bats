@@ -167,6 +167,27 @@ SHAPES
     lacks "helix::Regex" "$output"
 }
 
+@test "the event-sweep gate catches removal by index and stays quiet on named removal and opt-outs" {
+    local f="${BATS_TEST_TMPDIR}/sweep_shapes.cpp"
+    cat > "$f" <<'SHAPES'
+lv_obj_remove_event(back_button, i - 1);
+if (ok) ::lv_obj_remove_event(obj, 0);
+// Never lv_obj_remove_event(obj, 0): it takes the observer hooks too.
+lv_obj_remove_event(obj, 1); // REMOVE_EVENT_OK: test fixture
+lv_obj_remove_event_cb(obj, on_clicked);
+lv_obj_remove_event_cb_with_user_data(obj, on_deleted, this);
+my_lv_obj_remove_event(obj, 0);
+SHAPES
+    run code_offenders "$(remove_event_sweep_pattern)" REMOVE_EVENT_OK "$f"
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 2 ]
+    contains "back_button" "$output"
+    contains "::lv_obj_remove_event" "$output"
+    lacks "REMOVE_EVENT_OK" "$output"
+    lacks "_cb" "$output"
+    lacks "my_lv" "$output"
+}
+
 @test "the raw-thread gate catches spawns and stays quiet on members, ids and opt-outs" {
     local f="${BATS_TEST_TMPDIR}/thread_shapes.cpp"
     cat > "$f" <<'SHAPES'

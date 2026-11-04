@@ -63,6 +63,8 @@ void MaterialTempsOverlay::register_callbacks() {
          [](lv_event_t*) { get_material_temps_overlay().handle_reset_defaults(); }},
         {"on_macro_dropdown_changed",
          [](lv_event_t*) { get_material_temps_overlay().handle_macro_dropdown_changed(); }},
+        // The header's back button, so a tap in the edit view returns to the list.
+        {"on_material_back_clicked", on_back_clicked},
     });
 }
 
@@ -85,20 +87,6 @@ lv_obj_t* MaterialTempsOverlay::create(lv_obj_t* parent) {
     macro_dropdown_ = helix::ui::find_required(edit_view_, "macro_dropdown", get_name());
     macro_heating_switch_ =
         helix::ui::find_required(edit_view_, "macro_heating_switch", get_name());
-
-    // Rewire back button to intercept when in edit view
-    // Exception to "NO lv_obj_add_event_cb" rule: need to intercept back for view switching
-    lv_obj_t* header = helix::ui::find_required(overlay_root_, "overlay_header", get_name());
-    if (header) {
-        lv_obj_t* back_button = helix::ui::find_required(header, "back_button", get_name());
-        if (back_button) {
-            uint32_t event_count = lv_obj_get_event_count(back_button);
-            for (uint32_t i = event_count; i > 0; --i) {
-                lv_obj_remove_event(back_button, i - 1);
-            }
-            lv_obj_add_event_cb(back_button, on_back_clicked, LV_EVENT_CLICKED, nullptr);
-        }
-    }
 
     spdlog::info("[{}] Overlay created", get_name());
     return overlay_root_;

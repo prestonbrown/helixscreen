@@ -9,7 +9,6 @@
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_lane_settings.h"
 #include "ui_component_keypad.h"
-#include "ui_icon_codepoints.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
@@ -27,10 +26,7 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
-#include "config.h"
-#include "display_numbering.h"
 #include "display_settings_manager.h"
-#include "filament_favorites.h"
 #include "filament_op_dispatch.h"
 #include "lane_source_store.h"
 #include "moonraker_api_mock.h"
@@ -41,6 +37,7 @@
 #include "src/ui/panel_widgets/active_spool_widget.h"
 #include "text_io.h"
 #include "tool_state.h"
+#include "xml_registration.h"
 
 #include <algorithm>
 #include <cmath>
@@ -3363,6 +3360,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         {
             ScopedResolution res(disp, sz.w, sz.h);
             theme_manager_refresh_layout_constants(disp);
+            // The picker at the size a device of this resolution boots with.
+            helix::refresh_color_picker_constants();
             auto& overlay = get_ams_edit_overlay();
             AmsEditOverlayViewTestAccess access(overlay);
             REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
@@ -3420,6 +3419,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             close_editor_overlay();
         }
         theme_manager_refresh_layout_constants(disp);
+        helix::refresh_color_picker_constants();
     }
 }
 
