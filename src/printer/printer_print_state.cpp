@@ -11,9 +11,9 @@
 
 #include "ui_timer_guard.h" // lv_timer_cancel_safe
 
+#include "core/data_root_resolver.h"
 #include "core/gcode_filename.h"
 #include "core/update_queue.h"
-#include "data_root_resolver.h"
 #include "firmware_error_envelope.h"
 #include "format_utils.h"
 #include "json_utils.h"

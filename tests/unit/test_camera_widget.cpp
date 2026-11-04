@@ -14,9 +14,9 @@
 #include "../test_helpers/camera_widget_test_access.h"
 #include "../test_helpers/loopback_http_server.h"
 #include "camera_stream.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 
 #include <atomic>
 #include <chrono>

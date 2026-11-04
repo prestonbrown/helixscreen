@@ -7,7 +7,7 @@
 
 #include "app_globals.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "filament_sensor_manager.h"
 #include "helix_fs.h"
 #include "json_utils.h"

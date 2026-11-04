@@ -6,7 +6,7 @@
 #include "ui_modal.h"
 #include "ui_split_button.h"
 
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 

@@ -18,11 +18,11 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "ams_state.h"
 #include "ams_step_operation.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "filament_action_set.h"
 #include "mount_feed_sequence.h"
 #include "printer_discovery.h"
-#include "static_subject_registry.h"
 #include "test_helpers/ams_sidebar_xml.h"
 #include "toolchanger_addon.h"
 

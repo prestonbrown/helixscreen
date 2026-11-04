@@ -22,10 +22,10 @@
 
 #include "ui_observer_guard.h"
 
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "sensor_manager.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <functional>

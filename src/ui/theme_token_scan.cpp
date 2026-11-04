@@ -4,7 +4,7 @@
 // Design-token discovery: expat passes over ui_xml/ that find the <color>, <px>
 // and <string> constants, plus the validator for responsive constant sets.
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "helix-xml/src/libs/expat/expat.h"
 #include "text_io.h"
 #include "theme_manager.h"

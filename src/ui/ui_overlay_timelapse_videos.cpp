@@ -16,12 +16,12 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.h"
 #include "lv_draw_buf_guard.h"
 #include "lvgl.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "system/run_capture.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
@@ -832,7 +832,7 @@ void TimelapseVideosOverlay::on_card_long_pressed(lv_event_t* e) {
 // stays available via ITimelapseAPI, only the viewing overlay is stubbed.
 // Player-process spawning (fork/exec) and HTTP video transfer code are absent.
 
-#include "static_panel_registry.h"
+#include "core/static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 

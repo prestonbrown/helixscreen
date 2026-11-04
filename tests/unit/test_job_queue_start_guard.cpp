@@ -42,6 +42,7 @@
 #include "../test_helpers/tile_boxes.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "job_queue_start.h"
 #include "job_queue_state.h"
@@ -51,7 +52,6 @@
 #include "queued_job_options.h"
 #include "queued_job_start.h"
 #include "src/ui/panel_widgets/job_queue_widget.h"
-#include "static_panel_registry.h"
 #include "test_helpers/pre_print_option_sets.h"
 #include "test_helpers/printer_state_test_access.h"
 

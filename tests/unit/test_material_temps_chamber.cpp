@@ -18,12 +18,12 @@
 #include "ui_settings_material_temps.h"
 
 #include "../test_fixtures.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "material_settings_manager.h"
 #include "panel_widget_manager.h"
-#include "static_panel_registry.h"
 #include "temperature_controller.h"
 #include "test_helpers/press_wash_probe.h"
 #include "test_helpers/scoped_shared_resource.h"

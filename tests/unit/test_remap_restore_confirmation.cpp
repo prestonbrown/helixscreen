@@ -33,8 +33,9 @@
 #include "ams_backend_happy_hare.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/data_root_resolver.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
-#include "data_root_resolver.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_job_ref.h"
@@ -42,7 +43,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "slot_registry.h"
-#include "static_panel_registry.h"
 
 #include <algorithm>
 #include <filesystem>

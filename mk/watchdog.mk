@@ -142,7 +142,7 @@ $(BUILD_DIR)/watchdog/backlight_backend.o: src/api/backlight_backend.cpp $(LIBHV
 
 # Compile data_root_resolver for watchdog (zero deps; provides writable_path,
 # get_user_config_dir, etc. for HELIX_CONFIG_DIR-aware path resolution)
-$(BUILD_DIR)/watchdog/data_root_resolver.o: src/application/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/data_root_resolver.o: src/core/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

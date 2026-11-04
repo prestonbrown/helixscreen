@@ -3,7 +3,7 @@
 
 #include "print_start_profile.h"
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "lvgl.h"
 #include "text_io.h"
 

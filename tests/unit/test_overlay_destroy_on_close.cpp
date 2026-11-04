@@ -32,11 +32,11 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <array>

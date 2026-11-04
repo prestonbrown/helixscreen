@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "single_flight_walk.h"
-#include "static_panel_registry.h"
 
 #include <string>
 #include <vector>

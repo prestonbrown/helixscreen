@@ -3,9 +3,9 @@
 #pragma once
 
 #include "callout_layout.h"
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "printer_image_regions.h"
-#include "static_panel_registry.h"
 
 #include <optional>
 #include <string>

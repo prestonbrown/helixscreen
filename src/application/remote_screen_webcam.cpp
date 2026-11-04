@@ -5,8 +5,8 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/data_root_resolver.h"
 #include "core/update_queue.h"
-#include "data_root_resolver.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"

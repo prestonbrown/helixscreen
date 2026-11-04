@@ -22,12 +22,12 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "tool_state.h"
 
 #include <array>

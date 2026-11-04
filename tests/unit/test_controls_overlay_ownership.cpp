@@ -17,8 +17,8 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/controls_panel_test_access.h"
 #include "../test_helpers/process_async_timers.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
-#include "static_panel_registry.h"
 
 #include <array>
 #include <memory>

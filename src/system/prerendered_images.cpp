@@ -4,7 +4,7 @@
 #include "prerendered_images.h"
 
 #include "app_globals.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "helix_fs.h"
 #include "lvgl_image_writer.h"
 #include "prerender_size_class.h"

@@ -18,9 +18,9 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "jog_coalescer.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "unit_conversions.h"
 
 #include <spdlog/fmt/fmt.h>

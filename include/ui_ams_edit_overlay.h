@@ -10,12 +10,12 @@
 
 #include "ams_tag_reading.h"
 #include "ams_types.h"
+#include "core/static_panel_registry.h"
 #include "filament_catalog.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <functional>

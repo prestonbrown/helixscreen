@@ -6,7 +6,7 @@
 #ifdef ENABLE_GLES_3D
 
 #include "color_utils.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "gcode_gl_fallback.h"
 #include "gcode_projection.h"
 #include "gcode_render_schedule.h"

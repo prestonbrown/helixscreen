@@ -12,10 +12,10 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
 

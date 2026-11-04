@@ -4,10 +4,10 @@
 #include "input_settings_manager.h"
 
 #include "app_constants.h"
+#include "core/static_subject_registry.h"
 #include "display_manager.h"
 #include "runtime_config.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 
 #include <iterator>
 

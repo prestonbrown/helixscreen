@@ -25,6 +25,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_awake_hold.h"
 #include "first_run_tour.h"
@@ -35,7 +36,6 @@
 #include "plr_backend.h"
 #include "plr_offer_controller.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 
 #include <algorithm>
 #include <array>

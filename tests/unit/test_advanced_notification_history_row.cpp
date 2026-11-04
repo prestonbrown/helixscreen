@@ -15,11 +15,11 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "grid_layout.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
-#include "static_panel_registry.h"
 
 #include <string>
 

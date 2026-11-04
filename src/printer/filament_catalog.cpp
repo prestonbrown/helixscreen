@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "filament_catalog.h"
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "helix_fs.h"

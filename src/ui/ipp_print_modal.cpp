@@ -7,6 +7,7 @@
 
 #include "ui_toast_manager.h"
 
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "ipp_printer.h"
 #include "label_printer_settings.h"
@@ -14,7 +15,6 @@
 #include "label_renderer.h"
 #include "lvgl.h"
 #include "sheet_label_layout.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 

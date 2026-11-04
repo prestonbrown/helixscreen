@@ -25,9 +25,9 @@
 #include "ui_wizard_language_chooser.h"
 
 #include "../test_fixtures.h"
+#include "core/static_panel_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
 

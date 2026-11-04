@@ -13,6 +13,7 @@
 #include "abort_manager.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "fault_modal_registry.h"
 #include "gcode_error_router.h"
@@ -20,7 +21,6 @@
 #include "lvgl.h"
 #include "print_lifecycle_state.h"
 #include "printer_recovery_service.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 

@@ -11,12 +11,12 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include "printer_hardware.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

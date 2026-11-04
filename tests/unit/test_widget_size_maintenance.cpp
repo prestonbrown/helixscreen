@@ -17,11 +17,11 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/tile_boxes.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "panel_widget_manager.h"
 #include "src/ui/panel_widgets/maintenance_model.h"
 #include "src/ui/panel_widgets/maintenance_widget.h"
-#include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "xml_registration.h"
 

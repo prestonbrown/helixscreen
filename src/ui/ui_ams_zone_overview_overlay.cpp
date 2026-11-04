@@ -15,11 +15,11 @@
 #include "ams_backend.h"
 #include "ams_environment_zone.h"
 #include "ams_state.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/static_panel_registry.h"
 #include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 

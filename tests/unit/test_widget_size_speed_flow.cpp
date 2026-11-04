@@ -22,6 +22,7 @@
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "home_edit_mode_test_helpers.h"
@@ -30,7 +31,6 @@
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/speed_flow_widget.h"
-#include "static_panel_registry.h"
 #include "tune_controller.h"
 
 #include "../catch_amalgamated.hpp"

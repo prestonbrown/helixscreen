@@ -8,10 +8,10 @@
 #include "app_globals.h"
 #include "bed_drying_controller.h"
 #include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "helix_psram_attr.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>

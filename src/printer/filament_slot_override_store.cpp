@@ -2,7 +2,7 @@
 #include "filament_slot_override_store.h"
 
 #include "ams_types.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "exception_policy.h"
 #include "filament_catalog.h"
 #include "filament_database.h"

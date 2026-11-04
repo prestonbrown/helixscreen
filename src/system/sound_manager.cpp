@@ -5,7 +5,7 @@
 
 #include "audio_settings_manager.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "i_moonraker_client.h"
 #include "jz_pwm_sound_backend.h"
 #include "m300_sound_backend.h"

@@ -5,12 +5,12 @@
 
 #include "ui_observer_guard.h"
 
+#include "core/static_panel_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lvgl.h"
 #include "macro_edit_logic.h"
 #include "macro_param_modal.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <memory>

@@ -31,7 +31,7 @@
 #include "camera_frame.h"
 #include "camera_stream.h"
 #include "color_utils.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "demo_prompt_lines.h"
 #include "filament_macro_profiles.h"
 #include "helix-xml/src/xml/lv_xml.h"

@@ -23,10 +23,10 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "print_lifecycle_state.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>

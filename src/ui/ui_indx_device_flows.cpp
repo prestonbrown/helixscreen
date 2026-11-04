@@ -9,6 +9,8 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
 #include "display_numbering.h"
 #include "filament_action_set.h"
 #include "indx_contract.h"
@@ -16,8 +18,6 @@
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "save_config_restart.h"
-#include "static_panel_registry.h"
-#include "static_subject_registry.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>

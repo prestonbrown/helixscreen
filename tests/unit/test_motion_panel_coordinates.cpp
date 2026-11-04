@@ -22,6 +22,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "hold_repeat.h"
 #include "moonraker_api.h"
@@ -29,7 +30,6 @@
 #include "printer_motion_state.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "unit_conversions.h"
 

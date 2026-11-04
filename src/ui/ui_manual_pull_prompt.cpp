@@ -6,8 +6,8 @@
 
 #include "ams_backend.h"
 #include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "filament_sensor_manager.h"
-#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 

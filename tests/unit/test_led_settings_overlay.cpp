@@ -12,11 +12,11 @@
 #include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
-#include "static_panel_registry.h"
 
 #include <array>
 #include <string>

@@ -17,6 +17,7 @@
 #include "capability_overrides.h"
 #include "chamber_heater_assignment.h"
 #include "connection_state.h" // For ConnectionState enum
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "enclosure_top.h"
@@ -34,7 +35,6 @@
 #include "probe_sensor_manager.h"
 #include "runtime_config.h"
 #include "settings_manager.h"
-#include "static_subject_registry.h"
 #include "system/crash_handler.h"
 #include "unit_conversions.h"
 #include "z_offset_persistence.h"

@@ -8,8 +8,8 @@
 #include "ui_toast_manager.h"
 #include "ui_wizard.h"
 
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
-#include "static_panel_registry.h"
 #include "system_settings_manager.h"
 
 #include <spdlog/spdlog.h>

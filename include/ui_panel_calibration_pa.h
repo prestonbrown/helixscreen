@@ -5,10 +5,10 @@
 
 #include "ui_observer_guard.h"
 
+#include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_calibration.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <functional>

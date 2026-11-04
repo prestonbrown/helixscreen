@@ -4,10 +4,10 @@
 
 #if HELIX_HAS_SNAPMAKER
 
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "snapmaker_nozzle_offset.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <string>

@@ -26,6 +26,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "format_utils.h"
 #include "hardware_role_registry.h"
@@ -37,7 +38,6 @@
 #include "quick_action_slots.h"
 #include "sort_small.h"
 #include "standard_macros.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "temperature_controller.h"
 #include "temperature_sensor_manager.h"

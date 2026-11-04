@@ -125,7 +125,7 @@ $(BUILD_DIR)/splash/config_storage_file.o: src/system/config_storage_file.cpp $(
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile data_root_resolver for splash (zero deps)
-$(BUILD_DIR)/splash/data_root_resolver.o: src/application/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/data_root_resolver.o: src/core/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

@@ -14,11 +14,11 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

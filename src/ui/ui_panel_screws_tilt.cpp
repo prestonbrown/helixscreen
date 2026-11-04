@@ -11,6 +11,7 @@
 
 #include "app_globals.h"
 #include "bed_mesh_gradient.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
@@ -21,7 +22,6 @@
 #include "printer_state.h"
 #include "screw_tilt_surface.h"
 #include "screws_tilt_dialect.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"

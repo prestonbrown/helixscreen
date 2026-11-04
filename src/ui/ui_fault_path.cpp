@@ -3,10 +3,10 @@
 
 #include "ui_fault_path.h"
 
+#include "core/static_subject_registry.h"
 #include "fault_path_position.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "layout_manager.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>

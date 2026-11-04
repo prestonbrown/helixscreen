@@ -11,6 +11,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "helix/xml/indexed_subject_pool.h"
@@ -22,7 +23,6 @@
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 #include "text_io.h"
 #include "theme_manager.h"
 

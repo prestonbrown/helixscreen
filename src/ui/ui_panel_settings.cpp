@@ -33,6 +33,7 @@
 #include "ui_wizard_hardware_selector.h"
 
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "ethernet_manager.h"
@@ -52,7 +53,6 @@
 #include "settings_root_status.h"
 #include "sound_manager.h"
 #include "standard_macros.h"
-#include "static_panel_registry.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"

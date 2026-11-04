@@ -4,13 +4,13 @@
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/static_panel_registry.h"
 #include "display_awake_hold.h"
 #include "jog_coalescer.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_error.h"
 #include "overlay_base.h"
 #include "plr_wizard.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <optional>

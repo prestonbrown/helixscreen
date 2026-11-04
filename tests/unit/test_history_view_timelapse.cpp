@@ -20,10 +20,10 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_panel_registry.h"
 #include "timelapse_state.h"
 
 #include <algorithm>

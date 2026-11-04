@@ -10,13 +10,13 @@
 
 #include "async_lifetime_guard.h"
 #include "calibration_types.h" // For InputShaperResult
+#include "core/static_panel_registry.h"
 #include "input_shaper_calibrator.h"
 #include "klipper_config_editor.h"
 #include "live_sweep_preview.h"
 #include "overlay_base.h"
 #include "platform_capabilities.h"
 #include "shaper_selection.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <algorithm>

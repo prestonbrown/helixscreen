@@ -7,9 +7,9 @@
 #include "ui_temp_graph.h"
 
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "heater_type.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "temp_graph_controller.h"
 
 #include <memory>

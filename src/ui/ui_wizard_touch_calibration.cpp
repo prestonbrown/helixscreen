@@ -9,10 +9,10 @@
 #include "ui_utils.h"
 
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "display_manager.h"
 #include "lvgl.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "touch_calibration_layout.h"
 #include "touch_calibration_wrapper.h"

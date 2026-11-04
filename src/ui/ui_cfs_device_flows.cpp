@@ -13,8 +13,8 @@
 #include "ams_backend.h"
 #include "ams_backend_cfs.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
 #include "lvgl.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/fmt/fmt.h>
 

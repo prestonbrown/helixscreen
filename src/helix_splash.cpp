@@ -20,7 +20,7 @@
  */
 
 #include "backlight_backend.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "display_backend.h"
 #include "helix_version.h"
 #include "prerender_size_class.h"

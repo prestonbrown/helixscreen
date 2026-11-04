@@ -14,7 +14,7 @@
 #include "app_globals.h"
 #include "board_identity.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "i_moonraker_api.h"
 #include "logging_init.h"
 #include "platform_capabilities.h"

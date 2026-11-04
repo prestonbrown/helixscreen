@@ -19,10 +19,10 @@
 #include "ui_nav.h"
 #include "ui_utils.h"
 
+#include "core/static_panel_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "keypad_input.h"
 #include "lvgl/lvgl.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

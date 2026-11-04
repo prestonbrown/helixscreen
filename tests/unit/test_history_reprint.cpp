@@ -24,9 +24,9 @@
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
-#include "static_panel_registry.h"
 
 #include <string>
 #include <vector>

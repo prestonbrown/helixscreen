@@ -6,12 +6,12 @@
 #include "config.h"
 #include "connection_state.h"
 #include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "print_lifecycle_state.h"
 #include "printer_excluded_objects_state.h"
 #include "printer_network_state.h"
 #include "printer_print_state.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 #include "subject_debug_registry.h"
 
 #include <spdlog/spdlog.h>

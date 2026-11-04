@@ -19,7 +19,7 @@
 #include "config_backup.h"
 #include "config_migrations.h"
 #include "config_testing.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "helix_fs.h"
 #include "host_identity.h"
 #include "input_defaults.h"

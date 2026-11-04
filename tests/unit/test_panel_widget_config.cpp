@@ -6,7 +6,7 @@
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "home_layout_share.h"
 #include "layout_port.h"
 #include "panel_widget_config.h"

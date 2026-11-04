@@ -5,9 +5,9 @@
 
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/static_panel_registry.h"
 #include "i18n_plural.h"
 #include "lvgl/lvgl.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>

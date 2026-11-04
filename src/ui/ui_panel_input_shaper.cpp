@@ -14,6 +14,8 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "env_knobs.h"
 #include "format_utils.h"
@@ -25,8 +27,6 @@
 #include "printer_state.h"
 #include "shaper_response.h"
 #include "shaper_selection.h"
-#include "static_panel_registry.h"
-#include "static_subject_registry.h"
 #include "text_io.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

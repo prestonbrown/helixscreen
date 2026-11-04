@@ -17,9 +17,9 @@
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "printer_discovery.h"
-#include "static_panel_registry.h"
 #include "toolchanger_addon.h"
 
 #include <string>

@@ -39,6 +39,7 @@
 #include "connection_state.h" // For ConnectionState enum
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
@@ -64,7 +65,6 @@
 #include "queued_job_options.h"
 #include "queued_job_start.h"
 #include "runtime_config.h"
-#include "static_panel_registry.h"
 #include "storage_report_service.h"
 #include "text_io.h"
 #include "theme_manager.h"

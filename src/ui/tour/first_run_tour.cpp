@@ -10,7 +10,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
-#include "static_panel_registry.h"
+#include "core/static_panel_registry.h"
 #include "theme_manager.h"
 #include "tour_overlay.h"
 #include "tour_steps.h"

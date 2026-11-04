@@ -1109,7 +1109,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 | `include/ui_observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
 | `include/core/observer_factory.h` | `observe<V>` (`Dispatch::Deferred` / `Immediate`), `observe_print_state`, `observe_print_lifecycle` |
 | `include/ui_utils.h` | `safe_delete_deferred`, `safe_clean_children`, `safe_delete_subtree` |
-| `include/static_subject_registry.h` | Shutdown cleanup registry |
+| `include/core/static_subject_registry.h` | Shutdown cleanup registry |
 | `include/http_executor.h` | `HttpExecutor::fast()` / `slow()` pools |
 | `src/bluetooth/bt_bus_thread.h` | BlueZ `BusThread` |
 | `include/ui_timer_guard.h` | `LvglTimerGuard` RAII |

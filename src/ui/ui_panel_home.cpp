@@ -18,6 +18,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "first_run_tour.h"
@@ -32,7 +33,6 @@
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "spoolman_manager.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

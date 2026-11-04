@@ -29,6 +29,7 @@
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
 #include "bed_plate_context.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -36,7 +37,6 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "standard_macros.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <array>

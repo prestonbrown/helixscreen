@@ -5,9 +5,9 @@
 
 #include "ui_callback_helpers.h"
 
+#include "core/static_panel_registry.h"
 #include "lvgl.h"
 #include "runtime_config.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "timelapse_state.h"
 #include "ui/ui_widget_helpers.h"

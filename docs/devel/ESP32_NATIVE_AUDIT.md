@@ -159,7 +159,7 @@ BTT's stock K-Touch app: 2.25MB image in 4.5MB OTA A/B slots + 7MB SPIFFS assets
 ## Task 2 — Shim layer + app-core compile sweep ✅ DONE (2026-07-13)
 
 Per-file compile of all 468 `.cpp` under `src/printer/ src/system/ src/ui/` (plus
-`src/application/static_subject_registry.cpp` for the vertical slice) against the
+`src/core/static_subject_registry.cpp` for the vertical slice) against the
 ESP-IDF v5.5 Xtensa toolchain, `-std=gnu++17`, exceptions on, RTTI off (IDF default).
 Runner: the harness's sweep.py; raw data: `audit_sweep_results.csv` (pass 1)
 and `audit_sweep_results_pass2.csv` (pass 2). Zero unclassified rows in either pass.

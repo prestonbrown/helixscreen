@@ -22,6 +22,7 @@
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -29,7 +30,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/z_offset_widget.h"
-#include "static_panel_registry.h"
 #include "tool_state.h"
 #include "z_offset_utils.h"
 

@@ -35,10 +35,10 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "overlay_base.h"
 #include "printer_cache_registry.h"
-#include "static_panel_registry.h"
 
 #include <array>
 

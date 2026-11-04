@@ -7,7 +7,8 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/static_subject_registry.h"
 #include "helix_fs.h"
 #include "lvgl_image_writer.h"
 #include "prerendered_images.h"
@@ -16,7 +17,6 @@
 #include "printer_images.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_subject_registry.h"
 #include "text_io.h"
 #include "wizard_config_paths.h"
 

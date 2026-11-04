@@ -10,11 +10,11 @@
 #include "ui_panel_common.h"
 #include "ui_utils.h"
 
+#include "core/static_panel_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lua_bindings.h"
 #include "plugin_host.h"
 #include "plugin_xml_policy.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

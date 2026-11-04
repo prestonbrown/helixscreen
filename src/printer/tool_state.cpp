@@ -13,8 +13,9 @@
 
 #include "ams_state.h"
 #include "config.h"
+#include "core/data_root_resolver.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
-#include "data_root_resolver.h"
 #include "display_numbering.h"
 #include "fixed_tool_topology.h"
 #include "helix_fs.h"
@@ -26,7 +27,6 @@
 #include "printer_cache_registry.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
-#include "static_subject_registry.h"
 #include "system/helix_paths.h"
 #include "text_io.h"
 #include "tool_offsets.h"

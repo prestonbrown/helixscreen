@@ -4,7 +4,7 @@
 #include "backdrop_blur.h"
 
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "lv_draw_buf_guard.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h" // not exported by lvgl.h
 #include "scoped_guard_file.h"

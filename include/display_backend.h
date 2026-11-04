@@ -14,7 +14,7 @@
 #pragma once
 
 #include "board_identity.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "display_metrics.h"
 #include "text_io.h"
 #include "touch_calibration.h"

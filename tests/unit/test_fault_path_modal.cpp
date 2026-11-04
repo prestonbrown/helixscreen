@@ -39,11 +39,11 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "action_prompt_modal.h"
 #include "ams_types.h"
+#include "core/static_subject_registry.h"
 #include "error_event.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "recovery_modal_presenter.h"
-#include "static_subject_registry.h"
 
 #include <string>
 

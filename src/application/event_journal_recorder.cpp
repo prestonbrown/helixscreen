@@ -2,8 +2,8 @@
 #include "event_journal_recorder.h"
 
 #include "app_globals.h"
+#include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
-#include "data_root_resolver.h"
 #include "gcode_response_lines.h"
 #include "http_executor.h"
 #include "i_moonraker_client.h"

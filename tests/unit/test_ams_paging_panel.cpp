@@ -26,10 +26,10 @@
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "src/ui/ui_filament_path_internal.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <array>

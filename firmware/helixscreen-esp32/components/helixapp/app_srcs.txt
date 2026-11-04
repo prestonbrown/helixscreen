@@ -81,7 +81,7 @@ lib/lv_markdown/src/lv_markdown.c
 lib/lv_markdown/src/lv_markdown_style.c
 src/abort/abort_manager.cpp
 src/application/asset_manager.cpp
-src/application/data_root_resolver.cpp
+src/core/data_root_resolver.cpp
 src/application/discovery_steps_core.cpp
 src/application/display_metrics.cpp
 # clean_error_text only (e-stop recovery dialog) — the full router stays excluded
@@ -94,8 +94,8 @@ src/application/printer_retarget.cpp
 src/application/printer_switch_flow.cpp
 src/application/home_layout_sync.cpp
 src/application/session_wiring.cpp
-src/application/static_panel_registry.cpp
-src/application/static_subject_registry.cpp
+src/core/static_panel_registry.cpp
+src/core/static_subject_registry.cpp
 src/application/subject_initializer.cpp
 src/color_utils.cpp
 src/device_display_name.cpp

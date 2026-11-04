@@ -25,9 +25,9 @@
 #pragma once
 
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 namespace helix::settings {
 

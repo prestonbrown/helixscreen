@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "display_manager.h"
 #include "display_metrics.h"
 #include "helix-xml/src/xml/lv_xml_style.h"
@@ -18,7 +19,6 @@
 #include "screensaver_registry.h"
 #include "screensaver_setting.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
 #include "timezone_env.h"

@@ -69,7 +69,7 @@ flowchart TB
 | [`include/ui_modal.h`](../../../include/ui_modal.h) | `Modal` + `ModalStack` + `modal_confirm()` / `modal_alert()` helpers |
 | [`include/panel_factory.h`](../../../include/panel_factory.h) | Boot wiring: finds the six XML panels, runs `setup()`, registers instances, ESP deferred build |
 | [`src/application/subject_initializer.cpp`](../../../src/application/subject_initializer.cpp) | Calls the roots' `init_subjects()` before any XML is created - the ordering that makes bindings resolve |
-| [`include/static_panel_registry.h`](../../../include/static_panel_registry.h) | `lazy_global<T>()` and the destroy hooks behind every `get_*_overlay()` accessor |
+| [`include/core/static_panel_registry.h`](../../../include/core/static_panel_registry.h) | `lazy_global<T>()` and the destroy hooks behind every `get_*_overlay()` accessor |
 | [`src/application/xml_hot_reloader.cpp`](../../../src/application/xml_hot_reloader.cpp) | Poll + re-register side of hot reload (chapter 01 covers it); rebuild side is `rebuild_active_views()` |
 | [`include/overlay_class.h`](../../../include/overlay_class.h) | `OverlayClass` + `resolve_overlay_is_destination()` - push-time width resolution (#1178) |
 | [`src/ui/ui_settings_safety.cpp`](../../../src/ui/ui_settings_safety.cpp) | Overlay exemplar: singleton accessor, `create()`, `show()` with the register/push pairing |

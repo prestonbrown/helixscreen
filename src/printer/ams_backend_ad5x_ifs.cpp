@@ -11,6 +11,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -30,7 +31,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_subject_registry.h"
 #include "text_io.h"
 #include "toolhead_homing.h"
 

@@ -23,6 +23,7 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "http_executor.h"
 #include "hv/requests.h"
@@ -32,7 +33,6 @@
 #include "runtime_config.h"
 #include "settings_manager.h"
 #include "spoolman_manager.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>

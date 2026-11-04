@@ -21,10 +21,10 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "lvgl.h"
 #include "settings_manager.h"
 #include "sort_small.h"
-#include "static_panel_registry.h"
 #include "ui/ams_drawing_utils.h"
 #include "ui/ui_widget_helpers.h"
 

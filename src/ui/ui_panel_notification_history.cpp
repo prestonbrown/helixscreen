@@ -13,9 +13,9 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "lvgl.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "system/update_checker.h"
 #include "ui/ui_widget_helpers.h"
 

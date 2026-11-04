@@ -11,8 +11,8 @@
 
 #include "abort_manager.h"
 #include "app_globals.h"
+#include "core/data_root_resolver.h"
 #include "core/update_queue.h"
-#include "data_root_resolver.h"
 #include "discovery_steps.h"
 #include "display_settings_manager.h"
 #include "filament_consumption_tracker.h"

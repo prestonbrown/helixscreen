@@ -3,10 +3,10 @@
 
 #include "ui_panel_memory_stats.h"
 
+#include "core/static_panel_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

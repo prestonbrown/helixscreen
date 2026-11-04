@@ -16,6 +16,7 @@
 #include "app_globals.h"
 #include "audio_settings_manager.h"
 #include "core/gcode_filename.h"
+#include "core/static_subject_registry.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
@@ -24,7 +25,6 @@
 #include "moonraker_manager.h"
 #include "printer_state.h"
 #include "sound_manager.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "temperature_controller.h"
 

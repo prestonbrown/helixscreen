@@ -4,8 +4,8 @@
 
 #include "ams_state.h"
 #include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "display_numbering.h"
-#include "static_subject_registry.h"
 #include "tool_state.h"
 
 #include <spdlog/spdlog.h>

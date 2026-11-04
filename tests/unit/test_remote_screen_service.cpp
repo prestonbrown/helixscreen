@@ -12,6 +12,7 @@
 #include "../test_helpers/raw_http_client.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "moonraker_api.h"
@@ -25,7 +26,6 @@
 #include "remote_screen_service.h"
 #include "remote_screen_settings_manager.h"
 #include "remote_screen_webcam.h"
-#include "static_subject_registry.h"
 #include "system/debug_bundle_collector.h"
 #include "webcam_selection.h"
 
