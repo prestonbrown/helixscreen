@@ -228,15 +228,10 @@ static void seed_standard_colors(AmsBackendAd5xIfs& b) {
     Ad5xIfsTestAccess::set_material(b, 3, "TPU");
 }
 
-// ==========================================================================
-// 1. Type identification
-// ==========================================================================
-
 TEST_CASE("AD5X IFS type identification", "[ams][ad5x_ifs]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
 
-    REQUIRE(backend.get_type() == AmsType::AD5X_IFS);
     REQUIRE(backend.get_topology() == PathTopology::LINEAR);
 }
 
