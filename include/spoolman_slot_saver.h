@@ -132,6 +132,16 @@ class SpoolmanSlotSaver {
     static MissingFilamentFields missing_filament_fields(const SlotInfo& slot);
 
     /**
+     * @brief Carry the Spoolman ids a successful save assigned onto @p committed.
+     *
+     * Applies only when the save created a spool or repointed one. A save that
+     * lands on a different Spoolman filament also drops the Orca preset id,
+     * which named the previous filament; the catalog fallback applies until the
+     * next fetch of the spool states the new filament's id.
+     */
+    static void apply_save_result_identity(SlotInfo& committed, const SaveResult& result);
+
+    /**
      * @brief Split spool edits into the two Spoolman PATCH bodies.
      *
      * Per-spool fields (remaining_weight, price, lot_nr, comment, location,

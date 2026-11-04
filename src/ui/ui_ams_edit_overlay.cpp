@@ -2366,17 +2366,7 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     return;
                 }
                 SlotInfo committed = cap.saving;
-                if (result.created_new_spool || result.repointed_filament) {
-                    if (result.new_spool_id != 0) {
-                        committed.spoolman_id = result.new_spool_id;
-                    }
-                    if (result.new_filament_id != 0) {
-                        committed.spoolman_filament_id = result.new_filament_id;
-                    }
-                    if (result.new_vendor_id != 0) {
-                        committed.spoolman_vendor_id = result.new_vendor_id;
-                    }
-                }
+                helix::SpoolmanSlotSaver::apply_save_result_identity(committed, result);
                 if (result.repointed_filament) {
                     // The spool now carries the identity this save
                     // wrote. File it as the lane's Spoolman record
