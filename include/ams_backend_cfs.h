@@ -159,7 +159,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
         return AmsType::CFS;
     }
 
-    // CFS ships only on K2-series printers.
     // State queries
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
 
@@ -197,6 +196,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
         // does so while a job runs.
         t.raises_runout_fault = true;
         t.raises_runout_fault_during_job = true;
+        // The style for a CFS printer the printer database does not cover.
         t.toolhead_style_hint = helix::ToolheadStyle::CREALITY_K2;
         return t;
     }();

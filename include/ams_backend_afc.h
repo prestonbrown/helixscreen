@@ -266,7 +266,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         t.raises_runout_fault = true;
         t.raises_runout_fault_during_job = true;
         t.lane_noun = helix::ui::LaneNoun::Lane;
-        // A link of the loaded lane makes the firmware set Moonraker's active spool.
+        // SET_SPOOL_ID on the lane loaded to the toolhead calls its own
+        // set_active_spool (AFC_spool.py#cmd_SET_SPOOL_ID).
         t.sets_active_spool_on_link = true;
         return t;
     }();
@@ -281,8 +282,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     [[nodiscard]] bool manages_active_spool() const override {
         return true;
     }
-    /// SET_SPOOL_ID on the lane loaded to the toolhead calls its own
-    /// set_active_spool (AFC_spool.py#cmd_SET_SPOOL_ID).
+
     /**
      * @brief Does this lane status payload prove AFC publishes the v1.2.0 field set?
      *

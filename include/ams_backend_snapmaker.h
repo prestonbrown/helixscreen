@@ -67,9 +67,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         return AmsType::SNAPMAKER;
     }
 
-    /// The U1's own UI names these "Feeder 1".."Feeder 4" (verified against its
-    /// firmware UI binary: zero occurrences of Slot, Lane, or capitalised
-    /// Channel), never our "slot".
     // State queries
     /// Four physical heads, up to 32 logical tools: [0,1,2,3,0,0,...]. Verified
     /// live against print_task_config.extruder_map_table on a U1.
@@ -159,11 +156,16 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         // Each head has its own lane and AUTO_FEEDING runs one direction, so
         // an unload is never the first half of a swap.
         t.unloads_stand_alone = true;
+        // The U1's own UI names these "Feeder 1".."Feeder 4" (verified against its
+        // firmware UI binary: zero occurrences of Slot, Lane, or capitalised
+        // Channel), never our "slot".
         t.lane_noun = helix::ui::LaneNoun::Feeder;
-        // The U1's own firmware UI spells filament entry "Feeder 1".."Feeder 4"
-        // and the printing end "Toolhead 1".."Toolhead 4": two words for two
-        // physical things (where filament enters, where it prints), counted 1:1.
+        // The printing end is "Toolhead 1".."Toolhead 4": a different word naming a
+        // different physical thing (where filament enters vs. where it prints)
+        // despite the 1:1 count.
         t.tool_noun = helix::ui::LaneNoun::Toolhead;
+        // print_task_config.py's reset_print_info() returns extruder_map_table to
+        // identity at every print end (complete, cancel, error).
         t.print_routing_resets_to_identity = true;
         return t;
     }();
@@ -415,8 +417,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// new print's state.
     void note_print_start_from_here() override;
 
-    /// print_task_config.py's reset_print_info() returns extruder_map_table to
-    /// identity at every print end (complete, cancel, error).
     /// SET_PRINT_USED_EXTRUDERS for @p tools_used at their default heads, no
     /// map, plus the per-print unload choice. Only while the firmware's map
     /// still reads its default for every used tool: a map a failed start left
