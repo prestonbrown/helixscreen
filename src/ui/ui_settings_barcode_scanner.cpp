@@ -64,6 +64,11 @@ BarcodeScannerSettingsOverlay::~BarcodeScannerSettingsOverlay() {
     // loader.deinit(bt_ctx_) below. At process exit this is acceptable
     // (kernel tears down); for any future path that destroys the singleton
     // while the process continues, promote the discovery thread to joinable.
+    // An overlay destroyed while active never reaches on_deactivate(), and the static
+    // XML callbacks would then reach a freed instance.
+    if (s_active_instance_ == this) {
+        s_active_instance_ = nullptr;
+    }
     stop_bt_discovery();
 
     if (subjects_initialized_) {

@@ -8,6 +8,8 @@
 #include "display_settings_manager.h"
 #include "macro_param_modal.h"
 
+#include <cstring>
+#include <new>
 #include <string>
 #include <vector>
 
@@ -62,5 +64,21 @@ TEST_CASE_METHOD(MacroDismissFixture, "A backdrop close leaves no live instance 
     // A late Run press from the closed dialog's callbacks reaches nothing.
     helix::MacroParamModal::run_cb(nullptr);
     process_lvgl(20);
+    CHECK(runs == 0);
+}
+
+TEST_CASE_METHOD(MacroDismissFixture, "A modal destroyed while shown leaves no live instance behind",
+                 "[macro][macro_params][dismiss]") {
+    alignas(helix::MacroParamModal) unsigned char storage[sizeof(helix::MacroParamModal)];
+    auto* doomed = new (storage) helix::MacroParamModal;
+    auto params = helix::parse_macro_params(PARAMS_TEMPLATE);
+    doomed->show_for_macro(lv_screen_active(), "MY_MACRO", params,
+                           [this](const auto&) { ++runs; });
+    REQUIRE(doomed->dialog() != nullptr);
+    doomed->~MacroParamModal();
+    std::memset(storage, 0, sizeof(storage));
+
+    // A pointer left at the freed instance dispatches through its zeroed vtable.
+    helix::MacroParamModal::run_cb(nullptr);
     CHECK(runs == 0);
 }

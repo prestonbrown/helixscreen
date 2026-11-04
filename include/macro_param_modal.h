@@ -60,7 +60,7 @@ using MacroExecuteCallback = std::function<void(const MacroParamResult& result)>
 class MacroParamModal : public Modal {
   public:
     MacroParamModal() = default;
-    ~MacroParamModal() override = default;
+    ~MacroParamModal() override;
 
     const char* get_name() const override {
         return "Macro Parameters";
