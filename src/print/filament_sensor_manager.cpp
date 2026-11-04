@@ -79,6 +79,49 @@ class Fnv1a {
     uint32_t h_ = 2166136261u;
 };
 
+/// What can quiet the toast for one sensor edge. Runout detection and its
+/// subjects fire regardless; only the toast is at stake.
+struct ToastSuppressionTerms {
+    bool startup_grace = false;
+    /// A load or unload moves filament past sensors on purpose.
+    bool ams_active = false;
+    bool idle_unload_expected = false;
+    /// The backend's own prompt is already telling the story (#1388). A backend
+    /// that owns nothing, and no backend at all, keeps the toast: there it is the
+    /// only runout signal.
+    bool runout_surface_owned = false;
+    bool wizard_active = false;
+    /// An unload the user asked for ends by dragging filament off the sensor, and
+    /// that edge lands seconds AFTER the action returns to IDLE, past ams_active.
+    /// Only the REMOVAL side counts: an insertion in the same window is still news,
+    /// and the manual-pull prompt on this same edge (ui_manual_pull_prompt.cpp) is a
+    /// separate, deliberately-armed INFO.
+    bool post_unload_removal = false;
+};
+
+/// Why this edge gets no toast, or nullptr when nothing suppresses it.
+[[nodiscard]] const char* suppression_reason(const ToastSuppressionTerms& terms) {
+    if (terms.startup_grace) {
+        return "startup grace period";
+    }
+    if (terms.ams_active) {
+        return "AMS operation";
+    }
+    if (terms.idle_unload_expected) {
+        return "idle unload expected";
+    }
+    if (terms.runout_surface_owned) {
+        return "backend owns the runout surface during the job";
+    }
+    if (terms.wizard_active) {
+        return "wizard active";
+    }
+    if (terms.post_unload_removal) {
+        return "removal after a requested unload";
+    }
+    return nullptr;
+}
+
 } // namespace
 
 // ============================================================================
@@ -953,6 +996,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
     const auto print_outcome = static_cast<PrintOutcome>(
         lv_subject_get_int(get_printer_state().print_state().get_print_outcome_subject()));
 
+    // A sensor whose edges are the user's business at all: the feature is on, and
+    // this sensor is enabled with a filament role.
+    const auto sensor_announces = [this](const SensorEntry& s) {
+        return master_enabled_ && s.enabled && filament_role(s) != FilamentSensorRole::NONE;
+    };
+
     // Phase 1: Update state under lock, collect notifications
     {
         std::lock_guard<std::recursive_mutex> lock(mutex());
@@ -1058,29 +1107,6 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 notif.old_state = old_state;
                 notif.new_state = state;
                 notif.role = filament_role(sensor);
-                // Toasts are suppressed during the startup grace period, wizard
-                // setup, and active AMS filament operations (load/unload moves
-                // filament past sensors intentionally, generating spurious
-                // triggers), and - while a job holds the machine - whenever the
-                // filament backend owns the runout surface for that phase (its
-                // own prompt already tells the story; see #1388). A backend that
-                // owns nothing, and no backend at all, keeps the toast: there it
-                // is the only runout signal. ams_active, idle_unload_expected and
-                // runout_surface_owned_during_job were read above, before the
-                // lock. The runout ROLE is preserved either way, so runout
-                // detection and its subjects still fire in-print; only the
-                // toast is quieted.
-                // An unload the user asked for ends by dragging filament off the
-                // sensor, and that edge lands seconds AFTER the action returns to
-                // IDLE — so ams_active above is already false by then and cannot
-                // cover it. Warning that filament was removed is noise when the
-                // user is the one who just removed it. Peeked, never consumed:
-                // the idle runout modal owns the one shot.
-                // Only the REMOVAL side is suppressed; an insertion in the same
-                // window is still news, and the manual-pull prompt that fires on
-                // this same edge (ui_manual_pull_prompt.cpp) is a separate,
-                // deliberately-armed INFO and is untouched here.
-                const bool post_unload_removal = !state.filament_detected && post_unload_grace;
                 // A sensor the firmware stood down (or just stood up) does not
                 // announce edges: the change happened outside its monitoring
                 // window, so we did not observe it. Re-enabling a sensor that
@@ -1096,11 +1122,21 @@ void FilamentSensorManager::update_from_status(const json& status) {
                     filament_role(sensor) != FilamentSensorRole::NONE) {
                     observed_runouts_.insert(sensor.klipper_name);
                 }
-                notif.should_toast = !within_grace_period && !is_wizard_active() && !ams_active &&
-                                     !idle_unload_expected && !post_unload_removal &&
-                                     !runout_surface_owned_during_job && master_enabled_ &&
-                                     observed_while_monitoring && sensor.enabled &&
-                                     filament_role(sensor) != FilamentSensorRole::NONE;
+                ToastSuppressionTerms terms;
+                terms.startup_grace = within_grace_period;
+                terms.ams_active = ams_active;
+                terms.idle_unload_expected = idle_unload_expected;
+                terms.runout_surface_owned = runout_surface_owned_during_job;
+                terms.wizard_active = is_wizard_active();
+                terms.post_unload_removal = !state.filament_detected && post_unload_grace;
+                const char* const suppressed_by = suppression_reason(terms);
+                const bool announces = sensor_announces(sensor);
+                if (suppressed_by && announces) {
+                    spdlog::debug("[FilamentSensorManager] Suppressing toast for {} - {} ({})",
+                                  sensor.display_name, suppressed_by,
+                                  ams_type_to_string(backend_type));
+                }
+                notif.should_toast = !suppressed_by && announces && observed_while_monitoring;
                 // A removal that owes a dwell is recorded, not announced. A
                 // refill inside the dwell drops the record and silences the
                 // insertion with it: nothing was said, so nothing needs saying.
@@ -1118,26 +1154,6 @@ void FilamentSensorManager::update_from_status(const json& status) {
                     spdlog::debug(
                         "[FilamentSensorManager] {} refilled inside the dwell - not a runout",
                         sensor.display_name);
-                }
-                if (within_grace_period && master_enabled_ && sensor.enabled &&
-                    filament_role(sensor) != FilamentSensorRole::NONE) {
-                    spdlog::debug("[FilamentSensorManager] Suppressing startup toast for {}",
-                                  sensor.display_name);
-                } else if (ams_active && master_enabled_ && sensor.enabled &&
-                           filament_role(sensor) != FilamentSensorRole::NONE) {
-                    spdlog::debug(
-                        "[FilamentSensorManager] Suppressing toast during AMS operation for {}",
-                        sensor.display_name);
-                } else if (idle_unload_expected && master_enabled_ && sensor.enabled &&
-                           filament_role(sensor) != FilamentSensorRole::NONE) {
-                    spdlog::debug("[FilamentSensorManager] Suppressing idle-unload toast for {}",
-                                  sensor.display_name);
-                } else if (runout_surface_owned_during_job && master_enabled_ && sensor.enabled &&
-                           filament_role(sensor) != FilamentSensorRole::NONE) {
-                    spdlog::debug(
-                        "[FilamentSensorManager] Suppressing toast for {} - {} owns the runout "
-                        "surface during the job",
-                        sensor.display_name, ams_type_to_string(backend_type));
                 }
                 notifications.push_back(notif);
             }
@@ -1195,8 +1211,7 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 spdlog::debug("[FilamentSensorManager] Dropping dwell toast for {} - firmware "
                               "stood the sensor down",
                               it->first);
-            } else if (cfg != entries_locked().end() && master_enabled_ && cfg->enabled &&
-                       filament_role(*cfg) != FilamentSensorRole::NONE) {
+            } else if (cfg != entries_locked().end() && sensor_announces(*cfg)) {
                 dwell_expired_removals.push_back(filament_role(*cfg));
                 spdlog::warn("[FilamentSensorManager] RUNOUT CONFIRMED: {} ({}) still clear "
                              "after {}s",
