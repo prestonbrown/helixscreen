@@ -20,14 +20,12 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
-#include "jog_coalescer.h"
 #include "printer_state.h"
 #include "unit_conversions.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
-#include <cmath>
 #include <cstdlib>
 #include <memory>
 
@@ -74,7 +72,8 @@ void CfsChuteCalibrationOverlay::init_subjects() {
                                   "cfs_chute_y_display", subjects_);
         UI_MANAGED_SUBJECT_STRING(s_cfs_chute_saved_text, s_cfs_chute_saved_buf, "",
                                   "cfs_chute_saved_pos", subjects_);
-        UI_MANAGED_SUBJECT_INT(s_cfs_chute_step_idx, 1, "cfs_chute_step_idx", subjects_);
+        UI_MANAGED_SUBJECT_INT(s_cfs_chute_step_idx, helix::kChuteJogDefaultStepIndex,
+                               "cfs_chute_step_idx", subjects_);
     });
 }
 
@@ -82,26 +81,31 @@ void CfsChuteCalibrationOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_chute_start_clicked",
          [](lv_event_t*) { get_cfs_chute_calibration_overlay().start_calibration(); }},
-        {"on_chute_jog_clicked",
-         [](lv_event_t* e) {
-             const char* delta_str = static_cast<const char*>(lv_event_get_user_data(e));
-             if (delta_str) {
-                 get_cfs_chute_calibration_overlay().handle_jog_y(std::atof(delta_str));
-             }
-         }},
         {"on_chute_jog_up_clicked",
-         [](lv_event_t*) { get_cfs_chute_calibration_overlay().jog_up(); }},
+         [](lv_event_t*) {
+             auto& overlay = get_cfs_chute_calibration_overlay();
+             overlay.jog(Axis::Y, overlay.current_step_mm_);
+         }},
         {"on_chute_jog_down_clicked",
-         [](lv_event_t*) { get_cfs_chute_calibration_overlay().jog_down(); }},
+         [](lv_event_t*) {
+             auto& overlay = get_cfs_chute_calibration_overlay();
+             overlay.jog(Axis::Y, -overlay.current_step_mm_);
+         }},
         {"on_chute_jog_left_clicked",
-         [](lv_event_t*) { get_cfs_chute_calibration_overlay().jog_left(); }},
+         [](lv_event_t*) {
+             auto& overlay = get_cfs_chute_calibration_overlay();
+             overlay.jog(Axis::X, -overlay.current_step_mm_);
+         }},
         {"on_chute_jog_right_clicked",
-         [](lv_event_t*) { get_cfs_chute_calibration_overlay().jog_right(); }},
+         [](lv_event_t*) {
+             auto& overlay = get_cfs_chute_calibration_overlay();
+             overlay.jog(Axis::X, overlay.current_step_mm_);
+         }},
         {"on_chute_step_clicked",
          [](lv_event_t* e) {
-             const char* step_str = static_cast<const char*>(lv_event_get_user_data(e));
-             if (step_str) {
-                 get_cfs_chute_calibration_overlay().set_step_size(std::atof(step_str));
+             const char* index_str = static_cast<const char*>(lv_event_get_user_data(e));
+             if (index_str) {
+                 get_cfs_chute_calibration_overlay().set_step_index(std::atoi(index_str));
              }
          }},
         {"on_chute_save_clicked",
@@ -122,7 +126,8 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Live toolhead X and Y readouts
+    // Live toolhead X and Y: the save step writes whatever position the head is
+    // in, so the readouts are the values being calibrated.
     auto& ps = get_printer_state();
     x_observer_ = observe<int>(
         ps.motion_state().get_position_x_subject(), this,
@@ -138,6 +143,9 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
 void CfsChuteCalibrationOverlay::on_activate() {
     OverlayBase::on_activate();
     cancel_requested_->store(false);
+    // A coarse step left selected from an earlier session must not carry over.
+    set_step_index(helix::kChuteJogDefaultStepIndex);
+    jog_guard_.disarm();
     set_state(State::IDLE);
 }
 
@@ -166,10 +174,6 @@ void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
 
 void CfsChuteCalibrationOverlay::set_state(State state) {
     lv_subject_set_int(&s_cfs_chute_state, static_cast<int>(state));
-    if (state == State::ADJUSTING) {
-        edge_warned_x_ = false;
-        edge_warned_y_ = false;
-    }
 }
 
 void CfsChuteCalibrationOverlay::start_calibration() {
@@ -180,7 +184,12 @@ void CfsChuteCalibrationOverlay::start_calibration() {
     set_state(State::HOMING);
     cancel_requested_->store(false);
     auto err = backend->start_chute_calibration(
-        [this]() { set_state(State::ADJUSTING); },
+        [this]() {
+            // Armed here and not in set_state(): a refused save also returns to
+            // ADJUSTING, with the head possibly past park.
+            jog_guard_.arm(lv_tick_get());
+            set_state(State::ADJUSTING);
+        },
         [this](const std::string& klipper_msg) {
             NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"), klipper_msg);
             set_state(State::IDLE);
@@ -192,96 +201,56 @@ void CfsChuteCalibrationOverlay::start_calibration() {
     }
 }
 
-void CfsChuteCalibrationOverlay::handle_jog(double delta_mm) {
-    handle_jog_y(delta_mm);
+void CfsChuteCalibrationOverlay::set_step_index(int index) {
+    current_step_mm_ = helix::chute_jog_step_mm(index);
+    lv_subject_set_int(&s_cfs_chute_step_idx, index);
 }
 
-void CfsChuteCalibrationOverlay::jog_up() {
-    handle_jog_y(current_step_mm_);
-}
-
-void CfsChuteCalibrationOverlay::jog_down() {
-    handle_jog_y(-current_step_mm_);
-}
-
-void CfsChuteCalibrationOverlay::jog_left() {
-    handle_jog_x(-current_step_mm_);
-}
-
-void CfsChuteCalibrationOverlay::jog_right() {
-    handle_jog_x(current_step_mm_);
-}
-
-void CfsChuteCalibrationOverlay::set_step_size(double step_mm) {
-    current_step_mm_ = step_mm;
-    int idx = 1; // default 0.5
-    if (std::abs(step_mm - 0.1) < 0.05) {
-        idx = 0;
-    } else if (std::abs(step_mm - 0.5) < 0.05) {
-        idx = 1;
-    } else if (std::abs(step_mm - 1.0) < 0.05) {
-        idx = 2;
-    } else if (std::abs(step_mm - 10.0) < 0.5) {
-        idx = 3;
-    }
-    lv_subject_set_int(&s_cfs_chute_step_idx, idx);
-}
-
-void CfsChuteCalibrationOverlay::handle_jog_y(double delta_mm) {
+void CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
     auto* backend = chute_backend();
     if (!backend) {
         return;
     }
 
-    // Soft-stop against the live envelope. The jog script's M400 means each
-    // RPC returns with the move finished, so there is no uncommitted travel
-    // to fold in (unlike the motion panel's coalescer).
-    double delta = delta_mm;
+    // Both axes must be known on either axis's jog: the first one latches the
+    // park position the X limits are measured from.
     const auto bounds = get_printer_state().motion_state().get_axis_bounds();
-    if (helix::jog_refused_for_unknown_position(bounds.has_y, y_known_)) {
-        // With no envelope or no live position there is nothing to clamp
-        // against, so an unclamped jog must not go out.
+    if (helix::jog_refused_for_unknown_position(bounds.has_x && bounds.has_y,
+                                                x_known_ && y_known_)) {
         NOTIFY_INFO(lv_tr("Toolhead position unknown"));
         return;
     }
-    const auto result =
-        helix::clamp_jog_with_warn(current_y_mm_, 0.0, delta, static_cast<double>(bounds.y_min),
-                                   static_cast<double>(bounds.y_max), edge_warned_y_);
-    edge_warned_y_ = result.latch;
-    delta = result.allowed;
-    if (result.warn) {
-        NOTIFY_INFO(lv_tr("Y axis limit reached"));
-    }
-    if (std::abs(delta) <= helix::AxisMove::kEpsilonMm) {
-        return;
-    }
-    backend->jog_chute_y(static_cast<float>(delta));
-}
 
-void CfsChuteCalibrationOverlay::handle_jog_x(double delta_mm) {
-    auto* backend = chute_backend();
-    if (!backend) {
-        return;
-    }
+    const uint32_t now = lv_tick_get();
+    const auto decision =
+        axis == Axis::X
+            ? jog_guard_.jog_x(delta_mm, now, current_x_mm_, current_y_mm_,
+                               static_cast<double>(bounds.x_min), static_cast<double>(bounds.x_max))
+            : jog_guard_.jog_y(delta_mm, now, current_x_mm_, current_y_mm_,
+                               static_cast<double>(bounds.y_min),
+                               static_cast<double>(bounds.y_max));
 
-    double delta = delta_mm;
-    const auto bounds = get_printer_state().motion_state().get_axis_bounds();
-    if (helix::jog_refused_for_unknown_position(bounds.has_x, x_known_)) {
+    switch (decision.outcome) {
+    case helix::ChuteJogGuard::Outcome::Move:
+        if (axis == Axis::X) {
+            backend->jog_chute_x(static_cast<float>(decision.delta));
+        } else {
+            backend->jog_chute_y(static_cast<float>(decision.delta));
+        }
+        break;
+    case helix::ChuteJogGuard::Outcome::PositionUnknown:
         NOTIFY_INFO(lv_tr("Toolhead position unknown"));
-        return;
+        break;
+    case helix::ChuteJogGuard::Outcome::AxisLimit:
+        if (decision.warn) {
+            NOTIFY_INFO(axis == Axis::X ? lv_tr("X axis limit reached")
+                                        : lv_tr("Y axis limit reached"));
+        }
+        break;
+    case helix::ChuteJogGuard::Outcome::PastPark:
+        NOTIFY_INFO(lv_tr("Jog Y back to {:.1f} mm before moving X"), jog_guard_.park_y());
+        break;
     }
-    const auto result =
-        helix::clamp_jog_with_warn(current_x_mm_, 0.0, delta, static_cast<double>(bounds.x_min),
-                                   static_cast<double>(bounds.x_max), edge_warned_x_);
-    edge_warned_x_ = result.latch;
-    delta = result.allowed;
-    if (result.warn) {
-        NOTIFY_INFO(lv_tr("X axis limit reached"));
-    }
-    if (std::abs(delta) <= helix::AxisMove::kEpsilonMm) {
-        return;
-    }
-    backend->jog_chute_x(static_cast<float>(delta));
 }
 
 void CfsChuteCalibrationOverlay::save_position() {

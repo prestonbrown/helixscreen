@@ -110,6 +110,7 @@ translations:
   180° Upside Down: 180° 上下反転
   2 min: '2分'
   2 minutes: 2分
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. XとYをジョグして、ノズルがシュートの開口部の中心に来るようにします
   2. Jog Y until the nozzle is centered over the chute opening: 2. Yをジョグして、ノズルがシュートの開口部の中心に来るようにします
 
   2. Place paper between nozzle and bed: 2. ノズルとベッドの間に紙を置いてください
@@ -1931,6 +1932,7 @@ translations:
   Jog Pad: 'ジョグパッド'
   Jog Speed XY: XY ジョグ速度
   Jog Speed Z: Z ジョグ速度
+  Jog Y back to {:.1f} mm before moving X: Xを動かす前にYを{:.1f} mmまでジョグして戻します
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Yをジョグしてノズルがシュートの開口部の中心に来たら、保存をタップします。
 
   'Jog failed: {}': 'ジョグに失敗しました: {}'
@@ -4164,6 +4166,7 @@ translations:
   Toolhead Offset Calibration: ツールヘッドオフセットのキャリブレーション
   Toolhead Sensor: ツールヘッドセンサー
   Toolhead Style: ツールヘッドスタイル
+  Toolhead X: ツールヘッド X
   Toolhead Y: ツールヘッド Y
   Toolhead jam: ツールヘッドの詰まり
   Toolhead offset calibration: ツールヘッドオフセットのキャリブレーション
@@ -4461,6 +4464,7 @@ translations:
   X and Y jog feedrate: X/Y軸のジョグ移動速度
   X axis applied, but Y axis failed: X軸は適用されましたが、Y軸は失敗しました
   X axis done, starting Y...: 'X軸が完了しました。Y軸を開始します...'
+  X axis limit reached: X軸のリミットに達しました
   X is at its limit ({}mm): X軸は限界に達しています ({}mm)
   'X:': 'X:'
   XY: XY

@@ -111,6 +111,7 @@ translations:
   180° Upside Down: 180° invertido
   2 min: '2 min'
   2 minutes: 2 minutos
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. Mova X e Y até o bocal ficar centralizado sobre a abertura da calha
   2. Jog Y until the nozzle is centered over the chute opening: 2. Mova Y até o bocal ficar centralizado sobre a abertura da calha
 
   2. Place paper between nozzle and bed: 2. Coloque papel entre o bico e a mesa
@@ -2042,6 +2043,7 @@ translations:
   Jog Pad: 'Pad de jog'
   Jog Speed XY: Velocidade de movimento XY
   Jog Speed Z: Velocidade de movimento Z
+  Jog Y back to {:.1f} mm before moving X: Retorne Y para {:.1f} mm antes de mover X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Mova Y até o bocal ficar centralizado sobre a abertura da calha e toque em Salvar.
 
   'Jog failed: {}': 'Falha ao mover: {}'
@@ -4406,6 +4408,7 @@ translations:
   Toolhead Offset Calibration: Calibração de offsets dos cabeçotes
   Toolhead Sensor: Sensor do Cabeçote
   Toolhead Style: Estilo do Cabeçote
+  Toolhead X: Cabeçote X
   Toolhead Y: Cabeçote Y
   Toolhead jam: Atolamento do cabeçote
   Toolhead offset calibration: Calibração de offsets dos cabeçotes
@@ -4715,6 +4718,7 @@ translations:
   X and Y jog feedrate: Velocidade de movimento dos eixos X e Y
   X axis applied, but Y axis failed: Eixo X aplicado, mas eixo Y falhou
   X axis done, starting Y...: 'Eixo X concluído, iniciando Y...'
+  X axis limit reached: Limite do eixo X alcançado
   X is at its limit ({}mm): X está no seu limite ({}mm)
   'X:': 'X:'
   XY: XY

@@ -629,6 +629,13 @@ y: <v>" sweep lines are `gcode:<lambda>` log lines and do not reliably reach the
 Cancel/abort behaviour of the stock screen is unknown (never captured); HelixScreen sends
 `CMD=Y_SAFE` on leaving the jog step, the conservative unwind.
 
+HelixScreen also offers X jogging, which the stock screen does not. The capture never moved X
+before a save, so SAVE_POS writing a jogged X is read from its "reads the live position"
+behaviour and not yet seen on a machine, and nothing is recorded about what clears the head
+at other X positions past `safe_pos_y`, where the chute and cutter sit. `ChuteJogGuard`
+(`include/chute_jog_guard.h`) therefore refuses X while Y is past the park position and keeps
+X within 15 mm of where PREPARE parked it, on top of the live axis bounds.
+
 ### Machine geometry from the same log
 
 `[stepper_y] position_min=-0.5 position_max=307.5` (`gcode_position_max=295`, a Creality

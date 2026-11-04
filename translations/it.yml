@@ -111,6 +111,7 @@ translations:
   180° Upside Down: 180° capovolto
   2 min: '2 min'
   2 minutes: 2 minuti
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. Muovi X e Y finché l'ugello non è centrato sull'apertura del condotto
   2. Jog Y until the nozzle is centered over the chute opening: 2. Muovi Y finché l'ugello non è centrato sull'apertura del condotto
 
   2. Place paper between nozzle and bed: 2. Posizionare carta tra ugello e piano
@@ -2038,6 +2039,7 @@ translations:
   Jog Pad: 'Pad di jog'
   Jog Speed XY: Velocità di movimento XY
   Jog Speed Z: Velocità di movimento Z
+  Jog Y back to {:.1f} mm before moving X: Riporta Y a {:.1f} mm prima di muovere X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Muovi Y finché l'ugello non è centrato sull'apertura del condotto, poi tocca Salva.
 
   'Jog failed: {}': 'Movimento fallito: {}'
@@ -4402,6 +4404,7 @@ translations:
   Toolhead Offset Calibration: Calibrazione offset testine
   Toolhead Sensor: Sensore testina
   Toolhead Style: Stile testina
+  Toolhead X: Testina X
   Toolhead Y: Testina Y
   Toolhead jam: Inceppamento testina
   Toolhead offset calibration: Calibrazione offset testine
@@ -4712,6 +4715,7 @@ translations:
   X and Y jog feedrate: Velocità di avanzamento del movimento X e Y
   X axis applied, but Y axis failed: Asse X applicato, ma asse Y fallito
   X axis done, starting Y...: 'Asse X completato, avvio di Y...'
+  X axis limit reached: Limite asse X raggiunto
   X is at its limit ({}mm): X è al suo limite ({}mm)
   'X:': 'X:'
   XY: XY

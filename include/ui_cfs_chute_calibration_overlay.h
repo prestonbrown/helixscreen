@@ -5,6 +5,7 @@
 
 #include "ui_observer_guard.h"
 
+#include "chute_jog_guard.h"
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
@@ -20,10 +21,11 @@ namespace helix::ui {
  * printers (K1 stock command dialect).
  *
  * Walks the stock screen's verified choreography (prestonbrown/helixscreen#1282):
- * full home (XYZ_ZERO), prepare (COORDINATES_ADJUST_PREPARE), Y-only jogging
- * to line the toolhead up with the chute, then save (COORDINATES_ADJUST_SAVE_POS
- * + Y_SAFE). All gcode goes through AmsBackendCfs; this overlay owns only the
- * step machine, the live-Y readout and the jog clamping.
+ * full home (XYZ_ZERO), prepare (COORDINATES_ADJUST_PREPARE), jogging to line
+ * the toolhead up with the chute, then save (COORDINATES_ADJUST_SAVE_POS +
+ * Y_SAFE). The stock screen jogs Y only; X jogging is an addition here, limited
+ * by ChuteJogGuard. All gcode goes through AmsBackendCfs; this overlay owns only
+ * the step machine and the live readouts.
  *
  * @pattern Overlay (lazy init, singleton via get_cfs_chute_calibration_overlay())
  * @threading Main thread only
@@ -67,29 +69,22 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
 
     void set_state(State state);
     void start_calibration();
-    void handle_jog(double delta_mm);
-    void handle_jog_y(double delta_mm);
-    void handle_jog_x(double delta_mm);
-    void jog_up();
-    void jog_down();
-    void jog_left();
-    void jog_right();
-    void set_step_size(double step_mm);
+    enum class Axis { X, Y };
+    void jog(Axis axis, double delta_mm);
+    void set_step_index(int index);
     void save_position();
     void update_x_display(int centimm);
     void update_y_display(int centimm);
 
-    /// Live toolhead X/Y in mm, from the position subjects; drives the readout
-    /// and the jog clamp.
+    /// Live toolhead X/Y in mm, from the position subjects; drives the readouts
+    /// and the jog limits.
     double current_x_mm_ = 0.0;
     bool x_known_ = false;
-    bool edge_warned_x_ = false;
-
     double current_y_mm_ = 0.0;
     bool y_known_ = false;
-    bool edge_warned_y_ = false;
 
-    double current_step_mm_ = 0.5;
+    double current_step_mm_ = helix::chute_jog_step_mm(helix::kChuteJogDefaultStepIndex);
+    helix::ChuteJogGuard jog_guard_;
 
     /// Set the moment the overlay starts leaving; the backend polls it at
     /// each step boundary so a cancel during the home drops the flow instead

@@ -155,6 +155,7 @@ translations:
   180° Upside Down: 180° вверх ногами
   2 min: '2 мин'
   2 minutes: 2 минуты
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. Двигайте X и Y, пока сопло не встанет по центру отверстия жёлоба
   2. Jog Y until the nozzle is centered over the chute opening: 2. Двигайте Y, пока сопло не встанет по центру отверстия жёлоба
 
   2. Place paper between nozzle and bed: 2. Положите бумагу между соплом и столом
@@ -2081,6 +2082,7 @@ translations:
   Jog Pad: 'Джог-панель'
   Jog Speed XY: Скорость перемещения XY
   Jog Speed Z: Скорость перемещения Z
+  Jog Y back to {:.1f} mm before moving X: Верните Y на {:.1f} мм, прежде чем двигать X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Двигайте Y, пока сопло не встанет по центру отверстия жёлоба, затем нажмите «Сохранить».
 
   'Jog failed: {}': 'Перемещение не удалось: {}'
@@ -4442,6 +4444,7 @@ translations:
   Toolhead Offset Calibration: Калибровка смещений головок
   Toolhead Sensor: Датчик печатающей головки
   Toolhead Style: Стиль печатающей головки
+  Toolhead X: Печатающая головка X
   Toolhead Y: Печатающая головка Y
   Toolhead jam: Замятие в печатающей головке
   Toolhead offset calibration: Калибровка смещений головок
@@ -4748,6 +4751,7 @@ translations:
   X and Y jog feedrate: Скорость перемещения по осям X и Y
   X axis applied, but Y axis failed: Ось X применена, но ось Y не удалась
   X axis done, starting Y...: 'Ось X готова, запуск Y...'
+  X axis limit reached: Достигнут предел оси X
   X is at its limit ({}mm): X на пределе ({}mm)
   'X:': 'X:'
   XY: XY

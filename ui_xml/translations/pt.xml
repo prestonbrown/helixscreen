@@ -109,6 +109,7 @@
   <translation tag="180° Upside Down" pt="180° invertido"/>
   <translation tag="2 min" pt="2 min"/>
   <translation tag="2 minutes" pt="2 minutos"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" pt="2. Mova X e Y até o bocal ficar centralizado sobre a abertura da calha"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" pt="2. Mova Y até o bocal ficar centralizado sobre a abertura da calha"/>
   <translation tag="2. Place paper between nozzle and bed" pt="2. Coloque papel entre o bico e a mesa"/>
   <translation tag="2. Results show how much to turn each screw" pt="2. Os resultados mostram quanto girar cada parafuso"/>
@@ -1858,6 +1859,7 @@
   <translation tag="Jog Pad" pt="Pad de jog"/>
   <translation tag="Jog Speed XY" pt="Velocidade de movimento XY"/>
   <translation tag="Jog Speed Z" pt="Velocidade de movimento Z"/>
+  <translation tag="Jog Y back to {:.1f} mm before moving X" pt="Retorne Y para {:.1f} mm antes de mover X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." pt="Mova Y até o bocal ficar centralizado sobre a abertura da calha e toque em Salvar."/>
   <translation tag="Jog failed: {}" pt="Falha ao mover: {}"/>
   <translation tag="Jog layout, speeds and step distances" pt="Disposição, velocidades e distâncias de passo do movimento"/>
@@ -3983,6 +3985,7 @@
   <translation tag="Toolhead Offset Calibration" pt="Calibração de offsets dos cabeçotes"/>
   <translation tag="Toolhead Sensor" pt="Sensor do Cabeçote"/>
   <translation tag="Toolhead Style" pt="Estilo do Cabeçote"/>
+  <translation tag="Toolhead X" pt="Cabeçote X"/>
   <translation tag="Toolhead Y" pt="Cabeçote Y"/>
   <translation tag="Toolhead jam" pt="Atolamento do cabeçote"/>
   <translation tag="Toolhead offset calibration" pt="Calibração de offsets dos cabeçotes"/>
@@ -4284,6 +4287,7 @@
   <translation tag="X and Y jog feedrate" pt="Velocidade de movimento dos eixos X e Y"/>
   <translation tag="X axis applied, but Y axis failed" pt="Eixo X aplicado, mas eixo Y falhou"/>
   <translation tag="X axis done, starting Y..." pt="Eixo X concluído, iniciando Y..."/>
+  <translation tag="X axis limit reached" pt="Limite do eixo X alcançado"/>
   <translation tag="X is at its limit ({}mm)" pt="X está no seu limite ({}mm)"/>
   <translation tag="X:" pt="X:"/>
   <translation tag="XY" pt="XY"/>

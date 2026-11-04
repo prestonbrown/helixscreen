@@ -112,6 +112,7 @@ translations:
   180° Upside Down: 180° kopfüber
   2 min: '2 Min'
   2 minutes: 2 Minuten
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. X und Y verfahren, bis die Düse mittig über der Rinnenöffnung steht
   2. Jog Y until the nozzle is centered over the chute opening: 2. Y verfahren, bis die Düse mittig über der Rinnenöffnung steht
 
   2. Place paper between nozzle and bed: 2. Papier zwischen Düse und Bett legen
@@ -2048,6 +2049,7 @@ translations:
   Jog Pad: 'Verfahrpad'
   Jog Speed XY: Bewegungsgeschwindigkeit XY
   Jog Speed Z: Bewegungsgeschwindigkeit Z
+  Jog Y back to {:.1f} mm before moving X: Y auf {:.1f} mm zurückfahren, bevor X bewegt wird
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Verfahren Sie Y, bis die Düse mittig über der Rinnenöffnung steht, und tippen Sie dann auf Speichern.
 
   'Jog failed: {}': 'Bewegung fehlgeschlagen: {}'
@@ -4408,6 +4410,7 @@ translations:
   Toolhead Offset Calibration: Werkzeugkopf-Offset-Kalibrierung
   Toolhead Sensor: Werkzeugkopfsensor
   Toolhead Style: Toolhead-Stil
+  Toolhead X: Werkzeugkopf X
   Toolhead Y: Werkzeugkopf Y
   Toolhead jam: Werkzeugkopf-Stau
   Toolhead offset calibration: Werkzeugkopf-Offset-Kalibrierung
@@ -4718,6 +4721,7 @@ translations:
   X and Y jog feedrate: Vorschub für die X- und Y-Bewegung
   X axis applied, but Y axis failed: X-Achse angewendet, aber Y-Achse fehlgeschlagen
   X axis done, starting Y...: 'X-Achse fertig, starte Y...'
+  X axis limit reached: X-Achsen-Limit erreicht
   X is at its limit ({}mm): X ist an seinem Limit ({}mm)
   'X:': 'X:'
   XY: XY

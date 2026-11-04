@@ -109,6 +109,7 @@ translations:
   180° Upside Down: 180° Upside Down
   2 min: 2 min
   2 minutes: 2 minutes
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. Jog X and Y until the nozzle is centered over the chute opening
   2. Jog Y until the nozzle is centered over the chute opening: 2. Jog Y until the nozzle is centered over the chute opening
   2. Place paper between nozzle and bed: 2. Place paper between nozzle and bed
   2. Results show how much to turn each screw: 2. Results show how much to turn each
@@ -1989,6 +1990,7 @@ translations:
   Jog Pad: Jog Pad
   Jog Speed XY: Jog Speed XY
   Jog Speed Z: Jog Speed Z
+  Jog Y back to {:.1f} mm before moving X: Jog Y back to {:.1f} mm before moving X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Jog Y until the nozzle is centered over the chute opening, then tap Save.
   'Jog failed: {}': 'Jog failed: {}'
   Jog layout, speeds and step distances: Jog layout, speeds and step distances
@@ -4302,6 +4304,7 @@ translations:
   Toolhead Offset Calibration: Toolhead Offset Calibration
   Toolhead Sensor: Toolhead Sensor
   Toolhead Style: Toolhead Style
+  Toolhead X: Toolhead X
   Toolhead Y: Toolhead Y
   Toolhead jam: Toolhead jam
   Toolhead offset calibration: Toolhead offset calibration
@@ -4613,6 +4616,7 @@ translations:
   X and Y jog feedrate: X and Y jog feedrate
   X axis applied, but Y axis failed: X axis applied, but Y axis failed
   X axis done, starting Y...: X axis done, starting Y...
+  X axis limit reached: X axis limit reached
   X is at its limit ({}mm): X is at its limit ({}mm)
   'X:': 'X:'
   XY: XY

@@ -109,6 +109,7 @@
   <translation tag="180° Upside Down" fr="180° à l&apos;envers"/>
   <translation tag="2 min" fr="2 min"/>
   <translation tag="2 minutes" fr="2 minutes"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" fr="2. Déplacez X et Y jusqu&apos;à ce que la buse soit centrée sur l&apos;ouverture de la goulotte"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" fr="2. Déplacez Y jusqu&apos;à ce que la buse soit centrée sur l&apos;ouverture de la goulotte"/>
   <translation tag="2. Place paper between nozzle and bed" fr="2. Placez du papier entre la buse et le plateau"/>
   <translation tag="2. Results show how much to turn each screw" fr="2. Les résultats indiquent combien tourner chaque vis"/>
@@ -1858,6 +1859,7 @@
   <translation tag="Jog Pad" fr="Pavé de jog"/>
   <translation tag="Jog Speed XY" fr="Vitesse de déplacement XY"/>
   <translation tag="Jog Speed Z" fr="Vitesse de déplacement Z"/>
+  <translation tag="Jog Y back to {:.1f} mm before moving X" fr="Ramenez Y à {:.1f} mm avant de déplacer X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." fr="Déplacez Y jusqu&apos;à ce que la buse soit centrée sur l&apos;ouverture de la goulotte, puis appuyez sur Enregistrer."/>
   <translation tag="Jog failed: {}" fr="Échec du déplacement : {}"/>
   <translation tag="Jog layout, speeds and step distances" fr="Disposition, vitesses et distances de pas du déplacement"/>
@@ -3983,6 +3985,7 @@
   <translation tag="Toolhead Offset Calibration" fr="Calibration des offsets des têtes d&apos;outil"/>
   <translation tag="Toolhead Sensor" fr="Capteur de tête d&apos;outil"/>
   <translation tag="Toolhead Style" fr="Style de tête d&apos;outil"/>
+  <translation tag="Toolhead X" fr="Tête d&apos;outil X"/>
   <translation tag="Toolhead Y" fr="Tête d&apos;outil Y"/>
   <translation tag="Toolhead jam" fr="Bourrage de la tête d&apos;outil"/>
   <translation tag="Toolhead offset calibration" fr="Calibration des offsets des têtes d&apos;outil"/>
@@ -4284,6 +4287,7 @@
   <translation tag="X and Y jog feedrate" fr="Vitesse d&apos;avance du déplacement X et Y"/>
   <translation tag="X axis applied, but Y axis failed" fr="Axe X appliqué, mais l&apos;axe Y a échoué"/>
   <translation tag="X axis done, starting Y..." fr="Axe X terminé, démarrage de Y..."/>
+  <translation tag="X axis limit reached" fr="Limite de l&apos;axe X atteinte"/>
   <translation tag="X is at its limit ({}mm)" fr="X est à sa limite ({}mm)"/>
   <translation tag="X:" fr="X :"/>
   <translation tag="XY" fr="XY"/>

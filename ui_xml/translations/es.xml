@@ -109,6 +109,7 @@
   <translation tag="180° Upside Down" es="180° invertido"/>
   <translation tag="2 min" es="2 min"/>
   <translation tag="2 minutes" es="2 minutos"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" es="2. Mueva X e Y hasta que la boquilla quede centrada sobre la apertura del conducto"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" es="2. Mueva Y hasta que la boquilla quede centrada sobre la apertura del conducto"/>
   <translation tag="2. Place paper between nozzle and bed" es="2. Coloque papel entre la boquilla y la cama"/>
   <translation tag="2. Results show how much to turn each screw" es="2. Los resultados muestran cuánto girar cada tornillo"/>
@@ -1858,6 +1859,7 @@
   <translation tag="Jog Pad" es="Pad de jog"/>
   <translation tag="Jog Speed XY" es="Velocidad de movimiento XY"/>
   <translation tag="Jog Speed Z" es="Velocidad de movimiento Z"/>
+  <translation tag="Jog Y back to {:.1f} mm before moving X" es="Regrese Y a {:.1f} mm antes de mover X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." es="Mueva Y hasta que la boquilla quede centrada sobre la apertura del conducto y toque Guardar."/>
   <translation tag="Jog failed: {}" es="Error en movimiento: {}"/>
   <translation tag="Jog layout, speeds and step distances" es="Distribución, velocidades y distancias de paso del movimiento"/>
@@ -3983,6 +3985,7 @@
   <translation tag="Toolhead Offset Calibration" es="Calibración de offsets de cabezales"/>
   <translation tag="Toolhead Sensor" es="Sensor del Cabezal"/>
   <translation tag="Toolhead Style" es="Estilo de Cabezal"/>
+  <translation tag="Toolhead X" es="Cabezal X"/>
   <translation tag="Toolhead Y" es="Cabezal Y"/>
   <translation tag="Toolhead jam" es="Atasco del cabezal"/>
   <translation tag="Toolhead offset calibration" es="Calibración de offsets de cabezales"/>
@@ -4284,6 +4287,7 @@
   <translation tag="X and Y jog feedrate" es="Velocidad de avance del movimiento X y Y"/>
   <translation tag="X axis applied, but Y axis failed" es="Eje X aplicado, pero eje Y falló"/>
   <translation tag="X axis done, starting Y..." es="Eje X terminado, empezando con Y..."/>
+  <translation tag="X axis limit reached" es="Límite del eje X alcanzado"/>
   <translation tag="X is at its limit ({}mm)" es="X está en su límite ({}mm)"/>
   <translation tag="X:" es="X:"/>
   <translation tag="XY" es="XY"/>

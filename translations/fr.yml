@@ -113,6 +113,7 @@ translations:
   180° Upside Down: 180° à l'envers
   2 min: '2 min'
   2 minutes: 2 minutes
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. Déplacez X et Y jusqu'à ce que la buse soit centrée sur l'ouverture de la goulotte
   2. Jog Y until the nozzle is centered over the chute opening: 2. Déplacez Y jusqu'à ce que la buse soit centrée sur l'ouverture de la goulotte
 
   2. Place paper between nozzle and bed: 2. Placez du papier entre la buse et le plateau
@@ -2054,6 +2055,7 @@ translations:
   Jog Pad: 'Pavé de jog'
   Jog Speed XY: Vitesse de déplacement XY
   Jog Speed Z: Vitesse de déplacement Z
+  Jog Y back to {:.1f} mm before moving X: Ramenez Y à {:.1f} mm avant de déplacer X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Déplacez Y jusqu'à ce que la buse soit centrée sur l'ouverture de la goulotte, puis appuyez sur Enregistrer.
 
   'Jog failed: {}': 'Échec du déplacement : {}'
@@ -4433,6 +4435,7 @@ translations:
   Toolhead Offset Calibration: Calibration des offsets des têtes d'outil
   Toolhead Sensor: Capteur de tête d'outil
   Toolhead Style: Style de tête d'outil
+  Toolhead X: Tête d'outil X
   Toolhead Y: Tête d'outil Y
   Toolhead jam: Bourrage de la tête d'outil
   Toolhead offset calibration: Calibration des offsets des têtes d'outil
@@ -4744,6 +4747,7 @@ translations:
   X and Y jog feedrate: Vitesse d'avance du déplacement X et Y
   X axis applied, but Y axis failed: Axe X appliqué, mais l'axe Y a échoué
   X axis done, starting Y...: 'Axe X terminé, démarrage de Y...'
+  X axis limit reached: Limite de l'axe X atteinte
   X is at its limit ({}mm): X est à sa limite ({}mm)
   'X:': 'X :'
   XY: XY

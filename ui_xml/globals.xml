@@ -578,6 +578,15 @@
     <px name="button_height_sm_xlarge" value="48"/>
     <px name="button_height_sm_xxlarge" value="56"/>
 
+    <!-- chute_dpad_width: the XY key cross in the purge chute calibration. The step
+         column takes the rest of the row. -->
+    <px name="chute_dpad_width_micro" value="180"/>
+    <px name="chute_dpad_width_tiny" value="200"/>
+    <px name="chute_dpad_width_small" value="240"/>
+    <px name="chute_dpad_width_medium" value="300"/>
+    <px name="chute_dpad_width_large" value="360"/>
+    <px name="chute_dpad_width_xlarge" value="440"/>
+    <px name="chute_dpad_width_xxlarge" value="520"/>
     <!-- jog_mode_h / jog_mode_w: a jog mode key in the pad layout (icon over
          label). The height holds touch_target_min; the width cap keeps the key
          within 1.4x its height, so a wide row centres its keys instead of

@@ -35,7 +35,8 @@ class ICfsCalibration {
     /// Jog the toolhead's Y by @p delta_mm during chute calibration.
     virtual AmsError jog_chute_y(float delta_mm) = 0;
 
-    /// Jog the toolhead's X by @p delta_mm during chute calibration.
+    /// Jog the toolhead's X by @p delta_mm during chute calibration. Sent only
+    /// after the caller's ChuteJogGuard has allowed the move.
     virtual AmsError jog_chute_x(float delta_mm) = 0;
 
     /// Save the current toolhead position as the chute's extrude position.

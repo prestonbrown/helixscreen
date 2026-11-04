@@ -109,6 +109,7 @@
   <translation tag="180° Upside Down" en="180° Upside Down"/>
   <translation tag="2 min" en="2 min"/>
   <translation tag="2 minutes" en="2 minutes"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" en="2. Jog X and Y until the nozzle is centered over the chute opening"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" en="2. Jog Y until the nozzle is centered over the chute opening"/>
   <translation tag="2. Place paper between nozzle and bed" en="2. Place paper between nozzle and bed"/>
   <translation tag="2. Results show how much to turn each screw" en="2. Results show how much to turn each screw"/>
@@ -1858,6 +1859,7 @@
   <translation tag="Jog Pad" en="Jog Pad"/>
   <translation tag="Jog Speed XY" en="Jog Speed XY"/>
   <translation tag="Jog Speed Z" en="Jog Speed Z"/>
+  <translation tag="Jog Y back to {:.1f} mm before moving X" en="Jog Y back to {:.1f} mm before moving X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." en="Jog Y until the nozzle is centered over the chute opening, then tap Save."/>
   <translation tag="Jog failed: {}" en="Jog failed: {}"/>
   <translation tag="Jog layout, speeds and step distances" en="Jog layout, speeds and step distances"/>
@@ -3983,6 +3985,7 @@
   <translation tag="Toolhead Offset Calibration" en="Toolhead Offset Calibration"/>
   <translation tag="Toolhead Sensor" en="Toolhead Sensor"/>
   <translation tag="Toolhead Style" en="Toolhead Style"/>
+  <translation tag="Toolhead X" en="Toolhead X"/>
   <translation tag="Toolhead Y" en="Toolhead Y"/>
   <translation tag="Toolhead jam" en="Toolhead jam"/>
   <translation tag="Toolhead offset calibration" en="Toolhead offset calibration"/>
@@ -4284,6 +4287,7 @@
   <translation tag="X and Y jog feedrate" en="X and Y jog feedrate"/>
   <translation tag="X axis applied, but Y axis failed" en="X axis applied, but Y axis failed"/>
   <translation tag="X axis done, starting Y..." en="X axis done, starting Y..."/>
+  <translation tag="X axis limit reached" en="X axis limit reached"/>
   <translation tag="X is at its limit ({}mm)" en="X is at its limit ({}mm)"/>
   <translation tag="X:" en="X:"/>
   <translation tag="XY" en="XY"/>

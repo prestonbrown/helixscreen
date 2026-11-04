@@ -648,6 +648,30 @@ TEST_CASE("CFS chute jog sends the stock screen's exact script form (#1282)", "[
     REQUIRE(backend.captured[1].find("G0 Y0.500 F3000") != std::string::npos);
 }
 
+TEST_CASE("CFS chute X jog moves only X, in the stock script form", "[ams][cfs][calib]") {
+    CfsCalibHelper backend;
+    REQUIRE(backend.jog_chute_x(-0.1f).success());
+    REQUIRE(backend.captured.size() == 1);
+    CHECK(backend.captured[0] == "SAVE_GCODE_STATE NAME=myMoveState\n G91\n G0 X-0.100 F3000\n"
+                                 " M400\n RESTORE_GCODE_STATE NAME=myMoveState");
+}
+
+TEST_CASE("CFS chute jog refuses a print and a non-K1 dialect on both axes", "[ams][cfs][calib]") {
+    SECTION("while a print owns the machine") {
+        CfsCalibHelper backend;
+        helix::test::set_wire_state(backend.state, helix::PrintJobState::PRINTING);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(backend.jog_chute_x(1.0f).success());
+        CHECK_FALSE(backend.jog_chute_y(1.0f).success());
+        CHECK(backend.captured.empty());
+    }
+    SECTION("on a dialect without the calibration") {
+        CfsRemapHelper backend;
+        CHECK(backend.jog_chute_x(1.0f).result == AmsResult::NOT_SUPPORTED);
+        CHECK(backend.jog_chute_y(1.0f).result == AmsResult::NOT_SUPPORTED);
+    }
+}
+
 TEST_CASE("CFS chute save reads the live position then re-parks (#1282)", "[ams][cfs][calib]") {
     CfsCalibHelper backend;
     bool saved = false;
