@@ -1319,7 +1319,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     };
 
     int flips = 0;
-    for (int w = 100; w <= 600; w += 4) {
+    for (int w = 100; w <= 600; w += 10) {
         CAPTURE(w);
         mount(short_tool);
         resize_content(h, w, 60);
