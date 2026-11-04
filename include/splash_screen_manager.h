@@ -18,7 +18,7 @@
 #include <cstdint>
 #include <sys/types.h>
 
-class DisplayManager;
+class DisplayManager; // NAMESPACE_OK: declared at global scope
 
 namespace helix::application {
 
