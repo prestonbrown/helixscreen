@@ -271,7 +271,7 @@ XML binds for square overlay corners, and overlays built under the "Loading..." 
 - **Deferred panels.** `ui_xml_overrides/app_layout.xml` replaces the shared layout at staging and instantiates
   only Home; the other five panels are built on first navigation
   (`src/application/panel_factory.cpp#build_deferred_panel`) under the navigation scrim
-  (`src/ui/ui_nav_manager.cpp#"class NavTransitionScrim"`). Building all six at boot costs many seconds of layout.
+  (`include/ui_nav_transitions.h#"class NavTransitionScrim"`). Building all six at boot costs many seconds of layout.
 - **Idle prebuild.** Print Files, the panel a session visits first, is built at the first idle moment once the
   printer is connected and nothing modal is open (`src/application/panel_factory.cpp#tick`).
 - **Thumbnails in PSRAM, never on disk.** There is no thumbnail cache directory on a 128KB settings partition, so a

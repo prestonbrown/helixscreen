@@ -603,7 +603,10 @@ src/ui/components/ui_markdown.cpp
 src/ui/ui_modal.cpp
 src/ui/ui_nav_backdrop.cpp
 src/ui/ui_nav_manager.cpp
+src/ui/ui_nav_navbar.cpp
 src/ui/ui_nav_panel_registry.cpp
+src/ui/ui_nav_switch_trace.cpp
+src/ui/ui_nav_transitions.cpp
 src/ui/printers/ui_nav_printer_badge.cpp
 src/ui/components/ui_navbar_button.cpp
 src/ui/notify/ui_notification.cpp
