@@ -14,6 +14,7 @@
 #include "ams_backend_multiace.h"
 #include "ams_state.h"
 #include "multiace_status.h"
+#include "test_helpers/backend_harness.h"
 
 #include <fstream>
 #include <memory>
@@ -44,15 +45,7 @@ json ace_fixture() {
     return json{{"ace", j}};
 }
 
-class MultiAceOnMock : public AmsBackendMultiAce {
-  public:
-    MultiAceOnMock() : AmsBackendMultiAce(nullptr, nullptr) {
-        running_.store(true);
-    }
-    void frame(const json& status) {
-        SnapmakerTestAccess::handle_status(*this, status);
-    }
-};
+using MultiAceOnMock = helix::test::StartedBackend<AmsBackendMultiAce>;
 
 lv_obj_t* create_ams_slot(lv_obj_t* parent, int slot_index) {
     const std::string index_str = std::to_string(slot_index);
@@ -80,7 +73,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot badges renumber when routing chang
     // Head 0 routed to ACE 1 bay 1 and head 2 to ACE 3 bay 4, as the fixture
     // wires them. Badges before: the routed heads wear their bays' numbers;
     // the spool-owning lanes number 1..18 in global order.
-    backend->frame(ace_fixture());
+    backend->fire_status(ace_fixture());
     ams.sync_from_backend();
     process_lvgl(30);
 
@@ -101,7 +94,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot badges renumber when routing chang
     // including bay (0,0), whose own status did not move.
     json unrouted = ace_fixture();
     unrouted["ace"]["head_source"]["0"] = nullptr;
-    backend->frame(unrouted);
+    backend->fire_status(unrouted);
     ams.sync_from_backend();
     process_lvgl(30);
 

@@ -25,6 +25,7 @@
 #include "src/ui/panel_widgets/dryer_model.h"
 #include "src/ui/panel_widgets/dryer_widget.h"
 #include "temperature_controller.h"
+#include "test_helpers/backend_harness.h"
 
 #include <ctime>
 #include <memory>
@@ -68,13 +69,13 @@ struct DryerModelFixture : public LVGLUITestFixture {
     }
 };
 
-std::unique_ptr<AmsBackendQidi> boxes_one_drying(int boxes, std::time_t end_time_s) {
-    auto backend = std::make_unique<AmsBackendQidi>(nullptr, nullptr);
-    QidiBoxTestAccess::parse_vars(*backend, json{{"box_count", boxes}});
+std::unique_ptr<helix::test::StartedBackend<AmsBackendQidi>>
+boxes_one_drying(int boxes, std::time_t end_time_s) {
+    auto backend = std::make_unique<helix::test::StartedBackend<AmsBackendQidi>>();
+    fire_vars(*backend, json{{"box_count", boxes}});
     QidiBoxTestAccess::set_clock(*backend, [] { return std::time_t{1'000'000}; });
     QidiBoxTestAccess::set_drying_timer_supported(*backend, true);
-    QidiBoxTestAccess::handle_status(
-        *backend,
+    backend->fire_status(
         json{{"heater_generic heater_box1", json{{"temperature", 48.0}, {"target", 55.0}}},
              {"heater_generic heater_box2", json{{"temperature", 24.0}, {"target", 0.0}}}});
     QidiBoxTestAccess::apply_box_extras(
@@ -83,7 +84,8 @@ std::unique_ptr<AmsBackendQidi> boxes_one_drying(int boxes, std::time_t end_time
     return backend;
 }
 
-std::unique_ptr<AmsBackendQidi> two_boxes_one_drying(std::time_t end_time_s) {
+std::unique_ptr<helix::test::StartedBackend<AmsBackendQidi>>
+two_boxes_one_drying(std::time_t end_time_s) {
     return boxes_one_drying(2, end_time_s);
 }
 

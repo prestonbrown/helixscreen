@@ -23,6 +23,7 @@
 #include "multiace_status.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -77,13 +78,11 @@ const std::vector<std::string> kU1Objects{"filament_detect", "extruder",   "extr
                                           "extruder2",       "extruder3",  "print_task_config",
                                           "toolhead",        "toolchanger"};
 
-class CapturingMultiAce : public AmsBackendMultiAce {
+class CapturingMultiAce : public helix::test::StartedBackend<AmsBackendMultiAce> {
   public:
-    explicit CapturingMultiAce(IMoonrakerAPI* api = nullptr,
-                               helix::IMoonrakerClient* client = nullptr)
-        : AmsBackendMultiAce(api, client) {
-        running_.store(true);
-    }
+    CapturingMultiAce() = default;
+    explicit CapturingMultiAce(IMoonrakerAPI* api)
+        : helix::test::StartedBackend<AmsBackendMultiAce>(api) {}
 
     std::vector<std::string> sent;
 
@@ -134,7 +133,7 @@ class CapturingMultiAce : public AmsBackendMultiAce {
     }
 
     void frame(const json& status) {
-        SnapmakerTestAccess::handle_status(*this, status);
+        fire_status(status);
     }
 };
 
@@ -150,7 +149,7 @@ struct MultiAceFixture : public HelixTestFixture {
 /// has no use for.
 class StoreBackedMultiAce : public CapturingMultiAce {
   public:
-    explicit StoreBackedMultiAce(IMoonrakerAPI* api) : CapturingMultiAce(api, nullptr) {}
+    explicit StoreBackedMultiAce(IMoonrakerAPI* api) : CapturingMultiAce(api) {}
     using AmsBackendMultiAce::on_started;
 };
 
@@ -205,8 +204,8 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "factory builds MultiAce only for a multi
         auto backend = AmsBackend::create(AmsType::SNAPMAKER, api.get(), &client, hw);
         REQUIRE(backend);
         REQUIRE(backend->get_type() == AmsType::SNAPMAKER);
-        auto& snap = static_cast<AmsBackendSnapmaker&>(*backend);
-        SnapmakerTestAccess::handle_status(snap, ace_frame("head_mode_4ace.json"));
+        REQUIRE(backend->start().success());
+        helix::test::fire_status(client, ace_frame("head_mode_4ace.json"));
         return backend->get_system_info().units.size();
     };
     CHECK(units_after_frame(&modded) == 5);
@@ -229,7 +228,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "AmsState builds the multiACE backend fro
 
     // Only the multiACE variant shows the ACE units.
     auto& snap = static_cast<AmsBackendSnapmaker&>(*ams.get_backend(0));
-    SnapmakerTestAccess::handle_status(snap, ace_frame("head_mode_4ace.json"));
+    helix::test::fire_status(client, ace_frame("head_mode_4ace.json"));
     CHECK(snap.get_system_info().units.size() == 5);
 
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -249,7 +248,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "a 4-ACE rig gives every bay a slot subje
     REQUIRE(ams.backend_count() == 1);
 
     auto& snap = static_cast<AmsBackendSnapmaker&>(*ams.get_backend(0));
-    SnapmakerTestAccess::handle_status(snap, ace_frame("head_mode_4ace.json"));
+    helix::test::fire_status(client, ace_frame("head_mode_4ace.json"));
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // ACE 4's bays are global slots 16-19, past the old 16-slot ceiling; the
@@ -578,7 +577,7 @@ TEST_CASE_METHOD(MultiAceFixture, "a refused op leaves a pending bay load standi
 }
 
 TEST_CASE_METHOD(MultiAcePrintFixture, "bay swap refused while paused", "[multiace]") {
-    CapturingMultiAce b(api.get(), &client);
+    CapturingMultiAce b(api.get());
     b.frame(ace_frame("head_mode_4ace.json"));
     helix::test::set_wire_state(state, PrintJobState::PAUSED);
 
@@ -1072,7 +1071,7 @@ TEST_CASE_METHOD(MultiAceFixture, "a dropped bay load says so", "[multiace]") {
 }
 
 TEST_CASE_METHOD(MultiAcePrintFixture, "a pending bay load yields to a print", "[multiace]") {
-    CapturingMultiAce b(api.get(), &client);
+    CapturingMultiAce b(api.get());
     b.record_errors();
     b.frame(ace_frame("head_mode_4ace.json"));
     REQUIRE(b.load_filament(multiace::bay_global(0, 1)).success());

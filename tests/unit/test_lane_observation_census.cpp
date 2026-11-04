@@ -29,6 +29,7 @@
 #include "test_helpers/ace_test_access.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/happy_hare_test_access.h"
 #include "test_helpers/qidi_box_test_access.h"
@@ -273,23 +274,23 @@ std::vector<BackendCensus> census_of_every_backend() {
     }
 
     {
-        RegisteredBackend<AmsBackendQidi> harness(nullptr, nullptr);
+        helix::test::RegisteredWired<AmsBackendQidi> harness;
         QidiBoxTestAccess::apply_filas_list(*harness, kQidiFilasList);
         // The Box states identity as ids into its own tables and presence as a
         // per-slot state word, both in save_variables. Unwrapped rather than
         // enveloped because this backend's handler reads the object directly.
-        QidiBoxTestAccess::handle_status(*harness, nlohmann::json{{"save_variables",
-                                                                   {{"variables",
-                                                                     {{"box_count", 1},
-                                                                      {"slot0", 1},
-                                                                      {"filament_slot0", 12},
-                                                                      {"color_slot0", 5},
-                                                                      {"vendor_slot0", 3}}}}}});
+        harness->fire_status(nlohmann::json{{"save_variables",
+                                             {{"variables",
+                                               {{"box_count", 1},
+                                                {"slot0", 1},
+                                                {"filament_slot0", 12},
+                                                {"color_slot0", 5},
+                                                {"vendor_slot0", 3}}}}}});
         out.push_back({"Qidi", filed_on(harness.lane(0))});
     }
 
     {
-        RegisteredBackend<AmsBackendSnapmaker> harness(nullptr, nullptr);
+        helix::test::RegisteredWired<AmsBackendSnapmaker> harness;
         nlohmann::json frame = status_frame(
             "filament_detect",
             nlohmann::json{{"state", nlohmann::json::array({1, 0, 0, 0})},
@@ -306,7 +307,7 @@ std::vector<BackendCensus> census_of_every_backend() {
         // for sensed.present to be filed.
         frame["params"][0]["filament_feed left"] =
             nlohmann::json{{"extruder0", nlohmann::json{{"filament_detected", true}}}};
-        SnapmakerTestAccess::handle_status(*harness, frame);
+        harness->fire_status(frame);
         out.push_back({"Snapmaker", filed_on(harness.lane(0))});
     }
 
@@ -481,20 +482,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "a firmware name reaches the field its own ven
 
 TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's observation and its SlotInfo part over SUB_TYPE",
                  "[lane][ingest][census]") {
-    RegisteredBackend<AmsBackendSnapmaker> harness(nullptr, nullptr);
+    helix::test::RegisteredWired<AmsBackendSnapmaker> harness;
 
-    SnapmakerTestAccess::handle_status(
-        *harness,
-        status_frame(
-            "filament_detect",
-            nlohmann::json{{"state", nlohmann::json::array({1, 0, 0, 0})},
-                           {"info", nlohmann::json::array({nlohmann::json{
-                                        {"MAIN_TYPE", "PLA"},
-                                        {"SUB_TYPE", "Silk"},
-                                        {"MANUFACTURER", "Snapmaker"},
-                                        {"ARGB_COLOR", 0xFFED2C2C},
-                                        {"CARD_UID", nlohmann::json::array({144, 32, 196, 2})},
-                                    }})}}));
+    harness->fire_status(status_frame(
+        "filament_detect",
+        nlohmann::json{{"state", nlohmann::json::array({1, 0, 0, 0})},
+                       {"info", nlohmann::json::array({nlohmann::json{
+                                    {"MAIN_TYPE", "PLA"},
+                                    {"SUB_TYPE", "Silk"},
+                                    {"MANUFACTURER", "Snapmaker"},
+                                    {"ARGB_COLOR", 0xFFED2C2C},
+                                    {"CARD_UID", nlohmann::json::array({144, 32, 196, 2})},
+                                }})}}));
 
     // One parse, two destinations, and they deliberately disagree: the record
     // calls SUB_TYPE the product line it is, while SlotInfo keeps the spelling

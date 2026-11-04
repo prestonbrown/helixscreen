@@ -4,6 +4,7 @@
 #include "../helix_test_fixture.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "ams_backend_snapmaker.h"
+#include "test_helpers/backend_harness.h"
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -22,9 +23,8 @@ nlohmann::json frame(const nlohmann::json& ptc_fields) {
 
 TEST_CASE("snapmaker backend keeps the preferences it is told about", "[ams][snapmaker][prefs]") {
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(
-        backend, frame({{"end_led_turn_off", true}, {"filament_entangle_sen", "low"}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_led_turn_off", true}, {"filament_entangle_sen", "low"}}));
     REQUIRE(backend.print_preferences().end_led_turn_off.value() == true);
     REQUIRE(backend.print_preferences().filament_entangle_sen.value() == "low");
 }
@@ -33,17 +33,17 @@ TEST_CASE("a later frame that omits a preference does not clear it", "[ams][snap
     // The delta trap: a frame carrying only filament colours says nothing about
     // the preferences, and replacing rather than merging would switch them off.
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend, frame({{"end_led_turn_off", true}}));
-    SnapmakerTestAccess::handle_status(backend, frame({{"filament_type", {"PLA"}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_led_turn_off", true}}));
+    backend.fire_status(frame({{"filament_type", {"PLA"}}}));
     REQUIRE(backend.print_preferences().end_led_turn_off.value() == true);
 }
 
 TEST_CASE("a later frame that changes a preference wins", "[ams][snapmaker][prefs]") {
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend, frame({{"end_led_turn_off", true}}));
-    SnapmakerTestAccess::handle_status(backend, frame({{"end_led_turn_off", false}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_led_turn_off", true}}));
+    backend.fire_status(frame({{"end_led_turn_off", false}}));
     REQUIRE(backend.print_preferences().end_led_turn_off.value() == false);
 }
 
@@ -52,15 +52,14 @@ TEST_CASE("every preference survives a later frame that carries none of them",
     // One assertion per merge arm: deleting any single arm stops its field
     // surviving here, so no arm can lose coverage quietly.
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(
-        backend, frame({{"auto_replenish_filament", true},
-                        {"replenish_ignore_color", false},
-                        {"filament_entangle_detect", true},
-                        {"end_led_turn_off", false},
-                        {"filament_entangle_sen", "high"},
-                        {"end_unload_filament", {true, false, true, false}}}));
-    SnapmakerTestAccess::handle_status(backend, frame({{"filament_type", {"PLA"}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"auto_replenish_filament", true},
+                               {"replenish_ignore_color", false},
+                               {"filament_entangle_detect", true},
+                               {"end_led_turn_off", false},
+                               {"filament_entangle_sen", "high"},
+                               {"end_unload_filament", {true, false, true, false}}}));
+    backend.fire_status(frame({{"filament_type", {"PLA"}}}));
     const auto prefs = backend.print_preferences();
     REQUIRE(prefs.auto_replenish.value() == true);
     REQUIRE(prefs.replenish_ignore_color.value() == false);
@@ -73,15 +72,15 @@ TEST_CASE("every preference survives a later frame that carries none of them",
 TEST_CASE("a backend that has seen no preference field reports an empty set",
           "[ams][snapmaker][prefs]") {
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend, frame({{"filament_type", {"PLA"}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"filament_type", {"PLA"}}}));
     REQUIRE(backend.print_preferences().empty());
 }
 
 TEST_CASE("one preference field is enough to make the held set non-empty",
           "[ams][snapmaker][prefs]") {
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", false}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"auto_replenish_filament", false}}));
     REQUIRE_FALSE(backend.print_preferences().empty());
 }

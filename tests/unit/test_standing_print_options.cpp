@@ -16,6 +16,7 @@
 #include "settings_manager.h"
 #include "snapmaker_print_preferences.h"
 #include "standing_print_options.h"
+#include "test_helpers/backend_harness.h"
 
 #if HELIX_HAS_SNAPMAKER
 #include "../test_helpers/snapmaker_test_access.h"
@@ -590,7 +591,7 @@ struct StandingU1Fx : LVGLTestFixture {
 
 TEST_CASE_METHOD(StandingU1Fx, "the record carries the unload list the screen's own start sends",
                  "[plugin_print_hooks][end_unload]") {
-    AmsBackendSnapmaker backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
 
     SECTION("nothing before the firmware reports its heads") {
         CHECK(backend.standing_print_gcode().empty());
@@ -598,8 +599,7 @@ TEST_CASE_METHOD(StandingU1Fx, "the record carries the unload list the screen's 
     }
 
     SECTION("the same list, forced for a print already running") {
-        SnapmakerTestAccess::handle_status(
-            backend,
+        backend.fire_status(
             json{{"print_task_config", {{"end_unload_filament", {false, false, false, false}}}}});
         const std::string own_start = backend.build_preprint_gcode({}, {});
         REQUIRE(own_start == "SET_PRINT_PREFERENCES END_UNLOAD_FILAMENT=[1,0,1,0]");
@@ -612,8 +612,7 @@ TEST_CASE_METHOD(StandingU1Fx, "the record carries the unload list the screen's 
     }
 
     SECTION("no routing rides along: it is refused once a print runs") {
-        SnapmakerTestAccess::handle_status(
-            backend,
+        backend.fire_status(
             json{{"print_task_config", {{"end_unload_filament", {false, false, false, false}}}}});
         const std::string standing = backend.standing_print_gcode();
         CHECK(standing.find("SET_PRINT_EXTRUDER_MAP") == std::string::npos);

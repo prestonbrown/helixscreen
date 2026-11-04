@@ -51,3 +51,22 @@ TEST_CASE("fake client live_handlers reports what detach left behind", "[fake_cl
     CHECK(client.live_handlers() == before);
     CHECK(client.handler_count("notify_b", "feature") == 0);
 }
+
+TEST_CASE("fake client delivers status notifications to notify subscribers until unsubscribed",
+          "[fake_client]") {
+    FakeMoonrakerClient client;
+    const nlohmann::json frame = {{"method", "notify_status_update"}};
+    CHECK_FALSE(client.fire_notification("notify_status_update", frame));
+
+    int calls = 0;
+    const auto id = client.register_notify_update([&](const nlohmann::json&) { ++calls; });
+    REQUIRE(id != helix::kInvalidSubscriptionId);
+
+    CHECK(client.fire_notification("notify_status_update", frame));
+    CHECK_FALSE(client.fire_notification("notify_gcode_response", frame));
+    CHECK(calls == 1);
+
+    CHECK(client.unsubscribe_notify_update(id));
+    CHECK_FALSE(client.fire_notification("notify_status_update", frame));
+    CHECK(calls == 1);
+}

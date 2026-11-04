@@ -16,6 +16,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/scoped_env.h"
 #include "test_helpers/snapmaker_test_access.h"
@@ -150,34 +151,45 @@ TEST_CASE_METHOD(MockBatchFixture, "A second batch is refused while one is runni
     pump_until_idle();
 }
 
-TEST_CASE_METHOD(MockBatchFixture, "A doing=false reading retires an active plan", "[ams][batch]") {
-    helix::SnapmakerTestAccess::set_batch_macro_object(backend(), "gcode_macro AUTO_FEEDING_BATCH");
-    REQUIRE(backend().load_filament_batch({0, 1}).success());
-    REQUIRE(backend().batch_plan().active);
+/// The mock's own feed delivers a whole batch in one drain. A backend subscribed
+/// on the harness hears only the frames a case fires, so its plan stays armed.
+struct QuietBatchFixture : MockBatchFixture {
+    QuietBatchFixture() {
+        backend_.reset();
+        wired =
+            std::make_unique<helix::test::RegisteredWired<helix::AmsBackendSnapmaker>>(api.get());
+        helix::SnapmakerTestAccess::set_batch_macro_object(**wired,
+                                                           "gcode_macro AUTO_FEEDING_BATCH");
+    }
+    std::unique_ptr<helix::test::RegisteredWired<helix::AmsBackendSnapmaker>> wired;
+};
 
-    helix::SnapmakerTestAccess::handle_status(
-        backend(), nlohmann::json{{"gcode_macro AUTO_FEEDING_BATCH", {{"doing", false}}}});
+TEST_CASE_METHOD(QuietBatchFixture, "A doing=false reading retires an active plan",
+                 "[ams][batch]") {
+    REQUIRE((*wired)->load_filament_batch({0, 1}).success());
+    REQUIRE((*wired)->batch_plan().active);
 
-    CHECK_FALSE(backend().batch_plan().active);
+    (*wired)->fire_status(nlohmann::json{{"gcode_macro AUTO_FEEDING_BATCH", {{"doing", false}}}});
+
+    CHECK_FALSE((*wired)->batch_plan().active);
 }
 
-TEST_CASE_METHOD(MockBatchFixture, "doing readings other than false leave the plan alone",
+TEST_CASE_METHOD(QuietBatchFixture, "doing readings other than false leave the plan alone",
                  "[ams][batch]") {
-    helix::SnapmakerTestAccess::set_batch_macro_object(backend(), "gcode_macro AUTO_FEEDING_BATCH");
     for (const auto& doing : {nlohmann::json(true), nlohmann::json(1), nlohmann::json("false"),
                               nlohmann::json(nullptr)}) {
-        REQUIRE(backend().load_filament_batch({0, 1}).success());
-        REQUIRE(backend().batch_plan().active);
+        REQUIRE((*wired)->load_filament_batch({0, 1}).success());
+        REQUIRE((*wired)->batch_plan().active);
 
-        helix::SnapmakerTestAccess::handle_status(
-            backend(), nlohmann::json{{"gcode_macro AUTO_FEEDING_BATCH", {{"doing", doing}}}});
-        CHECK(backend().batch_plan().active);
+        (*wired)->fire_status(
+            nlohmann::json{{"gcode_macro AUTO_FEEDING_BATCH", {{"doing", doing}}}});
+        CHECK((*wired)->batch_plan().active);
 
         // Retire via the parse's own false reading, so the next iteration's
         // dispatch is not refused by the live-plan gate.
-        helix::SnapmakerTestAccess::handle_status(
-            backend(), nlohmann::json{{"gcode_macro AUTO_FEEDING_BATCH", {{"doing", false}}}});
-        CHECK_FALSE(backend().batch_plan().active);
+        (*wired)->fire_status(
+            nlohmann::json{{"gcode_macro AUTO_FEEDING_BATCH", {{"doing", false}}}});
+        CHECK_FALSE((*wired)->batch_plan().active);
     }
 }
 

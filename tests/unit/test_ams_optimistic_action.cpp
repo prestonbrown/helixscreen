@@ -37,6 +37,7 @@
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/ams_sidebar_xml.h"
 #include "test_helpers/ams_state_test_access.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/gcode_recording_api.h"
 #include "test_helpers/happy_hare_test_access.h"
@@ -157,11 +158,10 @@ class AfcOptimisticBackend : public AmsBackendAfc {
 /// Snapmaker U1, running, sending through @p api. The firmware publishes
 /// nothing for an AUTO_FEEDING it has accepted until its channel_state moves,
 /// and the AUTO_FEEDING answer arrives only when the feed is over.
-class U1OptimisticBackend : public AmsBackendSnapmaker {
+class U1OptimisticBackend : public test::StartedBackend<AmsBackendSnapmaker> {
   public:
-    explicit U1OptimisticBackend(IMoonrakerAPI* api) : AmsBackendSnapmaker(api, nullptr) {
-        running_.store(true);
-    }
+    explicit U1OptimisticBackend(IMoonrakerAPI* api)
+        : test::StartedBackend<AmsBackendSnapmaker>(api) {}
 
     /// One head's filament_feed channel and motion sensor through the real
     /// status parser: a fitted module in automatic mode with its sensor armed,
@@ -178,7 +178,7 @@ class U1OptimisticBackend : public AmsBackendSnapmaker {
                 {"disable_auto", !auto_mode}}}}},
             {"filament_motion_sensor e" + std::to_string(extruder) + "_filament",
              {{"enabled", true}}}};
-        SnapmakerTestAccess::handle_status(*this, status);
+        fire_status(status);
     }
 
     /// Head @p extruder loaded to its nozzle and active.

@@ -22,6 +22,7 @@
 #include "led/led_controller.h"
 #include "printer_discovery.h"
 #include "standard_macros.h"
+#include "test_helpers/backend_harness.h"
 #include "tool_state.h"
 #include "width_sensor_manager.h"
 
@@ -121,14 +122,13 @@ TEST_CASE_METHOD(DiscoverySubsystemsFixture,
         discovery_of({"extruder", "extruder1", "extruder2", "extruder3", "toolchanger",
                       "filament_detect", "toolhead", "heater_bed", "print_task_config"});
     {
-        helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> backend(nullptr, nullptr);
+        helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend;
         ts.init_tools(u1);
-        helix::SnapmakerTestAccess::handle_status(
-            *backend, nlohmann::json{{"extruder", {{"state", "PARKED"}}},
-                                     {"extruder1", {{"state", "PARKED"}}},
-                                     {"extruder2", {{"state", "PARKED"}}},
-                                     {"extruder3", {{"state", "PARKED"}}},
-                                     {"toolhead", {{"extruder", "extruder2"}}}});
+        backend->fire_status(nlohmann::json{{"extruder", {{"state", "PARKED"}}},
+                                            {"extruder1", {{"state", "PARKED"}}},
+                                            {"extruder2", {{"state", "PARKED"}}},
+                                            {"extruder3", {{"state", "PARKED"}}},
+                                            {"toolhead", {{"extruder", "extruder2"}}}});
         helix::ui::UpdateQueue::instance().drain_until_empty();
         ams.sync_from_backend();
         REQUIRE(ts.active_tool_index() == -1);

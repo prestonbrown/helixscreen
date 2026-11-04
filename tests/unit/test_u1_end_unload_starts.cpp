@@ -25,6 +25,7 @@
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "test_helpers/backend_harness.h"
 
 #include <string>
 
@@ -67,10 +68,9 @@ struct U1StartFx : LVGLTestFixture {
     }
 };
 
-void report_heads(AmsBackendSnapmaker& backend) {
-    SnapmakerTestAccess::handle_status(
-        backend, nlohmann::json{{"print_task_config",
-                                 {{"end_unload_filament", {false, false, false, false}}}}});
+void report_heads(test::WiredBackend<AmsBackendSnapmaker>& backend) {
+    backend.fire_status(nlohmann::json{
+        {"print_task_config", {{"end_unload_filament", {false, false, false, false}}}}});
 }
 
 } // namespace
@@ -79,7 +79,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint with no recorded routing still sends t
                  "[end_unload][preprint]") {
     MoonrakerAPI api{client, ps};
     helix::ui::PrintStartController controller{ps, &api};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     REQUIRE(backend->requires_preprint_send());
 
@@ -105,7 +105,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send ne
         });
     MoonrakerAPI api{client, ps};
     helix::ui::PrintStartController controller{ps, &api};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     REQUIRE(backend->requires_preprint_send());
 
@@ -150,7 +150,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start loses its answer stays pre
         });
     MoonrakerAPI api{client, ps};
     helix::ui::PrintStartController controller{ps, &api};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
 
     bool errored = false;
@@ -182,7 +182,7 @@ TEST_CASE_METHOD(U1StartFx,
                  "a U1 restart from the beginning sends the unload list after the cancel",
                  "[end_unload][preprint]") {
     MoonrakerAPI api{client, ps};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
 
     helix::ui::restart_print_from_beginning(&api, "cal.gcode", "[test]", nullptr);
@@ -196,7 +196,7 @@ TEST_CASE_METHOD(U1StartFx,
 TEST_CASE_METHOD(U1StartFx, "a U1 restart from the beginning names the file's heads",
                  "[end_unload][preprint][reprint]") {
     MoonrakerAPI api{client, ps};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     helix::PlantedGcode file("restart_t0t2.gcode", "",
                              "; filament_type = PLA;PLA;PETG\n"
@@ -218,7 +218,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 restart of an Orca job names its heads from th
                  "[end_unload][preprint][reprint]") {
     // The API mock serves the planted file's bytes to the footer's range read.
     MoonrakerAPIMock api{client, ps};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     // Orca's U1 profile leaves per-tool weights out of Moonraker's metadata;
     // its footer carries them ("BMCU 370C_ASA_18.4g_54m6s.gcode", off a U1).
@@ -242,7 +242,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 restart drops when the printer connection chan
                  "[end_unload][preprint][reprint]") {
     MoonrakerAPI api{client, ps};
     MoonrakerAPI next_printer{client, ps};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     IMoonrakerAPI* previous = get_moonraker_api();
 

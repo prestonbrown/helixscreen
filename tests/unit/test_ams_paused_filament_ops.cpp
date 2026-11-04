@@ -37,6 +37,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "test_helpers/backend_harness.h"
 // AD5X IFS is feature-gated (HELIX_HAS_IFS=0 on the space-constrained cross
 // builds, mk/cross.mk), so every self-homing assertion below is guarded. The
 // non-self-homing half of the table is unconditional.
@@ -86,6 +87,12 @@ template <typename Backend> class PausedGateDouble : public Backend {
     }
     AmsError call_refuse_load_if_printing() const {
         return this->refuse_load_if_printing();
+    }
+    /// The running flag this double raises stands in for a subscription; a case
+    /// that drives frames needs the real one.
+    void subscribe() {
+        this->running_.store(false);
+        REQUIRE(this->start().success());
     }
 
     std::vector<std::string> dispatched;
@@ -742,8 +749,9 @@ TEST_CASE_METHOD(PausedGateFixture, "AFC is the backend whose cold lane ops the 
 TEST_CASE_METHOD(PausedGateFixture, "park_active_tool is refused while paused or printing",
                  "[ams][safety][paused][park]") {
     auto backend = make<helix::AmsBackendSnapmaker>();
-    helix::SnapmakerTestAccess::handle_status(
-        *backend, nlohmann::json{{"toolhead", nlohmann::json{{"extruder", "extruder1"}}}});
+    backend->subscribe();
+    helix::test::fire_status(
+        mock_client, nlohmann::json{{"toolhead", nlohmann::json{{"extruder", "extruder1"}}}});
     REQUIRE(backend->get_current_tool() == 1);
 
     SECTION("paused: refused although the backend allows other ops while paused") {

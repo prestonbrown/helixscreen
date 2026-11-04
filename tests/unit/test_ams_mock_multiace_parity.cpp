@@ -12,6 +12,7 @@
 #include "ams_backend_multiace.h"
 #include "moonraker_client_mock.h"
 #include "multiace_status.h"
+#include "test_helpers/backend_harness.h"
 
 #include <cstdlib>
 #include <memory>
@@ -129,17 +130,8 @@ TEST_CASE_METHOD(MultiaceTwoUnitEnv, "mock multiace knobs reach the frame", "[mu
 TEST_CASE_METHOD(MultiaceMockEnv, "the real backend reads the mock's frame", "[multiace][mock]") {
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::SNAPMAKER_U1);
 
-    class MultiAceOnMock : public AmsBackendMultiAce {
-      public:
-        MultiAceOnMock() : AmsBackendMultiAce(nullptr, nullptr) {
-            running_.store(true);
-        }
-        void frame(const json& status) {
-            SnapmakerTestAccess::handle_status(*this, status);
-        }
-    };
-    MultiAceOnMock backend;
-    backend.frame(json{{"ace", client.multiace_status_json()}});
+    helix::test::StartedBackend<AmsBackendMultiAce> backend;
+    backend.fire_status(json{{"ace", client.multiace_status_json()}});
 
     const AmsSystemInfo info = backend.get_system_info();
     REQUIRE(info.units.size() == 2); // the heads plus ACE 1

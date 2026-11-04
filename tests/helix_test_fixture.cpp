@@ -31,6 +31,7 @@
 #include "lane_source_store.h"
 #include "logging_init.h"
 #include "lvgl_log_handler.h"
+#include "macro_param_cache.h"
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
 #include "rpc_error_correlation.h"
@@ -407,6 +408,8 @@ void HelixTestFixture::reset_all() {
     // derived fixture did, which is what the scattered clear_path() calls in
     // individual tests were working around.
     helix::test::reset_config_singleton();
+    // A backend's start reads this cache to pick its firmware's command dialect.
+    helix::MacroParamCache::instance().clear();
     // StandardMacros holds each slot's user-configured macro, and reset() keeps
     // it on purpose, so a Load macro one test assigned outlives the config
     // reset above and routes every later filament op to the macro tier.

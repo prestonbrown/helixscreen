@@ -44,6 +44,7 @@
 #include "config.h"
 #include "core/update_queue.h"
 #include "filament_op_slot_resolver.h"
+#include "test_helpers/backend_harness.h"
 #include "toolchanger_addon.h"
 
 #include <functional>
@@ -726,10 +727,10 @@ TEST_CASE("QIDI Box default mapping is identity in both directions",
 
 TEST_CASE("QIDI Box value_t remap publishes tool_to_slot_map, not just mapped_tool",
           "[ams][qidi][qidi_box][tool_map]") {
-    helix::AmsBackendQidi backend(nullptr, nullptr);
+    helix::test::StartedBackend<helix::AmsBackendQidi> backend;
 
     // The reported field case: T0 remapped onto lane 2.
-    helix::QidiBoxTestAccess::parse_vars(backend, json{{"value_t0", "slot2"}});
+    fire_vars(backend, json{{"value_t0", "slot2"}});
     auto info = backend.get_system_info();
 
     // Reverse direction (AMS panel badge).
@@ -751,8 +752,8 @@ TEST_CASE("QIDI Box exposes the mapping through get_tool_mapping()",
     // the AMS context menu all read the backend through get_tool_mapping().
     // The base default returns {}, which makes AmsState synthesise a 1:1
     // topology that contradicts the Box's own remap.
-    helix::AmsBackendQidi backend(nullptr, nullptr);
-    helix::QidiBoxTestAccess::parse_vars(backend, json{{"value_t0", "slot2"}});
+    helix::test::StartedBackend<helix::AmsBackendQidi> backend;
+    fire_vars(backend, json{{"value_t0", "slot2"}});
 
     REQUIRE(backend.owns_tool_mapping_table());
     auto mapping = backend.get_tool_mapping();
@@ -763,12 +764,12 @@ TEST_CASE("QIDI Box exposes the mapping through get_tool_mapping()",
 
 TEST_CASE("QIDI Box swapping two tools keeps both directions in lockstep",
           "[ams][qidi][qidi_box][tool_map]") {
-    helix::AmsBackendQidi backend(nullptr, nullptr);
+    helix::test::StartedBackend<helix::AmsBackendQidi> backend;
 
-    helix::QidiBoxTestAccess::parse_vars(backend, json{
-                                                      {"value_t0", "slot2"},
-                                                      {"value_t2", "slot0"},
-                                                  });
+    fire_vars(backend, json{
+                           {"value_t0", "slot2"},
+                           {"value_t2", "slot0"},
+                       });
     auto info = backend.get_system_info();
 
     CHECK(mapped_tool_of(info, 2) == 0);
@@ -787,11 +788,11 @@ TEST_CASE("QIDI Box swapping two tools keeps both directions in lockstep",
 }
 
 TEST_CASE("QIDI Box tool map follows a box_count resize", "[ams][qidi][qidi_box][tool_map]") {
-    helix::AmsBackendQidi backend(nullptr, nullptr);
+    helix::test::StartedBackend<helix::AmsBackendQidi> backend;
 
     // Two chained boxes = eight global slots; the forward map has to grow with
     // them or every tool above T3 resolves through the fallback.
-    helix::QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
+    fire_vars(backend, json{{"box_count", 2}});
     auto info = backend.get_system_info();
     REQUIRE(info.total_slots == 8);
     REQUIRE(info.tool_to_slot_map.size() == 8);
@@ -801,7 +802,7 @@ TEST_CASE("QIDI Box tool map follows a box_count resize", "[ams][qidi][qidi_box]
     }
 
     // Remap a tool onto a lane in the second box.
-    helix::QidiBoxTestAccess::parse_vars(backend, json{{"value_t0", "slot5"}});
+    fire_vars(backend, json{{"value_t0", "slot5"}});
     info = backend.get_system_info();
     CHECK(mapped_tool_of(info, 5) == 0);
     CHECK(mapped_tool_of(info, 0) == -1);
@@ -813,9 +814,9 @@ TEST_CASE("QIDI Box mapping survives a payload carrying only slot state",
           "[ams][qidi][qidi_box][tool_map]") {
     // Moonraker pushes deltas: a frame that repeats slot<N> without any
     // value_t<N> must not wipe the mapping established by an earlier frame.
-    helix::AmsBackendQidi backend(nullptr, nullptr);
-    helix::QidiBoxTestAccess::parse_vars(backend, json{{"value_t0", "slot2"}});
-    helix::QidiBoxTestAccess::parse_vars(backend, json{{"slot2", 2}, {"last_load_slot", "slot2"}});
+    helix::test::StartedBackend<helix::AmsBackendQidi> backend;
+    fire_vars(backend, json{{"value_t0", "slot2"}});
+    fire_vars(backend, json{{"slot2", 2}, {"last_load_slot", "slot2"}});
 
     auto info = backend.get_system_info();
     CHECK(mapped_tool_of(info, 2) == 0);

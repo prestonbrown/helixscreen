@@ -20,30 +20,28 @@ using json = nlohmann::json;
 
 namespace helix {
 
+/// A status object carrying a save_variables delta.
+inline json save_variables_frame(const json& variables) {
+    return json{{"save_variables", json{{"variables", variables}}}};
+}
+
+/// Delivers a save_variables delta to a backend wired by backend_harness.h.
+template <typename WiredQidi> void fire_vars(WiredQidi& backend, const json& variables) {
+    backend.fire_status(save_variables_frame(variables));
+}
+
 // Friend-class shim per L065 — exposes private parse helpers for unit tests.
 // Mirrors the Ad5xIfsTestAccess pattern in test_ams_backend_ad5x_ifs.cpp.
 class QidiBoxTestAccess {
   public:
-    static void parse_vars(AmsBackendQidi& b, const json& v) {
-        b.parse_save_variables(v);
-    }
     static void set_force_move(AmsBackendQidi& b, bool enabled) {
         b.fw_force_move_enabled_ = enabled;
-    }
-    /// Feeds @p status the way the subscription delivers it: inside the
-    /// notify_status_update envelope.
-    static void handle_status(AmsBackendQidi& b, const json& status) {
-        b.handle_status_update(
-            json{{"method", "notify_status_update"}, {"params", json::array({status, 1.0})}});
     }
     static int filament_id(const AmsBackendQidi& b, int slot) {
         return b.slot_rfid_.at(static_cast<size_t>(slot)).filament_id;
     }
     static int color_id(const AmsBackendQidi& b, int slot) {
         return b.slot_rfid_.at(static_cast<size_t>(slot)).color_id;
-    }
-    static int vendor_id(const AmsBackendQidi& b, int slot) {
-        return b.slot_rfid_.at(static_cast<size_t>(slot)).vendor_id;
     }
     static void apply_query(AmsBackendQidi& b, const json& response) {
         b.apply_query_response(response);
@@ -121,6 +119,9 @@ class QidiBoxTestAccess {
     static void inject_override_store(AmsBackendQidi& b,
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
         b.override_store_ = std::move(s);
+        // A start bound the tracker's baseline writes to the store this replaces.
+        helix::ams::bind_fingerprint_persistence(b.rfid_tracker_, b.override_store_.get(),
+                                                 b.overrides_);
     }
     // Runs only the startup store load: a null client makes on_started return
     // immediately after it, skipping the subscription machinery.
