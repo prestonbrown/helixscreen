@@ -23,8 +23,8 @@
  * @endcode
  */
 
+#include "core/static_panel_registry.h"
 #include "lvgl.h"
-#include "static_panel_registry.h"
 
 namespace helix::ui {
 

@@ -13,11 +13,11 @@
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
 #include "ui_theme_editor_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
-#include "static_panel_registry.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
 
@@ -102,4 +102,29 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Tapping a theme swatch opens the pic
     lv_obj_send_event(swatch, LV_EVENT_CLICKED, nullptr);
     settle();
     CHECK(ModalStack::instance().top_component_name() == "color_picker");
+}
+
+TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping unsaved edits",
+                 "[theme_editor]") {
+    auto& editor = get_theme_editor_overlay();
+    REQUIRE(editor.show(lv_screen_active()));
+    settle();
+    lv_obj_t* root = editor.get_root();
+    lv_obj_t* row = lv_obj_find_by_name(root, "row_shadow_intensity");
+    REQUIRE(row != nullptr);
+    lv_obj_t* slider = lv_obj_find_by_name(row, "slider");
+    REQUIRE(slider != nullptr);
+    lv_slider_set_value(slider, 10, LV_ANIM_OFF);
+    lv_obj_send_event(slider, LV_EVENT_VALUE_CHANGED, nullptr);
+    REQUIRE(ModalStack::instance().empty());
+
+    lv_obj_send_event(lv_obj_find_by_name(root, "back_button"), LV_EVENT_CLICKED, nullptr);
+    settle();
+
+    CHECK_FALSE(ModalStack::instance().empty());
+    CHECK(editor.get_root() == root);
+
+    // The slider previewed its edit across the app.
+    theme_manager_preview(
+        helix::load_theme_from_file(DisplaySettingsManager::instance().get_theme_name()));
 }

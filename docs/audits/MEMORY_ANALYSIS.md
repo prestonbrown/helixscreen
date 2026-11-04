@@ -196,7 +196,7 @@ The current architecture is **well-optimized** for the use case. Physical memory
 | `SmapsRollup` | `include/memory_utils.h` | Reads `/proc/self/smaps_rollup` for heap vs shared lib vs file-backed breakdown |
 | `TelemetryManager` | `src/system/telemetry_manager.cpp` | `memory_warning` event (on breach) + enriched `memory_snapshot` (hourly) |
 | `MemoryProfiler` | `src/system/memory_profiling.cpp` | SIGUSR1/periodic snapshots now include PSS, shared, swap breakdown |
-| `MemoryStatsOverlay` | `src/ui/ui_panel_memory_stats.cpp` | Dev overlay shows pressure level: OK/ELEVATED/WARNING/CRITICAL |
+| `MemoryStatsOverlay` | `src/ui/debug/ui_panel_memory_stats.cpp` | Dev overlay shows pressure level: OK/ELEVATED/WARNING/CRITICAL |
 
 ### Threshold Tiers
 

@@ -47,8 +47,8 @@ from pathlib import Path
 
 # The backends whose stored-range gate must read the display.
 GUARDED_SOURCES = (
-    "src/api/display_backend_fbdev.cpp",
-    "src/api/display_backend_drm.cpp",
+    "src/platform/display/display_backend_fbdev.cpp",
+    "src/platform/display/display_backend_drm.cpp",
 )
 
 # Either helper answers the question; both are defined in include/display_backend.h.

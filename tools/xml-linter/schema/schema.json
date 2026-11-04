@@ -1953,43 +1953,6 @@
       "attributes": {},
       "inherits": "lv_obj"
     },
-    "helix_sparkline": {
-      "attributes": {
-        "source": {
-          "type": "string"
-        }
-      },
-      "inherits": "lv_obj"
-    },
-    "setting_group": {
-      "attributes": {},
-      "inherits": "lv_obj"
-    },
-    "ams_lane_bar": {
-      "attributes": {
-        "bar_width": {
-          "type": "string"
-        },
-        "bar_height": {
-          "type": "string"
-        },
-        "slot_index": {
-          "type": "int"
-        }
-      },
-      "inherits": "lv_obj"
-    },
-    "ams_lane_spool": {
-      "attributes": {
-        "spool_size": {
-          "type": "string"
-        },
-        "slot_index": {
-          "type": "int"
-        }
-      },
-      "inherits": "lv_obj"
-    },
     "belt_gap_gauge": {
       "attributes": {},
       "inherits": "lv_obj"
@@ -1998,19 +1961,9 @@
       "attributes": {},
       "inherits": "lv_obj"
     },
-    "humidity_drop": {
+    "helix_sparkline": {
       "attributes": {
-        "bind_value": {
-          "type": "string"
-        },
-        "size": {
-          "type": "enum",
-          "enum": "_widget_size"
-        },
-        "width": {
-          "type": "string"
-        },
-        "height": {
+        "source": {
           "type": "string"
         }
       },
@@ -2046,6 +1999,49 @@
       },
       "inherits": "lv_obj"
     },
+    "ams_lane_bar": {
+      "attributes": {
+        "bar_width": {
+          "type": "string"
+        },
+        "bar_height": {
+          "type": "string"
+        },
+        "slot_index": {
+          "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
+    },
+    "ams_lane_spool": {
+      "attributes": {
+        "spool_size": {
+          "type": "string"
+        },
+        "slot_index": {
+          "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
+    },
+    "humidity_drop": {
+      "attributes": {
+        "bind_value": {
+          "type": "string"
+        },
+        "size": {
+          "type": "enum",
+          "enum": "_widget_size"
+        },
+        "width": {
+          "type": "string"
+        },
+        "height": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
+    },
     "lv_obj-bind_tile_rung": {
       "attributes": {
         "subject": {
@@ -2064,6 +2060,10 @@
           "type": "string"
         }
       },
+      "inherits": "lv_obj"
+    },
+    "setting_group": {
+      "attributes": {},
       "inherits": "lv_obj"
     }
   },
@@ -3017,16 +3017,16 @@
     "endless_spool_arrows",
     "ui_split_button",
     "z_offset_indicator",
-    "helix_sparkline",
-    "setting_group",
-    "ams_lane_bar",
-    "ams_lane_spool",
     "belt_gap_gauge",
     "belt_path_sketch",
-    "humidity_drop",
+    "helix_sparkline",
     "leader_line",
     "swatch_paint",
-    "lv_obj-bind_tile_rung"
+    "ams_lane_bar",
+    "ams_lane_spool",
+    "humidity_drop",
+    "lv_obj-bind_tile_rung",
+    "setting_group"
   ],
   "runtime_constants": [
     "accent_bar_gap",
@@ -3257,6 +3257,14 @@
     "ams_tile_value_font_small",
     "ams_tile_value_font_xlarge",
     "ams_tile_value_font_xxlarge",
+    "ams_title_row_height",
+    "ams_title_row_height_large",
+    "ams_title_row_height_medium",
+    "ams_title_row_height_micro",
+    "ams_title_row_height_small",
+    "ams_title_row_height_tiny",
+    "ams_title_row_height_xlarge",
+    "ams_title_row_height_xxlarge",
     "ams_unit_name_h",
     "ams_unit_name_h_large",
     "ams_unit_name_h_medium",
@@ -3726,6 +3734,14 @@
     "header_height_tiny",
     "header_height_xlarge",
     "header_height_xxlarge",
+    "header_slot2_min_width",
+    "header_slot2_min_width_large",
+    "header_slot2_min_width_medium",
+    "header_slot2_min_width_micro",
+    "header_slot2_min_width_small",
+    "header_slot2_min_width_tiny",
+    "header_slot2_min_width_xlarge",
+    "header_slot2_min_width_xxlarge",
     "hex_placeholder",
     "hidden_connecting_height",
     "hidden_connecting_height_large",
@@ -4534,6 +4550,14 @@
     "tune_pa_btn_w_xlarge",
     "warning",
     "wizard_button_width",
+    "wizard_dropdown_height",
+    "wizard_dropdown_height_large",
+    "wizard_dropdown_height_medium",
+    "wizard_dropdown_height_micro",
+    "wizard_dropdown_height_small",
+    "wizard_dropdown_height_tiny",
+    "wizard_dropdown_height_xlarge",
+    "wizard_dropdown_height_xxlarge",
     "z_tune_dir_col_w",
     "z_tune_dir_col_w_large",
     "z_tune_dir_col_w_medium",

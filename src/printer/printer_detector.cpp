@@ -7,7 +7,8 @@
 
 #include "app_globals.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "filament_sensor_manager.h"
 #include "helix_fs.h"
 #include "json_utils.h"
@@ -19,7 +20,6 @@
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"
-#include "text_io.h"
 #include "thermal_rate_model.h"
 #include "width_sensor_manager.h"
 #include "wizard_config_paths.h"

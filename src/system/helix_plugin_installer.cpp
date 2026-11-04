@@ -4,6 +4,7 @@
 #include "helix_plugin_installer.h"
 
 #include "config.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "helix_version.h"
 #include "host_identity.h"
@@ -11,7 +12,6 @@
 #include "lvgl.h"
 #include "system/child_process.h"
 #include "system/update_checker.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -3,7 +3,7 @@
 
 #include "webcam_service_health.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <array>
@@ -11,6 +11,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "hv/json.hpp"
 
 namespace helix::webcam {
 

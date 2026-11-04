@@ -3,8 +3,8 @@
 
 #include "spoolman_catalog_search.h"
 
+#include "core/text_io.h"
 #include "moonraker_error.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

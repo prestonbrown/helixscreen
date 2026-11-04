@@ -2,6 +2,7 @@
 #pragma once
 
 #include "filament_sensor_manager.h"
+#include "json_fwd.h"
 #include "printer_discovery.h"
 #include "sensor_manager_test_access.h"
 
@@ -10,8 +11,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

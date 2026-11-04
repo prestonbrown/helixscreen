@@ -29,15 +29,15 @@
     <prop name="hide_action_button" type="string" default="true"/>
     <prop name="action_button_disabled_subject" type="string" default=""/>
     <prop name="action_button_hidden_subject" type="string" default=""/>
-    <!-- Second action button (left of primary). min_width forwards the base
-         header_bar's 90 floor; the micro header_bar's own floor is tighter, so
-         a micro overlay that leaves this unset pins its own value. -->
+    <!-- Second action button (left of primary). min_width forwards header_bar's
+         per-tier floor (header_slot2_min_width: 72 at 480x272, 90 elsewhere);
+         an overlay whose label may hide passes a smaller one. -->
     <prop name="action_button_2_text" type="string" default=""/>
     <prop name="action_button_2_text_tag" type="string" default=""/>
     <prop name="action_button_2_icon" type="string" default=""/>
     <prop name="action_button_2_icon_size" type="string" default="sm"/>
     <prop name="action_button_2_bg_color" type="string" default="#secondary"/>
-    <prop name="action_button_2_min_width" type="string" default="90"/>
+    <prop name="action_button_2_min_width" type="string" default="#header_slot2_min_width"/>
     <prop name="action_button_2_callback" type="string" default=""/>
     <prop name="hide_action_button_2" type="string" default="true"/>
     <prop name="action_button_2_hidden_subject" type="string" default=""/>

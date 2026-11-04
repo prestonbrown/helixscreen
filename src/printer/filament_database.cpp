@@ -3,9 +3,9 @@
 
 #include "filament_database.h"
 
+#include "core/text_io.h"
 #include "filament_catalog.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

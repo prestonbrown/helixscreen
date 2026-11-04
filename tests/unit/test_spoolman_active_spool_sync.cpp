@@ -13,8 +13,6 @@
  * external slot costs no fetch.
  */
 
-#include "ui_update_queue.h"
-
 #include "../fake_moonraker_client.h"
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
@@ -25,6 +23,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "i_moonraker_sub_apis.h"
 #include "printer_state.h"
 #include "spoolman_active_spool_sync.h"

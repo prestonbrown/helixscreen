@@ -507,17 +507,17 @@ The grid handlers are registered on `carousel_host`, the grid's own container
 (`ui_xml/home_panel.xml#carousel_host`), and a press reaches them by bubbling. Page containers
 bubble by their component (`ui_xml/components/home_page_container.xml`),
 `set_event_bubble_recursive()` re-flags every descendant of a page container after its widgets
-are populated (`src/ui/ui_panel_home.cpp#populate_page`), and the carousel keeps its scroll
+are populated (`src/ui/home/ui_panel_home.cpp#populate_page`), and the carousel keeps its scroll
 container and tiles bubbling through every page-count change because `build_carousel` sets that
-as a carousel property (`src/ui/ui_carousel.cpp#carousel_set_bubble_events`). So aiming at a
+as a carousel property (`src/ui/components/ui_carousel.cpp#carousel_set_bubble_events`). So aiming at a
 tile is fine - it is not necessary to hit the gutter between tiles.
 
 **Open the catalog with `click nav_btn_edit_add`, not a second long press.** The long press
 that enters Edit Mode selects the widget under the press and does not start dragging it,
-however long it is held: `enter()` marks that hold inert (`src/ui/grid_edit_mode.cpp#enter`), and
+however long it is held: `enter()` marks that hold inert (`src/ui/home/grid_edit_mode.cpp#enter`), and
 an inert hold's long press does nothing. Inside Edit Mode a long press grabs: it picks up the
 selected widget, or the widget under the press once it selects it, and opens the catalog only on
-empty grid with nothing selected (`src/ui/grid_edit_mode.cpp#handle_long_press`). The nav bar's `+`
+empty grid with nothing selected (`src/ui/home/grid_edit_mode.cpp#handle_long_press`). The nav bar's `+`
 (`ui_xml/navigation_bar.xml#nav_btn_edit_add`) goes straight to
 `HomePanel::open_widget_catalog()` (`src/xml_registration.cpp#register_xml_components`) with no
 such condition, so it is the case that always works.
@@ -531,7 +531,7 @@ widget, it grabs that widget.
 press armed on the selected widget, a drag or a resize) and the widget catalog is closed, the
 carousel swipes when there is more than one page, and a swipe stops at the last page: the
 next-page slot past it is a drop target, within reach only while a drag is live
-(`src/ui/ui_panel_home.cpp#apply_edit_swipe_policy`). A single-page home has nothing to swipe to.
+(`src/ui/home/ui_panel_home.cpp#apply_edit_swipe_policy`). A single-page home has nothing to swipe to.
 Swipe on empty grid, or starting on a widget that is not selected:
 
 ```bash
@@ -544,9 +544,9 @@ helix-screen ctl release 180 160
 **Moving a widget takes a second press.** A press on a widget that is not selected only selects
 it, however the pointer moves afterward. A fresh press on the selected widget arms a grab, and
 moving past the drag threshold starts the drag, or a resize when the press landed in a resizable
-widget's edge band (`src/ui/grid_edit_mode.cpp#handle_pressing`). The release commits. A
+widget's edge band (`src/ui/home/grid_edit_mode.cpp#handle_pressing`). The release commits. A
 release that lands away from its press never changes the selection, so a drop the grid rejects
-leaves the dragged widget selected (`src/ui/ui_panel_home.cpp#on_home_grid_clicked`):
+leaves the dragged widget selected (`src/ui/home/ui_panel_home.cpp#on_home_grid_clicked`):
 
 ```bash
 helix-screen ctl geom temp_graph                  # a tile's rect: aim at its centre, CX,CY
@@ -579,7 +579,7 @@ of a page's last widget empties that page, which then stops counting: a page oth
 page is removed, and the main page stays but holds no placed widget, so the count stays the same.
 
 **When the long press appears to do nothing**, check the suppressors before suspecting the
-pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp#should_suppress_edit_mode`) drops it when:
+pointer. `should_suppress_edit_mode()` (`src/ui/home/ui_panel_home.cpp#should_suppress_edit_mode`) drops it when:
 
 | Condition | How to check |
 |-----------|--------------|
@@ -593,22 +593,22 @@ none is set (`indev_proc_press`: `lib/lvgl/src/indev/lv_indev.c#"if(indev->point
 
 The handler also ignores a long press while the carousel rests on a page it does not act on, one
 the arrow buttons paged to while the widget catalog is open
-(`src/ui/ui_panel_home.cpp#carousel_on_scoped_page`).
+(`src/ui/home/ui_panel_home.cpp#carousel_on_scoped_page`).
 
 Drift is not a factor with `long_press`: entering Edit Mode also requires a stationary
-hold (`src/ui/ui_panel_home.cpp#on_home_grid_long_press`), and the synthetic pointer never moves during it.
+hold (`src/ui/home/ui_panel_home.cpp#on_home_grid_long_press`), and the synthetic pointer never moves during it.
 
 **`home_edit_mode` is a read-only reflection - do not `set` it.** `ctl set home_edit_mode 1`
 returns success and does not enter Edit Mode. The subject is written by
-`GridEditMode::enter()` (`src/ui/grid_edit_mode.cpp#enter`) / `exit()`
-(`src/ui/grid_edit_mode.cpp#exit`); setting it by
+`GridEditMode::enter()` (`src/ui/home/grid_edit_mode.cpp#enter`) / `exit()`
+(`src/ui/home/grid_edit_mode.cpp#exit`); setting it by
 hand only changes what observes it: the nav bar's edit buttons unhide
 (`ui_xml/navigation_bar.xml#nav_btn_edit_add`) and its other buttons disable
 (`ui_xml/navigation_bar.xml#nav_btn_home` and the buttons after it), the page badge shows when
 more than one page is populated (`ui_xml/home_panel.xml`), and a camera widget drops its stream
 to 2 fps (`src/ui/panel_widgets/camera_widget.cpp#update_stream_fps`). Clicking the `+` then still does nothing, because
 `HomePanel::open_widget_catalog()` no-ops unless `grid_edit_mode_.is_active()`
-(`src/ui/ui_panel_home.cpp#open_widget_catalog`). A long press on the grid - `long_press`, or
+(`src/ui/home/ui_panel_home.cpp#open_widget_catalog`). A long press on the grid - `long_press`, or
 `press`, `sleep`, `release` - is the only way in.
 
 A **target** is one of:
@@ -989,7 +989,7 @@ frame doesn't change again a moment later. It combines four things:
 
 **The skip list, and why a global `lv_timer_enable(false)` cannot be used
 instead:** `UpdateQueue`'s processor is itself an `lv_timer`
-(`include/ui_update_queue.h`), and `RemoteControlServer::execute_on_ui_thread`
+(`include/core/update_queue.h`), and `RemoteControlServer::execute_on_ui_thread`
 dispatches every handler — including `unfreeze` itself — through
 `helix::ui::queue_update()`. A global timer disable stops that processor along
 with everything else, so the very next command blocks for the 10s UI-thread

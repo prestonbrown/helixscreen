@@ -292,7 +292,6 @@ TEST_CASE("PrintStart: default profile reads each phase from real and generic li
 // - Various phase transitions
 
 #include "ui_print_preparation_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/archive_transfers.h"
@@ -302,6 +301,7 @@ TEST_CASE("PrintStart: default profile reads each phase from real and generic li
 #include "../test_helpers/print_start_collector_test_access.h"
 #include "../test_helpers/print_start_profile_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "print_start_analyzer.h"
 #include "print_start_collector.h"

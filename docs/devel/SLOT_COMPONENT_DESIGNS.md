@@ -133,7 +133,7 @@ subject:
 ```
 
 `tune_z_closer_icon` and `tune_z_farther_icon` are registered in
-`src/ui/ui_print_tune_overlay.cpp`. C++ decides the kinematics once and writes the icon name;
+`src/ui/print/ui_print_tune_overlay.cpp`. C++ decides the kinematics once and writes the icon name;
 the XML binds it. No duplicated icon pairs, no slot needed, and the proposed `z_offset_button`
 and `kinematics_icon` components were never created.
 
@@ -195,7 +195,7 @@ by any XML, so both were removed rather than migrated. The rule now lives in a w
               bind_current="bed_temp" bind_target="bed_target"/>
 ```
 
-and in exactly one function, `format_temperature_pair()` in `src/ui/ui_temperature_utils.cpp`.
+and in exactly one function, `format_temperature_pair()` in `src/ui/controls/ui_temperature_utils.cpp`.
 The heater-off form is an em dash, not `--`:
 
 ```cpp

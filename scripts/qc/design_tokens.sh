@@ -27,10 +27,10 @@ if [ -n "$PRIV" ]; then
   TOKEN_EXIT=1
 fi
 
-# Hardcoded colors. Exempt: theme_manager and its src/ui/theme_* files (they parse hex into tokens, definitional),
+# Hardcoded colors. Exempt: theme_manager and its src/ui/theme/ files (they parse hex into tokens, definitional),
 # procedural canvas renderers, and helix-splash (a separate binary that does not
 # link ThemeManager). Ratcheting baseline — port these to theme_manager_get_color().
-HEX_ALLOW='theme_manager|src/ui/theme_|src/rendering/|canvas|confetti|glyph|src/helix_splash.cpp'
+HEX_ALLOW='theme_manager|src/ui/theme/|src/rendering/|canvas|confetti|glyph|src/helix_splash.cpp'
 HEX_BASELINE=33
 HEX_COUNT=$(grep -rn 'lv_color_hex(0x' src include 2>/dev/null | grep -vcE "$HEX_ALLOW" || true)
 if [ "$HEX_COUNT" -gt "$HEX_BASELINE" ]; then

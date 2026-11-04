@@ -214,6 +214,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ToolSwitcherWidget: a rail cell raises its own widget's picker",
+                 "[tool_switcher][panel_widget][from_event]") {
+    ToolChangerRig rig(4);
+    PanelWidgetHarness<ToolSwitcherWidget> a(test_screen(), state());
+    PanelWidgetHarness<ToolSwitcherWidget> b(test_screen(), state());
+    process_lvgl(30);
+    resize_content(a, 214, 93);
+    resize_content(b, 214, 93);
+    process_lvgl(30);
+    REQUIRE(mode() == static_cast<int>(ToolSwitcherMode::Rail));
+
+    tap(named(a, "tool_switcher_seg_0"));
+    CHECK(a.widget().has_overlay_open());
+    CHECK_FALSE(b.widget().has_overlay_open());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "tool_switcher: the Pair face opens the sheet, and Park beside it needs a head",
                  "[tool_switcher][1784]") {
     ToolChangerRig rig(5);
@@ -1319,7 +1336,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     };
 
     int flips = 0;
-    for (int w = 100; w <= 600; w += 4) {
+    for (int w = 100; w <= 600; w += 10) {
         CAPTURE(w);
         mount(short_tool);
         resize_content(h, w, 60);

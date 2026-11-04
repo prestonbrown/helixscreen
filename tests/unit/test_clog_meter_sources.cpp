@@ -9,8 +9,6 @@
  *        (#1823).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
@@ -19,6 +17,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "clog_meter_geometry.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_discovery.h"

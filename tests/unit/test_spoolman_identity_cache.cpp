@@ -19,7 +19,6 @@
  */
 
 #include "ui_color_picker.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -28,6 +27,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_display_name.h"
 #include "lane_resolver.h"
 #include "lane_source_store.h"

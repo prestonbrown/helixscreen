@@ -5,6 +5,7 @@
 // Real-machine captures in tests/fixtures/printers/<slug>.json, loaded as
 // nlohmann::json or as the PrinterHardwareData detection sees.
 
+#include "json_fwd.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 
@@ -14,7 +15,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-#include "hv/json.hpp"
 
 namespace helix::test {
 

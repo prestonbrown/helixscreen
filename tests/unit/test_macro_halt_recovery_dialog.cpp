@@ -15,20 +15,20 @@
 // full-screen modal that says more than a 3s INFO line could.
 //
 // Mock stack follows test_begin_expected_restart.cpp: MoonrakerClientMock +
-// MoonrakerAPIMock over a stack PrinterState, with the api published through
-// set_moonraker_api() because begin_expected_klippy_restart() reaches it that
-// way. The dropped rpc is injected with force_next_gcode_error() rather than
+// MoonrakerAPIMock over a stack PrinterState, with the global api left unset:
+// the restart window is armed on the api the macro went through. The dropped
+// rpc is injected with force_next_gcode_error() rather than
 // relying on a mock branch, so the macro name stays arbitrary and the error
 // shape is exactly Moonraker's.
 
 #include "ui_emergency_stop.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "macro_executor.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -65,7 +65,6 @@ class MacroFailureFixture : public LVGLTestFixture {
 
     MacroFailureFixture() {
         state.init_subjects(false);
-        set_moonraker_api(&api);
         helix::ui::set_test_toast_hook([this](ToastSeverity severity, const std::string& m,
                                               uint32_t) { toasts.push_back({severity, m}); });
         // The overlay is a process-wide singleton and Catch2 runs the suite in
@@ -77,7 +76,6 @@ class MacroFailureFixture : public LVGLTestFixture {
     }
 
     ~MacroFailureFixture() override {
-        set_moonraker_api(nullptr);
         helix::ui::set_test_toast_hook(nullptr);
         EmergencyStopOverlayTestAccess::reset_suppression(EmergencyStopOverlay::instance());
         settle();

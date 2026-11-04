@@ -55,7 +55,7 @@ clang_ui_button_log() {
     leak_header
     printf 'Direct leak of 7168 byte(s) in 128 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (/home/runner/work/helixscreen/helixscreen/build/bin/helix-tests-asan+0x351a24d) (BuildId: dead)'
-    frame 1 '(anonymous namespace)::ui_button_create(_lv_xml_parser_state_t*, char const**) /home/runner/work/helixscreen/helixscreen/tests/unit/../../src/ui/ui_button.cpp:562:26'
+    frame 1 '(anonymous namespace)::ui_button_create(_lv_xml_parser_state_t*, char const**) /home/runner/work/helixscreen/helixscreen/tests/unit/../../src/ui/components/ui_button.cpp:562:26'
     frame 2 'view_start_element_handler /home/runner/work/helixscreen/helixscreen/lib/helix-xml/src/xml/lv_xml.c:2323:23'
     finish_run 7168 128
 }
@@ -66,7 +66,7 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 7168 byte(s) in 128 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:95'
-    frame 1 'ui_button_create(_lv_xml_parser_state_t*, char const**) /home/pbrown/Code/Printing/helixscreen/src/ui/ui_button.cpp:568'
+    frame 1 'ui_button_create(_lv_xml_parser_state_t*, char const**) /home/pbrown/Code/Printing/helixscreen/src/ui/components/ui_button.cpp:568'
     frame 2 'view_start_element_handler /home/pbrown/Code/Printing/helixscreen/lib/helix-xml/src/xml/lv_xml.c:2401'
     finish_run 7168 128
 }
@@ -77,7 +77,7 @@ gcc_ui_button_log() {
     clang_ui_button_log
     run python3 "$GATE" --write-baseline "$BASE" "$LOG"
     [ "$status" -eq 0 ]
-    grep -q '^src/ui/ui_button\.cpp::ui_button_create$' "$BASE"
+    grep -q '^src/ui/components/ui_button\.cpp::ui_button_create$' "$BASE"
 
     : > "$LOG"
     gcc_ui_button_log
@@ -99,23 +99,23 @@ gcc_ui_button_log() {
 @test "template free functions drop the return type both compilers print" {
     # gcc:  void helix::ui::observe_int_sync<HomePanel, {lambda...#1}>(...)
     # clang: ObserverGuard helix::ui::observe_int_sync<HomePanel, ...::$_8>(...)
-    # Both must key as include/observer_factory.h::observe_int_sync<HomePanel>:
+    # Both must key as include/core/observer_factory.h::observe_int_sync<HomePanel>:
     # return type dropped, and the function's namespace dropped too, because
     # gcc's libbacktrace reconstructs template names from DWARF WITHOUT the
     # enclosing namespaces while clang prints them qualified.
     leak_header
     printf 'Direct leak of 32 byte(s) in 1 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:95'
-    frame 1 'observe_int_sync<HomePanel, HomePanel::attach(int*)::<lambda(HomePanel*, int)#1> >(int*, HomePanel*, HomePanel::attach(int*)::<lambda(HomePanel*, int)#1>) include/observer_factory.h:339'
+    frame 1 'observe_int_sync<HomePanel, HomePanel::attach(int*)::<lambda(HomePanel*, int)#1> >(int*, HomePanel*, HomePanel::attach(int*)::<lambda(HomePanel*, int)#1>) include/core/observer_factory.h:339'
     finish_run 32 1
     run python3 "$GATE" --write-baseline "$BASE" "$LOG"
-    grep -q '^include/observer_factory\.h::observe_int_sync<HomePanel>$' "$BASE"
+    grep -q '^include/core/observer_factory\.h::observe_int_sync<HomePanel>$' "$BASE"
 
     : > "$LOG"
     leak_header
     printf 'Direct leak of 32 byte(s) in 1 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (/home/runner/work/helixscreen/helixscreen/build/bin/helix-tests-asan+0x351a24d) (BuildId: dead)'
-    frame 1 'ObserverGuard helix::ui::observe_int_sync<HomePanel, HomePanel::attach(int*)::$_8>(_lv_subject_t*, HomePanel*, HomePanel::attach(int*)::$_8) include/observer_factory.h:339:17'
+    frame 1 'ObserverGuard helix::ui::observe_int_sync<HomePanel, HomePanel::attach(int*)::$_8>(_lv_subject_t*, HomePanel*, HomePanel::attach(int*)::$_8) include/core/observer_factory.h:339:17'
     finish_run 32 1
     run_gate
     [ "$status" -eq 0 ]
@@ -129,19 +129,19 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 80 byte(s) in 1 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (helix-tests-asan+0x351a24d)'
-    frame 1 'MoonrakerClientMock::dispatch_shaper_calibrate_response(char) src/api/moonraker_client_mock.cpp:4749:17'
+    frame 1 'MoonrakerClientMock::dispatch_shaper_calibrate_response(char) src/mock/moonraker_client_mock.cpp:4749:17'
     finish_run 80 1
     run python3 "$GATE" --list "$LOG"
-    contains 'src/api/moonraker_client_mock.cpp::MoonrakerClientMock::dispatch_shaper_calibrate_response' "$output"
+    contains 'src/mock/moonraker_client_mock.cpp::MoonrakerClientMock::dispatch_shaper_calibrate_response' "$output"
 
     : > "$LOG"
     leak_header
     printf 'Direct leak of 80 byte(s) in 1 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (helix-tests-asan+0x351a24d)'
-    frame 1 'helix::ui::observe_int_sync<helix::PrintStatusWidget, helix::PrintStatusWidget::attach(lv_obj_t*, lv_obj_t*)::<lambda(helix::PrintStatusWidget*, int)> >(_lv_subject_t*, helix::PrintStatusWidget*, helix::PrintStatusWidget::attach(lv_obj_t*, lv_obj_t*)::<lambda(helix::PrintStatusWidget*, int)>) include/observer_factory.h:339:17'
+    frame 1 'helix::ui::observe_int_sync<helix::PrintStatusWidget, helix::PrintStatusWidget::attach(lv_obj_t*, lv_obj_t*)::<lambda(helix::PrintStatusWidget*, int)> >(_lv_subject_t*, helix::PrintStatusWidget*, helix::PrintStatusWidget::attach(lv_obj_t*, lv_obj_t*)::<lambda(helix::PrintStatusWidget*, int)>) include/core/observer_factory.h:339:17'
     finish_run 80 1
     run python3 "$GATE" --list "$LOG"
-    [[ "$output" == *'include/observer_factory.h::observe_int_sync<helix::PrintStatusWidget>'* ]]
+    [[ "$output" == *'include/core/observer_factory.h::observe_int_sync<helix::PrintStatusWidget>'* ]]
 }
 
 @test "lambda numbering and abi tags do not fork keys" {
@@ -183,12 +183,12 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 48 byte(s) in 1 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (/usr/lib/.../libasan.so+0x351a24d)'
-    frame 1 'helix::ui::detail::observe_core(_lv_subject_t*, void const*, std::function<void (int)>, helix::ui::Dispatch, std::shared_ptr<bool> const&, std::function<void ()>) /home/runner/work/helixscreen/helixscreen/src/ui/observer_factory.cpp:128:16'
-    frame 2 'ObserverGuard helix::ui::observe_int_sync<ControlsPanel, ControlsPanel::register_observers()::$_0>(_lv_subject_t*, ControlsPanel*, ControlsPanel::register_observers()::$_0&&, std::shared_ptr<bool> const&) /home/runner/work/helixscreen/helixscreen/include/observer_factory.h:84:12'
-    frame 3 'ControlsPanel::register_observers() /home/runner/work/helixscreen/helixscreen/src/ui/ui_panel_controls.cpp:210:19'
+    frame 1 'helix::ui::detail::observe_core(_lv_subject_t*, void const*, std::function<void (int)>, helix::ui::Dispatch, std::shared_ptr<bool> const&, std::function<void ()>) /home/runner/work/helixscreen/helixscreen/src/core/observer_factory.cpp:128:16'
+    frame 2 'ObserverGuard helix::ui::observe_int_sync<ControlsPanel, ControlsPanel::register_observers()::$_0>(_lv_subject_t*, ControlsPanel*, ControlsPanel::register_observers()::$_0&&, std::shared_ptr<bool> const&) /home/runner/work/helixscreen/helixscreen/include/core/observer_factory.h:84:12'
+    frame 3 'ControlsPanel::register_observers() /home/runner/work/helixscreen/helixscreen/src/ui/controls/ui_panel_controls.cpp:210:19'
     finish_run 48 1
     run python3 "$GATE" --write-baseline "$BASE" "$LOG"
-    grep -q '^src/ui/ui_panel_controls\.cpp::ControlsPanel::register_observers$' "$BASE"
+    grep -q '^src/ui/controls/ui_panel_controls\.cpp::ControlsPanel::register_observers$' "$BASE"
     ! grep -q 'observer_factory' "$BASE"
 }
 
@@ -202,7 +202,7 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 144 byte(s) in 2 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (helix-tests-asan+0x351a24d)'
-    frame 1 'ui_split_button_create(_lv_xml_parser_state_t*, char const**) src/ui/ui_split_button.cpp:435:18'
+    frame 1 'ui_split_button_create(_lv_xml_parser_state_t*, char const**) src/ui/components/ui_split_button.cpp:435:18'
     finish_run 144 2
     run_gate
     [ "$status" -ne 0 ]
@@ -217,7 +217,7 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 999999 byte(s) in 999 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (helix-tests-asan+0x351a24d)'
-    frame 1 '(anonymous namespace)::ui_button_create(_lv_xml_parser_state_t*, char const**) src/ui/ui_button.cpp:570:9'
+    frame 1 '(anonymous namespace)::ui_button_create(_lv_xml_parser_state_t*, char const**) src/ui/components/ui_button.cpp:570:9'
     finish_run 999999 999
     run_gate
     [ "$status" -ne 0 ]

@@ -13,9 +13,9 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "screensaver_registry.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <vector>
@@ -29,6 +29,9 @@ class DisplaySettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "settings_display_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void init_subjects() override;

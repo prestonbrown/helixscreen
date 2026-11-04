@@ -6,18 +6,20 @@
 
 #include "ui_insert_notice.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "ams_fault_event.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/http_executor.h"
+#include "core/static_subject_registry.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_fs.h"
 #include "helix_regex.h"
 #include "host_identity.h"
-#include "http_executor.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
@@ -30,8 +32,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_subject_registry.h"
-#include "text_io.h"
 #include "toolhead_homing.h"
 
 #include <spdlog/fmt/fmt.h>

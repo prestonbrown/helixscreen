@@ -9,9 +9,9 @@
  */
 
 #include "ui_keyboard_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "keyboard_layout_provider.h"
 #include "lvgl/lvgl.h"

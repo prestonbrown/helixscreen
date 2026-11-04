@@ -15,7 +15,7 @@ GATE="scripts/check_hand_rolled_swatch.py"
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     ROOT="${BATS_TEST_TMPDIR:-$(mktemp -d)}/tree"
-    mkdir -p "$ROOT/src/ui" "$ROOT/ui_xml/components"
+    mkdir -p "$ROOT/src/ui" "$ROOT/src/ui/components" "$ROOT/ui_xml/components"
     : > "$ROOT/base.txt"
 }
 
@@ -139,7 +139,7 @@ XML
     printf '<component><view extends="lv_obj"><lv_obj name="color_swatch_disc" style_radius="9999" style_bg_color="$color"/></view></component>\n' \
         > "$ROOT/ui_xml/components/color_swatch.xml"
     printf 'void f(lv_obj_t* o, uint32_t filament_rgb) {\n    lv_obj_set_style_radius(o, LV_RADIUS_CIRCLE, 0);\n    lv_obj_set_style_bg_color(o, lv_color_hex(filament_rgb), 0);\n}\n' \
-        > "$ROOT/src/ui/ui_swatch.cpp"
+        > "$ROOT/src/ui/components/ui_swatch.cpp"
     run_gate
     [ "$status" -eq 0 ] || fail "exempt files reported: $output"
 }

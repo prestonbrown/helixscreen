@@ -3,7 +3,7 @@
 
 #include "gcode_color_metadata.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <cctype>
 #include <cstring>

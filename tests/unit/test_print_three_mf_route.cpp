@@ -1,11 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_filename_utils.h"
 #include "ui_panel_print_status.h"
 #include "ui_print_preparation_manager.h"
 #include "ui_print_start_controller.h"
-#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/archive_transfers.h"
@@ -19,6 +17,8 @@
 #include "../ui_test_utils.h"
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
+#include "core/gcode_filename.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "print_start_checks.h"
 #include "printer_state.h"

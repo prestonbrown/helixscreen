@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "core/observer_factory.h"
 #include "format_utils.h"
 #include "humidity_sensor_manager.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"

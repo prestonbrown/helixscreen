@@ -15,14 +15,13 @@
  * the test link in mk/tests.mk to avoid duplicate symbols.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 
 #include "../catch_amalgamated.hpp"
 
 // Direct include AFTER the headers above so the test sees the real internals.
-#include "../../src/ui/ui_button.cpp"
+#include "../../src/ui/components/ui_button.cpp"
 
 namespace {
 

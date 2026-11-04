@@ -470,7 +470,7 @@ credentials, emails, MACs.
 
 ### IP addresses: private kept, routable tokenised
 
-`sanitize_value()` finishes by running `helix::redact::ips_in_text()` (`include/log_redact.h`),
+`sanitize_value()` finishes by running `helix::redact::ips_in_text()` (`include/core/log_redact.h`),
 the same helper the WiFi log call sites use, so the log path and the bundle path share one
 implementation. It keeps RFC1918, loopback, link-local, CGNAT and IPv6 ULA addresses verbatim —
 `192.168.1.50` is identical in millions of houses and is the whole diagnostic value of a

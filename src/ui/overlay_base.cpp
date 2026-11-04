@@ -7,9 +7,9 @@
 #include "ui_open_instances.h"
 #include "ui_panel_common.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/update_queue.h"
 #include "system/crash_handler.h"
 #include "ui/ui_widget_helpers.h"
 

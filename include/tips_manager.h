@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 /**

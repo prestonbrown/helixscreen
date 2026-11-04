@@ -171,17 +171,13 @@ TEST_CASE_METHOD(PrintStatusPanelFixture,
 
 namespace {
 
-/// Print status built from its portrait layout, on a printer with [exclude_object].
+/// Print status built under a portrait layout, on a printer with [exclude_object].
+/// One XML file serves every layout class; the portrait arrangement is measured.
 class PortraitExcludePanelFixture : public PrintStatusPanelFixture {
   public:
     PortraitExcludePanelFixture()
         : PrintStatusPanelFixture([]() -> std::shared_ptr<void> {
-              auto portrait = std::make_shared<ScopedPortraitLayout>(480, 1000);
-              REQUIRE(lv_xml_register_component_from_file(
-                          "A:ui_xml/portrait/print_status_panel.xml") == LV_RESULT_OK);
-              return std::shared_ptr<void>(portrait.get(), [portrait](void*) {
-                  lv_xml_register_component_from_file("A:ui_xml/print_status_panel.xml");
-              });
+              return std::make_shared<ScopedPortraitLayout>(480, 1000);
           }) {
         helix::PrinterDiscovery hw;
         hw.parse_objects(nlohmann::json{"exclude_object", "extruder"});

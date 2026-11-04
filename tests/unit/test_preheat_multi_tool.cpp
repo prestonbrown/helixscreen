@@ -9,16 +9,17 @@
  * heaters are targeted based on tool_target (-1 = all, 0..N = specific tool).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/log_capture.h"
+#include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/preheat_widget_test_access.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/tool_topologies.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_backend_indx.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
@@ -288,6 +289,18 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // A second lap lands on the same values, so the wrap left no residue.
     PreheatWidgetTestAccess::cycle(widget);
     REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target button cycles its own widget",
+                 "[preheat][panel_widget][from_event]") {
+    seed_extruders(3);
+    PanelWidgetHarness<PreheatWidget> a(test_screen(), get_printer_state());
+    PanelWidgetHarness<PreheatWidget> b(test_screen(), get_printer_state());
+
+    const std::string b_before = lv_label_get_text(b.child("tool_target_label"));
+    lv_obj_send_event(a.child("preheat_tool_target"), LV_EVENT_CLICKED, nullptr);
+    CHECK(std::string(lv_label_get_text(a.child("tool_target_label"))) != b_before);
+    CHECK(std::string(lv_label_get_text(b.child("tool_target_label"))) == b_before);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target visits every nozzle in one lap",

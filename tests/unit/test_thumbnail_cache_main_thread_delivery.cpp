@@ -28,8 +28,8 @@
  * deterministic and fast while still exercising the real wrapper.
  */
 
+#include "../../include/core/update_queue.h"
 #include "../../include/thumbnail_cache.h"
-#include "../../include/ui_update_queue.h"
 #include "../lvgl_test_fixture.h"
 
 #include <atomic>

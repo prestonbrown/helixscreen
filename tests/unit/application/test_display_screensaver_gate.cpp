@@ -3,9 +3,8 @@
 
 #if HELIX_ENABLE_SCREENSAVER
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "lvgl_test_fixture.h"

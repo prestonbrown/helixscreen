@@ -7,12 +7,12 @@
 #include "ui_observer_guard.h"
 #include "ui_temp_graph.h"
 
+#include "core/static_panel_registry.h"
 #include "klipper_config_editor.h"
 #include "moonraker_advanced_api.h"
 #include "overlay_base.h"
 #include "pid_progress_tracker.h"
 #include "save_config_restart.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>

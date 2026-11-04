@@ -9,7 +9,7 @@ How the crash reporter works end-to-end: crash detection, report collection, del
 | `include/system/crash_reporter.h` | CrashReporter API |
 | `src/system/crash_reporter.cpp` | Core logic: parsing, formatting, sending |
 | `include/ui_crash_report_modal.h` | Modal dialog class |
-| `src/ui/ui_crash_report_modal.cpp` | Modal UI logic and delivery flow |
+| `src/ui/notify/ui_crash_report_modal.cpp` | Modal UI logic and delivery flow |
 | `ui_xml/crash_report_modal.xml` | Modal layout (XML) |
 | `server/crash-worker/src/index.ts` | Cloudflare Worker (creates GitHub issues) |
 | `tests/unit/test_crash_reporter.cpp` | Unit tests (30 cases, 72 assertions) |
@@ -334,7 +334,7 @@ Custom domain: `crash.helixscreen.org` — configured via `[[routes]]` in `wrang
 
 ### Callback Registration
 
-Follows the standard modal pattern with static callbacks dispatching to `active_instance_`:
+Follows the standard modal pattern, with static callbacks that find their instance through `Modal::from_event<T>()`:
 
 ```cpp
 lv_xml_register_event_cb(nullptr, "on_crash_report_send", on_send_cb);
@@ -346,7 +346,7 @@ lv_xml_register_event_cb(nullptr, "on_crash_report_dismiss", on_dismiss_cb);
 1. `show_modal()` → registers callbacks, inits subjects, populates crash details, calls `Modal::show()`
 2. User clicks "Send Report" → `attempt_delivery()` tries auto-send → QR → file
 3. User clicks "Dismiss" → `consume_crash_file()` + `hide()`
-4. `on_hide()` → nulls `active_instance_`, schedules `delete this` via `ui_queue_update()`
+4. `on_hide()` → clears the framebuffer; `ModalStack` frees the instance when its entry goes
 
 ---
 

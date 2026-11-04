@@ -23,12 +23,12 @@
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_subject_registry.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"
 #endif
@@ -1653,6 +1653,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a file's late metadata never lands on the n
     REQUIRE(root != nullptr);
     view.set_dependencies(nullptr, &get_printer_state());
     lv_subject_t* const estimate = view.get_prep_manager()->get_preprint_estimate_subject();
+    // A second view: the estimate belongs to the view whose metadata arrived.
+    helix::ui::PrintSelectDetailView other;
+    other.init_subjects();
+    REQUIRE(other.create(test_screen()) != nullptr);
+    other.set_dependencies(nullptr, &get_printer_state());
 
     FileMetadata a;
     a.filename = "sub/a.gcode";
@@ -1675,6 +1680,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a file's late metadata never lands on the n
     process_lvgl(20);
     const int shown = lv_subject_get_int(estimate);
     REQUIRE(shown > 0);
+    CHECK(lv_subject_get_int(other.get_prep_manager()->get_preprint_estimate_subject()) == 0);
 
     // A's fetch answers last, carrying a hotter bed and nozzle than B's.
     PrintSelectDetailViewTestAccess::apply_file_metadata(view, "sub/a.gcode", a);

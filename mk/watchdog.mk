@@ -136,13 +136,13 @@ $(BUILD_DIR)/watchdog/config_storage_file.o: src/system/config_storage_file.cpp 
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile backlight backend for watchdog (with HELIX_WATCHDOG to skip runtime_config dependency)
-$(BUILD_DIR)/watchdog/backlight_backend.o: src/api/backlight_backend.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/backlight_backend.o: src/platform/display/backlight_backend.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile data_root_resolver for watchdog (zero deps; provides writable_path,
 # get_user_config_dir, etc. for HELIX_CONFIG_DIR-aware path resolution)
-$(BUILD_DIR)/watchdog/data_root_resolver.o: src/application/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/data_root_resolver.o: src/core/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -159,7 +159,7 @@ $(BUILD_DIR)/watchdog/crash_record.o: src/system/crash_record.cpp $(ABI_STAMP) |
 
 # Compile text_io for watchdog (config_storage_file.cpp reads and writes through it).
 # Large-file offsets, as in the app build (mk/rules.mk).
-$(BUILD_DIR)/watchdog/text_io.o: src/system/text_io.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/text_io.o: src/core/text_io.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) -D_FILE_OFFSET_BITS=64 $(DEPFLAGS) -c $< -o $@
 
@@ -194,7 +194,7 @@ $(BUILD_DIR)/watchdog/ui_notification_stub.o: tools/ui_notification_stub.cpp $(L
 # object in that archive becomes a hard link dependency whether or not this binary
 # reaches it. Without this the non-LTO targets (pi, pi32, x86) fail to link while the
 # -flto ones drop the unreachable caller and link clean.
-$(BUILD_DIR)/watchdog/log_redact.o: src/system/log_redact.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/log_redact.o: src/core/log_redact.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -205,17 +205,17 @@ $(BUILD_DIR)/watchdog/helix_lvgl_anomaly_stub.o: tools/helix_lvgl_anomaly_stub.c
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # DRM mode-matching helper (pure, referenced by display_backend_drm.cpp). Added for #766.
-$(BUILD_DIR)/watchdog/drm_mode_matching.o: src/api/drm_mode_matching.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/drm_mode_matching.o: src/platform/display/drm_mode_matching.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Fbdev kernel-size helper (pure, referenced by display_backend_fbdev.cpp). Added for #766.
-$(BUILD_DIR)/watchdog/fbdev_size_helper.o: src/api/fbdev_size_helper.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/fbdev_size_helper.o: src/platform/display/fbdev_size_helper.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Signal-safe framebuffer blank (registered by display_backend_fbdev.cpp)
-$(BUILD_DIR)/watchdog/fbdev_signal_clear.o: src/api/fbdev_signal_clear.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/fbdev_signal_clear.o: src/platform/display/fbdev_signal_clear.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

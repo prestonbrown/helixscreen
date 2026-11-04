@@ -199,8 +199,7 @@ TEST_CASE("CoordMapper edge cases", "[exclude_map][coords]") {
 // with seeded object geometry so the canvas path runs, then pump LVGL so the
 // async delete completes. They crash/assert if the ordering regresses.
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "printer_excluded_objects_state.h"
 
 namespace {

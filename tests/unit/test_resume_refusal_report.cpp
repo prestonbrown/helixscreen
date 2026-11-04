@@ -17,7 +17,6 @@
  */
 
 #include "ui_resume_dispatch.h"
-#include "ui_update_queue.h"
 
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
@@ -28,6 +27,7 @@
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "fault_surface_correlation.h"
 #include "gcode_error_router.h"
 #include "printer_discovery.h"

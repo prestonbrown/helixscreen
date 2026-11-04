@@ -11,10 +11,10 @@
 
 #include "ui_nav_manager.h"
 #include "ui_printer_status_icon.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "glass_painter.h"
 #include "printer_state.h"
 #include "session_wiring.h"

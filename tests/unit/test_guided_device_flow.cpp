@@ -12,20 +12,21 @@
 #include "ui_guided_device_flow.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/device_action_controls.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend_mock.h"
+#include "ams_cfs_calibration.h"
 #include "ams_device_action_value.h"
 #include "ams_error.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml_expr.h"
 #include "indx_contract.h"
 #include "snapmaker_nozzle_offset.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <lvgl/lvgl.h>
@@ -56,13 +57,34 @@ class AmsDeviceSectionDetailOverlayTestAccess {
 
 namespace {
 
-class CountingMock : public AmsBackendMock {
+class CountingMock : public AmsBackendMock, public ICfsCalibration {
   public:
     using AmsBackendMock::AmsBackendMock;
     int cutter_calibrations = 0;
+    void* capability(helix::TypeTag tag) override {
+        return tag == helix::type_tag<ICfsCalibration>() ? static_cast<ICfsCalibration*>(this)
+                                                         : AmsBackendMock::capability(tag);
+    }
     AmsError calibrate_cutter(std::function<void(bool, const std::string&)>) override {
         ++cutter_calibrations;
         return AmsErrorHelper::success();
+    }
+    AmsError start_chute_calibration(std::function<void()>, std::function<void(const std::string&)>,
+                                     std::shared_ptr<std::atomic<bool>>) override {
+        return AmsErrorHelper::success();
+    }
+    AmsError jog_chute_y(float) override {
+        return AmsErrorHelper::success();
+    }
+    AmsError save_chute_position(std::function<void()>,
+                                 std::function<void(const std::string&)>) override {
+        return AmsErrorHelper::success();
+    }
+    AmsError exit_chute_calibration() override {
+        return AmsErrorHelper::success();
+    }
+    bool last_chute_saved_position(double&, double&) const override {
+        return false;
     }
 };
 

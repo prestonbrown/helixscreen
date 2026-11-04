@@ -15,19 +15,19 @@
 
 #include "ui_maintenance_overlay.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "src/ui/panel_widgets/maintenance_model.h"
-#include "static_subject_registry.h"
 #include "system_settings_manager.h"
 
 #include <filesystem>

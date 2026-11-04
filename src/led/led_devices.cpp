@@ -2,10 +2,10 @@
 
 #include "led/led_devices.h"
 
+#include "core/text_io.h"
 #include "device_display_name.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 

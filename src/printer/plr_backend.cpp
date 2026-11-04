@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "plr_backend.h"
 
+#include "core/text_io.h"
 #include "json_utils.h"
 #include "moonraker_subscription_merge.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

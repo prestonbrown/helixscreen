@@ -7,8 +7,8 @@
 
 #include "async_lifetime_guard.h"
 #include "camera_view.h"
+#include "core/observer_factory.h"
 #include "moonraker_types.h"
-#include "observer_factory.h"
 #include "panel_widget.h"
 
 #include <memory>

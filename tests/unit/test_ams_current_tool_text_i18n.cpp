@@ -11,7 +11,7 @@
 #include "../test_helpers/ams_state_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "display_numbering.h"
 #include "printer_state.h"
 #include "translation_loader.h"

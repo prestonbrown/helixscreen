@@ -45,11 +45,11 @@
 
 #include "async_lifetime_guard.h"
 #include "boot_yield.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml_component_private.h"
 #include "helix_fs.h"
 #include "layout_manager.h"
 #include "page_scroll_auto_inject.h"
-#include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "z_offset_utils.h"
 
@@ -119,10 +119,12 @@ static void register_color_picker_responsive_constants() {
 
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (scope) {
-        lv_xml_register_const(scope, "color_preview_size", preview_size);
-        lv_xml_register_const(scope, "color_preview_size_small", preview_size_small);
-        lv_xml_register_const(scope, "color_text_height", text_height);
-        lv_xml_register_const(scope, "theme_swatch_size", theme_swatch_size);
+        // set, not register: register_const is first-write-wins, and a layout
+        // refresh resolves these again.
+        lv_xml_set_const(scope, "color_preview_size", preview_size);
+        lv_xml_set_const(scope, "color_preview_size_small", preview_size_small);
+        lv_xml_set_const(scope, "color_text_height", text_height);
+        lv_xml_set_const(scope, "theme_swatch_size", theme_swatch_size);
         spdlog::debug(
             "[Color Picker] Registered color_preview_size={}, theme_swatch_size={} for screen {}px",
             preview_size, theme_swatch_size, greater_res);
@@ -182,13 +184,21 @@ static void register_color_picker_component_constants(const char* component_name
         // color_picker.xml already owns the name by the time we get here and
         // would pin every screen to 32 instead of the responsive 24/28/32.
         lv_xml_set_const(scope, "swatch_size", swatch_size);
-        // Never declared in XML anywhere, so register is silent and correct.
-        lv_xml_register_const(scope, "sv_size", sv_buf);
-        lv_xml_register_const(scope, "hue_height", hue_buf);
+        lv_xml_set_const(scope, "sv_size", sv_buf);
+        lv_xml_set_const(scope, "hue_height", hue_buf);
         spdlog::debug("[Color Picker] {}: swatch_size={}, sv_size={}, hue_height={} "
                       "for height {}px",
                       component_name, swatch_size, sv_buf, hue_buf, ver_res);
     }
+}
+
+void refresh_color_picker_constants() {
+    register_color_picker_responsive_constants();
+    // Both embed <ui_hsv_picker sv_size="#sv_size">, and consts are scope-local.
+    // Looking the scope up registers the component here, at boot, so the consts
+    // are in place before its first instance.
+    register_color_picker_component_constants("ams_edit_overlay");
+    register_color_picker_component_constants("color_picker");
 }
 
 /**
@@ -439,11 +449,12 @@ void register_xml_components() {
     // AMS slot editor (single overlay, internal views — spec §13)
     helix::ui::get_ams_edit_overlay().register_callbacks();
     helix::ui::ensure_swatch_grid_subjects();
-    // Both embed <ui_hsv_picker sv_size="#sv_size">, and consts are scope-local.
-    // Looking the scope up registers the component here, at boot, so the consts
-    // are in place before its first instance.
-    register_color_picker_component_constants("ams_edit_overlay");
-    register_color_picker_component_constants("color_picker");
+    refresh_color_picker_constants();
+    // Every refresh of the layout tokens, so a resize or rotation moves the
+    // picker with them. Once per process: register_xml_components() can run again.
+    [[maybe_unused]] static const int color_picker_refresh_hook =
+        theme_manager_add_layout_refresh_hook(
+            [](lv_display_t*) { refresh_color_picker_constants(); });
 
     // Shared progress bar component (gradient indicator)
     ui_progress_bar_init();

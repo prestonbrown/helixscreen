@@ -16,14 +16,14 @@
  */
 
 #include "ui_settings_material_temps.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "material_settings_manager.h"
 #include "panel_widget_manager.h"
-#include "static_panel_registry.h"
 #include "temperature_controller.h"
 #include "test_helpers/press_wash_probe.h"
 #include "test_helpers/scoped_shared_resource.h"
@@ -49,7 +49,11 @@ namespace {
 /// test_ams_environment_overlay_zones.cpp).
 void reset_material_temps_singleton() {
     helix::ui::UpdateQueue::instance().drain();
-    StaticPanelRegistry::instance().destroy_all();
+    // destroy_all() hands back the trees its destructors may not delete inside
+    // the window; they belong to this case's screen, so free them here.
+    for (lv_obj_t* orphan : StaticPanelRegistry::instance().destroy_all()) {
+        lv_obj_delete(orphan);
+    }
     helix::ui::UpdateQueue::instance().drain();
 }
 
@@ -111,17 +115,7 @@ void open_abs_edit_view(XMLTestFixture& f) {
 TEST_CASE_METHOD(XMLTestFixture,
                  "Chamber row shows the material's chamber default when a heater exists",
                  "[material_temps][chamber]") {
-    reset_material_temps_singleton();
-    MaterialSettingsManager::instance().clear_override("ABS");
-    set_capability("printer_has_chamber_heater", 1);
-    register_overlay_deps(*this);
-    REQUIRE(register_component("material_temps_overlay"));
-
-    auto& overlay = helix::settings::get_material_temps_overlay();
-    overlay.show(lv_screen_active());
-    helix::ui::UpdateQueue::instance().drain();
-
-    overlay.handle_material_row_clicked("ABS");
+    open_abs_edit_view(*this);
 
     lv_obj_t* chamber_input = find_widget("edit_chamber_temp");
     REQUIRE(chamber_input != nullptr);
@@ -136,16 +130,8 @@ TEST_CASE_METHOD(XMLTestFixture,
 TEST_CASE_METHOD(XMLTestFixture,
                  "Saving the edit view persists a chamber override find_material applies",
                  "[material_temps][chamber]") {
-    reset_material_temps_singleton();
-    MaterialSettingsManager::instance().clear_override("ABS");
-    set_capability("printer_has_chamber_heater", 1);
-    register_overlay_deps(*this);
-    REQUIRE(register_component("material_temps_overlay"));
-
+    open_abs_edit_view(*this);
     auto& overlay = helix::settings::get_material_temps_overlay();
-    overlay.show(lv_screen_active());
-    helix::ui::UpdateQueue::instance().drain();
-    overlay.handle_material_row_clicked("ABS");
 
     lv_obj_t* chamber_input = find_widget("edit_chamber_temp");
     REQUIRE(chamber_input != nullptr);
@@ -217,53 +203,87 @@ TEST_CASE_METHOD(XMLTestFixture, "Chamber row is absent when the printer has no 
     reset_material_temps_singleton();
 }
 
-// The layout-variant files the app loads at 480x272 (micro) and 272x480
-// (micro_portrait) reflow the temperature inputs to two rows of two; a
-// four-across row cannot fit those screens. Pins the reflow's structure.
+// At 480x272 (MICRO) and 272x480 (MICRO_PORTRAIT) the one material_temps file
+// wraps its temperature inputs two-by-two: the columns carry a 45% min-width
+// bound on ui_breakpoint 0, and four of those cannot share a row. Pins that
+// the wrap happens there, and only there (the tiny cases below keep one row).
 namespace {
 
-void check_two_by_two_reflow(const char* variant_path, XMLTestFixture& f) {
-    reset_material_temps_singleton();
-    MaterialSettingsManager::instance().clear_override("ABS");
-    set_capability("printer_has_chamber_heater", 1);
-    register_overlay_deps(f);
-    REQUIRE(lv_xml_register_component_from_file(variant_path) == LV_RESULT_OK);
+int32_t input_top(lv_obj_t* obj) {
+    lv_area_t area;
+    lv_obj_get_coords(obj, &area);
+    return area.y1;
+}
 
-    auto& overlay = helix::settings::get_material_temps_overlay();
-    overlay.show(lv_screen_active());
-    helix::ui::UpdateQueue::instance().drain();
-    overlay.handle_material_row_clicked("ABS");
+void check_two_by_two_reflow(XMLTestFixture& f, int32_t screen_w, int32_t screen_h) {
+    lv_display_t* disp = lv_display_get_default();
+    REQUIRE(disp != nullptr);
 
-    lv_obj_t* nozzle_min = find_widget("edit_nozzle_min");
-    lv_obj_t* chamber_input = find_widget("edit_chamber_temp");
-    REQUIRE(nozzle_min != nullptr);
-    REQUIRE(chamber_input != nullptr);
+    {
+        ScopedResolution res(disp, screen_w, screen_h);
+        theme_manager_refresh_layout_constants(disp);
 
-    lv_obj_t* nozzle_row = lv_obj_get_parent(lv_obj_get_parent(nozzle_min));
-    lv_obj_t* chamber_row = lv_obj_get_parent(lv_obj_get_parent(chamber_input));
-    REQUIRE(nozzle_row != nullptr);
-    REQUIRE(chamber_row != nullptr);
-    CHECK(nozzle_row != chamber_row);
-    CHECK_FALSE(hidden(lv_obj_get_parent(chamber_input)));
+        reset_material_temps_singleton();
+        MaterialSettingsManager::instance().clear_override("ABS");
+        set_capability("printer_has_chamber_heater", 1);
+        register_overlay_deps(f);
+        REQUIRE(lv_xml_register_component_from_file("A:ui_xml/material_temps_overlay.xml") ==
+                LV_RESULT_OK);
 
-    MaterialSettingsManager::instance().clear_override("ABS");
-    reset_material_temps_singleton();
-    // Restore the standard component registration for any case that follows.
-    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/material_temps_overlay.xml") ==
-            LV_RESULT_OK);
+        auto& overlay = helix::settings::get_material_temps_overlay();
+        overlay.show(lv_screen_active());
+        helix::ui::UpdateQueue::instance().drain();
+        overlay.handle_material_row_clicked("ABS");
+        lv_obj_update_layout(lv_screen_active());
+
+        lv_obj_t* nozzle_min = find_widget("edit_nozzle_min");
+        lv_obj_t* nozzle_max = find_widget("edit_nozzle_max");
+        lv_obj_t* bed = find_widget("edit_bed_temp");
+        lv_obj_t* chamber = find_widget("edit_chamber_temp");
+        REQUIRE(nozzle_min != nullptr);
+        REQUIRE(nozzle_max != nullptr);
+        REQUIRE(bed != nullptr);
+        REQUIRE(chamber != nullptr);
+        CHECK_FALSE(hidden(lv_obj_get_parent(chamber)));
+
+        CHECK(input_top(nozzle_max) == input_top(nozzle_min));
+        CHECK(input_top(bed) > input_top(nozzle_min));
+        CHECK(input_top(chamber) == input_top(bed));
+
+        MaterialSettingsManager::instance().clear_override("ABS");
+        reset_material_temps_singleton();
+    }
+    theme_manager_refresh_layout_constants(disp);
 }
 
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture, "Micro variant reflows the temp inputs to two rows of two",
+TEST_CASE_METHOD(XMLTestFixture, "Micro wraps the temp inputs to two rows of two",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow("A:ui_xml/micro/material_temps_overlay.xml", *this);
+    check_two_by_two_reflow(*this, 480, 272);
 }
 
-TEST_CASE_METHOD(XMLTestFixture,
-                 "Micro-portrait variant reflows the temp inputs to two rows of two",
+// The header's back button carries ui_breakpoint style observers that
+// unsubscribe from its delete event; an overlay that strips the button's
+// events leaves them to fire on the next breakpoint change, into freed memory.
+TEST_CASE_METHOD(XMLTestFixture, "Destroying the overlay releases its ui_breakpoint observers",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow("A:ui_xml/micro_portrait/material_temps_overlay.xml", *this);
+    lv_subject_t* breakpoint = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(breakpoint != nullptr);
+    reset_material_temps_singleton();
+    const uint32_t baseline = lv_ll_get_len(&breakpoint->subs_ll);
+
+    open_abs_edit_view(*this);
+    REQUIRE(lv_ll_get_len(&breakpoint->subs_ll) > baseline);
+
+    MaterialSettingsManager::instance().clear_override("ABS");
+    reset_material_temps_singleton();
+    CHECK(lv_ll_get_len(&breakpoint->subs_ll) == baseline);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "Micro-portrait wraps the temp inputs to two rows of two",
+                 "[material_temps][chamber]") {
+    check_two_by_two_reflow(*this, 272, 480);
 }
 
 // TINY (480x320) and TINY_PORTRAIT (320x480) have no ui_xml/tiny*/ override, so
@@ -312,6 +332,8 @@ void check_row_fits_at(XMLTestFixture& f, int32_t screen_w, int32_t screen_h) {
         lv_obj_t* chamber_input = find_widget("edit_chamber_temp");
         REQUIRE(chamber_input != nullptr);
         CHECK_FALSE(hidden(lv_obj_get_parent(chamber_input)));
+        // One row here: the micro wrap above must not reach the tiny tiers.
+        CHECK(input_top(chamber_input) == input_top(find_widget("edit_nozzle_min")));
 
         // Checked per column, not just against the row's trailing edge: flex_grow
         // divides the row evenly regardless of a child's own declared width, so a
@@ -680,6 +702,21 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE(lv_subject_get_int(editing) == 0);
     lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
     CHECK(lv_subject_get_int(editing) == 1);
+
+    reset_material_temps_singleton();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "The header's back button leaves the edit view for the list",
+                 "[material_temps]") {
+    open_abs_edit_view(*this);
+    lv_obj_t* edit_view = find_widget("material_edit_view");
+    REQUIRE_FALSE(hidden(edit_view));
+    REQUIRE(hidden(find_widget("material_list_view")));
+
+    lv_obj_send_event(find_widget("back_button"), LV_EVENT_CLICKED, nullptr);
+
+    CHECK(hidden(edit_view));
+    CHECK_FALSE(hidden(find_widget("material_list_view")));
 
     reset_material_temps_singleton();
 }

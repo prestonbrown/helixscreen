@@ -4,13 +4,13 @@
 #include "moonraker_file_api.h"
 
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 
+#include "core/gcode_filename.h"
+#include "core/text_io.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "moonraker_api_internal.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 #include "three_mf_conversions.h"
 #include "try_reserve.h"
 

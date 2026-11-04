@@ -9,12 +9,12 @@
 #include "ui_subject_registry.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "locale_formats.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "print_activity.h"

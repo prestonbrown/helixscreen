@@ -7,11 +7,12 @@
 //                 include/moonraker_api.h and include/theme_manager.h.
 #include "ui_modal.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "favorite_macro_config_modal.h"
 #include "favorite_macro_widget.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -20,7 +21,6 @@
 #include "macro_param_modal.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
-#include "static_subject_registry.h"
 
 #include <map>
 #include <memory>
@@ -194,7 +194,7 @@ TEST_CASE_METHOD(FavoriteMacroRunFixture,
     lv_obj_t* field = lv_obj_find_by_name(prompt, "field_input");
     REQUIRE(field != nullptr);
     CHECK(std::string(lv_textarea_get_text(field)) == "PURGE=1");
-    helix::MacroParamModal::cancel_cb(nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(prompt, "btn_close"), LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
     helix::MacroParamDefaults::instance().clear("MY_MACRO");
 }
@@ -303,7 +303,8 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     cache_macros({}, {"PY_LOAD"});
 
     show_config_for("PY_LOAD");
-    helix::FavoriteMacroConfigModal::defaults_cb(nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(modal_->dialog(), "row_default_params"), LV_EVENT_CLICKED,
+                      nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
     lv_obj_t* editor = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
@@ -314,7 +315,9 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     REQUIRE(field != nullptr);
     lv_textarea_set_text(field, "purge=1");
 
-    helix::MacroParamModal::save_cb(nullptr);
+    lv_obj_send_event(
+        lv_obj_find_by_name(lv_obj_find_by_name(editor, "save_button_row"), "btn_primary"),
+        LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
     const helix::MacroParamDefaultRecord saved =
@@ -335,7 +338,8 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     helix::MacroParamDefaults::instance().set("MY_MACRO", existing);
 
     show_config_for("MY_MACRO");
-    helix::FavoriteMacroConfigModal::defaults_cb(nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(modal_->dialog(), "row_default_params"), LV_EVENT_CLICKED,
+                      nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
     lv_obj_t* editor = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
@@ -352,7 +356,9 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     lv_obj_remove_state(ask, LV_STATE_CHECKED);
     lv_obj_send_event(ask, LV_EVENT_VALUE_CHANGED, nullptr);
 
-    helix::MacroParamModal::save_cb(nullptr);
+    lv_obj_send_event(
+        lv_obj_find_by_name(lv_obj_find_by_name(editor, "save_button_row"), "btn_primary"),
+        LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
     const helix::MacroParamDefaultRecord saved =

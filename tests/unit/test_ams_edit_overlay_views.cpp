@@ -9,11 +9,9 @@
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_lane_settings.h"
 #include "ui_component_keypad.h"
-#include "ui_icon_codepoints.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
@@ -27,10 +25,9 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
-#include "config.h"
-#include "display_numbering.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
-#include "filament_favorites.h"
 #include "filament_op_dispatch.h"
 #include "lane_source_store.h"
 #include "moonraker_api_mock.h"
@@ -39,7 +36,6 @@
 #include "spoolman_manager.h"
 #include "spoolman_slot_saver.h"
 #include "src/ui/panel_widgets/active_spool_widget.h"
-#include "text_io.h"
 #include "tool_state.h"
 
 #include <algorithm>
@@ -3363,6 +3359,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         {
             ScopedResolution res(disp, sz.w, sz.h);
             theme_manager_refresh_layout_constants(disp);
+            CHECK(std::string(lv_xml_get_const(nullptr, "color_preview_size")) ==
+                  (sz.w == 800 ? "56" : "48"));
             auto& overlay = get_ams_edit_overlay();
             AmsEditOverlayViewTestAccess access(overlay);
             REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));

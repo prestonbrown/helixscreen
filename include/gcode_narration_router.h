@@ -5,12 +5,11 @@
 
 #include "async_lifetime_guard.h"
 #include "gcode_unknown_command.h"
+#include "json_fwd.h"
 
 #include <optional>
 #include <set>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerAPI;

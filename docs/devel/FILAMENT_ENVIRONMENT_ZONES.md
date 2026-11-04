@@ -36,7 +36,7 @@ std::vector<EnvironmentZone>          (include/ams_environment_zone.h)
   |
   |  select_zone_presentation(zones)  ->  Single | Tabs | List
   v
-open_environment_for_unit(unit)       (src/ui/ui_ams_environment_overlay.cpp)
+open_environment_for_unit(unit)       (src/ui/filament/ui_ams_environment_overlay.cpp)
   |
   +-> AmsZoneOverviewOverlay  (List)     one zone_row per zone, drill into detail
   |     ui_xml/ams_zone_overview_overlay.xml + ui_xml/components/zone_row.xml
@@ -62,13 +62,13 @@ heater is shared or per-lane.
 | `include/ams_environment_zone.h` | `EnvironmentZone`, `ZoneDryingState`, `ZonePresentation`, `kMaxZoneTabs`, and the four pure functions |
 | `src/printer/ams_environment_zone.cpp` | `derive_environment_zones()`, `fold_zone_drying_state()`, `queue_zones_waiting_for_the_cap()`, `select_zone_presentation()` |
 | `include/ui_zone_presentation.h` | `ZoneVerdict`, the humidity thresholds, `zone_display_label()`, `zone_slot_text()`, `zones_span_units()` |
-| `src/ui/ui_zone_presentation.cpp` | Their implementations. LVGL-free and translation-free: callers pass translated words in |
+| `src/ui/filament/ui_zone_presentation.cpp` | Their implementations. LVGL-free and translation-free: callers pass translated words in |
 | `include/ams_backend.h` | `get_environment_zones()` - the sixth dryer-family virtual - and the five it sits beside |
 | `src/printer/ams_backend.cpp` | `AmsBackend::get_environment_zones` - the default walk every backend gets for free |
 | `src/printer/ams_backend_happy_hare.cpp` | The one hardware override, plus `heater_suffix_locked()` and the `MMU_HEATER` command shapes |
 | `src/printer/ams_backend_mock.cpp` | Zone-shape rigs for the six `HELIX_MOCK_AMS_ENV` modes; the only caller of `queue_zones_waiting_for_the_cap()` |
-| `include/ui_ams_environment_overlay.h`, `src/ui/ui_ams_environment_overlay.cpp` | Detail overlay + tab selector, `open_environment_for_unit()`, the dryer control call sites |
-| `include/ui_ams_zone_overview_overlay.h`, `src/ui/ui_ams_zone_overview_overlay.cpp` | The zone list, its status text and unit grouping |
+| `include/ui_ams_environment_overlay.h`, `src/ui/filament/ui_ams_environment_overlay.cpp` | Detail overlay + tab selector, `open_environment_for_unit()`, the dryer control call sites |
+| `include/ui_ams_zone_overview_overlay.h`, `src/ui/filament/ui_ams_zone_overview_overlay.cpp` | The zone list, its status text and unit grouping |
 | `ui_xml/ams_environment_overlay.xml`, `ui_xml/components/zone_tab.xml` | Detail layout and the segmented selector |
 | `ui_xml/ams_zone_overview_overlay.xml`, `ui_xml/components/zone_row.xml` | List layout and one row |
 | `tests/unit/test_ams_environment_zones.cpp` | The pure functions - `[ams][dryer][zones]` |
@@ -119,7 +119,7 @@ comfort strip rather than printing a fabricated all-clear.
 
 `unit_index == -1` is not a display problem, it is a **control** problem. A read that only shapes
 a display value may treat it as "no data for this unit"; the start/stop call sites refuse rather
-than guess which box to command (`src/ui/ui_ams_environment_overlay.cpp#acting_unit_index`, and
+than guess which box to command (`src/ui/filament/ui_ams_environment_overlay.cpp#acting_unit_index`, and
 the two `unit < 0` branches in `on_start_stop_clicked`).
 
 ### `ZoneDryingState`
@@ -274,7 +274,7 @@ to make before they can see that the two differ at all. So any capability split 
 whatever the count, and only the count question is left for `kMaxZoneTabs` - which is a width
 constraint: above four, a segmented selector stops fitting the narrow breakpoints.
 
-`open_environment_for_unit()` (`src/ui/ui_ams_environment_overlay.cpp#open_environment_for_unit`)
+`open_environment_for_unit()` (`src/ui/filament/ui_ams_environment_overlay.cpp#open_environment_for_unit`)
 is the one caller. The branch lives there rather than inside either overlay, so neither overlay
 has to decide that the other one should have been opened.
 
@@ -313,7 +313,7 @@ color band - so a row cannot name one state while coloring for another:
    exactly the one whose color is the only signal the row gives, so it keeps its verdict.
 3. Otherwise `Verdict`, severity from `zone_verdict()`.
 
-`zone_status_text()` in the overview (`src/ui/ui_ams_zone_overview_overlay.cpp`) turns the kind
+`zone_status_text()` in the overview (`src/ui/filament/ui_ams_zone_overview_overlay.cpp`) turns the kind
 into a word: "Drying", "passive", or the verdict itself as "OK" / "Marginal" / "Too humid", with
 `Unknown` rendering `--`. The severity feeds `verdict_pool_` and the `bind_style_if_eq` rules in
 `zone_row.xml`, which style only `Marginal` (1) and `TooHumid` (2). So a heated box with no

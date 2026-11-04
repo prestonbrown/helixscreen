@@ -20,7 +20,6 @@ class FilamentCatalogPickerModal : public Modal {
     using SelectCallback = std::function<void(const helix::printer::EffectiveFilament&)>;
 
     FilamentCatalogPickerModal() = default;
-    ~FilamentCatalogPickerModal() override;
     FilamentCatalogPickerModal(const FilamentCatalogPickerModal&) = delete;
     FilamentCatalogPickerModal& operator=(const FilamentCatalogPickerModal&) = delete;
 
@@ -40,6 +39,7 @@ class FilamentCatalogPickerModal : public Modal {
     [[nodiscard]] const char* component_name() const override {
         return "filament_catalog_picker";
     }
+    HELIX_KIND_TAG(FilamentCatalogPickerModal)
 
   protected:
     void on_show() override;
@@ -52,7 +52,6 @@ class FilamentCatalogPickerModal : public Modal {
 
     static void register_callbacks();
     static bool callbacks_registered_;
-    static FilamentCatalogPickerModal* active_instance_;
 
     FilamentCatalogSelector selector_;
     std::optional<std::string> seed_type_;

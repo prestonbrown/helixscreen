@@ -16,8 +16,8 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
+#include "core/observer_factory.h"
 #include "lvgl_log_handler.h"
-#include "observer_factory.h"
 
 #include <string>
 

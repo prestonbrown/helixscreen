@@ -3,6 +3,7 @@
 #include "qidi_status_parse.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using json = nlohmann::json;
 using namespace helix;

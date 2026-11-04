@@ -9,12 +9,11 @@
  * Run with: ./build/bin/helix-tests "[bed_mesh][mesh_stats]"
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "bed_mesh_state.h"
 #include "bed_mesh_stats.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"

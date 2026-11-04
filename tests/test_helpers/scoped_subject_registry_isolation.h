@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 
 #include <utility>
 #include <vector>

@@ -4,8 +4,6 @@
 // heads. Status frames come from tests/fixtures/multiace/ (the engine's
 // get_status() shape); commands are captured at execute_gcode().
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -18,6 +16,7 @@
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

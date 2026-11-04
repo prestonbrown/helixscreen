@@ -3,15 +3,14 @@
 
 #include "active_print_media_manager.h"
 
-#include "ui_filename_utils.h"
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/gcode_filename.h"
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 #include "exception_policy.h"
 #include "gcode_parser.h"
 #include "json_utils.h"
 #include "memory_monitor.h"
-#include "observer_factory.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "three_mf_reader.h"
@@ -417,6 +416,28 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
     }
 }
 
+std::function<void(const std::string&)>
+ActivePrintMediaManager::retry_after_error(const char* tag, const std::string& filename,
+                                           ThumbnailLoadContext ctx, std::string what,
+                                           std::function<void()> before_retry) {
+    return [this, tok = lifetime_.token(), tag, ctx, filename, what = std::move(what),
+            before_retry = std::move(before_retry)](const std::string& error) {
+        // Runs on whichever worker failed: copy the message, marshal ALL member
+        // access (retry bookkeeping) to main.
+        tok.defer(tag, [this, ctx, filename, what, before_retry, message = error]() {
+            if (!ctx.is_valid()) {
+                return; // superseded by a newer load
+            }
+            spdlog::warn("[ActivePrintMediaManager] {} failed for '{}' (attempt {}/{}): {}", what,
+                         filename, thumbnail_retry_count_ + 1, kMaxThumbnailAttempts, message);
+            if (before_retry) {
+                before_retry();
+            }
+            schedule_thumbnail_retry(filename);
+        });
+    };
+}
+
 void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filename) {
     // A path already published FOR THIS FILE (e.g., PrintStartController set it
     // from USB) makes the thumbnail download unnecessary. We still need metadata
@@ -553,24 +574,13 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                                           }
                                       });
                         },
-                        [this, tok = lifetime_.token(), ctx, filename](const MoonrakerError& err) {
-                            // Reaching here means metadata came back without a
-                            // layer count and the header scan also failed, so
-                            // nothing has set layer_total. Without a retry this
-                            // print shows layers 0/0 for its entire duration.
-                            std::string message = err.message;
-                            tok.defer("ActivePrintMediaManager::on_gcode_header_error",
-                                      [this, ctx, filename, message = std::move(message)]() {
-                                          if (!ctx.is_valid()) {
-                                              return; // superseded by a newer load
-                                          }
-                                          spdlog::warn(
-                                              "[ActivePrintMediaManager] Gcode header fetch "
-                                              "failed for '{}': {}",
-                                              filename, message);
-                                          schedule_thumbnail_retry(filename);
-                                      });
-                        });
+                        // Reaching here means metadata came back without a layer count
+                        // and the header scan also failed, so nothing has set
+                        // layer_total. Without a retry this print shows layers 0/0 for
+                        // its entire duration.
+                        [retry = retry_after_error("ActivePrintMediaManager::on_gcode_header_error",
+                                                   filename, ctx, "Gcode header fetch")](
+                            const MoonrakerError& err) { retry(err.message); });
                 }
 
                 // Store slicer's estimated print time for remaining time fallback
@@ -723,22 +733,9 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                                                               spdlog::level::debug);
                             });
                     },
-                    [this, tok = lifetime_.token(), ctx, filename](const MoonrakerError& error) {
-                        // lane worker: copy the message, marshal ALL member
-                        // access (retry bookkeeping) to main.
-                        std::string message = error.message;
-                        tok.defer("ActivePrintMediaManager::on_thumbnail_error",
-                                  [this, ctx, filename, message = std::move(message)]() {
-                                      if (!ctx.is_valid()) {
-                                          return; // superseded by a newer load
-                                      }
-                                      spdlog::warn("[ActivePrintMediaManager] PSRAM thumbnail "
-                                                   "download failed for '{}' (attempt {}/{}): {}",
-                                                   filename, thumbnail_retry_count_ + 1,
-                                                   kMaxThumbnailAttempts, message);
-                                      schedule_thumbnail_retry(filename);
-                                  });
-                    });
+                    [retry = retry_after_error("ActivePrintMediaManager::on_thumbnail_error",
+                                               filename, ctx, "PSRAM thumbnail download")](
+                        const MoonrakerError& error) { retry(error.message); });
 #else
                 // The load's own context goes to the cache, so a result superseded by
                 // a newer load is dropped at the cache boundary; our success callback
@@ -757,51 +754,22 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
 
                 get_thumbnail_cache().fetch(
                     req, ctx, fetched_thumbnail_callback(filename, ctx),
-                    [this, tok = lifetime_.token(), ctx, filename](const std::string& error) {
-                        // bg thread (HTTP worker): copy the message, marshal
-                        // ALL member access (retry bookkeeping) to main.
-                        std::string message = error;
-                        tok.defer("ActivePrintMediaManager::on_thumbnail_error",
-                                  [this, ctx, filename, message = std::move(message)]() {
-                                      if (!ctx.is_valid()) {
-                                          return; // superseded by a newer load
-                                      }
-                                      spdlog::warn("[ActivePrintMediaManager] Thumbnail download "
-                                                   "failed for '{}' (attempt {}/{}): {}",
-                                                   filename, thumbnail_retry_count_ + 1,
-                                                   kMaxThumbnailAttempts, message);
-                                      schedule_thumbnail_retry(filename);
-                                  });
-                    });
+                    retry_after_error("ActivePrintMediaManager::on_thumbnail_error", filename, ctx,
+                                      "Thumbnail download"));
 #endif
             });
         },
-        [this, tok = lifetime_.token(), ctx, filename,
-         metadata_filename](const MoonrakerError& err) {
-            // bg thread (WebSocket response router): copy the message, marshal
-            // ALL member access (retry bookkeeping) to main. Happens when
-            // Moonraker hasn't finished scanning a just-uploaded file
-            // (OrcaSlicer upload-and-print) or on transient RPC failures.
-            std::string message = err.message;
-            tok.defer("ActivePrintMediaManager::on_metadata_error",
-                      [this, ctx, filename, metadata_filename, message = std::move(message)]() {
-                          if (!ctx.is_valid()) {
-                              return; // superseded by a newer load
-                          }
-                          spdlog::warn("[ActivePrintMediaManager] Thumbnail metadata fetch failed "
-                                       "for '{}' (attempt {}/{}): {}",
-                                       metadata_filename, thumbnail_retry_count_ + 1,
-                                       kMaxThumbnailAttempts, message);
-                          // A metadata endpoint that errors outright (a
-                          // customized fork can 404 it for every file) never
-                          // gets better within the ladder's lifetime, so
-                          // self-serve now rather than after the retries run
-                          // out. Genuinely transient failures still get the
-                          // ladder; a successful extraction disarms it.
-                          self_serve_from_gcode(filename, metadata_filename, ctx);
-                          schedule_thumbnail_retry(filename);
-                      });
-        },
+        // Happens when Moonraker hasn't finished scanning a just-uploaded file
+        // (OrcaSlicer upload-and-print) or on transient RPC failures. A metadata
+        // endpoint that errors outright (a customized fork can 404 it for every file)
+        // never gets better within the ladder's lifetime, so self-serve now rather
+        // than after the retries run out. Genuinely transient failures still get the
+        // ladder; a successful extraction disarms it.
+        [retry = retry_after_error("ActivePrintMediaManager::on_metadata_error", filename, ctx,
+                                   "Thumbnail metadata fetch of '" + metadata_filename + "'",
+                                   [this, filename, metadata_filename, ctx]() {
+                                       self_serve_from_gcode(filename, metadata_filename, ctx);
+                                   })](const MoonrakerError& err) { retry(err.message); },
         true // silent - don't trigger RPC_ERROR event/toast
     );
 }

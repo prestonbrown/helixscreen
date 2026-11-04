@@ -3,9 +3,8 @@
 
 #include "three_mf.h"
 
-#include "ui_filename_utils.h"
-
-#include "text_io.h"
+#include "core/gcode_filename.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <cctype>

@@ -4,7 +4,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/usb_scan_wait.h"
 #include "config.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "label_printer_settings.h"
 #include "label_printer_utils.h"
 #include "usb_printer_detector.h"

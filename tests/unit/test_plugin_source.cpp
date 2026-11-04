@@ -3,10 +3,9 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/plugin_test_support.h"
+#include "core/update_queue.h"
 #include "plugin_source.h"
 
 #include <filesystem>

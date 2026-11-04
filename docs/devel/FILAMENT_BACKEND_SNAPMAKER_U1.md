@@ -527,12 +527,12 @@ so the config must land before `PRINT_START`. `requires_preprint_send() = true` 
 **always-on, even with no remap**: `SET_PRINT_USED_EXTRUDERS` suppresses the spurious
 auto-feed of unused heads baked into every Orca-sliced file, which otherwise feeds an
 empty head and cancels the print on runout (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`,
-`src/ui/ui_print_start_controller.cpp#execute_print_start`).
+`src/ui/print/ui_print_start_controller.cpp#execute_print_start`).
 
 Send ordering is guaranteed on our side of the wire. Both start paths gate on
 `requires_preprint_send()` and hand the real start step to
 `send_backend_preprint_then()` as its completion continuation, then `return` - the
-start cannot fire first (`src/ui/ui_print_start_controller.cpp#execute_print_start`, reprint
+start cannot fire first (`src/ui/print/ui_print_start_controller.cpp#execute_print_start`, reprint
 `:454-471`). The built gcode goes out as a single `printer.gcode.script` JSON-RPC with a
 15 s timeout (`:355-404`, dispatched at `src/api/moonraker_api_controls.cpp#execute_gcode`); the
 print-start request is issued only from that request's success callback, and an error or
@@ -551,9 +551,9 @@ the firmware's default map (`src/printer/ams_backend_snapmaker.cpp#preprint_gcod
 the unload-at-end list (`end_unload_gcode()`), which needs no routing. So an empty
 `tools_used` still sends the preferences, and the two callers that have no routing use
 exactly that: a reprint with no recorded task map
-(`src/ui/ui_print_start_controller.cpp#reprint_impl`) and a restart from the beginning,
+(`src/ui/print/ui_print_start_controller.cpp#reprint_impl`) and a restart from the beginning,
 which appends them after its `CANCEL_PRINT_BASE`
-(`src/ui/ui_resume_dispatch.cpp#restart_print_from_beginning`). Full command
+(`src/ui/print/ui_resume_dispatch.cpp#restart_print_from_beginning`). Full command
 semantics — logical (0-31) vs physical (0-3) index rules, persistence behavior, the
 `filament_official` FORCE gate — live in
 [Firmware API: `print_task_config`](#firmware-api-print_task_config) below.
@@ -580,7 +580,7 @@ used tool (a map a start that never printed left behind). A file cannot set its 
 routing: `SET_PRINT_EXTRUDER_MAP`, `SET_PRINT_USED_EXTRUDERS` and
 `SET_PRINT_TASK_PARAMETERS` all refuse while `print_stats.state` is printing or paused
 (`id=531`), which is when a file's lines run
-(`src/ui/ui_print_start_controller.cpp#reprint_impl`).
+(`src/ui/print/ui_print_start_controller.cpp#reprint_impl`).
 
 ### Slot Overrides and lane_data
 
@@ -688,7 +688,7 @@ HelixScreen subscribes both extruder fields for every printer (stock Klipper has
 | `include/printer_discovery.h` | `filament_detect` detection + registration order (MMU wins over stock U1) |
 | `include/snapmaker_resume.h` + `src/printer/snapmaker_resume.cpp` | Terminal-pause matchers (dirty bed vs runout) and coded-error `msg` extraction |
 | `include/snapmaker_nozzle_offset.h` + `src/printer/snapmaker_nozzle_offset.cpp` | Toolhead offset calibration: capability check, step plan, `Runner` |
-| `include/ui_snapmaker_nozzle_offset_overlay.h` + `src/ui/ui_snapmaker_nozzle_offset_overlay.cpp` | The guided flow's overlay, registered by `src/ui/ui_snapmaker_device_flows.cpp` |
+| `include/ui_snapmaker_nozzle_offset_overlay.h` + `src/ui/calibration/ui_snapmaker_nozzle_offset_overlay.cpp` | The guided flow's overlay, registered by `src/ui/filament/ui_snapmaker_device_flows.cpp` |
 | `include/batch_feed_reconcile.h` | Connect-time cleanup of a firmware batch left in the `doing` state |
 | `include/snapmaker_print_preferences.h` | `PrintPreferences` read/write model for the firmware prefs surfaced as device actions, plus each head's `filament_soft` |
 | `include/filament_temperature_source.h` + `src/printer/filament_temperature_source.cpp` | Per-filament load/unload temperature capture (see above) |

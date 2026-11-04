@@ -8,20 +8,47 @@ spec = importlib.util.spec_from_file_location("esp32_syntax", SCRIPT)
 esc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(esc)
 
+NET = "firmware/helixscreen-esp32/components/helixnet"
 UNITS = {
     "src/ui/a.cpp": {},
     "src/ui/b.cpp": {},
     "firmware/helixscreen-esp32/components/helixapp/stubs.cpp": {},
+    f"{NET}/esp_client.cpp": {},
+    "src/ui/widgets/w.cpp": {},
 }
 SOURCES = {
     "src/ui/a.cpp": '#include "ui_a.h"\n',
     "src/ui/b.cpp": '#include <spdlog/spdlog.h>\n#include "printer/b.h"\n',
     "firmware/helixscreen-esp32/components/helixapp/stubs.cpp": '#  include "saver.h"\n',
+    "include/saver.h": "#pragma once\n",
+    "include/printer/b.h": "#pragma once\n",
+    # a.cpp reaches deep.h only through ui_a.h; the firmware unit reaches the
+    # repo's client interface only through its own component-local header
+    "include/ui_a.h": '#include "deep.h"\n#include <lvgl/lvgl.h>\n',
+    "include/deep.h": "#pragma once\n",
+    "include/i_client.h": "#pragma once\n",
+    f"{NET}/esp_client.cpp": '#include "esp_client.h"\n',
+    f"{NET}/esp_client.h": '#include "i_client.h"\n#include "esp_client.h"\n',
+    # w.h sits beside its includer, under no include root
+    "src/ui/widgets/w.cpp": '#include "w.h"\n',
+    "src/ui/widgets/w.h": '#include "sibling.h"\n',
+    "include/sibling.h": "#pragma once\n",
+    # the forced include and what it includes; a repo-root include; a tracked
+    # lib/ header named through its -isystem root; a header nothing reaches
+    "include/lvgl_pch.h": '#include "helix_features.h"\n',
+    "include/helix_features.h": "#pragma once\n",
+    "src/ui/panel_widgets/tile.cpp": '#include "src/ui/panel_widgets/tile_layout.h"\n'
+                                     '#include <stb_image.h>\n',
+    "src/ui/panel_widgets/tile_layout.h": '#include "tile_deep.h"\n',
+    "include/tile_deep.h": "#pragma once\n",
+    "lib/stb/stb_image.h": "#pragma once\n",
+    "include/orphan.h": "#pragma once\n",
 }
+UNITS["src/ui/panel_widgets/tile.cpp"] = {}
 
 
-def select(changed):
-    return esc.select_units(UNITS, changed, SOURCES.get)
+def select(changed, **kw):
+    return esc.select_units(UNITS, changed, SOURCES.get, **kw)
 
 
 def test_a_changed_source_is_checked_only_if_the_firmware_compiles_it():
@@ -36,6 +63,72 @@ def test_a_changed_header_reaches_the_units_that_include_it():
 
 def test_a_header_matches_by_path_suffix_not_by_substring():
     assert select(["include/my_saver.h", "include/b.h"]) == []
+
+
+def test_a_changed_header_reaches_a_unit_only_through_another_header():
+    assert select(["include/deep.h"]) == ["src/ui/a.cpp"]
+
+
+def test_a_firmware_unit_reaches_a_repo_header_through_its_own_component_header():
+    assert select(["include/i_client.h"]) == [f"{NET}/esp_client.cpp"]
+
+
+def test_a_header_beside_its_includer_resolves_relative_to_it_under_no_root():
+    assert select(["include/sibling.h"]) == ["src/ui/widgets/w.cpp"]
+
+
+def test_one_per_header_counts_a_transitive_includer():
+    assert select(["include/deep.h"], one_per_header=True) == ["src/ui/a.cpp"]
+
+
+def test_an_unresolvable_include_is_a_leaf_unless_it_names_a_changed_header():
+    # <lvgl/lvgl.h> and <spdlog/spdlog.h> resolve to nothing and name no changed header: leaves
+    assert select(["lib/lvgl/src/core/lv_obj.h", "lib/spdlog/include/spdlog/fmt/bundled/core.h"]) == []
+    # <stb_image.h> resolves to nothing but names the changed lib/stb header by suffix
+    assert select(["lib/stb/stb_image.h"]) == ["src/ui/panel_widgets/tile.cpp"]
+
+
+def test_the_forced_include_reaches_every_unit_though_nothing_includes_it():
+    assert select(["include/lvgl_pch.h"]) == sorted(UNITS)
+    assert select(["include/lvgl_pch.h", "src/ui/b.cpp"], one_per_header=True) == ["src/ui/b.cpp"]
+
+
+def test_include_roots_come_from_the_commands_and_leave_lib_and_build_out():
+    entries = [{"command": "g++ -I/r/include -isystem /r/lib/lvgl -I/r/build/generated "
+                           "-I /r/firmware/helixscreen-esp32/components/helixnet "
+                           "-I/opt/esp/idf/components/log/include -c /r/src/a.cpp"}]
+    assert esc.include_roots(entries, "/r") == (
+        "firmware/helixscreen-esp32/components/helixnet", "include")
+    assert esc.include_roots([], "/r") == esc.DEFAULT_ROOTS
+
+
+def test_the_bare_repo_root_is_a_root_so_a_repo_root_include_resolves():
+    entries = [{"command": "g++ -I/r -I/r/ -I/r/include -c /r/src/a.cpp"}]
+    assert esc.include_roots(entries, "/r") == (".", "include")
+    assert select(["src/ui/panel_widgets/tile_layout.h"]) == ["src/ui/panel_widgets/tile.cpp"]
+
+
+def test_a_chain_through_an_unchanged_repo_root_include_needs_the_root():
+    # tile.cpp -> "src/ui/panel_widgets/tile_layout.h" (unchanged, resolved at the
+    # repo root) -> tile_deep.h (changed): the suffix fallback alone cannot see it
+    assert select(["include/tile_deep.h"]) == ["src/ui/panel_widgets/tile.cpp"]
+
+
+def test_what_the_forced_include_includes_reaches_every_unit_too():
+    assert select(["include/helix_features.h"]) == sorted(UNITS)
+
+
+def test_a_tracked_lib_header_named_through_its_isystem_root_still_selects_its_includers():
+    assert select(["lib/stb/stb_image.h"]) == ["src/ui/panel_widgets/tile.cpp"]
+
+
+def test_a_changed_header_no_unit_reaches_is_named_in_a_note_and_a_reached_one_is_not():
+    includers = esc.header_includers(UNITS, ["include/orphan.h", "include/deep.h"], SOURCES.get)
+    assert includers["include/orphan.h"] == [] and includers["include/deep.h"] == ["src/ui/a.cpp"]
+    note = esc.unreached_note(includers)
+    assert "1 changed header(s) reach no firmware unit" in note and "include/orphan.h" in note
+    assert "deep.h" not in note
+    assert esc.unreached_note({"include/deep.h": ["src/ui/a.cpp"]}) is None
 
 
 def test_the_command_compiles_syntax_only_with_no_object_or_depfile():
@@ -81,6 +174,7 @@ def test_rebase_path_rewrites_the_bare_root(tmp_path):
 def test_one_per_header_checks_a_header_through_a_single_includer():
     units = {"src/x.cpp": {}, "src/y.cpp": {}, "src/z.cpp": {}}
     sources = {r: '#include "common.h"\n' for r in units}
+    sources["include/common.h"] = "#pragma once\n"
     assert esc.select_units(units, ["include/common.h"], sources.get,
                             one_per_header=True) == ["src/x.cpp"]
     assert esc.select_units(units, ["include/common.h"], sources.get) == sorted(units)
@@ -89,6 +183,7 @@ def test_one_per_header_checks_a_header_through_a_single_includer():
 def test_one_per_header_reuses_a_staged_includer_instead_of_adding_one():
     units = {"src/x.cpp": {}, "src/y.cpp": {}}
     sources = {r: '#include "common.h"\n' for r in units}
+    sources["include/common.h"] = "#pragma once\n"
     assert esc.select_units(units, ["include/common.h", "src/y.cpp"], sources.get,
                             one_per_header=True) == ["src/y.cpp"]
 

@@ -24,8 +24,8 @@
 #include "config.h"
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "src/ui/ui_filament_path_internal.h"
-#include "src/ui/ui_filament_path_plan.h"
+#include "src/ui/filament/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_filament_path_plan.h"
 #include "theme_manager.h"
 
 #include <algorithm>

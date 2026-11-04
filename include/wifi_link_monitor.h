@@ -18,6 +18,7 @@
 #include "ui_timer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "json_fwd.h"
 #include "wifi_backend.h"
 
 #include <cstddef>
@@ -26,8 +27,6 @@
 #include <mutex>
 #include <optional>
 #include <string_view>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

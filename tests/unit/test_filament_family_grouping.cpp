@@ -13,10 +13,10 @@
 //     must be able to tell which one they picked.
 
 #include "ui_filament_catalog_selector.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "ams_backend_ad5x_ifs.h"
+#include "core/update_queue.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "filament_mapper.h"

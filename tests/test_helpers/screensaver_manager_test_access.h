@@ -7,6 +7,7 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "config.h"
+#include "json_fwd.h"
 #include "platform_capabilities.h"
 #include "refresh_period_hold.h"
 #include "refresh_period_hold_test_access.h"
@@ -20,8 +21,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

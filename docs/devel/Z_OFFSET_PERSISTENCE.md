@@ -237,7 +237,7 @@ result, never the setting:
 | `ZOffsetCalibrationPanel::send_accept()` | sends `ACCEPT` without `SAVE_CONFIG`; Klipper holds the result until the next config save |
 | `resolve_z_offset_tune_hint(..., save_enabled)` | a printer that would show `SAVE_ON_CONTROLS` shows `TEMPORARY` (or `TEMPORARY_TOOL_CHANGE`) instead, so Print Tune never points at a Save button that is not there |
 
-The publisher in `src/ui/z_offset_utils.cpp` observes the setting and `per_tool_z_supported`
+The publisher in `src/ui/calibration/z_offset_utils.cpp` observes the setting and `per_tool_z_supported`
 and hands the answer to `PrinterProfileState::set_z_offset_save_enabled()` for the tune hint.
 `FIRMWARE_MANAGED` printers ignore the setting: the firmware persists the offset, so there is
 no save to withhold, and the Motion row is hidden while `z_offset_can_save` is 0.

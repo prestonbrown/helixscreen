@@ -1343,7 +1343,7 @@ One centred icon over one label, filling its cell (`ui_xml/components/home_actio
 
 #### option_tile
 
-One pre-print option as a toggle pill: an icon and a label of up to two lines (`max_lines="2"`, word-wrapped, then ellipsized), with no check box (`ui_xml/components/option_tile.xml`). The whole pill is the tap target. Off, it wears `styles.chip_idle` (an outline, label muted); on, `styles.chip_active` (the primary-tinted fill and outline the LED chips use), and a check replaces the icon in the same slot so the label never moves. Its view sets `state_trickle`, so the pill's checked state reaches the children and each child styles itself with a `-checked` state style. You do not instantiate it from XML: `PrePrintOptionsRenderer` creates one pill per option and binds the option's subject to the pill's checked state (`src/ui/ui_pre_print_options_renderer.cpp`). The pill height comes from the `option_tile_height_*` token ladder in `ui_xml/globals.xml`.
+One pre-print option as a toggle pill: an icon and a label of up to two lines (`max_lines="2"`, word-wrapped, then ellipsized), with no check box (`ui_xml/components/option_tile.xml`). The whole pill is the tap target. Off, it wears `styles.chip_idle` (an outline, label muted); on, `styles.chip_active` (the primary-tinted fill and outline the LED chips use), and a check replaces the icon in the same slot so the label never moves. Its view sets `state_trickle`, so the pill's checked state reaches the children and each child styles itself with a `-checked` state style. You do not instantiate it from XML: `PrePrintOptionsRenderer` creates one pill per option and binds the option's subject to the pill's checked state (`src/ui/print/ui_pre_print_options_renderer.cpp`). The pill height comes from the `option_tile_height_*` token ladder in `ui_xml/globals.xml`.
 
 | Prop | Default | Purpose |
 |------|---------|---------|
@@ -1353,7 +1353,7 @@ One pre-print option as a toggle pill: an icon and a label of up to two lines (`
 
 #### setting_group
 
-A card of settings rows under a `setting_group_header`. When every row in it is hidden, the group hides its header and collapses (the `LV_STATE_USER_1` style zeroes its margin, border and background), and it comes back when a row shows again. LVGL sends no event when a child's hidden flag changes, but any row appearing or disappearing changes the group's height, so the check runs on `LV_EVENT_SIZE_CHANGED` (`src/ui/setting_group.cpp#setting_group_sync_header`). A row counts when it is visible with a non-zero height, so a wrapper that groups gated rows must have `style_pad_all="0"`: padding gives an empty wrapper height, and its header would stay.
+A card of settings rows under a `setting_group_header`. When every row in it is hidden, the group hides its header and collapses (the `LV_STATE_USER_1` style zeroes its margin, border and background), and it comes back when a row shows again. LVGL sends no event when a child's hidden flag changes, but any row appearing or disappearing changes the group's height, so the check runs on `LV_EVENT_SIZE_CHANGED` (`src/ui/settings/setting_group.cpp#setting_group_sync_header`). A row counts when it is visible with a non-zero height, so a wrapper that groups gated rows must have `style_pad_all="0"`: padding gives an empty wrapper height, and its header would stay.
 
 #### Widget Defaults Quick Reference
 

@@ -3,7 +3,6 @@
 
 #include "ui_ams_detail.h"
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
@@ -13,6 +12,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "fake_moonraker_client.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"

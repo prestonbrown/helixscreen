@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_preflight_check_modal.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend_mock.h"
 #include "ams_remap.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "preflight_validator.h"
 
 #include <memory>

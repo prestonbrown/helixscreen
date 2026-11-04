@@ -4,9 +4,9 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "core/observer_factory.h"
 #include "filament_insert_policy.h"
 #include "i_moonraker_api.h"
-#include "observer_factory.h"
 
 #include <optional>
 #include <vector>

@@ -114,6 +114,7 @@ class ColorPicker : public Modal {
     [[nodiscard]] const char* component_name() const override {
         return "color_picker";
     }
+    HELIX_KIND_TAG(ColorPicker)
 
   protected:
     void on_show() override;
@@ -172,20 +173,9 @@ class ColorPicker : public Modal {
     // === Static Callback Registration ===
     static void register_callbacks();
     static bool callbacks_registered_;
-    static ColorPicker* active_instance_;
 
-    // === Static Callbacks (traverse widget tree to find modal instance) ===
+    // === Static Callbacks ===
     static void on_swatch_cb(lv_event_t* e);
-
-    /**
-     * @brief Get the currently active ColorPicker instance
-     *
-     * Returns the static active instance pointer. Only one ColorPicker
-     * can be visible at a time.
-     * @param e LVGL event (unused, kept for callback signature compatibility)
-     * @return ColorPicker pointer, or nullptr if none active
-     */
-    static ColorPicker* get_instance_from_event(lv_event_t* e);
 };
 
 /// The preset colors a swatch grid offers, 30 per palette, row-major in six

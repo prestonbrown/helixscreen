@@ -7,10 +7,10 @@
  */
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "hardware_role_registry.h"
 #include "light_button_config.h"

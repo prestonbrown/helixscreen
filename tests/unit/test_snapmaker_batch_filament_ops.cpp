@@ -16,7 +16,6 @@
 #include "ui_ams_sidebar.h"
 #include "ui_batch_filament_modal.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -28,6 +27,7 @@
 #include "ams_error.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
 #include "moonraker_api_mock.h"

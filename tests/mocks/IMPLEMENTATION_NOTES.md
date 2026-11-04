@@ -8,7 +8,7 @@ Comprehensive mocking infrastructure for wizard UI integration testing, enabling
 
 ### Core Mocks
 
-1. **include/moonraker_client_mock.h** / **src/api/moonraker_client_mock.cpp**
+1. **include/moonraker_client_mock.h** / **src/mock/moonraker_client_mock.cpp**
    - Full mock client inheriting from `MoonrakerClient`
    - Supports `PrinterType` for different printer configs (VORON_24, K1, AD5M, etc.)
    - Print simulation, thermal model, gcode parsing

@@ -28,8 +28,6 @@
  * "Klipper Error", the router's title.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
@@ -39,6 +37,7 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/moonraker_request_tracker_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "gcode_error_router.h"
 #include "moonraker_request.h"
 #include "moonraker_request_tracker.h"

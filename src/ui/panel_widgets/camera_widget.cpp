@@ -11,10 +11,10 @@
 #if HELIX_HAS_CAMERA
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "camera_config_modal.h"
+#include "core/update_queue.h"
 #include "display_manager.h"
 #include "i_moonraker_api.h"
 #include "panel_widget_registry.h"

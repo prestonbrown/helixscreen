@@ -48,6 +48,7 @@ class CameraConfigModal : public Modal {
     const char* component_name() const override {
         return "camera_config_modal";
     }
+    HELIX_KIND_TAG(CameraConfigModal)
 
     /// Cameras the source picker can offer; a printer with more lists the first 8.
     static constexpr size_t kMaxSources = 8;
@@ -92,12 +93,6 @@ class CameraConfigModal : public Modal {
     bool flip_v_ = false;
     std::string source_;                    // webcam name; "" = Automatic
     std::vector<std::string> source_names_; // row index -> webcam name
-
-    // Active instance for static event-callback routing. Only one camera config
-    // modal is open at a time (owned by the single CameraWidget). Avoids walking
-    // the parent chain for user_data, which can land on a ui_button's own
-    // user_data and miscast (L069).
-    static CameraConfigModal* s_active_;
 
     // C++-owned subjects for XML bindings
     bool subjects_initialized_ = false;

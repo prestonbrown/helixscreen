@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_cfs.h"
 #include "app_globals.h"
 #include "cfs_status_parse.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "test_helpers/cfs_test_access.h"

@@ -29,9 +29,9 @@ any theme works with any layout.
 |--------|--------|-------------|
 | `standard` | **Complete** | All panels — this is the default UI everyone uses today |
 | `ultrawide` | Not started | Directory doesn't exist yet |
-| `portrait` | **Started** | `print_status_panel.xml`, `print_tune_panel.xml` |
-| `micro` | **Started** | `controls_panel.xml`, `header_bar.xml`, `material_temps_overlay.xml`, `theme_editor_overlay.xml`, `theme_preview_overlay.xml` |
-| `micro_portrait` | **Started** | `material_temps_overlay.xml` |
+| `portrait` | **Started** | `print_tune_panel.xml` |
+| `micro` | **Started** | `controls_panel.xml` |
+| `micro_portrait` | Not started | Directory doesn't exist yet; the `portrait/` layer serves it |
 | `tiny` | Not started | Directory doesn't exist yet |
 | `tiny_portrait` | Not started | Directory doesn't exist yet |
 
@@ -43,7 +43,7 @@ single file and branches in place on the `ui_is_portrait` subject:
 
 | Mechanism | Use when | Examples in the tree |
 |-----------|----------|----------------------|
-| `ui_xml/<variant>/<panel>.xml` | The panel is genuinely a different design in that orientation | `portrait/print_status_panel.xml`, `portrait/print_tune_panel.xml` |
+| `ui_xml/<variant>/<panel>.xml` | The panel is genuinely a different design in that orientation | `portrait/print_tune_panel.xml`, `micro/controls_panel.xml` |
 | `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `temp_graph_overlay.xml` (3 sites) |
 | `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `ui_xml/app_layout.xml` and `ui_xml/navigation_bar.xml` (the app shell and nav bar switch axis and position), `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row) |
 | `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `ui_xml/components/bed_mesh_current_mesh_card.xml#mesh_max_coord_inline` |
@@ -110,9 +110,9 @@ ui_xml/
   settings_panel.xml       ← ...and ~200 more XML files (226 total)
   ...
 
-  portrait/                ← Portrait overrides (print_status_panel.xml, print_tune_panel.xml)
-  micro/                   ← Micro landscape overrides (480x272, e.g. Ender 3 V3 KE)
-  micro_portrait/          ← Micro portrait overrides (material_temps_overlay.xml)
+  portrait/                ← Portrait overrides (print_tune_panel.xml)
+  micro/                   ← Micro landscape overrides (480x272: controls_panel.xml)
+  micro_portrait/          ← Doesn't exist yet — the portrait/ layer serves 272x480
 
   ultrawide/               ← Doesn't exist yet — create it to override for ultrawide!
   tiny/                    ← Tiny landscape overrides (doesn't exist yet)
@@ -362,7 +362,7 @@ being resolved.
 
 Everything above is about `ui_xml/` overrides. The home panel's dashboard is a *second*
 layout system that shares the same variant chain but does not live in XML at all: the grid
-is computed in C++ (`include/grid_layout.h`, `src/ui/grid_layout.cpp`) and the shipped
+is computed in C++ (`include/grid_layout.h`, `src/ui/home/grid_layout.cpp`) and the shipped
 default placements live in `assets/config/default_layout.json`. If you are adding a home
 widget or wondering why yours vanished on a portrait screen, this is the section.
 
@@ -779,7 +779,7 @@ screenshot while the tiling validator reported 100%.
 ### Widget span authoring
 
 `PanelWidgetDef` (`include/panel_widget_registry.h`, table in
-`src/ui/panel_widget_registry.cpp`) carries six span fields, **all in tracks** — so the
+`src/ui/home/panel_widget_registry.cpp`) carries six span fields, **all in tracks** — so the
 smallest whole-cell widget is `2`, not `1`:
 
 | Field | Meaning |
@@ -871,7 +871,7 @@ odd span is backed like any other. It used to work in cells and convert back, wh
 such a position - so every half-cell placement was excluded from the merge outright and
 rendered on the bare panel with no background at all.
 
-Auto-placement (`PanelWidgetManager`, `src/ui/panel_widget_manager.cpp`) runs two passes:
+Auto-placement (`PanelWidgetManager`, `src/ui/home/panel_widget_manager.cpp`) runs two passes:
 
 1. **Authored** — every widget asks for its `colspan` x `rowspan`. If everyone fits, this
    is the layout the dashboard was designed around, and a roomy grid ends up exactly where
@@ -905,7 +905,7 @@ So when adding a home widget:
   (`include/grid_layout.h`), with the registry min/max as the walk's bounds.
 - Mark every non-scrolling container in the widget's XML `scrollable="false"`. A tile is
   scrolled by dragging it, not by a chevron gutter, so `PageScrollAutoInject` stops its walk
-  at the tile root (`src/ui/page_scroll_auto_inject.cpp#walk_and_attach`) - but a scrollable container
+  at the tile root (`src/ui/home/page_scroll_auto_inject.cpp#walk_and_attach`) - but a scrollable container
   inside a tile still absorbs the drags the grid wants, and LVGL's scrollable default is ON
   unless you say otherwise.
 
@@ -1022,7 +1022,7 @@ parsed payload and the importing screen's grid. The payload is checked in full f
 refused import (non-positive grid axis, or no page keeping a known widget) changes and saves
 nothing. On success the layout is loaded as authored for its source grid and ported to the
 local grid by the same path a first visit to a new grid uses
-(`src/ui/layout_port.cpp#port_legacy_layout`). Every parked grid is discarded, since each is
+(`src/ui/home/layout_port.cpp#port_legacy_layout`). Every parked grid is discarded, since each is
 a port of the layout being replaced. The result is the user's own layout with no default
 marker, saved once.
 
@@ -1030,7 +1030,7 @@ marker, saved once.
 side never propagate, a later publish never replaces it automatically, and Reset in the
 catalog gives the generator default, not the printer's layout.
 
-**Manual copy.** `src/ui/ui_widget_catalog_overlay.cpp#on_catalog_copy_layout` fetches through
+**Manual copy.** `src/ui/home/ui_widget_catalog_overlay.cpp#on_catalog_copy_layout` fetches through
 `HomeLayoutSync::fetch_now`, asks for confirmation, and replaces the current layout whether
 or not it was edited. It is hidden on the printer's own screen. To try it under `--test`, see
 `HELIX_MOCK_HOME_LAYOUT` in `MOCK_ENVIRONMENT_VARIABLES.md`.

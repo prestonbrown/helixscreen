@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 FavoriteMacroConfig favorite_macro_config_from_json(const nlohmann::json& j) {

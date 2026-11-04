@@ -3,14 +3,13 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 
 #include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class Config;

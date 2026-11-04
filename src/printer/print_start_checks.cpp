@@ -4,7 +4,7 @@
  * @brief Pure core of the print-start gate pipeline: rules + gate fns.
  *
  * Rule bodies are ports of the imperative checks in
- * src/ui/ui_print_start_controller.cpp (unresolved_tools_for, the initiate()
+ * src/ui/print/ui_print_start_controller.cpp (unresolved_tools_for, the initiate()
  * spool-weight math, find_material_mismatches); the gate evaluate-functions
  * port the dialog message builders (build_empty_lane_message,
  * show_*_warning) verbatim. Behavior is ported as-is; the only deltas are the

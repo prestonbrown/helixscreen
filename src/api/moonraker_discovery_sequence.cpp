@@ -3,8 +3,6 @@
 
 #include "moonraker_discovery_sequence.h"
 
-#include "ui_update_queue.h"
-
 #include "accel_sensor_manager.h"
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -13,6 +11,8 @@
 #include "board_identity.h"
 #include "chamber_heater_backend.h"
 #include "config.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "enclosure_top.h"
 #include "firmware_fault_codes.h"
 #include "helix_version.h"
@@ -44,7 +44,6 @@
 #include "sensor_manager.h"
 #include "sensor_state.h"
 #include "system/platform_tls.h"
-#include "text_io.h"
 #include "tool_offsets.h"
 #include "toolchanger_addon.h"
 #include "unit_conversions.h"

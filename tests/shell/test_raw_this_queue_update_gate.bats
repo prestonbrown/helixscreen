@@ -360,7 +360,7 @@ void A::f() {
     # imagined; this proves it matches what actually shipped broken.
     #
     # The pre-fix source is vendored rather than read back with
-    # `git show d54a943e5^:src/ui/ui_spool_wizard.cpp`: CI checks out at
+    # `git show d54a943e5^:src/ui/filament/ui_spool_wizard.cpp`: CI checks out at
     # fetch-depth 1, so that object does not exist on the runner and the test
     # failed on the fetch, never reaching the detector. Vendoring also keeps it
     # working in worktrees, archive exports, and any shallow clone.
@@ -377,7 +377,7 @@ void A::f() {
 }
 
 @test "and none in ui_spool_wizard.cpp after the fix converted them to bg_cb/defer" {
-    run python3 "$GATE" src/ui/ui_spool_wizard.cpp
+    run python3 "$GATE" src/ui/filament/ui_spool_wizard.cpp
     [ "$status" -eq 0 ]
     [[ "$output" == *'✅'* ]]
 }

@@ -19,11 +19,10 @@
  * which is the only path that actually drives the inputs.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "pre_print_option.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

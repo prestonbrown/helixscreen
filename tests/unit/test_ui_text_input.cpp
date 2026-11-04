@@ -16,7 +16,7 @@
 /**
  * @brief Unit tests for ui_text_input.cpp - Custom text input widget
  *
- * These drive the shipped widget: src/ui/ui_text_input.cpp is linked into the test
+ * These drive the shipped widget: src/ui/components/ui_text_input.cpp is linked into the test
  * binary and registers <text_input> through its own ui_text_input_init(). It used to
  * be excluded from the link while ui_test_utils.cpp registered a hand-written copy,
  * so every assertion here described the copy rather than the widget that ships.
@@ -218,7 +218,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input combined attributes work togethe
 // ============================================================================
 // Two-way bind_text, multiline ordering, clear button, keyboard hint
 //
-// None of the below could run until src/ui/ui_text_input.cpp was linked into the
+// None of the below could run until src/ui/components/ui_text_input.cpp was linked into the
 // test binary. While ui_test_utils.cpp registered a hand-written <text_input>,
 // every case in this file exercised that copy, and the copy implemented none of
 // these four features — so they shipped across 113 bind_text files, 11

@@ -1,0 +1,426 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "ui_filament_mapping_modal.h"
+
+#include "ui_fonts.h"
+#include "ui_swatch.h"
+#include "ui_utils.h"
+
+#include "ams_remap.h"
+#include "ams_state.h"
+#include "core/static_subject_registry.h"
+#include "display_numbering.h"
+#include "lvgl.h"
+#include "settings_manager.h"
+#include "subject_managed_panel.h"
+#include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
+
+#include <spdlog/spdlog.h>
+
+namespace helix::ui {
+
+// Layout constants for dynamically created rows.
+// Rows are built in C++ (not XML components) because the number of rows
+// varies per file. lv_obj_add_event_cb and lv_label_set_text are used here
+// as allowed exceptions for dynamic content.
+namespace {
+constexpr int kToolLabelMinW = 32;
+constexpr lv_opa_t kSwatchBorderOpa = 30;
+
+// Process-wide, not per-instance: the dialog tree is deleted after the owning
+// modal's teardown, so instance-owned subjects would die under bound labels.
+// StaticSubjectRegistry tears them down before lv_deinit().
+struct NoteSubjects {
+    lv_subject_t text{};
+    lv_subject_t visible{};
+    char text_buf[512] = {};
+    SubjectManager manager;
+    bool initialized = false;
+};
+
+NoteSubjects& note_subjects() {
+    static NoteSubjects s;
+    return s;
+}
+
+void init_note_subjects() {
+    auto& s = note_subjects();
+    if (s.initialized) {
+        return;
+    }
+    UI_MANAGED_SUBJECT_STRING_N(s.text, s.text_buf, sizeof(s.text_buf), "", "filament_mapping_note",
+                                s.manager);
+    UI_MANAGED_SUBJECT_INT(s.visible, 0, "filament_mapping_note_visible", s.manager);
+    s.initialized = true;
+    StaticSubjectRegistry::instance().register_deinit("FilamentMappingModal", []() {
+        auto& n = note_subjects();
+        n.manager.deinit_all();
+        n.initialized = false;
+    });
+}
+} // namespace
+
+// The XML binds these at creation, so they must exist before show().
+FilamentMappingModal::FilamentMappingModal() {
+    init_note_subjects();
+}
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+void FilamentMappingModal::set_tool_info(const std::vector<helix::GcodeToolInfo>& tools) {
+    tool_info_ = tools;
+}
+
+void FilamentMappingModal::set_available_slots(const std::vector<helix::AvailableSlot>& slots) {
+    available_slots_ = slots;
+}
+
+void FilamentMappingModal::set_mappings(std::vector<helix::ToolMapping> mappings) {
+    mappings_ = std::move(mappings);
+}
+
+void FilamentMappingModal::set_on_mappings_updated(MappingsUpdatedCallback cb) {
+    on_updated_cb_ = std::move(cb);
+}
+
+void FilamentMappingModal::set_start_macro_note(std::string note) {
+    start_macro_note_ = std::move(note);
+}
+
+// ============================================================================
+// Modal lifecycle
+// ============================================================================
+
+void FilamentMappingModal::on_show() {
+    wire_ok_button("btn_primary");
+    wire_cancel_button("btn_secondary");
+
+    auto_color_map_ = SettingsManager::instance().get_auto_color_map();
+
+    // Snapshot so Cancel can revert. BOTH halves: the toggle writes the
+    // preference straight through to SettingsManager (it has to — the rows
+    // rebuild in the new mode immediately), which makes changing it a side
+    // effect of merely LOOKING at what the other mode would do.
+    original_mappings_ = mappings_;
+    original_auto_color_map_ = auto_color_map_;
+
+    // Published on every show: the subjects are shared by every instance, so a
+    // note left from one caller must not reach another's dialog. Visibility is
+    // published by rebuild_rows(), which every change to the picks goes through.
+    lv_subject_copy_string(&note_subjects().text, start_macro_note_.c_str());
+
+    tool_list_ = find_widget("mapping_tool_list");
+    if (!tool_list_) {
+        spdlog::warn("[FilamentMappingModal] Could not find mapping_tool_list widget");
+        return;
+    }
+
+    rebuild_rows();
+
+    spdlog::debug("[FilamentMappingModal] Shown with {} tools, {} slots, auto_color_map={}",
+                  tool_info_.size(), available_slots_.size(), auto_color_map_);
+}
+
+void FilamentMappingModal::on_ok() {
+    if (on_updated_cb_) {
+        on_updated_cb_(mappings_);
+    }
+    hide(ModalCloseReason::ButtonPress);
+}
+
+void FilamentMappingModal::on_cancel() {
+    revert();
+    hide(ModalCloseReason::ButtonPress);
+}
+
+void FilamentMappingModal::on_dismissed() {
+    revert();
+}
+
+void FilamentMappingModal::revert() {
+    mappings_ = original_mappings_;
+
+    // The persisted preference is part of what a cancel undoes: the toggle
+    // writes it straight through, so a flip made only to see the other mode
+    // would otherwise stick for every future print, on every backend that can
+    // reach this picker. Written only when it changed, so a plain Cancel does
+    // not churn the settings file.
+    if (auto_color_map_ != original_auto_color_map_) {
+        SettingsManager::instance().set_auto_color_map(original_auto_color_map_);
+        auto_color_map_ = original_auto_color_map_;
+    }
+}
+
+// ============================================================================
+// Row building
+// ============================================================================
+
+void FilamentMappingModal::rebuild_rows() {
+    lv_subject_set_int(
+        &note_subjects().visible,
+        helix::printer::start_macro_note_shown(!start_macro_note_.empty(), mappings_) ? 1 : 0);
+    if (!tool_list_) {
+        return;
+    }
+
+    // Hide picker before destroying trigger widgets it may reference
+    slot_picker_.hide();
+
+    helix::ui::safe_clean_children(tool_list_);
+    toggle_switch_ = nullptr;
+
+    trigger_widgets_.clear();
+    trigger_widgets_.resize(mappings_.size(), nullptr);
+
+    // Toggle row first, then tool rows
+    create_toggle_row();
+
+    for (size_t i = 0; i < mappings_.size(); ++i) {
+        create_tool_row(static_cast<int>(i));
+    }
+}
+
+lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
+    if (!tool_list_ || tool_index < 0 || tool_index >= static_cast<int>(mappings_.size()) ||
+        tool_index >= static_cast<int>(tool_info_.size())) {
+        return nullptr;
+    }
+
+    const auto& mapping = mappings_[static_cast<size_t>(tool_index)];
+    const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
+
+    // Row layout lives in ui_xml/components/filament_mapping_tool_row.xml;
+    // everything visual (sizes, padding, fonts, radii) is editable there
+    // without rebuilding. C++ only sets colors, label text, and show/hide
+    // on the conditional children (Tx label, material label, chosen swatch,
+    // warning, chevron).
+    auto* row =
+        static_cast<lv_obj_t*>(lv_xml_create(tool_list_, "filament_mapping_tool_row", nullptr));
+    if (!row) {
+        return nullptr;
+    }
+
+    lv_color_t gcode_color = lv_color_hex(tool.color_rgb);
+    if (auto* expected_swatch = helix::ui::find_required(row, "expected_swatch", get_name())) {
+        helix::ui::apply_swatch_color(expected_swatch, tool.color_rgb, "");
+    }
+
+    if (auto* tool_label = helix::ui::find_required(row, "tool_label", get_name())) {
+        if (tool_info_.size() > 1) {
+            lv_label_set_text(tool_label, helix::ui::tool_label(tool.tool_index).c_str());
+            lv_obj_set_style_text_color(tool_label,
+                                        theme_manager_get_contrast_adjusted_text(
+                                            theme_manager_get_color("text"), gcode_color),
+                                        0);
+            lv_obj_remove_flag(tool_label, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    if (auto* mat_label = helix::ui::find_required(row, "material_label", get_name())) {
+        if (!tool.material.empty()) {
+            lv_label_set_text(mat_label, tool.material.c_str());
+            lv_obj_remove_flag(mat_label, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    const auto* mapped = find_mapped_slot(mapping);
+    auto* trigger = helix::ui::find_required(row, "trigger", get_name());
+    trigger_widgets_[static_cast<size_t>(tool_index)] = trigger;
+
+    if (auto* chosen_swatch = helix::ui::find_required(row, "chosen_swatch", get_name())) {
+        if (mapped && !mapped->is_empty) {
+            helix::ui::apply_swatch_color(chosen_swatch, mapped->color_rgb,
+                                          mapped->multi_color_hexes,
+                                          helix::ui::swatch_finish(mapped->finish));
+            lv_obj_remove_flag(chosen_swatch, LV_OBJ_FLAG_HIDDEN);
+        } else if (mapped && mapped->is_empty) {
+            helix::ui::clear_swatch_color(chosen_swatch);
+            lv_obj_set_style_border_width(chosen_swatch, 2, 0);
+            lv_obj_set_style_border_color(chosen_swatch, theme_manager_get_color("warning"), 0);
+            lv_obj_set_style_border_opa(chosen_swatch, LV_OPA_COVER, 0);
+            lv_obj_remove_flag(chosen_swatch, LV_OBJ_FLAG_HIDDEN);
+        }
+        // Auto/Unmapped (mapped == nullptr) leaves the swatch hidden.
+    }
+
+    if (auto* slot_text = helix::ui::find_required(row, "slot_text", get_name())) {
+        lv_label_set_text(slot_text, get_slot_display_text(mapping).c_str());
+    }
+
+    bool mapped_to_empty = mapped && mapped->is_empty;
+    if (mapping.material_mismatch || mapped_to_empty) {
+        if (auto* warn = helix::ui::find_required(row, "trigger_warn", get_name())) {
+            lv_obj_remove_flag(warn, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    if (!auto_color_map_) {
+        if (auto* chevron = helix::ui::find_required(row, "trigger_chevron", get_name())) {
+            lv_obj_remove_flag(chevron, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    if (auto_color_map_) {
+        lv_obj_set_style_opa(row, LV_OPA_50, 0);
+        lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
+    } else {
+        lv_obj_add_event_cb(
+            row,
+            [](lv_event_t* e) {
+                auto* self = static_cast<FilamentMappingModal*>(lv_event_get_user_data(e));
+                lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                int idx =
+                    static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(target)));
+                self->on_row_tapped(idx);
+            },
+            LV_EVENT_CLICKED, this);
+        lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(tool_index)));
+    }
+
+    return row;
+}
+
+// ============================================================================
+// Display text helpers
+// ============================================================================
+
+const helix::AvailableSlot*
+FilamentMappingModal::find_mapped_slot(const helix::ToolMapping& mapping) const {
+    if (mapping.is_auto || mapping.mapped_slot < 0) {
+        return nullptr;
+    }
+    for (const auto& slot : available_slots_) {
+        if (slot.slot_index == mapping.mapped_slot &&
+            slot.backend_index == mapping.mapped_backend) {
+            return &slot;
+        }
+    }
+    return nullptr;
+}
+
+std::string FilamentMappingModal::get_slot_display_text(const helix::ToolMapping& mapping) const {
+    if (mapping.is_auto) {
+        return lv_tr("Auto");
+    }
+
+    if (mapping.mapped_slot < 0) {
+        return lv_tr("Unmapped");
+    }
+
+    const auto* slot = find_mapped_slot(mapping);
+    if (slot) {
+        return helix::FilamentMapper::format_slot_label(*slot);
+    }
+
+    // No AvailableSlot here to carry a noun, so the active printer answers for
+    // it. lane_label() spells the whole label, so there is no buffer here for a
+    // translated noun to overrun.
+    return helix::ui::lane_label(helix::ui::active_lane_noun(), mapping.mapped_slot);
+}
+
+// ============================================================================
+// Row tap -> slot picker
+// ============================================================================
+
+void FilamentMappingModal::on_row_tapped(int tool_index) {
+    if (tool_index < 0 || tool_index >= static_cast<int>(tool_info_.size())) {
+        return;
+    }
+
+    const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
+    const auto& mapping = mappings_[static_cast<size_t>(tool_index)];
+
+    spdlog::debug("[FilamentMappingModal] Row tapped: T{}", tool.tool_index);
+
+    FilamentSlotPicker::Selection current{mapping.mapped_slot, mapping.mapped_backend,
+                                          mapping.is_auto};
+
+    lv_obj_t* trigger = trigger_widgets_[static_cast<size_t>(tool_index)];
+
+    slot_picker_.show(lv_screen_active(), trigger, tool_index, tool.material, available_slots_,
+                      current, [this, tool_index](const FilamentSlotPicker::Selection& sel) {
+                          on_slot_selected(tool_index, sel);
+                      });
+}
+
+void FilamentMappingModal::on_slot_selected(int tool_index,
+                                            const FilamentSlotPicker::Selection& selection) {
+    if (tool_index < 0 || tool_index >= static_cast<int>(mappings_.size())) {
+        return;
+    }
+
+    helix::FilamentMapper::pick_slot(
+        mappings_[static_cast<size_t>(tool_index)], tool_info_[static_cast<size_t>(tool_index)],
+        available_slots_, selection.slot_index, selection.backend_index, selection.is_auto);
+
+    spdlog::info("[FilamentMappingModal] T{} mapped to: auto={}, slot={}, backend={}",
+                 tool_info_[static_cast<size_t>(tool_index)].tool_index, selection.is_auto,
+                 selection.slot_index, selection.backend_index);
+
+    // Rebuild UI to reflect changes
+    rebuild_rows();
+}
+
+// ============================================================================
+// Toggle: keep current assignments
+// ============================================================================
+
+void FilamentMappingModal::create_toggle_row() {
+    if (!tool_list_) {
+        return;
+    }
+
+    int32_t row_pad_v = theme_manager_get_spacing("space_sm");
+
+    // Row container
+    lv_obj_t* row = lv_obj_create(tool_list_);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_flex_main_place(row, LV_FLEX_ALIGN_SPACE_BETWEEN, 0);
+    lv_obj_set_style_flex_cross_place(row, LV_FLEX_ALIGN_CENTER, 0);
+    lv_obj_set_style_pad_ver(row, row_pad_v, 0);
+    lv_obj_set_style_pad_hor(row, 0, 0);
+    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Label
+    lv_obj_t* label = lv_label_create(row);
+    lv_label_set_text(label, lv_tr("Map to closest colors with matching material"));
+    lv_obj_set_flex_grow(label, 1);
+    lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), 0);
+    lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
+
+    // Switch
+    toggle_switch_ = lv_switch_create(row);
+    if (auto_color_map_) {
+        lv_obj_add_state(toggle_switch_, LV_STATE_CHECKED);
+    }
+
+    lv_obj_add_event_cb(
+        toggle_switch_,
+        [](lv_event_t* e) {
+            auto* self = static_cast<FilamentMappingModal*>(lv_event_get_user_data(e));
+            bool checked = lv_obj_has_state(self->toggle_switch_, LV_STATE_CHECKED);
+            self->on_toggle_changed(checked);
+        },
+        LV_EVENT_VALUE_CHANGED, this);
+}
+
+void FilamentMappingModal::on_toggle_changed(bool auto_color) {
+    auto_color_map_ = auto_color;
+    SettingsManager::instance().set_auto_color_map(auto_color);
+    recalculate_mappings();
+    rebuild_rows();
+}
+
+void FilamentMappingModal::recalculate_mappings() {
+    // The modal owns a live toggle the user can flip before committing, so it
+    // supplies its own answer rather than the persisted one.
+    mappings_ =
+        AmsState::instance().seed_tool_mappings(tool_info_, available_slots_, auto_color_map_);
+}
+
+} // namespace helix::ui

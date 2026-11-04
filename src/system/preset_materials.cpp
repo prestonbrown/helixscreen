@@ -3,14 +3,14 @@
 
 #include "preset_materials.h"
 
+#include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
-#include "static_subject_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

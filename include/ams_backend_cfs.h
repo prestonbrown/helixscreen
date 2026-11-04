@@ -20,6 +20,7 @@ namespace helix::printer {
 
 #include "ui_timer_guard.h"
 
+#include "ams_cfs_calibration.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "cfs_status_parse.h"
@@ -127,9 +128,16 @@ enum class CfsSchema {
 };
 
 /// CFS (Creality Filament System) backend — K1 + K2 series printers with RS-485 CFS units
-class AmsBackendCfs : public AmsSubscriptionBackend {
+class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
   public:
     AmsBackendCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
+
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<ICfsCalibration>()) {
+            return static_cast<ICfsCalibration*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
 
     /// The status objects the CFS backend pushes (`box`, `motor_control`).
     /// Empty unless @p hw detected CFS.
@@ -149,11 +157,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
 
     [[nodiscard]] AmsType get_type() const override {
         return AmsType::CFS;
-    }
-
-    // CFS ships only on K2-series printers.
-    [[nodiscard]] std::string toolhead_style_hint() const override {
-        return "creality_k2";
     }
 
     // State queries
@@ -193,6 +196,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
         // does so while a job runs.
         t.raises_runout_fault = true;
         t.raises_runout_fault_during_job = true;
+        // The style for a CFS printer the printer database does not cover.
+        t.toolhead_style_hint = helix::ToolheadStyle::CREALITY_K2;
         return t;
     }();
     /// kTraits, plus the pre-print send on Fork firmware with BOX_PRINT_MAP.

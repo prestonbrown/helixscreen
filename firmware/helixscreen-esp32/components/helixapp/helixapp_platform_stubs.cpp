@@ -85,10 +85,10 @@ void UsbManager::set_drive_callback(DriveCallback) {}
 #include "ui_modal.h"
 
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
 #include "src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 
 static lv_subject_t g_notification_subject;
 static lv_subject_t g_show_beta_features_subject;

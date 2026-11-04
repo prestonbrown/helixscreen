@@ -24,12 +24,11 @@
  * breakpoints.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "app_globals.h"
 #include "chamber_heater_backend.h"
+#include "core/update_queue.h"
 #include "lvgl/src/widgets/label/lv_label_private.h" // lv_label_t::dot_begin: the ellipsization signal
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"

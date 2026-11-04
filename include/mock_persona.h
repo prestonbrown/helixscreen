@@ -2,9 +2,9 @@
 #pragma once
 
 // Compiled into every build (src/system/cli_args.cpp includes it), mock or not:
-// header-only, std and text_io.h only.
+// header-only, std and core/text_io.h only.
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <array>
 #include <cstdint>

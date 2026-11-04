@@ -27,7 +27,6 @@
 
 #include "ui_modal.h"
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
@@ -38,6 +37,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"

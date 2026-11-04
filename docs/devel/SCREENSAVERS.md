@@ -23,7 +23,7 @@ This doc is the map: which file owns what, how the gate decides, and how to add 
 | `include/screensaver_gate.h`, `include/screensaver_cpu_clock.h` | Budget, decision, idle baseline, windows, environment switches, the CPU clock seam |
 | `include/screensaver_level_store.h` | The stored level per saver |
 | `include/board_fingerprint.h` | `BoardFacts`, `board_fingerprint()` and `current_board_facts()`: the board identity the level store keys on, shared with the glass gate (`include/glass_gate.h`) so both measure again on the same boards |
-| `include/screensaver.h`, `src/ui/screensaver_manager.cpp` | `ScreensaverManager`: factories, holds, the gate, the too-heavy fallback and the last-resort black screen |
+| `include/screensaver.h`, `src/ui/screensaver/screensaver_manager.cpp` | `ScreensaverManager`: factories, holds, the gate, the too-heavy fallback and the last-resort black screen |
 | `include/screensaver_usage.h` | `SaverUsage`: seconds shown, starts, run endings and settled levels per saver, which the manager writes and telemetry reads (`screensaver_usage` in `docs/devel/TELEMETRY_ADMIN.md`). Always compiled |
 | `include/ui_screensaver.h`, `include/screensaver_starfield.h`, `include/screensaver_pipes.h`, `include/screensaver_bounce.h`, `include/screensaver_fireworks.h`, `include/screensaver_hyperspace.h`, `include/screensaver_flip_clock.h`, `include/screensaver_fireflies.h`, `include/screensaver_aqua.h`, `include/screensaver_highfly.h` | The savers |
 | `include/screensaver_pipes_sim.h` | 3D Pipes: the node grid and growth rules, one screen of pipes, the meshes, the z-buffered rasterizer and the dissolve. No LVGL |
@@ -314,12 +314,12 @@ disagree, and `set_screensaver_type()` republishes the row kind when the saver c
    compares it with the registry; the overlay builds the shown options from the registry, and
    this list is their translation source), run `make translation-sync`, translate the new key in every
    `translations/*.yml`, then `make translations` (and `make regen-text-fonts` for new CJK text).
-3. Derive from `SaverBase` in `include/screensaver_<name>.h` and `src/ui/screensaver_<name>.cpp`;
+3. Derive from `SaverBase` in `include/screensaver_<name>.h` and `src/ui/screensaver/screensaver_<name>.cpp`;
    keep the scene in a pure simulation class when it writes pixels, so it is testable without a
    display, and derive from `SimSaver<Sim>` (or `ClockSaver`) to run it. Register the factory in
    `ScreensaverManager::ScreensaverManager`.
 4. Add the new sources to `firmware/helixscreen-esp32/components/helixapp/app_srcs_excluded.txt`
-   (the Makefile screensaver filter picks up `src/ui/screensaver_*.cpp` by itself).
+   (the Makefile screensaver filter picks up `src/ui/screensaver/*.cpp` by itself).
 5. Add the saver and its sim to the contract tests (step 8), test what is particular to it with
    the sim kit (`tests/test_helpers/screensaver_sim_kit.h`: `TestFrame`, `SimRun`, `diff_against`,
    `check_replays`), and record the saver's pixel fingerprint in
@@ -329,7 +329,7 @@ disagree, and `set_screensaver_type()` republishes the row kind when the saver c
    static or global textures, frames, sprite sheets or lookup tables (small `constexpr` tables in
    `.rodata` are fine). Everything is allocated in `on_start()` and released, capacity included,
    in `on_stop()`; `clear()` on a vector keeps its capacity, so swap it with an empty one. Check
-   with `size build/obj/ui/screensaver_<name>*.o`.
+   with `size build/obj/ui/screensaver/screensaver_<name>*.o`.
 7. Size for the largest need of any rung from the start level down; never grow on a step down;
    free what the still rung doesn't need after its paint. A run never steps up (the gate only
    steps down), so init sizes for the start rung and every rung below it (a ladder whose still

@@ -59,6 +59,7 @@
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "json_fwd.h"
 #include "lvgl.h"
 #include "memory_monitor.h"
 #include "screensaver_usage.h"
@@ -73,8 +74,6 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterDiscovery;

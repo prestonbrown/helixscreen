@@ -9,11 +9,10 @@
  * moved) or a closed session must not reach the API, the subjects or the steps.
  */
 
-#include "ui_update_queue.h"
-
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "filament_sensor_manager.h"
 #include "http_request_epoch.h"

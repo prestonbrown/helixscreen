@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
-#include "../../src/api/moonraker_client_mock_internal.h"
+#include "../../src/mock/moonraker_client_mock_internal.h"
 #include "../helix_test_fixture.h"
+#include "core/update_queue.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #include "printer_detector.h"

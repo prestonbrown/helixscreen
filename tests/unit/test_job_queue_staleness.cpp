@@ -26,11 +26,10 @@
  * here needs them -- set_jobs() and the staleness mark both bypass subjects.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/job_queue_state_test_access.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "job_queue_state.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"

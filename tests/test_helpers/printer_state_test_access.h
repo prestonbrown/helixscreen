@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_update_queue.h"
-
 #include "capability_overrides.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 

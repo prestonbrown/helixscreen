@@ -10,6 +10,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "hv/json.hpp"
+
 namespace helix::printer {
 
 namespace {

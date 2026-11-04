@@ -3,12 +3,12 @@
 
 #pragma once
 
+#include "json_fwd.h"
+
 #include <optional>
 #include <string>
 #include <variant>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file pre_print_option.h

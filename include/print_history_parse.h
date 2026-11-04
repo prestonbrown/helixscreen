@@ -3,9 +3,8 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "print_history_data.h"
-
-#include "hv/json.hpp"
 
 namespace helix {
 

@@ -27,7 +27,6 @@
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/log_capture.h"
@@ -36,6 +35,7 @@
 #include "../test_helpers/snapshot_backdrops_mode.h"
 #include "app_globals.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"

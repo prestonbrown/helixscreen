@@ -9,6 +9,8 @@
 #include <memory>
 #include <string>
 
+#include "hv/json.hpp"
+
 class ClogDetectionConfigModal;
 
 namespace helix {

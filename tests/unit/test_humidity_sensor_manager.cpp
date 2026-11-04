@@ -8,10 +8,9 @@
  *        humidity subject. Humidity sensors have no persisted settings.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
+#include "core/update_queue.h"
 #include "hardware_object_table.h"
 #include "humidity_sensor_manager.h"
 #include "humidity_sensor_types.h"

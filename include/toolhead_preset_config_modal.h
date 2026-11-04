@@ -19,7 +19,6 @@ class ToolheadPresetConfigModal : public Modal {
     using ChangeCallback = std::function<void(const ToolheadPresetSlots&)>;
 
     ToolheadPresetConfigModal(ToolheadPresetSlots slots, ChangeCallback on_change);
-    ~ToolheadPresetConfigModal() override;
 
     const char* get_name() const override {
         return "Toolhead Presets";
@@ -27,6 +26,7 @@ class ToolheadPresetConfigModal : public Modal {
     const char* component_name() const override {
         return "toolhead_preset_config_modal";
     }
+    HELIX_KIND_TAG(ToolheadPresetConfigModal)
 
     /// Edit slot @p index; the list goes back to the choices.
     void select_slot(std::size_t index);
@@ -50,10 +50,6 @@ class ToolheadPresetConfigModal : public Modal {
     /// Macro (its name left empty) and Empty.
     [[nodiscard]] static std::vector<ToolheadPresetSlot> choices();
 
-    static ToolheadPresetConfigModal* active() {
-        return s_active_;
-    }
-
   protected:
     void on_show() override;
     void on_hide() override;
@@ -68,8 +64,6 @@ class ToolheadPresetConfigModal : public Modal {
     std::size_t selected_ = 0;
     bool showing_macros_ = false;
     lv_obj_t* list_ = nullptr;
-
-    static ToolheadPresetConfigModal* s_active_;
 };
 
 /// The picker's subjects and XML callbacks; registered with the Toolhead widget.

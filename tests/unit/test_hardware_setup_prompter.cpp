@@ -16,7 +16,6 @@
 #include "ui_modal.h"
 #include "ui_panel_notification_history.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
@@ -28,6 +27,7 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "hardware_setup_prompter.h"
 #include "wizard_config_paths.h"

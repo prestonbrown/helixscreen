@@ -14,10 +14,10 @@
  */
 
 #include "ui_ams_mini_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "panel_widget_size.h"
 #include "theme_manager.h"
 

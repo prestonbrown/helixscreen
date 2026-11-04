@@ -29,10 +29,9 @@
  *   the new schema, do not weaken the assertion.
  */
 
-#include "ui_update_queue.h"
-
 #include "ams_backend_afc.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "test_helpers/afc_test_access.h"
 
 #include <algorithm>

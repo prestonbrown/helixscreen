@@ -3,8 +3,8 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "temperature_controller.h"
 
@@ -35,7 +35,8 @@ class MaterialTempsOverlay : public OverlayBase {
         return "Material Temperatures";
     }
 
-    /// Custom create(): caches the list and edit views and intercepts the back button.
+    /// Custom create(): caches the list and edit views. The back button's handler comes
+    /// from the XML root's back_button_callback (on_material_back_clicked).
     lv_obj_t* create(lv_obj_t* parent) override;
 
     void on_activate() override;

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -20,7 +21,7 @@ inline constexpr const char* kUnitSeparator = "\xc2\xb7";
  * An enum rather than a string so a caller cannot compare the wrong spelling
  * and silently fall through to the default.
  */
-enum class LaneNoun {
+enum class LaneNoun : uint8_t {
     Slot,     ///< Bambu-style AMS, K2 CFS, ACE, QIDI Box, AD5X IFS
     Lane,     ///< AFC
     Gate,     ///< Happy Hare

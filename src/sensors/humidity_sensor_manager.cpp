@@ -7,6 +7,8 @@
 
 #include <algorithm>
 
+#include "hv/json.hpp"
+
 namespace helix::sensors {
 
 namespace {

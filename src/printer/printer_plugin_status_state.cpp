@@ -12,8 +12,7 @@
 
 #include "printer_plugin_status_state.h"
 
-#include "ui_filename_utils.h"
-
+#include "core/gcode_filename.h"
 #include "macro_manager.h"
 #include "plr_backend.h"
 #include "state/subject_macros.h"

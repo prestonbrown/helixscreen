@@ -6,11 +6,11 @@
 // layout drops, glows and relayouts across a phase switch.
 
 #include "ui_print_status_tiles.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/print_status_panel_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
 #include "prerendered_images.h"

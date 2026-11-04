@@ -19,9 +19,9 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/static_panel_registry.h"
 #include "moonraker_config_manager.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "system/moonraker_local_probe.h"
 

@@ -10,9 +10,8 @@
 
 #include "printer_capabilities_state.h"
 
-#include "ui_update_queue.h"
-
 #include "chamber_air_modes.h"
+#include "core/update_queue.h"
 #include "layer_pause.h"
 #include "lvgl.h"
 #include "pa_calibration.h"

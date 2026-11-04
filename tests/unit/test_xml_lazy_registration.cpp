@@ -6,14 +6,14 @@
 // scratch ui_xml/ tree whose components nothing registers up front.
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/layout_manager_test_access.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "layout_manager.h"
-#include "static_subject_registry.h"
 #include "xml_hot_reloader.h"
 #include "xml_registration.h"
 

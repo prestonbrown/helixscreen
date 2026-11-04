@@ -201,7 +201,7 @@ CMAKE
     run_gate
     [ "$status" -eq 1 ]
     contains "src/printer/compiled.cpp:2: <sstream>" "$output"
-    contains "text_io.h" "$output"
+    contains "core/text_io.h" "$output"
 }
 
 @test "a locale-pulling include in an excluded file is not the firmware's problem" {
@@ -504,7 +504,7 @@ build_link_fixture() {
     printf 'max-edges: 0\n' > "$ROOT/link_baseline.txt"
 }
 
-EDGE="src/printer/compiled.cpp -> src/printer/excluded_one.cpp"
+EDGE="src/printer/compiled.cpp -> src/printer/excluded_one.cpp  only_excluded_defines"
 
 run_link_gate() {
     run python3 "$GATE" --link \
@@ -521,7 +521,7 @@ run_link_gate() {
     run_link_gate
     [ "$status" -eq 1 ]
     contains "src/printer/compiled.cpp -> src/printer/excluded_one.cpp" "$output"
-    contains "only_excluded_defines()" "$output"
+    contains "only_excluded_defines" "$output"
 }
 
 @test "--link passes when the firmware's own sources stub the symbol" {
@@ -535,6 +535,15 @@ run_link_gate() {
     build_link_fixture $'\n#if HELIX_HAS_CAMERA\n    return only_excluded_defines();\n#else\n    return 0;\n#endif\n'
     run_link_gate
     [ "$status" -eq 0 ]
+}
+
+@test "--link with nothing wanted reports a baseline entry for a file no longer listed" {
+    build_link_fixture 'return 0;'
+    printf 'max-edges: 1\nsrc/printer/gone.cpp -> src/printer/excluded_one.cpp  old_symbol\n' \
+        > "$ROOT/link_baseline.txt"
+    run_link_gate
+    [ "$status" -eq 1 ]
+    contains "src/printer/gone.cpp" "$output"
 }
 
 @test "--link exits 2 when a listed file has no object to read" {
@@ -561,7 +570,7 @@ run_link_gate() {
         > "$ROOT/fwroot/stubs.cpp"
     run_link_gate
     [ "$status" -eq 1 ]
-    contains "SoundMgr::start()" "$output"
+    contains "SoundMgr::start" "$output"
 }
 
 @test "--link: a baselined edge passes" {
@@ -652,7 +661,7 @@ build_inline_fixture() {
     printf 'max-edges: 0\n' > "$ROOT/link_baseline.txt"
     run_link_gate
     [ "$status" -eq 1 ]
-    contains "Pwm::update()" "$output"
+    contains "Pwm::update" "$output"
 }
 
 @test "--link: a Makefile flag a firmware sdkconfig mentions may be set on the firmware" {
@@ -664,4 +673,139 @@ build_inline_fixture() {
     run_link_gate
     [ "$status" -eq 1 ]
     contains "$EDGE" "$output"
+}
+
+@test "--link: a new symbol on a baselined file pair fails" {
+    build_link_fixture 'return only_excluded_defines();'
+    printf 'int only_excluded_defines();\nint second_excluded();\n' > "$ROOT/src/printer/excluded_one.h"
+    printf '#include "excluded_one.h"\nint caller() { return only_excluded_defines() + second_excluded(); }\n' \
+        > "$ROOT/src/printer/compiled.cpp"
+    printf 'int only_excluded_defines() { return 7; }\nint second_excluded() { return 8; }\n' \
+        > "$ROOT/src/printer/excluded_one.cpp"
+    c++ -c "$ROOT/src/printer/compiled.cpp" -o "$ROOT/obj/printer/compiled.o"
+    c++ -c "$ROOT/src/printer/excluded_one.cpp" -o "$ROOT/obj/printer/excluded_one.o"
+    printf 'max-edges: 1\n%s\n' "$EDGE" > "$ROOT/link_baseline.txt"
+    run_link_gate
+    [ "$status" -eq 1 ]
+    contains "excluded_one.cpp  second_excluded" "$output"
+    refute contains "excluded_one.cpp  only_excluded_defines" "$output"
+}
+
+# TrackerModule::load behind HELIX_HAS_TRACKER beside a live std::atomic load().
+build_dead_class_fixture() {
+    printf 'struct Module { static int load(); };\n' > "$ROOT/src/printer/excluded_one.h"
+    printf '#include "excluded_one.h"\nint Module::load() { return 7; }\n' > "$ROOT/src/printer/excluded_one.cpp"
+    printf '%s\n' '#include <atomic>' "$1" 'std::atomic<int> busy;' \
+        'int status() { return busy.load(); }' '#if HELIX_HAS_CAMERA' \
+        'int play() { return Module::load(); }' '#endif' > "$ROOT/src/printer/compiled.cpp"
+    mkdir -p "$ROOT/obj/printer" "$ROOT/fwroot"
+    c++ -std=c++17 -DHELIX_HAS_CAMERA=1 -I"$ROOT/src/printer" \
+        -c "$ROOT/src/printer/compiled.cpp" -o "$ROOT/obj/printer/compiled.o"
+    c++ -std=c++17 -I"$ROOT/src/printer" -c "$ROOT/src/printer/excluded_one.cpp" -o "$ROOT/obj/printer/excluded_one.o"
+    printf 'target_compile_definitions(${COMPONENT_LIB} PRIVATE\n    HELIX_HAS_CAMERA=0)\n' > "$ROOT/CMakeLists.txt"
+    printf 'max-edges: 0\n' > "$ROOT/link_baseline.txt"
+}
+
+@test "--link passes a member whose class the firmware cannot name, though a same-named call is live" {
+    build_dead_class_fixture $'#if HELIX_HAS_CAMERA\n#include "excluded_one.h"\n#endif'
+    run_link_gate
+    [ "$status" -eq 0 ]
+}
+
+@test "--link passes that member when a live header includes its class only in a dead branch" {
+    printf '#if HELIX_HAS_CAMERA\n#include "excluded_one.h"\n#endif\n' > "$ROOT/src/printer/wrapper.h"
+    build_dead_class_fixture '#include "wrapper.h"'
+    run_link_gate
+    [ "$status" -eq 0 ]
+}
+
+@test "--link fails the same member once a live include declares its class" {
+    build_dead_class_fixture '#include "excluded_one.h"'
+    run_link_gate
+    [ "$status" -eq 1 ]
+    contains "Module::load" "$output"
+}
+
+@test "--link gives no verdict when a source is newer than its object" {
+    build_link_fixture 'return only_excluded_defines();'
+    touch -t 200001010000 "$ROOT/obj/printer/compiled.o"
+    run_link_gate
+    [ "$status" -eq 2 ]
+    contains "older than" "$output"
+    contains "src/printer/compiled.cpp" "$output"
+}
+
+@test "--link gives no verdict when a header in the object's depfile is newer" {
+    build_link_fixture 'return 0;'
+    printf '%s\n' "$ROOT/obj/printer/compiled.o: src/printer/compiled.cpp \\" \
+        '  src/printer/excluded_one.h' > "$ROOT/obj/printer/compiled.d"
+    run_link_gate
+    [ "$status" -eq 0 ]
+    touch -t 203001010000 "$ROOT/src/printer/excluded_one.h"
+    run_link_gate
+    [ "$status" -eq 2 ]
+}
+
+@test "--link keeps its verdict when only an excluded object is old" {
+    build_link_fixture 'return only_excluded_defines();'
+    touch -t 200001010000 "$ROOT/obj/printer/excluded_one.o"
+    run_link_gate
+    [ "$status" -eq 1 ]
+    contains "$EDGE" "$output"
+}
+
+@test "--link gives no verdict when nm is not on PATH" {
+    build_link_fixture 'return only_excluded_defines();'
+    local py
+    py=$(command -v python3)
+    run env PATH=/nonexistent "$py" "$GATE" --link --manifest "$ROOT/manifest.txt" \
+        --exclusions "$ROOT/excluded.txt" --src-root "$ROOT/src" --obj-root "$ROOT/obj" \
+        --firmware-root "$ROOT/fwroot" --baseline "$ROOT/link_baseline.txt"
+    [ "$status" -eq 2 ]
+    contains "nm" "$output"
+}
+
+# ------------------------------------------------------- the quality gate's verdict
+# qc_esp32_app_srcs in a tree holding a stand-in checker whose manifest pass
+# succeeds and whose --link pass exits $LINK_RC.
+run_qc_gate() {
+    local tree="$BATS_TEST_TMPDIR/qc" qc="$PWD/scripts/qc/esp32_app_srcs.sh"
+    mkdir -p "$tree/scripts" "$tree/tmp"
+    mock_command_script uname "echo ${UNAME:-Linux}"
+    printf '%s\n' 'import os, sys' \
+        'if "--link" in sys.argv: print("link says hello"); sys.exit(int(os.environ["LINK_RC"]))' \
+        > "$tree/scripts/check_esp32_app_srcs.py"
+    run bash -c 'cd "$1" && . "$2" && QC_TMP=tmp qc_esp32_app_srcs' _ "$tree" "$qc"
+}
+
+@test "the quality gate fails on a link finding" {
+    LINK_RC=1 run_qc_gate
+    [ "$status" -eq 1 ]
+    contains "link says hello" "$output"
+}
+
+@test "the quality gate passes a clean link and one with no verdict" {
+    LINK_RC=0 run_qc_gate
+    [ "$status" -eq 0 ]
+    LINK_RC=2 run_qc_gate
+    [ "$status" -eq 0 ]
+    contains "no verdict" "$output"
+}
+
+@test "the land gate's quality step fails when the link check has no verdict" {
+    LINK_RC=2 HELIX_LINK_BOUNDARY_REQUIRED=1 run_qc_gate
+    [ "$status" -eq 1 ]
+    contains "link says hello" "$output"
+}
+
+@test "a Mac gives no link verdict and stays quiet" {
+    UNAME=Darwin LINK_RC=1 run_qc_gate
+    [ "$status" -eq 0 ]
+    refute contains "link says hello" "$output"
+}
+
+@test "a Mac refuses when a link verdict is required" {
+    UNAME=Darwin LINK_RC=0 HELIX_LINK_BOUNDARY_REQUIRED=1 run_qc_gate
+    [ "$status" -eq 1 ]
+    contains "no verdict" "$output"
 }

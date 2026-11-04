@@ -14,7 +14,6 @@
  */
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/print_preparation_manager_test_access.h"
@@ -24,12 +23,13 @@
 #include "../test_helpers/queued_start_fixture.h"
 #include "../test_helpers/scoped_macros_read.h"
 #include "../test_helpers/scoped_mock_ams.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "preprint_skip_wrappers.h"
 #include "printer_discovery.h"
 #include "queued_job_start.h"
-#include "static_panel_registry.h"
 
 #include <memory>
 #include <optional>

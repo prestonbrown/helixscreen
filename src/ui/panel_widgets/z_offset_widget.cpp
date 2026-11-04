@@ -11,9 +11,9 @@
 #include "ui_z_offset_indicator.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "display_numbering.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"

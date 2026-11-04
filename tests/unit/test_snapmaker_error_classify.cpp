@@ -1,11 +1,10 @@
 // tests/unit/test_snapmaker_error_classify.cpp
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_error_router_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "fault_surface_correlation.h"
 #include "firmware_fault_codes.h"
 #include "gcode_error_router.h"

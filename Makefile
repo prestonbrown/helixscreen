@@ -469,7 +469,7 @@ ifneq ($(ENABLE_GLES_3D),yes)
     APP_SRCS := $(filter-out $(SRC_DIR)/rendering/gcode_gles_renderer.cpp,$(APP_SRCS))
 endif
 # Screensaver sources: every saver, the parts they share and the manager
-SCREENSAVER_SRCS := $(SRC_DIR)/ui/ui_screensaver.cpp $(wildcard $(SRC_DIR)/ui/screensaver_*.cpp)
+SCREENSAVER_SRCS := $(wildcard $(SRC_DIR)/ui/screensaver/*.cpp)
 # Targets whose lv_conf.h LV_COLOR_DEPTH is 16. The savers below static_assert 32 bpp, so a
 # 16 bpp target missing here fails to compile rather than shipping them.
 SCREENSAVER_16BPP_TARGETS := ad5m ad5m-br cc1 mips k1 k1-dynamic ad5x k2 snapmaker-u1
@@ -531,9 +531,9 @@ else
 endif
 
 ifneq ($(ENABLE_MOCKS),yes)
-    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/api/*_mock*.cpp),$(APP_SRCS))
+    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/mock/*_mock*.cpp $(SRC_DIR)/network/*_mock*.cpp $(SRC_DIR)/platform/usb/*_mock*.cpp),$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/printer/ams_backend_mock.cpp,$(APP_SRCS))
-    APP_SRCS := $(filter-out $(SRC_DIR)/api/moonraker_api_mock.cpp,$(APP_SRCS))
+    APP_SRCS := $(filter-out $(SRC_DIR)/mock/moonraker_api_mock.cpp,$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/system/mock_performance_source.cpp,$(APP_SRCS))
 endif
 
@@ -599,7 +599,7 @@ else
 endif
 
 ifneq ($(ENABLE_DEV_PANELS),yes)
-    APP_SRCS := $(filter-out $(SRC_DIR)/ui/ui_panel_glyphs.cpp,$(APP_SRCS))
+    APP_SRCS := $(filter-out $(SRC_DIR)/ui/debug/ui_panel_glyphs.cpp,$(APP_SRCS))
 endif
 APP_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(APP_SRCS))
 
@@ -839,7 +839,7 @@ WPA_CLIENT_LIB := $(BUILD_DIR)/lib/libwpa_client.a
 WPA_INC := -isystem $(WPA_DIR)/src/common -isystem $(WPA_DIR)/src/utils
 
 # Force-included ahead of every app and test C++ source. It supplies LVGL,
-# helix-xml, spdlog and the common STL headers, and many sources compile only
+# helix-xml and the common STL headers, and many sources compile only
 # because of it. It is an ordinary header, tracked through each object's .d
 # file; nothing is precompiled.
 FORCED_INCLUDE := -include $(INC_DIR)/lvgl_pch.h

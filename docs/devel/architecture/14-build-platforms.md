@@ -59,7 +59,7 @@ flowchart TB
 | [`scripts/helix-claim`](../../../scripts/helix-claim) | `helix-claim jobs` is the default `-j` for make, the test sweep and the commit hook; the rest of the script is the cross-session claim registry |
 | [`scripts/test-host-run.sh`](../../../scripts/test-host-run.sh) | Runs mutation, ASAN/TSan and the unit sweep in a Docker container on the test host named in `~/.config/helixscreen/build-hosts.env` |
 | [`scripts/quality-checks.sh`](../../../scripts/quality-checks.sh) / [`scripts/qc/`](../../../scripts/qc/) | The commit and CI gate: one `scripts/qc/<gate>.sh` file per check |
-| [`src/api/display_backend.cpp`](../../../src/api/display_backend.cpp) | `DisplayBackend` factory and the runtime DRM→fbdev→SDL auto-detect |
+| [`src/platform/display/display_backend.cpp`](../../../src/platform/display/display_backend.cpp) | `DisplayBackend` factory and the runtime DRM→fbdev→SDL auto-detect |
 | `firmware/helixscreen-esp32/` | ESP-IDF port for the BTT K-Touch (ESP32-S3); `size_budget.json` holds its image and internal-DRAM ceilings |
 | [`scripts/check_esp32_app_srcs.py`](../../../scripts/check_esp32_app_srcs.py) / [`check_esp32_xml_bindings.py`](../../../scripts/check_esp32_xml_bindings.py) / [`check_esp32_size.py`](../../../scripts/check_esp32_size.py) | The three gates that keep a desktop change from breaking the firmware |
 
@@ -130,7 +130,7 @@ binary (the installer detects the SBC), and the Sonic Pad installs the `pi32` bi
 [SonicPad-Debian](../../user/INSTALL.md) (32-bit armhf userspace on an Allwinner H616). fbdev and
 evdev are the shipping path for K1/K2/AD5M/AD5X/CC1 and the input path on every non-SDL target. Display-backend choice is compile-time *inclusion*
 ([`mk/display-lib.mk`](../../../mk/display-lib.mk): fbdev+DRM always on Linux, SDL when `ENABLE_SDL`) but runtime *selection*:
-`DisplayBackend::create_auto()` probes DRM, then fbdev, then SDL ([`src/api/display_backend.cpp#create_auto`](../../../src/api/display_backend.cpp)),
+`DisplayBackend::create_auto()` probes DRM, then fbdev, then SDL ([`src/platform/display/display_backend.cpp#create_auto`](../../../src/platform/display/display_backend.cpp)),
 which is what lets one binary cover a device family.
 
 The per-target gates are where devices differ in features, not just flags: font tiers scale the
@@ -150,7 +150,7 @@ only, the FlashForge machine id and mod-tree probe, caches the answer, and `boar
 the row of per-board facts (camera probing, the jz_pwm piezo, reduced effects, backlight re-assert,
 firmware-owned updates, legacy release asset). Capability modules that own large per-board data
 key their own tables on `board::Board` the same way: touch fits
-(`src/ui/touch_calibration.cpp#factory_touch_fit`), panel geometry
+(`src/ui/calibration/touch_calibration.cpp#factory_touch_fit`), panel geometry
 (`src/application/display_metrics.cpp`) and cache rungs
 (`src/system/helix_cache_dir.cpp#board_cache_candidates`). Generic code asks the board; it never
 tests a `HELIX_PLATFORM_*` macro or probes the filesystem for a vendor. A new board is one enum
@@ -179,7 +179,7 @@ build, flash and debugging guide.
 Two independent choices, easy to conflate:
 
 - The **display backend** decides how finished pixels reach the panel: fbdev, DRM/KMS dumb buffers,
-  DRM through EGL/GBM, SDL. Chosen at runtime by [`src/api/display_backend.cpp#create_auto`](../../../src/api/display_backend.cpp);
+  DRM through EGL/GBM, SDL. Chosen at runtime by [`src/platform/display/display_backend.cpp#create_auto`](../../../src/platform/display/display_backend.cpp);
   on the Pi targets the DRM binary links the EGL presentation path beside dumb buffers and takes it for
   `HELIX_DISPLAY_BACKEND=egl` ([`mk/egl-link.mk`](../../../mk/egl-link.mk)).
 - The **draw unit** decides what rasterizes widgets: `lv_draw_sw`, `lv_draw_opengles`,
@@ -250,7 +250,7 @@ picture, so the hook reads the position before that bound and bounds it by the p
 
 On the EGL path every nonzero angle takes the GPU strategy. Otherwise 90 and 270 never go to the plane,
 whatever its mask advertises: the plane is programmed at the panel's own width and height and LVGL keeps laying
-out unrotated ([`src/api/drm_rotation_strategy.cpp#choose_drm_rotation_strategy`](../../../src/api/drm_rotation_strategy.cpp)).
+out unrotated ([`src/platform/display/drm_rotation_strategy.cpp#choose_drm_rotation_strategy`](../../../src/platform/display/drm_rotation_strategy.cpp)).
 A board whose plane cannot carry the angle falls to the fbdev backend.
 
 **A panel needing 90 or 270 belongs on the EGL path where the board has a GPU, else on fbdev.** Pi and x86 targets ship
@@ -358,7 +358,7 @@ Read in this order; about 25 minutes total.
 6. [`mk/cross.mk`](../../../mk/cross.mk) - the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
 7. `Makefile#"ENABLE_REMOTE_CONTROL ?= no"` - `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `Makefile#"ENABLE_DEV_PANELS ?= yes"` shows the simpler native-only shape for dev panels.
 8. [`mk/display-lib.mk`](../../../mk/display-lib.mk) - compile-time backend inclusion per OS (Darwin gets SDL only; Linux always gets fbdev+DRM).
-9. [`src/api/display_backend.cpp#create_auto`](../../../src/api/display_backend.cpp) - `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
+9. [`src/platform/display/display_backend.cpp#create_auto`](../../../src/platform/display/display_backend.cpp) - `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
 10. [`mk/patches.mk`](../../../mk/patches.mk) - the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
 11. `patches/lvgl-evdev-protocol-a.patch` - a small, real patch that ships on every evdev device and is upstream as PR #9829.
 12. [`mk/cross.mk`](../../../mk/cross.mk) - the `.PHONY` roster of convenience, Docker, and deploy targets; then `mk/cross.mk#help-cross` is the help text that renders the same menu for humans.

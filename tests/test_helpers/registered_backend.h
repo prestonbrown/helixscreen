@@ -5,10 +5,9 @@
 // asserting on lane records needs.
 #pragma once
 
-#include "ui_update_queue.h"
-
 #include "ams_backend.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "lane_source_store.h"
 
 #include <memory>

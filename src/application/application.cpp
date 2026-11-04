@@ -19,7 +19,6 @@
 
 // Private LVGL header needed to read display->flush_cb for splash no-op swap
 #include "ui_overlay_timelapse_videos.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_error_bridge.h"
@@ -27,6 +26,8 @@
 #include "asset_manager.h"
 #include "cjk_font_manager.h"
 #include "config.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "display/lv_display_private.h"
 #include "display_manager.h"
 #include "env_refusal_notice.h"
@@ -37,7 +38,6 @@
 #include "hardware_role_registry.h"
 #include "hardware_validator.h"
 #include "helix_version.h"
-#include "http_executor.h"
 #include "input_settings_manager.h"
 #include "job_queue_state.h"
 #include "keyboard_shortcuts.h"
@@ -66,14 +66,14 @@
 #include "remote_control_server.h"
 #endif
 #include "audio_settings_manager.h"
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
 #include "remote_screen_service.h"
 #include "rpc_error_correlation.h"
 #include "screenshot.h"
 #include "sensor_state.h"
 #include "sound_manager.h"
 #include "spoolman_active_spool_sync.h"
-#include "static_panel_registry.h"
-#include "static_subject_registry.h"
 #include "subject_initializer.h"
 #include "temp_graph_controller.h"
 #include "temperature_history_manager.h"
@@ -172,7 +172,7 @@
 #include "active_print_media_manager.h"
 #include "android_asset_extractor.h"
 #include "board_identity.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "display_settings_manager.h"
 #include "glass_gate.h"
 #include "helix_sparkline.h"
@@ -204,12 +204,11 @@
 #include "wifi_manager.h"
 
 // Backend headers
-#include "ui_update_queue.h"
-
 #include "abort_manager.h"
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "detection_manager.h"
 #include "filament_sensor_manager.h"
 #include "gcode_file_modifier.h"

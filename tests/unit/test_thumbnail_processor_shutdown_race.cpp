@@ -18,10 +18,9 @@
 // friend). Calling shutdown() on the process-wide ThumbnailProcessor would
 // permanently disable thumbnail processing for every later test in the binary.
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
+#include "core/update_queue.h"
 #include "thumbnail_processor.h"
 
 #include <atomic>

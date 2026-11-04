@@ -7,12 +7,12 @@
 #include "ui_history_photos.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_history_list.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix_plugin_features.h"
 #include "history_job_events.h"
 #include "moonraker_api_mock.h"

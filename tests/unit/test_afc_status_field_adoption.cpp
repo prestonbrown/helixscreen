@@ -31,11 +31,10 @@
  * that they stay no-ops: absence must not clobber what we already knew.
  */
 
-#include "ui_update_queue.h"
-
 #include "active_material_provider.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_database.h"
 #include "test_helpers/afc_test_access.h"
 

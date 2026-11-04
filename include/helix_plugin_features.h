@@ -6,6 +6,7 @@
 // feature and the minimum contract version it needs, never on the plugin's
 // version string, so an older plugin loses only the features it lacks.
 
+#include "json_fwd.h"
 #include "moonraker_error.h"
 #include "translation_loader.h" // TR_NOOP
 
@@ -15,8 +16,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

@@ -13,7 +13,6 @@
 
 #include "ui_print_preparation_manager.h"
 #include "ui_print_start_controller.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/print_select_panel_fixture.h"
@@ -24,6 +23,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "print_start_inputs.h"

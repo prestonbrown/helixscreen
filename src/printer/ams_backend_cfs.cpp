@@ -7,13 +7,14 @@
 #include "ui_insert_notice.h"
 #include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "ams_bypass_policy.h"
 #include "ams_device_sections.h"
 #include "ams_fault_event.h"
 #include "ams_tool_map_sync.h"
 #include "cfs_status_parse.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "filament_catalog.h"
 #include "filament_op_dispatch.h" // kExternalSpoolSlot — the shared bypass sentinel
 #include "filament_slot_override.h"
@@ -33,7 +34,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h" // get_print_lifecycle_subject: the insert-probe gate
 #include "settings_manager.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>

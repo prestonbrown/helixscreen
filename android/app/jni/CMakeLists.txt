@@ -352,7 +352,7 @@ target_compile_options(main PRIVATE
 )
 
 # Use the same precompiled header as the Makefile build — it force-includes
-# lvgl.h, helix_xml.h, spdlog, and common STL headers into every TU.
+# lvgl.h, helix_xml.h and common STL headers into every TU.
 target_precompile_headers(main PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${PROJECT_ROOT}/include/lvgl_pch.h>"
 )
@@ -371,7 +371,7 @@ target_compile_options(main PRIVATE
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
     set(HELIX_LFS_SOURCES
         "${PROJECT_ROOT}/src/rendering/gcode_data_source.cpp"
-        "${PROJECT_ROOT}/src/system/text_io.cpp"
+        "${PROJECT_ROOT}/src/core/text_io.cpp"
         "${PROJECT_ROOT}/src/system/helix_fs.cpp"
     )
     set_source_files_properties(${HELIX_LFS_SOURCES} PROPERTIES

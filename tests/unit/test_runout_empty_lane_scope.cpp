@@ -22,8 +22,6 @@
  * FilamentSensorManager fed via update_from_status().
  */
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "ams_backend_mock.h"
@@ -31,6 +29,7 @@
 #include "ams_state.h"
 #include "ams_subscription_backend.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "moonraker_api_mock.h"

@@ -1,6 +1,6 @@
 # Gesture Recognition: Pinch Zoom and Two-Finger Pan
 
-How the app turns LVGL 9.5's multi-touch gesture recognizers into pinch zoom and two-finger pan on the 3D G-code preview and the 3D bed mesh. The shared math lives in `include/view_gestures.h` + `src/ui/view_gestures.cpp`; each view maps a `TwoFingerStep` onto its own camera or projection.
+How the app turns LVGL 9.5's multi-touch gesture recognizers into pinch zoom and two-finger pan on the 3D G-code preview and the 3D bed mesh. The shared math lives in `include/view_gestures.h` + `src/ui/gcode/view_gestures.cpp`; each view maps a `TwoFingerStep` onto its own camera or projection.
 
 ## Architecture
 
@@ -41,7 +41,7 @@ PINCH (index 1) is iterated **before** ROTATE (index 3) and before TWO_FINGERS_S
 
 ## Thresholds: Where They Are Set
 
-The thresholds are configured in one place, `DisplayBackend::configure_touch_gestures` (`src/api/display_backend.cpp#configure_touch_gestures`), called on every evdev touch pointer in both display backends: DRM (`src/api/display_backend_drm.cpp`, including the device-override and evdev fallback paths) and fbdev (`src/api/display_backend_fbdev.cpp`).
+The thresholds are configured in one place, `DisplayBackend::configure_touch_gestures` (`src/platform/display/display_backend.cpp#configure_touch_gestures`), called on every evdev touch pointer in both display backends: DRM (`src/platform/display/display_backend_drm.cpp`, including the device-override and evdev fallback paths) and fbdev (`src/platform/display/display_backend_fbdev.cpp`).
 
 ```cpp
 lv_indev_set_pinch_up_threshold(indev, 1.15f);
@@ -57,13 +57,13 @@ Rotation is raised to effectively disable it (the app has no rotate gesture), so
 
 Pan comes from the recognizer's `info->delta_x`/`delta_y`, the cumulative translation of the two-finger centre since the gesture began. PINCH updates these fields too, which is what lets a pinch pan the view while it zooms.
 
-These fields are private to LVGL, and the public API does not expose them: the two-finger swipe surface is a distance plus a 4-way direction (`lv_event_get_two_fingers_swipe_distance()` / `lv_event_get_two_fingers_swipe_dir()`), not a per-axis vector, and `lv_indev_get_gesture_center_point()` returns only the *starting* centre. So `src/ui/view_gestures.cpp#read_two_finger_sample` is the app's only reader of the private gesture struct: it includes `lv_indev_gesture_private.h` and `lv_indev_private.h`, gets the emitting indev from `lv_event_get_param()` and the recognizer from `indev->gesture_data[type]` (LVGL's own `lv_indev_get_gesture_recognizer` is `static`), and returns the state, cumulative deltas, cumulative scale and starting centre as a plain `TwoFingerSample`.
+These fields are private to LVGL, and the public API does not expose them: the two-finger swipe surface is a distance plus a 4-way direction (`lv_event_get_two_fingers_swipe_distance()` / `lv_event_get_two_fingers_swipe_dir()`), not a per-axis vector, and `lv_indev_get_gesture_center_point()` returns only the *starting* centre. So `src/ui/gcode/view_gestures.cpp#read_two_finger_sample` is the app's only reader of the private gesture struct: it includes `lv_indev_gesture_private.h` and `lv_indev_private.h`, gets the emitting indev from `lv_event_get_param()` and the recognizer from `indev->gesture_data[type]` (LVGL's own `lv_indev_get_gesture_recognizer` is `static`), and returns the state, cumulative deltas, cumulative scale and starting centre as a plain `TwoFingerSample`.
 
-The recognizers track the fingers after lv_evdev's own range and axis-swap scaling and nothing else, the same point the single pointer starts from before HelixScreen's read chain turns it. So the reader maps where the gesture started and where it is now through `src/api/touch_calibration_wrapper.cpp#map_touch_point_to_screen`, which replays that chain: the active touch calibration, the pointer frame hook's scanout-plane turn (`include/pointer_frame_hook.h#map_panel_point`), then LVGL's `lv_display_rotate_point`. The sample's start and delta are the mapped points, so pan follows the fingers and the anchor sits under them on rotated and calibrated installs alike. Scale is taken as reported: rotation leaves it unchanged and a calibration stays close to uniform. Anything that is not a pinch or two-finger-swipe state yields `nullopt`; two fingers down before recognition surfaces as the pinch recognizer's ONGOING.
+The recognizers track the fingers after lv_evdev's own range and axis-swap scaling and nothing else, the same point the single pointer starts from before HelixScreen's read chain turns it. So the reader maps where the gesture started and where it is now through `src/platform/input/touch_calibration_wrapper.cpp#map_touch_point_to_screen`, which replays that chain: the active touch calibration, the pointer frame hook's scanout-plane turn (`include/pointer_frame_hook.h#map_panel_point`), then LVGL's `lv_display_rotate_point`. The sample's start and delta are the mapped points, so pan follows the fingers and the anchor sits under them on rotated and calibrated installs alike. Scale is taken as reported: rotation leaves it unchanged and a calibration stays close to uniform. Anything that is not a pinch or two-finger-swipe state yields `nullopt`; two fingers down before recognition surfaces as the pinch recognizer's ONGOING.
 
 ## Per-Frame Conversion: `two_finger_step`
 
-LVGL reports cumulative totals since the gesture began; views want this frame's pan and zoom. `src/ui/view_gestures.cpp#two_finger_step` (pure, declared in `include/view_gestures.h`) converts:
+LVGL reports cumulative totals since the gesture began; views want this frame's pan and zoom. `src/ui/gcode/view_gestures.cpp#two_finger_step` (pure, declared in `include/view_gestures.h`) converts:
 
 - **Pan**: this frame's cumulative `delta_x/y` minus the last totals applied.
 - **Zoom**: the ratio of this frame's cumulative scale to the last one (PINCH only).
@@ -77,8 +77,8 @@ The anchor for zooming is the *live* two-finger centre (starting centre plus thi
 
 Both views apply pan first, then zoom about the live anchor.
 
-- **G-code preview** (`src/ui/gcode_viewer_input.cpp#gcode_viewer_gesture_cb`): `GCodeCamera::pan_pixels()` then `GCodeCamera::zoom_at()`. A pinch zooms about the fingers and pans with them in the same frame; a two-finger swipe only pans. Motion is 3D-only; the two-finger latch below applies in 2D and 3D alike. After the gesture, RELEASED still leaves interaction mode, so the preview returns to full resolution.
-- **Bed mesh** (`src/ui/ui_bed_mesh.cpp#bed_mesh_gesture_cb` → `src/rendering/bed_mesh_renderer.cpp#bed_mesh_renderer_apply_two_finger`): `bed_mesh_projection_pan()` then `src/rendering/bed_mesh_projection.cpp#bed_mesh_projection_zoom_at`. Zoom and pan apply in screen space after the perspective divide. Zoom is clamped to `BED_MESH_ZOOM_MIN`..`BED_MESH_ZOOM_MAX` (1.0-8.0); at 1.0 two-finger pan is a deliberate no-op, and a zoom that reaches 1.0 resets pan to zero - pinching fully out is the reset back to the fitted view. `bed_mesh_renderer_set_bounds` and `bed_mesh_renderer_set_render_mode` also reset zoom and pan (via `bed_mesh_projection_reset_zoom`), bounds first because the auto-fit that follows projects through the zoomed function. In async mode the gesture update takes the render mutex; the fast solid-colour fill is active for the whole press.
+- **G-code preview** (`src/ui/gcode/gcode_viewer_input.cpp#gcode_viewer_gesture_cb`): `GCodeCamera::pan_pixels()` then `GCodeCamera::zoom_at()`. A pinch zooms about the fingers and pans with them in the same frame; a two-finger swipe only pans. Motion is 3D-only; the two-finger latch below applies in 2D and 3D alike. After the gesture, RELEASED still leaves interaction mode, so the preview returns to full resolution.
+- **Bed mesh** (`src/ui/calibration/ui_bed_mesh.cpp#bed_mesh_gesture_cb` → `src/rendering/bed_mesh_renderer.cpp#bed_mesh_renderer_apply_two_finger`): `bed_mesh_projection_pan()` then `src/rendering/bed_mesh_projection.cpp#bed_mesh_projection_zoom_at`. Zoom and pan apply in screen space after the perspective divide. Zoom is clamped to `BED_MESH_ZOOM_MIN`..`BED_MESH_ZOOM_MAX` (1.0-8.0); at 1.0 two-finger pan is a deliberate no-op, and a zoom that reaches 1.0 resets pan to zero - pinching fully out is the reset back to the fitted view. `bed_mesh_renderer_set_bounds` and `bed_mesh_renderer_set_render_mode` also reset zoom and pan (via `bed_mesh_projection_reset_zoom`), bounds first because the auto-fit that follows projects through the zoomed function. In async mode the gesture update takes the render mutex; the fast solid-colour fill is active for the whole press.
 
 ## The Two-Finger Latch
 

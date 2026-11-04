@@ -2,13 +2,12 @@
 #pragma once
 
 #include "idle_timeout_busy.h"
+#include "json_fwd.h"
 #include "state/volatile_subjects.h"
 #include "subject_managed_panel.h"
 
 #include <atomic>
 #include <lvgl.h>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

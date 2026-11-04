@@ -14,8 +14,8 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 namespace helix::settings {
 
@@ -26,6 +26,9 @@ class LanguageTimeSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "settings_language_time_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void register_callbacks() override;

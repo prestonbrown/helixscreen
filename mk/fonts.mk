@@ -164,7 +164,7 @@ endif
 
 # Icon faces linked below their own tier, for the home tiles' xxl rung: a tile
 # grown past a cell and a half asks for twice its tier's xl glyph
-# (src/ui/ui_tile_rung.cpp). A build without the face draws the largest linked
+# (src/ui/home/ui_tile_rung.cpp). A build without the face draws the largest linked
 # one scaled up to at most 2x, so a face is linked only where the board has
 # room to spare for it. Measured cost, binary / gzipped package: 80 = +500KB /
 # +69KB, 96 = +708KB / +76KB, 128 = +1.26MB / +114KB. All of it is .rodata, so

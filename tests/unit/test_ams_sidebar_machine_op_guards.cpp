@@ -26,8 +26,8 @@
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 #include "test_helpers/ams_sidebar_xml.h"
 
 #include <lvgl.h>

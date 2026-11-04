@@ -346,11 +346,20 @@ if [ "$STAGED_ONLY" = true ]; then
 
   # A commit checks that what it stages compiles, in seconds: each staged
   # source, and for each staged header one source that includes it (the case
-  # that breaks OTHER units). Linking the app is minutes, so it is pre-push's
-  # job: its clang gate syntax-checks every changed unit and the header's
-  # dependents, and land-gate builds and tests the result.
-  # HELIX_QC_FULL_BUILD=1 builds the app here instead.
+  # that breaks OTHER units). Above QC_COMPILE_CAP units it compiles a sample and
+  # says so. Linking the app is minutes, so it is pre-push's job: its clang gate
+  # syntax-checks every changed unit and the header's dependents on a push to main,
+  # and land-gate builds and tests the result.
+  # HELIX_QC_ALL_AT_COMMIT=1 compiles every unit; HELIX_QC_FULL_BUILD=1 builds the
+  # app here instead.
   qc_staged_compile_units "$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
+  # Only a run that will compile units has any to skip.
+  [ -n "${HELIX_QC_FULL_BUILD:-}" ] || [ ! -f compile_commands.json ] ||
+    [ "${HELIX_QC_ALL_AT_COMMIT:-0}" = 1 ] || qc_sample_compile_units "$QC_COMPILE_CAP"
+  # Named for this gate, so qc_keep_gate_log keeps the whole of it on a failure, and
+  # in QC_TMP, because a fixed path is overwritten by any other session's commit.
+  QC_SYNTAX_LOG="$QC_TMP/phase2.syntax.log"
+  qc_compile_sample_note
 
   if [ -n "${HELIX_QC_FULL_BUILD:-}" ]; then
     # Bounded -j (qc_build_jobs): this build runs from a commit hook.
@@ -380,16 +389,25 @@ if [ "$STAGED_ONLY" = true ]; then
     section_time $SECTION_START
     echo ""
     echo "ℹ️  No compile_commands.json, so staged sources were not compiled; pre-push checks them"
-  elif python3 scripts/syntax_check.py $CHECK_UNITS >/tmp/qc_syntax.out 2>&1; then
+  elif qc_syntax_check $CHECK_UNITS >"$QC_SYNTAX_LOG" 2>&1; then
     section_time $SECTION_START
     echo ""
-    echo "✅ $(grep '^summary:' /tmp/qc_syntax.out || echo 'staged sources compile') - pre-push checks the rest"
+    echo "✅ $(grep '^summary:' "$QC_SYNTAX_LOG" || echo 'staged sources compile') - pre-push checks the rest"
+    [ -z "$QC_SAMPLE_NOTE" ] || echo "$QC_SAMPLE_NOTE"
     [ -z "$UNREACHED_HDR" ] || echo "ℹ️  No source includes${UNREACHED_HDR} directly; pre-push checks its dependents"
   else
+    QC_SYNTAX_RC=$?
     section_time $SECTION_START
     echo ""
-    echo "❌ A staged source does not compile"
-    sed -n '1,40p' /tmp/qc_syntax.out
+    # syntax_check.py prints its summary last, so a log without one never reached a verdict.
+    if grep -q '^summary:' "$QC_SYNTAX_LOG"; then
+      echo "❌ A staged source does not compile"
+    else
+      echo "❌ The compile check stopped with exit $QC_SYNTAX_RC before judging any source"
+    fi
+    # Passing units are dropped first: they would push the error out of the window.
+    grep -v ': ok (' "$QC_SYNTAX_LOG" | sed -n '1,40p'
+    [ -z "$QC_SAMPLE_NOTE" ] || echo "$QC_SAMPLE_NOTE"
     EXIT_CODE=1
   fi
 

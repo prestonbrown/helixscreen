@@ -7,10 +7,10 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 #include "system_settings_manager.h"
 #include "tool_state.h"
 

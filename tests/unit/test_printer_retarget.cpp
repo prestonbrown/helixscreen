@@ -6,8 +6,6 @@
  * @brief Pointing the live connection at another printer drops what the last one left.
  */
 
-#include "ui_update_queue.h"
-
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
@@ -20,6 +18,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "m300_sound_backend.h"
 #include "moonraker_manager.h"
 #include "print_history_manager.h"

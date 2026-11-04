@@ -54,10 +54,10 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "network_tester.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "wifi_backend.h"
 

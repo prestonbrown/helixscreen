@@ -555,7 +555,7 @@ Moonraker integration is configured on **all platforms except AD5M** (which typi
 
 ### Updates Settings Overlay (`settings_updates_overlay.xml`)
 
-Opened from the **Updates** row in the HELIXSCREEN group of the Settings root (`row_updates`), and from the upgrade banner's Update button. `UpdatesSettingsOverlay` (`src/ui/ui_settings_updates.cpp`) owns it:
+Opened from the **Updates** row in the HELIXSCREEN group of the Settings root (`row_updates`), and from the upgrade banner's Update button. `UpdatesSettingsOverlay` (`src/ui/settings/ui_settings_updates.cpp`) owns it:
 - **Update Channel** dropdown - Stable/Beta on any install, Stable/Beta/Dev with beta features enabled (see [Channel Selection in UI](#channel-selection-in-ui))
 - **Check for Updates** row (triggers manual check, description bound to `update_version_text` subject)
 - **Install Update** row (visible only when `show_update_settings == 1`, `updates_unavailable == 0` and `update_status == UpdateAvailable`, in one `bind_flag_if` expression)
@@ -878,9 +878,9 @@ Or for deployed installations, set `HELIX_LOG_LEVEL=debug` in `~/helixscreen/con
 | `include/system/update_checker.h` | UpdateChecker class declaration |
 | `src/system/update_checker.cpp` | Full implementation (check, download, install, auto-check) |
 | `src/system/settings_manager.cpp` | Channel subject and persistence |
-| `src/ui/ui_panel_settings.cpp` | Settings root: the Updates row and its status line |
-| `src/ui/ui_settings_updates.cpp` | UpdatesSettingsOverlay - channel rows, check/install, download modal callbacks, firmware-managed and unavailable notices |
-| `src/ui/ui_settings_about.cpp` | AboutSettingsOverlay - version info, branding, easter eggs, the beta 7-tap |
+| `src/ui/settings/ui_panel_settings.cpp` | Settings root: the Updates row and its status line |
+| `src/ui/settings/ui_settings_updates.cpp` | UpdatesSettingsOverlay - channel rows, check/install, download modal callbacks, firmware-managed and unavailable notices |
+| `src/ui/settings/ui_settings_about.cpp` | AboutSettingsOverlay - version info, branding, easter eggs, the beta 7-tap |
 | `ui_xml/update_notify_modal.xml` | Auto-check notification modal |
 | `ui_xml/update_download_modal.xml` | Multi-state download/install modal |
 | `ui_xml/settings_updates_overlay.xml` | Updates settings overlay: channel, check, install, notices |

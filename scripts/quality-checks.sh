@@ -93,7 +93,8 @@ TRANS_FMT_PY="${VENV_PYTHON:-python3}"
 # left is redoing an identical full sweep: pre-push straight after a manual run,
 # or re-pushing with nothing touched in between. The stamp is the whole working
 # state (HEAD, staged diff, unstaged diff, untracked listing), so any edit
-# invalidates it. Set QC_NO_CACHE=1 to force, and note it only ever short-circuits
+# invalidates it, and a run that may pass the ESP32 link check without a verdict
+# never answers for one that must reach it. Set QC_NO_CACHE=1 to force, and note it only ever short-circuits
 # a run that previously PASSED - failures are never cached.
 QC_STAMP_DIR="build/.qc-stamps"
 qc_state_hash() {
@@ -104,6 +105,7 @@ qc_state_hash() {
     # Names only: an untracked file's contents are not hashed, so a scratch file
     # edited in place will not invalidate the stamp. Tracked work always does.
     git ls-files --others --exclude-standard 2>/dev/null | sort || true
+    echo "link verdict required: ${HELIX_LINK_BOUNDARY_REQUIRED:-0}"
   } | sha256sum 2>/dev/null | cut -d' ' -f1
 }
 # A cached pass replays the counts the full run recorded (qc_count, _lib.sh), so a
@@ -318,6 +320,10 @@ if [ -n "$QC_SKIPPED" ]; then
   echo ""
   echo "⏭️  Skipped (nothing staged that they inspect):$QC_SKIPPED"
   echo "   The pre-push hook runs all of them ungated."
+fi
+if [ -f "$QC_TMP/compile_sample.note" ]; then
+  echo ""
+  cat "$QC_TMP/compile_sample.note"
 fi
 
 # Every gate that ran, slowest first. The transcript cannot time them: gates run

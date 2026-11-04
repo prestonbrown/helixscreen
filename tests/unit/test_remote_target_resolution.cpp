@@ -6,9 +6,8 @@
 // widget in an overlay stacked *behind* the visible one and reported success,
 // and a path copied out of `ls` was rejected unless prefixed with '@'.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "remote_client.h"
 #include "remote_control_server.h"
 #include "widget_resolution.h"
@@ -23,6 +22,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 // --- bare path locators -------------------------------------------------
 

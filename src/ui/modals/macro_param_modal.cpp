@@ -6,11 +6,11 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "lvgl.h"
-#include "static_panel_registry.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -29,8 +29,6 @@ std::string helix::macro_param_placeholder(const MacroParam& param) {
     }
     return param.default_value.empty() ? param.name : param.default_value;
 }
-
-MacroParamModal* MacroParamModal::s_active_instance_ = nullptr;
 
 MacroParamModal& helix::get_macro_param_modal() {
     return lazy_global<MacroParamModal>("MacroParamModal");
@@ -129,10 +127,7 @@ void MacroParamModal::show_common(lv_obj_t* parent) {
     if (!show(parent)) {
         spdlog::error("[MacroParamModal] Failed to show modal{}", raw_mode_ ? " (raw mode)" : "");
         raw_mode_ = false;
-        return;
     }
-
-    s_active_instance_ = this;
 }
 
 void MacroParamModal::on_show() {
@@ -190,21 +185,10 @@ void MacroParamModal::dismiss() {
     hide(ModalCloseReason::ButtonPress);
 }
 
-MacroParamModal::~MacroParamModal() {
-    // A shown modal's owner can destroy it without on_hide() running, and the static
-    // XML callbacks would then reach a freed instance.
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
-}
-
 void MacroParamModal::on_hide() {
     raw_mode_ = false;
     raw_textarea_ = nullptr;
     textareas_.clear();
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
 }
 
 void MacroParamModal::populate_param_fields() {
@@ -312,27 +296,24 @@ bool MacroParamModal::refuse_unparsed_raw_text() const {
 // Static callbacks
 void MacroParamModal::run_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[MacroParamModal] run_cb");
-    (void)e;
-    if (s_active_instance_) {
-        s_active_instance_->on_ok();
+    if (auto* self = Modal::from_event<MacroParamModal>(e)) {
+        self->on_ok();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void MacroParamModal::cancel_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[MacroParamModal] cancel_cb");
-    (void)e;
-    if (s_active_instance_) {
-        s_active_instance_->on_cancel();
+    if (auto* self = Modal::from_event<MacroParamModal>(e)) {
+        self->on_cancel();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void MacroParamModal::save_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[MacroParamModal] save_cb");
-    (void)e;
-    if (s_active_instance_) {
-        s_active_instance_->on_save_clicked();
+    if (auto* self = Modal::from_event<MacroParamModal>(e)) {
+        self->on_save_clicked();
     }
     LVGL_SAFE_EVENT_CB_END();
 }

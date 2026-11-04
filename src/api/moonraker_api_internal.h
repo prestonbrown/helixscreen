@@ -14,6 +14,7 @@
 #if !defined(HELIX_PLATFORM_ESP32)
 #include "hv/HttpMessage.h" // HttpResponse — only the REST/HTTP sub-APIs use it
 #endif
+#include "json_fwd.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_validation.h"
@@ -27,8 +28,6 @@
 #include <memory>
 #include <string>
 #include <string_view>
-
-#include "hv/json.hpp"
 
 namespace moonraker_internal {
 

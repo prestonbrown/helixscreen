@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_ams_detail.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
@@ -13,6 +12,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_op_dispatch.h"
 #include "lane_apply.h"
@@ -57,8 +57,10 @@ class ManagesActiveSpoolMock : public AmsBackendMock {
     [[nodiscard]] bool manages_active_spool() const override {
         return true;
     }
-    [[nodiscard]] bool sets_active_spool_on_link() const override {
-        return true;
+    [[nodiscard]] BackendTraits traits() const override {
+        BackendTraits t = AmsBackendMock::traits();
+        t.sets_active_spool_on_link = true;
+        return t;
     }
 };
 

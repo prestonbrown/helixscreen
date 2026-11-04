@@ -16,13 +16,13 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_fan_state.h"
@@ -36,6 +36,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+
+#include "hv/json.hpp"
 
 namespace helix {
 void register_fan_stack_widget() {

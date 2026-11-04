@@ -3,7 +3,6 @@
 
 #include "ui_modal.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../../include/ui_overlay_temp_graph.h"
 #include "../../include/ui_temp_graph.h"
@@ -13,6 +12,7 @@
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/sensors_forget.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "grid_layout.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget_registry.h"
@@ -755,9 +755,8 @@ TEST_CASE("TempGraphWidget: follow_overlay on with no snapshot falls back to con
 // sensor_display_name: extruders, bed, chamber
 // ============================================================================
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 TEST_CASE("sensor_display_name maps Klipper names to user-facing labels",

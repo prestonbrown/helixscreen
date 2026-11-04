@@ -4,13 +4,13 @@
 #include "gcode_response_routing.h"
 
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
 #include "ams_error_bridge.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "event_journal_recorder.h"
 #include "filament_insert_watcher.h"
 #include "gcode_error_router.h"

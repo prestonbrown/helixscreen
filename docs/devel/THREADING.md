@@ -63,7 +63,7 @@ answering pings.
 ### The safe bridge: `queue_update()`
 
 ```cpp
-#include "ui_update_queue.h"
+#include "core/update_queue.h"
 
 // ✅ CORRECT — defers to the main thread
 void update_from_websocket_thread(int temp) {
@@ -83,7 +83,7 @@ helix::ui::queue_update(std::move(data), [](MyData* d) {
 `UpdateQueue` is a mutex-protected queue of tagged callbacks (`std::queue<TaggedCallback>`). Lambdas are enqueued from any
 thread and drained on the main thread by an LVGL timer that `UpdateQueue::init()` creates with
 LVGL's default refresh period, `LV_DEF_REFR_PERIOD` (33 ms)
-(`include/ui_update_queue.h#UpdateQueue/init/"LV_DEF_REFR_PERIOD"`), the period LVGL gives the
+(`include/core/update_queue.h#UpdateQueue/init/"LV_DEF_REFR_PERIOD"`), the period LVGL gives the
 display refresh timer (`lib/lvgl/src/display/lv_display.c#lv_display_create/"LV_DEF_REFR_PERIOD"`).
 One pass of `src/application/application.cpp#main_loop`:
 
@@ -149,7 +149,7 @@ main_loop()              libhv Event Loop       UpdateChecker
 - `src/printer/printer_state.cpp` — the `set_*_internal()` pattern (`set_klippy_state()` →
   `set_klippy_state_internal()`, and likewise for `set_klipper_version()`,
   `set_printer_connection_state()`)
-- `src/api/wifi_manager.cpp` — every event handler parses on the background thread, then
+- `src/network/wifi_manager.cpp` — every event handler parses on the background thread, then
   marshals to main:
 
 ```cpp
@@ -622,7 +622,7 @@ not expire the guard's `weak_ptr`.
 
 Correct-today examples that the old rule would have flagged:
 `FanStackWidget::bind_fan_observer()` (`src/ui/panel_widgets/fan_stack_widget.cpp`),
-`FanControlOverlay::subscribe_to_fan_speeds()` (`src/ui/ui_fan_control_overlay.cpp`),
+`FanControlOverlay::subscribe_to_fan_speeds()` (`src/ui/controls/ui_fan_control_overlay.cpp`),
 `src/ui/widgets/power_device_widget.cpp`.
 
 Parallel **members** are still the shape to reach for, but for weaker reasons than "otherwise it
@@ -748,7 +748,7 @@ Real usage: `src/printer/printer_calibration_state.cpp`, dispatched from
 
 ## 6. Observers
 
-Create observers with the factories in `include/observer_factory.h` rather than raw
+Create observers with the factories in `include/core/observer_factory.h` rather than raw
 `lv_subject_add_observer()` plus `lv_observer_get_user_data()`:
 
 | Factory | Use |
@@ -991,7 +991,7 @@ Share one `cancel_*_timer()` helper between both paths, and cancel with
 `lv_timer_cancel_safe()` (`include/ui_timer_guard.h`) — it self-guards on
 `lv_is_initialized()` and neuters the timer instead of unlinking it, so it is safe to call
 from a destructor and from inside `lv_timer_handler()` (#750, #751). Exemplar:
-`FlyingToasterScreensaver::cancel_timer()` in `src/ui/ui_screensaver.cpp`.
+`FlyingToasterScreensaver::cancel_timer()` in `src/ui/screensaver/ui_screensaver.cpp`.
 
 A `LifetimeToken`-guarded timer callback is the other valid answer — annotate those
 `// TIMER_DTOR_OK: <reason>`.
@@ -1104,18 +1104,18 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 
 | File | Contents |
 |------|----------|
-| `include/ui_update_queue.h` | `UpdateQueue`, `queue_update()`, `scoped_freeze()` |
+| `include/core/update_queue.h` | `UpdateQueue`, `queue_update()`, `scoped_freeze()` |
 | `include/async_lifetime_guard.h` | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` |
 | `include/ui_observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
-| `include/observer_factory.h` | `observe<V>` (`Dispatch::Deferred` / `Immediate`), `observe_print_state`, `observe_print_lifecycle` |
+| `include/core/observer_factory.h` | `observe<V>` (`Dispatch::Deferred` / `Immediate`), `observe_print_state`, `observe_print_lifecycle` |
 | `include/ui_utils.h` | `safe_delete_deferred`, `safe_clean_children`, `safe_delete_subtree` |
-| `include/static_subject_registry.h` | Shutdown cleanup registry |
-| `include/http_executor.h` | `HttpExecutor::fast()` / `slow()` pools |
+| `include/core/static_subject_registry.h` | Shutdown cleanup registry |
+| `include/core/http_executor.h` | `HttpExecutor::fast()` / `slow()` pools |
 | `src/bluetooth/bt_bus_thread.h` | BlueZ `BusThread` |
 | `include/ui_timer_guard.h` | `LvglTimerGuard` RAII |
 | `include/ui_widget_memory.h` | `lvgl_unique_ptr` / `lvgl_make_unique` |
 | `src/printer/printer_state.cpp` | `set_*_internal()` reference pattern |
-| `src/api/wifi_manager.cpp` | Backend integration reference |
+| `src/network/wifi_manager.cpp` | Backend integration reference |
 | `src/application/application.cpp` | Main loop and shutdown order |
 | `scripts/check_l081_anti_pattern.py` | L081 lint gate |
 | `scripts/check_timer_destructor_cancel.py` | Timer dtor-cancellation lint gate |

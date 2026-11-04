@@ -5,10 +5,9 @@
 
 #include "brother_ql_printer.h"
 
-#include "ui_update_queue.h"
-
 #include "brother_ql_protocol.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "safe_resolve.h"
 
 #include <spdlog/spdlog.h>

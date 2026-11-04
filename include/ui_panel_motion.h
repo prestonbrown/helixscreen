@@ -8,11 +8,11 @@
 
 #include "axis.h"
 #include "bed_plate_gesture.h"
+#include "core/static_panel_registry.h"
 #include "hold_repeat_timer.h"
 #include "motion_presets.h"
 #include "overlay_base.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "toolhead_move_sender.h"
 

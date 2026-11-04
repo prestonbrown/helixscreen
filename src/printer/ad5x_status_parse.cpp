@@ -3,9 +3,9 @@
 
 #include "ad5x_status_parse.h"
 
+#include "core/text_io.h"
 #include "helix_regex.h"
 #include "json_utils.h"
-#include "text_io.h"
 #include "zmod_color_status.h"
 
 #include <algorithm>

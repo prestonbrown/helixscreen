@@ -51,7 +51,7 @@ The Standard Macros system provides a unified registry that maps semantic operat
 > resolves for this slot - an undetected, unconfigured `park_toolhead` answers
 > **Empty**. The Motion screen's Park button then falls back to its own move:
 > Z up 10mm (or to the plate's lift floor when a print may still be on the bed), then over
-> the rear of the plate (`src/ui/bed_plate_context.cpp#park_over_plate_target`,
+> the rear of the plate (`src/ui/home/bed_plate_context.cpp#park_over_plate_target`,
 > `helix::plate_rear_park()`). Park is disabled until every axis is homed and never homes by
 > itself. The home Toolhead widget's Park slot takes the same path. Detection is exact-name like every other slot, so underscore-prefixed
 > or suffixed variants (`_PARK`, `PARK_2`, ...) never match; a printer wanting
@@ -334,9 +334,9 @@ void FilamentPanel::execute_load() {
 - `ui_xml/macro_buttons_overlay.xml`
 
 ### Files Modified (historical planning list; paths updated to as-built locations)
-- `src/ui/ui_panel_settings.cpp/h` - Add overlay handler
+- `src/ui/settings/ui_panel_settings.cpp/h` - Add overlay handler
 - `ui_xml/settings_panel.xml` - Add action row
 - `src/application/moonraker_manager.cpp` - Init after discovery
-- `src/ui/ui_panel_controls.cpp/h` - Use StandardMacros
-- `src/ui/ui_panel_filament.cpp` - Use StandardMacros
-- `src/ui/ui_panel_print_status.cpp` - Use StandardMacros
+- `src/ui/controls/ui_panel_controls.cpp/h` - Use StandardMacros
+- `src/ui/filament/ui_panel_filament.cpp` - Use StandardMacros
+- `src/ui/print/ui_panel_print_status.cpp` - Use StandardMacros

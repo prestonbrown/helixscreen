@@ -210,7 +210,7 @@ PrinterTemperatureState::update_from_status(status)
 
 ### Chamber Sensor
 
-The chamber temperature sensor name is set through `set_chamber_sensor_name()` by `src/printer/printer_state.cpp#set_hardware`, which resolves the saved chamber sensor assignment with `helix::chamber::resolve_sensor()` (`include/chamber_heater_assignment.h`): `auto` takes the sensor `PrinterDiscovery` picked by name, `none` disables it, and a named sensor counts only while Klipper reports that object, otherwise discovery's pick stands. Consumers read `PrinterTemperatureState::chamber_sensor_name()` and the `printer_has_chamber_sensor` capability, not discovery's own pick. The one exception is the Settings > Devices > Sensors chamber sensor dropdown (`src/ui/ui_settings_sensors.cpp#populate_chamber_assignment`): its "Auto (X)" entry names discovery's pick, because that is the sensor `auto` takes. The status JSON key for chamber varies per printer (e.g., `"temperature_sensor chamber"`, `"temperature_sensor Chamber_Temp"`).
+The chamber temperature sensor name is set through `set_chamber_sensor_name()` by `src/printer/printer_state.cpp#set_hardware`, which resolves the saved chamber sensor assignment with `helix::chamber::resolve_sensor()` (`include/chamber_heater_assignment.h`): `auto` takes the sensor `PrinterDiscovery` picked by name, `none` disables it, and a named sensor counts only while Klipper reports that object, otherwise discovery's pick stands. Consumers read `PrinterTemperatureState::chamber_sensor_name()` and the `printer_has_chamber_sensor` capability, not discovery's own pick. The one exception is the Settings > Devices > Sensors chamber sensor dropdown (`src/ui/settings/ui_settings_sensors.cpp#populate_chamber_assignment`): its "Auto (X)" entry names discovery's pick, because that is the sensor `auto` takes. The status JSON key for chamber varies per printer (e.g., `"temperature_sensor chamber"`, `"temperature_sensor Chamber_Temp"`).
 
 ---
 
@@ -333,8 +333,8 @@ During a print, shows each tool's temperature with its tool name prefix. Uses `T
 |------|---------|
 | `include/printer_temperature_state.h` | ExtruderInfo struct, PrinterTemperatureState class, `ChamberMode` enum |
 | `src/printer/printer_temperature_state.cpp` | Discovery, status parsing, subject management, chamber setpoint synthesis |
-| `include/ui_temperature_utils.h` / `src/ui/ui_temperature_utils.cpp` | `chamber_effective_setpoint()`, `chamber_mode_word()`, `chamber_status_text()` single-source helpers; `build_heater_gcode()` / `chamber_uses_m141()` |
-| `include/temperature_controller.h` / `src/ui/temperature_controller.cpp` | `TemperatureController::set_target(HeaterType::Chamber, ...)` send path |
+| `include/ui_temperature_utils.h` / `src/ui/controls/ui_temperature_utils.cpp` | `chamber_effective_setpoint()`, `chamber_mode_word()`, `chamber_status_text()` single-source helpers; `build_heater_gcode()` / `chamber_uses_m141()` |
+| `include/temperature_controller.h` / `src/ui/controls/temperature_controller.cpp` | `TemperatureController::set_target(HeaterType::Chamber, ...)` send path |
 | `src/api/moonraker_api_controls.cpp` | `MoonrakerAPI::set_temperature()` — M141 routing gate |
 | `include/unit_conversions.h` | `json_to_decidegrees()` conversion helper |
 | `include/printer_discovery.h` | Heater discovery: `heaters()` list |

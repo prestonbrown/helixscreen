@@ -48,7 +48,7 @@ setup() {
 # regenerated one. Nothing here writes to the real repo.
 build_fixture() {
     rm -rf "$FIX"
-    mkdir -p "$FIX/ui_xml" "$FIX/tools/xml-linter/schema" "$FIX/src/ui" \
+    mkdir -p "$FIX/ui_xml" "$FIX/tools/xml-linter/schema" "$FIX/src/ui" "$FIX/src/ui/components" \
              "$FIX/src/system" "$FIX/assets/config/themes/defaults"
     ln -s "$REPO_ROOT/tools/xml-linter/src" "$FIX/tools/xml-linter/src"
 
@@ -429,8 +429,8 @@ trigger_re() {
     local wre cre
     wre=$(trigger_re widget)
     cre=$(trigger_re const)
-    refute_sh "printf '+++ b/src/ui/ui_switch.cpp\n' | grep -qE '$wre'"
-    refute_sh "printf -- '--- a/src/ui/ui_switch.cpp\n' | grep -qE '$wre'"
+    refute_sh "printf '+++ b/src/ui/components/ui_switch.cpp\n' | grep -qE '$wre'"
+    refute_sh "printf -- '--- a/src/ui/components/ui_switch.cpp\n' | grep -qE '$wre'"
     refute_sh "printf '+  lv_obj_t* w = lv_xml_create(p, \"my_widget\", NULL);\n' | grep -qE '$wre'"
     refute_sh "printf '+  auto v = theme_manager_get_color(\"card_bg\");\n' | grep -qE '$cre'"
 }

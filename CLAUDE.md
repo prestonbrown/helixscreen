@@ -425,12 +425,12 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **SPDX headers** | 20-line GPL boilerplate | `// SPDX-License-Identifier: GPL-3.0-or-later` |
 | **RAII widgets** | `lv_malloc()` / `lv_free()` | `lvgl_make_unique<T>()` + `release()` |
 | **Class-based** | `ui_panel_*_init()` functions | Classes: `MotionPanel`, `WiFiManager` |
-| **Observer factory** | Static callback + `lv_observer_get_user_data()` | `observe<int>()` from `observer_factory.h` |
+| **Observer factory** | Static callback + `lv_observer_get_user_data()` | `observe<int>()` from `core/observer_factory.h` |
 | **Icon sync** | Add icon, forget fonts | One list: add the glyph to `include/ui_icon_codepoints.h` (or an `ICON_*` macro in `include/ui_fonts.h` for C++), then `make regen-fonts` and rebuild. `scripts/mdi_icon_codepoints.py` builds the fonts' codepoint list from both headers, desktop and ESP32 faces alike; `validate_icon_fonts.sh` fails the build if a named icon is missing from a font |
 | **Formatting** | Manual formatting | Let pre-commit hook (clang-format) fix |
 | **Doc citations** | A line number (`src/printer/printer_state.cpp:638`), or a bare `:NNN` with no path | A place: `` `src/printer/printer_state.cpp#update_from_status` `` - path, then a `#` fragment naming the enclosing scopes. `scripts/doc_anchors.py` resolves it to a line on demand (`make check-doc-anchors`, advisory), so code that moves rots nothing. A RENAMED symbol is the one case you fix by hand, because the sentence around it may no longer be true |
 | **No auto-mock** | `if(!start()) return Mock()` | Check `RuntimeConfig::should_mock_*()` |
-| **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"` (libhv's bundled version) |
+| **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"` (libhv's bundled version); `json_fwd.h` in a header that only names `json` by reference, pointer or return type |
 | **Build system** | `cmake`, `ninja` | `make -j` (pure Makefile) |
 | **No RTTI** | `dynamic_cast`, `typeid`, `std::type_index`, `any.type()` | `helix::type_tag<T>()` keys, virtual kind queries (`HELIX_CONTEXT_MENU_KIND`), pointer-form `any_cast`. Firmware builds `-fno-rtti`; lint-gated, escape hatch `// RTTI_OK: <reason>` |
 | **No exceptions (firmware)** | `try`/`catch`/`throw`, `j.value("k", d)`, `j.at("k")`, one-arg `json::parse`, `std::stoi`, value-form `any_cast` in firmware-compiled code | `json_util::safe_*`/`as_*`, `json::parse(s, nullptr, false)`, `text_io::parse_leading`, `any_cast<T>(&a)`; `exception_policy.h` for shared code. The ESP32 image builds `-fno-exceptions`, so a throw is an abort; `scripts/check_esp32_app_srcs.py` gates the calls |
@@ -480,10 +480,10 @@ Issue references are welcome as pointers, not summaries:
 |---------|-----------|----------|
 | Subject init order | Register components → init subjects → create XML | `src/application/subject_initializer.cpp`, called from `Application::register_xml_components()` |
 | Widget lookup | `lv_obj_find_by_name()` not `lv_obj_get_child()` — indices break when layout changes | any panel |
-| Overlays | `NavigationManager::instance().push_overlay(root)` / `.go_back()` (`ui_nav_manager.h`) — pair every push with `register_overlay_instance(root, this)` or `on_deactivate()` never fires (tests abort; `HELIX_STRICT_OVERLAY_CHECK=1`) | `src/ui/ui_settings_safety.cpp` |
-| Modals (simple) | `Modal::show("component_name")` / `Modal::hide(dialog)` | `src/ui/ui_job_queue_modal.cpp` |
-| Modals (subclass) | Extend `Modal`, implement `get_name()` + `component_name()`, override `on_ok()`/`on_cancel()` | `include/ui_info_qr_modal.h` + `src/ui/ui_info_qr_modal.cpp` (42 + 62 lines — the whole pattern, nothing else) |
-| Confirmation dialog | `modal_confirm(title, msg, severity, btn_text, on_confirm, ConfirmOptions)` (in `helix::ui`) for new code - `std::function` throughout, closes its own dialog; the options struct carries `on_cancel`/`cancel_text`/`on_dismiss`/`owner_token`, and `owner_token` gates **all three** callbacks. All are owned, so a dismissal (backdrop tap, ESC, hot-reload rebuild) reaches `on_dismiss` - **pass it whenever the caller holds a guard/flag/pending entry the buttons were meant to clear**, or that state leaks | `src/ui/ui_change_host_modal.cpp#show_connection_failed_modal`; subclass form: `include/lan_client_auth_router.h` |
+| Overlays | `NavigationManager::instance().push_overlay(root)` / `.go_back()` (`ui_nav_manager.h`) — pair every push with `register_overlay_instance(root, this)` or `on_deactivate()` never fires (tests abort; `HELIX_STRICT_OVERLAY_CHECK=1`) | `src/ui/settings/ui_settings_safety.cpp` |
+| Modals (simple) | `Modal::show("component_name")` / `Modal::hide(dialog)` | `src/ui/print/ui_job_queue_modal.cpp` |
+| Modals (subclass) | Extend `Modal`, implement `get_name()` + `component_name()`, override `on_ok()`/`on_cancel()` | `include/ui_info_qr_modal.h` + `src/ui/components/ui_info_qr_modal.cpp` (42 + 62 lines — the whole pattern, nothing else) |
+| Confirmation dialog | `modal_confirm(title, msg, severity, btn_text, on_confirm, ConfirmOptions)` (in `helix::ui`) for new code - `std::function` throughout, closes its own dialog; the options struct carries `on_cancel`/`cancel_text`/`on_dismiss`/`owner_token`, and `owner_token` gates **all three** callbacks. All are owned, so a dismissal (backdrop tap, ESC, hot-reload rebuild) reaches `on_dismiss` - **pass it whenever the caller holds a guard/flag/pending entry the buttons were meant to clear**, or that state leaks | `src/ui/printers/ui_change_host_modal.cpp#show_connection_failed_modal`; subclass form: `include/lan_client_auth_router.h` |
 | Modal buttons (XML) | `<modal_button_row primary_text="Save" primary_callback="on_save"/>` | `ui_xml/bed_mesh_rename_modal.xml` |
 | Home-panel widget | Subclass `PanelWidget`; `attach()` + `on_size_changed()`. Instances are **recycled** across rebuilds, so any imperative apply must run from `attach()` too, not only on size change | `src/ui/panel_widgets/motion_widget.cpp` (64 lines) |
 | Background → UI | Never touch LVGL off the main thread; `ui_queue_update()` or `tok.defer()` | `src/printer/printer_state.cpp` `set_*_internal()` |
@@ -502,9 +502,13 @@ Issue references are welcome as pointers, not summaries:
 **Key directories**:
 | Path | Contents |
 |------|----------|
-| `src/ui/` | All UI code — flat dir, prefixed: `ui_panel_*.cpp`, `ui_overlay_*.cpp`, `ui_modal*.cpp` |
+| `src/ui/` | The UI framework at the top level (navigation, modal and overlay bases, shared utilities); everything else in one level of group directories: `screensaver/`, `theme/`, `wizard/`, `print/`, `calibration/`, `settings/`, `filament/`, `gcode/`, `home/`, `controls/`, `printers/`, `plugin/`, `notify/`, `components/`, `effects/`, `debug/`, `panel_widgets/`, `widgets/`, `tour/`. The Makefile globs no deeper |
 | `src/ui/modals/` | Additional modal implementations |
 | `src/printer/` | PrinterState, MoonrakerAPI, macro/filament managers |
+| `src/api/` | The Moonraker client and API facade |
+| `src/network/`, `src/platform/` | WiFi, Ethernet, mDNS; `platform/display`, `platform/input`, `platform/usb` |
+| `src/mock/` | The mock Moonraker client and API behind `--test` |
+| `src/core/` | Foundation below every layer: update queue, observer factory, static registries, text and HTTP plumbing (headers in `include/core/`) |
 | `src/system/` | Config, settings, update checker, sound, telemetry |
 | `src/application/` | App lifecycle, display, input, runtime config |
 | `ui_xml/` | All XML layouts (loaded at runtime — no rebuild needed) |

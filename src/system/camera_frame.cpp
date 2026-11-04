@@ -3,7 +3,7 @@
 
 #include "camera_frame.h"
 
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>

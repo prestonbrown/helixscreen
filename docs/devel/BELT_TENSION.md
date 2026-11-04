@@ -66,7 +66,7 @@ Start is gated, in `src/calibration/belt_gating.cpp#evaluate_belt_gate`:
 | `NOT_COLOCATED` | Klipper's unix socket is not reachable: HelixScreen is not running on the printer's own computer, so it cannot read the CSV |
 | `PRINTING` | a print is active; the toolhead is not free to move |
 
-The panel computes the gate in one place, `src/ui/ui_panel_belt_tension.cpp#refresh_gate`,
+The panel computes the gate in one place, `src/ui/calibration/ui_panel_belt_tension.cpp#refresh_gate`,
 plus a calibrator-idle leg; `bt_can_start` binds the Start button's disabled state, so the
 gate holds however the panel was reached (row click, `ctl navigate`, a demo entry, an
 accelerometer that drops out after entry).
@@ -84,13 +84,13 @@ Z belts are deliberately unsupported; see the header comment on
 
 | File | Role |
 |------|------|
-| `src/ui/ui_panel_belt_tension.cpp`, `include/ui_panel_belt_tension.h`, `ui_xml/panel_belt_tension.xml` | The panel: five view states (START, RUNNING, RESULTS, ERROR, TUNING), subjects, gate wiring, run queue, re-test and ghost bookkeeping |
-| `src/ui/ui_belt_path_sketch.cpp` | The START-screen sketch widget drawing the two diagonals, labelled with the path names |
-| `src/ui/ui_belt_path_names.cpp`, `include/ui_belt_path_names.h` | `belt_path_name`: every visible path name, from the saved layout |
-| `src/ui/ui_belt_names_modal.cpp`, `ui_xml/belt_names_modal.xml` | "Which belt is which?": Identify and the layout choice |
+| `src/ui/calibration/ui_panel_belt_tension.cpp`, `include/ui_panel_belt_tension.h`, `ui_xml/panel_belt_tension.xml` | The panel: five view states (START, RUNNING, RESULTS, ERROR, TUNING), subjects, gate wiring, run queue, re-test and ghost bookkeeping |
+| `src/ui/calibration/ui_belt_path_sketch.cpp` | The START-screen sketch widget drawing the two diagonals, labelled with the path names |
+| `src/ui/calibration/ui_belt_path_names.cpp`, `include/ui_belt_path_names.h` | `belt_path_name`: every visible path name, from the saved layout |
+| `src/ui/calibration/ui_belt_names_modal.cpp`, `ui_xml/belt_names_modal.xml` | "Which belt is which?": Identify and the layout choice |
 | `src/calibration/belt_tune_session.cpp`, `include/belt_tune_session.h` | `BeltTuneSession`: the tuning loop's pure logic (zone candidates, already-matched entry, calibration, baseline pair and repeatability, centroid tracking, outcomes, advice, power hint) and the `belt_tune` thresholds |
 | `src/calibration/belt_settle.cpp`, `include/belt_settle.h` | `plan_belt_settle`: the settling laps' plan and script |
-| `src/ui/ui_belt_gap_gauge.cpp`, `include/ui_belt_gap_gauge.h` | The `<belt_gap_gauge>` widget and its pure helpers `belt_gap_gauge_x` / `belt_gap_severity` |
+| `src/ui/calibration/ui_belt_gap_gauge.cpp`, `include/ui_belt_gap_gauge.h` | The `<belt_gap_gauge>` widget and its pure helpers `belt_gap_gauge_x` / `belt_gap_severity` |
 | `src/printer/printer_detector.cpp#get_belt_tensioner` | The `belt_tensioner` printer-database field as a `BeltTensionerKind` |
 | `src/calibration/belt_tension_calibrator.cpp` | Measures one path per call (full, or over a window): home if needed, sweep, cancel, `emergency_abort()`; `settle()` runs the laps; `buzz_path()` identifies a path's motor |
 | `src/calibration/belt_tension_types.cpp` | `compare_belt_paths` (band similarity, paired peaks) with `band_similarity` / `detect_belt_peaks` / `pair_belt_peaks` / `verdict_for_similarity` |
@@ -99,9 +99,9 @@ Z belts are deliberately unsupported; see the header comment on
 | `src/api/moonraker_advanced_api.cpp` | `BeltResonanceCollector` (console follow + CSV read) and `test_belt_resonance` (entry point); `detect_belt_hardware` for kinematics |
 | `src/calibration/live_sweep_preview.cpp`, `include/live_sweep_preview.h` | `LiveSweepPreview` and the single gate `live_sweep_target`: the live curve while a sweep runs (§ Live preview) |
 | `src/calibration/sweep_response_estimator.cpp`, `include/sweep_response_estimator.h` | Pure estimator: `SweepResponseAccumulator` turns accelerometer samples into one PSD point per Hz, `DriveLock` finds where the ramp is in the samples |
-| `src/ui/ui_frequency_response_chart.cpp` | Shared chart: series styles, muted ghost series, sweep cursor, numbered and hollow markers, percent gridline labels, label gutters sized from the font (see `INPUT_SHAPER.md` § Axis label gutters) |
+| `src/ui/calibration/ui_frequency_response_chart.cpp` | Shared chart: series styles, muted ghost series, sweep cursor, numbered and hollow markers, percent gridline labels, label gutters sized from the font (see `INPUT_SHAPER.md` § Axis label gutters) |
 | `src/calibration/belt_gating.cpp` | The pure Start-gate predicate |
-| `src/api/moonraker_client_mock.cpp` | `dispatch_test_resonances_response`: the `--test` simulation of a sweep |
+| `src/mock/moonraker_client_mock.cpp` | `dispatch_test_resonances_response`: the `--test` simulation of a sweep |
 
 ## Flow
 
@@ -372,7 +372,7 @@ rectangles, back to the probe point's X/Y, `M400`, `RESTORE_GCODE_STATE`.
 (`settle_refusal_message` in the panel): no axis limits yet, no `probe_points` (no safe
 height), no `max_velocity` yet, or a lap side under `kMinSideMm`. A print in progress never
 gets this far: the Start gate refuses it. The panel re-reads `[resonance_tester]` for its
-probe point before every settle (`src/ui/ui_panel_belt_tension.cpp#start_settle`), the run title reads
+probe point before every settle (`src/ui/calibration/ui_panel_belt_tension.cpp#start_settle`), the run title reads
 "Settling belts" while they run, and every duration estimate counts them (`settle_seconds`).
 On the Voron the laps take about 13 s.
 
@@ -422,7 +422,7 @@ baseline sweeps straight from Tune. The panel maps stages to `bt_tune_phase`
 
 ### Run kinds
 
-`src/ui/ui_panel_belt_tension.cpp#begin_run` (queue, clear_previous, `RunKind`, settle_first) is the one entry for every sweep, and
+`src/ui/calibration/ui_panel_belt_tension.cpp#begin_run` (queue, clear_previous, `RunKind`, settle_first) is the one entry for every sweep, and
 the session is the one source of a window:
 
 | `RunKind` | Sweeps | Feeds | Lands on |
@@ -435,7 +435,7 @@ A calibration run never writes `runs_`, so RESULTS keeps the comparison tuning s
 Calibration and tuning runs keep the view on TUNING in phase SWEEPING, so Stop, Back, a
 rebuild, the gate and the stall guard treat both alike (`measuring()`). In a baseline pair the
 first two sweeps go to the session as the pair's first round mid-run, and the second pair
-sweeps whatever window that round left (`src/ui/ui_panel_belt_tension.cpp#on_sweep_complete`).
+sweeps whatever window that round left (`src/ui/calibration/ui_panel_belt_tension.cpp#on_sweep_complete`).
 
 ### Zone candidates
 
@@ -552,7 +552,7 @@ widens it once until a round measures again. Chart rings mark the centroids
 ### Outcomes
 
 `src/calibration/belt_tune_session.cpp#add_round` classifies each TUNE round by the gap's change. The panel's line
-(`src/ui/ui_panel_belt_tension.cpp#tune_last_message`) follows from it:
+(`src/ui/calibration/ui_panel_belt_tension.cpp#tune_last_message`) follows from it:
 
 | `BeltTuneOutcome` | Condition | Line |
 |-------------------|-----------|------|
@@ -759,7 +759,7 @@ belt.
 
 The mock simulates the whole console sequence: "Testing frequency" lines, the terminal
 written-file line, and a CSV with a Lorentzian peak over a noise floor at the requested
-frequency (`dispatch_test_resonances_response` in `src/api/moonraker_client_mock.cpp`,
+frequency (`dispatch_test_resonances_response` in `src/mock/moonraker_client_mock.cpp`,
 `write_mock_belt_csv` for the file). Full reference: `MOCK_ENVIRONMENT_VARIABLES.md`,
 one `###` entry per variable.
 

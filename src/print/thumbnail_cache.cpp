@@ -3,16 +3,15 @@
 
 #include "thumbnail_cache.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
 #include "config.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "gcode_parser.h"
 #include "helix_fs.h"
 #include "http_request_epoch.h"
 #include "system/crash_handler.h"
 #include "system/helix_paths.h"
-#include "text_io.h"
 #include "three_mf_reader.h"
 #include "thumbnail_rules.h"
 

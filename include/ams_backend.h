@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ams_bypass_policy.h"
+#include "ams_capability.h"
 #include "ams_environment_zone.h"
 #include "ams_error.h"
 #include "ams_step_operation.h"
@@ -26,6 +27,7 @@
 #include "lane_source_store.h"
 #include "tool_mapping_origin.h"
 #include "toolchanger_addon.h"
+#include "toolhead_style.h"
 
 namespace helix {
 class IMoonrakerAPI;
@@ -106,8 +108,14 @@ struct BackendTraits {
     bool raises_runout_fault = false;
     bool raises_runout_fault_during_job = false;
     bool unloads_to_hub_between_prints = false;
+    bool sets_active_spool_on_link = false;
+    bool print_routing_resets_to_identity = false;
+    bool heads_share_heater = false;
+    helix::ui::LaneNoun lane_noun = helix::ui::LaneNoun::Slot;
+    helix::ui::LaneNoun tool_noun = helix::ui::LaneNoun::Tool;
+    ToolheadStyle toolhead_style_hint = ToolheadStyle::AUTO;
 
-    // All-bool with no padding, so the bytes are the value.
+    // One-byte members with no padding, so the bytes are the value.
     bool operator==(const BackendTraits& o) const {
         static_assert(std::has_unique_object_representations_v<BackendTraits>);
         return std::memcmp(this, &o, sizeof(BackendTraits)) == 0;
@@ -164,7 +172,7 @@ match_material(const std::string& material, const std::vector<std::string>& list
  * - Thread-safe operations where needed
  * - Clean error handling with user-friendly messages
  */
-class AmsBackend {
+class AmsBackend : public AmsCapabilityHost {
   public:
     virtual ~AmsBackend() = default;
 
@@ -380,8 +388,8 @@ class AmsBackend {
      * the spool on a lane LOAD may never see a link edit as one, and then the
      * app sets it for the user's explicit link of the loaded lane.
      */
-    [[nodiscard]] virtual bool sets_active_spool_on_link() const {
-        return false;
+    [[nodiscard]] bool sets_active_spool_on_link() const {
+        return traits().sets_active_spool_on_link;
     }
 
     /// A Klipper status field that says which slot is feeding now: the
@@ -413,8 +421,8 @@ class AmsBackend {
      * heater only ever heats the mounted nozzle, so heater surfaces show one
      * temperature that follows the mounted tool.
      */
-    [[nodiscard]] virtual bool heads_share_heater() const {
-        return false;
+    [[nodiscard]] bool heads_share_heater() const {
+        return traits().heads_share_heater;
     }
 
     /**
@@ -430,11 +438,10 @@ class AmsBackend {
     /**
      * @brief Toolhead style this backend implies when the printer database has none
      *
-     * Same vocabulary as the database's toolhead_style field (e.g. "creality_k2");
-     * empty means no opinion.
+     * AUTO means no opinion.
      */
-    [[nodiscard]] virtual std::string toolhead_style_hint() const {
-        return {};
+    [[nodiscard]] ToolheadStyle toolhead_style_hint() const {
+        return traits().toolhead_style_hint;
     }
 
     /**
@@ -2538,57 +2545,6 @@ class AmsBackend {
         (void)slot_index;
     }
 
-    // --- Cutter / purge-chute calibration ---
-    //
-    // Capability question: "does this filament system calibrate its cutter / purge
-    // chute through the UI?" Default is not_supported. The step-by-step contract (which
-    // callbacks fire when, and on which thread) is documented on the CFS implementation.
-
-    /// Sweep the cutter to find its position. @p on_result fires once with the outcome.
-    virtual AmsError
-    calibrate_cutter(std::function<void(bool ok, const std::string& line)> on_result = nullptr) {
-        (void)on_result;
-        return AmsErrorHelper::not_supported("Cutter calibration");
-    }
-
-    /// Home and park for chute calibration; @p on_ready fires when jogging may start.
-    virtual AmsError
-    start_chute_calibration(std::function<void()> on_ready = nullptr,
-                            std::function<void(const std::string& klipper_msg)> on_failed = nullptr,
-                            std::shared_ptr<std::atomic<bool>> cancel_requested = nullptr) {
-        (void)on_ready;
-        (void)on_failed;
-        (void)cancel_requested;
-        return AmsErrorHelper::not_supported("Purge chute calibration");
-    }
-
-    /// Jog the toolhead's Y by @p delta_mm during chute calibration.
-    virtual AmsError jog_chute_y(float delta_mm) {
-        (void)delta_mm;
-        return AmsErrorHelper::not_supported("Purge chute calibration");
-    }
-
-    /// Save the current toolhead position as the chute's extrude position.
-    virtual AmsError
-    save_chute_position(std::function<void()> on_saved = nullptr,
-                        std::function<void(const std::string& klipper_msg)> on_failed = nullptr) {
-        (void)on_saved;
-        (void)on_failed;
-        return AmsErrorHelper::not_supported("Purge chute calibration");
-    }
-
-    /// Abort path: re-park the toolhead once chute calibration has moved it.
-    virtual AmsError exit_chute_calibration() {
-        return AmsErrorHelper::not_supported("Purge chute calibration");
-    }
-
-    /// The position pair the last chute save reported; false when none was captured.
-    [[nodiscard]] virtual bool last_chute_saved_position(double& x_mm, double& y_mm) const {
-        (void)x_mm;
-        (void)y_mm;
-        return false;
-    }
-
     /**
      * @brief Publish the external (bypass) spool into the backend's lane_data
      *        mirror, or clear it.
@@ -3017,8 +2973,8 @@ class AmsBackend {
      *
      * Default false.
      */
-    [[nodiscard]] virtual bool print_routing_resets_to_identity() const {
-        return false;
+    [[nodiscard]] bool print_routing_resets_to_identity() const {
+        return traits().print_routing_resets_to_identity;
     }
 
     /**
@@ -3458,10 +3414,10 @@ class AmsBackend {
      * Display code composes it with a 1-based number. Returned as an enum so a
      * caller cannot compare the wrong spelling and silently get the default.
      *
-     * @return the backend's noun; Slot unless overridden
+     * @return the backend's noun; Slot by default
      */
-    [[nodiscard]] virtual helix::ui::LaneNoun lane_noun() const {
-        return helix::ui::LaneNoun::Slot;
+    [[nodiscard]] helix::ui::LaneNoun lane_noun() const {
+        return traits().lane_noun;
     }
 
     /**
@@ -3469,12 +3425,12 @@ class AmsBackend {
      *
      * Distinct from lane_noun(): most backends use one noun for both the
      * filament lane and the print position, but a backend whose hardware uses
-     * two different words for the two 1:1 things overrides this separately.
+     * two different words for the two 1:1 things sets both.
      *
-     * @return the backend's noun for a tool/nozzle position; Tool unless overridden
+     * @return the backend's noun for a tool/nozzle position; Tool by default
      */
-    [[nodiscard]] virtual helix::ui::LaneNoun tool_noun() const {
-        return helix::ui::LaneNoun::Tool;
+    [[nodiscard]] helix::ui::LaneNoun tool_noun() const {
+        return traits().tool_noun;
     }
 
     /**

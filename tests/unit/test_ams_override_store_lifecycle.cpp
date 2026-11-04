@@ -19,8 +19,6 @@
  * failure is invisible until the next launch.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/ace_test_access.h"
 #include "../test_helpers/afc_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -30,6 +28,7 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

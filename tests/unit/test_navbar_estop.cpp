@@ -20,11 +20,11 @@
 #include "ui_lock_screen.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "theme_manager.h"
 
@@ -505,9 +505,9 @@ TEST_CASE("the navbar is the one E-stop where the navbar shows, and screens that
     }
 
     // These sit beside the navbar and drew a second E-stop over their content.
-    for (const char* path : {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml",
-                             "ui_xml/micro/controls_panel.xml", "ui_xml/print_status_panel.xml",
-                             "ui_xml/portrait/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
+    for (const char* path :
+         {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml", "ui_xml/micro/controls_panel.xml",
+          "ui_xml/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
         INFO(path);
         const std::string xml = read_xml(path);
         CHECK(xml.find("estop_visible") == std::string::npos);
@@ -525,7 +525,7 @@ TEST_CASE("every screen-level backdrop goes up through bring_to_front",
             continue;
         }
         const std::string path = entry.path().generic_string();
-        if (path == "src/ui/ui_effects.cpp" || path == "src/ui/backdrop_blur.cpp") {
+        if (path == "src/ui/effects/ui_effects.cpp" || path == "src/ui/effects/backdrop_blur.cpp") {
             continue; // the creators themselves
         }
         if (path == "src/ui/ui_busy_overlay.cpp") {

@@ -31,11 +31,10 @@
  * populate `ToolState` and `PrinterState` directly to reach it.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "panel_widget_manager.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

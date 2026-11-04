@@ -7,13 +7,12 @@
  * thumbnail, fetched once per change of first job.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/job_queue_state_test_access.h"
 #include "../test_helpers/job_queue_subjects_fixture.h"
 #include "../test_helpers/thumbnail_test_png.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "job_queue_state.h"
 #include "moonraker_api.h"

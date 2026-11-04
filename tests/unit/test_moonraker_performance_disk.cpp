@@ -9,9 +9,8 @@
  * Run with: ./build/bin/helix-tests "[performance][moonraker_disk]"
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "mock_disk_usage.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"

@@ -17,7 +17,7 @@
 
 #include "moonraker_rest_api.h"
 
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "hv/requests.h"
 #include "json_utils.h"
 #include "moonraker_error.h"

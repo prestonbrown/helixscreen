@@ -708,16 +708,6 @@ class PrintSelectDetailView : public OverlayBase {
         return timelapse_checkbox_;
     }
 
-    // === Subject Access ===
-
-    [[nodiscard]] lv_subject_t* get_prep_time_estimate_subject() {
-        return &prep_time_estimate_subject_;
-    }
-
-    void set_prep_estimate_visible(int visible) {
-        lv_subject_set_int(&preprint_estimate_visible_, visible);
-    }
-
     // === Resize Handling ===
 
     /**
@@ -748,6 +738,9 @@ class PrintSelectDetailView : public OverlayBase {
 
   private:
     friend class ::PrintSelectDetailViewTestAccess;
+
+    /// Re-estimate the prep time and publish it to this view's label subjects.
+    void update_prep_time_label();
 
     /// Keep the file's fetched metadata and re-estimate the prep time, which
     /// heats to the metadata's first-layer temperatures. Metadata fetched for

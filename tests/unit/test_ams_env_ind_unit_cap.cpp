@@ -26,7 +26,7 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_state.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "src/ui/ui_system_path_plan.h"
+#include "src/ui/filament/ui_system_path_plan.h"
 
 #include <lvgl/lvgl.h>
 

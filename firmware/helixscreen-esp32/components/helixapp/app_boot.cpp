@@ -53,7 +53,6 @@
 #include "ui_switch.h"
 #include "ui_temp_display.h"
 #include "ui_tile_rung.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
@@ -64,7 +63,9 @@
 #include "config.h"
 #include "config_storage.h"
 #include "connection_state.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "esp_heap_caps.h"
 #include "esp_http_lane.h"
@@ -102,7 +103,6 @@
 #include "status_dispatch.h"
 #include "subject_initializer.h"
 #include "system/update_checker.h"
-#include "text_io.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "tips_manager.h"
@@ -178,7 +178,7 @@ void log_heap_milestone(const char* stage) {
 // Task 12 R2: Config (settings.json, the `cfg` partition) is the source of
 // truth for the Moonraker host/port — same schema desktop uses
 // (df()+"moonraker_host" / df()+"moonraker_port", see src/system/config.cpp
-// and src/ui/ui_change_host_modal.cpp). CONFIG_HELIX_HIL_MOONRAKER_URL is only
+// and src/ui/printers/ui_change_host_modal.cpp). CONFIG_HELIX_HIL_MOONRAKER_URL is only
 // the FIRST-BOOT seed for that schema: a full "ws://host:port/path" string
 // (Kconfig's format), parsed once when Config has no value yet. Split out as
 // its own struct/function because Config's two keys need host and port

@@ -14,7 +14,7 @@
 // logic worth pinning down. The backend strategy and the probe-before-resume
 // safety invariant are covered in test_plr_backend.cpp.
 
-#include "../../src/ui/ui_plr_prompt.h"
+#include "../../src/ui/print/ui_plr_prompt.h"
 #include "plr_backend.h"
 
 #include "../catch_amalgamated.hpp"

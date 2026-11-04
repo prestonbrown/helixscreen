@@ -18,11 +18,11 @@
  */
 
 #include "ui_observer_guard.h"
-#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 
 #include "../catch_amalgamated.hpp"
 

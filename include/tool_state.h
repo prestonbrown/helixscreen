@@ -7,6 +7,7 @@
 
 #include "async_lifetime_guard.h"
 #include "axis.h"
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 #include "tool_offsets.h"
 
@@ -18,8 +19,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerAPI;

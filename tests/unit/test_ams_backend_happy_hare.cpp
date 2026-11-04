@@ -3,7 +3,6 @@
 
 #include "ui_ams_device_section_detail_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_test_fixture.h"
@@ -15,6 +14,7 @@
 #include "ams_types.h"
 #include "buffer_reading.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_mapper.h"
 #include "hh_defaults.h"
 #include "lane_source_store.h"
@@ -2073,16 +2073,6 @@ TEST_CASE("Happy Hare mixed v3/v4 data parses both correctly", "[ams][happy_hare
     REQUIRE(slot3.material == "ABS");
 }
 
-TEST_CASE("Happy Hare activates a spool only on a gate load, not on a link",
-          "[ams][happy_hare][spoolman][plugin_filament]") {
-    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
-    AmsBackendHappyHareTestHelper& helper = *helper_reg;
-    helper.initialize_test_gates(4);
-    helper.test_parse_mmu_state({{"spoolman_support", "push"}});
-    REQUIRE(helper.manages_active_spool());
-    CHECK_FALSE(helper.sets_active_spool_on_link());
-}
-
 TEST_CASE("Happy Hare reports the manages_active_spool the shared case table claims",
           "[ams][happy_hare][spoolman][plugin_filament]") {
     const auto rows = helix::test::ownership_rows_for("Happy Hare");
@@ -3629,11 +3619,6 @@ TEST_CASE("Happy Hare updates a running dryer: TEMP alone, a restart for a new d
         if (row.sent.empty())
             CHECK(helper.captured_gcodes.empty());
     }
-}
-
-TEST_CASE("Happy Hare names its positions gates", "[ams][happy_hare][numbering]") {
-    helix::AmsBackendHappyHare backend(nullptr, nullptr);
-    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Gate);
 }
 
 // A persisted override IS a user edit. The lock flags are how any consumer of

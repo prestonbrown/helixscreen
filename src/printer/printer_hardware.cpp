@@ -4,9 +4,9 @@
 #include "printer_hardware.h"
 
 #include "ams_backend.h"
+#include "core/text_io.h"
 #include "hardware_role_registry.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

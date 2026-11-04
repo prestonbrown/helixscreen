@@ -11,7 +11,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 #include "widget_subjects.h"
 
 #include <algorithm>

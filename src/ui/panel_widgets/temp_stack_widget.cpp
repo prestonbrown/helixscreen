@@ -9,10 +9,10 @@
 #include "ui_fonts.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_temp_display.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "grid_layout.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -67,9 +67,6 @@ void make_children_passthrough(lv_obj_t* parent) {
 
 using namespace helix;
 
-// Static instance pointer for callback dispatch (only one temp_stack widget at a time)
-static TempStackWidget* s_active_instance = nullptr;
-
 TempStackWidget::TempStackWidget(PrinterState& printer_state, TemperatureService* temp_panel)
     : printer_state_(printer_state), temp_control_panel_(temp_panel) {}
 
@@ -112,7 +109,6 @@ bool TempStackWidget::is_carousel_mode() const {
 void TempStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
-    s_active_instance = this;
 
     // Pressed feedback: dim each clickable row on touch
     for (const char* name :
@@ -342,10 +338,6 @@ void TempStackWidget::detach() {
     bed_icon_binder_.unbind();
     chamber_icon_binder_.unbind();
 
-    if (s_active_instance == this) {
-        s_active_instance = nullptr;
-    }
-
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 
@@ -369,43 +361,40 @@ void TempStackWidget::handle_chamber_clicked() {
 
 void TempStackWidget::temp_stack_nozzle_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[TempStackWidget] temp_stack_nozzle_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_nozzle_clicked();
+    if (auto* self = panel_widget_from_event<TempStackWidget>(e)) {
+        self->handle_nozzle_clicked();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void TempStackWidget::temp_stack_bed_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[TempStackWidget] temp_stack_bed_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_bed_clicked();
+    if (auto* self = panel_widget_from_event<TempStackWidget>(e)) {
+        self->handle_bed_clicked();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void TempStackWidget::temp_stack_chamber_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[TempStackWidget] temp_stack_chamber_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_chamber_clicked();
+    if (auto* self = panel_widget_from_event<TempStackWidget>(e)) {
+        self->handle_chamber_clicked();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void TempStackWidget::temp_carousel_page_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[TempStackWidget] temp_carousel_page_cb");
-    if (s_active_instance) {
+    if (auto* self = panel_widget_from_event<TempStackWidget>(e)) {
         auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
         const char* page_id = lv_obj_get_name(target);
         if (page_id) {
             if (std::strcmp(page_id, "nozzle") == 0) {
-                s_active_instance->handle_nozzle_clicked();
+                self->handle_nozzle_clicked();
             } else if (std::strcmp(page_id, "bed") == 0) {
-                s_active_instance->handle_bed_clicked();
+                self->handle_bed_clicked();
             } else if (std::strcmp(page_id, "chamber") == 0) {
-                s_active_instance->handle_chamber_clicked();
+                self->handle_chamber_clicked();
             }
         }
     }

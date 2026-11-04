@@ -6,9 +6,9 @@
 #include "ui_observer_guard.h"
 
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "ui/animated_value.h"
 
 #include <memory>

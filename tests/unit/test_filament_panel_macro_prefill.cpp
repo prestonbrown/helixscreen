@@ -18,7 +18,6 @@
 
 #include "ui_ams_sidebar.h"
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_macro_harness.h"
@@ -29,10 +28,12 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_database.h"
 #include "filament_op_router.h"
 #include "filament_op_slot_resolver.h"
+#include "i_moonraker_api.h"
 #include "layout_manager.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
@@ -525,13 +526,15 @@ class ParamModalFixture : public LVGLUITestFixture {
     }
 
     ~ParamModalFixture() override {
-        // A failed assertion can leave the modal up with its static instance
-        // pointer aimed at this soon-dead object.
-        if (modal.dialog()) {
-            helix::MacroParamModal::cancel_cb(nullptr);
-        }
+        modal.hide();
         process_lvgl(20);
         helix::DisplaySettingsManager::instance().set_animations_enabled(prev_animations_);
+    }
+
+    void press_primary(const char* row_name) {
+        lv_obj_t* row = lv_obj_find_by_name(modal.dialog(), row_name);
+        REQUIRE(row != nullptr);
+        lv_obj_send_event(lv_obj_find_by_name(row, "btn_primary"), LV_EVENT_CLICKED, nullptr);
     }
 
     /// Show the modal for @p params with @p prefill typed in.
@@ -610,7 +613,7 @@ TEST_CASE_METHOD(ParamModalFixture, "A prefilled parameter is typed into its fie
     // What a cleared field says: where the value comes from, not template source.
     CHECK(std::string(lv_textarea_get_placeholder_text(field)) == lv_tr("Printer default"));
 
-    helix::MacroParamModal::run_cb(nullptr);
+    press_primary("run_button_row");
     process_lvgl(20);
 
     CHECK(runs == 1);
@@ -622,7 +625,7 @@ TEST_CASE_METHOD(ParamModalFixture, "A cleared prefill leaves the parameter to t
     lv_obj_t* field = show_load_filament({{"EXTRUDER_TEMP", "260"}});
     lv_textarea_set_text(field, "");
 
-    helix::MacroParamModal::run_cb(nullptr);
+    press_primary("run_button_row");
     process_lvgl(20);
 
     CHECK(runs == 1);
@@ -640,7 +643,7 @@ TEST_CASE_METHOD(ParamModalFixture,
 
     CHECK(field_texts() == std::vector<std::string>{"", "260", ""});
 
-    helix::MacroParamModal::run_cb(nullptr);
+    press_primary("run_button_row");
     process_lvgl(20);
 
     CHECK(runs == 1);
@@ -661,4 +664,150 @@ TEST_CASE_METHOD(ParamModalFixture,
     // Values are paired with parameters by position, so a missing field must not
     // shift the ones after it onto the wrong name.
     CHECK(helix::MacroParamModalTestAccess::field_slot_count(modal) == params.size());
+}
+
+// =============================================================================
+// Purge preamble and the operation guard
+// =============================================================================
+
+// A purge preamble (home, then travel to the purge bin) runs under the homing
+// budget, which is longer than the panel's operation timeout. The operation
+// guard has to outlast the preamble, or the panel times the purge out while the
+// toolhead is still on its way to the bin and then purges anyway.
+
+using helix::test::FilamentPanelMacroHarness;
+
+namespace {
+
+struct BinBackend : helix::AmsBackendMock {
+    BinBackend() : helix::AmsBackendMock(2) {}
+    std::string purge_preamble_gcode(bool) const override {
+        return "TEST_BIN_PREAMBLE";
+    }
+};
+
+/// Runs LVGL's clock forward by @p ms in one step, firing whatever came due.
+void advance_clock(uint32_t ms) {
+    lv_tick_inc(ms);
+    lv_timer_handler();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+/// Waits out the panel's own operation budget while the preamble is unanswered.
+void outlast_operation_budget() {
+    advance_clock(FilamentPanel::kOperationTimeoutMs + 1000);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A purge macro's guard outlasts a slow bin preamble",
+                 "[filament][purge_preamble][op_timeout_expire]") {
+    FilamentPanelMacroHarness h(std::make_unique<BinBackend>());
+    h.cache_macros({{"PURGE", "{% set t = params.PURGE_TEMP|default(240)|int %}\nM109 S{t}"}});
+    h.set_extruder_target(255.0);
+
+    h.client.defer_next("printer.gcode.script");
+    TA::execute_purge(*h.panel);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(h.client.last_send_script().find("TEST_BIN_PREAMBLE") != std::string::npos);
+    REQUIRE(TA::operation_active(*h.panel));
+
+    outlast_operation_budget();
+    CHECK(TA::operation_active(*h.panel));
+
+    // The macro that follows still answers to the panel's own budget.
+    h.client.defer_next("printer.gcode.script");
+    h.client.fire_deferred("printer.gcode.script");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(h.client.last_send_script().find("PURGE PURGE_TEMP=255") == 0);
+    REQUIRE(TA::operation_active(*h.panel));
+    outlast_operation_budget();
+    CHECK_FALSE(TA::operation_active(*h.panel));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The purge fallback's guard outlasts a slow bin preamble",
+                 "[filament][purge_preamble][op_timeout_expire]") {
+    FilamentPanelMacroHarness h(std::make_unique<BinBackend>());
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(nlohmann::json{"extruder"});
+    StandardMacros::instance().reset();
+    StandardMacros::instance().init(hardware);
+    REQUIRE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
+    h.set_extruder_target(255.0);
+
+    h.client.defer_next("printer.gcode.script");
+    TA::execute_purge(*h.panel);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(h.client.last_send_script().find("TEST_BIN_PREAMBLE") != std::string::npos);
+    REQUIRE(TA::operation_active(*h.panel));
+
+    outlast_operation_budget();
+    CHECK(TA::operation_active(*h.panel));
+
+    // The extrusion that follows still answers to the panel's own budget.
+    h.client.defer_next("printer.gcode.script");
+    h.client.fire_deferred("printer.gcode.script");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(h.client.last_send_script().find("G1 E") != std::string::npos);
+    REQUIRE(TA::operation_active(*h.panel));
+    outlast_operation_budget();
+    CHECK_FALSE(TA::operation_active(*h.panel));
+}
+
+namespace {
+
+bool history_contains(const FilamentPanelMacroHarness& h, const char* needle) {
+    for (const auto& s : h.client.gcode_script_history()) {
+        if (s.find(needle) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A purge macro that failed during its bin preamble does not run late",
+                 "[filament][purge_preamble][unknown_command]") {
+    FilamentPanelMacroHarness h(std::make_unique<BinBackend>());
+    h.cache_macros({{"PURGE", "{% set t = params.PURGE_TEMP|default(240)|int %}\nM109 S{t}"}});
+    h.set_extruder_target(255.0);
+
+    h.client.defer_next("printer.gcode.script");
+    TA::execute_purge(*h.panel);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(h.client.last_send_script().find("TEST_BIN_PREAMBLE") != std::string::npos);
+
+    h.panel->fail_op_on_unknown_command("STATUS_PURGING");
+    REQUIRE_FALSE(TA::operation_active(*h.panel));
+
+    h.client.fire_deferred("printer.gcode.script");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(history_contains(h, "PURGE PURGE_TEMP"));
+    CHECK_FALSE(TA::operation_active(*h.panel));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A purge fallback that failed during its bin preamble does not run late",
+                 "[filament][purge_preamble][unknown_command]") {
+    FilamentPanelMacroHarness h(std::make_unique<BinBackend>());
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(nlohmann::json{"extruder"});
+    StandardMacros::instance().reset();
+    StandardMacros::instance().init(hardware);
+    h.set_extruder_target(255.0);
+
+    h.client.defer_next("printer.gcode.script");
+    TA::execute_purge(*h.panel);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(h.client.last_send_script().find("TEST_BIN_PREAMBLE") != std::string::npos);
+
+    h.panel->fail_op_on_unknown_command("STATUS_PURGING");
+    REQUIRE_FALSE(TA::operation_active(*h.panel));
+
+    h.client.fire_deferred("printer.gcode.script");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(history_contains(h, "G1 E"));
+    CHECK_FALSE(TA::operation_active(*h.panel));
 }

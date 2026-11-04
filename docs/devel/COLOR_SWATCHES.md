@@ -1,7 +1,7 @@
 # Colour Swatches
 
 Every colour the UI shows as a colour (a filament, a spool, an LED, a theme role, a tool)
-is painted by one painter: `include/ui_swatch.h`, `src/ui/ui_swatch.cpp`. A swatch in the
+is painted by one painter: `include/ui_swatch.h`, `src/ui/components/ui_swatch.cpp`. A swatch in the
 LEDs overlay, the colour picker, an AMS lane, the tool switcher and a spool illustration
 gets the same edge, the same multi-colour split and the same finish, because none of them
 draws its own.
@@ -129,7 +129,7 @@ detail-by-size rule live in `include/spool_vents.h`: slots from a 32 px canvas, 
 96 px, a solid flange below 32 px (`spool_vent_detail()`). `spool_vent_coverage()`
 answers per pixel for a face of any skew, so the side view's squashed flange and the
 face-on view share one vent shape. Each view composites it its own way in
-`src/ui/ui_spool_canvas.cpp`: the side view paints the openings over its flange, and the
+`src/ui/filament/ui_spool_canvas.cpp`: the side view paints the openings over its flange, and the
 face-on view smokes the flange over the filament (55% flange) and leaves the openings
 clear. Tests: `[spool_vents]`.
 

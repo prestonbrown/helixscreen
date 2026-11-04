@@ -16,6 +16,8 @@
 #include "esp_psram_thumbnail.h"
 #endif
 
+#include "json_fwd.h"
+
 #include <atomic>
 #include <lvgl.h>
 #include <memory>
@@ -24,8 +26,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 struct MoonrakerError; // NAMESPACE_OK: MoonrakerError itself is global (moonraker_error.h)
 

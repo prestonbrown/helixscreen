@@ -763,6 +763,21 @@ TEST_CASE_METHOD(PresetConfigFixture,
 }
 
 TEST_CASE_METHOD(PresetConfigFixture,
+                 "The shipped KlipperMod AD5M Pro preset starts with sound off",
+                 "[config][preset][device-scope]") {
+    // Its only sound backend is M300, which pauses the toolhead mid-print.
+    SetUp();
+    copy_shipped_preset("ad5m_pro");
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = "127.0.0.1";
+
+    REQUIRE(config.apply_preset_file("ad5m_pro") == true);
+    CHECK(data()["sounds_enabled"] == false);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
                  "Config::apply_preset_file leaves sound alone once the wizard is done",
                  "[config][preset]") {
     SetUp();

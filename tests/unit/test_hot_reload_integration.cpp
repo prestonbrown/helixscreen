@@ -27,8 +27,8 @@
 
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "test_fixtures.h"
 

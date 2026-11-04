@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "lvgl/lvgl.h"
 #include "prerender_size_class.h"
 #include "prerendered_images.h"

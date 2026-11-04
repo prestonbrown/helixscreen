@@ -14,12 +14,14 @@
 #include "helix_callback.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
+#include "json_fwd.h"
 #include "operation_timeout_guard.h"
 #include "preprint_predictor.h"
 #include "print_start_analyzer.h"
 #include "print_start_checks.h"
 #include "printer_detector.h"
 #include "printer_state.h"
+#include "subject_managed_panel.h"
 #include "thermal_rate_model.h"
 #include "versioned_lru.h"
 #include "zip_reader.h"
@@ -33,8 +35,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 class PrintPreparationManagerTestAccess;
 
@@ -678,6 +678,9 @@ class PrintPreparationManager {
 
     // === Checkbox State Subjects (LT2 - from PrintSelectDetailView) ===
     // === Pre-print estimate ===
+    /// Read by the detail view through its getter, never bound by name: every
+    /// manager has its own, and the XML engine's one scope could publish only one.
+    SubjectManager subjects_;
     lv_subject_t preprint_estimate_subject_{};
     bool estimate_subject_initialized_ = false;
 

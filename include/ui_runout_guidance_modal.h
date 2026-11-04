@@ -5,8 +5,8 @@
 
 #include "ui_modal.h"
 
+#include "core/static_subject_registry.h"
 #include "helix_shared_callback.h"
-#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 

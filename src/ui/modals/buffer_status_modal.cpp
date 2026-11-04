@@ -8,9 +8,10 @@
 #include "ams_state.h"
 #include "buffer_reading.h"
 #include "clog_meter_geometry.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
+#include "widget_subjects.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -18,8 +19,14 @@
 #include <cmath>
 #include <memory>
 
+namespace {
+// Bound only by the modal's XML and written only by populate(), so the subjects
+// stay up across a printer switch; the next instance reads them where they are.
+helix::WidgetSubjects s_subjects{"BufferStatusModalSubjects",
+                                 StaticSubjectRegistry::Lifetime::Process};
+} // namespace
+
 // Static member definitions
-bool BufferStatusModal::subjects_initialized_ = false;
 lv_subject_t BufferStatusModal::type_subject_;
 lv_subject_t BufferStatusModal::show_meter_subject_;
 lv_subject_t BufferStatusModal::show_espooler_subject_;
@@ -57,57 +64,34 @@ BufferStatusModal::~BufferStatusModal() {
     // remove its callbacks from widgets that still exist.
     slider_.reset();
     delete clog_bar_;
-    // Subjects are static — never deinited (persist for the process lifetime)
 }
 
 void BufferStatusModal::init_subjects() {
-    if (subjects_initialized_)
-        return;
-
-    lv_subject_init_int(&type_subject_, 0);
-    lv_subject_init_int(&show_meter_subject_, 0);
-    lv_subject_init_int(&show_espooler_subject_, 0);
-    lv_subject_init_int(&show_flow_subject_, 0);
-    lv_subject_init_int(&show_distance_subject_, 0);
-    lv_subject_init_int(&status_subject_, 0);
-
-    lv_subject_init_string(&description_subject_, description_buf_, nullptr,
-                           sizeof(description_buf_), "");
-    lv_subject_init_int(&show_reading_subject_, 0);
-    lv_subject_init_string(&value_subject_, value_buf_, nullptr, sizeof(value_buf_), "");
-    lv_subject_init_string(&target_subject_, target_buf_, nullptr, sizeof(target_buf_), "");
-    lv_subject_init_string(&trace_caption_subject_, trace_caption_buf_, nullptr,
-                           sizeof(trace_caption_buf_), "");
-    lv_subject_init_string(&unsupported_subject_, unsupported_buf_, nullptr,
-                           sizeof(unsupported_buf_), "");
-    lv_subject_init_string(&espooler_value_subject_, espooler_buf_, nullptr, sizeof(espooler_buf_),
-                           "");
-    lv_subject_init_string(&gear_sync_value_subject_, gear_sync_buf_, nullptr,
-                           sizeof(gear_sync_buf_), "");
-    lv_subject_init_string(&flow_value_subject_, flow_buf_, nullptr, sizeof(flow_buf_), "");
-    lv_subject_init_string(&state_subject_, state_buf_, nullptr, sizeof(state_buf_), "");
-    lv_subject_init_string(&fault_distance_subject_, fault_distance_buf_, nullptr,
-                           sizeof(fault_distance_buf_), "");
-
-    lv_xml_register_subject(nullptr, "buf_type", &type_subject_);
-    lv_xml_register_subject(nullptr, "buf_show_meter", &show_meter_subject_);
-    lv_xml_register_subject(nullptr, "buf_show_espooler", &show_espooler_subject_);
-    lv_xml_register_subject(nullptr, "buf_show_flow", &show_flow_subject_);
-    lv_xml_register_subject(nullptr, "buf_show_distance", &show_distance_subject_);
-    lv_xml_register_subject(nullptr, "buf_description", &description_subject_);
-    lv_xml_register_subject(nullptr, "buf_show_reading", &show_reading_subject_);
-    lv_xml_register_subject(nullptr, "buf_status", &status_subject_);
-    lv_xml_register_subject(nullptr, "buf_value", &value_subject_);
-    lv_xml_register_subject(nullptr, "buf_target", &target_subject_);
-    lv_xml_register_subject(nullptr, "buf_trace_caption", &trace_caption_subject_);
-    lv_xml_register_subject(nullptr, "buf_unsupported", &unsupported_subject_);
-    lv_xml_register_subject(nullptr, "buf_espooler_value", &espooler_value_subject_);
-    lv_xml_register_subject(nullptr, "buf_gear_sync_value", &gear_sync_value_subject_);
-    lv_xml_register_subject(nullptr, "buf_flow_value", &flow_value_subject_);
-    lv_xml_register_subject(nullptr, "buf_state", &state_subject_);
-    lv_xml_register_subject(nullptr, "buf_fault_distance", &fault_distance_subject_);
-
-    subjects_initialized_ = true;
+    s_subjects.ensure_init([] {
+        UI_MANAGED_SUBJECT_INT(type_subject_, 0, "buf_type", s_subjects);
+        UI_MANAGED_SUBJECT_INT(show_meter_subject_, 0, "buf_show_meter", s_subjects);
+        UI_MANAGED_SUBJECT_INT(show_espooler_subject_, 0, "buf_show_espooler", s_subjects);
+        UI_MANAGED_SUBJECT_INT(show_flow_subject_, 0, "buf_show_flow", s_subjects);
+        UI_MANAGED_SUBJECT_INT(show_distance_subject_, 0, "buf_show_distance", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(description_subject_, description_buf_, "", "buf_description",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_INT(show_reading_subject_, 0, "buf_show_reading", s_subjects);
+        UI_MANAGED_SUBJECT_INT(status_subject_, 0, "buf_status", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(value_subject_, value_buf_, "", "buf_value", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(target_subject_, target_buf_, "", "buf_target", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(trace_caption_subject_, trace_caption_buf_, "",
+                                  "buf_trace_caption", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(unsupported_subject_, unsupported_buf_, "", "buf_unsupported",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_STRING(espooler_value_subject_, espooler_buf_, "", "buf_espooler_value",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_STRING(gear_sync_value_subject_, gear_sync_buf_, "",
+                                  "buf_gear_sync_value", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(flow_value_subject_, flow_buf_, "", "buf_flow_value", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(state_subject_, state_buf_, "", "buf_state", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(fault_distance_subject_, fault_distance_buf_, "",
+                                  "buf_fault_distance", s_subjects);
+    });
 }
 
 helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& info,

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_split_button.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 
 #include <spdlog/sinks/ostream_sink.h>

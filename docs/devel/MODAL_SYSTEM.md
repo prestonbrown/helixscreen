@@ -2,7 +2,7 @@
 
 How the modal dialog system works internally, how to create new modals, and how to migrate old patterns to the standardized system.
 
-**Key files**: `include/ui_modal.h`, `src/ui/ui_modal.cpp`, `src/ui/ui_dialog.cpp`, `ui_xml/modal_dialog.xml`
+**Key files**: `include/ui_modal.h`, `src/ui/ui_modal.cpp`, `src/ui/components/ui_dialog.cpp`, `ui_xml/modal_dialog.xml`
 
 ---
 

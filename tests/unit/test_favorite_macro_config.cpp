@@ -3,6 +3,7 @@
 #include "favorite_macro_config.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::favorite_macro_config_from_json;
 using helix::favorite_macro_config_to_json;

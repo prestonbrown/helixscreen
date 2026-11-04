@@ -54,25 +54,29 @@ FBDEV_DISPLAY_CXXFLAGS := $(filter-out -DHELIX_DISPLAY_DRM -DHELIX_ENABLE_OPENGL
 
 # Fbdev display sources — same as DRM but we exclude display_backend_drm.cpp
 FBDEV_DISPLAY_API_SRCS := \
-    src/api/display_backend.cpp \
-    src/api/display_backend_fbdev.cpp \
-    src/api/drm_rotation_strategy.cpp \
-    src/api/touch_calibration_wrapper.cpp \
-    src/api/input_device_scanner.cpp
+    src/platform/display/display_backend.cpp \
+    src/platform/display/display_backend_fbdev.cpp \
+    src/platform/display/drm_rotation_strategy.cpp \
+    src/platform/input/touch_calibration_wrapper.cpp \
+    src/platform/input/input_device_scanner.cpp
 
 FBDEV_DISPLAY_UI_SRCS := \
-    src/ui/touch_calibration.cpp
+    src/ui/calibration/touch_calibration.cpp
 
-FBDEV_DISPLAY_API_OBJS := $(FBDEV_DISPLAY_API_SRCS:src/api/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
-FBDEV_DISPLAY_UI_OBJS := $(FBDEV_DISPLAY_UI_SRCS:src/ui/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
+FBDEV_DISPLAY_API_OBJS := $(patsubst %.cpp,$(FBDEV_DISPLAY_DIR)/%.o,$(notdir $(FBDEV_DISPLAY_API_SRCS)))
+FBDEV_DISPLAY_UI_OBJS := $(FBDEV_DISPLAY_UI_SRCS:src/ui/calibration/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
 FBDEV_DISPLAY_OBJS := $(FBDEV_DISPLAY_API_OBJS) $(FBDEV_DISPLAY_UI_OBJS)
 
 # Build fbdev display objects
-$(FBDEV_DISPLAY_DIR)/%.o: src/api/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+$(FBDEV_DISPLAY_DIR)/%.o: src/platform/display/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
-$(FBDEV_DISPLAY_DIR)/%.o: src/ui/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+$(FBDEV_DISPLAY_DIR)/%.o: src/platform/input/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+	@echo "[CXX/fbdev] $<"
+	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+$(FBDEV_DISPLAY_DIR)/%.o: src/ui/calibration/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -118,10 +122,10 @@ FBDEV_GLES_CXXFLAGS := $(filter-out -DENABLE_GLES_3D -DHELIX_DISPLAY_DRM -DHELIX
 
 FBDEV_GLES_VARIANT_SRCS := \
     src/rendering/gcode_gles_renderer.cpp \
-    src/ui/ui_gcode_viewer.cpp \
-    src/ui/gcode_viewer_input.cpp \
-    src/ui/gcode_viewer_loader.cpp \
-    src/ui/backdrop_blur.cpp \
+    src/ui/gcode/ui_gcode_viewer.cpp \
+    src/ui/gcode/gcode_viewer_input.cpp \
+    src/ui/gcode/gcode_viewer_loader.cpp \
+    src/ui/effects/backdrop_blur.cpp \
     src/application/probe_egl_cmd.cpp
 
 # Map source paths to fbdev variant object paths (flatten into single dir)
@@ -136,29 +140,29 @@ FBDEV_GLES_VARIANT_OBJS := \
 # DRM-compiled originals to exclude from fbdev link
 DRM_GLES_APP_OBJS := \
     $(OBJ_DIR)/rendering/gcode_gles_renderer.o \
-    $(OBJ_DIR)/ui/ui_gcode_viewer.o \
-    $(OBJ_DIR)/ui/gcode_viewer_input.o \
-    $(OBJ_DIR)/ui/gcode_viewer_loader.o \
-    $(OBJ_DIR)/ui/backdrop_blur.o \
+    $(OBJ_DIR)/ui/gcode/ui_gcode_viewer.o \
+    $(OBJ_DIR)/ui/gcode/gcode_viewer_input.o \
+    $(OBJ_DIR)/ui/gcode/gcode_viewer_loader.o \
+    $(OBJ_DIR)/ui/effects/backdrop_blur.o \
     $(OBJ_DIR)/application/probe_egl_cmd.o
 
 $(FBDEV_GLES_VARIANT_DIR)/gcode_gles_renderer.o: src/rendering/gcode_gles_renderer.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-$(FBDEV_GLES_VARIANT_DIR)/ui_gcode_viewer.o: src/ui/ui_gcode_viewer.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(FBDEV_GLES_VARIANT_DIR)/ui_gcode_viewer.o: src/ui/gcode/ui_gcode_viewer.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-$(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_input.o: src/ui/gcode_viewer_input.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_input.o: src/ui/gcode/gcode_viewer_input.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-$(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_loader.o: src/ui/gcode_viewer_loader.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_loader.o: src/ui/gcode/gcode_viewer_loader.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-$(FBDEV_GLES_VARIANT_DIR)/backdrop_blur.o: src/ui/backdrop_blur.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(FBDEV_GLES_VARIANT_DIR)/backdrop_blur.o: src/ui/effects/backdrop_blur.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
@@ -195,13 +199,13 @@ LVGL_DRM_DRIVER_OBJS := \
 
 # DRM display backend objects that are part of APP_OBJS
 DRM_DISPLAY_APP_OBJS := \
-    $(OBJ_DIR)/api/display_backend.o \
-    $(OBJ_DIR)/api/display_backend_drm.o \
-    $(OBJ_DIR)/api/drm_rotation_strategy.o \
-    $(OBJ_DIR)/api/display_backend_fbdev.o \
-    $(OBJ_DIR)/api/touch_calibration_wrapper.o \
-    $(OBJ_DIR)/api/input_device_scanner.o \
-    $(OBJ_DIR)/ui/touch_calibration.o
+    $(OBJ_DIR)/platform/display/display_backend.o \
+    $(OBJ_DIR)/platform/display/display_backend_drm.o \
+    $(OBJ_DIR)/platform/display/drm_rotation_strategy.o \
+    $(OBJ_DIR)/platform/display/display_backend_fbdev.o \
+    $(OBJ_DIR)/platform/input/touch_calibration_wrapper.o \
+    $(OBJ_DIR)/platform/input/input_device_scanner.o \
+    $(OBJ_DIR)/ui/calibration/touch_calibration.o
 
 # All common app objects (swap out DRM-specific and GLES-specific objects)
 FBDEV_APP_OBJS := $(filter-out $(DRM_DISPLAY_APP_OBJS) $(DRM_CRASH_OBJ) $(DRM_GLES_APP_OBJS),$(APP_OBJS))

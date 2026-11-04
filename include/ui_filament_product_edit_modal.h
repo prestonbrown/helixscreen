@@ -60,10 +60,10 @@ class FilamentProductEditModal : public Modal {
     [[nodiscard]] const char* component_name() const override {
         return "filament_product_edit_modal";
     }
+    HELIX_KIND_TAG(FilamentProductEditModal)
 
   protected:
     void on_show() override;
-    void on_hide() override;
 
   private:
     enum class Mode { Add, Edit };
@@ -97,7 +97,6 @@ class FilamentProductEditModal : public Modal {
     // === Static Callback Registration ===
     static void register_callbacks();
     static bool callbacks_registered_;
-    static FilamentProductEditModal* active_instance_;
 
     static void on_save_cb(lv_event_t* e);
     static void on_secondary_cb(lv_event_t* e);

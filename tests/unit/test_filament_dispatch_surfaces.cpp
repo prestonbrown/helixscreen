@@ -32,7 +32,6 @@
 #include "ui_bed_drying_modal.h"
 #include "ui_filament_runout_handler.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_runout_handler_test_access.h"
@@ -44,6 +43,7 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "bed_drying_controller.h"
+#include "core/update_queue.h"
 #include "filament_op_execute.h"
 #include "filament_op_router.h"
 #include "macro_executor.h"

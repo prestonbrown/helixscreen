@@ -10,7 +10,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from rename_update_queue_drain import rewrite  # noqa: E402
 
 SHIM_INC = '#include "../test_helpers/update_queue_test_access.h"\n'
-QUEUE_INC = '#include "ui_update_queue.h"\n'
+QUEUE_INC = '#include "core/update_queue.h"\n'
 
 
 def run(text, rel="tests/unit/test_x.cpp"):

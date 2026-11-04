@@ -5,9 +5,7 @@
 
 #include "ui_confetti.h"
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 #include "ui_format_utils.h"
-#include "ui_heater_config.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
@@ -17,14 +15,16 @@
 
 #include "app_globals.h"
 #include "audio_settings_manager.h"
+#include "core/gcode_filename.h"
+#include "core/static_subject_registry.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
+#include "heater_type.h"
 #include "moonraker_api.h"
 #include "moonraker_manager.h"
 #include "printer_state.h"
 #include "sound_manager.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "temperature_controller.h"
 

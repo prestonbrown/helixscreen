@@ -8,11 +8,11 @@
 // test_ui_panel_macros_rows.cpp drives the real row widgets.
 
 #include "ui_panel_macros.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/macros_panel_test_access.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "macro_edit_logic.h"
 #include "macro_param_cache.h"
 #include "settings_manager.h"

@@ -304,7 +304,7 @@ tree_count() {
 
 @test "the dev-only and crash-path files are exempt" {
     # ui_fatal_error.cpp renders before theme init, where a token read returns 0.
-    run python3 "$GATE" --list src/ui/ui_fatal_error.cpp
+    run python3 "$GATE" --list src/ui/notify/ui_fatal_error.cpp
     [ "$status" -eq 0 ]
 }
 

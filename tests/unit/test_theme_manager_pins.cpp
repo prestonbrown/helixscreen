@@ -12,7 +12,7 @@
  * `HELIX_UPDATE_GOLDEN=1 ./build/bin/helix-tests "[theme_pins]"` and review the diff.
  */
 
-#include "../../src/ui/theme_manager_internal.h"
+#include "../../src/ui/theme/theme_manager_internal.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "helix-xml/src/xml/lv_xml.h"

@@ -324,7 +324,7 @@ class TempGraphController {
      *
      * observe<int>() attaches with lv_subject_add_observer_obj(), which
      * fires the observer once immediately — but that fire only *queues* the
-     * handler (observer_factory.h), so it lands in UpdateQueue and runs on a
+     * handler (core/observer_factory.h), so it lands in UpdateQueue and runs on a
      * later process_pending tick. On reconnect the subjects still hold their
      * pre-disconnect values, so that deferred fire would stamp a stale
      * temperature with a fresh `now` timestamp: the phantom spike of #1245.

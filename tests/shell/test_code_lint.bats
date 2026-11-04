@@ -167,6 +167,27 @@ SHAPES
     lacks "helix::Regex" "$output"
 }
 
+@test "the event-sweep gate catches removal by index and stays quiet on named removal and opt-outs" {
+    local f="${BATS_TEST_TMPDIR}/sweep_shapes.cpp"
+    cat > "$f" <<'SHAPES'
+lv_obj_remove_event(back_button, i - 1);
+if (ok) ::lv_obj_remove_event(obj, 0);
+// Never lv_obj_remove_event(obj, 0): it takes the observer hooks too.
+lv_obj_remove_event(obj, 1); // REMOVE_EVENT_OK: test fixture
+lv_obj_remove_event_cb(obj, on_clicked);
+lv_obj_remove_event_cb_with_user_data(obj, on_deleted, this);
+my_lv_obj_remove_event(obj, 0);
+SHAPES
+    run code_offenders "$(remove_event_sweep_pattern)" REMOVE_EVENT_OK "$f"
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 2 ]
+    contains "back_button" "$output"
+    contains "::lv_obj_remove_event" "$output"
+    lacks "REMOVE_EVENT_OK" "$output"
+    lacks "_cb" "$output"
+    lacks "my_lv" "$output"
+}
+
 @test "the raw-thread gate catches spawns and stays quiet on members, ids and opt-outs" {
     local f="${BATS_TEST_TMPDIR}/thread_shapes.cpp"
     cat > "$f" <<'SHAPES'
@@ -1720,7 +1741,7 @@ EOF
 
 @test "the vendor-branch gate catches each shape and honours VENDOR_OK" {
     local root="$BATS_TEST_TMPDIR/root"
-    mkdir -p "$root/src/ui" "$root/scripts"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print" "$root/scripts"
     : > "$root/scripts/vendor_branch_baseline.txt"
     cat > "$root/src/ui/x.cpp" <<'CPP'
 #if defined(HELIX_PLATFORM_K2)
@@ -1749,7 +1770,7 @@ CPP
 # The ratchet compares per-file counts to the baseline.
 @test "the vendor-branch gate fails above a nonzero baseline and passes at or below it" {
     local root="$BATS_TEST_TMPDIR/ratchet"
-    mkdir -p "$root/src/ui"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     printf 'bool a(AmsType t) { return t == AmsType::CFS; }\nbool b(AmsType t) { return t != AmsType::AFC; }\n' \
         > "$root/src/ui/x.cpp"
     printf '1 src/ui/x.cpp:amstype-branch\n' > "$root/base.txt"
@@ -1766,7 +1787,7 @@ CPP
 
 @test "the vendor-branch gate is quiet on AmsType::NONE and on build-shape macros" {
     local root="$BATS_TEST_TMPDIR/quiet"
-    mkdir -p "$root/src/ui"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     cat > "$root/src/ui/x.cpp" <<'CPP'
 bool a(AmsType t) { return t == AmsType::NONE; }
 #if defined(HELIX_PLATFORM_ESP32)
@@ -1778,7 +1799,7 @@ CPP
 
 @test "the vendor-branch gate reads multi-line conditionals and honours VENDOR_OK above them" {
     local root="$BATS_TEST_TMPDIR/multi"
-    mkdir -p "$root/src/ui"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     printf '#if defined(HELIX_PLATFORM_K2) || \\\n    defined(HELIX_PLATFORM_K1)\n#endif\n' > "$root/src/ui/x.cpp"
     run python3 scripts/check_vendor_branches.py --root "$root"
     [ "$status" -eq 1 ] || fail "multi-line conditional not counted"
@@ -1789,7 +1810,7 @@ CPP
 
 @test "the vendor-branch gate catches a name() compare written either way round" {
     local root="$BATS_TEST_TMPDIR/names"
-    mkdir -p "$root/src/ui"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     printf 'bool a(X* x) { return "AFC" == x->name(); }\nbool b(X x) { return x.name() == "AFC"; }\n' > "$root/src/ui/x.cpp"
     run python3 scripts/check_vendor_branches.py --root "$root"
     [ "$status" -eq 1 ] || fail "name() compares not counted"
@@ -2057,7 +2078,7 @@ EOF
     printf '<lv_obj name="unrelated"/>\n' | put ui_xml/panel.xml
     run lint_zoffset_save_rule
     [ "$status" -eq 1 ]
-    contains "fewer than 4" "$output"
+    contains "fewer than 3" "$output"
 }
 
 @test "the OverlayBase cleanup lint fails closed when it finds too few overrides" {
@@ -2093,11 +2114,11 @@ EOF
         put include/tinfl_inflate.h
     run lint_esp32_psram_walk
     [ "$status" -eq 0 ]
-    printf 'size_t b = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);\n' | put src/ui/ui_panel_print_status.cpp
+    printf 'size_t b = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);\n' | put src/ui/print/ui_panel_print_status.cpp
     run lint_esp32_psram_walk
     [ "$status" -eq 1 ]
     contains "ui_panel_print_status.cpp" "$output"
-    printf 'int x = 0;\n' | put src/ui/ui_panel_print_status.cpp
+    printf 'int x = 0;\n' | put src/ui/print/ui_panel_print_status.cpp
     printf 'size_t n = 0;\n' | put include/tinfl_inflate.h
     run lint_esp32_psram_walk
     [ "$status" -eq 1 ]
@@ -2109,13 +2130,13 @@ EOF
     printf 'void register_wifi_device_flows();\nvoid register_led_device_flows();\nvoid register_builtin_guided_device_flows();\n' |
         put include/ui_guided_device_flow.h
     printf 'void (*const kFlows[])() = {\n    register_wifi_device_flows,\n    register_led_device_flows,\n};\n' |
-        put src/ui/ui_guided_device_flow.cpp
+        put src/ui/filament/ui_guided_device_flow.cpp
     printf '    register_builtin_guided_device_flows();\n' | put src/application/application.cpp
     printf '    register_builtin_guided_device_flows();\n' | put firmware/helixscreen-esp32/components/helixapp/app_boot.cpp
     run lint_guided_device_flows
     [ "$status" -eq 0 ] || fail "$output"
     printf 'void (*const kFlows[])() = {\n    register_wifi_device_flows,\n};\n' |
-        put src/ui/ui_guided_device_flow.cpp
+        put src/ui/filament/ui_guided_device_flow.cpp
     printf 'void boot() {}\n' | put firmware/helixscreen-esp32/components/helixapp/app_boot.cpp
     run lint_guided_device_flows
     [ "$status" -eq 1 ]

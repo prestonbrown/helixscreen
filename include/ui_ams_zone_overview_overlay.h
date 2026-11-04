@@ -16,9 +16,9 @@
 #pragma once
 
 #include "ams_environment_zone.h"
+#include "core/static_panel_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl/lvgl.h>
@@ -48,6 +48,10 @@ class AmsZoneOverviewOverlay : public OverlayBase {
 
     const char* xml_component() const override {
         return "ams_zone_overview_overlay";
+    }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
+    bool destroy_on_close() const override {
+        return false;
     }
 
     /// Show the list for @p zones. The caller decides the set: one unit's zones from the

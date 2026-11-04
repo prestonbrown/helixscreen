@@ -18,12 +18,12 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "led/ui_led_control_overlay.h"
 #include "printer_state.h"
 

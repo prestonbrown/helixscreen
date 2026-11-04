@@ -18,9 +18,9 @@
  */
 
 #include "ui_panel_home.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "printer_image_manager.h"
 
 #include <lvgl.h>

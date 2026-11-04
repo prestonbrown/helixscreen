@@ -17,7 +17,9 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
+#include "ams_backend_indx.h"
 #include "ams_backend_mock.h"
+#include "ams_backend_multiace.h"
 #include "ams_backend_openams.h"
 #include "ams_backend_qidi.h"
 #include "ams_backend_snapmaker.h"
@@ -157,6 +159,26 @@ TEST_CASE("Real kTraits keep the answers the UI branches on", "[ams][traits]") {
     CHECK_FALSE(BackendTraits{}.printer_reports_spool_ids);
 }
 
+TEST_CASE("Real kTraits name each machine's positions and constant answers", "[ams][traits]") {
+    using helix::ui::LaneNoun;
+    CHECK(BackendTraits{}.lane_noun == LaneNoun::Slot);
+    CHECK(BackendTraits{}.tool_noun == LaneNoun::Tool);
+    CHECK(BackendTraits{}.toolhead_style_hint == ToolheadStyle::AUTO);
+    CHECK(AmsBackendHappyHare::kTraits.lane_noun == LaneNoun::Gate);
+    CHECK(AmsBackendAfc::kTraits.lane_noun == LaneNoun::Lane);
+    CHECK(AmsBackendToolChanger::kTraits.lane_noun == LaneNoun::Tool);
+    CHECK(AmsBackendSnapmaker::kTraits.lane_noun == LaneNoun::Feeder);
+    CHECK(AmsBackendSnapmaker::kTraits.tool_noun == LaneNoun::Toolhead);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).lane_noun() == LaneNoun::Feeder);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).tool_noun() == LaneNoun::Toolhead);
+    CHECK(helix::printer::AmsBackendCfs::kTraits.toolhead_style_hint == ToolheadStyle::CREALITY_K2);
+    CHECK(AmsBackendAfc::kTraits.sets_active_spool_on_link);
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.sets_active_spool_on_link);
+    CHECK(AmsBackendSnapmaker::kTraits.print_routing_resets_to_identity);
+    CHECK(AmsBackendIndx::kIndxTraits.heads_share_heater);
+    CHECK_FALSE(AmsBackendToolChanger::kTraits.heads_share_heater);
+}
+
 TEST_CASE("A U1 owns a spool per tool and has no bypass", "[ams][traits][spoolman]") {
     // The Spoolman active-spool sync assigns per tool only where this holds.
     AmsBackendSnapmaker u1(nullptr, nullptr);
@@ -170,6 +192,31 @@ TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
     mock.set_afc_mode(true);
     REQUIRE(AmsBackendAfc::kTraits.has_firmware_spool_persistence);
     CHECK_FALSE(mock.has_firmware_spool_persistence());
+}
+
+TEST_CASE("Only CFS answers the calibration capability", "[ams][traits][cfs]") {
+    helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
+    CHECK(cfs.as<ICfsCalibration>() == static_cast<ICfsCalibration*>(&cfs));
+    struct NothingImplementsThis {};
+    CHECK(cfs.as<NothingImplementsThis>() == nullptr);
+
+    AmsBackendAce ace(nullptr, nullptr);
+    AmsBackendAd5xIfs ad5x(nullptr, nullptr);
+    AmsBackendAfc afc(nullptr, nullptr);
+    AmsBackendHappyHare happy_hare(nullptr, nullptr);
+    AmsBackendIndx indx(nullptr, nullptr);
+    AmsBackendMultiAce multi_ace(nullptr, nullptr);
+    AmsBackendOpenAms openams(nullptr, nullptr);
+    AmsBackendQidi qidi(nullptr, nullptr);
+    AmsBackendSnapmaker snapmaker(nullptr, nullptr);
+    AmsBackendToolChanger tool_changer(nullptr, nullptr);
+    AmsBackendMock mock(4);
+    for (const AmsBackend* other : std::initializer_list<const AmsBackend*>{
+             &ace, &ad5x, &afc, &happy_hare, &indx, &multi_ace, &openams, &qidi, &snapmaker,
+             &tool_changer, &mock}) {
+        INFO(ams_type_to_string(other->get_type()));
+        CHECK(other->as<ICfsCalibration>() == nullptr);
+    }
 }
 
 TEST_CASE("Mock AFC load leaves only the new lane loaded", "[ams][mock][traits]") {

@@ -12,6 +12,7 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "json_fwd.h"
 #include "test_helpers/seeded_override.h"
 
 #include <array>
@@ -23,8 +24,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 using json = nlohmann::json;
 

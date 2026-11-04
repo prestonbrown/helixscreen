@@ -17,7 +17,6 @@
 #include "ui_filament_mapping_card.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/planted_gcode.h"
@@ -27,6 +26,7 @@
 #include "../ui_test_utils.h"
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_start_checks.h"
@@ -487,8 +487,10 @@ namespace {
 class NoResetSnapmaker : public helix::AmsBackendSnapmaker {
   public:
     using AmsBackendSnapmaker::AmsBackendSnapmaker;
-    [[nodiscard]] bool print_routing_resets_to_identity() const override {
-        return false;
+    [[nodiscard]] helix::BackendTraits traits() const override {
+        helix::BackendTraits t = kTraits;
+        t.print_routing_resets_to_identity = false;
+        return t;
     }
 };
 

@@ -11,7 +11,6 @@
 #include "ui_button.h"
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
-#include "ui_update_queue.h"
 #include "ui_variant.h"
 
 #include "../test_fixtures.h"
@@ -19,6 +18,7 @@
 #include "../test_helpers/scoped_theme_mode.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "theme_manager.h"
 
 #include <algorithm>

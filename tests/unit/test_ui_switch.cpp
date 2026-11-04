@@ -5,7 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
-#include "../../src/ui/ui_switch.cpp" // Include implementation for internal testing
+#include "../../src/ui/components/ui_switch.cpp" // Include implementation for internal testing
 #include "../catch_amalgamated.hpp"
 
 /**

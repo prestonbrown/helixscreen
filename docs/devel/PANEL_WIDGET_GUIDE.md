@@ -25,7 +25,7 @@ printer image's live callouts are a third instance
 
 | Piece | Where | Notes |
 |-------|-------|-------|
-| Registry def | `src/ui/panel_widget_registry.cpp` | id, display name, icon, category, default/enabled, colspan/rowspan and their min/max, whether it may span half cells, `scope` |
+| Registry def | `src/ui/home/panel_widget_registry.cpp` | id, display name, icon, category, default/enabled, colspan/rowspan and their min/max, whether it may span half cells, `scope` |
 | Widget class | `src/ui/panel_widgets/<name>_widget.{h,cpp}` | extends `PanelWidget`; implements `attach()` / `detach()` / `on_size_changed()` |
 | XML component | `ui_xml/components/panel_widget_<name>.xml` | the entire appearance |
 | Row/child components | `ui_xml/components/<name>_*.xml` | repeated fragments the widget creates per item |
@@ -218,7 +218,7 @@ is pure and has a boundary test; the widget measures, decides and publishes.
 | `print_stats` | `print_stats_tile_layout.h`, `include/print_activity.h` | - | this week's hours on one line at Strip; hours stacked over "this week" at Cell; seven day bars beside the hours at Wide; bars with weekday initials under them at Full; a lifetime line (prints, hours, filament in meters) where it fits whole |
 | `maintenance` | `maintenance_tile_layout.h`, `maintenance_model.h`, `include/maintenance_meters.h` | - | the ring of the meter closest to due with its hours left at Glance; its name and hours on one line at Strip; the ring over the name at Column and Cell; the ring beside a row per meter at Wide; a title, a row and a bar per meter and the total print time at Full. The ring is a square whose side the widget publishes (`maintenance_ring_d`), because an arc draws its circle from its top-left corner |
 
-All ten offer half-cell spans: their registry rows in `src/ui/panel_widget_registry.cpp`
+All ten offer half-cell spans: their registry rows in `src/ui/home/panel_widget_registry.cpp`
 set `supports_half_col` and `supports_half_row` and a one-track minimum, which is the
 combination `PanelWidgetDef` requires for a minimum below a whole cell (the flag on that
 axis AND a `fits_at()` that can refuse). A Glance tile is therefore a legal 0.5x0.5
@@ -303,7 +303,7 @@ These are the checks a new widget in this family has to pass. The ones with a ga
   list.
 - **Stop redrawing while the home panel is covered.** `HomePanel` fans `on_deactivate()` and
   `on_activate()` out to the active page's widgets when the panel is covered or revealed and
-  when the page changes (`src/ui/ui_panel_home.cpp#on_deactivating`). A widget
+  when the page changes (`src/ui/home/ui_panel_home.cpp#on_deactivating`). A widget
   that draws a canvas or refreshes on a timer keeps a `panel_hidden_` flag, skips every
   update while it is set, and applies whatever changed once in `on_activate()`:
   `ToolheadWidget` cancels its 250 ms `CoalescedTimer` and forgets the drawn plate key
@@ -330,7 +330,7 @@ These are the checks a new widget in this family has to pass. The ones with a ga
   `kNoMachineControlFiles`. The send layer is the
   guarantee; the disabled state is the courtesy.
 - **Give a gate subject an owner row.** A widget with a `hardware_gate_subject` needs that
-  name in `gate_subject_lifetime()` (`src/ui/panel_widget_manager.cpp#gate_subject_lifetime`),
+  name in `gate_subject_lifetime()` (`src/ui/home/panel_widget_manager.cpp#gate_subject_lifetime`),
   which hands the gate observer the death token of the object that registers the
   subject. `tests/unit/test_gate_subject_lifetime.cpp` has one `owners()` row per gate name,
   proves behaviourally that the token flips when the owner tears down, and fails a registry
@@ -520,7 +520,7 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   format and `tools/printer-regions-tagger.html` is the tagging tool. `[regions]` fails,
   naming the image, when a PNG no longer matches its recorded size.
 - **Users tag their own.** Tag parts in the printer image picker opens
-  `PrinterImageTaggerOverlay` (`src/ui/ui_overlay_printer_image_tagger.cpp`), which walks
+  `PrinterImageTaggerOverlay` (`src/ui/printers/ui_overlay_printer_image_tagger.cpp`), which walks
   `helix::ImageTagSession` through the same six prompts on the image the widget displays and
   saves to `<config dir>/printer_image_regions.json` through `save_user_image_regions()`.
   Both files are keyed by `printer_image_region_key()`, which gives a custom photo

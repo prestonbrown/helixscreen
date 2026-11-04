@@ -111,7 +111,7 @@ Override the theme loaded from config. Useful for testing themes or taking scree
 |----------|-------|
 | **Values** | Theme filename without `.json` extension (e.g., `gruvbox`, `dracula`, `nord`) |
 | **Default** | Read from config (`/display/theme`) |
-| **File** | `src/ui/theme_manager.cpp` |
+| **File** | `src/ui/theme/theme_manager.cpp` |
 
 ```bash
 # Test Gruvbox theme
@@ -131,7 +131,7 @@ Resolve design-token lookups from the compiled token table (`src/generated/theme
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` uses the compiled table; any other value uses the live scanner |
 | **Default** | Unset - on for ESP32 builds (`ui_xml/` ships there as a read-only frogfs image) and cross-built release targets (`HELIX_RELEASE_BUILD`), off for native dev builds |
-| **File** | `src/ui/theme_token_table_runtime.cpp` |
+| **File** | `src/ui/theme/theme_token_table_runtime.cpp` |
 
 Set, the flag rule decides, so `HELIX_TOKEN_TABLE=0` forces the live scanner back on - useful on a device to confirm an edited `ui_xml/` token still parses, and the only way to move tokens there without a rebuild. A build can also flip its default on by defining `HELIX_TOKEN_TABLE_DEFAULT_ON`, which nothing needs now that release builds default on.
 
@@ -145,7 +145,7 @@ Override the automatic display backend detection.
 |----------|-------|
 | **Values** | `sdl`, `drm`, `fbdev`, `egl` |
 | **Default** | `fbdev` (CPU rendering, maximum compatibility) |
-| **File** | `src/api/display_backend.cpp`, `scripts/helix-launcher.sh#app_display_backend` |
+| **File** | `src/platform/display/display_backend.cpp`, `scripts/helix-launcher.sh#app_display_backend` |
 
 **Backend comparison:**
 
@@ -202,7 +202,7 @@ Specify which DRM device to use when the DRM backend is active. Needed when mult
 |----------|-------|
 | **Values** | Device path (e.g., `/dev/dri/card0`, `/dev/dri/card1`) |
 | **Default** | `/dev/dri/card0` (auto-detect scans for first device with a connected display) |
-| **File** | `src/api/display_backend_drm.cpp` |
+| **File** | `src/platform/display/display_backend_drm.cpp` |
 
 ```bash
 # Use secondary GPU / display controller
@@ -226,7 +226,7 @@ Override automatic touch input device detection.
 |----------|-------|
 | **Values** | Device path (e.g., `/dev/input/event0`) |
 | **Default** | Auto-detect |
-| **Files** | `src/api/display_backend_fbdev.cpp`, `src/api/display_backend_drm.cpp` |
+| **Files** | `src/platform/display/display_backend_fbdev.cpp`, `src/platform/display/display_backend_drm.cpp` |
 
 ```bash
 # Specify touch device explicitly
@@ -241,7 +241,7 @@ Override automatic USB mouse device detection. When set, skips sysfs capability 
 |----------|-------|
 | **Values** | Device path (e.g., `/dev/input/event4`) |
 | **Default** | Auto-detect (scans for `REL_X` + `REL_Y` + `BTN_LEFT` capabilities) |
-| **Files** | `src/api/display_backend_drm.cpp`, `src/api/display_backend_fbdev.cpp` |
+| **Files** | `src/platform/display/display_backend_drm.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
 
 ```bash
 # Specify mouse device explicitly
@@ -282,7 +282,7 @@ Override automatic USB keyboard device detection.
 |----------|-------|
 | **Values** | Device path (e.g., `/dev/input/event5`) |
 | **Default** | Auto-detect (scans for `KEY_A` capability) |
-| **Files** | `src/api/display_backend_drm.cpp`, `src/api/display_backend_fbdev.cpp` |
+| **Files** | `src/platform/display/display_backend_drm.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
 
 ```bash
 # Specify keyboard device explicitly
@@ -299,7 +299,7 @@ Force a specific backlight control method, or disable backlight control entirely
 |----------|-------|
 | **Values** | `sysfs`, `allwinner`, `brightness`, or `"none"` to disable. Any other value (including a `/sys/...` device path) is ignored and falls back to auto-detection |
 | **Default** | Auto-detect |
-| **File** | `src/api/backlight_backend.cpp` |
+| **File** | `src/platform/display/backlight_backend.cpp` |
 
 ```bash
 # Disable backlight control (e.g., for external displays)
@@ -477,7 +477,7 @@ Override the automatic R/B channel swap detection for BGR framebuffers. The LVGL
 |----------|-------|
 | **Values** | `1` (force swap ON), `0` (force swap OFF) |
 | **Default** | Auto-detect from framebuffer vinfo |
-| **File** | `src/api/display_backend_fbdev.cpp` |
+| **File** | `src/platform/display/display_backend_fbdev.cpp` |
 
 ```bash
 # Force R/B swap for Allwinner R818 with BGR framebuffer
@@ -641,7 +641,7 @@ Level 0 frame period of every screensaver, for manual testing: the saver draws a
 | **Values** | Whole milliseconds, `8` to `100`, or `0` to run savers at the global period |
 | **Default** | Unset: level 0 runs at 16 ms |
 | **Invalid** | Ignored with a warning |
-| **File** | `include/refresh_period_hold.h`, `src/ui/screensaver_manager.cpp`, `src/ui/screensaver_base.cpp` |
+| **File** | `include/refresh_period_hold.h`, `src/ui/screensaver/screensaver_manager.cpp`, `src/ui/screensaver/screensaver_base.cpp` |
 
 ```bash
 # Savers at the global period instead of 16 ms
@@ -659,7 +659,7 @@ Replaces the screensaver gate's CPU budget, as a whole percent of one core. Each
 | **Values** | Whole percent, `1` to `400` |
 | **Default** | Unset: the core-count budget |
 | **Invalid** | Anything else (`0`, `25%`, `-5`, empty) is ignored with a warning |
-| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver_manager.cpp` |
+| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver/screensaver_manager.cpp` |
 
 ```bash
 HELIX_SCREENSAVER_BUDGET_PCT=5 HELIX_SCREENSAVER_NOW=toasters ./build/bin/helix-screen --test -vv
@@ -676,7 +676,7 @@ Runs every saver that starts at this quality level and turns the gate off for th
 | **Values** | Whole level number, `0` to `99` |
 | **Default** | Unset: the stored level for this saver, app version and board |
 | **Invalid** | Ignored with a warning |
-| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver_manager.cpp` |
+| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver/screensaver_manager.cpp` |
 
 ```bash
 HELIX_SCREENSAVER_LEVEL=1 HELIX_SCREENSAVER_NOW=pipes ./build/bin/helix-screen --test -vv
@@ -693,7 +693,7 @@ Forces the glass gate's verdict for this run. `1` makes the Glass Effects row sh
 | **Values** | `1` or `0` |
 | **Default** | Unset: the gate decides from the board and the probe stored at `/display/glass_probe` |
 | **Invalid** | Anything else is ignored with a warning |
-| **File** | `include/glass_gate.h#glass_env_force`, `src/ui/glass_gate.cpp` |
+| **File** | `include/glass_gate.h#glass_env_force`, `src/ui/effects/glass_gate.cpp` |
 
 ```bash
 HELIX_GLASS=1 HELIX_HEADLESS=1 SDL_VIDEODRIVER=dummy ./build/bin/helix-screen --test -vv
@@ -719,7 +719,7 @@ EGL presentation mode on the DRM backend (`HELIX_DISPLAY_BACKEND=egl`). By defau
 | **Values** | `1` (wait for each flip), `0` (do not wait) |
 | **Default** | `1` |
 | **Invalid** | Any other value is ignored with a warning, and the default is kept |
-| **File** | `src/api/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-vsync.patch` |
+| **File** | `src/platform/display/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-vsync.patch` |
 
 The dumb-buffer DRM binary (`helix-screen`) already waits for every page flip; this variable does not affect it.
 
@@ -734,7 +734,7 @@ Uploading a sub-rectangle needs `GL_UNPACK_ROW_LENGTH` (OpenGL ES 3, or `GL_EXT_
 | **Values** | `1` (flushed areas only), `0` (whole frames) |
 | **Default** | `1` |
 | **Invalid** | Any other value is ignored with a warning, and the default is kept |
-| **File** | `src/api/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-partial-upload.patch`; the decision is `lv_linux_drm_egl_upload_plan()` in `lib/lvgl/src/drivers/display/drm/lv_linux_drm_egl_upload.h` |
+| **File** | `src/platform/display/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-partial-upload.patch`; the decision is `lv_linux_drm_egl_upload_plan()` in `lib/lvgl/src/drivers/display/drm/lv_linux_drm_egl_upload.h` |
 
 A stale region after waking the panel or leaving the splash is the failure to look for, and only the panel shows it: `ctl screenshot` re-renders the widget tree instead of reading the texture.
 
@@ -747,7 +747,7 @@ Pixel format of the display on the EGL presentation path (`HELIX_DISPLAY_BACKEND
 | **Values** | `1` (keep XRGB8888), `0` (switch to ARGB8888) |
 | **Default** | `1` |
 | **Invalid** | Any other value is ignored with a warning, and the default is kept |
-| **File** | `src/api/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-xrgb-shader.patch` |
+| **File** | `src/platform/display/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-xrgb-shader.patch` |
 
 On aarch64, LVGL's NEON blends into an XRGB8888 destination write 0 into the fourth byte of every pixel they mix through a mask or partial opacity, fully covered pixels included (a plain full-opacity fill writes `0xFF`), so with the default that byte is 0 wherever anything was antialiased or masked and the shader has to ignore it outright. The C blends an x86 test build uses leave the byte alone, so only the device shows this. An ARGB8888 display (`0`) has the opposite trap: LVGL copies an XRGB8888 image or canvas into it byte for byte, so whatever the source's fourth byte holds, including the 0 those blends leave, arrives as alpha.
 
@@ -788,7 +788,7 @@ RAM/core count suggests, or to check a branch you do not have hardware for.
 |----------|-------|
 | **Values** | `skirt` (hard-edged rim under each key), `emboss` (an edge on the key face, no shadow), `flat` (neither) |
 | **Default** | Auto — `emboss` on the `EMBEDDED` tier, `skirt` above it, `flat` on ESP32 builds |
-| **Files** | `include/ui_keycap_style.h`, `src/ui/ui_keycap_style.cpp`, `src/ui/ui_keyboard_manager.cpp` |
+| **Files** | `include/ui_keycap_style.h`, `src/ui/components/ui_keycap_style.cpp`, `src/ui/components/ui_keyboard_manager.cpp` |
 
 ```bash
 # A device where 30-plus per-key box shadows cost more than its tier implies
@@ -988,7 +988,7 @@ Force the G-code preview rendering mode.
 |----------|-------|
 | **Values** | `2D`, `3D` |
 | **Default** | unset — Auto, which resolves to 3D on GLES-capable builds and 2D elsewhere |
-| **Files** | `include/gcode_render_mode_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/ui/ui_panel_print_status.cpp` |
+| **Files** | `include/gcode_render_mode_policy.h`, `src/ui/gcode/ui_gcode_viewer.cpp`, `src/ui/print/ui_panel_print_status.cpp` |
 
 Only the exact strings `2D` and `3D` are honored — matching is case-sensitive, so
 `3d` is an unrecognized value. An unrecognized value resolves to 2D (the renderer
@@ -1077,7 +1077,7 @@ forced comparison covers all of it; the device tier sets them independently.
 |----------|-------|
 | **Values** | `1` (force both on), `0` (force both off), unset (device tier decides) |
 | **Default** | Unconstrained: both on. Constrained: outline on, antialiasing off. |
-| **File** | `include/gcode_ssao_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/rendering/gcode_layer_renderer.cpp` |
+| **File** | `include/gcode_ssao_policy.h`, `src/ui/gcode/ui_gcode_viewer.cpp`, `src/rendering/gcode_layer_renderer.cpp` |
 
 Only the exact strings `0` and `1` are honoured; anything else (including empty,
 `true`, `yes`) falls through to the tier.
@@ -1114,7 +1114,7 @@ Force the bed mesh visualization to use 2D heatmap mode instead of 3D surface re
 |----------|-------|
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Off (3D surface when available) |
-| **File** | `src/ui/ui_bed_mesh.cpp` |
+| **File** | `src/ui/calibration/ui_bed_mesh.cpp` |
 
 ```bash
 # Force 2D heatmap visualization
@@ -1199,7 +1199,7 @@ The WiFi backend normally finds the control socket automatically: it auto-detect
 |----------|-------|
 | **Values** | Absolute directory path containing the per-interface socket (e.g. `wlan0`) |
 | **Default** | Unset — auto-detect + known fallbacks |
-| **File** | `src/api/wifi_backend_wpa_supplicant.cpp` |
+| **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
 
 ```bash
 # Point HelixScreen at a vendor's non-standard control socket directory
@@ -1223,7 +1223,7 @@ device deployment should ever need it.
 |----------|-------|
 | **Values** | Absolute directory path to use in place of `/sys/class/net` |
 | **Default** | Unset — the real `/sys/class/net` |
-| **File** | `src/api/wifi_backend_wpa_supplicant.cpp` |
+| **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
 
 ### `HELIX_WPA_PROC_ROOT`
 
@@ -1241,7 +1241,7 @@ their timing does not depend on the host. No device deployment should need it.
 |----------|-------|
 | **Values** | Absolute directory path to use in place of `/proc` |
 | **Default** | Unset — the real `/proc` |
-| **File** | `src/api/wifi_backend_wpa_supplicant.cpp` |
+| **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
 
 ### `HELIX_NETD_SOCKET`
 
@@ -1258,7 +1258,7 @@ non-standard deployment or at a test double.
 |----------|-------|
 | **Values** | Absolute path to an AF_UNIX SOCK_STREAM socket |
 | **Default** | `/run/netd.sock` |
-| **File** | `src/api/netd_protocol.cpp` |
+| **File** | `src/network/netd_protocol.cpp` |
 
 ```bash
 # Run the app against a fake daemon on a dev box
@@ -1280,7 +1280,7 @@ the factory falls through to NetworkManager/wpa_supplicant.
 |----------|-------|
 | **Values** | Absolute path to an executable file |
 | **Default** | `/opt/config/mod/.bin/exec/netd` |
-| **File** | `src/api/netd_protocol.cpp` |
+| **File** | `src/network/netd_protocol.cpp` |
 
 ```bash
 # Force the netd backends active on a dev box by naming any executable
@@ -1364,7 +1364,7 @@ Auto-start X-axis input shaper calibration when the panel loads.
 |----------|-------|
 | **Values** | Any value (presence enables) |
 | **Default** | Disabled |
-| **File** | `src/ui/ui_panel_input_shaper.cpp` |
+| **File** | `src/ui/calibration/ui_panel_input_shaper.cpp` |
 
 ```bash
 # Test input shaper panel with auto-start (drive the UI with helix-screen ctl —
@@ -1381,7 +1381,7 @@ Auto-start bed screw probing when the screws tilt panel loads.
 |----------|-------|
 | **Values** | Any value (presence enables) |
 | **Default** | Disabled |
-| **File** | `src/ui/ui_panel_screws_tilt.cpp` |
+| **File** | `src/ui/calibration/ui_panel_screws_tilt.cpp` |
 
 ```bash
 # Test screws panel with auto-start
@@ -1427,7 +1427,7 @@ constructor, so the suite never arms the mounter regardless of euid.
 |----------|-------|
 | **Values** | `0` (fallback mounting off), anything else or unset (on for root) |
 | **Default** | Enabled when running as root |
-| **File** | `src/api/usb_automount.cpp`, `include/usb_automount.h` |
+| **File** | `src/platform/usb/usb_automount.cpp`, `include/usb_automount.h` |
 
 ```bash
 # Leave USB mounting entirely to the platform's own mounter.
@@ -1469,7 +1469,7 @@ tenth of a degree every sample, so a value hash never matches and nothing is eve
 |----------|-------|
 | **Values** | `0` (skip disabled, always render), anything else or unset (skip enabled) |
 | **Default** | Skip **enabled** |
-| **File** | `src/ui/ui_temp_graph.cpp`, `include/temp_graph_column_map.h` |
+| **File** | `src/ui/controls/ui_temp_graph.cpp`, `include/temp_graph_column_map.h` |
 
 ```bash
 # Baseline: every dirtied frame renders. Pair with -vv for the per-render timing.
@@ -1654,7 +1654,7 @@ Pin the filament-path animation to one segment so a single leg of the path can b
 |----------|-------|
 | **Values** | `PREP`, `LANE`, `HUB`, `OUTPUT`, `TOOLHEAD`, `NOZZLE` (matched case-insensitively) |
 | **Default** | Unset — segment follows real AMS state |
-| **Files** | `src/ui/ui_filament_path_topology.cpp`, `src/ui/ui_filament_path_anim.cpp` |
+| **Files** | `src/ui/filament/ui_filament_path_topology.cpp`, `src/ui/filament/ui_filament_path_anim.cpp` |
 
 ```bash
 # Freeze the path at the hub leg with flow animation running
@@ -1715,7 +1715,7 @@ Unified touch debugging variable that enables both touch point visualization and
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Disabled |
 | **CLI equivalent** | `--debug-touches` |
-| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/touch_calibration.cpp`, `src/ui/touch_calibration_panel.cpp`, `src/api/display_backend_fbdev.cpp` |
+| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/calibration/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
 | **Legacy alias** | `HELIX_DEBUG_TOUCHES` (still accepted) |
 
 ```bash
@@ -2336,7 +2336,7 @@ Override the directory HelixScreen reads and writes its user configuration from 
 |----------|-------|
 | **Values** | Directory path (absolute recommended) |
 | **Default** | `config` (relative to the working directory, which `HELIX_DATA_DIR` may have changed) |
-| **File** | `src/application/data_root_resolver.cpp` (`get_user_config_dir()`) |
+| **File** | `src/core/data_root_resolver.cpp` (`get_user_config_dir()`) |
 
 ```bash
 # Yocto-style split layout: writable config away from a read-only data root

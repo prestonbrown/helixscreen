@@ -15,8 +15,8 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 namespace helix::settings {
@@ -30,6 +30,9 @@ class TouchSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "settings_touch_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void init_subjects() override;

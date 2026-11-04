@@ -16,10 +16,10 @@
 
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "overlay_class.h"
 #include "panel_lifecycle.h"

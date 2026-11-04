@@ -29,7 +29,7 @@
 #   overloads      a quoted snippet of the one signature
 #                  src/system/sound_manager.cpp#"play(const std::string& sound_name, SoundPriority priority)"
 #   a statement    the enclosing scope, then a snippet inside it
-#                  src/ui/temperature_service.cpp#TemperatureService/"on_heater_preset_clicked"
+#                  src/ui/controls/temperature_service.cpp#TemperatureService/"on_heater_preset_clicked"
 #   a destructor   ~Klass, which is named apart from its class
 
 import argparse

@@ -104,9 +104,9 @@ PY
     run python3 - <<'PY'
 import sys
 checks = [
-    ("src/ui/ui_crash_report_modal.cpp",
+    ("src/ui/notify/ui_crash_report_modal.cpp",
      "helix::diag::uploads_enabled()", "the crash modal pre-check"),
-    ("src/ui/ui_debug_bundle_modal.cpp",
+    ("src/ui/debug/ui_debug_bundle_modal.cpp",
      'lv_tr("Upload unavailable in this build")',
      "the debug modal honest-off message"),
 ]

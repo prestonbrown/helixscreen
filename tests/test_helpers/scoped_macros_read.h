@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
 #include "macro_param_cache.h"
 
 #include <string>
 #include <unordered_set>
-
-#include "hv/json.hpp"
 
 namespace helix::test {
 

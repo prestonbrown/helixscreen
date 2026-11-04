@@ -180,16 +180,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "HoldRepeatTimer release stops ticks and keeps
 
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 #include "toolhead_homing.h"
 
 #include <array>

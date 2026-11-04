@@ -13,11 +13,10 @@
  *   prompt_button_group_start/end, prompt_show, prompt_end, notify
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "action_prompt_manager.h"
 #include "color_utils.h"
+#include "core/update_queue.h"
 
 #include <functional>
 #include <memory>

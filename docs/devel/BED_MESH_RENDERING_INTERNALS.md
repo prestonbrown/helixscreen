@@ -76,7 +76,7 @@ Every view, the 3D surface and the 2D heatmap alike, is rendered by
 `helix::mesh::PixelBuffer` on `BedMeshRenderThread`. That function makes no LVGL calls.
 Two buffers exist while rendering is on; they move between the render thread and the
 widget by pointer swap (`BedMeshRenderThread::acquire_frame`), so a draw with no new frame
-copies nothing. `src/ui/ui_bed_mesh.cpp#bed_mesh_draw_cb` blits the newest frame with
+copies nothing. `src/ui/calibration/ui_bed_mesh.cpp#bed_mesh_draw_cb` blits the newest frame with
 `lv_draw_image()`, then draws what needs LVGL's font engine on the main thread, holding
 the render mutex: axis letters and tick labels in 3D (`render_axis_labels`,
 `render_numeric_axis_ticks`), the border, touched-cell highlight and Z tooltip in 2D
@@ -96,7 +96,7 @@ widget draw a non-interactive picture without a `BedMeshRenderThread`. It exists
 bed-mesh tile, which must not hold two frame buffers and a thread for a thumbnail.
 
 - **Render on change, blit otherwise.** The draw callback calls `refresh_static_frame()`
-  (`src/ui/ui_bed_mesh.cpp#refresh_static_frame`), which renders on the main thread into one
+  (`src/ui/calibration/ui_bed_mesh.cpp#refresh_static_frame`), which renders on the main thread into one
   `PixelBuffer` through the same `bed_mesh_renderer_render_to_buffer` only when something marked
   it dirty: new mesh data, bounds, a render mode change (`ui_bed_mesh_redraw()` and
   `ui_bed_mesh_set_render_mode()` both mark it), a different widget size, or a new theme
@@ -865,8 +865,8 @@ which clamps the tilt and wraps the spin.
 ### Code Files
 
 - `src/rendering/bed_mesh_renderer.cpp` - Core 3D rendering engine
-- `src/ui/ui_bed_mesh.cpp` - LVGL widget wrapper
-- `src/ui/ui_panel_bed_mesh.cpp` - UI integration and data binding
+- `src/ui/calibration/ui_bed_mesh.cpp` - LVGL widget wrapper
+- `src/ui/calibration/ui_panel_bed_mesh.cpp` - UI integration and data binding
 - `include/bed_mesh_renderer.h` - Public API and data structures
 
 ### External Resources

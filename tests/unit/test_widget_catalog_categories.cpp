@@ -14,7 +14,6 @@
 
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_widget_catalog_overlay.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -22,6 +21,7 @@
 #include "../test_helpers/press_wash_probe.h"
 #include "../test_helpers/process_async_timers.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "misc/lv_timer_private.h"

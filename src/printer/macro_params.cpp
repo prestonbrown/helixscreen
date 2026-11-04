@@ -3,8 +3,8 @@
 
 #include "macro_params.h"
 
+#include "core/text_io.h"
 #include "helix_regex.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

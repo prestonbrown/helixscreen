@@ -6,8 +6,8 @@
 #include "label_printer_settings.h"
 
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 
 using namespace helix;
 

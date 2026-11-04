@@ -3,10 +3,10 @@
 
 #pragma once
 
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
-#include "observer_factory.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "z_offset_utils.h"
 
@@ -153,6 +153,10 @@ class PrintTuneOverlay : public OverlayBase {
 
     const char* xml_component() const override {
         return "print_tune_panel";
+    }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
+    bool destroy_on_close() const override {
+        return false;
     }
 
     void init_subjects() override;

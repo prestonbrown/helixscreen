@@ -519,7 +519,7 @@ HELIX_RESTART_DOWN=7
 # /server/info 4s: 97 seconds. install.sh --restart-moonraker asks for the
 # running plugin version first (plugin_restart_mode, 10s): 107 seconds,
 # against the app's kRestartTimeoutSeconds of 180
-# (src/ui/plugin_self_heal.cpp).
+# (src/ui/plugin/plugin_self_heal.cpp).
 moonraker_restart() {
     _mrs_mode="$1"
     _mrs_url="$2"

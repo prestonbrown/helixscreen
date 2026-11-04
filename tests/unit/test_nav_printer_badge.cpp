@@ -7,11 +7,11 @@
  */
 
 #include "ui_nav_printer_badge.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 

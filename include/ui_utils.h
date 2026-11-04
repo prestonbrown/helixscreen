@@ -4,11 +4,11 @@
 #pragma once
 
 #include "ui_effects.h"
-#include "ui_update_queue.h"
 #include "ui_widget_ref.h"
 
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
-#include "static_panel_registry.h"
 
 #include <cstdint>
 #include <string_view>

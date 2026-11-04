@@ -104,9 +104,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     // State queries
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
     [[nodiscard]] AmsType get_type() const override;
-    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
-        return helix::ui::LaneNoun::Gate;
-    }
     [[nodiscard]] bool manages_active_spool() const override;
 
     // Path visualization
@@ -166,6 +163,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         // so the generic runout modal and the sensor-edge toast both stand down.
         t.raises_runout_fault = true;
         t.raises_runout_fault_during_job = true;
+        t.lane_noun = helix::ui::LaneNoun::Gate;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {

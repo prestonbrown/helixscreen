@@ -62,6 +62,7 @@ src guided_device_flows
 src init_list_ternary
 src address_keys
 src registry_key_names
+src remove_event_sweep
 tests test_access_defined_once
 tests test_mode_restored
 tests test_displays_deleted
@@ -217,7 +218,7 @@ lint_busyclock_advance_for_test() {
 # These view files delegate temperature commands to helix::TemperatureController.
 # A direct send is either `api_->set_temperature(` or any `->set_temperature(`
 # whose receiver is not a `controller`.
-RAW_SET_TEMPERATURE_FILES="src/ui/ui_overlay_temp_graph.cpp src/ui/ui_panel_controls.cpp src/system/post_op_cooldown_manager.cpp src/ui/panel_widgets/preheat_widget.cpp src/ui/ui_panel_bed_mesh.cpp src/ui/ui_panel_filament.cpp src/ui/temperature_service.cpp src/ui/ui_ams_sidebar.cpp"
+RAW_SET_TEMPERATURE_FILES="src/ui/controls/ui_overlay_temp_graph.cpp src/ui/controls/ui_panel_controls.cpp src/system/post_op_cooldown_manager.cpp src/ui/panel_widgets/preheat_widget.cpp src/ui/calibration/ui_panel_bed_mesh.cpp src/ui/filament/ui_panel_filament.cpp src/ui/controls/temperature_service.cpp src/ui/filament/ui_ams_sidebar.cpp"
 
 raw_set_temperature_offenders() {
     grep -n 'api_->set_temperature' "$@"
@@ -283,7 +284,7 @@ lint_centidegree_misnomer() {
 # The x100 pattern catches a decidegree read at 1/10 scale (45C shown as "4C"),
 # which the x10 tail lets through. Its identifier set is narrower: the keypad
 # converts centimm via `value / 100`, and bed-mesh Z values are distances.
-INLINE_DECIDEGREE_FILES="src/print/print_start_collector.cpp src/api/moonraker_api_controls.cpp src/api/moonraker_discovery_sequence.cpp src/printer/ams_backend_ad5x_ifs.cpp src/printer/ams_backend_cfs.cpp src/system/telemetry_manager.cpp src/ui/panel_widgets/nozzle_temps_widget.cpp src/ui/ui_ams_sidebar.cpp src/ui/temperature_service.cpp src/ui/ui_overlay_temp_graph.cpp src/ui/ui_panel_bed_mesh.cpp src/ui/ui_panel_calibration_pid.cpp src/ui/ui_panel_controls.cpp src/ui/ui_panel_filament.cpp src/ui/ui_print_preparation_manager.cpp src/ui/ui_temp_display.cpp"
+INLINE_DECIDEGREE_FILES="src/print/print_start_collector.cpp src/api/moonraker_api_controls.cpp src/api/moonraker_discovery_sequence.cpp src/printer/ams_backend_ad5x_ifs.cpp src/printer/ams_backend_cfs.cpp src/system/telemetry_manager.cpp src/ui/panel_widgets/nozzle_temps_widget.cpp src/ui/filament/ui_ams_sidebar.cpp src/ui/controls/temperature_service.cpp src/ui/controls/ui_overlay_temp_graph.cpp src/ui/calibration/ui_panel_bed_mesh.cpp src/ui/calibration/ui_panel_calibration_pid.cpp src/ui/controls/ui_panel_controls.cpp src/ui/filament/ui_panel_filament.cpp src/ui/print/ui_print_preparation_manager.cpp src/ui/controls/ui_temp_display.cpp"
 
 inline_decidegree_offenders() {
     local pat='(target|temp|deci|nozzle|bed|chamber|heater|value)[A-Za-z_]*(\s*\))?\s*[*/]\s*10(\.0?f?)?([^0-9.]|$)'
@@ -937,8 +938,8 @@ lint_zoffset_save_rule() {
     none_found "$(zoffset_save_rule_copies ui_xml --include='*.xml')" || rc=1
     files=$(zoffset_save_button_files ui_xml --include='*.xml')
     # Fail closed: an empty list would pass having examined nothing.
-    if [ "$(printf '%s\n' "$files" | grep -c .)" -lt 4 ]; then
-        echo "found fewer than 4 Z-offset save surfaces under ui_xml/"
+    if [ "$(printf '%s\n' "$files" | grep -c .)" -lt 3 ]; then
+        echo "found fewer than 3 Z-offset save surfaces under ui_xml/"
         rc=1
     fi
     # shellcheck disable=SC2086
@@ -1220,7 +1221,7 @@ lint_ui_nav_manager_includers() {
 # for 20-30ms on the K-Touch, and the RGB panel's bounce-buffer refill misses
 # for the whole walk: the screen glitches once per call. These files run per
 # thumbnail decode, per file-detail open and per print-status build.
-ESP32_PER_EVENT_FILES="include/esp_psram_thumbnail.h include/tinfl_inflate.h src/system/memory_utils.cpp src/ui/ui_panel_print_select.cpp src/print/active_print_media_manager.cpp src/ui/ui_panel_print_status.cpp"
+ESP32_PER_EVENT_FILES="include/esp_psram_thumbnail.h include/tinfl_inflate.h src/system/memory_utils.cpp src/ui/print/ui_panel_print_select.cpp src/print/active_print_media_manager.cpp src/ui/print/ui_panel_print_status.cpp"
 
 lint_esp32_psram_walk() {
     local rc=0
@@ -1247,7 +1248,7 @@ lint_guided_device_flows() {
         return 1
     fi
     for fn in "${families[@]}"; do
-        [ "$(grep -cE "^[[:space:]]*${fn%();},\$" src/ui/ui_guided_device_flow.cpp)" = 1 ] ||
+        [ "$(grep -cE "^[[:space:]]*${fn%();},\$" src/ui/filament/ui_guided_device_flow.cpp)" = 1 ] ||
             { echo "register_builtin_guided_device_flows() does not run ${fn%;}"; rc=1; }
     done
     for f in src/application/application.cpp firmware/helixscreen-esp32/components/helixapp/app_boot.cpp; do
@@ -1300,6 +1301,27 @@ lint_registry_key_names() {
     dupes=$(registry_key_duplicate_names src include)
     [ -z "$dupes" ] && return 0
     echo "RegistryKey names used twice: $dupes"
+    return 1
+}
+
+# Removing an event by index is how a handler sweep is written, and a widget's
+# event list also holds the unsubscribe-on-delete hooks of its bound styles and
+# observers. A sweep takes those too, so the observers outlive the widget and
+# fire into freed memory at the next subject change. lv_obj_remove_event_cb names
+# what it removes, and an XML component takes its handler from a callback prop.
+remove_event_sweep_pattern() {
+    printf '%s' '(^|[^_[:alnum:]])lv_obj_remove_event[[:space:]]*\('
+}
+
+lint_remove_event_sweep() {
+    local offenders
+    # shellcheck disable=SC2046
+    offenders=$(code_offenders "$(remove_event_sweep_pattern)" REMOVE_EVENT_OK \
+        $(git ls-files --cached --others --exclude-standard src include | grep -E '\.(cpp|h)$'))
+    [ -z "$offenders" ] && return 0
+    echo "lv_obj_remove_event by index (it also removes the widget's observer cleanup hooks):"
+    printf '%s\n' "$offenders"
+    echo "Pass the handler through the component's callback prop, or lv_obj_remove_event_cb one by name. Unavoidable? // REMOVE_EVENT_OK: <reason>"
     return 1
 }
 

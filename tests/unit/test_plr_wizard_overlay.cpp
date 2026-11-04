@@ -16,9 +16,8 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_plr_wizard_overlay.h"
-#include "ui_update_queue.h"
 
-#include "../../src/ui/ui_plr_prompt.h"
+#include "../../src/ui/print/ui_plr_prompt.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/plr_offer_controller_test_access.h"
 #include "../test_helpers/plr_wizard_overlay_test_access.h"
@@ -26,6 +25,8 @@
 #include "app_globals.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_awake_hold.h"
 #include "first_run_tour.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -35,7 +36,6 @@
 #include "plr_backend.h"
 #include "plr_offer_controller.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 
 #include <algorithm>
 #include <array>

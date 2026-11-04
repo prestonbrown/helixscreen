@@ -3,14 +3,13 @@
 #pragma once
 
 #include "ams_types.h"
+#include "json_fwd.h"
 
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-
-#include "hv/json.hpp"
 
 /**
  * @file cfs_status_parse.h

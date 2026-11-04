@@ -3,12 +3,12 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "translation_loader.h"
 

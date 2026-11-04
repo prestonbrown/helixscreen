@@ -6,7 +6,8 @@
 #include "ui_timer_guard.h"
 
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "default_layout_resolver.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -18,7 +19,6 @@
 #include "layout_port.h"
 #include "panel_widget_registry.h"
 #include "runtime_config.h"
-#include "text_io.h"
 #include "theme_manager.h"
 
 #include <hv/json.hpp>
@@ -913,29 +913,13 @@ std::string PanelWidgetConfig::generate_page_id() {
     return "page_" + std::to_string(next_page_id_++);
 }
 
-/// Declared in panel_widget_config.h so the shipped-table tests resolve keys
-/// through this function rather than reimplementing the fallback chain.
 const char* choose_breakpoint_key(const nlohmann::json& by_bp, UiBreakpoint breakpoint) {
-    // Fallback chain: micro→tiny→small, xlarge→large (matches theme_manager)
-    static const char* fallback_order[][3] = {
-        {"micro", "tiny", "small"},     // bp=0 Micro
-        {"tiny", "small", nullptr},     // bp=1 Tiny
-        {"small", nullptr},             // bp=2 Small
-        {"medium", nullptr},            // bp=3 Medium
-        {"large", nullptr},             // bp=4 Large
-        {"xlarge", "large", nullptr},   // bp=5 XLarge
-        {"xxlarge", "xlarge", "large"}, // bp=6 XXLarge
-    };
-    static_assert(std::size(fallback_order) == to_int(UiBreakpoint::XXLarge) + 1,
-                  "fallback_order must cover every UiBreakpoint tier");
-
-    const int bp_idx = to_int(breakpoint);
-    if (bp_idx < 0 || bp_idx >= static_cast<int>(std::size(fallback_order))) {
-        return nullptr;
-    }
-    for (int i = 0; i < 3 && fallback_order[bp_idx][i]; ++i) {
-        if (by_bp.contains(fallback_order[bp_idx][i])) {
-            return fallback_order[bp_idx][i];
+    for (const char* tier : layout::breakpoint_fallback_chain(breakpoint)) {
+        if (!tier) {
+            break;
+        }
+        if (by_bp.contains(tier)) {
+            return tier;
         }
     }
     return nullptr;

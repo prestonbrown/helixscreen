@@ -3,17 +3,18 @@
 
 #pragma once
 
-#include "ui_filename_utils.h"
-
+#include "core/gcode_filename.h"
+#include "core/text_io.h"
 #include "helix_plugin_features.h"
 #include "json_fwd.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>
 #include <map>
 #include <string>
 #include <vector>
+
+#include "hv/json.hpp"
 
 /**
  * @file moonraker_types.h

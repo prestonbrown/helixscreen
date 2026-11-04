@@ -12,6 +12,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include "hv/json.hpp"
+
 namespace helix {
 void register_clog_detection_widget() {
     register_widget_factory("clog_detection", [](const std::string&) {

@@ -3,7 +3,7 @@
 
 #include "display_metrics.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <cmath>

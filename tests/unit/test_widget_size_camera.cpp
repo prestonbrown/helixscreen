@@ -55,12 +55,12 @@
 #if HELIX_HAS_CAMERA
 
 #include "ui_breakpoint.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/camera_widget_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_size.h"
@@ -163,7 +163,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[1563][widget_size][camera]") {
     // Actively zero the global PrinterState singleton's webcam config rather
     // than trusting it is already empty: MoonrakerClientMock::discover_printer()
-    // (src/api/moonraker_client_mock.cpp) calls
+    // (src/mock/moonraker_client_mock.cpp) calls
     // get_printer_state().set_webcam_available(true, ...) on this SAME
     // process-wide singleton, and MoonrakerAPIDomainTestFixture's constructor
     // (test_moonraker_api_domain.cpp) triggers that before every test case in

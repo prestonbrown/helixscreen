@@ -5,8 +5,8 @@
 #include "u1_stock_detection_source.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "i_moonraker_client.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

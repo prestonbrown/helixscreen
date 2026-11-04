@@ -4,8 +4,6 @@
 // A lane whose tag names a Spoolman spool, through AmsState: the lookup, the
 // link committed as a pick commits it, and the toasts.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../ui_test_utils.h"
@@ -13,6 +11,7 @@
 #include "ams_state.h"
 #include "ams_tag_reading.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"

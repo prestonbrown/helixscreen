@@ -223,7 +223,7 @@ wins and the caller's report becomes the fallback.
 - `already_reported_via_rpc()` never suppresses a `command_refusal` event, and
   `present_recovery_modal()` clears the presenter's handled-fault memory first, so a second
   refusal shows even after the user dismissed an identical one.
-- Callers today: `dispatch_prepared_resume()` (`src/ui/ui_resume_dispatch.cpp`, the
+- Callers today: `dispatch_prepared_resume()` (`src/ui/print/ui_resume_dispatch.cpp`, the
   "Failed to resume:" toast) and `RecoveryModalPresenter::dispatch_recovery()` (the
   "Recovery failed:" toast). Pinned by `tests/unit/test_resume_refusal_report.cpp`
   (`[resume][error-router]`).
@@ -309,7 +309,7 @@ Behaviour is pinned by `tests/unit/test_rpc_error_policy.cpp` (the matrix),
    through rather than re-deriving it (`std::optional<bool>` is the pattern
    `AmsSubscriptionBackend` uses, `include/ams_subscription_backend.h#AmsSubscriptionBackend`).
 6. Never re-implement the matrix. Call `rpc_error_policy::decide()` — the mock's inline gcode
-   path does exactly that (`src/api/moonraker_client_mock_print.cpp#register_print_handlers`) so its behaviour
+   path does exactly that (`src/mock/moonraker_client_mock_print.cpp#register_print_handlers`) so its behaviour
    cannot drift from the real tracker's.
 
 ## What was measured on hardware

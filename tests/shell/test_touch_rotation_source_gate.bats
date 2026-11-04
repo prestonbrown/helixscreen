@@ -25,12 +25,12 @@ GATE="scripts/check_touch_rotation_source.py"
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     ROOT="${BATS_TEST_TMPDIR:-$(mktemp -d)}/tree"
-    mkdir -p "$ROOT/src/api"
+    mkdir -p "$ROOT/src/platform/display"
 
     # Both backends in their correct form: ask the display, and mention the key
     # only in prose.
     for f in display_backend_fbdev display_backend_drm; do
-        cat > "$ROOT/src/api/$f.cpp" <<'EOF'
+        cat > "$ROOT/src/platform/display/$f.cpp" <<'EOF'
 // Asked of the display, not of `/display/rotate`, because the key is only the
 // request and differs from the applied rotation both ways.
 void create_input_pointer() {
@@ -58,14 +58,14 @@ run_gate() {
 @test "a comment naming /display/rotate is not a violation" {
     # The real files both carry exactly this prose. If it tripped the gate the
     # gate would be useless.
-    grep -q '/display/rotate' "$ROOT/src/api/display_backend_drm.cpp"
+    grep -q '/display/rotate' "$ROOT/src/platform/display/display_backend_drm.cpp"
     run_gate
     [ "$status" -eq 0 ]
 }
 
 @test "display_is_rotated() satisfies it as well as display_rotation_degrees()" {
     sed -i 's/display_rotation_degrees()/display_is_rotated()/' \
-        "$ROOT/src/api/display_backend_fbdev.cpp"
+        "$ROOT/src/platform/display/display_backend_fbdev.cpp"
     run_gate
     [ "$status" -eq 0 ]
 }
@@ -75,7 +75,7 @@ run_gate() {
 # The two ways the gate can be defeated. Both must be red.
 
 @test "flags a backend reverted to the config key" {
-    cat > "$ROOT/src/api/display_backend_fbdev.cpp" <<'EOF'
+    cat > "$ROOT/src/platform/display/display_backend_fbdev.cpp" <<'EOF'
 void create_input_pointer() {
     const int applied_rotation = Config::get_instance()->get<int>("/display/rotate", 0);
     if (applied_rotation != 0) {
@@ -91,7 +91,7 @@ EOF
 
 @test "flags a backend that dropped the helper without adding the key back" {
     # The subtler revert: the gate is simply deleted rather than swapped.
-    cat > "$ROOT/src/api/display_backend_drm.cpp" <<'EOF'
+    cat > "$ROOT/src/platform/display/display_backend_drm.cpp" <<'EOF'
 void create_input_pointer() {
     apply_stored_range();
 }
@@ -103,7 +103,7 @@ EOF
 }
 
 @test "flags a renamed or removed backend rather than passing vacuously" {
-    rm "$ROOT/src/api/display_backend_drm.cpp"
+    rm "$ROOT/src/platform/display/display_backend_drm.cpp"
     run_gate
     [ "$status" -eq 1 ]
     [[ "$output" == *"missing"* ]]

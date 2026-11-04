@@ -3,9 +3,9 @@
 
 #include "gcode_footer_summary.h"
 
+#include "core/text_io.h"
 #include "gcode_color_metadata.h"
 #include "operation_patterns.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cstdint>

@@ -5,9 +5,9 @@
 // remove the modal in its final state instead.
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lib/lvgl/src/misc/lv_timer_private.h"

@@ -24,6 +24,7 @@
 // Adding a machine means adding one Provider to the table in
 // toolchanger_addon.cpp - no call site changes.
 
+#include "json_fwd.h"
 #include "macro_choice.h"
 
 #include <cstdint>
@@ -31,8 +32,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterDiscovery;

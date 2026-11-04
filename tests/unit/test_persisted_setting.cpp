@@ -7,8 +7,6 @@
 // XML subject name, the round trip through deinit + init, and which settings
 // report a change to telemetry.
 
-#include "ui_update_queue.h"
-
 #include "../../include/settings_manager.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
@@ -17,6 +15,7 @@
 #include "bed_drying.h"
 #include "completion_alert_mode.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "input_settings_manager.h"
 #include "persisted_setting.h"

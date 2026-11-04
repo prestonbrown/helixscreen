@@ -1,0 +1,209 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "ui_wizard_led_select.h"
+
+#include "ui_error_reporting.h"
+#include "ui_wizard.h"
+#include "ui_wizard_hardware_selector.h"
+#include "ui_wizard_helpers.h"
+
+#include "app_globals.h"
+#include "config.h"
+#include "core/static_panel_registry.h"
+#include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
+#include "led/led_auto_state.h"
+#include "led/led_devices.h"
+#include "lvgl/lvgl.h"
+#include "printer_discovery.h"
+#include "printer_hardware.h"
+#include "ui/ui_widget_helpers.h"
+#include "wizard_config_paths.h"
+
+#include <spdlog/spdlog.h>
+
+#include <cstring>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "hv/json.hpp"
+
+using namespace helix;
+
+// ============================================================================
+// Global Instance
+// ============================================================================
+
+WizardLedSelectStep* get_wizard_led_select_step() {
+    return &helix::lazy_global<WizardLedSelectStep>("WizardLedSelectStep");
+}
+
+// ============================================================================
+// Constructor / Destructor
+// ============================================================================
+
+WizardLedSelectStep::WizardLedSelectStep() {
+    spdlog::debug("[{}] Instance created", get_name());
+}
+
+WizardLedSelectStep::~WizardLedSelectStep() {
+    // LVGL may be destroyed first: no direct LVGL calls here. The subjects_ member
+    // deinits its subjects only while lv_is_initialized().
+    // NOTE: Do NOT log here - spdlog may be destroyed first
+    screen_root_ = nullptr;
+}
+
+// ============================================================================
+// ============================================================================
+// Subject Initialization
+// ============================================================================
+
+void WizardLedSelectStep::init_subjects() {
+    spdlog::debug("[{}] Initializing subjects", get_name());
+
+    // Each visit re-initializes; drop the previous visit's subjects and names first.
+    subjects_.deinit_all();
+
+    // Initialize subject with default index 0
+    // Actual selection will be restored from config during create() after hardware is discovered
+    helix::ui::wizard::init_int_subject(subjects_, &led_strip_selected_, 0, "led_strip_selected");
+
+    subjects_initialized_ = true;
+    spdlog::debug("[{}] Subjects initialized", get_name());
+}
+
+// ============================================================================
+// Callback Registration
+// ============================================================================
+
+void WizardLedSelectStep::register_callbacks() {
+    // No XML callbacks needed - dropdowns attached programmatically in create()
+    spdlog::debug("[{}] Callback registration (none needed for hardware selectors)", get_name());
+}
+
+// ============================================================================
+// Screen Creation
+// ============================================================================
+
+lv_obj_t* WizardLedSelectStep::create(lv_obj_t* parent) {
+    spdlog::debug("[{}] Creating LED select screen", get_name());
+
+    // Safety check: cleanup should have been called by wizard navigation
+    if (screen_root_) {
+        spdlog::warn("[{}] Screen pointer not null - cleanup may not have been called properly",
+                     get_name());
+        screen_root_ = nullptr; // Reset pointer, wizard framework handles deletion
+    }
+
+    try {
+        // Create screen from XML
+        spdlog::debug("[{}] About to call lv_xml_create", get_name());
+        screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_led_select", nullptr));
+        if (!screen_root_) {
+            spdlog::error("[{}] Failed to create screen from XML", get_name());
+            return nullptr;
+        }
+        spdlog::debug("[{}] XML created, populating dropdown", get_name());
+
+        // Populate LED dropdown (discover + filter + populate + restore)
+        wizard_populate_hardware_dropdown(
+            screen_root_, "led_main_dropdown", &led_strip_selected_, led_strip_items_,
+            [](IMoonrakerAPI* a) -> const auto& { return a->hardware().leds(); },
+            nullptr, // No filter - include all LEDs
+            true,    // Allow "None" option
+            helix::wizard::LED_STRIP,
+            [](const PrinterHardware& hw) { return hw.guess_main_led_strip(); }, "[Wizard LED]",
+            [](const std::string& id) {
+                // The same name the LEDs overlay, picker, tile and Settings show.
+                led::LedStripInfo device{};
+                device.id = id;
+                return led::device_display_name(device);
+            });
+
+        spdlog::debug("[{}] Dropdown populated, attaching callback", get_name());
+
+        // Attach LED dropdown callback programmatically
+        lv_obj_t* led_dropdown =
+            helix::ui::find_required(screen_root_, "led_main_dropdown", get_name());
+        if (led_dropdown) {
+            lv_obj_add_event_cb(led_dropdown, wizard_hardware_dropdown_changed_cb,
+                                LV_EVENT_VALUE_CHANGED, &led_strip_selected_);
+        }
+    } catch (const std::exception& ex) {
+        spdlog::error("[{}] EXCEPTION during create: {}", get_name(), ex.what());
+        return nullptr;
+    }
+
+    spdlog::debug("[{}] Screen created successfully", get_name());
+    return screen_root_;
+}
+
+// ============================================================================
+// Cleanup
+// ============================================================================
+
+void WizardLedSelectStep::cleanup() {
+    spdlog::debug("[{}] Cleaning up resources", get_name());
+
+    // Stage the pick as the light button's device and the auto-state strip, and
+    // keep leds/strip (string) for the wizard dropdown restore.
+    Config* config = Config::get_instance();
+    int index = lv_subject_get_int(&led_strip_selected_);
+    if (index >= 0 && static_cast<size_t>(index) < led_strip_items_.size()) {
+        const std::string& item = led_strip_items_[static_cast<size_t>(index)];
+        const std::string save_value = (item == "None") ? "" : item;
+
+        if (!save_value.empty()) {
+            helix::led::stage_light_selection({save_value, {save_value}});
+        }
+
+        // String for wizard dropdown restore
+        config->set(config->df() + "leds/strip", save_value);
+
+        spdlog::debug("[Wizard LED] Saved LED selection: '{}'", save_value);
+    }
+    if (!config->save()) {
+        NOTIFY_ERROR(lv_tr("Failed to save LED configuration"));
+    }
+
+    // Reset UI references
+    // Note: Do NOT call lv_obj_del() here - the wizard framework handles
+    // object deletion when clearing wizard_content container
+    screen_root_ = nullptr;
+
+    spdlog::debug("[{}] Cleanup complete", get_name());
+}
+
+// ============================================================================
+// Validation
+// ============================================================================
+
+bool WizardLedSelectStep::is_validated() const {
+    // Always return true for baseline implementation
+    return true;
+}
+
+// ============================================================================
+// Skip Logic
+// ============================================================================
+
+bool WizardLedSelectStep::should_skip() const {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        spdlog::debug("[{}] No IMoonrakerAPI, skipping LED step", get_name());
+        return true;
+    }
+
+    const auto& leds = api->hardware().leds();
+    bool should_skip = leds.empty();
+
+    if (should_skip) {
+        spdlog::debug("[{}] No LEDs discovered, skipping step", get_name());
+    } else {
+        spdlog::debug("[{}] Found {} LED(s), showing step", get_name(), leds.size());
+    }
+
+    return should_skip;
+}

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_ams_tool_text.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_backend_ace.h"
@@ -12,10 +11,11 @@
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "ams_tool_topology.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "lvgl_test_fixture.h"
 #include "printer_discovery.h"
-#include "static_subject_registry.h"
 #include "test_helpers/ams_backend_probes.h"
 #include "test_helpers/log_capture.h"
 #include "test_helpers/registered_backend.h"
@@ -532,7 +532,7 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label keeps a tool name its owner con
 
 namespace {
 
-// Brings up the real badge observers from src/ui/ui_ams_tool_text.cpp over the
+// Brings up the real badge observers from src/ui/filament/ui_ams_tool_text.cpp over the
 // real ToolState subjects, so nothing here reimplements the badge's gate or its
 // format string. Teardown mirrors AfcToolchangeRenderFixture in
 // test_afc_toolchange.cpp: deinit_one() releases the observers before the

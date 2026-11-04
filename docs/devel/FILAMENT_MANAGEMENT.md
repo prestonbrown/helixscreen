@@ -502,7 +502,7 @@ The detector is a name heuristic. It reports `EXTRUDER=285` on a line where that
 
 Backends are consumers, not implementers: `AmsBackend::get_remap_strategy()` routes (`include/ams_backend.h`). `Native` (Happy Hare, AFC, CFS, AD5X IFS, Tool Changer with klipper-toolchanger, QIDI Box) and `PrePrintSend` (the U1 emits firmware-native `print_task_config` gcode, no file rewrite) never reach the remapper. `GcodeRewrite` is the generic fallback for firmware with no internal routing table. A tool changer driving swaps with its own `T<n>` commands rather than klipper-toolchanger takes it (`AmsBackendToolChanger::get_remap_strategy`), because `ASSIGN_TOOL` does not exist there and Klipper answers an unknown command by logging it and carrying on, so a remap sent to such a machine reads as applied and prints the firmware's own mapping. Every MedusaHC takes it, with or without klipper-toolchanger beside its controller, because its own `T<n>` macros do the swap and `ASSIGN_TOOL` never changes them ([FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md#tool-mapping)). ACE will adopt it once its `ACE_CHANGE_TOOL` family is implemented and validated, and until then ACE stays `None` (`include/ams_backend_ace.h`).
 
-When it runs, the production path is `PrintSelectPanel::apply_remap()` -> `PrintPreparationManager::modify_and_print_with_remap()` (`src/ui/ui_print_preparation_manager.cpp`), file to file at every stage: download the original to a temp file, rewrite it to a second temp file through `apply_to_file()`, upload that, and print it via the HelixPrint plugin under the ORIGINAL filename. No stage holds the job in memory. A remap that changes no line prints the original directly, no copy. When the plugin reports its `server_edits` feature ready, nothing is downloaded or uploaded: the remap travels as a one-edit `tool_remap` list to `server.helix.print_edited`, and the plugin applies the same per-line rule beside the file (`moonraker-plugin/helix_edits.py`), pinned to `apply_to_file()` byte for byte by `tests/fixtures/gcode_edits/` ([PRINT_START_INTEGRATION.md § How a choice reaches the sliced file](PRINT_START_INTEGRATION.md#how-a-choice-reaches-the-sliced-file)). That copy prints even when it changes nothing. The staged upload path is built by `helix::gcode::make_rewritten_gcode_path()`, the one spelling of that name, because the post-print cleanup, the startup sweep and `resolve_gcode_filename()` all recognise a staged copy by its prefix, and a path built any other way is invisible to all three at once.
+When it runs, the production path is `PrintSelectPanel::apply_remap()` -> `PrintPreparationManager::modify_and_print_with_remap()` (`src/ui/print/ui_print_preparation_manager.cpp`), file to file at every stage: download the original to a temp file, rewrite it to a second temp file through `apply_to_file()`, upload that, and print it via the HelixPrint plugin under the ORIGINAL filename. No stage holds the job in memory. A remap that changes no line prints the original directly, no copy. When the plugin reports its `server_edits` feature ready, nothing is downloaded or uploaded: the remap travels as a one-edit `tool_remap` list to `server.helix.print_edited`, and the plugin applies the same per-line rule beside the file (`moonraker-plugin/helix_edits.py`), pinned to `apply_to_file()` byte for byte by `tests/fixtures/gcode_edits/` ([PRINT_START_INTEGRATION.md § How a choice reaches the sliced file](PRINT_START_INTEGRATION.md#how-a-choice-reaches-the-sliced-file)). That copy prints even when it changes nothing. The staged upload path is built by `helix::gcode::make_rewritten_gcode_path()`, the one spelling of that name, because the post-print cleanup, the startup sweep and `resolve_gcode_filename()` all recognise a staged copy by its prefix, and a path built any other way is invisible to all three at once.
 
 The strategy is guarded in `open_remap_modal()` (`include/ui_panel_print_select.h`), which asks `PrintPreparationManager::check_modification_capability()` rather than testing for the plugin itself: rewriting a file before printing is the same act the pre-print options perform, and two copies of "may we modify this file" is how one of them ends up offering a picker the other would refuse. `tests/unit/test_gcode_tool_remapper.cpp` pins the four families, the detector and the swap collision-safety; `tests/unit/test_remap_strategy.cpp` pins the strategy half and the pick rule; `tests/unit/test_start_macro_remap_note.cpp` pins the scan lookup and the note text; `tests/unit/test_filament_mapping_modal_cancel.cpp` pins that the banner tracks the picks and never leaks into a show that set no note (the subjects behind it are process-wide).
 
@@ -907,16 +907,16 @@ the re-parse cost matters.
 **Consumers.** `AmsBackendCfs` decodes material ids through
 `FilamentCatalog::load_codes("cfs").resolve_code("cfs", mat_id)`
 (`src/printer/ams_backend_cfs.cpp`). On the UI side,
-`FilamentCatalogSelector` (`src/ui/ui_filament_catalog_selector.cpp`) is the
+`FilamentCatalogSelector` (`src/ui/filament/ui_filament_catalog_selector.cpp`) is the
 vendor/type/product browser; `FilamentCatalogPickerModal`
-(`src/ui/ui_filament_catalog_picker.cpp`) is a thin `Modal` over it, which the
+(`src/ui/filament/ui_filament_catalog_picker.cpp`) is a thin `Modal` over it, which the
 spool editor opens from "Browse catalog..." (§ "Edit Spool"). The editor's
 dropdowns read the pure family queries `all_families()`,
 `variants_in_family()`, `brands_in_family()` and `products_in_family()`, keyed
 on `filament::display_family()`; a recycled grade (`rPLA`) files under its
 polymer there as the Recycled variant, while `extract_base_material()` keeps it a
 material of its own for compatibility and temperatures. `FilamentProductEditModal`
-(`src/ui/ui_filament_product_edit_modal.cpp`) is the production author of the
+(`src/ui/filament/ui_filament_product_edit_modal.cpp`) is the production author of the
 user overlay: its form handler builds the product objects and calls
 `FilamentCatalog::save_user_products()`. `material_settings_manager.cpp`,
 `filament_variants.cpp` and the subject/XML registration path round out the
@@ -1171,7 +1171,7 @@ Key features:
 A backend with a physical tray draws its slots as spools standing on the floor of a
 box, under a glass lid when it has any climate data. The pure math is
 `include/ams_tray_projection.h` (`helix::ui::tray`, tested by `[ams][tray]`); the
-drawing is `src/ui/ui_ams_detail.cpp`.
+drawing is `src/ui/filament/ui_ams_detail.cpp`.
 
 - **One camera.** `proj(x, y, z) = (x + K*z, y - RISE*z/DZ)`: x along the row, y
   screen-down at the front plane, z depth from the front wall (0) to the back wall (DZ).
@@ -1197,7 +1197,7 @@ drawing is `src/ui/ui_ams_detail.cpp`.
 - **Labels.** Lane labels sit `space_md` above `unit_top_y()` (the lid's top) or,
   without a lid, above the back-wall top and the spool tops. What a label reads is
   `src/printer/filament_display_name.cpp#slot_card_lines`, applied by
-  `src/ui/ui_ams_slot.cpp#apply_slot_label`. With up to four lanes
+  `src/ui/filament/ui_ams_slot.cpp#apply_slot_label`. With up to four lanes
   (`kSlotCardMaxTwoLineCount`) a named spool shows its name over its material: the name
   is `slot_card_name()` (`spool_name`, then the Spoolman identity's `filament_name`, then
   `color_name`, with no algorithmic colour fallback), and the lower line is
@@ -1284,7 +1284,7 @@ actions and, during an operation, the step progress.
 
 The strip and the status line are one instance each. They live at the top of the sidebar,
 and `AmsOperationSidebar` moves them into the panel's `portrait_summary_slot` in portrait
-and back on rotation (`src/ui/ui_ams_sidebar.cpp#place_summary`). The
+and back on rotation (`src/ui/filament/ui_ams_sidebar.cpp#place_summary`). The
 meters are constructed from the strip itself and the swatch is looked up in it, so they
 follow it; the slot carries the sidebar instance in its user data, so the Bypass toggle's
 callback (`bypass_inline`, shown only in portrait, hidden during any operation like the
@@ -1329,11 +1329,11 @@ Key files:
 | File | Purpose |
 |------|---------|
 | `include/ui_panel_ams_overview.h` | Class with the overview's cards and the unit view's page state |
-| `src/ui/ui_panel_ams_overview.cpp` | Card creation, the unit view, paging, slot layout |
+| `src/ui/filament/ui_panel_ams_overview.cpp` | Card creation, the unit view, paging, slot layout |
 | `ui_xml/ams_overview_panel.xml` | Two-column layout: cards and system path, or the unit view, on the left; loaded info right |
 | `ui_xml/ams_unit_card.xml` | Mini unit card with slot bars and hub sensor dot |
-| `include/ams_unit_pages.h`, `src/ui/ams_unit_pages.cpp` | The page model: `build_unit_pages()`, `page_of_unit()`, `initial_unit_page()`. Pure data, no LVGL |
-| `src/ui/ui_filament_path_plan.cpp` | Off-page stub geometry (`layout_offpage_stub`), widened hub |
+| `include/ams_unit_pages.h`, `src/ui/filament/ams_unit_pages.cpp` | The page model: `build_unit_pages()`, `page_of_unit()`, `initial_unit_page()`. Pure data, no LVGL |
+| `src/ui/filament/ui_filament_path_plan.cpp` | Off-page stub geometry (`layout_offpage_stub`), widened hub |
 
 **The one model**: every overview draws chains of `units -> hub -> buffer -> toolhead`. A hub joins the paths of every unit on it (units naming the same non-empty `AmsUnit::hub_id`; a unit with none is a hub of its own). A hub has at most one buffer (the FPS of an OpenAMS lane), and a buffer belongs to exactly one hub. `ams_draw::compute_system_tool_layout()` computes `SystemToolLayout::hub_groups` (each hub's units and toolhead). The one-toolhead drawing is the one-chain case: every unit joins one combiner hub. The several-toolhead drawing places one hub box per hub group, with its buffer box between the hub and its toolhead. A hub's buffer box is the box the unit view shows for the hub's first unit (`ams_detail_buffer_box()`, same label and tint); the one-toolhead drawing shows the system reading's box the same way. A toolhead badge names the extruder (`E<n>`), or its position when the backend publishes no extruder, never a filament group. Bypass stays system-level in the one-toolhead drawing.
 
@@ -1481,7 +1481,7 @@ card header has no lamps.
 |-------|-------|
 | What a chip says (pure, no LVGL) | `include/filament_chip_model.h`, `src/printer/filament_chip_model.cpp` |
 | Chip row and chip | `ui_xml/components/filament_chip_row.xml`, `ui_xml/components/filament_swatch.xml` |
-| Publishing the chip subjects | `src/ui/ui_filament_mapping_card.cpp#publish_chips` |
+| Publishing the chip subjects | `src/ui/filament/ui_filament_mapping_card.cpp#publish_chips` |
 | The slot dropdown | `include/ui_filament_slot_picker.h`, `ui_xml/components/filament_slot_picker.xml` (+ `_row`, `_choice`) |
 | Recording one pick | `src/printer/filament_mapper.cpp#pick_slot` |
 | The tap gate | `include/ui_print_select_detail_view.h#PrintSelectDetailView/remap_tap_allowed` |
@@ -1559,7 +1559,7 @@ does nothing, even on a backend that has a remap strategy but presents no filame
 ### Edit Spool (`ui_ams_edit_overlay`)
 
 The lane context menu's **Edit Spool** opens `AmsEditOverlay`
-(`src/ui/ui_ams_edit_overlay.cpp`) straight into its editor view; **Select
+(`src/ui/filament/ui_ams_edit_overlay.cpp`) straight into its editor view; **Select
 Spool** opens it on the spool picker instead. The title is the lane in the
 backend's noun ("Gate 3"). The header carries Save (`action_button`, dirty-gated)
 and, where Spoolman is configured, two round icon buttons left of it on the
@@ -1642,7 +1642,7 @@ restores every field the tag states through `ams::reset_to_tag()`.
 
 **Spools in use elsewhere.** The picker list disables (state `DISABLED`, not
 clickable) every spool in `ToolState::assigned_spool_ids(slot_index_)`
-(`src/ui/ui_ams_edit_overlay.cpp#render_spool_list`,
+(`src/ui/filament/ui_ams_edit_overlay.cpp#render_spool_list`,
 `src/printer/tool_state.cpp#assigned_spool_ids`): the Spoolman ids assigned to
 any tool other than the one numbered like the slot being edited, because one
 physical spool cannot feed two places. ToolState's per-tool assignments are
@@ -2151,8 +2151,8 @@ templates. Today that is QIDI's `M604`. Generic code never sees those pieces: it
 `guided_load(macro, sent_params)` for rendered scripts (the profile picks its own temperature
 out of the params), sends `guided_load_status_query()`, and reads the reply with
 `guided_load_waits()`. When the macro tier's load succeeds and the macro has a wizard,
-`start_guided_load()` in `src/ui/filament_op_execute.cpp` does exactly that and opens
-`GuidedLoadModal` (`src/ui/ui_guided_load_modal.cpp`). The modal declines to open while a
+`start_guided_load()` in `src/ui/filament/filament_op_execute.cpp` does exactly that and opens
+`GuidedLoadModal` (`src/ui/filament/ui_guided_load_modal.cpp`). The modal declines to open while a
 job holds the machine (`GuidedLoadModal::opens_during()`, over `job_holds_machine()` in
 `include/print_lifecycle_state.h`): a load is allowed on a paused print for runout recovery,
 but the wizard's Extrude and Done are motion-gated during a job and its cleanup would cool
@@ -2543,7 +2543,7 @@ Anything that needs one successor per slot calls the projection and never re-der
 Unordered groups project onto a **ring**: `members[i] -> members[i+1]`, last back to first.
 Both entry points agree that the first group to give a slot a successor wins, so they cannot
 disagree on a hand-built config with two successors for one slot. The production caller is
-`helix::ui::lane_settings::backup_of()` (`src/ui/ui_ams_lane_settings.cpp`), behind the spool
+`helix::ui::lane_settings::backup_of()` (`src/ui/filament/ui_ams_lane_settings.cpp`), behind the spool
 editor's backup dropdown, which can show only one backup per slot.
 
 **Why a ring and not "the first other member".** Pointing every member at the first *other*
@@ -2553,7 +2553,7 @@ visits the whole group, which is the closest a one-target-per-source view can ge
 member substitutes for any other".
 
 **The slot-row drawing takes groups, not edges.** `ui_endless_spool_arrows`
-(`src/ui/ui_endless_spool_arrows.cpp`) is handed the whole `EndlessSpoolConfig` by
+(`src/ui/filament/ui_endless_spool_arrows.cpp`) is handed the whole `EndlessSpoolConfig` by
 `AmsPanel::update_endless_arrows_from_backend()` (`ui_endless_spool_arrows_set_groups`) and
 decides per group what to draw. The decision is the pure function
 `helix::ui::endless_spool_marks(config, slot_count)`, tested in `test_ams_endless_spool.cpp`
@@ -2794,7 +2794,7 @@ on it, and binding a per-unit-indicator subject would mean picking an index at X
 time, which answers for whichever unit that index names and not the box on screen. The overlay's
 copy is set from the same rule the badge uses - the zone reports an environment **and** that
 environment has a humidity sensor. Which unit the dryer controls act on comes from the shown
-zone (`src/ui/ui_ams_environment_overlay.cpp#acting_unit_index`), and a zone that cannot be
+zone (`src/ui/filament/ui_ams_environment_overlay.cpp#acting_unit_index`), and a zone that cannot be
 attributed to one unit refuses to start or stop rather than guessing.
 
 ### Backend Virtual Interface
@@ -2935,7 +2935,7 @@ The `AmsDeviceOperationsOverlay` (`ui_ams_device_operations_overlay.h`) consolid
 
 The table's last row names the backend calls, not the UI path. Three surfaces flip bypass,
 and all three route through one shared policy object, `BypassToggleController`
-(`src/ui/ui_bypass_toggle_controller.cpp`, extracted from the sidebar's handler in
+(`src/ui/filament/ui_bypass_toggle_controller.cpp`, extracted from the sidebar's handler in
 03f784219): the AMS sidebar's toggle (`include/ui_ams_sidebar.h#bypass_toggle_`), the home-panel
 Bypass tile (`src/ui/panel_widgets/bypass_widget.h#toggle_`), and this overlay's own switch
 (`include/ui_ams_device_operations_overlay.h`). Each owns an instance and forwards its
@@ -3226,7 +3226,7 @@ of the primary backend. Ask it, not `get_backend() != nullptr`, `backend_count()
 | First-run wizard and expected hardware | `WizardAmsIdentifyStep::should_skip()` |
 | Tour | `tour::hardware_has_ams()` |
 | Printer image variant | `src/system/printer_image_manager.cpp#detected_hardware_facts` |
-| Printer manager chips | `src/ui/printer_manager_chips.cpp#gather_capability_chip_facts` |
+| Printer manager chips | `src/ui/printers/printer_manager_chips.cpp#gather_capability_chip_facts` |
 
 A sensor a backend claims by name is the printer's own once that backend reports its
 hardware absent: `AmsState::filament_hardware_absent()` (the primary backend's
@@ -3320,13 +3320,13 @@ A `DeviceAction` whose `guided_flow` names a registered flow is started through 
 instead of being executed and toasted. `include/ui_guided_device_flow.h` holds the registry
 (`register_guided_device_flow`, `find_guided_device_flow`): a flow supplies `start(label)` and,
 optionally, `attach_status(container)` to append status widgets below the section's buttons.
-The section overlay (`src/ui/ui_ams_device_section_detail_overlay.cpp`) knows only that
+The section overlay (`src/ui/filament/ui_ams_device_section_detail_overlay.cpp`) knows only that
 registry. It never names a vendor, and a flow id with no registration is refused with a
 warning rather than executed, because the flow is what asks before moving the machine.
 
-The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`) live in `src/ui/ui_cfs_device_flows.cpp`
+The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`) live in `src/ui/filament/ui_cfs_device_flows.cpp`
 and are registered by `register_cfs_device_flows()`, one row of the registrar table behind
-`register_builtin_guided_device_flows()` (`src/ui/ui_guided_device_flow.cpp`). Startup calls
+`register_builtin_guided_device_flows()` (`src/ui/filament/ui_guided_device_flow.cpp`). Startup calls
 that once, before any overlay builds (`Application::register_xml_components()`, and the ESP32
 `app_boot.cpp` boot path), and never names a vendor. A new vendor's flows are one new file, one
 row in that table, and one `guided_flow` string on its backend's action.
@@ -3346,7 +3346,7 @@ Moonraker timeout as `AmsResult::TIMEOUT` so the flow can say the printer may st
 #### Recovery actions that ask first
 
 A `RecoveryAction` with a non-empty `confirm_message` is not sent on the tap:
-`src/ui/recovery_modal_presenter.cpp#on_recovery_tapped` opens a confirm
+`src/ui/notify/recovery_modal_presenter.cpp#on_recovery_tapped` opens a confirm
 titled with the action's label, and only its primary button continues to the hot-nozzle check
 and the send. Cancel and a dismissal send nothing; the fault stays handled either way, so it
 does not re-present. For a recovery the user does with their hands (holding a tool while a latch
@@ -3354,7 +3354,7 @@ opens).
 
 #### Edit follow-ups
 
-After a slot edit commits, `helix::ui::offer_edit_follow_up()` (`src/ui/ui_ams_edit_follow_up.cpp`)
+After a slot edit commits, `helix::ui::offer_edit_follow_up()` (`src/ui/filament/ui_ams_edit_follow_up.cpp`)
 asks the backend's `edit_follow_up(slot, before, after)` whether the edit implies printer state
 it did not write, and offers it as a confirm; yes runs `run_edit_follow_up(slot, after)`, which
 `AmsSubscriptionBackend` refuses while a print holds the printer, paused included. Every
@@ -3625,7 +3625,7 @@ And the pure virtuals of `AmsBackend` (`include/ams_backend.h`) that the subscri
 
 **Constant capabilities go in `kTraits`, not in overrides.** A capability your backend
 answers the same way for its whole life (`has_physical_tray`, `supports_auto_heat_on_load`,
-`has_per_slot_loaded_authority`, ...) is a field of `BackendTraits` (`include/ams_backend.h#BackendTraits`).
+`has_per_slot_loaded_authority`, `lane_noun`, ...) is a field of `BackendTraits` (`include/ams_backend.h#BackendTraits`).
 Declare one `static constexpr BackendTraits kTraits` that sets the fields you differ on, and
 return it from `traits()`; the predicates of the same names read it and cannot be overridden.
 Any field you leave alone keeps the base answer. A capability that depends on discovery,
@@ -3645,6 +3645,12 @@ static constexpr BackendTraits kTraits = [] {
     return kTraits;
 }
 ```
+
+**Operations only one family has go behind a capability interface.** Generic code asks
+`backend->as<ICfsCalibration>()` and gets nullptr from every backend that lacks it
+(`include/ams_capability.h`). To publish one, inherit the interface and return
+`static_cast<I*>(this)` from `capability()` for `helix::type_tag<I>()`, deferring to the base for
+any other tag. The interface sits in its own header, so changing it rebuilds only its users.
 
 **Optional overrides (with default implementations):**
 
@@ -3750,13 +3756,13 @@ Key patterns:
 | File | Purpose |
 |------|---------|
 | `include/ui_spool_wizard.h` | Wizard overlay class declaration |
-| `src/ui/ui_spool_wizard.cpp` | Wizard logic, API calls, callbacks |
+| `src/ui/filament/ui_spool_wizard.cpp` | Wizard logic, API calls, callbacks |
 | `ui_xml/spool_wizard.xml` | 3-step wizard layout |
 | `ui_xml/create_vendor_modal.xml` | New vendor modal form |
 | `ui_xml/create_filament_modal.xml` | New filament modal form |
 | `ui_xml/wizard_vendor_row.xml` | Selectable vendor row (lv_button with checked style) |
 | `ui_xml/wizard_filament_row.xml` | Selectable filament row (lv_button with checked style) |
-| `src/ui/ui_color_picker.cpp` | Color picker modal (used by filament creation) |
+| `src/ui/components/ui_color_picker.cpp` | Color picker modal (used by filament creation) |
 
 The original spool-wizard visual test plan (2026-02-15) is no longer in-tree; treat the wizard steps above as the reference.
 

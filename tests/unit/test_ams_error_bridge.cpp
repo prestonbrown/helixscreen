@@ -1,7 +1,5 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_error_router_test_access.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
@@ -10,6 +8,7 @@
 #include "ams_error_bridge.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "gcode_error_router.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_state.h"

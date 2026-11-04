@@ -6,18 +6,16 @@
 // Real backend with gcode captured. client_ is null, so ensure_homed_then()
 // routes straight to execute_gcode().
 
-#include "ui_update_queue.h"
-
 #include "ams_backend_toolchanger.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
+#include "json_fwd.h"
 #include "moonraker_error.h"
 
 #include <functional>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::test {
 

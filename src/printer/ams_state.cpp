@@ -15,7 +15,6 @@
 
 #include "ui_color_picker.h"
 #include "ui_error_reporting.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend_registry.h"
 #include "ams_bypass_policy.h"
@@ -25,7 +24,9 @@
 #include "ams_state_internal.h"
 #include "ams_tool_topology.h"
 #include "app_globals.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"
 #include "filament_database.h"
@@ -44,7 +45,6 @@
 #include "settings_manager.h"
 #include "spoolman_manager.h"
 #include "spoolman_types.h"
-#include "text_io.h"
 #include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 

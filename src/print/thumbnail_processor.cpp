@@ -7,9 +7,8 @@
 
 #include "thumbnail_processor.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "lvgl_image_writer.h"
 #include "memory_monitor.h"

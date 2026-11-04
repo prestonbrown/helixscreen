@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/config_dir_guard.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "json_utils.h"
 #include "system/debug_bundle_collector.h"
 #include "wifi_saved_config.h"

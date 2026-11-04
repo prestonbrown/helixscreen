@@ -4,6 +4,7 @@
 #include "ui_observer_guard.h" // SubjectLifetime
 
 #include "chamber_heater_backend.h"
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <cmath>
@@ -13,8 +14,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

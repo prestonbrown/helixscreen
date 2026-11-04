@@ -3,17 +3,16 @@
 
 #include "klipper_config_editor.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/http_executor.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "helix_plugin_features.h"
-#include "http_executor.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_config_includes.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

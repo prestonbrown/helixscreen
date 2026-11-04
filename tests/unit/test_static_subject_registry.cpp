@@ -17,7 +17,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/scoped_subject_registry_isolation.h"
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 
 #include <algorithm>
 #include <string>

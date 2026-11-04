@@ -11,17 +11,22 @@
  * and process exit find nothing to tear down.
  */
 
+#include "ui_ams_context_menu.h"
 #include "ui_ams_lane_bar.h"
 #include "ui_ams_lane_spool.h"
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
 #include "ui_color_picker.h"
+#include "ui_guided_device_flow.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "buffer_status_modal.h"
+#include "core/static_subject_registry.h"
+#include "detection_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -85,5 +90,46 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS sidebar gating subjects outlive a print
           "ams_sidebar_supports_reset"}) {
         CAPTURE(subject);
         CHECK(lv_xml_get_subject(nullptr, subject) != nullptr);
+    }
+}
+
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "On-demand subjects stay published across a switch and withdraw their names at exit",
+    "[modal][ams][subjects][shutdown]") {
+    const auto attach_status = [](const char* flow) {
+        const helix::ui::GuidedDeviceFlow* found = helix::ui::find_guided_device_flow(flow);
+        REQUIRE(found != nullptr);
+        found->attach_status(lv_screen_active());
+    };
+    struct Source {
+        const char* registry_name;
+        const char* subject;
+        std::function<void()> init;
+    };
+    helix::ui::register_builtin_guided_device_flows();
+    const Source sources[] = {
+        {"BufferStatusModalSubjects", "buf_fault_distance", [] { BufferStatusModal modal; }},
+        {"AmsContextMenuSubjects", "ams_slot_park",
+         [] { helix::ui::AmsContextMenu::init_subjects(); }},
+        {"DetectionManager", "detection_bed_check_switchable",
+         [] { helix::detection::DetectionManager::instance().init(nullptr, nullptr); }},
+#if HELIX_HAS_CFS
+        {"CfsCutterSubjects", "cfs_cutter_status", [&] { attach_status("cfs_cutter"); }},
+#endif
+        {"IndxFlowSubjects", "indx_flow_status", [&] { attach_status("indx_cycle_all"); }},
+    };
+    for (const Source& source : sources) {
+        CAPTURE(source.registry_name);
+        source.init();
+        CHECK(survives_switch(source.registry_name));
+        CHECK(lv_xml_get_subject(nullptr, source.subject) != nullptr);
+
+        REQUIRE(StaticSubjectRegistry::instance().deinit_one(source.registry_name));
+        CHECK(lv_xml_get_subject(nullptr, source.subject) == nullptr);
+
+        source.init();
+        CHECK(registered(source.registry_name));
+        CHECK(lv_xml_get_subject(nullptr, source.subject) != nullptr);
     }
 }

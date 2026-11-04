@@ -4,7 +4,7 @@
 """Check that responsive design tokens are declared at the top level of ui_xml/.
 
 Token auto-discovery is top-level-only. It lists files with
-theme_manager_find_xml_files() (src/ui/theme_token_scan.cpp) and recursive=false,
+theme_manager_find_xml_files() (src/ui/theme/theme_token_scan.cpp) and recursive=false,
 which skips every subdirectory, so only ui_xml/*.xml is ever parsed for `<px name="foo_small">` /
 `<string name="foo_small">`. A responsive token declared in ui_xml/components/,
 ui_xml/portrait/, ui_xml/micro/ — anywhere below the top level — is never

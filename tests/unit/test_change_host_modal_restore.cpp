@@ -11,7 +11,6 @@
 
 #include "ui_change_host_modal.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
 #include "../mocks/mock_mdns_discovery.h"
@@ -24,6 +23,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "lan_sweep.h"
 #include "moonraker_auth.h"
 #include "moonraker_manager.h"

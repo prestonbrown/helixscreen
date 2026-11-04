@@ -14,9 +14,8 @@
  * slot has to cost no layout and absorb no taps.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 
 #include <lvgl.h>

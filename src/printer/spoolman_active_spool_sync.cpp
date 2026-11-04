@@ -3,10 +3,9 @@
 
 #include "spoolman_active_spool_sync.h"
 
-#include "ui_update_queue.h"
-
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "i_moonraker_client.h"
 #include "i_moonraker_sub_apis.h"
 #include "pa_tuning.h"

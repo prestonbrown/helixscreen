@@ -13,12 +13,12 @@
  */
 
 #include "ui_filament_mapping_card.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../mapping_card_render_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 
 #include <set>
 

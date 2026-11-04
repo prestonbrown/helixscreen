@@ -11,11 +11,10 @@
  * and status-update propagation from Klipper's extruder<n>.filament_used field.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"

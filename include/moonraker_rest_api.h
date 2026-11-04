@@ -14,13 +14,12 @@
 
 #include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h"
+#include "json_fwd.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 
 #include <functional>
 #include <string>
-
-#include "hv/json.hpp"
 
 // Forward declarations
 namespace helix {

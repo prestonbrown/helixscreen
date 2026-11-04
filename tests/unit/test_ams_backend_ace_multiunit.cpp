@@ -6,13 +6,13 @@
 // units before it. A slot's tool is the `tool` the driver publishes for it
 // (instance*4 + slot on ACEPRO), never assumed from the slot's position.
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/ace_backend_test_helper.h"
 #include "../test_helpers/ace_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_ace.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "fake_moonraker_client.h"
 #include "filament_chip_model.h"
@@ -778,6 +778,20 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE ignores a slot tool number out of range",
     helper.set_running(true);
     CHECK_FALSE(helper.load_filament(1).success());
     CHECK(helper.get_slot_info(2).mapped_tool == 2);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ACE refuses an unknown slot naming the chain's real span",
+                 "[ams][ace][multiunit]") {
+    helix::test::FakeMoonrakerClient client;
+    AmsBackendAceTestHelper helper(&client);
+    start_units(helper, client, 2, -1);
+
+    for (const AmsError& err : {helix::test::apply_edit(helper, 8, SlotInfo{}),
+                                helper.sync_external_identity(8, SlotInfo{})}) {
+        CHECK(err.result == AmsResult::INVALID_SLOT);
+        CHECK(err.technical_msg == "Slot 8 out of range (0-7)");
+        CHECK(err.suggestion == "Select a valid number (1-8)");
+    }
 }
 
 // A load sent from here stays LOADING until its own ack: the unit's status

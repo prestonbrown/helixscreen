@@ -125,7 +125,7 @@ $(BUILD_DIR)/splash/config_storage_file.o: src/system/config_storage_file.cpp $(
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile data_root_resolver for splash (zero deps)
-$(BUILD_DIR)/splash/data_root_resolver.o: src/application/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/data_root_resolver.o: src/core/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -137,7 +137,7 @@ $(BUILD_DIR)/splash/helix_paths.o: src/system/helix_paths.cpp $(ABI_STAMP) | $(B
 
 # Compile text_io for splash (config_storage_file.cpp reads and writes through it).
 # Large-file offsets, as in the app build (mk/rules.mk).
-$(BUILD_DIR)/splash/text_io.o: src/system/text_io.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/text_io.o: src/core/text_io.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) -D_FILE_OFFSET_BITS=64 $(DEPFLAGS) -c $< -o $@
 
@@ -148,17 +148,17 @@ $(BUILD_DIR)/splash/helix_fs.o: src/system/helix_fs.cpp $(ABI_STAMP) | $(BUILD_D
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) -D_FILE_OFFSET_BITS=64 $(DEPFLAGS) -c $< -o $@
 
 # DRM mode-matching helper (pure, referenced by display_backend_drm.cpp). Added for #766.
-$(BUILD_DIR)/splash/drm_mode_matching.o: src/api/drm_mode_matching.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/drm_mode_matching.o: src/platform/display/drm_mode_matching.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Fbdev kernel-size helper (pure, referenced by display_backend_fbdev.cpp). Added for #766.
-$(BUILD_DIR)/splash/fbdev_size_helper.o: src/api/fbdev_size_helper.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/fbdev_size_helper.o: src/platform/display/fbdev_size_helper.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Signal-safe framebuffer blank (registered by display_backend_fbdev.cpp)
-$(BUILD_DIR)/splash/fbdev_signal_clear.o: src/api/fbdev_signal_clear.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/fbdev_signal_clear.o: src/platform/display/fbdev_signal_clear.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -168,7 +168,7 @@ $(BUILD_DIR)/splash/pending_startup_warnings.o: src/system/pending_startup_warni
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile backlight backend for splash (with HELIX_SPLASH_ONLY to skip runtime_config dependency)
-$(BUILD_DIR)/splash/backlight_backend.o: src/api/backlight_backend.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/backlight_backend.o: src/platform/display/backlight_backend.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -204,7 +204,7 @@ $(BUILD_DIR)/splash/platform_table.o: src/system/platform_table.cpp $(ABI_STAMP)
 # every object in that archive becomes a hard link dependency whether or not this
 # binary reaches it. Without this the non-LTO targets (pi, pi32, x86) fail to link
 # while the -flto ones drop the unreachable caller and link clean.
-$(BUILD_DIR)/splash/log_redact.o: src/system/log_redact.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/log_redact.o: src/core/log_redact.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

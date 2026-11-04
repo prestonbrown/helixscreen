@@ -16,9 +16,8 @@
 // gets. The host-side cases are the regression - each one asserts that
 // job_holds_machine is 1 where print_active is 0.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -331,7 +330,6 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/pa_tuning_overlay.xml", 1},
     {"ui_xml/plr_wizard_overlay.xml", 4},
     {"ui_xml/micro/controls_panel.xml", 17},
-    {"ui_xml/micro/header_bar.xml", 1},
     {"ui_xml/motion_panel.xml", 8},
     {"ui_xml/components/move_preset_grid.xml", 11},
     {"ui_xml/components/motion_bed_map.xml", 2},
@@ -554,10 +552,6 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/macro_panel.xml",
     "ui_xml/macro_param_modal.xml",
     "ui_xml/material_temps_overlay.xml",
-    "ui_xml/micro/material_temps_overlay.xml",
-    "ui_xml/micro/theme_editor_overlay.xml",
-    "ui_xml/micro/theme_preview_overlay.xml",
-    "ui_xml/micro_portrait/material_temps_overlay.xml",
     "ui_xml/modal_button_row.xml",
     "ui_xml/modal_dialog.xml",
     "ui_xml/modal_header.xml",
@@ -573,7 +567,6 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/panel_belt_tension.xml",
     "ui_xml/plugin_feature_toggle_row.xml",
     "ui_xml/plugin_install_modal.xml",
-    "ui_xml/portrait/print_status_panel.xml",
     "ui_xml/portrait/print_tune_panel.xml",
     "ui_xml/power_device_picker.xml",
     "ui_xml/power_device_row.xml",

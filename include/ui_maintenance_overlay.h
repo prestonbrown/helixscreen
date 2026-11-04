@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 namespace helix {
 
@@ -18,6 +18,10 @@ class MaintenanceOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "maintenance_overlay";
+    }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
+    bool destroy_on_close() const override {
+        return false;
     }
 
     void register_callbacks() override;

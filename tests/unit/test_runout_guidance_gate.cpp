@@ -7,7 +7,7 @@
  *
  * Run with: ./build/bin/helix-tests "[runout_guidance][gate]"
  *
- * Drives the real handler (src/ui/ui_filament_runout_handler.cpp:67-125) rather
+ * Drives the real handler (src/ui/filament/ui_filament_runout_handler.cpp:67-125) rather
  * than a model of it. Two coupled decisions:
  *
  *   check_and_show_runout_guidance() — show at most ONCE per pause event, and
@@ -25,7 +25,6 @@
  */
 
 #include "ui_filament_runout_handler.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
@@ -34,6 +33,7 @@
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "detection_manager.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"

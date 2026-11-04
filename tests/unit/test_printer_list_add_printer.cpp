@@ -14,7 +14,6 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_printer_list_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
@@ -23,6 +22,7 @@
 #include "async_lifetime_guard.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "lvgl/lvgl.h"
 #include "printer_cache_registry.h"

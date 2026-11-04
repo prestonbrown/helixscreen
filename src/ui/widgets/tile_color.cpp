@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "tile_color.h"
 
+#include "core/static_subject_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
-#include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "theme_manager.h"
 
 #include <algorithm>
 #include <iterator>
 #include <memory>
+
+#include "hv/json.hpp"
 
 namespace helix::tile_color {
 

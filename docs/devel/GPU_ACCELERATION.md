@@ -134,7 +134,7 @@ those libraries removed and again with them installed.
 
 Which of LVGL's two DRM drivers a translation unit carries is a compile-time
 choice, so `mk/egl-link.mk` compiles the units that read the EGL config macros
-a second time — `src/api/display_backend_drm.cpp` and LVGL's own DRM and
+a second time — `src/platform/display/display_backend_drm.cpp` and LVGL's own DRM and
 OpenGL ES drivers — and links both compiles into `helix-screen`. The four LVGL
 functions both drivers define are renamed in the EGL compile, and each compile
 of `DisplayBackendDRM` lives in its own inline namespace, so the dumb-buffer
@@ -150,7 +150,7 @@ any two builds. The remaining 13:
 
 | Object | Belongs to |
 |---|---|
-| `api/display_backend_drm.o` | the app — the only file under `src/` or `include/` that reads an EGL config macro |
+| `platform/display/display_backend_drm.o` | the app — the only file under `src/` or `include/` that reads an EGL config macro |
 | `lvgl/.../drm/lv_linux_drm.o`, `lv_linux_drm_egl.o` | which DRM back end compiles at all |
 | `lvgl/.../opengles/` ×9 | empty translation units without the config |
 | `display/display_backend_drm.o` | `libhelix-display.a`, which only the splash and watchdog link — not part of this rung |
@@ -240,7 +240,7 @@ app calls vanish; the one that matters in practice is
 `lv_linux_drm_set_preferred_mode()`.
 
 **Forced mode selection is unavailable on the EGL path.** The connector's own
-preferred mode is what you get. `src/api/display_backend_drm.cpp` guards the
+preferred mode is what you get. `src/platform/display/display_backend_drm.cpp` guards the
 call and warns rather than failing to link.
 
 No shipped per-board config sets a mode override, so this reaches only an install
@@ -410,7 +410,7 @@ keeps the previous layer's projection and viewport. `lv_draw_dispatch`
 round-robins layers while nanovg executes one task per dispatch, so with two
 layers it hops between them constantly, re-clearing each time.
 
-The trigger in this app is `src/ui/setting_group.cpp#setting_group_xml_create`
+The trigger in this app is `src/ui/settings/setting_group.cpp#setting_group_xml_create`
 setting `clip_corner`; with a non-zero theme radius, `lv_refr.c` allocates two
 ARGB8888 band layers per card per refresh. The home panel has no `clip_corner`
 container and renders perfectly; the settings panel loses every background fill

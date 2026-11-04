@@ -3,6 +3,7 @@
 #pragma once
 
 #include "helix-xml/src/xml/lv_xml.h"
+#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget.h"
 #include "panel_widget_registry.h"
@@ -17,7 +18,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -155,6 +155,7 @@ class PanelWidgetHarnessBase {
                 sizing->set_cell_metrics(cell_metrics_);
             }
         }
+        lv_obj_add_flag(obj_, kPanelWidgetTileFlag);
         widget.attach_tile(obj_, screen);
         return true;
     }

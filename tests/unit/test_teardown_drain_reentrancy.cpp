@@ -21,7 +21,6 @@
 #include "ui_ams_slot.h"
 #include "ui_clog_bar.h"
 #include "ui_clog_meter.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
@@ -33,6 +32,7 @@
 #include "clog_detection_config_modal.h"
 #include "clog_meter_model.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "grid_edit_mode.h"
 #include "grid_layout.h"
 #include "panel_widget.h"

@@ -15,18 +15,18 @@ GATE="$SCRIPTS/check_layering.py"
 
 setup() {
     REPO="${BATS_TEST_TMPDIR:-$(mktemp -d)}/repo"
-    mkdir -p "$REPO/src/printer" "$REPO/src/ui" "$REPO/src/application" "$REPO/include"
+    mkdir -p "$REPO/src/printer" "$REPO/src/ui" "$REPO/src/ui/notify" "$REPO/src/application" "$REPO/include"
     git -C "$REPO" init -q -b main
     git -C "$REPO" config user.email t@example.com
     git -C "$REPO" config user.name t
     echo '#pragma once' > "$REPO/include/ui_toast_manager.h"
-    echo '#include "ui_toast_manager.h"' > "$REPO/src/ui/ui_toast_manager.cpp"
+    echo '#include "ui_toast_manager.h"' > "$REPO/src/ui/notify/ui_toast_manager.cpp"
     echo '#pragma once' > "$REPO/include/printer_state.h"
     printf '#include "printer_state.h"\n#include "ui_toast_manager.h"\n' > "$REPO/src/printer/printer_state.cpp"
     echo '#include "printer_state.h"' > "$REPO/src/printer/clean.cpp"
     echo '#pragma once' > "$REPO/include/header_only.h"
-    echo '#pragma once' > "$REPO/include/data_root_resolver.h"
-    echo '#include "data_root_resolver.h"' > "$REPO/src/application/data_root_resolver.cpp"
+    echo '#pragma once' > "$REPO/include/app_wiring.h"
+    echo '#include "app_wiring.h"' > "$REPO/src/application/app_wiring.cpp"
     git -C "$REPO" add -A
     git -C "$REPO" commit -qm base
     BASE=$(git -C "$REPO" rev-parse HEAD)
@@ -98,7 +98,7 @@ layering() {
     commit_all "toast" "Layering: src/printer/clean.cpp needs the toast until the notice router lands"
     layering
     [ "$status" -eq 0 ]
-    echo '#include "data_root_resolver.h"' >> "$REPO/src/printer/printer_state.cpp"
+    echo '#include "app_wiring.h"' >> "$REPO/src/printer/printer_state.cpp"
     commit_all "resolver too"
     layering
     [ "$status" -eq 1 ]
@@ -121,6 +121,18 @@ layering() {
     layering
     [ "$status" -eq 0 ]
     contains "upward includes 1 -> 1" "$output"
+}
+
+@test "a header under include/core/ belongs to core, so a state file including it is not upward" {
+    mkdir -p "$REPO/include/core"
+    echo '#pragma once' > "$REPO/include/core/queue_bridge.h"
+    echo '#include "core/queue_bridge.h"' >> "$REPO/src/printer/clean.cpp"
+    echo '#include "ui_toast_manager.h"' >> "$REPO/include/core/queue_bridge.h"
+    commit_all "core header"
+    layering
+    [ "$status" -eq 1 ]
+    contains "include/core/queue_bridge.h: upward includes grew 0 -> 1" "$output"
+    lacks "clean.cpp" "$output"
 }
 
 @test "a header with no .cpp but a ui_ name or an include/ui/ path belongs to ui" {

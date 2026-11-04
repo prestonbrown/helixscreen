@@ -19,11 +19,11 @@
  */
 
 #include "ui_panel_power.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/power_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "core/update_queue.h"
 #include "moonraker_types.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"

@@ -8,10 +8,10 @@
 #include "ui_shutdown_modal.h"
 #include "ui_split_button.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "host_identity.h"

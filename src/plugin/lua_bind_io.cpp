@@ -5,8 +5,8 @@
 
 #include "ui_timer_guard.h"
 
+#include "core/text_io.h"
 #include "lua_bindings.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

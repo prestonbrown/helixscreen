@@ -35,7 +35,7 @@ Makes every door-named `gcode_button` (`frontDoor`, `topDoor` on the Creator 5 p
 |----------|-------|
 | **Values** | any value (presence is what counts) |
 | **Default** | unset (doors closed) |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Exercise the door-open print-start warning and the Inputs section of Settings > Sensors
@@ -50,7 +50,7 @@ The regulatory country the mock WiFi radio reports at startup, standing in for o
 |----------|-------|
 | **Values** | ISO 3166-1 alpha-2 code (`US`, `de`, ...); anything else reads as unset |
 | **Default** | unset (world) |
-| **File** | `src/api/wifi_backend_mock.cpp` |
+| **File** | `src/network/wifi_backend_mock.cpp` |
 
 ```bash
 # A radio the system already set to Germany: shown as current, left alone
@@ -65,7 +65,7 @@ Make the mock advertise Moonraker-relative thumbnail paths and fetch them over r
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | unset (thumbnails resolve from local files) |
-| **File** | `src/api/moonraker_client_mock_files.cpp` (advertised path), `src/api/moonraker_api_mock.cpp` (delegates to the real transfer API), served by `src/api/mock_http_file_server.cpp` |
+| **File** | `src/mock/moonraker_client_mock_files.cpp` (advertised path), `src/mock/moonraker_api_mock.cpp` (delegates to the real transfer API), served by `src/mock/mock_http_file_server.cpp` |
 
 By default the mock advertises a local cache path and `MoonrakerFileTransferAPIMock` copies the file, so download → decode → prescale → evict never runs under `--test`. That is fast and right for normal mock use, but it made the pipeline implicated by debug bundle `6F3QJLFG` unreachable without a printer (prestonbrown/helixscreen#960). With this set, paths become `.thumbs/<name>-300x300.png`, the mock delegates to the real `MoonrakerFileTransferAPI`, and `MockHttpFileServer` answers on a loopback port — so the real HTTP client, HttpExecutor workers and stb_image decode all run.
 
@@ -101,7 +101,7 @@ Serve a real file's bytes from `MockHttpFileServer` instead of the tiny synthesi
 |----------|-------|
 | **Values** | path to a gcode file readable by the app |
 | **Default** | unset (`.gcode` requests get a synthesised thumbnail-bearing header) |
-| **File** | `src/api/mock_http_file_server.cpp` |
+| **File** | `src/mock/mock_http_file_server.cpp` |
 
 With this set, every `.gcode` request the mock server receives returns the named file's bytes, so the whole-file preview download and the byte-range reads the tail/footer scanners issue run against a realistically sized payload. The server starts with every `--test` mock run; pair with `HELIX_MOCK_REMOTE_THUMBS=1` to route the file fetches over real HTTP as the #1706 repro does. Range headers are honoured per `apply_range`, subject to `HELIX_MOCK_RANGE_IGNORE`.
 
@@ -118,7 +118,7 @@ Make the mock file server drop every `Range` header, answering `200` with the wh
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | unset (ranges honoured: `206` slices, `416` for unsatisfiable) |
-| **File** | `src/api/mock_http_file_server.cpp` (`range_ignore_enabled`, applied in `apply_range`) |
+| **File** | `src/mock/mock_http_file_server.cpp` (`range_ignore_enabled`, applied in `apply_range`) |
 
 This is the server half of the Qidi Q2 single-file freeze (prestonbrown/helixscreen#1706): a range-ignoring server turned the bounded thumbnail-header fetch into a whole-file download per list entry. Set it to reproduce that class of failure against the client-side clamps, which live in `download_file_partial` / `download_file_tail` (`src/api/moonraker_file_transfer_api.cpp`) and are pinned by `tests/unit/test_moonraker_transfer_range.cpp`. The server's own Range behaviour is pinned by `tests/unit/test_mock_http_file_server_range.cpp`.
 
@@ -135,7 +135,7 @@ Pad the mock's file listing to N entries by cycling the built-in names, so list-
 |----------|-------|
 | **Values** | positive integer |
 | **Default** | unset (the handful of built-in mock files) |
-| **File** | `src/api/moonraker_client_mock_files.cpp` |
+| **File** | `src/mock/moonraker_client_mock_files.cpp` |
 
 Padded entries reuse the built-in filenames in rotation, so they carry the same thumbnails and metadata; the point is the count, not the variety. Pair with `HELIX_MOCK_RANGE_IGNORE` and `HELIX_MOCK_REMOTE_THUMBS` to make each entry's metadata fetch a whole-file download, the #1706 shape at full scale.
 
@@ -147,7 +147,7 @@ Add N macros (`MOCK_MACRO_000` onward) to the mock printer, every third with a d
 |----------|-------|
 | **Values** | positive integer |
 | **Default** | unset (the built-in mock macros only) |
-| **File** | `src/api/moonraker_client_mock_objects.cpp` (`helix::sim::mock_padded_macro_names`) |
+| **File** | `src/mock/moonraker_client_mock_objects.cpp` (`helix::sim::mock_padded_macro_names`) |
 
 ```bash
 HELIX_MOCK_MACRO_COUNT=130 ./build/bin/helix-screen --test -vv
@@ -161,7 +161,7 @@ Make `server.files.metadata` and `server.files.metascan` fail with a 404, as Moo
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | unset (metadata answers normally) |
-| **File** | `src/api/moonraker_client_mock_files.cpp` |
+| **File** | `src/mock/moonraker_client_mock_files.cpp` |
 
 With metadata unavailable, the UI falls back to reading thumbnails and layer counts straight out of the gcode file, which is the per-file path that #1706 froze. This knob forces that fallback without needing a metadata-less server.
 
@@ -173,7 +173,7 @@ Make `server.connection.identify` fail with `401 Unauthorized`, as a Moonraker w
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | unset (identify succeeds) |
-| **File** | `src/api/moonraker_client_mock_server.cpp` |
+| **File** | `src/mock/moonraker_client_mock_server.cpp` |
 
 Discovery stops at the refused identify and the app shows its one Login Required message, with the button that opens the API key field.
 
@@ -201,7 +201,7 @@ The `symlink_dir` the mock's `server.helix.status` reports with `HELIX_MOCK_HELI
 |----------|-------|
 | **Values** | a directory name |
 | **Default** | `.helix_print` |
-| **File** | `src/api/moonraker_client_mock_server.cpp` |
+| **File** | `src/mock/moonraker_client_mock_server.cpp` |
 
 ### `HELIX_MOCK_3MF_METADATA`
 
@@ -211,7 +211,7 @@ Make the mock report metadata for `.3mf` files, as a printer that reads `.3mf` a
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables |
 | **Default** | unset (`.3mf` metadata 404s) |
-| **File** | `src/api/moonraker_client_mock_files.cpp` |
+| **File** | `src/mock/moonraker_client_mock_files.cpp` |
 
 ### `HELIX_MOCK_3MF_CONVERSIONS`
 
@@ -221,7 +221,7 @@ Serve a JSON file as the result of `server.helix.3mf_conversions`, the printer-s
 |----------|-------|
 | **Values** | path to a JSON file |
 | **Default** | unset (no converter) |
-| **File** | `src/api/moonraker_client_mock_files.cpp` |
+| **File** | `src/mock/moonraker_client_mock_files.cpp` |
 
 ### `HELIX_MOCK_PLUGINS_DIR`
 
@@ -231,7 +231,7 @@ Serve the `config/helixscreen/plugins/` folder of the mock printer from a local 
 |----------|-------|
 | **Values** | path to a directory (each `<dir>/<id>/<file>` is served as `config/helixscreen/plugins/<id>/<file>`) |
 | **Default** | unset (the config root holds only injected files; plugin downloads are not served) |
-| **File** | `src/api/moonraker_api_mock.cpp` (`MoonrakerFileAPIMock::list_files`, `MoonrakerFileTransferAPIMock::lookup_config_root`) |
+| **File** | `src/mock/moonraker_api_mock.cpp` (`MoonrakerFileAPIMock::list_files`, `MoonrakerFileTransferAPIMock::lookup_config_root`) |
 
 Every regular file under the directory is listed in the config root under the plugin prefix, with real size and mtime, and downloads (both the partial and the to-path forms) return the fixture bytes. Point it at `tests/fixtures/plugins` or your own plugin folder to exercise the plugin sync pipeline end to end without a printer:
 
@@ -252,7 +252,7 @@ Start the mock printer with a `display_status.message` (M117) already set, as a 
 |----------|-------|
 | **Values** | any text; empty sets nothing |
 | **Default** | unset (no message while idle) |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 HELIX_MOCK_DISPLAY_MESSAGE="Nozzle wiped, ready" ./build/bin/helix-screen --test -vv
@@ -266,7 +266,7 @@ Boot the mock printer straight into an active print so print-gated features can 
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | unset (no auto-print) |
-| **File** | `src/application/moonraker_manager.cpp` (sets `mock_auto_start_print`); consumed in `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/application/moonraker_manager.cpp` (sets `mock_auto_start_print`); consumed in `src/mock/moonraker_client_mock.cpp` |
 
 The simulated print start runs a motors-sync motor sync after homing only when the printer reports the `motors_sync` object:
 
@@ -283,7 +283,7 @@ Replay a captured print-start sequence through the mock client's real dispatch p
 |----------|-------|
 | **Values** | path to a replay script JSON (see `tests/fixtures/k1c_flowrate_replay.json`, or `tests/fixtures/voron_trident_afc_replay.json` for a macro-driven Klipper printer whose phases arrive as `display_status` narration) |
 | **Default** | unset (no replay) |
-| **File** | `src/application/moonraker_manager.cpp` (env read); `src/api/moonraker_client_mock.cpp` (`arm_event_replay`) |
+| **File** | `src/application/moonraker_manager.cpp` (env read); `src/mock/moonraker_client_mock.cpp` (`arm_event_replay`) |
 | **Generating** | `scripts/extract_mock_replay.py` — extracts a script from a klippy.log + app log capture pair |
 
 When set truthy, the mock calls its normal `start_print_internal()` on connect (the same path `--print-status` uses), so `print_stats.state` becomes `printing`. Uses `--gcode-file` if given, otherwise the default test gcode. Useful for exercising any UI that depends on an active print.
@@ -316,7 +316,7 @@ HELIX_MOCK_REMOTE_PRINTER=1 ./build/bin/helix-screen --test -vv
 |----------|-------|
 | **Values** | Path to a JSON file holding the published payload (`schema`, `grid`, `main_page_index`, `pages`) |
 | **Default** | unset (no layout published) |
-| **File** | `src/api/moonraker_client_mock.cpp` (constructor); payload shape in `include/home_layout_share.h` |
+| **File** | `src/mock/moonraker_client_mock.cpp` (constructor); payload shape in `include/home_layout_share.h` |
 
 Pair it with `HELIX_MOCK_REMOTE_PRINTER=1` and a fresh `HELIX_CONFIG_DIR` to watch a new remote client seed its home layout; an unreadable file logs a warning and publishes nothing.
 
@@ -398,7 +398,7 @@ map and side list are reachable under `--test`.
 |----------|-------|
 | **Values** | `1` (5 objects), `2`–`12` (that many objects), `0` / `off` / unset to disable |
 | **Default** | unset (only what the G-code declares) |
-| **File** | `src/api/moonraker_client_mock.cpp` (read in the constructor, applied in `start_print_internal()`) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (read in the constructor, applied in `start_print_internal()`) |
 
 The stock test G-codes each declare exactly one `EXCLUDE_OBJECT_DEFINE`, and the
 print-status **objects** button is gated on two or more (`defined_objects.size() >= 2`),
@@ -606,7 +606,7 @@ QGL and Z-tilt report `applied: true` from the start, so their toggles show
 without leveling first. The pre-start block's `SET_GCODE_VARIABLE` lines set the
 flags, and the simulated print start prints `HelixScreen: ... skipped for this
 print` in place of the step it skips, restoring the flag as the real wrapper does.
-File: `src/api/moonraker_client_mock_skips.cpp`.
+File: `src/mock/moonraker_client_mock_skips.cpp`.
 
 ```bash
 HELIX_MOCK_SKIP_WRAPPERS=1 ./build/bin/helix-screen --test -vv   # default persona: Voron 2.4
@@ -628,7 +628,7 @@ Layer modal on the print status panel can be driven under `--test`
 The macros mirror the client.cfg bodies: `ENABLE` defaults to 1 for
 `SET_PAUSE_NEXT_LAYER`, and to "was `LAYER` given" for `SET_PAUSE_AT_LAYER`.
 Set it to `0` to see the print status panel of a printer without them, where the
-layer readout is not tappable. File: `src/api/moonraker_client_mock_layer_pause.cpp`.
+layer readout is not tappable. File: `src/mock/moonraker_client_mock_layer_pause.cpp`.
 
 ```bash
 HELIX_MOCK_AUTO_PRINT=1 ./build/bin/helix-screen --test --sim-speed 6 -vv   # tap the layer readout
@@ -1045,7 +1045,7 @@ interlock clear) are reachable in tests and `--test` runs.
 |----------|-------|
 | **Values** | Extruder index `0`-`3` |
 | **Default** | unset (every channel reaches its success terminal) |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Head 1 fails its load while heads 0 and 2 succeed
@@ -1168,7 +1168,7 @@ Enable or disable mock Spoolman integration. When disabled, `get_spoolman_status
 |----------|-------|
 | **Values** | `0` or `off` to disable; any other value keeps enabled |
 | **Default** | Enabled (mock Spoolman always connected in test mode) |
-| **File** | `src/api/moonraker_client_mock.cpp` (set via `src/application/moonraker_manager.cpp`) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (set via `src/application/moonraker_manager.cpp`) |
 
 ```bash
 # Disable mock Spoolman to test "no Spoolman" scenarios
@@ -1187,7 +1187,7 @@ extends the inventory - the curated spools the mock backends link against keep t
 |----------|-------|
 | **Values** | integer target count (clamped to 5000) |
 | **Default** | 19 (unset - no padding) |
-| **File** | `src/api/moonraker_client_mock_spoolman.cpp` (`init_mock_spools`) |
+| **File** | `src/mock/moonraker_client_mock_spoolman.cpp` (`init_mock_spools`) |
 
 ```bash
 # Measure picker search cost against a 300-spool inventory
@@ -1204,7 +1204,7 @@ catalog search.
 |----------|-------|
 | **Values** | `0` turns the route off; anything else, or unset, leaves it on |
 | **Default** | on |
-| **File** | `src/api/moonraker_client_mock_spoolman.cpp` (`MockSpoolmanServer`) |
+| **File** | `src/mock/moonraker_client_mock_spoolman.cpp` (`MockSpoolmanServer`) |
 
 ```bash
 HELIX_MOCK_SPOOLMAN_DB_SEARCH=0 ./build/bin/helix-screen --test -vv
@@ -1221,7 +1221,7 @@ spool wizard's search drop superseded answers and parse off the UI thread
 |----------|-------|
 | **Values** | milliseconds, 0-10000 |
 | **Default** | 0 (answers at once, on the calling thread) |
-| **File** | `src/api/moonraker_client_mock_server.cpp` (`server.spoolman.proxy`) |
+| **File** | `src/mock/moonraker_client_mock_server.cpp` (`server.spoolman.proxy`) |
 
 ```bash
 HELIX_MOCK_SPOOLMAN_DB_SEARCH_LATENCY_MS=150 ./build/bin/helix-screen --test -vv
@@ -1235,7 +1235,7 @@ Configure custom filament sensor configurations for testing.
 |----------|-------|
 | **Values** | Comma-separated `type:name` pairs, or `"none"` |
 | **Default** | Single runout switch sensor |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 **Sensor Types:**
 - `switch` - Simple on/off runout switch
@@ -1257,7 +1257,7 @@ Set the initial state of filament sensors.
 |----------|-------|
 | **Values** | `sensor_name:state`, comma-separated. `state` is `detected`, `empty`, or `disabled` (Klipper reports the sensor stood down, `enabled: false`) |
 | **Default** | Detected |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Start with empty filament sensor
@@ -1304,7 +1304,7 @@ Return an empty power devices list from mock Moonraker API.
 |----------|-------|
 | **Values** | Any value (presence enables) |
 | **Default** | Populated power device list |
-| **File** | `src/api/moonraker_api_mock.cpp` |
+| **File** | `src/mock/moonraker_api_mock.cpp` |
 
 ```bash
 # Simulate printer with no controllable power devices
@@ -1481,7 +1481,7 @@ Choose which Z-probe the mock printer advertises. Controls both the Klipper obje
 |----------|-------|
 | **Values** | `cartographer`, `beacon`, `bltouch`, `loadcell`, `load_cell_probe`, `tap`, `klicky`, `standard`, `none` |
 | **Default** | the persona's probe: `cartographer`, except `load_cell_probe` on `cc1` and `loadcell` on `ad5x` |
-| **File** | `src/api/moonraker_client_mock_objects.cpp` |
+| **File** | `src/mock/moonraker_client_mock_objects.cpp` |
 
 Each value exposes the objects and full `get_status()` payload the real module publishes (`helix::sim::mock_probe_status()`; per-type table in `docs/devel/SENSOR_MANAGEMENT.md` § Probe status keys).
 
@@ -1513,7 +1513,7 @@ Override the kinematics string the mock reports in `configfile.config.printer.ki
 |----------|-------|
 | **Values** | Any Klipper kinematics name (e.g. `corexy`, `cartesian`, `delta`, `corexz`) |
 | **Default** | The persona descriptor's kinematics (`include/mock_persona.h#descriptor`): `cartesian` for `snapmaker_u1`, `generic_bedslinger` and `multi_extruder`; `delta` for `delta`; `corexy` for every other persona |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Force a bed-slinger layout on the default Voron mock
@@ -1534,7 +1534,7 @@ printer that is not a Z-Mod Creator 5.
 |----------|-------|
 | **Values** | `1` (the extra plus the stock `STEPPER_RESONANCE_FACTORY_CALIBRATE` macro), `bare` (the extra only, so the two `STEPPER_RESONANCE_SEARCH_CALIBRATE` lines are sent), `0` or unset (neither) |
 | **Default** | unset |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 The mock accepts the calibration commands without simulating a sweep; the closing
 `SAVE_CONFIG` takes the mock's usual restart path.
@@ -1551,7 +1551,7 @@ Append additional Klipper objects to the mock's advertised object list, so capab
 |----------|-------|
 | **Values** | Space-separated object names |
 | **Default** | Unset — only the mock printer's built-in object set |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Add a chamber temperature_fan and a generic heater
@@ -1570,7 +1570,7 @@ HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbr
   ./build/bin/helix-screen --test -vv
 ```
 
-**Two-word object names are reassembled by prefix.** The parser splits on whitespace, then treats a token starting with `heater_generic`, `temperature_fan`, `temperature_sensor`, or `output_pin` as the start of a *new* object and glues any following tokens onto the current one. So `temperature_fan chamber` becomes the single object `temperature_fan chamber`. A token that is not a prefix glues onto the current object — with one exception: a token that exactly names a chamber-heater backend's diagnostics object (e.g. the bare `dragonbreath` after a completed `heater_generic dragonbreath`) starts a new standalone object instead of appending. A chamber heater accepted from this list also replaces the mock profile's built-in chamber heater. Any other `heater_generic` is simulated on its own (`src/api/moonraker_client_mock.cpp#append_aux_heater_status`): it starts at 25°C with no target, steps 1°C per simulated second toward the target `SET_HEATER_TEMPERATURE HEATER=<bare name>` gives it, and reports `temperature`, `target` and `power`. Each accepted object is logged as `[MoonrakerClientMock] Added mock object: <name>`.
+**Two-word object names are reassembled by prefix.** The parser splits on whitespace, then treats a token starting with `heater_generic`, `temperature_fan`, `temperature_sensor`, or `output_pin` as the start of a *new* object and glues any following tokens onto the current one. So `temperature_fan chamber` becomes the single object `temperature_fan chamber`. A token that is not a prefix glues onto the current object — with one exception: a token that exactly names a chamber-heater backend's diagnostics object (e.g. the bare `dragonbreath` after a completed `heater_generic dragonbreath`) starts a new standalone object instead of appending. A chamber heater accepted from this list also replaces the mock profile's built-in chamber heater. Any other `heater_generic` is simulated on its own (`src/mock/moonraker_client_mock.cpp#append_aux_heater_status`): it starts at 25°C with no target, steps 1°C per simulated second toward the target `SET_HEATER_TEMPERATURE HEATER=<bare name>` gives it, and reports `temperature`, `target` and `power`. Each accepted object is logged as `[MoonrakerClientMock] Added mock object: <name>`.
 
 ### `HELIX_MOCK_DETECTION_CAPABLE`
 
@@ -1595,7 +1595,7 @@ Latch a fault into every synthesized dragonbreath status frame — the diagnosti
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | Unset — nominal frame (`fault: false`, null `fault_reason`) |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Faulted dragonbreath chamber heater
@@ -1630,7 +1630,7 @@ Drop the appliance off its radio link: every synthesized dragonbreath status fra
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | Unset — nominal frame (`connected: true`) |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Chamber heater that dropped off WiFi
@@ -1646,7 +1646,7 @@ Have the appliance drive the heater itself: every synthesized dragonbreath statu
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | Unset - nominal frame (`source: "klipper"`) |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Chamber heater driven by the appliance's own control
@@ -1662,7 +1662,7 @@ Put the stock Panda Breath into its own auto cycle: the status frame reports `wo
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | Unset — the appliance idles with `work_on: false` |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Stock Panda Breath holding its own auto target
@@ -1678,7 +1678,7 @@ The stock counterpart to `HELIX_MOCK_DRAGONBREATH_OFFLINE`: every synthesized `p
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | Unset — nominal frame (`connected: true`) |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 # Stock Panda Breath that dropped off WiFi
@@ -1700,7 +1700,7 @@ Make the mock report Kalico-style MPC heater control instead of Klipper's PID. T
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | Unset — Klipper PID (`pid_kp: 22.865`, `pid_ki: 1.292`, `pid_kd: 101.178`) |
-| **File** | `src/api/moonraker_client_mock_objects.cpp` |
+| **File** | `src/mock/moonraker_client_mock_objects.cpp` |
 
 ```bash
 # Mock a Kalico (Danger Klipper) firmware with MPC heater control
@@ -1846,7 +1846,7 @@ Set the free space the mock reports for the gcodes disk, so the host-health widg
 |----------|-------|
 | **Values** | A whole number of megabytes, capped at the 29 GB mock disk |
 | **Default** | Unset: 18 GB free of 29 GB |
-| **Files** | `include/mock_disk_usage.h`, `src/system/mock_performance_source.cpp`, `src/api/moonraker_client_mock_files.cpp` |
+| **Files** | `include/mock_disk_usage.h`, `src/system/mock_performance_source.cpp`, `src/mock/moonraker_client_mock_files.cpp` |
 
 ```bash
 HELIX_MOCK_DISK_FREE_MB=300 ./build/bin/helix-screen --test -vv
@@ -1860,7 +1860,7 @@ Swap the input-shaper panel's injected demo results for a Kalico-shaped shaper l
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | Unset — standard Klipper shaper list |
-| **File** | `src/ui/ui_panel_input_shaper.cpp` (`inject_demo_results()`) |
+| **File** | `src/ui/calibration/ui_panel_input_shaper.cpp` (`inject_demo_results()`) |
 
 ```bash
 # Kalico-style shaper results in the demo/screenshot path
@@ -1878,7 +1878,7 @@ Set belt path A's simulated resonance peak (Hz) in the mock's `TEST_RESONANCES` 
 |----------|-------|
 | **Values** | Positive float (Hz) |
 | **Default** | `110` |
-| **File** | `src/api/moonraker_client_mock.cpp` (`MoonrakerClientMock` constructor) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (`MoonrakerClientMock` constructor) |
 
 ```bash
 # Start both belts 2 Hz apart, just inside the MATCHED band
@@ -1893,7 +1893,7 @@ Set belt path B's simulated resonance peak (Hz), the `AXIS=1,1` diagonal. Read o
 |----------|-------|
 | **Values** | Positive float (Hz) |
 | **Default** | `98` |
-| **File** | `src/api/moonraker_client_mock.cpp` (`MoonrakerClientMock` constructor) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (`MoonrakerClientMock` constructor) |
 
 ```bash
 # A stiff A belt and a loose B belt
@@ -1910,7 +1910,7 @@ Without a script the walk runs on full re-measures, so a plain `--test` run stil
 |----------|-------|
 | **Values** | `<A\|B>:<hz>,<hz>,...`; the item `flat` writes a featureless curve (noise floor, no peak) for that sweep, which reaches the no-peak round |
 | **Default** | unset: sweeps after the first walk the peaks as `HELIX_MOCK_BELT_A_HZ` describes |
-| **File** | `src/api/moonraker_client_mock.cpp` (`apply_belt_tune_script`, `dispatch_test_resonances_response`) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (`apply_belt_tune_script`, `dispatch_test_resonances_response`) |
 
 ```bash
 # B: the calibration sweep barely moves (98.3), a second turn registers (102.1),
@@ -1955,7 +1955,7 @@ Make the mock's next `TEST_RESONANCES` run fail the way real hardware does, so t
 |----------|-------|
 | **Values** | `stall` \| `nofile` \| `multichip` \| `error` \| `kalico` |
 | **Default** | unset — a normal sweep that writes its CSV |
-| **File** | `src/api/moonraker_client_mock.cpp` (`MoonrakerClientMock` constructor, `dispatch_test_resonances_response`) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (`MoonrakerClientMock` constructor, `dispatch_test_resonances_response`) |
 
 ```bash
 # Kalico dialect: two-part axis names and an extra accel_per_hz CSV column
@@ -1975,7 +1975,7 @@ Replay a real `TEST_RESONANCES OUTPUT=resonances` capture as that path's result,
 |----------|-------|
 | **Values** | Path to a resonances CSV (Path A = the `AXIS=1,-1` capture, Path B = `AXIS=1,1`) |
 | **Default** | unset — the synthetic curve from `HELIX_MOCK_BELT_A_HZ` / `_B_HZ` |
-| **File** | `src/api/moonraker_client_mock.cpp` (`dispatch_test_resonances_response`) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (`dispatch_test_resonances_response`) |
 
 ```bash
 # The real Voron 2.4 pair from the test fixtures, over its 5-135 Hz sweep
@@ -1992,7 +1992,7 @@ The `[resonance_tester]` sweep range the mock reports in its configfile and swee
 |----------|-------|
 | **Values** | `<min>-<max>`, e.g. `5-100` |
 | **Default** | `5-135` |
-| **File** | `src/api/moonraker_client_mock.cpp` (`MoonrakerClientMock` constructor) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (`MoonrakerClientMock` constructor) |
 
 ```bash
 # The Snapmaker U1's band, with its real capture

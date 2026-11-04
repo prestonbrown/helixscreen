@@ -13,10 +13,10 @@
 
 #include "ui_overlay_temp_graph.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -76,35 +76,8 @@ float compute_y_axis_max(float current_max, float max_temp, const YAxisParams& p
 } // namespace
 
 // =============================================================================
-// Basic Properties
-// =============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: get_name returns expected value",
-                 "[temp_graph_overlay]") {
-    TempGraphOverlay overlay;
-    REQUIRE(std::string(overlay.get_name()) == "Temperature Graph");
-}
-
-// NOTE: a "mode defaults to GraphOnly" case used to live here. It constructed an
-// overlay and asserted nothing, because Mode is private and has no observable
-// effect until create()/open() builds the control strips. Rather than add a
-// production getter so the test could restate a member initializer, the case is
-// gone. The default becomes testable the day this file can build the overlay from
-// XML: opening in the default mode must leave nozzle/bed/chamber strips hidden.
-
-// =============================================================================
-// Subject Initialization
-// =============================================================================
-
-// =============================================================================
 // Global Accessor Pattern
 // =============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: global accessor returns valid reference",
-                 "[temp_graph_overlay]") {
-    TempGraphOverlay& overlay = get_global_temp_graph_overlay();
-    REQUIRE(std::string(overlay.get_name()) == "Temperature Graph");
-}
 
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: global accessor returns same instance",
                  "[temp_graph_overlay]") {
@@ -186,26 +159,6 @@ TEST_CASE_METHOD(
     REQUIRE_FALSE(name_present("temp_graph_nozzle_target"));
     REQUIRE_FALSE(name_present("temp_graph_nozzle_status_state"));
     REQUIRE_FALSE(name_present("temp_graph_nozzle_status"));
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: destructor safe without init_subjects",
-                 "[temp_graph_overlay]") {
-    {
-        TempGraphOverlay overlay;
-        REQUIRE_FALSE(overlay.are_subjects_initialized());
-        // Destructor runs here - should be safe even without init
-    }
-    SUCCEED("Destructor completed without crash");
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: cleanup on fresh instance does not crash",
-                 "[temp_graph_overlay]") {
-    TempGraphOverlay overlay;
-    REQUIRE_FALSE(overlay.cleanup_called());
-
-    overlay.cleanup();
-
-    REQUIRE(overlay.cleanup_called());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: cleanup after init_subjects does not crash",

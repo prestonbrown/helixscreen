@@ -23,13 +23,12 @@
  * populate, delete the page tree, then drain.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/nozzle_temps_test_access.h"
 #include "../test_helpers/thermistor_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "panel_widget_manager.h"
 #if HELIX_HAS_CAMERA
 #include "../test_helpers/camera_widget_test_access.h"

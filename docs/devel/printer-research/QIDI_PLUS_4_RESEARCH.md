@@ -299,7 +299,7 @@ Log source: `message.txt`, systemd `journalctl` capture around Apr 16 21:14 loca
    [PrinterDetector] Cannot lookup z_offset_calibration_strategy without database
    [Prerendered] Using printer image: assets/images/printers/prerendered/voron-24r2-300.bin
    ```
-   `helix::find_readable("printer_database.json")` (src/application/data_root_resolver.cpp:87) checks the writable user config dir first, then falls back to `<data_dir>/assets/config/printer_database.json`. An install upgraded from before the config/assets split can end up with neither path populated (seed never re-extracted, user config cleaned). The error text reports the user-path it would *prefer* — not that the seed is missing.
+   `helix::find_readable("printer_database.json")` (src/core/data_root_resolver.cpp:87) checks the writable user config dir first, then falls back to `<data_dir>/assets/config/printer_database.json`. An install upgraded from before the config/assets split can end up with neither path populated (seed never re-extracted, user config cleaned). The error text reports the user-path it would *prefer* — not that the seed is missing.
    **Note**: the `qidi_plus_4` preset **does exist** (`assets/config/printer_database.json`, id `qidi_plus_4`) and specifies `"image": "qidi-plus-4.png"`, which also exists at `assets/images/printers/qidi-plus-4.png`. Fix the DB-not-loading issue and detection + image should just work — no new assets needed for this printer.
 
 3. **Translation gaps (German)**

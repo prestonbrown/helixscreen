@@ -3,9 +3,9 @@
 
 #include "print_activity.h"
 
+#include "core/text_io.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 

@@ -19,11 +19,11 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "backlight_backend.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display/lv_display_private.h" // inv_en_cnt, restored after every test
 #include "display_manager.h"
 #include "display_settings_manager.h"

@@ -4,12 +4,12 @@
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/static_panel_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "moonraker_error.h"
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "tool_offset_calibration.h"
 

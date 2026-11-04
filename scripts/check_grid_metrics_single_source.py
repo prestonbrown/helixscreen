@@ -25,7 +25,7 @@ import re
 import sys
 from pathlib import Path
 
-TARGET = Path("src/ui/grid_edit_mode.cpp")
+TARGET = Path("src/ui/home/grid_edit_mode.cpp")
 PATTERN = re.compile(r"GridLayout::get_(cols|rows|dimensions)\b")
 LIMIT = 2  # one get_cols + one get_rows, both inside current_metrics()
 

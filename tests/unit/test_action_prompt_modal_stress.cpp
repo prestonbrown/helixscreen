@@ -51,12 +51,12 @@
 // tree on disk. Mirrors test_wizard_step_stress.cpp's tagging pattern.
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -589,7 +589,7 @@ TEST_CASE_METHOD(ActionPromptStressFixture,
 //   modal+ action_prompt_modal 1
 //   modal- action_prompt_modal 0
 //   overlay Print Status
-//   pstat_t on_activate           ← from src/ui/ui_panel_print_status.cpp:739
+//   pstat_t on_activate           ← from src/ui/print/ui_panel_print_status.cpp:739
 //   <fault in lv_event_mark_deleted / get_prop_core / lv_ll_remove>
 //
 // The fault is reached via lv_timer_handler → lv_async_call →

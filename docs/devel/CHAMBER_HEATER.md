@@ -61,12 +61,12 @@ The invariant: **vendor JSON schemas are translated to the generic `ChamberHeate
 | `src/api/moonraker_discovery_sequence.cpp` | Subscription-builder block adding the backend's diagnostics object + filter pin (`chamber::required_status_objects`) |
 | `src/printer/printer_temperature_state.cpp` | Diagnostics parse block: translates backend output to subjects; also owns all `chamber_heater_*` / `chamber_filter_fan_*` subject registration and display-string formatters |
 | `src/printer/printer_state.cpp` | The wiring block: gates both the diagnostics source and the TemperatureController action surface on resolved-heater == discovery-pick |
-| `src/ui/temperature_controller.cpp` | `set_chamber_actions()`, `reset_chamber_fault()`, `set_chamber_filter_fan()`, and the `ensure_limits()` ceiling fallback |
+| `src/ui/controls/temperature_controller.cpp` | `set_chamber_actions()`, `reset_chamber_fault()`, `set_chamber_filter_fan()`, and the `ensure_limits()` ceiling fallback |
 | `ui_xml/temp_graph_overlay.xml` | Where the diagnostics render: always inside the chamber card, at every size. Landscape is the right column's `chamber_display_card` (fault banner via the shared component, hairline, element row, filter-fan row with a `ui_switch`), compacted at micro landscape (480x272) with a smaller temp readout and tighter padding; portrait is a full-width band between the chart and the preset buttons. The card's border goes `#danger` while faulted/inhibited/offline, and nothing about the heater ever renders under the chart |
 | `ui_xml/components/chamber_fault_banner.xml` | Shared one-row banner: reason text (or "Heater offline") plus a compact Reset that hides while the device is offline. Instantiated by both orientation branches of the chamber card; each ships it and the banner self-hides while healthy |
 | `ui_xml/components/chamber_dryer_row.xml` | Shared one-row dryer control on the chamber card: Start Drying while idle, the live temp against the target plus the countdown and Stop while a cycle runs. Hidden unless `printer_has_chamber_dryer` |
-| `src/ui/ui_chamber_dryer_modal.cpp` + `ui_xml/chamber_dryer_modal.xml` | The start modal: the shared drying presets labelled as the dryer will run them, and the bed-assist switch |
-| `src/api/moonraker_client_mock.cpp` | Mock chamber backend shape (`HELIX_MOCK_OBJECTS` dragonbreath trio), registry-based chamber-status key |
+| `src/ui/filament/ui_chamber_dryer_modal.cpp` + `ui_xml/chamber_dryer_modal.xml` | The start modal: the shared drying presets labelled as the dryer will run them, and the bed-assist switch |
+| `src/mock/moonraker_client_mock.cpp` | Mock chamber backend shape (`HELIX_MOCK_OBJECTS` dragonbreath trio), registry-based chamber-status key |
 | `tests/unit/test_chamber_*.cpp` | Backend match/parse, subjects, ceiling, actions, discovery, mock — tags under `[chamber]` |
 
 ---
@@ -162,7 +162,7 @@ the heater's rule against discovery's sensor pick:
 and the `printer_has_chamber_sensor` capability, and re-resolves it on every discovery (each klippy
 ready and reconnect), so a named sensor that appears or disappears is followed without a restart.
 Consumers read what was published. The one reader of discovery's own sensor pick is the chamber
-sensor dropdown in Sensor settings (`src/ui/ui_settings_sensors.cpp#populate_chamber_assignment`),
+sensor dropdown in Sensor settings (`src/ui/settings/ui_settings_sensors.cpp#populate_chamber_assignment`),
 whose "Auto" entry names the sensor `auto` takes.
 
 ---
@@ -340,7 +340,7 @@ macro; which fans run at which speed is the firmware's.
 | Capability | `include/chamber_air_modes.h` (`helix::chamber_air`): `enum class AirMode { Recirculate, Exhaust, Off }`, `bool supported(hw)`, `std::vector<AirMode> modes(hw)`, `bool offers(hw, AirMode)`, `std::string mode_gcode(hw, AirMode)`, `const char* mode_id(AirMode)`, `std::optional<AirMode> parse_mode_id(std::string_view)`, `std::string provider_name(hw)` |
 | Providers | `kProviders` in `src/printer/chamber_air_modes.cpp`: a detection predicate and one macro per mode. A mode is offered only while its macro is defined. Z-Mod on the Creator 5 is the first row (`AIR_CIRCULATION_INTERNAL` / `_EXTERNAL` / `_STOP`) |
 | Subjects | `printer_has_chamber_air_recirculate`, `printer_has_chamber_air_exhaust`, `printer_has_chamber_air_off` (`PrinterCapabilitiesState`) |
-| UI | the **Chamber air** row in `ui_xml/fan_control_overlay.xml`; one callback, `on_chamber_air_mode_clicked`, whose `user_data` is the `mode_id` (`src/ui/ui_fan_control_overlay.cpp`) |
+| UI | the **Chamber air** row in `ui_xml/fan_control_overlay.xml`; one callback, `on_chamber_air_mode_clicked`, whose `user_data` is the `mode_id` (`src/ui/controls/ui_fan_control_overlay.cpp`) |
 | Tests | `[chamber_air]` in `tests/unit/test_chamber_air_modes.cpp` |
 
 **No active mode.** A mode macro sets several fans once, and every fan stays individually

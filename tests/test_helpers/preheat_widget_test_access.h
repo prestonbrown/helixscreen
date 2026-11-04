@@ -15,8 +15,8 @@ namespace helix {
 // own version of the class would be an ODR violation.
 //
 //  - cycle(): the real cycle_tool_target(). Production calls it from
-//    tool_target_cb(), which needs an attached widget tree, a live split
-//    button and s_active_instance set. The function itself reads nothing but
+//    tool_target_cb(), which needs an attached widget tree and a live split
+//    button. The function itself reads nothing but
 //    ToolState, so a test that calls it directly still exercises every branch.
 //  - tool_target() / set_tool_target(): the value the cycle walks. It is also
 //    what handle_apply() hands collect_preheat_heaters() and what

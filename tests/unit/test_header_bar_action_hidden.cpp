@@ -10,9 +10,8 @@
  * (0), reactively, via bind_flag_if_eq.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 
 #include <lvgl.h>
 

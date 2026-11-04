@@ -3,17 +3,16 @@
 
 #include "standard_macros.h"
 
-#include "ui_update_queue.h"
-
 #include "config.h"
+#include "core/static_subject_registry.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "macro_patterns.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
-#include "static_subject_registry.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

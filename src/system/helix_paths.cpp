@@ -2,8 +2,8 @@
 
 #include "system/helix_paths.h"
 
+#include "core/text_io.h"
 #include "helix_fs.h"
-#include "text_io.h"
 
 #include <atomic>
 #include <cstdlib>

@@ -20,10 +20,9 @@
  * seeding anything, and each section then writes the values it asserts against.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "detection_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "settings_manager.h"

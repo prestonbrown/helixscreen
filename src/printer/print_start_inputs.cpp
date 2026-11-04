@@ -3,20 +3,20 @@
 #include "print_start_inputs.h"
 
 #include "ui_filament_mapping_card.h"
-#include "ui_filename_utils.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/gcode_filename.h"
+#include "core/http_executor.h"
+#include "core/text_io.h"
 #include "file_analysis.h"
 #include "gcode_parser.h"
 #include "gcode_preview_fetcher.h"
-#include "http_executor.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "printer_detector.h"
 #include "printer_state.h"
-#include "text_io.h"
 #include "tools_used_cache.h"
 
 #include <spdlog/spdlog.h>

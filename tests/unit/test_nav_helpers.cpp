@@ -11,10 +11,10 @@
  */
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "core/update_queue.h"
 
 #include "../catch_amalgamated.hpp"
 

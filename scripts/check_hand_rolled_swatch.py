@@ -50,7 +50,7 @@ XML_DIRS = ("ui_xml",)
 XML_SUFFIXES = (".xml",)
 
 EXEMPT = (
-    r"^src/ui/ui_swatch\.cpp$",
+    r"^src/ui/components/ui_swatch\.cpp$",
     r"^include/ui_swatch\.h$",
     r"^ui_xml/components/color_swatch\.xml$",
     r"^ui_xml/components/color_dot\.xml$",

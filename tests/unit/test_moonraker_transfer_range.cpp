@@ -270,11 +270,24 @@ constexpr size_t kPayloadSize = 64 * 1024;
 constexpr size_t kPartialBytes = 4096;
 constexpr size_t kTailBytes = 1024;
 
-// The abort test's payload and wire bound. A client that fails to abort pulls
-// the whole multi-MB body; one that hangs up at max_bytes lets the server push
-// only the abort point plus whatever kernel socket buffers absorbed.
-constexpr size_t kBigPayloadSize = 4 * 1024 * 1024;
-constexpr size_t kWireSlack = 512 * 1024;
+/// The most the kernel can hold between the server's writes and the client's
+/// reads: the server's send buffer plus the client's receive buffer, each at the
+/// size it may autotune to. A client that hangs up at max_bytes still lets the
+/// server push that much before the close lands. Each side is capped at 16 MB
+/// so a host tuned for huge windows does not cost a huge payload.
+size_t kernel_buffer_ceiling() {
+    auto autotune_max = [](const char* path, size_t fallback) {
+        std::ifstream in(path);
+        size_t min = 0, def = 0, max = 0;
+        if (in >> min >> def >> max) {
+            return std::min<size_t>(max, 16 * 1024 * 1024);
+        }
+        return fallback;
+    };
+    // macOS has no /proc: kern.ipc.maxsockbuf bounds each side at 8 MB.
+    return autotune_max("/proc/sys/net/ipv4/tcp_rmem", 8 * 1024 * 1024) +
+           autotune_max("/proc/sys/net/ipv4/tcp_wmem", 8 * 1024 * 1024);
+}
 
 } // namespace
 
@@ -293,10 +306,9 @@ TEST_CASE("partial download clamps a Range-ignoring 200 body", "[api][transfer][
 }
 
 TEST_CASE("partial download aborts a Range-ignoring 200 at max_bytes", "[api][transfer][range]") {
-    // Guard the bound against vacuousness: the payload must dwarf what the
-    // server is allowed to push past the abort point.
-    REQUIRE(kBigPayloadSize > kPartialBytes + kWireSlack);
-    const std::string payload = make_payload(kBigPayloadSize);
+    // Larger than every byte the kernel could hold on the client's behalf, so
+    // only a client that kept reading past max_bytes lets the whole body cross.
+    const std::string payload = make_payload(2 * kernel_buffer_ceiling());
     RangeResponder server(/*honour_range=*/false, payload);
     TransferHarness harness(server.base_url());
 
@@ -311,7 +323,7 @@ TEST_CASE("partial download aborts a Range-ignoring 200 at max_bytes", "[api][tr
     // The client must hang up once max_bytes arrived: the server got to push
     // the abort point plus kernel-buffer slack, not the whole file.
     REQUIRE(server.wait_writes_done(2000));
-    REQUIRE(server.content_written() < kPartialBytes + kWireSlack);
+    REQUIRE(server.content_written() < payload.size());
 }
 
 TEST_CASE("tail download clamps a Range-ignoring 200 body to the last bytes",

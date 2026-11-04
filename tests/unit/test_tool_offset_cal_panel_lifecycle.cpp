@@ -12,12 +12,12 @@
 
 #include "ui_guided_device_flow.h"
 #include "ui_panel_calibration_tool_offset.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../toolchanger_panel_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

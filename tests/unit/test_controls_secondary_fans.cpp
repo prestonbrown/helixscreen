@@ -29,10 +29,10 @@
  */
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/controls_panel_test_access.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <string>

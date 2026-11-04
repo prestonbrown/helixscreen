@@ -13,11 +13,11 @@
  * File: config/crash_history.json (array, capped at MAX_ENTRIES, FIFO)
  */
 
+#include "json_fwd.h"
+
 #include <mutex>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

@@ -57,13 +57,13 @@
  */
 
 #include "../../include/app_globals.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_api_mock.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_hardware.h"
 #include "../../include/printer_state.h"
 #include "../../include/runtime_config.h"
-#include "../../include/ui_update_queue.h"
 #include "../helix_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_runtime_config.h"

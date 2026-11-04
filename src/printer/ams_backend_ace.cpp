@@ -15,13 +15,14 @@
 
 #include "ui_insert_notice.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "ams_bypass_policy.h"
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_status_json.h"
 #include "ams_tool_map_sync.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "exception_policy.h"
 #include "helix_thread.h"
 #include "i_moonraker_api.h"
@@ -37,7 +38,6 @@
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -91,6 +91,16 @@ helix::BypassMacros resolve_with_stored_bypass_choices(const helix::BypassMacros
 } // namespace
 
 namespace {
+
+/// The last global slot index the unit walk can reach, or -1 with no slots yet.
+int highest_slot_index(const AmsSystemInfo& info) {
+    int highest = -1;
+    for (const auto& unit : info.units) {
+        highest = std::max(highest,
+                           unit.first_slot_global_index + static_cast<int>(unit.slots.size()) - 1);
+    }
+    return highest;
+}
 
 /// Whether a status object carries real slot data: a non-empty `slots` array,
 /// the exact key parse_ace_object reads.
@@ -807,7 +817,8 @@ AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info,
 
         SlotInfo* slot = mutable_slot_locked(slot_index);
         if (!slot) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                highest_slot_index(system_info_));
         }
         const bool temps_moved = info.nozzle_temp_min != slot->nozzle_temp_min ||
                                  info.nozzle_temp_max != slot->nozzle_temp_max;
@@ -844,8 +855,8 @@ SlotInfo* AmsBackendAce::identity_slot_locked(int slot_index) {
 AmsSubscriptionBackend::IdentityWrite
 AmsBackendAce::write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) {
     if (!slot) {
-        // The refusal offers no span: its highest slot is 0 whatever the unit count.
-        return {AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0)};
+        return {AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                             highest_slot_index(system_info_))};
     }
     write_filament_fields(*slot, info);
     spdlog::info("[ACE] Synced slot {} info: {} {}", slot_index, info.material, info.color_name);

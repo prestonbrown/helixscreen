@@ -14,13 +14,13 @@
 #include "belt_tension_calibrator.h"
 #include "belt_tension_types.h"
 #include "belt_tune_session.h"
+#include "core/static_panel_registry.h"
 #include "live_sweep_preview.h"
 #include "memory_utils.h"
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "platform_capabilities.h"
 #include "resonance_console.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <cstdint>

@@ -4,8 +4,8 @@
 #include "lvgl_test_fixture.h"
 
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "refresh_period_hold.h"
 #include "screen_hide_hold.h"
 #include "test_helpers/refresh_period_hold_test_access.h"

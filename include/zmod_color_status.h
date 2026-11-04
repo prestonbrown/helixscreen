@@ -5,13 +5,13 @@
 // Creator 5 Pro (toolheads) publish the same schema, so both readers parse it
 // here.
 
+#include "json_fwd.h"
+
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::zmod_color {
 

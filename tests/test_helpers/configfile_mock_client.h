@@ -4,13 +4,12 @@
 #pragma once
 
 #include "helix_shared_callback.h"
+#include "json_fwd.h"
 #include "moonraker_client_mock.h"
 
 #include <functional>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 /// The stock mock answers printer.objects.query configfile from a hard-coded
 /// config; this one answers that query from test-controlled sections and

@@ -3,6 +3,7 @@
 
 #include "ui_observer_guard.h" // SubjectLifetime
 
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
@@ -11,8 +12,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class Config;

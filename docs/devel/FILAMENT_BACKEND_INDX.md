@@ -16,8 +16,8 @@ with one `[extruder]`: `heater_pin: indx:heater`, `sensor_type: indx`.
 | Backend | `include/ams_backend_indx.h`, `src/printer/ams_backend_indx.cpp` (derives `AmsBackendToolChanger`) |
 | Detection | `src/printer/printer_discovery_parse.cpp#parse_objects`, `#parse_config_keys` |
 | Shared heater in ToolState | `ToolTopology::heads_share_heater`, `include/tool_state.h#ToolState/names_mounted_nozzle` |
-| Heat gate | `AmsBackend::nozzle_heat_blocked_reason()`, enforced in `src/ui/temperature_controller.cpp#"void TemperatureController::set_target(HeaterType type"` |
-| Mock | `HELIX_MOCK_AMS=indx`, `src/api/moonraker_client_mock_indx.cpp` |
+| Heat gate | `AmsBackend::nozzle_heat_blocked_reason()`, enforced in `src/ui/controls/temperature_controller.cpp#"void TemperatureController::set_target(HeaterType type"` |
+| Mock | `HELIX_MOCK_AMS=indx`, `src/mock/moonraker_client_mock_indx.cpp` |
 
 ## The macro contract
 
@@ -148,7 +148,7 @@ nothing at all on an unrecognized contract:
 | Maintenance | Cycle every tool (guided flow) | Refused printing or paused; greyed by a seat fault or uncalibrated docks |
 | Tool Offsets | One read-only row per tool ("X 0.120  Y -0.045  Z 0.030 mm", an unknown axis `-`), and the global Z offset | None |
 
-The flows live in `src/ui/ui_indx_device_flows.cpp`: each asks first, then runs through
+The flows live in `src/ui/filament/ui_indx_device_flows.cpp`: each asks first, then runs through
 `run_device_action()` and keeps one status line under the section's buttons
 (`ui_xml/components/indx_flow_status.xml`) from "Calibrating..." to the result. A calibration
 that succeeds offers **Save & Restart** / **Later**; one that times out says the printer may

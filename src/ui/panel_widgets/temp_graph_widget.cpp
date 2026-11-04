@@ -8,6 +8,7 @@
 #include "ui_swatch.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "display_numbering.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -18,7 +19,6 @@
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"
@@ -527,13 +527,10 @@ uint32_t series_rgb(int color_idx) {
 
 } // namespace
 
-TempGraphWidget::TempGraphConfigModal* TempGraphWidget::TempGraphConfigModal::s_active_ = nullptr;
-
 TempGraphWidget::TempGraphConfigModal::TempGraphConfigModal(const nlohmann::json& config,
                                                             SaveCallback on_save)
     : config_(config), on_save_(std::move(on_save)) {
     temp_graph_config_init_subjects();
-    s_active_ = this;
     // The rows are published before the dialog is built, so the XML <repeat>
     // expands with them in place.
     populate_sensor_list();
@@ -541,11 +538,6 @@ TempGraphWidget::TempGraphConfigModal::TempGraphConfigModal(const nlohmann::json
         &s_cfg_follow_subject,
         config_.is_object() && helix::json_util::safe_bool(config_, "follow_overlay", false) ? 1
                                                                                              : 0);
-}
-
-TempGraphWidget::TempGraphConfigModal::~TempGraphConfigModal() {
-    if (s_active_ == this)
-        s_active_ = nullptr;
 }
 
 void TempGraphWidget::TempGraphConfigModal::on_show() {
@@ -718,14 +710,14 @@ void TempGraphWidget::TempGraphConfigModal::set_follow(bool on) {
 void TempGraphWidget::config_swatch_cb(lv_event_t* e) {
     // XML event user_data is the row's index as a string.
     const char* index = static_cast<const char*>(lv_event_get_user_data(e));
-    if (auto* modal = TempGraphConfigModal::active(); modal && index)
+    if (auto* modal = Modal::from_event<TempGraphConfigModal>(e); modal && index)
         modal->cycle_color(static_cast<size_t>(std::atoi(index)));
 }
 
 void TempGraphWidget::config_series_switch_cb(lv_event_t* e) {
     const char* index = static_cast<const char*>(lv_event_get_user_data(e));
     auto* sw = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (auto* modal = TempGraphConfigModal::active(); modal && index && sw) {
+    if (auto* modal = Modal::from_event<TempGraphConfigModal>(e); modal && index && sw) {
         modal->set_series_on(static_cast<size_t>(std::atoi(index)),
                              lv_obj_has_state(sw, LV_STATE_CHECKED));
     }
@@ -733,7 +725,7 @@ void TempGraphWidget::config_series_switch_cb(lv_event_t* e) {
 
 void TempGraphWidget::config_follow_switch_cb(lv_event_t* e) {
     auto* sw = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (auto* modal = TempGraphConfigModal::active(); modal && sw)
+    if (auto* modal = Modal::from_event<TempGraphConfigModal>(e); modal && sw)
         modal->set_follow(lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
 

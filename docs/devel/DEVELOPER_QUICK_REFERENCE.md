@@ -10,7 +10,7 @@ HelixScreen uses class-based patterns for all new code. For architectural ration
 
 ### Panel Pattern
 
-**Canonical example:** `include/ui_panel_filament.h` + `src/ui/ui_panel_filament.cpp`
+**Canonical example:** `include/ui_panel_filament.h` + `src/ui/filament/ui_panel_filament.cpp`
 
 ```cpp
 class ExamplePanel : public PanelBase {  // Use SubjectManager subjects_; member for auto cleanup
@@ -37,7 +37,7 @@ private:
 
 ### Manager Pattern (Backend)
 
-**Canonical example:** `include/wifi_manager.h` + `src/api/wifi_manager.cpp`
+**Canonical example:** `include/wifi_manager.h` + `src/network/wifi_manager.cpp`
 
 ```cpp
 class WiFiManager {
@@ -62,7 +62,7 @@ private:
 
 ### Modal Pattern
 
-**Canonical example:** `src/ui/ui_wizard*.cpp`
+**Canonical example:** `src/ui/wizard/ui_wizard*.cpp`
 
 ```cpp
 class ConfirmDialog : public Modal {
@@ -140,10 +140,10 @@ StaticSubjectRegistry::instance().register_deinit(
 
 ## Observer Factory (CRITICAL)
 
-Use `observer_factory.h` for type-safe, auto-cleaned observers. **Never use raw `lv_subject_add_observer_*` in panels.**
+Use `core/observer_factory.h` for type-safe, auto-cleaned observers. **Never use raw `lv_subject_add_observer_*` in panels.**
 
 ```cpp
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 
 // In setup_observers():
 // Integer observer; the handler runs deferred on the UI thread
@@ -306,7 +306,7 @@ The preset tier comes from the narrow axis, `min(width, height)`, not the height
 | `medium` | 40×20px | 48×24px | 80×40px | 112×48px |
 | `large` | 48×24px | 56×28px | 88×44px | 128×56px |
 
-Only four preset tiers exist for seven breakpoints, deliberately: Tiny and Small share one preset (switches are too small to benefit from separate tiers), and Large, XLarge and XXLarge all share the widest one. See `ui_switch_init_size_presets()` in `src/ui/ui_switch.cpp`.
+Only four preset tiers exist for seven breakpoints, deliberately: Tiny and Small share one preset (switches are too small to benefit from separate tiers), and Large, XLarge and XXLarge all share the widest one. See `ui_switch_init_size_presets()` in `src/ui/components/ui_switch.cpp`.
 
 ---
 
@@ -510,7 +510,7 @@ Theme-aware markdown viewer registered as an XML custom widget. Wraps `lv_markdo
 - Theme-aware: colors pulled from design tokens automatically.
 - Initialize with `ui_markdown_init()` after `lv_xml_init()` and theme init.
 
-**Header:** `include/ui_markdown.h` | **Source:** `src/ui/ui_markdown.cpp`
+**Header:** `include/ui_markdown.h` | **Source:** `src/ui/components/ui_markdown.cpp`
 
 ---
 

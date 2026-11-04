@@ -2,12 +2,12 @@
 
 #pragma once
 
+#include "json_fwd.h"
+
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file hardware_object_table.h

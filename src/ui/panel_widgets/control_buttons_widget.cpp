@@ -5,11 +5,11 @@
 
 #include "ui_button.h"
 
+#include "core/observer_factory.h"
 #include "grid_layout.h"
 #include "helix/ui/text_metrics.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "print_control_view.h"

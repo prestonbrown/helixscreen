@@ -73,15 +73,15 @@ flowchart LR
 | [`src/system/ipp_protocol.cpp`](../../../src/system/ipp_protocol.cpp) / [`sheet_label_layout.cpp`](../../../src/system/sheet_label_layout.cpp) | IPP 2.0 encoding + PWG Raster and the 10 Avery sheet templates (A4/Letter) |
 | [`include/bt_discovery_utils.h`](../../../include/bt_discovery_utils.h) | Brand-detection table (name prefix → protocol family) + BLE UUID matching |
 | [`include/camera_stream.h`](../../../include/camera_stream.h) / [`src/system/camera_stream.cpp`](../../../src/system/camera_stream.cpp) | `CameraStream` - MJPEG decode thread, turbojpeg dlopen, snapshot fallback |
-| [`include/camera_view.h`](../../../include/camera_view.h) / [`src/ui/camera_view.cpp`](../../../src/ui/camera_view.cpp) | `CameraView` - one displayed feed: owns the stream, marshals frames to the UI thread, safe stop |
+| [`include/camera_view.h`](../../../include/camera_view.h) / [`src/ui/home/camera_view.cpp`](../../../src/ui/home/camera_view.cpp) | `CameraView` - one displayed feed: owns the stream, marshals frames to the UI thread, safe stop |
 | [`include/usb_scanner_monitor.h`](../../../include/usb_scanner_monitor.h) / [`src/system/usb_scanner_monitor.cpp`](../../../src/system/usb_scanner_monitor.cpp) | `UsbScannerMonitor` - evdev reader for HID keyboard-wedge scanners |
 | [`include/snapshot_qr_scanner.h`](../../../include/snapshot_qr_scanner.h) / [`src/system/snapshot_qr_scanner.cpp`](../../../src/system/snapshot_qr_scanner.cpp) | `SnapshotQrScanner` - snapshot-polling viewfinder + QUIRC QR decode |
-| [`src/ui/ui_settings_label_printer.cpp`](../../../src/ui/ui_settings_label_printer.cpp) | Integration site: BT discovery/pairing UI, printer selection, test prints |
-| [`src/ui/ui_overlay_qr_scanner.cpp`](../../../src/ui/ui_overlay_qr_scanner.cpp) | The scan overlay: races all three scanner paths, converges on `on_spool_id_detected()` |
-| [`include/usb_manager.h`](../../../include/usb_manager.h) / [`src/api/usb_backend_linux.cpp`](../../../src/api/usb_backend_linux.cpp) | `UsbManager` and its Linux backend: removable-drive detection from the mount table |
+| [`src/ui/settings/ui_settings_label_printer.cpp`](../../../src/ui/settings/ui_settings_label_printer.cpp) | Integration site: BT discovery/pairing UI, printer selection, test prints |
+| [`src/ui/components/ui_overlay_qr_scanner.cpp`](../../../src/ui/components/ui_overlay_qr_scanner.cpp) | The scan overlay: races all three scanner paths, converges on `on_spool_id_detected()` |
+| [`include/usb_manager.h`](../../../include/usb_manager.h) / [`src/platform/usb/usb_backend_linux.cpp`](../../../src/platform/usb/usb_backend_linux.cpp) | `UsbManager` and its Linux backend: removable-drive detection from the mount table |
 | [`include/mdns_discovery.h`](../../../include/mdns_discovery.h) / [`src/network/mdns_discovery.cpp`](../../../src/network/mdns_discovery.cpp) | `MdnsDiscovery` - LAN discovery of Moonraker servers (PIMPL + own thread) |
 | [`include/lan_sweep.h`](../../../include/lan_sweep.h) / [`src/system/lan_sweep.cpp`](../../../src/system/lan_sweep.cpp) | `LanSweepDiscovery` (asks every address of our /24 for `/server/info`) and `MoonrakerDiscovery` (it plus mDNS, merged); the platform pieces are [`src/network/lan_sweep_posix.cpp`](../../../src/network/lan_sweep_posix.cpp) and the firmware's `components/helixapp/lan_sweep_esp.cpp` |
-| [`include/printer_discovery_list.h`](../../../include/printer_discovery_list.h) / [`src/ui/printer_discovery_list.cpp`](../../../src/ui/printer_discovery_list.cpp) | The discovery source the wizard and host modal ask, the mDNS/sweep merge, and the dropdown rows |
+| [`include/printer_discovery_list.h`](../../../include/printer_discovery_list.h) / [`src/ui/printers/printer_discovery_list.cpp`](../../../src/ui/printers/printer_discovery_list.cpp) | The discovery source the wizard and host modal ask, the mDNS/sweep merge, and the dropdown rows |
 | [`include/remote_control_server.h`](../../../include/remote_control_server.h) / [`src/remote/remote_control_server.cpp`](../../../src/remote/remote_control_server.cpp) | JSON-RPC 2.0 server over Unix socket (or HTTP), auto-started in `--test` |
 | [`src/remote/unix_socket_transport.cpp`](../../../src/remote/unix_socket_transport.cpp) / [`http_transport.cpp`](../../../src/remote/http_transport.cpp) | The two `IRemoteTransport`s the server listens through |
 | [`src/remote/widget_resolution.cpp`](../../../src/remote/widget_resolution.cpp) | Widget-by-name lookup and value-control classification (`is_value_control`) |
@@ -228,7 +228,7 @@ case the overlay reads the snapshot URL from `capabilities_state()` directly. It
 which is the backpressure handshake pacing the next fetch.
 
 All three paths converge on one handler: each callback defers to the main thread with a lifetime token and lands
-in `on_spool_id_detected()` ([`src/ui/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/ui_overlay_qr_scanner.cpp), `src/ui/ui_overlay_qr_scanner.cpp#"No compiled camera support"`, `src/ui/ui_overlay_qr_scanner.cpp#"tok_usb.defer("`) - the same
+in `on_spool_id_detected()` ([`src/ui/components/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/components/ui_overlay_qr_scanner.cpp), `src/ui/components/ui_overlay_qr_scanner.cpp#"No compiled camera support"`, `src/ui/components/ui_overlay_qr_scanner.cpp#"tok_usb.defer("`) - the same
 bg-callback-to-defer pattern chapter 03 prescribes.
 
 ### mDNS discovery and the remote-control server
@@ -236,7 +236,7 @@ bg-callback-to-defer pattern chapter 03 prescribes.
 **`MdnsDiscovery`** ([`include/mdns_discovery.h#"class MdnsDiscovery : public IMdnsDiscovery {"`](../../../include/mdns_discovery.h)) finds Moonraker servers on the LAN: a PIMPL class with its
 own thread, re-querying every 3 seconds, results marshaled back through `helix::ui::queue_update()`. Consumers
 hold the `IMdnsDiscovery` interface (`include/mdns_discovery.h#IMdnsDiscovery`), not the concrete. Its consumers are the first-run connection
-wizard ([`src/ui/ui_wizard_connection.cpp`](../../../src/ui/ui_wizard_connection.cpp)), the label-printer settings screen (network Brother printers), and
+wizard ([`src/ui/wizard/ui_wizard_connection.cpp`](../../../src/ui/wizard/ui_wizard_connection.cpp)), the label-printer settings screen (network Brother printers), and
 the connection-failed prompt, which browses for the printer at a new address through a factory
 `MoonrakerManager` installs (`src/application/moonraker_manager.cpp#"set_printer_rediscovery_source("`; not installed for a mock printer or on the ESP32 firmware). A
 socket failure on a network-less box is expected and handled gracefully - discovery just returns nothing.
@@ -301,7 +301,7 @@ swept before the decision ([`src/remote/remote_control_server.cpp#resolve_socket
 - **Scanner keymap is user configuration.** The layout lives in the scanner's firmware; inferring it from app language mis-maps keys (AZERTY 'a' arrives as `KEY_Q`). `set_active_layout()` is UI-thread-only by contract ([`include/usb_scanner_monitor.h#UsbScannerMonitor`](../../../include/usb_scanner_monitor.h)), and only one scanner runs at a time - the `s_live_instance_` static assumes it.
 - **Label-print errors surface as callback text, not exceptions.** `print_spool_label()` reports through its `PrintCallback` with already-translated strings (e.g. the "No Bluetooth printer selected" message, [`src/system/label_printer_utils.cpp#friendly_label_printer_error`](../../../src/system/label_printer_utils.cpp)) - the UI layers just show it; don't add a parallel error channel.
 - **[`remote_control_server.cpp`](../../../src/remote/remote_control_server.cpp) is imperative by charter** - it is on the declarative-UI exception list precisely because its job is reaching into an arbitrary live widget tree on command. Don't copy its patterns into feature code.
-- **BT callbacks arrive on background threads - the settings screens show the pattern.** Discovery results and pairing state are marshaled with `helix::ui::queue_update()` plus a lifetime token at every consumer site ([`src/ui/ui_settings_label_printer.cpp#init_bt_printer_dropdown`](../../../src/ui/ui_settings_label_printer.cpp), `src/ui/ui_settings_label_printer.cpp#start_bt_discovery`); a new BT-adjacent UI that skips the token is an L081-shaped bug.
+- **BT callbacks arrive on background threads - the settings screens show the pattern.** Discovery results and pairing state are marshaled with `helix::ui::queue_update()` plus a lifetime token at every consumer site ([`src/ui/settings/ui_settings_label_printer.cpp#init_bt_printer_dropdown`](../../../src/ui/settings/ui_settings_label_printer.cpp), `src/ui/settings/ui_settings_label_printer.cpp#start_bt_discovery`); a new BT-adjacent UI that skips the token is an L081-shaped bug.
 - **mDNS must tolerate a dead network silently** - the wizard runs on boxes with no network stack configured yet; a hard failure there reads as "the wizard is broken".
 - **The remote-control server can be compiled out entirely** - code that assumes it exists (e.g. screenshot tooling) must check `HELIX_ENABLE_REMOTE_CONTROL` or degrade gracefully, the same way `--test`-only features do. That happens on the production packaging path, which sets `HELIX_PACKAGING=1`; a device dev image gets the server without asking (`Makefile#"ENABLE_REMOTE_CONTROL ?= yes"`).
 
@@ -330,7 +330,7 @@ Read in this order; about 30 minutes total.
 8. [`src/system/camera_stream.cpp#"for (const char* soname : {\"libturbojpeg.so.0\", \"libturbojpeg.so\"}) {"`](../../../src/system/camera_stream.cpp) - turbojpeg runtime loading; then `src/system/camera_stream.cpp#stop` for `stop()`'s timed-join-or-detach path.
 9. [`src/ui/panel_widgets/camera_widget.cpp#update_stream_fps`](../../../src/ui/panel_widgets/camera_widget.cpp) - the fps ladder: paused under overlays, 2fps in edit mode, configured cap otherwise.
 10. [`include/usb_scanner_monitor.h#ScannerKeymap`](../../../include/usb_scanner_monitor.h) - `ScannerKeymap` rationale and the `ScannerSource` grab-vs-passive split.
-11. [`src/ui/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/ui_overlay_qr_scanner.cpp) - the overlay racing both scanner paths (`src/ui/ui_overlay_qr_scanner.cpp#"Camera stream not available"` for the snapshot viewfinder, `src/ui/ui_overlay_qr_scanner.cpp#"usb_monitor_.start("` for the evdev wedge).
+11. [`src/ui/components/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/components/ui_overlay_qr_scanner.cpp) - the overlay racing both scanner paths (`src/ui/components/ui_overlay_qr_scanner.cpp#"Camera stream not available"` for the snapshot viewfinder, `src/ui/components/ui_overlay_qr_scanner.cpp#"usb_monitor_.start("` for the evdev wedge).
 12. [`include/mdns_discovery.h#helix`](../../../include/mdns_discovery.h) - the class doc: PIMPL, threading, and callback contract.
 13. [`include/remote_control_server.h`](../../../include/remote_control_server.h) - the file doc: thread model, transports, and the `RemoteConfig` options.
 14. [`src/remote/remote_control_server.cpp#promise`](../../../src/remote/remote_control_server.cpp) - the promise/`ui_queue_update` dispatch every UI command rides; then `src/remote/remote_control_server.cpp#resolve_socket_path` for socket-path resolution and the pid-suffix rule.

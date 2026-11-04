@@ -40,14 +40,13 @@
  * stay green through the exact regression this file exists to catch.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_lifecycle_state.h"

@@ -4,9 +4,9 @@
 #include "material_settings_manager.h"
 
 #include "config.h"
+#include "core/text_io.h"
 #include "filament_catalog.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

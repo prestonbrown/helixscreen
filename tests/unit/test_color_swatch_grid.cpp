@@ -2,10 +2,10 @@
 
 #include "ui_color_picker.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "lvgl/src/misc/lv_area_private.h" // lv_area_is_in
 
@@ -116,7 +116,7 @@ std::map<std::string, int> read_px_tokens(const char* xml_path) {
 }
 
 /// The tier fallback chain the runtime resolver applies
-/// (src/ui/theme_responsive.cpp theme_manager_pick_px_tier): micro falls to
+/// (src/ui/theme/theme_responsive.cpp theme_manager_pick_px_tier): micro falls to
 /// tiny then small, tiny to small, and xlarge/xxlarge walk back down to large.
 /// Mirrored here so the test asserts the values a screen of each class
 /// actually resolves, not just the tiers that define their own entries.

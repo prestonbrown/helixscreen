@@ -3,11 +3,11 @@
 
 #include "bed_mesh_state.h"
 
+#include "core/static_subject_registry.h"
 #include "format_utils.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
-#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 

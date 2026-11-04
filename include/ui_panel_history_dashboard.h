@@ -6,10 +6,10 @@
 #include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "print_history_data.h"
 #include "print_history_manager.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <vector>

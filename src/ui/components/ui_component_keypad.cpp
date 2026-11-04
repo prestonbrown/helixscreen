@@ -1,0 +1,408 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/**
+ * @file ui_component_keypad.cpp
+ * @brief Numeric keypad overlay with reactive Subject-Observer pattern
+ *
+ * Uses standard overlay navigation (NavigationManager push_overlay/go_back) and reactive
+ * bindings for the display. The XML binds to the keypad_display subject,
+ * so updating the subject automatically updates the UI.
+ */
+
+#include "ui_component_keypad.h"
+
+#include "ui_callback_helpers.h"
+#include "ui_effects.h"
+#include "ui_error_reporting.h"
+#include "ui_event_safety.h"
+#include "ui_nav.h"
+#include "ui_utils.h"
+
+#include "core/static_panel_registry.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "keypad_input.h"
+#include "lvgl/lvgl.h"
+#include "ui/ui_widget_helpers.h"
+
+#include <spdlog/spdlog.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+// ============================================================================
+// Reactive State (Subject for XML binding)
+// ============================================================================
+static lv_subject_t keypad_display_subject;
+static char keypad_display_buf[16] = "";
+// The keypad is shared by every numeric field in the app, so it has to say which
+// one is being edited. Machine Limits alone opens it from five rows.
+static lv_subject_t keypad_title_subject;
+static char keypad_title_buf[48] = "";
+// Unit shown inside the display's right end ("°C", "mm/s").
+static lv_subject_t keypad_unit_subject;
+static char keypad_unit_buf[16] = "";
+// Drives the dot key's disabled state. An integer-only field used to show a
+// live "." that silently did nothing to the buffer.
+static lv_subject_t keypad_allow_decimal_subject;
+// Shows the +/- key, only on fields whose range reaches below zero.
+static lv_subject_t keypad_allow_negative_subject;
+
+/// Dims what stays live beside the pad. NavigationManager only backdrops the FIRST
+/// overlay on the stack, and the keypad is almost never that - it opens over a temp
+/// graph or a dryer card. While the pad was overlay-width that went unnoticed, because
+/// it covered what it failed to dim.
+static lv_obj_t* keypad_backdrop = nullptr;
+
+static void destroy_keypad_backdrop() {
+    if (keypad_backdrop) {
+        helix::ui::safe_delete_deferred(keypad_backdrop);
+    }
+}
+static bool subjects_initialized = false;
+static SubjectManager subjects_;
+
+// Widget reference (for showing/hiding via nav system)
+static lv_obj_t* keypad_widget = nullptr;
+// Parent captured at init; the widget tree itself is built on first show.
+static lv_obj_t* keypad_parent = nullptr;
+
+// Decimals offered once a decimal point is entered. Two covers retraction
+// distances (0.85mm) and half-step square corner velocity alike.
+static constexpr int kKeypadFractionDigits = 2;
+
+// Current config and input state
+static ui_keypad_config_t current_config;
+// Set by a confirm: the close that follows is not a cancel, and carries this value.
+static bool confirmed = false;
+static float confirmed_value = 0.0f;
+static helix::ui::KeypadInput input;
+
+// ============================================================================
+// Forward declarations
+// ============================================================================
+static void update_display();
+static void handle_confirm();
+static void wire_button_events();
+
+// ============================================================================
+// Subject Initialization (call BEFORE XML creation)
+// ============================================================================
+void ui_keypad_init_subjects() {
+    if (subjects_initialized) {
+        return;
+    }
+
+    // Initialize display subject for reactive binding (starts empty)
+    UI_MANAGED_SUBJECT_STRING(keypad_display_subject, keypad_display_buf, "", "keypad_display",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(keypad_title_subject, keypad_title_buf, "", "keypad_title",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(keypad_unit_subject, keypad_unit_buf, "", "keypad_unit", subjects_);
+    UI_MANAGED_SUBJECT_INT(keypad_allow_decimal_subject, 1, "keypad_allow_decimal", subjects_);
+    UI_MANAGED_SUBJECT_INT(keypad_allow_negative_subject, 0, "keypad_allow_negative", subjects_);
+
+    subjects_initialized = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy("KeypadSubjects", []() {
+        // The keypad's tree hangs directly off the screen and nothing else
+        // frees it: hiding only pops the nav stack, and teardown deletes the
+        // app layout, not the screen. Deletion is forbidden inside the
+        // destroy_all() window, so hand the root to its caller the way
+        // OverlayBase's destructor does - a soft restart frees it, full
+        // shutdown lets lv_deinit() free every widget. No-op when never built.
+        StaticPanelRegistry::instance().record_orphaned_widget(keypad_widget);
+        keypad_widget = nullptr;
+        keypad_parent = nullptr;
+        ui_keypad_deinit_subjects();
+    });
+
+    spdlog::debug("[Keypad] Subjects initialized");
+}
+
+void ui_keypad_deinit_subjects() {
+    if (!subjects_initialized) {
+        return;
+    }
+    subjects_.deinit_all();
+    subjects_initialized = false;
+    spdlog::debug("[Keypad] Subjects deinitialized");
+}
+
+// ============================================================================
+// Widget Initialization (call AFTER XML creation)
+// ============================================================================
+void ui_keypad_init(lv_obj_t* parent) {
+    if (!parent) {
+        spdlog::error("[Keypad] Cannot init keypad: parent is null");
+        return;
+    }
+
+    if (keypad_widget) {
+        spdlog::warn("[Keypad] Already initialized");
+        return;
+    }
+
+    // Subjects MUST stay eager: XML elsewhere binds "keypad_display" by name at
+    // parse time, so the subject has to exist before any component referencing
+    // it is built. Only the widget tree is deferred.
+    ui_keypad_init_subjects();
+
+    helix::ui::store_until_deleted(&keypad_parent, parent);
+    // The in-pad confirm key (phone layout, integer fields) does what the header's Set does.
+    register_xml_callbacks({
+        {"on_keypad_confirm",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_confirm", []() { handle_confirm(); });
+         }},
+        {"on_keypad_sign",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_sign", []() {
+                 if (input.toggle_sign())
+                     update_display();
+             });
+         }},
+    });
+    spdlog::debug("[Keypad] Numeric keypad registered (tree deferred to first show)");
+}
+
+// Build the keypad tree on demand. Plenty of sessions never touch a numeric
+// field, and this is a ~15-button subtree whose XML the engine also retains.
+static bool ensure_keypad_built() {
+    if (keypad_widget) {
+        return true;
+    }
+    if (!keypad_parent) {
+        spdlog::error(
+            "[Keypad] Cannot build keypad: no parent (never initialized, or it was deleted)");
+        return false;
+    }
+
+    helix::ui::store_until_deleted(
+        &keypad_widget, (lv_obj_t*)lv_xml_create(keypad_parent, "numeric_keypad_panel", nullptr));
+    if (!keypad_widget) {
+        spdlog::error("[Keypad] Failed to create keypad from XML");
+        return false;
+    }
+
+    wire_button_events();
+    spdlog::debug("[Keypad] Numeric keypad built on first use");
+    return true;
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+bool ui_keypad_show(const ui_keypad_config_t* config) {
+    if (!config) {
+        spdlog::error("[Keypad] Cannot show keypad: invalid config");
+        return false;
+    }
+    if (!ensure_keypad_built()) {
+        return false;
+    }
+
+    // Store config
+    current_config = *config;
+
+    // Start with empty display (user enters fresh value)
+    input.clear();
+
+    // Size the buffer to this field's own range. The 3-digit default is
+    // temperature-shaped and cannot express a max accel of 50000; deriving the
+    // cap means a new caller cannot forget to widen it. A range reaching further
+    // below zero than above it (-100 to 5) needs its minimum's digits.
+    input.max_int_digits = helix::ui::keypad_int_digits_for(
+        config->allow_negative
+            ? std::max(std::fabs(config->min_value), std::fabs(config->max_value))
+            : config->max_value);
+    if (config->max_fraction_digits > 0) {
+        input.max_frac_digits = std::min(config->max_fraction_digits, kKeypadFractionDigits);
+        input.max_total_digits = input.max_int_digits + input.max_frac_digits;
+    } else {
+        input.max_frac_digits = static_cast<int>(helix::ui::KeypadInput::BUF_SIZE);
+        input.max_total_digits = input.max_int_digits + kKeypadFractionDigits;
+    }
+    input.allow_dot = config->allow_decimal;
+    lv_subject_set_int(&keypad_allow_decimal_subject, config->allow_decimal ? 1 : 0);
+    input.allow_sign = config->allow_negative;
+    lv_subject_set_int(&keypad_allow_negative_subject, config->allow_negative ? 1 : 0);
+
+    lv_subject_copy_string(&keypad_title_subject, config->title_label ? config->title_label : "");
+
+    // Update display via subject (reactive binding updates XML automatically)
+    update_display();
+
+    lv_subject_copy_string(&keypad_unit_subject, config->unit_label ? config->unit_label : "");
+
+    // Register with nullptr lifecycle — keypad is function-based, not class-based
+    // The panel authors its own width (#keypad_width, per breakpoint): a pad of
+    // three digit columns, not a screen. Neither navigation width class applies, so opt
+    // out of push-time width management or the push stretches it to overlay width.
+    helix::nav::set_overlay_width_unmanaged(keypad_widget);
+    helix::nav::register_overlay(keypad_widget, nullptr);
+
+    // Same dimming the navigation layer gives a first overlay. Raised before the push so
+    // the pad lands above it, and torn down from the close callback rather than
+    // ui_keypad_hide(), which is only one of the ways out - the header back button and a
+    // tap on the backdrop both pop without going through it.
+    if (lv_obj_t* screen = lv_obj_get_screen(keypad_widget)) {
+        destroy_keypad_backdrop();
+        // Blur when the platform can afford it, a plain dim when it cannot - the same
+        // 40/255 the navigation layer uses for a first overlay, so the pad dims its
+        // surroundings exactly as much as any other layer does.
+        helix::ui::store_until_deleted(&keypad_backdrop,
+                                       helix::ui::create_fullscreen_backdrop(screen, 40));
+        if (keypad_backdrop) {
+            helix::ui::bring_to_front(keypad_backdrop);
+        }
+    }
+    confirmed = false;
+    // Runs once the keypad is off screen, so either hook may open the keypad again.
+    helix::nav::on_close(keypad_widget,
+                         [on_confirm = config->on_confirm, on_cancel = config->on_cancel]() {
+                             destroy_keypad_backdrop();
+                             const bool was_confirmed = confirmed;
+                             const float value = confirmed_value;
+                             if (was_confirmed && on_confirm)
+                                 on_confirm(value);
+                             else if (!was_confirmed && on_cancel)
+                                 on_cancel();
+                         });
+
+    // Show via overlay navigation, but keep previous panel visible (transparent overlay)
+    helix::nav::push_overlay(keypad_widget, false /* hide_previous */);
+
+    spdlog::info("[Keypad] Showing (initial={:.1f}, range={:.0f}-{:.0f})", config->initial_value,
+                 config->min_value, config->max_value);
+    return true;
+}
+
+void ui_keypad_hide() {
+    if (keypad_widget && ui_keypad_is_visible()) {
+        helix::nav::go_back();
+    }
+}
+
+bool ui_keypad_is_visible() {
+    if (!keypad_widget)
+        return false;
+    return !lv_obj_has_flag(keypad_widget, LV_OBJ_FLAG_HIDDEN);
+}
+
+lv_subject_t* ui_keypad_get_display_subject() {
+    return &keypad_display_subject;
+}
+
+// ============================================================================
+// Input Logic
+// ============================================================================
+static void update_display() {
+    lv_subject_copy_string(&keypad_display_subject, input.buf);
+}
+
+static void handle_confirm() {
+    float value = input.value();
+
+    // Validate range - show error if out of bounds
+    if (value < current_config.min_value || value > current_config.max_value) {
+        NOTIFY_ERROR(lv_tr("Value must be between {} and {}"), current_config.min_value,
+                     current_config.max_value);
+        return; // Don't close keypad, let user correct the value
+    }
+    if (current_config.validate) {
+        const std::string why = current_config.validate(value);
+        if (!why.empty()) {
+            NOTIFY_ERROR("{}", why);
+            return;
+        }
+    }
+    confirmed = true;
+    confirmed_value = value;
+
+    // Invoke callback before hiding — hiding pops the overlay stack which
+    // invalidates lifetime tokens on the parent overlay, so the callback
+    // must run while the parent is still active.
+    if (current_config.callback) {
+        current_config.callback(value, current_config.user_data);
+        spdlog::info("[Keypad] Confirmed value={:.1f}", value);
+    }
+
+    ui_keypad_hide();
+}
+
+// ============================================================================
+// Event Wiring
+// ============================================================================
+static void wire_button_events() {
+    if (!keypad_widget)
+        return;
+
+    // Number buttons 0-9
+    const char* btn_names[] = {"btn_0", "btn_1", "btn_2", "btn_3", "btn_4",
+                               "btn_5", "btn_6", "btn_7", "btn_8", "btn_9"};
+
+    for (int i = 0; i < 10; i++) {
+        lv_obj_t* btn = lv_obj_find_by_name(keypad_widget, btn_names[i]);
+        if (btn) {
+            lv_obj_add_event_cb(
+                btn,
+                [](lv_event_t* e) {
+                    helix::ui::event_safe_call("keypad_digit", [e]() {
+                        int digit = (int)(intptr_t)lv_event_get_user_data(e);
+                        if (input.append_digit(digit))
+                            update_display();
+                    });
+                },
+                LV_EVENT_CLICKED, (void*)(intptr_t)i);
+        }
+    }
+
+    // Dot button
+    lv_obj_t* btn_dot = helix::ui::find_required(keypad_widget, "btn_dot", "Keypad");
+    if (btn_dot) {
+        lv_obj_add_event_cb(
+            btn_dot,
+            [](lv_event_t*) {
+                helix::ui::event_safe_call("keypad_dot", []() {
+                    if (input.append_dot())
+                        update_display();
+                });
+            },
+            LV_EVENT_CLICKED, nullptr);
+    }
+
+    // Backspace button
+    lv_obj_t* btn_back = helix::ui::find_required(keypad_widget, "btn_backspace", "Keypad");
+    if (btn_back) {
+        lv_obj_add_event_cb(
+            btn_back,
+            [](lv_event_t*) {
+                helix::ui::event_safe_call("keypad_backspace", []() {
+                    if (input.backspace())
+                        update_display();
+                });
+            },
+            LV_EVENT_CLICKED, nullptr);
+    }
+
+    // NOTE: Back button is handled by header_bar's default on_header_back_clicked callback
+    // Do NOT add a second handler here - it would cause double navigation!
+
+    // Action button (OK in header_bar) → confirm
+    lv_obj_t* ok_btn = helix::ui::find_required(keypad_widget, "action_button", "Keypad");
+    if (ok_btn) {
+        lv_obj_add_event_cb(
+            ok_btn,
+            [](lv_event_t*) {
+                helix::ui::event_safe_call("keypad_confirm", []() { handle_confirm(); });
+            },
+            LV_EVENT_CLICKED, nullptr);
+    }
+
+    spdlog::debug("[Keypad] Events wired");
+}

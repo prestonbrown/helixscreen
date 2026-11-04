@@ -11,11 +11,11 @@
  */
 
 #include "ui_panel_history_list.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "../test_helpers/print_history_manager_test_access.h"
+#include "core/update_queue.h"
 #include "print_history_manager.h"
 
 #include <memory>

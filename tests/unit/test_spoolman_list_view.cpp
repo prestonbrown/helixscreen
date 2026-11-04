@@ -63,7 +63,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - cleanup without setup",
 // reach anything. Under the plain LVGLTestFixture there is no XML registration,
 // so lv_xml_create("spoolman_spool_row") fails, pool_ stays empty, and
 // populate/update_visible/refresh_content/update_active_indicators all take the
-// pool_.empty() early return (src/ui/ui_spoolman_list_view.cpp:295 and friends).
+// pool_.empty() early return (src/ui/filament/ui_spoolman_list_view.cpp:295 and friends).
 // The XML-backed cases below cover the same calls for real.
 
 // ============================================================================
@@ -123,7 +123,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - populate with many spool
 /// Find the visible pool row currently showing @p spool_id.
 ///
 /// configure_row() stores the spool id in the row's user_data
-/// (src/ui/ui_spoolman_list_view.cpp:174) — the same handle the XML click
+/// (src/ui/filament/ui_spoolman_list_view.cpp:174) — the same handle the XML click
 /// callback reads — so this is the production lookup, not a test-only backdoor.
 /// Returns nullptr when the id is outside the virtualized window.
 static lv_obj_t* find_row_for_spool(lv_obj_t* container, int spool_id) {
@@ -235,7 +235,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh_content rewrites
     view.refresh_content(spools, 1);
     process_lvgl(50);
 
-    // "%.0fg" in configure_row (src/ui/ui_spoolman_list_view.cpp:211-215).
+    // "%.0fg" in configure_row (src/ui/filament/ui_spoolman_list_view.cpp:211-215).
     // Rows are recycled in place, so the label pointer stays valid.
     REQUIRE(std::string(lv_label_get_text(weight_label)) == "42g");
 }

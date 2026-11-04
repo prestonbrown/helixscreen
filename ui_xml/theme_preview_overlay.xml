@@ -4,19 +4,31 @@
 <!-- Theme Explorer Overlay - Primary theme selection and preview interface -->
 <!-- Navigation: Settings → Appearance → Theme Colors → (this) → Edit Colors (optional) -->
 <component>
+  <styles>
+    <!-- 480x272 keeps the whole explorer on screen by tightening every gap one
+         step; the other tiers have the room for the standard spacing. -->
+    <style name="explorer_content"
+           pad_top="#space_lg" pad_bottom="#space_lg" pad_left="#space_lg" pad_right="#space_lg" pad_gap="#space_md"/>
+    <style name="explorer_content_micro"
+           pad_top="#space_sm" pad_bottom="#space_sm" pad_left="#space_sm" pad_right="#space_sm" pad_gap="#space_sm"/>
+    <style name="explorer_row_gap" pad_gap="#space_md"/>
+    <style name="explorer_row_gap_micro" pad_gap="#space_sm"/>
+  </styles>
   <view name="theme_preview_overlay"
         extends="overlay_panel" title="Theme" bg_color="#screen_bg" hide_action_button="false"
         action_button_text="Apply" action_button_callback="on_apply_theme_clicked"
         action_button_height="#button_height_sm" action_button_pad="#space_sm"
         action_button_disabled_subject="theme_apply_disabled" hide_action_button_2="false" action_button_2_text="Edit"
         action_button_2_callback="on_edit_colors_clicked" action_button_2_bg_color="#secondary">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_md"
-            scrollable="true">
+    <lv_obj name="overlay_content" width="100%" flex_grow="1" flex_flow="column" scrollable="true">
+      <bind_style_if_eq name="explorer_content_micro" subject="ui_breakpoint" ref_value="0"/>
+      <bind_style_if_ge name="explorer_content" subject="ui_breakpoint" ref_value="1"/>
       <!-- Theme Selection Controls -->
       <lv_obj name="theme_controls_row"
-              width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md"
-              style_flex_cross_place="center" scrollable="false">
+              width="100%" height="content" flex_flow="row" style_pad_all="0" style_flex_cross_place="center"
+              scrollable="false">
+        <bind_style_if_eq name="explorer_row_gap_micro" subject="ui_breakpoint" ref_value="0"/>
+        <bind_style_if_ge name="explorer_row_gap" subject="ui_breakpoint" ref_value="1"/>
         <!-- Theme Preset Dropdown -->
         <lv_obj width="0"
                 height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
@@ -40,9 +52,9 @@
       <text_muted name="preview_description"
                   text="Explore how the selected palette shapes text, controls, and status colors." long_mode="wrap"/>
       <!-- Preview Cards Row -->
-      <lv_obj name="preview_row"
-              width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md"
-              scrollable="false">
+      <lv_obj name="preview_row" width="100%" height="content" flex_flow="row" style_pad_all="0" scrollable="false">
+        <bind_style_if_eq name="explorer_row_gap_micro" subject="ui_breakpoint" ref_value="0"/>
+        <bind_style_if_ge name="explorer_row_gap" subject="ui_breakpoint" ref_value="1"/>
         <!-- Typography Preview Card -->
         <ui_card name="preview_typography_card" width="0" height="content" flex_grow="3" flex_flow="column">
           <lv_obj width="100%"
@@ -61,8 +73,9 @@
                       width="100%" text="Small labels help keep controls calm and focused." long_mode="wrap"/>
           <divider_horizontal/>
           <lv_obj width="100%"
-                  height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md"
-                  style_flex_cross_place="center" scrollable="false">
+                  height="content" flex_flow="row" style_pad_all="0" style_flex_cross_place="center" scrollable="false">
+            <bind_style_if_eq name="explorer_row_gap_micro" subject="ui_breakpoint" ref_value="0"/>
+            <bind_style_if_ge name="explorer_row_gap" subject="ui_breakpoint" ref_value="1"/>
             <lv_obj width="0"
                     height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
                     scrollable="false">
@@ -92,8 +105,10 @@
             <lv_checkbox name="preview_checkbox" text="Enable" style_pad_all="#space_xs" checked="true"/>
           </lv_obj>
         </ui_card>
-        <!-- Actions Preview Card -->
+        <!-- Actions Preview Card. 480x272 has no second column: the typography
+             card alone fills the row there. -->
         <ui_card name="preview_actions_card" width="0" height="content" flex_grow="2" flex_flow="column">
+          <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm"
                   style_flex_cross_place="center" scrollable="false">

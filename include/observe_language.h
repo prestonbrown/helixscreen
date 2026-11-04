@@ -3,13 +3,13 @@
 
 /**
  * @file observe_language.h
- * @brief observe_language_change(), kept apart from observer_factory.h so the
+ * @brief observe_language_change(), kept apart from core/observer_factory.h so the
  *        settings manager header reaches only the TUs that re-render on a language switch
  */
 
 #pragma once
 
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "system_settings_manager.h"
 
 #include <memory>

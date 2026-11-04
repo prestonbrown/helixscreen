@@ -135,7 +135,7 @@ run_gate() {
 
 @test "silent on a <view extends=\"ui_card\"> root with no scrollable" {
     # ui_card's create handler clears LV_OBJ_FLAG_SCROLLABLE before XML
-    # attributes are applied (src/ui/ui_card.cpp:53), so those roots are already
+    # attributes are applied (src/ui/components/ui_card.cpp:53), so those roots are already
     # safe. Flagging them would be pure noise on the most common widget root.
     run_gate panel_widget_card '<component>
   <view name="panel_widget_card" extends="ui_card" height="100%">
@@ -148,7 +148,7 @@ run_gate() {
 @test "ui_card really does clear the flag - the exemption is not folklore" {
     # If this create handler ever stops clearing the flag, the exemption above
     # silently becomes a hole. Pin it to the source.
-    run grep -q "lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE)" src/ui/ui_card.cpp
+    run grep -q "lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE)" src/ui/components/ui_card.cpp
     [ "$status" -eq 0 ]
 }
 

@@ -15,7 +15,6 @@
  */
 
 #include "ui_print_preparation_manager.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/delayed_file_transfers.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
@@ -29,6 +28,7 @@
 #include "../test_helpers/scoped_macros_read.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "gcode_ops_detector.h"
 #include "printer_state.h"
 #include "queued_job_start.h"

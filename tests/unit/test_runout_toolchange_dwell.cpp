@@ -30,8 +30,6 @@
  * the toast stack itself stays empty until ToastManager::init().
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ad5x_ifs_test_access.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
@@ -45,6 +43,7 @@
 #include "ams_types.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "printer_state.h"

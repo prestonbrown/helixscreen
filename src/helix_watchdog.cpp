@@ -23,7 +23,7 @@
 
 #include "backlight_backend.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "display_backend.h"
 #ifdef HELIX_DISPLAY_DRM
 #include "display_backend_drm.h"

@@ -11,6 +11,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "filament_database.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
@@ -18,7 +19,6 @@
 #include "macro_executor.h"
 #include "material_settings_manager.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "preset_materials.h"
 #include "printer_state.h"
@@ -38,9 +38,6 @@
 // the user's configured presets — showed the material the user actually
 // assigned to the slot.
 static constexpr int kPresetCount = helix::presets::kPresetCount;
-
-// Static instance for callback dispatch (one preheat widget at a time)
-static helix::PreheatWidget* s_active_instance = nullptr;
 
 namespace helix {
 
@@ -77,11 +74,9 @@ void PreheatWidget::set_config(const nlohmann::json& config) {
 void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
-    s_active_instance = this;
 
     split_btn_ = lv_obj_find_by_name(widget_obj_, "preheat_split_btn");
     if (split_btn_) {
-        lv_obj_set_user_data(split_btn_, this);
         ui_split_button_set_selected(split_btn_, static_cast<uint32_t>(selected_material_));
         update_button_label();
     }
@@ -97,9 +92,8 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     lv_obj_add_event_cb(
         widget_obj_,
         [](lv_event_t* e) {
-            (void)e;
-            if (s_active_instance) {
-                s_active_instance->update_button_label();
+            if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+                self->update_button_label();
             }
         },
         LV_EVENT_SIZE_CHANGED, nullptr);
@@ -119,14 +113,6 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
             update_tool_target_label();
         }
     }
-
-    // Set user_data on temp tap rows for callback recovery
-    lv_obj_t* nozzle_row = lv_obj_find_by_name(widget_obj_, "preheat_nozzle_row");
-    if (nozzle_row)
-        lv_obj_set_user_data(nozzle_row, this);
-    lv_obj_t* bed_row = lv_obj_find_by_name(widget_obj_, "preheat_bed_row");
-    if (bed_row)
-        lv_obj_set_user_data(bed_row, this);
 
     // Tint the two heater glyphs. The numbers beside them already carry the
     // 4-state thermal color, so leaving the icons flat made them disagree
@@ -161,10 +147,6 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void PreheatWidget::detach() {
-    if (s_active_instance == this) {
-        s_active_instance = nullptr;
-    }
-
     nozzle_icon_binder_.unbind();
     bed_icon_binder_.unbind();
 
@@ -174,22 +156,9 @@ void PreheatWidget::detach() {
     bed_target_obs_.reset();
     language_obs_.reset();
 
-    if (split_btn_) {
-        lv_obj_set_user_data(split_btn_, nullptr);
-        split_btn_ = nullptr;
-    }
-
+    split_btn_ = nullptr;
     tool_target_btn_ = nullptr;
     tool_target_label_ = nullptr;
-
-    lv_obj_t* nozzle_row =
-        widget_obj_ ? lv_obj_find_by_name(widget_obj_, "preheat_nozzle_row") : nullptr;
-    if (nozzle_row)
-        lv_obj_set_user_data(nozzle_row, nullptr);
-    lv_obj_t* bed_row = widget_obj_ ? lv_obj_find_by_name(widget_obj_, "preheat_bed_row") : nullptr;
-    if (bed_row)
-        lv_obj_set_user_data(bed_row, nullptr);
-
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 
@@ -484,10 +453,9 @@ void PreheatWidget::cycle_tool_target() {
 
 void PreheatWidget::tool_target_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] tool_target_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->cycle_tool_target();
-        s_active_instance->update_tool_target_label();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->cycle_tool_target();
+        self->update_tool_target_label();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -495,37 +463,33 @@ void PreheatWidget::tool_target_cb(lv_event_t* e) {
 // Static callbacks
 void PreheatWidget::preheat_apply_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] preheat_apply_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->record_interaction();
-        s_active_instance->handle_apply();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->record_interaction();
+        self->handle_apply();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void PreheatWidget::preheat_changed_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] preheat_changed_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_selection_changed();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->handle_selection_changed();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void PreheatWidget::nozzle_tap_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] nozzle_tap_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_nozzle_tap();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->handle_nozzle_tap();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void PreheatWidget::bed_tap_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] bed_tap_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_bed_tap();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->handle_bed_tap();
     }
     LVGL_SAFE_EVENT_CB_END();
 }

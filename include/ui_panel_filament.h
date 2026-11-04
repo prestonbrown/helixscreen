@@ -5,7 +5,6 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_filament_catalog_picker.h"
-#include "ui_heater_config.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
@@ -16,6 +15,7 @@
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_heater.h"
+#include "heater_type.h"
 #include "macro_param_modal.h"
 #include "moonraker_types.h"
 #include "operation_timeout_guard.h"
@@ -150,6 +150,10 @@ class FilamentPanel : public PanelBase {
     friend struct helix::ui::FilamentPanelTestAccess;
 
   public:
+    /// How long a filament operation may run before the panel gives up on it
+    /// (a purge or extrude at a slow feedrate).
+    static constexpr uint32_t kOperationTimeoutMs = 120000;
+
     /**
      * @brief Construct FilamentPanel with injected dependencies
      *
@@ -463,7 +467,10 @@ class FilamentPanel : public PanelBase {
     void enter_op_done_state(FilamentOp op);     ///< main-thread: → done + arm revert timer
     void schedule_op_timer(uint32_t delay_ms, lv_timer_cb_t cb); ///< (re)arm shared op timer
     void cancel_op_revert_timer();
-    void begin_operation_guard();    ///< arm operation_guard_ with the shared timeout handler
+    /// Arm operation_guard_ with the shared timeout handler.
+    void begin_operation_guard(uint32_t timeout_ms = kOperationTimeoutMs);
+    /// Whether the purge started before its preamble is still the op on screen.
+    [[nodiscard]] bool purge_still_running() const;
     void handle_operation_timeout(); ///< main-thread: toast + tear down the stalled op
 
     // Extrude length state
@@ -705,8 +712,6 @@ class FilamentPanel : public PanelBase {
     void update_chamber_temp_display();
     void update_left_card_temps();
     void update_status_icon_for_state();
-    static constexpr uint32_t kOperationTimeoutMs =
-        120000; // 2 min — purge/extrude at slow feedrate
 
     // Filament sensor warning helpers
     void show_load_warning();

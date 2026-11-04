@@ -7,7 +7,8 @@
 #include "error_event.h"
 #include "firmware_error_envelope.h"
 #include "i_moonraker_client.h" // SubscriptionId
-#include "lvgl.h"               // lv_timer_t (held presentations)
+#include "json_fwd.h"
+#include "lvgl.h" // lv_timer_t (held presentations)
 
 #include <cstddef>
 #include <functional>
@@ -17,8 +18,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerAPI;

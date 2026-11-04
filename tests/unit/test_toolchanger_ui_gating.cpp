@@ -10,7 +10,6 @@
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_batch_filament_modal.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/registered_backend.h"
@@ -18,8 +17,9 @@
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
-#include "static_panel_registry.h"
 #include "toolchanger_addon.h"
 
 #include <string>

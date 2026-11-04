@@ -15,9 +15,8 @@
  * issue. Do not remove the guards.
  */
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
+#include "core/update_queue.h"
 #include "netd_test_server.h"
 #include "remote_control_server.h"
 #include "system/crash_history.h"

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "filament_slot_override.h"
+#include "json_fwd.h"
 #include "lane_observation.h"
 #include "lane_sources.h"
 
@@ -12,8 +13,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 struct SlotInfo;

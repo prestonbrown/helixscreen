@@ -2,12 +2,12 @@
 
 #include "spoolman_slot_saver.h"
 
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "lane_translation.h"
 #include "spoolman_catalog_search.h"
 #include "spoolman_manager.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -33,24 +33,6 @@ MissingFilamentFields SpoolmanSlotSaver::missing_filament_fields(const SlotInfo&
 
 bool SpoolmanSlotSaver::is_filament_complete(const SlotInfo& slot) {
     return !missing_filament_fields(slot).any();
-}
-
-void SpoolmanSlotSaver::apply_save_result_identity(SlotInfo& committed, const SaveResult& result) {
-    if (!result.created_new_spool && !result.repointed_filament) {
-        return;
-    }
-    if (result.new_spool_id != 0) {
-        committed.spoolman_id = result.new_spool_id;
-    }
-    if (result.new_filament_id != 0) {
-        if (result.new_filament_id != committed.spoolman_filament_id) {
-            committed.spoolman_orca_filament_id.clear();
-        }
-        committed.spoolman_filament_id = result.new_filament_id;
-    }
-    if (result.new_vendor_id != 0) {
-        committed.spoolman_vendor_id = result.new_vendor_id;
-    }
 }
 
 ChangeSet SpoolmanSlotSaver::detect_changes(const SlotInfo& original, const SlotInfo& edited) {

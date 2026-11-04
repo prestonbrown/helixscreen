@@ -4,10 +4,11 @@
 #include "moonraker_file_transfer_api.h"
 
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 #include "ui_notification.h"
 
-#include "http_executor.h"
+#include "core/gcode_filename.h"
+#include "core/http_executor.h"
+#include "core/text_io.h"
 #include "http_request_epoch.h"
 #include "hv/hfile.h"
 #include "hv/hurl.h"
@@ -15,7 +16,6 @@
 #include "memory_monitor.h"
 #include "moonraker_api_internal.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 #include "thumbnail_rules.h"
 
 #include <algorithm>

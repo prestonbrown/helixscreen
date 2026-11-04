@@ -96,7 +96,7 @@ endef
 `bin/` (`helix-screen`, plus `helix-splash` and `helix-watchdog` when built), `ui_xml/`,
 `assets/` (fonts, images, sounds, config including every preset and platform hook) and, after a
 Docker build, `certs/ca-certificates.crt`. Writable state is not installed.
-`src/application/data_root_resolver.cpp`
+`src/core/data_root_resolver.cpp`
 strips `/bin` from the binary's path to find `/opt/helixscreen/`, so no environment variables
 are needed.
 
@@ -157,7 +157,7 @@ plugin under `/opt/config/mod_data/helixscreen/moonraker-plugin` is linked by th
 
 ## Backlight
 
-`BacklightBackendAllwinner` (`src/api/backlight_backend.cpp`) drives `/dev/disp` with the DISP2
+`BacklightBackendAllwinner` (`src/platform/display/backlight_backend.cpp`) drives `/dev/disp` with the DISP2
 ioctls `SET_BRIGHTNESS` (0x102), `GET_BRIGHTNESS` (0x103), `BACKLIGHT_ENABLE` (0x104) and
 `BACKLIGHT_DISABLE` (0x105), range 0-255. Two quirks shape it:
 
@@ -186,7 +186,7 @@ dim is blocked, and the 20 s timer restores the configured brightness.
 | `scripts/lib/installer/main.sh` | `configure_platform`: the install-time order of the Forge-X steps |
 | `scripts/lib/installer/forgex.sh` | Forge-X display, launcher and screen-script changes, and `uninstall_forgex` |
 | `assets/config/platform/hooks-ad5m-*.sh` | Per-firmware platform hooks |
-| `src/api/backlight_backend.cpp` | `BacklightBackendAllwinner` |
+| `src/platform/display/backlight_backend.cpp` | `BacklightBackendAllwinner` |
 | `src/application/display_manager.cpp` | Startup brightness and the 20 s override |
 
 ## Related

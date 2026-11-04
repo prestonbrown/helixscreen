@@ -13,11 +13,11 @@
  */
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_op_dispatch.h"
 #include "printer_discovery.h"
 #include "standard_macros.h"

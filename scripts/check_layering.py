@@ -8,9 +8,9 @@ The layers, low to high, are LAYERS below: every `src/<dir>` belongs to one. A h
 belongs to the directory that holds the `.cpp` of the same stem (`include/foo.h` is
 src/printer's when `src/printer/foo.cpp` exists); a header under `src/<dir>/` belongs to
 that directory. A header with no `.cpp` anywhere belongs to the directory its name or
-its include/ subdirectory says it serves (HEADER_ONLY_OWNERS: `ui_*.h`, `include/ui/`
-and `include/helix/ui/` are src/ui's, `include/led/` src/led's, `include/system/`
-src/system's, `include/state/` src/printer's); one that matches no row belongs to
+its include/ subdirectory says it serves (HEADER_ONLY_OWNERS: `include/core/` is
+src/core's, `ui_*.h`, `include/ui/` and `include/helix/ui/` are src/ui's, `include/led/`
+src/led's, `include/system/` src/system's, `include/state/` src/printer's); one that matches no row belongs to
 nobody, and its includes are not counted in either direction until it is moved.
 
 An upward edge is a file in one layer including a header owned by a higher layer. The
@@ -50,7 +50,7 @@ from pathlib import Path
 LAYERS = (
     ("core", ("util", "utils", "config", "generated", "core")),
     ("platform", ("network", "bluetooth", "input", "platform")),
-    ("moonraker", ("api",)),
+    ("moonraker", ("api", "mock")),
     ("state", ("printer", "temperature", "spoolman", "print", "calibration", "sensors",
                "led", "plugin", "system")),
     ("rendering", ("rendering",)),
@@ -68,6 +68,7 @@ CLEARED_PAIRS: tuple[tuple[str, str], ...] = ()
 # matches its path or its basename. A header matching no row is header-only and
 # belongs to nobody. Rows name the layer a header serves, not where it is used.
 HEADER_ONLY_OWNERS: tuple[tuple[str, str], ...] = (
+    ("include/core/", "core"),
     ("include/ui/", "ui"),
     ("include/helix/ui/", "ui"),
     ("ui_", "ui"),

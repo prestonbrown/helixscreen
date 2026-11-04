@@ -2,11 +2,10 @@
 
 #include "printer_discovery.h"
 
-#include "ui_update_queue.h"
-
 #include "ams_state.h"
 #include "app_globals.h"
 #include "audio_settings_manager.h"
+#include "core/update_queue.h"
 #include "i_moonraker_client.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"

@@ -2,13 +2,15 @@
 
 #include "macro_param_cache.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cctype>
 #include <string_view>
+
+#include "hv/json.hpp"
 
 namespace helix {
 

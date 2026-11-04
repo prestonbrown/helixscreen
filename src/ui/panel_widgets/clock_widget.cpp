@@ -5,13 +5,13 @@
 
 #include "ui_format_utils.h"
 
+#include "core/text_io.h"
 #include "helix/ui/text_metrics.h"
 #include "locale_formats.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"
 

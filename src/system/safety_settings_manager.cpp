@@ -3,11 +3,10 @@
 
 #include "safety_settings_manager.h"
 
-#include "ui_notification_threshold.h"
-
 #include "config.h"
+#include "core/notification_threshold.h"
+#include "core/static_subject_registry.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 
 #include <algorithm>
 #include <iterator>

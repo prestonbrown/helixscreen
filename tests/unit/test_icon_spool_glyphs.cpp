@@ -8,7 +8,7 @@
 
 #include "../../include/ams_device_sections.h"
 #include "../../include/ui_icon_codepoints.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 
 #include <fstream>
 #include <sstream>

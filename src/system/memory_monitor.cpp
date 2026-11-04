@@ -3,11 +3,10 @@
 
 #include "memory_monitor.h"
 
-#include "ui_update_queue.h"
-
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "exception_policy.h"
 #include "helix_thread.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

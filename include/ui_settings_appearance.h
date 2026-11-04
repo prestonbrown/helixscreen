@@ -16,8 +16,8 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "theme_loader.h"
 
@@ -33,6 +33,9 @@ class AppearanceSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "settings_appearance_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void init_subjects() override;

@@ -4,15 +4,14 @@
 
 #include "brother_pt_bt_printer.h"
 
-#include "ui_update_queue.h"
-
 #include "bluetooth_loader.h"
 #include "brother_pt_protocol.h"
 #include "bt_print_utils.h"
+#include "core/log_redact.h"
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "label_printer_settings.h"
 #include "label_renderer.h"
-#include "log_redact.h"
 #include "lvgl.h"
 #include "spoolman_types.h"
 

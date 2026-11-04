@@ -11,9 +11,9 @@
 
 #include "printer_versions_state.h"
 
+#include "core/text_io.h"
 #include "json_utils.h"
 #include "state/subject_macros.h"
-#include "text_io.h"
 #include "version.h"
 
 #include <spdlog/spdlog.h>

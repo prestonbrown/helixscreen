@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ams_types.h"
+#include "json_fwd.h"
 #include "lane_translation.h"
 
 #include <cstddef>
@@ -11,8 +12,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file afc_status_parse.h

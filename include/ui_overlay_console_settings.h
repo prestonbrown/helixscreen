@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 /**
  * @file ui_overlay_console_settings.h
@@ -28,6 +28,9 @@ class ConsoleSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "console_settings_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 };
 

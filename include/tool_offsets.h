@@ -24,12 +24,11 @@
 // tool_offsets.cpp - no call site changes.
 
 #include "axis.h"
+#include "json_fwd.h"
 
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterDiscovery;

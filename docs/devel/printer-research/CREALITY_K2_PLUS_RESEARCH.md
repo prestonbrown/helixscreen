@@ -419,7 +419,7 @@ machine.
 Both report `properties = 2`, which is `INPUT_PROP_DIRECT` (bit 1), and an `abs` bitmap of
 `2650000 0` - `ABS_MT_TOUCH_MAJOR`, `ABS_MT_WIDTH_MAJOR`, `ABS_MT_POSITION_X/Y` and
 `ABS_MT_TRACKING_ID` with **no legacy `ABS_X`/`ABS_Y`**. These are MT-only panels, which is the
-case `src/api/input_device_scanner.cpp#get_input_touch_capabilities` exists to handle.
+case `src/platform/input/input_device_scanner.cpp#get_input_touch_capabilities` exists to handle.
 
 **HelixScreen runs on a K2 Pro.** The reporting machine has it installed and running from
 `/opt/helixscreen` with `--rotate=270`, alongside our `ustreamer`, our `wpa_supplicant` and an

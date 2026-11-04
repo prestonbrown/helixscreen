@@ -14,8 +14,6 @@
  * Run with: ./build/bin/helix-tests "[widget_size][job_queue]"
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/job_queue_state_test_access.h"
 #include "../test_helpers/job_queue_subjects_fixture.h"
@@ -24,6 +22,7 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/tile_boxes.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "job_queue_state.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"

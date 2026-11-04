@@ -35,10 +35,10 @@ Two things share the word "sensor". The managers consume **Klipper** objects, co
 | `src/printer/status_dispatch.cpp#dispatch_status_frame` | Hands every status frame to every manager after `PrinterState` |
 | `src/api/moonraker_discovery_sequence.cpp#build_subscription_objects` | Asks the table and each manager's `extra_subscriptions()` what to subscribe |
 | `src/application/subject_initializer.cpp` | Calls every manager's `init_subjects()` before any panel XML exists |
-| `ui_xml/sensor_row.xml`, `ui_xml/sensors_overlay.xml`, `src/ui/ui_settings_sensors.cpp` | Settings > Sensors: one row component, one section per manager |
+| `ui_xml/sensor_row.xml`, `ui_xml/sensors_overlay.xml`, `src/ui/settings/ui_settings_sensors.cpp` | Settings > Sensors: one row component, one section per manager |
 | `include/printer_hardware.h` | `PrinterHardware::is_ams_sensor()`: hides filament sensors an AMS backend owns |
-| `src/ui/ui_wizard_filament_sensor_select.cpp` | First-run wizard step that assigns the RUNOUT role |
-| `src/ui/ui_filament_runout_handler.cpp` | Runout guidance modal |
+| `src/ui/wizard/ui_wizard_filament_sensor_select.cpp` | First-run wizard step that assigns the RUNOUT role |
+| `src/ui/filament/ui_filament_runout_handler.cpp` | Runout guidance modal |
 | `src/ui/panel_widgets/thermistor_widget.cpp`, `humidity_widget.cpp`, `width_sensor_widget.cpp`, `filament_sensor_widget.cpp` | Home-panel widgets |
 
 Each manager has a matching `*_types.h` header (`filament_sensor_types.h`, `humidity_sensor_types.h`, `load_cell_types.h`, ...) holding its role and type enums and the string conversions used for persistence and display.
@@ -267,7 +267,7 @@ Every fan-out walks it, so a manager listed here gets all of them with no furthe
 | `rediscover_from_config()` | the configfile pass |
 | `src/printer/status_dispatch.cpp#dispatch_status_frame` | `update_from_status()` for every frame |
 | `src/api/moonraker_discovery_sequence.cpp#build_subscription_objects` | `extra_subscriptions()` |
-| `src/ui/ui_settings_sensors.cpp` | one Settings section per manager with a `settings_section` |
+| `src/ui/settings/ui_settings_sensors.cpp` | one Settings section per manager with a `settings_section` |
 | `src/system/telemetry_manager.cpp` | per-manager `sensor_count()` |
 
 Discovery is unconditional: an empty hardware list is what clears the previous printer's sensors on a printer switch.
@@ -297,9 +297,9 @@ All values are integers so XML can bind them. Fixed-name subjects register globa
 | `filament_width_diameter`, `filament_diameter_text` | Width | microns, string (`"--"` default) |
 | `input_door_check` | Input | 0/1, the door-check setting |
 
-The count subjects double as hardware gates: `src/ui/panel_widget_registry.cpp` names `temp_sensor_count`, `filament_sensor_count`, `humidity_sensor_count` and `width_sensor_count` as `hardware_gate_subject`s, and `ui_xml/sensors_overlay.xml` hides each section with `bind_flag_if_eq ... ref_value="0"`.
+The count subjects double as hardware gates: `src/ui/home/panel_widget_registry.cpp` names `temp_sensor_count`, `filament_sensor_count`, `humidity_sensor_count` and `width_sensor_count` as `hardware_gate_subject`s, and `ui_xml/sensors_overlay.xml` hides each section with `bind_flag_if_eq ... ref_value="0"`.
 
-Each manager exposes `subjects_lifetime()`. Pass it as the fourth argument of `observe<int>()` for any observer that can outlive the manager's teardown, as `src/ui/ui_settings_sensors.cpp#watch` does with the revision subject.
+Each manager exposes `subjects_lifetime()`. Pass it as the fourth argument of `observe<int>()` for any observer that can outlive the manager's teardown, as `src/ui/settings/ui_settings_sensors.cpp#watch` does with the revision subject.
 
 
 ## Filament Sensors
@@ -596,7 +596,7 @@ Add a row to `kRows` in `src/printer/hardware_object_table.cpp` (or a chip to `h
 4. **Register** the manager in `src/sensors/sensor_manager.cpp`: one line. Subject init, discovery, the configfile pass (when `rediscover_on_config` is set), the status fan-out, subscriptions, telemetry and the Settings section's subjects all follow.
 5. **Settings section.** Add a `setting_group` to `ui_xml/sensors_overlay.xml` gated on the manager's count subject, with a `<repeat count="sensor_<slug>_row_count">` of `sensor_row` (`role_options` in `Options::roles` order if roles are offered).
 6. **Source lists.** A new `.cpp` under `src/` goes into `firmware/helixscreen-esp32/components/helixapp/app_srcs.txt` (or `app_srcs_excluded.txt` with a reason).
-7. **Home widget**, if any: a `hardware_gate_subject` in `src/ui/panel_widget_registry.cpp` (see [PANEL_WIDGET_GUIDE.md](PANEL_WIDGET_GUIDE.md)).
+7. **Home widget**, if any: a `hardware_gate_subject` in `src/ui/home/panel_widget_registry.cpp` (see [PANEL_WIDGET_GUIDE.md](PANEL_WIDGET_GUIDE.md)).
 8. **Mock.** Add the objects and an initial status to the mock client so `--test` shows the category.
 9. **Tests.** A tagged test that discovers the new names, feeds a status frame, and round-trips settings if it persists.
 

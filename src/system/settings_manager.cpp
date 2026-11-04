@@ -11,6 +11,7 @@
 #include "audio_settings_manager.h"
 #include "belt_tension_types.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "display_settings_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_client.h"
@@ -25,7 +26,6 @@
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 #include "system/telemetry_manager.h"
 #include "system_settings_manager.h"
 #include "wizard_config_paths.h"
@@ -470,7 +470,7 @@ ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
     // Printers the database does not cover: the live filament backend may know.
     auto* backend = AmsState::instance().get_backend();
     if (backend) {
-        auto hinted = toolhead_style_from_name(backend->toolhead_style_hint());
+        const ToolheadStyle hinted = backend->toolhead_style_hint();
         if (hinted != ToolheadStyle::AUTO)
             return hinted;
     }

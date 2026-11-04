@@ -3,10 +3,10 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "printer_event_journal.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl/lvgl.h>
@@ -40,6 +40,10 @@ class PrinterEventsOverlay : public OverlayBase {
 
     const char* xml_component() const override {
         return "printer_events_overlay";
+    }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
+    bool destroy_on_close() const override {
+        return false;
     }
 
     /// Fill the list from @p entries, which came from @p source.

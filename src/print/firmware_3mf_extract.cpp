@@ -3,8 +3,7 @@
 
 #include "firmware_3mf_extract.h"
 
-#include "ui_filename_utils.h"
-
+#include "core/gcode_filename.h"
 #include "three_mf.h"
 
 #include <algorithm>

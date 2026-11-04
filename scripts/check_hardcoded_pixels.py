@@ -7,7 +7,7 @@ HelixScreen ships on screens from 480x272 to 1440p. A raw `style_pad_all="12"`
 is 12px on every one of them, so a layout tuned on a 1024x600 dev window is
 cramped on a Snapmaker U1 and lost in whitespace on a 1280x720 panel. The token
 ladders in ui_xml/globals.xml exist so one attribute resolves per breakpoint:
-theme_manager_resolve_px_tokens() (src/ui/theme_responsive.cpp) picks the
+theme_manager_resolve_px_tokens() (src/ui/theme/theme_responsive.cpp) picks the
 `_micro.._xxlarge` variant for the live display and registers it under the base
 name, which is what `#space_md` and theme_manager_get_spacing("space_md") read.
 
@@ -113,9 +113,9 @@ OPT_OUT_LOOKBACK = 6
 # Dev-only surfaces and pre-theme crash screens. See WHAT IS NOT FLAGGED.
 EXEMPT_FILES = {
     "src/helix_watchdog.cpp",
-    "src/ui/ui_fatal_error.cpp",
-    "src/ui/ui_panel_glyphs.cpp",
-    "src/ui/ui_snake_game.cpp",
+    "src/ui/notify/ui_fatal_error.cpp",
+    "src/ui/debug/ui_panel_glyphs.cpp",
+    "src/ui/debug/ui_snake_game.cpp",
 }
 
 # Tokens whose value is not a length. modal_backdrop_opacity is 0-255 alpha; a

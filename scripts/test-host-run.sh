@@ -360,6 +360,16 @@ remove_mirrors() { # <days|-> [tree...]
     ssh "${SSH_OPTS[@]}" "$HOST" bash -se <<REMOTE
 set -uo pipefail
 rc=0
+# mutate_diff.py's worker copies sit beside the checkout as .<tree>.mutate-w<i>.
+drop_workers() { # <root> <name>
+    local w found=
+    for w in "\$1/.\$2.mutate-w"*; do
+        [ -d "\$w" ] || continue
+        sudo -n rm -rf -- "\$w" || { echo "✗ could not remove \$w" >&2; rc=1; continue; }
+        found=1
+    done
+    [ -z "\$found" ] || echo "→ removed mutate worker copies \$2"
+}
 sweep() { # <root> <lock kind> <stamp, relative> <what> [name...]
     local root=\$1 kind=\$2 stamp_rel=\$3 what=\$4 d name stamp lock
     shift 4
@@ -367,7 +377,13 @@ sweep() { # <root> <lock kind> <stamp, relative> <what> [name...]
     for d in "\$@"; do
         name=\$(basename "\$d")
         d="\$root/\$name"
-        [ -d "\$d" ] || { [ -z "$*" ] || [ "\$kind" != tree ] || echo "→ no \$what \$name"; continue; }
+        if [ ! -d "\$d" ]; then
+            # A mutate run that died mid-copy leaves its worker copies with no
+            # checkout beside them, and the next run refuses to reuse them.
+            [ -n "$*" ] && [ "\$kind" = mutate ] && drop_workers "\$root" "\$name"
+            [ -z "$*" ] || [ "\$kind" != tree ] || echo "→ no \$what \$name"
+            continue
+        fi
         # <tree>+seeding is a copy in progress, or one a dead run left behind.
         case "\$name" in *+*) [ -n "\$(find "\$d" -maxdepth 0 -mmin +1440)" ] || continue ;; esac
         if [ "$days" != - ]; then
@@ -381,6 +397,7 @@ sweep() { # <root> <lock kind> <stamp, relative> <what> [name...]
             [ -z "$*" ] || rc=1
         elif sudo -n rm -rf -- "\$d"; then
             echo "→ removed \$what \$name"
+            [ "\$kind" != mutate ] || drop_workers "\$root" "\$name"
         else
             echo "✗ could not remove \$d" >&2; rc=1
         fi
@@ -501,7 +518,8 @@ prune_after_create() {
 # A mutate checkout that does not exist yet copies the most recently used one
 # (another tree's, or the shared --commit checkout), whose build/ is warm and
 # whose index git refreshes rather than rewriting every file. Busy ones are
-# passed over; when every one is busy the run waits for the newest.
+# passed over; when every one is busy the run waits for the newest. With
+# HELIX_TEST_SEED=0 it is cloned from origin instead and builds cold.
 seed_mutate_checkout() {
     local t0 out
     t0=$(date +%s)
@@ -512,6 +530,7 @@ $(seed_copy_snippet)
 $(seed_lock_wait mutate "$TREE")
 dst="$MUTATE_HOST/$TREE"
 [ ! -d "\$dst/.git" ] || exit 0
+[ "$SEED" != 0 ] || { echo OFF; exit 0; }
 shared="$WORK_HOST${WORKDIR#"$WORK"}"
 lock_of() { # <host path>
     if [ "\$1" = "\$shared" ]; then echo "$LOCK_DIR/$COMMIT_LOCK_PREFIX-$(basename "$WORKDIR").lock"
@@ -549,11 +568,24 @@ REMOTE
     case "$out" in
         *"SEEDED "*) echo "→ seeded $RUNDIR from ${out##*SEEDED } in $(( $(date +%s) - t0 ))s"
                      prune_after_create ;;
+        OFF*)        clone_mutate_checkout ;;
         *NONE*)      echo "✗ no checkout on $HOST to copy for $RUNDIR: run scripts/test-host-setup.sh --commit-checkout" >&2
                      return 1 ;;
         "")          ;;
         *)           echo "✗ could not create $RUNDIR on $HOST" >&2; return 1 ;;
     esac
+}
+
+# A fresh clone, in the container as test-host-setup.sh --commit-checkout makes
+# the shared one: no build/, so the run builds cold.
+clone_mutate_checkout() {
+    local url
+    url=$(git remote get-url origin 2>/dev/null) ||
+        { echo "✗ this tree has no origin remote to clone $RUNDIR from" >&2; return 1; }
+    echo "→ HELIX_TEST_SEED=0: cloning $RUNDIR from $url, starting cold"
+    # shellcheck disable=SC2029  # the container, url and path resolve here
+    ssh "${SSH_OPTS[@]}" "$HOST" "sudo -n docker exec $GIT_SAFE_ENV $(printf '%q ' "$CONTAINER" git clone -q --recurse-submodules "$url" "$RUNDIR")" ||
+        { echo "✗ could not clone $RUNDIR on $HOST" >&2; return 1; }
 }
 
 # Takes the lock named <name> on the test host and holds it until this script exits:
@@ -879,6 +911,13 @@ else
     fi
 fi
 
+# test-asan-one and test-tsan-one run the binary without -#, so a file tag matches nothing.
+refuse_file_tag() {
+    case "$2" in
+        *'[#'*) echo "✗ $1 cannot filter by '$2': it passes no -#, so a [#file] tag matches no test. Name a tag from that file." >&2; exit 2 ;;
+    esac
+}
+
 # $HELIX_J is resolved on the test host from the memory that is free when the job starts.
 # $HELIX_JFLAG is -j$HELIX_J, or empty when the container joins the host's jobpool:
 # make leaves an inherited jobserver when its command line has any -j.
@@ -894,6 +933,7 @@ case "$WHAT" in
     mutate) CMD='{ [ -x .venv/bin/python3 ] && .venv/bin/python3 -c "import pytest" 2>/dev/null || make venv-setup >/dev/null; }; '"$YIELD_PRIORITY"'python3 scripts/mutate_diff.py --jobs $HELIX_J $(grep -qs -- --workers scripts/mutate_diff.py && echo --workers auto) '"$(printf '%q ' "$@")"
             YIELD=1 ;;
     asan)   _tag="${1:-}"; [ $# -gt 0 ] && shift
+            refuse_file_tag asan "$_tag"
             # Trailing args become make overrides, so ASAN_RUN_OPTIONS can be
             # tuned per run (quarantine_size_mb keeps freed blocks poisoned, which
             # turns a recycled-memory SEGV into a heap-use-after-free report).
@@ -905,6 +945,7 @@ case "$WHAT" in
             fi
             GB_PER_JOB=1.5 ;;
     tsan)   _tag="${1:-}"; [ $# -gt 0 ] && shift
+            refuse_file_tag tsan "$_tag"
             # Same shape as asan: trailing args become make overrides, and no
             # tag is the sharded full-suite run.
             if [ -z "$_tag" ]; then
@@ -1156,8 +1197,12 @@ if [ "$MODE" = commit ]; then
     # patched file. Undo them twice: with the old commit's rules, which name its
     # own set, and with the new commit's, which also read the drift stamp; a
     # checkout of a commit older than the stamp-reading reset needs the first.
+    # A checkout copied from a tree on another line can still hold submodule
+    # edits that neither set names (another LVGL version's patches, say), which
+    # would stop the update moving a pin or survive it; --force discards them,
+    # and reapply-patches below restores this commit's own.
     D 'make reset-patches >/dev/null 2>&1 || true'
-    D 'git reset --hard --quiet $SHA && make reset-patches >/dev/null && git submodule update --init --recursive --quiet'
+    D 'git reset --hard --quiet $SHA && make reset-patches >/dev/null && git submodule update --init --recursive --force --quiet'
     # A submodule already at its pin keeps the patches an earlier job applied, so a
     # commit that edits a patch in patches/ meets the old revision and the build's
     # drift check refuses. Reapply against this commit's patches/ every run.

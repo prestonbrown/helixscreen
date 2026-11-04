@@ -16,7 +16,6 @@
 
 #include "ui_ams_sidebar.h"
 #include "ui_step_progress.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
@@ -25,6 +24,7 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "gcode_narration_router.h"
 
 #include <algorithm>

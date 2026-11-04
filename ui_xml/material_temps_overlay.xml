@@ -4,7 +4,15 @@
 <!-- Material Temperature Settings Overlay -->
 <!-- Two-view overlay: scrollable material list → edit form for a selected material -->
 <component>
-  <view name="material_temps_overlay" extends="overlay_panel" title="Material Temperatures" bg_color="#screen_bg">
+  <styles>
+    <!-- At micro (480x272 and 272x480) the four temperature columns wrap two
+         to a row: a column at least 45% wide cannot share a row with three
+         siblings, so the row_wrap container breaks after the second. -->
+    <style name="temp_col_micro" min_width="45%"/>
+  </styles>
+  <view name="material_temps_overlay"
+        extends="overlay_panel" title="Material Temperatures" bg_color="#screen_bg"
+        back_button_callback="on_material_back_clicked">
     <!-- Content Area -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
@@ -48,27 +56,31 @@
         <!-- Nozzle Min / Nozzle Max / Bed Temp / Chamber Temp (four-column row).
              Each input fills its own column (flex_grow="1") up to a 120px cap,
              so the row shrinks on a narrow screen but never grows past its
-             standard size on a wide one; ui_xml/micro/ and ui_xml/micro_portrait/
-             still reflow it to two-by-two for the two tiers too short to hold
-             one row at all. -->
-        <lv_obj width="100%" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false">
+             standard size on a wide one. The two micro tiers are too narrow to
+             hold one row at all: there the temp_col_micro floor wraps the
+             columns two-by-two. -->
+        <lv_obj width="100%" flex_flow="row_wrap" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false">
           <!-- Nozzle Min column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
+            <bind_style_if_eq name="temp_col_micro" subject="ui_breakpoint" ref_value="0"/>
             <text_body style_pad_bottom="#space_xs" text="Nozzle Min (°C)"/>
             <text_input name="edit_nozzle_min" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4"/>
           </lv_obj>
           <!-- Nozzle Max column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
+            <bind_style_if_eq name="temp_col_micro" subject="ui_breakpoint" ref_value="0"/>
             <text_body style_pad_bottom="#space_xs" text="Nozzle Max (°C)"/>
             <text_input name="edit_nozzle_max" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4"/>
           </lv_obj>
           <!-- Bed Temp column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
+            <bind_style_if_eq name="temp_col_micro" subject="ui_breakpoint" ref_value="0"/>
             <text_body style_pad_bottom="#space_xs" text="Bed (°C)"/>
             <text_input name="edit_bed_temp" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4"/>
           </lv_obj>
           <!-- Chamber Temp column (only when the printer has a chamber heater) -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
+            <bind_style_if_eq name="temp_col_micro" subject="ui_breakpoint" ref_value="0"/>
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <text_body style_pad_bottom="#space_xs" text="Chamber (°C)"/>
             <text_input name="edit_chamber_temp"

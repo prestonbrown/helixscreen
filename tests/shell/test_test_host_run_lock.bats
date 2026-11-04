@@ -371,6 +371,20 @@ exit 0'
     refute_grep 'test-tsan-one' "$MOCK_DOCKER_LOG"
 }
 
+@test "asan refuses a [#file] filter before anything reaches the host" {
+    run "$SCRIPT" --commit asan '[#test_foo]'
+    [ "$status" -eq 2 ]
+    contains "asan cannot filter by '[#test_foo]'" "$output"
+    [ ! -e "$MOCK_DOCKER_LOG" ] || fail "reached docker: $(cat "$MOCK_DOCKER_LOG")"
+}
+
+@test "tsan refuses a [#file] filter before anything reaches the host" {
+    run "$SCRIPT" --commit tsan '[#test_foo]'
+    [ "$status" -eq 2 ]
+    contains "tsan cannot filter by '[#test_foo]'" "$output"
+    [ ! -e "$MOCK_DOCKER_LOG" ] || fail "reached docker: $(cat "$MOCK_DOCKER_LOG")"
+}
+
 @test "a tsan run that printed no Catch2 summary is not reported clean" {
     # The default docker stub runs nothing, so the log carries no summary.
     run "$SCRIPT" --commit tsan '[ams]'

@@ -9,7 +9,7 @@
 // glyph's top for ANTHEAD. Every other platform draws the image.
 #if !defined(HELIX_PLATFORM_ESP32)
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 
 #include <spdlog/spdlog.h>
 

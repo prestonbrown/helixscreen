@@ -37,7 +37,7 @@
 
 #include "lvgl/lvgl.h"
 
-struct temp_graph_tooltip_t; // owned by src/ui/temp_graph_tooltip.cpp
+struct temp_graph_tooltip_t; // owned by src/ui/controls/temp_graph_tooltip.cpp
 
 // Default configuration
 #define UI_TEMP_GRAPH_MAX_SERIES 16      // Maximum concurrent temperature series

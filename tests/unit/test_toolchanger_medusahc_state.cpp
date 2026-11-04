@@ -13,12 +13,11 @@
  * toolchanger.tool_number is only what SELECT_TOOL last set.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 #include "toolchanger_addon.h"

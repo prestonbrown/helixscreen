@@ -135,7 +135,7 @@ In `globals.xml`, you define the suffixed variants of each token:
 
 At startup, `theme_manager` measures the axis that token follows, picks the matching suffix, and registers the **base name** (`space_lg`) pointing to the correct value. So when your XML says `style_pad_all="#space_lg"`, it resolves to 12, 16, or 20 depending on the screen.
 
-One function does the choosing for every token: `theme_manager_resolve_px_tokens()` (`src/ui/theme_responsive.cpp`). Both the startup registration and the resize path apply its output verbatim, so a token cannot get one tier at boot and another after a rotation.
+One function does the choosing for every token: `theme_manager_resolve_px_tokens()` (`src/ui/theme/theme_responsive.cpp`). Both the startup registration and the resize path apply its output verbatim, so a token cannot get one tier at boot and another after a rotation.
 
 Plugin constants ride the same ladder. `theme_manager_resolve_px_tokens()` reads the `ui_xml/` tables and hands them to `helix::theme_manager_resolve_px_tables()`, which picks the tier and applies the DPI scale; a plugin's own `<consts>` go through that second function too, on the narrow axis only (`PLUGIN_DEVELOPMENT.md` §7, Responsive sizing).
 
@@ -256,7 +256,7 @@ Two tokens in that list do not follow the ordinary rules:
 
 How the choice is expressed in code:
 
-- **vertical** — add the exact base name to `VERTICAL_AXIS_TOKENS` in `src/ui/theme_responsive.cpp`. That array is the single classification list; `theme_manager_token_uses_vertical_axis()` reads it, and `theme_manager_resolve_px_tokens()` is the only thing that calls it, so both registration sites stay in step automatically. Exact names, not a `*_height` convention — `dialog_content_max` is a vertical maximum that does not end in `_height`.
+- **vertical** — add the exact base name to `VERTICAL_AXIS_TOKENS` in `src/ui/theme/theme_responsive.cpp`. That array is the single classification list; `theme_manager_token_uses_vertical_axis()` reads it, and `theme_manager_resolve_px_tokens()` is the only thing that calls it, so both registration sites stay in step automatically. Exact names, not a `*_height` convention — `dialog_content_max` is a vertical maximum that does not end in `_height`.
 - **horizontal** and **axis-neutral** — nothing to do. Both resolve from the cramped axis, which is correct for widths (in portrait the cramped axis *is* the width) and is the deliberate compromise for neutrals.
 
 `space_*` stays neutral on purpose. It feeds `pad_top`/`pad_bottom` and `pad_left`/`pad_right` alike, so splitting it means classifying every `#space_*` reference site across `ui_xml/` — that reference count, not the declarations, is the cost driver.
@@ -512,7 +512,7 @@ ARGB8888 buffer it owns (re-rendered only when size, reading, phase or palette c
 draws that as one image, so a frame costs one blit per drop. The pure geometry and the
 rasterizer live in `include/humidity_drop_geometry.h` (no LVGL; tested in
 `tests/unit/test_humidity_drop.cpp`, tag `[humidity_drop]`), the widget in
-`src/ui/ui_humidity_drop.cpp`.
+`src/ui/filament/ui_humidity_drop.cpp`.
 
 ### spinner
 
@@ -976,7 +976,7 @@ You're free to rearrange the visual hierarchy, change flex directions, adjust si
 
 ### One tree, restyled for portrait
 
-A panel usually needs no portrait override. The print file detail view is the pattern: one widget tree, with complementary `bind_style` pairs keyed on `ui_is_portrait` carrying every restyle that is a style property (row vs column, which side grows, the button tier). The inline attribute for a restyled property must come off the widget, because an inline attribute beats a bound style and freezes one orientation. What styles cannot express (a size measured from runtime pixels) is measured in C++: `src/ui/ui_print_select_detail_view.cpp#fit_portrait_preview` reads the options column's real content height and sets the preview card's height from `include/print_detail_layout.h#decide_detail_portrait_preview`. See `ui_xml/print_file_detail.xml` for the whole shape.
+A panel usually needs no portrait override. The print file detail view is the pattern: one widget tree, with complementary `bind_style` pairs keyed on `ui_is_portrait` carrying every restyle that is a style property (row vs column, which side grows, the button tier). The inline attribute for a restyled property must come off the widget, because an inline attribute beats a bound style and freezes one orientation. What styles cannot express (a size measured from runtime pixels) is measured in C++: `src/ui/print/ui_print_select_detail_view.cpp#fit_portrait_preview` reads the options column's real content height and sets the preview card's height from `include/print_detail_layout.h#decide_detail_portrait_preview`. See `ui_xml/print_file_detail.xml` for the whole shape.
 
 The Controls panel's top row (`ui_xml/controls_panel.xml`) is the same pattern with a wrapping flow: three cards side by side in landscape, and in portrait the row wraps to Position beside Temperature with Cooling across the full width below. Two traps it shows: a style that sets `flex_flow` needs `layout="flex"` with it, because the inline attribute it replaces set both; and `ui_card` sets its own size locally when it is created, so no bound style can resize it. Put the card in a plain `lv_obj` cell that carries the bound sizes, and give the card `width="100%" height="100%"`.
 
@@ -1077,7 +1077,7 @@ hundredths. Match the display precision to the slider's resolution, or a typed
 
 ### Settings structure
 
-The Settings root (`ui_xml/settings_panel.xml`) is one grouped list: SCREEN (Display, Appearance, Touch & Input, Sound), PRINTER (Printing, Devices, Safety & Alerts, Connection) and HELIXSCREEN (Language & Time, System, Updates, Help & About). Each page owns one concern, so a new setting goes on the page whose concern it is, never into a catch-all. A root row is a label plus an optional live status line: its `bind_description` subject is filled by `SettingsPanel::refresh_status_lines()` (`src/ui/ui_panel_settings.cpp#refresh_status_lines`) from pure formatters in `src/ui/settings_root_status.cpp`, and refreshed each time the root activates rather than observed. A row with nothing worth summarizing has no description. The user guide mirrors the tree, one page per file under `docs/user/guide/settings/`.
+The Settings root (`ui_xml/settings_panel.xml`) is one grouped list: SCREEN (Display, Appearance, Touch & Input, Sound), PRINTER (Printing, Devices, Safety & Alerts, Connection) and HELIXSCREEN (Language & Time, System, Updates, Help & About). Each page owns one concern, so a new setting goes on the page whose concern it is, never into a catch-all. A root row is a label plus an optional live status line: its `bind_description` subject is filled by `SettingsPanel::refresh_status_lines()` (`src/ui/settings/ui_panel_settings.cpp#refresh_status_lines`) from pure formatters in `src/ui/settings/settings_root_status.cpp`, and refreshed each time the root activates rather than observed. A row with nothing worth summarizing has no description. The user guide mirrors the tree, one page per file under `docs/user/guide/settings/`.
 
 ---
 
@@ -1140,12 +1140,13 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Portrait / Micro Status
 
-- `ui_xml/portrait/` exists with two overrides (`print_status_panel.xml`,
-  `print_tune_panel.xml`); the app shell and navigation bar are single files that
-  adapt via `ui_is_portrait` instead.
-- `ui_xml/micro/` exists with four overrides (`controls_panel.xml`, `header_bar.xml`,
-  `theme_editor_overlay.xml`, `theme_preview_overlay.xml`).
-- `ui_xml/micro_portrait/` exists as a directory but has no overrides yet.
+- `ui_xml/portrait/` exists with one override (`print_tune_panel.xml`); the app shell,
+  the navigation bar and the print status panel are single files that adapt via
+  `ui_is_portrait` and measured layout instead.
+- `ui_xml/micro/` exists with one override (`controls_panel.xml`, a different design).
+  The header bar, the theme explorer and editor and the material temperatures
+  overlay adapt in place with `bind_style_if_eq` on `ui_breakpoint`.
+- `ui_xml/micro_portrait/` does not exist; the `portrait/` layer serves 272x480.
 - `tiny/`, `tiny_portrait/` do not exist yet. Wide open for contributions.
 
 ---

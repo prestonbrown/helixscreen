@@ -12,14 +12,13 @@
  * - Message reset when error clears
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "system/afc_message_dedup.h"
 #include "test_helpers/afc_test_access.h"

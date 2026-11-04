@@ -43,14 +43,14 @@ stub_make() {
 }
 
 @test "stale when a real source is out of date" {
-    stub_make src/system/helix_version.cpp src/ui/ui_panel_home.cpp
+    stub_make src/system/helix_version.cpp src/ui/home/ui_panel_home.cpp
     PATH="$STUB_BIN:$PATH" run "$GATE"
     [ "$status" -eq 1 ]
     contains "ui_panel_home.cpp" "$output"
 }
 
 @test "the git-hash file is not named as a reason when something else is stale" {
-    stub_make src/system/helix_version.cpp src/ui/ui_panel_home.cpp
+    stub_make src/system/helix_version.cpp src/ui/home/ui_panel_home.cpp
     PATH="$STUB_BIN:$PATH" run "$GATE"
     lacks "helix_version.cpp" "$output"
 }

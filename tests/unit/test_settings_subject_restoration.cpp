@@ -28,11 +28,10 @@
  * be inside the test body.
  */
 
-#include "ui_notification_threshold.h"
-
 #include "../lvgl_test_fixture.h"
 #include "audio_settings_manager.h"
 #include "config.h"
+#include "core/notification_threshold.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "safety_settings_manager.h"
 #include "settings_manager.h"

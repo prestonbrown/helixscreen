@@ -28,10 +28,11 @@ exactly one half of a pair is staged, and that staged diff touches one of the
 three attributes above, does it warn.
 
 It is also scoped to WARN, never fail: additive divergence is legitimate and
-already present in the tree — ui_xml/portrait/print_status_panel.xml carries a
-whole temperature section the base does not, because portrait has room for it
-and landscape doesn't. A hard gate cannot tell that apart from rot; a human
-glancing at the file name and attribute can.
+already present in the tree — ui_xml/portrait/print_tune_panel.xml splits the
+z-offset controls into rows the base keeps on one line, with their own help
+text, because a narrow screen has no room for the single row. A hard gate
+cannot tell that apart from rot; a human glancing at the file name and
+attribute can.
 
 Known false-positive shape: this reads the staged diff *line by line*
 (`git diff --cached -U0`), not attribute by attribute. If a changed layout

@@ -15,6 +15,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_slot_override.h"
@@ -37,7 +38,6 @@
 #include "snapmaker_resume.h"
 #include "snapmaker_screws_tilt.h"
 #include "snapmaker_status_parse.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>

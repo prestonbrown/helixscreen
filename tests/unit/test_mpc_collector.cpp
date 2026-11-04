@@ -14,8 +14,6 @@
  * Uses mock client to simulate G-code responses from Klipper/Kalico.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_advanced_api.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
@@ -23,6 +21,7 @@
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <atomic>
 

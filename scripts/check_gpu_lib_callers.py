@@ -38,9 +38,9 @@ from pathlib import Path
 EGL = "egl"
 ALLOWED = {
     "obj/lvgl/src/drivers/display/drm/lv_linux_drm_common.o": "lv_linux_drm_find_device_path() is never called",
-    "obj/api/display_backend.o": "panel orientation and no-display diagnostics check Lib::Drm",
+    "obj/platform/display/display_backend.o": "panel orientation and no-display diagnostics check Lib::Drm",
     "display/display_backend.o": "the same source, in the splash/watchdog display library",
-    "obj/api/display_backend_drm.o": "constructor and is_available() check drm_libs_present()",
+    "obj/platform/display/display_backend_drm.o": "constructor and is_available() check drm_libs_present()",
     "display/display_backend_drm.o": "the same source, in the splash/watchdog display library",
     "egl-variant/display_backend_drm.o": (EGL, "the EGL compile; drm_libs_present() covers the GPU stack"),
     "obj/lvgl/src/drivers/display/drm/lv_linux_drm.o": "reached only from DisplayBackendDRM",
@@ -48,7 +48,7 @@ ALLOWED = {
     "obj/lvgl/src/drivers/libinput/lv_libinput.o": "reached only behind Lib::Input in DisplayBackendDRM",
     "obj/application/probe_egl_cmd.o": "run_probe_egl() checks every library before touching one",
     "obj/rendering/gcode_gles_renderer.o": "init_gl() checks Lib::Egl/Gles2, the GBM path Lib::Gbm/Drm",
-    "obj/ui/backdrop_blur.o": "gpu_blur() checks all four before the first EGL call",
+    "obj/ui/effects/backdrop_blur.o": "gpu_blur() checks all four before the first EGL call",
 }
 
 # LVGL's drivers call the libraries ungated: whoever calls the driver is the

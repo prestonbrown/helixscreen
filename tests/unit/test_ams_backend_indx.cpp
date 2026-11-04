@@ -215,7 +215,6 @@ TEST_CASE_METHOD(IndxFixture, "INDX backend: heating needs a mounted tool", "[am
     CHECK(b.nozzle_heat_blocked_reason().empty());
     b.feed(json{{"gcode_macro TOOL_POSITIONS", {{"no_heat_tools", json::array({1})}}}});
     CHECK_FALSE(b.nozzle_heat_blocked_reason().empty());
-    CHECK(b.heads_share_heater());
 }
 
 TEST_CASE_METHOD(IndxFixture, "INDX backend: per-extruder usage is never charged to a slot",

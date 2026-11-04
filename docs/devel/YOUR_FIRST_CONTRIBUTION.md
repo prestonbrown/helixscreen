@@ -33,7 +33,7 @@ The retraction settings overlay is about as small as a real contribution gets: f
 |---|---|---|
 | `ui_xml/retraction_settings_overlay.xml` | 175 | Layout, styling, bindings |
 | `include/ui_overlay_retraction_settings.h` | 162 | Class declaration, subject + widget references |
-| `src/ui/ui_overlay_retraction_settings.cpp` | 293 | Lifecycle, event handlers, G-code send |
+| `src/ui/settings/ui_overlay_retraction_settings.cpp` | 293 | Lifecycle, event handlers, G-code send |
 
 You'll also touch three *other* files to wire it into the app:
 
@@ -176,7 +176,7 @@ Patterns to internalize:
 
 > **Note on the singleton pattern:** The `get_global_retraction_settings()` + `init_global_retraction_settings()` shape you see here — static `std::unique_ptr` constructed at boot, lives for the app lifetime — is a **legacy pattern**. It exists because most overlays were written when the codebase was smaller and boot-time construction was simpler. **Going forward, new overlays should prefer dynamic allocation: construct on open, destroy on close.** Two reasons: (1) memory isn't wasted on overlays the user never opens, critical on small devices like AD5M (14–20MB RAM budget), and (2) if multiple instances ever become useful, nothing in the design blocks that. If you're writing a new overlay, don't reach for the global accessor shape reflexively — instantiate from the row-click handler, hand ownership to `NavigationManager`, let it destroy on pop. See "Going forward" at the end of this section for the sketch.
 
-### Step 3: The implementation (`src/ui/ui_overlay_retraction_settings.cpp`)
+### Step 3: The implementation (`src/ui/settings/ui_overlay_retraction_settings.cpp`)
 
 The interesting parts:
 
@@ -324,7 +324,7 @@ src/
   application/subject_initializer.cpp    ← edit to call init_global_*()
 ```
 
-That's the full shape of a real settings overlay contribution. Every other overlay in `src/ui/ui_overlay_*.cpp` and every `ui_settings_*.cpp` follows this same pattern. If you're stuck, find the closest sibling, open its three files side-by-side, and diff against yours.
+That's the full shape of a real settings overlay contribution. Every other overlay in `src/ui/**/ui_overlay_*.cpp` and every `ui_settings_*.cpp` follows this same pattern. If you're stuck, find the closest sibling, open its three files side-by-side, and diff against yours.
 
 ### Going forward: dynamic overlays
 
@@ -358,7 +358,7 @@ This pattern isn't yet established in code — if you're writing a new overlay, 
 
 The AMS (Automatic Material System) panel is what a full-subsystem contribution looks like. You won't write one of these on your first PR, but knowing how it's decomposed helps you read it when you need to touch adjacent code, and it's the shape to aim for if you're proposing something big.
 
-AMS spans roughly 1700 lines of C++ (`src/ui/ui_panel_ams.cpp`) and 13 XML files (12 components plus a feature-tokens file, `ams_tokens.xml`). It's not monolithic — it's a set of small components that compose:
+AMS spans roughly 1700 lines of C++ (`src/ui/filament/ui_panel_ams.cpp`) and 13 XML files (12 components plus a feature-tokens file, `ams_tokens.xml`). It's not monolithic — it's a set of small components that compose:
 
 | XML component | Role |
 |---|---|
@@ -408,7 +408,7 @@ std::vector<ObserverGuard> slot_path_observers_;
 
 When the set of units changes, `slot_path_observers_` is `clear()`ed first, then re-populated with one `ObserverGuard` per live slot as the slot widgets are recreated (`ui_panel_ams.cpp` — `clear()` at both teardown and rebuild, `push_back` per slot). Guards are RAII, so dropping the old vector elements un-observes the dead slots automatically. This is the pattern for any per-item observer collection: **the observer's lifetime is the item widget's lifetime.**
 
-One nuance: these particular subjects come from a static array owned by a singleton (`AmsState`), so they live for the whole app and need no `SubjectLifetime` token — the header comments say so explicitly. If your per-item subjects are owned by something shorter-lived (a backend, a panel), you must pair each observer with the owner's `SubjectLifetime` — see [THREADING.md](THREADING.md) and the `observer_factory.h` helpers.
+One nuance: these particular subjects come from a static array owned by a singleton (`AmsState`), so they live for the whole app and need no `SubjectLifetime` token — the header comments say so explicitly. If your per-item subjects are owned by something shorter-lived (a backend, a panel), you must pair each observer with the owner's `SubjectLifetime` — see [THREADING.md](THREADING.md) and the `core/observer_factory.h` helpers.
 
 ### 4. Multi-backend abstraction
 

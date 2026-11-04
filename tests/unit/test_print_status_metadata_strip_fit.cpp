@@ -26,9 +26,9 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 
 using helix::ui::UpdateQueue;
 

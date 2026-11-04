@@ -19,14 +19,14 @@
 // "[ISOLATION-LEAK]".
 
 #include "ui_observer_guard.h"
-#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/live_thread_count.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "system/lvgl_thread_check.h"
 #include "thumbnail_processor.h"

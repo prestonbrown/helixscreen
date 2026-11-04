@@ -304,7 +304,7 @@ themselves are read through the `tool_offset_*()` accessors rather than subjects
 
 This allows a tool changer where T0 feeds from an AFC (backend 0) and T1 feeds from a Happy Hare (backend 1), each with independent slot tracking.
 
-`ToolState::has_multiple_toolheads()` is true for a tool changer or more than one hotend and false for AMS slots feeding one hotend (`physical_heads().size() > 1`). Ask it instead of combining `is_multi_tool()` with `has_multiple_extruders()` and `ams_topology_active()`. Its callers: the toolhead widget's tool label (`src/ui/panel_widgets/toolhead_widget.cpp`) and the belt settling laps' central-half inset (`src/ui/ui_panel_belt_tension.cpp`, `BeltSettleInputs::tool_count`).
+`ToolState::has_multiple_toolheads()` is true for a tool changer or more than one hotend and false for AMS slots feeding one hotend (`physical_heads().size() > 1`). Ask it instead of combining `is_multi_tool()` with `has_multiple_extruders()` and `ams_topology_active()`. Its callers: the toolhead widget's tool label (`src/ui/panel_widgets/toolhead_widget.cpp`) and the belt settling laps' central-half inset (`src/ui/calibration/ui_panel_belt_tension.cpp`, `BeltSettleInputs::tool_count`).
 
 `ToolInfo.lane_seated` comes from `ToolTopology::tool_seated`, which `build_ams_topology()` fills from each lane's `slot_is_actively_loaded()` on every push. Where a hub feeds several lanes into one head, it names the lane the head holds, mounted or parked, and `PhysicalHead::representative_tool()` sends that lane when the head is selected rather than the head's lowest (prestonbrown/helixscreen#1811).
 
@@ -360,8 +360,8 @@ The temperature control panel provides a dropdown to select which tool's tempera
 Every surface that mounts another tool on a tap asks one function, so a tap refused on one
 is refused on all of them with the same words: the home tool switcher
 (`src/ui/panel_widgets/tool_switcher_widget.cpp#handle_tool_selected`), a toolhead on the
-AMS panel's PARALLEL path (`src/ui/ui_panel_ams.cpp#on_path_toolhead_clicked`) and the
-filament panel's extruder dropdown (`src/ui/ui_panel_filament.cpp#handle_extruder_changed`).
+AMS panel's PARALLEL path (`src/ui/filament/ui_panel_ams.cpp#on_path_toolhead_clicked`) and the
+filament panel's extruder dropdown (`src/ui/filament/ui_panel_filament.cpp#handle_extruder_changed`).
 
 - **The decision** is the pure `decide_tool_change()` (`include/tool_change_request.h`) over
   `ToolChangeInputs`, which `tool_change_inputs()` reads from live state. In order: the
@@ -403,7 +403,7 @@ filament panel's extruder dropdown (`src/ui/ui_panel_filament.cpp#handle_extrude
 | `src/printer/tool_state.cpp` | Discovery, status parsing, subject management |
 | `include/printer_discovery.h` | Hardware detection: `tool_names()`, `has_tool_changer()` |
 | `include/ams_state.h` | Multi-backend filament system (linked via backend_index) |
-| `include/tool_change_request.h`, `src/ui/tool_change_request.cpp` | The one tool-change decision and dispatch every UI surface uses |
+| `include/tool_change_request.h`, `src/ui/filament/tool_change_request.cpp` | The one tool-change decision and dispatch every UI surface uses |
 
 ---
 

@@ -3,10 +3,10 @@
 
 #include "../../include/async_lifetime_guard.h"
 #include "../../include/config.h"
-#include "../../include/http_executor.h"
+#include "../../include/core/http_executor.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/runtime_config.h"
 #include "../../include/system_settings_manager.h"
-#include "../../include/ui_update_queue.h"
 #include "../../include/wifi_backend_mock.h"
 #include "../../include/wifi_interface.h"
 #include "../../include/wifi_manager.h"

@@ -23,8 +23,8 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/scoped_board.h"
 #include "../test_helpers/scoped_env.h"
+#include "core/text_io.h"
 #include "display_backend.h"
-#include "text_io.h"
 
 #include "../catch_amalgamated.hpp"
 
