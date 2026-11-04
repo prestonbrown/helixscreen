@@ -11,8 +11,6 @@
  * - Observer notification when data changes
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/json_utils.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"

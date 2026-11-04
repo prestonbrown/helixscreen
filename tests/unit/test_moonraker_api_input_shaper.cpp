@@ -14,8 +14,6 @@
  * Uses mock client to simulate G-code responses from Klipper.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/calibration_types.h" // For InputShaperResult
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"

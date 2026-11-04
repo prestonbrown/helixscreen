@@ -1,8 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/printer_capture.h"
 #include "../test_helpers/scoped_env.h"

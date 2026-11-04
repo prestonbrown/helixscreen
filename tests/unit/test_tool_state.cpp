@@ -6,8 +6,6 @@
  * @brief Tests for ToolInfo struct, DetectState enum, and ToolState singleton
  */
 
-#include "ui_update_queue.h"
-
 #include "../fake_moonraker_client.h"
 #include "../helix_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"

@@ -26,7 +26,6 @@
 #include "moonraker_client_mock.h"
 #include "moonraker_file_api.h"
 #include "moonraker_file_transfer_api.h"
-#include "printer_state.h"
 #include "test_helpers/update_queue_test_access.h"
 #include "three_mf_reader.h"
 #include "thumbnail_cache.h"
