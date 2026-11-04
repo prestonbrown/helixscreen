@@ -44,6 +44,17 @@ setup() {
     contains '^tools/validate_xml' "$output"
 }
 
+# A commit runs the attribute validator on staged XML only, so a staged UI source
+# would pay for a tool link and validate nothing.
+@test "tool-build gate sleeps through a staged UI source" {
+    run qc_trigger xml_tools
+    local trigger="$output"
+    run bash -c 'printf "%s\n" src/ui/ui_panel_home.cpp | grep -qE "$1"' _ "$trigger"
+    [ "$status" -eq 1 ] || fail "a staged .cpp woke the tool build: $trigger"
+    run bash -c 'printf "%s\n" ui_xml/home_panel.xml | grep -qE "$1"' _ "$trigger"
+    [ "$status" -eq 0 ] || fail "staged XML did not wake the tool build: $trigger"
+}
+
 # qc_xml_const runs no binary, so it must name where the constants check is
 # enforced, and that test must exist, or the hook points at nothing.
 @test "constants gate names the unit test that enforces it" {

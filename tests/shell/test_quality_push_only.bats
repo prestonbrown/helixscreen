@@ -127,6 +127,30 @@ now_ms_with_date() {
   contains "checked" "$output"
 }
 
+# Runs the driver's real fan-out over four gates on two workers with wait -n refused,
+# as bash 3.2 refuses it, and logs when each gate starts and ends.
+fan_out_without_wait_n() {
+  bash -c '
+    log="$1"
+    wait() { if [ "${1:-}" = -n ]; then return 2; fi; builtin wait; }
+    qc_wanted() { return 0; }
+    qc_run_buffered() { echo "start $1" >> "$log"; sleep 0.3; echo "end $1" >> "$log"; }
+    QC_JOBS=2
+    QC_PARALLEL="a b c d"
+    eval "$(sed -n "/^running=0\$/,/^wait\$/p" scripts/quality-checks.sh)"
+  ' _ "$1"
+}
+
+@test "without wait -n the gates still run a full batch at a time" {
+  local log="$BATS_TEST_TMPDIR/fanout.log"
+  run fan_out_without_wait_n "$log"
+  [ "$status" -eq 0 ] || fail "$output"
+  [ "$(grep -c '^end ' "$log")" -eq 4 ] || fail "not every gate ran: $(cat "$log")"
+  # Gate d starts while gate c is still running: the later gates are not run alone.
+  run awk '/^start d/ {sd=NR} /^end c/ {ec=NR} END {exit !(sd && ec && sd < ec)}' "$log"
+  [ "$status" -eq 0 ] || fail "gate d waited for gate c: $(cat "$log")"
+}
+
 @test "a staged header is compile-checked through one source that includes it" {
   run bash -c '. scripts/qc/_lib.sh; qc_one_includer include/utils/network_validation.h'
   [ "$status" -eq 0 ]
