@@ -25,6 +25,15 @@ namespace helix {
 void register_xml_components();
 
 /**
+ * @brief Resolve the HSV picker's consts (sv_size, hue_height, swatch_size) for
+ *        the default display's current resolution
+ *
+ * register_xml_components() runs this at boot; the consts do not follow a later
+ * theme_manager_refresh_layout_constants().
+ */
+void refresh_color_picker_constants();
+
+/**
  * @brief Register each XML component the first time anything names it
  *
  * Installs the engine's component loader: a tag, extends= base, lv_xml_create()
