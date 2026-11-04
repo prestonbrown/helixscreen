@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "spoolman_catalog_search.h"
@@ -372,10 +374,10 @@ class SpoolWizardOverlay : public OverlayBase {
     void publish_filament_summary();
 
     // ========== Create vendor modal ==========
-    lv_obj_t* create_vendor_dialog_ = nullptr;
+    helix::ui::WidgetRef create_vendor_dialog_;
 
     // ========== Create filament modal ==========
-    lv_obj_t* create_filament_dialog_ = nullptr;
+    helix::ui::WidgetRef create_filament_dialog_;
 
     // ========== Creation flow tracking ==========
     int created_vendor_id_ = -1;

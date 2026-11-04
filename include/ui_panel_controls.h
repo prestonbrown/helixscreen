@@ -20,7 +20,6 @@
 #include "subject_managed_panel.h"
 #include "ui/position_observer_bundle.h"
 #include "ui/temperature_observer_bundle.h"
-#include "ui/ui_modal_guard.h"
 
 #include <array>
 #include <functional>
@@ -262,7 +261,7 @@ class ControlsPanel : public PanelBase {
     // === Modal Dialog State ===
     //
 
-    helix::ui::ModalGuard motors_confirmation_dialog_;
+    helix::ui::WidgetRef motors_confirmation_dialog_;
     OperationTimeoutGuard operation_guard_;
 
     //

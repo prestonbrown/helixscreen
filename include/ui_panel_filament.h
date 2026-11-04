@@ -536,8 +536,8 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* chamber_current_label_ = nullptr;
 
     // Warning dialogs for filament sensor integration
-    lv_obj_t* load_warning_dialog_ = nullptr;
-    lv_obj_t* unload_warning_dialog_ = nullptr;
+    helix::ui::WidgetRef load_warning_dialog_;
+    helix::ui::WidgetRef unload_warning_dialog_;
 
     // Temperature graph (managed by TemperatureService)
     TemperatureService* temp_control_panel_ = nullptr;

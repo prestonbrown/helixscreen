@@ -100,7 +100,7 @@ class PinEntryModal {
 
     helix::ui::WidgetRef backdrop_;
     bool covering_chrome_ = false;
-    lv_obj_t* dialog_ = nullptr;
+    helix::ui::WidgetRef dialog_;
 
     static constexpr int kMinDigits = 4;
     static constexpr int kMaxDigits = 6;

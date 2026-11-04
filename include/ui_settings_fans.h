@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "overlay_base.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
@@ -86,7 +88,7 @@ class FanSettingsOverlay : public OverlayBase {
     lv_obj_t* no_fans_placeholder_ = nullptr;
 
     // Rename modal state
-    lv_obj_t* rename_modal_ = nullptr;
+    helix::ui::WidgetRef rename_modal_;
     std::string pending_rename_object_;
     SubjectManager subjects_; // declared ahead: tears down after the subject it owns
     char rename_old_name_buf_[64] = {};

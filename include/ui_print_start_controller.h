@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
@@ -339,7 +340,7 @@ class PrintStartController {
     // === Gate Pipeline State ===
     std::vector<helix::PrintStartGate> gate_list_; ///< ctor-seeded; overridable in tests
     size_t gate_resume_index_ = 0;                 ///< gate the open modal belongs to
-    lv_obj_t* print_gate_modal_ = nullptr;         ///< the ONE gate dialog handle
+    helix::ui::WidgetRef print_gate_modal_;        ///< the ONE gate dialog handle
 
     // === Callbacks ===
     PrintStartedCallback on_print_started_;

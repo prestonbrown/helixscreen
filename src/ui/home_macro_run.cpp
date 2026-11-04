@@ -23,13 +23,6 @@ namespace helix {
 
 namespace {
 
-// One parameter modal for every home control: two widgets each holding their own would
-// stomp on MacroParamModal's single active instance.
-MacroParamModal& get_shared_param_modal() {
-    static MacroParamModal modal;
-    return modal;
-}
-
 // Everything a dialog callback needs, by value: the control that asked may be destroyed
 // while the dialog is open.
 struct MacroExecCtx {
@@ -69,11 +62,11 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
     auto on_result = [api = ctx.api, name = ctx.macro_name, log_tag = ctx.log_tag](
                          const MacroParamResult& result) { execute(api, name, result, log_tag); };
     if (decision.action == MacroRunAction::Prompt) {
-        get_shared_param_modal().show_for_macro(ctx.parent_screen, ctx.macro_name, cached.params,
-                                                std::move(on_result), decision.params);
+        get_macro_param_modal().show_for_macro(ctx.parent_screen, ctx.macro_name, cached.params,
+                                               std::move(on_result), decision.params);
     } else {
-        get_shared_param_modal().show_for_unknown_params(ctx.parent_screen, ctx.macro_name,
-                                                         std::move(on_result), decision.params);
+        get_macro_param_modal().show_for_unknown_params(ctx.parent_screen, ctx.macro_name,
+                                                        std::move(on_result), decision.params);
     }
 }
 

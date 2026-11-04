@@ -7,6 +7,7 @@
 #include "ui_belt_retest_menu.h"
 #include "ui_observer_guard.h"
 #include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "belt_gating.h"
 #include "belt_settle.h"
@@ -544,7 +545,7 @@ class BeltTensionPanel : public OverlayBase {
     float similarity_percent_ = 0.0f;
     float was_similarity_percent_ = 0.0f;
     std::optional<helix::MemoryInfo> mem_override_;
-    lv_obj_t* low_ram_dialog_ = nullptr;
+    helix::ui::WidgetRef low_ram_dialog_;
     /// The low-RAM warning was accepted in this tuning session; later rounds
     /// do not ask again.
     bool tune_low_ram_accepted_ = false;

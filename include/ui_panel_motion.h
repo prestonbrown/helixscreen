@@ -15,7 +15,6 @@
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "toolhead_move_sender.h"
-#include "ui/ui_modal_guard.h"
 
 #include <optional>
 #include <string>
@@ -375,7 +374,7 @@ class MotionPanel : public OverlayBase {
 
     /// The Move tab's Disable Motors confirmation. The guard hides the dialog
     /// if the panel is destroyed while it is open.
-    helix::ui::ModalGuard motors_off_dialog_;
+    helix::ui::WidgetRef motors_off_dialog_;
 
     /// Whether a repeat tick has fired for the current jog-button hold: the
     /// first tick is that press's initial jog, later ones are repeats.

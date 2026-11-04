@@ -95,8 +95,9 @@ ControlsPanel::~ControlsPanel() {
 
     deinit_subjects();
 
-    // Modal dialogs: ModalGuard handles cleanup automatically via RAII
-    // See docs/DEVELOPER_QUICK_REFERENCE.md "Modal Dialog Lifecycle"
+    // The motors confirmation needs no close here: its callbacks are gated on
+    // this panel's lifetime token, and the modal-stack sweep that follows the
+    // panel teardown removes the dialog.
 }
 
 // ============================================================================

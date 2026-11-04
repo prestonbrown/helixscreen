@@ -493,8 +493,7 @@ void EmergencyStopOverlay::show_confirmation_dialog() {
     // The bare factory never reports a backdrop tap or ESC back here, so the
     // handle clears itself when the dialog is freed; a handle left set would
     // read as "already visible" and swallow every later press.
-    helix::ui::store_until_deleted(&confirmation_dialog_,
-                                   helix::ui::modal_show("estop_confirmation_dialog"));
+    confirmation_dialog_ = helix::ui::modal_show("estop_confirmation_dialog");
 
     if (!confirmation_dialog_) {
         spdlog::error("[EmergencyStop] Failed to create confirmation dialog, executing directly");
@@ -519,7 +518,7 @@ void EmergencyStopOverlay::dismiss_confirmation_dialog() {
 void EmergencyStopOverlay::show_recovery_dialog() {
     // Don't show if already visible
     spdlog::debug("[KlipperRecovery] show_recovery_dialog() called, recovery_dialog_={}",
-                  static_cast<void*>(recovery_dialog_));
+                  static_cast<void*>(recovery_dialog_.get()));
     if (recovery_dialog_) {
         spdlog::debug("[KlipperRecovery] Recovery dialog already visible, skipping");
         return;
@@ -530,10 +529,9 @@ void EmergencyStopOverlay::show_recovery_dialog() {
 
     // Use Modal system — backdrop is created programmatically. Cleared when freed,
     // like confirmation_dialog_, so a manual dismiss never blocks the next one.
-    helix::ui::store_until_deleted(&recovery_dialog_,
-                                   helix::ui::modal_show("klipper_recovery_dialog"));
+    recovery_dialog_ = helix::ui::modal_show("klipper_recovery_dialog");
     spdlog::debug("[KlipperRecovery] Dialog created, recovery_dialog_={}",
-                  static_cast<void*>(recovery_dialog_));
+                  static_cast<void*>(recovery_dialog_.get()));
 
     if (!recovery_dialog_) {
         spdlog::error("[KlipperRecovery] Failed to create recovery dialog");

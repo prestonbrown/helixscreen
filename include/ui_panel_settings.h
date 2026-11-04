@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_panel_base.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "subject_managed_panel.h" // For SubjectManager
@@ -109,7 +110,7 @@ class SettingsPanel : public PanelBase {
     //
 
     // Restart prompt dialog
-    lv_obj_t* restart_prompt_dialog_ = nullptr;
+    helix::ui::WidgetRef restart_prompt_dialog_;
 
     // Change host modal is owned by helix::ui::show_change_host_modal(); the
     // connection-failed prompt reaches the same dialog, and ChangeHostModal keeps

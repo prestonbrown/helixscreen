@@ -117,3 +117,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Update download dialog returns to show a la
     overlay.hide_update_download_modal();
     settle();
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Update notification shows again after a backdrop dismissal",
+                 "[update_checker][modal][widget_ref]") {
+    // show_update_notification() opens the dialog only while its handle is
+    // empty. A backdrop tap closes the dialog without reaching
+    // hide_update_notification(), so the handle has to notice the delete
+    // itself or the next check's notification never appears.
+    auto& checker = UpdateChecker::instance();
+    checker.init();
+
+    checker.show_update_notification();
+    settle();
+    REQUIRE(ModalStack::instance().top_component_name() == "update_notify_modal");
+
+    dismiss_by_backdrop();
+    process_lvgl(400); // the exit animation ends and the tree is deleted
+    settle();
+    REQUIRE(ModalStack::instance().top_component_name().empty());
+
+    checker.show_update_notification();
+    settle();
+    CHECK(ModalStack::instance().top_component_name() == "update_notify_modal");
+
+    checker.hide_update_notification();
+    settle();
+}

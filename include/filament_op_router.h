@@ -26,24 +26,6 @@
 
 namespace helix::ui {
 
-/**
- * @brief The process-wide MacroParamModal every filament surface shares.
- *
- * A function-local static, exactly as it was when it lived in
- * ui_panel_filament.cpp: one instance for the whole app, alive for the process
- * lifetime.
- *
- * That lifetime is load-bearing and easy to miss. MacroParamModal stores its
- * on_execute_ callback and does NOT clear it on dismiss — only the next
- * show_for_*() overwrites it. So a callback handed to this modal can fire
- * arbitrarily later, long after the object that built it is gone. FilamentPanel
- * is an immortal singleton and may capture [this] directly [L012]. Every other
- * caller MUST route through an AsyncLifetimeGuard token; AmsOperationSidebar is
- * destroyed whenever the AMS panel closes, which is a live use-after-free
- * without one.
- */
-helix::MacroParamModal& get_filament_param_modal();
-
 /// Whether a tier-2 dispatch may interrupt the user to collect parameters.
 enum class ParamPolicy {
     /// Raise MacroParamModal when the macro takes (or may take) parameters.
@@ -61,7 +43,7 @@ enum class ParamPolicy {
 /**
  * @brief How a parameter prompt is raised.
  *
- * The default installs get_filament_param_modal() on lv_screen_active(). It is
+ * The default raises helix::get_macro_param_modal() on lv_screen_active(). It is
  * an injection point so the prompt branch is reachable in a test binary with no
  * screen, and so a future surface can present parameters its own way without
  * forking dispatch_filament_macro().

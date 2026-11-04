@@ -48,7 +48,7 @@ class LowRamWarningFixture : public LVGLUITestFixture {
         lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
     }
 
-    lv_obj_t* handle = nullptr;
+    helix::ui::WidgetRef handle;
 };
 
 } // namespace
@@ -57,12 +57,12 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning clears its handle when c
                  "[modal][low_ram]") {
     helix::ui::ConfirmOptions opts;
     helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
+    REQUIRE(handle.get() != nullptr);
 
     press(handle, "btn_primary");
     settle();
 
-    CHECK(handle == nullptr);
+    CHECK(handle.get() == nullptr);
 }
 
 TEST_CASE_METHOD(LowRamWarningFixture,
@@ -75,20 +75,20 @@ TEST_CASE_METHOD(LowRamWarningFixture,
     helix::ui::ConfirmOptions opts;
     opts.on_cancel = [&cancelled]() { cancelled = true; };
     helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
+    REQUIRE(handle.get() != nullptr);
 
     press(handle, "btn_secondary");
     settle();
 
     CHECK(cancelled);
-    CHECK(handle == nullptr);
+    CHECK(handle.get() == nullptr);
 }
 
 TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning clears its handle on a backdrop dismissal",
                  "[modal][low_ram]") {
     helix::ui::ConfirmOptions opts;
     helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
+    REQUIRE(handle.get() != nullptr);
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(handle);
     REQUIRE(backdrop != nullptr);
@@ -96,7 +96,7 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning clears its handle on a b
     process_lvgl(50);
     settle();
 
-    CHECK(handle == nullptr);
+    CHECK(handle.get() == nullptr);
 }
 
 TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning reports an ESC dismissal to its caller",
@@ -108,7 +108,7 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning reports an ESC dismissal
     helix::ui::ConfirmOptions opts;
     opts.on_dismiss = [&dismissed]() { dismissed = true; };
     helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
+    REQUIRE(handle.get() != nullptr);
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(handle);
     REQUIRE(backdrop != nullptr);
@@ -117,6 +117,6 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning reports an ESC dismissal
     process_lvgl(50);
     settle();
 
-    CHECK(handle == nullptr);
+    CHECK(handle.get() == nullptr);
     CHECK(dismissed);
 }

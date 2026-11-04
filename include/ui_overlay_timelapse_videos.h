@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -97,7 +99,7 @@ class TimelapseVideosOverlay : public OverlayBase {
     lv_obj_t* video_grid_empty_ = nullptr;
 
     std::string pending_delete_filename_;
-    lv_obj_t* delete_confirmation_dialog_ = nullptr;
+    helix::ui::WidgetRef delete_confirmation_dialog_;
 
     // Cached gradient buffer (shared across all video cards)
     lv_draw_buf_t* cached_gradient_ = nullptr;

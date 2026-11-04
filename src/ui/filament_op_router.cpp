@@ -26,20 +26,15 @@ void show_shared_param_modal(const std::string& macro_name, const helix::CachedM
                              const std::map<std::string, std::string>& prefill,
                              helix::MacroExecuteCallback on_execute) {
     if (cached.knowledge == helix::MacroParamKnowledge::KNOWN_PARAMS) {
-        get_filament_param_modal().show_for_macro(lv_screen_active(), macro_name, cached.params,
-                                                  std::move(on_execute), prefill);
+        helix::get_macro_param_modal().show_for_macro(lv_screen_active(), macro_name, cached.params,
+                                                      std::move(on_execute), prefill);
         return;
     }
-    get_filament_param_modal().show_for_unknown_params(lv_screen_active(), macro_name,
-                                                       std::move(on_execute), prefill);
+    helix::get_macro_param_modal().show_for_unknown_params(lv_screen_active(), macro_name,
+                                                           std::move(on_execute), prefill);
 }
 
 } // namespace
-
-helix::MacroParamModal& get_filament_param_modal() {
-    static helix::MacroParamModal modal;
-    return modal;
-}
 
 void set_filament_param_prompter(ParamPrompter prompter) {
     prompter_slot() = std::move(prompter);

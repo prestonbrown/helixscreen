@@ -392,7 +392,7 @@ class Modal {
   protected:
     // Modal state
     helix::ui::WidgetRef backdrop_;
-    lv_obj_t* dialog_ = nullptr;
+    helix::ui::WidgetRef dialog_;
     lv_obj_t* parent_ = nullptr;
 
     /// Why the in-progress (or most recent) hide() was initiated. Set on every
@@ -797,18 +797,19 @@ lv_obj_t* modal_alert(const char* title, const char* message,
  * @brief Show the "low RAM before resonance calibration" warning modal.
  *
  * Centralizes the (translated) copy, severity, AND the re-entry scaffold so
- * the two calibration entry points (input-shaper panel + wizard) can't
- * diverge: pass the address of the stored handle and this helper clears it on
- * every close path - button press, backdrop/ESC dismissal, teardown - and
- * falls back to acting on a failed build only through the caller's own
+ * the calibration entry points (input-shaper panel, wizard, belt tension)
+ * can't diverge: pass the address of the stored handle and this helper clears
+ * it on every close path - button press, backdrop/ESC dismissal, teardown -
+ * and falls back to acting on a failed build only through the caller's own
  * null-handle check. @p options carries the decline callback, the dismissal
  * callback and the owner token; the helper clears the handle ahead of each of
  * them, so a caller keeps its own on_cancel and on_dismiss and does not clear
- * the handle itself. Do NOT hand-roll an LV_EVENT_DELETE hook for this:
- * one that outlives its owner is the use-after-free that got
- * prestonbrown/helixscreen#1380 reverted.
+ * the handle itself. The handle is a WidgetRef, so a dialog freed behind the
+ * caller's back (its screen deleted, a modal-stack sweep) reads nullptr too;
+ * the explicit clear is what opens the caller's guard before the exit
+ * animation ends.
  */
-lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_handle,
+lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, WidgetRef* dialog_handle,
                                          helix::SharedCallback<void()> on_confirm,
                                          const ConfirmOptions& options = {});
 

@@ -14,6 +14,7 @@
 #include "label_renderer.h"
 #include "lvgl.h"
 #include "sheet_label_layout.h"
+#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -154,8 +155,7 @@ bool maybe_show_ipp_print_modal(const SpoolInfo& spool, PrintCallback callback) 
     if (settings.get_printer_type() != "network" || settings.get_printer_protocol() != "ipp")
         return false;
 
-    static IppPrintModal modal;
-    modal.show_for_spool(spool, std::move(callback));
+    lazy_global<IppPrintModal>("IppPrintModal").show_for_spool(spool, std::move(callback));
     return true;
 }
 

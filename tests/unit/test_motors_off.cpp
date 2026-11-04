@@ -13,6 +13,7 @@
  * shows up as a missing or spurious script in the client's history.
  */
 
+#include "ui_modal.h"
 #include "ui_motors_off.h"
 #include "ui_update_queue.h"
 
@@ -71,7 +72,7 @@ class MotorsOffFixture : public LVGLUITestFixture {
 } // namespace
 
 TEST_CASE_METHOD(MotorsOffFixture, "motors off confirm sends M84", "[controls][motors]") {
-    helix::ui::ModalGuard guard;
+    helix::ui::WidgetRef guard;
     helix::ui::show_motors_off_confirm(&api, guard);
     REQUIRE(guard.get() != nullptr);
 
@@ -85,7 +86,7 @@ TEST_CASE_METHOD(MotorsOffFixture, "motors off confirm sends M84", "[controls][m
 }
 
 TEST_CASE_METHOD(MotorsOffFixture, "motors off cancel moves nothing", "[controls][motors]") {
-    helix::ui::ModalGuard guard;
+    helix::ui::WidgetRef guard;
     helix::ui::show_motors_off_confirm(&api, guard);
     REQUIRE(guard.get() != nullptr);
 
@@ -102,7 +103,7 @@ TEST_CASE_METHOD(MotorsOffFixture, "motors off refuses a confirm made after a pr
     ps.update_from_status({{"print_stats", {{"state", "standby"}}}});
     settle();
 
-    helix::ui::ModalGuard guard;
+    helix::ui::WidgetRef guard;
     helix::ui::show_motors_off_confirm(&api, guard);
     REQUIRE(guard.get() != nullptr);
 

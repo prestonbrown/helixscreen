@@ -4,6 +4,7 @@
 
 #include "ui_shaper_sweep_chart.h"
 #include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "input_shaper_calibrator.h"
@@ -300,7 +301,7 @@ class WizardInputShaperStep : public helix::wizard::Step {
      * getter/setter ceremony bought nothing. Cleared on cleanup() so a lingering
      * modal never outlives the step.
      */
-    lv_obj_t* low_ram_warn_dialog_ = nullptr;
+    helix::ui::WidgetRef low_ram_warn_dialog_;
 
   private:
     friend class WizardInputShaperStepTestAccess;
