@@ -354,6 +354,17 @@ TEST_CASE("select_moonraker_processes reports daemons and never ourselves", "[bu
         CHECK(select_moonraker_processes(tools).empty());
     }
 
+    SECTION("RustiCC's daemons are daemons") {
+        const std::vector<helix::diag::ProcMatch> rusticc{
+            {401, "/usr/bin/rusticc"},
+            {402, "/usr/bin/moonruster"},
+        };
+        const auto rust_found = select_moonraker_processes(rusticc);
+        REQUIRE(rust_found.size() == 2);
+        CHECK(rust_found[0].pid == 401);
+        CHECK(rust_found[1].pid == 402);
+    }
+
     SECTION("nothing running is a real answer, not a failure") {
         CHECK(select_moonraker_processes({}).empty());
     }

@@ -313,7 +313,9 @@ std::vector<std::string> listeners_on_port(uint16_t port) {
 std::vector<ProcMatch> select_moonraker_processes(const std::vector<ProcMatch>& candidates) {
     // "klippy" rather than "klipper": the process is klippy.py, and matching
     // "klipper" alone would also hit every path containing the klipper dir.
-    static const std::vector<std::string> DAEMON_NEEDLES = {"moonraker", "klippy"};
+    // moonruster and rusticc are RustiCC's Moonraker and Klipper on the CC1.
+    static const std::vector<std::string> DAEMON_NEEDLES = {"moonraker", "klippy", "moonruster",
+                                                            "rusticc"};
 
     // Anything naming our own binary is us, however many daemon needles it also
     // carries — helix-screen's argv can name a moonraker URL. Checked after the

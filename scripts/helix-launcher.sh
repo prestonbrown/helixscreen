@@ -70,13 +70,15 @@ helix_klipper_co_hosted() {
     # Patterns are deliberately narrow. A bare *moonraker* would also match a
     # standalone kiosk started as `helix-screen --moonraker ws://host:7125`,
     # which is precisely the not-co-hosted case that must stay at nice 0.
+    # rusticc and moonruster are RustiCC's Klipper and Moonraker on the CC1.
     for _hkc_f in "$HELIX_PROC_ROOT"/[0-9]*/cmdline; do
         [ -r "$_hkc_f" ] || continue
         # argv is NUL-separated; fold to spaces for substring matching. A
         # process that exits mid-scan makes tr fail — that is not an error.
         _hkc_cmd=$(tr '\0' ' ' < "$_hkc_f" 2>/dev/null) || _hkc_cmd=""
         case " ${_hkc_cmd} " in
-            *klippy.py*|*moonraker.py*|*moonraker-env*|*" -m moonraker"*)
+            *klippy.py*|*moonraker.py*|*moonraker-env*|*" -m moonraker"*|\
+            */rusticc" "*|*" rusticc "*|*/moonruster" "*|*" moonruster "*)
                 unset _hkc_f _hkc_cmd
                 return 0
                 ;;
@@ -88,6 +90,7 @@ helix_klipper_co_hosted() {
     # PID namespace. /tmp/uds is Forge-X's klippy socket on the AD5M.
     [ -S /tmp/klippy_uds ]      && return 0
     [ -S /tmp/moonraker.sock ]  && return 0
+    [ -S /run/moonraker.sock ]  && return 0
     [ -S /tmp/uds ]             && return 0
     return 1
 }

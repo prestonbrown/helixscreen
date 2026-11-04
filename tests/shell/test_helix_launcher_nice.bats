@@ -64,7 +64,8 @@ run_co_hosted() {
 # Real Klipper/Moonraker on the test host would defeat the "no co-host"
 # assertions via the socket fallback. Skip those cases when sockets are present.
 skip_if_real_klipper_sockets() {
-    if [ -S /tmp/klippy_uds ] || [ -S /tmp/moonraker.sock ] || [ -S /tmp/uds ]; then
+    if [ -S /tmp/klippy_uds ] || [ -S /tmp/moonraker.sock ] || [ -S /run/moonraker.sock ] \
+        || [ -S /tmp/uds ]; then
         skip "real Klipper/Moonraker sockets present on this host"
     fi
 }
@@ -98,6 +99,10 @@ skip_if_real_klipper_sockets() {
 
 @test "co-host detection has socket fallback for moonraker.sock" {
     grep -q '/tmp/moonraker.sock' "$LAUNCHER"
+}
+
+@test "co-host detection has socket fallback for RustiCC /run/moonraker.sock" {
+    grep -qE '\[ -S /run/moonraker.sock \]' "$LAUNCHER"
 }
 
 @test "co-host detection has socket fallback for Forge-X /tmp/uds" {
@@ -186,6 +191,32 @@ skip_if_real_klipper_sockets() {
         -d /etc/klipper
     run_co_hosted
     [ "$status" -eq 0 ]
+}
+
+@test "co-host detection: finds RustiCC's rusticc" {
+    make_proc_entry 104 /usr/bin/rusticc
+    run_co_hosted
+    [ "$status" -eq 0 ]
+}
+
+@test "co-host detection: finds RustiCC's moonruster" {
+    make_proc_entry 105 /usr/bin/moonruster -d /etc/klipper
+    run_co_hosted
+    [ "$status" -eq 0 ]
+}
+
+@test "co-host detection: finds rusticc started by bare name" {
+    make_proc_entry 106 rusticc
+    run_co_hosted
+    [ "$status" -eq 0 ]
+}
+
+@test "co-host detection: a path merely containing rusticc is NOT a co-host" {
+    # Only the program itself counts, not a config or log path naming it.
+    skip_if_real_klipper_sockets
+    make_proc_entry 107 /usr/bin/tail -f /var/log/rusticc.log
+    run_co_hosted
+    [ "$status" -ne 0 ]
 }
 
 @test "co-host detection: ignores unrelated processes" {
