@@ -212,7 +212,7 @@ make full-test-run
 
 XML layouts hot-reload by default on native builds — edit `ui_xml/*.xml`, save, watch the running UI update live.
 
-**Test suite:** 5,000+ test cases across 600+ test files covering printer state, UI components, XML parsing, multi-material, and more.
+**Test suite:** 25,000+ test cases across 1,800+ test files covering printer state, UI components, XML parsing, multi-material, and more.
 
 For the daily-workflow reference (run flags, logging, config, IDE setup), see [docs/devel/DEVELOPMENT.md](docs/devel/DEVELOPMENT.md).
 
