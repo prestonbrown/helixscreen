@@ -560,7 +560,7 @@ AmsError AmsBackendAce::do_load_filament(int slot_index) {
             // The base class already runs this on main. A cancel or stop
             // since the send invalidated op_lifetime_, and then the answer
             // must not overwrite the state the cancel left.
-            if (token.expired()) {
+            if (token.expired()) { // L081_OK: AmsSubscriptionBackend runs this on main
                 return;
             }
             spdlog::info("[ACE] Load slot {} gcode completed", slot_index);
@@ -617,7 +617,7 @@ AmsError AmsBackendAce::do_unload_filament(int /*slot_index*/) {
             // The base class already runs this on main. A cancel or stop
             // since the send invalidated op_lifetime_, and then the answer
             // must not overwrite the state the cancel left.
-            if (token.expired()) {
+            if (token.expired()) { // L081_OK: AmsSubscriptionBackend runs this on main
                 return;
             }
             spdlog::info("[ACE] Unload gcode completed");

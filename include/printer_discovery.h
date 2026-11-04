@@ -1252,11 +1252,12 @@ namespace helix {
 void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerAPI* api,
                                    IMoonrakerClient* client);
 
-/// Re-reads the filament, probe and width sensor config. A preset assigns sensor roles after
-/// discovery has already loaded that config, so every path that applies a preset calls this
-/// or the sensors keep the roles inferred from their names until the next restart.
+/// Re-reads the settings a preset can change after startup already loaded them: the
+/// filament, probe and width sensor config (a preset assigns sensor roles after discovery)
+/// and the audio settings (a preset can ship sound off). Every path that applies a preset
+/// calls this, or those keep their pre-preset values until the next restart.
 /// UI thread only.
-void reload_sensor_roles_after_preset();
+void reload_settings_after_preset();
 
 /// Saves Klipper's hostname for the active printer, writing only when it changed. The
 /// connection-failed prompt re-finds the printer over mDNS by it (#1217).

@@ -174,36 +174,27 @@ void TimelapseInstallOverlay::step_check_webcam() {
         return;
     }
 
-    auto tok = lifetime_.token();
     api_->timelapse().get_webcam_list(
-        [this, tok](const std::vector<WebcamInfo>& webcams) {
-            if (tok.expired() || !wizard_active_)
-                return;
-            bool empty = webcams.empty();
-            size_t count = webcams.size();
-            tok.defer([this, empty, count]() {
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::webcams",
+            [this](const std::vector<WebcamInfo>& webcams) {
                 if (!wizard_active_)
                     return;
-                if (empty) {
+                if (webcams.empty()) {
                     set_status(lv_tr("No webcam detected.\nA webcam is required for timelapse."));
                     show_action_button(lv_tr("Check Again"), [this]() { step_check_webcam(); });
                     return;
                 }
-                spdlog::info("[{}] Found {} webcam(s)", get_name(), count);
+                spdlog::info("[{}] Found {} webcam(s)", get_name(), webcams.size());
                 step_check_plugin();
-            });
-        },
-        [this, tok](const MoonrakerError& err) {
-            if (tok.expired() || !wizard_active_)
+            }),
+        lifetime_.bg_cb("TimelapseInstallOverlay::webcams_err", [this](const MoonrakerError& err) {
+            if (!wizard_active_)
                 return;
             spdlog::warn("[{}] Webcam check failed: {}", get_name(), err.message);
-            tok.defer([this]() {
-                if (!wizard_active_)
-                    return;
-                set_status(lv_tr("Could not check webcam status.\nCheck printer connection."));
-                show_action_button(lv_tr("Check Again"), [this]() { step_check_webcam(); });
-            });
-        });
+            set_status(lv_tr("Could not check webcam status.\nCheck printer connection."));
+            show_action_button(lv_tr("Check Again"), [this]() { step_check_webcam(); });
+        }));
 }
 
 // ============================================================================
@@ -217,34 +208,27 @@ void TimelapseInstallOverlay::step_check_plugin() {
     if (!api_)
         return;
 
-    auto tok = lifetime_.token();
     api_->timelapse().get_timelapse_settings(
-        [this, tok](const TimelapseSettings& /*settings*/) {
-            if (tok.expired() || !wizard_active_)
-                return;
-            spdlog::info("[{}] Timelapse plugin already installed", get_name());
-            tok.defer([this]() {
+        lifetime_.bg_cb("TimelapseInstallOverlay::plugin_present",
+                        [this](const TimelapseSettings& /*settings*/) {
+                            if (!wizard_active_)
+                                return;
+                            spdlog::info("[{}] Timelapse plugin already installed", get_name());
+                            set_status(lv_tr("Timelapse plugin is already installed!"));
+                            if (step_progress_) {
+                                for (int i = 0; i < STEP_COUNT; i++) {
+                                    ui_step_progress_set_completed(step_progress_, i);
+                                }
+                            }
+                            show_action_button(lv_tr("Close"), []() { helix::nav::go_back(); });
+                        }),
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::plugin_absent", [this](const MoonrakerError& /*err*/) {
                 if (!wizard_active_)
                     return;
-                set_status(lv_tr("Timelapse plugin is already installed!"));
-                if (step_progress_) {
-                    for (int i = 0; i < STEP_COUNT; i++) {
-                        ui_step_progress_set_completed(step_progress_, i);
-                    }
-                }
-                show_action_button(lv_tr("Close"), []() { helix::nav::go_back(); });
-            });
-        },
-        [this, tok](const MoonrakerError& /*err*/) {
-            if (tok.expired() || !wizard_active_)
-                return;
-            spdlog::info("[{}] Plugin not detected, showing install instructions", get_name());
-            tok.defer([this]() {
-                if (!wizard_active_)
-                    return;
+                spdlog::info("[{}] Plugin not detected, showing install instructions", get_name());
                 step_show_install_instructions();
-            });
-        });
+            }));
 }
 
 // ============================================================================
@@ -277,34 +261,28 @@ void TimelapseInstallOverlay::recheck_after_install() {
     if (!api_)
         return;
 
-    auto tok = lifetime_.token();
     api_->timelapse().get_timelapse_settings(
-        [this, tok](const TimelapseSettings& /*settings*/) {
-            if (tok.expired() || !wizard_active_)
-                return;
-            spdlog::info("[{}] Plugin detected after recheck!", get_name());
-            tok.defer([this]() {
+        lifetime_.bg_cb("TimelapseInstallOverlay::recheck_present",
+                        [this](const TimelapseSettings& /*settings*/) {
+                            if (!wizard_active_)
+                                return;
+                            spdlog::info("[{}] Plugin detected after recheck!", get_name());
+                            set_status(lv_tr("Timelapse plugin is installed!"));
+                            if (step_progress_) {
+                                for (int i = 0; i < STEP_COUNT; i++) {
+                                    ui_step_progress_set_completed(step_progress_, i);
+                                }
+                            }
+                            show_action_button(lv_tr("Done"), []() { helix::nav::go_back(); });
+                        }),
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::recheck_absent", [this](const MoonrakerError& /*err*/) {
                 if (!wizard_active_)
                     return;
-                set_status(lv_tr("Timelapse plugin is installed!"));
-                if (step_progress_) {
-                    for (int i = 0; i < STEP_COUNT; i++) {
-                        ui_step_progress_set_completed(step_progress_, i);
-                    }
-                }
-                show_action_button(lv_tr("Done"), []() { helix::nav::go_back(); });
-            });
-        },
-        [this, tok](const MoonrakerError& /*err*/) {
-            if (tok.expired() || !wizard_active_)
-                return;
-            spdlog::info("[{}] Plugin still not responding, proceeding to configure", get_name());
-            tok.defer([this]() {
-                if (!wizard_active_)
-                    return;
+                spdlog::info("[{}] Plugin still not responding, proceeding to configure",
+                             get_name());
                 step_configure_moonraker();
-            });
-        });
+            }));
 }
 
 // ============================================================================
@@ -327,122 +305,82 @@ void TimelapseInstallOverlay::download_and_modify_config() {
         return;
     }
 
-    auto tok = lifetime_.token();
-
     // Download moonraker.conf — check for existing [timelapse] section (migration: leave it alone)
     api_->transfers().download_file(
         "config", "moonraker.conf",
-        [this, tok](const std::string& moonraker_content) {
-            if (tok.expired() || !wizard_active_)
-                return;
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::moonraker_conf",
+            [this](const std::string& moonraker_content) {
+                if (!wizard_active_)
+                    return;
 
-            // If [timelapse] already exists in moonraker.conf, config is done
-            if (has_timelapse_section(moonraker_content) ||
-                helix::MoonrakerConfigManager::has_section(moonraker_content, "timelapse")) {
-                spdlog::info("[{}] moonraker.conf already has [timelapse] section", get_name());
-                tok.defer([this]() {
-                    if (!wizard_active_)
-                        return;
+                // If [timelapse] already exists in moonraker.conf, config is done
+                if (has_timelapse_section(moonraker_content) ||
+                    helix::MoonrakerConfigManager::has_section(moonraker_content, "timelapse")) {
+                    spdlog::info("[{}] moonraker.conf already has [timelapse] section", get_name());
                     set_status(lv_tr("Configuration already present."));
                     step_restart_moonraker();
-                });
-                return;
-            }
+                    return;
+                }
+                download_helix_config(moonraker_content, true);
+            }),
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::moonraker_conf_err", [this](const MoonrakerError& err) {
+                if (!wizard_active_)
+                    return;
+                if (err.type == MoonrakerErrorType::FILE_NOT_FOUND) {
+                    // moonraker.conf not found (e.g. mock mode) — proceed with empty content
+                    spdlog::info("[{}] moonraker.conf not found, proceeding with empty",
+                                 get_name());
+                    download_helix_config("", false);
+                    return;
+                }
+                spdlog::error("[{}] Failed to download config: {}", get_name(), err.message);
+                set_status(lv_tr("Failed to download moonraker.conf.\nCheck printer connection."));
+                show_action_button(lv_tr("Retry"), [this]() { download_and_modify_config(); });
+            }));
+}
 
-            // Download helixscreen.conf to add our timelapse config there
-            api_->transfers().download_file(
-                "config", "helixscreen.conf",
-                [this, tok, moonraker_content](const std::string& helix_content) {
-                    // Check if helixscreen.conf already has [timelapse] (pure
-                    // function on local strings — safe on bg thread)
-                    if (helix::MoonrakerConfigManager::has_section(helix_content, "timelapse")) {
-                        spdlog::info("[{}] helixscreen.conf already has [timelapse] section",
-                                     get_name());
-                        tok.defer("TimelapseInstallOverlay::already_present", [this]() {
-                            if (!wizard_active_)
-                                return;
-                            set_status(lv_tr("Configuration already present."));
-                            step_restart_moonraker();
-                        });
-                        return;
-                    }
-                    tok.defer(
-                        "TimelapseInstallOverlay::write_helix_with_moonraker",
-                        [this, helix = helix_content, moonraker = moonraker_content]() mutable {
-                            if (!wizard_active_)
-                                return;
-                            write_timelapse_config(helix, moonraker);
-                        });
-                },
-                [this, tok, moonraker_content](const MoonrakerError& err) {
-                    if (err.type == MoonrakerErrorType::FILE_NOT_FOUND) {
-                        // helixscreen.conf doesn't exist yet — start fresh
-                        spdlog::info("[{}] helixscreen.conf not found, creating new", get_name());
-                        tok.defer("TimelapseInstallOverlay::write_fresh_helix",
-                                  [this, moonraker = moonraker_content]() mutable {
-                                      if (!wizard_active_)
-                                          return;
-                                      write_timelapse_config("", moonraker);
-                                  });
-                    } else {
-                        spdlog::error("[{}] Failed to download helixscreen.conf: {}", get_name(),
-                                      err.message);
-                        tok.defer("TimelapseInstallOverlay::helix_download_err", [this]() {
-                            if (!wizard_active_)
-                                return;
-                            set_status(lv_tr(
-                                "Failed to download helixscreen.conf.\nCheck printer connection."));
-                            show_action_button(lv_tr("Retry"),
-                                               [this]() { download_and_modify_config(); });
-                        });
-                    }
-                });
-        },
-        [this, tok](const MoonrakerError& err) {
-            if (tok.expired() || !wizard_active_)
+void TimelapseInstallOverlay::download_helix_config(const std::string& moonraker_content,
+                                                    bool moonraker_found) {
+    if (!api_)
+        return;
+
+    // Our timelapse config goes in helixscreen.conf, which may not exist yet.
+    api_->transfers().download_file(
+        "config", "helixscreen.conf",
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::helix_conf",
+            [this, moonraker_content](const std::string& helix_content) {
+                if (!wizard_active_)
+                    return;
+                if (helix::MoonrakerConfigManager::has_section(helix_content, "timelapse")) {
+                    spdlog::info("[{}] helixscreen.conf already has [timelapse] section",
+                                 get_name());
+                    set_status(lv_tr("Configuration already present."));
+                    step_restart_moonraker();
+                    return;
+                }
+                write_timelapse_config(helix_content, moonraker_content);
+            }),
+        lifetime_.bg_cb("TimelapseInstallOverlay::helix_conf_err", [this, moonraker_content,
+                                                                    moonraker_found](
+                                                                       const MoonrakerError& err) {
+            if (!wizard_active_)
                 return;
             if (err.type == MoonrakerErrorType::FILE_NOT_FOUND) {
-                // moonraker.conf not found (e.g. mock mode) — proceed with empty content
-                spdlog::info("[{}] moonraker.conf not found, proceeding with empty", get_name());
-                // Download helixscreen.conf (may also not exist)
-                api_->transfers().download_file(
-                    "config", "helixscreen.conf",
-                    [this, tok](const std::string& helix_content) {
-                        tok.defer("TimelapseInstallOverlay::write_helix_no_moonraker",
-                                  [this, helix = helix_content]() mutable {
-                                      if (!wizard_active_)
-                                          return;
-                                      write_timelapse_config(helix, "");
-                                  });
-                    },
-                    [this, tok](const MoonrakerError& err2) {
-                        if (err2.type == MoonrakerErrorType::FILE_NOT_FOUND) {
-                            tok.defer("TimelapseInstallOverlay::write_empty", [this]() {
-                                if (!wizard_active_)
-                                    return;
-                                write_timelapse_config("", "");
-                            });
-                        } else {
-                            tok.defer("TimelapseInstallOverlay::read_config_err", [this]() {
-                                if (!wizard_active_)
-                                    return;
-                                set_status(lv_tr("Failed to read config."));
-                                show_action_button(lv_tr("Retry"),
-                                                   [this]() { download_and_modify_config(); });
-                            });
-                        }
-                    });
-            } else {
-                spdlog::error("[{}] Failed to download config: {}", get_name(), err.message);
-                tok.defer([this]() {
-                    if (!wizard_active_)
-                        return;
-                    set_status(
-                        lv_tr("Failed to download moonraker.conf.\nCheck printer connection."));
-                    show_action_button(lv_tr("Retry"), [this]() { download_and_modify_config(); });
-                });
+                spdlog::info("[{}] helixscreen.conf not found, creating new", get_name());
+                write_timelapse_config("", moonraker_content);
+                return;
             }
-        });
+            spdlog::error("[{}] Failed to download helixscreen.conf: {}", get_name(), err.message);
+            const char* msg =
+                moonraker_found
+                    ? lv_tr("Failed to download helixscreen.conf.\nCheck printer connection.")
+                    : lv_tr("Failed to read config.");
+            set_status(msg);
+            show_action_button(lv_tr("Retry"), [this]() { download_and_modify_config(); });
+        }));
 }
 
 void TimelapseInstallOverlay::write_timelapse_config(const std::string& helix_content,
@@ -458,70 +396,61 @@ void TimelapseInstallOverlay::write_timelapse_config(const std::string& helix_co
          {"origin", "https://github.com/mainsail-crew/moonraker-timelapse.git"},
          {"managed_services", "klipper moonraker"}});
 
-    auto tok = lifetime_.token();
-
     // Upload helixscreen.conf
     api_->transfers().upload_file(
         "config", "helixscreen.conf", new_helix,
-        [this, tok, moonraker_content]() {
-            if (tok.expired() || !wizard_active_)
-                return;
-            spdlog::info("[{}] helixscreen.conf updated with timelapse config", get_name());
-
-            // Ensure [include helixscreen.conf] is in moonraker.conf
-            if (helix::MoonrakerConfigManager::has_include_line(moonraker_content)) {
-                spdlog::info("[{}] moonraker.conf already has include line", get_name());
-                tok.defer([this]() {
-                    if (!wizard_active_)
-                        return;
-                    set_status(lv_tr("Configuration added successfully."));
-                    step_restart_moonraker();
-                });
-                return;
-            }
-
-            // Add include line and upload moonraker.conf
-            std::string updated_moonraker =
-                helix::MoonrakerConfigManager::add_include_line(moonraker_content);
-            api_->transfers().upload_file(
-                "config", "moonraker.conf", updated_moonraker,
-                [this, tok]() {
-                    if (tok.expired() || !wizard_active_)
-                        return;
-                    spdlog::info("[{}] moonraker.conf updated with include line", get_name());
-                    tok.defer([this]() {
-                        if (!wizard_active_)
-                            return;
-                        set_status(lv_tr("Configuration added successfully."));
-                        step_restart_moonraker();
-                    });
-                },
-                [this, tok](const MoonrakerError& err) {
-                    if (tok.expired() || !wizard_active_)
-                        return;
-                    spdlog::error("[{}] Failed to upload moonraker.conf: {}", get_name(),
-                                  err.message);
-                    tok.defer([this]() {
-                        if (!wizard_active_)
-                            return;
-                        set_status(
-                            lv_tr("Failed to update moonraker.conf.\nCheck printer connection."));
-                        show_action_button(lv_tr("Retry"),
-                                           [this]() { download_and_modify_config(); });
-                    });
-                });
-        },
-        [this, tok](const MoonrakerError& err) {
-            if (tok.expired() || !wizard_active_)
-                return;
-            spdlog::error("[{}] Failed to upload helixscreen.conf: {}", get_name(), err.message);
-            tok.defer([this]() {
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::helix_uploaded",
+            [this, moonraker_content]() {
                 if (!wizard_active_)
                     return;
+                spdlog::info("[{}] helixscreen.conf updated with timelapse config", get_name());
+
+                // Ensure [include helixscreen.conf] is in moonraker.conf
+                if (helix::MoonrakerConfigManager::has_include_line(moonraker_content)) {
+                    spdlog::info("[{}] moonraker.conf already has include line", get_name());
+                    set_status(lv_tr("Configuration added successfully."));
+                    step_restart_moonraker();
+                    return;
+                }
+                upload_moonraker_include(moonraker_content);
+            }),
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::helix_upload_err", [this](const MoonrakerError& err) {
+                if (!wizard_active_)
+                    return;
+                spdlog::error("[{}] Failed to upload helixscreen.conf: {}", get_name(),
+                              err.message);
                 set_status(lv_tr("Failed to update configuration.\nCheck printer connection."));
                 show_action_button(lv_tr("Retry"), [this]() { download_and_modify_config(); });
-            });
-        });
+            }));
+}
+
+void TimelapseInstallOverlay::upload_moonraker_include(const std::string& moonraker_content) {
+    if (!api_)
+        return;
+
+    std::string updated_moonraker =
+        helix::MoonrakerConfigManager::add_include_line(moonraker_content);
+    api_->transfers().upload_file(
+        "config", "moonraker.conf", updated_moonraker,
+        lifetime_.bg_cb("TimelapseInstallOverlay::moonraker_uploaded",
+                        [this]() {
+                            if (!wizard_active_)
+                                return;
+                            spdlog::info("[{}] moonraker.conf updated with include line",
+                                         get_name());
+                            set_status(lv_tr("Configuration added successfully."));
+                            step_restart_moonraker();
+                        }),
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::moonraker_upload_err", [this](const MoonrakerError& err) {
+                if (!wizard_active_)
+                    return;
+                spdlog::error("[{}] Failed to upload moonraker.conf: {}", get_name(), err.message);
+                set_status(lv_tr("Failed to update moonraker.conf.\nCheck printer connection."));
+                show_action_button(lv_tr("Retry"), [this]() { download_and_modify_config(); });
+            }));
 }
 
 bool TimelapseInstallOverlay::has_timelapse_section(const std::string& content) {
@@ -577,19 +506,16 @@ void TimelapseInstallOverlay::step_restart_moonraker() {
     if (!api_)
         return;
 
-    auto tok = lifetime_.token();
-
     // Suppress recovery modal during intentional restart
     EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);
 
     api_->restart_moonraker(
-        [this, tok]() {
-            if (tok.expired() || !wizard_active_)
-                return;
-            spdlog::info("[{}] Moonraker restart initiated", get_name());
-            tok.defer([this]() {
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::restart_sent",
+            [this]() {
                 if (!wizard_active_)
                     return;
+                spdlog::info("[{}] Moonraker restart initiated", get_name());
                 set_status(lv_tr("Moonraker restarting...\nWaiting for reconnection..."));
 
                 // Wait 8 seconds then try to verify
@@ -602,19 +528,14 @@ void TimelapseInstallOverlay::step_restart_moonraker() {
                         overlay->step_verify();
                     },
                     8000, nullptr);
-            });
-        },
-        [this, tok](const MoonrakerError& err) {
-            if (tok.expired() || !wizard_active_)
+            }),
+        lifetime_.bg_cb("TimelapseInstallOverlay::restart_err", [this](const MoonrakerError& err) {
+            if (!wizard_active_)
                 return;
             spdlog::error("[{}] Moonraker restart failed: {}", get_name(), err.message);
-            tok.defer([this]() {
-                if (!wizard_active_)
-                    return;
-                set_status(lv_tr("Failed to restart Moonraker."));
-                show_action_button(lv_tr("Retry"), [this]() { step_restart_moonraker(); });
-            });
-        });
+            set_status(lv_tr("Failed to restart Moonraker."));
+            show_action_button(lv_tr("Retry"), [this]() { step_restart_moonraker(); });
+        }));
 }
 
 // ============================================================================
@@ -628,38 +549,31 @@ void TimelapseInstallOverlay::step_verify() {
     if (!api_)
         return;
 
-    auto tok = lifetime_.token();
     api_->timelapse().get_timelapse_settings(
-        [this, tok](const TimelapseSettings& /*settings*/) {
-            if (tok.expired() || !wizard_active_)
-                return;
-            spdlog::info("[{}] Timelapse plugin verified!", get_name());
-            tok.defer([this]() {
-                if (!wizard_active_)
-                    return;
-                set_status(lv_tr("Timelapse plugin installed successfully!"));
-                if (step_progress_) {
-                    ui_step_progress_set_completed(step_progress_, static_cast<int>(Step::VERIFY));
-                }
-                // Update capability state so UI reflects timelapse availability
-                get_printer_state().set_timelapse_available(true);
-                show_action_button(lv_tr("Done"), []() { helix::nav::go_back(); });
-                ToastManager::instance().show(ToastSeverity::SUCCESS,
-                                              lv_tr("Timelapse plugin installed!"), 3000);
-            });
-        },
-        [this, tok](const MoonrakerError& /*err*/) {
-            if (tok.expired() || !wizard_active_)
+        lifetime_.bg_cb("TimelapseInstallOverlay::verified",
+                        [this](const TimelapseSettings& /*settings*/) {
+                            if (!wizard_active_)
+                                return;
+                            spdlog::info("[{}] Timelapse plugin verified!", get_name());
+                            set_status(lv_tr("Timelapse plugin installed successfully!"));
+                            if (step_progress_) {
+                                ui_step_progress_set_completed(step_progress_,
+                                                               static_cast<int>(Step::VERIFY));
+                            }
+                            // Update capability state so UI reflects timelapse availability
+                            get_printer_state().set_timelapse_available(true);
+                            show_action_button(lv_tr("Done"), []() { helix::nav::go_back(); });
+                            ToastManager::instance().show(
+                                ToastSeverity::SUCCESS, lv_tr("Timelapse plugin installed!"), 3000);
+                        }),
+        lifetime_.bg_cb("TimelapseInstallOverlay::verify_err", [this](const MoonrakerError&) {
+            if (!wizard_active_)
                 return;
             spdlog::warn("[{}] Verification failed - plugin not responding", get_name());
-            tok.defer([this]() {
-                if (!wizard_active_)
-                    return;
-                set_status(
-                    lv_tr("Plugin not responding after restart.\nIt may need more time to load."));
-                show_action_button(lv_tr("Check Again"), [this]() { step_verify(); });
-            });
-        });
+            set_status(
+                lv_tr("Plugin not responding after restart.\nIt may need more time to load."));
+            show_action_button(lv_tr("Check Again"), [this]() { step_verify(); });
+        }));
 }
 
 // ============================================================================

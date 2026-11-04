@@ -8,8 +8,10 @@
 namespace helix::config_backup {
 
 /// Atomically write data to a backup path (write-to-tmp + rename for crash safety).
-/// Creates parent directories if needed. Returns true on success.
-bool write_backup_file(const std::string& src_path, const std::string& backup_path);
+/// Creates parent directories if needed. Returns true on success. On failure,
+/// a non-null `why` receives the failing step and its errno text ("mkdir: ...").
+bool write_backup_file(const std::string& src_path, const std::string& backup_path,
+                       std::string* why = nullptr);
 
 /// Write a rolling backup to primary path, falling back to secondary on failure.
 void write_rolling_backup(const std::string& src_path, const std::string& primary,

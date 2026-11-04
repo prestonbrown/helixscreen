@@ -1150,7 +1150,7 @@ void AmsBackendCfs::handle_status(const nlohmann::json& params) {
 
 void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds_machine,
                                      std::map<int, int>& insert_probes) {
-    spdlog::debug("[AMS CFS] Received box data with {} keys", box.size());
+    spdlog::trace("[AMS CFS] Received box data with {} keys", box.size());
 
     // Log box.filament_useup transitions with box-local context. Decoded
     // (2026-06-18, live K2 runout->reload): runout / path-empty signal —

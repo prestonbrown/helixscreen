@@ -79,7 +79,19 @@
         "fan_generic fanM106",
         "heater_fan heat_fan",
         "fan_generic chamber_fan",
-        "led chamber_led"
+        "led chamber_led",
+        "heater_fan heat_fan1",
+        "heater_fan heat_fan2",
+        "heater_fan heat_fan3",
+        "controller_fan pcb_fan",
+        "controller_fan heat_ctl_fan",
+        "fan_generic chamber_loop_fan",
+        "fan_generic chamber_cool_fan",
+        "heater_fan chamber_heat_fan",
+        "filament_motion_sensor fm_ex0",
+        "filament_motion_sensor fm_ex1",
+        "filament_motion_sensor fm_ex2",
+        "filament_motion_sensor fm_ex3"
       ]
     },
     "default_macros": {

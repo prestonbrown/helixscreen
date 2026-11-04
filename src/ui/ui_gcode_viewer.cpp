@@ -42,7 +42,9 @@
 // FPS tracking constants (for diagnostic logging, not mode selection)
 constexpr float kMinActualRenderMs = 2.0f; // Minimum render time to count as actual render
 constexpr float kFpsEmaAlpha = 0.1f;       // Exponential moving average smoothing factor
-constexpr int kFpsLogIntervalFrames = 30;  // Log FPS every N frames
+// About one line every 10s of animation: the debug ring a bundle carries holds a
+// few thousand lines, and a once-a-second line crowds everything else out of it.
+constexpr int kFpsLogIntervalFrames = 300;
 
 #include <spdlog/spdlog.h>
 
@@ -761,7 +763,10 @@ static void gcode_viewer_watchdog_cb(lv_timer_t* timer) {
                      decision.stall_streak, cached, target, st->print_progress_layer_);
         st->viewer_state = GcodeViewerState::Error;
         ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Failed to load G-code preview"));
-        TelemetryManager::instance().record_error("gcode_viewer", "render_stall_giveup", "");
+        TelemetryManager::instance().record_error(
+            "gcode_viewer", "render_stall_giveup",
+            fmt::format("cached={} target={} progress_layer={} streak={} kicks={}", cached, target,
+                        st->print_progress_layer_, decision.stall_streak, st->watchdog_kicks_));
         lv_obj_invalidate(obj);
     }
 

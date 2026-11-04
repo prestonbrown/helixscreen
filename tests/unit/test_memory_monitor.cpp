@@ -56,9 +56,9 @@ TEST_CASE("MemoryThresholds for normal device", "[memory_monitor]") {
 
     auto t = MemoryThresholds::for_device(info);
 
-    // Normal tier: warn = max(120MB, 30%), critical = max(180MB, 50%).
-    // At 400MB, 30% = 120MB ties the floor and 50% = 200MB beats it.
-    REQUIRE(t.warn_rss_kb == 120u * 1024);
+    // Normal tier: warn = max(120MB, 40%), critical = max(180MB, 50%).
+    // At 400MB, 40% = 160MB and 50% = 200MB both beat their floors.
+    REQUIRE(t.warn_rss_kb == 160u * 1024);
     REQUIRE(t.critical_rss_kb == info.total_kb * 50 / 100);
     REQUIRE(t.critical_rss_kb == 200u * 1024);
 }
@@ -539,6 +539,135 @@ TEST_CASE("compute_pressure_level: sustained time cannot invent pressure that is
     auto level = compute_pressure_level(stats, t, MemoryPressureLevel::none, sys, 0,
                                         t.sustained_warning_secs_to_critical * 10);
     REQUIRE(level == MemoryPressureLevel::none);
+}
+
+// =============================================================================
+// assess_memory_pressure() / describe_memory_pressure()
+// =============================================================================
+
+namespace {
+// A ~415MB Pi driving a printer mid-print: RSS 127MB flat, ~165MB free.
+MemoryInfo pi_415mb() {
+    MemoryInfo sys;
+    sys.total_kb = 415 * 1024;
+    sys.available_kb = 165 * 1024;
+    return sys;
+}
+} // namespace
+
+TEST_CASE("assess_memory_pressure: a 415MB Pi mid-print is not under pressure",
+          "[memory_monitor]") {
+    const MemoryInfo sys = pi_415mb();
+    const auto t = MemoryThresholds::for_device(sys);
+
+    MemoryStats stats;
+    stats.vm_rss_kb = 130428;
+
+    const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::none, sys, 0, 0);
+    REQUIRE(a.level == MemoryPressureLevel::none);
+    REQUIRE(a.cause == MemoryPressureCause::none);
+}
+
+TEST_CASE("assess_memory_pressure: an RSS warning with ample free memory never escalates",
+          "[memory_monitor]") {
+    const MemoryInfo sys = pi_415mb();
+    const auto t = MemoryThresholds::for_device(sys);
+    REQUIRE(sys.available_kb > t.clear_warn_available_kb);
+
+    MemoryStats stats;
+    stats.vm_rss_kb = t.warn_rss_kb + 1024;
+
+    const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::warning, sys, 0,
+                                          t.sustained_warning_secs_to_critical * 100);
+    REQUIRE(a.level == MemoryPressureLevel::warning);
+    REQUIRE(a.cause == MemoryPressureCause::rss_warning);
+}
+
+TEST_CASE("describe_memory_pressure: the reason names the band that set the level",
+          "[memory_monitor]") {
+    MemoryInfo sys;
+    sys.total_kb = 117232;
+    sys.available_kb = 11560; // between the available-memory bands
+    const auto t = MemoryThresholds::for_device(sys);
+
+    MemoryStats stats;
+    stats.vm_rss_kb = t.warn_rss_kb + 1024; // RSS also in its warning band
+
+    SECTION("held low free memory escalates and says so") {
+        const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::warning, sys, 0,
+                                              t.sustained_warning_secs_to_critical);
+        REQUIRE(a.level == MemoryPressureLevel::critical);
+        REQUIRE(a.cause == MemoryPressureCause::sustained_low_available);
+        const auto reason = describe_memory_pressure(a, stats, t, sys, 0);
+        REQUIRE(reason.find("System available") != std::string::npos);
+        REQUIRE(reason.find("RSS") == std::string::npos);
+    }
+
+    SECTION("an RSS critical says critical") {
+        stats.vm_rss_kb = t.critical_rss_kb + 1024;
+        const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::none, sys, 0, 0);
+        REQUIRE(a.cause == MemoryPressureCause::rss_critical);
+        REQUIRE(describe_memory_pressure(a, stats, t, sys, 0).find("critical threshold") !=
+                std::string::npos);
+    }
+
+    SECTION("an RSS warning says warning") {
+        sys.available_kb = 200 * 1024;
+        const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::none, sys, 0, 0);
+        REQUIRE(a.level == MemoryPressureLevel::warning);
+        REQUIRE(describe_memory_pressure(a, stats, t, sys, 0).find("warning threshold") !=
+                std::string::npos);
+    }
+}
+
+// =============================================================================
+// should_report_memory_pressure()
+// =============================================================================
+
+TEST_CASE("should_report_memory_pressure: a held level reports once", "[memory_monitor]") {
+    MemoryReportState state;
+    constexpr size_t kStep = 3 * 1024;
+
+    REQUIRE(
+        should_report_memory_pressure(state, MemoryPressureLevel::warning, 130428, kStep, true));
+    for (int i = 0; i < 100; ++i) {
+        REQUIRE_FALSE(should_report_memory_pressure(state, MemoryPressureLevel::warning, 130428,
+                                                    kStep, true));
+    }
+}
+
+TEST_CASE("should_report_memory_pressure: rises and real growth report", "[memory_monitor]") {
+    MemoryReportState state;
+    constexpr size_t kStep = 3 * 1024;
+
+    REQUIRE(
+        should_report_memory_pressure(state, MemoryPressureLevel::elevated, 100000, kStep, true));
+    SECTION("a rise to a higher level reports") {
+        REQUIRE(should_report_memory_pressure(state, MemoryPressureLevel::warning, 100000, kStep,
+                                              true));
+    }
+    SECTION("growth below the step stays quiet, at the step reports") {
+        REQUIRE_FALSE(should_report_memory_pressure(state, MemoryPressureLevel::elevated,
+                                                    100000 + kStep - 1, kStep, true));
+        REQUIRE(should_report_memory_pressure(state, MemoryPressureLevel::elevated, 100000 + kStep,
+                                              kStep, true));
+        REQUIRE_FALSE(should_report_memory_pressure(state, MemoryPressureLevel::elevated,
+                                                    100000 + kStep, kStep, true));
+    }
+    SECTION("a drop is silent and re-arms the higher level") {
+        REQUIRE_FALSE(
+            should_report_memory_pressure(state, MemoryPressureLevel::none, 90000, kStep, true));
+        REQUIRE(should_report_memory_pressure(state, MemoryPressureLevel::elevated, 90000, kStep,
+                                              true));
+    }
+}
+
+TEST_CASE("should_report_memory_pressure: the interval floor defers without consuming",
+          "[memory_monitor]") {
+    MemoryReportState state;
+    REQUIRE_FALSE(
+        should_report_memory_pressure(state, MemoryPressureLevel::critical, 1000, 1024, false));
+    REQUIRE(should_report_memory_pressure(state, MemoryPressureLevel::critical, 1000, 1024, true));
 }
 
 #ifdef __linux__

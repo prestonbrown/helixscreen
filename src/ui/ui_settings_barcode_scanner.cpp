@@ -730,8 +730,6 @@ void BarcodeScannerSettingsOverlay::handle_bt_forget(const std::string& mac) {
                 }
             }
 
-            if (tok.expired())
-                return;
             tok.defer([this, mac]() {
                 auto& settings = helix::SettingsManager::instance();
                 if (settings.get_scanner_bt_address() == mac) {

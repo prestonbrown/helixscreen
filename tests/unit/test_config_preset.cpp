@@ -230,9 +230,11 @@ TEST_CASE_METHOD(PresetConfigFixture,
     REQUIRE(config.apply_preset_file("ad5m_pro_forgex") == true);
 
     auto& pd = printer_data();
-    REQUIRE(pd["fans"]["chamber"] == "fan_generic chamber_fan");
+    // chamber_fan is the side fan FlashForge's M106 P2 drives across the bed;
+    // internal_fan is the enclosure's circulation fan.
+    REQUIRE(pd["fans"]["chamber"] == "fan_generic internal_fan");
     REQUIRE(pd["fans"]["exhaust"] == "fan_generic external_fan");
-    REQUIRE(pd["fans"]["aux"] == "fan_generic internal_fan");
+    REQUIRE(pd["fans"]["aux"] == "fan_generic chamber_fan");
     // leds/strip is not seeded post-wizard: a preset LED name the machine does not
     // have would raise "Configured LED strip not found", which outranks the toast
     // this migration exists to silence.
@@ -735,6 +737,43 @@ TEST_CASE_METHOD(PresetConfigFixture,
     REQUIRE(data()["display"]["rotation_probed"] == true);
     REQUIRE(data()["display"]["animations_enabled"] == false); // preserved
     REQUIRE(config.get<int>("/input/jitter_threshold", 0) == 7);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file takes a preset's sound default on the device only",
+                 "[config][preset][device-scope]") {
+    SetUp();
+    json preset = {{"printer", {{"heaters", {{"bed", "heater_bed"}}}}}, {"sounds_enabled", false}};
+    write_preset("quiet_preset", preset);
+
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = "127.0.0.1";
+    REQUIRE(config.apply_preset_file("quiet_preset") == true);
+    CHECK(data()["sounds_enabled"] == false);
+
+    // A separate host plays through its own speaker, never the printer's beeper.
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = kRemoteTestHost;
+    REQUIRE(config.apply_preset_file("quiet_preset") == true);
+    CHECK(data()["sounds_enabled"] == true);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file leaves sound alone once the wizard is done",
+                 "[config][preset]") {
+    SetUp();
+    json preset = {{"printer", {{"heaters", {{"bed", "heater_bed"}}}}}, {"sounds_enabled", false}};
+    write_preset("quiet_preset", preset);
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = "127.0.0.1";
+    printer_data()["wizard_completed"] = true;
+
+    config.apply_preset_file("quiet_preset");
+    CHECK(data()["sounds_enabled"] == true);
 
     TearDown();
 }

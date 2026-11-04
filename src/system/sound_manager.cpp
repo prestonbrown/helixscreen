@@ -81,6 +81,8 @@ void SoundManager::probe_and_install_host_backend() {
 
 void SoundManager::set_moonraker_client(IMoonrakerClient* client, bool host_recovery) {
     client_ = client;
+    // The busy state belongs to the printer just detached; the next one reports its own.
+    printer_busy_.store(false, std::memory_order_relaxed);
     spdlog::debug("[SoundManager] Moonraker client set: {} (host_recovery={})",
                   client ? "connected" : "nullptr", host_recovery);
 
@@ -159,10 +161,12 @@ void SoundManager::try_install_m300_backend(bool detected_m300_handler) {
     }
 
     spdlog::info("[SoundManager] Installing M300 backend (Klipper beeper confirmed)");
-    backend_ = std::make_shared<M300SoundBackend>([this](const std::string& gcode) -> int {
-        auto* c = client_;
-        return c ? c->gcode_script(gcode) : -1;
-    });
+    backend_ = std::make_shared<M300SoundBackend>(
+        [this](const std::string& gcode) -> int {
+            auto* c = client_;
+            return c ? c->gcode_script(gcode) : -1;
+        },
+        [this] { return printer_busy_.load(std::memory_order_relaxed); });
 
     finalize_backend_setup();
 }

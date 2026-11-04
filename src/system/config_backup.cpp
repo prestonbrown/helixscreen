@@ -16,44 +16,65 @@ namespace hfs = helix::fs;
 
 namespace helix::config_backup {
 
-bool write_backup_file(const std::string& src_path, const std::string& backup_path) {
+bool write_backup_file(const std::string& src_path, const std::string& backup_path,
+                       std::string* why) {
+    auto fail = [&](const char* step) {
+        const int err = errno;
+        const std::string reason = err != 0 ? std::strerror(err) : "unknown error";
+        if (why) {
+            *why = std::string(step) + ": " + reason;
+        }
+        // Debug only: write_rolling_backup() warns once if BOTH tiers fail, and a
+        // primary-only failure (/var/lib not writable, the $HOME tier works) is normal.
+        spdlog::debug("[Config] Backup to {} failed at {}: {}", backup_path, step, reason);
+        return false;
+    };
+
     struct stat st {};
     if (stat(src_path.c_str(), &st) != 0) {
+        if (why) {
+            *why = "no source";
+        }
         return false; // Source doesn't exist, nothing to back up
     }
 
     // Ensure parent directory exists (create if needed for $HOME fallback)
     std::string parent{hfs::parent_path(backup_path)};
     if (!parent.empty() && !hfs::exists(parent)) {
+        errno = 0;
         if (!hfs::create_directories(parent)) {
-            return false;
+            return fail("mkdir");
         }
     }
 
+    errno = 0;
     const auto data = helix::text_io::read_file(src_path);
-    if (!data || !helix::text_io::write_file_atomic(backup_path, *data)) {
-        // Demoted to debug — write_rolling_backup() warns once if BOTH primary
-        // and fallback fail. A primary-only failure (typical in dev: /var/lib
-        // not writable, $HOME fallback succeeds) is not noteworthy.
-        spdlog::debug("[Config] Backup to {} failed: {}", backup_path, std::strerror(errno));
-        return false;
+    if (!data) {
+        return fail("read");
+    }
+    errno = 0;
+    if (!helix::text_io::write_file_atomic(backup_path, *data)) {
+        return fail("write");
     }
     return true;
 }
 
 void write_rolling_backup(const std::string& src_path, const std::string& primary,
                           const std::string& fallback) {
-    if (write_backup_file(src_path, primary)) {
+    std::string primary_why;
+    if (write_backup_file(src_path, primary, &primary_why)) {
         spdlog::trace("[Config] Backup written: {}", primary);
         return;
     }
-    if (write_backup_file(src_path, fallback)) {
+    std::string fallback_why;
+    if (write_backup_file(src_path, fallback, &fallback_why)) {
         spdlog::trace("[Config] Backup written (fallback): {}", fallback);
         return;
     }
-    // Both failed — non-fatal, but worth knowing about.
-    spdlog::warn("[Config] Backup of {} failed at both primary ({}) and fallback ({})", src_path,
-                 primary, fallback);
+    // Both failed — non-fatal, but worth knowing about. The reasons are what
+    // tells a read-only mount from a foreign-owned directory in a user's bundle.
+    spdlog::warn("[Config] Backup of {} failed at both primary ({}: {}) and fallback ({}: {})",
+                 src_path, primary, primary_why, fallback, fallback_why);
 }
 
 std::string find_backup(const std::vector<std::string>& paths) {

@@ -4,7 +4,7 @@
       "fan_generic fanM106",
       "heater_fan heat_fan",
       "fan_generic chamber_fan",
-      "fan_generic pcb_fan"
+      "controller_fan driver_fan"
     ],
     "filament_sensor_names": [
       "filament_switch_sensor head_switch_sensor"
@@ -12,7 +12,7 @@
     "has_accelerometer": true,
     "has_fan_feedback": false,
     "has_filament_sensors": true,
-    "has_led": false,
+    "has_led": true,
     "has_led_effects": false,
     "has_probe": true,
     "has_speaker": true,
@@ -21,7 +21,9 @@
       "heater_bed",
       "extruder"
     ],
-    "leds": [],
+    "leds": [
+      "led chamber_led"
+    ],
     "load_cells": [],
     "printer_objects": [
       "heater_bed",
@@ -33,7 +35,8 @@
       "fan_generic fanM106",
       "heater_fan heat_fan",
       "fan_generic chamber_fan",
-      "fan_generic pcb_fan",
+      "controller_fan driver_fan",
+      "led chamber_led",
       "gcode_macro SET_EXTRUDER_SLOT",
       "exclude_object",
       "gcode_macro START_PRINT",
@@ -136,6 +139,9 @@
       "mesh_params",
       "profiles"
     ],
+    "controller_fan driver_fan": [
+      "speed"
+    ],
     "display_status": [
       "message",
       "progress"
@@ -157,9 +163,6 @@
       "speed"
     ],
     "fan_generic fanM106": [
-      "speed"
-    ],
-    "fan_generic pcb_fan": [
       "speed"
     ],
     "filament_switch_sensor head_switch_sensor": [
@@ -203,6 +206,9 @@
     ],
     "idle_timeout": [
       "state"
+    ],
+    "led chamber_led": [
+      "color_data"
     ],
     "manual_probe": [
       "is_active",

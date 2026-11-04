@@ -154,24 +154,98 @@ run_gate() {
     [ "$status" -eq 0 ]
 }
 
-@test "src/ui is scanned for the ctx.is_valid() spelling" {
-    # src/ui/ is excluded from the generic expired() scan on purpose: observer
-    # callbacks there run on the main thread, where the check is legitimate. That
-    # rationale does not extend to ThumbnailLoadContext, which only ever reaches
-    # ThumbnailCache::fetch_*, whose callbacks are always background. Excluding
-    # src/ui/ from BOTH spellings is what kept the five real sites unlinted, so
-    # pin the narrower scope rather than the directory list as a whole.
+@test "src/ui is in the default scan" {
     run python3 -c "
 import importlib.util, sys
 sys.path.insert(0, 'scripts')  # the gate imports staged_content as a sibling
 spec = importlib.util.spec_from_file_location('gate', 'scripts/check_l081_anti_pattern.py')
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-assert 'src/ui' in m.CTX_ONLY_SCAN_DIRS, m.CTX_ONLY_SCAN_DIRS
-assert 'src/ui' not in m.DEFAULT_SCAN_DIRS, m.DEFAULT_SCAN_DIRS
+assert 'src/ui' in m.DEFAULT_SCAN_DIRS, m.DEFAULT_SCAN_DIRS
 print('ok')
 "
     [ "$status" -eq 0 ]
     [[ "$output" == *'ok'* ]]
+}
+
+# --- thread context ---------------------------------------------------------
+
+@test "an observer callback (Owner* self) is main-thread and not a violation" {
+    run_gate 'void W::attach() {
+    auto token = lifetime_.token();
+    obs_ = helix::ui::observe<int>(subj, this, [token](W* self, int v) {
+        if (token.expired())
+            return;
+        self->apply(v);
+    }, lifetime);
+}'
+    [ "$status" -eq 0 ]
+}
+
+@test "a queue_update body is main-thread and not a violation" {
+    run_gate 'void W::f() {
+    helix::ui::queue_update("W::f", [this, token]() {
+        if (token.expired())
+            return;
+        member_ = 1;
+    });
+}'
+    [ "$status" -eq 0 ]
+}
+
+@test "a modal button callback is main-thread and not a violation" {
+    run_gate 'void W::f() {
+    runout_modal_.set_on_purge([this, token]() {
+        if (token.expired())
+            return;
+        user_took_manual_action_ = true;
+    });
+}'
+    [ "$status" -eq 0 ]
+}
+
+@test "an API callback is background even when it calls a main-thread helper later" {
+    run_gate 'void W::f() {
+    api_->timelapse().get_settings(
+        [this, tok](const Settings&) {
+            if (tok.expired() || !wizard_active_)
+                return;
+            tok.defer([this]() { done(); });
+        });
+}'
+    [ "$status" -eq 1 ]
+}
+
+# --- block shapes -----------------------------------------------------------
+
+@test "a braced { return; } guard followed by a member access is a violation" {
+    run_gate 'void W::f() {
+    api_->go([this, tok]() {
+        if (tok.expired()) {
+            return;
+        }
+        scan_in_flight_ = false;
+    });
+}'
+    [ "$status" -eq 1 ]
+    [[ "$output" != *'redundant'* ]]
+}
+
+@test "a loop between the guard and the defer does not end the scan" {
+    run_gate 'void W::f() {
+    api->get_devices([this, token, wanted](const std::vector<Dev>& devices) {
+        if (token.expired())
+            return;
+        bool any_on = false;
+        for (const auto& dev : devices) {
+            if (wanted.count(dev.name) > 0) {
+                any_on = true;
+            }
+        }
+        token.defer("W::f", [this, any_on]() { show(any_on); });
+    });
+}'
+    [ "$status" -eq 1 ]
+    [[ "$output" == *'redundant'* ]]
 }
 
 # ------------------------------------------------------- --staged-only content

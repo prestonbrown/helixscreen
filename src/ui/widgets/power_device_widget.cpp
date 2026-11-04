@@ -633,8 +633,6 @@ void PowerDeviceWidget::refresh_all_devices_state() {
     auto token = lifetime_.token();
     api->get_power_devices(
         [this, token, selected_set](const std::vector<PowerDevice>& devices) {
-            if (token.expired())
-                return;
             bool any_on = false;
             for (const auto& dev : devices) {
                 if (selected_set.count(dev.device) > 0 && dev.status == "on") {

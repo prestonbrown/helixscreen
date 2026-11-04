@@ -659,19 +659,33 @@ TouchRangeViolation touch_range_violation(const TouchObservedExtremes& observed,
 
     const TouchObservedExtremes seen =
         touch_observed_in_configured_axes(observed, configured.swap_axes);
-    if (configured.source == TouchRangeSource::DisplaySize) {
-        // The programmed range is a guess about the declared one, so a reading
-        // is impossible only when neither of them could produce it.
-        violation.x = axis_escapes(seen.min_x, seen.max_x, configured.min_x, configured.max_x) &&
-                      axis_escapes(seen.min_x, seen.max_x, configured.declared_min_x,
-                                   configured.declared_max_x);
-        violation.y = axis_escapes(seen.min_y, seen.max_y, configured.min_y, configured.max_y) &&
-                      axis_escapes(seen.min_y, seen.max_y, configured.declared_min_y,
-                                   configured.declared_max_y);
-        return violation;
-    }
     violation.x = axis_escapes(seen.min_x, seen.max_x, configured.min_x, configured.max_x);
     violation.y = axis_escapes(seen.min_y, seen.max_y, configured.min_y, configured.max_y);
+
+    // A DisplaySize range is a guess about the declared one, and a Stored range
+    // is where the display's edges sit inside the digitizer's output: the panel
+    // legitimately reports past it wherever the overlay extends beyond the
+    // visible area. Under either, a reading is impossible only when the
+    // declaration could not have produced it either. The declared range is in
+    // raw axes, so the raw axis feeding each configured one is the one compared.
+    const bool judged_against_declared = configured.source == TouchRangeSource::DisplaySize ||
+                                         configured.source == TouchRangeSource::Stored;
+    if (configured.source == TouchRangeSource::DisplaySize && !configured.declared_valid) {
+        // A guess with no declaration behind it proves no reading impossible. A
+        // Stored range came from a calibration, so it stands on its own.
+        return TouchRangeViolation{};
+    }
+    if (judged_against_declared && configured.declared_valid) {
+        const bool swap = configured.swap_axes;
+        violation.x = violation.x &&
+                      axis_escapes(seen.min_x, seen.max_x,
+                                   swap ? configured.declared_min_y : configured.declared_min_x,
+                                   swap ? configured.declared_max_y : configured.declared_max_x);
+        violation.y = violation.y &&
+                      axis_escapes(seen.min_y, seen.max_y,
+                                   swap ? configured.declared_min_x : configured.declared_min_y,
+                                   swap ? configured.declared_max_x : configured.declared_max_y);
+    }
     return violation;
 }
 

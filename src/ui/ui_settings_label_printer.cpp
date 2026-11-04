@@ -1696,8 +1696,6 @@ void LabelPrinterSettingsOverlay::handle_bt_forget() {
                 }
             }
 
-            if (tok.expired())
-                return;
             tok.defer([this, mac, bluez_ok]() {
                 auto& s = LabelPrinterSettingsManager::instance();
                 s.set_bt_address("");

@@ -3670,8 +3670,8 @@ void MoonrakerClientMock::populate_hardware() {
                                 "extruder", // Hotend thermistor (Klipper naming: bare heater name)
                                 "temperature_sensor chamber"};
         discovery_.fans() = {"fan_generic fanM106", "heater_fan heat_fan",
-                             "fan_generic chamber_fan", "fan_generic pcb_fan"};
-        discovery_.leds() = {};
+                             "fan_generic chamber_fan", "controller_fan driver_fan"};
+        discovery_.leds() = {"led chamber_led"};
         break;
 
     case PrinterType::CREALITY_K2_PLUS:

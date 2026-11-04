@@ -549,7 +549,7 @@ bool HomePanel::populate_page(int page_index, bool force) {
     // populating_widgets_: every page is filled again on the next tick.
     const auto panel_alive = lifetime_.token();
     auto abandon_populate = [this, panel_alive]() {
-        if (panel_alive.expired()) {
+        if (panel_alive.expired()) { // L081_OK: populate_page runs it on the main thread
             return;
         }
         spdlog::debug("[{}] populate_page: carousel rebuilt mid-population, refilling", get_name());
