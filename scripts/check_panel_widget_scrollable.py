@@ -26,7 +26,7 @@
 #
 # NOT flagged:
 #   - <view extends="ui_card"> and any other extends=. ui_card's create handler
-#     already clears the flag (src/ui/ui_card.cpp:53), so those roots are safe.
+#     already clears the flag (src/ui/components/ui_card.cpp:53), so those roots are safe.
 #     Other extends= inherit whatever that component declared; the declaration
 #     belongs on the component that actually extends lv_obj, not on every file
 #     that composes it.

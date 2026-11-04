@@ -195,7 +195,7 @@ A PNG that is missing, unreadable, over 64 KB or over 256 x 256 pixels, or that 
 places outside the plugin folder, draws the `fallback` icon instead and logs a warning
 naming the icon; the plugin still loads. Icons are registered when the plugin loads and
 withdrawn when it unloads, reloads or is disabled: anything still showing one then draws
-its fallback (`src/ui/ui_icon_image.cpp#register_image_icon`). An XML `icon` whose `src`
+its fallback (`src/ui/components/ui_icon_image.cpp#register_image_icon`). An XML `icon` whose `src`
 carries the `__` separator must name one of the plugin's own icons (§7); `menu_items`
 icons are app icon names only. That check reads literal values only: a `src` filled
 through a component prop is not checked, so it keeps names tidy and is not a security

@@ -314,8 +314,8 @@ DNS_RESOLV_OBJ := $(OBJ_DIR)/tests/dns_resolv.o
 
 TEST_APP_OBJS := $(filter-out \
     $(OBJ_DIR)/main.o \
-    $(OBJ_DIR)/ui/ui_switch.o \
-    $(OBJ_DIR)/ui/ui_button.o \
+    $(OBJ_DIR)/ui/components/ui_switch.o \
+    $(OBJ_DIR)/ui/components/ui_button.o \
     $(OBJ_DIR)/remote/remote_client.o \
     ,$(APP_OBJS) $(APP_C_OBJS))
 

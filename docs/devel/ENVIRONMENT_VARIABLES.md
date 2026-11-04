@@ -788,7 +788,7 @@ RAM/core count suggests, or to check a branch you do not have hardware for.
 |----------|-------|
 | **Values** | `skirt` (hard-edged rim under each key), `emboss` (an edge on the key face, no shadow), `flat` (neither) |
 | **Default** | Auto — `emboss` on the `EMBEDDED` tier, `skirt` above it, `flat` on ESP32 builds |
-| **Files** | `include/ui_keycap_style.h`, `src/ui/ui_keycap_style.cpp`, `src/ui/ui_keyboard_manager.cpp` |
+| **Files** | `include/ui_keycap_style.h`, `src/ui/components/ui_keycap_style.cpp`, `src/ui/components/ui_keyboard_manager.cpp` |
 
 ```bash
 # A device where 30-plus per-key box shadows cost more than its tier implies

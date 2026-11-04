@@ -378,7 +378,7 @@ Standard card surface with themed background, border, and radius.
 </ui_card>
 ```
 
-Adds the shared `StyleRole::Card` style (`ThemeManager::instance().get_style(StyleRole::Card)`) → `card_bg` color, `border` color, theme radius. See `src/ui/ui_card.cpp`.
+Adds the shared `StyleRole::Card` style (`ThemeManager::instance().get_style(StyleRole::Card)`) → `card_bg` color, `border` color, theme radius. See `src/ui/components/ui_card.cpp`.
 
 #### ui_dialog
 Modal/overlay container with elevated surface color.
@@ -390,7 +390,7 @@ Modal/overlay container with elevated surface color.
 </ui_dialog>
 ```
 
-Adds the shared `StyleRole::Dialog` style → `elevated_bg` color. See `src/ui/ui_dialog.cpp`.
+Adds the shared `StyleRole::Dialog` style → `elevated_bg` color. See `src/ui/components/ui_dialog.cpp`.
 
 ### Buttons
 
@@ -493,7 +493,7 @@ Spinner sizes are **responsive** - the pixel values vary by breakpoint (narrow a
 <spinner size="md" align="center"/>
 ```
 
-Adds the shared `StyleRole::Spinner` style → primary accent color. See `src/ui/ui_spinner.cpp`.
+Adds the shared `StyleRole::Spinner` style → primary accent color. See `src/ui/components/ui_spinner.cpp`.
 
 #### severity_card
 Status card with severity-colored border:
@@ -511,7 +511,7 @@ Status card with severity-colored border:
 </severity_card>
 ```
 
-Adds one of the shared `StyleRole::SeverityInfo` / `SeveritySuccess` / `SeverityWarning` / `SeverityDanger` styles, selected by the `severity` attribute. See `src/ui/ui_severity_card.cpp`.
+Adds one of the shared `StyleRole::SeverityInfo` / `SeveritySuccess` / `SeverityWarning` / `SeverityDanger` styles, selected by the `severity` attribute. See `src/ui/components/ui_severity_card.cpp`.
 
 ### Layout
 

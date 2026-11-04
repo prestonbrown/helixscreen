@@ -55,7 +55,7 @@ clang_ui_button_log() {
     leak_header
     printf 'Direct leak of 7168 byte(s) in 128 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (/home/runner/work/helixscreen/helixscreen/build/bin/helix-tests-asan+0x351a24d) (BuildId: dead)'
-    frame 1 '(anonymous namespace)::ui_button_create(_lv_xml_parser_state_t*, char const**) /home/runner/work/helixscreen/helixscreen/tests/unit/../../src/ui/ui_button.cpp:562:26'
+    frame 1 '(anonymous namespace)::ui_button_create(_lv_xml_parser_state_t*, char const**) /home/runner/work/helixscreen/helixscreen/tests/unit/../../src/ui/components/ui_button.cpp:562:26'
     frame 2 'view_start_element_handler /home/runner/work/helixscreen/helixscreen/lib/helix-xml/src/xml/lv_xml.c:2323:23'
     finish_run 7168 128
 }
@@ -66,7 +66,7 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 7168 byte(s) in 128 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:95'
-    frame 1 'ui_button_create(_lv_xml_parser_state_t*, char const**) /home/pbrown/Code/Printing/helixscreen/src/ui/ui_button.cpp:568'
+    frame 1 'ui_button_create(_lv_xml_parser_state_t*, char const**) /home/pbrown/Code/Printing/helixscreen/src/ui/components/ui_button.cpp:568'
     frame 2 'view_start_element_handler /home/pbrown/Code/Printing/helixscreen/lib/helix-xml/src/xml/lv_xml.c:2401'
     finish_run 7168 128
 }
@@ -77,7 +77,7 @@ gcc_ui_button_log() {
     clang_ui_button_log
     run python3 "$GATE" --write-baseline "$BASE" "$LOG"
     [ "$status" -eq 0 ]
-    grep -q '^src/ui/ui_button\.cpp::ui_button_create$' "$BASE"
+    grep -q '^src/ui/components/ui_button\.cpp::ui_button_create$' "$BASE"
 
     : > "$LOG"
     gcc_ui_button_log
@@ -202,7 +202,7 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 144 byte(s) in 2 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (helix-tests-asan+0x351a24d)'
-    frame 1 'ui_split_button_create(_lv_xml_parser_state_t*, char const**) src/ui/ui_split_button.cpp:435:18'
+    frame 1 'ui_split_button_create(_lv_xml_parser_state_t*, char const**) src/ui/components/ui_split_button.cpp:435:18'
     finish_run 144 2
     run_gate
     [ "$status" -ne 0 ]
@@ -217,7 +217,7 @@ gcc_ui_button_log() {
     leak_header
     printf 'Direct leak of 999999 byte(s) in 999 object(s) allocated from:\n' >> "$LOG"
     frame 0 'operator new(unsigned long) (helix-tests-asan+0x351a24d)'
-    frame 1 '(anonymous namespace)::ui_button_create(_lv_xml_parser_state_t*, char const**) src/ui/ui_button.cpp:570:9'
+    frame 1 '(anonymous namespace)::ui_button_create(_lv_xml_parser_state_t*, char const**) src/ui/components/ui_button.cpp:570:9'
     finish_run 999999 999
     run_gate
     [ "$status" -ne 0 ]

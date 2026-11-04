@@ -286,9 +286,9 @@ src/ui/ui_language_refresh.cpp  # not in the v1 Core+AMS cut
 src/ui/notify/ui_crash_report_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/notify/ui_fatal_error.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_frequency_response_chart.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_icon_loader.cpp  # not in the v1 Core+AMS cut
+src/ui/components/ui_icon_loader.cpp  # not in the v1 Core+AMS cut
 src/ui/printers/ui_overlay_printer_image_tagger.cpp  # compiled out by HELIX_HAS_IMAGE_TAGGER=0
-src/ui/ui_overlay_qr_scanner.cpp  # not in the v1 Core+AMS cut
+src/ui/components/ui_overlay_qr_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/print/ui_overlay_timelapse_install.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
 src/ui/print/ui_overlay_timelapse_settings.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
 src/ui/print/ui_overlay_timelapse_videos.cpp  # viewer UI is gated off here; its helix::ui entry points and the global accessors are stubbed in excluded_subsystems_stub.cpp, which is where kept callers resolve them
@@ -341,7 +341,7 @@ src/ui/upgrade_banner.cpp  # not in the v1 Core+AMS cut
 src/ui/gcode/view_gestures.cpp  # two-finger gestures for the 3D G-code viewer and 3D bed mesh, both compiled out (HELIX_HAS_GCODE_VIEWER=0, HELIX_HAS_BED_MESH_3D=0)
 
 src/system/jz_pwm_sound_backend.cpp  # AD5X-only: exec's the Linux fx-pwm child; no process model on ESP32
-src/ui/ui_selector_model.cpp  # selector model for the wizard printer step, not in the v1 Core+AMS cut
+src/ui/components/ui_selector_model.cpp  # selector model for the wizard printer step, not in the v1 Core+AMS cut
 src/printer/k2_stock_detection_source.cpp  # not in the v1 Core+AMS cut
 src/printer/z_offset_calibration_approach.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_permissions.cpp  # not in the v1 Core+AMS cut
@@ -378,7 +378,7 @@ src/system/random_bytes.cpp  # its callers (telemetry, screen server pairing) ar
 src/system/android_lan_route.cpp  # Android only
 src/utils/lan_host.cpp  # only the Android LAN routing uses it
 src/plugin/lua_bind_sound.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_icon_image.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_text_entry_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/components/ui_icon_image.cpp  # not in the v1 Core+AMS cut
+src/ui/components/ui_text_entry_modal.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_table.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_table.cpp  # not in the v1 Core+AMS cut

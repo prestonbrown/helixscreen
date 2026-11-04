@@ -509,7 +509,7 @@ bubble by their component (`ui_xml/components/home_page_container.xml`),
 `set_event_bubble_recursive()` re-flags every descendant of a page container after its widgets
 are populated (`src/ui/home/ui_panel_home.cpp#populate_page`), and the carousel keeps its scroll
 container and tiles bubbling through every page-count change because `build_carousel` sets that
-as a carousel property (`src/ui/ui_carousel.cpp#carousel_set_bubble_events`). So aiming at a
+as a carousel property (`src/ui/components/ui_carousel.cpp#carousel_set_bubble_events`). So aiming at a
 tile is fine - it is not necessary to hit the gutter between tiles.
 
 **Open the catalog with `click nav_btn_edit_add`, not a second long press.** The long press

@@ -1073,11 +1073,11 @@ def _extract_obj_special_elements(schema: dict[str, Any]) -> None:
 #   "lv_textarea" -> inherits lv_textarea (via lv_xml_textarea_apply)
 
 CPP_WIDGET_FILES: dict[str, dict[str, Any]] = {
-    "ui_icon.cpp": {
+    "components/ui_icon.cpp": {
         "widgets": ["icon"],
         "inherits": "lv_obj",
     },
-    "ui_text.cpp": {
+    "components/ui_text.cpp": {
         "widgets": [
             "text_heading",
             "text_body",
@@ -1095,12 +1095,12 @@ CPP_WIDGET_FILES: dict[str, dict[str, Any]] = {
             "max_lines": {"type": "int"},
         },
     },
-    "ui_text.cpp:text_button": {
+    "components/ui_text.cpp:text_button": {
         "widgets": ["text_button"],
         "inherits": "lv_label",
         "extra_attrs": {},
     },
-    "ui_button.cpp": {
+    "components/ui_button.cpp": {
         "widgets": ["ui_button"],
         "inherits": "lv_obj",
         "extra_attrs": {
@@ -1125,18 +1125,18 @@ CPP_WIDGET_FILES: dict[str, dict[str, Any]] = {
             "text-fmt": {"type": "string"},
         },
     },
-    "ui_card.cpp": {
+    "components/ui_card.cpp": {
         "widgets": ["ui_card"],
         "inherits": "lv_obj",
     },
-    "ui_spinner.cpp": {
+    "components/ui_spinner.cpp": {
         "widgets": ["spinner"],
         "inherits": "lv_obj",
         "extra_attrs": {
             "size": {"type": "enum", "enum": "spinner_size"},
         },
     },
-    "ui_text_input.cpp": {
+    "components/ui_text_input.cpp": {
         "widgets": ["text_input"],
         "inherits": "lv_textarea",
         "extra_attrs": {
@@ -1150,7 +1150,7 @@ CPP_WIDGET_FILES: dict[str, dict[str, Any]] = {
             "clear_callback": {"type": "string"},
         },
     },
-    "ui_switch.cpp": {
+    "components/ui_switch.cpp": {
         "widgets": ["ui_switch"],
         "inherits": "lv_obj",
         "extra_attrs": {
@@ -1167,27 +1167,27 @@ CPP_WIDGET_FILES: dict[str, dict[str, Any]] = {
 # C++ files that are simpler — they only call lv_xml_obj_apply and have
 # no custom attributes beyond what we parse from their source.
 CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
-    "ui_carousel.cpp": {
+    "components/ui_carousel.cpp": {
         "widgets": ["ui_carousel"],
         "inherits": "lv_obj",
     },
-    "ui_dialog.cpp": {
+    "components/ui_dialog.cpp": {
         "widgets": ["ui_dialog"],
         "inherits": "lv_obj",
     },
-    "ui_gradient_canvas.cpp": {
+    "components/ui_gradient_canvas.cpp": {
         "widgets": ["ui_gradient_canvas"],
         "inherits": "lv_obj",
     },
-    "ui_hsv_picker.cpp": {
+    "components/ui_hsv_picker.cpp": {
         "widgets": ["ui_hsv_picker"],
         "inherits": "lv_obj",
     },
-    "ui_markdown.cpp": {
+    "components/ui_markdown.cpp": {
         "widgets": ["ui_markdown"],
         "inherits": "lv_obj",
     },
-    "ui_confetti.cpp": {
+    "components/ui_confetti.cpp": {
         "widgets": ["ui_confetti"],
         "inherits": "lv_obj",
     },
@@ -1195,11 +1195,11 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["notification_badge"],
         "inherits": "lv_obj",
     },
-    "ui_severity_card.cpp": {
+    "components/ui_severity_card.cpp": {
         "widgets": ["severity_card"],
         "inherits": "lv_obj",
     },
-    "ui_status_pill.cpp": {
+    "components/ui_status_pill.cpp": {
         "widgets": ["status_pill"],
         "inherits": "lv_obj",
     },
@@ -1245,7 +1245,7 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["endless_spool_arrows"],
         "inherits": "lv_obj",
     },
-    "ui_split_button.cpp": {
+    "components/ui_split_button.cpp": {
         "widgets": ["ui_split_button"],
         "inherits": "lv_obj",
         "extra_attrs": {

@@ -77,7 +77,7 @@ flowchart LR
 | [`include/usb_scanner_monitor.h`](../../../include/usb_scanner_monitor.h) / [`src/system/usb_scanner_monitor.cpp`](../../../src/system/usb_scanner_monitor.cpp) | `UsbScannerMonitor` - evdev reader for HID keyboard-wedge scanners |
 | [`include/snapshot_qr_scanner.h`](../../../include/snapshot_qr_scanner.h) / [`src/system/snapshot_qr_scanner.cpp`](../../../src/system/snapshot_qr_scanner.cpp) | `SnapshotQrScanner` - snapshot-polling viewfinder + QUIRC QR decode |
 | [`src/ui/settings/ui_settings_label_printer.cpp`](../../../src/ui/settings/ui_settings_label_printer.cpp) | Integration site: BT discovery/pairing UI, printer selection, test prints |
-| [`src/ui/ui_overlay_qr_scanner.cpp`](../../../src/ui/ui_overlay_qr_scanner.cpp) | The scan overlay: races all three scanner paths, converges on `on_spool_id_detected()` |
+| [`src/ui/components/ui_overlay_qr_scanner.cpp`](../../../src/ui/components/ui_overlay_qr_scanner.cpp) | The scan overlay: races all three scanner paths, converges on `on_spool_id_detected()` |
 | [`include/usb_manager.h`](../../../include/usb_manager.h) / [`src/api/usb_backend_linux.cpp`](../../../src/api/usb_backend_linux.cpp) | `UsbManager` and its Linux backend: removable-drive detection from the mount table |
 | [`include/mdns_discovery.h`](../../../include/mdns_discovery.h) / [`src/network/mdns_discovery.cpp`](../../../src/network/mdns_discovery.cpp) | `MdnsDiscovery` - LAN discovery of Moonraker servers (PIMPL + own thread) |
 | [`include/lan_sweep.h`](../../../include/lan_sweep.h) / [`src/system/lan_sweep.cpp`](../../../src/system/lan_sweep.cpp) | `LanSweepDiscovery` (asks every address of our /24 for `/server/info`) and `MoonrakerDiscovery` (it plus mDNS, merged); the platform pieces are [`src/network/lan_sweep_posix.cpp`](../../../src/network/lan_sweep_posix.cpp) and the firmware's `components/helixapp/lan_sweep_esp.cpp` |
@@ -228,7 +228,7 @@ case the overlay reads the snapshot URL from `capabilities_state()` directly. It
 which is the backpressure handshake pacing the next fetch.
 
 All three paths converge on one handler: each callback defers to the main thread with a lifetime token and lands
-in `on_spool_id_detected()` ([`src/ui/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/ui_overlay_qr_scanner.cpp), `src/ui/ui_overlay_qr_scanner.cpp#"No compiled camera support"`, `src/ui/ui_overlay_qr_scanner.cpp#"tok_usb.defer("`) - the same
+in `on_spool_id_detected()` ([`src/ui/components/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/components/ui_overlay_qr_scanner.cpp), `src/ui/components/ui_overlay_qr_scanner.cpp#"No compiled camera support"`, `src/ui/components/ui_overlay_qr_scanner.cpp#"tok_usb.defer("`) - the same
 bg-callback-to-defer pattern chapter 03 prescribes.
 
 ### mDNS discovery and the remote-control server
@@ -330,7 +330,7 @@ Read in this order; about 30 minutes total.
 8. [`src/system/camera_stream.cpp#"for (const char* soname : {\"libturbojpeg.so.0\", \"libturbojpeg.so\"}) {"`](../../../src/system/camera_stream.cpp) - turbojpeg runtime loading; then `src/system/camera_stream.cpp#stop` for `stop()`'s timed-join-or-detach path.
 9. [`src/ui/panel_widgets/camera_widget.cpp#update_stream_fps`](../../../src/ui/panel_widgets/camera_widget.cpp) - the fps ladder: paused under overlays, 2fps in edit mode, configured cap otherwise.
 10. [`include/usb_scanner_monitor.h#ScannerKeymap`](../../../include/usb_scanner_monitor.h) - `ScannerKeymap` rationale and the `ScannerSource` grab-vs-passive split.
-11. [`src/ui/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/ui_overlay_qr_scanner.cpp) - the overlay racing both scanner paths (`src/ui/ui_overlay_qr_scanner.cpp#"Camera stream not available"` for the snapshot viewfinder, `src/ui/ui_overlay_qr_scanner.cpp#"usb_monitor_.start("` for the evdev wedge).
+11. [`src/ui/components/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/components/ui_overlay_qr_scanner.cpp) - the overlay racing both scanner paths (`src/ui/components/ui_overlay_qr_scanner.cpp#"Camera stream not available"` for the snapshot viewfinder, `src/ui/components/ui_overlay_qr_scanner.cpp#"usb_monitor_.start("` for the evdev wedge).
 12. [`include/mdns_discovery.h#helix`](../../../include/mdns_discovery.h) - the class doc: PIMPL, threading, and callback contract.
 13. [`include/remote_control_server.h`](../../../include/remote_control_server.h) - the file doc: thread model, transports, and the `RemoteConfig` options.
 14. [`src/remote/remote_control_server.cpp#promise`](../../../src/remote/remote_control_server.cpp) - the promise/`ui_queue_update` dispatch every UI command rides; then `src/remote/remote_control_server.cpp#resolve_socket_path` for socket-path resolution and the pid-suffix rule.

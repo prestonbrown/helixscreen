@@ -105,7 +105,7 @@ separated by a `#space_2xl` gap, in a `#button_height`-wide column:
 The cut is a **subtree** cut, not a "is this tile scrollable" test, and that
 distinction is load-bearing. 38 of the 41 `panel_widget_*.xml` roots already set
 `scrollable="false"`, and two more (the camera and print-status tiles) inherit the clear from
-`ui_card` (`src/ui/ui_card.cpp#ui_card_xml_create`) - the nozzle-temps root alone sets
+`ui_card` (`src/ui/components/ui_card.cpp#ui_card_xml_create`) - the nozzle-temps root alone sets
 `scrollable="true"`. So testing the tile root would find almost nothing -
 the walk was sailing straight through those innocent-looking roots and
 attaching to whatever was scrollable inside. Marking the root and returning

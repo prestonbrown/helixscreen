@@ -1,7 +1,7 @@
 # Colour Swatches
 
 Every colour the UI shows as a colour (a filament, a spool, an LED, a theme role, a tool)
-is painted by one painter: `include/ui_swatch.h`, `src/ui/ui_swatch.cpp`. A swatch in the
+is painted by one painter: `include/ui_swatch.h`, `src/ui/components/ui_swatch.cpp`. A swatch in the
 LEDs overlay, the colour picker, an AMS lane, the tool switcher and a spool illustration
 gets the same edge, the same multi-colour split and the same finish, because none of them
 draws its own.

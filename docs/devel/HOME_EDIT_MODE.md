@@ -53,7 +53,7 @@ Rules that hold throughout:
 | `include/grid_edit_drop.h`, `src/ui/home/grid_edit_drop.cpp` | `resolve_drop()`: move, create a page, return to the origin page, or snap back |
 | `include/grid_edit_page_set.h`, `src/ui/home/grid_edit_page_set.cpp` | `page_set_landing()` and `page_set_focus()`: where a page-set rebuild comes up, and the page it and the session end on |
 | `include/ui_panel_home.h`, `src/ui/home/ui_panel_home.cpp` | `HomePanel`: carousel build, grid event handlers, `show_edit_page()`, swipe policy, page subjects, adding and deleting pages |
-| `include/ui_carousel.h`, `src/ui/ui_carousel.cpp` | `helix::ui::carousel_set_swipe`, `carousel_set_bubble_events`, `carousel_goto_tile`, `carousel_set_trailing_tiles_reachable` |
+| `include/ui_carousel.h`, `src/ui/components/ui_carousel.cpp` | `helix::ui::carousel_set_swipe`, `carousel_set_bubble_events`, `carousel_goto_tile`, `carousel_set_trailing_tiles_reachable` |
 | `include/panel_widget_config.h`, `src/system/panel_widget_config.cpp` | Page operations: `page_entries`, `place_entry`, `page_is_populated`, `can_add_page`, `add_page`, `remove_page` |
 | `ui_xml/home_panel.xml` | `carousel_host` with the grid event callbacks, and the page badge |
 | `ui_xml/components/home_page_container.xml` | A page's grid container |
@@ -83,7 +83,7 @@ the finger drifted from where it landed (`finger_drifted_since_press()`). Otherw
 
 A drag surface is a control the user drags for a value or a position, so a hold on it is the
 start of a drag, not a request to edit. `helix::ui::is_drag_surface_hit()`
-(`src/ui/ui_drag_surface.cpp#is_drag_surface_hit`) walks from the press target up to the
+(`src/ui/components/ui_drag_surface.cpp#is_drag_surface_hit`) walks from the press target up to the
 widget and answers true for an `lv_arc`, an `lv_slider`, or any object a widget marked with
 `helix::ui::mark_drag_surface()` (`include/ui_drag_surface.h`). Marking sets
 `kDragSurfaceFlag` (`LV_OBJ_FLAG_USER_1`) and the input flags a drag needs: clickable, not
@@ -255,7 +255,7 @@ void HomePanel::apply_edit_swipe_policy() {
 
 The carousel owns the flags. `helix::ui::carousel_set_swipe()` stores the policy and writes the
 scroll container's `LV_OBJ_FLAG_SCROLLABLE` and scroll direction from it, and the carousel applies
-the stored policy again at every page-count change (`src/ui/ui_carousel.cpp#apply_input_flags`),
+the stored policy again at every page-count change (`src/ui/components/ui_carousel.cpp#apply_input_flags`),
 where a swipe counts the reachable tiles: the pages plus the slot's tile while the slot exists, so
 a single-page home with a slot still swipes over to it. It writes input flags only, so it is safe
 inside input dispatch. The lock has to engage on the arming cycle, before any movement, because
@@ -275,7 +275,7 @@ to show it, and focus moves on by itself when the focused object is hidden or de
 edit mode hides the navbar's Done, which the tap on it focused, and the next control in the
 default input group can sit on another page. So the carousel keeps its page itself: an animated
 scroll of its scroll container that no goto started and no pointer swipe drives is aimed at the
-current page (`src/ui/ui_carousel.cpp#carousel_scroll_begin_cb`). That covers everything the
+current page (`src/ui/components/ui_carousel.cpp#carousel_scroll_begin_cb`). That covers everything the
 carousel holds, whenever it was created: the pages' widgets, the next-page slot, and whatever
 population and rebuilds add. Scrollables inside a page still bring a focused control into view.
 
@@ -306,7 +306,7 @@ container and the tile. Each link is owned in one place:
   (`ui_xml/components/home_next_page_slot.xml`).
 - The carousel, its scroll container and its tiles bubble because `build_carousel()` calls
   `helix::ui::carousel_set_bubble_events(carousel_, true)`
-  (`src/ui/ui_carousel.cpp#carousel_set_bubble_events`). It is a carousel property, so the
+  (`src/ui/components/ui_carousel.cpp#carousel_set_bubble_events`). It is a carousel property, so the
   page-count changes that rewrite the tiles' input flags keep it.
 
 Which handlers act, and when:

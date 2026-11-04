@@ -3756,7 +3756,7 @@ Key patterns:
 | `ui_xml/create_filament_modal.xml` | New filament modal form |
 | `ui_xml/wizard_vendor_row.xml` | Selectable vendor row (lv_button with checked style) |
 | `ui_xml/wizard_filament_row.xml` | Selectable filament row (lv_button with checked style) |
-| `src/ui/ui_color_picker.cpp` | Color picker modal (used by filament creation) |
+| `src/ui/components/ui_color_picker.cpp` | Color picker modal (used by filament creation) |
 
 The original spool-wizard visual test plan (2026-02-15) is no longer in-tree; treat the wizard steps above as the reference.
 

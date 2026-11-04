@@ -206,7 +206,7 @@ The gate does not merely tolerate these cases; it excludes them structurally, so
 | `LV_EVENT_DELETE` cleanup, draw hooks (`DRAW_MAIN`/`DRAW_POST`), `SIZE_CHANGED`, gestures/scroll | No declarative equivalent exists |
 | **Measured layout and computed fonts**: `decide_nozzle_layout()` ([`src/ui/panel_widgets/nozzle_layout.h#decide_nozzle_layout`](../../../src/ui/panel_widgets/nozzle_layout.h)), `PrintStatusLayoutFitter`, breakpoint fonts | Depends on runtime pixel measurement |
 | Widgets created in C++ (`lv_*_create`): canvas, procedural rendering, gcode viewer | Never had an XML layer |
-| **Per-item payload on generated collections** | `lv_obj_set_user_data()` on a `ui_button` overwrites the `UiButtonData*` it owns ([`src/ui/ui_button.cpp#UiButtonData`](../../../src/ui/ui_button.cpp) documents the hazard) |
+| **Per-item payload on generated collections** | `lv_obj_set_user_data()` on a `ui_button` overwrites the `UiButtonData*` it owns ([`src/ui/components/ui_button.cpp#UiButtonData`](../../../src/ui/components/ui_button.cpp) documents the hazard) |
 | `helix-screen ctl` remote control ([`src/remote/remote_control_server.cpp`](../../../src/remote/remote_control_server.cpp)) | Its job is reaching into an arbitrary live widget tree on command |
 | CLI stdout ([`src/system/cli_args.cpp`](../../../src/system/cli_args.cpp), [`src/application/detect_printer_cmd.cpp`](../../../src/application/detect_printer_cmd.cpp), [`src/helix_splash.cpp`](../../../src/helix_splash.cpp)) | stdout *is* the product there; spdlog is for logging |
 | Widget pool recycling, chart data, animations | Churn or per-frame data a subject would not model |
@@ -261,5 +261,5 @@ Read in this order; about 25 minutes total.
 7. [`src/ui/panel_widgets/thermistor_widget.cpp#attach_carousel`](../../../src/ui/panel_widgets/thermistor_widget.cpp) - the same problem, the same workaround, separately written.
 8. [`ui_xml/components/panel_widget_network.xml#net_disconnected`](../../../ui_xml/components/panel_widget_network.xml) - the six state-mapped icons; count the attributes that differ (three).
 9. [`ui_xml/settings_hardware_overlay.xml#container_fan_settings`](../../../ui_xml/settings_hardware_overlay.xml) - the wrapper rows; note each is reactive gating, which is why this is duplication but not a bug.
-10. [`src/ui/ui_button.cpp#UiButtonData`](../../../src/ui/ui_button.cpp) - the in-code note that documents the `user_data` toleration row better than any doc could.
+10. [`src/ui/components/ui_button.cpp#UiButtonData`](../../../src/ui/components/ui_button.cpp) - the in-code note that documents the `user_data` toleration row better than any doc could.
 11. [`src/ui/controls/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/controls/ui_temperature_utils.cpp) - `format_temperature_pair()`: what consolidation done right looks like.

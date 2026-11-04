@@ -306,7 +306,7 @@ The preset tier comes from the narrow axis, `min(width, height)`, not the height
 | `medium` | 40×20px | 48×24px | 80×40px | 112×48px |
 | `large` | 48×24px | 56×28px | 88×44px | 128×56px |
 
-Only four preset tiers exist for seven breakpoints, deliberately: Tiny and Small share one preset (switches are too small to benefit from separate tiers), and Large, XLarge and XXLarge all share the widest one. See `ui_switch_init_size_presets()` in `src/ui/ui_switch.cpp`.
+Only four preset tiers exist for seven breakpoints, deliberately: Tiny and Small share one preset (switches are too small to benefit from separate tiers), and Large, XLarge and XXLarge all share the widest one. See `ui_switch_init_size_presets()` in `src/ui/components/ui_switch.cpp`.
 
 ---
 
@@ -510,7 +510,7 @@ Theme-aware markdown viewer registered as an XML custom widget. Wraps `lv_markdo
 - Theme-aware: colors pulled from design tokens automatically.
 - Initialize with `ui_markdown_init()` after `lv_xml_init()` and theme init.
 
-**Header:** `include/ui_markdown.h` | **Source:** `src/ui/ui_markdown.cpp`
+**Header:** `include/ui_markdown.h` | **Source:** `src/ui/components/ui_markdown.cpp`
 
 ---
 

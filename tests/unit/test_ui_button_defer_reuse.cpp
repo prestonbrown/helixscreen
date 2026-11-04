@@ -21,7 +21,7 @@
 #include "../catch_amalgamated.hpp"
 
 // Direct include AFTER the headers above so the test sees the real internals.
-#include "../../src/ui/ui_button.cpp"
+#include "../../src/ui/components/ui_button.cpp"
 
 namespace {
 

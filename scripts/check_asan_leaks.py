@@ -47,7 +47,7 @@ people regenerate blindly, which is the same as having no gate:
     for every clang frame, which is how the 2026-08-16 nightly failed on all
     23 origins at once.
   * The file path is run through normpath, so the compiler's
-    `tests/unit/../../src/ui/ui_button.cpp` and `src/ui/ui_button.cpp` are one
+    `tests/unit/../../src/ui/components/ui_button.cpp` and `src/ui/components/ui_button.cpp` are one
     key — and, importantly, `tests/unit/../catch_amalgamated.hpp` collapses onto
     tests/catch_amalgamated.hpp so the Catch2 skip actually fires on it. An
     ABSOLUTE checkout prefix is then stripped the same way: CI compiles with
@@ -133,7 +133,7 @@ LEAK_BLOCK_RE = re.compile(
     r'(?P<objects>\d+) object\(s\) allocated from:'
 )
 
-# "    #1 0x614af140b0ff in ui_button_create tests/unit/../../src/ui/ui_button.cpp:568"
+# "    #1 0x614af140b0ff in ui_button_create tests/unit/../../src/ui/components/ui_button.cpp:568"
 # The symbol may contain spaces (return types, parameter lists), so the file is
 # taken as the last whitespace-separated token that ends in :<line>. The file
 # part is LAZY and the column is a separate optional group because clang prints
