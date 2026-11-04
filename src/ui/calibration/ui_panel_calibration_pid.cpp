@@ -941,7 +941,7 @@ void PIDCalibrationPanel::handle_abort_clicked() {
 
     // E-stop + firmware restart: klippy comes back, so this is an expected
     // reconnect, not a fault
-    helix::ui::begin_expected_klippy_restart("Firmware restarting...");
+    helix::ui::begin_expected_klippy_restart("Firmware restarting...", api_);
 
     // M112 emergency stop halts immediately at MCU level (bypasses blocked gcode queue),
     // then firmware restart brings Klipper back online

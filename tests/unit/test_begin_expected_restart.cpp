@@ -14,8 +14,8 @@
 //
 // Mock stack follows test_ams_home_confirmation.cpp: MoonrakerClientMock +
 // MoonrakerAPIMock over a stack PrinterState, RPC callbacks drained through
-// UpdateQueue. The api is published via set_moonraker_api() because
-// the helper reaches it through the global accessor.
+// UpdateQueue. The global api stays unset: each flow arms the disconnect
+// window on the api it sends through.
 
 #include "ui_emergency_stop.h"
 #include "ui_panel_bed_mesh.h"
@@ -64,7 +64,6 @@ class ExpectedRestartFixture : public LVGLTestFixture {
 
     ExpectedRestartFixture() {
         state.init_subjects(false);
-        set_moonraker_api(&api);
         helix::ui::set_test_toast_hook([this](ToastSeverity severity, const std::string& m,
                                               uint32_t) { toasts.push_back({severity, m}); });
         auto note = [this](const std::string& m) { notifications.push_back(m); };
@@ -81,7 +80,6 @@ class ExpectedRestartFixture : public LVGLTestFixture {
     }
 
     ~ExpectedRestartFixture() override {
-        set_moonraker_api(nullptr);
         helix::ui::set_test_toast_hook(nullptr);
         helix::ui::set_test_notification_info_hook(nullptr);
         helix::ui::set_test_notification_warning_hook(nullptr);
@@ -115,7 +113,7 @@ class ExpectedRestartFixture : public LVGLTestFixture {
 TEST_CASE_METHOD(ExpectedRestartFixture,
                  "begin_expected_klippy_restart arms both windows and shows one INFO toast",
                  "[recovery][expectedrestart]") {
-    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
+    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.", &api);
     settle();
 
     CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
@@ -138,7 +136,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "the recovery window outlasts a real co
     // lv_tick_inc() rather than process_lvgl(): is_recovery_suppressed() only
     // reads the tick, so no timer needs to come due and 17s of virtual time
     // costs nothing here.
-    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
+    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.", &api);
     settle();
     REQUIRE(EmergencyStopOverlay::instance().is_recovery_suppressed());
 

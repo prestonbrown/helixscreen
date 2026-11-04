@@ -899,7 +899,7 @@ void InputShaperPanel::cancel_calibration() {
 
     // E-stop + firmware restart: klippy comes back, so this is an expected
     // reconnect, not a fault
-    helix::ui::begin_expected_klippy_restart("Firmware restarting...");
+    helix::ui::begin_expected_klippy_restart("Firmware restarting...", api_);
 
     if (calibrator_) {
         calibrator_->emergency_abort();
@@ -1072,7 +1072,7 @@ void InputShaperPanel::save_configuration() {
 
     // safe_multi_edit() ends in FIRMWARE_RESTART, so the restart that follows is
     // expected rather than an emergency.
-    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
+    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.", api_);
 
     auto token = lifetime_.token();
 
