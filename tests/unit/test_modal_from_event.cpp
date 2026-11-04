@@ -173,16 +173,14 @@ TEST_CASE_METHOD(FromEventFixture,
     REQUIRE(b.show(test_screen()));
     settle();
 
-    lv_event_t e = event_on(a.child);
-    CHECK(OverlayBase::from_event(&e) == &a);
-    CHECK(OverlayBase::from_event<ProbeOverlay>(&e) == &a);
-    CHECK(OverlayBase::from_event<helix::ui::BarcodeScannerSettingsOverlay>(&e) == nullptr);
-
-    a.cleanup();
-    CHECK(OverlayBase::from_event(&e) == nullptr);
     lv_event_t on_b = event_on(b.child);
+    CHECK(OverlayBase::from_event(&on_b) == &b);
+    CHECK(OverlayBase::from_event<ProbeOverlay>(&on_b) == &b);
+    CHECK(OverlayBase::from_event<helix::ui::BarcodeScannerSettingsOverlay>(&on_b) == nullptr);
+
     b.destroy_overlay_ui();
     CHECK(OverlayBase::from_event(&on_b) == nullptr);
+    a.cleanup();
     a.destroy_overlay_ui();
     settle();
 }
@@ -247,7 +245,7 @@ TEST_CASE_METHOD(FromEventFixture,
 }
 
 TEST_CASE_METHOD(FromEventFixture,
-                 "BarcodeScannerSettingsOverlay: a buried overlay's dropdown resolves that overlay",
+                 "BarcodeScannerSettingsOverlay: only the overlay on show answers its widgets",
                  "[overlay][barcode_scanner][from_event]") {
     using helix::ui::BarcodeScannerSettingsOverlay;
     BarcodeScannerSettingsOverlay a;
@@ -258,9 +256,13 @@ TEST_CASE_METHOD(FromEventFixture,
     settle();
 
     lv_event_t on_a = event_on(named(a.get_root(), "keymap_dropdown"));
-    CHECK(OverlayBase::from_event<BarcodeScannerSettingsOverlay>(&on_a) == &a);
+    CHECK(OverlayBase::from_event<BarcodeScannerSettingsOverlay>(&on_a) == nullptr);
     lv_event_t on_b = event_on(named(b.get_root(), "keymap_dropdown"));
     CHECK(OverlayBase::from_event<BarcodeScannerSettingsOverlay>(&on_b) == &b);
+
+    // Sliding out: the widgets still take presses, the hooks have already run.
+    b.on_deactivate(DeactivateReason::NavigateAway);
+    CHECK(OverlayBase::from_event<BarcodeScannerSettingsOverlay>(&on_b) == nullptr);
 
     a.destroy_overlay_ui();
     b.destroy_overlay_ui();

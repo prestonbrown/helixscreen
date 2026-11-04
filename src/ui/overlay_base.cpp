@@ -30,7 +30,13 @@ helix::ui::OpenInstances<OverlayBase>& open_overlays() {
 } // namespace
 
 OverlayBase* OverlayBase::from_event(lv_event_t* e) {
-    return e ? open_overlays().owner_of(lv_event_get_current_target_obj(e)) : nullptr;
+    if (!e) {
+        return nullptr;
+    }
+    // Children stay clickable through a slide-out, and a callback must not act on an
+    // overlay that has already run its deactivate hooks.
+    OverlayBase* overlay = open_overlays().owner_of(lv_event_get_current_target_obj(e));
+    return overlay && overlay->is_visible() ? overlay : nullptr;
 }
 
 OverlayBase* OverlayBase::from_event_of_kind(lv_event_t* e, std::size_t kind) {
