@@ -297,7 +297,7 @@ void QrScannerOverlay::start_camera() {
         camera_->start(
             stream_url, snapshot_url,
             [this, tok](lv_draw_buf_t* frame) {
-                // L081_OK: the overlay is a process-lifetime singleton and
+                // L081_OK: `this` is read only after the token check below, and
                 // on_camera_frame() works on stream-thread buffers, deferring
                 // anything that reaches LVGL.
                 if (!tok.expired_no_lvgl()) {

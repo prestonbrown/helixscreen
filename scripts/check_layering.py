@@ -33,6 +33,7 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import argparse
 import re
 import subprocess
@@ -132,7 +133,7 @@ def owners(files) -> dict[str, str]:
 def resolve(inc: str, includer: str, known: set[str]) -> str | None:
     cands = [str(Path(includer).parent / inc)] + [r + inc for r in INCLUDE_ROOTS]
     for c in cands:
-        c = c.lstrip("./") if c.startswith("./") else c
+        c = os.path.normpath(c)
         if c in known:
             return c
     return None

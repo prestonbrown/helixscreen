@@ -52,6 +52,16 @@ layering() {
     contains "Layering: src/printer/clean.cpp <reason>" "$output"
 }
 
+@test "an upward include spelled with a parent directory is counted" {
+    echo '#include "../ui/ui_panel_thing.h"' >> "$REPO/src/printer/clean.cpp"
+    echo '#pragma once' > "$REPO/src/ui/ui_panel_thing.h"
+    echo '#include "ui_panel_thing.h"' > "$REPO/src/ui/ui_panel_thing.cpp"
+    commit_all "a relative include"
+    layering
+    [ "$status" -eq 1 ]
+    contains "src/printer/clean.cpp: upward includes grew 0 -> 1" "$output"
+}
+
 @test "an upward include the fork point already has is grandfathered, and may be removed" {
     echo '// touched' >> "$REPO/src/printer/printer_state.cpp"
     commit_all "touch"
