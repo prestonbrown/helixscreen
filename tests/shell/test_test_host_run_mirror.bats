@@ -876,6 +876,34 @@ shared_checkout() {
     [ -d "$BATS_TEST_TMPDIR/mutate/tree-c/.git" ]
 }
 
+@test "HELIX_TEST_SEED=0 starts a new mutate checkout cold" {
+    local t
+    t=$(pushed_tree tree-c)
+    git -C "$t" remote add origin https://example.invalid/helixscreen.git
+    shared_checkout >/dev/null
+    mkdir -p "$BATS_TEST_TMPDIR/mutate/tree-a/.git"
+    echo from-a > "$BATS_TEST_TMPDIR/mutate/tree-a/marker"
+    cd "$t"
+    HELIX_TEST_SEED=0 run "$TEST_HOST_RUN" mutate
+    [ "$status" -eq 0 ]
+    lacks "seeded" "$output"
+    contains "starting cold" "$output"
+    [ ! -e "$BATS_TEST_TMPDIR/mutate/tree-c/marker" ]
+    grep -qF "git clone -q --recurse-submodules https://example.invalid/helixscreen.git /work/mutate/tree-c" "$MOCK_DOCKER_LOG"
+}
+
+@test "a mutate checkout forces its submodules to the pins, then reapplies this commit's patches" {
+    local t update reapply
+    t=$(pushed_tree tree-a)
+    shared_checkout >/dev/null
+    cd "$t"
+    run "$TEST_HOST_RUN" mutate
+    [ "$status" -eq 0 ]
+    update=$(grep -nF "git submodule update --init --recursive --force" "$MOCK_DOCKER_LOG" | head -1 | cut -d: -f1)
+    reapply=$(grep -nF "make reapply-patches" "$MOCK_DOCKER_LOG" | head -1 | cut -d: -f1)
+    [ -n "$update" ] && [ -n "$reapply" ] && [ "$update" -lt "$reapply" ]
+}
+
 @test "mutate on an unpushed commit still refuses, before any checkout is made" {
     local t
     t=$(make_tree tree-a)
