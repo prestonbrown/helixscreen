@@ -108,8 +108,8 @@ src/led/led_device_page.cpp
 # The app menus that take plugin items call these; with plugins compiled out the menu API answers empty.
 src/plugin/plugin_menu.cpp
 src/plugin/plugin_menu_context.cpp
-src/ui/ui_plugin_menu_rows.cpp
-src/ui/ui_plugin_items_menu.cpp
+src/ui/plugin/ui_plugin_menu_rows.cpp
+src/ui/plugin/ui_plugin_items_menu.cpp
 src/print/active_print_media_manager.cpp
 src/print/crc32.cpp
 src/print/filament_sensor_manager.cpp
@@ -619,8 +619,8 @@ src/ui/printers/ui_overlay_printer_type.cpp
 src/ui/settings/ui_overlay_retraction_settings.cpp
 src/ui/controls/ui_overlay_temp_graph.cpp
 src/ui/controls/ui_panel_advanced.cpp
-src/ui/ui_plugin_overview_overlay.cpp
-src/ui/ui_plugin_feature_row.cpp
+src/ui/plugin/ui_plugin_overview_overlay.cpp
+src/ui/plugin/ui_plugin_feature_row.cpp
 src/ui/filament/ui_panel_ams.cpp
 src/ui/filament/ui_panel_ams_overview.cpp
 src/ui/ui_panel_base.cpp
@@ -655,8 +655,8 @@ src/ui/print/ui_plr_prompt.cpp
 src/ui/print/ui_plr_wizard_overlay.cpp
 src/ui/ui_pin_entry_modal.cpp
 src/ui/ui_pin_utils.cpp
-src/ui/ui_plugin_install_modal.cpp
-src/ui/plugin_self_heal.cpp
+src/ui/plugin/ui_plugin_install_modal.cpp
+src/ui/plugin/plugin_self_heal.cpp
 src/ui/controls/ui_position_utils.cpp
 src/ui/print/ui_pre_print_options_renderer.cpp
 src/ui/print/ui_print_exclude_object_manager.cpp

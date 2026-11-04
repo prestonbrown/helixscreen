@@ -66,8 +66,8 @@ most, because it is the one that is not always connected and cannot afford to re
 | `src/application/discovery_steps_core.cpp#helix_plugin_check_step` | Calls `server.helix.status` during discovery |
 | `include/plugin_status_refresh.h`, `src/printer/plugin_status_refresh.cpp` | `PluginStatusRefresh`: reads `server.helix.status` again at each job start and on `notify_helix_features_changed`, announcing only a changed map (`FeatureAnnounce::IfChanged`, `include/helix_plugin_features.h`) |
 | `include/history_job_events.h` | `HistoryJobEvents`, `parse_history_job_event`: the one history `added` / `finished` subscription the app's fallbacks and the refresh share |
-| `ui_xml/plugin_feature_toggle_row.xml`, `src/ui/ui_plugin_feature_row.cpp` | The shared settings row for a plugin feature's switch |
-| `src/ui/ui_plugin_overview_overlay.cpp` | Advanced > HelixPrint Plugin, the read-only overview |
+| `ui_xml/plugin_feature_toggle_row.xml`, `src/ui/plugin/ui_plugin_feature_row.cpp` | The shared settings row for a plugin feature's switch |
+| `src/ui/plugin/ui_plugin_overview_overlay.cpp` | Advanced > HelixPrint Plugin, the read-only overview |
 | `src/plugin/plugin_permissions.cpp#is_readonly_moonraker_method` | The read-only method list, including the HelixPrint reads a Lua plugin may call |
 | `src/api/moonraker_gcode_guards.cpp#reject_plugin_rpc` | Refuses every other `server.helix.*` method from a Lua plugin |
 | `tests/unit/test_helix_plugin_features.cpp`, `tests/unit/test_plugin_feature_row.cpp` | `[plugin_feature]`: the decision functions and the row |
