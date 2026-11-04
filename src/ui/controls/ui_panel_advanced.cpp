@@ -29,8 +29,8 @@
 #include "lvgl.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
-#include "src/ui/panel_widgets/shutdown_widget.h"
 #include "printer_state.h"
+#include "src/ui/panel_widgets/shutdown_widget.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>

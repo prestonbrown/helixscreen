@@ -9,9 +9,9 @@
 
 #include "callout_layout.h"
 #include "lvgl.h"
-#include "src/ui/panel_widgets/callout_chip.h"
 #include "printer_image_manager.h"
 #include "printer_images.h"
+#include "src/ui/panel_widgets/callout_chip.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
