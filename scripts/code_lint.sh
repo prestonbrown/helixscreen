@@ -62,6 +62,7 @@ src guided_device_flows
 src init_list_ternary
 src address_keys
 src registry_key_names
+src remove_event_sweep
 tests test_access_defined_once
 tests test_mode_restored
 tests test_displays_deleted
@@ -1300,6 +1301,27 @@ lint_registry_key_names() {
     dupes=$(registry_key_duplicate_names src include)
     [ -z "$dupes" ] && return 0
     echo "RegistryKey names used twice: $dupes"
+    return 1
+}
+
+# Removing an event by index is how a handler sweep is written, and a widget's
+# event list also holds the unsubscribe-on-delete hooks of its bound styles and
+# observers. A sweep takes those too, so the observers outlive the widget and
+# fire into freed memory at the next subject change. lv_obj_remove_event_cb names
+# what it removes, and an XML component takes its handler from a callback prop.
+remove_event_sweep_pattern() {
+    printf '%s' '(^|[^_[:alnum:]])lv_obj_remove_event[[:space:]]*\('
+}
+
+lint_remove_event_sweep() {
+    local offenders
+    # shellcheck disable=SC2046
+    offenders=$(code_offenders "$(remove_event_sweep_pattern)" REMOVE_EVENT_OK \
+        $(git ls-files --cached --others --exclude-standard src include | grep -E '\.(cpp|h)$'))
+    [ -z "$offenders" ] && return 0
+    echo "lv_obj_remove_event by index (it also removes the widget's observer cleanup hooks):"
+    printf '%s\n' "$offenders"
+    echo "Pass the handler through the component's callback prop, or lv_obj_remove_event_cb one by name. Unavoidable? // REMOVE_EVENT_OK: <reason>"
     return 1
 }
 
