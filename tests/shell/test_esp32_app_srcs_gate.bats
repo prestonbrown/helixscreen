@@ -789,8 +789,14 @@ run_qc_gate() {
     contains "link says hello" "$output"
 }
 
-@test "a Mac gives no link verdict and stays quiet, even when one is required" {
-    UNAME=Darwin LINK_RC=1 HELIX_LINK_BOUNDARY_REQUIRED=1 run_qc_gate
+@test "a Mac gives no link verdict and stays quiet" {
+    UNAME=Darwin LINK_RC=1 run_qc_gate
     [ "$status" -eq 0 ]
     refute contains "link says hello" "$output"
+}
+
+@test "a Mac refuses when a link verdict is required" {
+    UNAME=Darwin LINK_RC=0 HELIX_LINK_BOUNDARY_REQUIRED=1 run_qc_gate
+    [ "$status" -eq 1 ]
+    contains "no verdict" "$output"
 }
