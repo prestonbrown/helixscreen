@@ -823,7 +823,7 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
     // Klippy's own reason restates any "Printer Error" alert raised for this
     // fault, and this dialog adds the restart, so it becomes the one dialog for
     // it. Generic text restates nothing, and the alerts stay.
-    helix::ui::set_fault_carrier(message.empty() ? nullptr : recovery_dialog_);
+    helix::ui::set_fault_carrier(message.empty() ? nullptr : recovery_dialog_.get());
     if (message.empty()) {
         message = lv_tr(content.message);
     }
