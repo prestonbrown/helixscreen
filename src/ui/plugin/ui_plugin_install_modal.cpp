@@ -181,7 +181,7 @@ void PluginInstallModal::on_cancel() {
     if (installer_) {
         installer_->snooze_install_prompt();
     }
-    hide(ModalCloseReason::ButtonPress);
+    Modal::on_cancel();
 }
 
 void PluginInstallModal::on_dismissed() {
