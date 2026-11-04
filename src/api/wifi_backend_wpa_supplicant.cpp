@@ -5,13 +5,13 @@
 
 #include "ui_error_reporting.h"
 
+#include "core/log_redact.h"
+#include "core/run_capture.h"
 #include "core/update_queue.h"
 #include "helix_thread.h"
-#include "log_redact.h"
 #include "lvgl.h"
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
-#include "system/run_capture.h"
 #include "wifi_5ghz_detection.h"
 #include "wifi_country.h"
 #include "wifi_regdomain.h"

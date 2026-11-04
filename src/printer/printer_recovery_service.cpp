@@ -4,8 +4,8 @@
 #include "printer_recovery_service.h"
 
 #include "app_globals.h"
+#include "core/http_executor.h"
 #include "core/update_queue.h"
-#include "http_executor.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "spool_latch_gate.h"

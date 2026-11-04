@@ -8,9 +8,9 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
+#include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "helix_plugin_features.h"
-#include "http_executor.h"
 #include "klipper_config_editor.h"
 #include "klipper_config_includes.h"
 #include "moonraker_api_mock.h"

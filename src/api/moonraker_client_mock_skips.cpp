@@ -3,10 +3,10 @@
 // HELIX_MOCK_SKIP_WRAPPERS=1: the mock printer behaves as if helix_skips.cfg
 // is loaded, so the print-detail skip toggles can be driven under --test.
 
+#include "core/text_io.h"
 #include "env_knobs.h"
 #include "klipper_config_parser.h"
 #include "moonraker_client_mock.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

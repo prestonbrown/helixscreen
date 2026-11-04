@@ -26,6 +26,8 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/log_redact.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "helix_install_roots.h"
 #include "helix_thread.h"
@@ -36,7 +38,6 @@
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "klipper_config_includes.h"
-#include "log_redact.h"
 #include "lvgl.h"
 #include "moonraker_config_manager.h"
 #include "print_lifecycle_state.h"
@@ -54,7 +55,6 @@
 #include "system/tls_trust.h"
 #include "system_power.h"
 #include "system_settings_manager.h"
-#include "text_io.h"
 #include "utils/network_validation.h"
 
 #include <cctype>

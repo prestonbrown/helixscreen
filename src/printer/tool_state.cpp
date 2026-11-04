@@ -15,6 +15,7 @@
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "fixed_tool_topology.h"
@@ -28,7 +29,6 @@
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 #include "system/helix_paths.h"
-#include "text_io.h"
 #include "tool_offsets.h"
 
 #include <spdlog/fmt/fmt.h>

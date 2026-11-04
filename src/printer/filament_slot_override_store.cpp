@@ -3,6 +3,7 @@
 
 #include "ams_types.h"
 #include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "exception_policy.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
@@ -15,7 +16,6 @@
 #include "lane_translation.h"
 #include "moonraker_error.h"
 #include "spoolman_types.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

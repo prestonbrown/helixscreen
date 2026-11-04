@@ -6,9 +6,9 @@
 
 #include "bluetooth_loader.h"
 #include "bt_print_utils.h"
+#include "core/log_redact.h"
 #include "core/update_queue.h"
 #include "helix_thread.h"
-#include "log_redact.h"
 #include "lvgl.h"
 #include "phomemo_printer.h"
 #include "phomemo_protocol.h"

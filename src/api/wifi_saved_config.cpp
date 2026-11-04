@@ -4,8 +4,8 @@
 #include "wifi_saved_config.h"
 
 #include "core/data_root_resolver.h"
+#include "core/log_redact.h"
 #include "json_utils.h"
-#include "log_redact.h"
 
 #include <spdlog/spdlog.h>
 

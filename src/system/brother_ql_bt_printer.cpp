@@ -8,9 +8,9 @@
 #include "brother_ql_printer.h"
 #include "brother_ql_protocol.h"
 #include "bt_print_utils.h"
+#include "core/log_redact.h"
 #include "core/update_queue.h"
 #include "helix_thread.h"
-#include "log_redact.h"
 
 #include <spdlog/spdlog.h>
 

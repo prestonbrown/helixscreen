@@ -3,7 +3,7 @@
 
 #include "ams_tag_reading.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <cmath>
 

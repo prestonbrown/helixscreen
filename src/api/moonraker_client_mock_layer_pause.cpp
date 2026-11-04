@@ -5,9 +5,9 @@
 // Layer modal can be driven under --test. On by default;
 // HELIX_MOCK_LAYER_PAUSE=0 removes them to show the printer without them.
 
+#include "core/text_io.h"
 #include "env_knobs.h"
 #include "moonraker_client_mock.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

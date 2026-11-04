@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -12,7 +13,6 @@
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

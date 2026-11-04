@@ -3,7 +3,7 @@
 
 #include "timelapse_thumbnailer.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 

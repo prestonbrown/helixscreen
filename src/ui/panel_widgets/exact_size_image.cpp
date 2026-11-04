@@ -2,8 +2,8 @@
 
 #include "exact_size_image.h"
 
+#include "core/http_executor.h"
 #include "helix_fs.h"
-#include "http_executor.h"
 #include "prerendered_images.h"
 
 #include <spdlog/spdlog.h>

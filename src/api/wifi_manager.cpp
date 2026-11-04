@@ -17,9 +17,9 @@
 #include "ui_timer_guard.h"
 
 #include "config.h"
+#include "core/http_executor.h"
+#include "core/log_redact.h"
 #include "core/update_queue.h"
-#include "http_executor.h"
-#include "log_redact.h"
 #include "lvgl/lvgl.h"
 #include "safe_log.h"
 #include "spdlog/spdlog.h"

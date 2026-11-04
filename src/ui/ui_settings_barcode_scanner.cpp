@@ -9,10 +9,10 @@
 #include "ui_utils.h"
 
 #include "bluetooth_loader.h"
+#include "core/log_redact.h"
 #include "core/update_queue.h"
 #include "helix_thread.h"
 #include "input_device_scanner.h"
-#include "log_redact.h"
 #include "settings_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "usb_scanner_monitor.h"

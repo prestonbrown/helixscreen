@@ -5,10 +5,10 @@
 
 #include "phomemo_printer.h"
 
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "helix_thread.h"
 #include "phomemo_protocol.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

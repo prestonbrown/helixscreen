@@ -3,9 +3,9 @@
 
 #include "probe_sensor_manager.h"
 
+#include "core/text_io.h"
 #include "printer_discovery.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <string_view>

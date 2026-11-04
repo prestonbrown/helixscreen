@@ -12,8 +12,8 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/usb_scan_wait.h"
+#include "core/http_executor.h"
 #include "core/update_queue.h"
-#include "http_executor.h"
 #include "usb_backend_mock.h"
 #include "usb_manager.h"
 

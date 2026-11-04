@@ -357,7 +357,7 @@ def main() -> int:
         print("   A set of nearby SSIDs is a geolocation fingerprint, and a scan")
         print("   enumerates the neighbours' networks too.")
         print()
-        print("   Fix: wrap with helix::redact::ssid() / ::mac() (see include/log_redact.h),")
+        print("   Fix: wrap with helix::redact::ssid() / ::mac() (see include/core/log_redact.h),")
         print("   or drop the call to spdlog::trace, which the ring never captures.")
         print("   Deliberate exception: append  // PII_OK: <reason>")
         return 1

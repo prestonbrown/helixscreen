@@ -4,17 +4,18 @@
 
 #include "app_globals.h"
 #include "core/data_root_resolver.h"
+#include "core/http_executor.h"
+#include "core/log_redact.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "helix_install_roots.h"
 #include "helix_regex.h"
 #include "helix_version.h"
 #include "host_identity.h"
-#include "http_executor.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_config_includes.h"
-#include "log_redact.h"
 #include "logging_init.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
@@ -30,7 +31,6 @@
 #include "system/moonraker_local_probe.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
-#include "text_io.h"
 #include "touch_calibration_wrapper.h"
 #include "utils/network_validation.h"
 #include "wifi_link_monitor.h"
@@ -130,7 +130,7 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     // Sanitized like klipper_log/moonraker_log below. This is defence in depth,
     // not the primary control: it catches MACs, tokens and emails, but an SSID
     // is an arbitrary string no regex can recognise, so SSIDs are kept out of
-    // the ring at the log call site instead (see include/log_redact.h).
+    // the ring at the log call site instead (see include/core/log_redact.h).
     try {
         auto log_tail = collect_log_tail();
         if (!log_tail.empty()) {
@@ -853,7 +853,7 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         // Moonraker" needs, whereas a routable IPv6 is an ISP-allocated prefix
         // plus a stable interface ID and identifies a household. Runs last so
         // the MAC pass has already claimed six-group colon-hex strings. Shares
-        // its implementation with the log call sites (include/log_redact.h).
+        // its implementation with the log call sites (include/core/log_redact.h).
         result = helix::redact::ips_in_text(result);
 
         return result;

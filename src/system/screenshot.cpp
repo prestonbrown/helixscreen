@@ -6,8 +6,8 @@
 #include "ui_error_reporting.h"
 
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "lodepng_encode.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

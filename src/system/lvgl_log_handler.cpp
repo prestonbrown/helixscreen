@@ -41,7 +41,7 @@ static bool s_suppress_translation_warnings = false;
 // TRACE.
 //
 // Trace, not debug: the in-memory ring the debug bundle ships is captured at
-// debug (see logging_init.cpp and log_redact.h), so routing repeats there
+// debug (see logging_init.cpp and core/log_redact.h), so routing repeats there
 // silenced the console while still spending the ring on them. One untranslated
 // tag re-resolved on a temperature tick took 76% of a reporter's 20k-line ring
 // and pushed the evidence we had asked him for out of the bundle.

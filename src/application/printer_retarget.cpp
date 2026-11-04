@@ -8,13 +8,13 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/text_io.h"
 #include "i_moonraker_client.h"
 #include "lap_log.h"
 #include "moonraker_manager.h"
 #include "print_history_manager.h"
 #include "printer_state.h"
 #include "sound_manager.h"
-#include "text_io.h"
 #include "utils/network_validation.h"
 
 #include <spdlog/spdlog.h>

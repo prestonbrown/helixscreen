@@ -8,9 +8,9 @@
 
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

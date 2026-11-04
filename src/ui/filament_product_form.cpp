@@ -3,7 +3,7 @@
 
 #include "filament_product_form.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <cctype>
 #include <cstdlib>

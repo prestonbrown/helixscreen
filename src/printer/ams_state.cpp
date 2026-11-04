@@ -25,6 +25,7 @@
 #include "ams_tool_topology.h"
 #include "app_globals.h"
 #include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"
@@ -44,7 +45,6 @@
 #include "settings_manager.h"
 #include "spoolman_manager.h"
 #include "spoolman_types.h"
-#include "text_io.h"
 #include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 

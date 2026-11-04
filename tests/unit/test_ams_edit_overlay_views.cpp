@@ -25,6 +25,7 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_op_dispatch.h"
@@ -35,7 +36,6 @@
 #include "spoolman_manager.h"
 #include "spoolman_slot_saver.h"
 #include "src/ui/panel_widgets/active_spool_widget.h"
-#include "text_io.h"
 #include "tool_state.h"
 #include "xml_registration.h"
 

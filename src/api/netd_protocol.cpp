@@ -3,8 +3,8 @@
 
 #include "netd_protocol.h"
 
+#include "core/text_io.h"
 #include "hv/base64.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

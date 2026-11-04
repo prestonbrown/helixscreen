@@ -467,7 +467,7 @@ TEST_CASE("DebugBundleCollector: sanitize_value passes diagnostic text through",
         // The input shaper logs its live config as <name>@<freq><unit>
         "Input shaper config: X=mzv@40.2Hz, Y=ei@52.0Hz",
         // Private and local addresses are identical in millions of houses and
-        // are the whole diagnostic value of the network section (log_redact.h)
+        // are the whole diagnostic value of the network section (core/log_redact.h)
         "192.168.1.100",
         "10.0.0.5",
         "172.16.4.9",

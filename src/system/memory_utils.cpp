@@ -4,12 +4,12 @@
 #include "memory_utils.h"
 
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "env_knobs.h"
 #include "gcode_layer_cache.h"
 #include "gcode_layer_index.h"
 #include "platform_capabilities.h"
 #include "system/helix_paths.h"
-#include "text_io.h"
 
 #include <lvgl/lvgl.h>
 #include <spdlog/spdlog.h>

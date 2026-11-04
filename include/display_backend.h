@@ -15,8 +15,8 @@
 
 #include "board_identity.h"
 #include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "display_metrics.h"
-#include "text_io.h"
 #include "touch_calibration.h"
 
 #include <cstdlib>

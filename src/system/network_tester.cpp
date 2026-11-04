@@ -3,13 +3,13 @@
 
 #include "network_tester.h"
 
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "helix_thread.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 
 #ifdef __APPLE__
-#include "system/run_capture.h"
+#include "core/run_capture.h"
 #endif
 
 #include <array>

@@ -5,8 +5,8 @@
 
 #include "ipp_printer.h"
 
+#include "core/http_executor.h"
 #include "core/update_queue.h"
-#include "http_executor.h"
 #include "hv/HttpClient.h"
 #include "ipp_protocol.h"
 #include "lvgl.h"

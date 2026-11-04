@@ -5,12 +5,12 @@
 
 #include "ui_text.h"
 
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "gcode_parser.h"
 #include "lvgl.h"
 #include "printer_excluded_objects_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
-#include "text_io.h"
 #include "theme_manager.h"
 
 #include <spdlog/fmt/fmt.h>

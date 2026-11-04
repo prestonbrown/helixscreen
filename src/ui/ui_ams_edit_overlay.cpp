@@ -23,6 +23,7 @@
 #include "app_globals.h"
 #include "color_utils.h"
 #include "core/static_panel_registry.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_database.h"
@@ -32,7 +33,6 @@
 #include "label_printer_settings.h"
 #include "lane_translation.h"
 #include "spoolman_manager.h"
-#include "text_io.h"
 #include "ui/ui_widget_helpers.h"
 #if HELIX_HAS_LABEL_PRINTER
 #include "ipp_print_modal.h"

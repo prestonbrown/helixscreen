@@ -3,9 +3,9 @@
 
 #include "wifi_ui_utils.h"
 
+#include "core/log_redact.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
-#include "log_redact.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -15,7 +15,7 @@
 #include <vector>
 
 #ifdef __APPLE__
-#include "system/run_capture.h"
+#include "core/run_capture.h"
 #endif
 
 #if !defined(__APPLE__) && !defined(HELIX_PLATFORM_ESP32)

@@ -15,9 +15,9 @@
 #include "ui_utils.h"
 
 #include "core/data_root_resolver.h"
+#include "core/log_redact.h"
 #include "core/static_panel_registry.h"
 #include "ethernet_manager.h"
-#include "log_redact.h"
 #include "network_tester.h"
 #include "sort_small.h"
 #include "system_settings_manager.h"

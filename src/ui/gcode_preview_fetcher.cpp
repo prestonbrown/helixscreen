@@ -6,12 +6,12 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/gcode_filename.h"
+#include "core/text_io.h"
 #include "firmware_3mf_extract.h"
 #include "gcode_preview_gate.h"
 #include "gcode_preview_setup.h"
 #include "i_moonraker_api.h"
 #include "memory_utils.h"
-#include "text_io.h"
 #include "utils/network_validation.h"
 
 #include <spdlog/spdlog.h>

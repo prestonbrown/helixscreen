@@ -22,6 +22,7 @@
 #include "app_constants.h"
 #include "async_lifetime_guard.h"
 #include "connection_state.h"
+#include "core/text_io.h"
 #include "gcode_ops_detector.h"
 #include "helix_plugin_installer.h"
 #include "helix_shared_callback.h"
@@ -33,7 +34,6 @@
 #include "print_select_button_view.h"
 #include "queued_job_options.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 #include "three_mf_reader.h"
 #include "usb_backend.h"
 

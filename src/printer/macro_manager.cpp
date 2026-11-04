@@ -4,9 +4,9 @@
 #include "macro_manager.h"
 
 #include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "helix_regex.h"
 #include "preprint_skip_wrappers.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

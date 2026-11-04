@@ -111,7 +111,7 @@ DEFAULT_FILE_REASON = "not in the v1 Core+AMS cut"
 
 # Each of these in a compiled file links libstdc++'s std::locale machinery (~150K of
 # facets, built all at once on first use) into the image: iostreams and <regex>
-# directly, <filesystem> through path's wide codecvt. text_io.h, helix_regex.h and
+# directly, <filesystem> through path's wide codecvt. core/text_io.h, helix_regex.h and
 # helix_fs.h replace them. Headers reached indirectly are caught by the map check
 # in scripts/check_esp32_size.py.
 LOCALE_INCLUDE = re.compile(
@@ -908,7 +908,7 @@ def report(f: Findings) -> None:
               file=sys.stderr)
         for path, lineno, header in f.locale_includes:
             print(f"        {path}:{lineno}: <{header}>", file=sys.stderr)
-        print("\n      Use text_io.h (streams), helix_regex.h (<regex>) or helix_fs.h "
+        print("\n      Use core/text_io.h (streams), helix_regex.h (<regex>) or helix_fs.h "
               "(<filesystem>).", file=sys.stderr)
     if f.aborting_calls:
         print(f"FAIL: {len(f.aborting_calls)} call(s) in firmware-compiled files that abort the "

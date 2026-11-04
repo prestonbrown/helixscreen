@@ -147,7 +147,7 @@ gets a PSRAM stack through `PsramThreadStackScope`
 ([`include/psram_thread_stack.h`](../../../include/psram_thread_stack.h)), which also bars that thread from storage
 (`helix::fs::forbid_storage_on_this_thread`), because a flash operation on a PSRAM stack faults. The HTTP lane, the
 WebSocket transport worker and the sound sequencer start this way. And `HttpExecutor::start()` is a no-op under
-`ESP_PLATFORM` (`src/system/http_executor.cpp#start`): the desktop worker pools would take internal stacks the boot
+`ESP_PLATFORM` (`src/core/http_executor.cpp#start`): the desktop worker pools would take internal stacks the boot
 cannot spare, so on the firmware a `submit()` to them never runs.
 
 Two numbers in `size_budget.json` hold the line: `dram_bss_max_bytes` and `dram_data_max_bytes` cap the

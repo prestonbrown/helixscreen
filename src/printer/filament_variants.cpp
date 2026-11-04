@@ -2,9 +2,9 @@
 
 #include "filament_variants.h"
 
+#include "core/text_io.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

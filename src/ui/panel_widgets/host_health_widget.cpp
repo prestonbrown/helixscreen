@@ -13,6 +13,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/text_io.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
@@ -22,7 +23,6 @@
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "value_status.h"

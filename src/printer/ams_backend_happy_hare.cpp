@@ -10,6 +10,7 @@
 #include "ams_fault_event.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "happy_hare_status_parse.h"
 #include "hh_defaults.h"
@@ -24,7 +25,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h" // PrinterState: mid-print clear guard
 #include "settings_manager.h"
-#include "text_io.h"
 #include "translation_loader.h" // TR_NOOP
 
 #include <spdlog/fmt/fmt.h>

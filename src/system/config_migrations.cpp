@@ -6,12 +6,12 @@
 #include "completion_alert_mode.h"
 #include "config.h"
 #include "config_testing.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "input_defaults.h"
 #include "json_utils.h"
 #include "platform_capabilities.h"
 #include "screensaver_setting.h"
-#include "text_io.h"
 
 #if !defined(HELIX_SPLASH_ONLY) && !defined(HELIX_WATCHDOG)
 #include "system/telemetry_manager.h"

@@ -4,10 +4,10 @@
 #include "gcode_file_modifier.h"
 
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "gcode_streaming_config.h"
 #include "helix_fs.h"
 #include "helix_regex.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

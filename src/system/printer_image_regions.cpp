@@ -2,8 +2,8 @@
 #include "printer_image_regions.h"
 
 #include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

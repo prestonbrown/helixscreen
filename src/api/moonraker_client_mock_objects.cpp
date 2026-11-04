@@ -1,10 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "core/text_io.h"
 #include "env_knobs.h"
 #include "moonraker_client_mock_internal.h"
 #include "snapmaker_nozzle_offset.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

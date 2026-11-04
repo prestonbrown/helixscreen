@@ -4,9 +4,9 @@
 
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 
 #include <string>
 #include <sys/stat.h>

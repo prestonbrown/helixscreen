@@ -8,6 +8,7 @@
 
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "filament_database.h"
@@ -16,7 +17,6 @@
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "text_io.h"
 #include "toolhead_homing.h"
 
 #include <spdlog/spdlog.h>

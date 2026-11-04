@@ -3,7 +3,7 @@
 
 #include "helix_fs.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -27,6 +27,7 @@
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "helix_fs.h"
@@ -37,7 +38,6 @@
 #include "pre_start_exclude.h"
 #include "print_job_ref.h"
 #include "printer_state.h"
-#include "text_io.h"
 #include "tool_state.h"
 
 #include <spdlog/spdlog.h>

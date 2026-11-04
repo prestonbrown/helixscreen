@@ -6,8 +6,8 @@
 #include "brother_ql_printer.h"
 
 #include "brother_ql_protocol.h"
+#include "core/http_executor.h"
 #include "core/update_queue.h"
-#include "http_executor.h"
 #include "safe_resolve.h"
 
 #include <spdlog/spdlog.h>

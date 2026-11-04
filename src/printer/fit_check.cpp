@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "fit_check.h"
 
+#include "core/text_io.h"
 #include "gcode_wait_line.h"
 #include "json_utils.h"
 #include "lvgl.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 

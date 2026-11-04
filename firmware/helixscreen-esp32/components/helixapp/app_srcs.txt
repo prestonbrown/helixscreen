@@ -329,7 +329,7 @@ src/system/diagnostics.cpp
 src/system/display_settings_manager.cpp
 src/system/filament_favorites.cpp
 src/system/helix_plugin_installer.cpp
-src/system/http_executor.cpp
+src/core/http_executor.cpp
 src/system/input_settings_manager.cpp
 src/system/helix_regex.cpp
 src/system/klipper_config_editor.cpp
@@ -350,7 +350,7 @@ src/system/persisted_setting.cpp
 src/system/platform_capabilities.cpp
 src/system/platform_table.cpp
 src/system/post_op_cooldown_manager.cpp
-src/system/log_redact.cpp
+src/core/log_redact.cpp
 src/system/preset_materials.cpp
 src/system/prerender_size_class.cpp
 src/system/prerendered_images.cpp
@@ -369,7 +369,7 @@ src/system/sound_theme.cpp
 src/system/subject_debug_registry.cpp
 src/system/system_power.cpp
 src/system/system_settings_manager.cpp
-src/system/text_io.cpp
+src/core/text_io.cpp
 src/system/helix_fs.cpp
 src/system/timezone_env.cpp
 src/system/tips_manager.cpp

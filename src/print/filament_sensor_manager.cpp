@@ -8,6 +8,7 @@
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "print_lifecycle_state.h"
@@ -16,7 +17,6 @@
 #include "printer_state.h"
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

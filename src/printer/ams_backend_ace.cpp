@@ -21,6 +21,7 @@
 #include "ams_device_sections.h"
 #include "ams_status_json.h"
 #include "ams_tool_map_sync.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "exception_policy.h"
 #include "helix_thread.h"
@@ -37,7 +38,6 @@
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 

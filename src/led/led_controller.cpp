@@ -7,6 +7,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "hardware_object_table.h"
@@ -22,7 +23,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "status_dispatch.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -5,8 +5,8 @@
 // and <string> constants, plus the validator for responsive constant sets.
 
 #include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "helix-xml/src/libs/expat/expat.h"
-#include "text_io.h"
 #include "theme_manager.h"
 #include "theme_manager_internal.h"
 #include "theme_token_table.h"

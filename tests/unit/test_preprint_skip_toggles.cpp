@@ -20,6 +20,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/queued_job_starter_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "gcode_ops_detector.h"
 #include "lvgl_test_fixture.h"
@@ -29,7 +30,6 @@
 #include "preprint_skip_wrappers.h"
 #include "printer_state.h"
 #include "queued_job_start.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <string>

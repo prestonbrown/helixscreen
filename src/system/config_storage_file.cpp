@@ -2,9 +2,9 @@
 #include "ui_error_reporting.h"
 
 #include "config_storage.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "system/helix_paths.h"
-#include "text_io.h"
 
 #if !defined(HELIX_SPLASH_ONLY) && !defined(HELIX_WATCHDOG)
 #include "system/telemetry_manager.h"

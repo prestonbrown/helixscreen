@@ -4,8 +4,8 @@
 #pragma once
 
 #include "board_identity.h"
+#include "core/text_io.h"
 #include "env_knobs.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <climits>

@@ -13,8 +13,9 @@
 #include "brother_ql_protocol.h"
 #include "bt_discovery_utils.h"
 #include "bt_print_utils.h"
+#include "core/http_executor.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
-#include "http_executor.h"
 #include "ipp_printer.h"
 #include "label_printer_settings.h"
 #include "label_renderer.h"
@@ -27,7 +28,6 @@
 #include "phomemo_printer.h"
 #include "safe_resolve.h"
 #include "sheet_label_layout.h"
-#include "text_io.h"
 #include "usb_printer_detector.h"
 
 #include <spdlog/spdlog.h>

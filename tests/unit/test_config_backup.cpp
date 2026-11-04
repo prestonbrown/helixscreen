@@ -4,7 +4,7 @@
 #include "../test_helpers/unique_temp_dir.h"
 #include "app_constants.h"
 #include "config_backup.h"
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <cstdlib>
 #include <filesystem>

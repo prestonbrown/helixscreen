@@ -10,12 +10,12 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "demo_overlays.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "grid_edit_drop.h"
-#include "http_executor.h"
 #include "input_settings_manager.h"
 #include "klipper_config_includes.h"
 #include "logging_init.h"

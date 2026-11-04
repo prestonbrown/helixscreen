@@ -122,7 +122,7 @@ def main() -> int:
             for step in chain:
                 print(f"        {step}", file=sys.stderr)
             print("      Replace the stream, <regex> or std::filesystem use at the end of the "
-                  "chain with text_io.h, helix_regex.h or helix_fs.h.", file=sys.stderr)
+                  "chain with core/text_io.h, helix_regex.h or helix_fs.h.", file=sys.stderr)
             failed = True
         map_text = open(sys.argv[3], errors="replace").read()
         if not check_dram(map_text, budgets):

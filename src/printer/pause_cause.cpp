@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "pause_cause.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <cctype>

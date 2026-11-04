@@ -3,9 +3,9 @@
 #include "toolchanger_addon.h"
 
 #include "color_utils.h"
+#include "core/text_io.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 #include "zmod_color_status.h"
 
 #include <spdlog/fmt/fmt.h>

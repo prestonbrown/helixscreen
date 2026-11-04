@@ -6,9 +6,9 @@
 #include "ui_error_reporting.h"
 
 #include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "json_utils.h"
 #include "lvgl.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

@@ -7,12 +7,12 @@
 // acks, as the real macro does, and the heater follows INDX's own
 // M104/M109 rule: nothing heats with no tool on the head or a no-hotend tool.
 
+#include "core/text_io.h"
 #include "env_knobs.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
 #include "simulated_clock.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

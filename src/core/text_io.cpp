@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include "helix_fs.h"
 

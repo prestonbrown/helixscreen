@@ -6,11 +6,11 @@
 #include "ui_exclude_object_badges.h"
 
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

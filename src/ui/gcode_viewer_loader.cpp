@@ -15,6 +15,7 @@
 
 #include "app_globals.h"
 #include "color_utils.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "gcode_color_metadata.h"
 #include "gcode_gl_fallback.h"
@@ -33,7 +34,6 @@
 #include "printer_state.h"
 #include "system/crash_handler.h"
 #include "system/telemetry_manager.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

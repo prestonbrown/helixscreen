@@ -10,7 +10,7 @@
 
 #include "ams_backend_mock.h"
 #include "ams_state.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "thumbnail_processor.h"
 
 #include <spdlog/spdlog.h>
@@ -472,7 +472,7 @@ static std::vector<MockScenario> build_scenarios() {
     // drains the entire batch each time, so there's no way to widen that window
     // from the subject side. HttpExecutor::inflight() instead stays incremented for
     // the full wall-clock duration of the submitted job body (see
-    // http_executor.h's `submit()` — incremented there, decremented only on
+    // core/http_executor.h's `submit()` — incremented there, decremented only on
     // completion), so a deliberately slow job gives wait_idle(timeout=0.0) a
     // multi-hundred-millisecond window to land in instead of a sub-tick race.
     // 2s comfortably exceeds subprocess-spawn latency even under heavy load

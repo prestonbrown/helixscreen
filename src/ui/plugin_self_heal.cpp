@@ -6,7 +6,7 @@
 #include "ui_toast_manager.h"
 
 #include "config.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "lvgl.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"

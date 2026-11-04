@@ -4,8 +4,8 @@
 #include "qidi_status_parse.h"
 
 #include "color_utils.h"
+#include "core/text_io.h"
 #include "lane_translation.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

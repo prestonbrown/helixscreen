@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "core/gcode_filename.h"
+#include "core/text_io.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
 #include "print_photos.h"
 #include "runtime_config.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

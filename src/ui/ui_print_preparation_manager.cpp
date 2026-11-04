@@ -12,12 +12,13 @@
 #include "active_print_media_manager.h"
 #include "app_globals.h"
 #include "core/gcode_filename.h"
+#include "core/http_executor.h"
 #include "core/observer_factory.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "gcode_edit_list.h"
 #include "gcode_tool_remapper.h"
 #include "helix_fs.h"
-#include "http_executor.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
 #include "memory_monitor.h"
@@ -31,7 +32,6 @@
 #include "scope_exit.h"
 #include "storage_report_service.h"
 #include "system/telemetry_manager.h"
-#include "text_io.h"
 #include "three_mf_reader.h"
 
 #include <spdlog/fmt/fmt.h>

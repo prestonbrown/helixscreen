@@ -13,9 +13,9 @@
 
 #include "config.h"
 #include "core/data_root_resolver.h"
+#include "core/log_redact.h"
 #include "core/static_panel_registry.h"
 #include "ethernet_manager.h"
-#include "log_redact.h"
 #include "lvgl/lvgl.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"

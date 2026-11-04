@@ -3,8 +3,8 @@
 
 #pragma once
 
+#include "core/text_io.h"
 #include "standard_macros.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

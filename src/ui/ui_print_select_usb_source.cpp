@@ -6,10 +6,10 @@
 #include "ui_panel_print_select.h" // For PrintFileData
 #include "ui_print_select_card_view.h"
 
+#include "core/http_executor.h"
 #include "core/static_subject_registry.h"
 #include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "http_executor.h"
 #include "print_file_data.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"

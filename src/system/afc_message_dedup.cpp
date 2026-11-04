@@ -3,10 +3,10 @@
 #include "system/afc_message_dedup.h"
 
 #include "config.h"
+#include "core/text_io.h"
 #include "exception_policy.h"
 #include "helix_fs.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

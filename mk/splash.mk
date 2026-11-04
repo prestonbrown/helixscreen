@@ -137,7 +137,7 @@ $(BUILD_DIR)/splash/helix_paths.o: src/system/helix_paths.cpp $(ABI_STAMP) | $(B
 
 # Compile text_io for splash (config_storage_file.cpp reads and writes through it).
 # Large-file offsets, as in the app build (mk/rules.mk).
-$(BUILD_DIR)/splash/text_io.o: src/system/text_io.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/text_io.o: src/core/text_io.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) -D_FILE_OFFSET_BITS=64 $(DEPFLAGS) -c $< -o $@
 
@@ -204,7 +204,7 @@ $(BUILD_DIR)/splash/platform_table.o: src/system/platform_table.cpp $(ABI_STAMP)
 # every object in that archive becomes a hard link dependency whether or not this
 # binary reaches it. Without this the non-LTO targets (pi, pi32, x86) fail to link
 # while the -flto ones drop the unreachable caller and link clean.
-$(BUILD_DIR)/splash/log_redact.o: src/system/log_redact.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+$(BUILD_DIR)/splash/log_redact.o: src/core/log_redact.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

@@ -4,7 +4,7 @@
 #include "three_mf.h"
 
 #include "core/gcode_filename.h"
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <cctype>

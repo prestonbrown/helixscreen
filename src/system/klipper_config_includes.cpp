@@ -4,9 +4,9 @@
 #include "klipper_config_includes.h"
 
 #include "async_lifetime_guard.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

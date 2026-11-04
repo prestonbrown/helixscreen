@@ -12,6 +12,7 @@
 #include "app_constants.h"
 #include "color_utils.h"
 #include "config.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "gcode_camera.h"
 #include "gcode_color_metadata.h"
@@ -32,7 +33,6 @@
 #include "print_status_preview_decision.h"
 #include "system/crash_handler.h"
 #include "system/telemetry_manager.h"
-#include "text_io.h"
 #include "theme_manager.h"
 #include "view_gestures.h"
 

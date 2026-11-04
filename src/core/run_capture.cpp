@@ -1,7 +1,7 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "system/run_capture.h"
+#include "core/run_capture.h"
 
 #include <array>
 #include <cstdio>

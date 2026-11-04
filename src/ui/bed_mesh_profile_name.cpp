@@ -3,7 +3,7 @@
 
 #include "bed_mesh_profile_name.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <cctype>

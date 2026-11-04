@@ -3,7 +3,7 @@
 
 #include "moonraker_auth.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <atomic>
 #include <mutex>

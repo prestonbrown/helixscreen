@@ -5,12 +5,12 @@
 
 #include "app_globals.h"
 #include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "lvgl_image_writer.h"
 #include "prerender_size_class.h"
 #include "stb_image.h"
 #include "stb_image_resize.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

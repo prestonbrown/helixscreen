@@ -2,10 +2,10 @@
 
 #include "filament_temperature_source.h"
 
+#include "core/text_io.h"
 #include "http_request_epoch.h"
 #include "i_moonraker_sub_apis.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

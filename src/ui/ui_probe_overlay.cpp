@@ -12,6 +12,7 @@
 
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -21,7 +22,6 @@
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"
 #include "probe_sensor_types.h"
-#include "text_io.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"
 

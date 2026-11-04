@@ -15,6 +15,7 @@
 #include "ams_fault_event.h"
 #include "ams_status_json.h"
 #include "config.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
@@ -25,7 +26,6 @@
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"
-#include "text_io.h"
 #include "toolchanger_addon.h"
 
 #include <spdlog/fmt/fmt.h>

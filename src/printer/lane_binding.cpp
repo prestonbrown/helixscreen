@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lane_binding.h"
 
+#include "core/text_io.h"
 #include "lane_resolver.h"
-#include "text_io.h"
 
 #include <string_view>
 #include <strings.h>

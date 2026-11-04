@@ -4,8 +4,8 @@
 #include "happy_hare_status_parse.h"
 
 #include "ams_status_json.h"
+#include "core/text_io.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
