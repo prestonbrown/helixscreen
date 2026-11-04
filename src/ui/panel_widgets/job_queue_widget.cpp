@@ -4,16 +4,16 @@
 #include "job_queue_widget.h"
 
 #include "ui_event_safety.h"
-#include "ui_filename_utils.h"
 #include "ui_subject_registry.h"
 
 #include "app_globals.h"
+#include "core/gcode_filename.h"
+#include "core/observer_factory.h"
 #include "helix_psram_attr.h"
 #include "job_queue_start.h"
 #include "job_queue_state.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"

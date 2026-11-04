@@ -3,9 +3,9 @@
 #include "plugin_status_refresh.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
-#include "observer_factory.h"
 #include "plr_plugin_rpc.h"
 #include "printer_state.h"
 

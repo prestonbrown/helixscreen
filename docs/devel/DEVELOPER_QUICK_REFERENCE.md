@@ -140,10 +140,10 @@ StaticSubjectRegistry::instance().register_deinit(
 
 ## Observer Factory (CRITICAL)
 
-Use `observer_factory.h` for type-safe, auto-cleaned observers. **Never use raw `lv_subject_add_observer_*` in panels.**
+Use `core/observer_factory.h` for type-safe, auto-cleaned observers. **Never use raw `lv_subject_add_observer_*` in panels.**
 
 ```cpp
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 
 // In setup_observers():
 // Integer observer; the handler runs deferred on the UI thread

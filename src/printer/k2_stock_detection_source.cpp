@@ -7,10 +7,10 @@
 // Zero detections: no stdout, no output file, exit 0.
 #include "k2_stock_detection_source.h"
 
+#include "core/observer_factory.h"
 #include "env_knobs.h"
 #include "http_executor.h"
 #include "hv/requests.h"
-#include "observer_factory.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "settings_manager.h"

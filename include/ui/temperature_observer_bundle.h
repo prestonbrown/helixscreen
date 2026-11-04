@@ -17,7 +17,7 @@
 
 #include "ui_observer_guard.h"
 
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "printer_state.h"
 
 namespace helix::ui {

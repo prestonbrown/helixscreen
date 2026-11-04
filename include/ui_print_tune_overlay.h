@@ -3,8 +3,8 @@
 
 #pragma once
 
+#include "core/observer_factory.h"
 #include "lvgl/lvgl.h"
-#include "observer_factory.h"
 #include "overlay_base.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"

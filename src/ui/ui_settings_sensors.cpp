@@ -12,9 +12,9 @@
 
 #include "app_globals.h"
 #include "chamber_assignment_options.h"
+#include "core/observer_factory.h"
 #include "filament_sensor_manager.h"
 #include "input_sensor_manager.h"
-#include "observer_factory.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"

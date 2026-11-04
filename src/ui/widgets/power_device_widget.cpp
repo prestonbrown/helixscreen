@@ -16,11 +16,11 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "power_device_icon.h"

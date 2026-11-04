@@ -8,6 +8,7 @@
 #include "ui_swatch.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "display_numbering.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -18,7 +19,6 @@
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"

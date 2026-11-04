@@ -11,7 +11,7 @@
 
 #include "ams_backend.h"
 #include "ams_state.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "sound_manager.h"
 #include "static_panel_registry.h"
 #include "wizard_step_registry.h"

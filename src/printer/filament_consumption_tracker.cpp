@@ -6,7 +6,7 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "printer_state.h"
 #include "static_subject_registry.h"
 #include "system/crash_handler.h"

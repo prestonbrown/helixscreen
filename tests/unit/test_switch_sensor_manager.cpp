@@ -20,10 +20,10 @@
 #include "../test_helpers/golden_json.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
-#include "observer_factory.h"
 #include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>

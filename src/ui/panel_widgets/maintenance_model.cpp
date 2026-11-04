@@ -9,11 +9,11 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "subject_managed_panel.h"

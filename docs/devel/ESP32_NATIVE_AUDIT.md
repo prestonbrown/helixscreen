@@ -44,7 +44,7 @@ the yellow gate anticipated. No red findings.
 ## What blocks what (bucket C and D detail)
 
 - **The one real seam:** `include/moonraker_client.h` → `hv/WebSocketClient.h`
-  transitively blocks 149 files (via `observer_factory.h`/`app_globals.h`).
+  transitively blocks 149 files (via `core/observer_factory.h`/`app_globals.h`).
   Phase 2 grows the audit's skeletal `shim/hv_stub/` into an
   `esp_websocket_client`/`esp_http_client` implementation behind the existing
   `IMoonrakerClient`/`IMoonrakerAPI` interfaces — the mock-drift seams are the
@@ -185,7 +185,7 @@ the largest is libhv's HTTP client at 8 files.
   (usage scan); B = compiles and uses the shimmed surface.
 - **Two passes.** Pass 1 exposed that a single header — `include/moonraker_client.h`
   (→ `hv/Event.h`, `hv/WebSocketClient.h`) — transitively blocks 149 files, because
-  `observer_factory.h`/`app_globals.h` pull it into nearly everything. That wall left
+  `core/observer_factory.h`/`app_globals.h` pull it into nearly everything. That wall left
   a third of the codebase uncategorized, so pass 2 carves it with skeletal audit-only
   stand-ins (`shim/hv_stub/hv/{Event.h,WebSocketClient.h}` — `hv::TimerID`, an empty
   `WebSocketClient` base with the three callback members and `setReconnect()`; nothing

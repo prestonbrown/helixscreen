@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_filename_utils.h"
-
+#include "core/gcode_filename.h"
 #include "helix_plugin_features.h"
 #include "json_fwd.h"
 #include "text_io.h"

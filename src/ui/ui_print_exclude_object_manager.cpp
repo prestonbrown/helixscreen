@@ -8,11 +8,11 @@
 #include "ui_gcode_viewer.h"
 #include "ui_toast_manager.h"
 
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/fmt/fmt.h>

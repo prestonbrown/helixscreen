@@ -16,7 +16,7 @@
  *
  * What makes this easy to get wrong — and what these tests pin — is that the
  * attach fire is not synchronous. observe<int>'s LVGL callback only QUEUES
- * the handler (observer_factory.h), so it runs on a later UpdateQueue tick,
+ * the handler (core/observer_factory.h), so it runs on a later UpdateQueue tick,
  * long after setup_observers() has returned. Any suppression scoped to the
  * body of reattach_observers() is a no-op.
  */

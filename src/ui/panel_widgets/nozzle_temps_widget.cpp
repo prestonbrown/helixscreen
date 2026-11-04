@@ -9,12 +9,12 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "nozzle_layout.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
 #include "subject_managed_panel.h"

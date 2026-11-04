@@ -13,8 +13,8 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
 #include "settings_manager.h"

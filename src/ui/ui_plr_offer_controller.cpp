@@ -5,9 +5,9 @@
 #include "ui_plr_wizard_overlay.h"
 
 #include "app_globals.h" // is_wizard_active
+#include "core/observer_factory.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
-#include "observer_factory.h"
 #include "plr_backend.h"
 #include "plr_offer.h"
 #include "plr_offer_controller.h"

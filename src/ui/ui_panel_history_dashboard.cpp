@@ -10,11 +10,11 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "sort_small.h"
 #include "static_panel_registry.h"

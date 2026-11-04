@@ -3,9 +3,8 @@
 
 #include "job_queue_state.h"
 
-#include "ui_filename_utils.h"
-
 #include "connection_staleness.h"
+#include "core/gcode_filename.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"

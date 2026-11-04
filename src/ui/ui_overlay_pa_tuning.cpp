@@ -13,12 +13,12 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
-#include "observer_factory.h"
 #include "preset_materials.h"
 #include "print_start_analyzer.h"
 #include "printer_state.h"

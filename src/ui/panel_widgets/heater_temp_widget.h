@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ui_heater_config.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_overlay_temp_graph.h"
 
 #include "async_lifetime_guard.h"
+#include "heater_type.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 
 class TemperatureService;

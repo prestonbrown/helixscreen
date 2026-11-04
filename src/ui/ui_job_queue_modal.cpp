@@ -5,15 +5,15 @@
 
 #include "ui_button.h"
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 #include "ui_panel_print_select.h"
 #include "ui_row_text.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/gcode_filename.h"
+#include "core/observer_factory.h"
 #include "i_moonraker_api.h"
 #include "job_queue_state.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <lvgl/lvgl.h>

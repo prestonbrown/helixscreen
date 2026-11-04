@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_busy_overlay.h"
-#include "ui_filename_utils.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
 
@@ -21,6 +20,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "capability_matrix.h"
+#include "core/gcode_filename.h"
 #include "core/update_queue.h"
 #include "gcode_edit_list.h"
 #include "gcode_file_modifier.h"

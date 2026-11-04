@@ -6,7 +6,6 @@
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
-#include "ui_heater_config.h"
 #include "ui_nav.h"
 #include "ui_next_tick.h"
 #include "ui_swatch.h"
@@ -14,6 +13,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "heater_type.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"

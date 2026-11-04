@@ -8,7 +8,7 @@
 #include "ui_utils.h"
 
 #include "color_utils.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "printer_excluded_objects_state.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

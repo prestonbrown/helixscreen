@@ -3,15 +3,14 @@
 
 #include "active_print_media_manager.h"
 
-#include "ui_filename_utils.h"
-
 #include "app_globals.h"
+#include "core/gcode_filename.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "exception_policy.h"
 #include "gcode_parser.h"
 #include "json_utils.h"
 #include "memory_monitor.h"
-#include "observer_factory.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "three_mf_reader.h"

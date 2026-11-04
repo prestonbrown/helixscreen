@@ -3,7 +3,6 @@
 #include "queued_job_start.h"
 
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 #include "ui_modal.h"
 #include "ui_panel_print_select.h"
 #include "ui_preflight_check_modal.h"
@@ -11,6 +10,7 @@
 #include "ui_print_start_controller.h"
 
 #include "app_globals.h"
+#include "core/gcode_filename.h"
 #include "job_queue_start.h"
 #include "job_queue_state.h"
 #include "printer_state.h"

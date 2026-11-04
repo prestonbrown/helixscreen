@@ -8,9 +8,9 @@
 
 #include "abort_manager.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "display_manager.h"
 #include "i_moonraker_api.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "static_subject_registry.h"

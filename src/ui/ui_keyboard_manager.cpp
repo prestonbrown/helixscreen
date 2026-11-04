@@ -13,9 +13,9 @@
 #include "ui_utils.h"
 
 #include "config.h"
+#include "core/observer_factory.h"
 #include "display_settings_manager.h"
 #include "keyboard_layout_provider.h"
-#include "observer_factory.h"
 #include "platform_capabilities.h"
 #include "theme_manager.h"
 

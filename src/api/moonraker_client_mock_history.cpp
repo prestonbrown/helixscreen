@@ -1,8 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_filename_utils.h"
-
+#include "core/gcode_filename.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
 #include "mock_planted_gcodes.h"

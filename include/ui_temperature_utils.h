@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_heater_config.h"
-
+#include "heater_type.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_types.h"
 #include "printer_temperature_state.h"

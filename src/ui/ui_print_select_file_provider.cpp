@@ -3,10 +3,10 @@
 
 #include "ui_print_select_file_provider.h"
 
-#include "ui_filename_utils.h"
 #include "ui_panel_print_select.h" // For PrintFileData
 #include "ui_print_select_card_view.h"
 
+#include "core/gcode_filename.h"
 #include "core/update_queue.h"
 #include "helix_fs.h"
 #include "i_moonraker_api.h"

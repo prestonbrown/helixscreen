@@ -5,9 +5,9 @@
 // of the metadata the printer does not have, the plate render as the card
 // thumbnail, and the detail view's plate stepper.
 
-#include "ui_filename_utils.h"
 #include "ui_panel_print_select.h"
 
+#include "core/gcode_filename.h"
 #include "core/update_queue.h"
 #include "lvgl.h"
 #include "text_io.h"

@@ -8,9 +8,9 @@
 #include "ui_settings_updates.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "system/update_checker.h"
 #include "upgrade_nudge.h"

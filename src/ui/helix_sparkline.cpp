@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "helix_sparkline.h"
 
+#include "core/observer_factory.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
-#include "observer_factory.h"
 #include "performance_state.h"
 
 #include <spdlog/spdlog.h>

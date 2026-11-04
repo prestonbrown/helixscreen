@@ -8,12 +8,12 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "dryer_summary.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "motion_presets.h"
-#include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "settings_manager.h"

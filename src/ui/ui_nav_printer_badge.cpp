@@ -4,7 +4,7 @@
 #include "ui_nav_printer_badge.h"
 
 #include "app_globals.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 

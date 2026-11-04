@@ -3,10 +3,9 @@
 
 #include "gcode_preview_fetcher.h"
 
-#include "ui_filename_utils.h"
-
 #include "app_globals.h"
 #include "config.h"
+#include "core/gcode_filename.h"
 #include "firmware_3mf_extract.h"
 #include "gcode_preview_gate.h"
 #include "gcode_preview_setup.h"

@@ -13,12 +13,12 @@
 
 #include "app_globals.h"
 #include "belt_stream_client.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "memory_utils.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "resonance_console.h"

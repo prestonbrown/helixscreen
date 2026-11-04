@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ui_heater_config.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "heater_type.h"
 #include "panel_widget.h"
 
 #include <memory>

@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_notification_threshold.h"
 #include "ui_widget_ref.h"
 
+#include "core/notification_threshold.h"
 #include "lvgl.h"
 
 #include <atomic>

@@ -21,8 +21,8 @@
 #include "ui_observer_guard.h"
 
 #include "../lvgl_test_fixture.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"

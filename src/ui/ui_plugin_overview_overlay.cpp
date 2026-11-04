@@ -12,8 +12,8 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "ui/ui_widget_helpers.h"
 

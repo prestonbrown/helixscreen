@@ -4,7 +4,7 @@
 #include "clog_meter_model.h"
 
 #include "ams_state.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 
 namespace helix::ui {
 

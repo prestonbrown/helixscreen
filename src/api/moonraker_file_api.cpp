@@ -4,8 +4,8 @@
 #include "moonraker_file_api.h"
 
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 
+#include "core/gcode_filename.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "moonraker_api_internal.h"

@@ -3,7 +3,7 @@
 
 #include "ui_heater_icon_binder.h"
 
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

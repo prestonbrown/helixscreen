@@ -44,7 +44,7 @@ flowchart LR
 | [`include/core/update_queue.h`](../../../include/core/update_queue.h) | `UpdateQueue` and `queue_update()` - the only sanctioned thread crossing |
 | [`include/async_lifetime_guard.h`](../../../include/async_lifetime_guard.h) | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` - the callback-lifetime guard |
 | [`include/ui_observer_guard.h`](../../../include/ui_observer_guard.h) | `ObserverGuard`, `SubjectLifetime` - observer cleanup and subject-death tracking |
-| [`include/observer_factory.h`](../../../include/observer_factory.h) | `observe<int>()` and friends; the factories whose 4th parameter carries the lifetime |
+| [`include/core/observer_factory.h`](../../../include/core/observer_factory.h) | `observe<int>()` and friends; the factories whose 4th parameter carries the lifetime |
 | [`include/ui_utils.h`](../../../include/ui_utils.h) | `safe_delete_deferred()`, `safe_clean_children()`, `safe_delete_subtree()` - deferred deletion |
 | [`include/ui_timer_guard.h`](../../../include/ui_timer_guard.h) | `LvglTimerGuard` RAII and `lv_timer_cancel_safe()` |
 | [`include/http_executor.h`](../../../include/http_executor.h) | `HttpExecutor::fast()` (4 workers) / `slow()` (1 worker) process-wide pools |

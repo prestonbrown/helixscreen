@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ui_heater_config.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_temp_graph.h"
 
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "heater_type.h"
 #include "overlay_base.h"
 #include "static_panel_registry.h"
 #include "temp_graph_controller.h"

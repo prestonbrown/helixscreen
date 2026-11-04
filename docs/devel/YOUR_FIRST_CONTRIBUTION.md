@@ -408,7 +408,7 @@ std::vector<ObserverGuard> slot_path_observers_;
 
 When the set of units changes, `slot_path_observers_` is `clear()`ed first, then re-populated with one `ObserverGuard` per live slot as the slot widgets are recreated (`ui_panel_ams.cpp` — `clear()` at both teardown and rebuild, `push_back` per slot). Guards are RAII, so dropping the old vector elements un-observes the dead slots automatically. This is the pattern for any per-item observer collection: **the observer's lifetime is the item widget's lifetime.**
 
-One nuance: these particular subjects come from a static array owned by a singleton (`AmsState`), so they live for the whole app and need no `SubjectLifetime` token — the header comments say so explicitly. If your per-item subjects are owned by something shorter-lived (a backend, a panel), you must pair each observer with the owner's `SubjectLifetime` — see [THREADING.md](THREADING.md) and the `observer_factory.h` helpers.
+One nuance: these particular subjects come from a static array owned by a singleton (`AmsState`), so they live for the whole app and need no `SubjectLifetime` token — the header comments say so explicitly. If your per-item subjects are owned by something shorter-lived (a backend, a panel), you must pair each observer with the owner's `SubjectLifetime` — see [THREADING.md](THREADING.md) and the `core/observer_factory.h` helpers.
 
 ### 4. Multi-backend abstraction
 

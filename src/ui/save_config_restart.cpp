@@ -6,9 +6,9 @@
 #include "ui_emergency_stop.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

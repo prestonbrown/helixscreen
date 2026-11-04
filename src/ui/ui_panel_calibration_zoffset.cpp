@@ -12,10 +12,10 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "lvgl.h"
 #include "moonraker_api.h"
 #include "motion_presets.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"

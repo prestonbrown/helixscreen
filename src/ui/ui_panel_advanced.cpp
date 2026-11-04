@@ -19,12 +19,12 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "exception_policy.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widgets/shutdown_widget.h"

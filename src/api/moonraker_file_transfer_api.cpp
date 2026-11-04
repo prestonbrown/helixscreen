@@ -4,9 +4,9 @@
 #include "moonraker_file_transfer_api.h"
 
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 #include "ui_notification.h"
 
+#include "core/gcode_filename.h"
 #include "http_executor.h"
 #include "http_request_epoch.h"
 #include "hv/hfile.h"

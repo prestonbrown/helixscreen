@@ -8,8 +8,8 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
 #include "state/subject_macros.h"

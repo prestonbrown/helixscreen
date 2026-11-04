@@ -6,12 +6,12 @@
 #include "ui_toast_manager.h"
 
 #include "config.h"
+#include "core/observer_factory.h"
 #include "display_manager.h"
 #include "display_metrics.h"
 #include "helix-xml/src/xml/lv_xml_style.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
-#include "observer_factory.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
 #include "screensaver_canvas.h"

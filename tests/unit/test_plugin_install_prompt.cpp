@@ -32,9 +32,9 @@
 #include "../test_helpers/scoped_env.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "discovery_steps.h"
 #include "http_executor.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <chrono>

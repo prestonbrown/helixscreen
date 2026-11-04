@@ -5,13 +5,14 @@
 
 #include "ui_busy_overlay.h"
 #include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 #include "ui_panel_print_status.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_temperature_utils.h"
 
 #include "active_print_media_manager.h"
 #include "app_globals.h"
+#include "core/gcode_filename.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "gcode_edit_list.h"
 #include "gcode_tool_remapper.h"
@@ -23,7 +24,6 @@
 #include "memory_utils.h"
 #include "moonraker_auth.h"
 #include "moonraker_manager.h"
-#include "observer_factory.h"
 #include "operation_registry.h"
 #include "preprint_skip_wrappers.h"
 #include "print_start_collector.h"

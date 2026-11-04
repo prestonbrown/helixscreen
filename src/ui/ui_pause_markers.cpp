@@ -3,8 +3,8 @@
 
 #include "ui_pause_markers.h"
 
+#include "core/observer_factory.h"
 #include "gcode_pause_scan.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 

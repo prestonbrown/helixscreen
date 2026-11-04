@@ -6,9 +6,9 @@
 
 #include "bed_dimensions.h"
 #include "bed_grid.h"
+#include "core/observer_factory.h"
 #include "exclude_map_hatch.h"
 #include "lv_draw_buf_guard.h"
-#include "observer_factory.h"
 #include "printer_excluded_objects_state.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"

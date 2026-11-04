@@ -5,7 +5,7 @@
 
 #include "config.h"
 #include "connection_state.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_excluded_objects_state.h"
 #include "printer_network_state.h"

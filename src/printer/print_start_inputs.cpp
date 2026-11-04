@@ -3,10 +3,10 @@
 #include "print_start_inputs.h"
 
 #include "ui_filament_mapping_card.h"
-#include "ui_filename_utils.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/gcode_filename.h"
 #include "file_analysis.h"
 #include "gcode_parser.h"
 #include "gcode_preview_fetcher.h"

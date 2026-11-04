@@ -3,9 +3,8 @@
 
 #include "print_history_manager.h"
 
-#include "ui_filename_utils.h"
-
 #include "connection_staleness.h"
+#include "core/gcode_filename.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"

@@ -14,6 +14,7 @@
 #include "ui_virtual_list.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
@@ -24,7 +25,6 @@
 #include "macro_executor.h"
 #include "macro_param_cache.h"
 #include "macro_param_defaults.h"
-#include "observer_factory.h"
 #include "preprint_skip_wrappers.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

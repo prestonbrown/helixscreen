@@ -1,9 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_filename_utils.h"
 #include "ui_format_utils.h"
 #include "ui_panel_print_select.h"
+
+#include "core/gcode_filename.h"
 
 #include <algorithm>
 #include <ctime>

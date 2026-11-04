@@ -5,8 +5,7 @@
 
 #include "usb_backend_linux.h"
 
-#include "ui_filename_utils.h"
-
+#include "core/gcode_filename.h"
 #include "helix_thread.h"
 
 #include <spdlog/spdlog.h>
