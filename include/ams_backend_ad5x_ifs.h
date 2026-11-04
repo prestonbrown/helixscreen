@@ -564,7 +564,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
 
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
                              const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsSubscriptionBackend::IdentityWrite
+    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
     void persist_external_identity_impl(int slot_index,
                                         const helix::ams::Observation& spoolman) override;
     // Weight-only persist: updates remaining/total weight in the override store
@@ -590,15 +591,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // remap_ready() below reports, so the print-start path does not silently
     // drop a user-supplied remap.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
-
-    // Explicit user-initiated override clear (e.g. "Clear slot metadata" button
-    // in the AMS edit modal). Erases overrides_[slot_index], resets the
-    // override-exclusive fields on the live SlotInfo, and kicks off
-    // override_store_->clear_async so the Moonraker lane_data entry is deleted.
-    // The eject path (parse_adventurer_json detecting an empty ffmColor while
-    // port_presence was true) shares this routine so the field-reset policy
-    // stays in one place.
-    void clear_slot_override(int slot_index) override;
 
     /// Publish the external spool as lane{N+1} in the lane_data namespace.
     /// ZMOD never writes lane_data — our mirror owns the namespace entirely,
@@ -667,6 +659,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     }
 
     SlotInfo* cached_slot_locked(int slot_index) override;
+    SlotInfo* identity_slot_locked(int slot_index) override;
     [[nodiscard]] const SlotInfo* slot_info_locked(int slot_index) const override {
         const auto* entry = slots_.get(slot_index);
         return entry ? &entry->info : nullptr;

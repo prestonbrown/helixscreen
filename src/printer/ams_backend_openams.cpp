@@ -996,20 +996,6 @@ AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendOpenAms::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        SlotInfo* slot = system_info_.get_slot_global(slot_index);
-        if (!slot) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                                system_info_.total_slots - 1);
-        }
-        write_filament_fields(*slot, info);
-    }
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 void AmsBackendOpenAms::persist_slot_weight(int slot_index, float remaining_weight_g,
                                             float total_weight_g) {
     const std::string tag = backend_log_tag();
@@ -1024,14 +1010,6 @@ void AmsBackendOpenAms::persist_external_identity_impl(int slot_index,
     std::lock_guard<std::mutex> lock(mutex_);
     helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
                                                    spoolman, tag);
-}
-
-void AmsBackendOpenAms::clear_slot_override(int slot_index) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        clear_override_locked(slot_index, system_info_.get_slot_global(slot_index));
-    }
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
 void AmsBackendOpenAms::clear_override_fields(SlotInfo& slot) const {

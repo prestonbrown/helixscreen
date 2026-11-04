@@ -96,12 +96,10 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
 
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
                              const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
     void persist_slot_weight(int slot_index, float remaining_weight_g,
                              float total_weight_g) override;
     void persist_external_identity_impl(int slot_index,
                                         const helix::ams::Observation& spoolman) override;
-    void clear_slot_override(int slot_index) override;
 
     /// Group names are configured in klipper_openams; `T<n>` groups are read
     /// as tool n and cannot be re-aimed from here.

@@ -222,7 +222,8 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
                              const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsSubscriptionBackend::IdentityWrite
+    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
     void persist_slot_weight(int slot_index, float remaining_weight_g,
                              float total_weight_g) override;
     void persist_external_identity_impl(int slot_index,
@@ -297,9 +298,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     AmsError stop_drying_gates(int unit, const std::vector<int>& gates) override;
     AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1,
                            int unit = 0) override;
-
-    /// Delete this gate's user override ("Clear Spool").
-    void clear_slot_override(int slot_index) override;
 
     /// Publish the external spool as lane{N+1} in the SHARED lane_data
     /// namespace — Happy Hare's plugin never publishes its bypass/external
@@ -393,6 +391,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         return "[AMS HappyHare]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
+    SlotInfo* identity_slot_locked(int slot_index) override;
     [[nodiscard]] const SlotInfo* slot_info_locked(int slot_index) const override {
         const auto* entry = slots_.get(slot_index);
         return entry ? &entry->info : nullptr;

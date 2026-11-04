@@ -1776,27 +1776,6 @@ void AmsBackendAd5xIfs::unlock_auto_tracked_override_on_insert_locked(int slot_i
     release_color_material_locks_locked(slot_index, ovr, ReleasedValues::Keep);
 }
 
-void AmsBackendAd5xIfs::clear_slot_override(int slot_index) {
-    if (slot_index < 0 || slot_index >= kNumPorts) {
-        spdlog::warn("{} clear_slot_override: invalid slot {}", backend_log_tag(), slot_index);
-        return;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        auto* entry = slots_.get_mut(slot_index);
-        if (!entry) {
-            spdlog::warn("{} clear_slot_override: no slot entry for index {}", backend_log_tag(),
-                         slot_index);
-            return;
-        }
-        spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
-        clear_override_locked(slot_index, &entry->info);
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-}
-
 // --- State queries ---
 
 void AmsBackendAd5xIfs::publish_external_spool_lane(const SlotInfo* spool) {
@@ -3390,26 +3369,22 @@ void AmsBackendAd5xIfs::persist_external_identity_impl(int slot_index,
                                                    spoolman, tag);
 }
 
-AmsError AmsBackendAd5xIfs::sync_external_identity(int slot_index, const SlotInfo& info) {
-    if (auto err = validate_slot_index(slot_index); !err.success()) {
-        return err;
+SlotInfo* AmsBackendAd5xIfs::identity_slot_locked(int slot_index) {
+    return cached_slot_locked(slot_index);
+}
+
+AmsSubscriptionBackend::IdentityWrite
+AmsBackendAd5xIfs::write_synced_identity_locked(int slot_index, SlotInfo* slot,
+                                                const SlotInfo& info) {
+    if (auto err = validate_slot_index_locked(slot_index); !err.success()) {
+        return {err};
     }
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        auto* entry = slots_.get_mut(slot_index);
-        if (!entry) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, kNumPorts - 1);
-        }
-        // Nothing reaches Adventurer5M.json, _IFS_VARS or the override store: a
-        // synced value lives in memory only.
-        write_port_locked(slot_index, entry->info, info);
-        settle_port_locked(slot_index);
+    if (!slot) {
+        return {AmsErrorHelper::invalid_slot(lane_noun(), slot_index, kNumPorts - 1)};
     }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
+    write_port_locked(slot_index, *slot, info);
+    settle_port_locked(slot_index);
+    return {};
 }
 
 SlotInfo* AmsBackendAd5xIfs::cached_slot_locked(int slot_index) {

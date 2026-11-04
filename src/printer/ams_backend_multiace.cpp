@@ -381,53 +381,10 @@ AmsError AmsBackendMultiAce::apply_user_edit(int slot_index, const SlotInfo& inf
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendMultiAce::sync_external_identity(int slot_index, const SlotInfo& info) {
+void AmsBackendMultiAce::after_override_cleared_locked(int slot_index, SlotInfo& slot) {
     if (!multiace::bay_of(slot_index)) {
-        return AmsBackendSnapmaker::sync_external_identity(slot_index, info);
+        AmsBackendSnapmaker::after_override_cleared_locked(slot_index, slot);
     }
-    if (auto err = validate_slot_index(slot_index); err.result != AmsResult::SUCCESS) {
-        return err;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        SlotInfo* slot = system_info_.get_slot_global(slot_index);
-        if (!slot) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                                system_info_.total_slots - 1);
-        }
-        // overrides_ is left alone and nothing reaches the engine: the next
-        // frame restates its own table, which outranks a synced value.
-        slot->assign_filament_fields(info);
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
-void AmsBackendMultiAce::clear_slot_override(int slot_index) {
-    if (!multiace::bay_of(slot_index)) {
-        AmsBackendSnapmaker::clear_slot_override(slot_index);
-        return;
-    }
-    if (auto err = validate_slot_index(slot_index); !err.success()) {
-        spdlog::warn("{} clear_slot_override: invalid slot {}", backend_log_tag(), slot_index);
-        return;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        SlotInfo* slot = system_info_.get_slot_global(slot_index);
-        if (!slot) {
-            spdlog::warn("{} clear_slot_override: no slot entry for index {}", backend_log_tag(),
-                         slot_index);
-            return;
-        }
-        spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
-        clear_override_locked(slot_index, slot);
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
 // ============================================================================

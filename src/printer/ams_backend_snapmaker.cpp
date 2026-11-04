@@ -1592,27 +1592,6 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendSnapmaker::sync_external_identity(int slot_index, const SlotInfo& info) {
-    auto err = validate_slot_index(slot_index);
-    if (err.result != AmsResult::SUCCESS)
-        return err;
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        auto* slot = system_info_.units[0].get_slot(slot_index);
-        if (!slot)
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, kNumTools - 1);
-
-        // overrides_ is left alone and nothing reaches firmware: the next
-        // Klipper status update overwrites a synced value.
-        slot->assign_filament_fields(info);
-    }
-
-    // Pass slot_index as event data so AmsState can do a targeted slot sync.
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 void AmsBackendSnapmaker::persist_external_identity_impl(int slot_index,
                                                          const helix::ams::Observation& spoolman) {
     const std::string tag = backend_log_tag();
@@ -3140,28 +3119,18 @@ void AmsBackendSnapmaker::clear_override_fields(SlotInfo& slot) const {
     slot.product_name.clear();
 }
 
-void AmsBackendSnapmaker::clear_slot_override(int slot_index) {
-    if (auto err = validate_slot_index(slot_index); !err.success()) {
-        spdlog::warn("{} clear_slot_override: invalid slot {}", backend_log_tag(), slot_index);
-        return;
+AmsSubscriptionBackend::IdentityWrite
+AmsBackendSnapmaker::write_synced_identity_locked(int slot_index, SlotInfo* slot,
+                                                  const SlotInfo& info) {
+    if (auto err = validate_slot_index_locked(slot_index); !err.success()) {
+        return {err};
     }
+    return AmsSubscriptionBackend::write_synced_identity_locked(slot_index, slot, info);
+}
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        auto* slot =
-            system_info_.units.empty() ? nullptr : system_info_.units[0].get_slot(slot_index);
-        if (!slot) {
-            spdlog::warn("{} clear_slot_override: no slot entry for index {}", backend_log_tag(),
-                         slot_index);
-            return;
-        }
-        spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
-        clear_override_locked(slot_index, slot);
-        drop_pending_record_write_locked(slot_index);
-        slot->spool_name = tag_product_line(lane_id(slot_index));
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
+void AmsBackendSnapmaker::after_override_cleared_locked(int slot_index, SlotInfo& slot) {
+    drop_pending_record_write_locked(slot_index);
+    slot.spool_name = tag_product_line(lane_id(slot_index));
 }
 
 // ============================================================================

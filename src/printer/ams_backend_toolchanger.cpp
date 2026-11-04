@@ -2960,14 +2960,6 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
     return AmsErrorHelper::success();
 }
 
-void AmsBackendToolChanger::clear_slot_override(int slot_index) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        clear_override_locked(slot_index, system_info_.get_slot_global(slot_index));
-    }
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-}
-
 void AmsBackendToolChanger::clear_override_fields(SlotInfo& slot) const {
     AmsSubscriptionBackend::clear_override_fields(slot);
     slot.material.clear();
@@ -2975,26 +2967,18 @@ void AmsBackendToolChanger::clear_override_fields(SlotInfo& slot) const {
     slot.multi_color_hexes.clear();
 }
 
-AmsError AmsBackendToolChanger::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        AmsError slot_valid = validate_slot_index_locked(slot_index);
-        if (!slot_valid) {
-            return slot_valid;
-        }
-
-        // The slot keeps the tool number it answers to: only a person's edit moves
-        // the tool map, and moving it sends ASSIGN_TOOL.
-        if (!system_info_.units.empty() &&
-            slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
-            system_info_.units[0].slots[slot_index].assign_filament_fields(info);
-        }
+AmsSubscriptionBackend::IdentityWrite
+AmsBackendToolChanger::write_synced_identity_locked(int slot_index, SlotInfo* slot,
+                                                    const SlotInfo& info) {
+    if (AmsError slot_valid = validate_slot_index_locked(slot_index); !slot_valid) {
+        return {slot_valid};
     }
-
-    // Emit OUTSIDE the lock to avoid deadlock with callbacks
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
+    // A tool the validator accepts but the slot vector does not yet hold is
+    // reported as synced without a write.
+    if (slot) {
+        slot->assign_filament_fields(info);
+    }
+    return {};
 }
 
 void AmsBackendToolChanger::persist_external_identity_impl(

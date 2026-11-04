@@ -424,7 +424,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
                              const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsSubscriptionBackend::IdentityWrite
+    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
 
     /// The lane's inline colour scan (a TD-1), which SlotInfo keeps apart from
     /// color_rgb: the scanner's colour is the reading.
@@ -625,6 +626,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return "[AMS AFC]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
+    SlotInfo* identity_slot_locked(int slot_index) override;
 
   private:
     // === User-attached slot identity (FilamentSlotOverrideStore) =============
