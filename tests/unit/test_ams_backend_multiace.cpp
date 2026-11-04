@@ -4,6 +4,8 @@
 // heads. Status frames come from tests/fixtures/multiace/ (the engine's
 // get_status() shape); commands are captured at execute_gcode().
 
+#include "ui_update_queue.h"
+
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -11,7 +13,6 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/snapmaker_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_multiace.h"
 #include "ams_backend_snapmaker.h"
@@ -105,7 +106,7 @@ class CapturingMultiAce : public AmsBackendMultiAce {
     void answer_ok() {
         REQUIRE(last_ok);
         last_ok();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void answer_error(const std::string& message) {
         REQUIRE(last_error);
@@ -113,7 +114,7 @@ class CapturingMultiAce : public AmsBackendMultiAce {
         err.type = MoonrakerErrorType::JSON_RPC_ERROR;
         err.message = message;
         last_error(err);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     helix::SharedCallback<void()> last_ok;
@@ -140,7 +141,7 @@ class CapturingMultiAce : public AmsBackendMultiAce {
 
 struct MultiAceFixture : public HelixTestFixture {
     ~MultiAceFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -212,7 +213,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "factory builds MultiAce only for a multi
     CHECK(units_after_frame(&modded) == 5);
     CHECK(units_after_frame(&plain) == 1);
     CHECK(units_after_frame(nullptr) == 1);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(MultiAcePrintFixture, "AmsState builds the multiACE backend from discovery",
@@ -232,7 +233,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "AmsState builds the multiACE backend fro
     SnapmakerTestAccess::handle_status(snap, ace_frame("head_mode_4ace.json"));
     CHECK(snap.get_system_info().units.size() == 5);
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     ams.deinit_subjects();
 }
 
@@ -250,7 +251,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "a 4-ACE rig gives every bay a slot subje
 
     auto& snap = static_cast<AmsBackendSnapmaker&>(*ams.get_backend(0));
     SnapmakerTestAccess::handle_status(snap, ace_frame("head_mode_4ace.json"));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // ACE 4's bays are global slots 16-19, past the old 16-slot ceiling; the
     // fixture fills bay 1 with a red PLA and reports bay 3 empty.
@@ -263,7 +264,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "a 4-ACE rig gives every bay a slot subje
     CHECK(lv_subject_get_int(ams.get_slot_status_subject(first + 2)) ==
           static_cast<int>(SlotStatus::EMPTY));
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     ams.deinit_subjects();
 }
 
@@ -584,7 +585,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "bay swap refused while paused", "[multia
 
     CHECK_FALSE(b.load_filament(multiace::bay_global(0, 1)).success());
     CHECK(b.sent.empty());
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "every head goes through the engine while it is active",
@@ -922,7 +923,7 @@ AmsError resume_head(CapturingMultiAce& b, int head) {
         fired = true;
         captured = err;
     });
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(fired);
     return captured;
 }
@@ -1084,13 +1085,13 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "a pending bay load yields to a print", "
     }
     SECTION("a print start this screen is preparing, not yet on the wire") {
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "", 0);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         REQUIRE(state.print_state().get_print_lifecycle() == PrintState::Preparing);
     }
     b.frame(json{{"ace", {{"head_source", json::object()}}}});
     CHECK(b.sent.size() == 1);
     CHECK(b.errors.size() == 1);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "a loaded head with no recorded source refuses a bay swap",

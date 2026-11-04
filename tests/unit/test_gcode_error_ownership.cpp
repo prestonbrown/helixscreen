@@ -23,6 +23,8 @@
  * send_jsonrpc(), so the record (if any) exists by the time the call returns.
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
 #include "ams_backend_cfs.h"
@@ -35,7 +37,6 @@
 #include "rpc_error_correlation.h"
 #include "temperature_controller.h"
 #include "test_helpers/cfs_test_access.h"
-#include "test_helpers/update_queue_test_access.h"
 #include "toolhead_homing.h"
 
 #include <algorithm>
@@ -53,7 +54,7 @@ class OwnershipFixture : public LVGLTestFixture {
         helix::rpc_error_correlation::clear_for_test();
     }
     ~OwnershipFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::rpc_error_correlation::clear_for_test();
     }
 };
@@ -127,7 +128,7 @@ TEST_CASE_METHOD(OwnershipFixture,
     CHECK(client.current_send_intent().surfaces_errors);
     CHECK(helix::rpc_error_correlation::was_recently_handled(kG28Rejection));
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(seen == kG28Rejection);
 }
 
@@ -157,7 +158,7 @@ TEST_CASE_METHOD(OwnershipFixture,
 
     // G28's ack is marshalled through token.defer(); drain so the payload send
     // (the one that fails) actually happens.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // last_send_* is NOT usable here: the error handler's best-effort unwind
     // (RESTORE_GCODE_STATE) is dispatched from the same drain and overwrites it.

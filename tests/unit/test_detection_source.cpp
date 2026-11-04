@@ -1,7 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_update_queue.h"
+
 #include "../test_fixtures.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "detection_source.h"
 #include "printer_state.h"
 #include "u1_stock_detection_source.h"
@@ -44,9 +45,7 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource emits Spaghetti on paused+code2"
 
     // The print-state-enum observer is deferred via the UpdateQueue (observe<int>),
     // so drain after each frame to run on_print_state() once the frame is fully parsed.
-    auto drain = [] {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    };
+    auto drain = [] { helix::ui::UpdateQueue::instance().drain_until_empty(); };
 
     // printing, empty exception -> no event
     state().update_from_status(
@@ -84,7 +83,7 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource ignores manual pause (no defect 
         json{{"print_stats", {{"state", "printing"}, {"exception", json::object()}}}});
     state().update_from_status(
         json{{"print_stats", {{"state", "paused"}, {"exception", json::object()}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(fired == 0);
 }
 
@@ -101,7 +100,7 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource fires once per pause edge", "[de
          {{"state", "paused"}, {"exception", {{"code", 2}, {"message", "detected noodle"}}}}}});
     // redundant paused frame -> no second event
     state().update_from_status(json{{"print_stats", {{"state", "paused"}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(fired == 1);
 }
 
@@ -112,9 +111,7 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource fires when the noodle code lands
     int fired = 0;
     src.set_callback([&](const helix::detection::DetectionEvent&) { ++fired; });
     src.start();
-    auto drain = [] {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    };
+    auto drain = [] { helix::ui::UpdateQueue::instance().drain_until_empty(); };
 
     state().update_from_status(
         json{{"print_stats", {{"state", "printing"}, {"exception", json::object()}}}});
@@ -143,9 +140,7 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource reports a dirty bed and explains
         ++fired;
     });
     src.start();
-    auto drain = [] {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    };
+    auto drain = [] { helix::ui::UpdateQueue::instance().drain_until_empty(); };
 
     state().update_from_status(
         json{{"print_stats", {{"state", "printing"}, {"exception", json::object()}}}});
@@ -189,7 +184,7 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource leaves another module's code 1 a
         json{{"print_stats",
               {{"state", "paused"},
                {"exception", {{"id", 523}, {"index", 0}, {"code", 1}, {"message", "runout"}}}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(fired == 0);
     CHECK_FALSE(src.explains_current_pause());
 }

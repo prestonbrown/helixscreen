@@ -4,7 +4,6 @@
 #include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "color_utils.h"
 #include "config.h"
 #include "led/led_auto_state.h"
@@ -23,7 +22,7 @@ using namespace helix;
 /// subjects are still alive, before HelixTestFixture's own teardown.
 struct LedConfigFixture : public HelixTestFixture {
     ~LedConfigFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 

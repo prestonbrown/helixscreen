@@ -11,7 +11,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "config.h"
 #include "format_utils.h"
@@ -36,7 +35,7 @@ using namespace helix;
 namespace {
 
 void drain_all() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 std::string subject_text(lv_subject_t* subject) {

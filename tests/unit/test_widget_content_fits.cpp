@@ -50,7 +50,6 @@
 #include "../test_helpers/scoped_animations_enabled.h"
 #include "../test_helpers/scoped_widget_labels.h"
 #include "../test_helpers/tips_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "bed_mesh_state.h"
@@ -262,7 +261,7 @@ struct TestModeGuard {
 struct ContentFitsFixture : public LVGLUITestFixture {
     /// What the seeds that publish through the update queue call after each change.
     void settle_updates() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_lvgl(30);
     }
     ~ContentFitsFixture() override {
@@ -273,7 +272,7 @@ struct ContentFitsFixture : public LVGLUITestFixture {
         // guards then call lv_observer_remove() on freed memory.
         PrintStatusWidget::destroy_formatter_for_test();
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         // The sweep drives the display through eight resolutions; put the token
         // table back where the rest of the suite expects it, and drop the components
         // registered at the last one so their next use takes the restored tokens.
@@ -296,7 +295,7 @@ void seed_printer_topology(PrinterState& state) {
     ToolState::instance().set_ams_topology(topo);
 
     state.temperature_state().init_extruders({"extruder"});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// The filament buffer tile binds to AmsState subjects, so it only has content
@@ -431,7 +430,7 @@ Rendered render_at(lv_obj_t* screen, const PanelWidgetDef& def, const CellMetric
         // Several widgets rebuild their content from an observer that fires
         // through UpdateQueue rather than inline (observe<int> queues its
         // handler), so measuring before the drain measures the pre-rebuild tree.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_obj_update_layout(h.root());
         out.report = collect_overflow(h.root(), exceptions());
         if (lv_subject_t* rung =
@@ -445,7 +444,7 @@ Rendered render_at(lv_obj_t* screen, const PanelWidgetDef& def, const CellMetric
     }
     // Anything the widget queued on its way out must run while the objects it
     // captured are still the most recent ones deleted.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     return out;
 }
 
@@ -1135,7 +1134,7 @@ TEST_CASE_METHOD(ContentFitsFixture,
             RegistryWidgetHarness harness(test_screen(), *def, &m);
             REQUIRE(harness.created());
             harness.resize(box.tracks, 1, w, h);
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
             lv_obj_update_layout(harness.root());
             require_no_overflow(harness.root(), exceptions(), "favorite_macro micro half height");
 
@@ -1165,5 +1164,5 @@ TEST_CASE_METHOD(ContentFitsFixture,
     }
     // The wider strips draw the name, so the bounds checks above ran.
     CHECK(names_drawn > 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }

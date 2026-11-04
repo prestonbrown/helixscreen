@@ -1263,7 +1263,7 @@ TEST_CASE_METHOD(AbortManagerTestFixture,
     simulate_cancel_success();
 
     // Drain async queue - L048: async tests need queue drain
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Abort should be complete
     REQUIRE(AbortManager::instance().get_state() == AbortManager::State::COMPLETE);
@@ -1300,7 +1300,7 @@ TEST_CASE_METHOD(AbortManagerTestFixture,
     simulate_klippy_ready();
 
     // Drain async queue
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Abort should be complete
     REQUIRE(AbortManager::instance().get_state() == AbortManager::State::COMPLETE);

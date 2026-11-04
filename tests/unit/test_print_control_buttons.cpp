@@ -6,7 +6,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_control_buttons_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "print_control_buttons.h"
 #include "printer_state.h"
@@ -45,7 +44,7 @@ void set_print_state(helix::PrintJobState s) {
     lv_subject_set_int(get_printer_state().print_state().get_print_state_enum_subject(),
                        static_cast<int>(s));
     // observe<int> defers via queue_update — drain so the controller reacts.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 } // namespace

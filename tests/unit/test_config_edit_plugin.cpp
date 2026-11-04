@@ -10,7 +10,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "helix_plugin_features.h"
 #include "http_executor.h"
 #include "klipper_config_editor.h"
@@ -340,7 +339,7 @@ void run_multi_edit(LVGLTestFixture& fixture, KlipperConfigEditor& editor, Moonr
     editor.safe_multi_edit(
         api, section, edits, [&run]() { run.succeeded = true; },
         [&run](const std::string& err) { run.error = err; }, restart_timeout_ms);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     // The health monitor holds `api` and `editor` by reference: never leave it running.
     REQUIRE(fixture.wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; },
                                15000));
@@ -491,7 +490,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_edit_value takes the plugin path when it
     editor.safe_edit_value(
         api, "probe", "z_offset", "1.3", [&]() { succeeded = true; }, [](const std::string&) {},
         300);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; }, 15000));
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(1200);

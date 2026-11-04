@@ -45,7 +45,6 @@
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/scoped_cache_dir.h"
 #include "../test_helpers/scoped_macros_read.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "gcode_ops_detector.h"
 #include "gcode_preview_fetcher.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -138,7 +137,7 @@ class DetailDownloadFixture : public LVGLUITestFixture {
     /// through ensure_gcode_downloaded / finish_scan crosses the UpdateQueue
     /// via tok.defer — pump a few passes so the whole chain has run.
     void drain_queue_chain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Production close flow: go_back is deferred, so drain runs

@@ -15,13 +15,13 @@
  */
 
 #include "ui_print_tune_overlay.h"
+#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_pointer_indev.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
 #include "home_edit_mode_test_helpers.h"
@@ -50,7 +50,7 @@ struct SpeedFlowFixture : public LVGLUITestFixture {
         set_physical_units(false);
         set_print_active(false);
         set_percentages(100, 100);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void set_physical_units(bool on) {
@@ -73,7 +73,7 @@ struct SpeedFlowFixture : public LVGLUITestFixture {
         drain();
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 

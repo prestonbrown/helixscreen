@@ -5,7 +5,6 @@
 #include "ui_update_queue.h"
 
 #include "../test_helpers/print_history_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "helix_shared_callback.h"
 #include "moonraker_api.h"
@@ -79,7 +78,7 @@ struct PrintHistorySeed {
     }
 
     ~PrintHistorySeed() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         set_print_history_manager(nullptr);
         set_moonraker_api(nullptr);
         history_manager.reset();

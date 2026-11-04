@@ -400,7 +400,7 @@ TEST_CASE_METHOD(PrinterSwitchFixture,
     CHECK(events_.empty());
 
     const auto exceptions_before = helix::ui::UpdateQueueTestAccess::callback_exception_count();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(events_.empty());
     lv_timer_handler();
 

@@ -40,7 +40,6 @@
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/shutdown_widget_test_access.h"
 #include "../test_helpers/tool_switcher_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "print_lifecycle_state.h"
 #include "printer_discovery.h"
@@ -73,7 +72,7 @@ constexpr const char* kThermistorSensorB = "temperature_sensor helix_teardown_b"
 struct HomeWidgetTeardownFixture : LVGLUITestFixture {
     ~HomeWidgetTeardownFixture() override {
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
     }
 
     /// A stand-in for the home panel's widget-page container. Raw-deleting it

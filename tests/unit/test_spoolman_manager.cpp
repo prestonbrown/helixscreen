@@ -149,7 +149,7 @@ struct SpoolmanFixture : public LVGLTestFixture {
     /// value is visible synchronously (set_spoolman_available uses queue_update).
     void set_spoolman_available(bool available) {
         get_printer_state().capabilities_state().set_spoolman_available(available);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -543,7 +543,7 @@ struct SpoolmanLaneFixture : SpoolmanFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static void poll() {
@@ -1263,7 +1263,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     // so what the subjects show afterwards is the poll's own refresh.
     server_spool(1).remaining_weight_g = 700.0;
     fetch();
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(backend->get_slot_info(0).remaining_weight_g == 700.0F);
 
     CHECK(lv_subject_get_int(ams.get_slot_fill_subject(0)) == 70);

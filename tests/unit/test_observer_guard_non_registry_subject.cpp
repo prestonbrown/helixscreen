@@ -22,7 +22,6 @@
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "observer_factory.h"
 
 #include "../catch_amalgamated.hpp"
@@ -36,7 +35,7 @@ struct CountingPanel {
 };
 
 void drain() {
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 } // namespace

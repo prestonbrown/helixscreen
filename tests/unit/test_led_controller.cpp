@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_observer_guard.h"
+#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
@@ -34,7 +34,7 @@ using namespace helix;
 /// HelixTestFixture's own teardown.
 struct LedControllerFixture : public HelixTestFixture {
     ~LedControllerFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         // A discovery over a saved selection stages the light selection; later
         // tests must see a config that has not migrated yet.
         auto* cfg = Config::get_instance();
@@ -1130,7 +1130,7 @@ void make_led_dispatch_real(helix::PrinterState& api_state) {
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(helix::ConnectionState::CONNECTED));
     ps.set_klippy_state_sync(helix::KlippyState::READY);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// Count SET_LED commands that actually hit the mock wire.
@@ -1159,7 +1159,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     // --- First discovery completes: the preference applies, lights come up. ---
     mock_client.clear_gcode_script_history();
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     REQUIRE(chamber_on());
     // Assert on the wire, not just the flag: a SET_LED really went to Klipper.
@@ -1168,7 +1168,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     // --- The user turns the lights off. ---
     ctrl.set_power({kChamber}, false);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(chamber_on());
     REQUIRE(ctrl.native().get_strip_color("neopixel chamber").r == Catch::Approx(0.0).margin(0.01));
 
@@ -1185,7 +1185,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     // ...and the connected callback calls apply_startup_preference() again.
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The user's OFF has to survive the restart: startup already happened.
     CHECK(count_set_led(mock_client.gcode_script_history()) == 0);
@@ -1211,7 +1211,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     // First discovery: no light yet — no-op, and no shot spent.
     REQUIRE(ctrl.light_targets("").empty());
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(chamber_on());
 
     // Strips show up on the next pass.
@@ -1224,7 +1224,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     mock_client.clear_gcode_script_history();
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(chamber_on());
     CHECK(count_set_led(mock_client.gcode_script_history()) == 1);
@@ -1244,11 +1244,11 @@ TEST_CASE_METHOD(LedMockApiFixture,
     ctrl.set_last_color(0xFFFFFF);
     ctrl.set_startup_brightness(80);
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(chamber_on());
 
     ctrl.set_power({kChamber}, false);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(chamber_on());
 
     // Printer switch: teardown + re-init.
@@ -1260,7 +1260,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     mock_client.clear_gcode_script_history();
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(chamber_on());
     CHECK(count_set_led(mock_client.gcode_script_history()) == 1);
@@ -1337,7 +1337,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     ctrl.set_power({kChamber}, true);
     REQUIRE(lv_subject_get_int(s) == 1);
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
     REQUIRE_FALSE(ctrl.light_command_in_flight());
 }
@@ -1352,7 +1352,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: in-flight clears even when t
     ctrl.set_power({kChamber}, true);
     REQUIRE(lv_subject_get_int(s) == 1);
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
 }
 
@@ -1374,7 +1374,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: in-flight covers every devic
     ctrl.set_power({"neopixel a", "neopixel b"}, true);
     REQUIRE(lv_subject_get_int(s) == 1);
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
 }
 
@@ -1399,7 +1399,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: disconnect clears in-flight 
     lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
                        static_cast<int>(helix::ConnectionState::DISCONNECTED));
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
     REQUIRE_FALSE(ctrl.light_command_in_flight());
 }
@@ -1432,13 +1432,13 @@ void wedge_in_flight_led_command(helix::PrinterState& api_state, MoonrakerClient
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(helix::ConnectionState::CONNECTED));
     ps.set_klippy_state_sync(global_klippy);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The RPC goes out; the response never comes back. Neither on_success nor
     // on_error ever runs, so note_command_settled() is never reached.
     mock_client.force_next_gcode_dropped_response("SET_LED");
     helix::led::LedController::instance().set_power({kChamber}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 } // namespace
@@ -1492,7 +1492,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     REQUIRE(lv_subject_get_int(ps.network_state().get_printer_connection_state_subject()) ==
             static_cast<int>(helix::ConnectionState::CONNECTED));
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(s) == 0);
     CHECK_FALSE(ctrl.light_command_in_flight());
 }
@@ -1517,7 +1517,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     ps.set_klippy_state_sync(helix::KlippyState::READY);
     REQUIRE(lv_subject_get_int(ps.network_state().get_klippy_state_subject()) ==
             static_cast<int>(helix::KlippyState::READY));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(s) == 1);
     CHECK(ctrl.light_command_in_flight());
 }
@@ -1556,11 +1556,11 @@ TEST_CASE_METHOD(LedMockApiFixture,
     lv_subject_set_int(state.print_state().get_print_state_enum_subject(),
                        static_cast<int>(helix::PrintJobState::STANDBY));
     helix::PrinterStateTestAccess::set_sustained_idle_timeout_printing(state, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     mock_client.force_next_gcode_dropped_response("SET_LED");
     ctrl.set_power({kChamber}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The command really did go out (queued in Klipper, not refused)...
     CHECK_FALSE(mock_client.gcode_script_history().empty());
@@ -1593,7 +1593,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: WLED toggle marks in-flight 
     ctrl.set_power({"wled_printer_led"}, true);
     REQUIRE(lv_subject_get_int(s) == 1);
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
     REQUIRE_FALSE(ctrl.light_command_in_flight());
 }
@@ -1949,7 +1949,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_power sends nothing to a
     mock_client.clear_gcode_script_history();
 
     ctrl.set_power({"neopixel not_discovered"}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(count_set_led(mock_client.gcode_script_history()) == 0);
     CHECK_FALSE(ctrl.native().has_strip_color("neopixel not_discovered"));
@@ -1977,11 +1977,11 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness 0 turns a nat
     make_led_dispatch_real(state);
     ctrl.set_last_color(0xFF0000);
     ctrl.set_power({kChamber}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(chamber_on());
 
     ctrl.set_brightness({kChamber}, 0);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(ctrl.device_state(kChamber).power == helix::led::PowerState::Off);
     const auto c = ctrl.native().get_strip_color(kChamber);
@@ -2004,7 +2004,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness 0 turns an ou
     mock_client.clear_gcode_script_history();
 
     ctrl.set_brightness({"output_pin case_light"}, 0);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     const auto& history = mock_client.gcode_script_history();
     REQUIRE(history.size() == 1);
@@ -2023,11 +2023,11 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness 0 turns a WLE
     wled_strip.backend = helix::led::LedBackendType::WLED;
     ctrl.wled().add_strip(wled_strip);
     ctrl.set_power({"wled_printer_led"}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(ctrl.device_state("wled_printer_led").power == helix::led::PowerState::On);
 
     ctrl.set_brightness({"wled_printer_led"}, 0);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(ctrl.device_state("wled_printer_led").power == helix::led::PowerState::Off);
 }
@@ -2048,7 +2048,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     mock_client.clear_gcode_script_history();
 
     ctrl.set_brightness({"macro:Cabinet"}, 0);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(history_mentions(mock_client.gcode_script_history(), "CABINET_OFF"));
     // What was last sent is off, so the next toggle turns it on.
@@ -2140,7 +2140,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     mock_client.clear_gcode_script_history();
 
     ctrl.set_power({kChamber}, false);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     const auto& history = mock_client.gcode_script_history();
     CHECK(history_mentions(history, "EFFECT=chamber_glow STOP=1"));
@@ -2163,7 +2163,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     mock_client.clear_gcode_script_history();
 
     ctrl.set_power({kChamber, "wled_printer_led"}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(count_set_led(mock_client.gcode_script_history()) == 1);
     CHECK(chamber_on());
@@ -2195,7 +2195,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: an output_pin with no pwm li
     ctrl.set_look({"output_pin caselight"}, 0xFFFFFF, 0.0, 30);
     ctrl.set_brightness({"output_pin caselight"}, 40);
     ctrl.output_pin().set_value("output_pin caselight", 0.5);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     const auto& history = mock_client.gcode_script_history();
     CHECK(std::count_if(history.begin(), history.end(), [](const std::string& s) {
               return s.find("SET_PIN PIN=caselight VALUE=1.0000") != std::string::npos;

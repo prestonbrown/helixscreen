@@ -12,13 +12,14 @@
  * every later callback.
  */
 
+#include "ui_update_queue.h"
+
 #include "../../include/belt_tension_types.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <algorithm>
@@ -53,7 +54,7 @@ class BeltApiFixture : public LVGLTestFixture {
     ~BeltApiFixture() {
         // Run what the collectors queued while this fixture's PrinterState is
         // still alive, then drop the API before the mock's timers go.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         api_.reset();
         MoonrakerClientMock::remove_belt_csvs();
     }

@@ -2148,7 +2148,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
     state.set_klipper_version("v9.9.9-bundle-race-probe");
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(state.versions_state().get_klipper_version_raw() == "v9.9.9-bundle-race-probe");
 
     const json bundle = helix::DebugBundleCollector::collect();

@@ -21,7 +21,6 @@
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_personas.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <chrono>
@@ -59,7 +58,7 @@ class MoonrakerAPIDomainTestFixture : public LVGLTestFixture {
     ~MoonrakerAPIDomainTestFixture() {
         // Drain while `state` is still alive — discover_printer() in the ctor
         // leaves PrinterCapabilitiesState's deferred setters queued (#1166).
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
 
         mock_client.stop_temperature_simulation();
         mock_client.disconnect();

@@ -19,7 +19,6 @@
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/print_control_buttons_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -75,7 +74,7 @@ struct SentStartFixture : LVGLTestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static helix::PrinterPrintState& ps() {

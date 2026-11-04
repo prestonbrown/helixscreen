@@ -21,6 +21,8 @@
  * The original set was authored BEFORE the implementation (TDD).
  */
 
+#include "ui_update_queue.h"
+
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../include/temperature_history_manager.h"
@@ -28,7 +30,6 @@
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/temperature_history_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <algorithm>
@@ -67,7 +68,7 @@ class TempStoreSeedTestFixture : public LVGLTestFixture {
 
     ~TempStoreSeedTestFixture() {
         manager_.reset();
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         helix::ui::update_queue_shutdown();
         queue_initialized = false;
     }

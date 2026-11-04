@@ -19,13 +19,13 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_print_status.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/scoped_breakpoint.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
 #include "lvgl.h"
@@ -77,7 +77,7 @@ struct ExcludeMapFixture : public LVGLUITestFixture {
         drain();
     }
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     static void tap(lv_obj_t* obj) {
         lv_obj_send_event(obj, LV_EVENT_CLICKED, nullptr);

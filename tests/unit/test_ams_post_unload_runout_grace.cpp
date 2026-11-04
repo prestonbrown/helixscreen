@@ -39,7 +39,6 @@
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_widget_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -405,7 +404,7 @@ class IdleRunoutGraceFixture : public LVGLTestFixture {
     /// re-evaluates, so the assertion would fail as if the guard were missing.
     static void set_print_state(PrintJobState s) {
         helix::test::set_wire_state(get_printer_state(), s);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static constexpr const char* SENSOR = "filament_switch_sensor runout_sensor";
@@ -469,7 +468,7 @@ TEST_CASE_METHOD(IdleRunoutGraceFixture,
                 ps.print_state().retire_preparing(PreparingExit::Superseded);
             }
             ps.print_state().set_print_start_state(PrintStartPhase::IDLE, "", 0);
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
         }
     } retire;
 
@@ -480,7 +479,7 @@ TEST_CASE_METHOD(IdleRunoutGraceFixture,
     auto& ps = get_printer_state();
     ps.print_state().begin_preparing(PrintJobRef{"chosen.gcode", "", ""});
     ps.print_state().set_print_start_state(PrintStartPhase::HOMING, "", 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ps.print_state().get_print_job_state() == PrintJobState::STANDBY);
     REQUIRE(ps.print_state().get_print_lifecycle() == PrintState::Preparing);
 

@@ -15,9 +15,10 @@
  * and the card renders blank for the rest of the session.
  */
 
+#include "ui_update_queue.h"
+
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
@@ -58,6 +59,6 @@ TEST_CASE_METHOD(HelixTestFixture, "Re-created DetailedFormatter keeps its XML s
     // ...and it is the live formatter's subject, not an orphaned record.
     lv_subject_set_int(ps.print_state().get_print_layer_current_subject(), 7);
     lv_subject_set_int(ps.print_state().get_print_layer_total_subject(), 9);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
     CHECK(std::string(lv_subject_get_string(layer_text)) == "7 / 9");
 }

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_observer_guard.h" // SubjectLifetime
+#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_status_widget_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_discovery.h"
@@ -51,7 +51,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool override: pinned reads per-tool subject
     ps.temperature_state().init_extruders({"extruder", "extruder1"});
 
     lv_subject_set_int(ts.get_tool_count_subject(), 2);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     FormatterScope fs;
 
@@ -62,11 +62,11 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool override: pinned reads per-tool subject
     lv_subject_set_int(e1_temp, 25000); // 250 °C
     lv_subject_set_int(ps.temperature_state().get_active_extruder_temp_subject(),
                        19000); // 190 °C (distinct)
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     // Pin the formatter to extruder1
     PrintStatusWidget::set_nozzle_tool_override_for_test("extruder1");
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     auto* nozzle_sub = lv_xml_get_subject(nullptr, "print_status_nozzle_text");
     REQUIRE(nozzle_sub != nullptr);
@@ -84,14 +84,14 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool override: stale pin falls back to auto"
     ps.init_subjects(false);
 
     lv_subject_set_int(ts.get_tool_count_subject(), 1);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     FormatterScope fs;
 
     // Pin to a ghost extruder that doesn't exist — should fall back to auto
     PrintStatusWidget::set_nozzle_tool_override_for_test("extruder7_ghost");
     lv_subject_set_int(ps.temperature_state().get_active_extruder_temp_subject(), 12345); // 123 °C
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     auto* nozzle_sub = lv_xml_get_subject(nullptr, "print_status_nozzle_text");
     REQUIRE(nozzle_sub != nullptr);
@@ -152,12 +152,12 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool badge: many AMS lanes on one hotend are
 
     auto disc = discovery_with({"extruder", "heater_bed", "fan"});
     ts.init_tools(disc);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     FormatterScope fs;
 
     ts.set_ams_topology(lane_topology(12));
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     // The lane count really did land — this is the value the gate used to read.
     REQUIRE(ts.tool_count() == 12);
@@ -172,7 +172,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool badge: many AMS lanes on one hotend are
     REQUIRE(std::string(lv_subject_get_string(label)).empty());
 
     ts.clear_ams_topology();
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "Tool badge: a genuine second extruder still gets the badge",
@@ -184,7 +184,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool badge: a genuine second extruder still 
 
     auto disc = discovery_with({"extruder", "extruder1", "heater_bed", "fan"});
     ts.init_tools(disc);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     FormatterScope fs;
 
@@ -213,7 +213,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     auto disc = discovery_with({"extruder", "heater_bed", "fan"});
     ts.init_tools(disc);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     FormatterScope fs;
 
@@ -225,7 +225,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     topo.tool_extruder = {"extruder", "extruder", "extruder", "extruder"};
     topo.heads_share_heater = true;
     ts.set_ams_topology(topo);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     auto* multi = lv_xml_get_subject(nullptr, "print_status_multi_tool");
     REQUIRE(multi != nullptr);
@@ -239,7 +239,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK(lv_subject_get_int(pickable) == 0);
 
     ts.clear_ams_topology();
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 }
 
 // ============================================================================
@@ -257,7 +257,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Nozzle picker: rows come from the discovered
     ts.init_tools(disc);
     // A 6-lane AMS on top: the picker must not turn lanes into nozzles.
     ts.set_ams_topology(lane_topology(6));
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
     REQUIRE(ts.tool_count() == 6);
 
     auto options = PrintStatusWidget::build_nozzle_tool_options(ps.temperature_state().extruders());
@@ -269,7 +269,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Nozzle picker: rows come from the discovered
     REQUIRE(options[0].label != options[1].label);
 
     ts.clear_ams_topology();
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "Nozzle picker: no discovered extruders means no rows",
@@ -319,7 +319,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Nozzle picker: a rejected override is not pe
     PrinterState& ps = get_printer_state();
     reset_state_for_tool_gate(ts, ps);
     ps.temperature_state().init_extruders({"extruder", "extruder1"});
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     FormatterScope fs;
     PrintStatusWidget w;
@@ -345,7 +345,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     PrinterState& ps = get_printer_state();
     reset_state_for_tool_gate(ts, ps);
     ts.init_tools(discovery_with({"extruder", "heater_bed", "fan"}));
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
     FormatterScope fs;
 
     helix::ToolTopology topo;
@@ -356,7 +356,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     topo.tool_extruder = {"extruder", "extruder", "extruder", "extruder"};
     topo.heads_share_heater = true;
     ts.set_ams_topology(topo);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(lv_xml_register_component_from_file(
                 "A:ui_xml/components/print_status_detailed_active.xml") == LV_RESULT_OK);
@@ -373,7 +373,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_delete(card);
     ts.clear_ams_topology();
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Detailed card: the picker goes where the row has no room",
@@ -382,7 +382,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Detailed card: the picker goes where the ro
     PrinterState& ps = get_printer_state();
     reset_state_for_tool_gate(ts, ps);
     ts.init_tools(discovery_with({"extruder", "extruder1", "heater_bed", "fan"}));
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
     FormatterScope fs;
 
     REQUIRE(lv_xml_register_component_from_file(

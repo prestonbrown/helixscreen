@@ -19,7 +19,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
@@ -70,9 +69,9 @@ class AddPrinterFixture : public LVGLUITestFixture {
 
     /// Runs queued work, then the next tick, where a switch the queue requested runs.
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_timer_handler();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     lv_obj_t* list_overlay_ = nullptr;

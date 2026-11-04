@@ -30,7 +30,7 @@ using helix::PrintJobState;
 // Helper to drain the update queue after subject changes.
 // observe<int> and observe<const char*> defer callbacks via ui_queue_update.
 static void drain() {
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 // ============================================================================

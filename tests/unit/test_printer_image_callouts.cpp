@@ -144,7 +144,7 @@ bool within_chip(lv_obj_t* chip, lv_obj_t* obj) {
 /// timer they schedule; drain both until nothing is left.
 void settle() {
     for (int i = 0; i < 4; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_async_timers();
     }
 }
@@ -535,7 +535,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(4, 4, 160, 160);
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_obj_update_layout(h.root());
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
@@ -1183,7 +1183,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Timers only: the refresh shows the source and the cache check hands the
     // full-size generation to a worker. Its result waits in the UpdateQueue.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     process_async_timers();
     REQUIRE(src_now() == source);
     auto& q = helix::ui::UpdateQueue::instance();

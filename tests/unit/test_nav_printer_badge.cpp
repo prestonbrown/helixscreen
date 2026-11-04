@@ -10,7 +10,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "connection_state.h"
 #include "printer_state.h"
@@ -32,7 +31,7 @@ class PrinterBadgeFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void connect_as(helix::ConnectionState state) {

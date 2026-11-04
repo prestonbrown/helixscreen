@@ -9,8 +9,9 @@
  * capability question; the rpc's completion is the run's.
  */
 
+#include "ui_update_queue.h"
+
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "lvgl.h"
@@ -244,7 +245,7 @@ TEST_CASE("tool offset calibration: the Advanced row's description follows the l
     PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
     state.set_hardware(indx_printer(true));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     lv_subject_t* text = lv_xml_get_subject(nullptr, "printer_tool_offset_cal_description");
     REQUIRE(text != nullptr);

@@ -16,7 +16,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../toolchanger_panel_fixture.h"
 #include "app_globals.h"
 #include "moonraker_error.h"
@@ -132,7 +131,7 @@ TEST_CASE_METHOD(ToolCalPanelFixture,
 
     // The printer going idle is the completion.
     ps.update_from_status(json{{"idle_timeout", json{{"state", "Ready"}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK_FALSE(panel.is_calibration_active());
     CHECK(lv_subject_get_int(panel.get_active_subject()) == 0);
     CHECK(std::string(lv_subject_get_string(panel.get_status_subject())) ==
@@ -165,13 +164,13 @@ TEST_CASE_METHOD(ToolCalPanelFixture,
     // Idle then busy again, both before the deferred handler runs.
     ps.update_from_status(json{{"idle_timeout", json{{"state", "Ready"}}}});
     ps.update_from_status(json{{"idle_timeout", json{{"state", "Printing"}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(panel.is_calibration_active());
     CHECK(lv_subject_get_int(panel.get_active_subject()) == 1);
 
     // The next real idle edge still finishes it.
     ps.update_from_status(json{{"idle_timeout", json{{"state", "Ready"}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK_FALSE(panel.is_calibration_active());
 
     panel.on_deactivate(DeactivateReason::NavigateAway);

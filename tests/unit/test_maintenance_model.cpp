@@ -15,11 +15,11 @@
 
 #include "ui_maintenance_overlay.h"
 #include "ui_toast_manager.h"
+#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "config.h"
 #include "lvgl.h"
@@ -73,7 +73,7 @@ struct MaintenanceModelFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void set_duration(int seconds) {

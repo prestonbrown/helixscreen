@@ -8,7 +8,6 @@
 #include "../helix_test_fixture.h"
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_openams.h"
 #include "ams_error.h"
 #include "ams_state.h"
@@ -1005,7 +1004,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "OpenAMS shows a spool link written to lane_
     mock_printer.client.dispatch_method_callback(
         "notify_openams_spoolman_status",
         json{{"method", "notify_openams_spoolman_status"}, {"params", json::array()}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     const auto info = backend.get_slot_info(3);
     CHECK(info.spoolman_id == 41);
@@ -1042,7 +1041,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         mock_printer.client.dispatch_method_callback(
             "notify_openams_spoolman_status",
             json{{"method", "notify_openams_spoolman_status"}, {"params", json::array()}});
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         const auto info = backend.get_slot_info(3);
         CHECK(info.spoolman_id == 41);
         CHECK(info.material == "PETG");

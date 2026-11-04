@@ -80,7 +80,6 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_animations_enabled.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -376,7 +375,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // LVGL fires a freshly-subscribed observer immediately on subscribe;
         // drain once before driving anything else so that initial fire
         // doesn't mask a broken predicate later.
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
 
         // The detailed active view exists only while a print holds the machine.
         helix::test::set_wire_state(ps, PrintJobState::PRINTING);
@@ -399,7 +398,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // half of the gate (:461) — re-run on_size_changed at the SAME
         // pixels so its own recomputation also agrees with the new used_mm.
         lv_subject_set_int(ps.print_state().get_print_filament_used_subject(), 1500);
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         h.resize(1, 1, w_wide(), 400);
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 1);
         CHECK_FALSE(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
@@ -421,13 +420,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // transitions.
         lv_subject_set_int(ps.print_state().get_print_filament_used_subject(),
                            0); // e.g. print re-sliced
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 0);
         CHECK(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
 
         lv_subject_set_int(ps.print_state().get_print_filament_used_subject(),
                            2000); // extrusion resumes
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 1);
         CHECK_FALSE(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
     }
@@ -659,7 +658,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     {
         PanelWidgetHarness<PrintStatusWidget> h(test_screen(),
                                                 HarnessConfig{{{"layout_style", "detailed"}}});
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         h.resize(4, 2, 700, 400);
         process_lvgl(30);
 

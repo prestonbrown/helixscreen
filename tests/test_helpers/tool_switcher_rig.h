@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "../test_helpers/panel_widget_size_harness.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -183,7 +184,7 @@ struct ToolChangerRig {
         }
         AmsState::instance().deinit_subjects();
         ToolState::instance().deinit_subjects();
-        ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+        ui::UpdateQueue::instance().drain_until_empty();
     }
 
     ToolChangerRig(const ToolChangerRig&) = delete;

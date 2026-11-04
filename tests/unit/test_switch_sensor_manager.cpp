@@ -15,10 +15,11 @@
  * - Missing sensor handling
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/golden_json.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "config.h"
 #include "filament_sensor_manager.h"
@@ -988,15 +989,15 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
     update_sensor_state("filament_switch_sensor runout", false);
     mgr().deinit_subjects();
     // The refresh queued above runs with no subjects to land on.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     mgr().init_subjects();
     REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == -1);
     // init_subjects() publishes the current reading.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == 0);
 
     update_sensor_state("filament_switch_sensor runout", true);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == 1);
     mgr().set_sync_mode(true);
 }

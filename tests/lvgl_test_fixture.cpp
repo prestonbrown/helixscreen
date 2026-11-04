@@ -4,12 +4,12 @@
 #include "lvgl_test_fixture.h"
 
 #include "ui_test_utils.h"
+#include "ui_update_queue.h"
 
 #include "refresh_period_hold.h"
 #include "screen_hide_hold.h"
 #include "test_helpers/refresh_period_hold_test_access.h"
 #include "test_helpers/screen_hide_hold_test_access.h"
-#include "test_helpers/update_queue_test_access.h"
 #include "theme_manager.h"
 #include "xml_registration.h"
 
@@ -179,7 +179,7 @@ LVGLTestFixture::~LVGLTestFixture() {
     }
 
     // Per L053/L054: Drain pending callbacks before shutdown
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Shutdown queue
     helix::ui::update_queue_shutdown();

@@ -14,7 +14,7 @@
 //
 // Mock stack follows test_ams_home_confirmation.cpp: MoonrakerClientMock +
 // MoonrakerAPIMock over a stack PrinterState, RPC callbacks drained through
-// UpdateQueueTestAccess. The api is published via set_moonraker_api() because
+// UpdateQueue. The api is published via set_moonraker_api() because
 // the helper reaches it through the global accessor.
 
 #include "ui_emergency_stop.h"
@@ -22,6 +22,7 @@
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_input_shaper.h"
 #include "ui_toast_manager.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/bed_mesh_panel_test_access.h"
@@ -29,7 +30,6 @@
 #include "../test_helpers/input_shaper_panel_test_access.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "http_executor.h"
@@ -106,7 +106,7 @@ class ExpectedRestartFixture : public LVGLTestFixture {
     // Drains until the queue stops producing work: the helper queues its
     // toast, and RPC callbacks hop the queue again before side effects land.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 

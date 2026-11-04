@@ -17,7 +17,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_runtime_config.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "display_numbering.h"
@@ -86,17 +85,17 @@ void seed_two_hotends(PrinterState& state) {
     dual.parse_objects(nlohmann::json::array({"extruder", "extruder1", "heater_bed", "fan"}));
     ToolState::instance().init_tools(dual);
     state.temperature_state().init_extruders({"extruder", "extruder1"});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ToolState::instance().has_multiple_extruders());
 }
 
 struct LanguageSwitchFixture : public LVGLUITestFixture {
     ~LanguageSwitchFixture() override {
         SystemSettingsManager::instance().set_language("en");
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         PrintStatusWidget::destroy_formatter_for_test();
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -136,7 +135,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
         for (const int c :
              {min_c, std::min(min_c + GridLayout::TRACKS_PER_CELL, def.effective_max_colspan())}) {
             settings.set_language("en");
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
 
             RegistryWidgetHarness h(test_screen(), def, &m);
             if (!h.created()) {
@@ -144,13 +143,13 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
             }
             h.resize(c, min_r, static_cast<int>(grid_track_extent(m.cell_w, m.gutter, c)),
                      static_cast<int>(grid_track_extent(m.cell_h, m.gutter, min_r)));
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
 
             std::map<std::string, std::string> before;
             collect_labels(h.root(), "", before);
 
             settings.set_language("ru");
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
             // With no pack loaded every lv_tr() is the identity and the sweep
             // passes against nothing.
             REQUIRE(std::string(lv_tr("Part")) != "Part");
@@ -209,7 +208,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture, "preheat's tool target re-translates on 
     REQUIRE(PreheatWidget::label_for_slot(0, true, 400) == "Cool Down");
 
     SystemSettingsManager::instance().set_language("ru");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("All")) != "All");
     CHECK(std::string(lv_label_get_text(label)) == std::string(lv_tr("All")) + " (2)");
     REQUIRE(std::string(lv_tr("Preheat %s (%d/%d)")) != "Preheat %s (%d/%d)");
@@ -231,7 +230,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
         test_screen(), HarnessConfig{nlohmann::json{{"display_mode", "carousel"}}}, "fan_stack",
         state());
     h.resize(2, 2, 300, 300);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_obj_t* carousel = h.child("fan_carousel");
     REQUIRE(carousel != nullptr);
     REQUIRE(ui_carousel_get_page_count(carousel) >= 2);
@@ -239,7 +238,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     REQUIRE(ui_carousel_get_current_page(carousel) == 1);
 
     SystemSettingsManager::instance().set_language("ru");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Hotend")) != "Hotend");
 
     CHECK(ui_carousel_get_current_page(carousel) == 1);
@@ -265,9 +264,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture, "observe_language_change fires on a real
     } owner;
     ObserverGuard guard =
         helix::ui::observe_language_change(&owner, [](Owner* o) { ++o->renders; });
-    auto drain = []() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    };
+    auto drain = []() { helix::ui::UpdateQueue::instance().drain_until_empty(); };
     drain();
     CHECK(owner.renders == 0);
 
@@ -307,7 +304,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     REQUIRE(std::string(lv_label_get_text(sensor_name)) == "Select sensor");
 
     SystemSettingsManager::instance().set_language("ru");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Select fan")) != "Select fan");
     CHECK(std::string(lv_label_get_text(fan_name)) == lv_tr("Select fan"));
     CHECK(std::string(lv_label_get_text(sensor_name)) == lv_tr("Select sensor"));
@@ -324,7 +321,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     helix::ui::init_ams_tool_text_observers();
     helix::ui::init_language_refresh();
     lv_subject_set_int(ams.get_current_tool_subject(), 1);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     auto& tools = ToolState::instance();
     const std::string tool_en = tools.tools()[1].display_label;
@@ -335,7 +332,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     const int version = lv_subject_get_int(tools.get_tools_version_subject());
 
     SystemSettingsManager::instance().set_language("ru");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Nozzle")) != "Nozzle");
 
     const std::string tool_ru = helix::ui::lane_label(helix::ui::active_tool_noun(), 1);
@@ -380,7 +377,7 @@ TEST_CASE_METHOD(LanguageSwitchFixture, "the temp graph legend re-translates its
     REQUIRE(name_of("heater_bed") == "Bed");
 
     SystemSettingsManager::instance().set_language("ru");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Bed")) != "Bed");
     CHECK(name_of("heater_bed") == lv_tr("Bed"));
 }
@@ -404,12 +401,12 @@ TEST_CASE_METHOD(LanguageSwitchFixture, "AMS status texts re-translate on a lang
     backend->set_encoder_clog_info(encoder, 2);
     ams.sync_from_backend();
     helix::ui::init_language_refresh();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_subject_get_string(ams.get_clog_meter_mode_text_subject()))
                 .rfind("Clog Auto", 0) == 0);
 
     SystemSettingsManager::instance().set_language("ru");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Clog Auto")) != "Clog Auto");
     CHECK(std::string(lv_subject_get_string(ams.get_clog_meter_mode_text_subject()))
               .rfind(lv_tr("Clog Auto"), 0) == 0);

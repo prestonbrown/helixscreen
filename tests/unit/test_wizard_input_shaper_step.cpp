@@ -88,7 +88,7 @@ class WizardInputShaperStepTestFixture : public LVGLUITestFixture {
         state().set_hardware(hardware);
 
         // Drain async queue to apply subject updates
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
   private:

@@ -447,7 +447,7 @@ TEST_CASE("Display message: visibility subject tracks non-empty state",
         // phase label lives in print_start_message; this row is the user's text.
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating Bed...",
                                                   30);
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         json status = {{"display_status", {{"message", "Heating..."}}}};
         state.update_from_status(status);
@@ -458,12 +458,12 @@ TEST_CASE("Display message: visibility subject tracks non-empty state",
         // Still visible at COMPLETE, which is itself a non-IDLE phase and
         // previously suppressed the row for an entire print.
         state.print_state().set_print_start_state(PrintStartPhase::COMPLETE, "Done", 100);
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_display_message_visible_subject()) == 1);
 
         // And after returning to IDLE.
         state.print_state().reset_print_start_state();
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_display_message_visible_subject()) == 1);
     }
 }
@@ -512,7 +512,7 @@ TEST_CASE("print_active tracks PrintJobState across a full job lifecycle",
     for (const auto& s : steps) {
         json status = {{"print_stats", {{"state", s.moonraker_state}}}};
         state.update_from_status(status);
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         INFO("moonraker state: " << s.moonraker_state);
         REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) ==
@@ -524,16 +524,16 @@ TEST_CASE("print_active tracks PrintJobState across a full job lifecycle",
     // recomputing it to 0 would hide the print card mid-print.
     json printing = {{"print_stats", {{"state", "printing"}}}};
     state.update_from_status(printing);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
 
     // A frame with no print_stats key whatsoever.
     state.update_from_status({{"virtual_sdcard", {{"progress", 0.5}}}});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
 
     // And an empty frame.
     state.update_from_status(json::object());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
 }

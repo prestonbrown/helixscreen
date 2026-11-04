@@ -23,10 +23,10 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_toast_manager.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "macro_executor.h"
@@ -99,7 +99,7 @@ class MacroFailureFixture : public LVGLTestFixture {
     // The rpc callback settles on the calling thread, but the toast and the
     // suppression writes hop the queue, so drain until it stops producing.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 

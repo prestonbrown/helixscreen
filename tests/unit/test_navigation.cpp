@@ -655,8 +655,6 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Overlay registration accepts IPanelLife
 // LV_EVENT_DELETE hook so a deleted widget is scrubbed from panel_stack_ (and the
 // other bookkeeping maps) synchronously, before its memory is freed.
 
-#include "../test_helpers/update_queue_test_access.h"
-
 TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band backdrop deletion scrubs overlay_backdrop_",
                  "[navigation][overlay][backdrop]") {
     auto& nav = NavigationManager::instance();
@@ -675,7 +673,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band backdrop deletion scrubs ov
     lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     lv_obj_t* backdrop = NavigationManagerTestAccess::overlay_backdrop(nav);
     REQUIRE(backdrop != nullptr);
@@ -715,7 +713,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band widget deletion scrubs pane
     lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // Precondition: the overlay is tracked as the top of the stack.
     REQUIRE(nav.is_panel_in_stack(overlay) == true);
@@ -739,7 +737,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band widget deletion scrubs pane
     lv_obj_add_flag(overlay2, LV_OBJ_FLAG_HIDDEN);
     nav.register_overlay_instance(overlay2, &mock_panel2);
     nav.push_overlay(overlay2);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(nav.is_panel_in_stack(overlay2) == true);
 
     // overlay2 went through register_overlay_instance + push, so it is hooked
@@ -773,7 +771,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(nav.is_panel_on_top(overlay));
 
     // PanelBase::rebuild() creates the successor with the old widget's visibility.
@@ -787,7 +785,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     CHECK(nav.is_panel_on_top(overlay));
 
     nav.go_back();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK_FALSE(nav.is_panel_in_stack(overlay));
     CHECK(nav.is_panel_on_top(rebuilt));
@@ -830,7 +828,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(nav.is_panel_in_stack(overlay) == true);
 
     // Keyboard was visible when the backdrop was pressed: the CLICKED handler
@@ -844,7 +842,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     // the handler falls through to go_back() and dismisses the overlay.
     REQUIRE(nav.take_backdrop_keyboard_dismiss() == false);
     nav.go_back();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(nav.is_panel_in_stack(overlay) == false);
 
     lv_obj_delete(base);
@@ -896,8 +894,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     // not be admitted to the stack. Without the handle the lambda
     // calls lv_obj_get_screen on freed memory (SIGSEGV under ASAN) or pushes the
     // dangling pointer onto panel_stack_ (is_panel_in_stack would be true).
-    REQUIRE_NOTHROW(
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance()));
+    REQUIRE_NOTHROW(helix::ui::UpdateQueue::instance().drain_until_empty());
     REQUIRE(nav.is_panel_in_stack(overlay) == false);
     REQUIRE(nav.is_panel_in_stack(base) == true); // base untouched
 
@@ -930,7 +927,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "push_overlay onto empty stack does not 
 
     // Pushing onto the empty stack must not crash on panel_stack_.back().
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // The overlay is now the (only) entry — survived the empty-stack push.
     REQUIRE(nav.is_panel_in_stack(overlay) == true);
@@ -968,7 +965,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "is_panel_on_top distinguishes top from 
     lv_obj_add_flag(first, LV_OBJ_FLAG_HIDDEN);
     nav.register_overlay_instance(first, &mock_first);
     nav.push_overlay(first);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(nav.is_panel_on_top(first) == true);
     REQUIRE(nav.is_panel_on_top(base) == false); // in the stack, but buried
@@ -979,7 +976,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "is_panel_on_top distinguishes top from 
     lv_obj_add_flag(second, LV_OBJ_FLAG_HIDDEN);
     nav.register_overlay_instance(second, &mock_second);
     nav.push_overlay(second);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // The discrimination that matters: `first` is still in the stack, so an
     // is_panel_in_stack() guard would wave the blind go_back() through.

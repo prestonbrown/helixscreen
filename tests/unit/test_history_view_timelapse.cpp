@@ -20,7 +20,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -82,7 +81,7 @@ class HistoryTimelapseFixture : public LVGLUITestFixture {
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static bool browser_open() {

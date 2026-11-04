@@ -17,7 +17,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -502,7 +501,7 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
     TempGraphOverlayTestAccess::arm_version_watch(overlay);
     TempGraphOverlayTestAccess::select(overlay, "extruder1");
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(helix::ui::UpdateQueue::instance().pending_count() == 0);
     // The drains delivered the real work too: the card sits on the pick.

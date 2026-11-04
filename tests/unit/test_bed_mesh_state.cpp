@@ -9,8 +9,9 @@
  * Run with: ./build/bin/helix-tests "[bed_mesh][mesh_stats]"
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "bed_mesh_state.h"
 #include "bed_mesh_stats.h"
@@ -109,7 +110,7 @@ struct BedMeshStateFixture : public LVGLUITestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     static std::string text(const char* name) {
         return lv_subject_get_string(lv_xml_get_subject(nullptr, name));

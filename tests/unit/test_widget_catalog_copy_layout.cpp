@@ -15,7 +15,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"

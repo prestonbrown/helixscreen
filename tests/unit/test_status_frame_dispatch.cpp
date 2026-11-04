@@ -1,9 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
 #include "led/led_controller.h"
@@ -22,7 +23,7 @@ namespace {
 struct DispatchFixture : LVGLTestFixture {
     ~DispatchFixture() override {
         helix::led::LedController::instance().deinit();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         auto* cfg = Config::get_instance();
         cfg->set(cfg->df() + "leds/auto_state/strips", nlohmann::json());
         cfg->set(cfg->df() + "leds/light_button_pending", nlohmann::json());
@@ -60,7 +61,7 @@ TEST_CASE_METHOD(DispatchFixture, "dispatch_status_frame reaches every status co
     frame.eventtime = 10.0;
 
     dispatch_status_frame(frame, ps.network_state().klippy_epoch());
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(lv_subject_get_int(ps.temperature_state().get_bed_temp_subject()) == 615);
 
@@ -93,7 +94,7 @@ TEST_CASE_METHOD(DispatchFixture, "an LED query response reaches the LED colour 
                         {{"status",
                           {{"neopixel chamber",
                             {{"color_data", nlohmann::json::array({{0.1, 0.5, 0.9, 0.0}})}}}}}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     auto color = led.native().get_strip_color("neopixel chamber");
     CHECK(color.r == Catch::Approx(0.1));

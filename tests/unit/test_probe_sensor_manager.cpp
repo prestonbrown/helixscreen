@@ -8,10 +8,11 @@
  *        per-type subscriptions, the z_offset seed and the persisted settings shape.
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/golden_json.h"
 #include "../test_helpers/sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "config.h"
 #include "hardware_object_table.h"
 #include "printer_detector.h"
@@ -878,12 +879,12 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - status refresh is
     };
     mgr().update_from_status(offset_status(0.25f));
     REQUIRE(z_offset_subject() == 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(z_offset_subject() == 250);
 
     mgr().update_from_status(offset_status(0.5f));
     mgr().deinit_subjects();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     mgr().init_subjects();
     mgr().set_sync_mode(true);
     REQUIRE(z_offset_subject() == -1);

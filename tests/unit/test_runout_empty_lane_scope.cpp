@@ -26,7 +26,6 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
@@ -145,7 +144,7 @@ struct ScopedSnapmakerBackend {
 };
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 // Sets up FilamentSensorManager with four per-lane runout sensors enabled, all

@@ -11,6 +11,8 @@
  * - Observer notification when data changes
  */
 
+#include "ui_update_queue.h"
+
 #include "../../include/json_utils.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
@@ -25,7 +27,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/history_call_counting_api.h"
 #include "../test_helpers/print_history_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -66,7 +67,7 @@ class HistoryManagerTestFixture : public LVGLTestFixture {
         client_.disconnect();
 
         // Drain pending callbacks
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Shutdown queue
         helix::ui::update_queue_shutdown();
@@ -80,7 +81,7 @@ class HistoryManagerTestFixture : public LVGLTestFixture {
     /// defers (invalidate -> fetch -> success defer) room to finish.
     void pump(int rounds = 20) {
         for (int i = 0; i < rounds; ++i) {
-            UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain();
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
     }
@@ -152,7 +153,7 @@ class HistoryManagerTestFixture : public LVGLTestFixture {
     bool wait_for_loaded(int timeout_ms = 500) {
         for (int i = 0; i < timeout_ms / 10; ++i) {
             // Drain the update queue to process callbacks scheduled via ui_queue_update
-            UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain();
 
             if (manager_->is_loaded(HistoryScope::RECENT)) {
                 return true;

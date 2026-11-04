@@ -1,8 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_update_queue.h"
+
 #include "../helix_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "detection_manager.h"
@@ -325,7 +326,7 @@ TEST_CASE_METHOD(HelixTestFixture, "DetectionManager availability subject tracks
 
 namespace {
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 } // namespace
 

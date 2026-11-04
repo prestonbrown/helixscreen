@@ -25,7 +25,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "printer_state.h"
 
 #include <memory>
@@ -72,7 +71,7 @@ struct PreparingIdentityFixture : public LVGLTestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Drive the filename through update_from_status(), where the identity is

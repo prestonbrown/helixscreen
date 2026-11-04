@@ -25,7 +25,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
@@ -82,7 +81,7 @@ class PreparingCardFixture : public LVGLTestFixture {
 
     /// One drain is not enough - a handler running during a drain queues more.
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// PHASE FIRST, then the wire. update_from_status() republishes the lifecycle

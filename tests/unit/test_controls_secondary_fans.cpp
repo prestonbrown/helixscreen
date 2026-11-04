@@ -33,7 +33,6 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/controls_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "printer_state.h"
 
 #include <string>
@@ -43,7 +42,6 @@
 
 using helix::PrinterState;
 using helix::ui::ControlsPanelTestAccess;
-using helix::ui::UpdateQueueTestAccess;
 
 TEST_CASE_METHOD(XMLTestFixture,
                  "ControlsPanel keeps secondary-fan lifetime tokens as aligned members",
@@ -104,5 +102,5 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // Flush any deferred observer notifications before the panel + fixture tear
     // down, so no queued callback references the about-to-be-destroyed panel.
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }

@@ -5,7 +5,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "http_executor.h"
 #include "klipper_config_editor.h"
 #include "moonraker_api_mock.h"
@@ -588,7 +587,7 @@ TEST_CASE("KlipperConfigEditor::load_config_files finds sections behind a glob i
             completed = true;
         },
         [&](const std::string& err) { error = err; });
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(error.empty());
     REQUIRE(completed);
@@ -653,7 +652,7 @@ TEST_CASE("KlipperConfigEditor::load_config_files still resolves plain includes"
             completed = true;
         },
         [](const std::string&) {});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(completed);
     REQUIRE(section_map.count("probe") == 1);
@@ -841,7 +840,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         [&]() { succeeded = true; }, [&](const std::string& err) { error = err; },
         /*restart_timeout_ms=*/300);
     // The config walk downloads from the main thread: run it up to the write.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // The health monitor polls on an HttpExecutor::fast() worker that captured
     // `api` and `editor` BY REFERENCE. Returning while it is still running is a
@@ -894,7 +893,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
             {ConfigEdit::Type::ADD_KEY, "heater_power", "40"},
         },
         [&]() { succeeded = true; }, [&](const std::string& err) { error = err; });
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // Bails at the section lookup, so no worker was ever submitted - but assert
     // that rather than assume it, since a regression that reaches the upload

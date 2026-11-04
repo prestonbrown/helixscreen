@@ -13,7 +13,6 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
 #include "printer_state.h"
@@ -46,7 +45,7 @@ class ConnectionDotFixture : public XMLTestFixture {
     }
 
     ~ConnectionDotFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::ConfigTestAccess::data(*cfg_) = saved_data_;
         helix::ConfigTestAccess::active_printer_id(*cfg_) = saved_active_;
     }
@@ -75,7 +74,7 @@ TEST_CASE_METHOD(ConnectionDotFixture,
     lv_obj_t* root = overlay.create(test_screen());
     REQUIRE(root != nullptr);
     overlay.on_activate();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     lv_obj_t* alpha_dot = dot_of(root, "alpha");
     CHECK_FALSE(lv_obj_has_flag(alpha_dot, LV_OBJ_FLAG_HIDDEN));
@@ -84,12 +83,12 @@ TEST_CASE_METHOD(ConnectionDotFixture,
     lv_subject_t* state =
         get_printer_state().network_state().get_printer_connection_state_subject();
     lv_subject_set_int(state, 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(alpha_dot, LV_PART_MAIN),
                       helix::ui::connection_dot_color(0)));
 
     lv_subject_set_int(state, 2);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(alpha_dot, LV_PART_MAIN),
                       helix::ui::connection_dot_color(2)));
 }
@@ -102,7 +101,7 @@ TEST_CASE_METHOD(ConnectionDotFixture,
     lv_obj_t* root = overlay.create(test_screen());
     REQUIRE(root != nullptr);
     overlay.on_activate();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     lv_obj_t* row = lv_obj_find_by_name(root, "printer-2");
     REQUIRE(row != nullptr);
@@ -130,7 +129,7 @@ TEST_CASE_METHOD(ConnectionDotFixture, "Printers list: repopulating runs no queu
     CHECK(lv_obj_find_by_name(root, "alpha") != nullptr);
     CHECK(lv_obj_find_by_name(root, "beta") != nullptr);
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(ran);
     CHECK(overlay == nullptr);
 }

@@ -34,7 +34,6 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_shared_resource.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -475,7 +474,7 @@ namespace {
 void set_nozzle(helix::PrinterState& st, int temp_c, int target_c) {
     lv_subject_set_int(st.temperature_state().get_active_extruder_target_subject(), target_c * 10);
     lv_subject_set_int(st.temperature_state().get_active_extruder_temp_subject(), temp_c * 10);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 /// A ticket @p heater heated for: an op requested on a cold nozzle, run once hot.
@@ -731,7 +730,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // the same process_lvgl() sweep — making "fired instantly" (the bug) read
     // identical to "never scheduled" (the fix). Draining alone lets the timer be
     // created but never run, so its mere existence is the failure signal.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK_FALSE(cd.has_pending_timer());
 

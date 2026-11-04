@@ -38,7 +38,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/input_shaper_panel_test_access.h"
 #include "../test_helpers/moonraker_client_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "http_executor.h"
 #include "moonraker_api.h"
@@ -192,7 +191,7 @@ class SaveConfigFixture : public LVGLTestFixture {
     bool settle() {
         // The config walk downloads from the main thread, so the queue runs it
         // up to the write and the restart before there is a worker to join.
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         bool joined = join_worker(kJoinTimeoutMs);
         UpdateQueue::instance().drain();
         return joined;

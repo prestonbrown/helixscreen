@@ -4,7 +4,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/holding_motion_api.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -47,7 +46,7 @@ class SenderFixture : public LVGLTestFixture {
                    [this](const helix::JogCoalescer::CoalescedMove&) { return may_flush_; }}) {}
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void ack(size_t i) {

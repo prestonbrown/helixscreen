@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_modal.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -20,7 +21,6 @@
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/toolchanger_test_access.h"
 #include "test_helpers/toolchanger_test_helper.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -173,7 +173,7 @@ TEST_CASE("an unhomed tool changer mount homes and sends the swap in the same ca
     CHECK(backend.captured[0] == "G28");
     CHECK(backend.captured[1] == "SELECT_TOOL T=1");
     // The macro ack resolves the hold through the main-thread queue.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK_FALSE(helix::ToolChangerTestAccess::has_pending_dispatch(backend));
     CHECK(backend.get_system_info().action == helix::AmsAction::IDLE);
 }
@@ -251,7 +251,7 @@ TEST_CASE("ensure_homed_then custom timeout/silent bypass the hardcoded virtuals
 
     // The error callback is marshalled through token.defer() (L081 Mechanism
     // C) rather than invoked inline -- drain the queue to run it.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(seen == "boom");
 }
 
@@ -285,7 +285,7 @@ TEST_CASE("CFS dispatch_action_script routes through ensure_homed_then and homes
 
     // G28's success callback is marshalled through token.defer() (L081
     // Mechanism C) before the payload is dispatched -- drain to let it run.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(client.gcode_script_history().size() == 2);
     CHECK(client.gcode_script_history()[0] == "G28");
@@ -313,7 +313,7 @@ TEST_CASE("CFS Fork variant never homes via dispatch_action_script", "[ams][homi
     auto err = helix::CfsTestAccess::call_dispatch_action_script(backend, "BOX_LOAD LANE=1");
     REQUIRE(err.success());
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(client.gcode_script_history().size() == 1);
     CHECK(client.gcode_script_history()[0] == "BOX_LOAD LANE=1");
@@ -342,13 +342,13 @@ struct UnhomedMacroLoad {
 
     void press_load() {
         helix::ui::FilamentPanelTestAccess::handle_load_button(*h.panel);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void execute_load_needing_home() {
         helix::ui::FilamentPanelTestAccess::set_home_before_load_macro(*h.panel, true);
         helix::ui::FilamentPanelTestAccess::execute_load(*h.panel);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// How many sent scripts start with @p word.

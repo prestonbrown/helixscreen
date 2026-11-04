@@ -1672,7 +1672,7 @@ struct AfcOpenDetailFixture : LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Lane N runs T N; @p colors, when given, loads lane N with colors[N].
@@ -7703,7 +7703,7 @@ class AfcLiveDispatchHelper : public AmsBackendAfc {
         running_ = true;
     }
     ~AfcLiveDispatchHelper() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     bool toolhead_homed() const override {
         return true;

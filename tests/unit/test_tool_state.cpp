@@ -6,12 +6,13 @@
  * @brief Tests for ToolInfo struct, DetectState enum, and ToolState singleton
  */
 
+#include "ui_update_queue.h"
+
 #include "../fake_moonraker_client.h"
 #include "../helix_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/tool_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -43,7 +44,7 @@ using namespace helix;
 /// backend are still alive, before HelixTestFixture's own teardown.
 struct ToolStateFixture : public HelixTestFixture {
     ~ToolStateFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         // init_subjects() keeps the tools a live ToolState holds.
         ToolState::instance().deinit_subjects();
     }
@@ -1481,7 +1482,7 @@ TEST_CASE_METHOD(
     auto& ts = ToolState::instance();
 
     ams.sync_from_backend();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(ams.get_slot_fill_subject(0)) != 75);
 
     ts.assign_spool(0, 42, "Red PLA", 750.0f, 1000.0f);
@@ -1767,7 +1768,7 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a topology rebuild carrie
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
     ts.set_ams_topology(topo);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(ts.tools().size() == 4);
     CHECK(ts.tool_offset_mm(1, Axis::X) == Catch::Approx(1.5f));
@@ -1812,7 +1813,7 @@ struct TwoPrinterSpoolFixture : public ToolStateFixture {
     }
 
     ~TwoPrinterSpoolFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         ToolState::instance().deinit_subjects();
         helix::ConfigTestAccess::data(*cfg) = saved_data;
         helix::ConfigTestAccess::active_printer_id(*cfg) = saved_active;
@@ -1835,7 +1836,7 @@ struct TwoPrinterSpoolFixture : public ToolStateFixture {
         not_found.message = "Key 'tool_spool_assignments' in namespace 'helix-screen' not found";
         not_found.code = 404;
         client.rpc_calls[0].error_cb(not_found);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Issue a load through Moonraker; its reply is still in flight.
@@ -1943,7 +1944,7 @@ TEST_CASE_METHOD(TwoPrinterSpoolFixture,
     lost.code = 404;
     client.rpc_calls.clear();
     load.error_cb(lost);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(db_writes().empty());
     CHECK_FALSE(spool_file_json()["printers"].contains("bravo"));
@@ -1959,7 +1960,7 @@ TEST_CASE_METHOD(TwoPrinterSpoolFixture,
     timeout.message = "Request timed out";
     client.rpc_calls.clear();
     load.error_cb(timeout);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(db_writes().size() == 0);
 }
@@ -2015,7 +2016,7 @@ TEST_CASE_METHOD(TwoPrinterSpoolFixture,
     timeout.type = MoonrakerErrorType::TIMEOUT;
     client.rpc_calls.clear();
     load.error_cb(timeout);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(ToolState::instance().tools()[1].spoolman_id == 7);
     REQUIRE(db_writes().size() == 1);
@@ -2037,7 +2038,7 @@ TEST_CASE_METHOD(TwoPrinterSpoolFixture,
         auto load = start_load();
         client.rpc_calls.clear();
         load.error_cb(err);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     };
     MoonrakerError timeout;
     timeout.type = MoonrakerErrorType::TIMEOUT;
@@ -2061,7 +2062,7 @@ TEST_CASE_METHOD(TwoPrinterSpoolFixture,
     auto load = start_load();
     load.success_cb(nlohmann::json{
         {"result", {{"value", {{"1", {{"spoolman_id", 7}, {"spool_name", "Bravo PETG"}}}}}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     switch_to("bravo");
     fail_load(timeout);
     REQUIRE(db_writes().size() == 1);

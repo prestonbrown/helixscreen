@@ -31,9 +31,10 @@
  * populate `ToolState` and `PrinterState` directly to reach it.
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "panel_widget_manager.h"
 #include "printer_discovery.h"
@@ -68,7 +69,7 @@ struct NozzleTempsFixture : public LVGLUITestFixture {
     ~NozzleTempsFixture() override {
         ToolState::instance().deinit_subjects();
         AmsState::instance().clear_backends();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -100,7 +101,7 @@ void add_second_extruder(PrinterState& state) {
     ToolState::instance().init_tools(hw);
 
     state.temperature_state().init_extruders({"extruder", "extruder1"});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// Adds a third physical extruder, so a rebuild can be provoked after the
@@ -114,7 +115,7 @@ void add_third_extruder(PrinterState& state) {
     ToolState::instance().init_tools(hw);
 
     state.temperature_state().init_extruders({"extruder", "extruder1", "extruder2"});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// The nth row's declared width. Two-column layout resolves to lv_pct(48) via
@@ -374,13 +375,13 @@ TEST_CASE_METHOD(NozzleTempsFixture,
     // number rung. Without the re-decide the tile keeps drawing the wide
     // value in the rung chosen for the narrow one.
     state().update_from_status(nlohmann::json{{"extruder", {{"target", 210.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
 
     // The print ends and the target clears: the value narrows again and the
     // ladder re-decides back. The transition fires both ways.
     state().update_from_status(nlohmann::json{{"extruder", {{"target", 0.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Long));
 
     // The bed row's value is part of the same budget, and its observer
@@ -389,6 +390,6 @@ TEST_CASE_METHOD(NozzleTempsFixture,
     h.resize(1, 1, 160, 300);
     REQUIRE(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Long));
     state().update_from_status(nlohmann::json{{"heater_bed", {{"target", 200.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
 }

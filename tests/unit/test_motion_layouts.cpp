@@ -20,7 +20,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
 #include "moonraker_api.h"
@@ -215,7 +214,7 @@ class LayoutFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static lv_obj_t* find(const char* name) {

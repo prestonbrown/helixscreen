@@ -8,12 +8,13 @@
  *        (prestonbrown/helixscreen#1730).
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -49,14 +50,14 @@ struct CapabilityFixture : public LVGLTestFixture {
 
     ~CapabilityFixture() override {
         SettingsManager::instance().set_enclosure_style(EnclosureStyle::AUTO);
-        ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+        ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void z_travel(double z_max) {
         state.update_from_status(
             {{"toolhead",
               {{"axis_minimum", {0, 0, 0, 0}}, {"axis_maximum", {250, 250, z_max, 0}}}}});
-        ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+        ui::UpdateQueue::instance().drain_until_empty();
     }
 
     int enclosed() {

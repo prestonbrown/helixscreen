@@ -8,6 +8,8 @@
  *        (prestonbrown/helixscreen#1730).
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
@@ -21,7 +23,6 @@
 #include "temperature_controller.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/configfile_mock_client.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include <algorithm>
 #include <string>
@@ -38,7 +39,7 @@ constexpr long long kStart = 1'000'000;
 constexpr long long kHours12 = 12 * 3600;
 
 void drain() {
-    ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+    ui::UpdateQueue::instance().drain_until_empty();
 }
 
 struct BedDryingFixture : public LVGLTestFixture {

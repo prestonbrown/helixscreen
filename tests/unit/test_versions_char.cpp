@@ -256,7 +256,7 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     SECTION("QIDI '?' sentinel becomes Unknown") {
         state.set_klipper_version("?");
         state.set_moonraker_version("?");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "Unknown");
         REQUIRE(moonraker() == "Unknown");
     }
@@ -264,7 +264,7 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     SECTION("parse-layer 'unknown' fallback becomes Unknown (case-insensitive)") {
         state.set_klipper_version("unknown");
         state.set_moonraker_version("UNKNOWN");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "Unknown");
         REQUIRE(moonraker() == "Unknown");
     }
@@ -272,7 +272,7 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     SECTION("empty and whitespace-only become Unknown") {
         state.set_klipper_version("");
         state.set_moonraker_version("   ");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "Unknown");
         REQUIRE(moonraker() == "Unknown");
     }
@@ -280,14 +280,14 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     SECTION("a real version passes through untouched") {
         state.set_klipper_version("v0.12.0-108-g2c7a9d58");
         state.set_moonraker_version("v0.8.0");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "v0.12.0-108-g2c7a9d58");
         REQUIRE(moonraker() == "v0.8.0");
     }
 
     SECTION("surrounding whitespace is trimmed from a real version") {
         state.set_klipper_version("  v0.12.0  ");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "v0.12.0");
     }
 
@@ -300,12 +300,12 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
                     .empty()); // nothing set yet this section
 
         state.set_klipper_version("?");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "Unknown");
         REQUIRE(state.versions_state().get_klipper_version_raw() == "?");
 
         state.set_klipper_version("  v0.12.0  ");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(state.versions_state().get_klipper_version_raw() == "  v0.12.0  ");
     }
 }

@@ -3,7 +3,6 @@
 
 #include "ui_update_queue.h"
 
-#include "../test_helpers/update_queue_test_access.h"
 #include "klipper_config_includes.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -688,7 +687,7 @@ struct TornDownPrinter {
     std::unique_ptr<MoonrakerAPIMock> api = std::make_unique<MoonrakerAPIMock>(client, state);
 
     TornDownPrinter() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         api->set_config_files({{"printer.cfg", "[include a.cfg]\n[printer]\n"},
                                {"a.cfg", "[include b.cfg]\n[a]\n"},
                                {"b.cfg", "[b]\n"}});
@@ -716,7 +715,7 @@ TEST_CASE("api_config_download issues no request once the API is destroyed",
 
     TornDownPrinter::step(); // printer.cfg arrives; a.cfg is requested
     printer.api.reset();     // printer teardown, between two downloads
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(completions == 0);
     CHECK(error.find("disconnected") != std::string::npos);
@@ -733,7 +732,7 @@ TEST_CASE("api_config_download walks the whole chain while the API lives",
             active = files;
         },
         [&](const std::string& err) { error = err; });
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(error.empty());
     CHECK(active == std::set<std::string>{"printer.cfg", "a.cfg", "b.cfg"});
@@ -755,7 +754,7 @@ TEST_CASE("api_config_download stops when its caller no longer wants the walk",
 
     TornDownPrinter::step();
     wanted = false;
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(completions == 0);
     CHECK_FALSE(error.empty());

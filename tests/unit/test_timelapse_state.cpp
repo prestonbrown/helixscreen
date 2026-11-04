@@ -1,8 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_update_queue.h"
+
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "printer_state.h"
@@ -16,7 +17,7 @@ using json = nlohmann::json;
 
 // Helper to flush queued UI updates so subject values are readable
 static void flush_queue() {
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 // ============================================================================
@@ -331,26 +332,26 @@ struct TimelapsePrintFixture {
         auto& ps = get_printer_state();
         ps.init_subjects(false);
         test::set_wire_state(ps, PrintJobState::STANDBY);
-        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         // Re-init so the print-state observer binds to this PrinterState's subjects.
         TimelapseState::instance().deinit_subjects();
         TimelapseState::instance().init_subjects(false);
     }
     ~TimelapsePrintFixture() {
         test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
-        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         TimelapseState::instance().deinit_subjects();
     }
 
     void wire(PrintJobState s) {
         test::set_wire_state(get_printer_state(), s);
-        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void frames(int n) {
         for (int i = 0; i < n; ++i) {
             TimelapseState::instance().handle_timelapse_event(
                 json{{"action", "newframe"}, {"framefile", "f.jpg"}});
-            UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
         }
     }
     int frame_count() {
@@ -388,7 +389,7 @@ TEST_CASE_METHOD(TimelapsePrintFixture,
     wire(PrintJobState::COMPLETE);
     TimelapseState::instance().handle_timelapse_event(
         json{{"action", "render"}, {"status", "error"}, {"msg", "ffmpeg failed"}});
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(frame_count() == 4);
 
     wire(PrintJobState::PRINTING);
@@ -441,21 +442,21 @@ TEST_CASE("TimelapseState: subscribing while a print runs keeps its frames",
     auto& ps = get_printer_state();
     ps.init_subjects(false);
     test::set_wire_state(ps, PrintJobState::PRINTING);
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     auto& tl = TimelapseState::instance();
     tl.deinit_subjects();
     tl.init_subjects(false);
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     tl.handle_timelapse_event(json{{"action", "newframe"}, {"framefile", "f.jpg"}});
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     test::set_wire_state(ps, PrintJobState::PAUSED);
     test::set_wire_state(ps, PrintJobState::PRINTING);
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(lv_subject_get_int(tl.get_frame_count_subject()) == 1);
 
     test::set_wire_state(ps, PrintJobState::STANDBY);
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     tl.deinit_subjects();
 }

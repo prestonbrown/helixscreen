@@ -22,7 +22,6 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/armed_timers.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
@@ -255,7 +254,7 @@ struct OptimisticSidebarFixture : public XMLTestFixture {
     /// found by its owner and fired directly.
     void let_watchdog_run() {
         // A deferred callback can queue another, so drain until quiet.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         const auto armed = helix::test::armed_timers_for(sidebar_.get());
         REQUIRE(armed.size() == 1);
         armed[0]->timer_cb(armed[0]);

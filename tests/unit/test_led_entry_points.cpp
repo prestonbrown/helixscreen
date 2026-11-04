@@ -7,7 +7,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_home_layout.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "config.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
@@ -28,7 +27,7 @@ using namespace helix::led;
 namespace {
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 /// Native `chamber_light` and `sb_leds` on a mock API, with the XML the overlay

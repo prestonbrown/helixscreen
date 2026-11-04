@@ -273,7 +273,7 @@ struct KeypadCeilingFixture {
             if (helix::ui::UpdateQueueTestAccess::queue_empty(queue)) {
                 break;
             }
-            helix::ui::UpdateQueueTestAccess::drain_all(queue);
+            queue.drain_until_empty();
         }
     }
 

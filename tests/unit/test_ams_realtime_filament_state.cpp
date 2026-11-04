@@ -16,9 +16,10 @@
  *  - filament_loaded cleared on unload (active-lane subject clears).
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
@@ -53,7 +54,7 @@ class SnapmakerRealtimeTestAccess {
 
 namespace {
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 } // namespace
 

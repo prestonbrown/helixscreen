@@ -9,10 +9,10 @@
 
 #include "ui_ams_current_tool.h"
 #include "ui_swatch.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -26,7 +26,7 @@ using namespace helix;
 
 namespace {
 void drain() {
-    ui::UpdateQueueTestAccess::drain(ui::UpdateQueue::instance());
+    ui::UpdateQueue::instance().drain();
 }
 } // namespace
 

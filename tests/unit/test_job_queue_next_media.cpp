@@ -13,7 +13,6 @@
 #include "../test_helpers/job_queue_state_test_access.h"
 #include "../test_helpers/job_queue_subjects_fixture.h"
 #include "../test_helpers/thumbnail_test_png.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "connection_state.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "job_queue_state.h"
@@ -53,7 +52,7 @@ struct NextMediaFixture : public LVGLUITestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance(), 8);
+        helix::ui::UpdateQueue::instance().drain_until_empty(8);
     }
 
     void deliver(const std::vector<std::string>& files) {

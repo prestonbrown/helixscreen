@@ -16,7 +16,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
 #include "moonraker_api_mock.h"
@@ -391,7 +390,7 @@ TEST_CASE_METHOD(NozzleCalFixture, "mock: teardown's before_disconnect ends the 
     process_lvgl(1300);
     CHECK_FALSE(client.nozzle_calibration_active());
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     overlay.runner().reset();
     set_moonraker_client(nullptr);
     set_moonraker_api(nullptr);

@@ -257,9 +257,9 @@ class CfsCalibHelper : public CfsLifecycleHelper {
 };
 
 // The failure legs hop through the queue, and the live backend needs one pass
-// per answer; drain_all() repeats until the queue is empty.
+// per answer; drain_until_empty() repeats until the queue is empty.
 void drain_calib_queue() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 } // namespace
 
@@ -7243,7 +7243,7 @@ TEST_CASE("CFS: a failed pre-op G28 does not send the envelope unwind", "[ams][c
     CfsTestAccess::dispatch_action_script(backend, "CR_BOX_LOAD TNN=0");
     // token.defer() can queue from inside a drain, so drain until quiet or the
     // callback is left behind and the isolation-leak gate names this test.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // The G28 went out and failed, so the payload never shipped.
     REQUIRE(api.contains("G28"));
@@ -7269,7 +7269,7 @@ TEST_CASE("CFS: a failed payload still sends the envelope unwind", "[ams][cfs][h
     CfsTestAccess::dispatch_action_script(backend, "CR_BOX_LOAD TNN=0");
     // token.defer() can queue from inside a drain, so drain until quiet or the
     // callback is left behind and the isolation-leak gate names this test.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(api.contains("G28"));
     REQUIRE(api.contains("CR_BOX_LOAD"));

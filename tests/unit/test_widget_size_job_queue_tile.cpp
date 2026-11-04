@@ -23,7 +23,6 @@
 #include "../test_helpers/one_line_label.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "job_queue_state.h"
 #include "lvgl.h"
@@ -64,7 +63,7 @@ struct JobQueueTileFixture : public LVGLUITestFixture, public JobQueueTileSeed {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void settle() {
         drain();

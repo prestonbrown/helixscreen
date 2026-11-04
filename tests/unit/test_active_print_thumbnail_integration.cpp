@@ -193,7 +193,7 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
         panel_.reset();
         media_.reset();
         api_.reset();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void start_consumers() {
@@ -226,7 +226,7 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
     /// Async work (the panel's deferred filename observer, queued subject
     /// writes) only lands on a queue tick [L048].
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Settle every hop a self-serve thumbnail load takes: the prescale pool
@@ -243,7 +243,7 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
                 helix::ui::UpdateQueueTestAccess::queue_empty(queue)) {
                 break;
             }
-            helix::ui::UpdateQueueTestAccess::drain_all(queue);
+            queue.drain_until_empty();
         }
     }
 

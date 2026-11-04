@@ -14,7 +14,6 @@
 #include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_constants.h"
 #include "system/update_checker.h"
@@ -101,7 +100,7 @@ TEST_CASE("a repeat attach delivers a timelapse event once",
     state.attach(client);
     REQUIRE(client.fire_notification(
         TIMELAPSE, json{{"action", "newframe"}, {"framefile", "f.jpg"}, {"framenum", 1}}));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(lv_subject_get_int(state.get_frame_count_subject()) == 1);
 

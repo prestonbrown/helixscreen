@@ -21,7 +21,6 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/print_history_seed.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "locale_formats.h"
 #include "lvgl.h"
@@ -72,7 +71,7 @@ struct PrintStatsTileFixture : public LVGLUITestFixture, public PrintHistorySeed
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void settle() {
         drain();

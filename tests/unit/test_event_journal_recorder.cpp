@@ -6,7 +6,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_env.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "event_journal_recorder.h"
 #include "gcode_response_routing.h"
@@ -67,7 +66,7 @@ class RecorderFixture : public LVGLTestFixture {
     }
 
     static void settle() {
-        ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+        ui::UpdateQueue::instance().drain_until_empty();
     }
 
     std::vector<std::string> kinds() const {
@@ -234,5 +233,5 @@ TEST_CASE_METHOD(LVGLTestFixture,
         routing.release_routers();
         CHECK(client.handler_count("notify_klippy_ready", "event_journal") == 0);
     }
-    ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+    ui::UpdateQueue::instance().drain_until_empty();
 }

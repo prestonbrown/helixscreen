@@ -17,6 +17,8 @@
  * 5. State machine - BeltTensionCalibrator lifecycle
  */
 
+#include "ui_update_queue.h"
+
 #include "../../include/belt_settle.h"
 #include "../../include/belt_tension_calibrator.h"
 #include "../../include/belt_tension_types.h"
@@ -28,7 +30,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/script_lines.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 
@@ -390,7 +391,7 @@ class BeltCalibratorFixture : public LVGLTestFixture {
         // Cancel and invalidate the guard before the test-local callback
         // targets die, then run whatever is still queued.
         calibrator_.reset();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         api_.reset();
         MoonrakerClientMock::remove_belt_csvs();
     }
@@ -516,7 +517,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "cancel while homing never starts the sw
         [&](const std::string&) { called = true; });
     calibrator_->cancel();
     for (int i = 0; i < 500; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_tick_inc(10);
         lv_timer_handler_safe();
     }
@@ -633,7 +634,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "a refused settle sends nothing",
         inputs, [&]() { other = true; }, [&](BeltSettleRefusal r) { refusal = r; },
         [&](const std::string&) { other = true; });
     for (int i = 0; i < 50; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_tick_inc(10);
         lv_timer_handler_safe();
     }
@@ -674,7 +675,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "cancel during settle silences its ack",
     calibrator_->cancel();
     CHECK(calibrator_->get_state() == BeltTensionCalibrator::State::IDLE);
     for (int i = 0; i < 500; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_tick_inc(2);
         lv_timer_handler_safe();
     }

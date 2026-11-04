@@ -19,6 +19,8 @@
  * configfile query from test-controlled sections.
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
 #include "chamber_heater_backend.h"
@@ -30,7 +32,6 @@
 #include "settings_manager.h"
 #include "temperature_controller.h"
 #include "test_helpers/configfile_mock_client.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include <algorithm>
 #include <functional>
@@ -58,7 +59,7 @@ struct ChamberFixture : public LVGLTestFixture {
     }
 
     ~ChamberFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Resolve a dragonbreath chamber heater through the production path
@@ -86,7 +87,7 @@ TEST_CASE("conservative ceiling applies when configfile silent", "[chamber][ceil
         f.controller.set_chamber_actions("", "", 60.0);
 
         f.controller.ensure_limits(helix::HeaterType::Chamber);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
 
         REQUIRE(f.controller.configured_max(helix::HeaterType::Chamber) == 60);
     }
@@ -95,7 +96,7 @@ TEST_CASE("conservative ceiling applies when configfile silent", "[chamber][ceil
         f.controller.set_chamber_actions("", "", 0.0);
 
         f.controller.ensure_limits(helix::HeaterType::Chamber);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
 
         // No fallback: the configured max stays unknown and the keypad keeps
         // its 80 C chamber default — current behavior for silent configfile.
@@ -112,7 +113,7 @@ TEST_CASE("configfile max_temp beats conservative ceiling", "[chamber][ceiling]"
     f.controller.set_chamber_actions("", "", 60.0);
 
     f.controller.ensure_limits(helix::HeaterType::Chamber);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(f.controller.configured_max(helix::HeaterType::Chamber) == 75);
 }
@@ -196,7 +197,7 @@ constexpr const char* kBedOff = "SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET
 void report_drying(ChamberFixture& f, bool running) {
     lv_subject_set_int(f.state.temperature_state().get_chamber_dryer_active_subject(),
                        running ? 1 : 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 int count(const std::vector<std::string>& history, const std::string& line) {
@@ -260,7 +261,7 @@ TEST_CASE("chamber dryer bed assist turns the bed off however the cycle ends",
         f.client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, "Unknown command",
                                         "PANDA_BREATH_DRY_START");
         f.controller.start_chamber_drying(55.0f, 240, true);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(count(f.client.gcode_script_history(), kBedOff) == 1);
     }
 
@@ -364,7 +365,7 @@ TEST_CASE("set_hardware reads the chamber ceiling before any input surface asks"
     helix::PrinterDiscovery hardware;
     hardware.parse_objects(nlohmann::json{"heater_generic chamber", "extruder", "heater_bed"});
     f.state.set_hardware(hardware);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // A label built from keypad_range() on first open shows the real cap.
     CHECK(f.controller.configured_max(helix::HeaterType::Chamber) == 60);
@@ -374,7 +375,7 @@ TEST_CASE("set_hardware reads the chamber ceiling before any input surface asks"
 namespace {
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 std::vector<std::string> idle_lines(ChamberFixture& f) {

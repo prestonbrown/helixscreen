@@ -20,7 +20,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/advanced_panel_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -89,7 +88,7 @@ struct MacrosSettingsFixture : LVGLUITestFixture {
 
     /// A drained step can queue the next one; pump until quiet.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 12);
+        UpdateQueue::instance().drain_until_empty(12);
     }
 
     void tap_install_row() {

@@ -16,7 +16,6 @@
 #include "../helix_test_fixture.h"
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/print_status_preview_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "config.h"
 #include "gcode_preview_fetcher.h"
 #include "gcode_preview_gate.h"
@@ -95,7 +94,7 @@ class FetcherFixture : public HelixTestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void ensure(uint64_t expected, std::vector<std::string>& ready,

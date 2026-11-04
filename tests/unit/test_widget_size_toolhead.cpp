@@ -16,6 +16,7 @@
 
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/bed_occupancy_state_test_access.h"
@@ -24,7 +25,6 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
 #include "bed_plate_context.h"
@@ -96,7 +96,7 @@ struct ToolheadFixture : public LVGLUITestFixture {
         drain();
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void set_print_active(bool on) {
         lv_subject_set_int(state().print_state().get_print_active_subject(), on ? 1 : 0);

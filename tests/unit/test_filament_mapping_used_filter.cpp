@@ -32,7 +32,6 @@
 
 #include "../mapping_card_render_fixture.h"
 #include "../test_helpers/mock_bypass.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "filament_chip_model.h"
@@ -483,11 +482,11 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "An unmapped chip carries no word in 
     struct RestoreEnglish {
         ~RestoreEnglish() {
             helix::SystemSettingsManager::instance().set_language("en");
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
         }
     } restore;
     helix::SystemSettingsManager::instance().set_language("de");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Pick")) != "Pick");
     CHECK(chip_string(1, "_slot").empty());
     CHECK(chip_int(1, "_slot_state") == 0);

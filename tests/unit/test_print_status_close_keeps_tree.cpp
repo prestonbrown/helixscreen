@@ -23,7 +23,6 @@
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
@@ -148,7 +147,7 @@ class PrintStatusCloseFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static void set_wire_state(PrintJobState wire) {

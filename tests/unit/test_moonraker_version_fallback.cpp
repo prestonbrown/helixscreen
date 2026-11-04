@@ -14,7 +14,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -140,7 +139,7 @@ TEST_CASE("Discovery reads Moonraker's version from update_manager when server.i
     REQUIRE(completed);
     CHECK(client.hardware().moonraker_version() == "9e676eb");
 
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
     CHECK(std::string(lv_subject_get_string(
               state.versions_state().get_moonraker_version_subject())) == "9e676eb");
 }
