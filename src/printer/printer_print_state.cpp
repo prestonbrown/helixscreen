@@ -15,6 +15,7 @@
 
 #include "data_root_resolver.h"
 #include "format_utils.h"
+#include "moonraker_error.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h" // For enum definitions
 #include "state/subject_macros.h"
@@ -1450,14 +1451,21 @@ void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) 
     set_preparing_start(accepted ? PreparingStart::Accepted : PreparingStart::None);
 }
 
-bool PrinterPrintState::hold_for_requested_cancel(int epoch) {
-    if (!preparing_cancel_requested_ || epoch == 0 || epoch != preparing_epoch_counter_ ||
-        preparing_job_.empty()) {
+bool PrinterPrintState::hold_unanswered_start(int epoch, const MoonrakerError& error) {
+    if (epoch == 0 || epoch != preparing_epoch_counter_ || preparing_job_.empty()) {
         return false;
     }
-    spdlog::warn("[PrinterPrintState] Start of '{}' lost its answer with a cancel requested - "
-                 "holding the job for the cancel",
-                 preparing_job_.filename);
+    // A dropped connection may also be a start that never left the screen, so
+    // only a Stop waiting to cancel it is reason to keep the job.
+    const bool held =
+        error.command_may_still_run() || (error.is_transport_loss() && preparing_cancel_requested_);
+    if (!held) {
+        return false;
+    }
+    spdlog::warn("[PrinterPrintState] Start of '{}' lost its answer ({}){} - keeping the job "
+                 "until the printer reports it",
+                 preparing_job_.filename, error.message,
+                 preparing_cancel_requested_ ? " with a cancel requested" : "");
     set_preparing_start(PreparingStart::Unanswered);
     return true;
 }

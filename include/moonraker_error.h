@@ -54,6 +54,18 @@ struct MoonrakerError {
     }
 
     /**
+     * @brief Did a queued G-code RPC give up while Klipper may still run it?
+     *
+     * A command Klipper runs inside its G-code queue answers only once it
+     * executes, which can outlast the RPC ceiling (a long print-start sequence
+     * holds the queue for minutes). A timeout says nothing about the command;
+     * any other error is a failure.
+     */
+    bool command_may_still_run() const {
+        return type == MoonrakerErrorType::TIMEOUT;
+    }
+
+    /**
      * @brief Did Moonraker answer that the thing asked for does not exist?
      *
      * Moonraker's JSON-RPC layer turns a ServerError with status 404 into code

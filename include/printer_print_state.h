@@ -20,6 +20,8 @@
 
 #include "hv/json.hpp"
 
+struct MoonrakerError; // NAMESPACE_OK: MoonrakerError itself is global (moonraker_error.h)
+
 // Forward declaration - enums are defined in printer_state.h
 namespace helix {
 enum class PrintJobState;
@@ -331,8 +333,8 @@ class PrinterPrintState {
     /**
      * @brief Stop asked the printer to cancel this job's start
      *
-     * Set by PrintControlButtons. While it is set, a start whose answer is lost
-     * is held rather than retired: see hold_for_requested_cancel().
+     * Set by PrintControlButtons, which sends the cancel once the start has
+     * answered or lost its answer: see hold_unanswered_start().
      */
     void note_preparing_cancel_requested() {
         preparing_cancel_requested_ = !preparing_job_.empty();
@@ -342,14 +344,26 @@ class PrinterPrintState {
     }
 
     /**
-     * @brief A start for the job armed at @p epoch lost its answer
+     * @brief The start sent for the job armed at @p epoch failed with @p error
      *
-     * With a cancel requested, the job is kept and its start marked
-     * Unanswered, so the cancel goes out behind it instead of being dropped
-     * with a job retired as failed. Returns true when it held the job; the
-     * caller then skips its failure handling.
+     * The one rule every start site applies to a start error. A refusal
+     * carries the printer's own answer: nothing is running, so the caller
+     * fails the job. An RPC timeout says Klipper is still busy with the start:
+     * a firmware that runs its print-start sequence inside SDCARD_PRINT_FILE
+     * answers only once that sequence ends, which can outlast the RPC ceiling.
+     * Such a start keeps its job, marked Unanswered so a Stop queues its cancel
+     * behind it, until the printer reports the job (reconcile_preparing) or the
+     * preparing watchdog retires it (prestonbrown/helixscreen#1898).
+     *
+     * A dropped connection is also what a start that never reached Moonraker
+     * gets, so it holds the job only while a cancel is requested; otherwise
+     * the start fails and says so.
+     *
+     * Returns true when it held the job; the caller then skips its failure
+     * handling. False for a refusal, a dropped connection with no cancel
+     * waiting, or once a different job is preparing.
      */
-    bool hold_for_requested_cancel(int epoch);
+    bool hold_unanswered_start(int epoch, const MoonrakerError& error);
 
     [[nodiscard]] PreparingStart preparing_start() const {
         return static_cast<PreparingStart>(
