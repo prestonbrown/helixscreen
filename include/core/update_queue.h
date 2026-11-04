@@ -224,9 +224,9 @@ class UpdateQueue {
     /**
      * @brief Shutdown and cleanup
      *
-     * Nullifies the timer pointer and clears the pending queue to prevent
+     * Deletes the drain timer and clears the pending queue to prevent
      * stale callbacks from executing after objects they reference are
-     * destroyed. The actual LVGL timer is freed by lv_deinit().
+     * destroyed.
      */
     void shutdown() {
         // Drain pending callbacks while panels are still alive, then gate off
@@ -463,6 +463,13 @@ class UpdateQueue {
             // update_queue_init() next, which re-arms the timer and runs those
             // callbacks against the objects teardown just destroyed.
             std::queue<TaggedCallback>().swap(frozen_buffer_);
+        }
+        // Unlinked now, so a soft restart's init() leaves one drain timer, and
+        // nothing that walks the timer list sees a dead one. LVGL lets a timer be
+        // deleted from inside lv_timer_handler(), its own callback included; the
+        // destructor can run after lv_deinit() has already freed it.
+        if (timer_ != nullptr && lv_is_initialized()) {
+            lv_timer_delete(timer_);
         }
         timer_ = nullptr;
     }
