@@ -115,17 +115,7 @@ void open_abs_edit_view(XMLTestFixture& f) {
 TEST_CASE_METHOD(XMLTestFixture,
                  "Chamber row shows the material's chamber default when a heater exists",
                  "[material_temps][chamber]") {
-    reset_material_temps_singleton();
-    MaterialSettingsManager::instance().clear_override("ABS");
-    set_capability("printer_has_chamber_heater", 1);
-    register_overlay_deps(*this);
-    REQUIRE(register_component("material_temps_overlay"));
-
-    auto& overlay = helix::settings::get_material_temps_overlay();
-    overlay.show(lv_screen_active());
-    helix::ui::UpdateQueue::instance().drain();
-
-    overlay.handle_material_row_clicked("ABS");
+    open_abs_edit_view(*this);
 
     lv_obj_t* chamber_input = find_widget("edit_chamber_temp");
     REQUIRE(chamber_input != nullptr);
@@ -140,16 +130,8 @@ TEST_CASE_METHOD(XMLTestFixture,
 TEST_CASE_METHOD(XMLTestFixture,
                  "Saving the edit view persists a chamber override find_material applies",
                  "[material_temps][chamber]") {
-    reset_material_temps_singleton();
-    MaterialSettingsManager::instance().clear_override("ABS");
-    set_capability("printer_has_chamber_heater", 1);
-    register_overlay_deps(*this);
-    REQUIRE(register_component("material_temps_overlay"));
-
+    open_abs_edit_view(*this);
     auto& overlay = helix::settings::get_material_temps_overlay();
-    overlay.show(lv_screen_active());
-    helix::ui::UpdateQueue::instance().drain();
-    overlay.handle_material_row_clicked("ABS");
 
     lv_obj_t* chamber_input = find_widget("edit_chamber_temp");
     REQUIRE(chamber_input != nullptr);
@@ -720,6 +702,21 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE(lv_subject_get_int(editing) == 0);
     lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
     CHECK(lv_subject_get_int(editing) == 1);
+
+    reset_material_temps_singleton();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "The header's back button leaves the edit view for the list",
+                 "[material_temps]") {
+    open_abs_edit_view(*this);
+    lv_obj_t* edit_view = find_widget("material_edit_view");
+    REQUIRE_FALSE(hidden(edit_view));
+    REQUIRE(hidden(find_widget("material_list_view")));
+
+    lv_obj_send_event(find_widget("back_button"), LV_EVENT_CLICKED, nullptr);
+
+    CHECK(hidden(edit_view));
+    CHECK_FALSE(hidden(find_widget("material_list_view")));
 
     reset_material_temps_singleton();
 }

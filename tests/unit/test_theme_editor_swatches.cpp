@@ -103,3 +103,28 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Tapping a theme swatch opens the pic
     settle();
     CHECK(ModalStack::instance().top_component_name() == "color_picker");
 }
+
+TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping unsaved edits",
+                 "[theme_editor]") {
+    auto& editor = get_theme_editor_overlay();
+    REQUIRE(editor.show(lv_screen_active()));
+    settle();
+    lv_obj_t* root = editor.get_root();
+    lv_obj_t* row = lv_obj_find_by_name(root, "row_shadow_intensity");
+    REQUIRE(row != nullptr);
+    lv_obj_t* slider = lv_obj_find_by_name(row, "slider");
+    REQUIRE(slider != nullptr);
+    lv_slider_set_value(slider, 10, LV_ANIM_OFF);
+    lv_obj_send_event(slider, LV_EVENT_VALUE_CHANGED, nullptr);
+    REQUIRE(ModalStack::instance().empty());
+
+    lv_obj_send_event(lv_obj_find_by_name(root, "back_button"), LV_EVENT_CLICKED, nullptr);
+    settle();
+
+    CHECK_FALSE(ModalStack::instance().empty());
+    CHECK(editor.get_root() == root);
+
+    // The slider previewed its edit across the app.
+    theme_manager_preview(
+        helix::load_theme_from_file(DisplaySettingsManager::instance().get_theme_name()));
+}
