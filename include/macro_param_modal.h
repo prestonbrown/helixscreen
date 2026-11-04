@@ -115,15 +115,14 @@ class MacroParamModal : public Modal {
 /**
  * @brief The one MacroParamModal every surface that prompts for parameters shares
  *
- * Home controls, the filament router and the macros panel all raise this
- * instance: the modal tracks a single active instance, so a second one would
- * stomp on the first. A lazy_global, so it lives for the printer session and
- * StaticPanelRegistry frees it with the panels.
+ * Home controls and the filament router raise this instance. A lazy_global, so
+ * it lives for the printer session and StaticPanelRegistry frees it with the
+ * panels.
  *
  * MacroParamModal keeps its on_execute_ callback until the next show_for_*()
  * overwrites it, so a callback handed here can fire long after the object that
- * built it is gone. An immortal caller (FilamentPanel) may capture [this]
- * directly; every other caller routes through an AsyncLifetimeGuard token.
+ * built it is gone. A panel freed with this modal (FilamentPanel) may capture
+ * [this] directly; every other caller routes through an AsyncLifetimeGuard token.
  */
 MacroParamModal& get_macro_param_modal();
 

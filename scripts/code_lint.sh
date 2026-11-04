@@ -130,6 +130,16 @@ rtti_lint_files() {
 code_offenders() {
     local pat="$1" optout="$2"
     shift 2
+    # A rule with nothing to read is a rule that stopped checking, so it reports.
+    if [ "$#" -eq 0 ]; then
+        echo "code_lint: no files to scan for: $pat"
+        return 0
+    fi
+    local f
+    for f in "$@"; do
+        [ "$f" = /dev/null ] && { echo "code_lint: no files to scan for: $pat"; continue; }
+        [ -f "$f" ] || echo "code_lint: $f is gone: update this lint's file list"
+    done
     CODE_LINT_PAT="$pat" CODE_LINT_OPTOUT="$optout" awk '
         BEGIN { pat = ENVIRON["CODE_LINT_PAT"]; optout = ENVIRON["CODE_LINT_OPTOUT"]; join = ENVIRON["CODE_LINT_JOIN"] }
         FNR == 1 { in_block = 0; held = "" }

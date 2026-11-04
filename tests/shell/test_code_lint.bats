@@ -2240,3 +2240,12 @@ EOF
     [ "$status" -eq 1 ]
     contains "FAIL planted" "$output"
 }
+
+@test "a lint with no files, or a listed file that is gone, reports instead of passing" {
+    run code_offenders "anything" ""
+    contains "no files to scan" "$output"
+    run code_offenders "anything" "" /dev/null
+    contains "no files to scan" "$output"
+    run code_offenders "anything" "" src/no_such_file_anywhere.cpp
+    contains "no_such_file_anywhere.cpp is gone" "$output"
+}
