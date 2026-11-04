@@ -33,6 +33,9 @@ class ConnectionSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "settings_connection_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void init_subjects() override;
     void deinit_subjects();

@@ -38,6 +38,9 @@ class PrinterTypeOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "printer_type_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void register_callbacks() override;
     void on_activate() override;

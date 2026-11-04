@@ -19,6 +19,9 @@ class MaintenanceOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "maintenance_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void register_callbacks() override;
 

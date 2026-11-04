@@ -34,6 +34,9 @@ class LabelPrinterSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "label_printer_settings";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
 
@@ -84,6 +87,11 @@ class LabelPrinterSettingsOverlay : public OverlayBase {
     void merge_and_update_discovery();
     void on_usb_printers_detected(const std::vector<helix::UsbPrinterInfo>& printers);
     void update_ipp_selected_subject();
+
+    /// A rebuilt tree has none of the input callbacks the guard below stands for.
+    void on_ui_destroyed() override {
+        inputs_initialized_ = false;
+    }
 
     bool inputs_initialized_ = false; ///< Guard against stacking duplicate event callbacks
     /// The saved network printer was chosen by discovery, not the user, so a

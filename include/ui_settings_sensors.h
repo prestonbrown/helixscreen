@@ -134,6 +134,9 @@ class SensorSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "sensors_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Fills every section before the XML is built, so the first expansion
     /// binds filled rows.

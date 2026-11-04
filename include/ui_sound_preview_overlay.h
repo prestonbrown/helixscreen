@@ -18,6 +18,9 @@ class SoundPreviewOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "sound_preview_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;

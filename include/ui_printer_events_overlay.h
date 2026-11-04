@@ -41,6 +41,9 @@ class PrinterEventsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "printer_events_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Fill the list from @p entries, which came from @p source.
     void show_entries(JournalSource source, std::vector<JournalEntry> entries);

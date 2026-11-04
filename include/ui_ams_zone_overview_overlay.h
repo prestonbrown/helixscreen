@@ -49,6 +49,9 @@ class AmsZoneOverviewOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "ams_zone_overview_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Show the list for @p zones. The caller decides the set: one unit's zones from the
     /// environment indicator, every zone on the printer from the detail overlay's header.

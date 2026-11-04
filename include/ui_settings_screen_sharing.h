@@ -27,6 +27,9 @@ class ScreenSharingSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "settings_screen_sharing_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void register_callbacks() override;
 };
