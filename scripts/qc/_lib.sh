@@ -93,7 +93,8 @@ $unit"
 
 # Narrows CHECK_UNITS to CAP units when it holds more: every header includer, since
 # a header breaks OTHER units, then an even stride through the rest of the sorted
-# list, so every directory is represented and the same staging picks the same units.
+# list. The stride spreads the sample across the paths and the same staging picks the
+# same units; a directory with fewer units than one stride can get none.
 # Includers alone may exceed CAP. Sets COMPILE_TOTAL and COMPILE_SKIPPED.
 qc_sample_compile_units() {
   local cap="$1"
@@ -123,7 +124,8 @@ qc_compile_sample_note() {
 # Runs syntax_check.py over its arguments. A few units run exactly as a direct call
 # would. More run in parallel under a pool hold: `helix-claim jobs` is only the upper
 # bound (cores capped by memory, or the whole pool), and JOBPOOL_SLOTS is what this
-# run was actually granted.
+# run was actually granted. --min 1 starts it on whatever is free: hold's default
+# floor can stall a commit for its whole bounded wait.
 qc_syntax_check() {
   local slots
   if [ "$#" -le "$QC_COMPILE_SERIAL_MAX" ]; then
@@ -132,6 +134,6 @@ qc_syntax_check() {
   fi
   slots=$(qc_build_jobs)
   [ "$slots" -le "$#" ] || slots=$#
-  scripts/helix-claim hold -n "$slots" -- \
+  scripts/helix-claim hold -n "$slots" --min 1 -- \
     sh -c 'exec python3 scripts/syntax_check.py --jobs "$JOBPOOL_SLOTS" "$@"' _ "$@"
 }

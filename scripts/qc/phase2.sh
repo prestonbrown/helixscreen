@@ -396,9 +396,15 @@ if [ "$STAGED_ONLY" = true ]; then
     [ -z "$QC_SAMPLE_NOTE" ] || echo "$QC_SAMPLE_NOTE"
     [ -z "$UNREACHED_HDR" ] || echo "ℹ️  No source includes${UNREACHED_HDR} directly; pre-push checks its dependents"
   else
+    QC_SYNTAX_RC=$?
     section_time $SECTION_START
     echo ""
-    echo "❌ A staged source does not compile"
+    # syntax_check.py prints its summary last, so a log without one never reached a verdict.
+    if grep -q '^summary:' "$QC_SYNTAX_LOG"; then
+      echo "❌ A staged source does not compile"
+    else
+      echo "❌ The compile check stopped with exit $QC_SYNTAX_RC before judging any source"
+    fi
     # Passing units are dropped first: they would push the error out of the window.
     grep -v ': ok (' "$QC_SYNTAX_LOG" | sed -n '1,40p'
     [ -z "$QC_SAMPLE_NOTE" ] || echo "$QC_SAMPLE_NOTE"

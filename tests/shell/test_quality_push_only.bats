@@ -239,6 +239,7 @@ case "$1" in
   hold)
     shift
     echo "$*" > hold.log
+    [ -z "$STUB_HOLD_RC" ] || exit "$STUB_HOLD_RC"
     while [ "$1" != "--" ]; do shift; done
     shift
     JOBPOOL_SLOTS=3 exec "$@"
@@ -325,7 +326,7 @@ compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$
   contains "EXIT_CODE=0" "$output"
   lacks "Wide commit" "$output"
   [ "$(called_count)" -eq "$staged" ] || fail "compiled $(called_count) of $staged"
-  contains "-n 6 --" "$(cat "$BATS_TEST_TMPDIR/repo/hold.log")"
+  contains "-n 6 --min 1 --" "$(cat "$BATS_TEST_TMPDIR/repo/hold.log")"
   [ "$(cat "$BATS_TEST_TMPDIR/repo/jobs.txt")" = 3 ] || fail "jobs is not the granted slots"
 }
 
@@ -373,6 +374,14 @@ compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$
   contains "EXIT_CODE=1" "$output"
   contains "Wide commit" "$output"
   lacks "u1.cpp: ok" "$output"
+}
+
+@test "a pool hold that dies silently fails the commit without blaming a source" {
+  wide_repo 60
+  STUB_HOLD_RC=3 run compile_block
+  contains "❌ The compile check stopped with exit 3" "$output"
+  lacks "A staged source does not compile" "$output"
+  contains "EXIT_CODE=1" "$output"
 }
 
 @test "a failed compile keeps its whole log, in a place no other session writes" {

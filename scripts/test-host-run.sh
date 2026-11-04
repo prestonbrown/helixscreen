@@ -926,6 +926,10 @@ case "$WHAT" in
     mutate) CMD='{ [ -x .venv/bin/python3 ] && .venv/bin/python3 -c "import pytest" 2>/dev/null || make venv-setup >/dev/null; }; '"$YIELD_PRIORITY"'python3 scripts/mutate_diff.py --jobs $HELIX_J $(grep -qs -- --workers scripts/mutate_diff.py && echo --workers auto) '"$(printf '%q ' "$@")"
             YIELD=1 ;;
     asan)   _tag="${1:-}"; [ $# -gt 0 ] && shift
+            # test-asan-one runs the binary without -#, so a file tag matches nothing.
+            case "$_tag" in
+                *'[#'*) echo "✗ asan cannot filter by '$_tag': it passes no -#, so a [#file] tag matches no test. Name a tag from that file." >&2; exit 2 ;;
+            esac
             # Trailing args become make overrides, so ASAN_RUN_OPTIONS can be
             # tuned per run (quarantine_size_mb keeps freed blocks poisoned, which
             # turns a recycled-memory SEGV into a heap-use-after-free report).
