@@ -178,7 +178,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     // Picker-entry mode: a selection commits + closes. Cleared when the picker
     // is later re-entered via the header Spoolman button.
     opened_on_picker_ = open_on_picker;
-    api_ = api ? api : get_moonraker_api();
+    api_ = api;
     completion_callback_ = std::move(on_complete);
     completion_fired_ = false;
     save_in_flight_ = false;
@@ -229,9 +229,6 @@ void AmsEditOverlay::fetch_linked_spool() {
     // printer is one doomed RPC + warn log per overlay open.
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     const bool has_spoolman = spoolman_subj && lv_subject_get_int(spoolman_subj) == 1;
-    if (!api_) {
-        api_ = get_moonraker_api();
-    }
     if (!has_spoolman || working_info_.spoolman_id <= 0 || !api_) {
         return;
     }
@@ -797,9 +794,6 @@ void AmsEditOverlay::switch_to_picker() {
 }
 
 void AmsEditOverlay::populate_picker() {
-    if (!api_) {
-        api_ = get_moonraker_api();
-    }
     if (!overlay_root_ || !api_) {
         spdlog::warn("[AmsEditOverlay] populate_picker() aborted: overlay_root_={}, api_={}",
                      static_cast<void*>(overlay_root_), static_cast<void*>(api_));
@@ -969,9 +963,6 @@ void AmsEditOverlay::fetch_recents() {
         return;
     }
     if (!api_) {
-        api_ = get_moonraker_api();
-    }
-    if (!api_) {
         return;
     }
     recents_pending_ = true;
@@ -1071,10 +1062,6 @@ void AmsEditOverlay::reseed_details_for_spool() {
 void AmsEditOverlay::enter_editor() {
     catalog_ = printer::FilamentCatalog::load_full();
     editor_entered_ = true;
-
-    if (!api_) {
-        api_ = get_moonraker_api();
-    }
 
     set_view(kViewEditor);
     populate_editor_view();
@@ -2254,9 +2241,6 @@ void AmsEditOverlay::commit_and_close() {
 }
 
 void AmsEditOverlay::commit_capture(const SaveCapture& cap) {
-    if (!api_) {
-        api_ = get_moonraker_api();
-    }
     const bool live = save_is_live(cap);
     const SlotInfo& original = cap.original;
     const SlotInfo& saving = cap.saving;

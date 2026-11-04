@@ -2426,18 +2426,18 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         struct PrintStartedData {
             std::string original_path; // Full path for metadata lookup
             NavigateToStatusCallback navigate_cb;
+            helix::PrinterState* printer_state;
         };
         helix::ui::queue_update<PrintStartedData>(
             std::make_unique<PrintStartedData>(
-                PrintStartedData{job->file_path, on_navigate_to_status}),
+                PrintStartedData{job->file_path, on_navigate_to_status, ps}),
             [](PrintStartedData* d) {
                 BusyOverlay::hide();
 
-                // Name this print by the file the user chose, not the
-                // rewritten copy print_stats will report. PrinterState is
-                // the single authority, so the panel and the media manager
-                // agree about which print this is.
-                get_printer_state().print_state().set_print_identity_override(d->original_path);
+                // Name this print by the file the user chose, not the rewritten copy.
+                if (d->printer_state) {
+                    d->printer_state->print_state().set_print_identity_override(d->original_path);
+                }
 
                 if (d->navigate_cb) {
                     d->navigate_cb();

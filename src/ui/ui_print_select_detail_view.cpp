@@ -170,11 +170,6 @@ void PrintSelectDetailView::init_subjects() {
     // Set static instance pointer for callbacks (must be before callback registration)
     s_detail_view_instance = this;
 
-    // Per-option toggle callbacks are wired imperatively in
-    // populate_option_rows() once the dynamic rows are created. The previous
-    // hardcoded XML <event_cb callback="on_preprint_*_toggled"/> bindings are
-    // gone — there is nothing to register here.
-
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
     UI_MANAGED_SUBJECT_INT(detail_gcode_viewer_mode_, 0, "detail_gcode_viewer_mode", subjects_);
     // G-code loading indicator (0=hidden, 1=visible)
@@ -272,21 +267,6 @@ void PrintSelectDetailView::init_subjects() {
         [](PrintSelectDetailView* self, int /*on*/) { self->on_ams_state_changed(); },
         helix::SettingsManager::instance().get_subjects_lifetime());
 
-    // Both land after the card has already published: the plugin probe completes
-    // after first paint, and the Moonraker version arrives with discovery.
-    // Without these the card keeps whatever it decided before either was known.
-    plugin_installed_observer_ = observe<int>(
-        get_printer_state().plugin_status_state().get_helix_plugin_installed_subject(), this,
-        [](PrintSelectDetailView* self, int /*state*/) {
-            self->publish_rewrite_availability();
-            self->publish_card_visibility();
-        },
-        get_printer_state().get_subjects_lifetime());
-    moonraker_degraded_observer_ = observe<int>(
-        get_printer_state().versions_state().get_moonraker_history_degraded_subject(), this,
-        [](PrintSelectDetailView* self, int /*degraded*/) { self->publish_card_visibility(); },
-        get_printer_state().get_subjects_lifetime());
-
     // Pre-start object picks: a private model and the skip button's subjects.
     exclude_objects_.init_subjects(false);
     UI_MANAGED_SUBJECT_INT(detail_exclude_available_, 0, "detail_exclude_available", subjects_);
@@ -297,13 +277,9 @@ void PrintSelectDetailView::init_subjects() {
         exclude_objects_.get_excluded_objects_version_subject(), this,
         [](PrintSelectDetailView* self, int) { self->publish_exclude_picks(); },
         exclude_objects_.get_subjects_lifetime());
-    // A printer switch can add or drop [exclude_object] while a file is open.
-    exclude_capability_observer_ = observe<int>(
-        get_printer_state().capabilities_state().subject(helix::Capability::HasExcludeObject), this,
-        [](PrintSelectDetailView* self, int) { self->refresh_exclude_objects(); },
-        get_printer_state().get_subjects_lifetime());
 
     subjects_initialized_ = true;
+    observe_printer();
     publish_rewrite_availability();
     spdlog::debug("[DetailView] Initialized pre-print option subjects");
 }
@@ -486,12 +462,39 @@ void PrintSelectDetailView::set_dependencies(IMoonrakerAPI* api, PrinterState* p
     resolve_local_gcodes_root();
 }
 
+void PrintSelectDetailView::observe_printer() {
+    if (!subjects_initialized_ || !printer_state_ || observed_printer_ == printer_state_) {
+        return;
+    }
+    observed_printer_ = printer_state_;
+    auto lifetime = printer_state_->get_subjects_lifetime();
+    // Both land after the card has already published: the plugin probe completes
+    // after first paint, and the Moonraker version arrives with discovery.
+    // Without these the card keeps whatever it decided before either was known.
+    plugin_installed_observer_ = observe<int>(
+        printer_state_->plugin_status_state().get_helix_plugin_installed_subject(), this,
+        [](PrintSelectDetailView* self, int /*state*/) {
+            self->publish_rewrite_availability();
+            self->publish_card_visibility();
+        },
+        lifetime);
+    moonraker_degraded_observer_ = observe<int>(
+        printer_state_->versions_state().get_moonraker_history_degraded_subject(), this,
+        [](PrintSelectDetailView* self, int /*degraded*/) { self->publish_card_visibility(); },
+        lifetime);
+    // A printer switch can add or drop [exclude_object] while a file is open.
+    exclude_capability_observer_ = observe<int>(
+        printer_state_->capabilities_state().subject(helix::Capability::HasExcludeObject), this,
+        [](PrintSelectDetailView* self, int) { self->refresh_exclude_objects(); }, lifetime);
+}
+
 void PrintSelectDetailView::set_analysis_dependencies(IMoonrakerAPI* api,
                                                       PrinterState* printer_state) {
     api_ = api;
     gcode_fetcher_.set_api(api);
     facts_loader_.set_api(api);
     printer_state_ = printer_state;
+    observe_printer();
     publish_rewrite_availability(); // the transport is half the answer
 
     // Not tied to the widget tree: the panel wires dependencies at setup, before
@@ -1864,9 +1867,9 @@ void PrintSelectDetailView::publish_card_visibility() {
         backend != nullptr &&
         backend->get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite;
     const bool degraded =
-        available && rewrites_job_file &&
+        available && rewrites_job_file && printer_state_ &&
         lv_subject_get_int(
-            get_printer_state().versions_state().get_moonraker_history_degraded_subject()) == 1;
+            printer_state_->versions_state().get_moonraker_history_degraded_subject()) == 1;
 
     lv_subject_set_int(&color_card_remap_help_visible_,
                        card_visible && (needs_setup || degraded) ? 1 : 0);
@@ -1940,10 +1943,7 @@ helix::printer::RemapBlock PrintSelectDetailView::current_remap_block() const {
 }
 
 helix::GcodeRewriteBlock PrintSelectDetailView::rewrite_block() const {
-    // Before set_analysis_dependencies() the view reads the app's printer, as
-    // the rest of the card's remap answer does.
-    return PrintPreparationManager::gcode_rewrite_block_for(
-        printer_state_ ? printer_state_ : &get_printer_state(), api_);
+    return PrintPreparationManager::gcode_rewrite_block_for(printer_state_, api_);
 }
 
 void PrintSelectDetailView::publish_rewrite_availability() {

@@ -806,7 +806,7 @@ void ProbeOverlay::handle_zoffset_cal() {
 #endif
 
     auto& overlay = get_global_zoffset_cal_panel();
-    overlay.set_api(get_moonraker_api());
+    overlay.set_api(api_);
     overlay.show(lv_display_get_screen_active(nullptr));
 }
 

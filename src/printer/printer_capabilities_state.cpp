@@ -129,6 +129,10 @@ void PrinterCapabilitiesState::init_subjects(bool register_xml) {
 
     subjects_initialized_ = true;
     apply_pending_capability_values();
+    // A host audio backend outlives every printer, and a switch to an unreachable printer
+    // never reaches set_hardware(). At boot this reads false: SoundManager initializes
+    // after these subjects, so Application seeds the capability itself.
+    set_sound_backend_available(SoundManager::instance().has_backend());
     render_tool_offset_cal_description();
     spdlog::trace("[PrinterCapabilitiesState] Subjects initialized successfully");
 }

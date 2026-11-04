@@ -1113,7 +1113,7 @@ bool AmsState::sync_tool_spools(AmsBackend* backend, const AmsSystemInfo& info) 
     // assignment, therefore we have to. Narrowing the reverse-sync gate above
     // would otherwise have silently stopped saving on CFS and AD5X IFS.
     if (!backend->has_firmware_spool_persistence()) {
-        ToolState::instance().save_spool_assignments_if_dirty(get_moonraker_api());
+        ToolState::instance().save_spool_assignments_if_dirty(api_);
     }
     return any_slot_changed;
 }
@@ -1593,7 +1593,7 @@ void AmsState::update_slot(int slot_index) {
             ToolState::instance().assign_spool(slot.mapped_tool, slot.spoolman_id, slot.spool_name,
                                                slot.remaining_weight_g, slot.total_weight_g);
             if (!backend->has_firmware_spool_persistence()) {
-                ToolState::instance().save_spool_assignments_if_dirty(get_moonraker_api());
+                ToolState::instance().save_spool_assignments_if_dirty(api_);
             }
         }
 

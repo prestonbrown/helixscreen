@@ -233,11 +233,11 @@ void SettingsPanel::refresh_status_lines() {
                                  status_int_subject("settings_volume", 0))
                                .c_str());
 
-    lv_subject_copy_string(&settings_status_devices_subject_,
-                           devices(lv_subject_get_int(get_printer_state()
-                                                          .hardware_validation_state()
-                                                          .get_hardware_status_level_subject()))
-                               .c_str());
+    lv_subject_copy_string(
+        &settings_status_devices_subject_,
+        devices(lv_subject_get_int(
+                    printer_state_.hardware_validation_state().get_hardware_status_level_subject()))
+            .c_str());
 
     if (helix::is_android_platform()) {
         // Android manages Wi-Fi and Ethernet itself — both backends compile to

@@ -248,6 +248,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "start_calibration moves an initialized panel into naming", "[bed_mesh_flow]") {
     use_printer("");
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     REQUIRE(helix::ui::BedMeshPanelTestAccess::calibrate_state_type(panel) ==
             static_cast<int>(LV_SUBJECT_TYPE_INT));
@@ -264,6 +265,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "the mesh is named before any calibrat
                  "[bed_mesh_flow]") {
     use_printer("");
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
 
     panel.start_calibration();
@@ -281,6 +283,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     use_printer("");
     set_bed(24.0, 0.0);
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "default");
 
@@ -298,6 +301,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a named mesh is probed straight into 
                  "[bed_mesh_flow]") {
     use_printer("");
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
 
@@ -324,6 +328,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                     get_printer_state().temperature_state().get_bed_target_subject()) == 700);
 
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -336,6 +341,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         set_bed(100.4, 60.0);
 
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -349,6 +355,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                     get_printer_state().temperature_state().get_bed_temp_subject()) == 874);
 
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -360,6 +367,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         set_bed(24.0, 0.0);
 
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "cold");
 
@@ -382,6 +390,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("bed and nozzle both off") {
         set_bed(24.0, 0.0);
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -394,6 +403,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("a bed the user was heating stays on") {
         set_bed(24.0, 70.0);
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -412,6 +422,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     set_bed(24.0, 0.0);
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "default");
 
@@ -433,6 +444,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_mesh_calibration("G29", "default");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
 
@@ -460,6 +472,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         "// Unable to save to profile [cold], the bed has not been probed");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
 
@@ -477,6 +490,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_mesh_calibration("BED_MESH_CALIBRATE", "default");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
 
@@ -498,6 +512,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("the copy plan, whose default did not change") {
         detect_macros({"gcode_macro G29"});
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "cold");
         REQUIRE(any_sent(sent(), "G29"));
@@ -509,6 +524,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         detect_macros({"gcode_macro BED_MESH_CALIBRATE"});
         client.force_next_mesh_calibration("BED_MESH_CALIBRATE", "adaptive");
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "cold");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
@@ -531,6 +547,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_gcode_dropped_response("G29");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
     const long mesh = first_sent(sent(), "G29");
@@ -580,6 +597,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         client.force_next_gcode_console_reply("BED_MESH_CALIBRATE",
                                               "// Unknown command:\"CLEAN_NOZZLE\"");
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
@@ -591,6 +609,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         client.force_next_gcode_console_reply("BED_MESH_CALIBRATE",
                                               "// Unknown command:\"CLEAN_NOZZLE\"");
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
@@ -603,6 +622,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
 TEST_CASE_METHOD(BedMeshPanelFlowFixture, "loading and deleting a profile quote its name",
                  "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
 
     SECTION("load") {
@@ -625,6 +645,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "loading and deleting a profile quote 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "a name Klipper would cut short is refused before probing", "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     panel.start_calibration();
     drain();
@@ -637,6 +658,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "renaming a profile to default is refused before anything is sent",
                  "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     panel.show_rename_modal("cold");
     panel.rename_profile_checked("default");
@@ -654,6 +676,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         "// Unable to save to profile [warm], the bed has not been probed");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     panel.show_rename_modal("cold");
     panel.rename_profile_checked("warm");
@@ -678,6 +701,7 @@ class BedMeshDialogFixture : public LVGLUITestFixture {
     BedMeshPanel panel;
 
     BedMeshDialogFixture() {
+        panel.set_api(&api);
         set_moonraker_api(&api);
         StandardMacros::instance().init(helix::PrinterDiscovery{}, "");
         // The dialog binds the panel's calibration subjects by name.

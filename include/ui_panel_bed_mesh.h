@@ -63,6 +63,11 @@ class BedMeshPanel : public OverlayBase {
     BedMeshPanel();
     ~BedMeshPanel() override;
 
+    /// The Moonraker API this panel sends through. Set before init_subjects().
+    void set_api(helix::IMoonrakerAPI* api) {
+        api_ = api;
+    }
+
     // === OverlayBase interface ===
     void init_subjects() override;
     void deinit_subjects();
@@ -250,6 +255,8 @@ class BedMeshPanel : public OverlayBase {
     static constexpr double kProbeNozzleTemp = 150.0; // °C — warm nozzle prevents ooze interference
     static constexpr double kProbeBedTemp =
         helix::bed_mesh::kDefaultProbeBedTempC; // °C — thermal expansion for accurate mesh
+
+    helix::IMoonrakerAPI* api_ = nullptr;
 
     // RAII subscription guard - auto-unsubscribes from Moonraker on destruction
     SubscriptionGuard subscription_;

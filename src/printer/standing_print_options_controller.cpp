@@ -30,7 +30,7 @@ namespace {
 constexpr const char* kHandlerName = "StandingPrintOptions";
 } // namespace
 
-StandingPrintOptionsController::StandingPrintOptionsController() {
+StandingPrintOptionsController::StandingPrintOptionsController(IMoonrakerAPI* api) : api_(api) {
     auto& ps = get_printer_state();
     probe_observer_ = observe<int>(
         ps.plugin_status_state().get_helix_plugin_probe_seq_subject(), this,
@@ -72,12 +72,11 @@ void StandingPrintOptionsController::on_plugin_probed() {
     auto& status = get_printer_state().plugin_status_state();
     screen_start_ledger().set_announce(
         announce_screen_start(status.plugin_feature(kPrintHooksFeature, kPrintHooksMinVersion)));
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (api == nullptr) {
+    if (api_ == nullptr) {
         return;
     }
-    subscribe_history(*api);
-    load_opt_ins(*api);
+    subscribe_history(*api_);
+    load_opt_ins(*api_);
     written_.reset();
     considered_.reset();
     refresh_record();
@@ -99,8 +98,7 @@ void StandingPrintOptionsController::refresh_record() {
     if (!get_printer_state().plugin_status_state().service_has_helix_plugin()) {
         return;
     }
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (api == nullptr || !api->is_connected()) {
+    if (api_ == nullptr || !api_->is_connected()) {
         return;
     }
     // A rendering already weighed (written, or left to another screen) is not
@@ -114,8 +112,7 @@ void StandingPrintOptionsController::refresh_record() {
 }
 
 void StandingPrintOptionsController::write_record(FallbackSenderRole role) {
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (api == nullptr || !api->is_connected()) {
+    if (api_ == nullptr || !api_->is_connected()) {
         return;
     }
     std::string gcode = render_now();
@@ -132,7 +129,7 @@ void StandingPrintOptionsController::write_record(FallbackSenderRole role) {
     written_ = gcode;
     spdlog::debug("[StandingPrintOptions] Record now: '{}'", gcode);
     post_item_if_changed(
-        *api, kPluginFeaturesNamespace, kStandingOptionsKey, standing_options_record(gcode),
+        *api_, kPluginFeaturesNamespace, kStandingOptionsKey, standing_options_record(gcode),
         [] { spdlog::info("[StandingPrintOptions] Record written"); },
         [this, token = lifetime_.token()](const MoonrakerError& err) {
             spdlog::warn("[StandingPrintOptions] Writing the record failed: {}", err.message);
@@ -182,7 +179,8 @@ void StandingPrintOptionsController::on_job_added(const std::string& filename) {
     const bool opted_in =
         plugin_feature_opted_in(status.stored_opt_ins(), kPrintHooksFeature, /*acts=*/true);
     std::string gcode = render_now();
-    auto decide = [hooks, opted_in, screen_started, filename, gcode](FallbackSenderRole role) {
+    auto decide = [this, hooks, opted_in, screen_started, filename,
+                   gcode](FallbackSenderRole role) {
         const StandingOptionsSender sender =
             standing_options_sender(hooks, opted_in, screen_started, !gcode.empty(), role);
         if (sender == StandingOptionsSender::App) {
@@ -210,13 +208,12 @@ void StandingPrintOptionsController::resolve_sender_role(
 
 void StandingPrintOptionsController::send_options(const std::string& filename,
                                                   const std::string& gcode) {
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (api == nullptr) {
+    if (api_ == nullptr) {
         return;
     }
     spdlog::info("[StandingPrintOptions] Job '{}' started elsewhere, sending:\n{}", filename,
                  gcode);
-    api->execute_gcode(
+    api_->execute_gcode(
         gcode, [] {},
         [](const MoonrakerError& err) {
             spdlog::warn("[StandingPrintOptions] Sending the options failed: {}", err.message);
@@ -225,17 +222,16 @@ void StandingPrintOptionsController::send_options(const std::string& filename,
 }
 
 void StandingPrintOptionsController::announce_presence() {
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (api == nullptr || !api->is_connected() ||
+    if (api_ == nullptr || !api_->is_connected() ||
         !get_printer_state().plugin_status_state().screen_local()) {
         return;
     }
-    api->database_post_item(kPluginFeaturesNamespace, kLocalScreenPresenceKey,
-                            local_screen_presence_record(static_cast<int64_t>(std::time(nullptr))),
-                            nullptr, [](const MoonrakerError& err) {
-                                spdlog::debug("[StandingPrintOptions] Presence not written: {}",
-                                              err.message);
-                            });
+    api_->database_post_item(kPluginFeaturesNamespace, kLocalScreenPresenceKey,
+                             local_screen_presence_record(static_cast<int64_t>(std::time(nullptr))),
+                             nullptr, [](const MoonrakerError& err) {
+                                 spdlog::debug("[StandingPrintOptions] Presence not written: {}",
+                                               err.message);
+                             });
 }
 
 } // namespace helix

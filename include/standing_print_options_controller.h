@@ -22,7 +22,7 @@ class IMoonrakerAPI;
 
 class StandingPrintOptionsController {
   public:
-    StandingPrintOptionsController();
+    explicit StandingPrintOptionsController(IMoonrakerAPI* api);
     ~StandingPrintOptionsController() = default;
 
     StandingPrintOptionsController(const StandingPrintOptionsController&) = delete;
@@ -46,13 +46,14 @@ class StandingPrintOptionsController {
     void load_opt_ins(IMoonrakerAPI& api);
     /// A screen on the printer's host rewrites its presence record.
     void announce_presence();
-    static void send_options(const std::string& filename, const std::string& gcode);
+    void send_options(const std::string& filename, const std::string& gcode);
     /// This instance's fallback_sender_role(): at once on the printer's host,
     /// else after reading the local screen's presence record.
     void resolve_sender_role(std::function<void(FallbackSenderRole)> then);
     /// Write the record if writes_standing_record() allows it.
     void write_record(FallbackSenderRole role);
 
+    IMoonrakerAPI* api_;
     ObserverGuard probe_observer_;
     ObserverGuard backend_count_observer_;
     ObserverGuard data_revision_observer_;

@@ -5,7 +5,6 @@
 
 #include "ui_format_utils.h"
 
-#include "app_globals.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "tune_controller.h"
@@ -44,7 +43,7 @@ void PrintProgressText::clear_layer() {
 
 void PrintProgressText::refresh_filament_used() {
     int filament_mm =
-        lv_subject_get_int(get_printer_state().print_state().get_print_filament_used_subject());
+        lv_subject_get_int(printer_state_.print_state().get_print_filament_used_subject());
     if (filament_mm > 0) {
         std::string fil_str =
             helix::format::format_filament_length(static_cast<double>(filament_mm));
