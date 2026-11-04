@@ -339,7 +339,9 @@ namespace helix::ams {
  * A field the record leaves empty or zero is not observed. A spool with no
  * vendor says nothing about a lane's brand, which is a different statement
  * from the brand being blank, so a weaker source's brand is left to stand. The
- * colour is observed only when the hex parses.
+ * colour is observed only when the hex parses. The Orca preset id is the
+ * exception: a linked record states it always, empty meaning "none", so an id
+ * the user removes in Spoolman leaves the lane instead of outliving the link.
  *
  * Identity only: an unknown weight needs a different answer on a slot, which
  * has no "not observed", than on a lane, which does.
@@ -355,7 +357,7 @@ inline helix::ams::Observation spool_identity_observation(const SpoolInfo& spool
     if (spool.vendor_id > 0) {
         stated.spoolman_vendor_id = spool.vendor_id;
     }
-    if (!spool.orca_filament_id.empty()) {
+    if (spool.id > 0) {
         stated.spoolman_orca_filament_id = spool.orca_filament_id;
     }
     if (!spool.vendor.empty()) {

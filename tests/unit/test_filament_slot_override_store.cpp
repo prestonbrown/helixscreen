@@ -6,7 +6,9 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "filament_variants.h"
+#include "lane_apply.h"
 #include "lane_resolver.h"
+#include "lane_sources.h"
 #include "lane_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -3966,6 +3968,31 @@ TEST_CASE("an unusable orca_filament_id leaves the catalog's filament_id in plac
     const json wire = helix::ams::to_lane_data_record(0, ovr);
     CHECK(wire.value("filament_id", "") == "OFhuaUQB");
     CHECK_FALSE(wire.contains("helix_filament_id_source"));
+}
+
+TEST_CASE("an orca_filament_id removed in Spoolman leaves the live lane",
+          "[filament_slot_override][orca][spoolman]") {
+    helix::SlotInfo slot;
+    apply_spool_to_slot(
+        slot, helix::spoolman_detail::parse_spool_info(spool_with_orca_extra("\"OGFL99\"")));
+    REQUIRE(slot.spoolman_orca_filament_id == "OGFL99");
+
+    // The same linked spool, its filament no longer naming an Orca preset.
+    auto spool = helix::spoolman_detail::parse_spool_info(spool_with_orca_extra("\"\""));
+    REQUIRE(spool.id > 0);
+    REQUIRE(spool.orca_filament_id.empty());
+    const helix::ams::Observation stated = helix::ams::spool_identity_observation(spool);
+    REQUIRE(stated.spoolman_orca_filament_id.has_value());
+    CHECK(stated.spoolman_orca_filament_id->empty());
+
+    helix::ams::LaneSources sources;
+    sources.apply(stated);
+    helix::ams::apply_resolved(slot, helix::ams::resolve(sources));
+    CHECK(slot.spoolman_orca_filament_id.empty());
+
+    // An unlinked record states nothing, so it cannot clear another source's id.
+    SpoolInfo unlinked;
+    CHECK_FALSE(helix::ams::spool_identity_observation(unlinked).spoolman_orca_filament_id);
 }
 
 TEST_CASE("unlinking the spool drops the Spoolman-sourced filament_id",
