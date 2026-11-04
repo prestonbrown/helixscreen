@@ -633,6 +633,19 @@ TEST_CASE_METHOD(MacroStageFixture, "install_files stages the hidden signal name
     CHECK(macros->find("[gcode_macro HELIX_READY]") == std::string::npos);
 }
 
+TEST_CASE_METHOD(MacroStageFixture, "install_files keeps the visible names a printer has",
+                 "[config][install]") {
+    hardware_.parse_objects(json::array({"gcode_macro HELIX_READY", "bed_mesh"}));
+
+    manager_.install_files([] {}, [](const MoonrakerError&) {});
+    settle();
+
+    auto macros = api_.get_uploaded_config("helix_macros.cfg");
+    REQUIRE(macros.has_value());
+    CHECK(macros->find("[gcode_macro HELIX_READY]") != std::string::npos);
+    CHECK(macros->find("[gcode_macro _HELIX_READY]") == std::string::npos);
+}
+
 TEST_CASE_METHOD(MacroStageFixture, "update_files keeps the signal names the printer has",
                  "[config][install]") {
     SECTION("visible names stay visible") {
