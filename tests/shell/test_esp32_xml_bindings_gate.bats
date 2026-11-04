@@ -186,3 +186,10 @@ C
     [ "$status" -eq 1 ]
     contains "cannot judge" "$output"
 }
+
+# The list is accepted debt, shrink-only: a new binding is registered on the firmware,
+# not added here. Lower the number when the list shrinks.
+@test "the accepted-debt list does not grow" {
+    run bash -c "grep -cv '^\\(#\\|\$\\)' scripts/esp32_xml_binding_baseline.txt"
+    [ "$output" -le 544 ] || fail "$output entries: register the names on the firmware instead"
+}

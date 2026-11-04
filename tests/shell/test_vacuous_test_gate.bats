@@ -178,3 +178,17 @@ EOF
     run python3 "$GATE" "$WORK/l.xml" --list
     [ "$status" -eq 2 ]
 }
+
+# Exemptions, not a parking spot: a new vacuous case gets an assertion. Lower the
+# number when the list shrinks.
+@test "the exemption list does not grow and names only cases that exist" {
+    local names count=0 name
+    names=$(sed -E -n 's/^([^#[:space:]]|#[^ ])(.*)  #.*/\1\2/p' scripts/vacuous_test_baseline.txt)
+    while IFS= read -r name; do
+        count=$((count + 1))
+        grep -rqF -- "\"$name\"" tests/unit tests/*.h tests/*.cpp 2>/dev/null \
+            || fail "no test case is named: $name"
+    done <<< "$names"
+    [ "$count" -gt 0 ] || fail "read no entries from the list"
+    [ "$count" -le 21 ] || fail "$count entries: give the new case an assertion instead"
+}

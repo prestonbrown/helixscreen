@@ -9,8 +9,9 @@
 # lv_obj_find_by_name() is then mutated with an imperative setter instead of being
 # driven by a subject binding.
 #
-# Flagged (on a widget that came from lv_obj_find_by_name, find_required or
-# find_optional):
+# Flagged (on a widget that came from lv_obj_find_by_name, find_required,
+# find_optional or find_widget, anywhere in the file: the lookup is usually in
+# setup() and the mutation in update_*()):
 #   lv_label_set_text/_fmt(w, ...)          → bind_text="subject"
 #   lv_obj_add_flag(w, LV_OBJ_FLAG_HIDDEN)  → <bind_flag_if_eq> / <if cond=...>
 #   lv_obj_set_style_*(w, ...)              → XML style attr or bind_style
@@ -19,7 +20,10 @@
 # NOT flagged:
 #   - Files that call lv_xml_register_widget(): the file IS the implementation of
 #     a custom XML widget, so its internals have no XML to bind to. Structural.
-#   - Widgets created in C++ (lv_*_create): procedural/canvas rendering, no XML.
+#   - Widgets created in C++ (lv_*_create) in the mutating function: procedural
+#     or canvas rendering, no XML.
+#   - A parameter or local of the mutating function that merely shares a looked-up
+#     name, unless that function looks it up itself.
 #   - Structural events with no declarative equivalent: DELETE cleanup, draw hooks,
 #     size/layout response, gestures and scrolling.
 #   - Any line carrying a `// DECLARATIVE_OK: <reason>` comment.
@@ -83,12 +87,16 @@ STRUCTURAL_EVENTS = {
     'LV_EVENT_LONG_PRESSED_REPEAT',
 }
 
-# Widgets fetched out of an XML tree.
+# Widgets fetched out of an XML tree. The name may be a struct member (row->label):
+# base_ident reduces a mutation's target to the same bare name.
 XML_LOOKUP_RE = re.compile(
-    r'(?:^|[^\w.>])(\w+)\s*=\s*(?:lv_obj_find_by_name|(?:helix::ui::)?find_(?:by_name|required|optional))\s*\(')
+    r'(?:^|\W)(\w+)\s*=\s*(?:lv_obj_find_by_name|(?:helix::ui::)?find_(?:by_name|required|optional|widget))\s*\(')
 
 # Widgets built in C++ — procedural, not XML-owned.
 CPP_CREATE_RE = re.compile(r'(?:^|[^\w.>])(\w+)\s*=\s*lv_\w+_create\s*\(')
+
+# A pointer a function declares for itself, as a parameter or a local.
+LOCAL_POINTER_RE = re.compile(r'\b(?:lv_obj_t|auto)\s*\*\s*(?:const\s+)?(\w+)')
 
 # Appearance properties belong in XML (style_bg_color="#card_bg") or a bind_style.
 # Geometry and layout properties are deliberately NOT listed: CLAUDE.md rule 10 keeps
@@ -184,16 +192,19 @@ def scan_file(path):
     lines = src.split('\n')
     hits = []
 
-    # Track XML-owned names per function, so a parameter in one function can't be
-    # confused with a looked-up widget in another.
+    # A pointer cached in setup() is mutated in update_*(), so what is XML-owned is
+    # a question for the whole file.
+    file_owned = set(XML_LOOKUP_RE.findall(src))
+    if not file_owned:
+        return []
+
     for start, end in function_spans(src):
         body = src[start:end]
-        xml_owned = set(XML_LOOKUP_RE.findall(body))
-        if not xml_owned:
-            continue
-        # A name also assigned from a C++ create in this scope is ambiguous — drop it
-        # rather than risk a false positive.
-        xml_owned -= set(CPP_CREATE_RE.findall(body))
+        looked_up_here = set(XML_LOOKUP_RE.findall(body))
+        shadowed = set(LOCAL_POINTER_RE.findall(body)) - looked_up_here
+        # A name also assigned from a C++ create in this function is ambiguous: drop
+        # it rather than risk a false positive.
+        xml_owned = file_owned - shadowed - set(CPP_CREATE_RE.findall(body))
         if not xml_owned:
             continue
 
@@ -201,11 +212,6 @@ def scan_file(path):
             for m in pattern.finditer(body):
                 target = base_ident(m.group(1))
                 if target not in xml_owned:
-                    continue
-                # only count a use that follows its lookup
-                lookup_pos = min((lm.start() for lm in XML_LOOKUP_RE.finditer(body)
-                                  if lm.group(1) == target), default=None)
-                if lookup_pos is None or m.start() < lookup_pos:
                     continue
                 lineno = src.count('\n', 0, start + m.start()) + 1
                 line = lines[lineno - 1]
