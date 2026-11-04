@@ -109,3 +109,11 @@ with_stamp_helpers() {
   [ "$(ls "$kept" | wc -l | tr -d ' ')" = 2 ]
 }
 
+@test "a pass that did not need a link verdict cannot stand in for one that does" {
+  hash_with() {
+    HELIX_LINK_BOUNDARY_REQUIRED="$1" bash -c \
+      'eval "$(sed -n "/^qc_state_hash() {/,/^}/p" scripts/quality-checks.sh)"; qc_state_hash'
+  }
+  [ -n "$(hash_with 1)" ]
+  [ "$(hash_with 1)" != "$(hash_with 0)" ]
+}

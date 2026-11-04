@@ -28,7 +28,12 @@ fi
 # (HELIX_LINK_BOUNDARY_REQUIRED). The baseline is drawn from Linux objects; a Mac
 # compiles different backends, so it never has a verdict to give.
 if [ "$(uname -s)" = Darwin ]; then
-  echo "ℹ️  ESP32 link boundary: no verdict on macOS, the land gate decides"
+  if [ "${HELIX_LINK_BOUNDARY_REQUIRED:-0}" = 1 ]; then
+    echo "❌ ESP32 link boundary: no verdict on macOS; run the land gate on a Linux host"
+    EXIT_CODE=1
+  else
+    echo "ℹ️  ESP32 link boundary: no verdict on macOS, the land gate decides"
+  fi
 else
   python3 scripts/check_esp32_app_srcs.py --link >"$QC_TMP/esp32_app_srcs_link.out" 2>&1
   case $? in
