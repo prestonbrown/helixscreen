@@ -475,7 +475,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     // Tool mapping via klipper-toolchanger ASSIGN_TOOL command
     AmsError reset_tool_mappings() override;
-    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
     // Bypass mode (not applicable for tool changers)
     AmsError enable_bypass() override;

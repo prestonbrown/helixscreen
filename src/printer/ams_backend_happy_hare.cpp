@@ -3386,15 +3386,6 @@ AmsError AmsBackendHappyHare::reset_endless_spool() {
 }
 
 // ============================================================================
-// Tool Mapping Operations
-// ============================================================================
-
-std::vector<int> AmsBackendHappyHare::get_tool_mapping() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.tool_to_slot_map;
-}
-
-// ============================================================================
 // Dryer Control (v4 - KMS/EMU hardware)
 // ============================================================================
 

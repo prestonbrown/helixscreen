@@ -113,13 +113,6 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
 
-    /// Forward map (index = tool, value = global slot), derived from the
-    /// per-slot mapped_tool the save_variables read-path writes. The base
-    /// default returns {}, which — on a backend that advertises tool mapping —
-    /// silently disables the print-start remap snapshot/restore and the AMS
-    /// context menu's mapping read, and makes AmsState fall back to a 1:1
-    /// topology that contradicts a user remap.
-    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
     // QIDI Box reassigns a logical tool to a physical slot by rewriting the
     // save_variables entry (value_t<N>="slot<M>") that the stock T<N> macros
     // read at load time — applied via set_tool_mapping(). Same shape as CFS, so

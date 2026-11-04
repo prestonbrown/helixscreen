@@ -1049,15 +1049,6 @@ AmsError AmsBackendOpenAms::can_set_tool_mapping(int /*tool_number*/, int /*slot
     return AmsErrorHelper::not_supported("OpenAMS tool mapping");
 }
 
-AmsError AmsBackendOpenAms::set_tool_mapping_impl(int tool_number, int slot_index) {
-    return can_set_tool_mapping(tool_number, slot_index);
-}
-
-std::vector<int> AmsBackendOpenAms::get_tool_mapping() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.tool_to_slot_map;
-}
-
 helix::FirmwareRouting AmsBackendOpenAms::firmware_default_routing() const {
     return helix::FirmwareRouting::from_table(get_tool_mapping());
 }

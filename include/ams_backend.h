@@ -2475,14 +2475,14 @@ class AmsBackend {
     /**
      * @brief What stands behind the routing get_tool_mapping() reports.
      *
-     * The default composes the two things the base class can already see: a
-     * printer that echoes its own table (reports_firmware_tool_mapping()) has
-     * stated what will print, and a tool aimed from our UI that still sits
-     * where it was put is the user's own answer. A backend that neither echoes
-     * nor has been driven reports Unvouched, which keeps consumers on whatever
-     * they do when nobody can vouch.
+     * Composes the two things this class can see: a printer that echoes its
+     * own table (reports_firmware_tool_mapping()) has stated what will print,
+     * and a tool aimed from our UI that still sits where it was put is the
+     * user's own answer. A backend that neither echoes nor has been driven
+     * reports Unvouched, which keeps consumers on whatever they do when nobody
+     * can vouch.
      */
-    [[nodiscard]] virtual helix::printer::ToolMappingOrigin tool_mapping_origin() const;
+    [[nodiscard]] helix::printer::ToolMappingOrigin tool_mapping_origin() const;
 
     /**
      * @brief Drop a lane's standing user declarations and override record.
@@ -2901,14 +2901,14 @@ class AmsBackend {
     /**
      * @brief How many slots the endless-spool relation spans.
      *
-     * Drives the base's range validation and reset loop. Default is
-     * `get_system_info().total_slots`; override when the transport's slot space
-     * differs, or to report 0 while the backend is not ready.
+     * Drives the range validation and reset loop above. It is
+     * `get_system_info().total_slots`, so a backend that has not reported its
+     * slots yet answers 0, which those callers refuse as not ready.
      *
-     * @note Holds no lock; the default reads through get_system_info(), which
-     *       takes `mutex_`.
+     * @note Holds no lock; it reads through get_system_info(), which takes
+     *       `mutex_`.
      */
-    [[nodiscard]] virtual int endless_spool_slot_count() const;
+    [[nodiscard]] int endless_spool_slot_count() const;
 
   public:
     // ========================================================================
@@ -2923,6 +2923,9 @@ class AmsBackend {
      * index is the slot that tool maps to.
      *
      * @return Vector where index=tool, value=slot (empty if not supported)
+     *
+     * AmsSubscriptionBackend answers from `system_info_.tool_to_slot_map`, so a
+     * backend whose frames fill that map overrides nothing here.
      */
     [[nodiscard]] virtual std::vector<int> get_tool_mapping() const {
         return {}; // Default: empty
@@ -3478,13 +3481,12 @@ class AmsBackend {
      *
      * Drives the auto-assign-active-spool-to-tool path and the runout-guidance
      * routing: tool changers have one extruder per slot with no shared hub, so a
-     * runout cannot be auto-resolved by swapping spools. Default mirrors the
-     * existing is_tool_changer(get_type()) classification so behavior is identical;
-     * backends override only if their per-tool model diverges from their type.
+     * runout cannot be auto-resolved by swapping spools. It is the
+     * is_tool_changer(get_type()) classification.
      *
      * @return true if each tool owns its own spool assignment
      */
-    [[nodiscard]] virtual bool supports_per_tool_spool_assignment() const {
+    [[nodiscard]] bool supports_per_tool_spool_assignment() const {
         return is_tool_changer(get_type());
     }
 

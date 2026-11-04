@@ -120,6 +120,10 @@ class AmsSubscriptionBackend : public AmsBackend {
         return tracked_run_active_.load();
     }
 
+    /// `system_info_.tool_to_slot_map`, read under mutex_. A backend whose
+    /// frames fill the forward map needs no override.
+    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
+
     /// Refuses while a print holds the printer, paused included, then
     /// do_run_edit_follow_up().
     AmsError run_edit_follow_up(int slot_index, const SlotInfo& before,
@@ -443,6 +447,11 @@ class AmsSubscriptionBackend : public AmsBackend {
         (void)after;
         return AmsErrorHelper::not_supported("Edit follow-up");
     }
+
+    /// The mapping verb of a backend that has none: can_set_tool_mapping()'s
+    /// verdict is the whole answer, nothing is sent. A backend with a verb
+    /// overrides this.
+    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
     /// Mark a tracked device action as sent; false when one already is. A
     /// backend whose do_run_device_action() answers later calls this before

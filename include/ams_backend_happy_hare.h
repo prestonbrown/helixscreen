@@ -319,16 +319,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         return true;
     }
 
-    // Tool Mapping support
-    /**
-     * @brief Get current tool-to-slot mapping
-     *
-     * Returns the tool_to_slot_map from system_info_ (populated from ttg_map).
-     *
-     * @return Vector where index=tool, value=slot
-     */
-    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
-
     /// Happy Hare publishes the complete ttg_map in printer.mmu status, so a
     /// restore can be confirmed against firmware truth rather than our own
     /// optimistic write (#1270). Cleaner than a per-lane echo: the whole map

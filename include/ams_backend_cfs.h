@@ -317,8 +317,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     AmsError apply_endless_spool_enabled(bool enabled) override;
 
   public:
-    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
-
     /// True except on K1, where BOX_MODIFY_TN no-ops (#968) so no confirming
     /// box frame ever arrives. See the definition for the full rationale.
     [[nodiscard]] bool reports_firmware_tool_mapping() const override;

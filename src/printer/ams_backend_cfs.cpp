@@ -4216,11 +4216,6 @@ void AmsBackendCfs::record_auto_refill_sent(bool enable) {
     emit_event(EVENT_STATE_CHANGED);
 }
 
-std::vector<int> AmsBackendCfs::get_tool_mapping() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.tool_to_slot_map;
-}
-
 bool AmsBackendCfs::reports_firmware_tool_mapping() const {
     // Everywhere except the K1 official CFS upgrade firmware, which publishes no
     // `map` field in its box status — so no frame confirming a remap ever
