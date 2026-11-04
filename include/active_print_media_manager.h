@@ -12,6 +12,7 @@
 #include "thumbnail_cache.h"
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -196,6 +197,14 @@ class ActivePrintMediaManager {
     /// re-triggers. Build on the main thread, hand to a marshalling fetch.
     ThumbnailCache::SuccessCallback fetched_thumbnail_callback(const std::string& filename,
                                                                ThumbnailLoadContext ctx);
+
+    /// Error callback for one step of a thumbnail load: warns that @p what failed
+    /// and schedules a retry, unless a newer load has superseded @p ctx. Runs
+    /// @p before_retry, when given, between the two. Build on the main thread, hand
+    /// to any worker: the callback copies the message and marshals itself.
+    std::function<void(const std::string&)>
+    retry_after_error(const char* tag, const std::string& filename, ThumbnailLoadContext ctx,
+                      std::string what, std::function<void()> before_retry = nullptr);
 
     /// Self-serve the active print's thumbnail from the gcode header — the
     /// one route for every metadata failure shape (error response, record
