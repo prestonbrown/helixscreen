@@ -152,7 +152,7 @@ class SensorSettingsOverlay : public OverlayBase {
 
   private:
     void refill_all();
-    /// sensor_total_count: every section's sensor count, summed (no-sensors placeholder).
+    /// sensor_total_count: every section's listed rows, summed (no-sensors placeholder).
     void update_total();
 
     /// Populate chamber assignment dropdowns from PrinterDiscovery
