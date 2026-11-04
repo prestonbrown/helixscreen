@@ -2210,6 +2210,7 @@ translations:
   Load failed: Laden fehlgeschlagen
   Load filament: 'Filament laden'
   Load filament first: Laden Sie zuerst Filament
+  Load filament to the toolhead, then tap Resume.: 'Laden Sie Filament bis zum Werkzeugkopf und tippen Sie dann auf Fortsetzen.'
   Load into which tool?: 'In welches Werkzeug laden?'
   Load it in the filament panel, then tap Resume.: 'Laden Sie es im Filament-Panel und tippen Sie dann auf Fortsetzen.'
   Load or unload filament.: Filament laden oder entladen.
@@ -4190,6 +4191,7 @@ translations:
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Ziehen Sie es vor dem Drucken manuell heraus. Trotzdem starten?
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Der Drucker verweigert möglicherweise das Laden eines Slots, bis er geleert ist. Trotzdem starten?
+  The toolhead is not homed, so this would home into the print: 'Der Werkzeugkopf ist nicht referenziert, das Referenzieren würde in den Druck fahren'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Der
     Werkzeugkopfsensor zeigt an, dass Filament bereits geladen ist. Trotzdem mit dem
     Laden fortfahren?

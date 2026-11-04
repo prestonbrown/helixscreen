@@ -45,6 +45,8 @@ struct FilamentHeadView {
     int mounted_head = -1;      ///< The head on the carriage; -1 for none or not a docking machine
     bool system_busy = false;   ///< AmsSystemInfo::is_busy()
     bool print_blocks_op = false; ///< print_blocks_filament_op()
+    /// print_blocks_filament_load(); unset means Load answers to print_blocks_op.
+    std::optional<bool> print_blocks_load{};
 };
 
 struct ActionState {

@@ -343,9 +343,10 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         }
     }
 
-    const SlotOpDecision ops =
-        decide_slot_ops(backend_, slot_index, pending_is_loaded_, system_busy, print_blocks_op,
-                        backend_ && backend_->toolhead_filament_unaccounted().value_or(false));
+    const bool print_blocks_load = helix::ui::print_blocks_load_now(backend_, get_printer_state());
+    const SlotOpDecision ops = decide_slot_ops(
+        backend_, slot_index, pending_is_loaded_, system_busy, print_blocks_op,
+        backend_ && backend_->toolhead_filament_unaccounted().value_or(false), print_blocks_load);
 
     // What this slot's head can do with filament, and Mount/Park where it can
     // do nothing itself. A reason here is a capability refusal: it withdraws the
@@ -417,9 +418,9 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     lv_subject_set_int(&slot_can_load_subject_, can_load ? 1 : 0);
     if (!can_load) {
         spdlog::debug("[AmsContextMenu] Load disabled for slot {}: busy={}, loaded={} "
-                      "(live={}), has_filament={}, print_blocks_op={}",
+                      "(live={}), has_filament={}, print_blocks_load={}",
                       slot_index, system_busy, ops.is_loaded, ops.live_loaded,
-                      ops.presence ? (*ops.presence ? "yes" : "no") : "unknown", print_blocks_op);
+                      ops.presence ? (*ops.presence ? "yes" : "no") : "unknown", print_blocks_load);
     }
 
     // Show Check Gate button if backend supports it (e.g. Happy Hare)
@@ -634,7 +635,8 @@ AmsContextMenu::decide_unload_mode(bool toolhead_unload, bool can_recover, bool 
 
 AmsContextMenu::SlotOpDecision
 AmsContextMenu::decide_slot_ops(const AmsBackend* backend, int slot_index, bool pending_is_loaded,
-                                bool system_busy, bool print_blocks_op, bool toolhead_unaccounted) {
+                                bool system_busy, bool print_blocks_op, bool toolhead_unaccounted,
+                                std::optional<bool> print_blocks_load) {
     SlotOpDecision d;
 
     if (backend) {
@@ -694,17 +696,19 @@ AmsContextMenu::decide_slot_ops(const AmsBackend* backend, int slot_index, bool 
     // cold-lane-eject lane - filament parked in the lane but NOT at the toolhead
     // - is a valid Load target and has to stay enabled.
     d.can_load = decide_can_load(system_busy, d.toolhead_unload, d.presence, print_blocks_op,
-                                 backend && backend->load_feeds_filament());
+                                 backend && backend->load_feeds_filament(), print_blocks_load);
     return d;
 }
 
 bool AmsContextMenu::decide_can_load(bool system_busy, bool toolhead_unload,
                                      std::optional<bool> slot_has_filament, bool print_blocks_op,
-                                     bool load_feeds_filament) {
+                                     bool load_feeds_filament,
+                                     std::optional<bool> print_blocks_load) {
     helix::ui::OpButtonState state;
     state.load_feeds_filament = load_feeds_filament;
     state.system_busy = system_busy;
     state.print_blocks_op = print_blocks_op;
+    state.print_blocks_load = print_blocks_load;
     state.slot_is_loaded = toolhead_unload;
     state.slot_has_filament = slot_has_filament;
     return !helix::ui::compute_op_button_gating(state).load_disabled;

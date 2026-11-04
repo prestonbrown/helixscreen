@@ -2002,6 +2002,7 @@
   <translation tag="Load failed" it="Caricamento non riuscito"/>
   <translation tag="Load filament" it="Carica il filamento"/>
   <translation tag="Load filament first" it="Prima carica il filamento"/>
+  <translation tag="Load filament to the toolhead, then tap Resume." it="Carica il filamento fino alla testina, poi tocca Riprendi."/>
   <translation tag="Load into which tool?" it="In quale strumento caricare?"/>
   <translation tag="Load it in the filament panel, then tap Resume." it="Caricalo nel pannello filamento, poi tocca Riprendi."/>
   <translation tag="Load or unload filament." it="Carica o scarica il filamento."/>
@@ -3807,6 +3808,7 @@
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" it="Il cambio utensile in corso è terminato e {} non è stato rimesso sul carrello"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" it="La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. Estrailo manualmente prima di stampare. Avviare comunque?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" it="La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. La stampante potrebbe rifiutare il caricamento di uno slot finché non viene svuotata. Avviare comunque?"/>
+  <translation tag="The toolhead is not homed, so this would home into the print" it="La testina non ha eseguito l&apos;homing, l&apos;homing finirebbe contro la stampa"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" it="Il sensore della testina indica che il filamento è già caricato. Procedere comunque con il caricamento?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" it="Il sensore della testina indica che nessun filamento è presente. Procedere comunque con lo scaricamento?"/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" it="L&apos;unità sta già eseguendo un&apos;altra operazione. Attendere il completamento, oppure reimpostare il CFS se resta bloccato"/>

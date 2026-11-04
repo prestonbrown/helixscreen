@@ -10922,9 +10922,15 @@ struct Ad5xRunoutFixture : public LVGLTestFixture {
     Ad5xRunoutFixture() {
         get_printer_state().init_subjects(false);
         set_print_state(helix::PrintJobState::STANDBY);
+        set_homed_axes("");
     }
     ~Ad5xRunoutFixture() override {
         set_print_state(helix::PrintJobState::STANDBY);
+        set_homed_axes("");
+    }
+
+    static void set_homed_axes(const char* axes) {
+        get_printer_state().update_from_status({{"toolhead", {{"homed_axes", axes}}}});
     }
 
     // Plain null check, not REQUIRE: this also runs from the destructor, where a
@@ -11246,7 +11252,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
 TEST_CASE_METHOD(Ad5xRunoutFixture,
                  "AD5X IFS runout: current_error distinguishes runout from an op timeout",
                  "[ams][ad5x_ifs][runout][error-center][1250]") {
-    SECTION("runout: Resume / Purge / Recover, and deliberately NO load button") {
+    SECTION("runout on an unhomed toolhead: no Load, and Resume does not lead") {
         AmsBackendAd5xIfs backend(nullptr, nullptr);
         Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
         set_print_state(helix::PrintJobState::PAUSED);
@@ -11265,10 +11271,13 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         REQUIRE(ev->severity == helix::ErrorSeverity::CRITICAL);
         REQUIRE(ev->sticky);
         REQUIRE(ev->title == std::string("Filament runout"));
+        CHECK(ev->detail.find("Load filament to the toolhead, then tap Resume.") !=
+              std::string::npos);
 
         REQUIRE(ev->recovery_actions.size() == 3);
+        // zMod's RESUME refuses while the head switch reads empty.
         REQUIRE(ev->recovery_actions[0].gcode == "RESUME");
-        REQUIRE(ev->recovery_actions[0].style == "primary");
+        CHECK(ev->recovery_actions[0].style.empty());
         REQUIRE(ev->recovery_actions[0].needs_hot_nozzle);
         // No zMod bin macros discovered: a plain extruder move in place, which
         // cannot reach the loadcell _G28 that shuts the AD5X down mid-job.
@@ -11277,12 +11286,38 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         REQUIRE(ev->recovery_actions[2].gcode == "IFS_UNLOCK");
         REQUIRE_FALSE(ev->recovery_actions[2].needs_hot_nozzle);
 
-        // No load: every AD5X load path runs INSERT_PRUTOK_IFS, whose macro homes
-        // itself, and a runout state is PAUSED by construction.
+        // Unhomed, INSERT_PRUTOK_IFS's _G28 would probe into the part.
         for (const auto& a : ev->recovery_actions) {
             CHECK(a.gcode.find("INSERT_PRUTOK_IFS") == std::string::npos);
             CHECK(a.gcode.find("A_CHANGE_FILAMENT") == std::string::npos);
         }
+    }
+
+    SECTION("runout on a homed toolhead: Load of the lane that ran out leads") {
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+        set_print_state(helix::PrintJobState::PAUSED);
+        set_homed_axes("xyz");
+        Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(true));
+        Ad5xIfsTestAccess::handle_status(backend, make_head_sensor(false));
+        Ad5xIfsTestAccess::set_current_slot(backend, 2);
+        Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
+        REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
+        REQUIRE(Ad5xIfsTestAccess::runout_slot(backend) == 2);
+
+        auto ev = backend.current_error();
+        REQUIRE(ev.has_value());
+        REQUIRE(ev->recovery_actions.size() == 4);
+        const auto& load = ev->recovery_actions[0];
+        CHECK(load.log_tag == "ifs::load");
+        CHECK(load.gcode == "INSERT_PRUTOK_IFS PRUTOK=3");
+        CHECK(load.style == "primary");
+        CHECK(load.requires_homed);
+        // The macro heats to the lane's own temperature.
+        CHECK_FALSE(load.needs_hot_nozzle);
+        CHECK(ev->recovery_actions[1].gcode == "RESUME");
+        CHECK(ev->recovery_actions[1].style.empty());
+        CHECK(ev->recovery_actions[3].gcode == "IFS_UNLOCK");
     }
 
     SECTION("runout Purge on zMod goes to the bin with the stock purge, never homing") {
@@ -11321,6 +11356,43 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         REQUIRE(ev->recovery_actions.size() == 1);
         REQUIRE(ev->recovery_actions[0].gcode == "IFS_UNLOCK");
         REQUIRE(ev->recovery_actions[0].style == "primary");
+    }
+}
+
+TEST_CASE("AD5X IFS runout actions follow the toolhead switch", "[ams][ad5x_ifs][runout]") {
+    AmsBackendAd5xIfs::RunoutRecoveryInputs in;
+    in.load_gcode = "INSERT_PRUTOK_IFS PRUTOK=1";
+    in.purge_gcode = "M83\nG1 E50 F600";
+    in.unlock_gcode = "IFS_UNLOCK";
+
+    SECTION("head empty: Load leads, Resume is offered but not primary") {
+        in.head_has_filament = false;
+        const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
+        REQUIRE(actions.size() == 4);
+        CHECK(actions[0].gcode == "INSERT_PRUTOK_IFS PRUTOK=1");
+        CHECK(actions[0].style == "primary");
+        CHECK(actions[1].gcode == "RESUME");
+        CHECK(actions[1].style.empty());
+    }
+    SECTION("head empty with no safe load: nothing is primary but the danger Recover") {
+        in.head_has_filament = false;
+        in.load_gcode.clear();
+        const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
+        REQUIRE(actions.size() == 3);
+        for (const auto& a : actions) {
+            CHECK(a.style != "primary");
+        }
+    }
+    SECTION("head loaded: Resume leads and Load is gone") {
+        in.head_has_filament = true;
+        const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
+        REQUIRE(actions.size() == 3);
+        CHECK(actions[0].gcode == "RESUME");
+        CHECK(actions[0].style == "primary");
+        CHECK(actions[0].needs_hot_nozzle);
+        for (const auto& a : actions) {
+            CHECK(a.gcode.find("INSERT_PRUTOK_IFS") == std::string::npos);
+        }
     }
 }
 

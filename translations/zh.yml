@@ -2077,6 +2077,7 @@ translations:
   Load failed: 装载失败
   Load filament: '装载耗材'
   Load filament first: 请先装载耗材
+  Load filament to the toolhead, then tap Resume.: '请将耗材装载到工具头，然后点按恢复。'
   Load into which tool?: '装入哪个工具？'
   Load it in the filament panel, then tap Resume.: '请在耗材面板中装载，然后点按恢复。'
   Load or unload filament.: 装载或卸载耗材。
@@ -3957,6 +3958,7 @@ translations:
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: 工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : '工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？'
+  The toolhead is not homed, so this would home into the print: '工具头尚未归位，归位会使喷嘴碰到打印件'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: 工具头传感器显示耗材已装载。仍要继续装载吗？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: 工具头传感器显示无耗材。仍要继续卸载吗？
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: 该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS
