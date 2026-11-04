@@ -135,7 +135,7 @@ In `globals.xml`, you define the suffixed variants of each token:
 
 At startup, `theme_manager` measures the axis that token follows, picks the matching suffix, and registers the **base name** (`space_lg`) pointing to the correct value. So when your XML says `style_pad_all="#space_lg"`, it resolves to 12, 16, or 20 depending on the screen.
 
-One function does the choosing for every token: `theme_manager_resolve_px_tokens()` (`src/ui/theme_responsive.cpp`). Both the startup registration and the resize path apply its output verbatim, so a token cannot get one tier at boot and another after a rotation.
+One function does the choosing for every token: `theme_manager_resolve_px_tokens()` (`src/ui/theme/theme_responsive.cpp`). Both the startup registration and the resize path apply its output verbatim, so a token cannot get one tier at boot and another after a rotation.
 
 Plugin constants ride the same ladder. `theme_manager_resolve_px_tokens()` reads the `ui_xml/` tables and hands them to `helix::theme_manager_resolve_px_tables()`, which picks the tier and applies the DPI scale; a plugin's own `<consts>` go through that second function too, on the narrow axis only (`PLUGIN_DEVELOPMENT.md` §7, Responsive sizing).
 
@@ -256,7 +256,7 @@ Two tokens in that list do not follow the ordinary rules:
 
 How the choice is expressed in code:
 
-- **vertical** — add the exact base name to `VERTICAL_AXIS_TOKENS` in `src/ui/theme_responsive.cpp`. That array is the single classification list; `theme_manager_token_uses_vertical_axis()` reads it, and `theme_manager_resolve_px_tokens()` is the only thing that calls it, so both registration sites stay in step automatically. Exact names, not a `*_height` convention — `dialog_content_max` is a vertical maximum that does not end in `_height`.
+- **vertical** — add the exact base name to `VERTICAL_AXIS_TOKENS` in `src/ui/theme/theme_responsive.cpp`. That array is the single classification list; `theme_manager_token_uses_vertical_axis()` reads it, and `theme_manager_resolve_px_tokens()` is the only thing that calls it, so both registration sites stay in step automatically. Exact names, not a `*_height` convention — `dialog_content_max` is a vertical maximum that does not end in `_height`.
 - **horizontal** and **axis-neutral** — nothing to do. Both resolve from the cramped axis, which is correct for widths (in portrait the cramped axis *is* the width) and is the deliberate compromise for neutrals.
 
 `space_*` stays neutral on purpose. It feeds `pad_top`/`pad_bottom` and `pad_left`/`pad_right` alike, so splitting it means classifying every `#space_*` reference site across `ui_xml/` — that reference count, not the declarations, is the cost driver.

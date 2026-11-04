@@ -3,7 +3,7 @@
 
 #include "ui_fonts.h"
 
-#include "../../src/ui/theme_manager_internal.h"
+#include "../../src/ui/theme/theme_manager_internal.h"
 #include "../ui_test_utils.h"
 #include "theme_manager.h"
 #include "theme_token_table.h"

@@ -491,8 +491,8 @@ src/ui/temp_graph_tooltip.cpp
 src/ui/temperature_controller.cpp
 src/ui/bed_drying_controller.cpp
 src/ui/temperature_service.cpp
-src/ui/theme_loader.cpp
-src/ui/theme_manager_new.cpp
+src/ui/theme/theme_loader.cpp
+src/ui/theme/theme_manager_new.cpp
 src/ui/tool_change_request.cpp
 src/ui/touch_calibration.cpp
 src/ui/touch_calibration_layout.cpp
@@ -759,15 +759,15 @@ src/utils/network_validation.cpp
 src/xml_registration.cpp
 
 # ===== override->real swaps + Moonraker command surface + generated =====
-src/ui/theme_manager.cpp
-src/ui/theme_token_scan.cpp
-src/ui/theme_color_math.cpp
+src/ui/theme/theme_manager.cpp
+src/ui/theme/theme_token_scan.cpp
+src/ui/theme/theme_color_math.cpp
 src/ui/overlay_geometry.cpp
-src/ui/theme_fonts.cpp
-src/ui/theme_responsive.cpp
-src/ui/theme_lvgl_apply.cpp
-src/ui/theme_live_recolor.cpp
-src/ui/theme_tokens_register.cpp
+src/ui/theme/theme_fonts.cpp
+src/ui/theme/theme_responsive.cpp
+src/ui/theme/theme_lvgl_apply.cpp
+src/ui/theme/theme_live_recolor.cpp
+src/ui/theme/theme_tokens_register.cpp
 src/ui/grid_edit_mode.cpp
 src/ui/grid_edit_cross_page.cpp
 src/ui/grid_edit_drop.cpp
@@ -815,7 +815,7 @@ src/application/moonraker_manager.cpp
 src/generated/theme_token_table.cpp
 # New-since-audit core files the link pass proved are referenced by kept core:
 # theme_token_table_runtime.cpp: helix::theme_tokens::{for_element,for_suffix,enabled} (theme_manager token seam)
-src/ui/theme_token_table_runtime.cpp
+src/ui/theme/theme_token_table_runtime.cpp
 # config_storage_file.cpp: helix::make_file_config_storage() (config.cpp storage factory)
 src/system/config_storage_file.cpp
 # Re-included from the initial exclusion set: the link pass proved these are

@@ -111,7 +111,7 @@ Override the theme loaded from config. Useful for testing themes or taking scree
 |----------|-------|
 | **Values** | Theme filename without `.json` extension (e.g., `gruvbox`, `dracula`, `nord`) |
 | **Default** | Read from config (`/display/theme`) |
-| **File** | `src/ui/theme_manager.cpp` |
+| **File** | `src/ui/theme/theme_manager.cpp` |
 
 ```bash
 # Test Gruvbox theme
@@ -131,7 +131,7 @@ Resolve design-token lookups from the compiled token table (`src/generated/theme
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` uses the compiled table; any other value uses the live scanner |
 | **Default** | Unset - on for ESP32 builds (`ui_xml/` ships there as a read-only frogfs image) and cross-built release targets (`HELIX_RELEASE_BUILD`), off for native dev builds |
-| **File** | `src/ui/theme_token_table_runtime.cpp` |
+| **File** | `src/ui/theme/theme_token_table_runtime.cpp` |
 
 Set, the flag rule decides, so `HELIX_TOKEN_TABLE=0` forces the live scanner back on - useful on a device to confirm an edited `ui_xml/` token still parses, and the only way to move tokens there without a rebuild. A build can also flip its default on by defining `HELIX_TOKEN_TABLE_DEFAULT_ON`, which nothing needs now that release builds default on.
 

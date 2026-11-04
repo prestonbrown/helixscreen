@@ -136,7 +136,7 @@ on every other platform: `AmsState`'s instance
 (`src/printer/ams_state.cpp#"static HELIX_PSRAM_BSS AmsState instance"`), the filament path planner's scratch
 (`src/ui/ui_filament_path_topology.cpp#plan_scratch`), `PrinterState`, `SettingsManager`
 (`src/system/settings_manager.cpp#"static HELIX_PSRAM_BSS SettingsManager instance"`), `TelemetryManager`, `UpdateChecker`, the theme's XML
-subjects (`src/ui/theme_manager.cpp#subjects`), and the subjects and hint buffers of the AMS sidebar and context
+subjects (`src/ui/theme/theme_manager.cpp#subjects`), and the subjects and hint buffers of the AMS sidebar and context
 menu (`src/ui/ui_ams_sidebar.cpp`, `src/ui/ui_ams_context_menu.cpp`). The
 home widgets follow the same rule: the module-level subjects and text buffers of the toolhead, host health,
 dryer, bed mesh tile and tool switcher widgets, the dryer model's subjects, and the `BedMeshState` and `PerformanceState` singletons
