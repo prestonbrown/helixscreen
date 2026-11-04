@@ -17,6 +17,7 @@
  */
 
 #include "ui_ams_sidebar.h"
+#include "ui_timer_guard.h"
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
@@ -255,9 +256,12 @@ struct OptimisticSidebarFixture : public XMLTestFixture {
     void let_watchdog_run() {
         // A deferred callback can queue another, so drain until quiet.
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        // A cancelled timer keeps its user_data and a null callback until the
+        // next lv_timer_handler() reaps it, so one left by an object freed
+        // earlier can carry the address this sidebar was allocated at.
         int fired = 0;
         for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            if (lv_timer_get_user_data(t) == sidebar_.get()) {
+            if (lv_timer_get_user_data(t) == sidebar_.get() && t->timer_cb != nullptr) {
                 t->timer_cb(t);
                 ++fired;
             }
@@ -766,6 +770,10 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
     sidebar_->handle_load_with_preheat(2);
     REQUIRE(api_.sent == std::vector<std::string>{"AUTO_FEEDING EXTRUDER=2 LOAD=1"});
 
+    // A cancelled, not yet reaped timer at the sidebar's address is not its
+    // watchdog.
+    lv_timer_t* reused = lv_timer_create([](lv_timer_t*) {}, 1000, sidebar_.get());
+    helix::ui::lv_timer_cancel_safe(reused);
     let_watchdog_run();
     CHECK(shown_action() != AmsAction::IDLE);
     CHECK(steps_shown());
