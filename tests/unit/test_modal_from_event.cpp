@@ -214,28 +214,6 @@ TEST_CASE_METHOD(FromEventFixture,
     settle();
 }
 
-TEST_CASE_METHOD(FromEventFixture, "JobQueueModal: the close button closes the modal it belongs to",
-                 "[modal][job_queue][from_event]") {
-    helix::JobQueueModal a;
-    helix::JobQueueModal b;
-    REQUIRE(a.show(test_screen()));
-    REQUIRE(b.show(test_screen()));
-    lv_obj_send_event(named(a.dialog(), "btn_close"), LV_EVENT_CLICKED, nullptr);
-    CHECK_FALSE(a.is_visible());
-    CHECK(b.is_visible());
-}
-
-TEST_CASE_METHOD(FromEventFixture, "PluginInstallModal: Done closes the modal it belongs to",
-                 "[modal][plugin_install][from_event]") {
-    PluginInstallModal a;
-    PluginInstallModal b;
-    REQUIRE(a.show(test_screen()));
-    REQUIRE(b.show(test_screen()));
-    lv_obj_send_event(named(a.dialog(), "btn_done"), LV_EVENT_CLICKED, nullptr);
-    CHECK_FALSE(a.is_visible());
-    CHECK(b.is_visible());
-}
-
 TEST_CASE_METHOD(FromEventFixture,
                  "GuidedLoadModal: Cancel on the buried wizard closes it and leaves the top one",
                  "[modal][guided_load][from_event]") {
@@ -305,6 +283,16 @@ TEST_CASE_METHOD(FromEventFixture, "each modal's own widget closes it and leaves
     init_widget_registrations();
     lv_obj_t* screen = test_screen();
 
+    SECTION("JobQueueModal") {
+        JobQueueModal a;
+        JobQueueModal b;
+        check_widget_closes_own_modal(a, b, "btn_close", [&](auto& m) { m.show(screen); });
+    }
+    SECTION("PluginInstallModal") {
+        PluginInstallModal a;
+        PluginInstallModal b;
+        check_widget_closes_own_modal(a, b, "btn_done", [&](auto& m) { m.show(screen); });
+    }
     SECTION("FavoriteMacroConfigModal") {
         FavoriteMacroConfigModal a("w", "home", nullptr);
         FavoriteMacroConfigModal b("w", "home", nullptr);
