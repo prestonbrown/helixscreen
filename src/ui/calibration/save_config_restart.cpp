@@ -73,7 +73,7 @@ void SaveConfigWatch::begin(IMoonrakerAPI* api, const char* initiation_message,
 
     // Arms the recovery-dialog and disconnect-modal suppressions. It does not
     // touch the rpc error path, which is what this class adds.
-    helix::ui::begin_expected_klippy_restart(initiation_message);
+    helix::ui::begin_expected_klippy_restart(initiation_message, api);
 
     // Through the API's named operation rather than a bare gcode string: which
     // command persists the config is the network layer's business, not ours.

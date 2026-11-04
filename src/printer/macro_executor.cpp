@@ -160,7 +160,7 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
                 ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
             });
         },
-        [tag_copy, macro_copy, display_name, host_effect](const MoonrakerError& err) {
+        [api, tag_copy, macro_copy, display_name, host_effect](const MoonrakerError& err) {
             const MacroFailureReport report = classify_macro_rpc_failure(host_effect, err);
             if (report == MacroFailureReport::ExpectedHalt) {
                 // The macro did what it said: the printer is stopped. Absorbed
@@ -188,7 +188,7 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
                 // does not. The literal is the one the PID and input-shaper
                 // saves already use for this event, so it costs no new
                 // translation key.
-                helix::ui::begin_expected_klippy_restart("Firmware restarting...");
+                helix::ui::begin_expected_klippy_restart("Firmware restarting...", api);
                 return;
             }
             spdlog::error("{} {} failed: {}", tag_copy, macro_copy, err.message);

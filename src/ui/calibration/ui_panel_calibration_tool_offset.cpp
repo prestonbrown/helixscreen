@@ -394,8 +394,8 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
 
     // E-stop + firmware restart: klippy comes back, so this is an expected
     // reconnect, not a fault. Same call as the PID and input-shaper aborts.
-    helix::ui::begin_expected_klippy_restart("Firmware restarting...");
     auto* api = get_moonraker_api();
+    helix::ui::begin_expected_klippy_restart("Firmware restarting...", api);
 
     // Drop the in-flight execute_gcode callbacks: they would report the M112
     // shutdown as the run's failure.

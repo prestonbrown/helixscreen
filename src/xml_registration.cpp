@@ -119,10 +119,12 @@ static void register_color_picker_responsive_constants() {
 
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (scope) {
-        lv_xml_register_const(scope, "color_preview_size", preview_size);
-        lv_xml_register_const(scope, "color_preview_size_small", preview_size_small);
-        lv_xml_register_const(scope, "color_text_height", text_height);
-        lv_xml_register_const(scope, "theme_swatch_size", theme_swatch_size);
+        // set, not register: register_const is first-write-wins, and a layout
+        // refresh resolves these again.
+        lv_xml_set_const(scope, "color_preview_size", preview_size);
+        lv_xml_set_const(scope, "color_preview_size_small", preview_size_small);
+        lv_xml_set_const(scope, "color_text_height", text_height);
+        lv_xml_set_const(scope, "theme_swatch_size", theme_swatch_size);
         spdlog::debug(
             "[Color Picker] Registered color_preview_size={}, theme_swatch_size={} for screen {}px",
             preview_size, theme_swatch_size, greater_res);
@@ -191,6 +193,7 @@ static void register_color_picker_component_constants(const char* component_name
 }
 
 void refresh_color_picker_constants() {
+    register_color_picker_responsive_constants();
     // Both embed <ui_hsv_picker sv_size="#sv_size">, and consts are scope-local.
     // Looking the scope up registers the component here, at boot, so the consts
     // are in place before its first instance.
@@ -447,6 +450,11 @@ void register_xml_components() {
     helix::ui::get_ams_edit_overlay().register_callbacks();
     helix::ui::ensure_swatch_grid_subjects();
     refresh_color_picker_constants();
+    // Every refresh of the layout tokens, so a resize or rotation moves the
+    // picker with them. Once per process: register_xml_components() can run again.
+    [[maybe_unused]] static const int color_picker_refresh_hook =
+        theme_manager_add_layout_refresh_hook(
+            [](lv_display_t*) { refresh_color_picker_constants(); });
 
     // Shared progress bar component (gradient indicator)
     ui_progress_bar_init();

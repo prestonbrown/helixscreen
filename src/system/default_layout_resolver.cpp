@@ -23,9 +23,8 @@ int CapabilitySnapshot::get(const std::string& name) const {
     return it == subjects.end() ? 0 : it->second;
 }
 
-std::string choose_placement_key(const json& by_bp, UiBreakpoint breakpoint, int grid_cols,
-                                 int grid_rows) {
-    static const char* fallback_order[][3] = {
+const BreakpointChain& breakpoint_fallback_chain(UiBreakpoint breakpoint) {
+    static constexpr BreakpointChain kChains[] = {
         {"micro", "tiny", "small"},     // bp=0 Micro
         {"tiny", "small", nullptr},     // bp=1 Tiny
         {"small", nullptr},             // bp=2 Small
@@ -34,21 +33,29 @@ std::string choose_placement_key(const json& by_bp, UiBreakpoint breakpoint, int
         {"xlarge", "large", nullptr},   // bp=5 XLarge
         {"xxlarge", "xlarge", "large"}, // bp=6 XXLarge
     };
-    static_assert(std::size(fallback_order) == to_int(UiBreakpoint::XXLarge) + 1,
-                  "fallback_order must cover every UiBreakpoint tier");
+    static_assert(std::size(kChains) == to_int(UiBreakpoint::XXLarge) + 1,
+                  "kChains must cover every UiBreakpoint tier");
+    static constexpr BreakpointChain kNoChain{};
 
     const int bp_idx = to_int(breakpoint);
-    if (bp_idx < 0 || bp_idx >= static_cast<int>(std::size(fallback_order))) {
-        return {};
+    if (bp_idx < 0 || bp_idx >= static_cast<int>(std::size(kChains))) {
+        return kNoChain;
     }
+    return kChains[bp_idx];
+}
 
+std::string choose_placement_key(const json& by_bp, UiBreakpoint breakpoint, int grid_cols,
+                                 int grid_rows) {
     const bool have_grid = grid_cols > 0 && grid_rows > 0;
     const std::string suffix =
         have_grid ? "@" + std::to_string(grid_cols) + "x" + std::to_string(grid_rows)
                   : std::string{};
 
-    for (int i = 0; i < 3 && fallback_order[bp_idx][i]; ++i) {
-        const std::string tier = fallback_order[bp_idx][i];
+    for (const char* name : breakpoint_fallback_chain(breakpoint)) {
+        if (!name) {
+            break;
+        }
+        const std::string tier = name;
         if (have_grid && by_bp.contains(tier + suffix)) {
             return tier + suffix;
         }

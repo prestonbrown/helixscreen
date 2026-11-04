@@ -1031,17 +1031,14 @@ void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t* e) {
 namespace helix {
 namespace ui {
 
-void begin_expected_klippy_restart(std::string message) {
+void begin_expected_klippy_restart(std::string message, IMoonrakerAPI* api) {
     // The suppression writes are atomic deadline stores, safe right here on
     // any thread; the toast is LVGL-facing so it hops to the main thread.
     EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);
-    if (auto* api = get_moonraker_api()) {
+    if (api) {
         api->suppress_disconnect_modal(kExpectedRestartDisconnectModalMs);
     }
-    // By value, because the toast is shown on a later main-thread tick. The
-    // previous `const char*` captured the POINTER into the deferred lambda, so
-    // it read the caller's buffer after the call had returned - safe only for
-    // the string literals every caller happened to pass.
+    // By value, because the toast is shown on a later main-thread tick.
     queue_update("begin_expected_klippy_restart", [message = std::move(message)]() {
         ToastManager::instance().show(ToastSeverity::INFO, lv_tr(message.c_str()), 3000);
     });

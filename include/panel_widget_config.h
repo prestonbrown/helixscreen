@@ -634,9 +634,9 @@ class PanelWidgetConfig {
 /// Most specific breakpoint key present in @p by_bp, or nullptr.
 ///
 /// Both the per-anchor `placements` map and a variant's `disabled` map are keyed
-/// by breakpoint name and resolve through the same chain theme_manager uses.
+/// by breakpoint name and resolve through layout::breakpoint_fallback_chain().
 /// Exported so the shipped-table tests resolve keys through the same function
-/// the loader uses instead of carrying a copy of the fallback chain.
+/// the loader uses.
 const char* choose_breakpoint_key(const nlohmann::json& by_bp, UiBreakpoint breakpoint);
 
 } // namespace helix

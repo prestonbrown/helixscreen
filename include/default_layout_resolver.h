@@ -5,6 +5,7 @@
 
 #include "ui_breakpoint.h"
 
+#include <array>
 #include <map>
 #include <string>
 #include <string_view>
@@ -81,10 +82,17 @@ std::vector<std::string> subjects_named_by(const nlohmann::json& table);
 /// registry definition.
 std::string arrangement_hash(const nlohmann::json& pages_payload);
 
+/// Breakpoint names to try for one tier, most specific first. A chain shorter
+/// than three ends at nullptr; a breakpoint outside the enum's range has none.
+using BreakpointChain = std::array<const char*, 3>;
+
+/// The one table of breakpoint fallbacks: micro to tiny to small, tiny to small,
+/// xlarge to large, xxlarge to xlarge to large.
+const BreakpointChain& breakpoint_fallback_chain(UiBreakpoint breakpoint);
+
 /// Placement key for a tier on a measured grid, or "" when nothing matches.
 ///
-/// Walks the tier fallback chain (micro to tiny to small; xlarge to large;
-/// xxlarge to xlarge to large), trying the grid-qualified form
+/// Walks breakpoint_fallback_chain(), trying the grid-qualified form
 /// ("<tier>@<cols>x<rows>") before the bare tier name at each rung. Tier
 /// specificity dominates: a table entry for this tier on some other grid beats
 /// one for a coarser tier on this exact grid, because the tier decides how much

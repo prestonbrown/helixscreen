@@ -911,10 +911,6 @@ else
     fi
 fi
 
-# $HELIX_J is resolved on the test host from the memory that is free when the job starts.
-# $HELIX_JFLAG is -j$HELIX_J, or empty when the container joins the host's jobpool:
-# make leaves an inherited jobserver when its command line has any -j.
-# shellcheck disable=SC2016  # $HELIX_J must reach the host unexpanded
 # test-asan-one and test-tsan-one run the binary without -#, so a file tag matches nothing.
 refuse_file_tag() {
     case "$2" in
@@ -922,6 +918,10 @@ refuse_file_tag() {
     esac
 }
 
+# $HELIX_J is resolved on the test host from the memory that is free when the job starts.
+# $HELIX_JFLAG is -j$HELIX_J, or empty when the container joins the host's jobpool:
+# make leaves an inherited jobserver when its command line has any -j.
+# shellcheck disable=SC2016  # $HELIX_J must reach the host unexpanded
 case "$WHAT" in
     # The mutate checkout is a standalone clone on a reflink filesystem, which
     # is what --workers needs; a later --workers in the caller's arguments wins.

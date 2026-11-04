@@ -441,10 +441,12 @@ constexpr uint32_t kExpectedRestartDisconnectModalMs = 15000;
  *
  * @param message UNTRANSLATED source string; translated on the main thread
  *                when the toast is shown. Taken by value because that happens
- *                on a later tick - the previous const char* form kept only the
- *                pointer, which outlived any caller-owned buffer.
+ *                on a later tick.
+ * @param api The API the restarting command goes through, so the window is
+ *            armed on the connection that is about to drop. Null arms only the
+ *            recovery dialog's window.
  */
-void begin_expected_klippy_restart(std::string message);
+void begin_expected_klippy_restart(std::string message, IMoonrakerAPI* api);
 
 } // namespace ui
 } // namespace helix
