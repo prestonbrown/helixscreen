@@ -344,6 +344,9 @@ only when `aplay` is executable and a playback node exists under `/dev/snd`;
 `HELIX_PCM_PLAYER` names another player or disables the backend. Klipper on the K1 has no
 `M300` handler, so forcing the speaker capability override on is not a substitute.
 
+`aplay` and the card were confirmed by hand on a K1 Max ([#1895](https://github.com/prestonbrown/helixscreen/issues/1895));
+the backend itself has not yet run on a printer.
+
 ## Known Limitations
 
 ### Memory

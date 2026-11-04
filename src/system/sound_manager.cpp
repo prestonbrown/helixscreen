@@ -414,8 +414,10 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
     // Auto-detection order:
     // 1. SDL audio available (desktop build) -> SDLBackend
     // 2. ALSA PCM available (Linux with audio) -> ALSABackend
-    // 3. /sys/class/pwm/pwmchip0 exists -> PWMBackend
-    // 4. None -> wait for M300 gate, or sounds disabled
+    // 3. /dev/jz_pwm and fx-pwm exist -> JzPwmBackend
+    // 4. AD5M family only: /sys/class/pwm/pwmchip0 exists -> PWMBackend
+    // 5. An executable aplay and a playback node in /dev/snd -> PcmPipeBackend
+    // 6. None -> wait for M300 gate, or sounds disabled
     //
     // A buzzer named on a PWM channel (setting sound.pwm_channel, or the
     // HELIX_PWM_SOUND override) wins over all of them: a Pi with a passive

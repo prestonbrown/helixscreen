@@ -1158,7 +1158,7 @@ HELIX_PWM_MIN_NOTE_MS=35 ./build/bin/helix-screen
 
 ### `HELIX_PCM_PLAYER`
 
-The player the PCM pipe backend streams through (unified MIPS and k1-dynamic builds: a static binary that cannot open the K1's ALSA codec itself, so a child `aplay` reads raw S16 mono from a pipe). Unset, the backend takes the first executable of `/usr/bin/aplay`, `/usr/local/bin/aplay`, `/bin/aplay`, `/usr/sbin/aplay` and additionally requires a playback node (`pcmC*D*p`) under `/dev/snd`; a named path skips the `/dev/snd` check. Read once at backend probe (`SoundManager::create_backend()`) — relaunch to change it.
+The player the PCM pipe backend streams through (unified MIPS and k1-dynamic builds: a static binary that cannot open the K1's ALSA codec itself, so a child `aplay` reads raw S16 mono from a pipe). Unset, the backend takes the first executable of `/usr/bin/aplay`, `/usr/local/bin/aplay`, `/bin/aplay`, `/usr/sbin/aplay` and additionally requires a playback node (`pcmC*D*p`) under `/dev/snd`; a named path skips the `/dev/snd` check. Read once at backend probe (`SoundManager::create_backend()`); relaunch to change it. Set it in the shell that starts the binary: `helixscreen.env` does not reach it, because the launcher's allowlist admits no variable that names a program to run. To turn sound off on a device, use the `disable_sound` setting.
 
 | Property | Value |
 |----------|-------|

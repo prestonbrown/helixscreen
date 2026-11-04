@@ -342,6 +342,7 @@ src/ui/upgrade_banner.cpp  # not in the v1 Core+AMS cut
 src/ui/gcode/view_gestures.cpp  # two-finger gestures for the 3D G-code viewer and 3D bed mesh, both compiled out (HELIX_HAS_GCODE_VIEWER=0, HELIX_HAS_BED_MESH_3D=0)
 
 src/system/jz_pwm_sound_backend.cpp  # AD5X-only: exec's the Linux fx-pwm child; no process model on ESP32
+src/system/pcm_pipe_sound_backend.cpp  # MIPS-only: spawns a child aplay; no process model on ESP32
 src/ui/components/ui_selector_model.cpp  # selector model for the wizard printer step, not in the v1 Core+AMS cut
 src/printer/k2_stock_detection_source.cpp  # not in the v1 Core+AMS cut
 src/printer/z_offset_calibration_approach.cpp  # not in the v1 Core+AMS cut

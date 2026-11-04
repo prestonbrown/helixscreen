@@ -83,7 +83,7 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 | 3 | JzPwm | `#ifdef HELIX_HAS_JZ_PWM` (unified MIPS build) + the board row says it has the piezo (AD5X, Creator 5, Creator 5 Pro) + `/dev/jz_pwm` exists and fx-pwm is executable | FlashForge MIPS boards' piezo (on-rig install) |
 | 4 | PWM | ad5m/ad5m-br builds only, unnamed: `pwmchip0/pwm6`, auto-exported by `initialize()` | AD5M hardware buzzer |
 | 5 | PcmPipe | `#ifdef HELIX_HAS_PCM_PIPE` (unified MIPS + k1-dynamic builds) + an executable `aplay` (`/usr/bin/aplay` and friends, or `HELIX_PCM_PLAYER`) + a playback node `pcmC*D*p` under `/dev/snd` | Creality K1 series: an ALSA codec the static musl binary cannot open itself |
-| 6 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
+| 6 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on, plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
 | 7 | None | All above failed | Sounds silently disabled |
 
 PcmPipe is the same in-process VoiceSlot synthesis as SDL/ALSA with a child
@@ -91,11 +91,15 @@ PcmPipe is the same in-process VoiceSlot synthesis as SDL/ALSA with a child
 One child per sound burst, not per note: `resume()` spawns it (or reuses one still
 alive from the 1.5 s idle grace), `suspend()` feeds silence through the grace and
 then closes the pipe so the player drains and exits. The render thread paces
-itself `kLeadMs` ahead of wall time, so the pipe and the player's buffer never hold
-more than that and a note published mid-sound lands at most that late. A player
-that fails three bursts in a row disables the backend for the run. It sits after
-JzPwm so the AD5X piezo keeps winning on FlashForge boards, which have no
-playback node and so never match the probe anyway.
+itself `kLeadMs` ahead of wall time, so a note published mid-sound lands that late
+once the player is keeping up. A player still starting up falls behind that clock:
+the pipe, shrunk to 4 KiB, and the player's 80 ms buffer then fill, and that is the
+most a note can be late. Three failed bursts in a row disable the backend for the
+run; a failed burst is a spawn error, a broken or stalled pipe, or a nonzero exit.
+It sits after JzPwm so the AD5X piezo keeps winning on FlashForge boards, which are
+expected to have no playback node and so not match the probe anyway. Not yet run on
+a printer: note latency, underruns on the K1's two cores and the tracker's PCM cost
+while printing are all unmeasured.
 
 On the AD5X rig both JzPwm and M300 can reach the same transducer; JzPwm wins
 the eager ladder (its probe succeeds first), which is the desired shape: the
