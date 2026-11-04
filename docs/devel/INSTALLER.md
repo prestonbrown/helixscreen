@@ -928,7 +928,7 @@ bats --verbose-run tests/shell/test_platform_detection.bats
 | `test_helix_launcher_e2e.bats` / `_env` / `_nice` / `_respawn` | Launcher script, env file sourcing, watchdog |
 | `test_generate_manifest.bats` | Release manifest generation |
 | `test_no_echo_ansi.bats` | No raw ANSI in echo (BusyBox compat) |
-| `test_code_lint.bats` | Shell code quality checks |
+| `test_code_lint.bats` | Fixture tests of the tree-wide code lints (`scripts/code_lint.sh`) |
 | `test_symbol_ci.bats` / `test_symbol_makefile.bats` | Debug symbol extraction for crash reporting |
 | `test_telemetry_pull_args.bats` / `test_telemetry_pull_download.bats` | Telemetry data pull scripts |
 | `test_resolve_backtrace.bats` | Backtrace symbol resolution |

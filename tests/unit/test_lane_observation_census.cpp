@@ -367,7 +367,7 @@ const std::vector<BackendCensus>& expected_census() {
         // where no edit has landed yet: it files once, at the tail of start(),
         // and its presence reading does not follow the simulated load. The
         // single call site is what holds that, and a lint gate in
-        // tests/shell/test_code_lint.bats holds the single call site.
+        // scripts/code_lint.sh holds the single call site.
         {"Mock", {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material"}},
         // Saved ids resolved against the Box's own tables. A jam still reports
         // filament, so presence comes from the state word.

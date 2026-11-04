@@ -140,7 +140,7 @@ to skip verification. Use `--sim-speed 4..10` to reach an active print in second
 | design tokens | Hardcoded colors ratcheted; no private `_lv_*` APIs |
 | copyright, icon fonts, XML validity, shellcheck | Headers, codepoint sync, well-formed XML |
 
-`tests/shell/test_code_lint.bats` additionally forbids `_for_testing` methods on production
+`scripts/code_lint.sh` (`qc_code_lint`, `qc_test_lint`, `qc_ui_lint`) additionally forbids `_for_testing` methods on production
 classes, raw `set_temperature` sends from migrated temp views, the "centidegree" misnomer, and
 inline decidegree conversion.
 

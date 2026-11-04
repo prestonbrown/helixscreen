@@ -297,8 +297,7 @@ These are the checks a new widget in this family has to pass. The ones with a ga
   `ui_xml/components/panel_widget_z_offset.xml`, `z_offset_top`).
 - **A `<style>` that sets `flex_flow` or `flex_main_place` also sets `layout="flex"`.** The
   style path, unlike the inline attribute, does not switch the layout on, and the children
-  pile onto the first one. The bats test "home-widget styles that set flex_flow or
-  flex_main_place also set layout flex" in `tests/shell/test_code_lint.bats` covers
+  pile onto the first one. `lint_flex_styles_layout` in `scripts/code_lint.sh` covers
   `panel_widget_*.xml` plus `speed_flow_part.xml`, `chamber_dryer_row.xml` and
   `host_health_mcu_row.xml`; a new component file that carries such styles is added to that
   list.

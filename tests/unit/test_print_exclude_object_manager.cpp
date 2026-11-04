@@ -39,7 +39,7 @@
 using namespace helix;
 using namespace helix::ui;
 
-/// Friend-class test accessor (L065 / test_code_lint.bats): keeps production
+/// Friend-class test accessor (L065 / scripts/code_lint.sh): keeps production
 /// headers free of `_for_testing` methods while letting tests drive the
 /// awaiting-confirmation set and RPC-error branch directly.
 class PrintExcludeObjectManagerTestAccess {

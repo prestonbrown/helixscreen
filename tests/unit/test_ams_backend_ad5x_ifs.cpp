@@ -10838,8 +10838,8 @@ TEST_CASE("AD5X IFS runout: backup-slot match needs type AND colour AND presence
 // output can tell the two apart (verified by mutating it back -- this test
 // still passed). What differs is the CATALOG, and that is guarded elsewhere:
 // re-splitting the sentence makes the whole-sentence key obsolete and the
-// fragments new, which the "no user-facing strings are missing from the
-// translation catalogs" gate in tests/shell/test_code_lint.bats fails on.
+// fragments new, which the translation coverage gate
+// (qc_translation_coverage in scripts/quality-checks.sh) fails on.
 TEST_CASE("AD5X IFS runout detail reads as whole sentences", "[ams][ad5x_ifs][runout][i18n]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;

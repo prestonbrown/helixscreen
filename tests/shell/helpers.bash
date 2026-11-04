@@ -674,7 +674,7 @@ helix_app_lock_acquire() {
 # Skip unless the app binary at $1 is built. The Shell Tests CI job never
 # builds it, so build.yml's compile job runs every file that calls this against
 # the binary it just linked. A file that skips on a missing app any other way
-# runs in neither job, which test_code_lint.bats refuses.
+# runs in neither job, which scripts/code_lint.sh refuses.
 require_app() {
     [ -x "$1" ] || skip "helix-screen not built (run 'make -j')"
 }

@@ -90,7 +90,7 @@ flowchart TB
 | [`include/mock_persona.h`](../../../include/mock_persona.h) | The mock persona table: `HELIX_MOCK_PRINTER` ids, their printer types, and the default |
 | [`include/http_executor.h`](../../../include/http_executor.h) | The two bounded HTTP worker pools the sub-APIs submit to |
 | [`include/mock_http_file_server.h`](../../../include/mock_http_file_server.h) | Loopback HTTP server standing in for Moonraker's file endpoints under `--test` |
-| [`tests/shell/test_code_lint.bats`](../../../tests/shell/test_code_lint.bats) | Gate: naming a concrete Moonraker type outside the network layer fails CI |
+| [`scripts/code_lint.sh`](../../../scripts/code_lint.sh) | Gate: naming a concrete Moonraker type outside the network layer fails CI |
 | [`tests/unit/test_interface_drift_moonraker_api.cpp`](../../../tests/unit/test_interface_drift_moonraker_api.cpp) | Compile-time drift protection: mocks must implement every interface method |
 
 ## How it works
@@ -105,7 +105,7 @@ Above it sits `IMoonrakerAPI` ([`include/i_moonraker_api.h#IMoonrakerAPI`](../..
 
 Two gates keep the boundary real:
 
-- The bats lint [`tests/shell/test_code_lint.bats#"no concrete Moonraker types outside the network layer (Plan 3: interfaces are the consumer contract)"`](../../../tests/shell/test_code_lint.bats) fails CI if `helix::MoonrakerClient` or `MoonrakerAPI` appears in `src/` or `include/` outside the network-layer allowlist (the implementation files and `*_mock.*`). Its comment block (`tests/shell/test_code_lint.bats#"Compile-time-only exceptions NOT covered by this lint"`) documents the deliberate compile-time-only exceptions - static timeout constants and the `MPCResult` alias - that the grep intentionally ignores.
+- The lint [`scripts/code_lint.sh#lint_moonraker_concrete_types`](../../../scripts/code_lint.sh) fails CI if `helix::MoonrakerClient` or `MoonrakerAPI` appears in `src/` or `include/` outside the network-layer allowlist (the implementation files and `*_mock.*`). Its comment block documents the deliberate compile-time-only exceptions - static timeout constants and the `MPCResult` alias - that the grep intentionally ignores.
 - The compile-only drift tests - [`tests/unit/test_interface_drift_moonraker_api.cpp`](../../../tests/unit/test_interface_drift_moonraker_api.cpp) and six siblings, tagged `[compile][drift]` - `static_assert` that every mock and concrete still derives from and fully implements each interface, so adding a pure virtual breaks the build rather than silently leaving the mock behind.
 
 Besides the panels, a few subsystems hold the client or API directly from startup: `PrintHistoryManager` receives both at construction ([`src/application/printer_session.cpp#init_moonraker`](../../../src/application/printer_session.cpp)), `PrintStartCollector` takes the client (`MoonrakerManager::init_print_start_collector()`), and `SoundManager` keeps a client pointer for M300 gcode audio ([`src/application/moonraker_manager.cpp#create_client`](../../../src/application/moonraker_manager.cpp)). All of them receive interface types.
@@ -163,7 +163,7 @@ The mock arm of all this is what `--test` runs. `RuntimeConfig` ([`include/runti
 
 ## Patterns & gotchas
 
-- **Name interfaces, never concretes.** `helix::IMoonrakerClient`, `IMoonrakerAPI`, and the ten `IXxxAPI` types are the consumer vocabulary; the bats gate at [`tests/shell/test_code_lint.bats#"no concrete Moonraker types outside the network layer (Plan 3: interfaces are the consumer contract)"`](../../../tests/shell/test_code_lint.bats) fails CI on `MoonrakerClient`/`MoonrakerAPI` outside the network-layer allowlist. Compile-time-only exceptions (static timeout constants, the `MPCResult` alias) are documented in that file's comment block.
+- **Name interfaces, never concretes.** `helix::IMoonrakerClient`, `IMoonrakerAPI`, and the ten `IXxxAPI` types are the consumer vocabulary; the lint [`scripts/code_lint.sh#lint_moonraker_concrete_types`](../../../scripts/code_lint.sh) fails CI on `MoonrakerClient`/`MoonrakerAPI` outside the network-layer allowlist. Compile-time-only exceptions (static timeout constants, the `MPCResult` alias) are documented in that file's comment block.
 - **Adding a pure virtual to an interface breaks the build twice** - concrete first, then the mock - by design. That cascade is the drift protection working; implement both, don't weaken the interface.
 - **New RPC method: sub-API, not façade.** Declare on the `IXxxAPI`, implement in the `moonraker_*_api.cpp` pair, and the mock inherits parity pressure. The façade is for cross-cutting sends only.
 - **Temperature sends go through `TemperatureController`.** Calling `set_temperature` directly is lint-enforced against - see chapter 02 and chapter 05 (the TemperatureController section).
@@ -205,4 +205,4 @@ Read in this order; about 30 minutes total.
 12. [`src/application/moonraker_manager.cpp#register_callbacks`](../../../src/application/moonraker_manager.cpp) - `register_callbacks()`: the one-hop `bg_cb()` event marshalling and the `_connection_state` markers joining the notification queue; cross-reference `process_notifications()` at `src/application/moonraker_manager.cpp#process_notifications`.
 13. [`include/runtime_config.h#"Check if Moonraker should use mock implementation"`](../../../include/runtime_config.h) - `should_mock_moonraker()` and its siblings; scroll to `include/runtime_config.h#"constexpr bool should_mock_wifi"` for the `constexpr` false arms that make production builds mock-proof.
 14. [`tests/unit/test_interface_drift_moonraker_api.cpp`](../../../tests/unit/test_interface_drift_moonraker_api.cpp) - the drift test: `static_assert(is_base_of_v<...> && !is_abstract_v<...>)` for the façade and all ten sub-APIs.
-15. [`tests/shell/test_code_lint.bats`](../../../tests/shell/test_code_lint.bats) - the comment block documenting the concrete-type gate, its allowlist, and the deliberate compile-time-only exceptions; the test itself at `tests/shell/test_code_lint.bats#"no concrete Moonraker types outside the network layer (Plan 3: interfaces are the consumer contract)"`.
+15. [`scripts/code_lint.sh`](../../../scripts/code_lint.sh) - the comment block documenting the concrete-type gate, its allowlist, and the deliberate compile-time-only exceptions; the lint itself at `scripts/code_lint.sh#lint_moonraker_concrete_types`.

@@ -30,7 +30,7 @@
 //
 // Follows the tests/test_helpers/ TestAccess pattern ([L088]) rather than
 // adding _for_testing() accessors to the production API - those are lint-gated
-// out of include/ and src/ by tests/shell/test_code_lint.bats.
+// out of include/ and src/ by scripts/code_lint.sh.
 class InputShaperPanelTestAccess {
   public:
     /// Shorten the post-FIRMWARE_RESTART health-monitor window so a test

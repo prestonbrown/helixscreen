@@ -337,8 +337,8 @@ class AmsState {
      * every XML binding on an `ams_*` name resolves to nothing instead of
      * failing. A test that binds only through the C++ accessors still costs
      * nothing by publishing - XML subjects live in one global scope in the
-     * test build either way. Enforced by "no test initializes AmsState
-     * without its XML names" in tests/shell/test_code_lint.bats.
+     * test build either way. Enforced by lint_ams_state_published in
+     * scripts/code_lint.sh.
      */
     void init_subjects(bool register_xml = true);
 

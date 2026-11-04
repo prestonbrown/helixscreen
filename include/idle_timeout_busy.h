@@ -35,7 +35,7 @@ class BusyClock {
     }
 
     /// Moves now() forward by @p by. Never backward: a reading already taken
-    /// must not land in the future. Tests only; tests/shell/test_code_lint.bats
+    /// must not land in the future. Tests only; scripts/code_lint.sh
     /// refuses a call under src/ or include/.
     static void advance_for_test(duration by) {
         if (by.count() > 0) {

@@ -160,7 +160,7 @@ Heap telemetry follows one rule: while the panel scans out, read counters, never
 `heap_caps_get_largest_free_block()` on PSRAM walks every block with interrupts masked for 20-30ms, the bounce
 refill misses for the whole walk, and the screen glitches. So steady-state code reads `heap_caps_get_free_size()`,
 `src/system/memory_utils.cpp` reports PSRAM from counters only, and a lint test in
-`tests/shell/test_code_lint.bats` ("per-event ESP32 paths read free PSRAM, never walk the heap") fails a walk in
+`scripts/code_lint.sh#lint_esp32_psram_walk` fails a walk in
 the thumbnail, print-select and print-status paths. Largest-block walks happen only on internal RAM at discrete
 milestones (`firmware/helixscreen-esp32/components/helixapp/app_boot.cpp#log_heap_milestone`) and once at 60s
 steady state.

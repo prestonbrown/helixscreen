@@ -111,7 +111,7 @@ These are always available and registered with the LVGL XML system at startup:
 | `chamber_mode` | int | Chamber control mode (`helix::ChamberMode`: Off=0 / Heating=1 / Maintaining=2) |
 | `extruder_version` | int | Bumped when extruder list changes |
 
-> **Chamber binding convention (IMPORTANT):** For any chamber *target* display, XML/UI must bind the canonical `chamber_effective_target` (plus `chamber_mode` via `temp_display`'s `bind_mode`) — **never** the raw heater target. The raw `chamber_target` (heater target) and `chamber_fan_target` (cooling-fan target) subjects exist as **internal synthesis inputs only** and are *intentionally NOT XML-registered* — they are not even resolvable from XML. A lint gate (`tests/shell/test_code_lint.bats`) forbids `bind_target="chamber_target"`. See [Chamber Heating (M141)](#chamber-heating-m141) below.
+> **Chamber binding convention (IMPORTANT):** For any chamber *target* display, XML/UI must bind the canonical `chamber_effective_target` (plus `chamber_mode` via `temp_display`'s `bind_mode`) — **never** the raw heater target. The raw `chamber_target` (heater target) and `chamber_fan_target` (cooling-fan target) subjects exist as **internal synthesis inputs only** and are *intentionally NOT XML-registered* — they are not even resolvable from XML. A lint gate (`scripts/code_lint.sh`) forbids `bind_target="chamber_target"`. See [Chamber Heating (M141)](#chamber-heating-m141) below.
 
 ### Dynamic Per-Extruder Subjects
 
@@ -236,7 +236,7 @@ Because the heater target reads `0` while Maintaining, the raw chamber heater ta
 | `chamber_target` | **no — internal** | Raw heater target (reads 0 in Maintaining); feeds the synthesis only |
 | `chamber_fan_target` | **no — internal** | Raw cooling-fan target; feeds the synthesis only |
 
-**Binding convention (lint-enforced):** UI/XML must bind `chamber_effective_target` (+ `chamber_mode` via `temp_display`'s `bind_mode`) for any chamber target display — **never** the raw `chamber_target`. The raw subjects aren't XML-registered, so they can't be resolved from XML; `tests/shell/test_code_lint.bats` additionally fails the build on any `bind_target="chamber_target"`.
+**Binding convention (lint-enforced):** UI/XML must bind `chamber_effective_target` (+ `chamber_mode` via `temp_display`'s `bind_mode`) for any chamber target display — **never** the raw `chamber_target`. The raw subjects aren't XML-registered, so they can't be resolved from XML; `scripts/code_lint.sh` additionally fails the build on any `bind_target="chamber_target"`.
 
 `helix::ChamberMode` is declared in `include/printer_temperature_state.h`:
 
