@@ -124,6 +124,8 @@ struct FilamentPanelTestAccess {
         return p.operation_guard_.pending_timer();
     }
 
+    static constexpr uint32_t kOperationTimeoutMs = FilamentPanel::kOperationTimeoutMs;
+
     static bool operation_active(const FilamentPanel& p) {
         return p.operation_guard_.is_active();
     }
