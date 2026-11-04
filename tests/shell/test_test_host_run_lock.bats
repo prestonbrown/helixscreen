@@ -23,6 +23,7 @@ SCRIPT="$WORKTREE_ROOT/scripts/test-host-run.sh"
 
 setup() {
     load helpers
+    load test_host_run_drop
     export HELIX_TEST_HOST=testhost.invalid
     export HELIX_TEST_LOCK_DIR="$BATS_TEST_TMPDIR"
     export TMPDIR="$BATS_TEST_TMPDIR"
@@ -88,6 +89,11 @@ case "$1" in
             *mutate_diff*)
                 echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
                 echo "VERDICT: CLEAN"
+                ;;
+            *MOCK-JOB*)
+                # A job that outlives a dropped link.
+                echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
+                touch "$MOCK_SSH_DROP"; sleep 1; echo job-done; exit 3
                 ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG" ;;
         esac ;;
@@ -157,6 +163,59 @@ wait_for_line() { # <substring> <file>
     wait "$holder" 2>/dev/null || true
     wait "$runner"
     grep -q "free; continuing" "$out"
+}
+
+@test "a job outlives a dropped link: the run reconnects and reports its output and exit status" {
+    install_drop_ssh
+    # HELIX_TEST_RECONNECT_SECS is left at its default: a default of 0 gives up
+    # on the first drop.
+    run "$SCRIPT" --commit exec -- MOCK-JOB
+    [ "$status" -eq 3 ]
+    contains "lost the connection to testhost.invalid (ssh exit 255); the job keeps running there" "$output"
+    contains "job-done" "$output"
+    ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
+}
+
+# A waiting run whose link drops, and whose holder then lets go. The run's pid
+# is left in RUNNER.
+drop_during_lock_wait() { # <out file>
+    local lock ready holder
+    lock="$(lock_file)"
+    ready="$BATS_TEST_TMPDIR/holder-ready"
+    holder=$(hold_flock "$lock" "$ready" 'held by pid %s: mutate 0123456 since 2026-09-24 12:00:00')
+    wait_for_file "$ready"
+    timeout 40 "$SCRIPT" --commit test >"$1" 2>&1 3>&- &
+    RUNNER=$!
+    wait_for_line "busy:" "$1"
+    touch "$MOCK_SSH_DROP"
+    wait_for_line "lost the connection" "$1"
+    kill "$holder"
+    wait "$holder" 2>/dev/null || true
+}
+
+@test "a link that drops while the run waits for the lock reconnects and takes the tree once" {
+    local out="$BATS_TEST_TMPDIR/waiting.log"
+    install_drop_ssh
+    drop_during_lock_wait "$out"
+    wait "$RUNNER"
+    grep -qF "while waiting for the $HELIX_TEST_WORKDIR lock (ssh exit 255); reconnecting" "$out"
+    [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
+    flock -n "$(lock_file)" true
+    ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
+}
+
+@test "an attempt that takes the lock after its link dropped gives it to the reconnected one" {
+    # The far end of the dropped link keeps running and takes the lock while
+    # this side waits to reconnect; its LOCKED goes nowhere.
+    local out="$BATS_TEST_TMPDIR/waiting.log"
+    install_drop_ssh
+    export MOCK_SSH_DROP_KEEP=1 HELIX_TEST_RECONNECT_PAUSE_SECS=2
+    drop_during_lock_wait "$out"
+    wait "$RUNNER"
+    [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
+    for _ in $(seq 1 60); do flock -n "$(lock_file)" true && break; sleep 0.05; done
+    flock -n "$(lock_file)" true
+    kill $(cat "$BATS_TEST_TMPDIR/ssh-keepers") 2>/dev/null || true
 }
 
 @test "a run waits out an orphaned container build before touching the tree" {

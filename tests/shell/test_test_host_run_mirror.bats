@@ -17,6 +17,7 @@ TEST_HOST_RUN="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/scripts/test-host-run.sh"
 
 setup() {
     load helpers
+    load test_host_run_drop
     export HELIX_TEST_HOST=testhost.invalid
     export HELIX_TEST_LOCK_DIR="$BATS_TEST_TMPDIR/locks"
     export HELIX_TEST_TREES_HOST="$BATS_TEST_TMPDIR/host-trees"
@@ -1063,40 +1064,6 @@ EOF2
     [ ! -s "$MOCK_DOCKER_LOG" ]
 }
 
-# ssh that relays its command's output, and drops every connection open when
-# MOCK_SSH_DROP appears: the remote command is killed, as sshd's closing pipes
-# end a lock holder waiting on its stdin, the output is cut, and ssh exits 255.
-# A detached job is no child of the connection and keeps running. Connections
-# made after the drop stay up.
-install_drop_ssh() {
-    export MOCK_SSH_DROP="$BATS_TEST_TMPDIR/link-down" HELIX_TEST_RECONNECT_PAUSE_SECS=0
-    cat > "$BATS_TEST_TMPDIR/ssh-drop" <<'SSH'
-#!/usr/bin/env bash
-while [ $# -gt 0 ]; do
-    case "$1" in -o) shift 2 ;; -*) shift ;; *) break ;; esac
-done
-shift
-case "$1" in bash) ;; *) exec bash -c "$*" ;; esac
-pre=0; [ ! -e "$MOCK_SSH_DROP" ] || pre=1
-out=$(mktemp "$BATS_TEST_TMPDIR/ssh-out.XXXXXX")
-bash -c "$*" <&0 > "$out" &
-pid=$!; sent=0
-flush() {
-    local size
-    size=$(( $(wc -c < "$out") ))
-    if [ "$size" -gt "$sent" ]; then tail -c +$((sent + 1)) "$out" | head -c $((size - sent)); sent=$size; fi
-}
-while kill -0 "$pid" 2>/dev/null; do
-    flush
-    if [ "$pre" = 0 ] && [ -e "$MOCK_SSH_DROP" ]; then kill "$pid" 2>/dev/null; exit 255; fi
-    sleep 0.05
-done
-wait "$pid"; rc=$?; flush; exit "$rc"
-SSH
-    chmod +x "$BATS_TEST_TMPDIR/ssh-drop"
-    mock_command_script ssh 'exec "$BATS_TEST_TMPDIR/ssh-drop" "$@"'
-}
-
 no_job_left() {
     ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
 }
@@ -1175,4 +1142,19 @@ no_job_left() {
     chmod -R u+w "$out" "$t/build"
     [ "$status" -ne 0 ]
     [ -z "$(find "$BATS_TEST_TMPDIR" -name MATRIX-RAN)" ]
+}
+
+@test "plugin-host's matrix outlives a dropped link and still reports its result" {
+    local t
+    t=$(make_tree tree-ph)
+    mkdir -p "$t/scripts"
+    printf '%s\n' 'echo matrix-start' 'sleep 1' 'touch "$MOCK_SSH_DROP"' 'sleep 1' 'echo matrix-done' > "$t/scripts/plugin-host-matrix.sh"
+    export HELIX_TEST_PLUGIN_HOST_OUT="$BATS_TEST_TMPDIR/ph-out"
+    install_drop_ssh
+    cd "$t"
+    run "$TEST_HOST_RUN" plugin-host
+    [ "$status" -eq 0 ]
+    contains "lost the connection" "$output"
+    contains "matrix-done" "$output"
+    no_job_left
 }
