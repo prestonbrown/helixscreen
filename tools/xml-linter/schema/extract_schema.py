@@ -1258,7 +1258,7 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
             "selected": {"type": "int"},
         },
     },
-    "ui_z_offset_indicator.cpp": {
+    "calibration/ui_z_offset_indicator.cpp": {
         "widgets": ["z_offset_indicator"],
         "inherits": "lv_obj",
     },

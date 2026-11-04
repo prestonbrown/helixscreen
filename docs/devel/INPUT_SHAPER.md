@@ -57,7 +57,7 @@ Klipper SHAPER_CALIBRATE
 | `include/input_shaper_calibrator.h` | Calibration orchestrator (state machine) |
 | `src/calibration/input_shaper_calibrator.cpp` | Orchestrator implementation |
 | `include/ui_frequency_response_chart.h` | Frequency response chart widget (C API) |
-| `src/ui/ui_frequency_response_chart.cpp` | Chart implementation with LVGL draw callbacks |
+| `src/ui/calibration/ui_frequency_response_chart.cpp` | Chart implementation with LVGL draw callbacks |
 | `include/ui_panel_input_shaper.h` | Input shaper panel (overlay) |
 | `src/ui/calibration/ui_panel_input_shaper.cpp` | Panel implementation |
 | `ui_xml/input_shaper_panel.xml` | XML layout with subject bindings |
@@ -172,7 +172,7 @@ bool   ui_frequency_response_chart_is_chart_mode(chart);
 lv_obj_t* ui_frequency_response_chart_get_obj(chart);
 ```
 
-**Axis label gutters.** The chart sizes its own label space from `font_small` instead of fixed pixels (`src/ui/ui_frequency_response_chart.cpp#apply_axis_pads`). The left pad is `ui_frequency_response_chart_y_gutter_width()`, the widest amplitude label the formatter can emit ("100%", "999k", "0.005", "1e-04", "100e9"), never under 36 px, plus `space_xs`; the bottom pad is `space_sm` plus the font height plus `space_xs`. Both re-run on `LV_EVENT_SIZE_CHANGED`, because a breakpoint change swaps the font under a live chart. Frequency labels are centred on their tick but clamped inside the chart's box (`ui_frequency_response_chart_x_label_center`, half-width from `ui_frequency_response_chart_x_label_half_width`) so "100 Hz" never clips at either edge. Tick spacing follows the range: 5 Hz up to a 40 Hz span, 10 Hz up to 80, so a zoomed belt-tuning zone still shows a few ticks. `ui_frequency_response_chart_get_freq_range()` reads the range back.
+**Axis label gutters.** The chart sizes its own label space from `font_small` instead of fixed pixels (`src/ui/calibration/ui_frequency_response_chart.cpp#apply_axis_pads`). The left pad is `ui_frequency_response_chart_y_gutter_width()`, the widest amplitude label the formatter can emit ("100%", "999k", "0.005", "1e-04", "100e9"), never under 36 px, plus `space_xs`; the bottom pad is `space_sm` plus the font height plus `space_xs`. Both re-run on `LV_EVENT_SIZE_CHANGED`, because a breakpoint change swaps the font under a live chart. Frequency labels are centred on their tick but clamped inside the chart's box (`ui_frequency_response_chart_x_label_center`, half-width from `ui_frequency_response_chart_x_label_half_width`) so "100 Hz" never clips at either edge. Tick spacing follows the range: 5 Hz up to a 40 Hz span, 10 Hz up to 80, so a zoomed belt-tuning zone still shows a few ticks. `ui_frequency_response_chart_get_freq_range()` reads the range back.
 
 ### Internal Structure
 

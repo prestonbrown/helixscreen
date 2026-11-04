@@ -285,7 +285,7 @@ src/ui/ui_ams_tool_text.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_language_refresh.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_crash_report_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_fatal_error.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_frequency_response_chart.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_frequency_response_chart.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_icon_loader.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_overlay_printer_image_tagger.cpp  # compiled out by HELIX_HAS_IMAGE_TAGGER=0
 src/ui/ui_overlay_qr_scanner.cpp  # not in the v1 Core+AMS cut
@@ -303,7 +303,7 @@ src/ui/calibration/ui_panel_calibration_pid.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_tool_offset.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_stepper_resonance_cal_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_pa.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_overlay_pa_tuning.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_overlay_pa_tuning.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_head_picker.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_zoffset.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_glyphs.cpp  # not in the v1 Core+AMS cut

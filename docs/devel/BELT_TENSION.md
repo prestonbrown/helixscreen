@@ -99,7 +99,7 @@ Z belts are deliberately unsupported; see the header comment on
 | `src/api/moonraker_advanced_api.cpp` | `BeltResonanceCollector` (console follow + CSV read) and `test_belt_resonance` (entry point); `detect_belt_hardware` for kinematics |
 | `src/calibration/live_sweep_preview.cpp`, `include/live_sweep_preview.h` | `LiveSweepPreview` and the single gate `live_sweep_target`: the live curve while a sweep runs (§ Live preview) |
 | `src/calibration/sweep_response_estimator.cpp`, `include/sweep_response_estimator.h` | Pure estimator: `SweepResponseAccumulator` turns accelerometer samples into one PSD point per Hz, `DriveLock` finds where the ramp is in the samples |
-| `src/ui/ui_frequency_response_chart.cpp` | Shared chart: series styles, muted ghost series, sweep cursor, numbered and hollow markers, percent gridline labels, label gutters sized from the font (see `INPUT_SHAPER.md` § Axis label gutters) |
+| `src/ui/calibration/ui_frequency_response_chart.cpp` | Shared chart: series styles, muted ghost series, sweep cursor, numbered and hollow markers, percent gridline labels, label gutters sized from the font (see `INPUT_SHAPER.md` § Axis label gutters) |
 | `src/calibration/belt_gating.cpp` | The pure Start-gate predicate |
 | `src/api/moonraker_client_mock.cpp` | `dispatch_test_resonances_response`: the `--test` simulation of a sweep |
 

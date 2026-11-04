@@ -688,7 +688,7 @@ HelixScreen subscribes both extruder fields for every printer (stock Klipper has
 | `include/printer_discovery.h` | `filament_detect` detection + registration order (MMU wins over stock U1) |
 | `include/snapmaker_resume.h` + `src/printer/snapmaker_resume.cpp` | Terminal-pause matchers (dirty bed vs runout) and coded-error `msg` extraction |
 | `include/snapmaker_nozzle_offset.h` + `src/printer/snapmaker_nozzle_offset.cpp` | Toolhead offset calibration: capability check, step plan, `Runner` |
-| `include/ui_snapmaker_nozzle_offset_overlay.h` + `src/ui/ui_snapmaker_nozzle_offset_overlay.cpp` | The guided flow's overlay, registered by `src/ui/ui_snapmaker_device_flows.cpp` |
+| `include/ui_snapmaker_nozzle_offset_overlay.h` + `src/ui/calibration/ui_snapmaker_nozzle_offset_overlay.cpp` | The guided flow's overlay, registered by `src/ui/ui_snapmaker_device_flows.cpp` |
 | `include/batch_feed_reconcile.h` | Connect-time cleanup of a firmware batch left in the `doing` state |
 | `include/snapmaker_print_preferences.h` | `PrintPreferences` read/write model for the firmware prefs surfaced as device actions, plus each head's `filament_soft` |
 | `include/filament_temperature_source.h` + `src/printer/filament_temperature_source.cpp` | Per-filament load/unload temperature capture (see above) |

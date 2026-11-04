@@ -477,7 +477,7 @@ src/ui/panel_widgets/tool_switcher_widget.cpp
 src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print/print_control_buttons.cpp
 src/ui/print/print_control_view.cpp
-src/ui/save_config_restart.cpp
+src/ui/calibration/save_config_restart.cpp
 src/ui/scroll_blit.cpp
 src/ui/setting_group.cpp
 src/ui/settings_root_status.cpp
@@ -511,7 +511,7 @@ src/ui/ui_cfs_chute_calibration_overlay.cpp
 src/ui/ui_cfs_device_flows.cpp
 src/ui/ui_indx_device_flows.cpp
 src/ui/ui_snapmaker_device_flows.cpp
-src/ui/ui_snapmaker_nozzle_offset_overlay.cpp
+src/ui/calibration/ui_snapmaker_nozzle_offset_overlay.cpp
 src/ui/ui_guided_device_flow.cpp
 src/ui/ui_ams_edit_follow_up.cpp
 src/ui/ui_ams_edit_overlay.cpp
@@ -744,14 +744,14 @@ src/ui/ui_variant.cpp
 src/ui/ui_widget_catalog_overlay.cpp
 src/ui/ui_widget_ref.cpp
 src/ui/wizard/ui_wizard.cpp
-src/ui/ui_z_offset_indicator.cpp
+src/ui/calibration/ui_z_offset_indicator.cpp
 src/ui/ui_zone_presentation.cpp
 src/ui/widgets/favorite_macro_config.cpp
 src/ui/widgets/favorite_macro_widget.cpp
 src/ui/widgets/power_device_widget.cpp
 src/ui/widgets/tile_color.cpp
 src/ui/wizard/wizard_step_registry.cpp
-src/ui/z_offset_utils.cpp
+src/ui/calibration/z_offset_utils.cpp
 src/util/indexed_subject_pool.cpp
 src/util/scoped_subject_registry.cpp
 src/util/version.cpp
