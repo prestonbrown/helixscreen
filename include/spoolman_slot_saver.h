@@ -139,7 +139,23 @@ class SpoolmanSlotSaver {
      * which named the previous filament; the catalog fallback applies until the
      * next fetch of the spool states the new filament's id.
      */
-    static void apply_save_result_identity(SlotInfo& committed, const SaveResult& result);
+    static void apply_save_result_identity(SlotInfo& committed, const SaveResult& result) {
+        if (!result.created_new_spool && !result.repointed_filament) {
+            return;
+        }
+        if (result.new_spool_id != 0) {
+            committed.spoolman_id = result.new_spool_id;
+        }
+        if (result.new_filament_id != 0) {
+            if (result.new_filament_id != committed.spoolman_filament_id) {
+                committed.spoolman_orca_filament_id.clear();
+            }
+            committed.spoolman_filament_id = result.new_filament_id;
+        }
+        if (result.new_vendor_id != 0) {
+            committed.spoolman_vendor_id = result.new_vendor_id;
+        }
+    }
 
     /**
      * @brief Split spool edits into the two Spoolman PATCH bodies.
