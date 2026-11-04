@@ -116,13 +116,13 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
     // Live toolhead X and Y: the save step writes whatever position the head is
     // in, so the readouts are the values being calibrated.
     auto& ps = get_printer_state();
-    x_observer_ = observe<int>(
-        ps.motion_state().get_position_x_subject(), this,
-        [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_x_display(centimm); },
-        ps.get_subjects_lifetime());
     y_observer_ = observe<int>(
         ps.motion_state().get_position_y_subject(), this,
         [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_y_display(centimm); },
+        ps.get_subjects_lifetime());
+    x_observer_ = observe<int>(
+        ps.motion_state().get_position_x_subject(), this,
+        [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_x_display(centimm); },
         ps.get_subjects_lifetime());
 
     // The Motion panel's jog pad, with no home button and no diagonals: the flow
@@ -153,19 +153,16 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
 void CfsChuteCalibrationOverlay::on_activate() {
     OverlayBase::on_activate();
     cancel_requested_->store(false);
+    set_state(State::IDLE);
     // A coarse mode left selected from an earlier session must not carry over.
     set_jog_mode(helix::JogMode::Fine);
     jog_guard_.disarm();
-    set_state(State::IDLE);
 }
 
 void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
     // Leaving mid-flow must stop the step chain: the flag first, so a cancel
     // during the home is already visible when the home-done defer runs.
     cancel_requested_->store(true);
-    if (jog_pad_) {
-        ui_jog_pad_stop_repeat(jog_pad_);
-    }
     // Leaving while adjusting leaves the toolhead off-park; re-park it. Before
     // ADJUSTING there is nothing to unwind (the home cannot be aborted); during
     // SAVING the park is idempotent, so sending it again is safe.
@@ -178,6 +175,9 @@ void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
                 backend->exit_chute_calibration();
             }
         }
+    }
+    if (jog_pad_) {
+        ui_jog_pad_stop_repeat(jog_pad_);
     }
 }
 
