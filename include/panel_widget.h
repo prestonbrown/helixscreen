@@ -303,16 +303,21 @@ class PanelWidget {
     int granted_height_px_ = 0;
 };
 
-/// Safe recovery of PanelWidget pointer from event callback.
-/// Returns nullptr if widget was detached or obj has no user_data.
+/// Safe recovery of PanelWidget pointer from event callback: the widget bound to
+/// the tile that holds the widget that fired. A ui_button in the tile keeps its own
+/// user_data, so a tile answers for all its children through its root. A widget
+/// outside every tile carries its owner in its own user_data. Returns nullptr if the
+/// widget was detached or there is no owner.
 template <typename T> T* panel_widget_from_event(lv_event_t* e) {
     auto* obj = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     if (!obj)
         return nullptr;
-    auto* raw = lv_obj_get_user_data(obj);
-    if (!raw)
-        return nullptr;
-    return static_cast<T*>(raw);
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        if (lv_obj_has_flag(o, kPanelWidgetTileFlag)) {
+            return static_cast<T*>(lv_obj_get_user_data(o));
+        }
+    }
+    return static_cast<T*>(lv_obj_get_user_data(obj));
 }
 
 } // namespace helix

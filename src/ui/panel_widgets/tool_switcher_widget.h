@@ -47,9 +47,6 @@ class ToolSwitcherWidget : public PanelWidget {
         return picker_.is_visible();
     }
 
-    // Static instance tracker for callbacks from static event handlers
-    static ToolSwitcherWidget* s_active_instance;
-
   private:
     friend class ToolSwitcherTestAccess;
 
@@ -62,6 +59,9 @@ class ToolSwitcherWidget : public PanelWidget {
 
       public:
         explicit ToolPicker(ToolSwitcherWidget& owner) : owner_(owner) {}
+        ToolSwitcherWidget& owner() {
+            return owner_;
+        }
 
       protected:
         const char* xml_component_name() const override {
@@ -122,6 +122,9 @@ class ToolSwitcherWidget : public PanelWidget {
     // already gone and dereference a half-destroyed widget. See temp_stack_widget.h
     // (commit 45abc8c2a, bundle AX3CKAKB).
     helix::AsyncLifetimeGuard lifetime_;
+
+    /// The widget a segment belongs to: a rail cell's tile, or the open picker's owner.
+    static ToolSwitcherWidget* from_event(lv_event_t* e);
 
     void show_tool_picker();
     /// Mount head @p head_index (an index into ToolState::physical_heads())
