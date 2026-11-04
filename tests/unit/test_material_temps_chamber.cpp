@@ -49,7 +49,11 @@ namespace {
 /// test_ams_environment_overlay_zones.cpp).
 void reset_material_temps_singleton() {
     helix::ui::UpdateQueue::instance().drain();
-    StaticPanelRegistry::instance().destroy_all();
+    // destroy_all() hands back the trees its destructors may not delete inside
+    // the window; they belong to this case's screen, so free them here.
+    for (lv_obj_t* orphan : StaticPanelRegistry::instance().destroy_all()) {
+        lv_obj_delete(orphan);
+    }
     helix::ui::UpdateQueue::instance().drain();
 }
 
@@ -275,6 +279,24 @@ void check_two_by_two_reflow(XMLTestFixture& f, int32_t screen_w, int32_t screen
 TEST_CASE_METHOD(XMLTestFixture, "Micro wraps the temp inputs to two rows of two",
                  "[material_temps][chamber]") {
     check_two_by_two_reflow(*this, 480, 272);
+}
+
+// The header's back button carries ui_breakpoint style observers that
+// unsubscribe from its delete event; an overlay that strips the button's
+// events leaves them to fire on the next breakpoint change, into freed memory.
+TEST_CASE_METHOD(XMLTestFixture, "Destroying the overlay releases its ui_breakpoint observers",
+                 "[material_temps][chamber]") {
+    lv_subject_t* breakpoint = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(breakpoint != nullptr);
+    reset_material_temps_singleton();
+    const uint32_t baseline = lv_ll_get_len(&breakpoint->subs_ll);
+
+    open_abs_edit_view(*this);
+    REQUIRE(lv_ll_get_len(&breakpoint->subs_ll) > baseline);
+
+    MaterialSettingsManager::instance().clear_override("ABS");
+    reset_material_temps_singleton();
+    CHECK(lv_ll_get_len(&breakpoint->subs_ll) == baseline);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "Micro-portrait wraps the temp inputs to two rows of two",

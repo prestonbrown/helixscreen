@@ -19,7 +19,9 @@
     <style name="editor_actions_micro"
            pad_left="#space_sm" pad_right="#space_sm" pad_top="#space_xs" pad_bottom="#space_xs" pad_gap="#space_xs"/>
   </styles>
-  <view name="theme_editor_overlay" extends="overlay_panel" title="Edit Theme Colors" bg_color="#screen_bg">
+  <view name="theme_editor_overlay"
+        extends="overlay_panel" title="Edit Theme Colors" bg_color="#screen_bg"
+        back_button_callback="on_theme_back_clicked">
     <!-- Content Area - no padding, rows handle their own -->
     <lv_obj name="overlay_content" width="100%" flex_grow="1" style_pad_top="0" scrollable="true" flex_flow="column">
       <bind_style_if_eq name="editor_content_micro" subject="ui_breakpoint" ref_value="0"/>
