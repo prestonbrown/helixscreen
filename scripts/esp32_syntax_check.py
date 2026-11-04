@@ -130,7 +130,7 @@ def rebase_path(tok, src_root, tree, *fallback_roots):
 # Where a quoted or angled include resolves when it is not relative to the
 # includer: the roots the firmware's compile commands pass as -I under the repo.
 # check_units reads the real set from those commands; this is the shape.
-DEFAULT_ROOTS = ("include", "src", "src/generated", f"{FW_DIR}/main",
+DEFAULT_ROOTS = (".", "include", "src", "src/generated", f"{FW_DIR}/main",
                  f"{FW_DIR}/components/helixapp", f"{FW_DIR}/components/helixcore",
                  f"{FW_DIR}/components/helixnet")
 
@@ -151,7 +151,10 @@ def include_roots(entries, src_root):
                 path = tok[2:]
             elif tok.startswith("-isystem"):
                 path = tok[8:]
-            if path and path.startswith(src_root + "/"):
+            if path and path.rstrip("/") == src_root:
+                # helixapp passes -I${REPO_ROOT}: `#include "src/ui/x.h"` resolves here.
+                roots.add(".")
+            elif path and path.startswith(src_root + "/"):
                 rel = path[len(src_root) + 1:].rstrip("/")
                 if rel and not rel.startswith(("lib/", "build/")):
                     roots.add(rel)
@@ -163,12 +166,16 @@ class IncludeGraph:
 
     An include resolves relative to its includer first, then against `roots`,
     and only to a file `read_source` can read: a system or lib/ header resolves
-    to nothing and is a leaf. The closure walks cycles once.
+    to nothing and is a leaf. An include that resolves to nothing but names one
+    of `watched` by path suffix (`<stb_image.h>` for lib/stb/stb_image.h, whose
+    -isystem root is not walked) is an edge to that file. The closure walks
+    cycles once.
     """
 
-    def __init__(self, read_source, roots):
+    def __init__(self, read_source, roots, watched=()):
         self.read_source = read_source
         self.roots = roots
+        self.watched = tuple(watched)
         self.text = {}
         self.edges = {}
 
@@ -189,6 +196,9 @@ class IncludeGraph:
                 if cand != rel and self.exists(cand):
                     out.append(cand)
                     break
+            else:
+                out.extend(w for w in self.watched
+                           if w != rel and (w == inc or w.endswith("/" + inc)))
         self.edges[rel] = out
         return out
 
@@ -202,33 +212,67 @@ class IncludeGraph:
         return seen
 
 
+def header_includers(units, headers, read_source, roots=DEFAULT_ROOTS):
+    """{header: [unit, ...]}: the units reaching each changed header, directly or
+    through any chain of headers (a firmware header holding a repo type by
+    value is such a chain). A header no unit reaches maps to [].
+
+    A forced include is on every command line and in no #include, so it and
+    everything it includes (helix_features.h, where every HELIX_HAS_* default
+    lives) are reached by every unit.
+    """
+    includers = {h: [] for h in headers}
+    if not headers:
+        return includers
+    graph = IncludeGraph(read_source, roots, watched=headers)
+    forced = set()
+    for f in FORCED_INCLUDES:
+        forced |= {f} | graph.closure(f)
+    for rel in sorted(units):
+        reached = graph.closure(rel) | forced
+        for h in headers:
+            if h in reached:
+                includers[h].append(rel)
+    return includers
+
+
 def select_units(units, changed, read_source, one_per_header=False, roots=DEFAULT_ROOTS):
     """Relative paths of the units to check.
 
     units: {relpath: [entry, ...]}; changed: relpaths; read_source(rel) -> text.
     A changed source is checked if the firmware compiles it. A changed header
-    is checked through every unit that reaches it, directly or through any
-    chain of headers (a firmware header holding a repo type by value is such a
-    chain), or with one_per_header through a single one of them, preferring a
-    unit already picked.
+    is checked through every unit that reaches it (header_includers), or with
+    one_per_header through a single one of them, preferring a unit already
+    picked.
     """
-    picked = {rel for rel in changed if rel in units}
     headers = [rel for rel in changed if rel.endswith(HEADER_EXTS)]
-    includers = {h: [] for h in headers}
-    if headers:
-        graph = IncludeGraph(read_source, roots)
-        for rel in sorted(units):
-            reached = graph.closure(rel)
-            for h in headers:
-                # A forced include is on every command line and in no #include.
-                if h in reached or h in FORCED_INCLUDES:
-                    includers[h].append(rel)
-    for h, units_of_h in includers.items():
+    return pick(units, changed, header_includers(units, headers, read_source, roots),
+                one_per_header)
+
+
+def pick(units, changed, includers, one_per_header=False):
+    picked = {rel for rel in changed if rel in units}
+    for units_of_h in includers.values():
         if not one_per_header:
             picked.update(units_of_h)
         elif units_of_h and not picked.intersection(units_of_h):
             picked.add(units_of_h[0])
     return sorted(picked)
+
+
+def unreached_note(includers):
+    """One line naming the changed headers no firmware unit reaches, or None.
+
+    A desktop-only header is a normal case, so this is a note, not a failure:
+    under --require the run still answers for every unit it did compile. What it
+    rules out is the silent form, a header edit that selects nothing and prints
+    nothing, which reads like a pass.
+    """
+    missed = sorted(h for h, us in includers.items() if not us)
+    if not missed:
+        return None
+    return (f"ℹ️  esp32 syntax check: {len(missed)} changed header(s) reach no firmware "
+            f"unit, so nothing checks them: {', '.join(missed)}")
 
 
 INDEX_DIRS = ("src", "include", FW_DIR)
@@ -378,7 +422,12 @@ def check_units(args, units, changed, src_root, source_tree, fallbacks, cache, m
             return None
 
     roots = include_roots([e for es in units.values() for e in es], src_root)
-    picked = select_units(units, changed, read_source, one_per_header=args.staged, roots=roots)
+    headers = [rel for rel in changed if rel.endswith(HEADER_EXTS)]
+    includers = header_includers(units, headers, read_source, roots)
+    note = unreached_note(includers)
+    if note:
+        print(note)
+    picked = pick(units, changed, includers, one_per_header=args.staged)
     if not picked:
         return 0
     specs = []
