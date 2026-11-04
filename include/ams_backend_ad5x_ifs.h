@@ -356,6 +356,12 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
         return !ifs_module_live_.load();
     }
 
+    // INSERT_PRUTOK_IFS (and the module's IFS_LOAD) first removes whatever the
+    // head holds, heating, cutting and retracting it, and skips that only on an
+    // empty head sensor. A loaded head therefore makes every load, the seated
+    // lane's included, begin with a toolhead unload.
+    [[nodiscard]] bool load_unloads_toolhead_now() const override;
+
     [[nodiscard]] PathSegment get_filament_segment() const override;
     [[nodiscard]] PathSegment get_slot_filament_segment(int slot_index) const override;
     [[nodiscard]] PathSegment infer_error_segment() const override;

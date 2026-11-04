@@ -87,7 +87,8 @@ BackendCaps read_backend_caps(AmsBackend* backend, AmsSystemInfo& info_out, int 
 bool print_blocks_load_now(const AmsBackend* backend, PrinterState& state) {
     return print_blocks_filament_load(
         state.print_state().get_print_lifecycle(), backend && backend->filament_ops_self_home(),
-        backend && backend->self_home_skipped_when_homed(), toolhead_is_homed(state));
+        backend && backend->self_home_skipped_when_homed(), toolhead_is_homed(state),
+        backend && backend->load_unloads_toolhead_now());
 }
 
 FilamentHeadView read_filament_head_view(AmsBackend* backend, PrinterState& state,

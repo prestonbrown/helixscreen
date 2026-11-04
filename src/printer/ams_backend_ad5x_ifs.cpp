@@ -1297,6 +1297,13 @@ bool AmsBackendAd5xIfs::head_empty_for_unload_routing_locked() const {
     return !head_filament_;
 }
 
+bool AmsBackendAd5xIfs::load_unloads_toolhead_now() const {
+    // The routing predicate's bias toward "loaded" is the safe side here too:
+    // a head it cannot prove empty keeps a paused load refused.
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !head_empty_for_unload_routing_locked();
+}
+
 void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     if (slot_index < 0 || slot_index >= kNumPorts)
         return;
@@ -2883,9 +2890,9 @@ std::vector<helix::RecoveryAction> AmsBackendAd5xIfs::build_recovery_actions() c
     in.head_has_filament = head_switch_seen_ && head_switch_present_;
     in.purge_gcode = runout_purge_gcode(bin_purge_macros_);
     in.unlock_gcode = unlock_cmd;
-    const bool load_blocked =
-        print_blocks_filament_load(current_print_lifecycle(), filament_ops_self_home(),
-                                   self_home_skipped_when_homed(), toolhead_homed_now());
+    const bool load_blocked = print_blocks_filament_load(
+        current_print_lifecycle(), filament_ops_self_home(), self_home_skipped_when_homed(),
+        toolhead_homed_now(), !head_empty_for_unload_routing_locked());
     if (runout_slot_ >= 0 && !load_blocked) {
         in.load_gcode = "INSERT_PRUTOK_IFS PRUTOK=" + std::to_string(runout_slot_ + 1);
     }

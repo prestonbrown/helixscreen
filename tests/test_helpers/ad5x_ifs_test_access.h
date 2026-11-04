@@ -305,6 +305,15 @@ class Ad5xIfsTestAccess {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.ffm_channel_ = chan;
     }
+    // IFS_STATUS "Chan" seated port (1-based; 0 = none).
+    static void set_seated_chan(AmsBackendAd5xIfs& b, int chan) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.seated_chan_ = chan;
+    }
+    // Pin the standalone-module latch production sets on its first ifs frame.
+    static void set_module_live(AmsBackendAd5xIfs& b, bool live) {
+        b.ifs_module_live_.store(live);
+    }
     // FFMInfo.channel as the file last said it (nullopt = never read).
     static void set_ffm_file_channel(AmsBackendAd5xIfs& b, std::optional<int> chan) {
         std::lock_guard<std::mutex> lock(b.mutex_);

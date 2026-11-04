@@ -162,9 +162,14 @@ namespace helix {
  * home would fire into the part, and the load stays refused.
  *
  *   PRINTING / PREPARING        -> refuse, as for every filament op.
- *   PAUSED, self-homes, homed   -> ALLOW when the home is skipped once homed.
+ *   PAUSED, self-homes, homed   -> ALLOW when the home is skipped once homed
+ *                                  and the load unloads nothing first.
  *   PAUSED, self-homes, unhomed -> refuse.
  *   idle                        -> allow.
+ *
+ * A load that first unloads filament already at the toolhead
+ * (AmsBackend::load_unloads_toolhead_now()) is an unload as far as the job is
+ * concerned, and answers to print_blocks_filament_op() like one.
  *
  * Load only: a runout pause leaves an empty toolhead that only a load can fix,
  * so this is the op the refinement was made for. Unload, tool change and
@@ -174,11 +179,16 @@ namespace helix {
  * @param backend_self_homes            AmsBackend::filament_ops_self_home(); false with none.
  * @param self_home_skipped_when_homed  AmsBackend::self_home_skipped_when_homed(); false with none.
  * @param toolhead_homed                toolhead_is_homed(): homed_axes holds x, y and z.
+ * @param load_unloads_toolhead         AmsBackend::load_unloads_toolhead_now(); false with none.
  */
 [[nodiscard]] constexpr bool print_blocks_filament_load(PrintState lifecycle,
                                                         bool backend_self_homes,
                                                         bool self_home_skipped_when_homed,
-                                                        bool toolhead_homed) {
+                                                        bool toolhead_homed,
+                                                        bool load_unloads_toolhead) {
+    if (load_unloads_toolhead) {
+        return print_blocks_filament_op(lifecycle, backend_self_homes);
+    }
     return print_blocks_filament_op(
         lifecycle,
         filament_load_homes_now(backend_self_homes, self_home_skipped_when_homed, toolhead_homed));

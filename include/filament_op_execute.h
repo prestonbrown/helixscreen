@@ -76,7 +76,8 @@ namespace helix::ui {
 /**
  * @brief print_blocks_filament_load() over a live backend and printer.
  *
- * The backend's two homing answers and the live homed_axes, so every Load
+ * The backend's two homing answers, whether its load begins by unloading the
+ * toolhead, and the live homed_axes, so every Load
  * surface asks the question AmsSubscriptionBackend::refuse_load_if_printing()
  * answers. Null @p backend: no firmware macro can home, as for
  * print_blocks_filament_op().

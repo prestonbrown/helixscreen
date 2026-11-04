@@ -407,7 +407,8 @@ class AmsSubscriptionBackend : public AmsBackend {
 
     /// refuse_if_printing() for a LOAD: print_blocks_filament_load() is the rule,
     /// so a paused job on a backend whose buried home is skipped once homed
-    /// (self_home_skipped_when_homed()) loads when toolhead_homed() reads "xyz".
+    /// (self_home_skipped_when_homed()) loads when toolhead_homed() reads "xyz"
+    /// and the load unloads nothing first (load_unloads_toolhead_now()).
     AmsError refuse_load_if_printing() const;
 
     /// Refuse anything that moves the printer while a print holds it, paused or

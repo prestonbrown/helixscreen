@@ -1273,6 +1273,21 @@ class AmsBackend {
     }
 
     /**
+     * @brief Would a load dispatched now first unload filament already at the
+     *        toolhead?
+     *
+     * True for firmware whose load macro clears whatever sits in the head
+     * before feeding the target. print_blocks_filament_load() then treats the
+     * load as the unload it begins with, so a paused job refuses it wherever
+     * it refuses an unload.
+     *
+     * Default: false. Live state, so it is a virtual and not a trait.
+     */
+    [[nodiscard]] virtual bool load_unloads_toolhead_now() const {
+        return false;
+    }
+
+    /**
      * @brief Does the printer-side system arrange its own homing for filament
      *        load/unload ops, so HelixScreen should not send G28 first?
      *
