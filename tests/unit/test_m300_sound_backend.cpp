@@ -446,3 +446,23 @@ TEST_CASE("M300 backend drops a tune's remaining notes once the printer turns bu
     backend.silence();
     CHECK(sent.size() == 1);
 }
+
+TEST_CASE("M300 backend sends no silence once the printer turns busy", "[sound][m300]") {
+    std::vector<std::string> sent;
+    bool busy = false;
+    M300SoundBackend backend(
+        [&sent](const std::string& gcode) {
+            sent.push_back(gcode);
+            return 0;
+        },
+        [&busy] { return busy; });
+
+    backend.set_tone(800.0f, 0.8f, 0.5f);
+    REQUIRE(sent.size() == 1);
+
+    // The tune's closing silence lands after the print started: an M300 S0 would
+    // still wait in Klipper's queue behind the print's moves.
+    busy = true;
+    backend.silence();
+    CHECK(sent.size() == 1);
+}
