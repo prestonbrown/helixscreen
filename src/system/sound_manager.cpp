@@ -24,6 +24,10 @@
 #include "alsa_sound_backend.h"
 #endif
 
+#ifdef HELIX_HAS_PCM_PIPE
+#include "pcm_pipe_sound_backend.h"
+#endif
+
 #ifdef HELIX_HAS_TRACKER
 #include "tracker_module.h"
 #include "tracker_player.h"
@@ -410,8 +414,10 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
     // Auto-detection order:
     // 1. SDL audio available (desktop build) -> SDLBackend
     // 2. ALSA PCM available (Linux with audio) -> ALSABackend
-    // 3. /sys/class/pwm/pwmchip0 exists -> PWMBackend
-    // 4. None -> wait for M300 gate, or sounds disabled
+    // 3. /dev/jz_pwm and fx-pwm exist -> JzPwmBackend
+    // 4. AD5M family only: /sys/class/pwm/pwmchip0 exists -> PWMBackend
+    // 5. An executable aplay and a playback node in /dev/snd -> PcmPipeBackend
+    // 6. None -> wait for M300 gate, or sounds disabled
     //
     // A buzzer named on a PWM channel (setting sound.pwm_channel, or the
     // HELIX_PWM_SOUND override) wins over all of them: a Pi with a passive
@@ -494,6 +500,23 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
         return pwm_backend;
     }
     spdlog::debug("[SoundManager] PWM sysfs not available, falling back");
+#endif
+
+#ifdef HELIX_HAS_PCM_PIPE
+    // Last host-side resort: PCM piped to the rootfs player (aplay), for a
+    // board with a playback card the static binary cannot open itself (K1
+    // series). Probed, not assumed: a board without a card or player falls
+    // through to the M300 gate exactly as before.
+    if (PcmPipeSoundBackend::available()) {
+        auto pipe_backend = std::make_shared<PcmPipeSoundBackend>();
+        std::string player =
+            PcmPipeSoundBackend::find_player(std::getenv(PcmPipeSoundBackend::kPlayerEnv));
+        if (pipe_backend->initialize(player)) {
+            spdlog::info("[SoundManager] Using PCM pipe backend ({})", player);
+            return pipe_backend;
+        }
+    }
+    spdlog::debug("[SoundManager] PCM pipe player not available, falling back");
 #endif
 
     spdlog::debug("[SoundManager] No host audio backend available");

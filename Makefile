@@ -500,7 +500,7 @@ endif
 # same controller. So the probe cannot be trusted to decide this — the platform
 # must, or the user naming the channel. M300 (the PRINTER's beeper, over gcode) is deliberately NOT gated and
 # keeps working everywhere. Neither MIPS board exposes a sysfs pwmchip (the
-# FlashForge MIPS boards' piezo goes through jz_pwm below, the K1 has no audio at all).
+# FlashForge MIPS boards' piezo goes through jz_pwm below, the K1's card through the PCM pipe).
 #
 # Decided HERE, above APP_OBJS, and not down in the sound-flags section: APP_OBJS
 # is computed from APP_SRCS a few lines below, so a filter-out placed after it is
@@ -528,6 +528,17 @@ ifneq (,$(filter mips k1 ad5x,$(PLATFORM_TARGET)))
     JZ_PWM_CXXFLAGS := -DHELIX_HAS_JZ_PWM
 else
     APP_SRCS := $(filter-out $(SRC_DIR)/system/jz_pwm_sound_backend.cpp,$(APP_SRCS))
+endif
+
+# PCM piped to the rootfs player (aplay) for boards whose binary cannot reach
+# libasound (static musl) but whose userland ships alsa-utils and a card: the
+# Creality K1 series. Probed at runtime, after JzPwm: the player must be
+# executable and /dev/snd must list a playback stream, so a FlashForge board
+# without a card falls through to the M300 gate as before.
+ifneq (,$(filter mips k1 ad5x k1-dynamic,$(PLATFORM_TARGET)))
+    PCM_PIPE_CXXFLAGS := -DHELIX_HAS_PCM_PIPE
+else
+    APP_SRCS := $(filter-out $(SRC_DIR)/system/pcm_pipe_sound_backend.cpp,$(APP_SRCS))
 endif
 
 ifneq ($(ENABLE_MOCKS),yes)
@@ -1033,7 +1044,8 @@ CXXFLAGS += $(SYSTEMD_CXXFLAGS)
 
 # ALSA audio backend — real waveform synthesis on Linux targets with libasound2
 # Enabled for: Pi (all variants), x86 SBCs
-# Not available on: macOS (no ALSA), AD5M (no sound card), K1/K2/MIPS (musl, no ALSA)
+# Not available on: macOS (no ALSA), AD5M (no sound card), K1/K2/MIPS (musl, no ALSA;
+# the K1's card is reached through the PCM pipe backend above instead)
 ALSA_LIBS :=
 ALSA_CXXFLAGS :=
 ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both,$(PLATFORM_TARGET)))
@@ -1137,7 +1149,9 @@ endif
 #   note fallback is measured against a running print on the hardware.
 # ad5x: tracker on. The jz_pwm backend drives the tracker's PC-speaker path with
 #   per-note buffers, so no PCM render loop is involved.
-# K1, MIPS and AD5X: tone SFX via the PWM/jz_pwm backend (HELIX_HAS_SOUND).
+# K1, MIPS and AD5X: tone SFX via the jz_pwm backend, or PCM SFX through the PCM pipe
+#   backend where the board has a card; on that backend the tracker renders PCM on
+#   its render thread, unmeasured against a running print (HELIX_HAS_SOUND).
 # K2, cc1, snapmaker-u1 and yocto match no branch below: no sound flags at all.
 SOUND_CXXFLAGS :=
 TRACKER_CXXFLAGS :=
@@ -1151,13 +1165,14 @@ else ifneq (,$(filter ad5m ad5m-br mips k1 ad5x,$(PLATFORM_TARGET)))
     ifneq (,$(filter mips k1 ad5x,$(PLATFORM_TARGET)))
         # Unified MIPS: the jz_pwm backend drives the tracker's PC-speaker
         # (synth fallback) path — per-note buffers, no PCM render loop involved.
+        # The PCM pipe backend does run one.
         TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
     endif
 else ifneq (,$(filter native x86-desktop,$(PLATFORM_TARGET)))
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
 endif
-CXXFLAGS +=$(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS)
+CXXFLAGS +=$(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS) $(PCM_PIPE_CXXFLAGS)
 
 # Feature gates. include/helix_features.h holds every gate's default; each one becomes a
 # make variable here so mk/cross.mk can turn it off for a platform and make logic (the

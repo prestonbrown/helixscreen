@@ -37,6 +37,7 @@ PROBED = {
     "HELIX_HAS_LIBUSB",
     "HELIX_HAS_PWM_SOUND",
     "HELIX_HAS_JZ_PWM",
+    "HELIX_HAS_PCM_PIPE",
 }
 
 SOURCE_DIRS = ("src", "include", "firmware/helixscreen-esp32/components")
