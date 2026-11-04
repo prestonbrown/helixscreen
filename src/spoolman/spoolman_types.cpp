@@ -8,6 +8,7 @@
 
 #include <string>
 
+// NAMESPACE_OK: defines the file-scope declaration in spoolman_types.h
 void apply_spool_to_slot(helix::SlotInfo& info, const SpoolInfo& spool) {
     // A link replaces the slot's identity whole, so a field the spool does not
     // state lands blank rather than leaving the previous spool's value behind.
