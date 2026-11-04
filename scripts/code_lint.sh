@@ -949,6 +949,7 @@ lint_zoffset_save_rule() {
 # The publisher observes subjects ToolState registers in init_ams_subjects(),
 # so initialising it earlier would attach to nothing and leave every save
 # surface bound to a subject that never moves.
+# shellcheck disable=SC2120  # the fixture tests pass a path; the lint reads the tree
 zoffset_publisher_wiring() {
     local f="${1:-src/application/subject_initializer.cpp}" ams init
     ams=$(grep -n 'init_ams_subjects();' "$f" | tail -1 | cut -d: -f1)
