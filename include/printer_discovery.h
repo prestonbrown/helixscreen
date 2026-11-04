@@ -13,7 +13,7 @@
  * - AMS/MMU detection from PrinterCapabilities
  */
 
-#include "ams_types.h"
+#include "ams_type.h"
 #include "filament_database.h" // filament::kDefaultDiameterMm
 #include "fit_check.h"
 #include "hardware_object_table.h"

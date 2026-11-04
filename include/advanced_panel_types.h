@@ -11,7 +11,6 @@
  * domain-specific type headers. New code should include the specific
  * headers directly for better compile times and clearer dependencies.
  *
- * @see spoolman_types.h - Filament tracking types (SpoolInfo, FilamentUsageRecord)
  * @see calibration_types.h - Calibration types (ScrewTiltResult, InputShaperResult, MachineLimits)
  * @see macro_types.h - Macro types (MacroInfo, MacroCategory)
  */
@@ -19,7 +18,6 @@
 // Domain-specific type headers
 #include "calibration_types.h"
 #include "macro_types.h"
-#include "spoolman_types.h"
 
 #include <functional>
 #include <string>

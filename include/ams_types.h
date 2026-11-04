@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ams_type.h"
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "klipper_extruder_naming.h"
@@ -73,28 +74,6 @@ struct UnloadLaneQuestion {
     [[nodiscard]] bool asks() const {
         return !lanes.empty() || confirm_clear_toolhead;
     }
-};
-
-/**
- * @brief Type of AMS system detected
- *
- * Supports both filament-switching systems (MMU/AMS) and physical tool changers.
- * Tool changers differ in that each "slot" is a complete toolhead with its own
- * extruder, rather than a filament path to a shared toolhead.
- */
-enum class AmsType {
-    NONE = 0,         ///< No AMS detected
-    HAPPY_HARE = 1,   ///< Happy Hare MMU (mmu object in Moonraker)
-    AFC = 2,          ///< AFC-Klipper-Add-On (afc object, lane_data database)
-    ACE = 3,          ///< AnyCubic ACE Pro (ValgACE/BunnyACE/DuckACE Klipper drivers)
-    TOOL_CHANGER = 4, ///< Physical tool changer (viesturz/klipper-toolchanger)
-    AD5X_IFS = 5,     ///< FlashForge AD5X IFS (Intelligent Filament Switching)
-    CFS = 6,          ///< Creality Filament System (K2 series, RS-485)
-    SNAPMAKER = 7,    ///< Snapmaker U1 SnapSwap toolchanger
-    QIDI_BOX =
-        8, ///< QIDI Box filament changer (PLUS4, Q2, MAX4 — hub AMS, 4 slots chainable to 16)
-    OPENAMS = 9, ///< klipper_openams through its own versioned oams_manager API
-    INDX = 10    ///< Bondtech INDX: docked passive nozzles, one extruder and heater
 };
 
 /// Which rows of its own a filament system adds to the buffer status modal,
