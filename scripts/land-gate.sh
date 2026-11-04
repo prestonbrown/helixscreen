@@ -149,7 +149,7 @@ run_step() {
         lint-xml) step lint-xml "${mk[@]}" lint-xml ;;
         lvgl-event-codes) step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes ;;
         esp32) step esp32 bash "$SELF" --esp32-check ;;
-        quality) step quality "${mk[@]}" quality ;;
+        quality) step quality env HELIX_LINK_BOUNDARY_REQUIRED=1 "${mk[@]}" quality ;;
         *) echo "✗ unknown step '$1'" >&2; return 2 ;;
     esac
 }

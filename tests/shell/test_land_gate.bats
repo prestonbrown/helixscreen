@@ -161,6 +161,11 @@ row() { # <status> <step>: the table row for step has that status
 # order_of <event>: its line number in the stubs' start/end log.
 order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
 
+@test "the quality step requires a link boundary verdict" {
+    TEST_HOST=1 MAKE_QUALITY_HOOK='echo "link required: ${HELIX_LINK_BOUNDARY_REQUIRED:-no}" >> "$CALLS"' run "$GATE"
+    grep -qx "link required: 1" "$CALLS"
+}
+
 @test "a local C++ run finishes before quality starts its own makes in the tree" {
     UNIT_SWEEP_SECS=2 run "$GATE"
     [ "$status" -eq 0 ]

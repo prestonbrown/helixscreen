@@ -55,7 +55,7 @@ tests/shell/test_doc_refs_gate.bats	Makefile assets/config/printer_database.json
 tests/shell/test_drm_mmap_lfs_gate.bats	mk/patches.mk patches/lvgl-drm-mmap64.patch scripts/check_drm_mmap_lfs.py
 tests/shell/test_duplicate_xml_names_gate.bats	scripts/check_duplicate_xml_names.py scripts/staged_content.py
 tests/shell/test_env_file_vars_are_live.bats	config/helixscreen.env include/ scripts/helix-launcher.sh src/
-tests/shell/test_esp32_app_srcs_gate.bats	Makefile firmware/helixscreen-esp32/components/helixapp/app_srcs.cmake include/helix_features.h scripts/check_esp32_app_srcs.py src/printer/ams_backend_mock.cpp
+tests/shell/test_esp32_app_srcs_gate.bats	Makefile firmware/helixscreen-esp32/components/helixapp/app_srcs.cmake include/helix_features.h scripts/check_esp32_app_srcs.py scripts/qc/esp32_app_srcs.sh src/printer/ams_backend_mock.cpp
 tests/shell/test_esp32_build_debug_heap.bats	scripts/esp32_build_debug_heap.sh scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/pool-docker.sh
 tests/shell/test_esp32_compile_gate.bats	firmware/helixscreen-esp32/CMakeLists.txt include/printer_state.h scripts/esp32_syntax_check.py scripts/qc/_lib.sh scripts/qc/esp32_compile.sh src/printer/ams_state.cpp tests/python/test_esp32_syntax_check.py ui_xml/globals.xml
 tests/shell/test_esp32_pack_assets_ci.bats	tests/python/test_esp32_pack_assets.py
