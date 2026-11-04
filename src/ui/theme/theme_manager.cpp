@@ -316,11 +316,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     snprintf(font_variant_name, sizeof(font_variant_name), "font_body%s", size_suffix);
     const char* font_body_name = lv_xml_get_const(nullptr, font_variant_name);
 
-    // Fallback chain (matches responsive spacing/font token resolution):
-    //   _xxlarge → _xlarge → _large
-    //   _xlarge  → _large
-    //   _micro   → _tiny  → _small
-    //   _tiny    → _small
+    // An absent tier falls back the way responsive spacing/font tokens do.
     if (!font_body_name && strcmp(size_suffix, "_xxlarge") == 0) {
         font_body_name = lv_xml_get_const(nullptr, "font_body_xlarge");
         if (!font_body_name)
