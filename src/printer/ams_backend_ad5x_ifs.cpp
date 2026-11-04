@@ -2894,7 +2894,8 @@ std::vector<helix::RecoveryAction> AmsBackendAd5xIfs::build_recovery_actions() c
         current_print_lifecycle(), filament_ops_self_home(), self_home_skipped_when_homed(),
         toolhead_homed_now(), !head_empty_for_unload_routing_locked());
     if (runout_slot_ >= 0 && !load_blocked) {
-        in.load_gcode = "INSERT_PRUTOK_IFS PRUTOK=" + std::to_string(runout_slot_ + 1);
+        const int port = runout_slot_ + 1; // DISPLAY_NUMBERING_OK: 1-based PRUTOK= gcode parameter
+        in.load_gcode = "INSERT_PRUTOK_IFS PRUTOK=" + std::to_string(port);
     }
     return runout_recovery_actions(in);
 }
