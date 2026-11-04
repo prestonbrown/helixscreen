@@ -8,6 +8,9 @@
 #include "config.h"
 #include "config_migrations.h"
 
+#include <filesystem>
+#include <fstream>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -67,6 +70,22 @@ TEST_CASE("v33 gives a Z-Mod AD5M Pro the side fan as aux and drops the hidden f
     CHECK_FALSE(fans.contains("chamber"));
     CHECK_FALSE(fans.contains("exhaust"));
     CHECK(fans["hotend"] == "heater_fan heat_fan");
+}
+
+TEST_CASE("v33 leaves a Z-Mod AD5M Pro with the fan roles its preset ships",
+          "[config][migration][ad5m]") {
+    const std::filesystem::path shipped = "assets/config/presets/ad5m_pro_zmod.json";
+    INFO("reading " << shipped.string() << " (tests must run from the repo root)");
+    std::ifstream in(shipped);
+    REQUIRE(in.good());
+    const json preset = json::parse(in, nullptr, false);
+    REQUIRE(preset.is_object());
+    const json& shipped_fans = preset["printer"]["fans"];
+    REQUIRE(shipped_fans.is_object());
+
+    json config =
+        migrate(single_printer({{"preset", "ad5m_pro_zmod"}, {"fans", old_preset_fans()}}));
+    CHECK(config["printers"]["a"]["fans"] == shipped_fans);
 }
 
 TEST_CASE("v33 keeps a Z-Mod user's own chamber and exhaust choices", "[config][migration][ad5m]") {
