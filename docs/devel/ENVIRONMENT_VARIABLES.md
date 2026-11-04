@@ -693,7 +693,7 @@ Forces the glass gate's verdict for this run. `1` makes the Glass Effects row sh
 | **Values** | `1` or `0` |
 | **Default** | Unset: the gate decides from the board and the probe stored at `/display/glass_probe` |
 | **Invalid** | Anything else is ignored with a warning |
-| **File** | `include/glass_gate.h#glass_env_force`, `src/ui/glass_gate.cpp` |
+| **File** | `include/glass_gate.h#glass_env_force`, `src/ui/effects/glass_gate.cpp` |
 
 ```bash
 HELIX_GLASS=1 HELIX_HEADLESS=1 SDL_VIDEODRIVER=dummy ./build/bin/helix-screen --test -vv

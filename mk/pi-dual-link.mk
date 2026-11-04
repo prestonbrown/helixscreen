@@ -121,7 +121,7 @@ FBDEV_GLES_VARIANT_SRCS := \
     src/ui/gcode/ui_gcode_viewer.cpp \
     src/ui/gcode/gcode_viewer_input.cpp \
     src/ui/gcode/gcode_viewer_loader.cpp \
-    src/ui/backdrop_blur.cpp \
+    src/ui/effects/backdrop_blur.cpp \
     src/application/probe_egl_cmd.cpp
 
 # Map source paths to fbdev variant object paths (flatten into single dir)
@@ -139,7 +139,7 @@ DRM_GLES_APP_OBJS := \
     $(OBJ_DIR)/ui/gcode/ui_gcode_viewer.o \
     $(OBJ_DIR)/ui/gcode/gcode_viewer_input.o \
     $(OBJ_DIR)/ui/gcode/gcode_viewer_loader.o \
-    $(OBJ_DIR)/ui/backdrop_blur.o \
+    $(OBJ_DIR)/ui/effects/backdrop_blur.o \
     $(OBJ_DIR)/application/probe_egl_cmd.o
 
 $(FBDEV_GLES_VARIANT_DIR)/gcode_gles_renderer.o: src/rendering/gcode_gles_renderer.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
@@ -158,7 +158,7 @@ $(FBDEV_GLES_VARIANT_DIR)/gcode_viewer_loader.o: src/ui/gcode/gcode_viewer_loade
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-$(FBDEV_GLES_VARIANT_DIR)/backdrop_blur.o: src/ui/backdrop_blur.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(FBDEV_GLES_VARIANT_DIR)/backdrop_blur.o: src/ui/effects/backdrop_blur.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 

@@ -383,7 +383,7 @@ src/ui/notify/action_prompt_manager.cpp
 src/ui/filament/ams_drawing_utils.cpp
 src/ui/filament/ams_tray_projection.cpp
 src/ui/filament/ams_unit_pages.cpp
-src/ui/backdrop_blur.cpp
+src/ui/effects/backdrop_blur.cpp
 src/ui/home/bed_coord_mapper.cpp
 src/ui/calibration/bed_mesh_profile_name.cpp
 src/ui/home/callout_presenter.cpp
@@ -478,7 +478,7 @@ src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print/print_control_buttons.cpp
 src/ui/print/print_control_view.cpp
 src/ui/calibration/save_config_restart.cpp
-src/ui/scroll_blit.cpp
+src/ui/effects/scroll_blit.cpp
 src/ui/settings/setting_group.cpp
 src/ui/settings/settings_root_status.cpp
 src/ui/shared_font_style.cpp
@@ -550,7 +550,7 @@ src/ui/components/ui_context_menu.cpp
 src/ui/ui_debug_bundle_modal.cpp
 src/ui/filament/ui_guided_load_modal.cpp
 src/ui/components/ui_dialog.cpp
-src/ui/ui_effects.cpp
+src/ui/effects/ui_effects.cpp
 src/ui/ui_emergency_stop.cpp
 src/ui/filament/ui_endless_spool_arrows.cpp
 src/ui/print/ui_exclude_mode_controller.cpp

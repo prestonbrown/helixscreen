@@ -48,7 +48,7 @@ ALLOWED = {
     "obj/lvgl/src/drivers/libinput/lv_libinput.o": "reached only behind Lib::Input in DisplayBackendDRM",
     "obj/application/probe_egl_cmd.o": "run_probe_egl() checks every library before touching one",
     "obj/rendering/gcode_gles_renderer.o": "init_gl() checks Lib::Egl/Gles2, the GBM path Lib::Gbm/Drm",
-    "obj/ui/backdrop_blur.o": "gpu_blur() checks all four before the first EGL call",
+    "obj/ui/effects/backdrop_blur.o": "gpu_blur() checks all four before the first EGL call",
 }
 
 # LVGL's drivers call the libraries ungated: whoever calls the driver is the

@@ -525,7 +525,7 @@ TEST_CASE("every screen-level backdrop goes up through bring_to_front",
             continue;
         }
         const std::string path = entry.path().generic_string();
-        if (path == "src/ui/ui_effects.cpp" || path == "src/ui/backdrop_blur.cpp") {
+        if (path == "src/ui/effects/ui_effects.cpp" || path == "src/ui/effects/backdrop_blur.cpp") {
             continue; // the creators themselves
         }
         if (path == "src/ui/ui_busy_overlay.cpp") {

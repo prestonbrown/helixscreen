@@ -268,9 +268,9 @@ src/ui/notify/action_prompt_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/gcode/gcode_viewer_loader.cpp  # G-code viewer file loading, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
 src/ui/gcode/gcode_viewer_input.cpp  # G-code viewer touch input, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
 src/ui/board_fingerprint.cpp  # read only by the screensaver and glass gates, neither in the firmware
-src/ui/glass_painter.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
-src/ui/glass_gate.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
-src/ui/glass_shading.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
+src/ui/effects/glass_painter.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
+src/ui/effects/glass_gate.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
+src/ui/effects/glass_shading.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
 src/ui/print/ipp_print_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/modals/ui_spaghetti_detection_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/modals/toolhead_preset_config_modal.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
