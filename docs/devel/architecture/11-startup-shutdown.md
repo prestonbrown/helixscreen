@@ -104,7 +104,7 @@ The whole ladder, one line per phase comment (all in `run()` unless noted):
 | 8c | `register_xml_components()` | `src/application/application.cpp#register_xml_components` | `styles.xml`, component loader, guided device flows, hot reloader |
 | 9a | `init_core_subjects()` | `src/application/printer_session.cpp#init_core_subjects` | `SubjectInitializer` core/state/navigation sweep |
 | 9b | `HttpExecutor::start_all()`, `init_moonraker()` | `src/core/http_executor.cpp#start_all`, `src/application/printer_session.cpp#init_moonraker` | Pools before the API that submits to them |
-| - | UpdateChecker, UpgradeBanner, CrashHistory + CrashReporter, `AmsBackend::init_persistent_state()`, TelemetryManager | `src/application/application.cpp#run` | Services panels bind, plus the first heap snapshot; backend state loads before any backend exists |
+| - | UpdateChecker, UpgradeBanner, CrashHistory + CrashReporter, `AmsBackend::init_persistent_state()`, TelemetryManager | `src/application/application.cpp#init_process_services` | Services panels bind, plus the first heap snapshot; backend state loads before any backend exists |
 | 9c | `init_panel_subjects()` | `src/application/printer_session.cpp#init_panel_subjects` | `init_panels()` + `init_post()` + session services: every subject exists before XML |
 | 9d | `connect_moonraker()` | `src/application/printer_session.cpp#connect_moonraker` | Async discovery under the splash; Safe Mode skips |
 | - | SoundManager, strict UI checks in `--test` | `src/application/application.cpp#run` | Host audio picked before the startup tone |

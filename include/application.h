@@ -124,6 +124,13 @@ class Application {
 #endif
     void check_wifi_availability();
 
+    // Process-scoped services, which a printer switch leaves running. Each group runs at its
+    // own point in run()'s ladder, which fixes its order against the panel subjects, the
+    // connection and the UI.
+    void init_process_services();
+    void init_sound_services();
+    void init_monitoring_services();
+
     // Owned managers (in initialization order)
     /// Expires the callbacks Application defers to the main thread — the
     /// hardware-role reapply, the two ActionPrompt modal hops off the WebSocket
