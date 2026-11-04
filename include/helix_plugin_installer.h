@@ -185,9 +185,8 @@ class HelixPluginInstaller {
     /**
      * @brief Check if we should prompt for plugin installation
      *
-     * Returns false with beta features off, before the first-run wizard is
-     * done, once the user checked "don't ask again", and once the prompt is
-     * settled for this session.
+     * Returns false before the first-run wizard is done, once the user checked
+     * "don't ask again", and once the prompt is settled for this session.
      *
      * @return true if we should show the install prompt
      */

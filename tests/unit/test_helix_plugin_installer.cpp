@@ -313,20 +313,11 @@ TEST_CASE("the remote install command for main fetches main's wrapper from GitHu
 // the logic but may need to be run in isolation or with a test config setup.
 
 TEST_CASE("HelixPluginInstaller preferences logic", "[plugin_installer][preferences]") {
-    SECTION("should_prompt_install requires beta features and a completed wizard") {
+    SECTION("should_prompt_install requires a completed wizard") {
         helix::HelixPluginInstaller installer;
         helix::Config* config = helix::Config::get_instance();
-        const bool result = installer.should_prompt_install();
-
-        // Whatever this environment's config happens to say, a true answer
-        // implies both gates were open.
-        if (result) {
-            CHECK(config->is_beta_features_enabled());
-            CHECK_FALSE(config->is_wizard_required());
-        }
-        // Contrapositive, so the false branch is not a free pass either.
-        if (!config->is_beta_features_enabled() || config->is_wizard_required()) {
-            CHECK_FALSE(result);
+        if (config->is_wizard_required()) {
+            CHECK_FALSE(installer.should_prompt_install());
         }
     }
 }

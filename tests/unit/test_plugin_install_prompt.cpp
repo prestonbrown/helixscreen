@@ -51,11 +51,10 @@ using namespace helix;
 
 namespace {
 
-/// The prompt's preferences open: beta features on, the wizard done, never
-/// declined. The whole config is put back afterwards.
+/// The prompt's preferences open: the wizard done, never declined. The whole
+/// config is put back afterwards.
 struct PromptConfigScope {
     PromptConfigScope() : cfg(Config::get_instance()), saved(ConfigTestAccess::data(*cfg)) {
-        cfg->set<bool>("/beta_features", true);
         cfg->set<bool>("/wizard_completed", true);
         cfg->set<bool>(cfg->df() + "wizard_completed", true);
         cfg->set<bool>("/plugin_install_declined", false);
@@ -167,11 +166,11 @@ TEST_CASE_METHOD(PromptFixture, "the install prompt stays closed once declined",
     CHECK(prompt() == nullptr);
 }
 
-TEST_CASE_METHOD(PromptFixture, "the install prompt stays closed with beta features off",
+TEST_CASE_METHOD(PromptFixture, "the install prompt opens with beta features off",
                  "[plugin_installer][print_select]") {
     prefs.cfg->set<bool>("/beta_features", false);
     set_plugin_installed(false);
-    CHECK(prompt() == nullptr);
+    CHECK(prompt() != nullptr);
 }
 
 TEST_CASE_METHOD(PromptFixture, "an install from the prompt restarts Moonraker to load the plugin",
