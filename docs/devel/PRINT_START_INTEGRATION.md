@@ -52,7 +52,7 @@ Detection uses a multi-signal system with these fallbacks for completion:
 The HelixScreen macro file provides:
 - **Instant detection**: `HELIX_READY` signal at the end of your PRINT_START
 - **Phase tracking**: Optional `HELIX_PHASE_*` macros for detailed progress display
-- **Pre-print helpers**: `HELIX_BED_LEVEL_IF_NEEDED`, `HELIX_CLEAN_NOZZLE`, `HELIX_START_PRINT`
+- **Pre-print helpers**: `HELIX_BED_MESH_IF_NEEDED`, `HELIX_CLEAN_NOZZLE`, `HELIX_START_PRINT`
 
 **Installation via the UI:**
 
@@ -169,7 +169,7 @@ When `helix_macros.cfg` is installed, these macros are available:
 
 | Macro | Purpose |
 |-------|---------|
-| `HELIX_BED_LEVEL_IF_NEEDED` | Run bed mesh only if stale (configurable max age) |
+| `HELIX_BED_MESH_IF_NEEDED` | Run bed mesh only if stale (configurable max age) |
 | `HELIX_CLEAN_NOZZLE` | Nozzle cleaning sequence (configure brush position) |
 | `HELIX_START_PRINT` | Complete start print sequence with all options |
 

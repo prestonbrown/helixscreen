@@ -270,7 +270,7 @@
         },
         "macro_2": {
           "label": "Bed Level",
-          "gcode": "HELIX_BED_LEVEL_IF_NEEDED"
+          "gcode": "HELIX_BED_MESH_IF_NEEDED"
         }
       },
       "chamber_heater": "auto",
