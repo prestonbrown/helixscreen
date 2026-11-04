@@ -394,6 +394,9 @@ class AmsOperationSidebar {
         PrintState lifecycle{};
         bool backend_self_homes = false;
         bool print_blocks_load = false; ///< helix::ui::print_blocks_load_now()
+        /// A paused load is refused only because the toolhead is unhomed: the
+        /// backend skips its home once homed and the load unloads nothing first.
+        bool paused_load_waits_on_home = false;
     };
     [[nodiscard]] OpInputs read_op_inputs() const;
 

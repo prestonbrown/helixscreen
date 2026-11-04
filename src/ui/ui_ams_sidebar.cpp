@@ -1522,7 +1522,9 @@ AmsOperationSidebar::OpInputs AmsOperationSidebar::read_op_inputs() const {
     return {/*system_busy=*/info && info->is_busy(),
             printer_state_.print_state().get_print_lifecycle(),
             /*backend_self_homes=*/backend && backend->filament_ops_self_home(),
-            helix::ui::print_blocks_load_now(backend, printer_state_)};
+            helix::ui::print_blocks_load_now(backend, printer_state_),
+            /*paused_load_waits_on_home=*/backend && backend->self_home_skipped_when_homed() &&
+                !backend->load_unloads_toolhead_now()};
 }
 
 helix::ui::FilamentActionSet AmsOperationSidebar::read_filament_actions() const {
@@ -1598,9 +1600,14 @@ bool AmsOperationSidebar::refuse_if_busy_or_printing(bool load) const {
                      "load={})",
                      self_homes, load);
         if (load && in.lifecycle == PrintState::Paused) {
-            // Only a self-homing backend refuses a paused load, and only on an
-            // unhomed toolhead, where its buried home would reach the part.
-            NOTIFY_WARNING(lv_tr("The toolhead is not homed, so this would home into the print"));
+            // Only a self-homing backend refuses a paused load. Where its home is
+            // skipped once homed and nothing would be unloaded first, an unhomed
+            // toolhead is the one reason left; otherwise the load homes or
+            // unloads mid-job however the toolhead stands.
+            NOTIFY_WARNING(
+                in.paused_load_waits_on_home
+                    ? lv_tr("The toolhead is not homed, so this would home into the print")
+                    : lv_tr("Can't move filament while the print is paused"));
         } else if (self_homes) {
             // AD5X IFS: the unload macro homes itself, so pausing does not help
             // - recommending it would send the user into the exact loadcell-Z
