@@ -3,6 +3,7 @@
 
 #include "filament_display_name.h"
 
+#include "ams_types.h"
 #include "text_io.h"
 
 #include <cctype>

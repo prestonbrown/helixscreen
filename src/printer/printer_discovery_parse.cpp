@@ -3,6 +3,7 @@
 // Out-of-line PrinterDiscovery members: the object-list scan and config parsers.
 
 #include "ace_vocabulary.h"         // ace::kInstanceObjectPrefix
+#include "ams_types.h"              // ams_type_to_string
 #include "chamber_heater_backend.h" // chamber::match, chamber::keyword_confidence
 #include "display_numbering.h"      // helix::ui::tool_label
 #include "json_utils.h"

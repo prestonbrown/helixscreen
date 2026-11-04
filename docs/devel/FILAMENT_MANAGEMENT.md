@@ -2728,7 +2728,7 @@ Some AMS backends include an integrated filament dryer — a heated chamber that
 ### Data Flow
 
 ```
-AmsBackend::get_dryer_info(unit)     populates DryerInfo (ams_types.h)
+AmsBackend::get_dryer_info(unit)     populates DryerInfo (ams_drying_types.h)
 AmsBackend::get_environment_zones()  zones carry a DryerInfo each
         │
         ├──────────────────────────────┐
@@ -2751,7 +2751,7 @@ AMS panel env badges          AmsEnvironmentOverlay (Tabs / Single)
                               start_drying_request / stop_drying_gates (unit = shown zone's unit_index)
 ```
 
-`DryerInfo` (declared in `include/ams_types.h`) carries:
+`DryerInfo` (declared in `include/ams_drying_types.h`, which `ams_types.h` includes) carries:
 
 | Field | Type | Description |
 |-------|------|-------------|

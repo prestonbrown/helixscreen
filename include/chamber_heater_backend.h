@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ams_types.h"
+#include "ams_drying_types.h"
 
 #include <cmath>
 #include <optional>
