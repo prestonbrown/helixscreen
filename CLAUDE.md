@@ -502,7 +502,7 @@ Issue references are welcome as pointers, not summaries:
 **Key directories**:
 | Path | Contents |
 |------|----------|
-| `src/ui/` | All UI code — flat dir, prefixed: `ui_panel_*.cpp`, `ui_overlay_*.cpp`, `ui_modal*.cpp` |
+| `src/ui/` | All UI code, prefixed: `ui_panel_*.cpp`, `ui_overlay_*.cpp`, `ui_modal*.cpp`. One level of group directories: `screensaver/`, `theme/`, `wizard/`, `print/`, `calibration/`, `panel_widgets/`, `widgets/`, `tour/` (the Makefile globs no deeper) |
 | `src/ui/modals/` | Additional modal implementations |
 | `src/printer/` | PrinterState, MoonrakerAPI, macro/filament managers |
 | `src/core/` | Foundation below every layer: update queue, observer factory, static registries, text and HTTP plumbing (headers in `include/core/`) |
