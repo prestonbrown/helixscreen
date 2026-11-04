@@ -214,7 +214,8 @@ std::optional<int> tag_record_spoolman_id(std::string_view vender) {
 std::vector<BayVender> parse_bay_venders(const nlohmann::json& box) {
     std::vector<BayVender> out;
     for (int n = 1; n <= 4; ++n) {
-        const auto unit_it = box.find("T" + std::to_string(n));
+        const auto unit_it =
+            box.find("T" + std::to_string(n)); // DISPLAY_NUMBERING_OK: firmware status key
         if (unit_it == box.end() || !unit_it->is_object()) {
             continue;
         }
