@@ -226,7 +226,7 @@ void hide_instructions_modal() {
 // opens (populates s_scan_results, read by every subsequent request — see
 // its declaration above). WiFiManager::scan_once() only returns whatever's
 // already cached (it triggers a scan and returns immediately, per
-// src/api/wifi_manager.cpp) so a fresh SSID list needs the callback form with
+// src/network/wifi_manager.cpp) so a fresh SSID list needs the callback form with
 // a short bounded wait — the same shape as app_net_thread_main's own boot
 // wait, not a new pattern. Doing this once per portal session (not once per
 // HTTP request) matters in practice: phones fire several captive-portal

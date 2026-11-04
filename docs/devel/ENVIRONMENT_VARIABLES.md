@@ -1199,7 +1199,7 @@ The WiFi backend normally finds the control socket automatically: it auto-detect
 |----------|-------|
 | **Values** | Absolute directory path containing the per-interface socket (e.g. `wlan0`) |
 | **Default** | Unset — auto-detect + known fallbacks |
-| **File** | `src/api/wifi_backend_wpa_supplicant.cpp` |
+| **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
 
 ```bash
 # Point HelixScreen at a vendor's non-standard control socket directory
@@ -1223,7 +1223,7 @@ device deployment should ever need it.
 |----------|-------|
 | **Values** | Absolute directory path to use in place of `/sys/class/net` |
 | **Default** | Unset — the real `/sys/class/net` |
-| **File** | `src/api/wifi_backend_wpa_supplicant.cpp` |
+| **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
 
 ### `HELIX_WPA_PROC_ROOT`
 
@@ -1241,7 +1241,7 @@ their timing does not depend on the host. No device deployment should need it.
 |----------|-------|
 | **Values** | Absolute directory path to use in place of `/proc` |
 | **Default** | Unset — the real `/proc` |
-| **File** | `src/api/wifi_backend_wpa_supplicant.cpp` |
+| **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
 
 ### `HELIX_NETD_SOCKET`
 
@@ -1258,7 +1258,7 @@ non-standard deployment or at a test double.
 |----------|-------|
 | **Values** | Absolute path to an AF_UNIX SOCK_STREAM socket |
 | **Default** | `/run/netd.sock` |
-| **File** | `src/api/netd_protocol.cpp` |
+| **File** | `src/network/netd_protocol.cpp` |
 
 ```bash
 # Run the app against a fake daemon on a dev box
@@ -1280,7 +1280,7 @@ the factory falls through to NetworkManager/wpa_supplicant.
 |----------|-------|
 | **Values** | Absolute path to an executable file |
 | **Default** | `/opt/config/mod/.bin/exec/netd` |
-| **File** | `src/api/netd_protocol.cpp` |
+| **File** | `src/network/netd_protocol.cpp` |
 
 ```bash
 # Force the netd backends active on a dev box by naming any executable

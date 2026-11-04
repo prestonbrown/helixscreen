@@ -780,17 +780,17 @@ src/printer/filament_slot_override_store.cpp
 src/printer/filament_temperature_source.cpp
 src/api/screws_tilt_dialect.cpp
 src/api/snapmaker_screws_tilt.cpp
-src/api/wifi_ui_utils.cpp
+src/network/wifi_ui_utils.cpp
 # Task 13: wifi_manager.cpp/wifi_backend.cpp were platform-seamed (stub in
 # helixapp_platform_stubs2.cpp) through Task 12 — now real, backed by
 # wifi_backend_esp.cpp (LOCAL_SRCS, CMakeLists.txt) against esp_wifi.
-src/api/wifi_ap_steering.cpp
-src/api/wifi_manager.cpp
-src/api/wifi_interface.cpp
-src/api/wifi_scan_scheduler.cpp
-src/api/wifi_control_breaker.cpp
-src/api/wifi_backend.cpp
-src/api/wifi_country.cpp
+src/network/wifi_ap_steering.cpp
+src/network/wifi_manager.cpp
+src/network/wifi_interface.cpp
+src/network/wifi_scan_scheduler.cpp
+src/network/wifi_control_breaker.cpp
+src/network/wifi_backend.cpp
+src/network/wifi_country.cpp
 src/api/moonraker_api.cpp
 src/api/moonraker_auth.cpp
 src/api/moonraker_api_config.cpp

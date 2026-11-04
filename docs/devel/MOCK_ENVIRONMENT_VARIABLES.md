@@ -50,7 +50,7 @@ The regulatory country the mock WiFi radio reports at startup, standing in for o
 |----------|-------|
 | **Values** | ISO 3166-1 alpha-2 code (`US`, `de`, ...); anything else reads as unset |
 | **Default** | unset (world) |
-| **File** | `src/api/wifi_backend_mock.cpp` |
+| **File** | `src/network/wifi_backend_mock.cpp` |
 
 ```bash
 # A radio the system already set to Germany: shown as current, left alone

@@ -586,8 +586,8 @@ std::string peek_helix_cache_dir(const std::string& subdir, const char** tier_ou
 
 namespace helix {
 
-// --- WiFiManager: Task 13 replaces this stub. src/api/wifi_manager.cpp (the
-// real, desktop-shared implementation) and src/api/wifi_backend.cpp are now
+// --- WiFiManager: Task 13 replaces this stub. src/network/wifi_manager.cpp (the
+// real, desktop-shared implementation) and src/network/wifi_backend.cpp are now
 // compiled in (app_srcs.txt); WifiBackend::create() dispatches to
 // helix::create_platform_wifi_backend() on ESP_PLATFORM, implemented in
 // wifi_backend_esp.cpp against esp_wifi. get_wifi_manager()'s singleton

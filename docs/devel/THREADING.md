@@ -149,7 +149,7 @@ main_loop()              libhv Event Loop       UpdateChecker
 - `src/printer/printer_state.cpp` — the `set_*_internal()` pattern (`set_klippy_state()` →
   `set_klippy_state_internal()`, and likewise for `set_klipper_version()`,
   `set_printer_connection_state()`)
-- `src/api/wifi_manager.cpp` — every event handler parses on the background thread, then
+- `src/network/wifi_manager.cpp` — every event handler parses on the background thread, then
   marshals to main:
 
 ```cpp
@@ -1115,7 +1115,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 | `include/ui_timer_guard.h` | `LvglTimerGuard` RAII |
 | `include/ui_widget_memory.h` | `lvgl_unique_ptr` / `lvgl_make_unique` |
 | `src/printer/printer_state.cpp` | `set_*_internal()` reference pattern |
-| `src/api/wifi_manager.cpp` | Backend integration reference |
+| `src/network/wifi_manager.cpp` | Backend integration reference |
 | `src/application/application.cpp` | Main loop and shutdown order |
 | `scripts/check_l081_anti_pattern.py` | L081 lint gate |
 | `scripts/check_timer_destructor_cancel.py` | Timer dtor-cancellation lint gate |

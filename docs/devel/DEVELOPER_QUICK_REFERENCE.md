@@ -37,7 +37,7 @@ private:
 
 ### Manager Pattern (Backend)
 
-**Canonical example:** `include/wifi_manager.h` + `src/api/wifi_manager.cpp`
+**Canonical example:** `include/wifi_manager.h` + `src/network/wifi_manager.cpp`
 
 ```cpp
 class WiFiManager {

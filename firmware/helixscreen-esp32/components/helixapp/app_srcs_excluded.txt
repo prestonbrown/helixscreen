@@ -38,11 +38,11 @@ src/api/display_backend_fbdev.cpp  # not in the v1 Core+AMS cut
 src/api/display_backend_sdl.cpp  # not in the v1 Core+AMS cut
 src/api/drm_mode_matching.cpp  # not in the v1 Core+AMS cut
 src/api/drm_rotation_strategy.cpp  # not in the v1 Core+AMS cut
-src/api/ethernet_backend.cpp  # not in the v1 Core+AMS cut
-src/api/ethernet_backend_linux.cpp  # not in the v1 Core+AMS cut
-src/api/ethernet_backend_mock.cpp  # not in the v1 Core+AMS cut
-src/api/ethernet_backend_netd.cpp  # not in the v1 Core+AMS cut
-src/api/ethernet_manager.cpp  # not in the v1 Core+AMS cut
+src/network/ethernet_backend.cpp  # not in the v1 Core+AMS cut
+src/network/ethernet_backend_linux.cpp  # not in the v1 Core+AMS cut
+src/network/ethernet_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/network/ethernet_backend_netd.cpp  # not in the v1 Core+AMS cut
+src/network/ethernet_manager.cpp  # not in the v1 Core+AMS cut
 src/api/fbdev_signal_clear.cpp  # not in the v1 Core+AMS cut
 src/api/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
 src/api/gpu_libs.cpp  # not in the v1 Core+AMS cut
@@ -72,7 +72,7 @@ src/api/moonraker_request_tracker.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_rest_api.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_spoolman_api.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/api/moonraker_timelapse_api.cpp  # not in the v1 Core+AMS cut
-src/api/netd_protocol.cpp  # not in the v1 Core+AMS cut
+src/network/netd_protocol.cpp  # not in the v1 Core+AMS cut
 src/api/touch_calibration_wrapper.cpp  # not in the v1 Core+AMS cut
 src/api/usb_automount.cpp  # not in the v1 Core+AMS cut
 src/api/usb_backend.cpp  # not in the v1 Core+AMS cut
@@ -80,12 +80,12 @@ src/api/usb_backend_linux.cpp  # not in the v1 Core+AMS cut
 src/api/usb_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/api/usb_manager.cpp  # not in the v1 Core+AMS cut
 src/api/webcam_service_health.cpp  # camera service health; only consumer is the excluded discovery sequence
-src/api/wifi_backend_mock.cpp  # not in the v1 Core+AMS cut
-src/api/wifi_backend_netd.cpp  # not in the v1 Core+AMS cut
-src/api/wifi_backend_networkmanager.cpp  # not in the v1 Core+AMS cut
-src/api/wifi_backend_wpa_supplicant.cpp  # not in the v1 Core+AMS cut
-src/api/wifi_regdomain.cpp  # not in the v1 Core+AMS cut
-src/api/wifi_saved_config.cpp  # not in the v1 Core+AMS cut
+src/network/wifi_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/network/wifi_backend_netd.cpp  # not in the v1 Core+AMS cut
+src/network/wifi_backend_networkmanager.cpp  # not in the v1 Core+AMS cut
+src/network/wifi_backend_wpa_supplicant.cpp  # not in the v1 Core+AMS cut
+src/network/wifi_regdomain.cpp  # not in the v1 Core+AMS cut
+src/network/wifi_saved_config.cpp  # not in the v1 Core+AMS cut
 src/app_globals.cpp  # not in the v1 Core+AMS cut
 src/application/ams_error_bridge.cpp  # not in the v1 Core+AMS cut
 src/application/filament_insert_watcher.cpp  # not in the v1 Core+AMS cut
@@ -366,7 +366,7 @@ src/plugin/plugin_source.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_source_app.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_dir_watcher.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_canvas.cpp  # not in the v1 Core+AMS cut
-src/api/wifi_link_monitor.cpp  # only consumers are application.cpp and the debug bundle, both excluded
+src/network/wifi_link_monitor.cpp  # only consumers are application.cpp and the debug bundle, both excluded
 src/ui/ui_presentation_gate.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_dialog.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_presenter.cpp  # not in the v1 Core+AMS cut

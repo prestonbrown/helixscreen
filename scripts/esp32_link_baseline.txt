@@ -10,7 +10,7 @@
 #
 # Format: <listed file> -> <excluded file>  <qualified name, no arguments>
 max-edges: 46
-src/api/wifi_manager.cpp -> src/api/wifi_backend_wpa_supplicant.cpp  WifiBackendWpaSupplicant::WifiBackendWpaSupplicant
+src/network/wifi_manager.cpp -> src/network/wifi_backend_wpa_supplicant.cpp  WifiBackendWpaSupplicant::WifiBackendWpaSupplicant
 src/rendering/gcode_file_modifier.cpp -> src/rendering/gcode_streaming_config.cpp  helix::should_use_gcode_streaming
 src/system/sound_manager.cpp -> src/system/pwm_sound_backend.cpp  PWMSoundBackend::initialize
 src/ui/filament/ui_ams_context_menu.cpp -> src/ui/components/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::QrScannerOverlay
