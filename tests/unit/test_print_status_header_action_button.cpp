@@ -148,11 +148,9 @@ TEST_CASE("print_status_panel.xml passes no action-button props to header_bar",
     // Structural companion to the behavioural test above. The PRIMARY slot stays
     // unconfigured (header_bar defaults: hidden, empty text/icon, no callback) so
     // the empty-pill regression cannot return; the icon-only action is the Files
-    // entry and must name the folder icon and the navigation callback. Both
-    // layout variants, since layout-class resolution picks one at runtime and the
-    // unit test only exercises the base.
-    const std::string files[] = {"ui_xml/print_status_panel.xml",
-                                 "ui_xml/portrait/print_status_panel.xml"};
+    // entry and must name the folder icon and the navigation callback. One file
+    // serves every layout class: print_status_body carries the arrangement.
+    const std::string files[] = {"ui_xml/print_status_panel.xml"};
 
     for (const std::string& path : files) {
         const std::string xml = read_xml(path);
