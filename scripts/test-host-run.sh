@@ -915,6 +915,13 @@ fi
 # $HELIX_JFLAG is -j$HELIX_J, or empty when the container joins the host's jobpool:
 # make leaves an inherited jobserver when its command line has any -j.
 # shellcheck disable=SC2016  # $HELIX_J must reach the host unexpanded
+# test-asan-one and test-tsan-one run the binary without -#, so a file tag matches nothing.
+refuse_file_tag() {
+    case "$2" in
+        *'[#'*) echo "✗ $1 cannot filter by '$2': it passes no -#, so a [#file] tag matches no test. Name a tag from that file." >&2; exit 2 ;;
+    esac
+}
+
 case "$WHAT" in
     # The mutate checkout is a standalone clone on a reflink filesystem, which
     # is what --workers needs; a later --workers in the caller's arguments wins.
@@ -926,10 +933,7 @@ case "$WHAT" in
     mutate) CMD='{ [ -x .venv/bin/python3 ] && .venv/bin/python3 -c "import pytest" 2>/dev/null || make venv-setup >/dev/null; }; '"$YIELD_PRIORITY"'python3 scripts/mutate_diff.py --jobs $HELIX_J $(grep -qs -- --workers scripts/mutate_diff.py && echo --workers auto) '"$(printf '%q ' "$@")"
             YIELD=1 ;;
     asan)   _tag="${1:-}"; [ $# -gt 0 ] && shift
-            # test-asan-one runs the binary without -#, so a file tag matches nothing.
-            case "$_tag" in
-                *'[#'*) echo "✗ asan cannot filter by '$_tag': it passes no -#, so a [#file] tag matches no test. Name a tag from that file." >&2; exit 2 ;;
-            esac
+            refuse_file_tag asan "$_tag"
             # Trailing args become make overrides, so ASAN_RUN_OPTIONS can be
             # tuned per run (quarantine_size_mb keeps freed blocks poisoned, which
             # turns a recycled-memory SEGV into a heap-use-after-free report).
@@ -941,6 +945,7 @@ case "$WHAT" in
             fi
             GB_PER_JOB=1.5 ;;
     tsan)   _tag="${1:-}"; [ $# -gt 0 ] && shift
+            refuse_file_tag tsan "$_tag"
             # Same shape as asan: trailing args become make overrides, and no
             # tag is the sharded full-suite run.
             if [ -z "$_tag" ]; then
