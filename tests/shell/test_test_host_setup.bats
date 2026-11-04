@@ -67,6 +67,18 @@ esac'
     MOCK_KIND="$kind" MOCK_MOUNT="$(cd helix-test && pwd -P):/work" run bash "$BATS_TEST_TMPDIR/remote.sh" < /dev/null
 }
 
+@test "the image builds from an unpacked directory, never a stdin context" {
+    mock_command_script ssh 'case "$*" in
+    *"docker build"*) echo "$*" > "$BATS_TEST_TMPDIR/build-cmd"; cat > /dev/null; exit 1 ;;
+esac
+exit 0'
+    cd "$BATS_TEST_TMPDIR"
+    run "$SETUP" < /dev/null
+    [ -s "$BATS_TEST_TMPDIR/build-cmd" ] || fail "no build reached the host: $output"
+    grep -q 'tar -xf - -C' "$BATS_TEST_TMPDIR/build-cmd" || fail "$(cat "$BATS_TEST_TMPDIR/build-cmd")"
+    ! grep -qE 'Dockerfile\.sanitizer -($|[^C])' "$BATS_TEST_TMPDIR/build-cmd" || fail "$(cat "$BATS_TEST_TMPDIR/build-cmd")"
+}
+
 @test "a new test container gets its memory limit with no swap" {
     HELIX_TEST_MEMORY=96g run_container_step new
     [ "$status" -eq 0 ] || fail "remote script failed: $output"
