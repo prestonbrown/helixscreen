@@ -3,9 +3,8 @@
 
 #include "klipper_config_editor.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix_plugin_features.h"
 #include "http_executor.h"
 #include "i_moonraker_api.h"

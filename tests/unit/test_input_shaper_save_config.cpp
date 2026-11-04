@@ -33,12 +33,12 @@
  */
 
 #include "ui_panel_input_shaper.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/input_shaper_panel_test_access.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "http_executor.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"

@@ -19,12 +19,12 @@
 
 #include "ui_carousel.h"
 #include "ui_context_menu.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/one_line_label.h"
 #include "../test_helpers/thermistor_test_access.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "src/ui/panel_widgets/thermistor_widget.h"
 #include "temperature_sensor_manager.h"

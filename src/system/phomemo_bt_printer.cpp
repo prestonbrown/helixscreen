@@ -4,10 +4,9 @@
 
 #include "phomemo_bt_printer.h"
 
-#include "ui_update_queue.h"
-
 #include "bluetooth_loader.h"
 #include "bt_print_utils.h"
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "log_redact.h"
 #include "lvgl.h"

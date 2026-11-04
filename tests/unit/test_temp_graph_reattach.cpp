@@ -21,13 +21,12 @@
  * body of reattach_observers() is a no-op.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/temp_graph_controller.h"
 #include "../../include/ui_temp_graph.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/temp_graph_controller_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "printer_state.h"
 

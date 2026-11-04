@@ -12,7 +12,6 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
@@ -26,6 +25,7 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_op_dispatch.h"
 #include "lane_source_store.h"

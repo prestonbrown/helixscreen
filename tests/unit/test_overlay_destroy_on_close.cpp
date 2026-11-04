@@ -27,12 +27,12 @@
 #include "ui_snapmaker_nozzle_offset_overlay.h"
 #include "ui_theme_editor_overlay.h"
 #include "ui_touch_calibration_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"

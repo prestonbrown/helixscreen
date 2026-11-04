@@ -12,13 +12,13 @@
 #include "ui_next_tick.h"
 #include "ui_panel_base.h"
 #include "ui_panel_home.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
 #include "app_globals.h"
 #include "backdrop_blur.h"
 #include "connection_state.h" // For ConnectionState enum
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "env_knobs.h"
 #include "helix-xml/src/xml/lv_xml.h"

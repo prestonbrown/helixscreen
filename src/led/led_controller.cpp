@@ -2,11 +2,10 @@
 
 #include "led/led_controller.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
 #include "color_utils.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "hardware_object_table.h"
 #include "helix/xml/scoped_subject_registry.h"

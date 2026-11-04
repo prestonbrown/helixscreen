@@ -9,14 +9,13 @@
  * and asserts the user-visible state: subjects, never a backend's internals.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/registered_backend.h"

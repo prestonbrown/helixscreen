@@ -1,8 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_bypass.h"
@@ -12,6 +10,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "lane_resolver.h"
 #include "lane_source_store.h"
 #include "moonraker_api_mock.h"

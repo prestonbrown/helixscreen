@@ -12,10 +12,10 @@
 #include "ui_event_safety.h"
 #include "ui_led_chip_factory.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "lvgl.h"

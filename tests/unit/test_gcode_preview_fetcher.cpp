@@ -11,12 +11,12 @@
  */
 
 #include "ui_filename_utils.h"
-#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/print_status_preview_fixture.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "gcode_preview_fetcher.h"
 #include "gcode_preview_gate.h"
 

@@ -16,9 +16,8 @@
  * claims the toast and the claim below fails.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "moonraker_api_mock.h"

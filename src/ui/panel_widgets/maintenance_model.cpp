@@ -6,10 +6,10 @@
 #include "ui_modal.h"
 #include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "observe_language.h"

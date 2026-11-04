@@ -15,7 +15,6 @@
 
 #include "ui_color_picker.h"
 #include "ui_error_reporting.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend_registry.h"
 #include "ams_bypass_policy.h"
@@ -25,6 +24,7 @@
 #include "ams_state_internal.h"
 #include "ams_tool_topology.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "data_root_resolver.h"
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"

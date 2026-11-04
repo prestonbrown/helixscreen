@@ -23,13 +23,12 @@
  * send_jsonrpc(), so the record (if any) exists by the time the call returns.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
 #include "ams_backend_cfs.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

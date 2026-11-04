@@ -25,7 +25,6 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/active_print_media_manager_test_access.h"
@@ -33,6 +32,7 @@
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "active_print_media_manager.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

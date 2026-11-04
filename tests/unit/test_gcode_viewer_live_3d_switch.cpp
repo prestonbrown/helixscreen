@@ -6,9 +6,9 @@
 // file only: the 3D mode the user picked stays set for the next file.
 
 #include "ui_gcode_viewer.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "gcode_parser.h"
 
 #include <glm/glm.hpp>

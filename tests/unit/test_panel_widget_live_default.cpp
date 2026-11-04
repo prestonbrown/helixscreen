@@ -15,7 +15,6 @@
  */
 
 #include "ui_panel_home.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/breadcrumb_capture.h"
@@ -28,6 +27,7 @@
 #include "ams_state.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "data_root_resolver.h"
 #include "default_layout_resolver.h"
 #include "grid_edit_mode.h"

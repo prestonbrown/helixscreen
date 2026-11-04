@@ -19,7 +19,6 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -30,6 +29,7 @@
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
 #include "bed_plate_context.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"

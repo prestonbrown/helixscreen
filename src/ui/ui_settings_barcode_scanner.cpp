@@ -6,10 +6,10 @@
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "bluetooth_loader.h"
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "input_device_scanner.h"
 #include "log_redact.h"

@@ -174,7 +174,7 @@ The tree has **74 classes with a `static X& instance()` (or pointer) declaration
 | `CjkFontManager` | [`cjk_font_manager.h`](../../../include/cjk_font_manager.h) | CJK font loading |
 | `PageScrollAutoInject` | [`page_scroll_auto_inject.h`](../../../include/page_scroll_auto_inject.h) | Page-scroll chevron auto-attach |
 | **Background work & caches** | | |
-| `UpdateQueue` | [`ui_update_queue.h`](../../../include/ui_update_queue.h) | Any-thread → main-thread bridge (ch. 02) |
+| `UpdateQueue` | [`core/update_queue.h`](../../../include/core/update_queue.h) | Any-thread → main-thread bridge (ch. 02) |
 | `MemoryMonitor` | [`memory_monitor.h`](../../../include/memory_monitor.h) | Memory sampling + pressure thresholds |
 | `MacroParamCache` | [`macro_param_cache.h`](../../../include/macro_param_cache.h) | Macro parameter knowledge cache |
 | `MacroParamDefaults` | [`macro_param_defaults.h`](../../../include/macro_param_defaults.h) | Per-printer saved macro parameter defaults |

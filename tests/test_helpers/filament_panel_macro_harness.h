@@ -3,10 +3,10 @@
 #pragma once
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_op_router.h"
 #include "macro_param_cache.h"
 #include "moonraker_api.h"

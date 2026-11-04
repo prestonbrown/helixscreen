@@ -5,10 +5,10 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"

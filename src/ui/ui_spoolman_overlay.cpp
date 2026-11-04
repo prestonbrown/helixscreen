@@ -20,10 +20,10 @@
 #include "ui_settings_barcode_scanner.h"
 #include "ui_spoolman_setup.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "http_executor.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"

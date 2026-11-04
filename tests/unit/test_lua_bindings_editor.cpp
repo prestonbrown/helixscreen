@@ -7,12 +7,12 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_text_entry_modal.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/plugin_test_support.h"
+#include "core/update_queue.h"
 #include "lua_bindings.h"
 #include "plugin_overlay_host.h"
 #include "settings_manager.h"

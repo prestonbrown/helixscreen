@@ -4,9 +4,9 @@
 #include "active_print_media_manager.h"
 
 #include "ui_filename_utils.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "exception_policy.h"
 #include "gcode_parser.h"
 #include "json_utils.h"

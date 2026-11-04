@@ -51,9 +51,9 @@ bool provisioning_run_portal() {
 #else // !CONFIG_HELIX_MOCK_PRINTER
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "esp_http_server.h"
 #include "esp_log.h"

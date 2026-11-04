@@ -6,14 +6,13 @@
  * @brief The screen server's settings and the service that starts and stops it.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/display_manager_test_access.h"
 #include "../test_helpers/raw_http_client.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"

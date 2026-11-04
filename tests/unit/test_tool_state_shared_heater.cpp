@@ -4,8 +4,7 @@
 // separate heads to every tool surface, one heated head to every heater
 // surface, and one name for the nozzle the readout shows.
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "lvgl_test_fixture.h"
 #include "printer_discovery.h"
 #include "tool_state.h"

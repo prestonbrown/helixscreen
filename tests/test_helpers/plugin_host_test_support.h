@@ -5,8 +5,7 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "plugin_host.h"
 #include "plugin_test_support.h"
 

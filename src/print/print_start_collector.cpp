@@ -4,12 +4,12 @@
 #include "print_start_collector.h"
 
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "action_prompt_manager.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"

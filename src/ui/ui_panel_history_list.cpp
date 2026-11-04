@@ -13,12 +13,12 @@
 #include "ui_overlay_timelapse_videos.h"
 #include "ui_panel_common.h"
 #include "ui_panel_print_select.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_accounting.h"
 #include "filament_display_name.h"

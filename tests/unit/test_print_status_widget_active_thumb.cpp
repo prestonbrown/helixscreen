@@ -19,12 +19,11 @@
  *      skipped rather than relayouting a condemned tree (#1001).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_widget_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "printer_state.h"

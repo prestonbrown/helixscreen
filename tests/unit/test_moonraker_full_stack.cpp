@@ -22,8 +22,6 @@
  *   ./build/bin/helix-tests "[integration]"
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_api_mock.h"
 #include "../../include/moonraker_client_mock.h"
@@ -36,6 +34,7 @@
 #include "../mocks/mock_printer_state.h"
 #include "../test_helpers/mock_personas.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <atomic>

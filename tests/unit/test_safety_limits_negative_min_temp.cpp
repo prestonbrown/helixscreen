@@ -29,12 +29,12 @@
  */
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../../src/api/moonraker_api_internal.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"

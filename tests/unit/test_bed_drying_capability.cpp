@@ -8,9 +8,8 @@
  *        (prestonbrown/helixscreen#1730).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

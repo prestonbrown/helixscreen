@@ -5,12 +5,12 @@
 #include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 #include "ui_wizard_helpers.h"
 
 #include "app_globals.h"
 #include "calibration_types.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
 #include "lvgl/lvgl.h"

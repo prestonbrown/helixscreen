@@ -11,8 +11,6 @@
  * - PrintSelectUsbSource symlink detection and tab hiding
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_client_mock.h"
@@ -24,6 +22,7 @@
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_try_reserve_failure.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <atomic>
 #include <chrono>

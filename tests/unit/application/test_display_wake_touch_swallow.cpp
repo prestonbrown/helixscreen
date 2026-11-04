@@ -21,10 +21,10 @@
  */
 
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
 #include "app_constants.h"
 #include "backlight_backend.h"
+#include "core/update_queue.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "lvgl_test_fixture.h"

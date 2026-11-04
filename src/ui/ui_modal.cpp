@@ -8,9 +8,9 @@
 #include "ui_effects.h"
 #include "ui_event_safety.h"
 #include "ui_keyboard_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "exception_policy.h"
 #include "helix-xml/src/xml/lv_xml.h"

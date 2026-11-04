@@ -23,13 +23,13 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_print_select_detail_view.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "pre_print_option.h"
 #include "printer_detector.h"

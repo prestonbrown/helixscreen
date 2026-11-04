@@ -9,12 +9,12 @@
 
 #include "ui_nav_printer_badge.h"
 #include "ui_printer_list_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <lvgl.h>

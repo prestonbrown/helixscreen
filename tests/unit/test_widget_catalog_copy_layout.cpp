@@ -10,7 +10,6 @@
 
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_widget_catalog_overlay.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -18,6 +17,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "home_layout_share.h"
 #include "home_layout_sync.h"
 #include "moonraker_api_mock.h"

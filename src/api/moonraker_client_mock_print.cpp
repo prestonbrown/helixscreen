@@ -1,9 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock_internal.h"
 #include "printer_state.h"
 #include "rpc_error_correlation.h"

@@ -19,9 +19,9 @@
 #include "ui_notification_threshold.h"
 #include "ui_observer_guard.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "fault_modal_registry.h"
 
 #include <spdlog/spdlog.h>

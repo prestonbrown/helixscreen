@@ -15,9 +15,8 @@
  * the test link in mk/tests.mk to avoid duplicate symbols.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 
 #include "../catch_amalgamated.hpp"
 

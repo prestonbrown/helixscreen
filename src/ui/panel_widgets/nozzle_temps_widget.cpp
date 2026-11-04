@@ -6,10 +6,10 @@
 #include "ui_icon_codepoints.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "nozzle_layout.h"

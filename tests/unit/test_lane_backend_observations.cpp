@@ -5,8 +5,6 @@
 // assert on the POPULATED SOURCES; a SlotInfo read appears only where one is
 // needed to establish a case's precondition.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
 #include "../ui_test_utils.h"
@@ -22,6 +20,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_slot_override.h"
 #include "lane_apply.h"
 #include "lane_echo.h"

@@ -9,10 +9,10 @@
 #include "ui_panel_print_status.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "active_print_media_manager.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "gcode_edit_list.h"
 #include "gcode_tool_remapper.h"
 #include "helix_fs.h"

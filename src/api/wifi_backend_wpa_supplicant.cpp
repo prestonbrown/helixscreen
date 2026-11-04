@@ -4,8 +4,8 @@
 #include "wifi_backend_wpa_supplicant.h"
 
 #include "ui_error_reporting.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "log_redact.h"
 #include "lvgl.h"

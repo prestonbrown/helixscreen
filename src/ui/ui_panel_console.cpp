@@ -10,12 +10,12 @@
 #include "ui_overlay_console_settings.h"
 #include "ui_panel_common.h"
 #include "ui_subject_registry.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "console_filter_engine.h"
 #include "console_line.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "printer_detector.h"

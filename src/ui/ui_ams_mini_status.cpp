@@ -10,12 +10,12 @@
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_text.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "ams_backend.h"
 #include "ams_lane_state.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"

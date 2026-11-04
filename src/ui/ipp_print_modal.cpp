@@ -6,8 +6,8 @@
 #include "ipp_print_modal.h"
 
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "ipp_printer.h"
 #include "label_printer_settings.h"
 #include "label_printer_utils.h"

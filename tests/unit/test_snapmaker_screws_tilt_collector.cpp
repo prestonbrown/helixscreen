@@ -19,14 +19,13 @@
  * reconciliation of a leftover state.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "snapmaker_screws_tilt.h"
 
 #include <algorithm>

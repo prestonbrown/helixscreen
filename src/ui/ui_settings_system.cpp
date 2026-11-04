@@ -13,11 +13,11 @@
 #include "ui_settings_telemetry_data.h"
 #endif
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "lvgl.h"
 #include "system_settings_manager.h"
 

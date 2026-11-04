@@ -29,10 +29,9 @@
  * while the forced override and non-PWM backends keep the no-op contract.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/sound_manager_test_access.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "pwm_sound_backend.h"

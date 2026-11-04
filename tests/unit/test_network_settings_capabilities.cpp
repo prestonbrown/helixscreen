@@ -9,13 +9,13 @@
  */
 
 #include "ui_overlay_network_settings.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/lvgl_event_hook_probe.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "lvgl.h"
 #include "system_settings_manager.h"
 #include "wifi_backend_mock.h"

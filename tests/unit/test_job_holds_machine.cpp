@@ -16,9 +16,8 @@
 // gets. The host-side cases are the regression - each one asserts that
 // job_holds_machine is 1 where print_active is 0.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 

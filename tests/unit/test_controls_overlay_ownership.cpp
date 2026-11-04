@@ -13,11 +13,11 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/controls_panel_test_access.h"
 #include "../test_helpers/process_async_timers.h"
+#include "core/update_queue.h"
 #include "static_panel_registry.h"
 
 #include <array>

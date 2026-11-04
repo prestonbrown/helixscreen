@@ -5,8 +5,6 @@
 
 #include "label_printer_utils.h"
 
-#include "ui_update_queue.h"
-
 #include "bluetooth_loader.h"
 #include "brother_pt_bt_printer.h"
 #include "brother_pt_protocol.h"
@@ -15,6 +13,7 @@
 #include "brother_ql_protocol.h"
 #include "bt_discovery_utils.h"
 #include "bt_print_utils.h"
+#include "core/update_queue.h"
 #include "http_executor.h"
 #include "ipp_printer.h"
 #include "label_printer_settings.h"

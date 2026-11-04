@@ -45,7 +45,6 @@
 
 #include "ui_panel_print_status.h"
 #include "ui_print_select_detail_view.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
@@ -53,6 +52,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "settings_manager.h"
 
 #include <memory>

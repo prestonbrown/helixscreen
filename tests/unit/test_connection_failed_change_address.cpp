@@ -20,7 +20,6 @@
 #include "ui_change_host_modal.h"
 #include "ui_modal.h"
 #include "ui_printer_switch_menu.h"
-#include "ui_update_queue.h"
 
 #include "../mocks/mock_mdns_discovery.h"
 #include "../test_fixtures.h"
@@ -29,6 +28,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "host_identity.h"
 #include "i_moonraker_client.h"
 #include "moonraker_error.h"

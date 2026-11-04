@@ -3,9 +3,8 @@
 
 #include "klipper_config_includes.h"
 
-#include "ui_update_queue.h"
-
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "text_io.h"
 

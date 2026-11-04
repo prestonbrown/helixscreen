@@ -1,13 +1,12 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/measured_grids.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_int_subject.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "data_root_resolver.h"
 #include "default_layout_resolver.h"
 #include "helix-xml/src/xml/lv_xml.h"

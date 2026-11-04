@@ -10,11 +10,11 @@
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_subject_registry.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"

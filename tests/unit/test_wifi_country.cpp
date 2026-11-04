@@ -5,13 +5,12 @@
 // applies a saved country without overriding one the system set, and the
 // rescan a regulatory domain change triggers.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "http_executor.h"
 #include "system_settings_manager.h"
 #include "wifi_backend_mock.h"

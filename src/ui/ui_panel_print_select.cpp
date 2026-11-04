@@ -29,7 +29,6 @@
 #include "ui_print_select_path_navigator.h"
 #include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "ams_backend.h"
@@ -39,6 +38,7 @@
 #include "card_thumbnail_plan.h"
 #include "config.h"
 #include "connection_state.h" // For ConnectionState enum
+#include "core/update_queue.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "filament_mapper.h"

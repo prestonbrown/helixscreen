@@ -17,12 +17,12 @@
  */
 
 #include "ui_gcode_viewer.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 
 #include <chrono>
 #include <cstdlib>

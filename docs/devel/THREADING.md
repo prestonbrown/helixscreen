@@ -63,7 +63,7 @@ answering pings.
 ### The safe bridge: `queue_update()`
 
 ```cpp
-#include "ui_update_queue.h"
+#include "core/update_queue.h"
 
 // ✅ CORRECT — defers to the main thread
 void update_from_websocket_thread(int temp) {
@@ -83,7 +83,7 @@ helix::ui::queue_update(std::move(data), [](MyData* d) {
 `UpdateQueue` is a mutex-protected queue of tagged callbacks (`std::queue<TaggedCallback>`). Lambdas are enqueued from any
 thread and drained on the main thread by an LVGL timer that `UpdateQueue::init()` creates with
 LVGL's default refresh period, `LV_DEF_REFR_PERIOD` (33 ms)
-(`include/ui_update_queue.h#UpdateQueue/init/"LV_DEF_REFR_PERIOD"`), the period LVGL gives the
+(`include/core/update_queue.h#UpdateQueue/init/"LV_DEF_REFR_PERIOD"`), the period LVGL gives the
 display refresh timer (`lib/lvgl/src/display/lv_display.c#lv_display_create/"LV_DEF_REFR_PERIOD"`).
 One pass of `src/application/application.cpp#main_loop`:
 
@@ -1104,7 +1104,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 
 | File | Contents |
 |------|----------|
-| `include/ui_update_queue.h` | `UpdateQueue`, `queue_update()`, `scoped_freeze()` |
+| `include/core/update_queue.h` | `UpdateQueue`, `queue_update()`, `scoped_freeze()` |
 | `include/async_lifetime_guard.h` | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` |
 | `include/ui_observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
 | `include/observer_factory.h` | `observe<V>` (`Dispatch::Deferred` / `Immediate`), `observe_print_state`, `observe_print_lifecycle` |

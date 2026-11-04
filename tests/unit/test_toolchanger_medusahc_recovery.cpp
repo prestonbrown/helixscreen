@@ -11,12 +11,11 @@
  * Resume asks first. A RESUME without MHC_RESUME has no such rule.
  */
 
-#include "ui_update_queue.h"
-
 #include "../busy_guard_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "ams_backend_toolchanger.h"
+#include "core/update_queue.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
 #include "toolchanger_addon.h"

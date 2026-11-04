@@ -11,11 +11,11 @@
 
 #include "ui_gcode_viewer.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "color_utils.h"
+#include "core/update_queue.h"
 #include "gcode_color_metadata.h"
 #include "gcode_gl_fallback.h"
 #include "gcode_parser.h"

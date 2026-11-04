@@ -7,8 +7,8 @@
 #include "ui_exclude_object_badges.h"
 #include "ui_gcode_viewer.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_error.h"

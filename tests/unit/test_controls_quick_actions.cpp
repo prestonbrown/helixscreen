@@ -16,11 +16,11 @@
  */
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/controls_panel_test_access.h"
+#include "core/update_queue.h"
 #include "led/led_controller.h"
 #include "macro_param_cache.h"
 #include "macro_param_defaults.h"

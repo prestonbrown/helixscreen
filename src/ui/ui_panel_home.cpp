@@ -12,12 +12,12 @@
 #include "ui_modal.h"
 #include "ui_next_tick.h"
 #include "ui_panel_ams.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_manager.h"
 #include "first_run_tour.h"
 #include "input_settings_manager.h"

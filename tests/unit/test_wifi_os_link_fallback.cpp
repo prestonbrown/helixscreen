@@ -14,13 +14,12 @@
  *      fails, the scan-failed path must NOT emit a user-facing warning.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_language.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "log_redact.h"
 #include "runtime_config.h"
 #include "wifi_manager.h"

@@ -8,12 +8,12 @@
  */
 
 #include "ui_overlay_network_settings.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
+#include "core/update_queue.h"
 #include "http_executor.h"
 #include "lvgl/src/misc/lv_event_private.h"
 #include "wifi_backend_mock.h"

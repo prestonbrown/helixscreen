@@ -10,7 +10,6 @@
 
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_batch_filament_modal.h"
-#include "ui_update_queue.h"
 
 #include "../busy_guard_fixture.h"
 #include "../lvgl_test_fixture.h"
@@ -24,6 +23,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "filament_op_slot_resolver.h"
 #include "macro_param_cache.h"
 #include "mount_feed_sequence.h"

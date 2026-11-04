@@ -15,13 +15,12 @@
  * - Sorted output by priority
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "temperature_sensor_manager.h"
 #include "temperature_sensor_types.h"

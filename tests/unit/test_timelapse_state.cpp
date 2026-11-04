@@ -1,11 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "timelapse_state.h"
 

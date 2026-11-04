@@ -8,11 +8,11 @@
 #include "ui_notification.h"
 #include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "abort_manager.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "fault_modal_registry.h"
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"

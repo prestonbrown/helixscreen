@@ -17,12 +17,12 @@
  */
 
 #include "ui_probe_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/probe_overlay_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

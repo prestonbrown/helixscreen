@@ -14,11 +14,11 @@
 #include "ui_plugin_feature_row.h"
 #include "ui_plugin_overview_overlay.h"
 #include "ui_settings_printing.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

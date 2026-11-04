@@ -12,11 +12,10 @@
  * nozzle is at or below 190C.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "core/update_queue.h"
 #include "macro_param_cache.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"

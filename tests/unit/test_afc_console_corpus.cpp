@@ -35,12 +35,11 @@
  *     -> "an unknown-command response never advances the step bar" fails
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/gcode_narration_router_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "gcode_narration_router.h"
 
 #include <optional>

@@ -2081,7 +2081,7 @@ The build compiles ~566 app source files. The dominant cost is **template instan
 | Header | Files affected |
 |--------|---------------|
 | `theme_manager.h` | ~144 |
-| `ui_update_queue.h` | ~144 |
+| `core/update_queue.h` | ~144 |
 | `moonraker_api.h` | ~122 |
 | `app_globals.h` | ~121 |
 | `printer_state.h` | ~104 |

@@ -11,9 +11,9 @@
 #include "power_device_state.h"
 
 #include "ui_emergency_stop.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "observer_factory.h"
 #include "print_lifecycle_state.h"

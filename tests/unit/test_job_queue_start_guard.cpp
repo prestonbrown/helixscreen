@@ -27,7 +27,6 @@
 
 #include "ui_job_queue_modal.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/job_queue_modal_test_access.h"
 #include "../test_helpers/job_queue_state_test_access.h"
@@ -43,6 +42,7 @@
 #include "../test_helpers/tile_boxes.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "job_queue_start.h"
 #include "job_queue_state.h"
 #include "moonraker_api.h"

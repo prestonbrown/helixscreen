@@ -4,11 +4,10 @@
 // The M300 gate is fed by the print job state, and a preset's sound default reaches
 // the live audio settings without a restart.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "audio_settings_manager.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "sound_manager.h"

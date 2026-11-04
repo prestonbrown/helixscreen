@@ -19,9 +19,9 @@
 #include "ui_settings_material_temps.h"
 #include "ui_settings_motion.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "plr_backend.h"
 #include "plr_plugin_rpc.h"

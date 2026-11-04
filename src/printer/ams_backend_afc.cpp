@@ -7,7 +7,6 @@
 #include "ui_insert_notice.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
-#include "ui_update_queue.h"
 
 #include "action_prompt_manager.h"
 #include "afc_defaults.h"
@@ -16,6 +15,7 @@
 #include "ams_fault_event.h"
 #include "ams_status_json.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
 #include "lane_legacy_migration.h"

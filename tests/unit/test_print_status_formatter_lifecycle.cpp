@@ -15,11 +15,10 @@
  * and the card renders blank for the rest of the session.
  */
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
 

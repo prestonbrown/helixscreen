@@ -32,10 +32,10 @@
 #include "ui_panel_console.h"
 #include "ui_panel_macros.h"
 #include "ui_panel_motion.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "overlay_base.h"
 #include "printer_cache_registry.h"
 #include "static_panel_registry.h"

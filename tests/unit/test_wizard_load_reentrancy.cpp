@@ -12,12 +12,12 @@
  * clean it nor build its own step into it.
  */
 
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "src/ui/wizard_step_registry.h"
 #include "wizard_step.h"

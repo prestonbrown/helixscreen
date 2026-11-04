@@ -9,9 +9,9 @@
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "moonraker_error.h"

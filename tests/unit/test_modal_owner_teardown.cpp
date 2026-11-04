@@ -17,10 +17,10 @@
 
 #include "ui_button.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/widget_in_tree.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "logging_init.h"
 
 // LVGLUITestFixture registers ALL XML components, so print_cancel_confirm_modal

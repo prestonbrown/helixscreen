@@ -4,10 +4,10 @@
 #include "ui_ams_context_menu.h"
 #include "ui_ams_lane_settings.h"
 #include "ui_button.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
+#include "core/update_queue.h"
 #include "helix/ui/text_metrics.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"

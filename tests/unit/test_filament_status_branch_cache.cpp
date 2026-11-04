@@ -26,11 +26,11 @@
  */
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 #include "tool_state.h"

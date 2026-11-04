@@ -4,9 +4,9 @@
 #include "ui_heater_config.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <string>

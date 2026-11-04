@@ -22,10 +22,10 @@
 #include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "format_utils.h"
 #include "hardware_role_registry.h"
 #include "i18n_plural.h"

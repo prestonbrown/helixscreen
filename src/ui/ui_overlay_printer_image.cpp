@@ -19,9 +19,9 @@
 #if HELIX_HAS_IMAGE_TAGGER
 #include "ui_overlay_printer_image_tagger.h"
 #endif
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/update_queue.h"
 #include "helix_fs.h"
 #include "lvgl.h"
 #include "prerendered_images.h"

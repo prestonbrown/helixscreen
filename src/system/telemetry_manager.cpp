@@ -4,7 +4,6 @@
 #include "system/telemetry_manager.h"
 
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "accel_sensor_manager.h"
 #include "ams_state.h"
@@ -13,6 +12,7 @@
 #include "audio_settings_manager.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"

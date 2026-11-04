@@ -16,9 +16,9 @@
  */
 
 #include "ui_settings_material_temps.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "material_settings_manager.h"

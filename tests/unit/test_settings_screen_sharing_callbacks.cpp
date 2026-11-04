@@ -9,12 +9,12 @@
 
 #include "ui_panel_settings.h"
 #include "ui_settings_screen_sharing.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "remote_screen_settings_manager.h"
 #include "settings_manager.h"

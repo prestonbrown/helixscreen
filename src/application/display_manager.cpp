@@ -19,13 +19,13 @@
 // Private LVGL header for direct flush_cb capture (matches application.cpp pattern)
 #include "ui_effects.h"
 #include "ui_fatal_error.h"
-#include "ui_update_queue.h"
 
 #include "../../include/pending_startup_warnings.h"
 #include "app_constants.h"
 #include "app_globals.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display/lv_display_private.h"
 #include "display_settings_manager.h"
 #include "flush_stride.h"

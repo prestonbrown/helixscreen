@@ -41,7 +41,6 @@
  */
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
@@ -49,6 +48,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_op_router.h"
 #include "tool_state.h"
 

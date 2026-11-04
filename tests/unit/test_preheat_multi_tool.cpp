@@ -9,8 +9,6 @@
  * heaters are targeted based on tool_target (-1 = all, 0..N = specific tool).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/preheat_widget_test_access.h"
@@ -19,6 +17,7 @@
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_backend_indx.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"

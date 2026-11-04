@@ -2,10 +2,9 @@
 
 #include "printer_name_sync.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "wizard_config_paths.h"

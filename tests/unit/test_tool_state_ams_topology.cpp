@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_ams_tool_text.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_backend_ace.h"
@@ -12,6 +11,7 @@
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "ams_tool_topology.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "lvgl_test_fixture.h"
 #include "printer_discovery.h"

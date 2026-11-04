@@ -8,11 +8,11 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_error.h"
 #include "printer_state.h"

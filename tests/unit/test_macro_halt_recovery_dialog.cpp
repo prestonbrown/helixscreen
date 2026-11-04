@@ -23,12 +23,12 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "macro_executor.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

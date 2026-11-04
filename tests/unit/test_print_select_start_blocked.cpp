@@ -17,10 +17,10 @@
  */
 
 #include "ui_panel_print_select.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 

@@ -16,9 +16,9 @@
  */
 
 #include "ui_temp_display.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"

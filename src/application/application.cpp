@@ -19,7 +19,6 @@
 
 // Private LVGL header needed to read display->flush_cb for splash no-op swap
 #include "ui_overlay_timelapse_videos.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_error_bridge.h"
@@ -27,6 +26,7 @@
 #include "asset_manager.h"
 #include "cjk_font_manager.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display/lv_display_private.h"
 #include "display_manager.h"
 #include "env_refusal_notice.h"
@@ -204,12 +204,11 @@
 #include "wifi_manager.h"
 
 // Backend headers
-#include "ui_update_queue.h"
-
 #include "abort_manager.h"
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "detection_manager.h"
 #include "filament_sensor_manager.h"
 #include "gcode_file_modifier.h"

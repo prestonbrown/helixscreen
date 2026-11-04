@@ -7,10 +7,10 @@
 
 #include "ui_exclude_mode_controller.h"
 #include "ui_gcode_viewer.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "printer_excluded_objects_state.h"
 
 #include <string>

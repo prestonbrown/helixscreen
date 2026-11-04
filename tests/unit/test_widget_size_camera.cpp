@@ -55,12 +55,12 @@
 #if HELIX_HAS_CAMERA
 
 #include "ui_breakpoint.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/camera_widget_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_size.h"

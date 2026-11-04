@@ -9,12 +9,12 @@
 #include "ui_notification.h"
 #include "ui_subject_registry.h"
 #include "ui_timer_guard.h"
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"

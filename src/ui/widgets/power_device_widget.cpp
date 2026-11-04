@@ -13,10 +13,10 @@
 #include "ui_icon_picker.h"
 #include "ui_panel_power.h"
 #include "ui_row_text.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"

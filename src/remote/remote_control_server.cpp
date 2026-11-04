@@ -8,9 +8,9 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_home.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "demo_overlays.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"

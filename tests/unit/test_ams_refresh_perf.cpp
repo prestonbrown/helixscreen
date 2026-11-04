@@ -3,12 +3,12 @@
 
 #include "ui_ams_slot.h"
 #include "ui_spool_canvas.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 
 #include "../catch_amalgamated.hpp"
 

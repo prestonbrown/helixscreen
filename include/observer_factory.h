@@ -17,9 +17,9 @@
 #pragma once
 
 #include "ui_observer_guard.h"
-#include "ui_update_queue.h"
 
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "helix_callback.h"
 #include "lvgl/lvgl.h"
 #include "print_lifecycle_state.h" // PrintState; declares PrintJobState

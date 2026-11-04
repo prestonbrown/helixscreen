@@ -14,12 +14,12 @@
 #include "ui_nav_manager.h"
 #include "ui_overlay_performance.h"
 #include "ui_settings_system.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/performance_state_test_access.h"
 #include "../test_helpers/ui_overlay_performance_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "helix_sparkline.h"
 #include "performance_state.h"
 

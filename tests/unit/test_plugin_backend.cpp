@@ -3,10 +3,9 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "plugin_backend.h"
 #include "printer_state.h"

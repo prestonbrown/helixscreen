@@ -3,12 +3,11 @@
 
 #include "src/ui/panel_widgets/dryer_model.h"
 
-#include "ui_update_queue.h"
-
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "bed_drying_controller.h"
+#include "core/update_queue.h"
 #include "helix_psram_attr.h"
 #include "observer_factory.h"
 #include "printer_state.h"

@@ -4,10 +4,10 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h" // not in the lvgl.h umbrella
 #include "print_photos.h"

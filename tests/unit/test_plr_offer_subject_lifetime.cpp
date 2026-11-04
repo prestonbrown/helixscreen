@@ -17,10 +17,9 @@
  * double free of that node.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "plr_offer_controller.h"
 #include "printer_state.h"
 

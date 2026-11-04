@@ -38,13 +38,13 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_print_select_detail_view.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/delayed_file_transfers.h"
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/scoped_cache_dir.h"
 #include "../test_helpers/scoped_macros_read.h"
+#include "core/update_queue.h"
 #include "gcode_ops_detector.h"
 #include "gcode_preview_fetcher.h"
 #include "helix-xml/src/xml/lv_xml.h"

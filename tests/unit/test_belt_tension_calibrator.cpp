@@ -17,8 +17,6 @@
  * 5. State machine - BeltTensionCalibrator lifecycle
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/belt_settle.h"
 #include "../../include/belt_tension_calibrator.h"
 #include "../../include/belt_tension_types.h"
@@ -32,6 +30,7 @@
 #include "../test_helpers/script_lines.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <array>

@@ -16,7 +16,6 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -27,6 +26,7 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "memory_monitor.h"
 #include "src/ui/ui_filament_path_internal.h"

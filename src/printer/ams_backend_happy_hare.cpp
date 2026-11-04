@@ -4,13 +4,13 @@
 #include "ams_backend_happy_hare.h"
 
 #include "ui_insert_notice.h"
-#include "ui_update_queue.h"
 
 #include "ams_bypass_policy.h"
 #include "ams_device_action_value.h"
 #include "ams_fault_event.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "happy_hare_status_parse.h"
 #include "hh_defaults.h"
 #include "humidity_sensor_types.h"

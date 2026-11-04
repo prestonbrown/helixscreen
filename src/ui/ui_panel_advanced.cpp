@@ -16,10 +16,10 @@
 #include "ui_panel_spoolman.h"
 #include "ui_plugin_overview_overlay.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "exception_policy.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"

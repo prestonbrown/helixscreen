@@ -9,10 +9,10 @@
 #include "ui_fonts.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_temp_display.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "grid_layout.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"

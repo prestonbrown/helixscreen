@@ -53,7 +53,6 @@
 #include "ui_switch.h"
 #include "ui_temp_display.h"
 #include "ui_tile_rung.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
@@ -64,6 +63,7 @@
 #include "config.h"
 #include "config_storage.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "data_root_resolver.h"
 #include "discovery_steps.h"
 #include "esp_heap_caps.h"

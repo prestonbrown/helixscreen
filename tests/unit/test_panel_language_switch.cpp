@@ -6,13 +6,13 @@
 // print-select file metadata, each re-rendered on a live language switch.
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "format_utils.h"
 #include "hardware_validator.h"
 #include "helix-xml/src/xml/lv_xml.h"

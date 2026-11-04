@@ -6,10 +6,10 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_text.h"
-#include "ui_update_queue.h"
 #include "ui_variant.h"
 #include "ui_widget_ref.h"
 
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_expr.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"

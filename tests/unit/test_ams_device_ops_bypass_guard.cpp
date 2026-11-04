@@ -24,7 +24,6 @@
 
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -33,6 +32,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"

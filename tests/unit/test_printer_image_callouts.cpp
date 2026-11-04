@@ -3,7 +3,6 @@
 #include "ui_overlay_temp_graph.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -15,6 +14,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"

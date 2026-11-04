@@ -11,7 +11,6 @@
 
 #include "ui_context_menu.h"
 #include "ui_step_progress.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
@@ -20,6 +19,7 @@
 #include "../test_helpers/one_line_label.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "job_queue_state.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_size.h"

@@ -51,12 +51,12 @@
 // tree on disk. Mirrors test_wizard_step_stress.cpp's tagging pattern.
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 
 #include <spdlog/spdlog.h>

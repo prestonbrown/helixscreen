@@ -18,10 +18,10 @@
 #include "spoolman_manager.h"
 
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_slot_override.h"
 #include "i_moonraker_api.h"
 #include "lane_legacy_migration.h"

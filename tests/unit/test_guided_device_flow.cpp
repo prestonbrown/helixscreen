@@ -12,7 +12,6 @@
 #include "ui_guided_device_flow.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -22,6 +21,7 @@
 #include "ams_device_action_value.h"
 #include "ams_error.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml_expr.h"
 #include "indx_contract.h"
 #include "snapmaker_nozzle_offset.h"

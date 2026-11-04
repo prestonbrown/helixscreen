@@ -17,8 +17,6 @@
  *     only CFS implements it today.
  */
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/filament_slot_override_store_test_access.h"
@@ -26,6 +24,7 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "filament_slot_override_store.h"

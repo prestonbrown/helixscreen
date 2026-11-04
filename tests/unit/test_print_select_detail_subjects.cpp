@@ -23,12 +23,12 @@
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_subject_registry.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"
 #endif

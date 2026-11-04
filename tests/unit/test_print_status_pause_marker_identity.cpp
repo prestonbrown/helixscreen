@@ -26,7 +26,6 @@
 
 #include "ui_gcode_viewer.h"
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
@@ -35,6 +34,7 @@
 #include "../test_helpers/print_status_preview_fixture.h"
 #include "../test_helpers/scoped_env.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "moonraker_api_mock.h"

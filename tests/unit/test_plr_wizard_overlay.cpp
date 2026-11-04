@@ -16,7 +16,6 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_plr_wizard_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../../src/ui/ui_plr_prompt.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -26,6 +25,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "display_awake_hold.h"
 #include "first_run_tour.h"
 #include "helix-xml/src/xml/lv_xml.h"

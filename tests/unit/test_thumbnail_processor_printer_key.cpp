@@ -7,11 +7,10 @@
  *        switch lands while it waits for a worker.
  */
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
+#include "core/update_queue.h"
 #include "http_request_epoch.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

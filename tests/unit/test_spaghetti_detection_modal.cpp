@@ -7,7 +7,6 @@
 // helix::register_xml_components()), including spaghetti_detection_modal.xml,
 // so the modal can be created from XML inside the test.
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
@@ -15,6 +14,7 @@
 #include "app_globals.h"
 #include "camera_frame.h"
 #include "camera_stream.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "settings_manager.h"

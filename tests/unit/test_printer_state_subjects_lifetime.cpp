@@ -19,9 +19,9 @@
 // empty token is never an acceptable stand-in for a live one.
 
 #include "ui_observer_guard.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "observer_factory.h"
 #include "printer_state.h"
 

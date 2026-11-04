@@ -4,9 +4,9 @@
 #include "ui_gradient_canvas.h"
 
 #include "ui_error_reporting.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"

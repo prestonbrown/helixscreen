@@ -6,10 +6,10 @@
 #include "ui_next_tick.h"
 #include "ui_printer_list_overlay.h"
 #include "ui_printer_switch_menu.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"

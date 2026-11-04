@@ -3,12 +3,12 @@
 
 #include "ui_filename_utils.h"
 #include "ui_format_utils.h"
-#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "print_history_manager.h"

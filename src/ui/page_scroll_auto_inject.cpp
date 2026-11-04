@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "page_scroll_auto_inject.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "panel_widget.h"
 

@@ -20,9 +20,8 @@
  * the wrong reason.
  */
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_awake_hold.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"

@@ -41,7 +41,7 @@ flowchart LR
 | File | Role |
 |------|------|
 | [`docs/devel/THREADING.md`](../THREADING.md) | Single source of truth: every rule here in full, plus enforcement layers, shutdown ordering, symptom index |
-| [`include/ui_update_queue.h`](../../../include/ui_update_queue.h) | `UpdateQueue` and `queue_update()` - the only sanctioned thread crossing |
+| [`include/core/update_queue.h`](../../../include/core/update_queue.h) | `UpdateQueue` and `queue_update()` - the only sanctioned thread crossing |
 | [`include/async_lifetime_guard.h`](../../../include/async_lifetime_guard.h) | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` - the callback-lifetime guard |
 | [`include/ui_observer_guard.h`](../../../include/ui_observer_guard.h) | `ObserverGuard`, `SubjectLifetime` - observer cleanup and subject-death tracking |
 | [`include/observer_factory.h`](../../../include/observer_factory.h) | `observe<int>()` and friends; the factories whose 4th parameter carries the lifetime |
@@ -110,11 +110,11 @@ The heuristic for everything else: if you are in a callback from libhv, an `Http
 
 ### One bridge: the `UpdateQueue` contract
 
-Chapter 02 covered the data-flow view: the notification queue that hands raw JSON to `process_notifications()` ([`src/application/application.cpp#main_loop`](../../../src/application/application.cpp)) before `lv_timer_handler()` (`src/application/application.cpp#main_loop/"time_till_next = lv_timer_handler()"`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; an LVGL timer created in `init()` ([`include/ui_update_queue.h#init`](../../../include/ui_update_queue.h)) drains `process_pending()` (`include/ui_update_queue.h#process_pending`) on the main thread once per display refresh period, inside `lv_timer_handler()`.
+Chapter 02 covered the data-flow view: the notification queue that hands raw JSON to `process_notifications()` ([`src/application/application.cpp#main_loop`](../../../src/application/application.cpp)) before `lv_timer_handler()` (`src/application/application.cpp#main_loop/"time_till_next = lv_timer_handler()"`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; an LVGL timer created in `init()` ([`include/core/update_queue.h#init`](../../../include/core/update_queue.h)) drains `process_pending()` (`include/core/update_queue.h#process_pending`) on the main thread once per display refresh period, inside `lv_timer_handler()`.
 
 The safety property is same-thread serialization: because the drain runs inside LVGL's timer walk, a queued `lv_subject_set_*()` can never interleave with an in-progress render - that is what prevents LVGL's "invalidate during rendering" assertion, which on embedded targets is an infinite loop rather than a crash. The drain has no priority over other timers: LVGL 9 timers have no priority field; the real guarantee is the refresh period (work lands within a frame). Which of the drain and the display refresh runs first in a pass depends on timer creation history, because `lv_timer_create()` inserts each new timer at the head of the list the walk starts from. Trust the serialization, not per-tick ordering claims.
 
-The queue earns trust in the details: tags register with the crash handler so a crash names the guilty callback; exceptions in one callback are swallowed and logged so a batch cannot be lost to a single bad lambda; widget-guarded overloads drop work whose widget died; `ScopedFreeze` (`include/ui_update_queue.h#"class ScopedFreeze {"`) buffers enqueues across a drain-and-destroy window and splices them back on thaw. Canonical producer pattern: `PrinterState`'s public setters marshal themselves -
+The queue earns trust in the details: tags register with the crash handler so a crash names the guilty callback; exceptions in one callback are swallowed and logged so a batch cannot be lost to a single bad lambda; widget-guarded overloads drop work whose widget died; `ScopedFreeze` (`include/core/update_queue.h#"class ScopedFreeze {"`) buffers enqueues across a drain-and-destroy window and splices them back on thaw. Canonical producer pattern: `PrinterState`'s public setters marshal themselves -
 
 ```cpp
 void PrinterState::set_printer_connection_state(int state, const char* message) {
@@ -222,7 +222,7 @@ Supporting rules that trip contributors:
 
 Read in this order; about 25 minutes total.
 
-1. [`include/ui_update_queue.h#helix::ui`](../../../include/ui_update_queue.h) - the `UpdateQueue` class: timer creation in `init()` (`include/ui_update_queue.h#init`), the tagged drain `process_pending()` (`include/ui_update_queue.h#process_pending`), `ScopedFreeze` (`include/ui_update_queue.h#"class ScopedFreeze {"`). The comments on "why not `lv_async_call`" are the design argument in three lines.
+1. [`include/core/update_queue.h#helix::ui`](../../../include/core/update_queue.h) - the `UpdateQueue` class: timer creation in `init()` (`include/core/update_queue.h#init`), the tagged drain `process_pending()` (`include/core/update_queue.h#process_pending`), `ScopedFreeze` (`include/core/update_queue.h#"class ScopedFreeze {"`). The comments on "why not `lv_async_call`" are the design argument in three lines.
 2. [`include/async_lifetime_guard.h#expired`](../../../include/async_lifetime_guard.h) - `LifetimeToken::expired()` with the background-thread detector inline; then `include/async_lifetime_guard.h#"defer(const char* tag, F&& fn) const"` `defer()` and its pre-enqueue generation check (the doomed-callback drop), and `include/async_lifetime_guard.h#bg_cb` `bg_cb()` - read the doc comment for the short-form/long-form tradeoff.
 3. [`src/printer/detection_manager.cpp#init`](../../../src/printer/detection_manager.cpp) - the two-line `bg_cb` in the wild: an observer registered with a marshalled callback, nothing else to it.
 4. [`src/printer/printer_state.cpp#set_printer_connection_state`](../../../src/printer/printer_state.cpp) - `set_printer_connection_state()` (defer through the guard), then `src/printer/printer_state.cpp#set_klippy_state` `set_klippy_state()`. The whole marshalling-setter pattern in twenty lines.

@@ -4,11 +4,10 @@
 #include "memory_monitor.h"
 
 #ifdef __linux__
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/memory_monitor_test_access.h"
+#include "core/update_queue.h"
 #endif
 
 #include <spdlog/spdlog.h>

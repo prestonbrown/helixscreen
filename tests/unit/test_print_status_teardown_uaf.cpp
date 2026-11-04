@@ -20,11 +20,11 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_status_panel_fixture.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"

@@ -22,9 +22,9 @@
  */
 
 #include "ui_keyboard_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "logging_init.h"
 #include "lvgl/lvgl.h"
 

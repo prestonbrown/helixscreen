@@ -1,14 +1,13 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "consumption_sink.h"
+#include "core/update_queue.h"
 #include "filament_consumption_tracker.h"
 #include "filament_consumption_tracker_test_access.h"
 #include "printer_state.h"

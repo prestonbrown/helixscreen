@@ -15,7 +15,6 @@
 
 #include "ui_modal.h"
 #include "ui_print_tune_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
@@ -23,6 +22,7 @@
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"

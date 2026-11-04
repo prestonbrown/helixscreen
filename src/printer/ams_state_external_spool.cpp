@@ -8,10 +8,9 @@
  * class and its threading contract are in ams_state.h.
  */
 
-#include "ui_update_queue.h"
-
 #include "ams_state.h"
 #include "ams_state_internal.h"
+#include "core/update_queue.h"
 #include "filament_accounting_controller.h"
 #include "i_moonraker_api.h"
 #include "lane_apply.h"

@@ -3,10 +3,9 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/plugin_test_support.h"
+#include "core/update_queue.h"
 #include "lua_runtime.h"
 
 #include <chrono>

@@ -21,7 +21,6 @@
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 #include "ui_resume_dispatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/cfs_test_access.h"
@@ -34,6 +33,7 @@
 #include "ams_backend_happy_hare.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "data_root_resolver.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

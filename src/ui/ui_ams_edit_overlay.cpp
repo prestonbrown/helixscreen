@@ -15,7 +15,6 @@
 #include "ui_hsv_picker.h"
 #include "ui_nav.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "ams_backend.h"
@@ -23,6 +22,7 @@
 #include "ams_tag_reading.h"
 #include "app_globals.h"
 #include "color_utils.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_display_name.h"

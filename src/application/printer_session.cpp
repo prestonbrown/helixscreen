@@ -21,7 +21,6 @@
 #include "ui_settings_about.h"
 #include "ui_spaghetti_detection_modal.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
 
@@ -33,6 +32,7 @@
 #include "cjk_font_manager.h"
 #include "cli_args.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "demo_overlays.h"
 #include "detection_manager.h"
 #include "detection_source_table.h"

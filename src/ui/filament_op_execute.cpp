@@ -7,11 +7,11 @@
 #include "ui_guided_load_modal.h"
 #include "ui_manual_pull_prompt.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_macro_profiles.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_heater.h"

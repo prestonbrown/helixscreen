@@ -18,10 +18,10 @@
 #include "ui_settings_safety.h"
 #include "ui_settings_sound.h"
 #include "ui_settings_touch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "settings_manager.h"
 #include "storage_report.h"

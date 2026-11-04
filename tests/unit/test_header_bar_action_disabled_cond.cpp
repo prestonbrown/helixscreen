@@ -23,9 +23,8 @@
  * Compiling each shipped expression against live subjects is what catches that.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 
 #include <fstream>
 #include <lvgl.h>

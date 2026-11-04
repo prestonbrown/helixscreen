@@ -11,7 +11,6 @@
  */
 
 #include "ui_ams_sidebar.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/toolchanger_test_access.h"
@@ -19,6 +18,7 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "ams_state.h"
 #include "ams_step_operation.h"
+#include "core/update_queue.h"
 #include "filament_action_set.h"
 #include "mount_feed_sequence.h"
 #include "printer_discovery.h"

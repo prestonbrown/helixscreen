@@ -28,12 +28,12 @@
 
 #include "ui_filament_mapping_card.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../mapping_card_render_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "ams_remap.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "filament_chip_model.h"
 #include "lvgl.h"
 #include "print_start_checks.h"

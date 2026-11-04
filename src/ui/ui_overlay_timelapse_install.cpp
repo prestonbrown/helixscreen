@@ -9,9 +9,9 @@
 #include "ui_nav.h"
 #include "ui_step_progress.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl.h"

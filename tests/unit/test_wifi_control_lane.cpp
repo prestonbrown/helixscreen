@@ -5,12 +5,11 @@
 // never hold the LVGL thread, must not be polled while it is wedged, and must
 // not be asked twice for a scan it is already running.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "http_executor.h"
 #include "wifi_backend_mock.h"
 #include "wifi_backend_wpa_supplicant.h"

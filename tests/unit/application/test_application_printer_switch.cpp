@@ -36,11 +36,10 @@
  * against recorders that log their order and snapshot what had been arranged by then.
  */
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
 #include "application_test_fixture.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "printer_cache_registry.h"
 #include "test_helpers/application_test_access.h"
 #include "test_helpers/config_test_access.h"

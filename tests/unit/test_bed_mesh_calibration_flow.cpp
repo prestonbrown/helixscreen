@@ -6,7 +6,6 @@
 
 #include "ui_modal.h"
 #include "ui_panel_bed_mesh.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -14,6 +13,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_panel_common.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/toast_manager_test_access.h"
+#include "core/update_queue.h"
 #include "lvgl/src/core/lv_obj_draw_private.h"
 #include "lvgl/src/misc/lv_area_private.h"
 #include "pending_startup_warnings.h"

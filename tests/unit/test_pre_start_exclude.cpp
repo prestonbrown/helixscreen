@@ -5,12 +5,11 @@
 // Klipper stores names), when every object is picked, and how the file scan's
 // list and the full parse's list combine.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "gcode_parser.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

@@ -26,12 +26,11 @@
  * that is where a bad floor grows them.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_int_subject.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_manager.h"

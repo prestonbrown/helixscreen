@@ -9,7 +9,6 @@
 
 #include "ui_print_start_controller.h"
 #include "ui_resume_dispatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
@@ -19,6 +18,7 @@
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

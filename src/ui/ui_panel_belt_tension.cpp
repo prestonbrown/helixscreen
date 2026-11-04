@@ -10,10 +10,10 @@
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_timer_guard.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "belt_stream_client.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "memory_utils.h"

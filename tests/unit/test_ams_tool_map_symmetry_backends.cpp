@@ -32,8 +32,6 @@
  * "no map", and the resolver's current_slot fallback is what makes that correct.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/qidi_box_test_access.h"
 #include "ams_backend_ace.h"
@@ -44,6 +42,7 @@
 #include "ams_remap.h"
 #include "ams_types.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_op_slot_resolver.h"
 #include "toolchanger_addon.h"
 

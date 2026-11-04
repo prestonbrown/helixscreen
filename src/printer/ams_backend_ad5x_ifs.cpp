@@ -6,12 +6,12 @@
 
 #include "ui_insert_notice.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "ams_fault_event.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_fs.h"

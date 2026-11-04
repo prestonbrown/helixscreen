@@ -15,9 +15,9 @@
 
 #include "ui_error_reporting.h"
 #include "ui_timer_guard.h"
-#include "ui_update_queue.h"
 
 #include "config.h"
+#include "core/update_queue.h"
 #include "http_executor.h"
 #include "log_redact.h"
 #include "lvgl/lvgl.h"

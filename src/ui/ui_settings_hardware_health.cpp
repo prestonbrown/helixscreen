@@ -12,10 +12,10 @@
 #include "ui_modal.h"
 #include "ui_severity_card.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "config.h"
+#include "core/update_queue.h"
 #include "hardware_validator.h"
 #include "lvgl.h"
 #include "printer_state.h"

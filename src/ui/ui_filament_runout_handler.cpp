@@ -5,10 +5,10 @@
 
 #include "ui_resume_dispatch.h"
 #include "ui_unload_lane_choice.h"
-#include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_sensor_manager.h"

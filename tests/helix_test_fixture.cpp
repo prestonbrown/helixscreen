@@ -12,7 +12,6 @@
 #include "ui_observer_guard.h"
 #include "ui_test_utils.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_constants.h"
@@ -21,6 +20,7 @@
 #include "audio_settings_manager.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "fault_surface_correlation.h"
 #include "filament_catalog.h"

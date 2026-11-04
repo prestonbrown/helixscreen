@@ -3,9 +3,9 @@
 #include "temp_graph_controller.h"
 
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "i_moonraker_client.h"
 #include "observer_factory.h"
 #include "printer_state.h"

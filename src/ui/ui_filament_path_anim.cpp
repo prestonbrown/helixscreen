@@ -18,8 +18,8 @@
 // overlapping the render phase. See ui_filament_path_internal.h.
 
 #include "ui_filament_path_internal.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 
 #include <spdlog/spdlog.h>

@@ -9,8 +9,6 @@
  * the previous printer's sensors.
  */
 
-#include "ui_update_queue.h"
-
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/registered_backend.h"
@@ -18,6 +16,7 @@
 #include "ams_backend_ace.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"

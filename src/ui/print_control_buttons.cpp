@@ -7,10 +7,10 @@
 #include "ui_event_safety.h"    // LVGL_SAFE_EVENT_CB_BEGIN / END
 #include "ui_resume_dispatch.h"
 #include "ui_timer_guard.h" // lv_timer_cancel_safe
-#include "ui_update_queue.h"
 
 #include "abort_manager.h"
 #include "app_globals.h" // get_printer_state()
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_error.h"

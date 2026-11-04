@@ -9,12 +9,12 @@
 // free — lives here and must not be re-implemented per site.
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "overlay_base.h"
 #include "ui/ui_widget_helpers.h"
 

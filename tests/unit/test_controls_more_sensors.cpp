@@ -7,10 +7,10 @@
 // opens the sensors overlay.
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "temperature_sensor_manager.h"
 

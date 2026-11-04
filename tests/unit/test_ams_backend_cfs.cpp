@@ -5,7 +5,6 @@
 #include "ui_ams_detail.h"
 #include "ui_ams_slot.h"
 #include "ui_spool_canvas.h"
-#include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
@@ -21,6 +20,7 @@
 #include "ams_types.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "filament_mapper.h"

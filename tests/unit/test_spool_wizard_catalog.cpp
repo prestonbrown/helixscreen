@@ -6,10 +6,10 @@
 
 #include "ui_search_debounce.h"
 #include "ui_spool_wizard.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"

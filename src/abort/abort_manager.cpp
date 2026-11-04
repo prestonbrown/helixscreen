@@ -5,9 +5,9 @@
 #include "ui_callback_helpers.h"
 #include "ui_effects.h"
 #include "ui_emergency_stop.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/update_queue.h"
 #include "data_root_resolver.h"
 #include "i_moonraker_api.h"
 #include "moonraker_request_tracker.h"

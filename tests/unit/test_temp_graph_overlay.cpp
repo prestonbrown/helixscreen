@@ -13,10 +13,10 @@
 
 #include "ui_overlay_temp_graph.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"

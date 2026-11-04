@@ -10,11 +10,10 @@
  * that install's shape with everything but the version fields dropped.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "printer_versions_state.h"

@@ -3,9 +3,8 @@
 
 #include "standard_macros.h"
 
-#include "ui_update_queue.h"
-
 #include "config.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "macro_patterns.h"

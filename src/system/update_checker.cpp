@@ -22,11 +22,11 @@
 #include "ui_panel_settings.h"
 #include "ui_settings_updates.h"
 #include "ui_timer_guard.h"
-#include "ui_update_queue.h"
 
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "helix_install_roots.h"
 #include "helix_thread.h"
 #include "helix_version.h"

@@ -8,10 +8,9 @@
  * edge cases, and behavior preservation.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"

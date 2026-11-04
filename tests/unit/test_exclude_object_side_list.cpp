@@ -11,10 +11,10 @@
 
 #include "ui_exclude_object_side_list.h"
 #include "ui_gcode_viewer.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_layer_renderer_test_access.h"
+#include "core/update_queue.h"
 #include "gcode_layer_renderer.h"
 #include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"

@@ -7,8 +7,8 @@
 
 #include "ui_filename_utils.h"
 #include "ui_panel_print_select.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "lvgl.h"
 #include "text_io.h"
 #include "three_mf_reader.h"

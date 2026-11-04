@@ -15,7 +15,6 @@
 #include "ui_print_preparation_manager.h"
 #include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "ams_remap.h"
@@ -24,6 +23,7 @@
 #include "bed_dimensions.h"
 #include "color_utils.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_chip_model.h"
 #include "file_analysis.h"

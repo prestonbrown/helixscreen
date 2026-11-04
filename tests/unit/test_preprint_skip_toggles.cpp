@@ -13,7 +13,6 @@
  */
 
 #include "ui_print_preparation_manager.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/print_preparation_manager_test_access.h"
@@ -21,6 +20,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/queued_job_starter_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "core/update_queue.h"
 #include "gcode_ops_detector.h"
 #include "lvgl_test_fixture.h"
 #include "macro_param_cache.h"

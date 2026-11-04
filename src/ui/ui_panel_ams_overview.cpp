@@ -20,7 +20,6 @@
 #include "ui_panel_common.h"
 #include "ui_spool_canvas.h"
 #include "ui_system_path_canvas.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
@@ -30,6 +29,7 @@
 #include "ams_unit_pages.h"
 #include "app_globals.h"
 #include "color_utils.h"
+#include "core/update_queue.h"
 #include "data_root_resolver.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"

@@ -37,11 +37,10 @@ class PrePrintOptionsRendererTestAccess {
 };
 } // namespace helix::ui
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/print_preparation_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "macro_param_cache.h"
 #include "pre_print_option.h"
 #include "preprint_skip_wrappers.h"

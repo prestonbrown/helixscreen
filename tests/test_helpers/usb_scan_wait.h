@@ -12,7 +12,7 @@
  * tests' slow requests, and a walk can sit queued behind them.
  */
 
-#include "ui_update_queue.h"
+#include "core/update_queue.h"
 
 #include <chrono>
 #include <functional>

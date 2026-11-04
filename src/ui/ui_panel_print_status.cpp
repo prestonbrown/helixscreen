@@ -26,7 +26,6 @@
 #include "ui_temperature_utils.h"
 #include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "ams_state.h"
@@ -34,6 +33,7 @@
 #include "app_globals.h"
 #include "bed_dimensions.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_manager.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"

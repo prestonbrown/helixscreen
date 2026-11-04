@@ -8,10 +8,10 @@
 #include "ui_guided_device_flow.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "calibration_abort.h"
+#include "core/update_queue.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"

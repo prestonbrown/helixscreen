@@ -9,9 +9,9 @@
  */
 
 #include "ui_filament_slot_picker.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 
 #include <optional>
 #include <string>

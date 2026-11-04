@@ -5,7 +5,6 @@
 #include "ui_filename_utils.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
-#include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
 #include "../helix_test_fixture.h"
@@ -22,6 +21,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "capability_matrix.h"
+#include "core/update_queue.h"
 #include "gcode_edit_list.h"
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"

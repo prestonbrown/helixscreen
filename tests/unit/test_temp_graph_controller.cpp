@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_next_tick.h"
-#include "ui_update_queue.h"
 
 #include "../../include/temp_graph_controller.h"
 #include "../../include/temp_graph_internal.h"
@@ -12,6 +11,7 @@
 #include "../test_helpers/temp_graph_controller_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_types.h"
 #include "printer_state.h"

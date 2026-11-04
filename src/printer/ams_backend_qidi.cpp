@@ -4,12 +4,12 @@
 #include "ams_backend_qidi.h"
 
 #include "ui_insert_notice.h"
-#include "ui_update_queue.h"
 
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
 #include "color_utils.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_macro_profiles.h"
 #include "lane_apply.h"

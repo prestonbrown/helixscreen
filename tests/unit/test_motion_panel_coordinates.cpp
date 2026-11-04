@@ -18,11 +18,11 @@
 
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "hold_repeat.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"

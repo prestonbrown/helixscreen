@@ -1,8 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "detection_source.h"
 #include "printer_state.h"
 #include "u1_stock_detection_source.h"

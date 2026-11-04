@@ -13,10 +13,10 @@
 #include "ui_settings_updates.h"
 #include "ui_snake_game.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #if __has_include("contributors.h")
 #include "contributors.h"
 #else

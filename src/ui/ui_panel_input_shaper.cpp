@@ -12,9 +12,9 @@
 #include "ui_shaper_sweep_chart.h"
 #include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "env_knobs.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"

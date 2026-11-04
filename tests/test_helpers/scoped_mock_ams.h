@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_update_queue.h"
-
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 
 #include <cstdint>
 #include <memory>

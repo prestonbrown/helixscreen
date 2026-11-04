@@ -10,13 +10,12 @@
 #include "../catch_amalgamated.hpp"
 
 #if HELIX_HAS_CAMERA
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/camera_stream_test_access.h"
 #include "../test_helpers/camera_view_test_access.h"
 #include "app_globals.h"
 #include "camera_view.h"
+#include "core/update_queue.h"
 #include "http_executor.h"
 #include "printer_state.h"
 

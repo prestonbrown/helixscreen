@@ -3,8 +3,7 @@
 
 #include "ui_z_offset_indicator.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"

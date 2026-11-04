@@ -12,8 +12,6 @@
  * printer.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/breadcrumb_capture.h"
 #include "../test_helpers/config_test_access.h"
@@ -23,6 +21,7 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "filament_sensor_manager.h"
 #include "filament_temperature_source.h"

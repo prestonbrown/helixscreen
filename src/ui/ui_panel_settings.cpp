@@ -29,11 +29,11 @@
 #include "ui_severity_card.h"
 #include "ui_snake_game.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_wizard_hardware_selector.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "ethernet_manager.h"
 #include "filament_sensor_manager.h"

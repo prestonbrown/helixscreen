@@ -11,7 +11,6 @@
  */
 
 #include "ui_spoolman_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ad5x_ifs_test_access.h"
@@ -26,6 +25,7 @@
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "lane_resolver.h"
 #include "lane_source_store.h"

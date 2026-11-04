@@ -11,11 +11,11 @@
  */
 
 #include "ui_settings_about.h"
-#include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
 #include "../ui_test_utils.h"
 #include "app_constants.h"
+#include "core/update_queue.h"
 #include "system/update_checker.h"
 #include "timelapse_state.h"
 

@@ -11,13 +11,12 @@
  * the async set_printer_type() defers to the main thread.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/sensors_forget.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

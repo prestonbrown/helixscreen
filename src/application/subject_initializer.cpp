@@ -37,7 +37,6 @@
 #include "ui_printer_status_icon.h"
 #include "ui_probe_overlay.h"
 #include "ui_stepper_resonance_cal_modal.h"
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "abort_manager.h"
@@ -47,6 +46,7 @@
 #include "bed_drying_controller.h"
 #include "bed_mesh_state.h"
 #include "chamber_stall_prompt.h"
+#include "core/update_queue.h"
 #include "filament_accounting_controller.h"
 #include "filament_catalog.h"
 #include "filament_database.h"

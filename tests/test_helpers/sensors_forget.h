@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "temperature_sensor_manager.h"
 
 namespace helix::test {
