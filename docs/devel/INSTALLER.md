@@ -406,9 +406,10 @@ See `UPDATE_SYSTEM.md` for how `self_update_supported()` reads the resulting tre
 | Setting | Value |
 |---------|-------|
 | **Detection** | Buildroot OS + `/usr/data` + 2+ K1 indicators (pellcorp, printer_data, get_sn_mac.sh, etc.) |
+| **Firmware** | `detect_k1_firmware`: `/usr/data/pellcorp` is `simple_af`, else `/usr/data/helper-script` is `guilouz`, else `stock_klipper`. GuppyScreen is not a marker: Simple AF and the Helper Script install the same paths, and only `simple_af` skips the stock-stack stop and the `S99creality-backend` install |
 | **Install dir** | `/usr/data/helixscreen` |
 | **Init script** | `/etc/init.d/S99helixscreen` |
-| **Previous UI** | `/etc/init.d/S99guppyscreen` |
+| **Previous UI** | `/etc/init.d/S99guppyscreen` (`simple_af`); on `guilouz` and `stock_klipper` the generic loop stops and records `S*guppyscreen*` |
 
 ### K2 / Other Platforms
 
