@@ -526,13 +526,15 @@ class ParamModalFixture : public LVGLUITestFixture {
     }
 
     ~ParamModalFixture() override {
-        // A failed assertion can leave the modal up with its static instance
-        // pointer aimed at this soon-dead object.
-        if (modal.dialog()) {
-            helix::MacroParamModal::cancel_cb(nullptr);
-        }
+        modal.hide();
         process_lvgl(20);
         helix::DisplaySettingsManager::instance().set_animations_enabled(prev_animations_);
+    }
+
+    void press_primary(const char* row_name) {
+        lv_obj_t* row = lv_obj_find_by_name(modal.dialog(), row_name);
+        REQUIRE(row != nullptr);
+        lv_obj_send_event(lv_obj_find_by_name(row, "btn_primary"), LV_EVENT_CLICKED, nullptr);
     }
 
     /// Show the modal for @p params with @p prefill typed in.
@@ -611,7 +613,7 @@ TEST_CASE_METHOD(ParamModalFixture, "A prefilled parameter is typed into its fie
     // What a cleared field says: where the value comes from, not template source.
     CHECK(std::string(lv_textarea_get_placeholder_text(field)) == lv_tr("Printer default"));
 
-    helix::MacroParamModal::run_cb(nullptr);
+    press_primary("run_button_row");
     process_lvgl(20);
 
     CHECK(runs == 1);
@@ -623,7 +625,7 @@ TEST_CASE_METHOD(ParamModalFixture, "A cleared prefill leaves the parameter to t
     lv_obj_t* field = show_load_filament({{"EXTRUDER_TEMP", "260"}});
     lv_textarea_set_text(field, "");
 
-    helix::MacroParamModal::run_cb(nullptr);
+    press_primary("run_button_row");
     process_lvgl(20);
 
     CHECK(runs == 1);
@@ -641,7 +643,7 @@ TEST_CASE_METHOD(ParamModalFixture,
 
     CHECK(field_texts() == std::vector<std::string>{"", "260", ""});
 
-    helix::MacroParamModal::run_cb(nullptr);
+    press_primary("run_button_row");
     process_lvgl(20);
 
     CHECK(runs == 1);

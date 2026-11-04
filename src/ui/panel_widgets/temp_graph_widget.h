@@ -149,12 +149,7 @@ class TempGraphWidget : public PanelWidget {
         using SaveCallback = std::function<void(const nlohmann::json& new_config)>;
 
         TempGraphConfigModal(const nlohmann::json& config, SaveCallback on_save);
-        ~TempGraphConfigModal() override;
 
-        /// The dialog on screen, or nullptr.
-        static TempGraphConfigModal* active() {
-            return s_active_;
-        }
         /// Step row @p idx's series colour to the next palette entry.
         void cycle_color(size_t idx);
         void set_series_on(size_t idx, bool on);
@@ -166,6 +161,7 @@ class TempGraphWidget : public PanelWidget {
         const char* component_name() const override {
             return "temp_graph_config_modal";
         }
+        HELIX_KIND_TAG(TempGraphConfigModal)
 
         /// Map a Klipper object key to its user-facing label.
         /// Public so the outer widget can label graph series with the same
@@ -187,8 +183,6 @@ class TempGraphWidget : public PanelWidget {
         /// Publish one subject slot per series (name, colour, on/off) and the
         /// row count the dialog's <repeat> expands.
         void populate_sensor_list();
-
-        static TempGraphConfigModal* s_active_;
 
         nlohmann::json config_;
         SaveCallback on_save_;

@@ -78,8 +78,6 @@ std::string lane_text_for(const std::vector<helix::AvailableSlot>& slots, int sl
 
 } // namespace
 
-PreflightCheckModal* PreflightCheckModal::active_instance_ = nullptr;
-
 PreflightCheckModal::PreflightCheckModal() {
     lv_subject_init_int(&fix_shown_subject_, 0);
     lv_subject_init_string(&fix_text_subject_, fix_text_buf_, nullptr, sizeof(fix_text_buf_), "");
@@ -93,15 +91,12 @@ PreflightCheckModal::PreflightCheckModal() {
 }
 
 PreflightCheckModal::~PreflightCheckModal() {
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
     subjects_.deinit_all();
 }
 
-void PreflightCheckModal::on_set_material_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->apply_material_fix();
+void PreflightCheckModal::on_set_material_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<PreflightCheckModal>(e)) {
+        self->apply_material_fix();
     }
 }
 
@@ -125,7 +120,6 @@ void PreflightCheckModal::apply_material_fix() {
 }
 
 void PreflightCheckModal::on_show() {
-    active_instance_ = this;
     // Wire the three action buttons programmatically (mirrors the spaghetti /
     // runout-guidance modals). No XML callbacks on these buttons, so there's
     // no double-wiring.

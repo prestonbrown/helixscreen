@@ -38,6 +38,7 @@ class DebugBundleModal : public Modal {
     const char* component_name() const override {
         return "debug_bundle_modal";
     }
+    HELIX_KIND_TAG(DebugBundleModal)
 
   protected:
     void on_show() override;
@@ -65,9 +66,8 @@ class DebugBundleModal : public Modal {
     // Callback registration (idempotent)
     static void register_callbacks();
     static bool callbacks_registered_;
-    static DebugBundleModal* active_instance_;
 
-    // Static event callbacks (dispatch to active instance)
+    // Static event callbacks
     static void on_upload_cb(lv_event_t* e);
     static void on_cancel_cb(lv_event_t* e);
     static void on_done_cb(lv_event_t* e);

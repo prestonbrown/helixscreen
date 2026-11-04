@@ -55,7 +55,6 @@ void store_active_printer_address(const std::string& host, int port) {
 
 // Static member initialization
 bool ChangeHostModal::callbacks_registered_ = false;
-ChangeHostModal* ChangeHostModal::active_instance_ = nullptr;
 
 // ============================================================================
 // Construction / Destruction
@@ -66,11 +65,6 @@ ChangeHostModal::ChangeHostModal() {
 }
 
 ChangeHostModal::~ChangeHostModal() {
-    // A shown modal's owner can destroy it without on_hide() running, and the static
-    // XML callbacks would then reach a freed instance.
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
     deinit_subjects();
     spdlog::trace("[ChangeHostModal] Destroyed");
 }
@@ -113,9 +107,6 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
         lv_subject_set_int(&validated_subject_, 0);
         update_save_lock();
 
-        // Set active instance for static callback dispatch
-        active_instance_ = this;
-
         // Register keyboards for text inputs
         lv_obj_t* host_input = helix::ui::find_required(dialog(), "host_input", get_name());
         if (host_input) {
@@ -136,9 +127,9 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
         // Observe text input changes to invalidate validation when user edits.
         // Using ObserverGuard for RAII cleanup instead of lv_subject_add_observer_obj
         // which relies on widget deletion timing (unsafe during exit animation).
-        host_ip_observer_ = ObserverGuard(&host_ip_subject_, on_input_changed_cb, nullptr);
-        host_port_observer_ = ObserverGuard(&host_port_subject_, on_input_changed_cb, nullptr);
-        api_key_observer_ = ObserverGuard(&api_key_subject_, on_input_changed_cb, nullptr);
+        host_ip_observer_ = ObserverGuard(&host_ip_subject_, on_input_changed_cb, this);
+        host_port_observer_ = ObserverGuard(&host_port_subject_, on_input_changed_cb, this);
+        api_key_observer_ = ObserverGuard(&api_key_subject_, on_input_changed_cb, this);
         // Adding an observer notifies it once; the field still holds the filled-in port.
         port_origin_ = helix::PortOrigin::FilledIn;
 
@@ -159,7 +150,6 @@ void ChangeHostModal::on_show() {
 void ChangeHostModal::on_hide() {
     // Base class already called lifetime_.invalidate()
 
-    active_instance_ = nullptr;
     stop_discovery();
     connection_test_.cancel();
 
@@ -430,27 +420,23 @@ void ChangeHostModal::set_status(const char* icon_name, const char* color_token,
 // Input Change Observer
 // ============================================================================
 
-void ChangeHostModal::on_input_changed_cb(lv_observer_t* /*observer*/, lv_subject_t* subject) {
-    if (active_instance_) {
-        // The modal's own write of a probed port is not an edit.
-        if (active_instance_->port_set_by_app_) {
-            return;
-        }
-        if (subject == &active_instance_->host_port_subject_) {
-            active_instance_->port_origin_ = helix::PortOrigin::Typed;
-        }
+// Synchronous, and on_hide() and the destructor drop the guards, so `self` is alive here.
+void ChangeHostModal::on_input_changed_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* self = static_cast<ChangeHostModal*>(lv_observer_get_user_data(observer));
+    // The modal's own write of a probed port is not an edit.
+    if (self->port_set_by_app_) {
+        return;
+    }
+    if (subject == &self->host_port_subject_) {
+        self->port_origin_ = helix::PortOrigin::Typed;
     }
     // A status line describes the address it was shown for, so an edit clears it.
-    if (active_instance_) {
-        active_instance_->set_status(nullptr, nullptr, "");
-    }
+    self->set_status(nullptr, nullptr, "");
     // Reset validation when user edits the host, port or key after a successful test
     lv_subject_t* validated = lv_xml_get_subject(nullptr, "change_host_validated");
     if (validated && lv_subject_get_int(validated) != 0) {
         lv_subject_set_int(validated, 0);
-        if (active_instance_) {
-            active_instance_->update_save_lock();
-        }
+        self->update_save_lock();
         spdlog::debug("[ChangeHostModal] Input changed, validation reset");
     }
 }
@@ -472,28 +458,28 @@ void ChangeHostModal::register_callbacks() {
     spdlog::trace("[ChangeHostModal] Callbacks registered");
 }
 
-void ChangeHostModal::on_test_connection_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_test_connection();
+void ChangeHostModal::on_test_connection_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<ChangeHostModal>(e)) {
+        self->handle_test_connection();
     }
 }
 
-void ChangeHostModal::on_save_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_save();
+void ChangeHostModal::on_save_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<ChangeHostModal>(e)) {
+        self->handle_save();
     }
 }
 
-void ChangeHostModal::on_cancel_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_cancel();
+void ChangeHostModal::on_cancel_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<ChangeHostModal>(e)) {
+        self->handle_cancel();
     }
 }
 
 void ChangeHostModal::on_printer_picked_cb(lv_event_t* e) {
-    if (active_instance_) {
+    if (auto* self = Modal::from_event<ChangeHostModal>(e)) {
         auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_target(e));
-        active_instance_->handle_printer_picked(lv_dropdown_get_selected(dropdown));
+        self->handle_printer_picked(lv_dropdown_get_selected(dropdown));
     }
 }
 
@@ -567,9 +553,9 @@ namespace helix::ui {
 
 namespace {
 
-// ChangeHostModal's active_instance_ is a static singleton, so both entry points share one
-// owner. The instance outlives the dialog it shows: a switch runs on the tick after the
-// modal hides, and the printer-scope teardown that frees the instance comes after that.
+// ChangeHostModal's subjects have fixed XML names, so both entry points share one owner. The
+// instance outlives the dialog it shows: a switch runs on the tick after the modal hides, and the
+// printer-scope teardown that frees the instance comes after that.
 ChangeHostModal& shared_change_host_modal() {
     return helix::lazy_global<ChangeHostModal>("ChangeHostModal");
 }

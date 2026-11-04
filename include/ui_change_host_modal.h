@@ -39,8 +39,8 @@ namespace helix::ui {
 /**
  * @brief Show the Change Host modal from anywhere, with the standard reconnect
  *
- * ChangeHostModal keeps a static active_instance_, so exactly one owner may
- * exist; this holds it. The reconnect sequence (suppress the recovery dialog,
+ * ChangeHostModal publishes its subjects under fixed XML names, so exactly one
+ * owner may exist; this holds it. The reconnect sequence (suppress the recovery dialog,
  * disconnect, rebuild ws:// and http:// URLs, reconnect through the discovery
  * pipeline) lives here rather than at each call site so the settings row and
  * the connection-failed prompt cannot drift apart.
@@ -135,6 +135,7 @@ class ChangeHostModal : public Modal {
     const char* component_name() const override {
         return "change_host_modal";
     }
+    HELIX_KIND_TAG(ChangeHostModal)
 
   protected:
     void on_show() override;
@@ -207,7 +208,6 @@ class ChangeHostModal : public Modal {
     // === Static callback registration ===
     static void register_callbacks();
     static bool callbacks_registered_;
-    static ChangeHostModal* active_instance_;
 
     // === Static callbacks ===
     static void on_test_connection_cb(lv_event_t* e);

@@ -18,7 +18,6 @@
 // =============================================================================
 
 bool DebugBundleModal::callbacks_registered_ = false;
-DebugBundleModal* DebugBundleModal::active_instance_ = nullptr;
 
 // =============================================================================
 // Constructor / Destructor
@@ -30,9 +29,6 @@ DebugBundleModal::DebugBundleModal() {
 
 DebugBundleModal::~DebugBundleModal() {
     deinit_subjects(); // MUST be before member destruction
-    if (active_instance_ == this) {
-        active_instance_ = nullptr;
-    }
     spdlog::trace("[DebugBundleModal] Destroyed");
 }
 
@@ -52,12 +48,7 @@ bool DebugBundleModal::show_modal(lv_obj_t* parent) {
     lv_subject_copy_string(&error_subject_, "");
 
     // Call base class show
-    bool result = show(parent);
-    if (result && dialog()) {
-        active_instance_ = this;
-    }
-
-    return result;
+    return show(parent);
 }
 
 bool DebugBundleModal::show_owned() {
@@ -90,7 +81,6 @@ void DebugBundleModal::on_show() {
 
 void DebugBundleModal::on_hide() {
     spdlog::debug("[DebugBundleModal] on_hide");
-    active_instance_ = nullptr;
     // No self-delete: the ModalStack owns this instance and frees it when its
     // entry goes (#1382).
 }
@@ -151,27 +141,27 @@ void DebugBundleModal::register_callbacks() {
 // Static Event Callbacks
 // =============================================================================
 
-void DebugBundleModal::on_upload_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_upload();
+void DebugBundleModal::on_upload_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<DebugBundleModal>(e)) {
+        self->handle_upload();
     }
 }
 
-void DebugBundleModal::on_cancel_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_cancel();
+void DebugBundleModal::on_cancel_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<DebugBundleModal>(e)) {
+        self->handle_cancel();
     }
 }
 
-void DebugBundleModal::on_done_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_done();
+void DebugBundleModal::on_done_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<DebugBundleModal>(e)) {
+        self->handle_done();
     }
 }
 
-void DebugBundleModal::on_close_cb(lv_event_t* /*e*/) {
-    if (active_instance_) {
-        active_instance_->handle_close();
+void DebugBundleModal::on_close_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<DebugBundleModal>(e)) {
+        self->handle_close();
     }
 }
 

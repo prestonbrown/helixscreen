@@ -50,6 +50,7 @@ class PreflightCheckModal : public Modal {
     const char* component_name() const override {
         return "preflight_check_modal";
     }
+    HELIX_KIND_TAG(PreflightCheckModal)
 
     /// Copy in the check data to render.
     void set_checks(const helix::PreflightResult& result) {
@@ -109,8 +110,6 @@ class PreflightCheckModal : public Modal {
     lv_subject_t fix_shown_subject_{};
     lv_subject_t fix_text_subject_{};
     char fix_text_buf_[96] = {0};
-    /// The shown modal the material-fix button acts on; one at a time.
-    static PreflightCheckModal* active_instance_;
 };
 
 } // namespace helix::ui

@@ -19,18 +19,13 @@
 
 namespace helix {
 
-CameraConfigModal* CameraConfigModal::s_active_ = nullptr;
-
 CameraConfigModal::CameraConfigModal(const std::string& widget_id, const std::string& panel_id,
                                      SaveCallback on_save)
     : widget_id_(widget_id), panel_id_(panel_id), on_save_(std::move(on_save)) {
     init_subjects();
-    s_active_ = this;
 }
 
 CameraConfigModal::~CameraConfigModal() {
-    if (s_active_ == this)
-        s_active_ = nullptr;
     deinit_subjects();
 }
 
@@ -205,56 +200,50 @@ void CameraConfigModal::sync_flip_subjects() {
     lv_subject_set_int(&flip_v_active_, flip_v_ ? 1 : 0);
 }
 
-// Static event callbacks — routed through the single active instance (s_active_).
+// Static event callbacks: each acts on the modal its widget sits in.
 void CameraConfigModal::on_source_clicked(lv_event_t* e) {
     // Row identity comes from the event_cb user_data ("${i}" of the repeat;
     // row 0 is Automatic).
     const char* ud = static_cast<const char*>(lv_event_get_user_data(e));
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->select_source(ud ? std::atoi(ud) : 0);
     }
 }
 
 void CameraConfigModal::on_rotate_0(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->rotation_ = 0;
         m->sync_rotation_subjects();
     }
 }
 void CameraConfigModal::on_rotate_90(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->rotation_ = 90;
         m->sync_rotation_subjects();
     }
 }
 void CameraConfigModal::on_rotate_180(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->rotation_ = 180;
         m->sync_rotation_subjects();
     }
 }
 void CameraConfigModal::on_rotate_270(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->rotation_ = 270;
         m->sync_rotation_subjects();
     }
 }
 
 void CameraConfigModal::on_flip_h_toggled(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->flip_h_ = !m->flip_h_;
         m->sync_flip_subjects();
     }
 }
 
 void CameraConfigModal::on_flip_v_toggled(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->flip_v_ = !m->flip_v_;
         m->sync_flip_subjects();
     }

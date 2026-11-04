@@ -75,13 +75,10 @@ std::string density_to_field(float v) {
 
 // Static members
 bool FilamentProductEditModal::callbacks_registered_ = false;
-FilamentProductEditModal* FilamentProductEditModal::active_instance_ = nullptr;
 
 FilamentProductEditModal::FilamentProductEditModal() = default;
 
 FilamentProductEditModal::~FilamentProductEditModal() {
-    if (active_instance_ == this)
-        active_instance_ = nullptr;
     subjects_.deinit_all();
     subjects_initialized_ = false;
 }
@@ -119,8 +116,6 @@ bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string
 // ============================================================================
 
 void FilamentProductEditModal::on_show() {
-    active_instance_ = this;
-
     // Title.
     lv_obj_t* title = find_widget("header_title");
     if (title) {
@@ -131,10 +126,6 @@ void FilamentProductEditModal::on_show() {
     populate_fields();
     register_keyboards();
     configure_secondary_button();
-}
-
-void FilamentProductEditModal::on_hide() {
-    active_instance_ = nullptr;
 }
 
 // ============================================================================
@@ -343,19 +334,19 @@ void FilamentProductEditModal::register_callbacks() {
     callbacks_registered_ = true;
 }
 
-void FilamentProductEditModal::on_save_cb(lv_event_t* /*e*/) {
-    if (active_instance_)
-        active_instance_->handle_save();
+void FilamentProductEditModal::on_save_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<FilamentProductEditModal>(e))
+        self->handle_save();
 }
 
-void FilamentProductEditModal::on_secondary_cb(lv_event_t* /*e*/) {
-    if (active_instance_)
-        active_instance_->handle_secondary();
+void FilamentProductEditModal::on_secondary_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<FilamentProductEditModal>(e))
+        self->handle_secondary();
 }
 
-void FilamentProductEditModal::on_close_cb(lv_event_t* /*e*/) {
-    if (active_instance_)
-        active_instance_->handle_close();
+void FilamentProductEditModal::on_close_cb(lv_event_t* e) {
+    if (auto* self = Modal::from_event<FilamentProductEditModal>(e))
+        self->handle_close();
 }
 
 } // namespace helix::ui
