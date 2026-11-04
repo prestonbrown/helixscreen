@@ -1273,16 +1273,15 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
                  "SpoolmanManager: weight polls on a linked tool changer slot leave the saved "
                  "spool assignments alone",
                  "[spoolman][toolchanger][slot_refresh][tool-state]") {
-    // ToolState saves through the app-wide API. A mock of its own counts those
-    // saves and nothing the Spoolman fetches do.
+    // AmsState hands ToolState the API it saves through. A mock of its own counts
+    // those saves and nothing the Spoolman fetches do.
     MoonrakerAPIMock tool_api(client, get_printer_state());
-    struct AppApiScope {
-        helix::IMoonrakerAPI* previous = get_moonraker_api();
-        ~AppApiScope() {
-            set_moonraker_api(previous);
+    struct AmsApiScope {
+        ~AmsApiScope() {
+            AmsState::instance().set_moonraker_api(nullptr);
         }
-    } app_api_scope;
-    set_moonraker_api(&tool_api);
+    } ams_api_scope;
+    AmsState::instance().set_moonraker_api(&tool_api);
 
     // tool_spools.json lands in a directory this case owns.
     struct SpoolJsonScope {
