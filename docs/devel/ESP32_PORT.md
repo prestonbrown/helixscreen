@@ -37,7 +37,7 @@ firmware. Before you commit:
   `dryer_widget.cpp`, `dryer_model.cpp`, `tool_switcher_widget.cpp`) declare them all `HELIX_PSRAM_BSS`, as
   do the state singletons they read (`src/printer/bed_mesh_state.cpp`, `src/system/performance_state.cpp`).
   The same goes beyond the home screen: the AMS sidebar's and context menu's subjects and hint buffers
-  (`src/ui/ui_ams_sidebar.cpp`, `src/ui/ui_ams_context_menu.cpp`), the theme's XML subjects
+  (`src/ui/filament/ui_ams_sidebar.cpp`, `src/ui/filament/ui_ams_context_menu.cpp`), the theme's XML subjects
   (`src/ui/theme/theme_manager.cpp#subjects`) and `SettingsManager`
   (`src/system/settings_manager.cpp#"static HELIX_PSRAM_BSS SettingsManager instance"`). Do the same for a new widget's, overlay's
   or model's subjects, buffers and singleton. Subjects registered at app runtime are first touched after PSRAM

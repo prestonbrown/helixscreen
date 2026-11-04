@@ -13,7 +13,7 @@
 # Format:  <subject name>  # <registration site>
 abort_state  # src/abort/abort_manager.cpp:63
 about_version_description  # src/ui/settings/ui_settings_about.cpp:103
-ams_env_overlay_preset_text  # src/ui/ui_ams_environment_overlay.cpp:124
+ams_env_overlay_preset_text  # src/ui/filament/ui_ams_environment_overlay.cpp:124
 detail_view_visible  # src/ui/print/ui_panel_print_select.cpp:335
 dryer_current_temp_text  # src/printer/ams_state.cpp:416; src/printer/ams_state.cpp:816
 dryer_progress_pct  # src/printer/ams_state.cpp:415; src/printer/ams_state.cpp:815
@@ -22,12 +22,12 @@ dryer_supported  # src/printer/ams_state_subjects.cpp:194; src/printer/ams_state
 dryer_target_temp  # src/printer/ams_state.cpp:413; src/printer/ams_state.cpp:813
 dryer_target_temp_text  # src/printer/ams_state.cpp:417; src/printer/ams_state.cpp:818
 dryer_time_text  # src/printer/ams_state.cpp:418; src/printer/ams_state.cpp:820
-filament_extrusion_allowed  # src/ui/ui_panel_filament.cpp:287
-filament_material_bed_temp  # src/ui/ui_panel_filament.cpp:301
-filament_material_nozzle_temp  # src/ui/ui_panel_filament.cpp:299
-filament_material_selected  # src/ui/ui_panel_filament.cpp:285
-filament_temp_display  # src/ui/ui_panel_filament.cpp:281
-filament_warning_temps  # src/ui/ui_panel_filament.cpp:292
+filament_extrusion_allowed  # src/ui/filament/ui_panel_filament.cpp:287
+filament_material_bed_temp  # src/ui/filament/ui_panel_filament.cpp:301
+filament_material_nozzle_temp  # src/ui/filament/ui_panel_filament.cpp:299
+filament_material_selected  # src/ui/filament/ui_panel_filament.cpp:285
+filament_temp_display  # src/ui/filament/ui_panel_filament.cpp:281
+filament_warning_temps  # src/ui/filament/ui_panel_filament.cpp:292
 history_detail_status_icon  # src/ui/print/ui_panel_history_list.cpp:938
 history_detail_status_variant  # src/ui/print/ui_panel_history_list.cpp:940
 is_current_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:269
@@ -51,10 +51,10 @@ probe_overlay_state  # src/ui/calibration/ui_probe_overlay.cpp:309
 selected_filename  # src/ui/print/ui_panel_print_select.cpp:298
 selected_thumbnail  # src/ui/print/ui_panel_print_select.cpp:308
 settings_has_backlight  # src/system/display_settings_manager.cpp:241
-spool_wizard_can_create_vendor  # src/ui/ui_spool_wizard.cpp:132
-spool_wizard_show_create_filament  # src/ui/ui_spool_wizard.cpp:119
-spool_wizard_show_create_vendor  # src/ui/ui_spool_wizard.cpp:117
-spool_wizard_step_label  # src/ui/ui_spool_wizard.cpp:100
+spool_wizard_can_create_vendor  # src/ui/filament/ui_spool_wizard.cpp:132
+spool_wizard_show_create_filament  # src/ui/filament/ui_spool_wizard.cpp:119
+spool_wizard_show_create_vendor  # src/ui/filament/ui_spool_wizard.cpp:117
+spool_wizard_step_label  # src/ui/filament/ui_spool_wizard.cpp:100
 test_gateway_status  # src/ui/settings/ui_overlay_network_settings.cpp:195
 test_internet_status  # src/ui/settings/ui_overlay_network_settings.cpp:196
 test_running  # src/ui/settings/ui_overlay_network_settings.cpp:194

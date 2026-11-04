@@ -457,7 +457,7 @@ TEST_CASE("AmsState toolchange text formatting", "[afc][toolchange][format]") {
 // Rendered toolchange text — the AFC wire value all the way to the label
 // ============================================================================
 
-// Drives the real formatter observers from src/ui/ui_ams_tool_text.cpp over the
+// Drives the real formatter observers from src/ui/filament/ui_ams_tool_text.cpp over the
 // real AmsState subjects, fed by the real AFC parser. Nothing here reimplements
 // the format string, so the assertions break if either half of the 1-based /
 // 0-based contract moves.

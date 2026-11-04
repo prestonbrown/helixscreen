@@ -7,7 +7,7 @@
  *
  * Run with: ./build/bin/helix-tests "[runout_guidance][gate]"
  *
- * Drives the real handler (src/ui/ui_filament_runout_handler.cpp:67-125) rather
+ * Drives the real handler (src/ui/filament/ui_filament_runout_handler.cpp:67-125) rather
  * than a model of it. Two coupled decisions:
  *
  *   check_and_show_runout_guidance() — show at most ONCE per pause event, and

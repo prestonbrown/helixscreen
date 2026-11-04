@@ -11,7 +11,7 @@
  * ahead of lv_obj_add_event_cb().
  *
  * tray_back_draw_cb / tray_front_draw_cb have internal linkage in
- * src/ui/ui_ams_detail.cpp, so the test cannot name them. Instead the test builds
+ * src/ui/filament/ui_ams_detail.cpp, so the test cannot name them. Instead the test builds
  * the grid and tray from bare lv_obj_create() containers, which start with zero
  * event descriptors, then asserts that exactly one descriptor exists after the
  * first call and that it is still the same single descriptor - identical callback

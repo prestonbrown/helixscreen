@@ -358,7 +358,7 @@ This pattern isn't yet established in code — if you're writing a new overlay, 
 
 The AMS (Automatic Material System) panel is what a full-subsystem contribution looks like. You won't write one of these on your first PR, but knowing how it's decomposed helps you read it when you need to touch adjacent code, and it's the shape to aim for if you're proposing something big.
 
-AMS spans roughly 1700 lines of C++ (`src/ui/ui_panel_ams.cpp`) and 13 XML files (12 components plus a feature-tokens file, `ams_tokens.xml`). It's not monolithic — it's a set of small components that compose:
+AMS spans roughly 1700 lines of C++ (`src/ui/filament/ui_panel_ams.cpp`) and 13 XML files (12 components plus a feature-tokens file, `ams_tokens.xml`). It's not monolithic — it's a set of small components that compose:
 
 | XML component | Role |
 |---|---|

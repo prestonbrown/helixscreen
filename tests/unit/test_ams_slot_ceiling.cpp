@@ -20,7 +20,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
-#include "src/ui/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_filament_path_internal.h"
 #include "tool_state.h"
 
 #include <memory>

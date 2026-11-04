@@ -360,8 +360,8 @@ The temperature control panel provides a dropdown to select which tool's tempera
 Every surface that mounts another tool on a tap asks one function, so a tap refused on one
 is refused on all of them with the same words: the home tool switcher
 (`src/ui/panel_widgets/tool_switcher_widget.cpp#handle_tool_selected`), a toolhead on the
-AMS panel's PARALLEL path (`src/ui/ui_panel_ams.cpp#on_path_toolhead_clicked`) and the
-filament panel's extruder dropdown (`src/ui/ui_panel_filament.cpp#handle_extruder_changed`).
+AMS panel's PARALLEL path (`src/ui/filament/ui_panel_ams.cpp#on_path_toolhead_clicked`) and the
+filament panel's extruder dropdown (`src/ui/filament/ui_panel_filament.cpp#handle_extruder_changed`).
 
 - **The decision** is the pure `decide_tool_change()` (`include/tool_change_request.h`) over
   `ToolChangeInputs`, which `tool_change_inputs()` reads from live state. In order: the
@@ -403,7 +403,7 @@ filament panel's extruder dropdown (`src/ui/ui_panel_filament.cpp#handle_extrude
 | `src/printer/tool_state.cpp` | Discovery, status parsing, subject management |
 | `include/printer_discovery.h` | Hardware detection: `tool_names()`, `has_tool_changer()` |
 | `include/ams_state.h` | Multi-backend filament system (linked via backend_index) |
-| `include/tool_change_request.h`, `src/ui/tool_change_request.cpp` | The one tool-change decision and dispatch every UI surface uses |
+| `include/tool_change_request.h`, `src/ui/filament/tool_change_request.cpp` | The one tool-change decision and dispatch every UI surface uses |
 
 ---
 

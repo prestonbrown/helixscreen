@@ -563,7 +563,7 @@ lane, loaded or not.
 Four distinct clear paths, handled separately:
 
 - **User-initiated clear.** The AMS context menu's "Clear Spool" gesture
-  (`MenuAction::CLEAR_SPOOL` in `src/ui/ui_ams_detail.cpp`) is a commit first
+  (`MenuAction::CLEAR_SPOOL` in `src/ui/filament/ui_ams_detail.cpp`) is a commit first
   and a clear second, and the order is load-bearing. `AmsState::commit_slot_edit()`
   carries the arms a backend clear has no way to reach: the Spoolman server
   active-spool unlink, the identity-cache invalidation and the ToolState clear

@@ -148,7 +148,7 @@ nothing at all on an unrecognized contract:
 | Maintenance | Cycle every tool (guided flow) | Refused printing or paused; greyed by a seat fault or uncalibrated docks |
 | Tool Offsets | One read-only row per tool ("X 0.120  Y -0.045  Z 0.030 mm", an unknown axis `-`), and the global Z offset | None |
 
-The flows live in `src/ui/ui_indx_device_flows.cpp`: each asks first, then runs through
+The flows live in `src/ui/filament/ui_indx_device_flows.cpp`: each asks first, then runs through
 `run_device_action()` and keeps one status line under the section's buttons
 (`ui_xml/components/indx_flow_status.xml`) from "Calibrating..." to the result. A calibration
 that succeeds offers **Save & Restart** / **Later**; one that times out says the printer may

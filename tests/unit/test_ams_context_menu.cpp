@@ -410,7 +410,7 @@ TEST_CASE("AmsContextMenu::decide_unload_enabled blocks only the toolhead unload
 // A backend that withdraws its unmount offer has to be able to make it stick.
 //
 // AmsContextMenu composes the loaded signal as an OR
-// (`src/ui/ui_ams_context_menu.cpp#AmsContextMenu::decide_slot_ops`): the
+// (`src/ui/filament/ui_ams_context_menu.cpp#AmsContextMenu::decide_slot_ops`): the
 // snapshot taken when the menu opens (can_unload_from_toolhead) OR the live pair
 // (slot_is_actively_loaded || slot_has_filament_at_toolhead). A rule that lives
 // in only one of those three is put back by the other two, so a withdrawal that

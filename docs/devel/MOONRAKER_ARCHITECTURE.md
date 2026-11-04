@@ -631,7 +631,7 @@ refuses when the config already resolves inside the writable root, compared thro
 directory named two ways.
 
 **Code:** `include/moonraker_config_manager.h`, `include/system/moonraker_local_probe.h`,
-`src/ui/ui_spoolman_overlay.cpp`.
+`src/ui/filament/ui_spoolman_overlay.cpp`.
 **Tests:** `tests/unit/test_config_path_candidates.cpp`,
 `test_moonraker_local_include_plan.cpp`, `test_local_config_append.cpp`,
 `test_moonraker_file_roots.cpp`.

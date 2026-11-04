@@ -10,7 +10,7 @@ HelixScreen uses class-based patterns for all new code. For architectural ration
 
 ### Panel Pattern
 
-**Canonical example:** `include/ui_panel_filament.h` + `src/ui/ui_panel_filament.cpp`
+**Canonical example:** `include/ui_panel_filament.h` + `src/ui/filament/ui_panel_filament.cpp`
 
 ```cpp
 class ExamplePanel : public PanelBase {  // Use SubjectManager subjects_; member for auto cleanup

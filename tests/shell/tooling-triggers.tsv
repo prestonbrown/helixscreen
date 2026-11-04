@@ -62,7 +62,7 @@ tests/shell/test_esp32_pack_assets_ci.bats	tests/python/test_esp32_pack_assets.p
 tests/shell/test_esp32_package_release.bats	scripts/esp32_package_release.sh
 tests/shell/test_esp32_xml_bindings_gate.bats	firmware/helixscreen-esp32/components/helixcore/lv_conf.h lv_conf.h scripts/check_esp32_app_srcs.py scripts/check_esp32_xml_bindings.py scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/esp32_xml_binding_baseline.txt scripts/qc/esp32_xml_bindings.sh scripts/quality-checks.sh
 tests/shell/test_feature_gates_gate.bats	Makefile android/app/jni/CMakeLists.txt firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt include/helix_features.h scripts/check_feature_gates.py
-tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_filament_ops_neutral.py src/ui/filament_op_execute.cpp src/ui/ui_ams_sidebar.cpp src/ui/wizard/ui_wizard_ams_identify.cpp
+tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_filament_ops_neutral.py src/ui/filament/filament_op_execute.cpp src/ui/filament/ui_ams_sidebar.cpp src/ui/wizard/ui_wizard_ams_identify.cpp
 tests/shell/test_font_tier_coverage_gate.bats	assets/fonts/noto_sans_10.c assets/fonts/noto_sans_12.c assets/fonts/noto_sans_14.c assets/fonts/noto_sans_16.c assets/fonts/noto_sans_26.c assets/fonts/noto_sans_28.c assets/fonts/noto_sans_32.c assets/fonts/noto_sans_40.c assets/fonts/noto_sans_8.c mk/cross.mk mk/fonts.mk scripts/check_font_tier_coverage.py src/application/asset_manager.cpp src/system/cjk_font_manager.cpp
 tests/shell/test_fork_assertion_gate.bats	tests/shell/*.bats
 tests/shell/test_format_xml_gate.bats	scripts/format-xml.py scripts/qc/phase2.sh ui_xml/
@@ -140,7 +140,7 @@ tests/shell/test_quality_cache_replay.bats	scripts/qc/_lib.sh scripts/quality-ch
 tests/shell/test_quality_checks_awake.bats	scripts/quality-checks.sh
 tests/shell/test_quality_push_only.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
 tests/shell/test_r2_prune_plan.bats	scripts/r2-prune-plan.sh
-tests/shell/test_raw_this_queue_update_gate.bats	scripts/check_raw_this_queue_update.py scripts/staged_content.py src/ui/ui_spool_wizard.cpp
+tests/shell/test_raw_this_queue_update_gate.bats	scripts/check_raw_this_queue_update.py scripts/staged_content.py src/ui/filament/ui_spool_wizard.cpp
 tests/shell/test_release_channel.bats	RELEASE_CHANNEL scripts/release-channel.sh
 tests/shell/test_release_config_deploy.bats	Makefile config/99-helixscreen-backlight.rules config/creality-backend.init config/helixscreen.env config/helixscreen.init mk/cross.mk scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/release.sh tests/shell/helpers.bash
 tests/shell/test_release_dry_run.bats	scripts/generate-manifest.sh scripts/verify-dry-run-release.sh

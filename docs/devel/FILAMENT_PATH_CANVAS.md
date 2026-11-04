@@ -105,7 +105,7 @@ panels push printer state through the C setters.
 ## The Two-Layer Model
 
 Rendering is split into two layers so per-frame animation never repaints the
-expensive tube geometry (`src/ui/ui_filament_path_internal.h`).
+expensive tube geometry (`src/ui/filament/ui_filament_path_internal.h`).
 
 ```cpp
 struct LayerState {
@@ -144,7 +144,7 @@ so its buffer coordinates map to absolute display coordinates. The buffer is
 
 ## The Geometry Module
 
-`include/filament_path_geometry.h` / `src/ui/filament_path_geometry.cpp` —
+`include/filament_path_geometry.h` / `src/ui/filament/filament_path_geometry.cpp` —
 namespace `helix::ui::pathgeo` (aliased `pg` in callers). Pure, float-based,
 screen-space (`+y` is **down**, angle 0 is `+x`, positive sweep is clockwise on
 screen). No LVGL types — this is the layer the unit tests hammer directly.
@@ -225,7 +225,7 @@ giving every lane on a side the same diagonal slope.
 
 ## The Shared Tube Stroker
 
-`include/filament_tube_stroker.h` / `src/ui/filament_tube_stroker.cpp` — renders
+`include/filament_tube_stroker.h` / `src/ui/filament/filament_tube_stroker.cpp` — renders
 a `pathgeo::FilamentPath` as a tube. `paint_tubes()` (`ui_filament_path_plan.cpp`)
 strokes every route of a plan through it, for the detail canvas and the AMS
 overview canvas alike — the single source of truth for lane rendering.
@@ -285,7 +285,7 @@ without the caller branching; walls and bore still draw.
 ## RenderCtx & Phase Decomposition
 
 The render pass threads a small context through every phase
-(`src/ui/ui_filament_path_internal.h#RenderCtx`):
+(`src/ui/filament/ui_filament_path_internal.h#RenderCtx`):
 
 ```cpp
 struct RenderCtx {
@@ -312,7 +312,7 @@ void render_overlay_content(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* 
 ```
 
 LINEAR/HUB is frame → plan → paint → boxes and glyphs
-(`src/ui/ui_filament_path_topology.cpp#render_linear_hub`):
+(`src/ui/filament/ui_filament_path_topology.cpp#render_linear_hub`):
 
 ```cpp
 void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
@@ -472,12 +472,12 @@ neighbours overlap the nearest column answers. A lane tap reaches the slot callb
 tap reaches the toolhead callback (`filament_path_canvas_set_toolhead_callback()`), or the
 slot callback when none is set. The AMS panel's toolhead callback offers a tool change and
 falls back to the slot menu for the mounted head or a slot mapped to no tool
-(`src/ui/ui_panel_ams.cpp#on_path_toolhead_clicked`).
+(`src/ui/filament/ui_panel_ams.cpp#on_path_toolhead_clicked`).
 
 ### What invalidates what
 
 State setters call `layered_mark_dirty(obj)`
-(`src/ui/ui_filament_path_layers.cpp#layered_mark_dirty`):
+(`src/ui/filament/ui_filament_path_layers.cpp#layered_mark_dirty`):
 
 ```cpp
 void layered_mark_dirty(lv_obj_t* obj) {
@@ -627,19 +627,19 @@ run without a display and assert exact arc tangents and lane separation.
 
 | File | Contents |
 |------|----------|
-| `include/filament_path_geometry.h`, `src/ui/filament_path_geometry.cpp` | `helix::ui::pathgeo` — pure path math, arc-fillet routing, merge fan |
-| `include/filament_tube_stroker.h`, `src/ui/filament_tube_stroker.cpp` | Concentric tube stroking passes and color helpers |
+| `include/filament_path_geometry.h`, `src/ui/filament/filament_path_geometry.cpp` | `helix::ui::pathgeo` — pure path math, arc-fillet routing, merge fan |
+| `include/filament_tube_stroker.h`, `src/ui/filament/filament_tube_stroker.cpp` | Concentric tube stroking passes and color helpers |
 | `include/ui_filament_path_canvas.h` | Public widget API: create/register + the C state setters |
-| `src/ui/ui_filament_path_internal.h` | `FilamentPathData`, `LayerState`, `PathCache`, `HitRects`, `RenderCtx`, `BaseGeometry`, `ThemeCache`, `AnimState` |
-| `src/ui/ui_filament_path_canvas.cpp` | Widget lifecycle, theme, click dispatch, DRAW_POST callback, C API, XML registration |
-| `src/ui/ui_filament_path_layers.cpp` | Canvas/buffer management, dirty flags, async refresh, size-change handling, teardown |
-| `src/ui/ui_filament_path_topology.cpp` | The three topology renderers + phase functions + DRAW_POST `render_animation_overlay()` |
-| `src/ui/ui_filament_path_plan.h`, `.cpp` | LINEAR/HUB and MIXED frames, route plans for all three topologies, span styles, sensor bands, layered `paint_tubes()` |
-| `src/ui/ui_filament_path_glyphs.cpp` | Hub box, buffer coil, filament tip, nozzle, toolhead, badges |
-| `include/ui_toolhead_badge.h`, `src/ui/ui_toolhead_badge.cpp` | Toolhead glyph bounds per style, the tool badge's look and corner rect |
-| `src/ui/ui_filament_path_anim.cpp` | The five `lv_anim`-driven animation systems |
-| `src/ui/ui_system_path_plan.h`, `.cpp` | AMS overview state, layout and `plan_overview()` onto the shared route plan |
-| `src/ui/ui_system_path_canvas.cpp` | AMS overview canvas: widget, setters, boxes and toolheads over the painted plan |
+| `src/ui/filament/ui_filament_path_internal.h` | `FilamentPathData`, `LayerState`, `PathCache`, `HitRects`, `RenderCtx`, `BaseGeometry`, `ThemeCache`, `AnimState` |
+| `src/ui/filament/ui_filament_path_canvas.cpp` | Widget lifecycle, theme, click dispatch, DRAW_POST callback, C API, XML registration |
+| `src/ui/filament/ui_filament_path_layers.cpp` | Canvas/buffer management, dirty flags, async refresh, size-change handling, teardown |
+| `src/ui/filament/ui_filament_path_topology.cpp` | The three topology renderers + phase functions + DRAW_POST `render_animation_overlay()` |
+| `src/ui/filament/ui_filament_path_plan.h`, `.cpp` | LINEAR/HUB and MIXED frames, route plans for all three topologies, span styles, sensor bands, layered `paint_tubes()` |
+| `src/ui/filament/ui_filament_path_glyphs.cpp` | Hub box, buffer coil, filament tip, nozzle, toolhead, badges |
+| `include/ui_toolhead_badge.h`, `src/ui/filament/ui_toolhead_badge.cpp` | Toolhead glyph bounds per style, the tool badge's look and corner rect |
+| `src/ui/filament/ui_filament_path_anim.cpp` | The five `lv_anim`-driven animation systems |
+| `src/ui/filament/ui_system_path_plan.h`, `.cpp` | AMS overview state, layout and `plan_overview()` onto the shared route plan |
+| `src/ui/filament/ui_system_path_canvas.cpp` | AMS overview canvas: widget, setters, boxes and toolheads over the painted plan |
 
 ---
 

@@ -17,7 +17,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/draw_buf_alloc_spy.h"
 #include "lvgl/lvgl.h"
-#include "src/ui/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_filament_path_internal.h"
 
 #include <cstddef>
 

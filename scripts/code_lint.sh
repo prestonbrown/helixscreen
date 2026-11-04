@@ -218,7 +218,7 @@ lint_busyclock_advance_for_test() {
 # These view files delegate temperature commands to helix::TemperatureController.
 # A direct send is either `api_->set_temperature(` or any `->set_temperature(`
 # whose receiver is not a `controller`.
-RAW_SET_TEMPERATURE_FILES="src/ui/ui_overlay_temp_graph.cpp src/ui/ui_panel_controls.cpp src/system/post_op_cooldown_manager.cpp src/ui/panel_widgets/preheat_widget.cpp src/ui/calibration/ui_panel_bed_mesh.cpp src/ui/ui_panel_filament.cpp src/ui/temperature_service.cpp src/ui/ui_ams_sidebar.cpp"
+RAW_SET_TEMPERATURE_FILES="src/ui/ui_overlay_temp_graph.cpp src/ui/ui_panel_controls.cpp src/system/post_op_cooldown_manager.cpp src/ui/panel_widgets/preheat_widget.cpp src/ui/calibration/ui_panel_bed_mesh.cpp src/ui/filament/ui_panel_filament.cpp src/ui/temperature_service.cpp src/ui/filament/ui_ams_sidebar.cpp"
 
 raw_set_temperature_offenders() {
     grep -n 'api_->set_temperature' "$@"
@@ -284,7 +284,7 @@ lint_centidegree_misnomer() {
 # The x100 pattern catches a decidegree read at 1/10 scale (45C shown as "4C"),
 # which the x10 tail lets through. Its identifier set is narrower: the keypad
 # converts centimm via `value / 100`, and bed-mesh Z values are distances.
-INLINE_DECIDEGREE_FILES="src/print/print_start_collector.cpp src/api/moonraker_api_controls.cpp src/api/moonraker_discovery_sequence.cpp src/printer/ams_backend_ad5x_ifs.cpp src/printer/ams_backend_cfs.cpp src/system/telemetry_manager.cpp src/ui/panel_widgets/nozzle_temps_widget.cpp src/ui/ui_ams_sidebar.cpp src/ui/temperature_service.cpp src/ui/ui_overlay_temp_graph.cpp src/ui/calibration/ui_panel_bed_mesh.cpp src/ui/calibration/ui_panel_calibration_pid.cpp src/ui/ui_panel_controls.cpp src/ui/ui_panel_filament.cpp src/ui/print/ui_print_preparation_manager.cpp src/ui/ui_temp_display.cpp"
+INLINE_DECIDEGREE_FILES="src/print/print_start_collector.cpp src/api/moonraker_api_controls.cpp src/api/moonraker_discovery_sequence.cpp src/printer/ams_backend_ad5x_ifs.cpp src/printer/ams_backend_cfs.cpp src/system/telemetry_manager.cpp src/ui/panel_widgets/nozzle_temps_widget.cpp src/ui/filament/ui_ams_sidebar.cpp src/ui/temperature_service.cpp src/ui/ui_overlay_temp_graph.cpp src/ui/calibration/ui_panel_bed_mesh.cpp src/ui/calibration/ui_panel_calibration_pid.cpp src/ui/ui_panel_controls.cpp src/ui/filament/ui_panel_filament.cpp src/ui/print/ui_print_preparation_manager.cpp src/ui/ui_temp_display.cpp"
 
 inline_decidegree_offenders() {
     local pat='(target|temp|deci|nozzle|bed|chamber|heater|value)[A-Za-z_]*(\s*\))?\s*[*/]\s*10(\.0?f?)?([^0-9.]|$)'
@@ -1248,7 +1248,7 @@ lint_guided_device_flows() {
         return 1
     fi
     for fn in "${families[@]}"; do
-        [ "$(grep -cE "^[[:space:]]*${fn%();},\$" src/ui/ui_guided_device_flow.cpp)" = 1 ] ||
+        [ "$(grep -cE "^[[:space:]]*${fn%();},\$" src/ui/filament/ui_guided_device_flow.cpp)" = 1 ] ||
             { echo "register_builtin_guided_device_flows() does not run ${fn%;}"; rc=1; }
     done
     for f in src/application/application.cpp firmware/helixscreen-esp32/components/helixapp/app_boot.cpp; do

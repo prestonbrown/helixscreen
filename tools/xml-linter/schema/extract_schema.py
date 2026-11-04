@@ -1215,33 +1215,33 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["bed_mesh"],
         "inherits": "lv_obj",
     },
-    "ui_ams_slot.cpp": {
+    "filament/ui_ams_slot.cpp": {
         "widgets": ["ams_slot"],
         "inherits": "lv_obj",
     },
-    "ui_ams_mini_status.cpp": {
+    "filament/ui_ams_mini_status.cpp": {
         "widgets": ["ams_mini_status"],
         "inherits": "lv_obj",
         "extra_attrs": {
             "card": {"type": "bool"},
         },
     },
-    "ui_spool_canvas.cpp": {
+    "filament/ui_spool_canvas.cpp": {
         "widgets": ["spool_canvas"],
         "inherits": "lv_obj",
         "extra_attrs": {
             "size": {"type": "int"},
         },
     },
-    "ui_filament_path_canvas.cpp": {
+    "filament/ui_filament_path_canvas.cpp": {
         "widgets": ["filament_path_canvas"],
         "inherits": "lv_obj",
     },
-    "ui_system_path_canvas.cpp": {
+    "filament/ui_system_path_canvas.cpp": {
         "widgets": ["system_path_canvas"],
         "inherits": "lv_obj",
     },
-    "ui_endless_spool_arrows.cpp": {
+    "filament/ui_endless_spool_arrows.cpp": {
         "widgets": ["endless_spool_arrows"],
         "inherits": "lv_obj",
     },

@@ -2130,13 +2130,13 @@ EOF
     printf 'void register_wifi_device_flows();\nvoid register_led_device_flows();\nvoid register_builtin_guided_device_flows();\n' |
         put include/ui_guided_device_flow.h
     printf 'void (*const kFlows[])() = {\n    register_wifi_device_flows,\n    register_led_device_flows,\n};\n' |
-        put src/ui/ui_guided_device_flow.cpp
+        put src/ui/filament/ui_guided_device_flow.cpp
     printf '    register_builtin_guided_device_flows();\n' | put src/application/application.cpp
     printf '    register_builtin_guided_device_flows();\n' | put firmware/helixscreen-esp32/components/helixapp/app_boot.cpp
     run lint_guided_device_flows
     [ "$status" -eq 0 ] || fail "$output"
     printf 'void (*const kFlows[])() = {\n    register_wifi_device_flows,\n};\n' |
-        put src/ui/ui_guided_device_flow.cpp
+        put src/ui/filament/ui_guided_device_flow.cpp
     printf 'void boot() {}\n' | put firmware/helixscreen-esp32/components/helixapp/app_boot.cpp
     run lint_guided_device_flows
     [ "$status" -eq 1 ]

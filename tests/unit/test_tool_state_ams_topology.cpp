@@ -532,7 +532,7 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label keeps a tool name its owner con
 
 namespace {
 
-// Brings up the real badge observers from src/ui/ui_ams_tool_text.cpp over the
+// Brings up the real badge observers from src/ui/filament/ui_ams_tool_text.cpp over the
 // real ToolState subjects, so nothing here reimplements the badge's gate or its
 // format string. Teardown mirrors AfcToolchangeRenderFixture in
 // test_afc_toolchange.cpp: deinit_one() releases the observers before the

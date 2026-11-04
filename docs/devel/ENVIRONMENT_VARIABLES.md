@@ -1654,7 +1654,7 @@ Pin the filament-path animation to one segment so a single leg of the path can b
 |----------|-------|
 | **Values** | `PREP`, `LANE`, `HUB`, `OUTPUT`, `TOOLHEAD`, `NOZZLE` (matched case-insensitively) |
 | **Default** | Unset — segment follows real AMS state |
-| **Files** | `src/ui/ui_filament_path_topology.cpp`, `src/ui/ui_filament_path_anim.cpp` |
+| **Files** | `src/ui/filament/ui_filament_path_topology.cpp`, `src/ui/filament/ui_filament_path_anim.cpp` |
 
 ```bash
 # Freeze the path at the hub leg with flow animation running

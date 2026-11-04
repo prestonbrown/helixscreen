@@ -270,8 +270,8 @@ scripts/setup-worktree.sh feature/ams-action-from-phases
 | `include/ams_types.h` | `ams_action_is_busy()` / `ams_action_is_filament_operation()` become derived or go away |
 | `include/ams_step_operation.h` | `detect_step_operation()` loses its passed-in predicate |
 | `src/printer/ams_backend_*.cpp` | the 79 sites |
-| `src/ui/ui_ams_sidebar.cpp` | asks the phase model instead of the action |
-| `src/ui/ui_ams_slot.cpp` | pulse asks the phase model |
+| `src/ui/filament/ui_ams_sidebar.cpp` | asks the phase model instead of the action |
+| `src/ui/filament/ui_ams_slot.cpp` | pulse asks the phase model |
 | `tests/unit/test_ams_step_operation.cpp` | signature change, 19 call sites |
 
 ## Related reading

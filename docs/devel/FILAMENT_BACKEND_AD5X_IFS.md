@@ -239,7 +239,7 @@ On a raise: `runout_active_ = true`, `system_info_.filament_runout = true`, and 
 
 **Recovery actions** (`build_recovery_actions()` branches on `runout_active_`; the runout set is `runout_recovery_actions()`): while the head switch reads empty, Load (`INSERT_PRUTOK_IFS PRUTOK=<lane that ran out>`, primary, `requires_homed`) when `print_blocks_filament_load()` allows it, then `RESUME` (hot, not primary: zMod's RESUME refuses on an empty head switch), a Purge (hot): `_GOTO_TRASH` + `PURGE_FILAMENT` over the bin when the printer defines zMod's `_G28`, `_GOTO_TRASH` and `PURGE_FILAMENT`, else a plain `M83` + `G1 E50 F600` in place (`runout_purge_gcode()`), and `IFS_UNLOCK` (danger, cold-safe). With filament at the head, `RESUME` is primary and there is no Load. The detail text tells the user to load filament to the toolhead, then Resume. The operation-timeout fault keeps its lone `IFS_UNLOCK`.
 
-**Purge over the bin.** Every user Purge surface asks the active backend for `AmsBackend::purge_preamble_gcode(job_holds_machine)` and sends it before the purge macro or raw fallback (`helix::ui::run_after_purge_preamble()`, `src/ui/filament_op_execute.cpp`). The AD5X answers `_G28` + `_GOTO_TRASH` when idle and `_GOTO_TRASH` alone while a job holds the machine, only when discovery saw both `gcode_macro _G28` and `gcode_macro _GOTO_TRASH` (stock zMod); otherwise nothing, so Forge-X and other firmware purge exactly as before. zMod's `PURGE_FILAMENT` purges in place on the AD5X because the `_T_IN` it calls is an empty stub there.
+**Purge over the bin.** Every user Purge surface asks the active backend for `AmsBackend::purge_preamble_gcode(job_holds_machine)` and sends it before the purge macro or raw fallback (`helix::ui::run_after_purge_preamble()`, `src/ui/filament/filament_op_execute.cpp`). The AD5X answers `_G28` + `_GOTO_TRASH` when idle and `_GOTO_TRASH` alone while a job holds the machine, only when discovery saw both `gcode_macro _G28` and `gcode_macro _GOTO_TRASH` (stock zMod); otherwise nothing, so Forge-X and other firmware purge exactly as before. zMod's `PURGE_FILAMENT` purges in place on the AD5X because the `_T_IN` it calls is an empty stub there.
 
 > **Load while paused needs a homed toolhead.** Every AD5X load path runs `INSERT_PRUTOK_IFS`, whose macro opens with `_G28` and then moves the toolhead on its own authority (`_GOTO_TRASH`, `_SBROS_TRASH`, `_CLEAR_REZINA` nozzle wipe). On the loadcell-Z AD5X a home with a job on the bed probes the nozzle **down into the part**, trips ZMOD's `ZCONTROL_AUTO` and shuts Klipper down (bundle `XWPBR2DX`). zMod's `_G28` is *conditional* on `homed_axes` (`FLASHFORGE_AD5X_IFS_ANALYSIS.md` §12), so `self_home_skipped_when_homed()` answers true on zMod and `print_blocks_filament_load()` lets a PAUSED job load only while `homed_axes` reads `xyz`; `homed_axes` is cleared by a Klipper error, an `M84` or a cold resume, and then the load is refused again. The macro's `_G28` condition is evaluated in Klipper when the macro runs, not when the user taps, so an `idle_timeout` `M84` landing between the tap and execution still homes. A paused load also needs an empty head: `INSERT_PRUTOK_IFS` first unloads whatever the head switch reads present (`_IFS_REMOVE_CURRENT_PRUTOK`: heat, cut, retract), so `load_unloads_toolhead_now()` makes a loaded head refuse a paused load as it refuses an unload. That rule gates the backend (`refuse_load_if_printing()`), every Load button, and the runout dialog's Load, which is built only when homed and re-checked on the tap (`RecoveryAction::requires_homed`), because a recovery button hands its gcode straight to `execute_gcode` where `reject_homing_during_active_print()` never sees the buried `_G28`. The standalone module's `IFS_LOAD` is unverified and keeps the paused refusal. Unload, tool change and Purge are unchanged: Purge never sends `_G28`, and on zMod it parks over the bin with `_GOTO_TRASH`, the same park zMod's own pause uses.
 
@@ -441,14 +441,14 @@ it bare, so it works on a module without that fallback too.
 
 The UI asks before any of this. `AmsBackend::unload_lane_question()` asks nothing by default;
 on this backend it returns the lanes to offer (rows 3-4) or `confirm_clear_toolhead` (row 5).
-The AMS sidebar's Unload (`src/ui/ui_ams_sidebar.cpp#"void AmsOperationSidebar::handle_unload()"`)
-and the Filament panel's Unload (`src/ui/ui_panel_filament.cpp#handle_unload_button`) both call
-`src/ui/ui_unload_lane_choice.cpp#choose_unload_lane` first. Every other slotless unload asks
-through `src/ui/ui_unload_lane_choice.cpp#ask_lane_then_unload`, which sends the answer straight
+The AMS sidebar's Unload (`src/ui/filament/ui_ams_sidebar.cpp#"void AmsOperationSidebar::handle_unload()"`)
+and the Filament panel's Unload (`src/ui/filament/ui_panel_filament.cpp#handle_unload_button`) both call
+`src/ui/filament/ui_unload_lane_choice.cpp#choose_unload_lane` first. Every other slotless unload asks
+through `src/ui/filament/ui_unload_lane_choice.cpp#ask_lane_then_unload`, which sends the answer straight
 to `execute_filament_unload()`: the runout dialog's Unload
-(`src/ui/ui_filament_runout_handler.cpp#dispatch_unload`) and the filament sensor tile's
+(`src/ui/filament/ui_filament_runout_handler.cpp#dispatch_unload`) and the filament sensor tile's
 (`src/ui/panel_widgets/filament_sensor_widget.cpp#dispatch_unload`) when the runout names no
-lane, and bed drying's unload-first (`src/ui/ui_bed_drying_modal.cpp#unload_before_drying`),
+lane, and bed drying's unload-first (`src/ui/filament/ui_bed_drying_modal.cpp#unload_before_drying`),
 where a Cancel leaves the drying unstarted. The lane context menus name their lane and withdraw
 Unload in this state; the bypass toggle and the external spool unload only with a lane active
 or for the bypass spool, neither of which reaches the question. Lanes open the slot picker titled

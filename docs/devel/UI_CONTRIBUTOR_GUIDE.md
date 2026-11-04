@@ -512,7 +512,7 @@ ARGB8888 buffer it owns (re-rendered only when size, reading, phase or palette c
 draws that as one image, so a frame costs one blit per drop. The pure geometry and the
 rasterizer live in `include/humidity_drop_geometry.h` (no LVGL; tested in
 `tests/unit/test_humidity_drop.cpp`, tag `[humidity_drop]`), the widget in
-`src/ui/ui_humidity_drop.cpp`.
+`src/ui/filament/ui_humidity_drop.cpp`.
 
 ### spinner
 
