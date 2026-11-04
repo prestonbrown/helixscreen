@@ -14,6 +14,11 @@
 #include <atomic>
 #include <memory>
 
+namespace helix {
+enum class JogDirection;
+enum class JogMode;
+} // namespace helix
+
 namespace helix::ui {
 
 /**
@@ -56,6 +61,9 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
 
+  protected:
+    void on_ui_destroyed() override;
+
   private:
     /// Step machine values published on s_cfs_chute_state. Order matters: the
     /// cancel path treats everything before ADJUSTING as "nothing to unwind".
@@ -70,8 +78,12 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     void set_state(State state);
     void start_calibration();
     enum class Axis { X, Y };
-    void jog(Axis axis, double delta_mm);
-    void set_step_index(int index);
+    /// True when the jog went out, which is what lets a hold keep repeating.
+    bool jog(Axis axis, double delta_mm);
+    static bool jog_pad_jog_cb(helix::JogDirection direction, float distance_mm, bool is_repeat,
+                               void* user_data);
+    void set_jog_mode(helix::JogMode mode);
+    void fit_jog_pad();
     void save_position();
     void update_x_display(int centimm);
     void update_y_display(int centimm);
@@ -83,8 +95,9 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     double current_y_mm_ = 0.0;
     bool y_known_ = false;
 
-    double current_step_mm_ = helix::chute_jog_step_mm(helix::kChuteJogDefaultStepIndex);
     helix::ChuteJogGuard jog_guard_;
+    /// Child of the overlay tree; on_ui_destroyed() clears it.
+    lv_obj_t* jog_pad_ = nullptr;
 
     /// Set the moment the overlay starts leaving; the backend polls it at
     /// each step boundary so a cancel during the home drops the flow instead
@@ -94,6 +107,7 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
 
     ObserverGuard x_observer_;
     ObserverGuard y_observer_;
+    ObserverGuard motion_blocked_observer_;
     SubjectManager subjects_;
 };
 

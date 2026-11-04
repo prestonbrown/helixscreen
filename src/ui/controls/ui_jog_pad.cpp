@@ -84,6 +84,8 @@ typedef struct {
     // drawn in a warning color to signal that homing is required.
     bool is_homed;
 
+    helix::JogPadZoneOptions zone_options;
+
     // Theme-aware colors (loaded from component scope or fallbacks)
     lv_color_t jog_color_outer_ring;
     lv_color_t jog_color_inner_circle;
@@ -191,21 +193,39 @@ static JogDirection angle_to_direction(float angle) {
         return JogDirection::NW;
 }
 
-// Which zone one point on the pad lands in: off the circle, the home button,
-// or one of the eight directional wedges split into inner/outer rings. The
-// single source for every zone decision - press, press tracking and click.
-namespace {
-struct JogPadZone {
-    bool on_pad;
-    bool home;
-    JogDirection direction;
-    bool inner;
-};
-} // namespace
+// Helper: The four-wedge form of angle_to_direction (90° each, centered on cardinals)
+static JogDirection angle_to_cardinal(float angle) {
+    if (angle >= 315.0f || angle < 45.0f)
+        return JogDirection::N;
+    if (angle < 135.0f)
+        return JogDirection::E;
+    if (angle < 225.0f)
+        return JogDirection::S;
+    return JogDirection::W;
+}
+
+namespace helix {
+JogPadZone jog_pad_zone_for_offset(int dx, int dy, int radius, const JogPadZoneOptions& options) {
+    JogPadZone zone{false, false, JogDirection::N, false};
+    const float distance = sqrtf(static_cast<float>(dx * dx + dy * dy));
+    if (distance > static_cast<float>(radius))
+        return zone;
+
+    if (distance < static_cast<float>(static_cast<int32_t>(radius * kHomeZoneRatio))) {
+        zone.on_pad = options.home_zone;
+        zone.home = options.home_zone;
+        return zone;
+    }
+    zone.on_pad = true;
+    const float angle = calculate_angle(dx, dy);
+    zone.direction = options.cardinal_only ? angle_to_cardinal(angle) : angle_to_direction(angle);
+    zone.inner =
+        distance < static_cast<float>(static_cast<int32_t>(radius * kInnerZoneBoundaryRatio));
+    return zone;
+}
+} // namespace helix
 
 static JogPadZone jog_pad_zone_at(lv_obj_t* obj, jog_pad_state_t* st, const lv_point_t& point) {
-    JogPadZone zone{false, false, JogDirection::N, false};
-
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
     lv_coord_t width = lv_area_get_width(&obj_coords);
@@ -213,21 +233,9 @@ static JogPadZone jog_pad_zone_at(lv_obj_t* obj, jog_pad_state_t* st, const lv_p
     lv_coord_t center_y = obj_coords.y1 + width / 2; // square pad: width is the height too
     lv_coord_t radius = width / 2;
 
-    lv_coord_t dx = point.x - center_x;
-    lv_coord_t dy = point.y - center_y;
-    float distance = sqrtf((float)(dx * dx + dy * dy));
-    if (distance > radius)
-        return zone;
-
     jog_pad_recompute_zones(st, radius);
-    zone.on_pad = true;
-    if (distance < st->home_radius_px) {
-        zone.home = true;
-        return zone;
-    }
-    zone.direction = angle_to_direction(calculate_angle(dx, dy));
-    zone.inner = distance < st->inner_boundary_px;
-    return zone;
+    return jog_pad_zone_for_offset(point.x - center_x, point.y - center_y, radius,
+                                   st->zone_options);
 }
 
 // Custom draw event: Draw two-zone circular jog pad (Bambu Lab style)
@@ -359,52 +367,56 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     home_bg_dsc.end_angle = 360;
     lv_draw_arc(layer, &home_bg_dsc);
 
-    // Draw visual ring border around home area (warning-tinted when not homed)
-    lv_draw_arc_dsc_t home_ring_dsc;
-    lv_draw_arc_dsc_init(&home_ring_dsc);
-    home_ring_dsc.color =
-        state->is_homed ? state->jog_color_home_border : state->jog_color_home_border_unhomed;
-    home_ring_dsc.width = 3; // Border thickness
-    home_ring_dsc.center.x = center_x;
-    home_ring_dsc.center.y = center_y;
-    home_ring_dsc.radius = static_cast<uint16_t>(home_radius);
-    home_ring_dsc.start_angle = 0;
-    home_ring_dsc.end_angle = 360;
-    lv_draw_arc(layer, &home_ring_dsc);
+    if (state->zone_options.home_zone) {
+        // Draw visual ring border around home area (warning-tinted when not homed)
+        lv_draw_arc_dsc_t home_ring_dsc;
+        lv_draw_arc_dsc_init(&home_ring_dsc);
+        home_ring_dsc.color =
+            state->is_homed ? state->jog_color_home_border : state->jog_color_home_border_unhomed;
+        home_ring_dsc.width = 3; // Border thickness
+        home_ring_dsc.center.x = center_x;
+        home_ring_dsc.center.y = center_y;
+        home_ring_dsc.radius = static_cast<uint16_t>(home_radius);
+        home_ring_dsc.start_angle = 0;
+        home_ring_dsc.end_angle = 360;
+        lv_draw_arc(layer, &home_ring_dsc);
 
-    // Draw center home icon (scaled to jog pad size)
-    lv_draw_label_dsc_t home_label_dsc;
-    lv_draw_label_dsc_init(&home_label_dsc);
-    home_label_dsc.color =
-        state->is_homed ? state->jog_color_home_text : state->jog_color_home_text_unhomed;
-    home_label_dsc.text = ICON_HOME;
-    home_label_dsc.font = get_icon_font(radius);
-    home_label_dsc.align = LV_TEXT_ALIGN_CENTER;
+        // Draw center home icon (scaled to jog pad size)
+        lv_draw_label_dsc_t home_label_dsc;
+        lv_draw_label_dsc_init(&home_label_dsc);
+        home_label_dsc.color =
+            state->is_homed ? state->jog_color_home_text : state->jog_color_home_text_unhomed;
+        home_label_dsc.text = ICON_HOME;
+        home_label_dsc.font = get_icon_font(radius);
+        home_label_dsc.align = LV_TEXT_ALIGN_CENTER;
 
-    lv_area_t home_label_area =
-        helix::jog_pad_home_icon_area(center_x, center_y, home_radius, home_label_dsc.font);
-    lv_draw_label(layer, &home_label_dsc, &home_label_area);
+        lv_area_t home_label_area =
+            helix::jog_pad_home_icon_area(center_x, center_y, home_radius, home_label_dsc.font);
+        lv_draw_label(layer, &home_label_dsc, &home_label_area);
+    }
 
     // Draw zone boundary lines to show the edges of each directional click zone
     // 8 zones means 8 boundaries - at 22.5° intervals starting from 22.5°
-    for (float angle_deg : {22.5f, 67.5f, 112.5f, 157.5f, 202.5f, 247.5f, 292.5f, 337.5f}) {
-        float angle_rad = angle_deg * static_cast<float>(M_PI) / 180.0f;
+    if (!state->zone_options.cardinal_only) {
+        for (float angle_deg : {22.5f, 67.5f, 112.5f, 157.5f, 202.5f, 247.5f, 292.5f, 337.5f}) {
+            float angle_rad = angle_deg * static_cast<float>(M_PI) / 180.0f;
 
-        lv_draw_line_dsc_t boundary_line_dsc;
-        lv_draw_line_dsc_init(&boundary_line_dsc);
-        boundary_line_dsc.color = state->jog_color_boundary_lines;
-        boundary_line_dsc.width = 1;
-        boundary_line_dsc.opa = LV_OPA_50;
+            lv_draw_line_dsc_t boundary_line_dsc;
+            lv_draw_line_dsc_init(&boundary_line_dsc);
+            boundary_line_dsc.color = state->jog_color_boundary_lines;
+            boundary_line_dsc.width = 1;
+            boundary_line_dsc.opa = LV_OPA_50;
 
-        // Start point: just outside home button (27% of radius)
-        boundary_line_dsc.p1.x = center_x + (radius * 0.27f) * cosf(angle_rad);
-        boundary_line_dsc.p1.y = center_y + (radius * 0.27f) * sinf(angle_rad);
+            // Start point: just outside home button (27% of radius)
+            boundary_line_dsc.p1.x = center_x + (radius * 0.27f) * cosf(angle_rad);
+            boundary_line_dsc.p1.y = center_y + (radius * 0.27f) * sinf(angle_rad);
 
-        // End point: at outer edge (98% to avoid clipping)
-        boundary_line_dsc.p2.x = center_x + (radius * 0.98f) * cosf(angle_rad);
-        boundary_line_dsc.p2.y = center_y + (radius * 0.98f) * sinf(angle_rad);
+            // End point: at outer edge (98% to avoid clipping)
+            boundary_line_dsc.p2.x = center_x + (radius * 0.98f) * cosf(angle_rad);
+            boundary_line_dsc.p2.y = center_y + (radius * 0.98f) * sinf(angle_rad);
 
-        lv_draw_line(layer, &boundary_line_dsc);
+            lv_draw_line(layer, &boundary_line_dsc);
+        }
     }
 
     // Draw distance labels showing movement amounts for each ring (scaled fonts)
@@ -512,14 +524,15 @@ static void jog_pad_draw_cb(lv_event_t* e) {
             highlight_dsc.end_angle = 360;
             lv_draw_arc(layer, &highlight_dsc);
         } else {
-            // Highlight directional wedge (45° segment)
+            // Highlight directional wedge (45° segment, 90° on a cardinal-only pad)
             // Map direction enum to angle in our coordinate system (0°=North, CW)
             // Enum order: N=0, S=1, E=2, W=3, NE=4, NW=5, SE=6, SW=7
             // Angle mapping: N=0°, NE=45°, E=90°, SE=135°, S=180°, SW=225°, W=270°, NW=315°
             int direction_angles[] = {0, 180, 90, 270, 45, 315, 135, 225};
             int our_wedge_center = direction_angles[static_cast<int>(state->pressed_direction)];
-            int our_wedge_start = our_wedge_center - 22; // 22.5° on each side
-            int our_wedge_end = our_wedge_center + 23;   // Total 45° wedge
+            const bool cardinal = state->zone_options.cardinal_only;
+            int our_wedge_start = our_wedge_center - (cardinal ? 45 : 22); // half wedge per side
+            int our_wedge_end = our_wedge_center + (cardinal ? 45 : 23);
 
             // Convert to LVGL's coordinate system (0°=East, CW)
             int lvgl_start = convert_angle_to_lvgl(our_wedge_start);
@@ -782,6 +795,7 @@ lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
     // Initialize state
     state->current_mode = JogMode::Coarse;
     state->is_homed = false; // Printer boots unhomed; observer updates this
+    state->zone_options = helix::JogPadZoneOptions{};
 
     // Load colors from component scope (tries "motion_panel" first, falls back to defaults)
     load_colors(state, "motion_panel");
@@ -844,6 +858,15 @@ void ui_jog_pad_set_mode(lv_obj_t* obj, JogMode mode) {
 JogMode ui_jog_pad_get_mode(lv_obj_t* obj) {
     jog_pad_state_t* state = get_state(obj);
     return state ? state->current_mode : JogMode::Coarse;
+}
+
+// NAMESPACE_OK: joins this header's global ui_jog_pad_* free-function API
+void ui_jog_pad_set_zone_options(lv_obj_t* obj, const helix::JogPadZoneOptions& options) {
+    jog_pad_state_t* state = get_state(obj);
+    if (state) {
+        state->zone_options = options;
+        lv_obj_invalidate(obj);
+    }
 }
 
 void ui_jog_pad_refresh_colors(lv_obj_t* obj) {

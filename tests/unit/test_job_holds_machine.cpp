@@ -313,7 +313,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/bed_drying_modal.xml", 1},
     {"ui_xml/calibration_tool_offset_panel.xml", 2},
     {"ui_xml/chamber_dryer_modal.xml", 1},
-    {"ui_xml/cfs_chute_calibration_overlay.xml", 6},
+    {"ui_xml/cfs_chute_calibration_overlay.xml", 2},
     {"ui_xml/snapmaker_nozzle_offset_overlay.xml", 3},
     {"ui_xml/stepper_resonance_cal_modal.xml", 1},
     {"ui_xml/components/ams_sidebar.xml", 3},

@@ -5,22 +5,9 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 
 namespace helix {
-
-/// Jog distances the chute calibration offers, indexed by the overlay's step
-/// subject and by the step buttons' user_data.
-inline constexpr double kChuteJogStepsMm[] = {0.1, 0.5, 1.0, 10.0};
-inline constexpr int kChuteJogDefaultStepIndex = 1;
-
-/// The distance for a step index; an unknown index gets the default step, so a
-/// bad value can never select the largest one.
-inline double chute_jog_step_mm(int index) {
-    const int count = static_cast<int>(sizeof(kChuteJogStepsMm) / sizeof(kChuteJogStepsMm[0]));
-    return kChuteJogStepsMm[index >= 0 && index < count ? index : kChuteJogDefaultStepIndex];
-}
 
 /// Decides how far each chute calibration jog may move.
 ///

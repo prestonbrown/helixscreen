@@ -11,6 +11,7 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
+#include "ui_jog_pad.h"
 #include "ui_nav.h"
 #include "ui_position_utils.h"
 
@@ -41,7 +42,8 @@ static lv_subject_t s_cfs_chute_y_text;
 static char s_cfs_chute_y_buf[16];
 static lv_subject_t s_cfs_chute_saved_text;
 static char s_cfs_chute_saved_buf[96];
-static lv_subject_t s_cfs_chute_step_idx;
+static lv_subject_t s_cfs_chute_mode_fine_active;
+static lv_subject_t s_cfs_chute_mode_coarse_active;
 
 namespace {
 
@@ -72,8 +74,10 @@ void CfsChuteCalibrationOverlay::init_subjects() {
                                   "cfs_chute_y_display", subjects_);
         UI_MANAGED_SUBJECT_STRING(s_cfs_chute_saved_text, s_cfs_chute_saved_buf, "",
                                   "cfs_chute_saved_pos", subjects_);
-        UI_MANAGED_SUBJECT_INT(s_cfs_chute_step_idx, helix::kChuteJogDefaultStepIndex,
-                               "cfs_chute_step_idx", subjects_);
+        UI_MANAGED_SUBJECT_INT(s_cfs_chute_mode_fine_active, 1, "cfs_chute_mode_fine_active",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(s_cfs_chute_mode_coarse_active, 0, "cfs_chute_mode_coarse_active",
+                               subjects_);
     });
 }
 
@@ -81,32 +85,15 @@ void CfsChuteCalibrationOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_chute_start_clicked",
          [](lv_event_t*) { get_cfs_chute_calibration_overlay().start_calibration(); }},
-        {"on_chute_jog_up_clicked",
+        {"on_chute_jog_resized",
+         [](lv_event_t*) { get_cfs_chute_calibration_overlay().fit_jog_pad(); }},
+        {"on_chute_mode_fine",
          [](lv_event_t*) {
-             auto& overlay = get_cfs_chute_calibration_overlay();
-             overlay.jog(Axis::Y, overlay.current_step_mm_);
+             get_cfs_chute_calibration_overlay().set_jog_mode(helix::JogMode::Fine);
          }},
-        {"on_chute_jog_down_clicked",
+        {"on_chute_mode_coarse",
          [](lv_event_t*) {
-             auto& overlay = get_cfs_chute_calibration_overlay();
-             overlay.jog(Axis::Y, -overlay.current_step_mm_);
-         }},
-        {"on_chute_jog_left_clicked",
-         [](lv_event_t*) {
-             auto& overlay = get_cfs_chute_calibration_overlay();
-             overlay.jog(Axis::X, -overlay.current_step_mm_);
-         }},
-        {"on_chute_jog_right_clicked",
-         [](lv_event_t*) {
-             auto& overlay = get_cfs_chute_calibration_overlay();
-             overlay.jog(Axis::X, overlay.current_step_mm_);
-         }},
-        {"on_chute_step_clicked",
-         [](lv_event_t* e) {
-             const char* index_str = static_cast<const char*>(lv_event_get_user_data(e));
-             if (index_str) {
-                 get_cfs_chute_calibration_overlay().set_step_index(std::atoi(index_str));
-             }
+             get_cfs_chute_calibration_overlay().set_jog_mode(helix::JogMode::Coarse);
          }},
         {"on_chute_save_clicked",
          [](lv_event_t*) { get_cfs_chute_calibration_overlay().save_position(); }},
@@ -137,14 +124,37 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
         ps.motion_state().get_position_y_subject(), this,
         [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_y_display(centimm); },
         ps.get_subjects_lifetime());
+
+    // The Motion panel's jog pad, with no home button and no diagonals: the flow
+    // homes on its own, and each jog must answer to one axis's limits.
+    lv_obj_t* wrapper = lv_obj_find_by_name(overlay_root_, "chute_jog_wrapper");
+    jog_pad_ = wrapper ? ui_jog_pad_create(wrapper) : nullptr;
+    if (jog_pad_) {
+        lv_obj_set_name(jog_pad_, "jog_pad");
+        lv_obj_set_align(jog_pad_, LV_ALIGN_CENTER);
+        helix::JogPadZoneOptions zones;
+        zones.home_zone = false;
+        zones.cardinal_only = true;
+        ui_jog_pad_set_zone_options(jog_pad_, zones);
+        ui_jog_pad_set_jog_callback(jog_pad_, jog_pad_jog_cb, this);
+        fit_jog_pad();
+    }
+    motion_blocked_observer_ = observe<int>(
+        ps.print_state().get_machine_motion_blocked_subject(), this,
+        [](CfsChuteCalibrationOverlay* self, int blocked) {
+            if (self->jog_pad_) {
+                ui_jog_pad_set_enabled(self->jog_pad_, blocked == 0);
+            }
+        },
+        ps.get_subjects_lifetime());
     return overlay_root_;
 }
 
 void CfsChuteCalibrationOverlay::on_activate() {
     OverlayBase::on_activate();
     cancel_requested_->store(false);
-    // A coarse step left selected from an earlier session must not carry over.
-    set_step_index(helix::kChuteJogDefaultStepIndex);
+    // A coarse mode left selected from an earlier session must not carry over.
+    set_jog_mode(helix::JogMode::Fine);
     jog_guard_.disarm();
     set_state(State::IDLE);
 }
@@ -153,6 +163,9 @@ void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
     // Leaving mid-flow must stop the step chain: the flag first, so a cancel
     // during the home is already visible when the home-done defer runs.
     cancel_requested_->store(true);
+    if (jog_pad_) {
+        ui_jog_pad_stop_repeat(jog_pad_);
+    }
     // Leaving while adjusting leaves the toolhead off-park; re-park it. Before
     // ADJUSTING there is nothing to unwind (the home cannot be aborted); during
     // SAVING the park is idempotent, so sending it again is safe.
@@ -166,6 +179,10 @@ void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
             }
         }
     }
+}
+
+void CfsChuteCalibrationOverlay::on_ui_destroyed() {
+    jog_pad_ = nullptr;
 }
 
 // ============================================================================
@@ -201,15 +218,46 @@ void CfsChuteCalibrationOverlay::start_calibration() {
     }
 }
 
-void CfsChuteCalibrationOverlay::set_step_index(int index) {
-    current_step_mm_ = helix::chute_jog_step_mm(index);
-    lv_subject_set_int(&s_cfs_chute_step_idx, index);
+void CfsChuteCalibrationOverlay::fit_jog_pad() {
+    if (!jog_pad_) {
+        return;
+    }
+    lv_obj_t* wrapper = lv_obj_get_parent(jog_pad_);
+    lv_obj_update_layout(wrapper);
+    const lv_coord_t size = LV_MIN(lv_obj_get_width(wrapper), lv_obj_get_height(wrapper));
+    lv_obj_set_size(jog_pad_, size, size);
 }
 
-void CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
+void CfsChuteCalibrationOverlay::set_jog_mode(helix::JogMode mode) {
+    lv_subject_set_int(&s_cfs_chute_mode_fine_active, mode == helix::JogMode::Fine ? 1 : 0);
+    lv_subject_set_int(&s_cfs_chute_mode_coarse_active, mode == helix::JogMode::Coarse ? 1 : 0);
+    if (jog_pad_) {
+        ui_jog_pad_set_mode(jog_pad_, mode);
+        lv_obj_invalidate(jog_pad_);
+    }
+}
+
+bool CfsChuteCalibrationOverlay::jog_pad_jog_cb(helix::JogDirection direction, float distance_mm,
+                                                bool /*is_repeat*/, void* user_data) {
+    auto* self = static_cast<CfsChuteCalibrationOverlay*>(user_data);
+    switch (direction) {
+    case helix::JogDirection::N:
+        return self->jog(Axis::Y, distance_mm);
+    case helix::JogDirection::S:
+        return self->jog(Axis::Y, -static_cast<double>(distance_mm));
+    case helix::JogDirection::E:
+        return self->jog(Axis::X, distance_mm);
+    case helix::JogDirection::W:
+        return self->jog(Axis::X, -static_cast<double>(distance_mm));
+    default:
+        return false; // A cardinal-only pad never offers a diagonal.
+    }
+}
+
+bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
     auto* backend = chute_backend();
     if (!backend) {
-        return;
+        return false;
     }
 
     // Both axes must be known on either axis's jog: the first one latches the
@@ -218,7 +266,7 @@ void CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
     if (helix::jog_refused_for_unknown_position(bounds.has_x && bounds.has_y,
                                                 x_known_ && y_known_)) {
         NOTIFY_INFO(lv_tr("Toolhead position unknown"));
-        return;
+        return false;
     }
 
     const uint32_t now = lv_tick_get();
@@ -231,13 +279,11 @@ void CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
                                static_cast<double>(bounds.y_max));
 
     switch (decision.outcome) {
-    case helix::ChuteJogGuard::Outcome::Move:
-        if (axis == Axis::X) {
-            backend->jog_chute_x(static_cast<float>(decision.delta));
-        } else {
-            backend->jog_chute_y(static_cast<float>(decision.delta));
-        }
-        break;
+    case helix::ChuteJogGuard::Outcome::Move: {
+        const auto delta = static_cast<float>(decision.delta);
+        return (axis == Axis::X ? backend->jog_chute_x(delta) : backend->jog_chute_y(delta))
+            .success();
+    }
     case helix::ChuteJogGuard::Outcome::PositionUnknown:
         NOTIFY_INFO(lv_tr("Toolhead position unknown"));
         break;
@@ -251,6 +297,7 @@ void CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
         NOTIFY_INFO(lv_tr("Jog Y back to {:.1f} mm before moving X"), jog_guard_.park_y());
         break;
     }
+    return false;
 }
 
 void CfsChuteCalibrationOverlay::save_position() {

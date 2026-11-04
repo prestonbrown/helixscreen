@@ -161,12 +161,3 @@ TEST_CASE("Re-arming starts a fresh chute jog session", "[chute_jog]") {
     CHECK(guard.jog_x(10.0, kSettled, kNewParkX, kParkY, kXMin, kXMax).delta == Approx(10.0));
     CHECK(guard.jog_x(10.0, kSettled, kNewParkX, kParkY, kXMin, kXMax).delta == Approx(5.0));
 }
-
-TEST_CASE("Chute step table maps indexes and defaults bad ones", "[chute_jog]") {
-    CHECK(helix::chute_jog_step_mm(0) == 0.1);
-    CHECK(helix::chute_jog_step_mm(1) == 0.5);
-    CHECK(helix::chute_jog_step_mm(2) == 1.0);
-    CHECK(helix::chute_jog_step_mm(3) == 10.0);
-    CHECK(helix::chute_jog_step_mm(-1) == 0.5);
-    CHECK(helix::chute_jog_step_mm(4) == 0.5);
-}
