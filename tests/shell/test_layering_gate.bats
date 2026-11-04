@@ -123,6 +123,24 @@ layering() {
     contains "upward includes 1 -> 1" "$output"
 }
 
+@test "a header with no .cpp but a ui_ name or an include/ui/ path belongs to ui" {
+    echo '#pragma once' > "$REPO/include/ui_nav.h"
+    mkdir -p "$REPO/include/ui"
+    echo '#pragma once' > "$REPO/include/ui/widget_helpers.h"
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "two header-only ui headers"
+    BASE=$(git -C "$REPO" rev-parse HEAD)
+    echo '#include "ui_nav.h"' >> "$REPO/src/printer/clean.cpp"
+    echo '#include "ui/widget_helpers.h"' >> "$REPO/src/printer/printer_state.cpp"
+    commit_all "nav and helpers from the printer"
+    layering
+    [ "$status" -eq 1 ]
+    contains "src/printer/clean.cpp: upward includes grew 0 -> 1" "$output"
+    contains "include/ui_nav.h (src/ui, ui) from state" "$output"
+    contains "src/printer/printer_state.cpp: upward includes grew 1 -> 2" "$output"
+    contains "include/ui/widget_helpers.h (src/ui, ui) from state" "$output"
+}
+
 @test "a directory missing from the layer table is reported, never failed" {
     mkdir -p "$REPO/src/newdir"
     echo '#include "ui_toast_manager.h"' > "$REPO/src/newdir/x.cpp"

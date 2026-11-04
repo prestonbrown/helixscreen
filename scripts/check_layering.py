@@ -7,8 +7,11 @@
 The layers, low to high, are LAYERS below: every `src/<dir>` belongs to one. A header
 belongs to the directory that holds the `.cpp` of the same stem (`include/foo.h` is
 src/printer's when `src/printer/foo.cpp` exists); a header under `src/<dir>/` belongs to
-that directory. A header with no `.cpp` anywhere is header-only and belongs to nobody:
-its includes are not counted in either direction until it is moved under a layer.
+that directory. A header with no `.cpp` anywhere belongs to the directory its name or
+its include/ subdirectory says it serves (HEADER_ONLY_OWNERS: `ui_*.h`, `include/ui/`
+and `include/helix/ui/` are src/ui's, `include/led/` src/led's, `include/system/`
+src/system's, `include/state/` src/printer's); one that matches no row belongs to
+nobody, and its includes are not counted in either direction until it is moved.
 
 An upward edge is a file in one layer including a header owned by a higher layer. The
 ratchet is measured from the branch's fork point (scripts/diff_base.py) to HEAD over
@@ -60,6 +63,18 @@ LAYER_NAME = {i: name for i, (name, _) in enumerate(LAYERS)}
 # (includer directory, header basename) pairs no file may include again. A
 # refactor that empties a pair adds it here in the same change.
 CLEARED_PAIRS: tuple[tuple[str, str], ...] = ()
+
+# A header with no same-stem .cpp takes its owner from the first row whose prefix
+# matches its path or its basename. A header matching no row is header-only and
+# belongs to nobody. Rows name the layer a header serves, not where it is used.
+HEADER_ONLY_OWNERS: tuple[tuple[str, str], ...] = (
+    ("include/ui/", "ui"),
+    ("include/helix/ui/", "ui"),
+    ("ui_", "ui"),
+    ("include/led/", "led"),
+    ("include/system/", "system"),
+    ("include/state/", "printer"),
+)
 
 SOURCES = (":(glob)src/**/*.cpp", ":(glob)src/**/*.h", ":(glob)include/**/*.h")
 INCLUDE_RE = re.compile(r'^[ \t]*#[ \t]*include[ \t]*"([^"]+)"', re.M)
@@ -125,6 +140,10 @@ def owners(files) -> dict[str, str]:
         if not f.endswith(".h"):
             continue
         d = src_dir(f) if f.startswith("src/") else stems.get(Path(f).stem)
+        if d is None:
+            name = Path(f).name
+            d = next((o for p, o in HEADER_ONLY_OWNERS
+                      if f.startswith(p) or name.startswith(p)), None)
         if d:
             out[f] = d
     return out

@@ -197,8 +197,11 @@ which `--report` prints as a directory-to-directory include matrix.
 | ui | `ui` | LVGL widgets, panels, overlays, modals |
 | app | `application`, `abort`, `remote`, `tools`, `lvgl-demo` | wiring and lifecycle |
 
-A header belongs to the directory holding the `.cpp` of the same stem; a header with
-no `.cpp` is header-only and belongs to nobody until it is moved under a layer. The
+A header belongs to the directory holding the `.cpp` of the same stem; one with no
+`.cpp` belongs to the layer its name or `include/` subdirectory serves (`ui_*.h`,
+`include/ui/` and `include/helix/ui/` are ui's; `include/led/`, `include/system/` and
+`include/state/` are led's, system's and printer's), and one matching neither is
+header-only and belongs to nobody until it is moved under a layer. The
 gate (`qc_layering`, pre-push and land-gate) measures a branch from its fork point:
 a file may lose upward includes and may not gain one, a refactor that empties a
 directory-to-header pair bans it tree-wide through `CLEARED_PAIRS`, and a commit
