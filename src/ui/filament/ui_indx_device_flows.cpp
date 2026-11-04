@@ -18,6 +18,7 @@
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "save_config_restart.h"
+#include "widget_subjects.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -39,22 +40,23 @@ namespace {
 lv_subject_t s_indx_flow_phase{};
 lv_subject_t s_indx_flow_status{};
 char s_indx_flow_status_buf[128] = {};
-bool s_indx_flow_subjects_ready = false;
+helix::WidgetSubjects s_indx_flow_subjects{"IndxFlowSubjects",
+                                           StaticSubjectRegistry::Lifetime::Process};
 
 constexpr int kPhaseIdle = 0;
 constexpr int kPhaseRunning = 1;
 constexpr int kPhaseResult = 2;
 
-/// Subjects initialize once per process (a second init would memzero a subject whose observers
+/// Subjects initialize once until exit (a second init would memzero a subject whose observers
 /// are live) and always register in the global scope, which is where the status line's XML binds
 /// them. A global registry that lost them is repopulated without re-initializing.
 void ensure_flow_subjects() {
-    if (!s_indx_flow_subjects_ready) {
-        s_indx_flow_subjects_ready = true;
-        lv_subject_init_int(&s_indx_flow_phase, kPhaseIdle);
-        lv_subject_init_string(&s_indx_flow_status, s_indx_flow_status_buf, nullptr,
-                               sizeof(s_indx_flow_status_buf), "");
-    }
+    s_indx_flow_subjects.ensure_init([] {
+        UI_MANAGED_SUBJECT_INT(s_indx_flow_phase, kPhaseIdle, "indx_flow_phase",
+                               s_indx_flow_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_indx_flow_status, s_indx_flow_status_buf, "",
+                                  "indx_flow_status", s_indx_flow_subjects);
+    });
     if (lv_xml_get_subject(nullptr, "indx_flow_phase") != &s_indx_flow_phase) {
         lv_xml_register_subject(nullptr, "indx_flow_phase", &s_indx_flow_phase);
         lv_xml_register_subject(nullptr, "indx_flow_status", &s_indx_flow_status);

@@ -302,6 +302,7 @@ bool PrintPreparationManager::restart_stale_macro_analysis() {
 void PrintPreparationManager::ensure_estimate_subject_initialized() {
     if (!estimate_subject_initialized_) {
         lv_subject_init_int(&preprint_estimate_subject_, 0);
+        subjects_.register_subject(&preprint_estimate_subject_);
         estimate_subject_initialized_ = true;
     }
 }

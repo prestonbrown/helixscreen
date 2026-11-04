@@ -26,9 +26,9 @@ class UiClogBar;
  * Live while open: every row is re-read from the backend on each AmsState data
  * revision or backend-count change.
  *
- * Subjects are static (shared across instances) because lv_xml_register_subject
- * rejects duplicate names — the first registration wins and the pointer persists.
- * Destroying per-instance subjects would leave the registry with dangling pointers.
+ * Subjects are static (shared across instances): the XML engine has one name
+ * scope, and a successor can open before the previous instance is freed.
+ * StaticSubjectRegistry releases them at exit.
  */
 class BufferStatusModal : public Modal {
   public:
@@ -62,7 +62,6 @@ class BufferStatusModal : public Modal {
     /// slider on the same reading.
     void refresh();
 
-    static bool subjects_initialized_;
     std::unique_ptr<helix::ui::UiBufferSlider> slider_;
     /// The clog reading above the columns. Owned here so it is torn down
     /// before Modal::~Modal() frees the dialog tree it points into.

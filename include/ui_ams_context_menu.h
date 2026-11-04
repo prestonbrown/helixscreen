@@ -170,9 +170,7 @@ class AmsContextMenu : public ContextMenu {
     // AmsOverviewPanel, ExternalSpoolMenu) and all three publish the same two
     // names, so the last registration wins and the first owner to be destroyed
     // withdraws — or worse, silently outlives — a name the others still serve.
-    // Before this was static, a destroyed menu left "ams_slot_can_load" pointing
-    // into freed storage, and the next lv_xml_create() binding it wrote an
-    // observer through a reused allocation (nightly ASan, 2026-08-16).
+    // StaticSubjectRegistry releases them at exit.
     //
     // Sharing the values across the three owners is correct rather than merely
     // tolerable: only one context menu is on screen at a time, and both values
@@ -211,7 +209,6 @@ class AmsContextMenu : public ContextMenu {
     // 1 disabled, 2 enabled.
     static lv_subject_t slot_mount_subject_;
     static lv_subject_t slot_park_subject_;
-    static bool subjects_initialized_;
 
     // === Backend the menu's actions are gated on ===
     AmsBackend* backend_ = nullptr;

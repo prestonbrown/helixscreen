@@ -43,7 +43,12 @@ class WidgetSubjects : public SubjectManager {
   public:
     /// @param registry_name The StaticSubjectRegistry key; the registry keeps one
     ///        entry per name, so it must be unique to this module.
-    explicit WidgetSubjects(const char* registry_name) : registry_name_(registry_name) {}
+    /// @param lifetime What a printer switch does to the subjects. Process keeps
+    ///        them published across it, for a module observed only by XML bindings
+    ///        and its own setters.
+    explicit WidgetSubjects(const char* registry_name, StaticSubjectRegistry::Lifetime lifetime =
+                                                           StaticSubjectRegistry::Lifetime::Printer)
+        : registry_name_(registry_name), lifetime_(lifetime) {}
 
     // Its registry entry points at this object.
     WidgetSubjects(const WidgetSubjects&) = delete;
@@ -71,7 +76,8 @@ class WidgetSubjects : public SubjectManager {
         std::forward<Init>(init)();
         initialized_ = true;
         StaticSubjectRegistry::instance().register_deinit(
-            registry_name_, [this, teardown = std::move(teardown)]() { deinit(teardown); });
+            registry_name_, [this, teardown = std::move(teardown)]() { deinit(teardown); },
+            lifetime_);
         return true;
     }
 
@@ -97,6 +103,7 @@ class WidgetSubjects : public SubjectManager {
     }
 
     const char* registry_name_;
+    StaticSubjectRegistry::Lifetime lifetime_;
     bool initialized_ = false;
 };
 

@@ -3,6 +3,8 @@
 
 #include "ui_guided_device_flow.h"
 
+#include "widget_subjects.h"
+
 #if HELIX_HAS_CFS
 
 #include "ui_ams_device_section_detail_overlay.h"
@@ -33,18 +35,18 @@ namespace {
 lv_subject_t s_cfs_cutter_phase{};
 lv_subject_t s_cfs_cutter_status{};
 char s_cfs_cutter_status_buf[128] = {};
-bool s_cfs_cutter_subjects_ready = false;
+helix::WidgetSubjects s_cfs_cutter_subjects{"CfsCutterSubjects",
+                                            StaticSubjectRegistry::Lifetime::Process};
 
-/// Subjects initialize once per process (a second init would memzero a subject whose observers
+/// Subjects initialize once until exit (a second init would memzero a subject whose observers
 /// are live) and always register in the global scope, which is where the status line's XML binds
 /// them. A global registry that lost them is repopulated without re-initializing.
 void ensure_cutter_subjects() {
-    if (!s_cfs_cutter_subjects_ready) {
-        s_cfs_cutter_subjects_ready = true;
-        lv_subject_init_int(&s_cfs_cutter_phase, 0);
-        lv_subject_init_string(&s_cfs_cutter_status, s_cfs_cutter_status_buf, nullptr,
-                               sizeof(s_cfs_cutter_status_buf), "");
-    }
+    s_cfs_cutter_subjects.ensure_init([] {
+        UI_MANAGED_SUBJECT_INT(s_cfs_cutter_phase, 0, "cfs_cutter_phase", s_cfs_cutter_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_cfs_cutter_status, s_cfs_cutter_status_buf, "",
+                                  "cfs_cutter_status", s_cfs_cutter_subjects);
+    });
     if (lv_xml_get_subject(nullptr, "cfs_cutter_phase") != &s_cfs_cutter_phase) {
         lv_xml_register_subject(nullptr, "cfs_cutter_phase", &s_cfs_cutter_phase);
         lv_xml_register_subject(nullptr, "cfs_cutter_status", &s_cfs_cutter_status);
