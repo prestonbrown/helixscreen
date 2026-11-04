@@ -3,6 +3,12 @@
 
 #include "splash_screen_manager.h"
 
+#include "ui_utils.h"
+
+// Private LVGL header needed to read display->flush_cb for the no-op swap
+#include "display/lv_display_private.h"
+#include "display_manager.h"
+
 #include <spdlog/spdlog.h>
 
 #include <csignal>
@@ -60,6 +66,14 @@ pid_t read_env_splash_pid() {
         return 0;
     }
     return static_cast<pid_t>(v);
+}
+
+void repaint_full_screen() {
+    if (lv_obj_t* screen = lv_screen_active()) {
+        lv_obj_update_layout(screen);
+        helix::ui::invalidate_all_recursive(screen);
+        lv_refr_now(nullptr);
+    }
 }
 
 } // namespace
@@ -137,6 +151,85 @@ int64_t SplashScreenManager::elapsed_ms() const {
 void SplashScreenManager::mark_refresh_done() {
     if (m_post_refresh_frames > 0) {
         m_post_refresh_frames--;
+    }
+}
+
+void SplashScreenManager::begin_render_suppression(pid_t launcher_splash_pid) {
+    // Prevents framebuffer flicker from both processes writing to the same framebuffer
+    // simultaneously. Validating the PID avoids an unnecessary wait until the failsafe.
+    if (launcher_splash_pid > 0 && kill(launcher_splash_pid, 0) == 0 && !has_exited()) {
+        m_suppression.begin();
+
+        // LVGL's invalidation system sends LV_EVENT_REFR_REQUEST which resumes the refresh
+        // timer (undoing lv_timer_pause), so pausing the timer alone is insufficient:
+        // rendering still happens. With the flush callback replaced, nothing reaches the
+        // framebuffer even if LVGL renders.
+        lv_display_t* disp = lv_display_get_default();
+        if (disp) {
+            m_original_flush_cb = disp->flush_cb;
+            lv_display_set_flush_cb(disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) {
+                lv_display_flush_ready(d); // Must signal ready to avoid hang
+            });
+            spdlog::debug("[SplashManager] Flush callback replaced with no-op (splash PID {})",
+                          launcher_splash_pid);
+        }
+        spdlog::debug("[SplashManager] Display invalidation suppressed while splash is active");
+    }
+}
+
+void SplashScreenManager::arm_invalidation_failsafe(uint32_t now_tick) {
+    m_suppression_start_tick = now_tick;
+}
+
+void SplashScreenManager::dismiss_for_rotation_probe(DisplayManager* display) {
+    if (!has_exited()) {
+        spdlog::info("[SplashManager] Dismissing splash for rotation probe");
+        on_discovery_complete();
+        check_and_signal();
+        restore_flush_callback(display);
+        m_suppression.end();
+    }
+}
+
+void SplashScreenManager::run_handoff_frame(DisplayManager* display, uint32_t now_tick) {
+    // ready_to_signal() makes this fire exactly once, on the frame the splash is about to be
+    // retired. Gated on a remote sink so devices without one skip the forced redraw.
+    if (display && display->remote_screen_active() && ready_to_signal()) {
+        // If a suppressed-flush splash path was active (launcher passed --splash-pid), lift
+        // suppression first so the repaint is not a no-op; on the DRM watchdog path
+        // invalidation was never suppressed. Ending it here also stops the post-signal
+        // block below from repainting a second time.
+        m_suppression.end();
+        restore_flush_callback(display); // no-op on the DRM path (flush never swapped)
+        repaint_full_screen();
+    }
+
+    check_and_signal();
+
+    if (m_suppression.active() && needs_post_splash_refresh()) {
+        m_suppression.end();
+        restore_flush_callback(display);
+        spdlog::info("[SplashManager] Post-splash handoff: flush callback restored, painting UI");
+        repaint_full_screen();
+        mark_refresh_done();
+    }
+
+    if (m_suppression.active() &&
+        (now_tick - m_suppression_start_tick) >= kInvalidationFailsafeMs) {
+        m_suppression.end();
+        restore_flush_callback(display);
+        spdlog::warn("[SplashManager] Invalidation failsafe triggered after {}ms",
+                     kInvalidationFailsafeMs);
+        lv_obj_invalidate(lv_screen_active());
+    }
+}
+
+void SplashScreenManager::restore_flush_callback(DisplayManager* display) {
+    if (m_original_flush_cb) {
+        if (display) {
+            display->restore_flush_cb(m_original_flush_cb);
+        }
+        m_original_flush_cb = nullptr;
     }
 }
 

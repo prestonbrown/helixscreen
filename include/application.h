@@ -8,7 +8,6 @@
 #include "async_lifetime_guard.h"
 #include "cli_args.h"
 #include "gcode_response_routing.h"
-#include "invalidation_suppression.h"
 #include "lvgl/lvgl.h"
 #include "main_loop_handler.h"
 #include "printer_session.h"
@@ -124,7 +123,6 @@ class Application {
     void show_screensaver_migration_notice_if_pending();
 #endif
     void check_wifi_availability();
-    void restore_flush_callback();
 
     // Owned managers (in initialization order)
     /// Expires the callbacks Application defers to the main thread — the
@@ -207,12 +205,6 @@ class Application {
     /// and subjects, and the state machine that switches between printers.
     helix::PrinterSession m_session;
 
-    // Splash screen lifecycle manager
+    // Splash screen lifecycle and framebuffer handoff
     helix::application::SplashScreenManager m_splash_manager;
-
-    /// Original LVGL flush callback, saved while splash no-op is active
-    lv_display_flush_cb_t m_original_flush_cb = nullptr;
-
-    /// Display invalidation suppressed while the launcher's splash owns the framebuffer
-    helix::InvalidationSuppression m_splash_invalidation_suppression;
 };

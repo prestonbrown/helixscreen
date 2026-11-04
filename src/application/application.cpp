@@ -13,11 +13,6 @@
 
 #include "application.h"
 
-#include "detect_printer_cmd.h"
-#include "discovery_steps.h"
-#include "env_knobs.h"
-
-// Private LVGL header needed to read display->flush_cb for splash no-op swap
 #include "ui_overlay_timelapse_videos.h"
 
 #include "ams_backend.h"
@@ -28,8 +23,10 @@
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
-#include "display/lv_display_private.h"
+#include "detect_printer_cmd.h"
+#include "discovery_steps.h"
 #include "display_manager.h"
+#include "env_knobs.h"
 #include "env_refusal_notice.h"
 #include "environment_config.h"
 #include "fbdev_signal_clear.h"
@@ -1554,34 +1551,11 @@ bool Application::init_display() {
     spdlog::debug("[Application] Display initialized");
     helix::MemoryMonitor::log_now("after_display_init");
 
-    // Initialize splash screen manager for deferred exit
+    // Initialize splash screen manager for deferred exit, re-enabling rendering in the main
+    // loop when the splash exits
     m_splash_manager.start(get_runtime_config()->splash_pid);
 
-    // Suppress LVGL rendering while splash is alive — prevents framebuffer flicker
-    // from both processes writing to the same framebuffer simultaneously.
-    // Re-enabled in main loop when splash exits.
-    // Validate PID exists: a stale PID from a crashed launcher would cause an
-    // unnecessary wait until the 8-second failsafe kicks in.
-    pid_t splash_pid = get_runtime_config()->splash_pid;
-    if (splash_pid > 0 && kill(splash_pid, 0) == 0 && !m_splash_manager.has_exited()) {
-        m_splash_invalidation_suppression.begin();
-
-        // Replace the flush callback with a no-op while splash is active.
-        // LVGL's invalidation system sends LV_EVENT_REFR_REQUEST which resumes
-        // the refresh timer (undoing lv_timer_pause). This means pausing the timer
-        // alone is insufficient — rendering still happens. By replacing the flush
-        // callback, we ensure nothing reaches the framebuffer even if LVGL renders.
-        lv_display_t* disp = lv_display_get_default();
-        if (disp) {
-            m_original_flush_cb = disp->flush_cb;
-            lv_display_set_flush_cb(disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) {
-                lv_display_flush_ready(d); // Must signal ready to avoid hang
-            });
-            spdlog::debug("[Application] Flush callback replaced with no-op (splash PID {})",
-                          get_runtime_config()->splash_pid);
-        }
-        spdlog::debug("[Application] Display invalidation suppressed while splash is active");
-    }
+    m_splash_manager.begin_render_suppression(get_runtime_config()->splash_pid);
 
     return true;
 }
@@ -1697,13 +1671,7 @@ void Application::run_rotation_probe_and_layout() {
                 // Dismiss splash first — the probe renders full-screen UI to the
                 // framebuffer, which is invisible while the splash process is
                 // painting over it and the flush callback is suppressed.
-                if (!m_splash_manager.has_exited()) {
-                    spdlog::info("[Application] Dismissing splash for rotation probe");
-                    m_splash_manager.on_discovery_complete();
-                    m_splash_manager.check_and_signal();
-                    restore_flush_callback();
-                    m_splash_invalidation_suppression.end();
-                }
+                m_splash_manager.dismiss_for_rotation_probe(m_display.get());
                 m_display->run_rotation_probe();
                 m_screen_width = m_display->width();
                 m_screen_height = m_display->height();
@@ -2006,15 +1974,6 @@ void Application::apply_startup_cli_actions() {
     }
 }
 
-void Application::restore_flush_callback() {
-    if (m_original_flush_cb) {
-        if (m_display) {
-            m_display->restore_flush_cb(m_original_flush_cb);
-        }
-        m_original_flush_cb = nullptr;
-    }
-}
-
 void Application::check_wifi_availability() {
     // Bring WiFi up at startup instead of waiting for a UI screen to construct
     // the manager. get_wifi_manager() creates the silent global instance, whose
@@ -2075,12 +2034,7 @@ int Application::main_loop() {
     static constexpr uint32_t kHeapRefreshIntervalMs = 10000;
     crash_handler::refresh_heap_snapshot();
 
-    // Failsafe: track invalidation suppression with a hard deadline.
-    // If splash handoff doesn't complete within this time, force rendering back on
-    // to avoid a permanently black screen.
-    uint32_t suppression_start_tick = DisplayManager::get_ticks();
-    static constexpr uint32_t kInvalidationFailsafeMs =
-        11000; // Must exceed kDiscoveryTimeoutMs (8s)
+    m_splash_manager.arm_invalidation_failsafe(DisplayManager::get_ticks());
 
     // Configure main loop handler
     helix::application::MainLoopHandler::Config loop_config;
@@ -2226,65 +2180,7 @@ int Application::main_loop() {
                     .count();
             TelemetryManager::instance().record_frame_time(static_cast<uint32_t>(frame_us));
 
-            // Task C handoff repaint: on the U1 DRM path the early fb0 splash owns
-            // /dev/fb0 (the remote screen) and, once retired via SIGUSR1, no longer
-            // repaints it. Force the real flush hook — which mirrors dirty rects
-            // into fb0 — to paint one FULL frame BEFORE the splash is signaled to
-            // exit, so the remote shows the complete UI rather than the splash's
-            // frozen frame (or, on an idle UI that never dirties, black). Gated on a
-            // remote sink being active so non-U1 devices skip the forced redraw;
-            // ready_to_signal() makes it fire exactly once, on the frame the splash
-            // is about to be retired. The mandatory order is: restore flush cb ->
-            // full invalidate + lv_refr_now (mirror writes a full fb0 frame) -> THEN
-            // check_and_signal (SIGUSR1 -> splash exits without clearing fb0).
-            if (m_display && m_display->remote_screen_active() &&
-                m_splash_manager.ready_to_signal()) {
-                // If a suppressed-flush splash path was active (launcher passed
-                // --splash-pid), lift suppression first so the repaint is not a
-                // no-op; on the DRM watchdog path invalidation was never suppressed.
-                // Ending it here also stops the post-signal handoff block below from
-                // repainting a second time.
-                m_splash_invalidation_suppression.end();
-                restore_flush_callback(); // no-op on the DRM path (flush never swapped)
-                if (lv_obj_t* screen = lv_screen_active()) {
-                    lv_obj_update_layout(screen);
-                    helix::ui::invalidate_all_recursive(screen);
-                    lv_refr_now(nullptr);
-                }
-            }
-
-            // Signal splash to exit when discovery completes (or timeout)
-            m_splash_manager.check_and_signal();
-
-            // Post-splash handoff: re-enable rendering and repaint
-            // Display invalidation was suppressed to prevent framebuffer flicker
-            // while both splash and main app were running simultaneously.
-            if (m_splash_invalidation_suppression.active() &&
-                m_splash_manager.needs_post_splash_refresh()) {
-                m_splash_invalidation_suppression.end();
-                restore_flush_callback();
-                spdlog::info(
-                    "[Application] Post-splash handoff: flush callback restored, painting UI");
-
-                lv_obj_t* screen = lv_screen_active();
-                if (screen) {
-                    lv_obj_update_layout(screen);
-                    helix::ui::invalidate_all_recursive(screen);
-                    lv_refr_now(nullptr);
-                }
-                m_splash_manager.mark_refresh_done();
-            }
-
-            // Failsafe: if invalidation is still suppressed after hard deadline, force it back on.
-            // Prevents permanent black screen if splash handoff fails for any reason.
-            if (m_splash_invalidation_suppression.active() &&
-                (current_tick - suppression_start_tick) >= kInvalidationFailsafeMs) {
-                m_splash_invalidation_suppression.end();
-                restore_flush_callback();
-                spdlog::warn("[Application] Invalidation failsafe triggered after {}ms",
-                             kInvalidationFailsafeMs);
-                lv_obj_invalidate(lv_screen_active());
-            }
+            m_splash_manager.run_handoff_frame(m_display.get(), current_tick);
 
             // Benchmark mode - force redraws and report FPS
             if (loop_config.benchmark_mode) {

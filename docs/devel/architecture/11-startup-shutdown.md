@@ -63,7 +63,7 @@ sequenceDiagram
 | [`src/xml_registration.cpp`](../../../src/xml_registration.cpp) | `helix::register_xml_components()`: responsive consts, semantic widgets, shared callbacks, `styles.xml`, the first-use component loader |
 | [`src/helix_watchdog.cpp`](../../../src/helix_watchdog.cpp) | Supervisor process: fork/supervise/restart helix-screen, crash dialog, Safe Mode |
 | [`src/helix_splash.cpp`](../../../src/helix_splash.cpp) | Standalone splash process: paints fb0, self-exits on SIGUSR1 or a 30s cap |
-| [`include/splash_screen_manager.h`](../../../include/splash_screen_manager.h) | App-side splash handoff: 8s discovery timeout, post-splash repaint |
+| [`include/splash_screen_manager.h`](../../../include/splash_screen_manager.h) | App-side splash handoff: render suppression, flush swap, 8s discovery timeout, post-splash repaint, 11s failsafe |
 | [`include/boot_crash_guard.h`](../../../include/boot_crash_guard.h) | Which printer a boot connects to after a run of crash resets (firmware) |
 | [`firmware/helixscreen-esp32/components/helixapp/app_boot.cpp`](../../../firmware/helixscreen-esp32/components/helixapp/app_boot.cpp) | The ESP32 firmware's boot: its own ordering around the shared session wiring |
 | [`mk/watchdog.mk`](../../../mk/watchdog.mk) | Watchdog build, embedded DRM/fbdev targets only |
@@ -128,7 +128,7 @@ The main loop belongs to chapter 02. What is boot-specific is the **splash hando
 | Timer | Value | Owner | Fires when |
 |-------|-------|-------|------------|
 | Discovery timeout | 8s | App (`SplashScreenManager`) | Discovery incomplete: signal splash anyway |
-| Invalidation failsafe | 11s | App (`main_loop`, `src/application/application.cpp#main_loop/"Invalidation failsafe"`) | Splash handoff never happened: force rendering back on |
+| Invalidation failsafe | 11s | App (`SplashScreenManager::run_handoff_frame`, `src/application/splash_screen_manager.cpp#run_handoff_frame`) | Splash handoff never happened: force rendering back on |
 | Splash self-exit | 30s | Splash process (`src/helix_splash.cpp#kMaxLifetimeSec`) | No SIGUSR1 arrived: exit so it cannot pin the display |
 | Absolute cap | 180s | Splash (`include/splash_status.h#SplashLifetimePolicy`) | Even with heartbeats: hard backstop |
 
@@ -214,7 +214,7 @@ Read in this order; about 30 minutes total.
 7. `src/application/session_wiring.cpp#wire_discovery`, then `init_session_services()` and `create_app_layout()` in the same file: the half both builds share.
 8. `src/application/printer_session.cpp#connect_moonraker`: when it connects, where `start_auto_send` lands; then `setup_discovery_callbacks()` above it for desktop's `after_core` hook.
 9. `src/application/panel_factory.cpp#setup_panels`: the ESP32 branch with its deferred panels and idle Print Files build.
-10. `src/application/application.cpp#main_loop`: only the splash-handoff and 11s-failsafe blocks (`src/application/application.cpp#main_loop/"Task C handoff repaint"` to `src/application/application.cpp#main_loop/"Invalidation failsafe triggered"`); chapter 02 owns the rest.
+10. `src/application/splash_screen_manager.cpp#run_handoff_frame`: the splash handoff and 11s failsafe, which `main_loop` runs once per frame; chapter 02 owns the rest of the loop.
 11. `src/application/printer_session.cpp#teardown_printer_scope`: walk the ladder against the list above; the comments at `src/application/printer_session.cpp#teardown_printer_scope/"Stop the consumption tracker BEFORE destroying overlays"` and `src/application/printer_session.cpp#teardown_printer_scope/"Invalidate all ObserverGuards so any reset()"` explain the two UAF-prone orderings. `shutdown()` (`src/application/application.cpp#shutdown`) is the prologue and epilogue around it.
 12. `src/application/display_manager.cpp#shutdown`: `lv_deinit()` then `lv_xml_deinit()` and the style-ownership comment above them.
 13. `src/core/static_subject_registry.cpp#deinit_all`: 25 lines; the detached-copy/reverse-iteration trick.
