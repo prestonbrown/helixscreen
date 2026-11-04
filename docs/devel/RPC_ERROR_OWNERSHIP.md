@@ -278,7 +278,7 @@ Detection is deliberately conservative. Any mention of a notification, modal, or
 alone; a gate that cries wolf gets switched off and then protects nothing. Non-gcode RPCs are
 out of scope entirely — they have no second channel, so the fallback is their only surface and
 this rule does not apply. `*_mock.*` files are skipped, matching
-`tests/shell/test_code_lint.bats`.
+the concrete-Moonraker-type lint in `scripts/code_lint.sh`.
 
 **Passing `caller_surfaces_errors` with any value silences the gate**, because supplying it is
 itself the deliberate choice. For the rare site where the parameter cannot be threaded, the

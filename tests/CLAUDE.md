@@ -630,8 +630,9 @@ runs every gate over the tree at pre-push, in land-gate and in CI (the fast ones
 too), so a bats case that
 runs the gate on the repo and expects it clean repeats that verdict at a cost of seconds to
 tens of seconds. The meta-test pins the script's behaviour on fixtures, plus its wiring into
-`scripts/qc/`. A check that exists only as a bats case over the tree (much of
-`test_code_lint.bats`) keeps the product paths it scans as its triggers.
+`scripts/qc/`. Lints too small for a script of their own are functions in
+`scripts/code_lint.sh`, run as `qc_code_lint`, `qc_test_lint` and `qc_ui_lint`, with
+their fixture tests in `test_code_lint.bats`.
 
 ## Which shell tests run
 

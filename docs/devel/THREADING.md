@@ -356,7 +356,7 @@ are ratcheted by `scripts/check_cached_widget_pointers.py`; opt out with
 | `run_next_tick(token, fn)` / `run_next_tick(fn)` | needs LVGL's async list (outside the current event dispatch and outside the UpdateQueue batch) |
 
 `lv_async_call(` outside `include/ui_next_tick.h`, the `void*` `async_call`, and
-`helix::async::` are lint-gated in `tests/shell/test_code_lint.bats`; the opt-out is
+`helix::async::` are lint-gated in `scripts/code_lint.sh`; the opt-out is
 `// LV_ASYNC_OK: <reason>`.
 
 ### Deprecated — do not use in new code

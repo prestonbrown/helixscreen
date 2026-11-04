@@ -153,7 +153,7 @@ diagnostics); the boot heap gates print as `heap before pthread` and `internal h
 | `scripts/esp32_syntax_check.py` | pre-push | Xtensa `-fsyntax-only` on touched firmware units |
 | `scripts/check_esp32_size.py` | `esp32-build.yml` | App image vs `app_max_bytes`, `.dram0.bss`/`.data` vs their ceilings, exception support or `std::locale` linked. A breach prints the eight largest inputs of the section (size, input section, object file) so the offending static is named; read that list before raising a ceiling |
 | `tests/python/test_esp32_pack_assets.py` | `esp32-build.yml` | The frogfs packer round trip |
-| `tests/shell/test_code_lint.bats` | bats suite | A PSRAM heap walk on a per-event path (thumbnail, print select, print status) |
+| `scripts/code_lint.sh` | `qc_code_lint` | A PSRAM heap walk on a per-event path (thumbnail, print select, print status) |
 | `tests/unit/test_esp32_*.cpp` | unit sweep | Reconnect backoff, link liveness, transport ordering, the HTTP lane queue, tested on the host |
 
 `size_budget.json` ceilings are raised only after checking internal free at boot on the device; the comment in that

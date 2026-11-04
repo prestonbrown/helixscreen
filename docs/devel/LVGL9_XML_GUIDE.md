@@ -1758,7 +1758,7 @@ Gesture state machines that need the release keep it, and say so with
 their character on the release. The home grid's grab, a hold inside edit mode, also keeps
 the press, because the drag that follows is the rest of it.
 
-Two gates hold this: `tests/shell/test_code_lint.bats` fails any `short_clicked` tap, and
+Two gates hold this: `scripts/code_lint.sh` (`qc_ui_lint`) fails any `short_clicked` tap, and
 `scripts/check_hold_ends_press.py` (`qc_hold_ends_press`) fails a `long_pressed` handler
 whose body, or a function it hands its event to, neither calls `end_press()` nor carries
 `HOLD_DECLINES_OK`. `helix-screen ctl click` sends `short_clicked` then `clicked`, as a

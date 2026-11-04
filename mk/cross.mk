@@ -923,7 +923,7 @@ SUBMODULE_CXXFLAGS += -DHELIX_MAX_FONT_TIER=$(HELIX_MAX_FONT_TIER)
 # Size flags for device builds
 # =============================================================================
 # -fno-rtti  on every non-native target. The codebase is RTTI-free by policy
-#            and lint-enforced (tests/shell/test_code_lint.bats); a grep for
+#            and lint-enforced (scripts/code_lint.sh); a grep for
 #            non-comment typeid/dynamic_cast across src/ and include/ returns
 #            zero. The ESP32 firmware builds the same way via ESP-IDF's
 #            CONFIG_COMPILER_CXX_RTTI. Applied to our C++ only, NOT to
