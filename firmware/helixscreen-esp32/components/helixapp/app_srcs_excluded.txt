@@ -31,21 +31,21 @@ src/ui/screensaver/  # all 33 src/ files beneath
 
 # --- individual files (same dir, partially compiled) ---
 src/api/accel_batch_source_mock.cpp  # not in the v1 Core+AMS cut
-src/api/backlight_backend.cpp  # not in the v1 Core+AMS cut
-src/api/display_backend.cpp  # not in the v1 Core+AMS cut
-src/api/display_backend_drm.cpp  # not in the v1 Core+AMS cut
-src/api/display_backend_fbdev.cpp  # not in the v1 Core+AMS cut
-src/api/display_backend_sdl.cpp  # not in the v1 Core+AMS cut
-src/api/drm_mode_matching.cpp  # not in the v1 Core+AMS cut
-src/api/drm_rotation_strategy.cpp  # not in the v1 Core+AMS cut
+src/platform/display/backlight_backend.cpp  # not in the v1 Core+AMS cut
+src/platform/display/display_backend.cpp  # not in the v1 Core+AMS cut
+src/platform/display/display_backend_drm.cpp  # not in the v1 Core+AMS cut
+src/platform/display/display_backend_fbdev.cpp  # not in the v1 Core+AMS cut
+src/platform/display/display_backend_sdl.cpp  # not in the v1 Core+AMS cut
+src/platform/display/drm_mode_matching.cpp  # not in the v1 Core+AMS cut
+src/platform/display/drm_rotation_strategy.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_backend.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_backend_linux.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_backend_netd.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_manager.cpp  # not in the v1 Core+AMS cut
-src/api/fbdev_signal_clear.cpp  # not in the v1 Core+AMS cut
-src/api/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
-src/api/gpu_libs.cpp  # not in the v1 Core+AMS cut
+src/platform/display/fbdev_signal_clear.cpp  # not in the v1 Core+AMS cut
+src/platform/display/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
+src/platform/display/gpu_libs.cpp  # not in the v1 Core+AMS cut
 src/api/input_device_scanner.cpp  # not in the v1 Core+AMS cut
 src/api/mock_http_file_server.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_api_mock.cpp  # not in the v1 Core+AMS cut

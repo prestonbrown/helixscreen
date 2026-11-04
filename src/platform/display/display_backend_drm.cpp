@@ -7,8 +7,8 @@
 
 #include "display_backend_drm.h"
 
-#include "../../include/drm_mode_matching.h"
-#include "../../include/pending_startup_warnings.h"
+#include "../../../include/drm_mode_matching.h"
+#include "../../../include/pending_startup_warnings.h"
 #include "config.h"
 #include "drm_rotation_strategy.h"
 #include "env_knobs.h"

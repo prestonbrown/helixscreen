@@ -54,20 +54,24 @@ FBDEV_DISPLAY_CXXFLAGS := $(filter-out -DHELIX_DISPLAY_DRM -DHELIX_ENABLE_OPENGL
 
 # Fbdev display sources — same as DRM but we exclude display_backend_drm.cpp
 FBDEV_DISPLAY_API_SRCS := \
-    src/api/display_backend.cpp \
-    src/api/display_backend_fbdev.cpp \
-    src/api/drm_rotation_strategy.cpp \
+    src/platform/display/display_backend.cpp \
+    src/platform/display/display_backend_fbdev.cpp \
+    src/platform/display/drm_rotation_strategy.cpp \
     src/api/touch_calibration_wrapper.cpp \
     src/api/input_device_scanner.cpp
 
 FBDEV_DISPLAY_UI_SRCS := \
     src/ui/calibration/touch_calibration.cpp
 
-FBDEV_DISPLAY_API_OBJS := $(FBDEV_DISPLAY_API_SRCS:src/api/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
+FBDEV_DISPLAY_API_OBJS := $(patsubst %.cpp,$(FBDEV_DISPLAY_DIR)/%.o,$(notdir $(FBDEV_DISPLAY_API_SRCS)))
 FBDEV_DISPLAY_UI_OBJS := $(FBDEV_DISPLAY_UI_SRCS:src/ui/calibration/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
 FBDEV_DISPLAY_OBJS := $(FBDEV_DISPLAY_API_OBJS) $(FBDEV_DISPLAY_UI_OBJS)
 
 # Build fbdev display objects
+$(FBDEV_DISPLAY_DIR)/%.o: src/platform/display/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+	@echo "[CXX/fbdev] $<"
+	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
 $(FBDEV_DISPLAY_DIR)/%.o: src/api/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
@@ -195,10 +199,10 @@ LVGL_DRM_DRIVER_OBJS := \
 
 # DRM display backend objects that are part of APP_OBJS
 DRM_DISPLAY_APP_OBJS := \
-    $(OBJ_DIR)/api/display_backend.o \
-    $(OBJ_DIR)/api/display_backend_drm.o \
-    $(OBJ_DIR)/api/drm_rotation_strategy.o \
-    $(OBJ_DIR)/api/display_backend_fbdev.o \
+    $(OBJ_DIR)/platform/display/display_backend.o \
+    $(OBJ_DIR)/platform/display/display_backend_drm.o \
+    $(OBJ_DIR)/platform/display/drm_rotation_strategy.o \
+    $(OBJ_DIR)/platform/display/display_backend_fbdev.o \
     $(OBJ_DIR)/api/touch_calibration_wrapper.o \
     $(OBJ_DIR)/api/input_device_scanner.o \
     $(OBJ_DIR)/ui/calibration/touch_calibration.o

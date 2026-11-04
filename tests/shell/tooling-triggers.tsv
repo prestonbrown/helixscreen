@@ -185,7 +185,7 @@ tests/shell/test_thirdparty_abi_stamp.bats	Makefile mk/bluetooth.mk mk/display-l
 tests/shell/test_thumbnail_cache_guard_gate.bats	scripts/check_thumbnail_cache_guard.py scripts/qc/decl_ui.sh scripts/staged_content.py tests/unit/test_thumbnail_cache.cpp
 tests/shell/test_todo_marker_gate.bats	scripts/check_todo_markers.py scripts/qc/todo_markers.sh scripts/quality-checks.sh
 tests/shell/test_toolhead_census_gate.bats	scripts/check_toolhead_census.py scripts/staged_content.py src/ui/controls/ui_panel_motion.cpp tests/unit/test_job_holds_machine.cpp
-tests/shell/test_touch_rotation_source_gate.bats	scripts/check_touch_rotation_source.py src/api/display_backend_drm.cpp src/api/display_backend_fbdev.cpp
+tests/shell/test_touch_rotation_source_gate.bats	scripts/check_touch_rotation_source.py src/platform/display/display_backend_drm.cpp src/platform/display/display_backend_fbdev.cpp
 tests/shell/test_translation_duplicate_keys.bats	scripts/translations/ translations/
 tests/shell/test_translation_format_specifiers_gate.bats	scripts/check_translation_format_specifiers.py
 tests/shell/test_translation_identity_gate.bats	scripts/check_translation_identity.py translations/en.yml

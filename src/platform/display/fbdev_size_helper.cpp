@@ -3,7 +3,7 @@
 
 #ifdef __linux__
 
-#include "../../include/fbdev_size_helper.h"
+#include "../../../include/fbdev_size_helper.h"
 
 #include <linux/fb.h>
 

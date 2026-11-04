@@ -269,7 +269,7 @@ headless_socket() {
 }
 
 @test "SDL backend retries with the software renderer when the first attempt fails" {
-    local src="$REPO_ROOT/src/api/display_backend_sdl.cpp"
+    local src="$REPO_ROOT/src/platform/display/display_backend_sdl.cpp"
     grep -q "SDL_HINT_RENDER_DRIVER" "$src"
     grep -q "software" "$src"
 }
@@ -280,7 +280,7 @@ headless_socket() {
     # LVGL will not re-run SDL_Init anyway (its `inited` flag is already set) —
     # so retrying is pointless and "accelerated renderer unavailable" is a wrong
     # diagnosis that sends people debugging the GPU instead of the driver.
-    local src="$REPO_ROOT/src/api/display_backend_sdl.cpp"
+    local src="$REPO_ROOT/src/platform/display/display_backend_sdl.cpp"
     grep -q "SDL_WasInit(SDL_INIT_VIDEO)" "$src"
     grep -q "No usable SDL video driver" "$src"
 }

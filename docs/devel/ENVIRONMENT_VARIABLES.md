@@ -145,7 +145,7 @@ Override the automatic display backend detection.
 |----------|-------|
 | **Values** | `sdl`, `drm`, `fbdev`, `egl` |
 | **Default** | `fbdev` (CPU rendering, maximum compatibility) |
-| **File** | `src/api/display_backend.cpp`, `scripts/helix-launcher.sh#app_display_backend` |
+| **File** | `src/platform/display/display_backend.cpp`, `scripts/helix-launcher.sh#app_display_backend` |
 
 **Backend comparison:**
 
@@ -202,7 +202,7 @@ Specify which DRM device to use when the DRM backend is active. Needed when mult
 |----------|-------|
 | **Values** | Device path (e.g., `/dev/dri/card0`, `/dev/dri/card1`) |
 | **Default** | `/dev/dri/card0` (auto-detect scans for first device with a connected display) |
-| **File** | `src/api/display_backend_drm.cpp` |
+| **File** | `src/platform/display/display_backend_drm.cpp` |
 
 ```bash
 # Use secondary GPU / display controller
@@ -226,7 +226,7 @@ Override automatic touch input device detection.
 |----------|-------|
 | **Values** | Device path (e.g., `/dev/input/event0`) |
 | **Default** | Auto-detect |
-| **Files** | `src/api/display_backend_fbdev.cpp`, `src/api/display_backend_drm.cpp` |
+| **Files** | `src/platform/display/display_backend_fbdev.cpp`, `src/platform/display/display_backend_drm.cpp` |
 
 ```bash
 # Specify touch device explicitly
@@ -241,7 +241,7 @@ Override automatic USB mouse device detection. When set, skips sysfs capability 
 |----------|-------|
 | **Values** | Device path (e.g., `/dev/input/event4`) |
 | **Default** | Auto-detect (scans for `REL_X` + `REL_Y` + `BTN_LEFT` capabilities) |
-| **Files** | `src/api/display_backend_drm.cpp`, `src/api/display_backend_fbdev.cpp` |
+| **Files** | `src/platform/display/display_backend_drm.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
 
 ```bash
 # Specify mouse device explicitly
@@ -282,7 +282,7 @@ Override automatic USB keyboard device detection.
 |----------|-------|
 | **Values** | Device path (e.g., `/dev/input/event5`) |
 | **Default** | Auto-detect (scans for `KEY_A` capability) |
-| **Files** | `src/api/display_backend_drm.cpp`, `src/api/display_backend_fbdev.cpp` |
+| **Files** | `src/platform/display/display_backend_drm.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
 
 ```bash
 # Specify keyboard device explicitly
@@ -299,7 +299,7 @@ Force a specific backlight control method, or disable backlight control entirely
 |----------|-------|
 | **Values** | `sysfs`, `allwinner`, `brightness`, or `"none"` to disable. Any other value (including a `/sys/...` device path) is ignored and falls back to auto-detection |
 | **Default** | Auto-detect |
-| **File** | `src/api/backlight_backend.cpp` |
+| **File** | `src/platform/display/backlight_backend.cpp` |
 
 ```bash
 # Disable backlight control (e.g., for external displays)
@@ -477,7 +477,7 @@ Override the automatic R/B channel swap detection for BGR framebuffers. The LVGL
 |----------|-------|
 | **Values** | `1` (force swap ON), `0` (force swap OFF) |
 | **Default** | Auto-detect from framebuffer vinfo |
-| **File** | `src/api/display_backend_fbdev.cpp` |
+| **File** | `src/platform/display/display_backend_fbdev.cpp` |
 
 ```bash
 # Force R/B swap for Allwinner R818 with BGR framebuffer
@@ -719,7 +719,7 @@ EGL presentation mode on the DRM backend (`HELIX_DISPLAY_BACKEND=egl`). By defau
 | **Values** | `1` (wait for each flip), `0` (do not wait) |
 | **Default** | `1` |
 | **Invalid** | Any other value is ignored with a warning, and the default is kept |
-| **File** | `src/api/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-vsync.patch` |
+| **File** | `src/platform/display/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-vsync.patch` |
 
 The dumb-buffer DRM binary (`helix-screen`) already waits for every page flip; this variable does not affect it.
 
@@ -734,7 +734,7 @@ Uploading a sub-rectangle needs `GL_UNPACK_ROW_LENGTH` (OpenGL ES 3, or `GL_EXT_
 | **Values** | `1` (flushed areas only), `0` (whole frames) |
 | **Default** | `1` |
 | **Invalid** | Any other value is ignored with a warning, and the default is kept |
-| **File** | `src/api/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-partial-upload.patch`; the decision is `lv_linux_drm_egl_upload_plan()` in `lib/lvgl/src/drivers/display/drm/lv_linux_drm_egl_upload.h` |
+| **File** | `src/platform/display/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-partial-upload.patch`; the decision is `lv_linux_drm_egl_upload_plan()` in `lib/lvgl/src/drivers/display/drm/lv_linux_drm_egl_upload.h` |
 
 A stale region after waking the panel or leaving the splash is the failure to look for, and only the panel shows it: `ctl screenshot` re-renders the widget tree instead of reading the texture.
 
@@ -747,7 +747,7 @@ Pixel format of the display on the EGL presentation path (`HELIX_DISPLAY_BACKEND
 | **Values** | `1` (keep XRGB8888), `0` (switch to ARGB8888) |
 | **Default** | `1` |
 | **Invalid** | Any other value is ignored with a warning, and the default is kept |
-| **File** | `src/api/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-xrgb-shader.patch` |
+| **File** | `src/platform/display/display_backend_drm.cpp` (EGL builds only), `patches/lvgl-egl-xrgb-shader.patch` |
 
 On aarch64, LVGL's NEON blends into an XRGB8888 destination write 0 into the fourth byte of every pixel they mix through a mask or partial opacity, fully covered pixels included (a plain full-opacity fill writes `0xFF`), so with the default that byte is 0 wherever anything was antialiased or masked and the shader has to ignore it outright. The C blends an x86 test build uses leave the byte alone, so only the device shows this. An ARGB8888 display (`0`) has the opposite trap: LVGL copies an XRGB8888 image or canvas into it byte for byte, so whatever the source's fourth byte holds, including the 0 those blends leave, arrives as alpha.
 
@@ -1715,7 +1715,7 @@ Unified touch debugging variable that enables both touch point visualization and
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Disabled |
 | **CLI equivalent** | `--debug-touches` |
-| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/calibration/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/api/display_backend_fbdev.cpp` |
+| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/calibration/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
 | **Legacy alias** | `HELIX_DEBUG_TOUCHES` (still accepted) |
 
 ```bash

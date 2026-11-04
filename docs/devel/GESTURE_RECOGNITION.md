@@ -41,7 +41,7 @@ PINCH (index 1) is iterated **before** ROTATE (index 3) and before TWO_FINGERS_S
 
 ## Thresholds: Where They Are Set
 
-The thresholds are configured in one place, `DisplayBackend::configure_touch_gestures` (`src/api/display_backend.cpp#configure_touch_gestures`), called on every evdev touch pointer in both display backends: DRM (`src/api/display_backend_drm.cpp`, including the device-override and evdev fallback paths) and fbdev (`src/api/display_backend_fbdev.cpp`).
+The thresholds are configured in one place, `DisplayBackend::configure_touch_gestures` (`src/platform/display/display_backend.cpp#configure_touch_gestures`), called on every evdev touch pointer in both display backends: DRM (`src/platform/display/display_backend_drm.cpp`, including the device-override and evdev fallback paths) and fbdev (`src/platform/display/display_backend_fbdev.cpp`).
 
 ```cpp
 lv_indev_set_pinch_up_threshold(indev, 1.15f);
