@@ -156,6 +156,13 @@ void PluginInstallModal::on_show() {
 }
 
 void PluginInstallModal::on_hide() {
+    // Every close passes here, so the box is honoured however the dialog goes.
+    if (installer_ && dont_ask_checkbox_ &&
+        lv_obj_has_state(dont_ask_checkbox_, LV_STATE_CHECKED)) {
+        spdlog::info("[Plugin Install] User selected 'Don't ask again'");
+        installer_->set_install_declined();
+    }
+
     // Clear widget references
     local_description_ = nullptr;
     remote_description_ = nullptr;
@@ -171,7 +178,9 @@ void PluginInstallModal::on_hide() {
 }
 
 void PluginInstallModal::on_cancel() {
-    record_prompt_answer();
+    if (installer_) {
+        installer_->snooze_install_prompt();
+    }
     hide(ModalCloseReason::ButtonPress);
 }
 
@@ -246,18 +255,6 @@ void PluginInstallModal::show_result_state(bool success, const std::string& mess
     }
 }
 
-void PluginInstallModal::record_prompt_answer() {
-    if (!installer_) {
-        return;
-    }
-    if (dont_ask_checkbox_ && lv_obj_has_state(dont_ask_checkbox_, LV_STATE_CHECKED)) {
-        spdlog::info("[Plugin Install] User selected 'Don't ask again'");
-        installer_->set_install_declined();
-        return;
-    }
-    installer_->snooze_install_prompt();
-}
-
 // ============================================================================
 // Button Handlers
 // ============================================================================
@@ -298,7 +295,7 @@ void PluginInstallModal::on_install_clicked() {
     }
 
     show_result_state(install_result.success, message);
-    record_prompt_answer();
+    installer_->snooze_install_prompt();
 }
 
 void PluginInstallModal::on_copy_clicked() {

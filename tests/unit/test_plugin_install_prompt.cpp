@@ -93,6 +93,7 @@ struct PromptFixture : PrintSelectGlobalStateReset, PrintSelectPanelFixture {
     ~PromptFixture() override {
         reset_session();
         HelixPluginInstaller::set_prompt_clock(nullptr);
+        HelixPluginInstaller::set_addon_check(nullptr);
         PluginSelfHealTestAccess::set_ran_this_start(true);
     }
 
@@ -232,10 +233,40 @@ TEST_CASE_METHOD(PromptFixture, "Don't ask again outlasts the snooze",
     lv_obj_t* checkbox = lv_obj_find_by_name(prompt(), "dont_ask_checkbox");
     REQUIRE(checkbox != nullptr);
     lv_obj_add_state(checkbox, LV_STATE_CHECKED);
-    click("btn_cancel");
+
+    SECTION("Not Now") {
+        click("btn_cancel");
+    }
+    SECTION("a tap on the backdrop") {
+        lv_obj_send_event(ModalStack::instance().backdrop_for(prompt()), LV_EVENT_CLICKED, nullptr);
+        drain();
+    }
+    SECTION("ESC") {
+        uint32_t key = LV_KEY_ESC;
+        lv_obj_send_event(ModalStack::instance().backdrop_for(prompt()), LV_EVENT_KEY, &key);
+        drain();
+    }
+    REQUIRE(prompt() == nullptr);
 
     start_at(kReal + 365 * kDay);
     CHECK(prompt() == nullptr);
+}
+
+TEST_CASE_METHOD(PromptFixture, "the install prompt is not offered where the plugin cannot load",
+                 "[plugin_installer][print_select]") {
+    HelixPluginInstaller::set_addon_check([] { return false; });
+    HelixPluginInstaller& installer = PrintSelectPanelTestAccess::plugin_installer(*panel_);
+
+    SECTION("on this machine: closed") {
+        installer.set_websocket_url("ws://127.0.0.1:7125/websocket");
+        set_plugin_installed(false);
+        CHECK(prompt() == nullptr);
+    }
+    SECTION("a remote Moonraker's processes say nothing: offered") {
+        installer.set_websocket_url("ws://203.0.113.9:7125/websocket");
+        set_plugin_installed(false);
+        CHECK(prompt() != nullptr);
+    }
 }
 
 TEST_CASE_METHOD(PromptFixture, "a prompt dismissed with no clock waits seven starts, not forever",

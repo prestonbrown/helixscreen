@@ -103,7 +103,9 @@ What this means for HelixScreen on a CC1:
   `machine.reboot` / `machine.shutdown` before showing an error, for setups where the systemd
   check reads wrong (a container without `/run/systemd`, a localhost tunnel).
 - **Under Moonruster the HelixPrint plugin is absent.** HelixScreen detects no plugin and runs
-  its no-plugin paths; the plugin installer's `[helix_print]` section only adds a Moonruster
+  its no-plugin paths. On the printer it reads the process table and skips the install prompt
+  (`diag::moonraker_loads_python_addons`); a remote screen cannot tell, because Moonruster reports
+  itself as Moonraker, so it still offers. The plugin installer's `[helix_print]` section only adds a Moonruster
   startup warning. Moonruster ports Moonraker's extension (agent) API, so an out-of-process
   plugin could work there, but the plugin is a Python component today and that would be a
   redesign. Moonruster measured about 10 MB more `MemAvailable` on a 115 MB CC1, so expect COSMOS users to try it.

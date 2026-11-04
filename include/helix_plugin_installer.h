@@ -187,8 +187,10 @@ class HelixPluginInstaller {
      * @brief Check if we should prompt for plugin installation
      *
      * Returns false before the first-run wizard is done, once the user checked
-     * "don't ask again", once the prompt is settled for this session, and
-     * while a snooze holds (decide_plugin_prompt_snooze()).
+     * "don't ask again", once the prompt is settled for this session, on a
+     * Moonraker on this machine that cannot load the plugin, and while a snooze
+     * holds (decide_plugin_prompt_snooze()). A remote Moonraker's processes
+     * cannot be read from here, so it is always offered.
      *
      * @return true if we should show the install prompt
      */
@@ -225,6 +227,11 @@ class HelixPluginInstaller {
     using PromptClock = int64_t (*)();
     static void set_prompt_clock(PromptClock clock);
 
+    /// What answers whether the Moonraker on this machine can load the plugin.
+    /// Process-wide, like the clock. Null reads the process table.
+    using AddonCheck = bool (*)();
+    static void set_addon_check(AddonCheck check);
+
     // === State ===
 
     /**
@@ -256,6 +263,7 @@ class HelixPluginInstaller {
     // count as another start.
     static bool snooze_checked_this_start_;
     static PromptClock prompt_clock_;
+    static AddonCheck addon_check_;
     static int64_t read_prompt_clock();
 };
 

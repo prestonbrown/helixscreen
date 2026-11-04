@@ -131,6 +131,19 @@ std::vector<ProcMatch> read_process_table(const std::string& proc_root = "/proc"
 std::vector<ProcMatch> find_moonraker_processes();
 
 /**
+ * @brief Whether the Moonraker among @p procs can load a Python add-on
+ *
+ * False when one of them is a replacement with a fixed compiled component list,
+ * where a plugin's config section only adds a startup warning. Judged on the
+ * executable's name, so a log viewer naming the same word is not a daemon. Empty
+ * @p procs reads true: finding nothing is no evidence against the add-on.
+ *
+ * @param procs Output of find_moonraker_processes(); the caller must already
+ *              have established that Moonraker is on this host.
+ */
+bool moonraker_loads_python_addons(const std::vector<ProcMatch>& procs);
+
+/**
  * @brief How to bolt a HelixScreen config onto a Moonraker whose own config is
  *        out of the file API's reach
  *

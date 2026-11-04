@@ -46,7 +46,8 @@ stop it for good; uninstalling the plugin stops it too. The Advanced row still i
 plugin whenever you want it.
 
 The plugin needs the standard Moonraker. Replacements that do not run Python add-ons, such as
-Moonruster on the Centauri Carbon, cannot load it.
+Moonruster on the Centauri Carbon, cannot load it, and HelixScreen running on that printer does
+not offer it there.
 
 K-Touch owners: see also [Install the HelixPrint plugin on your printer](install-esp32.md#install-the-helixprint-plugin-on-your-printer).
 
