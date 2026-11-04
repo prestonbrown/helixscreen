@@ -2309,10 +2309,11 @@ Two more where the surface deliberately does **not** use the plan's value:
 
 ### The lifetime hazard in tier 2
 
-`get_filament_param_modal()` returns a **function-local static** — one `MacroParamModal` for
-the whole process. `MacroParamModal` stores its `on_execute_` callback and **does not clear it
-on dismiss**; only the next `show_for_*()` overwrites it. A callback handed to that modal can
-therefore fire arbitrarily later, long after the object that built it is gone.
+`helix::get_macro_param_modal()` returns the one `MacroParamModal` every prompting surface
+shares, a `lazy_global` that lives for the printer session. `MacroParamModal` stores its
+`on_execute_` callback and **does not clear it on dismiss**; only the next `show_for_*()`
+overwrites it. A callback handed to that modal can therefore fire arbitrarily later, long
+after the object that built it is gone.
 
 | Surface | Lifetime | What tier 2 must capture |
 |---------|----------|--------------------------|

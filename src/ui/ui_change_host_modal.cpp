@@ -21,6 +21,7 @@
 #include "printer_discovery_list.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
+#include "static_panel_registry.h"
 #include "text_io.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -567,13 +568,10 @@ namespace helix::ui {
 namespace {
 
 // ChangeHostModal's active_instance_ is a static singleton, so both entry points share one
-// owner. The instance must also outlive the dialog it shows.
+// owner. The instance outlives the dialog it shows: a switch runs on the tick after the
+// modal hides, and the printer-scope teardown that frees the instance comes after that.
 ChangeHostModal& shared_change_host_modal() {
-    static std::unique_ptr<ChangeHostModal> modal;
-    if (!modal) {
-        modal = std::make_unique<ChangeHostModal>();
-    }
-    return *modal;
+    return helix::lazy_global<ChangeHostModal>("ChangeHostModal");
 }
 
 } // namespace

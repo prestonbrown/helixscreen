@@ -7,6 +7,7 @@
 #include "ui_event_safety.h"
 
 #include "lvgl.h"
+#include "static_panel_registry.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "text_io.h"
@@ -30,6 +31,10 @@ std::string helix::macro_param_placeholder(const MacroParam& param) {
 }
 
 MacroParamModal* MacroParamModal::s_active_instance_ = nullptr;
+
+MacroParamModal& helix::get_macro_param_modal() {
+    return lazy_global<MacroParamModal>("MacroParamModal");
+}
 
 namespace {
 
