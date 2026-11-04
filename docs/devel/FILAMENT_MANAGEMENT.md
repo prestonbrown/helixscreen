@@ -2926,7 +2926,7 @@ The `AmsDeviceOperationsOverlay` (`ui_ams_device_operations_overlay.h`) consolid
 
 | Action | G-code (varies by backend) | Description |
 |--------|---------------------------|-------------|
-| Home | `MMU_HOME` / `AFC_RESET` | Reset to home position (label follows `reset_button_label()`; AFC sends `AFC_RESET`, not `AFC_HOME`) |
+| Home | `MMU_HOME` / `AFC_RESET` | Reset to home position (label follows `IGateSelector::reset_button_label()`, else `Reset`; AFC sends `AFC_RESET`, not `AFC_HOME`) |
 | Recover | `MMU_RECOVER` / `AFC_RESET` | Attempt error recovery. A backend answering `supports_recover_with_state()` opens `AmsRecoverStateModal` instead, which sends the user's asserted slot and loaded state through `recover_with_state()` |
 | Abort | `cancel()` | Cancel current operation |
 | Bypass Toggle | `enable_bypass()` / `disable_bypass()` | Toggle bypass mode (if supported) |
@@ -3651,6 +3651,12 @@ static constexpr BackendTraits kTraits = [] {
 (`include/ams_capability.h`). To publish one, inherit the interface and return
 `static_cast<I*>(this)` from `capability()` for `helix::type_tag<I>()`, deferring to the base for
 any other tag. The interface sits in its own header, so changing it rebuilds only its users.
+A caller spells out what a backend without the interface means: the sidebar's button reads
+`"Reset"`, and an operation reports `AmsErrorHelper::not_supported`.
+
+- `IGateSelector` (`include/ams_gate_selector.h`) -- Selector moves and gate probes, preload,
+  `recover_with_state()`, the sidebar's `reset_button_label()` (Happy Hare: `"Home"`) and
+  `get_bowden_progress()`.
 
 **Optional overrides (with default implementations):**
 
@@ -3665,7 +3671,6 @@ any other tag. The interface sits in its own header, so changing it rebuilds onl
 - `supports_auto_heat_on_load` (`kTraits`) -- Auto-heat capability. It is one of three reasons a surface skips its own preheat, and **no surface should read it directly**: ask `helix::ui::preheat_skip_reason()` (`include/filament_op_execute.h`), which also covers the "Allow cold load/unload" setting and a stock macro that heats in its own body (`helix::filament_macros::macro_heats_hotend()`, `include/filament_macro_profiles.h`). The AMS sidebar reading only this one is what left that setting ignored on the AMS panel (prestonbrown/helixscreen#1494).
 - `supports_lane_eject()` + `eject_lane()` -- Cold retract of a lane's filament back to the spool. Without the predicate the context menu never offers Eject, whatever `eject_lane()` does.
 - `has_per_slot_loaded_authority` (`kTraits`) -- Set true only when the firmware reports load state **per slot**. Leave it false when your per-slot answer is derived from an aggregate "current slot" pointer, or a mid-toolchange null will drop the highlight.
-- `reset_button_label()` -- Sidebar Reset button text (default `"Reset"`; Happy Hare uses `"Home"`)
 
 **The error seam.** All optional, all defaulted to "nothing", and a backend that skips the
 whole group gets **no error dialog at all**, silently. Read § [Two error channels](#two-error-channels)

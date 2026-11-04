@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ams_environment_zone.h"
+#include "ams_gate_selector.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "error_event.h"
@@ -65,8 +66,15 @@ struct HappyHareGateSensor {
     bool object_enabled = true;
 };
 
-class AmsBackendHappyHare : public AmsSubscriptionBackend {
+class AmsBackendHappyHare : public AmsSubscriptionBackend, public helix::IGateSelector {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IGateSelector>()) {
+            return static_cast<helix::IGateSelector*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     /**
      * @brief Construct Happy Hare backend
      *

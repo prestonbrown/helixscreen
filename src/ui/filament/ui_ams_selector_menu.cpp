@@ -9,6 +9,7 @@
 #include "ui_modal.h"
 
 #include "ams_backend.h"
+#include "ams_gate_selector.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "ui/ui_widget_helpers.h"
@@ -286,6 +287,7 @@ void ams_dispatch_selector_action(AmsSelectorMenu::SelectorAction a) {
         NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
         return;
     }
+    IGateSelector* const gates = backend->as<IGateSelector>();
     AmsError err{};
     // Feedback for these quick selector commands flows through the AMS status
     // display (the ams_action_detail subject) — the backend sets a transient
@@ -296,7 +298,8 @@ void ams_dispatch_selector_action(AmsSelectorMenu::SelectorAction a) {
         err = backend->reset(); // reset()==MMU_HOME for HH; reads as "Homing selector"
         break;
     case SA::CHECK_SLOTS:
-        err = backend->check_all_gates();
+        err = gates ? gates->check_all_gates()
+                    : AmsErrorHelper::not_supported("Gate check not supported");
         break;
     case SA::SERVO_UP:
         err = backend->execute_device_action("servo_up");
@@ -308,10 +311,10 @@ void ams_dispatch_selector_action(AmsSelectorMenu::SelectorAction a) {
         err = backend->execute_device_action("servo_down");
         break;
     case SA::JOG_PREV:
-        err = backend->move_selector(-1);
+        err = gates ? gates->move_selector(-1) : AmsErrorHelper::not_supported("Selector jog");
         break;
     case SA::JOG_NEXT:
-        err = backend->move_selector(+1);
+        err = gates ? gates->move_selector(+1) : AmsErrorHelper::not_supported("Selector jog");
         break;
     case SA::GEAR_SYNC_ON:
         err = backend->execute_device_action("gear_sync", std::any(true));

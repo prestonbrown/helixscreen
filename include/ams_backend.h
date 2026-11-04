@@ -1120,18 +1120,6 @@ class AmsBackend : public AmsCapabilityHost {
     [[nodiscard]] virtual PathSegment infer_error_segment() const = 0;
 
     /**
-     * @brief Get bowden loading progress percentage
-     *
-     * Returns the firmware-reported bowden loading progress (0-100%).
-     * Happy Hare v4 provides this via printer.mmu.bowden_progress.
-     *
-     * @return 0-100 for real progress, -1 if not available (v3 or non-HH backends)
-     */
-    [[nodiscard]] virtual int get_bowden_progress() const {
-        return -1;
-    }
-
-    /**
      * @brief Check if a specific slot has a prep/pre-gate sensor
      *
      * Returns whether the given slot has a prep sensor that can detect
@@ -1785,20 +1773,6 @@ class AmsBackend : public AmsCapabilityHost {
         return cancel();
     }
 
-    /**
-     * @brief Re-sync the firmware's tracked state to what the user says is true
-     *
-     * State-only, like clear_fault(): tells the firmware which slot is
-     * selected and whether filament is loaded, without moving anything.
-     * Fields left unset in @p request are not asserted.
-     *
-     * Default implementation returns NOT_SUPPORTED.
-     */
-    virtual AmsError recover_with_state(const RecoverStateRequest& request) {
-        (void)request;
-        return AmsErrorHelper::not_supported("Recover with state not supported");
-    }
-
     /// @return true if recover_with_state() is implemented
     [[nodiscard]] bool supports_recover_with_state() const {
         return traits().supports_recover_with_state;
@@ -1884,20 +1858,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] virtual bool supports_lane_eject() const {
         return false;
-    }
-
-    /**
-     * @brief Feed a lane's filament up to its park position (async)
-     *
-     * Parks a freshly inserted spool ready for a later load, without loading
-     * it to the toolhead. Default implementation returns NOT_SUPPORTED.
-     *
-     * @param slot_index Lane to preload (0-based)
-     * @return AmsError indicating if operation was started
-     */
-    virtual AmsError preload_lane(int slot_index) {
-        (void)slot_index;
-        return AmsErrorHelper::not_supported("Lane preload not supported");
     }
 
     /// @return true if preload_lane() is implemented
@@ -2045,86 +2005,11 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief Move the selector to a gate without loading filament.
-     *
-     * Positions the MMU selector at the given gate without loading filament
-     * into the toolhead. This is useful for manual interventions and gate
-     * inspection on selector-based systems.
-     *
-     * @param slot_index Zero-based gate index.
-     * @return AmsError indicating success or failure.
-     */
-    virtual AmsError select_gate(int slot_index) {
-        (void)slot_index;
-        return AmsErrorHelper::not_supported("Gate select not supported");
-    }
-
-    /**
-     * @brief Jog the selector relative to its current gate.
-     *
-     * Moves the selector to (current gate + delta), clamped to the valid range
-     * [0, slot_count - 1], without loading filament. This is convenient for
-     * stepping the selector one gate at a time during manual interventions.
-     * Gated by supports_gate_select() — selector-based systems only.
-     *
-     * @param delta Signed number of gates to move (e.g. +1, -1).
-     * @return AmsError indicating success or failure.
-     */
-    virtual AmsError move_selector(int delta) {
-        (void)delta;
-        return AmsErrorHelper::not_supported("Selector jog");
-    }
-
-    /**
      * @brief Whether the backend can probe gate sensors (MMU_CHECK_GATE).
      * @return true if check_gate()/check_all_gates() are implemented.
      */
     [[nodiscard]] bool supports_gate_check() const {
         return traits().supports_gate_check;
-    }
-
-    /**
-     * @brief Probe a single gate's filament sensor (MMU_CHECK_GATE GATE=n).
-     *
-     * Asks the firmware to check whether filament is present at the specified
-     * gate's sensor. Useful for diagnosing gate-status discrepancies without
-     * a full load/unload cycle.
-     *
-     * Default implementation returns NOT_SUPPORTED.
-     *
-     * @param slot_index Zero-based gate index.
-     * @return AmsError indicating success or failure.
-     */
-    virtual AmsError check_gate(int slot_index) {
-        (void)slot_index;
-        return AmsErrorHelper::not_supported("Gate check not supported");
-    }
-
-    /**
-     * @brief Probe all gate sensors at once (MMU_CHECK_GATE, no params).
-     *
-     * Asks the firmware to check filament presence at every gate sensor
-     * in one pass. Useful for a full gate-status audit.
-     *
-     * Default implementation returns NOT_SUPPORTED.
-     *
-     * @return AmsError indicating success or failure.
-     */
-    virtual AmsError check_all_gates() {
-        return AmsErrorHelper::not_supported("Gate check not supported");
-    }
-
-    /**
-     * @brief Display label for the sidebar reset()-button.
-     *
-     * Backends where reset() is a genuine reset keep "Reset"; selector-based
-     * systems where reset() homes the mechanism (Happy Hare -> MMU_HOME) override
-     * this to "Home" so the word "Reset" does not collide with the recover/re-sync
-     * concept.
-     * @return untranslated label key.
-     */
-    [[nodiscard]] virtual std::string reset_button_label() const {
-        return "Reset";
     }
 
     /**

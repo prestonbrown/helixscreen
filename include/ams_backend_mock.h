@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ams_backend.h"
+#include "ams_gate_selector.h"
 #include "slot_registry.h"
 
 #include <atomic>
@@ -30,9 +31,16 @@ struct AfcMockUnit;
  * - Pre-populated filament colors and materials
  * - Responds to all AmsBackend operations
  */
-class AmsBackendMock : public AmsBackend {
+class AmsBackendMock : public AmsBackend, public IGateSelector {
   public:
     friend class AmsBackendMockTimingTestAccess;
+
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<IGateSelector>()) {
+            return static_cast<IGateSelector*>(this);
+        }
+        return AmsBackend::capability(tag);
+    }
 
     /**
      * @brief Construct mock backend with specified slot count
@@ -179,6 +187,9 @@ class AmsBackendMock : public AmsBackend {
     [[nodiscard]] std::string reset_button_label() const override {
         return system_info_.type == AmsType::HAPPY_HARE ? std::string("Home")
                                                         : std::string("Reset");
+    }
+    [[nodiscard]] int get_bowden_progress() const override {
+        return -1;
     }
 
     // Configuration

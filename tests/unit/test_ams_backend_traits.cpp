@@ -194,12 +194,9 @@ TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
     CHECK_FALSE(mock.has_firmware_spool_persistence());
 }
 
-TEST_CASE("Only CFS answers the calibration capability", "[ams][traits][cfs]") {
+TEST_CASE("Each optional interface answers only on the backends that implement it",
+          "[ams][traits][cfs][happy_hare]") {
     helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
-    CHECK(cfs.as<ICfsCalibration>() == static_cast<ICfsCalibration*>(&cfs));
-    struct NothingImplementsThis {};
-    CHECK(cfs.as<NothingImplementsThis>() == nullptr);
-
     AmsBackendAce ace(nullptr, nullptr);
     AmsBackendAd5xIfs ad5x(nullptr, nullptr);
     AmsBackendAfc afc(nullptr, nullptr);
@@ -211,11 +208,32 @@ TEST_CASE("Only CFS answers the calibration capability", "[ams][traits][cfs]") {
     AmsBackendSnapmaker snapmaker(nullptr, nullptr);
     AmsBackendToolChanger tool_changer(nullptr, nullptr);
     AmsBackendMock mock(4);
-    for (const AmsBackend* other : std::initializer_list<const AmsBackend*>{
-             &ace, &ad5x, &afc, &happy_hare, &indx, &multi_ace, &openams, &qidi, &snapmaker,
-             &tool_changer, &mock}) {
-        INFO(ams_type_to_string(other->get_type()));
-        CHECK(other->as<ICfsCalibration>() == nullptr);
+
+    struct Row {
+        const AmsBackend* backend;
+        const ICfsCalibration* calibration;
+        const IGateSelector* gates;
+    };
+    const Row rows[] = {
+        {&ace, nullptr, nullptr},
+        {&ad5x, nullptr, nullptr},
+        {&afc, nullptr, nullptr},
+        {&cfs, &cfs, nullptr},
+        {&happy_hare, nullptr, &happy_hare},
+        {&indx, nullptr, nullptr},
+        {&multi_ace, nullptr, nullptr},
+        {&openams, nullptr, nullptr},
+        {&qidi, nullptr, nullptr},
+        {&snapmaker, nullptr, nullptr},
+        {&tool_changer, nullptr, nullptr},
+        {&mock, nullptr, &mock},
+    };
+    struct NothingImplementsThis {};
+    for (const Row& row : rows) {
+        INFO(ams_type_to_string(row.backend->get_type()));
+        CHECK(row.backend->as<ICfsCalibration>() == row.calibration);
+        CHECK(row.backend->as<IGateSelector>() == row.gates);
+        CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
 }
 

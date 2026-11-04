@@ -19,6 +19,7 @@
 
 #include "active_material_provider.h"
 #include "ams_backend.h"
+#include "ams_gate_selector.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_constants.h"
@@ -864,7 +865,8 @@ void AmsOperationSidebar::sync_reset_button_label() {
         return;
     }
     AmsBackend* backend = AmsState::instance().get_backend();
-    std::string label = backend ? backend->reset_button_label() : std::string("Reset");
+    const IGateSelector* const gates = backend ? backend->as<IGateSelector>() : nullptr;
+    std::string label = gates ? gates->reset_button_label() : std::string("Reset");
     ui_button_set_text(btn_reset, lv_tr(label.c_str()));
 }
 
@@ -1851,7 +1853,9 @@ void AmsOperationSidebar::handle_check_gates() {
         return;
     }
 
-    AmsError error = backend->check_all_gates();
+    IGateSelector* const gates = backend->as<IGateSelector>();
+    AmsError error = gates ? gates->check_all_gates()
+                           : AmsErrorHelper::not_supported("Gate check not supported");
     if (error.result != AmsResult::SUCCESS) {
         helix::ui::notify_ams_error(error, lv_tr("Check slots failed"));
     }

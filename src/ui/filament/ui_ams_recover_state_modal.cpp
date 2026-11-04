@@ -4,6 +4,7 @@
 #include "ui_error_reporting.h"
 
 #include "ams_backend.h"
+#include "ams_gate_selector.h"
 #include "ams_state.h"
 #include "display_numbering.h"
 
@@ -147,7 +148,9 @@ void AmsRecoverStateModal::on_ok() {
         spdlog::info("[AmsRecoverStateModal] Backend changed while open; recover not sent");
         return;
     }
-    AmsError err = backend->recover_with_state(request);
+    IGateSelector* const gates = backend->as<IGateSelector>();
+    AmsError err = gates ? gates->recover_with_state(request)
+                         : AmsErrorHelper::not_supported("Recover with state not supported");
     if (!err.success()) {
         notify_ams_error(err, lv_tr("Recovery failed"));
     }

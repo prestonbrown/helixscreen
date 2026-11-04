@@ -263,7 +263,8 @@ void check_action_labels(XMLTestFixture& fx, std::initializer_list<const char*> 
             lv_area_t screen;
             lv_obj_get_coords(fx.test_screen(), &screen);
             int checked = 0;
-            const std::string reset_key = AmsState::instance().get_backend()->reset_button_label();
+            const std::string reset_key =
+                AmsState::instance().get_backend()->as<IGateSelector>()->reset_button_label();
             const std::pair<const char*, std::string> buttons[] = {
                 {"btn_unload", "Unload"},
                 {"btn_batch_unload", "Unload..."},
