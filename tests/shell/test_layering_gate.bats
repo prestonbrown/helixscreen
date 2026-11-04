@@ -15,7 +15,7 @@ GATE="$SCRIPTS/check_layering.py"
 
 setup() {
     REPO="${BATS_TEST_TMPDIR:-$(mktemp -d)}/repo"
-    mkdir -p "$REPO/src/printer" "$REPO/src/ui" "$REPO/src/application" "$REPO/include"
+    mkdir -p "$REPO/src/printer" "$REPO/src/ui" "$REPO/src/ui/notify" "$REPO/src/application" "$REPO/include"
     git -C "$REPO" init -q -b main
     git -C "$REPO" config user.email t@example.com
     git -C "$REPO" config user.name t

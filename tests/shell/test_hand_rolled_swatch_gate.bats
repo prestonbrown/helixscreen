@@ -15,7 +15,7 @@ GATE="scripts/check_hand_rolled_swatch.py"
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     ROOT="${BATS_TEST_TMPDIR:-$(mktemp -d)}/tree"
-    mkdir -p "$ROOT/src/ui" "$ROOT/ui_xml/components"
+    mkdir -p "$ROOT/src/ui" "$ROOT/src/ui/components" "$ROOT/ui_xml/components"
     : > "$ROOT/base.txt"
 }
 

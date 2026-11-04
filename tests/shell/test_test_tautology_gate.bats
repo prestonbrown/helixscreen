@@ -208,7 +208,7 @@ EOF
 # ------------------------------------------------- mirror signal 4: stub-logic
 
 stub_fixture() {
-    mkdir -p "$WORK/mk" "$WORK/src/ui"
+    mkdir -p "$WORK/mk" "$WORK/src/ui" "$WORK/src/ui/notify"
     cat > "$WORK/mk/tests.mk" <<'EOF'
 TEST_APP_OBJS := $(filter-out \
     $(OBJ_DIR)/main.o \

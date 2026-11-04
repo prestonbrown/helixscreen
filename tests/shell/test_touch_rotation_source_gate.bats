@@ -25,12 +25,12 @@ GATE="scripts/check_touch_rotation_source.py"
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     ROOT="${BATS_TEST_TMPDIR:-$(mktemp -d)}/tree"
-    mkdir -p "$ROOT/src/api"
+    mkdir -p "$ROOT/src/platform/display"
 
     # Both backends in their correct form: ask the display, and mention the key
     # only in prose.
     for f in display_backend_fbdev display_backend_drm; do
-        cat > "$ROOT/src/api/$f.cpp" <<'EOF'
+        cat > "$ROOT/src/platform/display/$f.cpp" <<'EOF'
 // Asked of the display, not of `/display/rotate`, because the key is only the
 // request and differs from the applied rotation both ways.
 void create_input_pointer() {

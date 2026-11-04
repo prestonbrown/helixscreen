@@ -48,7 +48,7 @@ setup() {
 # regenerated one. Nothing here writes to the real repo.
 build_fixture() {
     rm -rf "$FIX"
-    mkdir -p "$FIX/ui_xml" "$FIX/tools/xml-linter/schema" "$FIX/src/ui" \
+    mkdir -p "$FIX/ui_xml" "$FIX/tools/xml-linter/schema" "$FIX/src/ui" "$FIX/src/ui/components" \
              "$FIX/src/system" "$FIX/assets/config/themes/defaults"
     ln -s "$REPO_ROOT/tools/xml-linter/src" "$FIX/tools/xml-linter/src"
 

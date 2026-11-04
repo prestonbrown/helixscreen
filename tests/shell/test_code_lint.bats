@@ -1741,7 +1741,7 @@ EOF
 
 @test "the vendor-branch gate catches each shape and honours VENDOR_OK" {
     local root="$BATS_TEST_TMPDIR/root"
-    mkdir -p "$root/src/ui" "$root/scripts"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print" "$root/scripts"
     : > "$root/scripts/vendor_branch_baseline.txt"
     cat > "$root/src/ui/x.cpp" <<'CPP'
 #if defined(HELIX_PLATFORM_K2)
@@ -1770,7 +1770,7 @@ CPP
 # The ratchet compares per-file counts to the baseline.
 @test "the vendor-branch gate fails above a nonzero baseline and passes at or below it" {
     local root="$BATS_TEST_TMPDIR/ratchet"
-    mkdir -p "$root/src/ui"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     printf 'bool a(AmsType t) { return t == AmsType::CFS; }\nbool b(AmsType t) { return t != AmsType::AFC; }\n' \
         > "$root/src/ui/x.cpp"
     printf '1 src/ui/x.cpp:amstype-branch\n' > "$root/base.txt"
@@ -1787,7 +1787,7 @@ CPP
 
 @test "the vendor-branch gate is quiet on AmsType::NONE and on build-shape macros" {
     local root="$BATS_TEST_TMPDIR/quiet"
-    mkdir -p "$root/src/ui"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     cat > "$root/src/ui/x.cpp" <<'CPP'
 bool a(AmsType t) { return t == AmsType::NONE; }
 #if defined(HELIX_PLATFORM_ESP32)
@@ -1799,7 +1799,7 @@ CPP
 
 @test "the vendor-branch gate reads multi-line conditionals and honours VENDOR_OK above them" {
     local root="$BATS_TEST_TMPDIR/multi"
-    mkdir -p "$root/src/ui"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     printf '#if defined(HELIX_PLATFORM_K2) || \\\n    defined(HELIX_PLATFORM_K1)\n#endif\n' > "$root/src/ui/x.cpp"
     run python3 scripts/check_vendor_branches.py --root "$root"
     [ "$status" -eq 1 ] || fail "multi-line conditional not counted"
@@ -1810,7 +1810,7 @@ CPP
 
 @test "the vendor-branch gate catches a name() compare written either way round" {
     local root="$BATS_TEST_TMPDIR/names"
-    mkdir -p "$root/src/ui"
+    mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     printf 'bool a(X* x) { return "AFC" == x->name(); }\nbool b(X x) { return x.name() == "AFC"; }\n' > "$root/src/ui/x.cpp"
     run python3 scripts/check_vendor_branches.py --root "$root"
     [ "$status" -eq 1 ] || fail "name() compares not counted"

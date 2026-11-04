@@ -25,7 +25,7 @@ setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     load helpers.bash
     FIXTURE_DIR="${BATS_TEST_TMPDIR:-$(mktemp -d)}/grid_metrics"
-    mkdir -p "$FIXTURE_DIR/scripts" "$FIXTURE_DIR/src/ui"
+    mkdir -p "$FIXTURE_DIR/scripts" "$FIXTURE_DIR/src/ui" "$FIXTURE_DIR/src/ui/home"
     cp "$GATE_SRC" "$FIXTURE_DIR/scripts/check_grid_metrics_single_source.py"
 }
 
