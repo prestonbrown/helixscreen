@@ -183,6 +183,37 @@ TEST_CASE_METHOD(UnloadToastFixture, "A genuine runout still raises the Filament
     CHECK(toasts.warnings_containing(kRemovedWarning) == 1);
 }
 
+TEST_CASE_METHOD(UnloadToastFixture, "A removal nobody needs to hear about raises no warning",
+                 "[runout][toast][sensors]") {
+    auto& fsm = FilamentSensorManager::instance();
+    struct WizardScope {
+        ~WizardScope() {
+            set_wizard_active(false);
+        }
+    } wizard_scope;
+
+    SECTION("the setup wizard is moving filament") {
+        set_wizard_active(true);
+    }
+    SECTION("the startup grace, re-anchored when Moonraker connects") {
+        discover_filament_sensors(fsm, {kToolheadSensor});
+        fsm.set_role(kToolheadSensor, static_cast<uint8_t>(FilamentSensorRole::TOOLHEAD));
+        fsm.update_from_status(toolhead_status(true));
+        REQUIRE(fsm.is_in_startup_grace_period());
+    }
+    SECTION("the sensor feature is off") {
+        fsm.set_master_enabled(false);
+    }
+    SECTION("the sensor has no filament role") {
+        fsm.set_role(kToolheadSensor, static_cast<uint8_t>(FilamentSensorRole::NONE));
+    }
+
+    ToastCapture toasts;
+    pull_filament();
+
+    CHECK(toasts.warnings_containing(kRemovedWarning) == 0);
+}
+
 TEST_CASE_METHOD(UnloadToastFixture,
                  "A deliberate unload suppresses the warning but keeps the manual-pull hint",
                  "[runout][toast][sensors]") {
