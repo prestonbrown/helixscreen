@@ -6,15 +6,9 @@
  * @brief Unit tests for print select detail view subject initialization
  *
  * Pre-print toggle state lives in PrePrintOptionsRenderer's per-option heap
- * subjects — the six fixed preprint_* subjects this file used to name were
- * retired in Phase 3.5 (ui_print_select_detail_view.h:618). What is pinned here
- * is the re-show reset: populate() re-initializes every option from
- * default_enabled, so opening a second file cannot inherit the first file's
- * toggles.
- *
- * Bug context for the defaults themselves: switches once defaulted to OFF in
- * XML, so is_option_disabled() returned true even when the user hadn't touched
- * them, triggering false modification warnings when printing without the plugin.
+ * subjects. What is pinned here is the re-show reset: populate() re-initializes
+ * every option from default_enabled, so opening a second file cannot inherit
+ * the first file's toggles.
  *
  * Also covers the detail_mapping_ready skeleton-latch subject: 0 = chips not
  * authoritative (XML skeletons visible), 1 = authoritative chip state rendered.
@@ -85,17 +79,6 @@ using helix::test::make_skip_and_addon_set;
 // Pre-print Option Subject Default Tests
 // ============================================================================
 
-// This used to be three TEST_CASEs that each declared their own local
-// lv_subject_t, initialized it, and read the value back — asserting LVGL's own
-// getter and nothing of ours. They named `preprint_bed_mesh` / `preprint_qgl` /
-// `preprint_timelapse`, the six fixed subjects retired in Phase 3.5
-// (ui_print_select_detail_view.h:618); toggle state has lived in
-// PrePrintOptionsRenderer's per-option heap subjects ever since, so the cases
-// could not have gone red no matter what the panel did.
-//
-// The default_enabled -> initial state rule is covered against the real renderer
-// in test_pre_print_options_renderer.cpp:142. What was NOT covered anywhere, and
-// is what these cases claimed to be about, is the reset-on-re-show contract:
 // populate() re-initializes every state subject from default_enabled, so opening
 // a second file cannot inherit the first file's toggles
 // (ui_pre_print_options_renderer.h:105).
@@ -319,22 +302,23 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the detail view observes the printer it was
     CacheDirGuard guard;
     MockPrinter device;
     device.state.set_helix_plugin_installed(false);
-    get_printer_state().set_helix_plugin_installed(false);
-    helix::ui::UpdateQueue::instance().drain();
-
-    helix::ui::PrintSelectDetailView view;
-    view.set_dependencies(&device.api, &device.state);
-    view.init_subjects();
-    lv_subject_t* const available = lv_xml_get_subject(nullptr, "detail_gcode_rewrite_available");
-    REQUIRE(available != nullptr);
-    const int plugin_absent = lv_subject_get_int(available);
-
     // One drain applies the setter, the next runs the observer it queued.
     auto settle = [] {
         helix::ui::UpdateQueue::instance().drain();
         helix::ui::UpdateQueue::instance().drain();
     };
     get_printer_state().set_helix_plugin_installed(true);
+    settle();
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_subject_t* const available = lv_xml_get_subject(nullptr, "detail_gcode_rewrite_available");
+    REQUIRE(available != nullptr);
+    // No printer handed over yet reads as the plugin absent, whatever the app's says.
+    const int plugin_absent = lv_subject_get_int(available);
+    CHECK(plugin_absent == 0);
+
+    view.set_dependencies(&device.api, &device.state);
     settle();
     CHECK(lv_subject_get_int(available) == plugin_absent);
 
@@ -459,14 +443,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
     }
 
     SECTION("cache hit with NO palette keeps the skeleton until colors settle") {
-        // The K2 Plus regression. Moonraker reports filament_type for an
-        // OrcaSlicer file and no filament_colors at all, so show() gets an
-        // empty palette. The tools-used cache answers the OTHER question
-        // instantly, and readiness used to key off that alone — so the chips
-        // were published built from neutral stand-ins, rendering a grey dot
-        // pointing at the real lane color.
+        // Moonraker reports filament_type for an OrcaSlicer file and no
+        // filament_colors at all, so show() gets an empty palette, while the
+        // tools-used cache answers instantly. Chips published then would be
+        // neutral stand-ins, a grey dot pointing at the real lane color.
         //
-        // Readiness must now wait for the palette question too. "Settled", not
+        // Readiness waits for the palette question too. "Settled", not
         // "non-empty": with no API nothing can ever read the file, so the
         // degrade path settles it and the latch still opens rather than
         // hanging on the skeleton forever.
@@ -795,22 +777,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "One filament card, titled FILAMENTS, with t
     CHECK(lv_obj_find_by_name(rows, "filament_chips") != nullptr);
 }
 
-// The two surfaces used to disagree about exactly one state.
 // FilamentMappingCard::should_show() hides the card for a single-lane print
-// with bypass engaged - a K2 Plus user read a chip as "this maps to lane 2",
-// tapped it to confirm, and printed off the bypass spool. But
-// render_authoritative_chips() computed the SECOND surface as
-// `!mapping_visible && swatches_card_visible_for(...)`, and that rule is TRUE
-// for one tool on any multi-slot printer. Hiding one surface therefore SHOWED
-// the other, and the chips the incident was about stayed on screen anyway.
-// One card behind one predicate leaves nothing to disagree with.
+// with bypass engaged: a chip there reads as "this maps to lane 2", and the job
+// prints off the bypass spool.
 TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no filament chip at all",
                  "[print_select][detail_view][subjects][bypass]") {
     CacheDirGuard guard;
-    // FOUR lanes on purpose. The retired rule asked only "multi-slot printer
-    // AND at least one tool referenced", so a multi-slot backend is what made
-    // the second surface appear for this one-tool file. A single-slot backend
-    // would hide it for an unrelated reason and prove nothing about bypass.
+    // FOUR lanes on purpose: a single-slot backend would hide the card for an
+    // unrelated reason and prove nothing about bypass.
     ScopedAmsBackend ams(4);
 
     register_detail_callbacks();
@@ -978,12 +952,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Bypass engaging after show() hides the mapp
 }
 
 // The chevron and the card's clickable flag both read color_card_remappable,
-// and it is now published from the same call that publishes the card's
-// visibility. This walks the whole `card_visible && remap available`
-// truth table, because each half fails in its own way: without the first, a
-// hidden card lights a chevron pointing at chips nobody can see (the state the
-// retired second surface used to draw); without the second, a card on a backend
-// with no remap picker cues a tap it would silently drop.
+// published with the card's visibility. This walks the whole `card_visible &&
+// remap available` truth table: without the first, a hidden card lights a chevron
+// pointing at chips nobody can see; without the second, a card on a backend with
+// no remap picker cues a tap it would silently drop.
 TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the backend",
                  "[print_select][detail_view][subjects][remap]") {
     CacheDirGuard guard;
@@ -1131,6 +1103,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
             get_printer_state().versions_state().get_moonraker_history_degraded_subject(), 0);
     }
 
+    SECTION("a job-file rewrite warns from the handed printer's Moonraker, not the app's") {
+        MockPrinter device;
+        device.state.set_helix_plugin_installed(true);
+        helix::ui::UpdateQueue::instance().drain();
+        lv_subject_set_int(device.state.versions_state().get_moonraker_history_degraded_subject(),
+                           1);
+        view.set_analysis_dependencies(&device.api, &device.state);
+        ams.backend->set_remap_strategy(helix::AmsBackend::RemapStrategy::GcodeRewrite);
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        REQUIRE(view.current_remap_block() == helix::printer::RemapBlock::None);
+        CHECK(lv_subject_get_int(help_visible) == 1);
+
+        view.hide();
+        helix::ui::UpdateQueue::instance().drain();
+        view.set_analysis_dependencies(nullptr, &get_printer_state());
+    }
+
     SECTION("card shown on a backend with a picker: chevron lit") {
         // Snapmaker U1 shape - mapping not editable inline, but the backend has
         // a native remap picker, so current_remap_block() is None. The known
@@ -1161,11 +1151,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         // single-extruder printer with no AMS - still makes the card worth
         // showing, because the chips say which lane each tool resolves to. A tap
         // opens nothing and must not be advertised.
-        //
-        // Declared explicitly. The plain mock used to answer RemapStrategy::None
-        // for every non-Snapmaker mode, which is what made this case free - and
-        // also what left the picker unreachable under --test for the five
-        // backends that really do declare Native.
         ams.backend->set_remap_strategy(helix::AmsBackend::RemapStrategy::None);
         view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
 
@@ -1178,13 +1163,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
     }
 }
 
-// One tap, one picker. The merged card inherits FilamentMappingCard::create()'s
-// own CLICKED handler; the retired second card carried its own
-// lv_obj_add_event_cb, and moving THAT onto this widget as well would leave two
-// handlers on one object. LVGL fires every matching handler, so a single tap
-// would call the remap opener twice - which on a live screen is the picker
-// opening over itself. Pinned because the obvious way to "move the tap handler
-// to the surviving card" is exactly the way that breaks it.
+// One tap, one picker. The card inherits FilamentMappingCard::create()'s CLICKED
+// handler; LVGL fires every matching handler, so a second one on this widget
+// would open the picker over itself.
 TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap picker once",
                  "[print_select][detail_view][remap]") {
     CacheDirGuard guard;

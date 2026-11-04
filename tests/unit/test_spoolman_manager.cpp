@@ -1314,11 +1314,12 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
 
     // Link tool 0's slot and let the assignment reach ToolState and its store.
     link(*backend, 0, 1);
-    state_polymaker_pla(server_spool(1));
-    poll();
     ams.sync_from_backend();
     drain();
     REQUIRE(ts.tools()[0].spoolman_id == 1);
+    REQUIRE(client.call_count("server.database.post_item") > 0); // the full sync's own save
+    state_polymaker_pla(server_spool(1));
+    poll();
     REQUIRE_FALSE(helix::ToolStateTestAccess::spool_dirty(ts));
     const int saves_after_link = client.call_count("server.database.post_item");
     REQUIRE(saves_after_link > 0);
