@@ -1491,3 +1491,83 @@ TEST_CASE("build_spool_patches: a spool weight edit reaches the spool the displa
     REQUIRE(reread.has_value());
     CHECK(reread->spool_weight_g == Catch::Approx(edited.spool_weight_g));
 }
+
+// ============================================================================
+// apply_save_result_identity() Tests
+// ============================================================================
+
+static SlotInfo make_orca_linked_slot() {
+    SlotInfo slot = make_test_slot();
+    slot.spoolman_vendor_id = 7;
+    slot.spoolman_orca_filament_id = "GFL99";
+    return slot;
+}
+
+TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: repoint to another filament drops the "
+          "Orca id",
+          "[spoolman][slot_saver]") {
+    SlotInfo committed = make_orca_linked_slot();
+    SaveResult result;
+    result.success = true;
+    result.repointed_filament = true;
+    result.new_filament_id = 200;
+    result.new_vendor_id = 8;
+
+    SpoolmanSlotSaver::apply_save_result_identity(committed, result);
+
+    CHECK(committed.spoolman_id == 42);
+    CHECK(committed.spoolman_filament_id == 200);
+    CHECK(committed.spoolman_vendor_id == 8);
+    CHECK(committed.spoolman_orca_filament_id.empty());
+}
+
+TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: repoint to the same filament keeps the "
+          "Orca id",
+          "[spoolman][slot_saver]") {
+    SlotInfo committed = make_orca_linked_slot();
+    SaveResult result;
+    result.success = true;
+    result.repointed_filament = true;
+    result.new_filament_id = 100;
+
+    SpoolmanSlotSaver::apply_save_result_identity(committed, result);
+
+    CHECK(committed.spoolman_filament_id == 100);
+    CHECK(committed.spoolman_orca_filament_id == "GFL99");
+}
+
+TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: a new spool on a new filament drops the "
+          "Orca id",
+          "[spoolman][slot_saver]") {
+    SlotInfo committed = make_orca_linked_slot();
+    SaveResult result;
+    result.success = true;
+    result.created_new_spool = true;
+    result.new_spool_id = 99;
+    result.new_filament_id = 300;
+
+    SpoolmanSlotSaver::apply_save_result_identity(committed, result);
+
+    CHECK(committed.spoolman_id == 99);
+    CHECK(committed.spoolman_filament_id == 300);
+    CHECK(committed.spoolman_vendor_id == 7);
+    CHECK(committed.spoolman_orca_filament_id.empty());
+}
+
+TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: no new spool and no repoint changes "
+          "nothing",
+          "[spoolman][slot_saver]") {
+    SlotInfo committed = make_orca_linked_slot();
+    SaveResult result;
+    result.success = true;
+    result.new_spool_id = 99;
+    result.new_filament_id = 300;
+    result.new_vendor_id = 9;
+
+    SpoolmanSlotSaver::apply_save_result_identity(committed, result);
+
+    CHECK(committed.spoolman_id == 42);
+    CHECK(committed.spoolman_filament_id == 100);
+    CHECK(committed.spoolman_vendor_id == 7);
+    CHECK(committed.spoolman_orca_filament_id == "GFL99");
+}
