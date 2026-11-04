@@ -167,6 +167,7 @@ static constexpr const char* VERTICAL_AXIS_TOKENS[] = {
     "button_height_lg",
     "chamber_preset_h",
     "header_height",
+    "wizard_dropdown_height",
     "temp_card_height",
     "dialog_content_max",
     "dialog_content_pinned_max",

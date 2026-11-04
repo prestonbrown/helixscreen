@@ -671,9 +671,9 @@
     <px name="header_height_large" value="60"/>
     <px name="header_height_xlarge" value="68"/>
     <px name="header_height_xxlarge" value="80"/>
-    <!-- The wizard's setup dropdowns (heaters, fans, LEDs, filament sensor): the
-         bar height they were drawn to before the header grew at micro, kept so
-         the four fan dropdowns still fit a 272px screen. -->
+    <!-- The wizard's setup dropdowns (heaters, fans, LEDs, filament sensor). A
+         vertical-axis token: these heights let the fan step's four dropdowns
+         fit a 272px-tall screen, and portrait resolves them from its height. -->
     <px name="wizard_dropdown_height_micro" value="28"/>
     <px name="wizard_dropdown_height_tiny" value="33"/>
     <px name="wizard_dropdown_height_small" value="48"/>
