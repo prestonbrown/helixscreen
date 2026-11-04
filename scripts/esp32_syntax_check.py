@@ -8,8 +8,11 @@ image builds -fno-exceptions with its own HELIX_HAS_* set. Local gates never
 build the firmware, so those breaks surface 15 minutes into esp32-build CI.
 
 This compiles, -fsyntax-only, every firmware translation unit whose source
-changed between BASE and HEAD, plus every firmware unit that directly includes
-a changed header, inside the espressif/idf image. Flags come from a
+changed between BASE and HEAD, plus every firmware unit that reaches a changed
+header through any chain of includes (a firmware header holding a repo type by
+value is such a chain), inside the espressif/idf image. The include graph is
+parsed once per file, so a wide header costs the compiles it selects, not the
+walk. Flags come from a
 configure-only firmware build cached under ~/.cache, keyed on the firmware's
 CMake inputs, so a push that does not touch them pays no configure. A source
 that two components compile (helixnet and helixapp share a few) is checked
@@ -47,6 +50,9 @@ IDF_IMAGE = "espressif/idf:v5.5.5"
 FW_DIR = "firmware/helixscreen-esp32"
 SOURCE_EXTS = (".c", ".cpp")
 HEADER_EXTS = (".h", ".hpp")
+# Force-included on every firmware C++ command line (helixapp's CMakeLists), so
+# every unit depends on it and no #include names it.
+FORCED_INCLUDES = frozenset({"include/lvgl_pch.h"})
 INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[">]', re.M)
 CONFIG_INPUT_RE = re.compile(r"(CMakeLists\.txt|\.txt|\.yml|\.csv|sdkconfig[^/]*|Kconfig[^/]*)$")
 
@@ -121,28 +127,101 @@ def rebase_path(tok, src_root, tree, *fallback_roots):
     return re.sub(re.escape(src_root) + r'(?:/+([^"\s\\=]*))?(?![^/"\s\\=])', sub, tok)
 
 
-def select_units(units, changed, read_source, one_per_header=False):
+# Where a quoted or angled include resolves when it is not relative to the
+# includer: the roots the firmware's compile commands pass as -I under the repo.
+# check_units reads the real set from those commands; this is the shape.
+DEFAULT_ROOTS = ("include", "src", "src/generated", f"{FW_DIR}/main",
+                 f"{FW_DIR}/components/helixapp", f"{FW_DIR}/components/helixcore",
+                 f"{FW_DIR}/components/helixnet")
+
+
+def include_roots(entries, src_root):
+    """The -I and -isystem directories under src_root, relative, from the firmware's
+    compile commands; lib/ and build/ are left out, since a header there is a leaf:
+    nothing the repo changes reaches it, and parsing LVGL's tree would cost more
+    than every compile it could select."""
+    roots = set()
+    for entry in entries:
+        toks = shlex.split(entry["command"])
+        for i, tok in enumerate(toks):
+            path = None
+            if tok in ("-I", "-isystem") and i + 1 < len(toks):
+                path = toks[i + 1]
+            elif tok.startswith("-I"):
+                path = tok[2:]
+            elif tok.startswith("-isystem"):
+                path = tok[8:]
+            if path and path.startswith(src_root + "/"):
+                rel = path[len(src_root) + 1:].rstrip("/")
+                if rel and not rel.startswith(("lib/", "build/")):
+                    roots.add(rel)
+    return tuple(sorted(roots)) or DEFAULT_ROOTS
+
+
+class IncludeGraph:
+    """Which repo files a unit reaches through #include, parsed once per file.
+
+    An include resolves relative to its includer first, then against `roots`,
+    and only to a file `read_source` can read: a system or lib/ header resolves
+    to nothing and is a leaf. The closure walks cycles once.
+    """
+
+    def __init__(self, read_source, roots):
+        self.read_source = read_source
+        self.roots = roots
+        self.text = {}
+        self.edges = {}
+
+    def exists(self, rel):
+        if rel not in self.text:
+            self.text[rel] = self.read_source(rel)
+        return self.text[rel] is not None
+
+    def includes(self, rel):
+        if rel in self.edges:
+            return self.edges[rel]
+        out = []
+        text = self.text.get(rel) if rel in self.text else self.read_source(rel)
+        self.text[rel] = text
+        for inc in INCLUDE_RE.findall(text or ""):
+            here = os.path.normpath(os.path.join(os.path.dirname(rel), inc))
+            for cand in (here, *(os.path.normpath(os.path.join(r, inc)) for r in self.roots)):
+                if cand != rel and self.exists(cand):
+                    out.append(cand)
+                    break
+        self.edges[rel] = out
+        return out
+
+    def closure(self, rel):
+        seen, stack = set(), [rel]
+        while stack:
+            for nxt in self.includes(stack.pop()):
+                if nxt not in seen:
+                    seen.add(nxt)
+                    stack.append(nxt)
+        return seen
+
+
+def select_units(units, changed, read_source, one_per_header=False, roots=DEFAULT_ROOTS):
     """Relative paths of the units to check.
 
     units: {relpath: [entry, ...]}; changed: relpaths; read_source(rel) -> text.
     A changed source is checked if the firmware compiles it. A changed header
-    is checked through the units that include it directly, or with
-    one_per_header through a single one of them, preferring a unit already
-    picked.
-    Direct includers only; a transitive include graph when a break
-    slips past through a header-of-a-header.
+    is checked through every unit that reaches it, directly or through any
+    chain of headers (a firmware header holding a repo type by value is such a
+    chain), or with one_per_header through a single one of them, preferring a
+    unit already picked.
     """
     picked = {rel for rel in changed if rel in units}
     headers = [rel for rel in changed if rel.endswith(HEADER_EXTS)]
     includers = {h: [] for h in headers}
     if headers:
+        graph = IncludeGraph(read_source, roots)
         for rel in sorted(units):
-            text = read_source(rel)
-            if text is None:
-                continue
-            incs = INCLUDE_RE.findall(text)
+            reached = graph.closure(rel)
             for h in headers:
-                if any(h == inc or h.endswith("/" + inc) for inc in incs):
+                # A forced include is on every command line and in no #include.
+                if h in reached or h in FORCED_INCLUDES:
                     includers[h].append(rel)
     for h, units_of_h in includers.items():
         if not one_per_header:
@@ -298,7 +377,8 @@ def check_units(args, units, changed, src_root, source_tree, fallbacks, cache, m
         except OSError:
             return None
 
-    picked = select_units(units, changed, read_source, one_per_header=args.staged)
+    roots = include_roots([e for es in units.values() for e in es], src_root)
+    picked = select_units(units, changed, read_source, one_per_header=args.staged, roots=roots)
     if not picked:
         return 0
     specs = []
