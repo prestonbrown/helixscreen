@@ -765,6 +765,34 @@ TEST_CASE("external lane helper: outer key follows store style, inner lane is in
     seed_store_and_publish(helix::ams::LaneKeyStyle::Lane, "lane5");
 }
 
+TEST_CASE("external lane publish carries the spool's Orca filament id",
+          "[ams][bypass-arming][orca]") {
+    HelixTestFixture fx;
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api{client, state};
+
+    CfsTmpCacheDir tmp{"orca"};
+    helix::ams::FilamentSlotOverrideStore store(&api, "t", helix::ams::LaneKeyStyle::Tool);
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+
+    SlotInfo spool;
+    spool.material = "ABS";
+    spool.spoolman_id = 31;
+    spool.spoolman_filament_id = 55;
+    spool.spoolman_orca_filament_id = "OGFL99";
+
+    CHECK(helix::ams::external_lane_record(spool).spoolman_orca_filament_id == "OGFL99");
+
+    REQUIRE(helix::ams::publish_external_lane(&store, 4, &spool, "test"));
+    helix::ui::UpdateQueue::instance().drain();
+    const auto rec = client.mock_db_get("lane_data", "T4");
+    REQUIRE_FALSE(rec.is_null());
+    CHECK(rec.value("filament_id", "") == "OGFL99");
+    CHECK(rec.value("helix_filament_id_source", "") == "spoolman");
+}
+
 TEST_CASE("AFC external spool lane: publishes T{N} one past the last lane",
           "[ams][afc][bypass-arming]") {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};

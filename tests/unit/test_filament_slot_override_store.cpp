@@ -3854,6 +3854,49 @@ TEST_CASE("a Spoolman filing keeps a declared colour on the stored record",
     }
 }
 
+TEST_CASE("a Spoolman filing states the record's Orca filament id whole",
+          "[filament_slot_override][orca][spoolman]") {
+    using helix::ams::Observation;
+    using helix::ams::ObservationSource;
+    using helix::ams::persist_override_external_identity;
+
+    std::unordered_map<int, FilamentSlotOverride> overrides;
+    FilamentSlotOverride linked;
+    linked.spoolman_id = 42;
+    linked.material = "ABS";
+    linked.spoolman_orca_filament_id = "OGFL99";
+    overrides[0] = linked;
+
+    Observation spoolman(ObservationSource::Spoolman);
+    spoolman.spoolman_id = 42;
+    spoolman.material = "ABS";
+
+    SECTION("a filament that names another Orca preset replaces the id") {
+        spoolman.spoolman_orca_filament_id = std::string("OGFL01");
+        CHECK(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
+        CHECK(overrides.at(0).spoolman_orca_filament_id == "OGFL01");
+    }
+
+    SECTION("a filament that names no Orca preset takes the id away") {
+        spoolman.spoolman_orca_filament_id = std::string{};
+        CHECK(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
+        CHECK(overrides.at(0).spoolman_orca_filament_id.empty());
+    }
+
+    SECTION("a fetch that states no Orca id at all takes it away too") {
+        REQUIRE_FALSE(spoolman.spoolman_orca_filament_id.has_value());
+        CHECK(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
+        CHECK(overrides.at(0).spoolman_orca_filament_id.empty());
+    }
+
+    SECTION("an unlinked record gains nothing from a filing") {
+        overrides[0].spoolman_id = 7;
+        spoolman.spoolman_orca_filament_id = std::string("OGFL01");
+        CHECK_FALSE(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
+        CHECK(overrides.at(0).spoolman_orca_filament_id == "OGFL99");
+    }
+}
+
 TEST_CASE("lane_data carries the catalog product's OrcaSlicer filament_id as a string",
           "[filament_slot_override][orca]") {
     FilamentSlotOverride ovr;

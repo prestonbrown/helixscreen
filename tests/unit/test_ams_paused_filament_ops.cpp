@@ -306,6 +306,26 @@ TEST_CASE_METHOD(PausedGateFixture, "a paused AD5X loads only on a homed toolhea
         CHECK(backend->call_refuse_load_if_printing().success());
         CHECK_FALSE(helix::ui::print_blocks_load_now(backend.get(), state));
     }
+    SECTION("paused + empty head: the head view's Load follows the homed toolhead") {
+        set_print_state(helix::PrintJobState::PAUSED);
+        helix::Ad5xIfsTestAccess::set_head_switch(*backend, /*seen=*/true, /*present=*/false);
+        REQUIRE_FALSE(backend->load_unloads_toolhead_now());
+
+        set_homed_axes("xyz");
+        auto view = helix::ui::read_filament_head_view(backend.get(), state);
+        REQUIRE_FALSE(view.heads.empty());
+        REQUIRE(view.heads[0].ops.load == helix::FilamentOpSupport::Automatic);
+        CHECK(view.print_blocks_op);
+        CHECK(view.print_blocks_load == std::optional<bool>(false));
+        CHECK(helix::ui::decide_slot_actions(view, 0).load.enabled);
+        // Unload still answers to the paused refusal.
+        CHECK_FALSE(helix::ui::decide_slot_actions(view, 0).unload.enabled);
+
+        set_homed_axes("xy");
+        view = helix::ui::read_filament_head_view(backend.get(), state);
+        CHECK(view.print_blocks_load == std::optional<bool>(true));
+        CHECK_FALSE(helix::ui::decide_slot_actions(view, 0).load.enabled);
+    }
     SECTION("paused + homed on the standalone module: IFS_LOAD keeps the paused refusal") {
         set_print_state(helix::PrintJobState::PAUSED);
         set_homed_axes("xyz");
