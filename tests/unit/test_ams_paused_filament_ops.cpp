@@ -274,10 +274,13 @@ TEST_CASE_METHOD(PausedGateFixture, "a paused AD5X loads only on a homed toolhea
         CHECK(backend->call_refuse_load_if_printing().success());
         CHECK(backend->unload_filament(0).user_msg ==
               "Can't move filament while the print is paused");
-        // load_filament() asks the load rule: whatever else it answers, it is
-        // not the paused refusal.
-        CHECK(backend->load_filament(0).user_msg !=
-              "Can't move filament while the print is paused");
+        // The load reaches the firmware macro, and homes nothing on the way.
+        CHECK(backend->load_filament(0).success());
+        REQUIRE_FALSE(backend->dispatched.empty());
+        CHECK(backend->dispatched.front() == "INSERT_PRUTOK_IFS PRUTOK=1");
+        CHECK(
+            std::none_of(backend->dispatched.begin(), backend->dispatched.end(),
+                         [](const std::string& g) { return g.find("G28") != std::string::npos; }));
         CHECK_FALSE(backend->call_refuse_if_printing().success());
         CHECK_FALSE(backend->check_preconditions(/*requires_toolhead_motion=*/true).success());
     }
@@ -302,6 +305,16 @@ TEST_CASE_METHOD(PausedGateFixture, "a paused AD5X loads only on a homed toolhea
         REQUIRE_FALSE(backend->load_unloads_toolhead_now());
         CHECK(backend->call_refuse_load_if_printing().success());
         CHECK_FALSE(helix::ui::print_blocks_load_now(backend.get(), state));
+    }
+    SECTION("paused + homed on the standalone module: IFS_LOAD keeps the paused refusal") {
+        set_print_state(helix::PrintJobState::PAUSED);
+        set_homed_axes("xyz");
+        helix::Ad5xIfsTestAccess::set_module_live(*backend, true);
+        REQUIRE_FALSE(backend->load_unloads_toolhead_now());
+        AmsError err = backend->load_filament(0);
+        REQUIRE_FALSE(err.success());
+        CHECK(err.user_msg == "Can't move filament while the print is paused");
+        CHECK(backend->dispatched.empty());
     }
     SECTION("paused + not fully homed: the buried _G28 would fire, so refuse") {
         set_print_state(helix::PrintJobState::PAUSED);
