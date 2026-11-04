@@ -676,36 +676,44 @@ TEST_CASE("a fly-through comes every one to two minutes", "[screensaver][highfly
 }
 
 TEST_CASE("wisps sample smoothly, without radial seams", "[screensaver][highfly]") {
-    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    // Wide, so the clock on the middle row leaves columns clear either side of it.
+    constexpr int32_t kW = 800;
+    constexpr int32_t kH = 240;
+    TestFrame frame(kW, kH, PixelFormat::XRGB8888);
     std::minstd_rand rng(3);
     HighFlySim sim;
     const ClockReading r = reading_at(10 * 3600);
     sim.init(frame.target, rng, 0, r);
     std::vector<DirtyRect> dirty;
-    const PixelWriter w(frame.target);
-    bool checked = false;
-    for (int i = 0; i < 2600 && !checked; i++) {
-        sim.step(50, frame.target, rng, r, dirty);
-        const float since = sim.fly_since_s();
-        if (since > 1.1f && since < 1.4f) {
-            const auto grey = [&](int32_t x, int32_t y) {
-                const Rgb c = w.get(x, y);
-                return (c.r + c.g + c.b) / 3;
-            };
-            // Rows through the centre, clear of the clock's numerals.
-            const DirtyRect& clock = sim.clock_layout().bounds;
-            for (const int32_t y : {30, 60, 120}) {
-                for (int32_t x = 1; x < 400; x++) {
-                    if (y >= clock.y1 && y <= clock.y2 && x >= clock.x1 - 1 && x <= clock.x2 + 1) {
-                        continue;
-                    }
-                    CHECK(std::abs(grey(x, y) - grey(x - 1, y)) <= 24);
-                }
-            }
-            checked = true;
-        }
+    // Whole seconds up to the cloud ahead, then frames, to the hold of the fly-through.
+    while (sim.next_fly_s() > 2.0f) {
+        sim.step(1000, frame.target, rng, r, dirty);
     }
-    CHECK(checked);
+    while (sim.fly_since_s() < 1.2f) {
+        sim.step(50, frame.target, rng, r, dirty);
+    }
+    REQUIRE(sim.fly_since_s() < 1.4f);
+    const PixelWriter w(frame.target);
+    const auto grey = [&](int32_t x, int32_t y) {
+        const Rgb c = w.get(x, y);
+        return (c.r + c.g + c.b) / 3;
+    };
+    // The wisps' angle wraps on the ray left of the centre, along the middle row, so the rows
+    // either side of it sample opposite ends of the wisp table. Over the interior the scene
+    // there is flat: smooth sampling moves a pixel 1 grey level between them, a seam 5 or more.
+    const DirtyRect& clock = sim.clock_layout().bounds;
+    int most = 0;
+    int columns = 0;
+    for (int32_t x = 8; x < kW / 2 - 8; x++) {
+        if (x >= clock.x1 - 1 && x <= clock.x2 + 1 && clock.y1 <= kH / 2 + 1 &&
+            clock.y2 >= kH / 2 - 1) {
+            continue;
+        }
+        most = std::max(most, std::abs(grey(x, kH / 2 - 1) - grey(x, kH / 2 + 1)));
+        columns++;
+    }
+    REQUIRE(columns >= 32);
+    CHECK(most <= 3);
 }
 
 TEST_CASE("the ladder drops layers before coarsening the deck, slows, and ends standing still",
