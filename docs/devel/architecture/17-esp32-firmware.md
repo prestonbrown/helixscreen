@@ -2,7 +2,8 @@
 
 The BigTreeTech K-Touch is an ESP32-S3 panel: two Xtensa cores at 240MHz, about 512KB of on-chip SRAM, 8MB of octal
 PSRAM, 16MB of flash, an 800x480 RGB panel and a GT911 touch controller. HelixScreen runs on it natively, as a
-remote screen that joins WiFi and talks to a printer's Moonraker. It is not a second app. The firmware in
+remote screen that joins WiFi and talks to a printer's Moonraker. It is not a second app: one UI and one truth,
+because two near-parity codebases drift apart. The firmware in
 `firmware/helixscreen-esp32/` is an ESP-IDF (CMake) project that compiles LVGL, `lib/helix-xml`, all of `ui_xml/`
 and a curated two thirds of `src/` unmodified, then adds what Linux gives the desktop app for free: a boot
 sequence, a display driver, a WebSocket and HTTP transport, storage, WiFi and OTA. Nearly every design decision in

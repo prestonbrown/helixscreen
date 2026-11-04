@@ -1,7 +1,7 @@
 # BTT K-Touch Hardware Recon
 
 **Date:** 2026-07-13
-**Context:** Phase 1c target hardware for the ESP32 display program (`docs/devel/plans/2026-06-10-esp32-display-device-design.md`). BigTreeTech's K-Touch is the concrete product behind the "BTT interest" noted in that spec. Findings below are from hands-on probing of a physical unit plus BTT's published firmware/repos.
+**Context:** Target hardware of the native ESP32 port (`../ESP32_PORT.md`, `../architecture/17-esp32-firmware.md`). BigTreeTech's K-Touch is the concrete product behind BTT's interest in a HelixScreen-class UI on an ESP32-S3, with no display SBC. Findings below are from hands-on probing of a physical unit plus BTT's published firmware/repos.
 
 ## Confirmed by probing the physical unit (esptool over USB-C/CH340)
 
@@ -34,7 +34,7 @@ Partition table (decoded from `K-Touch_v1.1.0_partition.bin`):
 Calibration point for the Phase 0 size gate: BTT fits a full Klipper touch UI in 2.25MB with 4.5MB A/B slots. We control our own partition table, so larger app slots (~6-7MB A/B with a smaller asset FS) are available if needed.
 
 Firmware strings confirm:
-- Display driven via **`esp_lcd_new_rgb_panel`** (RGB parallel — the exact interface Phase 1c's board layer assumed)
+- Display driven via **`esp_lcd_new_rgb_panel`** (RGB parallel, the interface `firmware/helixscreen-esp32/main/board_display.c` drives)
 - Backlight via **LEDC PWM**
 - OTA via built-in web UI (`esp_http_server`), SoftAP fallback provisioning ("BTT K TOUCH SETTINGS MANAGER")
 - **Shared codebase with the BTT Panda Touch** (Panda Touch strings all over the K-Touch binary) — same hardware family
@@ -82,7 +82,7 @@ Recon workspace (release bins, strings dump, esptool venv): `~/Code/Printing/kto
 
 ## Implications for the ESP32 display program
 
-1. **Hardware matches the plan's assumptions**: S3 + 8MB octal PSRAM + 16MB flash + 800×480 RGB panel + GT911-class touch. The Phase 1c board-config table gets a `btt_ktouch` entry; the Phase 0 audit's [HW] steps can run on this unit directly.
+1. **Hardware matches the port's target**: S3 + 8MB octal PSRAM + 16MB flash + 800×480 RGB panel + GT911-class touch. The Phase 0 audit (`../ESP32_NATIVE_AUDIT.md`) measured on this unit.
 2. **CH340 instead of native USB** means flashing at 460800 baud and no USB-JTAG debugging; log console is the CH340 UART.
-3. **Battery exists** (20-30 min runtime): terminal firmware wants backlight dimming/sleep policy and ideally a battery indicator — new requirements not in the 1c plan.
+3. **Battery exists** (20-30 min runtime): firmware on it wants backlight dimming/sleep policy and ideally a battery indicator.
 4. PandaTouch_PlatformIO is the reference for board bring-up code (esp_lcd RGB + GT911), subject to on-device verification.
