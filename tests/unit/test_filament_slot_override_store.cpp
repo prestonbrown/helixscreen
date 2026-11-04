@@ -6,9 +6,11 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "filament_variants.h"
+#include "lane_resolver.h"
 #include "lane_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "moonraker_spoolman_api.h"
 #include "printer_state.h"
 #include "spoolman_types.h" // SpoolInfo + apply_spool_to_slot (the picker-side writer)
 
@@ -3501,6 +3503,119 @@ TEST_CASE("lane_data carries the catalog product's OrcaSlicer filament_id as a s
         json wire = helix::ams::to_lane_data_record(0, ovr);
         CHECK_FALSE(wire.contains("filament_id"));
         CHECK(wire["helix_spoolman_filament_id"] == 55);
+    }
+}
+
+namespace {
+
+/// A Spoolman spool record whose filament carries @p orca_extra as its
+/// orca_filament_id extra, stored the way Spoolman serves it.
+json spool_with_orca_extra(const json& orca_extra) {
+    return {{"id", 42},
+            {"filament",
+             {{"id", 55},
+              {"material", "ABS"},
+              {"vendor", {{"id", 3}, {"name", "Bambu Lab"}}},
+              {"extra", {{"orca_filament_id", orca_extra}}}}}};
+}
+
+/// The record a lane linked to @p spool_json persists, with @p catalog_id as
+/// the user's catalog pick, through the picker's writer and the persist path.
+FilamentSlotOverride linked_record(const json& spool_json, const std::string& catalog_id) {
+    helix::SlotInfo slot;
+    apply_spool_to_slot(slot, helix::spoolman_detail::parse_spool_info(spool_json));
+    slot.catalog_id = catalog_id;
+    const helix::ams::Observation nothing_declared(helix::ams::ObservationSource::LocalUser);
+    return helix::ams::user_override_from_slot_info(nothing_declared, slot, slot.material, nullptr);
+}
+
+} // namespace
+
+TEST_CASE("a linked Spoolman filament's orca_filament_id is the lane's filament_id",
+          "[filament_slot_override][orca][spoolman]") {
+    const FilamentSlotOverride ovr =
+        linked_record(spool_with_orca_extra("\"OGFL99\""), "bambu-lab-bambu-abs");
+    REQUIRE(ovr.spoolman_orca_filament_id == "OGFL99");
+
+    // The spool's own id outranks the catalog product's ("OFhuaUQB").
+    const json wire = helix::ams::to_lane_data_record(0, ovr);
+    CHECK(wire.value("filament_id", "") == "OGFL99");
+    CHECK(wire.value("helix_filament_id_source", "") == "spoolman");
+    CHECK(wire.value("helix_catalog_id", "") == "bambu-lab-bambu-abs");
+
+    // A restart reads it back onto the Spoolman source the lane resolves from.
+    auto parsed = helix::ams::from_lane_data_record(wire);
+    REQUIRE(parsed.has_value());
+    CHECK(parsed->second.spoolman_orca_filament_id == "OGFL99");
+    const auto sources = helix::ams::sources_from_record(parsed->second, wire);
+    REQUIRE(sources.spoolman.has_value());
+    CHECK(sources.spoolman->spoolman_orca_filament_id == "OGFL99");
+    CHECK(helix::ams::resolve(sources).spoolman_orca_filament_id == "OGFL99");
+
+    // And the private cache keeps it too.
+    CHECK(helix::ams::from_json(helix::ams::to_json(ovr)).spoolman_orca_filament_id == "OGFL99");
+}
+
+TEST_CASE("an unusable orca_filament_id leaves the catalog's filament_id in place",
+          "[filament_slot_override][orca][spoolman]") {
+    json extra;
+    SECTION("a JSON-encoded number") {
+        extra = "123";
+    }
+    SECTION("a raw number") {
+        extra = 123;
+    }
+    SECTION("an empty string") {
+        extra = "\"\"";
+    }
+    SECTION("malformed JSON") {
+        extra = "\"OGFL99";
+    }
+    SECTION("a Bambu GF code") {
+        extra = "\"GFL99\"";
+    }
+
+    const FilamentSlotOverride ovr =
+        linked_record(spool_with_orca_extra(extra), "bambu-lab-bambu-abs");
+    CHECK(ovr.spoolman_orca_filament_id.empty());
+    const json wire = helix::ams::to_lane_data_record(0, ovr);
+    CHECK(wire.value("filament_id", "") == "OFhuaUQB");
+    CHECK_FALSE(wire.contains("helix_filament_id_source"));
+}
+
+TEST_CASE("unlinking the spool drops the Spoolman-sourced filament_id",
+          "[filament_slot_override][orca][spoolman]") {
+    helix::SlotInfo slot;
+    apply_spool_to_slot(
+        slot, helix::spoolman_detail::parse_spool_info(spool_with_orca_extra("\"OGFL99\"")));
+    REQUIRE(slot.spoolman_orca_filament_id == "OGFL99");
+    slot.clear_spoolman_link();
+    const helix::ams::Observation nothing_declared(helix::ams::ObservationSource::LocalUser);
+
+    SECTION("with no catalog pick the record carries no filament_id") {
+        const json wire =
+            helix::ams::to_lane_data_record(0, helix::ams::user_override_from_slot_info(
+                                                   nothing_declared, slot, slot.material, nullptr));
+        CHECK_FALSE(wire.contains("filament_id"));
+        CHECK_FALSE(wire.contains("helix_filament_id_source"));
+    }
+
+    SECTION("a catalog pick's id takes over") {
+        slot.catalog_id = "bambu-lab-bambu-abs";
+        const json wire =
+            helix::ams::to_lane_data_record(0, helix::ams::user_override_from_slot_info(
+                                                   nothing_declared, slot, slot.material, nullptr));
+        CHECK(wire.value("filament_id", "") == "OFhuaUQB");
+        CHECK_FALSE(wire.contains("helix_filament_id_source"));
+    }
+
+    SECTION("a record without the Spoolman source marker reads back no Spoolman id") {
+        json wire = helix::ams::to_lane_data_record(
+            0, linked_record(spool_with_orca_extra("\"OGFL99\""), ""));
+        wire.erase("helix_filament_id_source");
+        auto parsed = helix::ams::from_lane_data_record(wire);
+        REQUIRE(parsed.has_value());
+        CHECK(parsed->second.spoolman_orca_filament_id.empty());
     }
 }
 

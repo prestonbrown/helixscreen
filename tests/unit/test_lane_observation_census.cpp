@@ -76,7 +76,7 @@ namespace {
 /// ties them. A field added to that struct has no name here, so the
 /// static_assert below stops the build and whoever added it has to say which
 /// backends are expected to file it.
-constexpr std::array<const char*, 14> kFieldNames = {"present",
+constexpr std::array<const char*, 15> kFieldNames = {"present",
                                                      "tool_docked",
                                                      "color_rgb",
                                                      "color_name",
@@ -88,6 +88,7 @@ constexpr std::array<const char*, 14> kFieldNames = {"present",
                                                      "spoolman_id",
                                                      "spoolman_filament_id",
                                                      "spoolman_vendor_id",
+                                                     "spoolman_orca_filament_id",
                                                      "remaining_weight_g",
                                                      "total_weight_g"};
 

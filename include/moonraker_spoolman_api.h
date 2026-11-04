@@ -44,6 +44,12 @@ SpoolInfo parse_spool_info(const nlohmann::json& spool_json);
 /// when the key is absent or holds no number.
 std::optional<double> parse_extra_number(const nlohmann::json& extra, const std::string& key);
 
+/// The usable OrcaSlicer preset id in @p extra's kSpoolmanOrcaIdExtraKey, or
+/// empty. Only a JSON-encoded string counts: a number (Spoolman's own numeric
+/// filament id is no Orca preset), an empty or malformed value and a `GF` code
+/// are each refused, with one debug line per distinct refused value.
+std::string parse_extra_orca_filament_id(const nlohmann::json& extra);
+
 /// @p value encoded for an extra field of @p field_type, the inverse of
 /// parse_extra_number(): a text field gets a quoted string, every other type
 /// the bare number.

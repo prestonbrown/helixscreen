@@ -141,6 +141,12 @@ constexpr auto kFieldRoster = std::make_tuple(
     field<FieldKind::PositiveId, Authorship::DeclaredSet, Owner::SpoolWhenLinked>(
         "spoolman_vendor_id", &SlotInfo::spoolman_vendor_id,
         &FilamentSlotOverride::spoolman_vendor_id, &Observation::spoolman_vendor_id),
+    // The OrcaSlicer preset id the spool's filament names. Like the definition
+    // id, only the Spoolman fetch states it and no editor writes it, and it
+    // goes with the binding.
+    field<FieldKind::Text>("spoolman_orca_filament_id", nullptr,
+                           &FilamentSlotOverride::spoolman_orca_filament_id,
+                           &Observation::spoolman_orca_filament_id),
     // A weight is a measurement wherever it came from, so the record path
     // files both as Metered without asking who wrote them.
     field<FieldKind::Weight>("remaining_weight_g", &SlotInfo::remaining_weight_g,

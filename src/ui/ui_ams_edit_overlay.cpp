@@ -269,6 +269,9 @@ void AmsEditOverlay::apply_linked_spool(int spool_id, const SpoolInfo& spool) {
         if (spool.vendor_id > 0) {
             working_info_.spoolman_vendor_id = spool.vendor_id;
         }
+        // The record states the filament whole, so an id it no longer carries
+        // goes too.
+        working_info_.spoolman_orca_filament_id = spool.orca_filament_id;
         std::vector<SlotInfo*> targets{&original_info_};
         if (!keep_working) {
             targets.push_back(&working_info_);
@@ -280,6 +283,7 @@ void AmsEditOverlay::apply_linked_spool(int spool_id, const SpoolInfo& spool) {
             if (spool.vendor_id > 0) {
                 info->spoolman_vendor_id = spool.vendor_id;
             }
+            info->spoolman_orca_filament_id = spool.orca_filament_id;
             if (!spool.vendor.empty()) {
                 info->brand = spool.vendor;
             }

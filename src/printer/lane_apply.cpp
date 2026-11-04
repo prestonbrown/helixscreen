@@ -47,6 +47,8 @@ void apply_resolved(SlotInfo& slot, const ResolvedLane& resolved) {
         slot.spoolman_filament_id = *resolved.spoolman_filament_id;
     if (resolved.spoolman_vendor_id.has_value())
         slot.spoolman_vendor_id = *resolved.spoolman_vendor_id;
+    if (resolved.spoolman_orca_filament_id.has_value())
+        slot.spoolman_orca_filament_id = *resolved.spoolman_orca_filament_id;
     if (resolved.remaining_weight_g.has_value())
         slot.remaining_weight_g = *resolved.remaining_weight_g;
     if (resolved.total_weight_g.has_value())
@@ -90,6 +92,11 @@ void clear_lane_only_identity(SlotInfo& slot, const FilamentSlotOverride* ovr) {
         slot.spoolman_vendor_id = ovr->spoolman_vendor_id;
     } else {
         slot.spoolman_vendor_id = 0;
+    }
+    if (ovr != nullptr && !ovr->spoolman_orca_filament_id.empty()) {
+        slot.spoolman_orca_filament_id = ovr->spoolman_orca_filament_id;
+    } else {
+        slot.spoolman_orca_filament_id.clear();
     }
 }
 

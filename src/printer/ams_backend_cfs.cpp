@@ -5018,6 +5018,7 @@ void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slo
     o.spoolman_id = 0;
     o.spoolman_filament_id = 0;
     o.spoolman_vendor_id = 0;
+    o.spoolman_orca_filament_id.clear();
     o.updated_at = std::chrono::system_clock::now();
 
     // Immediate visibility on the live SlotInfo. apply_resolved_lane runs after
@@ -5028,6 +5029,7 @@ void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slo
     slot.spoolman_id = 0;
     slot.spoolman_filament_id = 0;
     slot.spoolman_vendor_id = 0;
+    slot.spoolman_orca_filament_id.clear();
 
     // The lane's own records lose the handle too, and only the handle: #1390 is
     // exactly that a bay's identity outlives the spool and labels the one
@@ -5038,6 +5040,7 @@ void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slo
         kept.spoolman_id.reset();
         kept.spoolman_filament_id.reset();
         kept.spoolman_vendor_id.reset();
+        kept.spoolman_orca_filament_id.reset();
     });
 
     spdlog::info("{} slot {} reads empty after a confirmed runout - dropping the remembered "

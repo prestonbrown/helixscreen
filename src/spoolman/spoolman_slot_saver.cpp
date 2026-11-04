@@ -159,6 +159,7 @@ void SpoolmanSlotSaver::save(const SlotInfo& original, const SlotInfo& edited, L
         SlotInfo fresh = edited;
         fresh.spoolman_id = 0;
         fresh.spoolman_filament_id = 0;
+        fresh.spoolman_orca_filament_id.clear();
         save_impl(original, fresh, std::move(on_complete));
         return;
     }
