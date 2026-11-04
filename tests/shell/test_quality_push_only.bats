@@ -195,13 +195,15 @@ staged_units() {
 
 # Runs phase2's own compile block (from the qc_staged_compile_units call to the
 # branch's closing fi) in a scratch repo whose syntax_check.py is a stub that
-# records the units it was handed and exits STUB_RC.
+# records the units it was handed and exits STUB_RC, or 1 for a unit named in
+# STUB_FAIL_ON. helix-claim is a stub too: `hold` logs its arguments to hold.log.
 compile_block() {
   local repo="$BATS_TEST_TMPDIR/repo"
   bash -c '
     cd "$1" || exit 99
     . "$2/scripts/qc/_lib.sh"
     EXIT_CODE=0
+    QC_TMP="$PWD/qc_tmp"; mkdir -p "$QC_TMP"
     SECTION_START=$(date +%s)
     eval "$(awk "/^  qc_staged_compile_units /{p=1} p{print} p&&/^  fi\$/{exit}" "$2/scripts/qc/phase2.sh")"
     echo "EXIT_CODE=$EXIT_CODE"
@@ -219,10 +221,31 @@ compile_repo() {
   printf '[]\n' > "$repo/compile_commands.json"
   cat > "$repo/scripts/syntax_check.py" <<'PY'
 import os, sys
-open("called.txt", "w").write("\n".join(sys.argv[1:]) + "\n")
-print("summary: stub checked %d" % (len(sys.argv) - 1))
-sys.exit(int(os.environ.get("STUB_RC", "0")))
+units = sys.argv[1:]
+if units[0] == "--jobs":
+    open("jobs.txt", "w").write(units[1] + "\n")
+    units = units[2:]
+open("called.txt", "w").write("\n".join(units) + "\n")
+bad = os.environ.get("STUB_FAIL_ON")
+for unit in units:
+    print("%s: %s (0.1s)" % (unit, "FAILED" if unit == bad else "ok"))
+print("summary: stub checked %d" % len(units))
+sys.exit(1 if bad in units else int(os.environ.get("STUB_RC", "0")))
 PY
+  cat > "$repo/scripts/helix-claim" <<'SH'
+#!/bin/sh
+case "$1" in
+  jobs) echo 6 ;;
+  hold)
+    shift
+    echo "$*" > hold.log
+    while [ "$1" != "--" ]; do shift; done
+    shift
+    JOBPOOL_SLOTS=3 exec "$@"
+    ;;
+esac
+SH
+  chmod +x "$repo/scripts/helix-claim"
 }
 
 @test "phase2 hands each staged source to the syntax check and reports its summary" {
@@ -266,4 +289,171 @@ PY
   run compile_block
   contains "✅ No staged source to compile" "$output"
   [ ! -e "$BATS_TEST_TMPDIR/repo/called.txt" ] || fail "syntax check ran"
+}
+
+# Stages N sources under each of src/w, src/x and tests/y.
+wide_repo() {
+  compile_repo
+  local repo="$BATS_TEST_TMPDIR/repo" d i
+  for d in src/w src/x tests/y; do
+    mkdir -p "$repo/$d"
+    for i in $(seq 1 "$1"); do printf 'int v;\n' > "$repo/$d/u$i.cpp"; done
+  done
+  git -C "$repo" add src/w src/x tests/y
+}
+
+called_count() { grep -c . "$BATS_TEST_TMPDIR/repo/called.txt"; }
+
+compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$QC_TREE"; }
+
+@test "a few staged sources compile as a plain serial run with no pool hold" {
+  compile_repo
+  git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp
+  run compile_block
+  contains "EXIT_CODE=0" "$output"
+  [ ! -e "$BATS_TEST_TMPDIR/repo/hold.log" ] || fail "took a hold: $(cat "$BATS_TEST_TMPDIR/repo/hold.log")"
+  [ ! -e "$BATS_TEST_TMPDIR/repo/jobs.txt" ] || fail "passed --jobs"
+}
+
+@test "exactly the cap of staged sources all compile, in parallel, with no warning" {
+  local cap; cap=$(compile_cap)
+  wide_repo $((cap / 3))
+  git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp src/c.cpp
+  local staged; staged=$(git -C "$BATS_TEST_TMPDIR/repo" diff --cached --name-only | grep -c .)
+  [ "$staged" -le "$cap" ] || fail "fixture staged $staged over the cap $cap"
+  run compile_block
+  contains "EXIT_CODE=0" "$output"
+  lacks "Wide commit" "$output"
+  [ "$(called_count)" -eq "$staged" ] || fail "compiled $(called_count) of $staged"
+  contains "-n 6 --" "$(cat "$BATS_TEST_TMPDIR/repo/hold.log")"
+  [ "$(cat "$BATS_TEST_TMPDIR/repo/jobs.txt")" = 3 ] || fail "jobs is not the granted slots"
+}
+
+@test "over the cap a commit compiles a deterministic spread, keeps includers, and says what it skipped" {
+  local cap; cap=$(compile_cap)
+  wide_repo 60
+  local repo="$BATS_TEST_TMPDIR/repo"
+  # src/c.cpp includes b.h and sits where an even stride need not land on it.
+  git -C "$repo" add include/b.h
+  run compile_block
+  contains "EXIT_CODE=0" "$output"
+  [ "$(called_count)" -eq "$cap" ] || fail "compiled $(called_count), cap $cap"
+  grep -qx 'src/c.cpp' "$repo/called.txt" || fail "the header's includer was sampled out"
+  grep -q '^src/w/' "$repo/called.txt" || fail "no unit from src/w"
+  grep -q '^src/x/' "$repo/called.txt" || fail "no unit from src/x"
+  grep -q '^tests/y/' "$repo/called.txt" || fail "no unit from tests/y"
+  contains "Wide commit: compiled $cap of 181 units" "$output"
+  contains "$((181 - cap)) were NOT compiled here" "$output"
+  grep -q "NOT compiled here" "$repo/qc_tmp/compile_sample.note" || fail "no note for the driver's verdict"
+
+  local first; first=$(cat "$repo/called.txt")
+  run compile_block
+  [ "$(cat "$repo/called.txt")" = "$first" ] || fail "the sample moved between runs"
+}
+
+@test "header includers past the cap all compile" {
+  run bash -c '
+    . "$1/scripts/qc/_lib.sh"
+    CHECK_UNITS=$(printf "src/%s.cpp\n" a b c d e f)
+    QC_INCLUDER_UNITS=$(printf "src/%s.cpp\n" a c e)
+    qc_sample_compile_units 2
+    echo "$CHECK_UNITS" | tr "\n" " "; echo "skipped=$COMPILE_SKIPPED"
+  ' _ "$QC_TREE"
+  [ "$output" = "src/a.cpp src/c.cpp src/e.cpp skipped=3" ] || fail "$output"
+}
+
+@test "a broken source in the sample fails the commit and its error survives the ok lines" {
+  wide_repo 60
+  local repo="$BATS_TEST_TMPDIR/repo" broken
+  run compile_block
+  broken=$(tail -1 "$repo/called.txt")
+  STUB_FAIL_ON="$broken" run compile_block
+  contains "❌ A staged source does not compile" "$output"
+  contains "$broken: FAILED" "$output"
+  contains "EXIT_CODE=1" "$output"
+  contains "Wide commit" "$output"
+  lacks "u1.cpp: ok" "$output"
+}
+
+@test "a failed compile keeps its whole log, in a place no other session writes" {
+  wide_repo 60
+  local repo="$BATS_TEST_TMPDIR/repo" broken cap
+  cap=$(compile_cap)
+  run compile_block
+  broken=$(tail -1 "$repo/called.txt")
+  STUB_FAIL_ON="$broken" run compile_block
+  local kept="$BATS_TEST_TMPDIR/kept"
+  run bash -c '
+    eval "$(sed -n "/^qc_keep_gate_log() {/,/^}/p" "$1/scripts/quality-checks.sh")"
+    : > "$2/qc_tmp/qc_phase2.out"
+    qc_keep_gate_log qc_phase2 1 1000 "$2/qc_tmp" "$3"
+  ' _ "$QC_TREE" "$repo" "$kept"
+  [ "$(grep -c ': ok (' "$kept"/*-phase2/phase2.syntax.log)" -eq $((cap - 1)) ] || fail "$(ls -R "$kept")"
+  run grep -n '/tmp/qc_syntax' "$QC_TREE/scripts/qc/phase2.sh"
+  [ "$status" -eq 1 ] || fail "$output"
+}
+
+@test "HELIX_QC_ALL_AT_COMMIT compiles every unit of a wide commit" {
+  wide_repo 60
+  HELIX_QC_ALL_AT_COMMIT=1 run compile_block
+  contains "EXIT_CODE=0" "$output"
+  lacks "Wide commit" "$output"
+  [ "$(called_count)" -eq 180 ] || fail "compiled $(called_count)"
+}
+
+@test "a wide commit with no compile database claims no sample" {
+  wide_repo 60
+  local repo="$BATS_TEST_TMPDIR/repo"
+  rm "$repo/compile_commands.json"
+  run compile_block
+  contains "No compile_commands.json" "$output"
+  lacks "Wide commit" "$output"
+  [ ! -e "$repo/qc_tmp/compile_sample.note" ] || fail "the note claims units compiled"
+}
+
+# Each fake compile waits for the other to start, so a run that compiles one at a
+# time fails rather than merely running slower.
+syntax_repo() {
+  local repo="$BATS_TEST_TMPDIR/sc"
+  mkdir -p "$repo/src"
+  git -C "$repo" init -q
+  cp "$QC_TREE/VERSION.txt" "$repo/VERSION.txt"
+  printf 'int a;\n' > "$repo/src/a.cpp"
+  printf 'int b;\n' > "$repo/src/b.cpp"
+  cat > "$repo/cc.sh" <<'SH'
+#!/bin/sh
+for last; do :; done
+name=$(basename "$last" .cpp)
+: > "started.$name"
+other=a; [ "$name" = a ] && other=b
+i=0
+while [ ! -e "started.$other" ]; do
+  i=$((i + 1))
+  [ "$i" -lt 50 ] || { echo "error: $name saw no peer" >&2; exit 1; }
+  sleep 0.1
+done
+[ "$name" != b ] || [ -z "${CC_FAIL_B:-}" ] || { echo "error: b is broken" >&2; exit 1; }
+SH
+  chmod +x "$repo/cc.sh"
+  local version; version=$(cat "$QC_TREE/VERSION.txt")
+  printf '[{"directory": "%s", "file": "src/a.cpp", "command": "./cc.sh -DHELIX_VERSION=\\"%s\\" -c src/a.cpp"},{"directory": "%s", "file": "src/b.cpp", "command": "./cc.sh -DHELIX_VERSION=\\"%s\\" -c src/b.cpp"}]\n' \
+    "$repo" "$version" "$repo" "$version" > "$repo/compile_commands.json"
+}
+
+@test "syntax_check --jobs compiles at once and reports in the order given" {
+  syntax_repo
+  run bash -c 'cd "$1" && python3 "$2/scripts/syntax_check.py" --jobs 2 src/b.cpp src/a.cpp' _ "$BATS_TEST_TMPDIR/sc" "$QC_TREE"
+  [ "$status" -eq 0 ] || fail "$output"
+  [ "${lines[0]%%:*}" = src/b.cpp ] || fail "$output"
+  [ "${lines[1]%%:*}" = src/a.cpp ] || fail "$output"
+  contains "summary: 2 compiled, 0 skipped, 0 failed" "$output"
+}
+
+@test "syntax_check --jobs still fails on one broken unit and prints its error" {
+  syntax_repo
+  CC_FAIL_B=1 run bash -c 'cd "$1" && python3 "$2/scripts/syntax_check.py" --jobs 2 src/a.cpp src/b.cpp 2>&1' _ "$BATS_TEST_TMPDIR/sc" "$QC_TREE"
+  [ "$status" -eq 1 ] || fail "$output"
+  contains "src/b.cpp: FAILED" "$output"
+  contains "error: b is broken" "$output"
+  contains "summary: 2 compiled, 0 skipped, 1 failed" "$output"
 }

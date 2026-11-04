@@ -321,6 +321,10 @@ if [ -n "$QC_SKIPPED" ]; then
   echo "⏭️  Skipped (nothing staged that they inspect):$QC_SKIPPED"
   echo "   The pre-push hook runs all of them ungated."
 fi
+if [ -f "$QC_TMP/compile_sample.note" ]; then
+  echo ""
+  cat "$QC_TMP/compile_sample.note"
+fi
 
 # Every gate that ran, slowest first. The transcript cannot time them: gates run
 # in parallel and their output is replayed only once all have finished.
