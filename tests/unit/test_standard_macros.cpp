@@ -633,7 +633,7 @@ TEST_CASE("StandardMacros - init fills the shipped tier from the printer databas
 
     SECTION("a slot the database ships nothing for is never self-preparing") {
         macros.init(hardware, "Elegoo Centauri Carbon");
-        CHECK_FALSE(macros.get(StandardMacroSlot::ScrewsTilt).shipped_self_prepares);
+        CHECK_FALSE(macros.get(StandardMacroSlot::BedLevel).shipped_self_prepares);
         CHECK_FALSE(macros.get(StandardMacroSlot::CleanNozzle).shipped_self_prepares);
     }
 
@@ -666,6 +666,7 @@ TEST_CASE("StandardMacros - the Centauri Carbon's screws tilt follows COSMOS's w
             resolve_macro_script(info, {.screws_tilt_builtin = "SCREWS_TILT_CALCULATE_BASE"});
         CHECK(r.script == "LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE\n"
                           "SCREWS_TILT_CALCULATE_BASE\n"
+                          "G90\n"
                           "G1 X128 Y220 Z20 F6000");
         CHECK(r.shipped);
         CHECK(r.self_prepares);
