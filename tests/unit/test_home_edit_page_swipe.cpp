@@ -36,6 +36,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/armed_timers.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/grid_edit_mode_test_access.h"
 #include "../test_helpers/home_panel_test_access.h"
@@ -56,7 +57,6 @@
 #include "indev/lv_indev_private.h" // LV_INDEV_VECT_HIST_SIZE: no public accessor
 #include "lvgl_test_fixture.h"
 #include "misc/lv_event_private.h" // lv_event_dsc_t::filter: no public accessor
-#include "misc/lv_timer_private.h" // lv_timer_t::timer_cb, repeat_count: no public accessor
 #include "panel_widget.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -957,19 +957,9 @@ class EditHomeFixture : public LVGLTestFixture {
         return *entry;
     }
 
-    /// Timers of the edit session that can still fire: the session is their
-    /// user data, and they keep a callback and a run. A cancel neuters a timer
-    /// and leaves it linked until lv_timer_handler() runs, and the test pump
-    /// never deletes one.
+    /// Timers of the edit session that can still fire: the session is their user data.
     int armed_session_timer_count() {
-        int count = 0;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
-            if (lv_timer_get_user_data(t) == &grid() && t->timer_cb != nullptr &&
-                t->repeat_count != 0) {
-                ++count;
-            }
-        }
-        return count;
+        return helix::test::armed_timer_count(&grid());
     }
 
     /// Hold still on an empty spot of the session's page until the long press

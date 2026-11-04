@@ -296,6 +296,7 @@ TEST_CASE("PrintStart: default profile reads each phase from real and generic li
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/archive_transfers.h"
+#include "../test_helpers/armed_timers.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/preprint_config_scope.h"
 #include "../test_helpers/print_start_collector_test_access.h"
@@ -548,20 +549,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 // Lifetime: the last reference may drop on a network thread
 // ============================================================================
 
-namespace {
-/// Live LVGL timers whose user_data is @p p. Compares pointers only, so it is
-/// safe to ask about an object already destroyed.
-int lvgl_timers_pointing_at(const void* p) {
-    int n = 0;
-    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
-        if (lv_timer_get_user_data(t) == p) {
-            n++;
-        }
-    }
-    return n;
-}
-} // namespace
-
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: a last reference dropped off the main thread is "
                  "destroyed on the main thread",
@@ -571,7 +558,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     collector->start();
     drain_async_updates();
     const void* addr = collector.get();
-    const int armed = lvgl_timers_pointing_at(addr);
+    const int armed = helix::test::armed_timer_count(addr);
     REQUIRE(armed >= 1);
 
     // A network callback's capture is the only reference left when it runs.
@@ -583,16 +570,14 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 
     // The ETA timer is untouched off the main thread: it is still armed, and
     // firing it before the destruction runs reaches nothing freed.
-    CHECK(lvgl_timers_pointing_at(addr) == armed);
-    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
-        if (lv_timer_get_user_data(t) == addr) {
-            lv_timer_ready(t);
-        }
+    CHECK(helix::test::armed_timer_count(addr) == armed);
+    for (lv_timer_t* t : helix::test::armed_timers_for(addr)) {
+        lv_timer_ready(t);
     }
     lv_timer_handler();
 
     drain_async_updates();
-    CHECK(lvgl_timers_pointing_at(addr) == armed - 1);
+    CHECK(helix::test::armed_timer_count(addr) == armed - 1);
 }
 
 // ============================================================================

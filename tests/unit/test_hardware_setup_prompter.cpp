@@ -19,6 +19,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/armed_timers.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/hardware_setup_prompter_test_access.h"
 #include "../test_helpers/notification_history_panel_test_access.h"
@@ -238,17 +239,6 @@ class TypeMismatchFixture : public LVGLUITestFixture {
         REQUIRE(btn != nullptr);
         lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
         drain();
-    }
-
-    /// Timers holding @p owner that can still fire.
-    static int armed_timers_for(const void* owner) {
-        int armed = 0;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            if (t->user_data == owner && t->timer_cb && t->repeat_count != 0) {
-                ++armed;
-            }
-        }
-        return armed;
     }
 
     static void drain() {
@@ -567,7 +557,7 @@ TEST_CASE_METHOD(TypeMismatchFixture,
     click(dialog, "btn_primary");
 
     const void* owner = prompter_.get();
-    REQUIRE(armed_timers_for(owner) == 1);
+    REQUIRE(helix::test::armed_timer_count(owner) == 1);
     prompter_.reset();
-    CHECK(armed_timers_for(owner) == 0);
+    CHECK(helix::test::armed_timer_count(owner) == 0);
 }

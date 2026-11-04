@@ -4,6 +4,7 @@
 #include "ui_format_utils.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/armed_timers.h"
 #include "format_utils.h"
 #include "locale_formats.h"
 #include "panel_widget_manager.h"
@@ -119,20 +120,11 @@ TEST_CASE_METHOD(ClockWidgetFixture, "ClockWidget: detach stops timer", "[clock_
     widget.on_activate();
 
     // The clock timer carries the widget as its user_data.
-    auto timer_count = [&widget]() {
-        int n = 0;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            if (lv_timer_get_user_data(t) == &widget) {
-                ++n;
-            }
-        }
-        return n;
-    };
-    REQUIRE(timer_count() == 1);
+    REQUIRE(helix::test::armed_timer_count(&widget) == 1);
 
     // Detach stops the timer even if on_deactivate() wasn't called
     widget.detach_tile();
-    REQUIRE(timer_count() == 0);
+    REQUIRE(helix::test::armed_timer_count(&widget) == 0);
 }
 
 TEST_CASE_METHOD(ClockWidgetFixture, "ClockWidget: subjects populated on attach",

@@ -4,6 +4,7 @@
 #include "ui_coalesced_timer.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/armed_timers.h"
 
 #include <memory>
 
@@ -12,26 +13,6 @@
 using namespace helix::ui;
 
 namespace {
-
-/// How many live LVGL timers carry @p p as their user_data. Compares pointers
-/// only - never dereferences, so it is safe to ask about an object that has
-/// already been destroyed.
-///
-/// Counted rather than tested as a boolean on purpose. lv_timer_cancel_safe()
-/// neuters a timer without unlinking it or clearing its user_data, and the
-/// linked-but-dead entry survives until the next lv_timer_handler pass. Earlier
-/// tests therefore leave timers pointing at their own dead stack frames, and
-/// those addresses get reused. Only the *delta* across a destructor is
-/// meaningful; an absolute "nothing points here" is a coin flip on stack reuse.
-int lvgl_timers_pointing_at(const void* p) {
-    int n = 0;
-    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
-        if (lv_timer_get_user_data(t) == p) {
-            n++;
-        }
-    }
-    return n;
-}
 
 /// Live entries in LVGL's timer list. A coalesced request must cost one timer
 /// however often it is asked for: surplus timers fire into an empty callback
@@ -106,7 +87,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CoalescedTimer: destructor cancels pending ti
         REQUIRE(timer.pending());
 
         timer_addr = &timer;
-        pointing_before = lvgl_timers_pointing_at(timer_addr);
+        pointing_before = helix::test::armed_timer_count(timer_addr);
         REQUIRE(pointing_before >= 1); // our own armed timer, at least
     } // destructor must cancel()
 
@@ -117,7 +98,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CoalescedTimer: destructor cancels pending ti
     // There is no timer-count check to pair with this. cancel() routes through
     // lv_timer_cancel_safe(), which neuters the timer and leaves lv_timer_handler
     // to reap it, so the timer is still linked at this point either way.
-    REQUIRE(lvgl_timers_pointing_at(timer_addr) == pointing_before - 1);
+    REQUIRE(helix::test::armed_timer_count(timer_addr) == pointing_before - 1);
 
     // Well past the 20ms period.
     process_lvgl(200);
@@ -315,11 +296,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "CoalescedTimer: destructor cancels a pending 
         CoalescedTimer timer(20);
         timer.schedule_once([fired]() { *fired = true; });
         timer_addr = &timer;
-        pointing_before = lvgl_timers_pointing_at(timer_addr);
+        pointing_before = helix::test::armed_timer_count(timer_addr);
         REQUIRE(pointing_before >= 1);
     }
 
-    REQUIRE(lvgl_timers_pointing_at(timer_addr) == pointing_before - 1);
+    REQUIRE(helix::test::armed_timer_count(timer_addr) == pointing_before - 1);
     process_lvgl(200);
     REQUIRE_FALSE(*fired);
 }
