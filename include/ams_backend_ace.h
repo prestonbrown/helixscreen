@@ -171,7 +171,6 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // transition confirms a physical swap.
     void clear_slot_override(int slot_index) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
-    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
     // Nothing here can re-aim a tool: the backend declares RemapStrategy::None
     // and owns no editable tool->slot table.

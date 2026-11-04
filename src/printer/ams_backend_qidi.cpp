@@ -1045,11 +1045,6 @@ AmsSystemInfo AmsBackendQidi::get_system_info() const {
     return system_info_;
 }
 
-std::vector<int> AmsBackendQidi::get_tool_mapping() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.tool_to_slot_map;
-}
-
 SlotInfo* AmsBackendQidi::cached_slot_locked(int slot_index) {
     return system_info_.get_slot_global(slot_index);
 }

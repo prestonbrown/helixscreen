@@ -106,8 +106,6 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// Group names are configured in klipper_openams; `T<n>` groups are read
     /// as tool n and cannot be re-aimed from here.
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
-    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
-    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
     }

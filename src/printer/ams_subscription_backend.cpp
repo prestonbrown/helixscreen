@@ -443,6 +443,15 @@ bool AmsSubscriptionBackend::is_filament_loaded() const {
     return system_info_.filament_loaded;
 }
 
+std::vector<int> AmsSubscriptionBackend::get_tool_mapping() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return system_info_.tool_to_slot_map;
+}
+
+AmsError AmsSubscriptionBackend::set_tool_mapping_impl(int tool_number, int slot_index) {
+    return can_set_tool_mapping(tool_number, slot_index);
+}
+
 bool AmsSubscriptionBackend::op_moves_toolhead(FilamentOp op) const {
     switch (op) {
     case FilamentOp::Load:

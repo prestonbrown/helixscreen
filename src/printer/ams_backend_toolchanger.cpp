@@ -3080,11 +3080,6 @@ AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_
     return assign_tool(physical_tool_name, tool_number);
 }
 
-std::vector<int> AmsBackendToolChanger::get_tool_mapping() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.tool_to_slot_map;
-}
-
 AmsError AmsBackendToolChanger::reset_tool_mappings() {
     // Restore identity mapping: each tool number maps to its own physical tool.
     // Sends ASSIGN_TOOL for each tool that was remapped away from identity.
