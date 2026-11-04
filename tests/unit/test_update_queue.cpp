@@ -255,6 +255,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "drain timer does not wake the main loop faste
     CHECK(UpdateQueueTestAccess::timer_period(q) >= LV_DEF_REFR_PERIOD);
 }
 
+// A soft restart shuts the queue down and initializes it again in a live LVGL.
+// Each cycle must leave exactly one drain timer, not one more than the last.
+TEST_CASE_METHOD(LVGLTestFixture, "init and shutdown cycles leave one drain timer",
+                 "[update_queue]") {
+    auto count_timers = [] {
+        int n = 0;
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            ++n;
+        }
+        return n;
+    };
+    auto& q = UpdateQueue::instance();
+    const int before = count_timers();
+    for (int i = 0; i < 5; ++i) {
+        q.shutdown();
+        q.init();
+    }
+    CHECK(count_timers() == before);
+}
+
 // The early-out that skips building a local queue when nothing is pending must
 // not swallow work: a drain that finds the queue empty has to leave frozen
 // callbacks buffered, and the next drain has to run everything that arrived in
