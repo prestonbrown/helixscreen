@@ -22,8 +22,10 @@
 namespace nlohmann {
 inline namespace json_abi_v3_12_0 {
 
+// NAMESPACE_OK: nlohmann's own declaration, which this forward section must match
 template <typename T = void, typename SFINAE = void> struct adl_serializer;
 
+// NAMESPACE_OK: nlohmann's own declaration, which this forward section must match
 template <template <typename U, typename V, typename... Args> class ObjectType = std::map,
           template <typename U, typename... Args> class ArrayType = std::vector,
           class StringType = std::string, class BooleanType = bool,
@@ -32,12 +34,14 @@ template <template <typename U, typename V, typename... Args> class ObjectType =
           template <typename U> class AllocatorType = std::allocator,
           template <typename T, typename SFINAE = void> class JSONSerializer = adl_serializer,
           class BinaryType = std::vector<std::uint8_t>, class CustomBaseClass = void>
+// NAMESPACE_OK: nlohmann's own declaration, which this forward section must match
 class basic_json;
 
 template <typename RefStringType> class json_pointer;
 
 using json = basic_json<>;
 
+// NAMESPACE_OK: nlohmann's own declaration, which this forward section must match
 template <class Key, class T, class IgnoredLess, class Allocator> struct ordered_map;
 
 using ordered_json = basic_json<nlohmann::ordered_map>;
