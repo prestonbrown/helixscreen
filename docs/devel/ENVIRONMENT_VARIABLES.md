@@ -1427,7 +1427,7 @@ constructor, so the suite never arms the mounter regardless of euid.
 |----------|-------|
 | **Values** | `0` (fallback mounting off), anything else or unset (on for root) |
 | **Default** | Enabled when running as root |
-| **File** | `src/api/usb_automount.cpp`, `include/usb_automount.h` |
+| **File** | `src/platform/usb/usb_automount.cpp`, `include/usb_automount.h` |
 
 ```bash
 # Leave USB mounting entirely to the platform's own mounter.

@@ -30,11 +30,11 @@ USB mice, keyboards and touchscreens go through `input_device_scanner` and the d
 
 | File | Purpose |
 |------|---------|
-| `include/usb_backend.h` / `src/api/usb_backend.cpp` | `UsbBackend` interface, `UsbDrive`/`UsbGcodeFile`/`UsbError` types, platform factory |
-| `include/usb_backend_linux.h` / `src/api/usb_backend_linux.cpp` | Linux backend: mount-table monitor, USB classification, G-code walk |
-| `include/usb_automount.h` / `src/api/usb_automount.cpp` | `UsbAutomount` fallback mounter and its injectable `MountOps` syscall surface |
-| `include/usb_backend_mock.h` / `src/api/usb_backend_mock.cpp` | `UsbBackendMock`: demo drive for `--test`, simulate insert/remove for tests |
-| `include/usb_manager.h` / `src/api/usb_manager.cpp` | `UsbManager`: owns the backend, single drive-event callback, locked queries |
+| `include/usb_backend.h` / `src/platform/usb/usb_backend.cpp` | `UsbBackend` interface, `UsbDrive`/`UsbGcodeFile`/`UsbError` types, platform factory |
+| `include/usb_backend_linux.h` / `src/platform/usb/usb_backend_linux.cpp` | Linux backend: mount-table monitor, USB classification, G-code walk |
+| `include/usb_automount.h` / `src/platform/usb/usb_automount.cpp` | `UsbAutomount` fallback mounter and its injectable `MountOps` syscall surface |
+| `include/usb_backend_mock.h` / `src/platform/usb/usb_backend_mock.cpp` | `UsbBackendMock`: demo drive for `--test`, simulate insert/remove for tests |
+| `include/usb_manager.h` / `src/platform/usb/usb_manager.cpp` | `UsbManager`: owns the backend, single drive-event callback, locked queries |
 | `src/application/subject_initializer.cpp` | Creates the `UsbManager`, fans drive events out to the UI and toasts |
 | `include/ui_print_select_usb_source.h` / `src/ui/print/ui_print_select_usb_source.cpp` | `PrintSelectUsbSource`: Printer/USB source switch, subjects, file conversion |
 | `src/ui/print/ui_panel_print_select.cpp` | Hosts the USB source, copies a USB file to Moonraker before printing, Moonraker `usb/` symlink probe |
@@ -80,7 +80,7 @@ Two consumers hold a raw `UsbManager*`:
 
 ### Detection: watching the mount table
 
-procfs never generates inotify events, so the backend polls `/proc/self/mountinfo` for `POLLPRI`, which the kernel raises on any mount table change once the file has been read to EOF and rewound. From `src/api/usb_backend_linux.cpp#monitor_thread_func`:
+procfs never generates inotify events, so the backend polls `/proc/self/mountinfo` for `POLLPRI`, which the kernel raises on any mount table change once the file has been read to EOF and rewound. From `src/platform/usb/usb_backend_linux.cpp#monitor_thread_func`:
 
 ```cpp
             struct pollfd pfd;
@@ -119,7 +119,7 @@ On every change the monitor re-parses `/proc/mounts`, diffs against `cached_driv
 
 ### Classification: what counts as a USB drive
 
-`UsbBackendLinux::is_usb_mount` (`src/api/usb_backend_linux.cpp#is_usb_mount`) accepts a `/proc/mounts` row only if all of these hold:
+`UsbBackendLinux::is_usb_mount` (`src/platform/usb/usb_backend_linux.cpp#is_usb_mount`) accepts a `/proc/mounts` row only if all of these hold:
 
 1. The device starts with `/dev/`.
 2. The mount point is under one of the prefixes in `is_usb_mount_point`:
@@ -133,13 +133,13 @@ On every change the monitor re-parses `/proc/mounts`, diffs against `cached_driv
 3. The filesystem is one of `vfat`, `msdos`, `exfat`, `ntfs`, `ntfs3`, `ext4`, `ext3`, `fuseblk`. `iso9660` and `f2fs` are excluded on purpose: a loop-mounted ISO under `/media` would otherwise surface as a drive, and f2fs is the boards' internal flash.
 4. The base block device (partition digits stripped) reads `removable=1` in `/sys/block/<dev>/removable`, **or** its `device/uevent` names `DRIVER=usb-storage` or `DRIVER=uas`, **or**, failing both sysfs checks, the mount point is under `/media/`.
 
-The volume label comes from the mount point leaf when it does not look like a device name (`sd*`, `nvme*`), else a reverse lookup through `/dev/disk/by-label`, else the device basename (`src/api/usb_backend_linux.cpp#get_volume_label`).
+The volume label comes from the mount point leaf when it does not look like a device name (`sd*`, `nvme*`), else a reverse lookup through `/dev/disk/by-label`, else the device basename (`src/platform/usb/usb_backend_linux.cpp#get_volume_label`).
 
 `UsbDrive` deliberately has no capacity fields. Free space on a FAT volume costs a full FAT scan on the first query after mount, so whatever displays capacity has to compute it on demand.
 
 ### Listing G-code
 
-`scan_for_gcode()` refuses a mount path that is not in `cached_drives_`, then releases the backend mutex and walks it recursively to `max_depth` 3 by default (`src/api/usb_backend_linux.cpp#scan_directory`). Files are kept when `helix::gcode::has_printable_extension()` accepts the name, the same predicate the Moonraker file list uses, so 8.3 names like `3DBENC~1.GCO` from an `msdos` mount still match.
+`scan_for_gcode()` refuses a mount path that is not in `cached_drives_`, then releases the backend mutex and walks it recursively to `max_depth` 3 by default (`src/platform/usb/usb_backend_linux.cpp#scan_directory`). Files are kept when `helix::gcode::has_printable_extension()` accepts the name, the same predicate the Moonraker file list uses, so 8.3 names like `3DBENC~1.GCO` from an `msdos` mount still match.
 
 `PrintSelectUsbSource::refresh_files()` takes the drive list and a `shared_ptr` to the backend (`UsbManager::backend_snapshot()`) on the UI thread, then hands the slow part to `HttpExecutor::fast()`: `scan_usb_drives()` walks every mounted drive into one flat list (a file's path already carries its mount point) and pulls each file's header thumbnail into the thumbnail cache, pre-scaled to the card target read on the UI thread before the walk (`src/ui/print/ui_print_select_usb_source.cpp#scan_usb_drives`):
 
@@ -235,7 +235,7 @@ Some boards ship nothing that mounts a stick. `UsbAutomount` fills that gap with
 
 **Candidates.** `removable_block_devices()` walks `/sys/block/sd*`, keeps disks that pass the same removable / `usb-storage` / `uas` test as `is_usb_mount`, and yields each partition, or the whole disk when there is no partition table. Any device listed anywhere in `/proc/mounts` belongs to someone else and is left alone.
 
-**The option ladder.** Kernel NLS support differs per board, so no single option string mounts FAT everywhere. `automount_ladder()` (`src/api/usb_automount.cpp#automount_ladder`):
+**The option ladder.** Kernel NLS support differs per board, so no single option string mounts FAT everywhere. `automount_ladder()` (`src/platform/usb/usb_automount.cpp#automount_ladder`):
 
 ```cpp
     return {
@@ -254,7 +254,7 @@ Some boards ship nothing that mounts a stick. `UsbAutomount` fills that gap with
 
 `vfat` comes before `msdos` because only vfat keeps long filenames. The combination that worked is cached and tried first next time, since it is a property of the kernel, not the stick. When the whole ladder fails the device sits out a 30s cooldown (`kRetryCooldown`).
 
-**Mount point.** `/mnt/usb/<basename>` (`src/api/usb_automount.cpp#automount_mount_point`). It has to stay inside the `is_usb_mount_point` prefixes, or the backend would never report the drive.
+**Mount point.** `/mnt/usb/<basename>` (`src/platform/usb/usb_automount.cpp#automount_mount_point`). It has to stay inside the `is_usb_mount_point` prefixes, or the backend would never report the drive.
 
 **Ownership.** `ours_` records only mounts this component created. When a device vanishes, its stale mount is unmounted, plain first and then `MNT_DETACH` if busy (safe on a read-only mount, and it returns immediately so `stop()`'s join cannot hang). A mount someone else removed is just forgotten. `unmount_all()` runs on the monitor thread as it exits.
 
@@ -322,7 +322,7 @@ The table lists only devices the `usblp` transport can drive. `0483:5740` is ST'
 
 ### `--test`
 
-`RuntimeConfig::should_mock_usb()` returns `test_mode`, so every `--test` run uses `UsbBackendMock` (when the build has `HELIX_ENABLE_MOCKS`). There is no `HELIX_MOCK_*` variable for USB. 1.5s after `start()`, the mock inserts one drive, `PRINT_FILES` at `/media/usb0`, with six fake files (`src/api/usb_backend_mock.cpp#add_demo_drives`), two of them under `projects/`. The files do not exist on disk, so their cards show the default thumbnail, their detail view falls back to the thumbnail at once (the log names the `/media/usb0` path it could not read), and printing one copies an empty file: the mock's `upload_file_from_path` records the upload and succeeds, and the mock Moonraker then starts `usb_prints/<filename>`. Within the 3s startup window the insert produces no toast, but the Printer/USB tabs appear on the print select panel.
+`RuntimeConfig::should_mock_usb()` returns `test_mode`, so every `--test` run uses `UsbBackendMock` (when the build has `HELIX_ENABLE_MOCKS`). There is no `HELIX_MOCK_*` variable for USB. 1.5s after `start()`, the mock inserts one drive, `PRINT_FILES` at `/media/usb0`, with six fake files (`src/platform/usb/usb_backend_mock.cpp#add_demo_drives`), two of them under `projects/`. The files do not exist on disk, so their cards show the default thumbnail, their detail view falls back to the thumbnail at once (the log names the `/media/usb0` path it could not read), and printing one copies an empty file: the mock's `upload_file_from_path` records the upload and succeeds, and the mock Moonraker then starts `usb_prints/<filename>`. Within the 3s startup window the insert produces no toast, but the Printer/USB tabs appear on the print select panel.
 
 The mock Moonraker can pretend a `gcodes/usb` symlink exists: `mock_set_usb_symlink_active(true)` (declared in `include/moonraker_client_mock.h`) makes `server.files.list` for `usb` return `usb/test_usb_file.gcode`. Only tests call it.
 

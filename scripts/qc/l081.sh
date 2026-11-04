@@ -17,7 +17,7 @@ qc_l081() {
 # warnings; this gate catches new instances at commit time.
 #
 # Scope: known bg-thread directories only (src/core, src/printer, src/calibration,
-# src/led, src/print, src/system, src/sensors, src/api, src/network,
+# src/led, src/print, src/system, src/sensors, src/api, src/network, src/platform, src/mock,
 # src/bluetooth). src/ui/ is excluded — observer cbs there fire on main thread
 # and would false-positive without AST-level lambda-context analysis.
 SECTION_START=$(date +%s)

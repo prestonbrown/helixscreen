@@ -635,6 +635,7 @@ DEFAULT_SCAN_DIRS = (
     'src/system',
     'src/api',
     'src/network',
+    'src/platform',
     'src/bluetooth',
     'src/ui',
 )
