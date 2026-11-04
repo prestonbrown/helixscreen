@@ -1,5 +1,7 @@
 # Coral-Accelerated Local Failure + Bed Detection (Voron / `helix-detect` sidecar) — Spec
 
+Parked design behind prestonbrown/helixscreen#1033.
+
 **Date:** 2026-06-16
 **Status:** PARKED 2026-06-16 — design complete, not scheduled. Parked on the open **camera-mount generalization** question (below): a small self-trained model may not generalize across the wildly varying camera mounts Voron users run, which is exactly Obico's data-diversity moat. Un-park by running the reframed Phase 0 (treat our Voron camera as a held-out, never-trained-on view; if a public-data-only model detects spaghetti on it, generalization is plausible). Bed-occupancy (classical-CV reference-diff) is mount-agnostic and unaffected.
 **Author:** Preston (solo maintainer)

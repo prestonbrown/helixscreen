@@ -2108,6 +2108,7 @@ their head from the runout itself: `FilamentSensorManager::real_runout_lane()` t
 | Creator 5 with the afclite feed | one per tool | Load Automatic (the feed), Unload Manual (cut at the head) |
 | MedusaHC (one extruder drive) | one per tool | Automatic: the backend mounts the tool, heats, prompts the operator, purges and restores the carriage ([FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md#loading-and-unloading-filament)) |
 | klipper-toolchanger with no feed | one per tool | Manual: the sidebar shows Mount and Park |
+| AFC with a toolchanger | one per tool | Automatic: Load is `CHANGE_TOOL LANE=<lane>` and AFC swaps heads itself |
 
 ### The dispatch ladder
 
