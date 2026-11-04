@@ -286,21 +286,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "The U1 homes and heats for its own loads",
 
 // ============================================================================
 // Feeder / Toolhead noun tests
-//
-// The U1's own firmware UI binary spells filament entry "Feeder 1".."Feeder 4"
-// and the printing end "Toolhead 1".."Toolhead 4" (156 and 566 capitalised
-// hits respectively; zero for Slot, Lane, or capitalised Channel) - two
-// different words for the same 1:1 physical position.
 // ============================================================================
-
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker lane_noun and tool_noun name two different things",
-                 "[ams][snapmaker][numbering]") {
-    helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(nullptr, nullptr);
-    AmsBackendSnapmaker& backend = *backend_reg;
-    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Feeder);
-    CHECK(backend.tool_noun() == helix::ui::LaneNoun::Toolhead);
-    CHECK(backend.lane_noun() != backend.tool_noun());
-}
 
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker ToolInfo::display_label names the toolhead, not the feeder",

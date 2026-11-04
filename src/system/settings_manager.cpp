@@ -470,7 +470,7 @@ ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
     // Printers the database does not cover: the live filament backend may know.
     auto* backend = AmsState::instance().get_backend();
     if (backend) {
-        auto hinted = toolhead_style_from_name(backend->toolhead_style_hint());
+        const ToolheadStyle hinted = backend->toolhead_style_hint();
         if (hinted != ToolheadStyle::AUTO)
             return hinted;
     }

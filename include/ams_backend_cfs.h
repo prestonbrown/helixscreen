@@ -160,10 +160,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
     }
 
     // CFS ships only on K2-series printers.
-    [[nodiscard]] std::string toolhead_style_hint() const override {
-        return "creality_k2";
-    }
-
     // State queries
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
 
@@ -201,6 +197,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
         // does so while a job runs.
         t.raises_runout_fault = true;
         t.raises_runout_fault_during_job = true;
+        t.toolhead_style_hint = helix::ToolheadStyle::CREALITY_K2;
         return t;
     }();
     /// kTraits, plus the pre-print send on Fork firmware with BOX_PRINT_MAP.

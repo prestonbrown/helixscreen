@@ -97,6 +97,8 @@ class AmsBackendMock : public AmsBackend {
     /// The traits of the backend the current persona stands in for. Three
     /// fields answer from the mock itself instead (see the .cpp).
     [[nodiscard]] BackendTraits traits() const override;
+    /// traits() for a caller that already holds mutex_.
+    [[nodiscard]] BackendTraits traits_locked() const;
 
     /// Mock extruder->slot mapping. Returns slot == extruder_idx when the
     /// identity mapping flag is set (simulates a tool-changer) and
@@ -596,45 +598,11 @@ class AmsBackendMock : public AmsBackend {
      */
     [[nodiscard]] bool is_afc_mode() const;
 
-    /**
-     * @brief The lane noun for whichever backend type this mock is configured to
-     *        simulate.
-     *
-     * Mirrors the per-backend overrides (AFC -> Lane, Happy Hare -> Gate,
-     * TOOL_CHANGER -> Tool) keyed on get_type() rather than on class identity,
-     * since one mock instance stands in for any of them. Every other AmsType
-     * this mock can report (ACE, AD5X IFS, CFS, SNAPMAKER, QIDI_BOX) shares the
-     * base class's Slot default.
-     */
-    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return lane_noun_locked();
-    }
-
-    /// The same answer for a caller that already holds mutex_. Every operation
-    /// here resolves the noun while reporting a bad index, and mutex_ is not
-    /// recursive, so the locking accessor above would deadlock there.
+    /// lane_noun() for a caller that already holds mutex_. Every operation here
+    /// resolves the noun while reporting a bad index, and mutex_ is not recursive,
+    /// so the locking traits() would deadlock there.
     [[nodiscard]] helix::ui::LaneNoun lane_noun_locked() const {
-        switch (system_info_.type) {
-        case AmsType::AFC:
-            return helix::ui::LaneNoun::Lane;
-        case AmsType::HAPPY_HARE:
-            return helix::ui::LaneNoun::Gate;
-        case AmsType::TOOL_CHANGER:
-            return helix::ui::LaneNoun::Tool;
-        case AmsType::SNAPMAKER:
-            return helix::ui::LaneNoun::Feeder;
-        default:
-            return helix::ui::LaneNoun::Slot;
-        }
-    }
-
-    /// Mirrors AmsBackendSnapmaker::tool_noun() for the Snapmaker persona;
-    /// every other type this mock simulates uses the base class's Tool.
-    [[nodiscard]] helix::ui::LaneNoun tool_noun() const override {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return system_info_.type == AmsType::SNAPMAKER ? helix::ui::LaneNoun::Toolhead
-                                                       : helix::ui::LaneNoun::Tool;
+        return traits_locked().lane_noun;
     }
 
     /**

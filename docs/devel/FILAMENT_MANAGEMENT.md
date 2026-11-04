@@ -3625,7 +3625,7 @@ And the pure virtuals of `AmsBackend` (`include/ams_backend.h`) that the subscri
 
 **Constant capabilities go in `kTraits`, not in overrides.** A capability your backend
 answers the same way for its whole life (`has_physical_tray`, `supports_auto_heat_on_load`,
-`has_per_slot_loaded_authority`, ...) is a field of `BackendTraits` (`include/ams_backend.h#BackendTraits`).
+`has_per_slot_loaded_authority`, `lane_noun`, ...) is a field of `BackendTraits` (`include/ams_backend.h#BackendTraits`).
 Declare one `static constexpr BackendTraits kTraits` that sets the fields you differ on, and
 return it from `traits()`; the predicates of the same names read it and cannot be overridden.
 Any field you leave alone keeps the base answer. A capability that depends on discovery,

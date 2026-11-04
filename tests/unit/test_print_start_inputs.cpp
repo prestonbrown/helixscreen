@@ -487,8 +487,10 @@ namespace {
 class NoResetSnapmaker : public helix::AmsBackendSnapmaker {
   public:
     using AmsBackendSnapmaker::AmsBackendSnapmaker;
-    [[nodiscard]] bool print_routing_resets_to_identity() const override {
-        return false;
+    [[nodiscard]] helix::BackendTraits traits() const override {
+        helix::BackendTraits t = kTraits;
+        t.print_routing_resets_to_identity = false;
+        return t;
     }
 };
 

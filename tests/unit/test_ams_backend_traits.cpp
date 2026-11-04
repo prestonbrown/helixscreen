@@ -159,6 +159,26 @@ TEST_CASE("Real kTraits keep the answers the UI branches on", "[ams][traits]") {
     CHECK_FALSE(BackendTraits{}.printer_reports_spool_ids);
 }
 
+TEST_CASE("Real kTraits name each machine's positions and constant answers", "[ams][traits]") {
+    using helix::ui::LaneNoun;
+    CHECK(BackendTraits{}.lane_noun == LaneNoun::Slot);
+    CHECK(BackendTraits{}.tool_noun == LaneNoun::Tool);
+    CHECK(BackendTraits{}.toolhead_style_hint == ToolheadStyle::AUTO);
+    CHECK(AmsBackendHappyHare::kTraits.lane_noun == LaneNoun::Gate);
+    CHECK(AmsBackendAfc::kTraits.lane_noun == LaneNoun::Lane);
+    CHECK(AmsBackendToolChanger::kTraits.lane_noun == LaneNoun::Tool);
+    CHECK(AmsBackendSnapmaker::kTraits.lane_noun == LaneNoun::Feeder);
+    CHECK(AmsBackendSnapmaker::kTraits.tool_noun == LaneNoun::Toolhead);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).lane_noun() == LaneNoun::Feeder);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).tool_noun() == LaneNoun::Toolhead);
+    CHECK(helix::printer::AmsBackendCfs::kTraits.toolhead_style_hint == ToolheadStyle::CREALITY_K2);
+    CHECK(AmsBackendAfc::kTraits.sets_active_spool_on_link);
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.sets_active_spool_on_link);
+    CHECK(AmsBackendSnapmaker::kTraits.print_routing_resets_to_identity);
+    CHECK(AmsBackendIndx::kIndxTraits.heads_share_heater);
+    CHECK_FALSE(AmsBackendToolChanger::kTraits.heads_share_heater);
+}
+
 TEST_CASE("A U1 owns a spool per tool and has no bypass", "[ams][traits][spoolman]") {
     // The Spoolman active-spool sync assigns per tool only where this holds.
     AmsBackendSnapmaker u1(nullptr, nullptr);

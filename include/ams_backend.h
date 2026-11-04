@@ -27,6 +27,7 @@
 #include "lane_source_store.h"
 #include "tool_mapping_origin.h"
 #include "toolchanger_addon.h"
+#include "toolhead_style.h"
 
 namespace helix {
 class IMoonrakerAPI;
@@ -107,8 +108,14 @@ struct BackendTraits {
     bool raises_runout_fault = false;
     bool raises_runout_fault_during_job = false;
     bool unloads_to_hub_between_prints = false;
+    bool sets_active_spool_on_link = false;
+    bool print_routing_resets_to_identity = false;
+    bool heads_share_heater = false;
+    helix::ui::LaneNoun lane_noun = helix::ui::LaneNoun::Slot;
+    helix::ui::LaneNoun tool_noun = helix::ui::LaneNoun::Tool;
+    ToolheadStyle toolhead_style_hint = ToolheadStyle::AUTO;
 
-    // All-bool with no padding, so the bytes are the value.
+    // One-byte members with no padding, so the bytes are the value.
     bool operator==(const BackendTraits& o) const {
         static_assert(std::has_unique_object_representations_v<BackendTraits>);
         return std::memcmp(this, &o, sizeof(BackendTraits)) == 0;
@@ -381,8 +388,8 @@ class AmsBackend : public AmsCapabilityHost {
      * the spool on a lane LOAD may never see a link edit as one, and then the
      * app sets it for the user's explicit link of the loaded lane.
      */
-    [[nodiscard]] virtual bool sets_active_spool_on_link() const {
-        return false;
+    [[nodiscard]] bool sets_active_spool_on_link() const {
+        return traits().sets_active_spool_on_link;
     }
 
     /// A Klipper status field that says which slot is feeding now: the
@@ -414,8 +421,8 @@ class AmsBackend : public AmsCapabilityHost {
      * heater only ever heats the mounted nozzle, so heater surfaces show one
      * temperature that follows the mounted tool.
      */
-    [[nodiscard]] virtual bool heads_share_heater() const {
-        return false;
+    [[nodiscard]] bool heads_share_heater() const {
+        return traits().heads_share_heater;
     }
 
     /**
@@ -431,11 +438,10 @@ class AmsBackend : public AmsCapabilityHost {
     /**
      * @brief Toolhead style this backend implies when the printer database has none
      *
-     * Same vocabulary as the database's toolhead_style field (e.g. "creality_k2");
-     * empty means no opinion.
+     * AUTO means no opinion.
      */
-    [[nodiscard]] virtual std::string toolhead_style_hint() const {
-        return {};
+    [[nodiscard]] ToolheadStyle toolhead_style_hint() const {
+        return traits().toolhead_style_hint;
     }
 
     /**
@@ -2967,8 +2973,8 @@ class AmsBackend : public AmsCapabilityHost {
      *
      * Default false.
      */
-    [[nodiscard]] virtual bool print_routing_resets_to_identity() const {
-        return false;
+    [[nodiscard]] bool print_routing_resets_to_identity() const {
+        return traits().print_routing_resets_to_identity;
     }
 
     /**
@@ -3408,10 +3414,10 @@ class AmsBackend : public AmsCapabilityHost {
      * Display code composes it with a 1-based number. Returned as an enum so a
      * caller cannot compare the wrong spelling and silently get the default.
      *
-     * @return the backend's noun; Slot unless overridden
+     * @return the backend's noun; Slot by default
      */
-    [[nodiscard]] virtual helix::ui::LaneNoun lane_noun() const {
-        return helix::ui::LaneNoun::Slot;
+    [[nodiscard]] helix::ui::LaneNoun lane_noun() const {
+        return traits().lane_noun;
     }
 
     /**
@@ -3419,12 +3425,12 @@ class AmsBackend : public AmsCapabilityHost {
      *
      * Distinct from lane_noun(): most backends use one noun for both the
      * filament lane and the print position, but a backend whose hardware uses
-     * two different words for the two 1:1 things overrides this separately.
+     * two different words for the two 1:1 things sets both.
      *
-     * @return the backend's noun for a tool/nozzle position; Tool unless overridden
+     * @return the backend's noun for a tool/nozzle position; Tool by default
      */
-    [[nodiscard]] virtual helix::ui::LaneNoun tool_noun() const {
-        return helix::ui::LaneNoun::Tool;
+    [[nodiscard]] helix::ui::LaneNoun tool_noun() const {
+        return traits().tool_noun;
     }
 
     /**
