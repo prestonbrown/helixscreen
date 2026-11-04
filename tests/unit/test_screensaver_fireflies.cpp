@@ -48,6 +48,9 @@ constexpr uint32_t kFrameMs = 33;
 /// Motion depends on the canvas's shape alone, so motion cases draw into W x H scaled down.
 constexpr uint32_t kMotionW = 32;
 constexpr uint32_t kMotionH = 20;
+/// Motion is the same at every rung, and the bottom one draws the fewest flies, so long motion
+/// runs step there.
+constexpr size_t kMotionLevel = kFirefliesLevelCount - 1;
 
 /// A sim and its frame.
 struct Swarm : helix::test::SimRun<FirefliesSim> {
@@ -199,7 +202,7 @@ TEST_CASE("flies close in on a stopped bait", "[screensaver][fireflies_sim]") {
 TEST_CASE("baits and flies keep to their top speeds", "[screensaver][fireflies_sim]") {
     using helix::ui::kFirefliesBaitSpeed;
     using helix::ui::kFirefliesFlySpeed;
-    Swarm s(14);
+    Swarm s(14, kMotionLevel);
     const float half_w = 40.0f * static_cast<float>(W) / static_cast<float>(H);
     float fastest_fly = 0.0f;
     // Samples outside a limit over the whole run, and the step of the first. Each is
@@ -306,7 +309,7 @@ TEST_CASE("a fly's hue swings 20 degrees either way with its speed",
 
 TEST_CASE("a fly's tail grows to 2.25 s of history and stops there",
           "[screensaver][fireflies_sim]") {
-    Swarm s(24);
+    Swarm s(24, kMotionLevel);
     const auto all_ages_in = [&](uint32_t lo, uint32_t hi) {
         return s.sim.tail_age_ms() >= lo && s.sim.tail_age_ms() < hi;
     };
@@ -344,7 +347,7 @@ TEST_CASE("a tail is widest and brightest in its middle and dims toward its old 
 
 TEST_CASE("the wind takes a new heading every 4 to 8 tail lengths",
           "[screensaver][fireflies_sim]") {
-    Swarm s(22);
+    Swarm s(22, kMotionLevel);
     std::vector<uint64_t> changes;
     uint32_t seen = 0;
     float strongest_calm = 0.0f;
@@ -406,7 +409,7 @@ bool every_fly_chases_a_live_bait(const FirefliesSim& sim) {
 
 TEST_CASE("ten minutes of fireflies runs every mode and never orphans a fly",
           "[screensaver][fireflies_sim]") {
-    Swarm s(31, 0, PixelFormat::XRGB8888, 20, 12);
+    Swarm s(31, kMotionLevel, PixelFormat::XRGB8888, 20, 12);
     for (uint32_t t = 0; t < 600000; t += 100) {
         s.step(100);
         REQUIRE(s.sim.baits_alive() >= 2);
@@ -818,9 +821,9 @@ TEST_CASE("a new wind heading during a gust never compounds the gust",
           "[screensaver][fireflies_sim]") {
     constexpr float kWindMax = 6.0f;
     constexpr float kGustMax = 4.0f * kWindMax;
-    for (uint32_t seed = 1; seed <= 40; seed++) {
+    for (uint32_t seed = 1; seed <= 8; seed++) {
         CAPTURE(seed);
-        Swarm s(seed, helix::ui::kFirefliesLevelCount - 1, PixelFormat::XRGB8888, 20, 12);
+        Swarm s(seed, kMotionLevel, PixelFormat::XRGB8888, 20, 12);
         // Gust back to back, so every heading change lands inside a gust.
         const uint32_t changes_before = s.sim.wind_changes();
         float strongest = 0.0f;

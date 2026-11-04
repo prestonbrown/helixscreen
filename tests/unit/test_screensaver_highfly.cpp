@@ -342,8 +342,8 @@ TEST_CASE("every pixel a high fly frame changes lies in one of its dirty boxes",
 TEST_CASE("each frame repaints where the towers and the clock just were, through a busy drift",
           "[screensaver][highfly]") {
     const ClockReading r = reading_at(10 * 3600);
-    constexpr int32_t kW = 200;
-    constexpr int32_t kH = 120;
+    constexpr int32_t kW = 100;
+    constexpr int32_t kH = 60;
     // Find a drift step with both towers up; the towers' schedule does not depend on when the
     // fly-through comes, so a probe run with none finds it.
     double drift_at = -1.0;
@@ -419,7 +419,7 @@ TEST_CASE("the sun glows at the top centre", "[screensaver][highfly]") {
 
 TEST_CASE("towers come every 13 to 14 seconds, at most two at once, in more than one shape",
           "[screensaver][highfly]") {
-    TestFrame frame(200, 120, PixelFormat::RGB565);
+    TestFrame frame(100, 60, PixelFormat::RGB565);
     std::minstd_rand rng(3);
     HighFlySim sim;
     const ClockReading r = reading_at(10 * 3600);
@@ -645,7 +645,7 @@ TEST_CASE("a fly-through renders its interior 62% of the way over the scene",
 }
 
 TEST_CASE("a fly-through comes every one to two minutes", "[screensaver][highfly]") {
-    TestFrame frame(200, 120, PixelFormat::RGB565);
+    TestFrame frame(100, 60, PixelFormat::RGB565);
     std::minstd_rand rng(3);
     HighFlySim sim;
     const ClockReading r = reading_at(10 * 3600);
@@ -658,7 +658,7 @@ TEST_CASE("a fly-through comes every one to two minutes", "[screensaver][highfly
         const float since = sim.fly_since_s();
         if (since > 1.1f && since < 1.4f) {
             // At the hold the whole screen is at least 62% of the way to the interior.
-            const Rgb top = w.get(100, 2);
+            const Rgb top = w.get(50, 2);
             CHECK(top.g >= 140);
             whitened = true;
         }
