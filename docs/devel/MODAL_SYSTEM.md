@@ -92,13 +92,13 @@ helix::ui::modal_alert(
     ModalSeverity::Info);
 ```
 
-`helix::ui::modal_confirm()` returns the dialog widget pointer for callers that dismiss it programmatically. Store it in a `ModalGuard` for RAII:
+`helix::ui::modal_confirm()` returns the dialog widget pointer for callers that dismiss it programmatically. Hold it in a `helix::ui::WidgetRef`, which reads `nullptr` once the dialog is deleted, whoever deleted it:
 
 ```cpp
-#include "ui/ui_modal_guard.h"
+#include "ui_widget_ref.h"
 
 class MyPanel {
-    helix::ui::ModalGuard delete_dialog_;  // Auto-hides in destructor
+    helix::ui::WidgetRef delete_dialog_;  // nullptr once the dialog is gone
 
     void show_delete() {
         delete_dialog_ = helix::ui::modal_confirm(...);
@@ -505,48 +505,50 @@ Pick the token by the card's chrome shape (values in `ui_xml/globals.xml`):
 
 ---
 
-## ModalGuard (RAII for Static API)
+## Holding a dialog handle (Static API)
 
-When using `Modal::show()` or a `modal_confirm()` whose handle you keep, the returned `lv_obj_t*` must eventually be hidden. `ModalGuard` automates this:
+A `Modal::show()` or `modal_confirm()` handle you keep is a `helix::ui::WidgetRef`
+(`include/ui_widget_ref.h`), never a raw `lv_obj_t*`. The handle hooks the dialog's own
+`LV_EVENT_DELETE`, so it reads `nullptr` once the dialog is gone by any route: a button, a
+backdrop tap, ESC, a hot-reload rebuild, the screen being deleted out from under it, or
+`ModalStack::clear()` at shutdown. A raw pointer keeps the dead address, and an `if
+(dialog_) return;` re-entry guard then swallows every later press.
 
 ```cpp
-#include "ui/ui_modal_guard.h"
+#include "ui_widget_ref.h"
 
 class ControlsPanel {
-    helix::ui::ModalGuard motors_dialog_;
-    helix::ui::ModalGuard z_offset_dialog_;
+    helix::ui::WidgetRef motors_dialog_;
 
     void confirm_disable_motors() {
-        // ModalGuard::operator= hides any previous dialog first
+        if (motors_dialog_) {
+            return; // still up; reads nullptr the moment the dialog is deleted
+        }
         motors_dialog_ = helix::ui::modal_confirm(
             lv_tr("Disable Motors?"),
             lv_tr("Release all stepper motors."),
-            ModalSeverity::Warning, lv_tr("Disable"),
-            on_confirm, on_cancel, this);
+            ModalSeverity::Warning, lv_tr("Disable"), on_confirm, opts);
     }
 };
-// Panel destructor -> ModalGuard destructor -> helix::ui::modal_hide() called automatically
 ```
 
-`ModalGuard` supports move semantics, assignment from raw `lv_obj_t*`, explicit `hide()`, and `release()` to take ownership.
-
-> **`ModalGuard` guarantees the dialog gets hidden, not that it is gone.** It calls the
-> static `Modal::hide()`, which starts a 150ms exit animation - so the sequence in the
-> comment above is: the panel destructor runs the guard, and the dialog then outlives the
-> panel. For tier-2 dialogs whose buttons a caller hand-wired with `wire_button_with()`,
-> that means whatever those callbacks capture must outlive the dialog too.
+> **A handle tells you the dialog is gone, not that it is closed.** `Modal::hide()` starts
+> a 150ms exit animation, and the handle stays set until the tree is actually deleted at
+> the end of it. A caller whose guard must open at the close itself clears the handle in
+> `on_dismiss` (and `on_cancel`/`on_confirm` when it passes them), which is what
+> `show_low_ram_resonance_warning()` and `show_motors_off_confirm()` do for their callers.
 >
 > `Modal::hide()` disarms the tree on the way out (`Modal::disarm_tree`), so a click can no
-> longer reach those callbacks. What it does not do is make the pointer valid: a teardown
-> that never goes through `hide()` - the screen being deleted out from under the dialog, or
-> `ModalStack::clear()` at shutdown - leaves the tree fully armed. The helper forms
-> (`modal_confirm()`/`modal_alert()`) avoid the question entirely: their callbacks are
-> std::function copies gated by `owner_token`, not pointers attached to widgets.
+> longer reach hand-wired `wire_button_with()` callbacks. A teardown that never goes
+> through `hide()` leaves the tree armed until it is deleted, so whatever those callbacks
+> capture must outlive the dialog. The helper forms (`modal_confirm()`/`modal_alert()`)
+> avoid the question entirely: their callbacks are std::function copies gated by
+> `owner_token`, not pointers attached to widgets. If the callbacks capture something that
+> dies with the owner, own a `Modal` subclass and let its teardown run instead.
 >
-> Despite the name this is not the `ObserverGuard` bargain: `ObserverGuard` detaches the
-> observer so nothing can dispatch afterwards, while `ModalGuard` only asks the dialog to
-> close. If the callbacks capture something that dies with the owner, own a `Modal`
-> subclass and let its teardown run instead.
+> `WidgetRef` neither copies nor moves (the hook's user_data is its address): hold it as a
+> member of an owner that does not move. A value-type record that is moved into a container
+> holds a `helix::ui::WeakWidget` instead.
 
 ---
 
@@ -844,8 +846,8 @@ If your XML used `extends="ui_card"`, simply change to `extends="ui_dialog"`. Th
 3. **Register callbacks** via `lv_xml_register_event_cb()` in your C++ code (the XML itself registers on first use; no list to edit); a callback reaches its instance with `Modal::from_event<T>(e)`, so declare `HELIX_KIND_TAG(T)` in the class
 4. **If subclass**: Create header in `include/`, implement `get_name()` and `component_name()`
 5. **Wire buttons** in `on_show()` using `wire_ok_button()` / `wire_cancel_button()`
-6. **Store the modal** as a member (subclass) or in a `ModalGuard` (static API)
-7. **Test**: Modal should auto-hide when parent panel is destroyed
+6. **Store the modal** as a member (subclass) or its dialog in a `helix::ui::WidgetRef` (static API)
+7. **Test**: a backdrop-tap dismissal leaves the handle `nullptr` and the caller's guard open
 
 ---
 

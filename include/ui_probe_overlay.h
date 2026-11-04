@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_modal.h"
+#include "ui_widget_ref.h"
 
 #include "klipper_config_editor.h"
 #include "operation_timeout_guard.h"
@@ -191,7 +192,7 @@ class ProbeOverlay : public OverlayBase {
     char probe_acc_error_msg_buf_[128] = {};
     lv_subject_t probe_acc_error_msg_{};
 
-    lv_obj_t* accuracy_modal_ = nullptr;
+    helix::ui::WidgetRef accuracy_modal_;
 
     // Track samples during probing
     int probe_acc_sample_count_ = 0;
@@ -209,7 +210,7 @@ class ProbeOverlay : public OverlayBase {
     std::string probe_section_;     // Config section name (e.g., "probe", "bltouch")
     // printer.cfg value per config row key; a key absent here is not set in printer.cfg
     std::map<std::string, std::string> probe_cfg_configured_;
-    lv_obj_t* edit_modal_ = nullptr;
+    helix::ui::WidgetRef edit_modal_;
 
     // Widget/client references
     friend struct ProbeOverlayTestAccess;

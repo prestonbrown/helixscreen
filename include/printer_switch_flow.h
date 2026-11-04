@@ -116,7 +116,7 @@ class PrinterSwitchFlow {
     bool m_soft_restart_in_progress = false;
 
     /// The last "the printer is printing" confirmation shown; may already be closed.
-    lv_obj_t* m_confirm_dialog = nullptr;
+    helix::ui::WidgetRef m_confirm_dialog;
 
     /// Whether that confirmation is still on screen. A hidden one is closed and forgotten.
     bool confirm_pending();

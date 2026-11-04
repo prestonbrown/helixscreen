@@ -7,6 +7,7 @@
 #include "ui_modal.h"
 #include "ui_text_entry_modal.h"
 #include "ui_toast_manager.h"
+#include "ui_widget_ref.h"
 
 #include "helix/ui/text_metrics.h"
 #include "lua_bindings.h"
@@ -65,7 +66,7 @@ struct Editor {
     bool done = false;
     bool keypad = false;
     bool shown = false;
-    lv_obj_t* dialog = nullptr; ///< the text entry dialog while shown
+    helix::ui::WidgetRef dialog; ///< the text entry dialog while shown
 };
 
 // Everything one runtime registered here. Freed by the runtime's closer.

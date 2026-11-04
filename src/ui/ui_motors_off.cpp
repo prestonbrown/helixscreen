@@ -11,7 +11,7 @@
 
 namespace helix::ui {
 
-void show_motors_off_confirm(IMoonrakerAPI* api, ModalGuard& stored,
+void show_motors_off_confirm(IMoonrakerAPI* api, WidgetRef& stored,
                              std::optional<LifetimeToken> owner_token) {
     spdlog::debug("[MotorsOff] Showing motors disable confirmation");
 
@@ -19,7 +19,7 @@ void show_motors_off_confirm(IMoonrakerAPI* api, ModalGuard& stored,
     // the stored handle. on_dismiss alone is not enough: a button press that
     // reaches a callback is an answer, not a dismissal, so the cancel and
     // confirm sides must drop it too or the caller's next entry is blocked.
-    auto drop = [&stored] { stored.release(); };
+    auto drop = [&stored] { stored = nullptr; };
 
     ConfirmOptions opts;
     opts.on_cancel = drop;

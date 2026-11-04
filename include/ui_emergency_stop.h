@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -236,8 +237,8 @@ class EmergencyStopOverlay {
     bool require_confirmation_ = false;
 
     // Dialog widget references (created on-demand)
-    lv_obj_t* confirmation_dialog_ = nullptr;
-    lv_obj_t* recovery_dialog_ = nullptr;
+    helix::ui::WidgetRef confirmation_dialog_;
+    helix::ui::WidgetRef recovery_dialog_;
 
     // Restart operation tracking - prevents recovery dialog during expected
     // SHUTDOWN. Deadline (lv_tick_get() ms) past which the restart stops

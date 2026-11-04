@@ -7,6 +7,7 @@
 #include "ui_history_photos.h"
 #include "ui_observer_guard.h"
 #include "ui_search_debounce.h"
+#include "ui_widget_ref.h"
 
 #include "in_flight_guard.h"
 #include "overlay_base.h"
@@ -225,13 +226,13 @@ class HistoryListPanel : public OverlayBase {
     // === State ===
     //
 
-    std::vector<PrintHistoryJob> jobs_;              ///< Source of truth - all jobs
-    std::vector<PrintHistoryJob> filtered_jobs_;     ///< Filtered/sorted for display
-    bool jobs_received_ = false;                     ///< True if jobs were set externally
-    bool is_active_ = false;                         ///< True if panel is currently visible
-    bool detail_overlay_open_ = false;               ///< True while detail overlay is showing
-    lv_obj_t* delete_confirmation_dialog_ = nullptr; ///< Live delete confirmation, or null
-    bool history_changed_while_detail_open_ = false; ///< True if history changed while detail open
+    std::vector<PrintHistoryJob> jobs_;               ///< Source of truth - all jobs
+    std::vector<PrintHistoryJob> filtered_jobs_;      ///< Filtered/sorted for display
+    bool jobs_received_ = false;                      ///< True if jobs were set externally
+    bool is_active_ = false;                          ///< True if panel is currently visible
+    bool detail_overlay_open_ = false;                ///< True while detail overlay is showing
+    helix::ui::WidgetRef delete_confirmation_dialog_; ///< Live delete confirmation, or null
+    bool history_changed_while_detail_open_ = false;  ///< True if history changed while detail open
 
     // Connection state observer to auto-refresh when connected (ObserverGuard handles cleanup)
     ObserverGuard connection_observer_;

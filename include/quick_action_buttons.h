@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "i_moonraker_api.h"
@@ -10,7 +11,6 @@
 #include "quick_action_slots.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
-#include "ui/ui_modal_guard.h"
 
 #include <array>
 #include <map>
@@ -93,7 +93,7 @@ class QuickActionButtons {
 
     ObserverGuard macros_version_observer_;
     ObserverGuard led_controllable_observer_;
-    ui::ModalGuard run_confirmation_dialog_;
+    ui::WidgetRef run_confirmation_dialog_;
 };
 
 } // namespace helix

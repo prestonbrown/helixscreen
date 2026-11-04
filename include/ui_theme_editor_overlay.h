@@ -9,6 +9,7 @@
 #pragma once
 
 #include "ui_color_picker.h"
+#include "ui_widget_ref.h"
 
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
@@ -161,11 +162,11 @@ class ThemeEditorOverlay : public OverlayBase {
     std::unique_ptr<helix::ui::ColorPicker> color_picker_;
 
     // Discard confirmation dialog tracking
-    lv_obj_t* discard_dialog_ = nullptr;
+    helix::ui::WidgetRef discard_dialog_;
     std::function<void()> pending_discard_action_;
 
     // Save As dialog tracking
-    lv_obj_t* save_as_dialog_ = nullptr;
+    helix::ui::WidgetRef save_as_dialog_;
 };
 
 /**

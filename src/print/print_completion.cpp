@@ -13,6 +13,7 @@
 #include "ui_nav.h"
 #include "ui_panel_print_status.h"
 #include "ui_toast_manager.h"
+#include "ui_widget_ref.h"
 
 #include "app_globals.h"
 #include "audio_settings_manager.h"
@@ -206,18 +207,12 @@ CompletionStats build_completion_stats(int duration_secs, int estimated_secs, in
 
 // The completion modal currently on screen, if any. Only one can be up: all
 // three outcomes share print_completion_modal and it is shown from one place,
-// so a single handle is enough where the fault registry needs a vector.
-static lv_obj_t* s_completion_modal = nullptr;
-
-// Drop the handle whenever the dialog dies by ANY route — the user's OK, a
-// backdrop tap, ESC, our own dismissal, teardown. A freed address can be
-// reused by a later allocation, so a stale handle could eventually name an
-// unrelated live widget and we would "dismiss" that instead.
-static void forget_completion_modal(lv_event_t* e) {
-    if (static_cast<lv_obj_t*>(lv_event_get_target(e)) == s_completion_modal) {
-        s_completion_modal = nullptr;
-    }
-}
+// so a single handle is enough where the fault registry needs a vector. A
+// handle, not a pointer: it reads nullptr once the dialog dies by any route
+// (the user's OK, a backdrop tap, ESC, our own dismissal, teardown), and a
+// freed address can be reused by a later allocation, so a stale pointer could
+// name an unrelated live widget and we would "dismiss" that instead.
+static helix::ui::WidgetRef s_completion_modal;
 
 // A completion modal is a statement about the job that just ended. Starting
 // another job makes that statement false, so the dialog has outlived its
@@ -310,8 +305,6 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     }
 
     s_completion_modal = dialog;
-    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
-    lv_obj_add_event_cb(dialog, forget_completion_modal, LV_EVENT_DELETE, nullptr);
 
     // Icon src/variant must be set imperatively (no XML binding support for icon properties)
     lv_obj_t* icon_widget = lv_obj_find_by_name(dialog, "status_icon");

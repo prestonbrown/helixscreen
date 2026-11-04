@@ -17,6 +17,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "lvgl.h"
@@ -898,7 +899,7 @@ class UpdateChecker {
     lv_timer_t* auto_check_timer_{nullptr};
 
     // Notification modal
-    lv_obj_t* notify_modal_{nullptr};
+    helix::ui::WidgetRef notify_modal_;
 
     // Notification subjects
     lv_subject_t release_notes_subject_{};

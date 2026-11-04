@@ -9,6 +9,7 @@
 #include "ui_plugin_items_menu.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
+#include "ui_widget_ref.h"
 
 #include "ams_remap.h"
 #include "gcode_footer_summary.h"
@@ -815,7 +816,7 @@ class PrintSelectDetailView : public OverlayBase {
     // === Widget References ===
     // Note: overlay_root_ inherited from OverlayBase holds the main widget
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* confirmation_dialog_widget_ = nullptr;
+    helix::ui::WidgetRef confirmation_dialog_widget_;
     lv_obj_t* print_button_ = nullptr;
     lv_obj_t* gcode_viewer_ = nullptr;
 

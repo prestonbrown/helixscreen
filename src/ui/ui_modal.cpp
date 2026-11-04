@@ -1675,7 +1675,7 @@ lv_obj_t* helix::ui::show_resonance_memory_refusal(size_t headroom_mb,
                        std::move(on_close), all);
 }
 
-lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_handle,
+lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, WidgetRef* dialog_handle,
                                                     helix::SharedCallback<void()> on_confirm,
                                                     const ConfirmOptions& options) {
     // A mistranslated {} must never abort through the LVGL C dispatch frame:

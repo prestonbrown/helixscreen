@@ -218,12 +218,12 @@ void QuickActionButtons::execute(size_t index, IMoonrakerAPI* api, const Lifetim
 
     std::string msg = fmt::format(lv_tr("Run {}?"), info.translated_name());
     ui::ConfirmOptions opts;
-    opts.on_dismiss = [this] { run_confirmation_dialog_.release(); };
+    opts.on_dismiss = [this] { run_confirmation_dialog_ = nullptr; };
     opts.owner_token = owner;
     run_confirmation_dialog_ = ui::modal_confirm(
         lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
         [this, index, api, params = decision.params] {
-            run_confirmation_dialog_.release(); // the dialog closes itself
+            run_confirmation_dialog_ = nullptr; // the dialog closes itself
             run(index, api, params);
         },
         opts);

@@ -207,10 +207,10 @@ class BedMeshPanel : public OverlayBase {
     char calibrate_name_buf_[64]; ///< Buffer for calibrate_name_ subject
 
     // ========== Modal Widget Pointers (uses ui_modal_show pattern) ==========
-    lv_obj_t* calibrate_modal_widget_ = nullptr;
-    lv_obj_t* rename_modal_widget_ = nullptr;
-    lv_obj_t* save_config_modal_widget_ = nullptr;
-    lv_obj_t* delete_modal_widget_ = nullptr;
+    helix::ui::WidgetRef calibrate_modal_widget_;
+    helix::ui::WidgetRef rename_modal_widget_;
+    helix::ui::WidgetRef save_config_modal_widget_;
+    helix::ui::WidgetRef delete_modal_widget_;
 
     // ========== UI Widget Pointers ==========
     helix::ui::WidgetRef canvas_;

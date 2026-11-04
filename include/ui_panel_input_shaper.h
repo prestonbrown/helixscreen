@@ -6,6 +6,7 @@
 #include "ui_frequency_response_chart.h"
 #include "ui_shaper_sweep_chart.h"
 #include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "calibration_types.h" // For InputShaperResult
@@ -428,7 +429,7 @@ class InputShaperPanel : public OverlayBase {
     lv_subject_t is_x_fw_overwrite_warn_{};
 
     // Low-RAM warning modal before resonance calibration (see memory_utils.h)
-    lv_obj_t* low_ram_warn_dialog_ = nullptr;
+    helix::ui::WidgetRef low_ram_warn_dialog_;
     char pending_calib_axis_ = 'X';
 
     // Calibrate All flow tracking
