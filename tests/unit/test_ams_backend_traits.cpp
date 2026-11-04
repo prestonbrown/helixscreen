@@ -195,7 +195,7 @@ TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
 }
 
 TEST_CASE("Each optional interface answers only on the backends that implement it",
-          "[ams][traits][cfs][happy_hare]") {
+          "[ams][traits][cfs][happy_hare][afc]") {
     helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
     AmsBackendAce ace(nullptr, nullptr);
     AmsBackendAd5xIfs ad5x(nullptr, nullptr);
@@ -213,26 +213,28 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const AmsBackend* backend;
         const ICfsCalibration* calibration;
         const IGateSelector* gates;
+        const ILaneRecovery* recovery;
     };
     const Row rows[] = {
-        {&ace, nullptr, nullptr},
-        {&ad5x, nullptr, nullptr},
-        {&afc, nullptr, nullptr},
-        {&cfs, &cfs, nullptr},
-        {&happy_hare, nullptr, &happy_hare},
-        {&indx, nullptr, nullptr},
-        {&multi_ace, nullptr, nullptr},
-        {&openams, nullptr, nullptr},
-        {&qidi, nullptr, nullptr},
-        {&snapmaker, nullptr, nullptr},
-        {&tool_changer, nullptr, nullptr},
-        {&mock, nullptr, &mock},
+        {&ace, nullptr, nullptr, nullptr},
+        {&ad5x, nullptr, nullptr, nullptr},
+        {&afc, nullptr, nullptr, &afc},
+        {&cfs, &cfs, nullptr, nullptr},
+        {&happy_hare, nullptr, &happy_hare, nullptr},
+        {&indx, nullptr, nullptr, nullptr},
+        {&multi_ace, nullptr, nullptr, nullptr},
+        {&openams, nullptr, nullptr, nullptr},
+        {&qidi, nullptr, nullptr, nullptr},
+        {&snapmaker, nullptr, nullptr, nullptr},
+        {&tool_changer, nullptr, nullptr, nullptr},
+        {&mock, nullptr, &mock, nullptr},
     };
     struct NothingImplementsThis {};
     for (const Row& row : rows) {
         INFO(ams_type_to_string(row.backend->get_type()));
         CHECK(row.backend->as<ICfsCalibration>() == row.calibration);
         CHECK(row.backend->as<IGateSelector>() == row.gates);
+        CHECK(row.backend->as<ILaneRecovery>() == row.recovery);
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
 }

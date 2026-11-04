@@ -14,6 +14,7 @@
 #include "ui_utils.h"
 
 #include "ams_gate_selector.h"
+#include "ams_lane_recovery.h"
 #include "ams_state.h"
 #include "ams_tray_projection.h"
 #include "app_globals.h" // get_printer_state: the print lifecycle the clear guard reads
@@ -1225,7 +1226,10 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     }
 
     case MenuAction::RECOVER_POSITION: {
-        AmsError error = backend->recover_lane_position(slot);
+        ILaneRecovery* const recovery = backend->as<ILaneRecovery>();
+        AmsError error =
+            recovery ? recovery->recover_lane_position(slot)
+                     : AmsErrorHelper::not_supported("Lane position recovery not supported");
         if (error.result != AmsResult::SUCCESS) {
             notify_ams_error(error, lv_tr("Recovery failed"));
         }

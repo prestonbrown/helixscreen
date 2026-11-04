@@ -310,8 +310,8 @@ class AmsContextMenu : public ContextMenu {
     // left to eject.
     //
     // @param toolhead_unload      Slot unloads via the heated toolhead path
-    // @param can_recover          backend_->can_recover_lane_position(slot_index)
-    // @param recovery_attributed  backend_->lane_recovery_is_attributed()
+    // @param can_recover          ILaneRecovery::can_recover_lane_position(slot_index)
+    // @param recovery_attributed  ILaneRecovery::lane_recovery_is_attributed()
     // @param supports_eject       backend_->supports_lane_eject()
     // @param slot_has_filament    SlotInfo::is_present() for this slot
     // @param supports_force_eject backend_->supports_force_eject()
