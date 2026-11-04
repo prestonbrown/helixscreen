@@ -39,7 +39,7 @@
 #include <lvgl/lvgl.h>
 
 #include <condition_variable>
-#include <fmt/format.h>
+#include <spdlog/fmt/fmt.h>
 #include <memory>
 #include <mutex>
 #include <string>
