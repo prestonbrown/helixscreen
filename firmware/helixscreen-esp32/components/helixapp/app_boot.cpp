@@ -990,7 +990,7 @@ extern "C" void app_boot_ui(void) {
 
     // Phase 10: panel subjects, now that the API pointer exists.
     subjects.init_panels(manager.api(), rc);
-    subjects.init_post(rc);
+    subjects.init_post(manager.api(), rc);
 
     // Job queue state — owns `job_queue_count` (plus the two queue text
     // subjects). The home panel's queue widget, the print-status widget's queue
