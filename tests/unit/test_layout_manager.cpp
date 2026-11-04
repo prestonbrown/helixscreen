@@ -370,42 +370,39 @@ TEST_CASE_METHOD(LayoutFixture, "has_override returns true for micro controls_pa
 // ============================================================================
 // Portrait family fallback chain (requires ui_xml/portrait/ files on disk)
 //
-// tiny_portrait and micro_portrait carry no print_status_panel.xml of their own;
+// tiny_portrait and micro_portrait carry no print_tune_panel.xml of their own;
 // they inherit the shared ui_xml/portrait/ layer before falling back to base
 // (landscape). This lets the small-portrait classes hold only files that differ
 // from portrait/ instead of duplicating every reflowed panel.
 // ============================================================================
 
-TEST_CASE_METHOD(LayoutFixture, "tiny_portrait inherits print_status_panel from portrait layer",
+TEST_CASE_METHOD(LayoutFixture, "tiny_portrait inherits print_tune_panel from portrait layer",
                  "[layout-manager]") {
     auto& lm = LayoutManager::instance();
     lm.init(320, 480);
     REQUIRE(lm.type() == LayoutType::TINY_PORTRAIT);
 
-    // No tiny_portrait/print_status_panel.xml -> resolves up the chain to portrait/.
-    REQUIRE(lm.resolve_xml_path("print_status_panel.xml") ==
-            "ui_xml/portrait/print_status_panel.xml");
-    REQUIRE(lm.has_override("print_status_panel.xml") == true);
+    // No tiny_portrait/print_tune_panel.xml -> resolves up the chain to portrait/.
+    REQUIRE(lm.resolve_xml_path("print_tune_panel.xml") == "ui_xml/portrait/print_tune_panel.xml");
+    REQUIRE(lm.has_override("print_tune_panel.xml") == true);
 }
 
-TEST_CASE_METHOD(LayoutFixture, "micro_portrait inherits print_status_panel from portrait layer",
+TEST_CASE_METHOD(LayoutFixture, "micro_portrait inherits print_tune_panel from portrait layer",
                  "[layout-manager]") {
     auto& lm = LayoutManager::instance();
     lm.init(272, 480);
     REQUIRE(lm.type() == LayoutType::MICRO_PORTRAIT);
 
-    REQUIRE(lm.resolve_xml_path("print_status_panel.xml") ==
-            "ui_xml/portrait/print_status_panel.xml");
+    REQUIRE(lm.resolve_xml_path("print_tune_panel.xml") == "ui_xml/portrait/print_tune_panel.xml");
 }
 
-TEST_CASE_METHOD(LayoutFixture, "portrait resolves its own print_status_panel override",
+TEST_CASE_METHOD(LayoutFixture, "portrait resolves its own print_tune_panel override",
                  "[layout-manager]") {
     auto& lm = LayoutManager::instance();
     lm.init(480, 800);
     REQUIRE(lm.type() == LayoutType::PORTRAIT);
 
-    REQUIRE(lm.resolve_xml_path("print_status_panel.xml") ==
-            "ui_xml/portrait/print_status_panel.xml");
+    REQUIRE(lm.resolve_xml_path("print_tune_panel.xml") == "ui_xml/portrait/print_tune_panel.xml");
 }
 
 // The app shell is one file for both orientations: orientation reaches it as

@@ -1140,12 +1140,13 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Portrait / Micro Status
 
-- `ui_xml/portrait/` exists with two overrides (`print_status_panel.xml`,
-  `print_tune_panel.xml`); the app shell and navigation bar are single files that
-  adapt via `ui_is_portrait` instead.
-- `ui_xml/micro/` exists with four overrides (`controls_panel.xml`, `header_bar.xml`,
-  `theme_editor_overlay.xml`, `theme_preview_overlay.xml`).
-- `ui_xml/micro_portrait/` exists as a directory but has no overrides yet.
+- `ui_xml/portrait/` exists with one override (`print_tune_panel.xml`); the app shell,
+  the navigation bar and the print status panel are single files that adapt via
+  `ui_is_portrait` and measured layout instead.
+- `ui_xml/micro/` exists with one override (`controls_panel.xml`, a different design).
+  The header bar, the theme explorer and editor and the material temperatures
+  overlay adapt in place with `bind_style_if_eq` on `ui_breakpoint`.
+- `ui_xml/micro_portrait/` does not exist; the `portrait/` layer serves 272x480.
 - `tiny/`, `tiny_portrait/` do not exist yet. Wide open for contributions.
 
 ---

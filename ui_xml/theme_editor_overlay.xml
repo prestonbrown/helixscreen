@@ -4,11 +4,26 @@
 <!-- Theme Colors Editor Overlay - Secondary panel for detailed color editing -->
 <!-- Navigation: Settings → Appearance → Theme Colors → Edit Colors → (this) -->
 <component>
+  <styles>
+    <!-- 480x272 tightens every inset one step so the swatch grid and the
+         pinned action row share the 272px; the other tiers keep the standard
+         spacing. -->
+    <style name="editor_content" pad_left="#space_lg" pad_right="#space_lg" pad_bottom="#space_lg"/>
+    <style name="editor_content_micro" pad_left="#space_sm" pad_right="#space_sm" pad_bottom="#space_xs"/>
+    <style name="editor_swatches"
+           pad_left="#space_md" pad_right="#space_md" pad_top="#space_xs" pad_bottom="#space_sm" pad_gap="#space_xs"/>
+    <style name="editor_swatches_micro"
+           pad_left="#space_xs" pad_right="#space_xs" pad_top="0" pad_bottom="#space_xs" pad_gap="#space_xxs"/>
+    <style name="editor_actions"
+           pad_left="#space_lg" pad_right="#space_lg" pad_top="#space_lg" pad_bottom="#space_lg" pad_gap="#space_md"/>
+    <style name="editor_actions_micro"
+           pad_left="#space_sm" pad_right="#space_sm" pad_top="#space_xs" pad_bottom="#space_xs" pad_gap="#space_xs"/>
+  </styles>
   <view name="theme_editor_overlay" extends="overlay_panel" title="Edit Theme Colors" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <lv_obj name="overlay_content" width="100%" flex_grow="1" style_pad_top="0" scrollable="true" flex_flow="column">
+      <bind_style_if_eq name="editor_content_micro" subject="ui_breakpoint" ref_value="0"/>
+      <bind_style_if_ge name="editor_content" subject="ui_breakpoint" ref_value="1"/>
       <!-- ================================================================== -->
       <!-- THEME COLORS -->
       <!-- ================================================================== -->
@@ -18,9 +33,10 @@
            reads it from user_data), kept at the touch-target floor by
            min_height so the smaller discs' cards still land a finger. -->
       <lv_obj name="theme_swatch_list"
-              width="100%" height="content" scrollable="false" style_pad_left="#space_md" style_pad_right="#space_md"
-              style_pad_top="#space_xs" style_pad_bottom="#space_sm" flex_flow="row_wrap"
-              style_flex_main_place="space_between" style_pad_gap="#space_xs">
+              width="100%" height="content" scrollable="false" flex_flow="row_wrap"
+              style_flex_main_place="space_between">
+        <bind_style_if_eq name="editor_swatches_micro" subject="ui_breakpoint" ref_value="0"/>
+        <bind_style_if_ge name="editor_swatches" subject="ui_breakpoint" ref_value="1"/>
         <repeat count="16">
           <ui_card width="49%"
                    height="content" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
@@ -64,27 +80,26 @@
                           min="0" max="50" value="0" min_icon="minus" max_icon="plus"
                           callback="on_theme_property_changed" user_data="shadow"/>
 
-      <!-- ================================================================== -->
-      <!-- ACTION BUTTONS -->
-      <!-- ================================================================== -->
-      <lv_obj name="action_buttons"
-              width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-              style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="row" style_pad_gap="#space_md"
-              scrollable="false">
+    </lv_obj>
+    <!-- ================================================================== -->
+    <!-- ACTION BUTTONS: pinned below the scroller, so Reset / Save As / Save
+         stay reachable however long the colour list above scrolls. -->
+    <!-- ================================================================== -->
+    <lv_obj name="action_buttons" width="100%" height="content" flex_flow="row" scrollable="false">
+      <bind_style_if_eq name="editor_actions_micro" subject="ui_breakpoint" ref_value="0"/>
+      <bind_style_if_ge name="editor_actions" subject="ui_breakpoint" ref_value="1"/>
 
-        <ui_button name="btn_reset" height="#button_height" text="Reset" variant="secondary" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_theme_reset_clicked"/>
-        </ui_button>
+      <ui_button name="btn_reset" height="#button_height" text="Reset" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="on_theme_reset_clicked"/>
+      </ui_button>
 
-        <ui_button name="btn_save_as" height="#button_height" text="Save As New" variant="secondary" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_theme_save_as_clicked"/>
-        </ui_button>
+      <ui_button name="btn_save_as" height="#button_height" text="Save As New" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="on_theme_save_as_clicked"/>
+      </ui_button>
 
-        <ui_button name="btn_save" height="#button_height" text="Save" variant="primary" flex_grow="1" disabled="true">
-          <event_cb trigger="clicked" callback="on_theme_save_clicked"/>
-        </ui_button>
-      </lv_obj>
-
+      <ui_button name="btn_save" height="#button_height" text="Save" variant="primary" flex_grow="1" disabled="true">
+        <event_cb trigger="clicked" callback="on_theme_save_clicked"/>
+      </ui_button>
     </lv_obj>
   </view>
 </component>

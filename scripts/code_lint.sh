@@ -937,8 +937,8 @@ lint_zoffset_save_rule() {
     none_found "$(zoffset_save_rule_copies ui_xml --include='*.xml')" || rc=1
     files=$(zoffset_save_button_files ui_xml --include='*.xml')
     # Fail closed: an empty list would pass having examined nothing.
-    if [ "$(printf '%s\n' "$files" | grep -c .)" -lt 4 ]; then
-        echo "found fewer than 4 Z-offset save surfaces under ui_xml/"
+    if [ "$(printf '%s\n' "$files" | grep -c .)" -lt 3 ]; then
+        echo "found fewer than 3 Z-offset save surfaces under ui_xml/"
         rc=1
     fi
     # shellcheck disable=SC2086
