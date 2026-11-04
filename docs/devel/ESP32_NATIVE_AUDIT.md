@@ -1,6 +1,6 @@
 # ESP32 Native Port Feasibility Audit — Results
 
-**Scope:** Phase 0 of the ESP32 display program. This report is the deliverable. The measurement harness it describes (the `firmware/native-audit/` tree and its scripts and stubs) was throwaway and is not in the repository; file names below refer to that harness, not to anything you can open.
+**Scope:** Phase 0 of the ESP32 display program; Phase 2, below, is the native firmware it decided on. This report is the deliverable. The measurement harness it describes (the `firmware/native-audit/` tree and its scripts and stubs) was throwaway and is not in the repository; file names below refer to that harness, not to anything you can open.
 **Hardware:** BTT K-Touch (ESP32-S3R8, 8MB octal PSRAM, 16MB flash, 800×480 RGB panel — see `printer-research/BTT_K_TOUCH_HARDWARE.md`)
 **Toolchain:** ESP-IDF v5.5 (release branch), `-Os`, C++ exceptions on
 **Constraint (2026-07-13):** S3 is the fixed target — no P4 escape hatch. BTT wants broader appeal for existing stock. Feature gates are the expected design.
