@@ -17,7 +17,7 @@ DISPLAY_API_SRCS := \
 
 # Touch calibration and shared calibration wrapper
 DISPLAY_UI_SRCS := \
-    src/ui/touch_calibration.cpp
+    src/ui/calibration/touch_calibration.cpp
 
 # Platform-specific backends
 ifeq ($(UNAME_S),Darwin)
@@ -39,7 +39,7 @@ endif
 
 # Generate object file paths for each source category
 DISPLAY_API_OBJS := $(DISPLAY_API_SRCS:src/api/%.cpp=$(BUILD_DIR)/display/%.o)
-DISPLAY_UI_OBJS := $(DISPLAY_UI_SRCS:src/ui/%.cpp=$(BUILD_DIR)/display/%.o)
+DISPLAY_UI_OBJS := $(DISPLAY_UI_SRCS:src/ui/calibration/%.cpp=$(BUILD_DIR)/display/%.o)
 DISPLAY_OBJS := $(DISPLAY_API_OBJS) $(DISPLAY_UI_OBJS)
 
 # Display library needs LVGL headers, project includes, libhv (for config.h -> json.hpp), and SDL2
@@ -51,8 +51,8 @@ $(BUILD_DIR)/display/%.o: src/api/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_
 	@echo "[CXX] $<"
 	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
-# Build object files from src/ui/ (with dependency tracking)
-$(BUILD_DIR)/display/%.o: src/ui/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/display
+# Build object files from src/ui/calibration/ (with dependency tracking)
+$(BUILD_DIR)/display/%.o: src/ui/calibration/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/display
 	@echo "[CXX] $<"
 	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

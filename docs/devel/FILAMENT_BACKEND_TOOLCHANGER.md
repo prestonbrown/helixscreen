@@ -374,7 +374,7 @@ macro measures against, how it heats, or where the sensor is — all of that is 
 
 `supported(hw)` is `kind != None`; `printer_has_tool_offset_cal` and the Advanced row's
 description come from the same struct. `open_tool_offset_cal_panel()`
-(`src/ui/ui_panel_calibration_tool_offset.cpp#open_tool_offset_cal_panel`) switches on the
+(`src/ui/calibration/ui_panel_calibration_tool_offset.cpp#open_tool_offset_cal_panel`) switches on the
 kind: a guided flow starts, the panel shows, and a `PrinterPrompt` goes through
 `start_calibration_gcode()` (`src/printer/macro_executor.cpp#start_calibration_gcode`), which
 refuses while `machine_motion_blocked` is set and reports failure the way every macro send

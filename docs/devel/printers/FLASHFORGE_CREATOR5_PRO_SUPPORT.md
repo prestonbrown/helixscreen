@@ -265,7 +265,7 @@ capability rather than by naming the machine.
 Both rows need a homed toolhead. `calibrate_gcode(hw, tool)` builds the script (empty with
 no row, or for a negative tool on a per-tool row) and never includes the homing. The
 subject is `printer_has_stepper_resonance_cal`. The entry
-(`src/ui/ui_stepper_resonance_cal_modal.cpp`) offers a tool dropdown for a per-tool row on a
+(`src/ui/calibration/ui_stepper_resonance_cal_modal.cpp`) offers a tool dropdown for a per-tool row on a
 printer with more than one tool, else a plain confirmation, and sends through
 `start_calibration_gcode()` (`src/printer/macro_executor.cpp#start_calibration_gcode`):
 refused while `machine_motion_blocked` is set, `ensure_homed_then()` when `needs_home`, then

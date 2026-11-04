@@ -385,7 +385,7 @@ src/ui/ams_tray_projection.cpp
 src/ui/ams_unit_pages.cpp
 src/ui/backdrop_blur.cpp
 src/ui/bed_coord_mapper.cpp
-src/ui/bed_mesh_profile_name.cpp
+src/ui/calibration/bed_mesh_profile_name.cpp
 src/ui/callout_presenter.cpp
 src/ui/camera_view.cpp
 src/ui/card_thumbnail_plan.cpp
@@ -494,11 +494,11 @@ src/ui/temperature_service.cpp
 src/ui/theme/theme_loader.cpp
 src/ui/theme/theme_manager_new.cpp
 src/ui/tool_change_request.cpp
-src/ui/touch_calibration.cpp
-src/ui/touch_calibration_layout.cpp
-src/ui/touch_calibration_controller.cpp
-src/ui/touch_calibration_panel.cpp
-src/ui/touch_calibration_session.cpp
+src/ui/calibration/touch_calibration.cpp
+src/ui/calibration/touch_calibration_layout.cpp
+src/ui/calibration/touch_calibration_controller.cpp
+src/ui/calibration/touch_calibration_panel.cpp
+src/ui/calibration/touch_calibration_session.cpp
 src/ui/tour/first_run_tour.cpp
 src/ui/tour/tour_overlay.cpp
 src/ui/tour/tour_steps.cpp
@@ -679,7 +679,7 @@ src/ui/ui_printer_manager_overlay.cpp
 src/ui/printer_manager_chips.cpp
 src/ui/ui_printer_status_icon.cpp
 src/ui/ui_printer_switch_menu.cpp
-src/ui/ui_probe_overlay.cpp
+src/ui/calibration/ui_probe_overlay.cpp
 src/ui/ui_progress_arc.cpp
 src/ui/ui_pause_markers.cpp
 src/ui/ui_resume_dispatch.cpp
@@ -737,7 +737,7 @@ src/ui/ui_tile_rung.cpp
 src/ui/ui_text_input.cpp
 src/ui/ui_theme_editor_overlay.cpp
 src/ui/ui_toast_manager.cpp
-src/ui/ui_touch_calibration_overlay.cpp
+src/ui/calibration/ui_touch_calibration_overlay.cpp
 src/ui/ui_unload_lane_choice.cpp
 src/ui/ui_utils.cpp
 src/ui/ui_variant.cpp
@@ -862,7 +862,7 @@ src/ui/print/print_preview_controller.cpp
 #   as ui_gcode_viewer above — its #else no-op defines ui_bed_mesh_register()
 #   (registers a stub <bed_mesh> widget so layouts parse) plus the rest of the
 #   API. Kept panels reference ui_bed_mesh_register() ungated.
-src/ui/ui_bed_mesh.cpp
+src/ui/calibration/ui_bed_mesh.cpp
 src/ui/ui_keycap_style.cpp
 
 # ===== link-loop additions: genuinely-referenced core the app_boot path pulls =====

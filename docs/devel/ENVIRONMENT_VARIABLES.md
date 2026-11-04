@@ -1114,7 +1114,7 @@ Force the bed mesh visualization to use 2D heatmap mode instead of 3D surface re
 |----------|-------|
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Off (3D surface when available) |
-| **File** | `src/ui/ui_bed_mesh.cpp` |
+| **File** | `src/ui/calibration/ui_bed_mesh.cpp` |
 
 ```bash
 # Force 2D heatmap visualization
@@ -1364,7 +1364,7 @@ Auto-start X-axis input shaper calibration when the panel loads.
 |----------|-------|
 | **Values** | Any value (presence enables) |
 | **Default** | Disabled |
-| **File** | `src/ui/ui_panel_input_shaper.cpp` |
+| **File** | `src/ui/calibration/ui_panel_input_shaper.cpp` |
 
 ```bash
 # Test input shaper panel with auto-start (drive the UI with helix-screen ctl —
@@ -1381,7 +1381,7 @@ Auto-start bed screw probing when the screws tilt panel loads.
 |----------|-------|
 | **Values** | Any value (presence enables) |
 | **Default** | Disabled |
-| **File** | `src/ui/ui_panel_screws_tilt.cpp` |
+| **File** | `src/ui/calibration/ui_panel_screws_tilt.cpp` |
 
 ```bash
 # Test screws panel with auto-start
@@ -1715,7 +1715,7 @@ Unified touch debugging variable that enables both touch point visualization and
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Disabled |
 | **CLI equivalent** | `--debug-touches` |
-| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/touch_calibration.cpp`, `src/ui/touch_calibration_panel.cpp`, `src/api/display_backend_fbdev.cpp` |
+| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/calibration/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/api/display_backend_fbdev.cpp` |
 | **Legacy alias** | `HELIX_DEBUG_TOUCHES` (still accepted) |
 
 ```bash

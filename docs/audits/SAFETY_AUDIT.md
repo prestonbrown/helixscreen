@@ -87,7 +87,7 @@ Users can keep tapping the Z-offset adjust button during a print with no limit. 
 
 No state check before starting `PID_CALIBRATE`. Running PID tuning mid-print would cause temperature instability and likely ruin the print.
 
-- **Location:** `src/ui/ui_panel_calibration_pid.cpp`, header at `include/ui_panel_calibration_pid.h:177-183`
+- **Location:** `src/ui/calibration/ui_panel_calibration_pid.cpp`, header at `include/ui_panel_calibration_pid.h:177-183`
 - **Fix:** Disable PID tuning start button when `is_printing()`. Show "Cannot tune PID during a print."
 - **Effort:** Small
 

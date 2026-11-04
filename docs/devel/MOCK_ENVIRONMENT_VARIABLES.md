@@ -1860,7 +1860,7 @@ Swap the input-shaper panel's injected demo results for a Kalico-shaped shaper l
 |----------|-------|
 | **Values** | `1`, `true`, `yes` or `on` enables; anything else leaves it off |
 | **Default** | Unset — standard Klipper shaper list |
-| **File** | `src/ui/ui_panel_input_shaper.cpp` (`inject_demo_results()`) |
+| **File** | `src/ui/calibration/ui_panel_input_shaper.cpp` (`inject_demo_results()`) |
 
 ```bash
 # Kalico-style shaper results in the demo/screenshot path

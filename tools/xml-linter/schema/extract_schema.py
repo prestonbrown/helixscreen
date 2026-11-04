@@ -1211,7 +1211,7 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["gcode_viewer"],
         "inherits": "lv_obj",
     },
-    "ui_bed_mesh.cpp": {
+    "calibration/ui_bed_mesh.cpp": {
         "widgets": ["bed_mesh"],
         "inherits": "lv_obj",
     },

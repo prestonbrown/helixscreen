@@ -85,7 +85,7 @@ TEST_CASE("InputShaperCalibrator state machine basics", "[calibrator][input_shap
 
 TEST_CASE("Shaper type explanation mapping", "[input_shaper][panel][results]") {
     // Every type the results card can be handed maps to its own sentence
-    // (src/ui/ui_panel_input_shaper.cpp:1296). A missing arm silently degrades
+    // (src/ui/calibration/ui_panel_input_shaper.cpp:1296). A missing arm silently degrades
     // to the generic fallback, which reads plausible and says nothing.
     CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("zv")) ==
           "Fast but minimal smoothing — best for well-built printers");
@@ -124,7 +124,7 @@ TEST_CASE("Shaper type explanation mapping", "[input_shaper][panel][results]") {
 TEST_CASE("Vibration quality thresholds", "[input_shaper][panel][results]") {
     // Quality levels drive the result card's colour: 0=excellent (<5%),
     // 1=good (5-15%), 2=fair (15-25%), 3=poor (>=25%)
-    // (src/ui/ui_panel_input_shaper.cpp:1326). Assert the boundaries, since an
+    // (src/ui/calibration/ui_panel_input_shaper.cpp:1326). Assert the boundaries, since an
     // off-by-one in a `<` vs `<=` is exactly what mis-colours a card.
     CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(0.0f) == 0);
     CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(4.9f) == 0);
@@ -476,7 +476,7 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "Print test pattern sends the accelera
                  "[input_shaper][panel][test_pattern]") {
     // The button's whole job is one command: TUNING_TOWER ramps acceleration
     // across the print so ringing can be compared band by band
-    // (src/ui/ui_panel_input_shaper.cpp:2071).
+    // (src/ui/calibration/ui_panel_input_shaper.cpp:2071).
     mock_client_.clear_gcode_script_history();
 
     panel_->handle_print_test_pattern_clicked();
@@ -516,7 +516,7 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "InputShaperPanel current config subje
 
         CHECK(subject_int("is_shaper_configured") == 1);
         // Types are uppercased for display; frequencies get the shared "%.1f Hz"
-        // formatter (src/ui/ui_panel_input_shaper.cpp:1206).
+        // formatter (src/ui/calibration/ui_panel_input_shaper.cpp:1206).
         CHECK(subject_string("is_current_x_type") == "MZV");
         CHECK(subject_string("is_current_x_freq") == "36.7 Hz");
         CHECK(subject_string("is_current_y_type") == "EI");
@@ -557,7 +557,7 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "InputShaperPanel current config subje
 TEST_CASE_METHOD(InputShaperDeltaFixture, "Per-axis result population",
                  "[input_shaper][panel][results]") {
     // A single-axis run must fill that axis's card and leave the other one
-    // untouched (src/ui/ui_panel_input_shaper.cpp:1345 populate_axis_result).
+    // untouched (src/ui/calibration/ui_panel_input_shaper.cpp:1345 populate_axis_result).
     panel_->handle_calibrate_x_clicked();
     REQUIRE(pump_until([&] { return panel_state() == 2; }, /*inject_copy_marker=*/false));
 
