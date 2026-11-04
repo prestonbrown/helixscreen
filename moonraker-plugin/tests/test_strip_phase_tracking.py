@@ -6,6 +6,7 @@ Run with: pytest tests/test_strip_phase_tracking.py -v
 """
 
 import os
+import re
 import shutil
 import stat
 import sys
@@ -844,10 +845,13 @@ class TestNextStepHint:
 
 def _write_helix_macros_cfg(config_dir):
     # The old enable refuses to instrument PRINT_START unless it can already
-    # see the HELIX_PHASE_* macros defined somewhere in config_dir.
+    # see the HELIX_PHASE_* macros defined somewhere in config_dir. A printer it
+    # instrumented has the pack under its visible names, as
+    # MacroManager::with_visible_signal_names produces it.
     repo_root = Path(__file__).resolve().parents[2]
     macros_cfg = repo_root / "assets" / "config" / "helix_macros.cfg"
-    (config_dir / "helix_macros.cfg").write_bytes(macros_cfg.read_bytes())
+    visible = re.sub(rb"_(HELIX_(?:READY|ENDED|RESET|PHASE_))", rb"\1", macros_cfg.read_bytes())
+    (config_dir / "helix_macros.cfg").write_bytes(visible)
 
 
 def test_matches_the_old_writers_own_disable_output(tmp_path):
