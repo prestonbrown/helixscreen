@@ -52,7 +52,7 @@
       <!-- Header Bar - left-column width only. The overview titles it; the unit view names the
            unit on its page. -->
       <lv_obj name="overlay_header"
-              width="100%" height="#header_height" style_pad_left="#space_xs" style_pad_right="#space_sm"
+              width="100%" height="#ams_title_row_height" style_pad_left="#space_xs" style_pad_right="#space_sm"
               style_pad_top="0" style_pad_bottom="0" flex_flow="row" style_flex_main_place="start"
               style_flex_cross_place="center" style_flex_track_place="center" scrollable="false">
         <!-- Back button: flex_grow region covers arrow + title = large touch target -->
