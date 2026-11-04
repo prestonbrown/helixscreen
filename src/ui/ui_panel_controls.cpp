@@ -1230,7 +1230,7 @@ void ControlsPanel::handle_calibration_zoffset() {
     return;
 #endif
     // Set the Moonraker client before lazy creation so it's available when calibration starts
-    get_global_zoffset_cal_panel().set_api(get_moonraker_api());
+    get_global_zoffset_cal_panel().set_api(api_);
     get_global_zoffset_cal_panel().show(parent_screen_);
 }
 

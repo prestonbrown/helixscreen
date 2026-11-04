@@ -171,7 +171,7 @@ bool PrinterSession::init_panel_subjects() {
     m_subjects->init_panels(m_moonraker->api(), *get_runtime_config());
 
     // Phase 5-7: Observers and utility subjects
-    m_subjects->init_post(*get_runtime_config());
+    m_subjects->init_post(m_moonraker->api(), *get_runtime_config());
 
     // E-stop, abort, keyboard, notifications and toasts, and the trackers: after the panel
     // subjects, before the shell.

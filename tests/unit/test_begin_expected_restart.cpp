@@ -15,7 +15,7 @@
 // Mock stack follows test_ams_home_confirmation.cpp: MoonrakerClientMock +
 // MoonrakerAPIMock over a stack PrinterState, RPC callbacks drained through
 // UpdateQueueTestAccess. The api is published via set_moonraker_api() because
-// the helper and BedMeshPanel reach it through the global accessor.
+// the helper reaches it through the global accessor.
 
 #include "ui_emergency_stop.h"
 #include "ui_panel_bed_mesh.h"
@@ -213,6 +213,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
 TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the restart contract",
                  "[expectedrestart][bedmesh][1359]") {
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     helix::ui::BedMeshPanelTestAccess::save_config(panel);
     settle();

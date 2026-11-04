@@ -198,7 +198,7 @@ void AdvancedPanel::handle_pid_tuning_clicked() {
 #endif
 
     auto& overlay = get_global_pid_cal_panel();
-    overlay.set_api(get_moonraker_api());
+    overlay.set_api(api_);
     overlay.show(parent_screen_);
 }
 
@@ -208,7 +208,7 @@ void AdvancedPanel::handle_pa_tuning_clicked() {
     helix::ui::show_feature_unavailable_toast();
 #else
     auto& overlay = helix::ui::get_global_pa_tuning_overlay();
-    overlay.set_api(get_moonraker_api());
+    overlay.set_api(api_);
     overlay.show(parent_screen_);
 #endif
 }

@@ -160,11 +160,11 @@ void SubjectInitializer::init_panels(helix::IMoonrakerAPI* api,
     init_panel_subjects(api);
 }
 
-void SubjectInitializer::init_post(const RuntimeConfig& runtime_config) {
+void SubjectInitializer::init_post(helix::IMoonrakerAPI* api, const RuntimeConfig& runtime_config) {
     spdlog::debug("[SubjectInitializer] Initializing post-panel subjects...");
 
     // Phase 5: Observers (depend on subjects being ready)
-    init_observers();
+    init_observers(api);
 
     // Phase 6: Utility subjects
     init_utility_subjects();
@@ -347,6 +347,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     // (LoadProhibited). Nothing on ESP navigates to them; skip boot init.
     // m_bed_mesh_panel stays nullptr — its getter is never called on ESP.
     m_bed_mesh_panel = &get_global_bed_mesh_panel();
+    m_bed_mesh_panel->set_api(api);
     m_bed_mesh_panel->init_subjects();
 
     // Panel initialization via global instances
@@ -430,7 +431,7 @@ void SubjectInitializer::init_temperature_control(helix::IMoonrakerAPI* api) {
     }
 }
 
-void SubjectInitializer::init_observers() {
+void SubjectInitializer::init_observers(helix::IMoonrakerAPI* api) {
     spdlog::trace("[SubjectInitializer] Initializing observers");
 
     // Print completion notification observer
@@ -451,7 +452,7 @@ void SubjectInitializer::init_observers() {
 
     // Standing print options: kept in Moonraker for the plugin's print hooks,
     // and sent by this screen at a foreign job start when the plugin cannot.
-    m_standing_print_options = std::make_unique<helix::StandingPrintOptionsController>();
+    m_standing_print_options = std::make_unique<helix::StandingPrintOptionsController>(api);
 
     // Filament accounting: the spool map the plugin switches the active spool
     // from, and this screen's switch at a tool change when the plugin cannot.

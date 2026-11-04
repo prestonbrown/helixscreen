@@ -51,7 +51,7 @@ class ChamberStallPrompt;
  *   subjects.init_core_and_state();
  *   // ... initialize MoonrakerManager to get API ...
  *   subjects.init_panels(api, runtime_config);
- *   subjects.init_post(runtime_config);
+ *   subjects.init_post(api, runtime_config);
  *
  */
 class SubjectInitializer {
@@ -91,7 +91,7 @@ class SubjectInitializer {
      * Initializes: print completion observer, print start navigation,
      * notification system, USB manager.
      */
-    void init_post(const RuntimeConfig& runtime_config);
+    void init_post(helix::IMoonrakerAPI* api, const RuntimeConfig& runtime_config);
 
     /**
      * @brief Check if subjects have been initialized
@@ -142,7 +142,7 @@ class SubjectInitializer {
     void init_ams_subjects();
     void init_panel_subjects(helix::IMoonrakerAPI* api);
     void init_temperature_control(helix::IMoonrakerAPI* api);
-    void init_observers();
+    void init_observers(helix::IMoonrakerAPI* api);
     void init_utility_subjects();
     void init_usb_manager(const RuntimeConfig& runtime_config);
 
