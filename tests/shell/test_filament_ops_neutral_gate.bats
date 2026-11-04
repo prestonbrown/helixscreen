@@ -27,7 +27,7 @@ load helpers
     mkdir -p "$root/src/ui"
     printf '// never ask get_type() here\n/* AmsType::AFC\n   AmsType::CFS */\nint x;\n' \
         > "$root/src/ui/ui_ams_sidebar.cpp"
-    printf 'auto t = AmsType::SNAPMAKER;\n' > "$root/src/ui/ui_wizard_ams_identify.cpp"
+    printf 'auto t = AmsType::SNAPMAKER;\n' > "$root/src/ui/wizard/ui_wizard_ams_identify.cpp"
     run python3 scripts/check_filament_ops_neutral.py --root "$root"
     [ "$status" -eq 0 ] || fail "quiet cases reported: $output"
 }

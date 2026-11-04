@@ -19,7 +19,7 @@
 #include "config.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "src/ui/wizard_step_registry.h"
+#include "src/ui/wizard/wizard_step_registry.h"
 #include "wizard_step.h"
 #include "wizard_step_logic.h"
 

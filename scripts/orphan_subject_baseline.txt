@@ -44,7 +44,7 @@ perf_host_mem_free_mb  # src/system/performance_state.cpp:30
 pid_temp_hint  # src/ui/ui_panel_calibration_pid.cpp:120
 print_pending_action  # src/ui/print_control_buttons.cpp:42
 print_status_nozzle_text  # src/ui/panel_widgets/print_status_widget.cpp:2079
-printer_detection_status  # src/ui/ui_wizard_printer_identify.cpp:314
+printer_detection_status  # src/ui/wizard/ui_wizard_printer_identify.cpp:314
 printer_icon_state  # src/ui/ui_printer_status_icon.cpp:40
 probe_acc_median  # src/ui/ui_probe_overlay.cpp:364
 probe_overlay_state  # src/ui/ui_probe_overlay.cpp:309
@@ -58,8 +58,8 @@ spool_wizard_step_label  # src/ui/ui_spool_wizard.cpp:100
 test_gateway_status  # src/ui/ui_overlay_network_settings.cpp:195
 test_internet_status  # src/ui/ui_overlay_network_settings.cpp:196
 test_running  # src/ui/ui_overlay_network_settings.cpp:194
-total_steps  # src/ui/ui_wizard.cpp:384
+total_steps  # src/ui/wizard/ui_wizard.cpp:384
 touch_cal_accept_text  # src/ui/ui_touch_calibration_overlay.cpp:272
-touch_cal_current_step  # src/ui/ui_wizard_touch_calibration.cpp:133
-touch_cal_valid  # src/ui/ui_wizard_touch_calibration.cpp:134
+touch_cal_current_step  # src/ui/wizard/ui_wizard_touch_calibration.cpp:133
+touch_cal_valid  # src/ui/wizard/ui_wizard_touch_calibration.cpp:134
 z_offset_delta_display  # src/ui/ui_panel_controls.cpp:172

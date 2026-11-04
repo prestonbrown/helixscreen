@@ -321,22 +321,22 @@ src/ui/ui_spoolman_edit_modal.cpp  # scope decision 2026-08-12: unreachable whil
 src/ui/ui_spoolman_list_view.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/ui/ui_spoolman_overlay.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_spoolman_setup.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_ams_identify.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_connection.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_fan_select.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_filament_sensor_select.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_hardware_selector.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_heater_select.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_helpers.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_input_shaper.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_language_chooser.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_led_select.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_printer_identify.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_preferences.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_summary.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_telemetry.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_touch_calibration.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_wizard_wifi.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_ams_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_connection.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_fan_select.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_filament_sensor_select.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_hardware_selector.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_heater_select.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_helpers.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_input_shaper.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_language_chooser.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_led_select.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_printer_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_preferences.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_summary.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_telemetry.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_touch_calibration.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_wifi.cpp  # not in the v1 Core+AMS cut
 src/ui/upgrade_banner.cpp  # not in the v1 Core+AMS cut
 src/ui/view_gestures.cpp  # two-finger gestures for the 3D G-code viewer and 3D bed mesh, both compiled out (HELIX_HAS_GCODE_VIEWER=0, HELIX_HAS_BED_MESH_3D=0)
 
