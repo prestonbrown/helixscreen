@@ -13,7 +13,8 @@
  * which predates this file). This is that set, once, with the three things a
  * consumer test actually needs to observe kept as public records:
  *
- *   - notification subscriptions, so a test can FIRE one (fire_notification)
+ *   - notification subscriptions of both kinds, so a test can FIRE one
+ *     (fire_notification)
  *   - unregistrations, so a test can prove a destructor cleaned up
  *   - JSON-RPC sends, with both continuations kept so a test can invoke them
  *
@@ -74,6 +75,10 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     /// only the matching one.
     std::map<std::string, std::vector<MethodCallback>> method_callbacks;
 
+    /// Live register_notify_update() subscriptions.
+    std::map<helix::SubscriptionId, helix::SharedCallback<void(const nlohmann::json&)>>
+        notify_callbacks;
+
     /// Every unregister_method_callback() call, in order, whether or not it
     /// matched anything.
     std::vector<Unregistration> unregistrations;
@@ -119,23 +124,31 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     /// How many times disconnect() was called.
     int disconnect_calls = 0;
 
-    /// Deliver @p msg to every handler registered for @p method.
+    /// Deliver @p msg to every handler registered for @p method. As on the real
+    /// client, register_notify_update() subscribers also get notify_status_update
+    /// and notify_filelist_changed.
     /// @return false when nothing is subscribed — which is itself the
     ///         assertion for "the consumer never registered".
     bool fire_notification(const std::string& method, const nlohmann::json& msg) {
-        auto it = method_callbacks.find(method);
-        if (it == method_callbacks.end() || it->second.empty()) {
-            return false;
-        }
         // Copy first: a handler is allowed to register or unregister from
-        // inside its own delivery, which would invalidate the vector.
-        std::vector<MethodCallback> handlers = it->second;
-        for (const MethodCallback& handler : handlers) {
-            if (handler.callback) {
-                handler.callback(msg);
+        // inside its own delivery, which would invalidate the containers.
+        std::vector<helix::SharedCallback<void(const nlohmann::json&)>> handlers;
+        if (method == "notify_status_update" || method == "notify_filelist_changed") {
+            for (const auto& [id, cb] : notify_callbacks) {
+                handlers.push_back(cb);
             }
         }
-        return true;
+        if (auto it = method_callbacks.find(method); it != method_callbacks.end()) {
+            for (const MethodCallback& handler : it->second) {
+                handlers.push_back(handler.callback);
+            }
+        }
+        for (const auto& handler : handlers) {
+            if (handler) {
+                handler(msg);
+            }
+        }
+        return !handlers.empty();
     }
 
     /// The callbacks a consumer installed through set_on_hardware_discovered() and
@@ -292,11 +305,13 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     }
     void set_bed_mesh_callback(helix::SharedCallback<void(const nlohmann::json&)>) override {}
     helix::SubscriptionId
-    register_notify_update(helix::SharedCallback<void(const nlohmann::json&)>) override {
-        return helix::kInvalidSubscriptionId;
+    register_notify_update(helix::SharedCallback<void(const nlohmann::json&)> cb) override {
+        const helix::SubscriptionId id = ++next_subscription_id_;
+        notify_callbacks.emplace(id, std::move(cb));
+        return id;
     }
-    bool unsubscribe_notify_update(helix::SubscriptionId) override {
-        return false;
+    bool unsubscribe_notify_update(helix::SubscriptionId id) override {
+        return notify_callbacks.erase(id) > 0;
     }
     void dispatch_status_update(const nlohmann::json&, bool, bool) override {}
     void set_subscription_extras_provider(std::function<nlohmann::json()>) override {}
@@ -336,6 +351,7 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     helix::SharedCallback<void()> on_connected_;
     helix::SharedCallback<void()> on_disconnected_;
     helix::RequestId next_request_id_ = 0;
+    helix::SubscriptionId next_subscription_id_ = helix::kInvalidSubscriptionId;
     /// Held, not a temporary: a weak_ptr to a just-destroyed shared_ptr is
     /// born expired, which silently disarms every SubscriptionGuard built
     /// from it.

@@ -9,6 +9,7 @@
 #include "../test_helpers/backend_user_edit.h"
 #include "core/update_queue.h"
 #include "helix/ui/text_metrics.h"
+#include "test_helpers/backend_harness.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"
 #endif
@@ -458,16 +459,14 @@ class DockSensorToolChanger : public AmsBackendToolChanger {
 TEST_CASE("Snapmaker lane menu offers Unload and Load for filament parked in the toolhead",
           "[ams][context_menu][snapmaker][parked]") {
     using UnloadMode = AmsContextMenuTestAccess::UnloadMode;
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> reg(nullptr, nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> reg;
     auto& backend = *reg;
     auto feed = [&](const char* channel_state, bool switch_detected) {
-        helix::SnapmakerTestAccess::handle_status(
-            backend,
-            nlohmann::json{
-                {"toolhead", {{"extruder", "extruder3"}}},
-                {"filament_feed right",
-                 {{"extruder3", {{"filament_detected", true}, {"channel_state", channel_state}}}}},
-                {"filament_motion_sensor e3_filament", {{"filament_detected", switch_detected}}}});
+        backend.fire_status(nlohmann::json{
+            {"toolhead", {{"extruder", "extruder3"}}},
+            {"filament_feed right",
+             {{"extruder3", {{"filament_detected", true}, {"channel_state", channel_state}}}}},
+            {"filament_motion_sensor e3_filament", {{"filament_detected", switch_detected}}}});
     };
 
     SECTION("parked") {

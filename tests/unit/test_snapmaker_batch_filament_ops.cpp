@@ -34,6 +34,7 @@
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "test_helpers/ams_sidebar_xml.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
 
 #include <condition_variable>
@@ -136,11 +137,11 @@ struct BatchMockHarness {
     /// tests that reach what only AmsBackendSnapmaker exposes. Registered
     /// through AmsState so lane funnels accept its lane ids, and handed the
     /// mock client/api pair so a dispatch through it records its script.
-    helix::AmsBackendSnapmaker& backend() {
+    helix::test::WiredBackend<helix::AmsBackendSnapmaker>& backend() {
         if (!raw_backend_) {
             raw_backend_ =
-                std::make_unique<helix::test::RegisteredBackend<helix::AmsBackendSnapmaker>>(
-                    api.get(), &mock_client);
+                std::make_unique<helix::test::RegisteredWired<helix::AmsBackendSnapmaker>>(
+                    api.get());
         }
         return **raw_backend_;
     }
@@ -148,7 +149,7 @@ struct BatchMockHarness {
     /// Feed one raw JSON status frame to the backend's status handler — the
     /// same entry point the WebSocket drives.
     void feed_status(const std::string& json_text) {
-        helix::SnapmakerTestAccess::handle_status(backend(), nlohmann::json::parse(json_text));
+        backend().fire_status(nlohmann::json::parse(json_text));
     }
 
     /// One frame carrying the feeder channel and its motion sensor — the two
@@ -172,7 +173,7 @@ struct BatchMockHarness {
     MoonrakerClientMock mock_client;
     helix::PrinterState state;
     std::unique_ptr<MoonrakerAPIMock> api;
-    std::unique_ptr<helix::test::RegisteredBackend<helix::AmsBackendSnapmaker>> raw_backend_;
+    std::unique_ptr<helix::test::RegisteredWired<helix::AmsBackendSnapmaker>> raw_backend_;
 };
 
 struct BatchFixture : public LVGLTestFixture, public BatchMockHarness {};

@@ -24,6 +24,7 @@
 #include "ams_backend_qidi.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/qidi_box_test_access.h"
 
 #include "../catch_amalgamated.hpp"
@@ -323,12 +324,11 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
     }
 
     SECTION("QIDI Box reports a blocked slot with a dismiss-only dialog") {
-        AmsBackendQidi backend(nullptr, nullptr);
+        helix::test::StartedBackend<AmsBackendQidi> backend;
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        QidiBoxTestAccess::parse_vars(
-            backend,
-            json{{"enable_box", 1}, {"slot0", 1}, {"slot1", -3}, {"slot2", 1}, {"slot3", 1}});
+        fire_vars(backend,
+                  json{{"enable_box", 1}, {"slot0", 1}, {"slot1", -3}, {"slot2", 1}, {"slot3", 1}});
         auto ev = backend.current_error();
         REQUIRE(ev.has_value());
         // Nothing to resume or reload from: the generic runout modal is the surface

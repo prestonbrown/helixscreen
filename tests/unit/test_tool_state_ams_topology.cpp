@@ -17,6 +17,7 @@
 #include "lvgl_test_fixture.h"
 #include "printer_discovery.h"
 #include "test_helpers/ams_backend_probes.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/log_capture.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/snapmaker_test_access.h"
@@ -836,9 +837,10 @@ struct BackendActiveToolFixture : public ToolStateFixture {
 
     // Production delivers one status frame to ToolState and to the backend,
     // and AmsState syncs from the backend afterwards.
-    static void deliver(helix::AmsBackendSnapmaker& backend, const nlohmann::json& frame) {
+    static void deliver(helix::test::WiredBackend<helix::AmsBackendSnapmaker>& backend,
+                        const nlohmann::json& frame) {
         ToolState::instance().update_from_status(frame);
-        helix::SnapmakerTestAccess::handle_status(backend, frame);
+        backend.fire_status(frame);
         UpdateQueue::instance().drain();
         helix::AmsState::instance().sync_from_backend();
         UpdateQueue::instance().drain();
@@ -862,7 +864,7 @@ TEST_CASE_METHOD(BackendActiveToolFixture,
                      "filament_detect", "toolhead", "heater_bed", "print_task_config"});
     REQUIRE(ToolState::instance().tool_count() == 4);
 
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> backend(nullptr, nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend;
     REQUIRE_FALSE(backend->owns_tool_mapping_table());
 
     deliver(*backend, nlohmann::json{{"toolhead", {{"extruder", "extruder2"}}}});
@@ -888,7 +890,7 @@ TEST_CASE_METHOD(BackendActiveToolFixture,
                  "[tool-state][tool_switcher][1784]") {
     init_tools_from({"extruder", "extruder1", "extruder2", "extruder3", "toolchanger",
                      "filament_detect", "toolhead", "heater_bed", "print_task_config"});
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> backend(nullptr, nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend;
 
     deliver(*backend, nlohmann::json{{"toolhead", {{"extruder", "extruder2"}}}});
     REQUIRE(ToolState::instance().active_tool_index() == 2);
@@ -903,7 +905,7 @@ TEST_CASE_METHOD(BackendActiveToolFixture,
     init_tools_from({"extruder", "extruder1", "extruder2", "extruder3", "toolchanger",
                      "filament_detect", "toolhead", "heater_bed", "print_task_config"});
     {
-        helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> backend(nullptr, nullptr);
+        helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend;
         deliver(*backend, u1_all_parked_frame());
         REQUIRE(ToolState::instance().active_tool_index() == -1);
     }
@@ -956,7 +958,7 @@ TEST_CASE_METHOD(BackendActiveToolFixture,
                  "[tool-state][tool_switcher][1784]") {
     init_tools_from({"extruder", "extruder1", "extruder2", "extruder3", "toolchanger",
                      "filament_detect", "toolhead", "heater_bed", "print_task_config"});
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> backend(nullptr, nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend;
 
     deliver(*backend, nlohmann::json{{"extruder2", {{"state", "ACTIVE"}, {"active_pin", true}}},
                                      {"toolhead", {{"extruder", "extruder2"}}}});

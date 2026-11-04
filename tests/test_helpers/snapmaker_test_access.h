@@ -25,14 +25,6 @@ namespace helix {
 // obscure what the internal maps actually hold).
 class SnapmakerTestAccess {
   public:
-    /// Takes a notify frame or a bare status object (a query result).
-    static void handle_status(AmsBackendSnapmaker& b, const nlohmann::json& n) {
-        if (n.contains("params")) {
-            b.handle_status_update(n);
-        } else {
-            b.handle_status(n);
-        }
-    }
     /// Drive the boot path a live backend runs: construct the override store
     /// from the DB, load its records, and publish them. A unit test skips
     /// discovery, so without this the store an injected fixture installed is
@@ -73,6 +65,9 @@ class SnapmakerTestAccess {
     static void inject_override_store(AmsBackendSnapmaker& b,
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
         b.override_store_ = std::move(s);
+        // A start bound the tracker's baseline writes to the store this replaces.
+        helix::ams::bind_fingerprint_persistence(b.rfid_tracker_, b.override_store_.get(),
+                                                 b.overrides_);
     }
     /// Put a whole Spoolman link on the live slot — the shape a linked slot
     /// carries. The persisted override record has no filament-id field, so
@@ -157,10 +152,6 @@ class SnapmakerTestAccess {
     static bool loaded_at_toolhead(const AmsBackendSnapmaker& b, int slot_index) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.loaded_at_toolhead_[slot_index];
-    }
-    static void set_loaded_at_toolhead(AmsBackendSnapmaker& b, int slot_index, bool loaded) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        b.loaded_at_toolhead_[slot_index] = loaded;
     }
     static ExtruderToolState extruder_state(const AmsBackendSnapmaker& b, int tool) {
         std::lock_guard<std::mutex> lock(b.mutex_);

@@ -23,6 +23,7 @@
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 
 #include <memory>
 #include <vector>
@@ -155,11 +156,9 @@ TEST_CASE_METHOD(KlipperRestartFixture, "A deinit and re-init leave exactly one 
 
 TEST_CASE_METHOD(KlipperRestartFixture, "A U1 operation latched busy ends with a Klipper restart",
                  "[ams][snapmaker][klipper_restart_expiry]") {
-    auto owned = std::make_unique<helix::AmsBackendSnapmaker>(nullptr, nullptr);
-    auto* backend = owned.get();
-    AmsState::instance().set_backend(std::move(owned));
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend;
 
-    helix::SnapmakerTestAccess::handle_status(*backend, u1_feed_status(1, "load_feeding"));
+    backend->fire_status(u1_feed_status(1, "load_feeding"));
     REQUIRE(helix::ams_action_is_busy(backend->get_current_action()));
 
     restart_klipper();

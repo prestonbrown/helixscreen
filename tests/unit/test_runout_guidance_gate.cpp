@@ -38,6 +38,7 @@
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "runtime_config.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
 #include "u1_stock_detection_source.h"
 
@@ -210,7 +211,7 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
                  "a pause with only an idle head's switch empty shows no dialog; the fed "
                  "head's does",
                  "[runout_guidance][gate]") {
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> u1(nullptr, nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> u1;
     auto head_switch = [](int head, bool detected) {
         return nlohmann::json{{"filament_motion_sensor e" + std::to_string(head) + "_filament",
                                {{"filament_detected", detected}, {"enabled", true}}}};
@@ -218,13 +219,12 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     auto feed = [](const char* channel_state) {
         return nlohmann::json{{"filament_detected", true}, {"channel_state", channel_state}};
     };
-    helix::SnapmakerTestAccess::handle_status(
-        *u1, nlohmann::json{
-                 {"filament_feed left",
-                  {{"extruder0", feed("load_finish")}, {"extruder1", feed("load_finish")}}},
-                 {"filament_feed right",
-                  {{"extruder2", feed("load_finish")}, {"extruder3", feed("preload_finish")}}},
-                 {"toolhead", {{"extruder", "extruder2"}}}});
+    u1->fire_status(nlohmann::json{
+        {"filament_feed left",
+         {{"extruder0", feed("load_finish")}, {"extruder1", feed("load_finish")}}},
+        {"filament_feed right",
+         {{"extruder2", feed("load_finish")}, {"extruder3", feed("preload_finish")}}},
+        {"toolhead", {{"extruder", "extruder2"}}}});
     REQUIRE((*u1).get_current_slot() == 2);
     REQUIRE((*u1).get_slot_info(3).is_present());
 
@@ -237,7 +237,7 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     for (int h = 0; h < 4; ++h) {
         fsm.set_role(heads[h], static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
         const auto frame = head_switch(h, h != 3);
-        helix::SnapmakerTestAccess::handle_status(*u1, frame);
+        u1->fire_status(frame);
         fsm.update_from_status(frame);
     }
     settle();
@@ -251,7 +251,7 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     // Resumed; then the head being fed runs out and the firmware pauses.
     transition(::PrintState::Paused, ::PrintState::Printing);
     const auto empty = head_switch(2, false);
-    helix::SnapmakerTestAccess::handle_status(*u1, empty);
+    u1->fire_status(empty);
     fsm.update_from_status(empty);
     settle();
     transition(::PrintState::Printing, ::PrintState::Paused);

@@ -78,6 +78,23 @@ TEST_CASE("QIDI save_variables parse tells product ids, row ids and colour lists
     CHECK(v.ignored_id_keys == std::vector<std::string>{"vendor_slot1", "filament_slot2"});
 }
 
+TEST_CASE("QIDI save_variables parse files ids by slot and leaves the unnamed ones unset",
+          "[qidi][status_parse]") {
+    auto v = qidi::parse_save_variables(
+        json{{"filament_slot0", 42}, {"color_slot2", 24}, {"vendor_slot3", 1}}, 4);
+    CHECK(v.ids[0].filament_id == 42);
+    CHECK(v.ids[2].color_id == 24);
+    CHECK(v.ids[3].vendor_id == 1);
+    CHECK_FALSE(v.ids[1].filament_id);
+    CHECK_FALSE(v.ids[1].color_id);
+    CHECK_FALSE(v.ids[1].vendor_id);
+
+    // A box_count in the same frame reaches the slots it adds.
+    CHECK(qidi::parse_save_variables(json{{"box_count", 2}, {"filament_slot7", 99}}, 4)
+              .ids[7]
+              .filament_id == 99);
+}
+
 TEST_CASE("QIDI controller status parse files box_filament_info keys by global slot",
           "[qidi][status_parse]") {
     auto d = qidi::parse_controller_status(json{{"box",

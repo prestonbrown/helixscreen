@@ -175,7 +175,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -193,7 +192,6 @@ TEST_CASE_METHOD(HelixTestFixture, "PrePrint adaptive: honors custom adaptive pa
                  "[adaptive][preprint]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -217,7 +215,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -242,7 +239,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -270,7 +266,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint][1269]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -296,7 +291,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint][1269]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -322,7 +316,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint][1269]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -390,7 +383,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint][skip_wrappers]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
     // The toggle's line is live: its _HELIX_PREP gate is open.
     helix::MacroParamCache::instance().populate_from_configfile(
