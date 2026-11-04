@@ -5,6 +5,7 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_feeder_control.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
 #include "printer_discovery.h"
@@ -51,9 +52,14 @@ template <typename W> void resize_content(PanelWidgetHarness<W>& h, int content_
 /// writes can outlive this fixture's teardown and land in a LATER test's
 /// async-lifetime skip window (test_filament_dispatch_surfaces.cpp counts those
 /// exactly). Nothing here asserts simulated motion, only the dispatch result.
-class GateBackend : public AmsBackendMock {
+class GateBackend : public AmsBackendMock, public IFeederControl {
   public:
     explicit GateBackend(int slots) : AmsBackendMock(slots) {}
+
+    void* capability(TypeTag tag) override {
+        return tag == type_tag<IFeederControl>() ? static_cast<IFeederControl*>(this)
+                                                 : AmsBackendMock::capability(tag);
+    }
 
     bool self_homes = false;
     bool tool_change_should_fail = false;

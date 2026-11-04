@@ -6,6 +6,7 @@
 #include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 
+#include "ams_feeder_control.h"
 #include "ams_subscription_backend.h"
 #include "filament_slot_override_store.h"
 #include "mount_feed_sequence.h"
@@ -59,8 +60,15 @@ class ToolChangerTestAccess;
  * - UNSELECT_TOOL          - Unmount current tool (park it)
  * - T{n}                   - Tool change macro (same as SELECT_TOOL)
  */
-class AmsBackendToolChanger : public AmsSubscriptionBackend {
+class AmsBackendToolChanger : public AmsSubscriptionBackend, public helix::IFeederControl {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IFeederControl>()) {
+            return static_cast<helix::IFeederControl*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     /**
      * @brief Construct tool changer backend
      *

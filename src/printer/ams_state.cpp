@@ -18,6 +18,7 @@
 
 #include "ams_backend_registry.h"
 #include "ams_bypass_policy.h"
+#include "ams_feeder_control.h"
 #include "ams_lane_state.h"
 #include "ams_runout_grace.h"
 #include "ams_standing_fault.h"
@@ -949,7 +950,8 @@ void AmsState::sync_filament_runout(const AmsSystemInfo& info) {
 }
 
 void AmsState::sync_feeder(AmsBackend* backend) {
-    const int open = backend->supports_feeder_control() && backend->feeder_open() ? 1 : 0;
+    const IFeederControl* const feeder = backend->as<IFeederControl>();
+    const int open = feeder && feeder->supports_feeder_control() && feeder->feeder_open() ? 1 : 0;
     if (lv_subject_get_int(&ams_feeder_open_) != open) {
         spdlog::debug("[AmsState] feeder open -> {}", open);
         lv_subject_set_int(&ams_feeder_open_, open);

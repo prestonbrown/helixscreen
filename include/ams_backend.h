@@ -1618,31 +1618,6 @@ class AmsBackend : public AmsCapabilityHost {
         return false;
     }
 
-    /**
-     * @brief Open or close the frame-side filament feeder (async)
-     *
-     * Only a machine whose filament is held by a gripper on the frame, not by
-     * the travelling head, has one. Opening releases the filament so it can be
-     * pulled by hand; closing grips it again. The reported state follows in a
-     * later status frame, through feeder_open().
-     *
-     * @return not_supported() by default
-     */
-    virtual AmsError set_feeder_open(bool open) {
-        (void)open;
-        return AmsErrorHelper::not_supported("Feeder");
-    }
-
-    /// Whether set_feeder_open() can act on this printer.
-    [[nodiscard]] virtual bool supports_feeder_control() const {
-        return false;
-    }
-
-    /// Whether the feeder last reported itself open (filament released).
-    [[nodiscard]] virtual bool feeder_open() const {
-        return false;
-    }
-
     // ========================================================================
     // Recovery Operations
     // ========================================================================

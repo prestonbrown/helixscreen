@@ -176,7 +176,7 @@ TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
 }
 
 TEST_CASE("Each optional interface answers only on the backends that implement it",
-          "[ams][traits][cfs][happy_hare][afc]") {
+          "[ams][traits][cfs][happy_hare][afc][toolchanger]") {
     helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
     AmsBackendAce ace(nullptr, nullptr);
     AmsBackendAd5xIfs ad5x(nullptr, nullptr);
@@ -196,16 +196,17 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IGateSelector* gates = nullptr;
         const ILaneRecovery* recovery = nullptr;
         const INarrationMatcher* narration = nullptr;
+        const IFeederControl* feeder = nullptr;
     };
     const Row rows[] = {
         {&ace},
         {&ad5x},
-        {&indx},
         {&multi_ace},
         {&openams},
         {&qidi},
         {&snapmaker},
-        {&tool_changer},
+        {&indx, nullptr, nullptr, nullptr, nullptr, &indx},
+        {&tool_changer, nullptr, nullptr, nullptr, nullptr, &tool_changer},
         {&afc, nullptr, nullptr, &afc, &afc},
         {&cfs, &cfs},
         {&happy_hare, nullptr, &happy_hare},
@@ -218,6 +219,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IGateSelector>() == row.gates);
         CHECK(row.backend->as<ILaneRecovery>() == row.recovery);
         CHECK(row.backend->as<INarrationMatcher>() == row.narration);
+        CHECK(row.backend->as<IFeederControl>() == row.feeder);
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
 }

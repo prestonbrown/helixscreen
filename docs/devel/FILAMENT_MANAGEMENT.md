@@ -3659,6 +3659,9 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   `get_bowden_progress()`.
 - `ILaneRecovery` (`include/ams_lane_recovery.h`) -- `recover_lane_position()`, the physical retract
   of a stranded lane, and the two questions that decide whether to offer it. AFC implements it.
+- `IFeederControl` (`include/ams_feeder_control.h`) -- The frame-side gripper that holds the filament:
+  `set_feeder_open()`, `feeder_open()`, and `supports_feeder_control()`, which is per machine because
+  a controller reports the gripper during discovery. The tool changer backend implements it.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 
