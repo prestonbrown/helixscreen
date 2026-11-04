@@ -124,7 +124,7 @@ class BedMeshPanelFlowFixture : public LVGLTestFixture {
 
     BedMeshPanelFlowFixture() {
         state.init_subjects(false);
-        set_moonraker_api(&api);
+        set_moonraker_api(nullptr); // only panel.set_api() reaches the mock
         client.clear_gcode_script_history();
         // The panel reads bed temperatures and homing from the process-wide state,
         // whose subjects no base fixture creates.
@@ -141,7 +141,6 @@ class BedMeshPanelFlowFixture : public LVGLTestFixture {
     ~BedMeshPanelFlowFixture() override {
         helix::ui::set_test_notification_error_hook(nullptr);
         helix::ui::set_test_notification_success_hook(nullptr);
-        set_moonraker_api(nullptr);
         StandardMacros::instance().init(helix::PrinterDiscovery{}, "");
         drain();
     }
@@ -702,7 +701,7 @@ class BedMeshDialogFixture : public LVGLUITestFixture {
 
     BedMeshDialogFixture() {
         panel.set_api(&api);
-        set_moonraker_api(&api);
+        set_moonraker_api(nullptr); // only panel.set_api() reaches the mock
         StandardMacros::instance().init(helix::PrinterDiscovery{}, "");
         // The dialog binds the panel's calibration subjects by name.
         panel.init_subjects();
@@ -714,7 +713,6 @@ class BedMeshDialogFixture : public LVGLUITestFixture {
             settle();
         }
         settle();
-        set_moonraker_api(nullptr);
     }
 
     /// Let a close finish: the deferred widget delete and any dismissal report.
@@ -769,6 +767,33 @@ class BedMeshDialogFixture : public LVGLUITestFixture {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(BedMeshDialogFixture, "an open panel reads the printer it was handed",
+                 "[bed_mesh_flow]") {
+    store_profiles_on_printer({});
+    REQUIRE(panel.create(test_screen()) != nullptr);
+    auto row = [](const char* field) {
+        const std::string key = std::string("bed_mesh_profile_0_") + field;
+        return lv_xml_get_subject(nullptr, key.c_str());
+    };
+    auto name = [&] { return std::string(lv_subject_get_string(row("name"))); };
+
+    // Opening fills the list from the panel's API, ranges included.
+    CHECK(name() == api.advanced().get_bed_mesh_profiles()[0]);
+    CHECK(std::string(lv_subject_get_string(row("range"))) != "0.000");
+
+    // A printer update refills it through the panel's subscription.
+    lv_subject_copy_string(row("name"), "");
+    api.execute_gcode("BED_MESH_PROFILE SAVE=late", nullptr, nullptr);
+    settle();
+    CHECK(name() == api.advanced().get_bed_mesh_profiles()[0]);
+
+    // Coming back to the panel does too.
+    lv_subject_copy_string(row("name"), "");
+    panel.on_activate();
+    settle();
+    CHECK(name() == api.advanced().get_bed_mesh_profiles()[0]);
+}
 
 TEST_CASE_METHOD(BedMeshDialogFixture, "dismissing the naming dialog leaves Probe working",
                  "[bed_mesh_flow][bed_mesh_dialog]") {

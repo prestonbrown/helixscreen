@@ -180,7 +180,12 @@ TEST_CASE_METHOD(FromEventFixture,
 
     b.destroy_overlay_ui();
     CHECK(OverlayBase::from_event(&on_b) == nullptr);
+
+    // cleanup() ends it too, on a tree the stack can still bring back to the top.
+    lv_event_t on_a = event_on(a.child);
     a.cleanup();
+    a.on_activate();
+    CHECK(OverlayBase::from_event(&on_a) == nullptr);
     a.destroy_overlay_ui();
     settle();
 }
