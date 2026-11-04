@@ -871,7 +871,6 @@ void ZOffsetCalibrationPanel::handle_abort_clicked() {
 
 void ZOffsetCalibrationPanel::handle_done_clicked() {
     spdlog::debug("[ZOffsetCal] Done clicked");
-    abort_manual_probe_if_active();
     set_state(State::IDLE);
     helix::nav::go_back();
 }
