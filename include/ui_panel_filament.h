@@ -463,7 +463,10 @@ class FilamentPanel : public PanelBase {
     void enter_op_done_state(FilamentOp op);     ///< main-thread: → done + arm revert timer
     void schedule_op_timer(uint32_t delay_ms, lv_timer_cb_t cb); ///< (re)arm shared op timer
     void cancel_op_revert_timer();
-    void begin_operation_guard();    ///< arm operation_guard_ with the shared timeout handler
+    /// Arm operation_guard_ with the shared timeout handler.
+    void begin_operation_guard(uint32_t timeout_ms = kOperationTimeoutMs);
+    /// Whether the purge started before its preamble is still the op on screen.
+    [[nodiscard]] bool purge_still_running() const;
     void handle_operation_timeout(); ///< main-thread: toast + tear down the stalled op
 
     // Extrude length state
