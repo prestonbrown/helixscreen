@@ -68,7 +68,7 @@ class Ad5xIfsTestAccess {
     }
     static void parse_vars(AmsBackendAd5xIfs& b, const json& v) {
         std::lock_guard<std::mutex> lock(b.mutex_);
-        b.parse_save_variables(v);
+        b.apply_save_variables_locked(ad5x::parse_save_variables(v, b.var_prefix_));
     }
     static int active_tool(const AmsBackendAd5xIfs& b) {
         return b.active_tool_;
@@ -653,7 +653,8 @@ class Ad5xIfsTestAccess {
     // Drive the `gcode_macro _ifs_vars` get_status() dict parse directly.
     static bool parse_ifs_vars_macro(AmsBackendAd5xIfs& b, const json& macro_status) {
         std::lock_guard<std::mutex> lock(b.mutex_);
-        return b.parse_ifs_vars_macro_locked(macro_status);
+        const auto macro = ad5x::parse_ifs_vars_macro(macro_status);
+        return macro && b.apply_ifs_vars_macro_locked(*macro);
     }
     static int backup_state(const AmsBackendAd5xIfs& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);

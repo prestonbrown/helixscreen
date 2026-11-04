@@ -282,7 +282,7 @@ The state reaches the UI through `get_endless_spool_capabilities()`, which `AmsS
 into the backend-neutral `ams_endless_state` / `ams_endless_text` subjects for every backend
 — see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model) § "The status line".
 
-**`variable_backup`.** `gcode_macro _ifs_vars`'s `get_status()` dict used to be reduced to a single "does the macro exist" bool at the `on_started()` probe and thrown away. It now flows into `parse_ifs_vars_macro_locked()`, which reads `variable_backup` (accepting the jinja int form and a bool). Note this object is **not** in the standing `objects.subscribe` set — the `on_started()` query and `recheck_ifs_vars_macro()` (fired on `notify_klippy_ready`) are the only two places it ever reaches us.
+**`variable_backup`.** `gcode_macro _ifs_vars`'s `get_status()` dict used to be reduced to a single "does the macro exist" bool at the `on_started()` probe and thrown away. It now flows into `ad5x::parse_ifs_vars_macro()`, which reads `variable_backup` (accepting the jinja int form and a bool). Note this object is **not** in the standing `objects.subscribe` set — the `on_started()` query and `recheck_ifs_vars_macro()` (fired on `notify_klippy_ready`) are the only two places it ever reaches us.
 
 Per `printers/FLASHFORGE_AD5X_SUPPORT.md` § "lessWaste-Specific Variables" and the source
 variable dumps in `printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md`, lessWaste ships

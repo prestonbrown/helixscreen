@@ -113,7 +113,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
 
     static constexpr int kNumPorts = helix::ad5x::kNumPorts;
     static constexpr int kToolMapSize = helix::ad5x::kToolMapSize;
-    static constexpr int kUnmappedPort = 5;
+    static constexpr int kUnmappedPort = helix::ad5x::kUnmappedPort;
     /// The module's _IFS_CLEAR_EXTRUDER refuses below this nozzle temperature.
     static constexpr int kClearToolheadMinTempC = 150;
     /// Extruder-clear temperature when no lane names a material and the nozzle
@@ -501,7 +501,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     [[nodiscard]] static UnloadLaneDecision decide_unload_lane(const UnloadLaneInputs& in);
 
     /// Which auto-switchover plugin the live printer has, from the same two
-    /// signals apply_user_edit()/parse_save_variables() already trust: the
+    /// signals apply_user_edit()/apply_save_variables_locked() already trust: the
     /// detected variable prefix and the `gcode_macro _ifs_vars` existence latch.
     /// Returns IfsPlugin::None whenever has_ifs_vars_ is false - stale
     /// `less_waste_*` rows left behind by an uninstalled plugin must not read as
@@ -721,13 +721,12 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     friend class Ad5xIfsTestAccess;
     friend class Ad5xPerSlotLoadedHelper;
 
-    void parse_save_variables(const nlohmann::json& vars);
-    /// Fold a `printer.ifs` status object into the tool map. The module's
-    /// `tool_map` key is both the remap capability gate and the table itself
-    /// (string 0-based tool keys, 1-based lane values, complete table per
-    /// frame). Returns true when something we publish changed. Caller must
-    /// hold mutex_.
-    bool parse_ifs_tool_map_locked(const nlohmann::json& ifs_object);
+    /// Applies the `save_variables` rows. Caller must hold mutex_.
+    void apply_save_variables_locked(const helix::ad5x::SaveVariables& parsed);
+    /// Fold a `printer.ifs` tool_map into the tool map. The table's presence is
+    /// the remap capability gate as well. Returns true when something we publish
+    /// changed. Caller must hold mutex_.
+    bool apply_ifs_tool_map_locked(const helix::ad5x::ToolMap& parsed);
     /// Re-derive each lane's SlotInfo::mapped_tool from tool_map_ — the one
     /// place the reverse direction is projected onto the slot model the UI
     /// reads. Shared by both adapters' edges and set_tool_mapping(). Caller
@@ -1097,7 +1096,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// write (the macro replaces the array, not individual entries).
     std::string build_tool_map_value() const;
     /// Push a correctly-shaped `colors=`/`types=` pair into `_IFS_VARS` after
-    /// parse_save_variables() observed a truncated lessWaste array (the
+    /// apply_save_variables_locked() observed a truncated lessWaste array (the
     /// persisted damage from the #1247 bug — SAVE_VARIABLE keeps it across
     /// reboots). Called from handle_status() with mutex_ released
     /// because execute_gcode() blocks.
@@ -1183,10 +1182,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// interrupted by us declaring a runout on top of it. Caller holds mutex_.
     [[nodiscard]] std::chrono::seconds runout_confirm_delay_locked() const;
 
-    /// Read the `variable_*` payload out of a `gcode_macro _ifs_vars`
-    /// get_status() dict. Returns true when something we publish changed.
-    /// Caller must hold mutex_.
-    bool parse_ifs_vars_macro_locked(const nlohmann::json& macro_status);
+    /// Apply the `variable_*` payload of a `gcode_macro _ifs_vars` get_status()
+    /// dict. Returns true when something we publish changed. Caller must hold
+    /// mutex_.
+    bool apply_ifs_vars_macro_locked(const helix::ad5x::IfsVarsMacro& macro);
 
     /// The `variable_backup` tri-state (BACKUP_*). Feeds both the runout warning
     /// log and get_endless_spool_capabilities()' `enabled` axis, so the number in
@@ -1337,14 +1336,14 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // User-defined material types extending the firmware whitelist. Two
     // sources, both surfaced via get_supported_materials():
     //   - bambufy_custom_types in save_variables (when bambufy is/was active);
-    //     parse_save_variables() populates this regardless of has_ifs_vars_
+    //     apply_save_variables_locked() populates this regardless of has_ifs_vars_
     //     because user-defined types are orthogonal to plugin activation.
     //   - [zmod_ifs] filament_<NAME>: <TEMP> in /mod_data/user.cfg (zmod's
     //     own mechanism); fetched once via fetch_user_cfg_materials() at
     //     backend start.
     // Guarded by its own mutex (NOT mutex_) so get_supported_materials() —
     // called from normalize_material() inside write_port_locked(), which
-    // holds mutex_ — doesn't deadlock. Both writers (parse_save_variables
+    // holds mutex_ — doesn't deadlock. Both writers (apply_save_variables_locked
     // and fetch_user_cfg_materials) currently take mutex_ AND
     // custom_types_mutex_; lock order is mutex_ → custom_types_mutex_.
     mutable std::mutex custom_types_mutex_;
@@ -1565,7 +1564,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // answer whether the plugin's unlock was armed (#1247).
     std::optional<bool> ifs_unlock_after_boot_;
 
-    // Set by parse_save_variables() when a lessWaste `<prefix>_colors` or
+    // Set by apply_save_variables_locked() when a lessWaste `<prefix>_colors` or
     // `_types` save_variables array arrives with fewer than kToolMapSize
     // entries — the truncation signature of the #1247 mirror bug. Consumed
     // (read + cleared) by handle_status() under the same lock hold,

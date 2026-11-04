@@ -400,7 +400,7 @@ void AmsBackendAd5xIfs::on_started() {
                 //
                 // Only the existence bool is extracted here; the dict itself
                 // survives into status_copy below and handle_status()
-                // reads its `variable_*` payload (parse_ifs_vars_macro_locked).
+                // reads its `variable_*` payload (apply_ifs_vars_macro_locked).
                 macro_exists = status.contains("gcode_macro _ifs_vars") &&
                                status["gcode_macro _ifs_vars"].is_object() &&
                                !status["gcode_macro _ifs_vars"].empty();
@@ -419,7 +419,7 @@ void AmsBackendAd5xIfs::on_started() {
                          status_copy = std::move(status_copy)]() mutable {
                             if (have_status) {
                                 // Update latch BEFORE handle_status so
-                                // parse_save_variables sees the correct state.
+                                // apply_save_variables_locked sees the correct state.
                                 // ifs_macro_confirmed_missing_ starts true
                                 // (pessimistic) and is only cleared here when
                                 // the macro exists.
@@ -449,7 +449,7 @@ void AmsBackendAd5xIfs::on_started() {
                                               colors_[1], colors_[2], colors_[3]);
                             }
 
-                            // Safety net: if parse_save_variables somehow set
+                            // Safety net: if apply_save_variables_locked somehow set
                             // has_ifs_vars_ despite the latch (shouldn't
                             // happen), force it back off for missing macros.
                             // has_ifs_vars_ now only gates tool-mapping /
@@ -581,44 +581,39 @@ void AmsBackendAd5xIfs::request_resync() {
 
 // --- Status parsing ---
 
-void AmsBackendAd5xIfs::handle_status(const json& status_obj) {
-    const json* status = &status_obj;
+void AmsBackendAd5xIfs::handle_status(const json& status) {
+    // The parse reads the frame's plugin rows under the prefix already known.
+    std::string known_prefix;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        known_prefix = var_prefix_;
+    }
+    const ad5x::StatusFrame frame = ad5x::parse_status_frame(status, known_prefix);
+    const ad5x::SensorFrame& sensors = frame.sensors;
 
     std::unique_lock<std::mutex> lock(mutex_);
 
     bool state_changed = false;
     bool sensor_changed = false;
 
-    // Parse save_variables if present
-    if (status->contains("save_variables")) {
-        const auto& sv = (*status)["save_variables"];
-        if (sv.contains("variables") && sv["variables"].is_object()) {
-            parse_save_variables(sv["variables"]);
-            state_changed = true;
-        }
+    if (frame.save_variables) {
+        apply_save_variables_locked(*frame.save_variables);
+        state_changed = true;
     }
 
-    // The _IFS_VARS macro's own get_status() dict. on_started()'s probe used to
-    // reduce this whole payload to a single "does the macro exist" bool and
-    // throw the rest away; the plugin's live settings (notably `variable_backup`,
-    // the auto-switch-to-a-backup-spool toggle) are in here and are the only
-    // Moonraker-visible answer to "will this printer recover from a runout by
-    // itself?" (#1250, reported as #1247).
-    if (status->contains("gcode_macro _ifs_vars")) {
-        if (parse_ifs_vars_macro_locked((*status)["gcode_macro _ifs_vars"])) {
-            state_changed = true;
-        }
+    // The _IFS_VARS macro's own get_status() dict. The plugin's live settings
+    // (notably `variable_backup`, the auto-switch-to-a-backup-spool toggle) are
+    // the only Moonraker-visible answer to "will this printer recover from a
+    // runout by itself?" (#1250, #1247).
+    if (frame.ifs_vars_macro && apply_ifs_vars_macro_locked(*frame.ifs_vars_macro)) {
+        state_changed = true;
     }
 
-    // The standalone [ifs] module's status. Its tool_map is the remap
-    // capability gate AND the table itself — see parse_ifs_tool_map_locked.
-    if (status->contains("ifs")) {
-        if (parse_ifs_tool_map_locked((*status)["ifs"])) {
-            state_changed = true;
-        }
+    // The standalone [ifs] module's tool_map is the remap capability gate AND
+    // the table itself.
+    if (frame.ifs_tool_map && apply_ifs_tool_map_locked(*frame.ifs_tool_map)) {
+        state_changed = true;
     }
-
-    const ad5x::SensorFrame sensors = ad5x::parse_sensor_frame(*status);
 
     for (int port = 1; port <= kNumPorts; ++port) {
         if (const auto detected = sensors.port_detected[static_cast<size_t>(port - 1)]) {
@@ -765,15 +760,15 @@ void AmsBackendAd5xIfs::handle_status(const json& status_obj) {
     // parse_adventurer_json and has no equivalent here yet. Retiring those
     // polls is prestonbrown/helixscreen#1344's second half, and wants a rig
     // running the released firmware to prove equivalence first.
-    apply_zmod_status_objects(*status);
+    apply_zmod_status_objects(status);
 
     // The standalone IFS module's pushed state (`ifs` / `ifs_materials`), on
     // firmware that has it. Same readers, same apply path as the zmod objects
     // above; additionally the module's own `ifs_loaded` save_variable and the
     // board's `activity` are applied, which is what lets both ZMOD polls stand
     // down (see apply_ifs_module_objects).
-    apply_ifs_module_objects(*status);
-    apply_zmod_change_macro(*status);
+    apply_ifs_module_objects(status);
+    apply_zmod_change_macro(status);
 
     // No AD5X-specific plugin subjects to publish: the auto-switchover state is
     // now carried by the backend-neutral `ams_endless_state` / `ams_endless_text`
@@ -864,9 +859,7 @@ bool AmsBackendAd5xIfs::should_poll_json(bool printing_now, bool was_printing,
     return since_last >= (printing_now ? kJsonPollPrinting : kJsonPollIdle);
 }
 
-void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
-    const ad5x::SaveVariables parsed = ad5x::parse_save_variables(vars, var_prefix_);
-
+void AmsBackendAd5xIfs::apply_save_variables_locked(const ad5x::SaveVariables& parsed) {
     // Auto-detect variable prefix: lessWaste/zmod uses "less_waste_*", bambufy uses "bambufy_*".
     // Check once per status update — the prefix can't change at runtime, but we may not
     // see both sets of variables in the initial query.
@@ -1078,24 +1071,7 @@ void AmsBackendAd5xIfs::demote_ifs_vars_locked() {
     }
 }
 
-bool AmsBackendAd5xIfs::parse_ifs_tool_map_locked(const nlohmann::json& ifs_object) {
-    // The standalone [ifs] module ([ifs] in printer.cfg) echoes its live
-    // slicer-tool -> lane table in `tool_map`, and publishes it from
-    // construction — even before its first board poll — so the field's
-    // presence is both the table and the remap capability. Wire shape,
-    // exactly as the module serialises it:
-    //   "tool_map": {"0": 1, "1": 2, "2": 3, "3": 4}
-    // Keys are STRING tool numbers (0-based, the T<n> a slicer writes; a JSON
-    // object's keys are strings whatever Python held). Values are INT lanes,
-    // 1-BASED — the numbering IFS_LOAD SLOT= and loaded_channels speak — and
-    // 1-based is also this backend's own tool_map_ convention
-    // (tool_map_[tool] = port), so no conversion happens here. A frame
-    // carries the COMPLETE table; entries it omits unmap.
-    const auto it = ifs_object.find("tool_map");
-    if (it == ifs_object.end() || !it->is_object()) {
-        return false;
-    }
-
+bool AmsBackendAd5xIfs::apply_ifs_tool_map_locked(const ad5x::ToolMap& parsed) {
     if (!ifs_tool_map_live_) {
         ifs_tool_map_live_ = true;
         if (has_ifs_vars_) {
@@ -1112,26 +1088,6 @@ bool AmsBackendAd5xIfs::parse_ifs_tool_map_locked(const nlohmann::json& ifs_obje
         }
     }
 
-    std::array<int, kToolMapSize> parsed{};
-    parsed.fill(kUnmappedPort);
-    for (auto entry = it->begin(); entry != it->end(); ++entry) {
-        const auto tool_number = helix::text_io::parse_leading<int>(entry.key());
-        if (!tool_number) {
-            continue; // not a tool number
-        }
-        const int tool = *tool_number;
-        if (tool < 0 || tool >= kToolMapSize) {
-            continue;
-        }
-        const json& lane = entry.value();
-        if (lane.is_number_integer()) {
-            const int port = lane.get<int>();
-            if (port >= 1 && port <= kNumPorts) {
-                parsed[static_cast<size_t>(tool)] = port;
-            }
-        }
-    }
-
     bool changed = false;
     for (size_t t = 0; t < kToolMapSize; ++t) {
         if (tool_map_[t] != parsed[t]) {
@@ -1144,7 +1100,7 @@ bool AmsBackendAd5xIfs::parse_ifs_tool_map_locked(const nlohmann::json& ifs_obje
     }
 
     // Rebuild the per-lane reverse mapping so SlotInfo::mapped_tool badges
-    // follow the wire table (mirrors the parse_save_variables tail).
+    // follow the wire table (mirrors the apply_save_variables_locked tail).
     rebuild_slot_tool_mapping_locked();
     for (int i = 0; i < kNumPorts; ++i) {
         update_slot_from_state(i);
@@ -1243,7 +1199,7 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     // colour; anything else leaves color_rgb alone so the last good colour
     // stays on screen. Cleared lands there too, because an empty colors_[idx]
     // is a slot no source has spoken for yet rather than the board stating the
-    // lane has no colour - parse_save_variables and handle_status run
+    // lane has no colour - apply_save_variables_locked and handle_status run
     // before parse_adventurer_json fills it.
     std::optional<uint32_t> observed_color;
     if (const auto reading = ams::read_lane_color(colors_[idx]);
@@ -1253,7 +1209,7 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     }
 
     // Material follows the color rule above: an empty materials_[idx] is a
-    // slot no source has spoken for yet (parse_save_variables and
+    // slot no source has spoken for yet (apply_save_variables_locked and
     // handle_status run before parse_adventurer_json fills it), not
     // the board stating the lane has no material. The vendor-cache filing
     // below already treats it that way, and painting "" here would wipe an
@@ -1307,7 +1263,7 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     // answer, in which a declared field outranks this frame's vendor reading.
     //
     // observed_color is nullopt whenever this call read no colour at all: an
-    // empty colors_[idx] (parse_save_variables / handle_status run
+    // empty colors_[idx] (apply_save_variables_locked / handle_status run
     // before parse_adventurer_json fills it), or a string that would not parse.
     // That is the helper's explicit "no reading" signal, and it establishes no
     // baseline, so a genuine later reading is not misread as an external edit.
@@ -3002,20 +2958,13 @@ int AmsBackendAd5xIfs::backup_state_locked() const {
     return *ifs_backup_variable_ ? kBackupOn : kBackupOff;
 }
 
-bool AmsBackendAd5xIfs::parse_ifs_vars_macro_locked(const json& macro_status) {
-    // Klipper returns `{}` for an object that does not exist, so an empty dict is
-    // the "no macro" answer and carries nothing to read.
-    const auto macro = ad5x::parse_ifs_vars_macro(macro_status);
-    if (!macro) {
-        return false;
-    }
-
+bool AmsBackendAd5xIfs::apply_ifs_vars_macro_locked(const ad5x::IfsVarsMacro& macro) {
     bool changed = false;
 
     // lessWaste's runout backup toggle. Accepts the jinja int form the variable
     // dump shows (`variable_backup: 0`) and a bool, since neither plugin's schema
     // is pinned by anything we control.
-    if (const auto parsed = macro->backup; parsed && parsed != ifs_backup_variable_) {
+    if (const auto parsed = macro.backup; parsed && parsed != ifs_backup_variable_) {
         ifs_backup_variable_ = parsed;
         // Mirror into the snapshot so get_system_info() agrees with the capabilities.
         // ifs_backup_variable_ stays the source of truth - it can be nullopt, which
@@ -3034,7 +2983,7 @@ bool AmsBackendAd5xIfs::parse_ifs_vars_macro_locked(const json& macro_status) {
     // change IFS behavior (clamped lanes) and confound a screen A/B (#1247).
     // The plugin owns the unlock; HelixScreen does not send hardware motion
     // unprompted.
-    if (const auto parsed = macro->unlock_after_boot; parsed && parsed != ifs_unlock_after_boot_) {
+    if (const auto parsed = macro.unlock_after_boot; parsed && parsed != ifs_unlock_after_boot_) {
         ifs_unlock_after_boot_ = parsed;
         spdlog::info("{} _IFS_VARS ifs_unlock_after_boot = {} (plugin's own post-boot "
                      "IFS-unlock workaround)",
@@ -3132,7 +3081,7 @@ std::string AmsBackendAd5xIfs::write_port_locked(int slot_index, SlotInfo& slot,
                                                  const SlotInfo& info) {
     auto idx = static_cast<size_t>(slot_index);
 
-    // Mark slot dirty to prevent parse_save_variables from overwriting our edit
+    // Mark slot dirty to prevent apply_save_variables_locked from overwriting our edit
     dirty_[idx] = true;
 
     // colors_[idx] / materials_[idx] are firmware-truth caches: only a printer
@@ -3559,7 +3508,7 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
     // 1-based lane the module speaks. The module has no "unmapped" state
     // (every tool always aims at a lane), so an out-of-range slot is a
     // structural error, not a verb to send. Takes precedence when both
-    // contracts are detected (parse_ifs_tool_map_locked logs that case).
+    // contracts are detected (apply_ifs_tool_map_locked logs that case).
     if (wire_backed) {
         std::string verb = "IFS_MAP_TOOL TOOL=" + std::to_string(tool_number) + " SLOT=";
         verb += std::to_string(slot_index + 1); // DISPLAY_NUMBERING_OK: gcode wire, not a label
@@ -3744,7 +3693,7 @@ AmsError AmsBackendAd5xIfs::write_ifs_var(const std::string& key, const std::str
 }
 
 void AmsBackendAd5xIfs::dispatch_ifs_vars_repair() {
-    // lessWaste-only by construction (only parse_save_variables' lessWaste
+    // lessWaste-only by construction (only apply_save_variables_locked' lessWaste
     // branch stages it). Re-check the gate under the lock so a macro that went
     // missing between staging and dispatch (FIRMWARE_RESTART mid-frame) can't
     // get an _IFS_VARS write — the Unknown-command self-heal path relies on us
@@ -4794,9 +4743,12 @@ void AmsBackendAd5xIfs::recheck_ifs_vars_macro() {
             }
             token.defer("Ad5xIfsBackend::recheck_macro_apply",
                         [this, macro_exists, macro_status = std::move(macro_status)]() {
+                            const auto macro = ad5x::parse_ifs_vars_macro(macro_status);
                             std::lock_guard<std::mutex> lock(mutex_);
                             if (macro_exists) {
-                                parse_ifs_vars_macro_locked(macro_status);
+                                if (macro) {
+                                    apply_ifs_vars_macro_locked(*macro);
+                                }
                                 if (ifs_macro_confirmed_missing_) {
                                     spdlog::info(
                                         "{} _IFS_VARS macro now present (post FIRMWARE_RESTART) — "
@@ -5147,7 +5099,7 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
         // tool map is firmware truth here — unless a plugin already owns the
         // table. A rig can run the module objects with an active
         // lessWaste/bambufy plugin (has_ifs_vars_, latched in
-        // parse_save_variables); there the plugin's parsed map is what the
+        // apply_save_variables_locked); there the plugin's parsed map is what the
         // firmware actually replays, and installing identity over it would
         // reroute every tool. Arrival order must not decide precedence:
         // plugin-then-module is skipped here, module-then-plugin is
@@ -5160,7 +5112,7 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
         // fire on a frame that carries neither Chan nor slots, and
         // mapped_tool would otherwise wait for the next slot-bearing frame
         // (same loop pair the both-plugins-conflict fallback in
-        // parse_save_variables runs).
+        // apply_save_variables_locked runs).
         std::lock_guard<std::mutex> lock(mutex_);
         const bool plugin_owns_table =
             std::any_of(tool_map_.begin(), tool_map_.end(),
