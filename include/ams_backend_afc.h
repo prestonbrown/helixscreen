@@ -5,6 +5,8 @@
 
 #include "afc_config_manager.h"
 #include "afc_status_parse.h"
+#include "ams_lane_recovery.h"
+#include "ams_narration_matcher.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "error_event.h"
@@ -154,8 +156,20 @@ struct AfcUnitInfo {
     std::vector<bool> lane_is_hub_routed;
 };
 
-class AmsBackendAfc : public AmsSubscriptionBackend {
+class AmsBackendAfc : public AmsSubscriptionBackend,
+                      public helix::ILaneRecovery,
+                      public helix::INarrationMatcher {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::ILaneRecovery>()) {
+            return static_cast<helix::ILaneRecovery*>(this);
+        }
+        if (tag == helix::type_tag<helix::INarrationMatcher>()) {
+            return static_cast<helix::INarrationMatcher*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     /**
      * @brief Construct AFC backend
      *

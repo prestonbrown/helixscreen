@@ -15,6 +15,7 @@
 
 #include "ams_backend.h"
 #include "ams_bypass_policy.h"
+#include "ams_lane_recovery.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
@@ -653,9 +654,10 @@ AmsContextMenu::decide_slot_ops(const AmsBackend* backend, int slot_index, bool 
     // Filament parked in the toolhead is not loaded (Load keeps reading
     // toolhead_unload) but still has a heated unload to run.
     d.parked_in_toolhead = backend && backend->slot_filament_parked_in_toolhead(slot_index);
+    const ILaneRecovery* const recovery = backend ? backend->as<ILaneRecovery>() : nullptr;
     d.unload_mode = decide_unload_mode(d.toolhead_unload || d.parked_in_toolhead,
-                                       backend && backend->can_recover_lane_position(slot_index),
-                                       backend && backend->lane_recovery_is_attributed(),
+                                       recovery && recovery->can_recover_lane_position(slot_index),
+                                       recovery && recovery->lane_recovery_is_attributed(),
                                        backend && backend->supports_lane_eject(), present,
                                        backend && backend->supports_force_eject(), !present);
 

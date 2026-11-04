@@ -480,7 +480,7 @@ checkmark for a macro that never ran is what sends users hunting the wrong probl
 
 #### Drift hints
 
-When neither matcher claims a line, `AmsBackend::is_narration_drift_candidate()` decides whether it
+When neither matcher claims a line, `INarrationMatcher::is_narration_drift_candidate()` decides whether it
 is worth a deduped `debug` log. AFC's answer is deliberately looser than its matchers (any line
 naming `afc` or a `lane` — the hint exists to catch *rewording*, which by definition no matcher
 recognizes) minus the lines it emits every toolchange that have no phase by design (`tool change`,

@@ -1204,7 +1204,7 @@ AmsError AmsBackendMock::select_gate(int slot_index) {
 
 AmsError AmsBackendMock::move_selector(int delta) {
     if (system_info_.type != AmsType::HAPPY_HARE) {
-        return AmsBackend::move_selector(delta);
+        return AmsErrorHelper::not_supported("Selector jog");
     }
 
     int target = 0;

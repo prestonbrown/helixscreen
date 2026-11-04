@@ -258,5 +258,4 @@ TEST_CASE("Toolchanger unmount is a toolhead unload with no cold alternative",
 
     CHECK_FALSE(backend.supports_lane_eject());
     CHECK_FALSE(backend.supports_force_eject());
-    CHECK_FALSE(backend.can_recover_lane_position(0));
 }

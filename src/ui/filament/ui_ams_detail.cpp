@@ -13,6 +13,8 @@
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
+#include "ams_gate_selector.h"
+#include "ams_lane_recovery.h"
 #include "ams_state.h"
 #include "ams_tray_projection.h"
 #include "app_globals.h" // get_printer_state: the print lifecycle the clear guard reads
@@ -1017,7 +1019,8 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     // Bowden progress fills the output tube from the hub: as far as a load has
     // pushed, or what an unload has yet to pull back.
     {
-        const int progress = backend->get_bowden_progress();
+        const helix::IGateSelector* const gates = backend->as<helix::IGateSelector>();
+        const int progress = gates ? gates->get_bowden_progress() : -1;
         int fill = -1;
         if (progress >= 0 && action == helix::AmsAction::LOADING)
             fill = progress;
@@ -1223,7 +1226,10 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     }
 
     case MenuAction::RECOVER_POSITION: {
-        AmsError error = backend->recover_lane_position(slot);
+        ILaneRecovery* const recovery = backend->as<ILaneRecovery>();
+        AmsError error =
+            recovery ? recovery->recover_lane_position(slot)
+                     : AmsErrorHelper::not_supported("Lane position recovery not supported");
         if (error.result != AmsResult::SUCCESS) {
             notify_ams_error(error, lv_tr("Recovery failed"));
         }
@@ -1244,7 +1250,9 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         break;
 
     case MenuAction::CHECK_GATE: {
-        AmsError error = backend->check_gate(slot);
+        IGateSelector* const gates = backend->as<IGateSelector>();
+        AmsError error = gates ? gates->check_gate(slot)
+                               : AmsErrorHelper::not_supported("Gate check not supported");
         if (error.result != AmsResult::SUCCESS) {
             notify_ams_error(error, lv_tr("Check slot failed"));
         }
@@ -1252,7 +1260,9 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     }
 
     case MenuAction::PRELOAD: {
-        AmsError error = backend->preload_lane(slot);
+        IGateSelector* const gates = backend->as<IGateSelector>();
+        AmsError error = gates ? gates->preload_lane(slot)
+                               : AmsErrorHelper::not_supported("Lane preload not supported");
         if (error.result != AmsResult::SUCCESS) {
             notify_ams_error(error, lv_tr("Preload failed"));
         }

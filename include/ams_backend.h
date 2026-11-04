@@ -678,40 +678,6 @@ class AmsBackend : public AmsCapabilityHost {
         return {};
     }
 
-    /// Map one `//` narration body (prefix already stripped) to a phase id.
-    /// nullopt (default) => not a recognized phase line.
-    ///
-    /// A `//` body came from a macro's own respond_info, so implementations may
-    /// use loose substring needles here and tolerate upstream rewording. Do NOT
-    /// route bare console lines through this — see match_bare_narration_phase().
-    [[nodiscard]] virtual std::optional<std::string>
-    match_narration_phase(const std::string& /*narration*/) const {
-        return std::nullopt;
-    }
-
-    /// Map one console line that arrived WITHOUT the `//` prefix to a phase id.
-    /// nullopt (default) => backend narrates nothing outside `//`.
-    ///
-    /// Separate from match_narration_phase() because the input is a different
-    /// kind of text: unprefixed responses are the printer's open console, mixing
-    /// M105 reports, `echo:` output and USER-CONTROLLED gcode filenames in with
-    /// any narration. Implementations must match anchored line shapes, never
-    /// loose substrings — a needle like `cut` would fire on `haircut.gcode`.
-    [[nodiscard]] virtual std::optional<std::string>
-    match_bare_narration_phase(const std::string& /*line*/) const {
-        return std::nullopt;
-    }
-
-    /// True when an UNMATCHED console line looks like this backend's narration,
-    /// i.e. is worth a drift hint in the log. Deliberately looser than the two
-    /// matchers — its whole job is catching wording this backend used to emit —
-    /// but it must exclude the lines the backend emits that have no phase by
-    /// design, or every operation reports itself as drift.
-    /// false (default) => backend opts out of drift hints.
-    [[nodiscard]] virtual bool is_narration_drift_candidate(const std::string& /*line*/) const {
-        return false;
-    }
-
     // ========================================================================
     // Operation Step Model (backend-driven step bar)
     // ========================================================================
@@ -1118,18 +1084,6 @@ class AmsBackend : public AmsCapabilityHost {
      * @return PathSegment enum value (NONE if no error or can't determine)
      */
     [[nodiscard]] virtual PathSegment infer_error_segment() const = 0;
-
-    /**
-     * @brief Get bowden loading progress percentage
-     *
-     * Returns the firmware-reported bowden loading progress (0-100%).
-     * Happy Hare v4 provides this via printer.mmu.bowden_progress.
-     *
-     * @return 0-100 for real progress, -1 if not available (v3 or non-HH backends)
-     */
-    [[nodiscard]] virtual int get_bowden_progress() const {
-        return -1;
-    }
 
     /**
      * @brief Check if a specific slot has a prep/pre-gate sensor
@@ -1785,79 +1739,9 @@ class AmsBackend : public AmsCapabilityHost {
         return cancel();
     }
 
-    /**
-     * @brief Re-sync the firmware's tracked state to what the user says is true
-     *
-     * State-only, like clear_fault(): tells the firmware which slot is
-     * selected and whether filament is loaded, without moving anything.
-     * Fields left unset in @p request are not asserted.
-     *
-     * Default implementation returns NOT_SUPPORTED.
-     */
-    virtual AmsError recover_with_state(const RecoverStateRequest& request) {
-        (void)request;
-        return AmsErrorHelper::not_supported("Recover with state not supported");
-    }
-
     /// @return true if recover_with_state() is implemented
     [[nodiscard]] bool supports_recover_with_state() const {
         return traits().supports_recover_with_state;
-    }
-
-    /**
-     * @brief Retract a lane's filament back to its lane from the bowden
-     *
-     * A physical filament move, not a fault clear. Recovers a lane left stranded
-     * mid-path by a failed load or unload — filament past the lane but not at the
-     * toolhead, which plain unload() cannot address because it assumes the head.
-     *
-     * AFC: AFC_LANE_RESET LANE={name}, which retracts until the hub clears.
-     * Default implementation returns NOT_SUPPORTED.
-     *
-     * @param slot_index Lane to recover (0-based)
-     * @return AmsError indicating if the operation was started
-     */
-    virtual AmsError recover_lane_position(int slot_index) {
-        (void)slot_index;
-        return AmsErrorHelper::not_supported("Lane position recovery not supported");
-    }
-
-    /**
-     * @brief Whether a lane-position recovery is possible for this slot right now
-     *
-     * Per-slot and per-state, not a static capability: offering a recovery the
-     * firmware will refuse produces an error the user cannot act on, and on AFC
-     * that error latches in printer.AFC.message and keeps re-firing toasts.
-     */
-    [[nodiscard]] virtual bool can_recover_lane_position(int slot_index) const {
-        (void)slot_index;
-        return false;
-    }
-
-    /**
-     * @brief Whether this backend currently knows WHICH lane needs recovery
-     *
-     * Distinct from can_recover_lane_position(), which answers "is recovery
-     * possible" per slot. This answers "do we know whose fault it is" — some
-     * backends share one physical sensor across every lane on a unit (AFC's hub
-     * sensor), so an unattributed trigger cannot say whose filament caused it.
-     * Callers use this to decide whether RecoverPosition should outrank Eject
-     * (attributed: confident, single lane) or defer to it (unattributed: a
-     * last-resort offer, since showing Recover on every lane would otherwise
-     * hide Eject from lanes that are simply seated, not stranded).
-     *
-     * A backend MAY choose to make can_recover_lane_position() imply this, by
-     * refusing recovery outright where it cannot attribute the strand. AFC does
-     * (prestonbrown/helixscreen#1182): its lane reset opens with a blind retract,
-     * so a wrong guess de-seats a working lane rather than refusing harmlessly.
-     * The unattributed arm in the caller's ranking stays valid for backends
-     * whose recovery is genuinely free to attempt.
-     *
-     * Default false: backends with a genuinely per-lane fault signal (or no
-     * lane-position recovery at all) have nothing to attribute.
-     */
-    [[nodiscard]] virtual bool lane_recovery_is_attributed() const {
-        return false;
     }
 
     /**
@@ -1884,20 +1768,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] virtual bool supports_lane_eject() const {
         return false;
-    }
-
-    /**
-     * @brief Feed a lane's filament up to its park position (async)
-     *
-     * Parks a freshly inserted spool ready for a later load, without loading
-     * it to the toolhead. Default implementation returns NOT_SUPPORTED.
-     *
-     * @param slot_index Lane to preload (0-based)
-     * @return AmsError indicating if operation was started
-     */
-    virtual AmsError preload_lane(int slot_index) {
-        (void)slot_index;
-        return AmsErrorHelper::not_supported("Lane preload not supported");
     }
 
     /// @return true if preload_lane() is implemented
@@ -2045,86 +1915,11 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief Move the selector to a gate without loading filament.
-     *
-     * Positions the MMU selector at the given gate without loading filament
-     * into the toolhead. This is useful for manual interventions and gate
-     * inspection on selector-based systems.
-     *
-     * @param slot_index Zero-based gate index.
-     * @return AmsError indicating success or failure.
-     */
-    virtual AmsError select_gate(int slot_index) {
-        (void)slot_index;
-        return AmsErrorHelper::not_supported("Gate select not supported");
-    }
-
-    /**
-     * @brief Jog the selector relative to its current gate.
-     *
-     * Moves the selector to (current gate + delta), clamped to the valid range
-     * [0, slot_count - 1], without loading filament. This is convenient for
-     * stepping the selector one gate at a time during manual interventions.
-     * Gated by supports_gate_select() — selector-based systems only.
-     *
-     * @param delta Signed number of gates to move (e.g. +1, -1).
-     * @return AmsError indicating success or failure.
-     */
-    virtual AmsError move_selector(int delta) {
-        (void)delta;
-        return AmsErrorHelper::not_supported("Selector jog");
-    }
-
-    /**
      * @brief Whether the backend can probe gate sensors (MMU_CHECK_GATE).
      * @return true if check_gate()/check_all_gates() are implemented.
      */
     [[nodiscard]] bool supports_gate_check() const {
         return traits().supports_gate_check;
-    }
-
-    /**
-     * @brief Probe a single gate's filament sensor (MMU_CHECK_GATE GATE=n).
-     *
-     * Asks the firmware to check whether filament is present at the specified
-     * gate's sensor. Useful for diagnosing gate-status discrepancies without
-     * a full load/unload cycle.
-     *
-     * Default implementation returns NOT_SUPPORTED.
-     *
-     * @param slot_index Zero-based gate index.
-     * @return AmsError indicating success or failure.
-     */
-    virtual AmsError check_gate(int slot_index) {
-        (void)slot_index;
-        return AmsErrorHelper::not_supported("Gate check not supported");
-    }
-
-    /**
-     * @brief Probe all gate sensors at once (MMU_CHECK_GATE, no params).
-     *
-     * Asks the firmware to check filament presence at every gate sensor
-     * in one pass. Useful for a full gate-status audit.
-     *
-     * Default implementation returns NOT_SUPPORTED.
-     *
-     * @return AmsError indicating success or failure.
-     */
-    virtual AmsError check_all_gates() {
-        return AmsErrorHelper::not_supported("Gate check not supported");
-    }
-
-    /**
-     * @brief Display label for the sidebar reset()-button.
-     *
-     * Backends where reset() is a genuine reset keep "Reset"; selector-based
-     * systems where reset() homes the mechanism (Happy Hare -> MMU_HOME) override
-     * this to "Home" so the word "Reset" does not collide with the recover/re-sync
-     * concept.
-     * @return untranslated label key.
-     */
-    [[nodiscard]] virtual std::string reset_button_label() const {
-        return "Reset";
     }
 
     /**

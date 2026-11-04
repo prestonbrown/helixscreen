@@ -2926,7 +2926,7 @@ The `AmsDeviceOperationsOverlay` (`ui_ams_device_operations_overlay.h`) consolid
 
 | Action | G-code (varies by backend) | Description |
 |--------|---------------------------|-------------|
-| Home | `MMU_HOME` / `AFC_RESET` | Reset to home position (label follows `reset_button_label()`; AFC sends `AFC_RESET`, not `AFC_HOME`) |
+| Home | `MMU_HOME` / `AFC_RESET` | Reset to home position (label follows `IGateSelector::reset_button_label()`, else `Reset`; AFC sends `AFC_RESET`, not `AFC_HOME`) |
 | Recover | `MMU_RECOVER` / `AFC_RESET` | Attempt error recovery. A backend answering `supports_recover_with_state()` opens `AmsRecoverStateModal` instead, which sends the user's asserted slot and loaded state through `recover_with_state()` |
 | Abort | `cancel()` | Cancel current operation |
 | Bypass Toggle | `enable_bypass()` / `disable_bypass()` | Toggle bypass mode (if supported) |
@@ -3651,11 +3651,20 @@ static constexpr BackendTraits kTraits = [] {
 (`include/ams_capability.h`). To publish one, inherit the interface and return
 `static_cast<I*>(this)` from `capability()` for `helix::type_tag<I>()`, deferring to the base for
 any other tag. The interface sits in its own header, so changing it rebuilds only its users.
+A caller spells out what a backend without the interface means: the sidebar's button reads
+`"Reset"`, and an operation reports `AmsErrorHelper::not_supported`.
+
+- `IGateSelector` (`include/ams_gate_selector.h`) -- Selector moves and gate probes, preload,
+  `recover_with_state()`, the sidebar's `reset_button_label()` (Happy Hare: `"Home"`) and
+  `get_bowden_progress()`.
+- `ILaneRecovery` (`include/ams_lane_recovery.h`) -- `recover_lane_position()`, the physical retract
+  of a stranded lane, and the two questions that decide whether to offer it. AFC implements it.
+- `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
+  bar; see the toolchange narration seam below. AFC implements it.
 
 **Optional overrides (with default implementations):**
 
 - `clear_fault()` -- Clear a latched fault, bookkeeping only (default: forwards to `cancel()`)
-- `recover_lane_position()` -- Physical retract of a stranded lane (default: NOT_SUPPORTED)
 - `get_dryer_info()`, `start_drying()`, `stop_drying()`, `update_drying()` -- Dryer control
 - `get_endless_spool_capabilities()`, `get_endless_spool_config()` -- Endless spool state. `set_endless_spool_backup()` is **not** an override point: it is non-virtual and owns every rejection. Supply `apply_endless_spool_backup()` (protected, transport only), `endless_spool_slot_count()` (protected, only if `total_slots` is wrong for you), and `endless_spool_backup_eligibility()` (only to tighten the default polymer-plus-grade rule; return `Eligible`/`Incompatible` only, unless your firmware genuinely has a soft case). `reset_endless_spool()` already works for any editable backend by looping the setter with -1 - override it only if your firmware has a real reset primitive. See § [Endless Spool](#endless-spool-shared-model).
 - `get_remap_strategy()`, `remap_ready()`, `owns_tool_mapping_table()`, `get_tool_mapping()` -- Tool mapping. **Three questions, one spelling each.** `get_remap_strategy()` says HOW a user's tool->lane pick is carried out (`Native` writes your table, `GcodeRewrite` rewrites the job, `PrePrintSend` is a firmware pre-print send, `None` means it cannot be). `remap_ready()` says whether that route is usable YET -- default true, override only where discovery gates it, as AD5X IFS does on `_IFS_VARS`. `owns_tool_mapping_table()` says whether you hold a tool->slot table for `ToolState` to adopt; the Snapmaker U1 answers **no** and still honors every pick, through its pre-print send, which is why this is not the same question as the first two. Ask them through `ams_remap.h` -- never by combining them at a call site, which is how one question came to have six answers that could disagree. Three named predicates there, and the difference between them is `GcodeRewrite`: `can_remap()` asks whether the user's pick will be honored at all (yes), `remap_is_persistent()` whether the answer outlives the send (yes, it is in the job file), `can_write_mapping_table()` whether a `set_tool_mapping()` write lands (no, there is no table).
@@ -3665,7 +3674,6 @@ any other tag. The interface sits in its own header, so changing it rebuilds onl
 - `supports_auto_heat_on_load` (`kTraits`) -- Auto-heat capability. It is one of three reasons a surface skips its own preheat, and **no surface should read it directly**: ask `helix::ui::preheat_skip_reason()` (`include/filament_op_execute.h`), which also covers the "Allow cold load/unload" setting and a stock macro that heats in its own body (`helix::filament_macros::macro_heats_hotend()`, `include/filament_macro_profiles.h`). The AMS sidebar reading only this one is what left that setting ignored on the AMS panel (prestonbrown/helixscreen#1494).
 - `supports_lane_eject()` + `eject_lane()` -- Cold retract of a lane's filament back to the spool. Without the predicate the context menu never offers Eject, whatever `eject_lane()` does.
 - `has_per_slot_loaded_authority` (`kTraits`) -- Set true only when the firmware reports load state **per slot**. Leave it false when your per-slot answer is derived from an aggregate "current slot" pointer, or a mid-toolchange null will drop the highlight.
-- `reset_button_label()` -- Sidebar Reset button text (default `"Reset"`; Happy Hare uses `"Home"`)
 
 **The error seam.** All optional, all defaulted to "nothing", and a backend that skips the
 whole group gets **no error dialog at all**, silently. Read § [Two error channels](#two-error-channels)

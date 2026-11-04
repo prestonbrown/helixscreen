@@ -44,54 +44,34 @@ BackendTraits comparable(const AmsBackendMock& mock, const BackendTraits& real) 
     return t;
 }
 
-} // namespace
-
-TEST_CASE("Mock personas answer their real backend's traits", "[ams][mock][traits]") {
-    SECTION("Happy Hare (default persona)") {
-        AmsBackendMock mock(4);
-        CHECK(comparable(mock, AmsBackendHappyHare::kTraits) == AmsBackendHappyHare::kTraits);
+template <class Real> void check_persona(void (AmsBackendMock::*set_persona)(bool)) {
+    AmsBackendMock mock(4);
+    if (set_persona) {
+        (mock.*set_persona)(true);
     }
-    SECTION("AFC") {
-        AmsBackendMock mock(4);
-        mock.set_afc_mode(true);
-        CHECK(comparable(mock, AmsBackendAfc::kTraits) == AmsBackendAfc::kTraits);
-    }
-    SECTION("Tool changer") {
-        AmsBackendMock mock(4);
-        mock.set_tool_changer_mode(true);
-        CHECK(comparable(mock, AmsBackendToolChanger::kTraits) == AmsBackendToolChanger::kTraits);
-    }
-    SECTION("AD5X IFS") {
-        AmsBackendMock mock(4);
-        mock.set_ifs_mode(true);
-        CHECK(comparable(mock, AmsBackendAd5xIfs::kTraits) == AmsBackendAd5xIfs::kTraits);
-    }
-    SECTION("Snapmaker U1") {
-        AmsBackendMock mock(4);
-        mock.set_snapmaker_mode(true);
-        CHECK(comparable(mock, AmsBackendSnapmaker::kTraits) == AmsBackendSnapmaker::kTraits);
-    }
+    CHECK(comparable(mock, Real::kTraits) == Real::kTraits);
+    Real real(nullptr, nullptr);
+    CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
 }
 
-TEST_CASE("Mock personas answer whether the carriage can be empty as their real backend does",
+} // namespace
+
+TEST_CASE("Mock personas answer their real backend's traits and carriage",
           "[ams][mock][traits][tool_switcher][1784]") {
-    SECTION("Snapmaker U1") {
-        AmsBackendMock mock(4);
-        mock.set_snapmaker_mode(true);
-        AmsBackendSnapmaker real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
-    }
-    SECTION("Tool changer") {
-        AmsBackendMock mock(4);
-        mock.set_tool_changer_mode(true);
-        AmsBackendToolChanger real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
+    SECTION("Happy Hare (default persona)") {
+        check_persona<AmsBackendHappyHare>(nullptr);
     }
     SECTION("AFC") {
-        AmsBackendMock mock(4);
-        mock.set_afc_mode(true);
-        AmsBackendAfc real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
+        check_persona<AmsBackendAfc>(&AmsBackendMock::set_afc_mode);
+    }
+    SECTION("Tool changer") {
+        check_persona<AmsBackendToolChanger>(&AmsBackendMock::set_tool_changer_mode);
+    }
+    SECTION("AD5X IFS") {
+        check_persona<AmsBackendAd5xIfs>(&AmsBackendMock::set_ifs_mode);
+    }
+    SECTION("Snapmaker U1") {
+        check_persona<AmsBackendSnapmaker>(&AmsBackendMock::set_snapmaker_mode);
     }
 }
 
@@ -194,12 +174,9 @@ TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
     CHECK_FALSE(mock.has_firmware_spool_persistence());
 }
 
-TEST_CASE("Only CFS answers the calibration capability", "[ams][traits][cfs]") {
+TEST_CASE("Each optional interface answers only on the backends that implement it",
+          "[ams][traits][cfs][happy_hare][afc]") {
     helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
-    CHECK(cfs.as<ICfsCalibration>() == static_cast<ICfsCalibration*>(&cfs));
-    struct NothingImplementsThis {};
-    CHECK(cfs.as<NothingImplementsThis>() == nullptr);
-
     AmsBackendAce ace(nullptr, nullptr);
     AmsBackendAd5xIfs ad5x(nullptr, nullptr);
     AmsBackendAfc afc(nullptr, nullptr);
@@ -211,11 +188,36 @@ TEST_CASE("Only CFS answers the calibration capability", "[ams][traits][cfs]") {
     AmsBackendSnapmaker snapmaker(nullptr, nullptr);
     AmsBackendToolChanger tool_changer(nullptr, nullptr);
     AmsBackendMock mock(4);
-    for (const AmsBackend* other : std::initializer_list<const AmsBackend*>{
-             &ace, &ad5x, &afc, &happy_hare, &indx, &multi_ace, &openams, &qidi, &snapmaker,
-             &tool_changer, &mock}) {
-        INFO(ams_type_to_string(other->get_type()));
-        CHECK(other->as<ICfsCalibration>() == nullptr);
+
+    struct Row {
+        const AmsBackend* backend;
+        const ICfsCalibration* calibration = nullptr;
+        const IGateSelector* gates = nullptr;
+        const ILaneRecovery* recovery = nullptr;
+        const INarrationMatcher* narration = nullptr;
+    };
+    const Row rows[] = {
+        {&ace},
+        {&ad5x},
+        {&indx},
+        {&multi_ace},
+        {&openams},
+        {&qidi},
+        {&snapmaker},
+        {&tool_changer},
+        {&afc, nullptr, nullptr, &afc, &afc},
+        {&cfs, &cfs},
+        {&happy_hare, nullptr, &happy_hare},
+        {&mock, nullptr, &mock},
+    };
+    struct NothingImplementsThis {};
+    for (const Row& row : rows) {
+        INFO(ams_type_to_string(row.backend->get_type()));
+        CHECK(row.backend->as<ICfsCalibration>() == row.calibration);
+        CHECK(row.backend->as<IGateSelector>() == row.gates);
+        CHECK(row.backend->as<ILaneRecovery>() == row.recovery);
+        CHECK(row.backend->as<INarrationMatcher>() == row.narration);
+        CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
 }
 
@@ -300,28 +302,24 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
         AmsBackendAce backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("OpenAMS raises faults of the manager, not a runout") {
         AmsBackendOpenAms backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("Snapmaker classifies only the missing-filament-type refusal") {
         AmsBackendSnapmaker backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("a tool changer raises dock-sensor faults, not a runout") {
         AmsBackendToolChanger backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("QIDI Box reports a blocked slot with a dismiss-only dialog") {
@@ -337,6 +335,5 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
         // that offers the user a way forward.
         REQUIRE(ev->recovery_actions.size() == 1);
         CHECK(ev->recovery_actions[0].gcode.empty());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 }
