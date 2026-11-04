@@ -237,6 +237,27 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
      */
     [[nodiscard]] static std::string runout_purge_gcode(const BinPurgeMacros& macros);
 
+    /// What the runout recovery dialog offers, from the state it is built in.
+    struct RunoutRecoveryInputs {
+        /// The toolhead switch reads filament: Resume can carry on.
+        bool head_has_filament = false;
+        /// The load the dialog offers (`INSERT_PRUTOK_IFS PRUTOK=n`), or empty
+        /// when none is safe: no lane to name, or print_blocks_filament_load().
+        std::string load_gcode;
+        std::string purge_gcode; ///< runout_purge_gcode()
+        std::string unlock_gcode;
+    };
+
+    /**
+     * @brief The runout recovery actions.
+     *
+     * Head empty: zMod's RESUME refuses while its head switch reads empty, so
+     * Load leads when it is offered and Resume never does. Head loaded: Resume
+     * leads. Purge and the danger Recover follow in both.
+     */
+    [[nodiscard]] static std::vector<helix::RecoveryAction>
+    runout_recovery_actions(const RunoutRecoveryInputs& in);
+
     // --- AmsBackend interface ---
     [[nodiscard]] AmsType get_type() const override {
         return AmsType::AD5X_IFS;
@@ -293,9 +314,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
         // (reject_homing_during_active_print) cannot help: the `_G28` is buried in
         // the firmware macro and never crosses our gcode API.
         //
-        // So this backend keeps refusing load/unload/change_tool while PAUSED as
-        // well as while PRINTING. That protection was earned on a real shutdown and
-        // must not be relaxed on the strength of the `homed_axes` guard alone.
+        // So this backend refuses unload/change_tool while PAUSED as well as while
+        // PRINTING, and load too unless the toolhead reads homed: a paused load is
+        // the only way out of a runout, and on a homed toolhead its `_G28` no-ops
+        // (self_home_skipped_when_homed(), print_blocks_filament_load()).
         t.filament_ops_self_home = true;
         // INSERT_PRUTOK_IFS resolves the target lane's configured material temp
         // (get_prutok_config(prutok)['temp']) and _INSERT_PRUTOK_IFS does its own
@@ -324,6 +346,14 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     }();
     [[nodiscard]] BackendTraits traits() const override {
         return kTraits;
+    }
+
+    // zMod's INSERT_PRUTOK_IFS opens with `_G28`, which homes only when
+    // homed_axes lacks "xyz" (see filament_ops_self_home above), so a paused,
+    // homed job may load. The standalone module's IFS_LOAD is unverified and
+    // keeps the paused refusal.
+    [[nodiscard]] bool self_home_skipped_when_homed() const override {
+        return !ifs_module_live_.load();
     }
 
     [[nodiscard]] PathSegment get_filament_segment() const override;
@@ -537,11 +567,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
   protected:
     /// The recovery buttons for whichever fault is currently latched.
     ///
-    /// Two shapes: the operation-timeout fault keeps the historical lone
-    /// "Recover" (IFS_UNLOCK), and an unattended runout gets the Resume / Purge
-    /// / Recover set (see the implementation for why there is deliberately no
-    /// "Load" button). Caller holds mutex_ (the base declares that contract;
-    /// mutex_ is non-recursive, so this must not lock).
+    /// Two shapes: the operation-timeout fault keeps the lone "Recover"
+    /// (IFS_UNLOCK), and an unattended runout gets runout_recovery_actions().
+    /// Caller holds mutex_ (the base declares that contract; mutex_ is
+    /// non-recursive, so this must not lock).
     [[nodiscard]] std::vector<helix::RecoveryAction> build_recovery_actions() const override;
 
   public:

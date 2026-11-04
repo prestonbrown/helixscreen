@@ -74,6 +74,18 @@ namespace helix::ui {
                                                        const AmsSystemInfo* snapshot = nullptr);
 
 /**
+ * @brief print_blocks_filament_load() over a live backend and printer.
+ *
+ * The backend's two homing answers and the live homed_axes, so every Load
+ * surface asks the question AmsSubscriptionBackend::refuse_load_if_printing()
+ * answers. Null @p backend: no firmware macro can home, as for
+ * print_blocks_filament_op().
+ *
+ * @warning Main thread only: reads the homed_axes subject.
+ */
+[[nodiscard]] bool print_blocks_load_now(const AmsBackend* backend, PrinterState& state);
+
+/**
  * @brief The slot a runout's Load or Unload names.
  *
  * The runout's own lane decides the head. An Unload takes that lane, which is

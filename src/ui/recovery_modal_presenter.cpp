@@ -25,6 +25,7 @@
 #include "rpc_error_correlation.h"
 #include "safety_settings_manager.h"
 #include "temperature_controller.h"
+#include "toolhead_homing.h"
 
 #include <spdlog/spdlog.h>
 
@@ -219,6 +220,14 @@ void RecoveryModalPresenter::on_recovery_tapped(const std::string& gcode) {
     mark_handled();
     shown_detail_.clear(); // allow re-show on a genuinely different fault
     spdlog::info("[RecoveryModal] User tapped recovery: {} ({})", tag, gcode);
+
+    if (action && action->requires_homed && !helix::toolhead_is_homed(get_printer_state())) {
+        spdlog::warn("[RecoveryModal] Refusing {}: the toolhead is no longer homed", tag);
+        ToastManager::instance().show(
+            ToastSeverity::WARNING,
+            lv_tr("The toolhead is not homed, so this would home into the print"), 6000);
+        return;
+    }
 
     if (!api_) {
         spdlog::warn("[RecoveryModal] No API client; cannot execute gcode: {}", gcode);
