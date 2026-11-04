@@ -1477,10 +1477,8 @@ void FilamentPanel::op_failed(FilamentOp op) {
     set_op_state(op, 0);      // back to idle; the error/timeout toast still fires
 }
 
-// Every filament operation arms the guard the same way. Routing all callsites
-// through one entry point is what keeps the timeout handler from silently
-// diverging per path — it used to be an inlined capture-nothing lambda copied
-// eight times, and none of the copies cleared any of the op state.
+// Every filament operation arms the guard through here, so every path shares
+// one timeout handler and none can skip clearing the op state.
 void FilamentPanel::begin_operation_guard(uint32_t timeout_ms) {
     // Capturing `this` is safe: operation_guard_ is a member and ~OperationTimeoutGuard
     // cancels the timer, so the callback cannot outlive the panel.
@@ -1488,9 +1486,9 @@ void FilamentPanel::begin_operation_guard(uint32_t timeout_ms) {
 }
 
 // Runs on the main thread from the guard's one-shot timer. OperationTimeoutGuard
-// clears only its own filament_operation_in_progress subject, so a stalled op left
-// its button spinning at state 1 for the rest of the session and left the in-flight
-// bookkeeping set, which blocked the next op from ever completing (#1183).
+// clears only its own filament_operation_in_progress subject; this ends the op on
+// screen and clears the in-flight bookkeeping, which otherwise keeps its button
+// spinning and blocks the next op from completing (#1183).
 void FilamentPanel::handle_operation_timeout() {
     NOTIFY_WARNING(lv_tr("Filament operation timed out"));
     backend_op_active_ = false;
@@ -1717,6 +1715,9 @@ void FilamentPanel::execute_purge() {
                 helix::ui::run_after_purge_preamble(
                     api_, "[FilamentPanel]",
                     [this, macro_name, result]() {
+                        if (!purge_still_running()) {
+                            return;
+                        }
                         run_filament_macro(macro_name, "Purg", result);
                     },
                     [this](const MoonrakerError& error) { purge_failed(error); });
@@ -1733,6 +1734,9 @@ void FilamentPanel::execute_purge() {
     helix::ui::run_after_purge_preamble(
         api_, "[FilamentPanel]",
         [this]() {
+            if (!purge_still_running()) {
+                return;
+            }
             begin_operation_guard();
             api_->execute_gcode(filament_purge_fallback_gcode(),
                                 object_lifetime_.bg_cb("FilamentPanel::purge_ok",
@@ -1747,6 +1751,17 @@ void FilamentPanel::execute_purge() {
                                 IMoonrakerAPI::kExtrusionTimeoutMs);
         },
         [this](const MoonrakerError& error) { purge_failed(error); });
+}
+
+// A purge that failed while its preamble ran (an unknown command, the guard's
+// timeout) has already told the user so; the preamble's late answer must not
+// purge after that.
+bool FilamentPanel::purge_still_running() const {
+    if (op_showing_busy_ == FilamentOp::Purge) {
+        return true;
+    }
+    spdlog::info("[{}] Purge preamble answered after the purge ended; not purging", get_name());
+    return false;
 }
 
 void FilamentPanel::purge_failed(const MoonrakerError& error) {
