@@ -137,6 +137,22 @@ namespace helix {
 }
 
 /**
+ * @brief Would a filament LOAD run a firmware home right now?
+ *
+ * A self-homing backend homes unless its buried home is skipped on a toolhead
+ * that already reads "xyz" homed (AmsBackend::self_home_skipped_when_homed()).
+ *
+ * @param backend_self_homes            AmsBackend::filament_ops_self_home(); false with none.
+ * @param self_home_skipped_when_homed  AmsBackend::self_home_skipped_when_homed(); false with none.
+ * @param toolhead_homed                toolhead_is_homed(): homed_axes holds x, y and z.
+ */
+[[nodiscard]] constexpr bool filament_load_homes_now(bool backend_self_homes,
+                                                     bool self_home_skipped_when_homed,
+                                                     bool toolhead_homed) {
+    return backend_self_homes && !(self_home_skipped_when_homed && toolhead_homed);
+}
+
+/**
  * @brief Would a print refuse a filament LOAD right now?
  *
  * print_blocks_filament_op() with one refinement on a self-homing backend:
@@ -163,8 +179,9 @@ namespace helix {
                                                         bool backend_self_homes,
                                                         bool self_home_skipped_when_homed,
                                                         bool toolhead_homed) {
-    const bool homes_now = backend_self_homes && !(self_home_skipped_when_homed && toolhead_homed);
-    return print_blocks_filament_op(lifecycle, homes_now);
+    return print_blocks_filament_op(
+        lifecycle,
+        filament_load_homes_now(backend_self_homes, self_home_skipped_when_homed, toolhead_homed));
 }
 
 } // namespace helix
