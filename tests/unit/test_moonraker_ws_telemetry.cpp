@@ -9,7 +9,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/telemetry_test_fixture.h"
 #include "app_globals.h"
 #include "moonraker_client_mock.h"
@@ -49,8 +48,8 @@ class CloseTelemetryFixture : public LVGLTestFixture, public TelemetryTestFixtur
     }
 
     void close_open_session() {
-        MoonrakerClientTestAccess::mark_was_connected(client_);
-        MoonrakerClientTestAccess::fire_ws_close(client_);
+        client_.on_ws_open();
+        client_.on_ws_close();
         helix::ui::UpdateQueue::instance().drain();
     }
 
@@ -76,7 +75,7 @@ TEST_CASE_METHOD(CloseTelemetryFixture,
 TEST_CASE_METHOD(CloseTelemetryFixture,
                  "Close telemetry: a connect attempt that never opened is not reported",
                  "[telemetry][error][moonraker_ws_telemetry]") {
-    MoonrakerClientTestAccess::fire_ws_close(client_);
+    client_.on_ws_close();
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(websocket_disconnect_events() == 0);
 }

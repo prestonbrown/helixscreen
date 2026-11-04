@@ -4,8 +4,9 @@
 // The M300 gate is fed by the print job state, and a preset's sound default reaches
 // the live audio settings without a restart.
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/printer_state_test_access.h"
 #include "audio_settings_manager.h"
 #include "config.h"
 #include "printer_discovery.h"
@@ -23,13 +24,13 @@ namespace {
 class PrintGateFixture : public LVGLTestFixture {
   public:
     PrintGateFixture() {
-        PrinterStateTestAccess::reset(state_);
         state_.init_subjects(false);
         SoundManager::instance().set_printer_busy(false);
     }
     ~PrintGateFixture() override {
         SoundManager::instance().set_printer_busy(false);
-        PrinterStateTestAccess::reset(state_);
+        helix::ui::UpdateQueue::instance().drain();
+        state_.deinit_subjects();
     }
 
   protected:
