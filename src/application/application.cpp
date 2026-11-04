@@ -13,11 +13,6 @@
 
 #include "application.h"
 
-#include "detect_printer_cmd.h"
-#include "discovery_steps.h"
-#include "env_knobs.h"
-
-// Private LVGL header needed to read display->flush_cb for splash no-op swap
 #include "ui_overlay_timelapse_videos.h"
 
 #include "ams_backend.h"
@@ -28,8 +23,10 @@
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
-#include "display/lv_display_private.h"
+#include "detect_printer_cmd.h"
+#include "discovery_steps.h"
 #include "display_manager.h"
+#include "env_knobs.h"
 #include "env_refusal_notice.h"
 #include "environment_config.h"
 #include "fbdev_signal_clear.h"
@@ -691,41 +688,7 @@ int Application::run(int argc, char** argv) {
         return 1;
     }
 
-    // Initialize UpdateChecker before panel subjects (subjects must exist for XML binding)
-    // On Android the checker still runs (so "Check for Updates" works), but
-    // "Install Update" opens the store or release page the APK came from.
-    UpdateChecker::instance().init();
-
-    // Initialize UpgradeBanner — creates the persistent top-banner widget on
-    // lv_layer_top and observes UpdateChecker state. Ships hidden because the
-    // /upgrade_nudge/intensity setting defaults to 'off'; flipped to
-    // 'aggressive' for the 1.0 rollout (no code change needed).
-    m_upgrade_banner.init();
-
-    // Initialize CrashReporter (independent of telemetry)
-    // Write mock crash file first if --mock-crash flag is set (requires --test)
-    const std::string user_config_dir = helix::get_user_config_dir();
-    if (get_runtime_config()->mock_crash) {
-        crash_handler::write_mock_crash_file(user_config_dir + "/crash.txt");
-        spdlog::info("[Application] Wrote mock crash file for testing");
-    }
-    helix::CrashHistory::instance().init(user_config_dir);
-    m_crash_reporter.init(user_config_dir);
-    // Before any backend exists: one built earlier sees none of its saved state.
-    AmsBackend::init_persistent_state(user_config_dir);
-
-    // Initialize TelemetryManager (opt-in, default OFF)
-    // Note: record_session() is called after m_session.init_panel_subjects() so that
-    // SettingsManager subjects are ready and the enabled state can be synced.
-    TelemetryManager::instance().init(user_config_dir);
-#if HELIX_ENABLE_SCREENSAVER
-    TelemetryManager::instance().set_screensaver_usage(&ScreensaverManager::instance().usage());
-#endif
-
-    // First heap snapshot, before panel construction and XML load. Later
-    // snapshots are diffed against this to narrow down which startup phase
-    // burns allocator arena on small-RAM devices.
-    TelemetryManager::instance().record_memory_snapshot("post_telemetry_init");
+    init_process_services();
 
     // Phase 9c: Initialize panel subjects with API injection
     // Panels receive API at construction - no deferred set_api() needed
@@ -758,24 +721,7 @@ int Application::run(int argc, char** argv) {
     // now that discovery has completed.
     TelemetryManager::instance().set_enabled(TelemetryManager::instance().is_enabled());
 
-    // Initialize SoundManager (audio feedback)
-    // Backend detection (PWM, ALSA, SDL) is checked by PrinterCapabilitiesState
-    // to show sound settings even without a Klipper beeper output_pin.
-    SoundManager::instance().initialize();
-    if (SoundManager::plays_startup_sound(get_runtime_config()->is_test_mode())) {
-        SoundManager::instance().play("startup", SoundPriority::EVENT);
-    }
-
-    // Backend is now picked: seed the backend subjects so the Sound overlay's
-    // device-row and Test Tracker bindings resolve correctly. Subjects init
-    // before SoundManager, so the values are stale until this refresh.
-    AudioSettingsManager::instance().refresh_backend_subjects();
-
-    // Show sound settings immediately if a local backend exists,
-    // without waiting for hardware discovery / Klipper connection.
-    if (SoundManager::instance().has_backend()) {
-        get_printer_state().capabilities_state().set_sound_backend_available(true);
-    }
+    init_sound_services();
 
     // --test fails loudly where the XML and the C++ disagree (a required
     // widget missing from its component), as the unit tests do.
@@ -974,85 +920,8 @@ int Application::run(int argc, char** argv) {
         }
 #endif
 
-        // Phase 14d: Built-in screen server, if the user shares the screen (#1825)
-        helix::RemoteScreenService::instance().init(&m_display->remote_screen());
-        helix::RemoteScreenService::instance().watch_print_state();
-
-        // Phase 15: Start memory monitoring (logs at TRACE level, -vvv)
-        helix::MemoryMonitor::instance().start(5000);
-        helix::MemoryMonitor::instance().set_warning_callback(
-            [](const helix::MemoryWarningEvent& event) {
-                TelemetryManager::instance().record_memory_warning(event);
-            });
-
-        // Main-loop hang detection. A deadlocked UI thread leaves the process
-        // alive and the screen lit, so the watchdog (which only supervises exit)
-        // cannot see it and the user just gets a panel that ignores touch.
-        //
-        // Detection only for now — this reports and does not kill. The abort
-        // lives behind one guarded call site below so turning it on later is a
-        // single change rather than a refactor.
-        {
-            uint32_t hang_ms = helix::MainLoopHangDetector::kDefaultThresholdMs;
-            if (const char* env = std::getenv("HELIX_HANG_THRESHOLD_SEC")) {
-                char* end = nullptr;
-                const long secs = std::strtol(env, &end, 10);
-                if (end != env && secs >= 0 && secs <= 3600) {
-                    hang_ms = static_cast<uint32_t>(secs) * 1000u;
-                    spdlog::info("[Application] Main-loop hang threshold overridden to {}s{}", secs,
-                                 secs == 0 ? " (disabled)" : "");
-                } else {
-                    spdlog::warn("[Application] Ignoring bad HELIX_HANG_THRESHOLD_SEC='{}' "
-                                 "(want 0-3600)",
-                                 env);
-                }
-            }
-            helix::MemoryMonitor::instance().set_hang_threshold_ms(hang_ms);
-        }
-        helix::MemoryMonitor::instance().set_hang_callback([](uint32_t stalled_ms) {
-            // Runs on the monitor thread. record_error() is documented as safe
-            // from background threads, and deliberately so here: the UI thread
-            // is the thing that is wedged, so anything routed through
-            // UpdateQueue would never be delivered.
-            TelemetryManager::instance().record_error(
-                "ui", "main_loop_hang", fmt::format("stalled_{}s", stalled_ms / 1000));
-            crash_handler::breadcrumb::note("main_loop", "hang");
-        });
-
-        // Drop LVGL's decoded-image cache on critical pressure. Printer images,
-        // thumbnails, and XML-loaded PNGs live here as full ARGB8888 pixel buffers
-        // (e.g. a 300x300 printer image is ~360KB decoded). Freeing them forces
-        // the next draw to re-decode, which is cheap compared to an OOM kill.
-        // Responder fires on the monitor thread — defer to UI thread via
-        // queue_update: lv_image_cache_drop() reaches into the draw units
-        // (LV_EVENT_INVALIDATE_AREA broadcast) which is not safe off the UI thread.
-        helix::MemoryMonitor::instance().add_pressure_responder(
-            [](helix::MemoryPressureLevel level) {
-                if (level >= helix::MemoryPressureLevel::critical) {
-                    helix::ui::queue_update("Application::run", []() {
-                        spdlog::warn("[Application] Pressure response: dropping LVGL image cache");
-                        crash_handler::breadcrumb::note("lvgl_imgcache", "drop");
-                        lv_image_cache_drop(nullptr);
-                    });
-                }
-            });
-
-        // Drop all live G-code viewer state on critical pressure. ParsedGCodeFile
-        // + GPU geometry can easily run hundreds of MB; on devices that nominally
-        // have plenty of RAM but accumulate process RSS (telemetry: pi32 held
-        // 632MB through and post-print), this is the largest single reclamation
-        // available. Each viewer's clear callback (installed by the owning panel)
-        // also flips the panel's mode subject back to thumbnail so the user sees
-        // the slicer preview rather than a blank rectangle.
-        helix::MemoryMonitor::instance().add_pressure_responder(
-            [](helix::MemoryPressureLevel level) {
-                if (level >= helix::MemoryPressureLevel::critical) {
-                    helix::ui::queue_update("Application::run", []() {
-                        crash_handler::breadcrumb::note("gcode_viewer", "pressure_clear");
-                        helix::ui::gcode_viewer_clear_all_active();
-                    });
-                }
-            });
+        // Phases 14d and 15
+        init_monitoring_services();
 
         // Phase 16b: Force full screen refresh
         // On framebuffer displays with PARTIAL render mode, some widgets may not paint
@@ -1554,34 +1423,11 @@ bool Application::init_display() {
     spdlog::debug("[Application] Display initialized");
     helix::MemoryMonitor::log_now("after_display_init");
 
-    // Initialize splash screen manager for deferred exit
+    // Initialize splash screen manager for deferred exit, re-enabling rendering in the main
+    // loop when the splash exits
     m_splash_manager.start(get_runtime_config()->splash_pid);
 
-    // Suppress LVGL rendering while splash is alive — prevents framebuffer flicker
-    // from both processes writing to the same framebuffer simultaneously.
-    // Re-enabled in main loop when splash exits.
-    // Validate PID exists: a stale PID from a crashed launcher would cause an
-    // unnecessary wait until the 8-second failsafe kicks in.
-    pid_t splash_pid = get_runtime_config()->splash_pid;
-    if (splash_pid > 0 && kill(splash_pid, 0) == 0 && !m_splash_manager.has_exited()) {
-        m_splash_invalidation_suppression.begin();
-
-        // Replace the flush callback with a no-op while splash is active.
-        // LVGL's invalidation system sends LV_EVENT_REFR_REQUEST which resumes
-        // the refresh timer (undoing lv_timer_pause). This means pausing the timer
-        // alone is insufficient — rendering still happens. By replacing the flush
-        // callback, we ensure nothing reaches the framebuffer even if LVGL renders.
-        lv_display_t* disp = lv_display_get_default();
-        if (disp) {
-            m_original_flush_cb = disp->flush_cb;
-            lv_display_set_flush_cb(disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) {
-                lv_display_flush_ready(d); // Must signal ready to avoid hang
-            });
-            spdlog::debug("[Application] Flush callback replaced with no-op (splash PID {})",
-                          get_runtime_config()->splash_pid);
-        }
-        spdlog::debug("[Application] Display invalidation suppressed while splash is active");
-    }
+    m_splash_manager.begin_render_suppression(get_runtime_config()->splash_pid);
 
     return true;
 }
@@ -1697,13 +1543,7 @@ void Application::run_rotation_probe_and_layout() {
                 // Dismiss splash first — the probe renders full-screen UI to the
                 // framebuffer, which is invisible while the splash process is
                 // painting over it and the flush callback is suppressed.
-                if (!m_splash_manager.has_exited()) {
-                    spdlog::info("[Application] Dismissing splash for rotation probe");
-                    m_splash_manager.on_discovery_complete();
-                    m_splash_manager.check_and_signal();
-                    restore_flush_callback();
-                    m_splash_invalidation_suppression.end();
-                }
+                m_splash_manager.dismiss_for_rotation_probe(m_display.get());
                 m_display->run_rotation_probe();
                 m_screen_width = m_display->width();
                 m_screen_height = m_display->height();
@@ -2006,13 +1846,143 @@ void Application::apply_startup_cli_actions() {
     }
 }
 
-void Application::restore_flush_callback() {
-    if (m_original_flush_cb) {
-        if (m_display) {
-            m_display->restore_flush_cb(m_original_flush_cb);
-        }
-        m_original_flush_cb = nullptr;
+void Application::init_process_services() {
+    // Initialize UpdateChecker before panel subjects (subjects must exist for XML binding)
+    // On Android the checker still runs (so "Check for Updates" works), but
+    // "Install Update" opens the store or release page the APK came from.
+    UpdateChecker::instance().init();
+
+    // Initialize UpgradeBanner — creates the persistent top-banner widget on
+    // lv_layer_top and observes UpdateChecker state. Ships hidden because the
+    // /upgrade_nudge/intensity setting defaults to 'off'; flipped to
+    // 'aggressive' for the 1.0 rollout (no code change needed).
+    m_upgrade_banner.init();
+
+    // Initialize CrashReporter (independent of telemetry)
+    // Write mock crash file first if --mock-crash flag is set (requires --test)
+    const std::string user_config_dir = helix::get_user_config_dir();
+    if (get_runtime_config()->mock_crash) {
+        crash_handler::write_mock_crash_file(user_config_dir + "/crash.txt");
+        spdlog::info("[Application] Wrote mock crash file for testing");
     }
+    helix::CrashHistory::instance().init(user_config_dir);
+    m_crash_reporter.init(user_config_dir);
+    // Before any backend exists: one built earlier sees none of its saved state.
+    AmsBackend::init_persistent_state(user_config_dir);
+
+    // Initialize TelemetryManager (opt-in, default OFF)
+    // Note: record_session() is called after m_session.init_panel_subjects() so that
+    // SettingsManager subjects are ready and the enabled state can be synced.
+    TelemetryManager::instance().init(user_config_dir);
+#if HELIX_ENABLE_SCREENSAVER
+    TelemetryManager::instance().set_screensaver_usage(&ScreensaverManager::instance().usage());
+#endif
+
+    // First heap snapshot, before panel construction and XML load. Later
+    // snapshots are diffed against this to narrow down which startup phase
+    // burns allocator arena on small-RAM devices.
+    TelemetryManager::instance().record_memory_snapshot("post_telemetry_init");
+}
+
+void Application::init_sound_services() {
+    // Initialize SoundManager (audio feedback)
+    // Backend detection (PWM, ALSA, SDL) is checked by PrinterCapabilitiesState
+    // to show sound settings even without a Klipper beeper output_pin.
+    SoundManager::instance().initialize();
+    if (SoundManager::plays_startup_sound(get_runtime_config()->is_test_mode())) {
+        SoundManager::instance().play("startup", SoundPriority::EVENT);
+    }
+
+    // Backend is now picked: seed the backend subjects so the Sound overlay's
+    // device-row and Test Tracker bindings resolve correctly. Subjects init
+    // before SoundManager, so the values are stale until this refresh.
+    AudioSettingsManager::instance().refresh_backend_subjects();
+
+    // Show sound settings immediately if a local backend exists,
+    // without waiting for hardware discovery / Klipper connection.
+    if (SoundManager::instance().has_backend()) {
+        get_printer_state().capabilities_state().set_sound_backend_available(true);
+    }
+}
+
+void Application::init_monitoring_services() {
+    // Phase 14d: Built-in screen server, if the user shares the screen (#1825)
+    helix::RemoteScreenService::instance().init(&m_display->remote_screen());
+    helix::RemoteScreenService::instance().watch_print_state();
+
+    // Phase 15: Start memory monitoring (logs at TRACE level, -vvv)
+    helix::MemoryMonitor::instance().start(5000);
+    helix::MemoryMonitor::instance().set_warning_callback(
+        [](const helix::MemoryWarningEvent& event) {
+            TelemetryManager::instance().record_memory_warning(event);
+        });
+
+    // Main-loop hang detection. A deadlocked UI thread leaves the process
+    // alive and the screen lit, so the watchdog (which only supervises exit)
+    // cannot see it and the user just gets a panel that ignores touch.
+    //
+    // Detection only for now — this reports and does not kill. The abort
+    // lives behind one guarded call site below so turning it on later is a
+    // single change rather than a refactor.
+    {
+        uint32_t hang_ms = helix::MainLoopHangDetector::kDefaultThresholdMs;
+        if (const char* env = std::getenv("HELIX_HANG_THRESHOLD_SEC")) {
+            char* end = nullptr;
+            const long secs = std::strtol(env, &end, 10);
+            if (end != env && secs >= 0 && secs <= 3600) {
+                hang_ms = static_cast<uint32_t>(secs) * 1000u;
+                spdlog::info("[Application] Main-loop hang threshold overridden to {}s{}", secs,
+                             secs == 0 ? " (disabled)" : "");
+            } else {
+                spdlog::warn("[Application] Ignoring bad HELIX_HANG_THRESHOLD_SEC='{}' "
+                             "(want 0-3600)",
+                             env);
+            }
+        }
+        helix::MemoryMonitor::instance().set_hang_threshold_ms(hang_ms);
+    }
+    helix::MemoryMonitor::instance().set_hang_callback([](uint32_t stalled_ms) {
+        // Runs on the monitor thread. record_error() is documented as safe
+        // from background threads, and deliberately so here: the UI thread
+        // is the thing that is wedged, so anything routed through
+        // UpdateQueue would never be delivered.
+        TelemetryManager::instance().record_error("ui", "main_loop_hang",
+                                                  fmt::format("stalled_{}s", stalled_ms / 1000));
+        crash_handler::breadcrumb::note("main_loop", "hang");
+    });
+
+    // Drop LVGL's decoded-image cache on critical pressure. Printer images,
+    // thumbnails, and XML-loaded PNGs live here as full ARGB8888 pixel buffers
+    // (e.g. a 300x300 printer image is ~360KB decoded). Freeing them forces
+    // the next draw to re-decode, which is cheap compared to an OOM kill.
+    // Responder fires on the monitor thread — defer to UI thread via
+    // queue_update: lv_image_cache_drop() reaches into the draw units
+    // (LV_EVENT_INVALIDATE_AREA broadcast) which is not safe off the UI thread.
+    helix::MemoryMonitor::instance().add_pressure_responder([](helix::MemoryPressureLevel level) {
+        if (level >= helix::MemoryPressureLevel::critical) {
+            helix::ui::queue_update("Application::run", []() {
+                spdlog::warn("[Application] Pressure response: dropping LVGL image cache");
+                crash_handler::breadcrumb::note("lvgl_imgcache", "drop");
+                lv_image_cache_drop(nullptr);
+            });
+        }
+    });
+
+    // Drop all live G-code viewer state on critical pressure. ParsedGCodeFile
+    // + GPU geometry can easily run hundreds of MB; on devices that nominally
+    // have plenty of RAM but accumulate process RSS (telemetry: pi32 held
+    // 632MB through and post-print), this is the largest single reclamation
+    // available. Each viewer's clear callback (installed by the owning panel)
+    // also flips the panel's mode subject back to thumbnail so the user sees
+    // the slicer preview rather than a blank rectangle.
+    helix::MemoryMonitor::instance().add_pressure_responder([](helix::MemoryPressureLevel level) {
+        if (level >= helix::MemoryPressureLevel::critical) {
+            helix::ui::queue_update("Application::run", []() {
+                crash_handler::breadcrumb::note("gcode_viewer", "pressure_clear");
+                helix::ui::gcode_viewer_clear_all_active();
+            });
+        }
+    });
 }
 
 void Application::check_wifi_availability() {
@@ -2075,12 +2045,7 @@ int Application::main_loop() {
     static constexpr uint32_t kHeapRefreshIntervalMs = 10000;
     crash_handler::refresh_heap_snapshot();
 
-    // Failsafe: track invalidation suppression with a hard deadline.
-    // If splash handoff doesn't complete within this time, force rendering back on
-    // to avoid a permanently black screen.
-    uint32_t suppression_start_tick = DisplayManager::get_ticks();
-    static constexpr uint32_t kInvalidationFailsafeMs =
-        11000; // Must exceed kDiscoveryTimeoutMs (8s)
+    m_splash_manager.arm_invalidation_failsafe(DisplayManager::get_ticks());
 
     // Configure main loop handler
     helix::application::MainLoopHandler::Config loop_config;
@@ -2226,65 +2191,7 @@ int Application::main_loop() {
                     .count();
             TelemetryManager::instance().record_frame_time(static_cast<uint32_t>(frame_us));
 
-            // Task C handoff repaint: on the U1 DRM path the early fb0 splash owns
-            // /dev/fb0 (the remote screen) and, once retired via SIGUSR1, no longer
-            // repaints it. Force the real flush hook — which mirrors dirty rects
-            // into fb0 — to paint one FULL frame BEFORE the splash is signaled to
-            // exit, so the remote shows the complete UI rather than the splash's
-            // frozen frame (or, on an idle UI that never dirties, black). Gated on a
-            // remote sink being active so non-U1 devices skip the forced redraw;
-            // ready_to_signal() makes it fire exactly once, on the frame the splash
-            // is about to be retired. The mandatory order is: restore flush cb ->
-            // full invalidate + lv_refr_now (mirror writes a full fb0 frame) -> THEN
-            // check_and_signal (SIGUSR1 -> splash exits without clearing fb0).
-            if (m_display && m_display->remote_screen_active() &&
-                m_splash_manager.ready_to_signal()) {
-                // If a suppressed-flush splash path was active (launcher passed
-                // --splash-pid), lift suppression first so the repaint is not a
-                // no-op; on the DRM watchdog path invalidation was never suppressed.
-                // Ending it here also stops the post-signal handoff block below from
-                // repainting a second time.
-                m_splash_invalidation_suppression.end();
-                restore_flush_callback(); // no-op on the DRM path (flush never swapped)
-                if (lv_obj_t* screen = lv_screen_active()) {
-                    lv_obj_update_layout(screen);
-                    helix::ui::invalidate_all_recursive(screen);
-                    lv_refr_now(nullptr);
-                }
-            }
-
-            // Signal splash to exit when discovery completes (or timeout)
-            m_splash_manager.check_and_signal();
-
-            // Post-splash handoff: re-enable rendering and repaint
-            // Display invalidation was suppressed to prevent framebuffer flicker
-            // while both splash and main app were running simultaneously.
-            if (m_splash_invalidation_suppression.active() &&
-                m_splash_manager.needs_post_splash_refresh()) {
-                m_splash_invalidation_suppression.end();
-                restore_flush_callback();
-                spdlog::info(
-                    "[Application] Post-splash handoff: flush callback restored, painting UI");
-
-                lv_obj_t* screen = lv_screen_active();
-                if (screen) {
-                    lv_obj_update_layout(screen);
-                    helix::ui::invalidate_all_recursive(screen);
-                    lv_refr_now(nullptr);
-                }
-                m_splash_manager.mark_refresh_done();
-            }
-
-            // Failsafe: if invalidation is still suppressed after hard deadline, force it back on.
-            // Prevents permanent black screen if splash handoff fails for any reason.
-            if (m_splash_invalidation_suppression.active() &&
-                (current_tick - suppression_start_tick) >= kInvalidationFailsafeMs) {
-                m_splash_invalidation_suppression.end();
-                restore_flush_callback();
-                spdlog::warn("[Application] Invalidation failsafe triggered after {}ms",
-                             kInvalidationFailsafeMs);
-                lv_obj_invalidate(lv_screen_active());
-            }
+            m_splash_manager.run_handoff_frame(m_display.get(), current_tick);
 
             // Benchmark mode - force redraws and report FPS
             if (loop_config.benchmark_mode) {

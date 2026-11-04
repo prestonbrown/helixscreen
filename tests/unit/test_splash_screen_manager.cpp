@@ -1,10 +1,16 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "display/lv_display_private.h"
+#include "display_manager.h"
+#include "lvgl_test_fixture.h"
+#include "remote_screen_sink.h"
 #include "splash_screen_manager.h"
+#include "test_helpers/display_manager_test_access.h"
 
 #include <chrono>
 #include <csignal>
+#include <memory>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -225,6 +231,75 @@ TEST_CASE("SplashScreenManager: signal escalation kills stubborn splash", "[spla
     }
     // Child was reaped — either by SplashManager or by us, either way it's dead
     REQUIRE(result == child);
+}
+
+namespace {
+
+class AlwaysActiveSink : public helix::RemoteScreenSink {
+  public:
+    bool start() override {
+        return true;
+    }
+    void stop() override {}
+    bool wants_frames() const override {
+        return true;
+    }
+    void on_frame(const helix::RemoteScreenFrame&) override {}
+    const char* name() const override {
+        return "always-active";
+    }
+};
+
+const SplashScreenManager* s_flush_observed_splash = nullptr;
+int s_flushes_reaching_screen = 0;
+int s_flushes_after_signal = 0;
+
+void recording_flush_cb(lv_display_t* disp, const lv_area_t*, uint8_t*) {
+    s_flushes_reaching_screen++;
+    if (s_flush_observed_splash->has_exited()) {
+        s_flushes_after_signal++;
+    }
+    lv_display_flush_ready(disp);
+}
+
+} // namespace
+
+// fb0 is the remote screen, and the splash exits without clearing it. A flush reaches the
+// recorder only once the real callback is back, and has_exited() flips as the signal goes out.
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "SplashScreenManager: a remote sink's handoff restores flush, repaints, then signals",
+    "[splash][application]") {
+    pid_t child = fork_cooperative_child();
+    REQUIRE(child > 0);
+    usleep(50000); // 50ms for child to set up signal handler
+
+    lv_display_t* disp = lv_display_get_default();
+    REQUIRE(disp != nullptr);
+    const lv_display_flush_cb_t saved_flush_cb = disp->flush_cb;
+    lv_display_set_flush_cb(disp, recording_flush_cb);
+
+    DisplayManager display;
+    DisplayManagerTestAccess::set_display(display, disp);
+    display.remote_screen().add_sink(std::make_unique<AlwaysActiveSink>());
+
+    SplashScreenManager splash;
+    s_flush_observed_splash = &splash;
+    s_flushes_reaching_screen = 0;
+    s_flushes_after_signal = 0;
+    splash.start(child);
+    splash.begin_render_suppression(child);
+    splash.on_discovery_complete();
+
+    splash.run_handoff_frame(&display, 0);
+
+    CHECK(s_flushes_reaching_screen > 0);
+    CHECK(s_flushes_after_signal == 0);
+    CHECK(splash.has_exited());
+
+    waitpid(child, nullptr, 0);
+    lv_display_set_flush_cb(disp, saved_flush_cb);
+    DisplayManagerTestAccess::set_display(display, nullptr);
 }
 
 TEST_CASE("SplashScreenManager: cooperative splash exits on SIGUSR1", "[splash][application]") {

@@ -1018,7 +1018,7 @@ guard whether `freeze` actually ran first.
 **Issue `freeze` from a settled screen, not mid-transition.**
 `lv_anim_delete_all()` fires each animation's `deleted_cb`, not its
 `completed_cb` — and overlay teardown (`NavigationManager::overlay_slide_out_complete_cb`,
-`ui_nav_manager.cpp`) is wired to `completed_cb`, since that's what marks the
+`ui_nav_transitions.cpp`) is wired to `completed_cb`, since that's what marks the
 close as genuinely finished rather than merely interrupted. Freezing while an
 overlay's close animation is still in flight therefore deletes the animation
 without ever running its completion logic, stranding the overlay: never

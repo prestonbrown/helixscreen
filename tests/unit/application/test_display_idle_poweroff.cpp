@@ -34,8 +34,12 @@
 #include "lvgl_test_fixture.h"
 #include "misc/lv_timer_private.h" // read timer period
 #include "screen_hide_hold.h"
-#include "test_helpers/application_test_access.h"
+#include "splash_screen_manager.h"
 #include "test_helpers/display_manager_test_access.h"
+
+#include <csignal>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "../../catch_amalgamated.hpp"
 
@@ -858,27 +862,41 @@ TEST_CASE_METHOD(LVGLTestFixture,
 TEST_CASE_METHOD(LVGLTestFixture,
                  "the splash handoff's flush restore asks the backend for a full upload",
                  "[application][display][egl_upload]") {
-    Application app;
-    ApplicationTestAccess::neutralize_destructor(app);
-    auto mgr = std::make_unique<DisplayManager>();
+    DisplayManager mgr;
     auto backend = std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/false,
                                                          DisplayBackendType::DRM);
     FakePowerOffBackend* raw = backend.get();
-    DisplayManagerTestAccess::set_backend(*mgr, std::move(backend));
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
     lv_display_t* disp = lv_display_get_default();
     REQUIRE(disp != nullptr);
-    DisplayManagerTestAccess::set_display(*mgr, disp);
-    ApplicationTestAccess::set_display_manager(app, std::move(mgr));
-    lv_display_set_flush_cb(
-        disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) { lv_display_flush_ready(d); });
-    ApplicationTestAccess::original_flush_cb(app) = test_sentinel_flush_cb;
+    DisplayManagerTestAccess::set_display(mgr, disp);
+    lv_display_set_flush_cb(disp, test_sentinel_flush_cb);
 
-    ApplicationTestAccess::restore_flush_callback(app);
+    const pid_t splash_pid = fork();
+    if (splash_pid == 0) {
+        pause();
+        _exit(0);
+    }
+    REQUIRE(splash_pid > 0);
+
+    helix::application::SplashScreenManager splash;
+    splash.start(splash_pid);
+    splash.begin_render_suppression(splash_pid);
+    CHECK(disp->flush_cb != test_sentinel_flush_cb);
+
+    splash.restore_flush_callback(&mgr);
     CHECK(disp->flush_cb == test_sentinel_flush_cb);
     CHECK(raw->full_upload_requests == 1);
-    CHECK(ApplicationTestAccess::original_flush_cb(app) == nullptr);
 
-    DisplayManagerTestAccess::set_display(*ApplicationTestAccess::display_manager(app), nullptr);
+    // Only a saved callback is restored, so the failsafe's restore adds no upload.
+    splash.arm_invalidation_failsafe(0);
+    splash.run_handoff_frame(&mgr,
+                             helix::application::SplashScreenManager::kInvalidationFailsafeMs);
+    CHECK(raw->full_upload_requests == 1);
+
+    kill(splash_pid, SIGKILL);
+    waitpid(splash_pid, nullptr, 0);
+    DisplayManagerTestAccess::set_display(mgr, nullptr);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a wake restores rendering even when the panel branch cannot run",
