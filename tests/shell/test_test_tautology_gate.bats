@@ -212,10 +212,10 @@ stub_fixture() {
     cat > "$WORK/mk/tests.mk" <<'EOF'
 TEST_APP_OBJS := $(filter-out \
     $(OBJ_DIR)/main.o \
-    $(OBJ_DIR)/ui/ui_toast_manager.o \
+    $(OBJ_DIR)/ui/notify/ui_toast_manager.o \
     ,$(APP_OBJS))
 EOF
-    cat > "$WORK/src/ui/ui_toast_manager.cpp" <<'EOF'
+    cat > "$WORK/src/ui/notify/ui_toast_manager.cpp" <<'EOF'
 namespace helix {
 void ToastManager::show(int severity, const char* msg) {
     if (severity > 0) { render(msg); }

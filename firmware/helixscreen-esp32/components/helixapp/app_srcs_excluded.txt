@@ -264,7 +264,7 @@ src/system/upgrade_nudge.cpp  # not in the v1 Core+AMS cut
 src/system/usb_printer_detector.cpp  # not in the v1 Core+AMS cut
 src/system/usb_scanner_monitor.cpp  # not in the v1 Core+AMS cut
 src/system/wizard_step.cpp  # not in the v1 Core+AMS cut
-src/ui/action_prompt_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/notify/action_prompt_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/gcode/gcode_viewer_loader.cpp  # G-code viewer file loading, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
 src/ui/gcode/gcode_viewer_input.cpp  # G-code viewer touch input, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
 src/ui/board_fingerprint.cpp  # read only by the screensaver and glass gates, neither in the firmware
@@ -277,14 +277,14 @@ src/ui/modals/toolhead_preset_config_modal.cpp  # the Toolhead widget, compiled 
 src/ui/panel_widgets/toolhead_preset_slots.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
 src/ui/panel_widgets/toolhead_widget.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
 src/ui/calibration/pid_progress_tracker.cpp  # not in the v1 Core+AMS cut
-src/ui/recovery_fault_modal.cpp  # not in the v1 Core+AMS cut
-src/ui/recovery_modal_presenter.cpp  # not in the v1 Core+AMS cut
+src/ui/notify/recovery_fault_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/notify/recovery_modal_presenter.cpp  # not in the v1 Core+AMS cut
 src/system/splash_asset_choice.cpp  # not in the v1 Core+AMS cut
 src/ui/splash_screen.cpp  # not in the v1 Core+AMS cut
 src/ui/filament/ui_ams_tool_text.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_language_refresh.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_crash_report_modal.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_fatal_error.cpp  # not in the v1 Core+AMS cut
+src/ui/notify/ui_crash_report_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/notify/ui_fatal_error.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_frequency_response_chart.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_icon_loader.cpp  # not in the v1 Core+AMS cut
 src/ui/printers/ui_overlay_printer_image_tagger.cpp  # compiled out by HELIX_HAS_IMAGE_TAGGER=0

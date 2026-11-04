@@ -427,7 +427,7 @@ objects while a press may be in flight on them: reset input through
 `helix::ui::reset_input_within(subtree)` (`src/ui/ui_utils.cpp#reset_input_within`), which resets
 only a pointer whose press or scroll target lies inside the subtree, and never call an unscoped
 `lv_indev_reset()` unless the point is to end every press. Toast teardown is the model
-(`src/ui/ui_toast_manager.cpp#detach_from_input`): the "Not enough room" toast edit mode raises
+(`src/ui/notify/ui_toast_manager.cpp#detach_from_input`): the "Not enough room" toast edit mode raises
 can time out while the user rearranges, as it asks, without ending the drag.
 
 ## Cross-page drag

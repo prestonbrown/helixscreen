@@ -1191,7 +1191,7 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["ui_confetti"],
         "inherits": "lv_obj",
     },
-    "ui_notification_badge.cpp": {
+    "notify/ui_notification_badge.cpp": {
         "widgets": ["notification_badge"],
         "inherits": "lv_obj",
     },

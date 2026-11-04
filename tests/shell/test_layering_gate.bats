@@ -20,7 +20,7 @@ setup() {
     git -C "$REPO" config user.email t@example.com
     git -C "$REPO" config user.name t
     echo '#pragma once' > "$REPO/include/ui_toast_manager.h"
-    echo '#include "ui_toast_manager.h"' > "$REPO/src/ui/ui_toast_manager.cpp"
+    echo '#include "ui_toast_manager.h"' > "$REPO/src/ui/notify/ui_toast_manager.cpp"
     echo '#pragma once' > "$REPO/include/printer_state.h"
     printf '#include "printer_state.h"\n#include "ui_toast_manager.h"\n' > "$REPO/src/printer/printer_state.cpp"
     echo '#include "printer_state.h"' > "$REPO/src/printer/clean.cpp"

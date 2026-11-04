@@ -379,7 +379,7 @@ src/system/update_checker_subjects.cpp
 src/system/wizard_step_logic.cpp
 src/temperature/temperature_history_manager.cpp
 src/temperature/thermal_rate_model.cpp
-src/ui/action_prompt_manager.cpp
+src/ui/notify/action_prompt_manager.cpp
 src/ui/filament/ams_drawing_utils.cpp
 src/ui/filament/ams_tray_projection.cpp
 src/ui/filament/ams_unit_pages.cpp
@@ -393,7 +393,7 @@ src/ui/controls/chamber_assignment_options.cpp
 src/ui/controls/console_filter_engine.cpp
 src/ui/controls/console_line.cpp
 src/ui/controls/fan_spin_animation.cpp
-src/ui/fault_modal_registry.cpp
+src/ui/notify/fault_modal_registry.cpp
 src/ui/filament/filament_action_set.cpp
 src/ui/filament/filament_op_execute.cpp
 src/ui/filament/filament_op_heater.cpp
@@ -605,12 +605,12 @@ src/ui/ui_nav_manager.cpp
 src/ui/ui_nav_panel_registry.cpp
 src/ui/printers/ui_nav_printer_badge.cpp
 src/ui/ui_navbar_button.cpp
-src/ui/ui_notification.cpp
-src/ui/ui_notification_badge.cpp
-src/ui/ui_notification_history.cpp
-src/ui/ui_notification_manager.cpp
+src/ui/notify/ui_notification.cpp
+src/ui/notify/ui_notification_badge.cpp
+src/ui/notify/ui_notification_history.cpp
+src/ui/notify/ui_notification_manager.cpp
 src/ui/ui_observer_guard.cpp
-src/ui/ui_panel_notification_history.cpp
+src/ui/notify/ui_panel_notification_history.cpp
 src/ui/settings/ui_overlay_console_settings.cpp
 src/ui/settings/ui_overlay_network_settings.cpp
 src/ui/ui_overlay_performance.cpp
@@ -736,7 +736,7 @@ src/ui/ui_text.cpp
 src/ui/home/ui_tile_rung.cpp
 src/ui/ui_text_input.cpp
 src/ui/settings/ui_theme_editor_overlay.cpp
-src/ui/ui_toast_manager.cpp
+src/ui/notify/ui_toast_manager.cpp
 src/ui/calibration/ui_touch_calibration_overlay.cpp
 src/ui/filament/ui_unload_lane_choice.cpp
 src/ui/ui_utils.cpp

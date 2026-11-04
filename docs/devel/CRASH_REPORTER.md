@@ -9,7 +9,7 @@ How the crash reporter works end-to-end: crash detection, report collection, del
 | `include/system/crash_reporter.h` | CrashReporter API |
 | `src/system/crash_reporter.cpp` | Core logic: parsing, formatting, sending |
 | `include/ui_crash_report_modal.h` | Modal dialog class |
-| `src/ui/ui_crash_report_modal.cpp` | Modal UI logic and delivery flow |
+| `src/ui/notify/ui_crash_report_modal.cpp` | Modal UI logic and delivery flow |
 | `ui_xml/crash_report_modal.xml` | Modal layout (XML) |
 | `server/crash-worker/src/index.ts` | Cloudflare Worker (creates GitHub issues) |
 | `tests/unit/test_crash_reporter.cpp` | Unit tests (30 cases, 72 assertions) |

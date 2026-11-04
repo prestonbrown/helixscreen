@@ -3346,7 +3346,7 @@ Moonraker timeout as `AmsResult::TIMEOUT` so the flow can say the printer may st
 #### Recovery actions that ask first
 
 A `RecoveryAction` with a non-empty `confirm_message` is not sent on the tap:
-`src/ui/recovery_modal_presenter.cpp#on_recovery_tapped` opens a confirm
+`src/ui/notify/recovery_modal_presenter.cpp#on_recovery_tapped` opens a confirm
 titled with the action's label, and only its primary button continues to the hot-nozzle check
 and the send. Cancel and a dismissal send nothing; the fault stays handled either way, so it
 does not re-present. For a recovery the user does with their hands (holding a tool while a latch

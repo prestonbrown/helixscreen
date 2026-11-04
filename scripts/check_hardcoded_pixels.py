@@ -113,7 +113,7 @@ OPT_OUT_LOOKBACK = 6
 # Dev-only surfaces and pre-theme crash screens. See WHAT IS NOT FLAGGED.
 EXEMPT_FILES = {
     "src/helix_watchdog.cpp",
-    "src/ui/ui_fatal_error.cpp",
+    "src/ui/notify/ui_fatal_error.cpp",
     "src/ui/ui_panel_glyphs.cpp",
     "src/ui/ui_snake_game.cpp",
 }

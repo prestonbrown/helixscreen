@@ -23,9 +23,9 @@ protocol itself is Klipper's: [G-Codes: action commands](https://www.klipper3d.o
 | File | Purpose |
 |------|---------|
 | `include/action_prompt_manager.h` | `PromptButton`, `PromptData`, `ActionPromptManager` (parser + state machine, static cross-TU accessors) |
-| `src/ui/action_prompt_manager.cpp` | Line parser, button-spec parser, command handlers, test prompt helpers |
+| `src/ui/notify/action_prompt_manager.cpp` | Line parser, button-spec parser, command handlers, test prompt helpers |
 | `include/action_prompt_modal.h` | `helix::ui::ActionPromptModal` (a `Modal` subclass) and `report_action_prompt_gcode_failure()` |
-| `src/ui/action_prompt_modal.cpp` | Builds text labels and buttons from `PromptData`, button layout, color mapping, click handling |
+| `src/ui/notify/action_prompt_modal.cpp` | Builds text labels and buttons from `PromptData`, button layout, color mapping, click handling |
 | `ui_xml/action_prompt_modal.xml` | Dialog shell: title, one scroll area holding the text, AFC fault diagram and button rows, footer row |
 | `ui_xml/action_prompt_button_row.xml` | One row of regular buttons: a button group, or a run of ungrouped buttons |
 | `src/application/gcode_response_routing.cpp#attach` | Wiring: creates manager and modal, registers the `notify_gcode_response` handler, sends button gcode and `prompt_end` |
@@ -98,7 +98,7 @@ The teardown rule for `notify_gcode_response` handlers is in
 
 ### Parsing
 
-`ActionPromptManager::parse_action_line()` (`src/ui/action_prompt_manager.cpp#parse_action_line`)
+`ActionPromptManager::parse_action_line()` (`src/ui/notify/action_prompt_manager.cpp#parse_action_line`)
 skips leading spaces and tabs, requires the exact prefix `// action:` (case sensitive), takes the
 command up to the next space or tab, and keeps everything after exactly one separator as the
 payload.
@@ -126,7 +126,7 @@ constexpr std::string_view kActionCommands[] = {
 A glued remainder that starts with `_` is not split, since that looks like a command this build
 does not know rather than a title. A recovered line logs a warning at `[ActionPrompt]`.
 
-`parse_button_spec()` (`src/ui/action_prompt_manager.cpp#parse_button_spec`)
+`parse_button_spec()` (`src/ui/notify/action_prompt_manager.cpp#parse_button_spec`)
 splits on `|`:
 
 | Spec | label | gcode | color | hex_color |
@@ -188,7 +188,7 @@ adds one wrapping label per text line, and builds the buttons. One `ActionPrompt
 reused for every prompt; `on_hide()` removes the button event callbacks and frees their
 `ButtonCallbackData`.
 
-Button layout (`src/ui/action_prompt_modal.cpp#create_buttons`):
+Button layout (`src/ui/notify/action_prompt_modal.cpp#create_buttons`):
 
 - Regular buttons are split into rows (`split_button_rows`): each button group is a row of its
   own, and a run of ungrouped buttons between groups shares one. Each row is an
@@ -207,7 +207,7 @@ Button layout (`src/ui/action_prompt_modal.cpp#create_buttons`):
   them. The footer and its divider are hidden when there are no footer buttons.
 - Empty text and empty regular-button sections hide their containers.
 
-Named colors map to theme tokens in `src/ui/action_prompt_modal.cpp#get_button_color`:
+Named colors map to theme tokens in `src/ui/notify/action_prompt_modal.cpp#get_button_color`:
 
 | Klipper color | Theme token |
 |---------------|-------------|
@@ -296,7 +296,7 @@ cannot race its destruction.
 
 | Accessor | Used by | For |
 |----------|---------|-----|
-| `ActionPromptManager::is_showing()` | `src/printer/ams_backend_afc.cpp`, `src/ui/recovery_modal_presenter.cpp#present` | Whether a firmware prompt is up. False once the user closed it on the screen |
+| `ActionPromptManager::is_showing()` | `src/printer/ams_backend_afc.cpp`, `src/ui/notify/recovery_modal_presenter.cpp#present` | Whether a firmware prompt is up. False once the user closed it on the screen |
 | `ActionPromptManager::current_prompt_name()` | same | The title, e.g. AFC suppresses its toasts while a title containing `AFC` is showing |
 | `ActionPromptManager::dismiss_active()` | `RecoveryModalPresenter::present` | Closes a firmware prompt that a backend's `duplicates_firmware_prompt()` claims, once the recovery modal covers it. Main thread only |
 
@@ -372,7 +372,7 @@ Logs to grep with `-vv`: `[ActionPrompt]` (wiring, sends, `Closed on screen, sen
 
 ### Adding a directive
 
-1. Add the command to `kActionCommands` in `src/ui/action_prompt_manager.cpp`, keeping the list
+1. Add the command to `kActionCommands` in `src/ui/notify/action_prompt_manager.cpp`, keeping the list
    longest first, or glued-command recovery can match the shorter prefix.
 2. Add a branch in `ActionPromptManager::process_line()` and a private `handle_*` method. Decide
    which states it is valid in and ignore it elsewhere, like the existing handlers.
