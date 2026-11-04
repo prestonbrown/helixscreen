@@ -392,6 +392,11 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
     SlotInfo* identity_slot_locked(int slot_index) override;
+    /// The stored override and the lane are cleared even for a gate not cached
+    /// yet, so a clear before the first frame sticks.
+    [[nodiscard]] bool clears_override_without_slot() const override {
+        return true;
+    }
     [[nodiscard]] const SlotInfo* slot_info_locked(int slot_index) const override {
         const auto* entry = slots_.get(slot_index);
         return entry ? &entry->info : nullptr;

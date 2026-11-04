@@ -560,6 +560,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return "[AMS ToolChanger]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
+    /// The stored override and the lane are cleared even for a tool not cached
+    /// yet, so a clear before the first frame sticks.
+    [[nodiscard]] bool clears_override_without_slot() const override {
+        return true;
+    }
     [[nodiscard]] std::optional<AmsAction> step_action_locked() const override {
         return step_action_;
     }

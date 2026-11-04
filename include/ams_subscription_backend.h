@@ -241,9 +241,10 @@ class AmsSubscriptionBackend : public AmsBackend {
 
     /// Under mutex_, clear_override_locked() on the slot identity_slot_locked()
     /// names, then after_override_cleared_locked(), then kEventSlotChanged. An
-    /// index naming no slot is logged and nothing moves. A backend whose
-    /// firmware keeps its own copy of the identity clears that in an override
-    /// around this.
+    /// index naming no cached slot is logged and nothing moves, unless
+    /// clears_override_without_slot() says the stores are cleared anyway. A
+    /// backend whose firmware keeps its own copy of the identity clears that in
+    /// an override around this.
     void clear_slot_override(int slot_index) override;
 
   protected:
@@ -347,6 +348,15 @@ class AmsSubscriptionBackend : public AmsBackend {
     virtual void after_override_cleared_locked(int slot_index, SlotInfo& slot) {
         (void)slot_index;
         (void)slot;
+    }
+
+    /// Whether clear_slot_override() still erases the stored override, resets
+    /// the lane and announces the slot when identity_slot_locked() finds no
+    /// SlotInfo for the index: a slot not cached yet, before the first frame or
+    /// after a topology change. Default false: the clear is logged and nothing
+    /// moves.
+    [[nodiscard]] virtual bool clears_override_without_slot() const {
+        return false;
     }
 
     /// Extra checks before subscribing (e.g., ToolChanger requires tools discovered).

@@ -412,14 +412,16 @@ void AmsSubscriptionBackend::clear_slot_override(int slot_index) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         SlotInfo* slot = identity_slot_locked(slot_index);
-        if (!slot) {
+        if (!slot && !clears_override_without_slot()) {
             spdlog::warn("{} clear_slot_override: no slot entry for index {}", backend_log_tag(),
                          slot_index);
             return;
         }
         spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
         clear_override_locked(slot_index, slot);
-        after_override_cleared_locked(slot_index, *slot);
+        if (slot) {
+            after_override_cleared_locked(slot_index, *slot);
+        }
     }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
 }

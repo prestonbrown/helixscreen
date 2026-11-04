@@ -4,8 +4,14 @@
 // AmsSubscriptionBackend's slot-identity template: the write, the refusal and
 // the one announcement, through a backend that takes every default hook.
 
+#include "../lvgl_test_fixture.h"
 #include "ams_backend_openams.h"
+#include "ams_state.h"
+#include "lane_observation.h"
+#include "lane_source_store.h"
+#include "lane_sources.h"
 
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -62,11 +68,31 @@ TEST_CASE("The subscription base writes a synced identity and announces it once"
         CHECK(events.size() == 1);
     }
 
-    SECTION("a clear announces the slot once and an unknown index announces nothing") {
+    SECTION("a clear announces the slot once") {
         backend.clear_slot_override(1);
         REQUIRE(events.size() == 2);
         CHECK(events[1] == std::string(AmsBackend::kEventSlotChanged) + ":1");
-        backend.clear_slot_override(7);
-        CHECK(events.size() == 2);
     }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A backend that clears without a cached slot still resets the lane",
+                 "[ams][ams_subscription]") {
+    // Registered with AmsState so its slots have lanes, never started, so no
+    // frame has cached a slot: the clear must still reach the lane's standing
+    // declarations.
+    auto owned = std::make_unique<AmsBackendOpenAms>(nullptr, nullptr);
+    auto* backend = owned.get();
+    REQUIRE(helix::AmsState::instance().add_backend(std::move(owned)) >= 0);
+    REQUIRE(backend->get_system_info().total_slots == 0);
+
+    const helix::ams::LaneId lane = backend->lane_id(1);
+    helix::ams::Observation edit(helix::ams::ObservationSource::LocalUser);
+    edit.material = "PETG";
+    helix::ams::commit_slot_edit(lane, edit);
+    REQUIRE(helix::ams::lane_sources(lane).local_user.has_value());
+
+    backend->clear_slot_override(1);
+    CHECK_FALSE(helix::ams::lane_sources(lane).local_user.has_value());
+    helix::AmsState::instance().clear_backends();
 }
