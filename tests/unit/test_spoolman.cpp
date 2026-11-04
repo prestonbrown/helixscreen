@@ -3,6 +3,7 @@
 
 #include "ui_spool_wizard.h" // For FilamentEntry struct
 
+#include "ams_types.h" // SlotInfo, the target of apply_spool_to_slot
 #include "json_utils.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

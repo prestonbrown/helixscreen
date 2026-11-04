@@ -10,6 +10,7 @@
  * rule is exercised directly here.
  */
 
+#include "ams_types.h" // SlotInfo, the slot the label is resolved from
 #include "filament_display_name.h"
 #include "spoolman_types.h" // apply_spool_to_slot — the picker-side writer
 

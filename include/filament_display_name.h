@@ -3,10 +3,14 @@
 
 #pragma once
 
-#include "ams_types.h"
-
 #include <string>
 #include <string_view>
+
+namespace helix {
+// The label resolvers read a slot by reference only; a caller that builds one
+// includes ams_types.h itself.
+struct SlotInfo;
+} // namespace helix
 
 /**
  * @file filament_display_name.h

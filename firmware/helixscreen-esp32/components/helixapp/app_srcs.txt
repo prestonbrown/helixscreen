@@ -718,6 +718,7 @@ src/ui/ui_spool_canvas.cpp
 src/ui/ui_spool_drawing.cpp
 src/ui/ui_spool_wizard.cpp
 src/spoolman/spoolman_catalog_search.cpp
+src/spoolman/spoolman_types.cpp
 src/ui/ui_status_pill.cpp
 src/ui/ui_step_progress.cpp
 src/ui/ui_subscription_guard.cpp
