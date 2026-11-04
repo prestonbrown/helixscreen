@@ -23,6 +23,7 @@
  */
 
 #include "hv/WebSocketServer.h"
+#include "json_fwd.h"
 
 #include <atomic>
 #include <functional>
@@ -31,8 +32,6 @@
 #include <mutex>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 using json = nlohmann::json;
 

@@ -2,12 +2,11 @@
 #pragma once
 
 #include "config.h"
+#include "json_fwd.h"
 #include "led/led_devices.h"
 #include "panel_widget_manager.h"
 
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix::test {
 

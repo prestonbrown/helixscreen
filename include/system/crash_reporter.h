@@ -20,10 +20,10 @@
  * Independent of TelemetryManager — works without telemetry opt-in.
  */
 
+#include "json_fwd.h"
+
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @brief Is a reported heap-snapshot age arithmetically possible?

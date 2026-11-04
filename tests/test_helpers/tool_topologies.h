@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
 #include "printer_discovery.h"
 #include "tool_state.h"
 
 #include <initializer_list>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix::test {
 

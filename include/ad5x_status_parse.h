@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
+
 #include <array>
 #include <map>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file ad5x_status_parse.h

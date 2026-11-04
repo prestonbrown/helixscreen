@@ -10,10 +10,10 @@
 #include "core/update_queue.h"
 #include "fake_moonraker_client.h"
 #include "helix_shared_callback.h"
+#include "json_fwd.h"
 #include "moonraker_types.h"
 
 #include <functional>
-#include <json.hpp> // nlohmann/json from libhv
 #include <string>
 #include <vector>
 

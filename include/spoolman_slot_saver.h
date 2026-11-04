@@ -4,14 +4,13 @@
 
 #include "ams_types.h"
 #include "filament_database.h"
+#include "json_fwd.h"
 #include "moonraker_error.h"
 #include "spoolman_types.h"
 
 #include <cmath>
 #include <functional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerAPI;

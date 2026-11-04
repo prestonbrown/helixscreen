@@ -14,6 +14,7 @@
 #include "helix_callback.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
+#include "json_fwd.h"
 #include "operation_timeout_guard.h"
 #include "preprint_predictor.h"
 #include "print_start_analyzer.h"
@@ -33,8 +34,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 class PrintPreparationManagerTestAccess;
 

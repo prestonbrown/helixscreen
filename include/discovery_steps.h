@@ -6,13 +6,12 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "job_queue_state.h"
+#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 #include "printer_discovery.h"
 
 #include <cstddef>
 #include <optional>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

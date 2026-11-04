@@ -19,11 +19,11 @@
 // Adding a firmware means adding one Provider to the table in
 // z_offset_persistence.cpp - no call site changes.
 
+#include "json_fwd.h"
+
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class Config;

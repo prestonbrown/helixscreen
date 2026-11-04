@@ -6,6 +6,7 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "json_fwd.h"
 #include "test_helpers/seeded_override.h"
 
 #include <functional>
@@ -14,8 +15,6 @@
 #include <mutex>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 using json = nlohmann::json;
 

@@ -3,13 +3,12 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "printer_network_state.h"
 
 #include <functional>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

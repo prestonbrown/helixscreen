@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include <optional>
+#include "json_fwd.h"
 
-#include "hv/json.hpp"
+#include <optional>
 
 namespace helix {
 class PrinterDiscovery;

@@ -7,6 +7,7 @@
 #include "async_lifetime_guard.h"
 #include "heater_limits.h"
 #include "heater_type.h" // helix::HeaterType, kHeaterTypeCount
+#include "json_fwd.h"
 #include "moonraker_error.h"
 #include "preset_materials.h"
 
@@ -14,8 +15,6 @@
 #include <functional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterState;

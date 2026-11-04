@@ -10,14 +10,13 @@
 // StandingPrintOptionsController.
 
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 
 #include <chrono>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

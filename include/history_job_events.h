@@ -5,12 +5,11 @@
 // owner that acts on a job starting or ending.
 
 #include "async_lifetime_guard.h"
+#include "json_fwd.h"
 
 #include <functional>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

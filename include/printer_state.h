@@ -10,6 +10,7 @@
 #include "capability_overrides.h"
 #include "hardware_validator.h"
 #include "heater_type.h" // helix::HeaterType
+#include "json_fwd.h"
 #include "klippy_state.h"
 #include "lvgl/lvgl.h"
 #include "print_start_phase.h"
@@ -42,8 +43,6 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp" // libhv's nlohmann json (via cpputil/)
 
 namespace helix {
 

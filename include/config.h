@@ -24,6 +24,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 namespace config_detail {

@@ -10,6 +10,7 @@
 
 #include "async_lifetime_guard.h"
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 
 #include <atomic>
 #include <chrono>
@@ -17,8 +18,6 @@
 #include <functional>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

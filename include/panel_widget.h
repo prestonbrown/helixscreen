@@ -3,11 +3,10 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

@@ -4,6 +4,7 @@
 
 #include "async_lifetime_guard.h"
 #include "belt_tension_types.h"
+#include "json_fwd.h"
 #include "resonance_console.h"
 #include "sweep_response_estimator.h"
 
@@ -14,8 +15,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file live_sweep_preview.h

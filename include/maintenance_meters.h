@@ -7,13 +7,12 @@
 // without a display. maintenance_model.cpp owns the live state, the subjects and the
 // persistence calls; the home tile and the detail overlay only read what it publishes.
 
+#include "json_fwd.h"
 #include "value_status.h"
 
 #include <array>
 #include <optional>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::maintenance {
 

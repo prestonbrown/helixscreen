@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include "json_fwd.h"
+
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
-
-#include "hv/json.hpp"
 
 // Forward declaration — full SlotInfo lives in ams_types.h. Forward-decl keeps
 // this header light (it's pulled into many backends) and avoids a transitive

@@ -4,14 +4,13 @@
 #include "ace_vocabulary.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "json_fwd.h"
 
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
-
-#include "hv/json.hpp"
 
 /**
  * @file ace_slot_parse.h

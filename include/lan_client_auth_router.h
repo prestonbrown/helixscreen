@@ -4,14 +4,13 @@
 #include "ui_modal.h"
 
 #include "async_lifetime_guard.h"
+#include "json_fwd.h"
 #include "lan_client_authorization.h"
 
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

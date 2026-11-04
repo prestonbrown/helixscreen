@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+#include "hv/json.hpp"
+
 /**
  * @file moonraker_types.h
  * @brief Data structures for Moonraker API operations

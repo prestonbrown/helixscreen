@@ -6,13 +6,13 @@
 // one decision drawn from it: which archives the file list can leave out
 // because the G-code converted from them sits beside them, unchanged.
 
+#include "json_fwd.h"
+
 #include <cstdint>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::three_mf {
 

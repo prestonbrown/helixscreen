@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include "json_fwd.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 
 #include <string>
-
-#include "hv/json.hpp"
 namespace helix::detect {
 std::string format_detect_verdict(const PrinterDetectionResult& result,
                                   const std::string& runner_up_preset);

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
 #include "print_start_profile.h"
 
 #include <memory>
 #include <string>
-
-#include "hv/json.hpp"
 
 class PrintStartProfileTestAccess {
   public:
