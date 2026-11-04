@@ -1077,7 +1077,7 @@ hundredths. Match the display precision to the slider's resolution, or a typed
 
 ### Settings structure
 
-The Settings root (`ui_xml/settings_panel.xml`) is one grouped list: SCREEN (Display, Appearance, Touch & Input, Sound), PRINTER (Printing, Devices, Safety & Alerts, Connection) and HELIXSCREEN (Language & Time, System, Updates, Help & About). Each page owns one concern, so a new setting goes on the page whose concern it is, never into a catch-all. A root row is a label plus an optional live status line: its `bind_description` subject is filled by `SettingsPanel::refresh_status_lines()` (`src/ui/ui_panel_settings.cpp#refresh_status_lines`) from pure formatters in `src/ui/settings_root_status.cpp`, and refreshed each time the root activates rather than observed. A row with nothing worth summarizing has no description. The user guide mirrors the tree, one page per file under `docs/user/guide/settings/`.
+The Settings root (`ui_xml/settings_panel.xml`) is one grouped list: SCREEN (Display, Appearance, Touch & Input, Sound), PRINTER (Printing, Devices, Safety & Alerts, Connection) and HELIXSCREEN (Language & Time, System, Updates, Help & About). Each page owns one concern, so a new setting goes on the page whose concern it is, never into a catch-all. A root row is a label plus an optional live status line: its `bind_description` subject is filled by `SettingsPanel::refresh_status_lines()` (`src/ui/settings/ui_panel_settings.cpp#refresh_status_lines`) from pure formatters in `src/ui/settings/settings_root_status.cpp`, and refreshed each time the root activates rather than observed. A row with nothing worth summarizing has no description. The user guide mirrors the tree, one page per file under `docs/user/guide/settings/`.
 
 ---
 

@@ -33,7 +33,7 @@ The retraction settings overlay is about as small as a real contribution gets: f
 |---|---|---|
 | `ui_xml/retraction_settings_overlay.xml` | 175 | Layout, styling, bindings |
 | `include/ui_overlay_retraction_settings.h` | 162 | Class declaration, subject + widget references |
-| `src/ui/ui_overlay_retraction_settings.cpp` | 293 | Lifecycle, event handlers, G-code send |
+| `src/ui/settings/ui_overlay_retraction_settings.cpp` | 293 | Lifecycle, event handlers, G-code send |
 
 You'll also touch three *other* files to wire it into the app:
 
@@ -176,7 +176,7 @@ Patterns to internalize:
 
 > **Note on the singleton pattern:** The `get_global_retraction_settings()` + `init_global_retraction_settings()` shape you see here — static `std::unique_ptr` constructed at boot, lives for the app lifetime — is a **legacy pattern**. It exists because most overlays were written when the codebase was smaller and boot-time construction was simpler. **Going forward, new overlays should prefer dynamic allocation: construct on open, destroy on close.** Two reasons: (1) memory isn't wasted on overlays the user never opens, critical on small devices like AD5M (14–20MB RAM budget), and (2) if multiple instances ever become useful, nothing in the design blocks that. If you're writing a new overlay, don't reach for the global accessor shape reflexively — instantiate from the row-click handler, hand ownership to `NavigationManager`, let it destroy on pop. See "Going forward" at the end of this section for the sketch.
 
-### Step 3: The implementation (`src/ui/ui_overlay_retraction_settings.cpp`)
+### Step 3: The implementation (`src/ui/settings/ui_overlay_retraction_settings.cpp`)
 
 The interesting parts:
 

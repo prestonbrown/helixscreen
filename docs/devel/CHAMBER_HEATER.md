@@ -162,7 +162,7 @@ the heater's rule against discovery's sensor pick:
 and the `printer_has_chamber_sensor` capability, and re-resolves it on every discovery (each klippy
 ready and reconnect), so a named sensor that appears or disappears is followed without a restart.
 Consumers read what was published. The one reader of discovery's own sensor pick is the chamber
-sensor dropdown in Sensor settings (`src/ui/ui_settings_sensors.cpp#populate_chamber_assignment`),
+sensor dropdown in Sensor settings (`src/ui/settings/ui_settings_sensors.cpp#populate_chamber_assignment`),
 whose "Auto" entry names the sensor `auto` takes.
 
 ---

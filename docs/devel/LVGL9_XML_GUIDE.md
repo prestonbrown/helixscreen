@@ -1353,7 +1353,7 @@ One pre-print option as a toggle pill: an icon and a label of up to two lines (`
 
 #### setting_group
 
-A card of settings rows under a `setting_group_header`. When every row in it is hidden, the group hides its header and collapses (the `LV_STATE_USER_1` style zeroes its margin, border and background), and it comes back when a row shows again. LVGL sends no event when a child's hidden flag changes, but any row appearing or disappearing changes the group's height, so the check runs on `LV_EVENT_SIZE_CHANGED` (`src/ui/setting_group.cpp#setting_group_sync_header`). A row counts when it is visible with a non-zero height, so a wrapper that groups gated rows must have `style_pad_all="0"`: padding gives an empty wrapper height, and its header would stay.
+A card of settings rows under a `setting_group_header`. When every row in it is hidden, the group hides its header and collapses (the `LV_STATE_USER_1` style zeroes its margin, border and background), and it comes back when a row shows again. LVGL sends no event when a child's hidden flag changes, but any row appearing or disappearing changes the group's height, so the check runs on `LV_EVENT_SIZE_CHANGED` (`src/ui/settings/setting_group.cpp#setting_group_sync_header`). A row counts when it is visible with a non-zero height, so a wrapper that groups gated rows must have `style_pad_all="0"`: padding gives an empty wrapper height, and its header would stay.
 
 #### Widget Defaults Quick Reference
 

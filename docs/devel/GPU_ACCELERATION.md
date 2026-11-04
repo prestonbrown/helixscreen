@@ -410,7 +410,7 @@ keeps the previous layer's projection and viewport. `lv_draw_dispatch`
 round-robins layers while nanovg executes one task per dispatch, so with two
 layers it hops between them constantly, re-clearing each time.
 
-The trigger in this app is `src/ui/setting_group.cpp#setting_group_xml_create`
+The trigger in this app is `src/ui/settings/setting_group.cpp#setting_group_xml_create`
 setting `clip_corner`; with a non-zero theme radius, `lv_refr.c` allocates two
 ARGB8888 band layers per card per refresh. The home panel has no `clip_corner`
 container and renders perfectly; the settings panel loses every background fill

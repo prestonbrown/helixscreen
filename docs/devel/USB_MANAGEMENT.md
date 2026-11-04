@@ -45,7 +45,7 @@ USB mice, keyboards and touchscreens go through `input_device_scanner` and the d
 | `include/usb_printer_detector.h` / `src/system/usb_printer_detector.cpp` | libusb scan for known label printer VID:PIDs |
 | `src/system/phomemo_printer.cpp` | Phomemo USB transport (`/dev/usb/lpN` write) |
 | `src/system/label_printer_utils.cpp` | Transport dispatch for spool labels, including the USB fallback |
-| `src/ui/ui_settings_label_printer.cpp` | USB printer dropdown and polling in label printer settings |
+| `src/ui/settings/ui_settings_label_printer.cpp` | USB printer dropdown and polling in label printer settings |
 | `include/usb_scanner_monitor.h` / `src/system/usb_scanner_monitor.cpp` | evdev reader for HID barcode scanners |
 
 ---
@@ -380,4 +380,4 @@ Implement `UsbBackend`, return it unstarted from `UsbBackend::create()` under th
 
 ### A new USB label printer
 
-Add the VID:PID to `s_known_printers`. If it speaks something other than Phomemo raster over `usblp`, `print_spool_label()` and `get_sizes_for_current_printer()` in `src/ui/ui_settings_label_printer.cpp` both need a branch, since USB currently means Phomemo in both places.
+Add the VID:PID to `s_known_printers`. If it speaks something other than Phomemo raster over `usblp`, `print_spool_label()` and `get_sizes_for_current_printer()` in `src/ui/settings/ui_settings_label_printer.cpp` both need a branch, since USB currently means Phomemo in both places.

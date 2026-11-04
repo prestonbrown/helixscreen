@@ -334,7 +334,7 @@ void FilamentPanel::execute_load() {
 - `ui_xml/macro_buttons_overlay.xml`
 
 ### Files Modified (historical planning list; paths updated to as-built locations)
-- `src/ui/ui_panel_settings.cpp/h` - Add overlay handler
+- `src/ui/settings/ui_panel_settings.cpp/h` - Add overlay handler
 - `ui_xml/settings_panel.xml` - Add action row
 - `src/application/moonraker_manager.cpp` - Init after discovery
 - `src/ui/ui_panel_controls.cpp/h` - Use StandardMacros

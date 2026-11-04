@@ -28,7 +28,7 @@ Key properties:
 | `include/ui_printer_list_overlay.h` | `PrinterListOverlay` (extends `OverlayBase`) |
 | `src/ui/ui_printer_list_overlay.cpp` | Settings management: switch, add, delete with confirmation |
 | `src/ui/ui_printer_manager_overlay.cpp` | "Manage Printers" button in Printer Manager overlay |
-| `src/ui/ui_panel_settings.cpp` | "Printers" row in Settings panel |
+| `src/ui/settings/ui_panel_settings.cpp` | "Printers" row in Settings panel |
 | `src/ui/ui_nav_manager.cpp` | Printer badge click handler, switch/add callbacks, `PrinterSwitchMenu` ownership |
 | `include/printer_state.h` | `active_printer_name_` subject |
 | `src/printer/printer_state.cpp` | Subject initialization and setters |

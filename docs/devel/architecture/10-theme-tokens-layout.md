@@ -59,7 +59,7 @@ flowchart TB
 | [`src/system/display_settings_manager.cpp`](../../../src/system/display_settings_manager.cpp) | Dark-mode toggle and theme selection; persists `/dark_mode` and `/display/theme` |
 | [`src/generated/theme_token_table.cpp`](../../../src/generated/theme_token_table.cpp) | Compile-time token snapshot for installed builds; parity-gated by [`tests/unit/test_theme_token_table.cpp`](../../../tests/unit/test_theme_token_table.cpp) |
 | [`tests/fixtures/theme_const_golden.txt`](../../../tests/fixtures/theme_const_golden.txt) | Snapshot of every XML const the theme registers, pinned by `[theme_pins]` |
-| [`src/ui/ui_theme_editor_overlay.cpp`](../../../src/ui/ui_theme_editor_overlay.cpp) | Live theme editor: previews via `theme_manager_apply_theme()`, saves user theme JSONs |
+| [`src/ui/settings/ui_theme_editor_overlay.cpp`](../../../src/ui/settings/ui_theme_editor_overlay.cpp) | Live theme editor: previews via `theme_manager_apply_theme()`, saves user theme JSONs |
 | [`scripts/check_responsive_token_scope.py`](../../../scripts/check_responsive_token_scope.py) | Gate: tiered tokens must live in top-level `ui_xml/*.xml` only |
 | [`scripts/check_variant_parity.py`](../../../scripts/check_variant_parity.py) | Gate: variant XML must keep the base file's widget names, bindings, callbacks |
 

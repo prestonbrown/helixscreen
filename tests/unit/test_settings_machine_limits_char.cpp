@@ -12,7 +12,7 @@
  * test_format_utils.cpp.
  *
  * @see include/calibration_types.h - MachineLimits
- * @see src/ui/ui_settings_machine_limits.cpp - MachineLimitsOverlay
+ * @see src/ui/settings/ui_settings_machine_limits.cpp - MachineLimitsOverlay
  */
 
 #include "calibration_types.h"

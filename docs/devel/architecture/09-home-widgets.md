@@ -178,7 +178,7 @@ Two subtleties both families hit. First, `observe<int>` defers its initial fire 
   | `LV_OBJ_FLAG_USER_1` | `include/ui_drag_surface.h#kDragSurfaceFlag` | a drag surface: a hold on it never enters home edit mode and a drag never swipes the page ([`../HOME_EDIT_MODE.md`](../HOME_EDIT_MODE.md#entering)) |
   | `LV_OBJ_FLAG_USER_2` | `include/ui_utils.h#kEditClickSuppressedFlag` | objects whose `CLICKABLE` edit mode removed, so it restores exactly those |
   | `LV_OBJ_FLAG_USER_3` | `include/panel_widget.h#kPanelWidgetTileFlag` | home widget tile root |
-  | `LV_OBJ_FLAG_USER_4` | `src/ui/ui_sound_preview_overlay.cpp#populate_buttons` | suppress the button tap sound, read in `src/ui/ui_button.cpp#button_clicked_sound_cb` |
+  | `LV_OBJ_FLAG_USER_4` | `src/ui/settings/ui_sound_preview_overlay.cpp#populate_buttons` | suppress the button tap sound, read in `src/ui/ui_button.cpp#button_clicked_sound_cb` |
 
   helix-xml's `flag_to_enum()` maps only `user_1`/`user_2` for `<bind_flag_if_*>`, so `USER_3` is the one no binding can clear. The tile mark is set at the one creation site so page-level tree walks can stop at a tile; `PageScrollAutoInject` is the consumer ([`../PAGE_SCROLL_BUTTONS.md`](../PAGE_SCROLL_BUTTONS.md)). A flag is a global namespace, so never borrow one as a private guard; an idempotent remove-before-add callback needs no bit at all (`src/ui/ui_ams_detail.cpp#ams_detail_update_tray`).
 - **Register factories and XML callbacks in `register_*_widget()`, never at static init.** `init_widget_registrations()` exists to sequence this. An XML `event_cb` referencing a never-registered callback is a silent no-op.

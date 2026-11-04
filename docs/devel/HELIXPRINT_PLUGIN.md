@@ -1019,7 +1019,7 @@ Storage > Automatic cleanup.
 | `moonraker-plugin/helix_plr.py` | `HelixPlr.protected_paths()`, `HelixPlr.resume_unaccounted()`: what a waiting snapshot resumes from |
 | `include/storage_report.h`, `src/printer/storage_report.cpp` | `kConsumers`, `report_source`, `parse_storage_result`, `classify_gcodes_path`, `parse_directory_result`, `fallback_cleanable`, `fallback_may_clean`, `timelapse_root_safe`, `timelapse_listing_is_own`, `fallback_removes`, `cleanup_message`, `upload_space`, `is_no_space_refusal`, `kFreeSpaceFloorBytes`; exception-free |
 | `include/storage_report_service.h`, `src/printer/storage_report_service.cpp` | `StorageReportService` (plugin fetch or file-API scan, cleanup either way), `check_upload_space` |
-| `src/ui/ui_settings_storage.cpp`, `ui_xml/settings_storage_overlay.xml`, `ui_xml/components/storage_consumer_row.xml` | Settings > System > Storage |
+| `src/ui/settings/ui_settings_storage.cpp`, `ui_xml/settings_storage_overlay.xml`, `ui_xml/components/storage_consumer_row.xml` | Settings > System > Storage |
 
 **Consumers.** In fixed order: `helix_temp` (print copies), `3mf_outputs`, `analysis_sidecars`,
 `photos`, `timelapse`, `logs`, `thumbnails`, `user_gcode`, `plr` (`helix-plr/`: the power-loss

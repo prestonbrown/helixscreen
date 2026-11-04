@@ -12,7 +12,7 @@
 #
 # Format:  <subject name>  # <registration site>
 abort_state  # src/abort/abort_manager.cpp:63
-about_version_description  # src/ui/ui_settings_about.cpp:103
+about_version_description  # src/ui/settings/ui_settings_about.cpp:103
 ams_env_overlay_preset_text  # src/ui/ui_ams_environment_overlay.cpp:124
 detail_view_visible  # src/ui/print/ui_panel_print_select.cpp:335
 dryer_current_temp_text  # src/printer/ams_state.cpp:416; src/printer/ams_state.cpp:816
@@ -55,9 +55,9 @@ spool_wizard_can_create_vendor  # src/ui/ui_spool_wizard.cpp:132
 spool_wizard_show_create_filament  # src/ui/ui_spool_wizard.cpp:119
 spool_wizard_show_create_vendor  # src/ui/ui_spool_wizard.cpp:117
 spool_wizard_step_label  # src/ui/ui_spool_wizard.cpp:100
-test_gateway_status  # src/ui/ui_overlay_network_settings.cpp:195
-test_internet_status  # src/ui/ui_overlay_network_settings.cpp:196
-test_running  # src/ui/ui_overlay_network_settings.cpp:194
+test_gateway_status  # src/ui/settings/ui_overlay_network_settings.cpp:195
+test_internet_status  # src/ui/settings/ui_overlay_network_settings.cpp:196
+test_running  # src/ui/settings/ui_overlay_network_settings.cpp:194
 total_steps  # src/ui/wizard/ui_wizard.cpp:384
 touch_cal_accept_text  # src/ui/calibration/ui_touch_calibration_overlay.cpp:272
 touch_cal_current_step  # src/ui/wizard/ui_wizard_touch_calibration.cpp:133

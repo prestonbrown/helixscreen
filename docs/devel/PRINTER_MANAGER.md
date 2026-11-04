@@ -9,7 +9,7 @@ How the Printer Manager overlay works, its sub-components (inline name editing, 
 The Printer Manager is a full-screen overlay with two entry points, both calling `get_printer_manager_overlay().show()`:
 
 - **Home panel**: tapping the Printer Image widget (`src/ui/panel_widgets/printer_image_widget.cpp#handle_printer_manager_clicked`)
-- **Settings > Printer**: the `row_printer` row at the top of the Printer group in `ui_xml/settings_panel.xml`, wired to `on_printer_clicked` through `nav_row<get_printer_manager_overlay>()` in `src/ui/ui_panel_settings.cpp#register_settings_panel_callbacks`. It keeps the overlay reachable on a layout without the Printer Image widget
+- **Settings > Printer**: the `row_printer` row at the top of the Printer group in `ui_xml/settings_panel.xml`, wired to `on_printer_clicked` through `nav_row<get_printer_manager_overlay>()` in `src/ui/settings/ui_panel_settings.cpp#register_settings_panel_callbacks`. It keeps the overlay reachable on a layout without the Printer Image widget
 
 It serves as the central hub for printer identity and hardware capabilities, displaying:
 
