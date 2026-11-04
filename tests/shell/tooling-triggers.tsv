@@ -176,8 +176,8 @@ tests/shell/test_telemetry_pull_download.bats	scripts/telemetry-pull.sh tests/sh
 tests/shell/test_telemetry_update_printer_db.bats	scripts/telemetry-update-printer-db.py
 tests/shell/test_test_binary_current.bats	scripts/check_test_binary_current.sh scripts/qc/hidden_tests.sh src/system/helix_version.cpp src/ui/ui_panel_home.cpp
 tests/shell/test_test_budget_gate.bats	scripts/check_test_budget.py scripts/qc/_lib.sh scripts/qc/test_budget.sh ui_xml/globals.xml
-tests/shell/test_test_host_run_lock.bats	scripts/diff_base.py scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/mutate_diff.py scripts/test-host-run.sh
-tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/plugin-host-matrix.sh scripts/test-host-run.sh
+tests/shell/test_test_host_run_lock.bats	scripts/diff_base.py scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/mutate_diff.py scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
+tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/plugin-host-matrix.sh scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
 tests/shell/test_test_host_setup.bats	scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/test-host-setup.sh
 tests/shell/test_test_tautology_gate.bats	include/version.h mk/tests.mk scripts/check_test_mirrors.py scripts/check_test_tautology.py src/ui/ui_toast_manager.cpp tests/ui_test_utils.cpp
 tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml

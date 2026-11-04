@@ -26,6 +26,13 @@
 # here (printf %q) and arrives in the container as one argument, so a space,
 # a quote or a semicolon in it is data, never shell.
 #
+# An INT, TERM or HUP to this script stops its job on the test host. A shell
+# without job control (any `zsh -c` or `bash -c`, a script, an agent's tool
+# call; bash and zsh alike) starts a `&` job with SIGINT ignored, and bash
+# cannot trap a signal it was started ignoring, so INT does nothing to such a
+# run; send TERM. In an interactive shell a background job is outside the
+# terminal's foreground group, so Ctrl-C never reaches it: `fg` it first.
+#
 # The app modes are here for the same reason asan is: the run is long and
 # non-interactive, and the container's image (SDL, no ld.so.preload) is the
 # only place an instrumented desktop app runs cleanly.
@@ -556,13 +563,28 @@ REMOTE
 # The holder is also what starts the job (run_detached), and the job inherits
 # its lock descriptor: a link that drops kills the holder, but the tree stays
 # locked until the job itself has finished.
+#
+# A link that drops while the holder is still waiting for the lock reconnects,
+# as a dropped job follow does, and waits again; RECONNECT_SECS bounds how long
+# the host may stay unreachable. Every attempt records its number in the job's
+# directory, and an attempt that takes the lock when its number is no longer
+# the one recorded gives it back within a second: sshd may not notice a dead
+# link for hours, and the old attempt must not keep this run's tree locked
+# from the new one, nor take it a second time.
+# A host that never answered at all is not retried.
 take_lock() { # <lock file name> <what it guards> <holder note>
-    coproc LOCKER { ssh "${SSH_OPTS[@]}" "$HOST" bash -s 2>&1; }
-    # hold is defined before it is called on the script's last line, so bash
-    # has read the whole script by then and its read gets the JOB line.
-    cat >&"${LOCKER[1]}" <<LOCK
+    local attempt=0 connected=0 down_since="" line rc pid
+    while :; do
+        attempt=$((attempt + 1))
+        coproc LOCKER { ssh "${SSH_OPTS[@]}" "$HOST" bash -s 2>&1; }
+        pid=$LOCKER_PID
+        # hold is defined before it is called on the script's last line, so bash
+        # has read the whole script by then and its read gets the JOB line.
+        cat >&"${LOCKER[1]}" <<LOCK
 set -eu
-mkdir -p "$LOCK_DIR"
+mkdir -p "$JOB_DIR"
+ATTEMPT="$JOB_DIR/attempt"
+echo $attempt > "\$ATTEMPT"
 LOCK="$LOCK_DIR/$1"
 exec 9>>"\$LOCK"
 if ! flock -n 9; then
@@ -574,10 +596,14 @@ fi
 # line no matter how many jobs pass through it.
 : > "\$LOCK"
 printf 'held by pid %s: %s since %s\n' "\$\$" "$3" "\$(date '+%F %T')" >&9
+# Gives the lock back as soon as a later attempt supersedes this one: one whose
+# link dropped while it waited, or whose LOCKED was lost with its link.
+( while [ "\$(cat "\$ATTEMPT" 2>/dev/null)" = $attempt ]; do kill -0 \$\$ 2>/dev/null || exit 0; sleep 1; done; kill \$\$ ) 9>&- </dev/null >/dev/null 2>&1 &
+_watch=\$!
 echo LOCKED
 hold() {
     if read -r _kw _b64 && [ "\$_kw" = JOB ]; then
-        mkdir -p "$JOB_DIR"
+        kill \$_watch 2>/dev/null || true
         printf '%s' "\$_b64" | base64 -d > "$JOB_DIR/script"
         _s=""; ! command -v setsid >/dev/null 2>&1 || _s=setsid
         # The wrapper keeps fd 9 until the job's status is written; the job's
@@ -591,17 +617,33 @@ hold() {
         )
         echo STARTED
     fi
-    exec cat >/dev/null
+    cat >/dev/null
+    # No job started, and no later attempt owns the directory: nothing else
+    # will collect it.
+    if [ ! -e "$JOB_DIR/pid" ] && [ "\$(cat "\$ATTEMPT" 2>/dev/null)" = $attempt ]; then rm -rf "$JOB_DIR"; fi
 }
 hold
 LOCK
-    local line
-    while IFS= read -r line <&"${LOCKER[0]}"; do
-        [ "$line" = LOCKED ] && return 0
-        printf '%s\n' "$line"
+        while IFS= read -r line <&"${LOCKER[0]}"; do
+            [ "$line" = LOCKED ] && return 0
+            printf '%s\n' "$line"
+            connected=1
+            down_since=""
+        done
+        rc=0
+        wait "$pid" 2>/dev/null || rc=$?
+        if [ "$rc" -ne 255 ] || [ "$connected" = 0 ]; then
+            echo "✗ could not take the $2 lock on $HOST" >&2
+            return 1
+        fi
+        [ -n "$down_since" ] || down_since=$(date +%s)
+        if [ $(( $(date +%s) - down_since )) -ge "$RECONNECT_SECS" ]; then
+            echo "✗ $HOST unreachable for ${RECONNECT_SECS}s while waiting for the $2 lock" >&2
+            return 1
+        fi
+        echo "→ lost the connection to $HOST while waiting for the $2 lock (ssh exit $rc); reconnecting" >&2
+        sleep "$RECONNECT_PAUSE_SECS"
     done
-    echo "✗ could not take the $2 lock on $HOST" >&2
-    return 1
 }
 
 # Runs the script on stdin on the test host detached from this connection, its
