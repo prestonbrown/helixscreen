@@ -50,9 +50,9 @@ Detection uses a multi-signal system with these fallbacks for completion:
 ### Option 1: Install HelixScreen Macros (Recommended)
 
 The HelixScreen macro file provides:
-- **Instant detection**: `HELIX_READY` signal at the end of your PRINT_START
-- **Phase tracking**: Optional `HELIX_PHASE_*` macros for detailed progress display
-- **Pre-print helpers**: `HELIX_BED_LEVEL_IF_NEEDED`, `HELIX_CLEAN_NOZZLE`, `HELIX_START_PRINT`
+- **Instant detection**: `_HELIX_READY` signal at the end of your PRINT_START
+- **Phase tracking**: Optional `_HELIX_PHASE_*` macros for detailed progress display
+- **Pre-print helpers**: `HELIX_BED_MESH_IF_NEEDED`, `HELIX_CLEAN_NOZZLE`, `HELIX_START_PRINT`
 
 **Installation via the UI:**
 
@@ -69,7 +69,7 @@ The HelixScreen macro file provides:
 [include helix_macros.cfg]
 ```
 
-3. Add `HELIX_READY` at the end of your PRINT_START macro:
+3. Add `_HELIX_READY` at the end of your PRINT_START macro:
 
 ```gcode
 [gcode_macro PRINT_START]
@@ -83,7 +83,7 @@ gcode:
     BED_MESH_CALIBRATE
 
     # Signal HelixScreen that prep is done
-    HELIX_READY
+    _HELIX_READY
 
     # Purge line or first layer starts here
 ```
@@ -95,23 +95,23 @@ Phase display works out of the box: with no instrumentation at all, HelixScreen 
 ```gcode
 [gcode_macro PRINT_START]
 gcode:
-    HELIX_PHASE_HOMING
+    _HELIX_PHASE_HOMING
     G28
 
-    HELIX_PHASE_HEATING_BED
+    _HELIX_PHASE_HEATING_BED
     M190 S{BED_TEMP}
 
-    HELIX_PHASE_BED_MESH
+    _HELIX_PHASE_BED_MESH
     BED_MESH_CALIBRATE
 
-    HELIX_PHASE_HEATING_NOZZLE
+    _HELIX_PHASE_HEATING_NOZZLE
     M109 S{EXTRUDER_TEMP}
 
-    HELIX_PHASE_PURGING
+    _HELIX_PHASE_PURGING
     # Your purge line code here
 
     # Signal preparation complete
-    HELIX_READY
+    _HELIX_READY
 ```
 
 ### Option 2: Add Variables to Existing Macro
@@ -144,32 +144,34 @@ If your slicer supports it, enable layer info in your G-code:
 
 When `helix_macros.cfg` is installed, these macros are available:
 
+The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. A printer that already has the pack under the names without an underscore (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) keeps those names when it updates, because its own macros and sliced files may call them, so an existing `PRINT_START` needs no change. `MacroManager::macro_content_for` makes that choice when the app installs or updates the pack. Copying the file over by hand always gives the underscore names, so a printer that calls the old names needs those calls changed as well.
+
 ### Core Signals
 
 | Macro | Purpose |
 |-------|---------|
-| `HELIX_READY` | Signal that print preparation is complete |
-| `HELIX_ENDED` | Signal that print has ended (called in PRINT_END) |
-| `HELIX_RESET` | Reset state (for cancel/error recovery) |
+| `_HELIX_READY` | Signal that print preparation is complete |
+| `_HELIX_ENDED` | Signal that print has ended (called in PRINT_END) |
+| `_HELIX_RESET` | Reset state (for cancel/error recovery) |
 
 ### Phase Tracking (Optional)
 
 | Macro | Phase Displayed |
 |-------|-----------------|
-| `HELIX_PHASE_HOMING` | "Homing..." |
-| `HELIX_PHASE_HEATING_BED` | "Heating Bed..." |
-| `HELIX_PHASE_HEATING_NOZZLE` | "Heating Nozzle..." |
-| `HELIX_PHASE_BED_MESH` | "Loading Bed Mesh..." |
-| `HELIX_PHASE_QGL` | "Leveling Gantry..." |
-| `HELIX_PHASE_Z_TILT` | "Z Tilt Adjust..." |
-| `HELIX_PHASE_CLEANING` | "Cleaning Nozzle..." |
-| `HELIX_PHASE_PURGING` | "Purging..." |
+| `_HELIX_PHASE_HOMING` | "Homing..." |
+| `_HELIX_PHASE_HEATING_BED` | "Heating Bed..." |
+| `_HELIX_PHASE_HEATING_NOZZLE` | "Heating Nozzle..." |
+| `_HELIX_PHASE_BED_MESH` | "Loading Bed Mesh..." |
+| `_HELIX_PHASE_QGL` | "Leveling Gantry..." |
+| `_HELIX_PHASE_Z_TILT` | "Z Tilt Adjust..." |
+| `_HELIX_PHASE_CLEANING` | "Cleaning Nozzle..." |
+| `_HELIX_PHASE_PURGING` | "Purging..." |
 
 ### Pre-Print Helpers
 
 | Macro | Purpose |
 |-------|---------|
-| `HELIX_BED_LEVEL_IF_NEEDED` | Run bed mesh only if stale (configurable max age) |
+| `HELIX_BED_MESH_IF_NEEDED` | Run bed mesh only if stale (configurable max age) |
 | `HELIX_CLEAN_NOZZLE` | Nozzle cleaning sequence (configure brush position) |
 | `HELIX_START_PRINT` | Complete start print sequence with all options |
 
@@ -327,7 +329,7 @@ gcode:
         BED_MESH_CALIBRATE
     {% endif %}
 
-    HELIX_READY
+    _HELIX_READY
 ```
 
 **Opt-OUT Style:**
@@ -343,7 +345,7 @@ gcode:
         BED_MESH_CALIBRATE
     {% endif %}
 
-    HELIX_READY
+    _HELIX_READY
 ```
 
 ### Using HELIX_START_PRINT
@@ -388,7 +390,7 @@ If the home panel stays on "Preparing Print" indefinitely:
 
 If detection falls all the way through to a timeout:
 
-1. **Add HELIX_READY**: The most reliable option
+1. **Add _HELIX_READY**: The most reliable option
 2. **Check if your slicer sets layer info**: Look for `SET_PRINT_STATS_INFO` in your G-code
 3. **Verify macro object subscriptions**: HelixScreen subscribes to `gcode_macro _HELIX_STATE`, `gcode_macro _START_PRINT`, and `gcode_macro START_PRINT`
 4. **ForgeX users**: Detection should be instant via the Forge-X profile (the `operation_context` status object on 1.4.x, `// State:` lines on older versions), the `_START_PRINT.print_started` and `START_PRINT.preparation_done` macro variables
