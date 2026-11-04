@@ -195,7 +195,7 @@ tests/shell/test_triage_shard.bats	scripts/triage_shard.sh
 tests/shell/test_tsan_resplit_shard.bats	scripts/tsan_resplit_shard.sh
 tests/shell/test_update_platform_coverage.bats	.github/workflows/release.yml mk/cross.mk scripts/lib/installer/platform.sh server/crash-worker/src/index.ts src/system/platform_table.cpp tests/unit/test_update_checker.cpp
 tests/shell/test_update_queue_leak_gate.bats	scripts/check_update_queue_leaks.py scripts/update_queue_leak_baseline.txt
-tests/shell/test_upload_gating.bats	.github/workflows/release.yml Makefile mk/cross.mk mk/pi-dual-link.mk mk/rules.mk src/system/crash_reporter.cpp src/system/debug_bundle_collector.cpp src/ui/notify/ui_crash_report_modal.cpp src/ui/ui_debug_bundle_modal.cpp tests/unit/test_diag_upload_gate.cpp
+tests/shell/test_upload_gating.bats	.github/workflows/release.yml Makefile mk/cross.mk mk/pi-dual-link.mk mk/rules.mk src/system/crash_reporter.cpp src/system/debug_bundle_collector.cpp src/ui/notify/ui_crash_report_modal.cpp src/ui/debug/ui_debug_bundle_modal.cpp tests/unit/test_diag_upload_gate.cpp
 tests/shell/test_vacuous_test_gate.bats	scripts/check_vacuous_tests.py scripts/vacuous_test_baseline.txt
 tests/shell/test_variant_content_drift_gate.bats	scripts/check_variant_content_drift.py scripts/check_variant_parity.py ui_xml/portrait/print_tune_panel.xml ui_xml/print_tune_panel.xml ui_xml/translations/en.xml
 tests/shell/test_variant_parity_gate.bats	scripts/check_variant_parity.py ui_xml/micro/controls_panel.xml

@@ -599,7 +599,7 @@ else
 endif
 
 ifneq ($(ENABLE_DEV_PANELS),yes)
-    APP_SRCS := $(filter-out $(SRC_DIR)/ui/ui_panel_glyphs.cpp,$(APP_SRCS))
+    APP_SRCS := $(filter-out $(SRC_DIR)/ui/debug/ui_panel_glyphs.cpp,$(APP_SRCS))
 endif
 APP_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(APP_SRCS))
 

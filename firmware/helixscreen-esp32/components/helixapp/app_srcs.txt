@@ -547,7 +547,7 @@ src/ui/components/ui_component_header_bar.cpp
 src/ui/components/ui_component_keypad.cpp
 src/ui/components/ui_confetti.cpp
 src/ui/components/ui_context_menu.cpp
-src/ui/ui_debug_bundle_modal.cpp
+src/ui/debug/ui_debug_bundle_modal.cpp
 src/ui/filament/ui_guided_load_modal.cpp
 src/ui/components/ui_dialog.cpp
 src/ui/effects/ui_effects.cpp
@@ -613,7 +613,7 @@ src/ui/ui_observer_guard.cpp
 src/ui/notify/ui_panel_notification_history.cpp
 src/ui/settings/ui_overlay_console_settings.cpp
 src/ui/settings/ui_overlay_network_settings.cpp
-src/ui/ui_overlay_performance.cpp
+src/ui/debug/ui_overlay_performance.cpp
 src/ui/printers/ui_overlay_printer_image.cpp
 src/ui/printers/ui_overlay_printer_type.cpp
 src/ui/settings/ui_overlay_retraction_settings.cpp
@@ -709,7 +709,7 @@ src/ui/settings/ui_settings_connection.cpp
 src/ui/settings/ui_settings_screen_sharing.cpp
 src/ui/settings/ui_settings_updates.cpp
 src/ui/components/ui_severity_card.cpp
-src/ui/ui_snake_game.cpp
+src/ui/debug/ui_snake_game.cpp
 src/ui/settings/ui_sound_preview_overlay.cpp
 src/ui/components/ui_spinner.cpp
 src/ui/components/ui_split_button.cpp

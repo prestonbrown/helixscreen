@@ -114,8 +114,8 @@ OPT_OUT_LOOKBACK = 6
 EXEMPT_FILES = {
     "src/helix_watchdog.cpp",
     "src/ui/notify/ui_fatal_error.cpp",
-    "src/ui/ui_panel_glyphs.cpp",
-    "src/ui/ui_snake_game.cpp",
+    "src/ui/debug/ui_panel_glyphs.cpp",
+    "src/ui/debug/ui_snake_game.cpp",
 }
 
 # Tokens whose value is not a length. modal_backdrop_opacity is 0-255 alpha; a
