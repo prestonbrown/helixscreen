@@ -537,6 +537,15 @@ run_link_gate() {
     [ "$status" -eq 0 ]
 }
 
+@test "--link with nothing wanted reports a baseline entry for a file no longer listed" {
+    build_link_fixture 'return 0;'
+    printf 'max-edges: 1\nsrc/printer/gone.cpp -> src/printer/excluded_one.cpp  old_symbol\n' \
+        > "$ROOT/link_baseline.txt"
+    run_link_gate
+    [ "$status" -eq 1 ]
+    contains "src/printer/gone.cpp" "$output"
+}
+
 @test "--link exits 2 when a listed file has no object to read" {
     build_link_fixture 'return only_excluded_defines();'
     rm "$ROOT/obj/printer/compiled.o"
