@@ -868,7 +868,7 @@ it the screen keeps its own and backfills gaps on reconnect. Observer: `always_o
 | `tests/fixtures/journal/error_line_classes.json` | Pins the Python and C++ `!!` classifiers to one table |
 | `include/printer_event_journal.h`, `src/printer/printer_event_journal.cpp` | `JournalEntry`, `classify_journal_error`, `decide_journal_source`, wire and backfill parsers, `describe_journal_entry` (firmware-compiled) |
 | `include/event_journal_recorder.h`, `src/application/event_journal_recorder.cpp` | `EventJournalRecorder` (the fallback recorder and reconnect backfill) and `LocalEventJournal` |
-| `src/ui/ui_printer_events_overlay.cpp`, `ui_xml/printer_events_overlay.xml` | The Printer Events view, opened from the notification history header |
+| `src/ui/printers/ui_printer_events_overlay.cpp`, `ui_xml/printer_events_overlay.xml` | The Printer Events view, opened from the notification history header |
 | `src/system/debug_bundle_collector.cpp#build_event_journal` | The debug bundle's `event_journal` section |
 
 **Endpoint.** `server.helix.journal {since=0, limit=100}` (limit capped at 500) returns

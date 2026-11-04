@@ -412,7 +412,7 @@ src/ui/home/light_button_config.cpp
 src/ui/home/home_macro_run.cpp
 src/ui/i18n_plural.cpp
 src/ui/locale_formats.cpp
-src/ui/printer_discovery_list.cpp
+src/ui/printers/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp
 src/ui/modals/camera_config_modal.cpp
 src/ui/modals/clog_detection_config_modal.cpp
@@ -518,7 +518,7 @@ src/ui/filament/ui_ams_edit_overlay.cpp
 src/ui/filament/ui_ams_lane_settings.cpp
 src/ui/filament/ui_ams_environment_overlay.cpp
 src/ui/filament/ui_ams_zone_overview_overlay.cpp
-src/ui/ui_printer_events_overlay.cpp
+src/ui/printers/ui_printer_events_overlay.cpp
 src/ui/filament/ui_ams_lane_bar.cpp
 src/ui/filament/ui_ams_lane_spool.cpp
 src/ui/filament/ui_ams_loading_error_modal.cpp
@@ -539,7 +539,7 @@ src/ui/ui_card.cpp
 src/ui/ui_carousel.cpp
 src/ui/filament/ui_chamber_dryer_modal.cpp
 src/ui/filament/ui_bed_drying_modal.cpp
-src/ui/ui_change_host_modal.cpp
+src/ui/printers/ui_change_host_modal.cpp
 src/ui/filament/ui_clog_bar.cpp
 src/ui/filament/ui_clog_meter.cpp
 src/ui/ui_color_picker.cpp
@@ -603,7 +603,7 @@ src/ui/ui_modal.cpp
 src/ui/ui_nav_backdrop.cpp
 src/ui/ui_nav_manager.cpp
 src/ui/ui_nav_panel_registry.cpp
-src/ui/ui_nav_printer_badge.cpp
+src/ui/printers/ui_nav_printer_badge.cpp
 src/ui/ui_navbar_button.cpp
 src/ui/ui_notification.cpp
 src/ui/ui_notification_badge.cpp
@@ -614,8 +614,8 @@ src/ui/ui_panel_notification_history.cpp
 src/ui/settings/ui_overlay_console_settings.cpp
 src/ui/settings/ui_overlay_network_settings.cpp
 src/ui/ui_overlay_performance.cpp
-src/ui/ui_overlay_printer_image.cpp
-src/ui/ui_overlay_printer_type.cpp
+src/ui/printers/ui_overlay_printer_image.cpp
+src/ui/printers/ui_overlay_printer_type.cpp
 src/ui/settings/ui_overlay_retraction_settings.cpp
 src/ui/controls/ui_overlay_temp_graph.cpp
 src/ui/controls/ui_panel_advanced.cpp
@@ -674,11 +674,11 @@ src/ui/print/ui_print_select_path_navigator.cpp
 src/ui/print/ui_print_select_usb_source.cpp
 src/ui/print/ui_print_start_controller.cpp
 src/ui/print/ui_print_tune_overlay.cpp
-src/ui/ui_printer_list_overlay.cpp
-src/ui/ui_printer_manager_overlay.cpp
-src/ui/printer_manager_chips.cpp
-src/ui/ui_printer_status_icon.cpp
-src/ui/ui_printer_switch_menu.cpp
+src/ui/printers/ui_printer_list_overlay.cpp
+src/ui/printers/ui_printer_manager_overlay.cpp
+src/ui/printers/printer_manager_chips.cpp
+src/ui/printers/ui_printer_status_icon.cpp
+src/ui/printers/ui_printer_switch_menu.cpp
 src/ui/calibration/ui_probe_overlay.cpp
 src/ui/ui_progress_arc.cpp
 src/ui/print/ui_pause_markers.cpp

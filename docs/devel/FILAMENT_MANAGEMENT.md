@@ -3226,7 +3226,7 @@ of the primary backend. Ask it, not `get_backend() != nullptr`, `backend_count()
 | First-run wizard and expected hardware | `WizardAmsIdentifyStep::should_skip()` |
 | Tour | `tour::hardware_has_ams()` |
 | Printer image variant | `src/system/printer_image_manager.cpp#detected_hardware_facts` |
-| Printer manager chips | `src/ui/printer_manager_chips.cpp#gather_capability_chip_facts` |
+| Printer manager chips | `src/ui/printers/printer_manager_chips.cpp#gather_capability_chip_facts` |
 
 A sensor a backend claims by name is the printer's own once that backend reports its
 hardware absent: `AmsState::filament_hardware_absent()` (the primary backend's

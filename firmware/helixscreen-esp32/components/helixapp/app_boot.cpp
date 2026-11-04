@@ -178,7 +178,7 @@ void log_heap_milestone(const char* stage) {
 // Task 12 R2: Config (settings.json, the `cfg` partition) is the source of
 // truth for the Moonraker host/port — same schema desktop uses
 // (df()+"moonraker_host" / df()+"moonraker_port", see src/system/config.cpp
-// and src/ui/ui_change_host_modal.cpp). CONFIG_HELIX_HIL_MOONRAKER_URL is only
+// and src/ui/printers/ui_change_host_modal.cpp). CONFIG_HELIX_HIL_MOONRAKER_URL is only
 // the FIRST-BOOT seed for that schema: a full "ws://host:port/path" string
 // (Kconfig's format), parsed once when Config has no value yet. Split out as
 // its own struct/function because Config's two keys need host and port

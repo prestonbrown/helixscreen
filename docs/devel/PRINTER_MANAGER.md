@@ -24,9 +24,9 @@ It follows the standard OverlayBase lifecycle and uses the `overlay_panel` XML c
 | File | Purpose |
 |------|---------|
 | `include/ui_printer_manager_overlay.h` | Class declaration, subjects, callbacks |
-| `src/ui/ui_printer_manager_overlay.cpp` | Implementation (refresh, name edit, chip text subjects) |
+| `src/ui/printers/ui_printer_manager_overlay.cpp` | Implementation (refresh, name edit, chip text subjects) |
 | `include/printer_manager_chips.h` | Chip spec table, fact gathering, tap dispatch |
-| `src/ui/printer_manager_chips.cpp` | One `CapChipSpec` per chip: name, text subject, info copy, opener |
+| `src/ui/printers/printer_manager_chips.cpp` | One `CapChipSpec` per chip: name, text subject, info copy, opener |
 | `include/capability_chip_text.h` | `CapChip`, `CapabilityChipFacts`, `capability_chip_text()` (pure) |
 | `ui_xml/components/capability_chip.xml` | The chip: icon, bound text, tap callback |
 | `ui_xml/printer_manager_overlay.xml` | Declarative layout (3 sections) |
@@ -34,12 +34,12 @@ It follows the standard OverlayBase lifecycle and uses the `overlay_panel` XML c
 | `include/printer_image_manager.h` | Image import/conversion/selection |
 | `src/system/printer_image_manager.cpp` | PNG/JPEG to LVGL .bin pipeline |
 | `include/ui_overlay_printer_image.h` | Image picker overlay |
-| `src/ui/ui_overlay_printer_image.cpp` | Image picker implementation |
+| `src/ui/printers/ui_overlay_printer_image.cpp` | Image picker implementation |
 | `ui_xml/printer_image_overlay.xml` | Image picker layout (list + preview) |
 | `include/printer_images.h` | Printer type to image path mapping |
 | `include/prerendered_images.h` | Screen-responsive image size selection |
 | `include/ui_overlay_printer_type.h` | Model-correction overlay (click-to-correct row) |
-| `src/ui/ui_overlay_printer_type.cpp` | Type list, selection, `apply_type_choice()` routing |
+| `src/ui/printers/ui_overlay_printer_type.cpp` | Type list, selection, `apply_type_choice()` routing |
 | `assets/config/printer_database.json` | Printer definitions, heuristics, images |
 | `include/printer_image_variants.h` | `image_variants` matcher: pure, over `HardwareFacts` |
 | `include/capability_matrix.h` | Pre-print operation capability merging |

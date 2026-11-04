@@ -39,7 +39,7 @@ USB mice, keyboards and touchscreens go through `input_device_scanner` and the d
 | `include/ui_print_select_usb_source.h` / `src/ui/print/ui_print_select_usb_source.cpp` | `PrintSelectUsbSource`: Printer/USB source switch, subjects, file conversion |
 | `src/ui/print/ui_panel_print_select.cpp` | Hosts the USB source, copies a USB file to Moonraker before printing, Moonraker `usb/` symlink probe |
 | `ui_xml/print_select_panel.xml` | `source_selector` bindings |
-| `src/ui/ui_overlay_printer_image.cpp` | Image import from the first mounted drive |
+| `src/ui/printers/ui_overlay_printer_image.cpp` | Image import from the first mounted drive |
 | `include/single_flight_walk.h` | `SingleFlightWalk`: one stick walk at a time on `HttpExecutor::fast()`, newest request wins |
 | `src/print/print_file_data.cpp` | `PrintFileData::from_usb_file` (keeps the stick path in `local_path`) |
 | `include/usb_printer_detector.h` / `src/system/usb_printer_detector.cpp` | libusb scan for known label printer VID:PIDs |
@@ -76,7 +76,7 @@ UsbBackendLinux monitor thread          UI thread (LVGL)
 Two consumers hold a raw `UsbManager*`:
 
 - `PrintSelectPanel` gets push events (through the `SubjectInitializer` callback) and also reads `get_drives()` when the manager is attached, which covers a drive that was already mounted before the panel existed (`src/ui/print/ui_print_select_usb_source.cpp#set_usb_manager`).
-- `PrinterImageOverlay` gets no events. It calls `get_drives()` on every `on_activate()` and walks only `drives[0]` for images, off the UI thread through its own `SingleFlightWalk` (`src/ui/ui_overlay_printer_image.cpp#scan_usb_drives`).
+- `PrinterImageOverlay` gets no events. It calls `get_drives()` on every `on_activate()` and walks only `drives[0]` for images, off the UI thread through its own `SingleFlightWalk` (`src/ui/printers/ui_overlay_printer_image.cpp#scan_usb_drives`).
 
 ### Detection: watching the mount table
 

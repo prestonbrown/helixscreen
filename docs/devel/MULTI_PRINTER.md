@@ -24,10 +24,10 @@ Key properties:
 | `include/application.h` | `switch_printer()`, `add_printer_via_wizard()`, `cancel_add_printer_wizard()`, soft restart state |
 | `src/application/application.cpp` | Soft restart lifecycle: `tear_down_printer_state()`, `init_printer_state()` |
 | `include/ui_printer_switch_menu.h` | `PrinterSwitchMenu` context menu (extends `ContextMenu`) |
-| `src/ui/ui_printer_switch_menu.cpp` | Navbar badge popup: printer list, checkmark active, add button |
+| `src/ui/printers/ui_printer_switch_menu.cpp` | Navbar badge popup: printer list, checkmark active, add button |
 | `include/ui_printer_list_overlay.h` | `PrinterListOverlay` (extends `OverlayBase`) |
-| `src/ui/ui_printer_list_overlay.cpp` | Settings management: switch, add, delete with confirmation |
-| `src/ui/ui_printer_manager_overlay.cpp` | "Manage Printers" button in Printer Manager overlay |
+| `src/ui/printers/ui_printer_list_overlay.cpp` | Settings management: switch, add, delete with confirmation |
+| `src/ui/printers/ui_printer_manager_overlay.cpp` | "Manage Printers" button in Printer Manager overlay |
 | `src/ui/settings/ui_panel_settings.cpp` | "Printers" row in Settings panel |
 | `src/ui/ui_nav_manager.cpp` | Printer badge click handler, switch/add callbacks, `PrinterSwitchMenu` ownership |
 | `include/printer_state.h` | `active_printer_name_` subject |

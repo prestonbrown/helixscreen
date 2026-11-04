@@ -45,7 +45,7 @@ pid_temp_hint  # src/ui/calibration/ui_panel_calibration_pid.cpp:120
 print_pending_action  # src/ui/print/print_control_buttons.cpp:42
 print_status_nozzle_text  # src/ui/panel_widgets/print_status_widget.cpp:2079
 printer_detection_status  # src/ui/wizard/ui_wizard_printer_identify.cpp:314
-printer_icon_state  # src/ui/ui_printer_status_icon.cpp:40
+printer_icon_state  # src/ui/printers/ui_printer_status_icon.cpp:40
 probe_acc_median  # src/ui/calibration/ui_probe_overlay.cpp:364
 probe_overlay_state  # src/ui/calibration/ui_probe_overlay.cpp:309
 selected_filename  # src/ui/print/ui_panel_print_select.cpp:298

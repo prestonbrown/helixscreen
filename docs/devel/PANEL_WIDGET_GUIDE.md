@@ -520,7 +520,7 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   format and `tools/printer-regions-tagger.html` is the tagging tool. `[regions]` fails,
   naming the image, when a PNG no longer matches its recorded size.
 - **Users tag their own.** Tag parts in the printer image picker opens
-  `PrinterImageTaggerOverlay` (`src/ui/ui_overlay_printer_image_tagger.cpp`), which walks
+  `PrinterImageTaggerOverlay` (`src/ui/printers/ui_overlay_printer_image_tagger.cpp`), which walks
   `helix::ImageTagSession` through the same six prompts on the image the widget displays and
   saves to `<config dir>/printer_image_regions.json` through `save_user_image_regions()`.
   Both files are keyed by `printer_image_region_key()`, which gives a custom photo
