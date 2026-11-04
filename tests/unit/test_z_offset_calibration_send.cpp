@@ -225,6 +225,94 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration abort: a hot-reload rebuil
 }
 
 // ============================================================================
+// A failed run does not leave Klipper in a manual probe session
+// ============================================================================
+
+namespace {
+
+/// Holds Klipper's manual_probe state for one case, on the process-wide subject.
+class ManualProbeActive {
+  public:
+    explicit ManualProbeActive(bool active) {
+        set(active ? 1 : 0);
+    }
+    ~ManualProbeActive() {
+        set(0);
+    }
+
+  private:
+    static void set(int value) {
+        lv_subject_set_int(
+            get_printer_state().calibration_state().get_manual_probe_active_subject(), value);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration failure: an open manual probe session is aborted, the error stays",
+                 "[ui_integration][zoffset]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ManualProbeActive session(true);
+
+    ZOffsetCalibrationTestAccess::on_calibration_result(panel, false);
+
+    CHECK(client.last_send_script() == "ABORT");
+    // The user still has to read why the run failed.
+    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::ERROR);
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration failure: no session open means no ABORT on the wire",
+                 "[ui_integration][zoffset]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ManualProbeActive session(false);
+
+    // Klipper registers ABORT only during a session, so a stray one logs Unknown command.
+    ZOffsetCalibrationTestAccess::on_calibration_result(panel, false);
+
+    CHECK(client.last_send_script().empty());
+    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::ERROR);
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture, "Calibration retry: an open session is aborted first",
+                 "[ui_integration][zoffset]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ManualProbeActive session(true);
+    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::ERROR);
+
+    ZOffsetCalibrationTestAccess::handle_retry_clicked(panel);
+
+    CHECK(client.last_send_script() == "ABORT");
+    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::IDLE);
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration leave: an idle panel leaves another client's session alone",
+                 "[ui_integration][zoffset]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    // A session Mainsail or Fluidd opened while this panel sat idle is not ours to end.
+    ManualProbeActive session(true);
+    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::IDLE);
+
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+
+    CHECK(client.last_send_script().empty());
+}
+
+// ============================================================================
 // Start: the head goes over the plate centre before the calibrate command
 // ============================================================================
 
