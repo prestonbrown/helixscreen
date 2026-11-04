@@ -14,7 +14,7 @@ namespace helix::ui {
 class UpdateQueueTestAccess {
   public:
     static void drain(UpdateQueue& q) {
-        q.process_pending();
+        q.drain();
     }
 
     /// Drop queued callbacks WITHOUT running them.
@@ -115,16 +115,8 @@ class UpdateQueueTestAccess {
         return passes_until(UpdateQueue::instance(), std::forward<Done>(done), max_passes);
     }
 
-    /// Drain repeatedly until the queue is fully empty (handles nested queue_update calls)
     static void drain_all(UpdateQueue& q, int max_iterations = 10) {
-        for (int i = 0; i < max_iterations; ++i) {
-            {
-                std::lock_guard<std::mutex> lock(q.mutex_);
-                if (q.pending_.empty())
-                    return;
-            }
-            q.process_pending();
-        }
+        q.drain_until_empty(max_iterations);
     }
 };
 

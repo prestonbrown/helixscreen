@@ -7,6 +7,7 @@
 #include "test_helpers/log_capture.h"
 #include "test_helpers/update_queue_test_access.h"
 
+#include <functional>
 #include <memory>
 #include <system_error>
 
@@ -364,6 +365,46 @@ TEST_CASE_METHOD(LVGLTestFixture, "queue_update frees its payload when the callb
     (void)helix::ui::UpdateQueueTestAccess::discard_pending(helix::ui::UpdateQueue::instance());
     REQUIRE(probe.expired());
     lv_obj_delete(widget);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "drain_until_empty follows queued work up to its pass cap",
+                 "[update_queue]") {
+    auto& q = UpdateQueue::instance();
+    int ran = 0;
+    std::function<void(int)> chain = [&](int hops) {
+        q.queue("chain", [&, hops]() {
+            ++ran;
+            if (hops > 1) {
+                chain(hops - 1);
+            }
+        });
+    };
+
+    SECTION("drain alone stops at the first hop") {
+        chain(2);
+        q.drain();
+        CHECK(ran == 1);
+    }
+    SECTION("the default cap covers ten hops and stops short of an eleventh") {
+        chain(10);
+        q.drain_until_empty();
+        CHECK(ran == 10);
+        CHECK(UpdateQueueTestAccess::queue_empty(q));
+
+        ran = 0;
+        chain(11);
+        q.drain_until_empty();
+        CHECK(ran == 10);
+        CHECK_FALSE(UpdateQueueTestAccess::queue_empty(q));
+    }
+    SECTION("an explicit cap leaves the rest queued") {
+        chain(5);
+        q.drain_until_empty(2);
+        CHECK(ran == 2);
+        CHECK_FALSE(UpdateQueueTestAccess::queue_empty(q));
+    }
+    // Nothing queued may outlive the captures above.
+    q.drain_until_empty();
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "is_draining holds through nested drains and ends with them",
