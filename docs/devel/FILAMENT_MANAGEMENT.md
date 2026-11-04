@@ -3646,6 +3646,12 @@ static constexpr BackendTraits kTraits = [] {
 }
 ```
 
+**Operations only one family has go behind a capability interface.** Generic code asks
+`backend->as<ICfsCalibration>()` and gets nullptr from every backend that lacks it
+(`include/ams_capability.h`). To publish one, inherit the interface and return
+`static_cast<I*>(this)` from `capability()` for `helix::type_tag<I>()`, deferring to the base for
+any other tag. The interface sits in its own header, so changing it rebuilds only its users.
+
 **Optional overrides (with default implementations):**
 
 - `clear_fault()` -- Clear a latched fault, bookkeeping only (default: forwards to `cancel()`)
