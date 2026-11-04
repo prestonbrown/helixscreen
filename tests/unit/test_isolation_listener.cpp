@@ -25,6 +25,7 @@
 #include "../test_helpers/live_thread_count.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../ui_test_utils.h"
 #include "http_executor.h"
 #include "moonraker_client_mock.h"
 #include "system/lvgl_thread_check.h"
@@ -290,6 +291,14 @@ class IsolationListener : public Catch::EventListenerBase {
         cwd_ = current_cwd();
         data_dir_ = env_or("HELIX_DATA_DIR");
         config_dir_ = env_or("HELIX_CONFIG_DIR");
+
+        // lv_init() starts LVGL's software render thread, which lives until
+        // lv_deinit(). Every case gets LVGL from CacheSandboxListener, and Catch2
+        // gives no order between listeners, so bring it up before the baseline:
+        // otherwise the first case in a process (and the first after a test that
+        // deinitialises LVGL) is reported as leaking that thread.
+        lv_init_safe();
+
         const int raw_threads = helix::test::live_thread_count();
         threads_ = live_thread_count_beyond_thumbnail_pool();
 
