@@ -150,6 +150,10 @@ class FilamentPanel : public PanelBase {
     friend struct helix::ui::FilamentPanelTestAccess;
 
   public:
+    /// How long a filament operation may run before the panel gives up on it
+    /// (a purge or extrude at a slow feedrate).
+    static constexpr uint32_t kOperationTimeoutMs = 120000;
+
     /**
      * @brief Construct FilamentPanel with injected dependencies
      *
@@ -708,8 +712,6 @@ class FilamentPanel : public PanelBase {
     void update_chamber_temp_display();
     void update_left_card_temps();
     void update_status_icon_for_state();
-    static constexpr uint32_t kOperationTimeoutMs =
-        120000; // 2 min — purge/extrude at slow feedrate
 
     // Filament sensor warning helpers
     void show_load_warning();

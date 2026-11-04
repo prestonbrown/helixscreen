@@ -45,7 +45,7 @@ void advance_clock(uint32_t ms) {
 
 /// Waits out the panel's own operation budget while the preamble is unanswered.
 void outlast_operation_budget() {
-    advance_clock(TA::kOperationTimeoutMs + 1000);
+    advance_clock(FilamentPanel::kOperationTimeoutMs + 1000);
 }
 
 } // namespace
