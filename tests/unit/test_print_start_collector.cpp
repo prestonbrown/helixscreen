@@ -301,7 +301,6 @@ TEST_CASE("PrintStart: default profile reads each phase from real and generic li
 #include "../test_helpers/preprint_config_scope.h"
 #include "../test_helpers/print_start_collector_test_access.h"
 #include "../test_helpers/print_start_profile_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "moonraker_client_mock.h"
 #include "print_start_analyzer.h"
@@ -407,7 +406,7 @@ class PrintStartCollectorHeaterFixture : public LVGLTestFixture {
      * we need to drain the queue to see the updates in tests.
      */
     void drain_async_updates() {
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /**

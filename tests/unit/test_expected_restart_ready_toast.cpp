@@ -19,7 +19,6 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/emergency_stop_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
@@ -69,7 +68,7 @@ class ReadyToastFixture : public XMLTestFixture {
     // hops through async_call before it touches any toast, so a single drain
     // leaves the toast in flight.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 16);
+        UpdateQueue::instance().drain_until_empty(16);
     }
 
     struct Shown {

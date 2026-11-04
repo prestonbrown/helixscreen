@@ -23,7 +23,6 @@
 #include "../test_helpers/filament_runout_handler_test_access.h"
 #include "../test_helpers/filament_sensor_widget_test_access.h"
 #include "../test_helpers/scoped_shared_resource.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -227,7 +226,7 @@ class HeaterFixture : public LVGLTestFixture {
     /// The heater's handlers run deferred and queue the cooldown's own work, so
     /// drain until quiet.
     static void drain_all() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Assign an external spool of @p material, which a load with no lane heats for.
@@ -579,7 +578,7 @@ TEST_CASE_METHOD(HeaterFixture, "A replacement that runs on the replaced heat ke
 
     CHECK(wait_until(
         [&cd]() {
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
             return cd.has_pending_timer();
         },
         3000));
@@ -597,7 +596,7 @@ TEST_CASE_METHOD(HeaterFixture, "A tile load that heated cools down after its ma
 
     REQUIRE(wait_until(
         [&cd]() {
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
             return cd.has_pending_timer();
         },
         3000));
@@ -1138,7 +1137,7 @@ TEST_CASE_METHOD(HeaterFixture, "A replace that skips its preheat takes the heat
     CHECK_FALSE(sent(std::string(kHeatGcode) + "0"));
     CHECK(wait_until(
         [&cd]() {
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
             return cd.has_pending_timer();
         },
         3000));
@@ -1192,7 +1191,7 @@ TEST_CASE_METHOD(HeaterFixture, "A purge right after a heated load still cools d
     const auto cooldown_pending = [this, &cd]() {
         return wait_until(
             [&cd]() {
-                helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+                helix::ui::UpdateQueue::instance().drain_until_empty();
                 return cd.has_pending_timer();
             },
             3000);

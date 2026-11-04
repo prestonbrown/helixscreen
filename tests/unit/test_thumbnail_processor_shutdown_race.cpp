@@ -22,7 +22,6 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "thumbnail_processor.h"
 
 #include <atomic>
@@ -42,7 +41,7 @@ namespace {
 /// just retired, and the untagged ceiling now has zero headroom.
 struct ThumbnailRaceFixture : public HelixTestFixture {
     ~ThumbnailRaceFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -156,7 +155,7 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_file_async opens the file on the
 
     // The worker runs, fails the open, and reports through the UpdateQueue.
     proc->wait_for_completion();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(errors.load() == 1);
     CHECK(successes.load() == 0);
@@ -273,7 +272,7 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_async racing shutdown never uses
         CHECK(proc->pending_tasks() == 0);
         // Drain per iteration, not just at teardown: 40 rounds of deferred
         // callbacks would otherwise accumulate in the queue.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     INFO("slowest shutdown(): " << slowest_ms.load() << " ms");

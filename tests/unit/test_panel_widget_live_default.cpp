@@ -25,7 +25,6 @@
 #include "../test_helpers/scoped_config_write_counter.h"
 #include "../test_helpers/scoped_int_subject.h"
 #include "../test_helpers/scoped_runtime_config.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "config.h"
 #include "connection_state.h"
@@ -105,7 +104,7 @@ class LiveDefaultFixture : public LVGLUITestFixture {
         if (lv_xml_get_subject(nullptr, "ams_slot_count") == nullptr) {
             AmsState::instance().init_subjects(true);
         }
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     ~LiveDefaultFixture() override {
@@ -116,7 +115,7 @@ class LiveDefaultFixture : public LVGLUITestFixture {
         }
         PrintStatusWidget::destroy_formatter_for_test();
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         res_.reset();
         if (lv_display_t* d = lv_display_get_default()) {
             theme_manager_refresh_layout_constants(d);
@@ -188,7 +187,7 @@ class LiveDefaultFixture : public LVGLUITestFixture {
 
     void populate(const std::string& panel) {
         PanelWidgetManager::instance().populate_widgets(panel, container_, 0);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_obj_update_layout(container_);
     }
 
@@ -203,9 +202,9 @@ class LiveDefaultFixture : public LVGLUITestFixture {
     }
 
     void run_rebuild() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_lvgl(20);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Let a save held by save_soon() come due.
@@ -1176,7 +1175,7 @@ TEST_CASE_METHOD(LiveDefaultFixture,
         crash_handler::breadcrumb::note("drain", "drain");
     }
     set("filament_sensor_count", 3);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     const auto lines = helix::capture_breadcrumb_lines();
     const bool named = std::any_of(lines.begin(), lines.end(), [](const std::string& line) {

@@ -24,7 +24,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/power_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "moonraker_types.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -64,7 +63,7 @@ class PowerPanelLockFixture : public LVGLUITestFixture {
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Build the panel with a null API so setup()'s device fetch is a no-op and

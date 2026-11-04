@@ -26,6 +26,7 @@
  */
 
 #include "ui_modal.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -33,7 +34,6 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/tool_switcher_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -63,7 +63,7 @@ struct ToolSwitcherGateFixture : public LVGLTestFixture {
     /// A host-side pre-print block: the wire still reads standby.
     void set_preprint_phase(helix::PrintStartPhase phase) {
         printer_state.print_state().set_print_start_state(phase, "", 0);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     helix::PrinterState printer_state;
@@ -203,9 +203,7 @@ TEST_CASE_METHOD(ToolSwitcherGateFixture,
 
     // observe<int>() defers through the UpdateQueue, so the gate lands on
     // the next tick — drain before asserting.
-    auto tick = [] {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    };
+    auto tick = [] { helix::ui::UpdateQueue::instance().drain_until_empty(); };
 
     set_print_state(helix::PrintJobState::PRINTING);
     tick();

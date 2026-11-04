@@ -100,7 +100,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "GCode viewer: a load superseded by a newer on
     lv_obj_set_size(viewer, 240, 240);
     lv_obj_update_layout(viewer);
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     g_reports.clear();
     helix::ui::gcode_viewer_set_load_callback(viewer, on_load_done, nullptr);
 
@@ -154,7 +154,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "GCode viewer: clear drops a queued load resul
     lv_obj_update_layout(viewer);
     const uint32_t children_before = lv_obj_get_child_count(viewer);
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     g_reports.clear();
     helix::ui::gcode_viewer_set_load_callback(viewer, on_load_done, nullptr);
 
@@ -193,7 +193,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     auto& queue = helix::ui::UpdateQueue::instance();
     lv_obj_t* second = nullptr;
     for (int round = 0; round < 8 && second == nullptr; ++round) {
-        helix::ui::UpdateQueueTestAccess::drain_all(queue);
+        queue.drain_until_empty();
         lv_obj_t* first = helix::ui::gcode_viewer_create(test_screen());
         REQUIRE(first != nullptr);
 
@@ -219,7 +219,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // The successor's first generation bump: a viewer that counts from zero
     // again lands on the number the queued result carries.
     helix::ui::gcode_viewer_clear(second);
-    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    queue.drain_until_empty();
 
     CHECK_FALSE(helix::ui::gcode_viewer_has_content(second));
     CHECK(helix::ui::gcode_viewer_get_parsed_file(second) == nullptr);
@@ -283,7 +283,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(viewer != nullptr);
     lv_obj_set_size(viewer, 240, 240);
     lv_obj_update_layout(viewer);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     helix::ui::gcode_viewer_load_file(viewer, first.c_str());
     lv_obj_t* old_card = loading_card(viewer);
@@ -302,10 +302,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Deferred: the old card is freed on LVGL's async tick, not under the load.
     CHECK(old_card_deleted == 0);
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(ran);
     process_lvgl(20);
     CHECK(old_card_deleted == 1);
     lv_obj_delete(viewer);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }

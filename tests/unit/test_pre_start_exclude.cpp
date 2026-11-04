@@ -5,9 +5,10 @@
 // Klipper stores names), when every object is picked, and how the file scan's
 // list and the full parse's list combine.
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_select_panel_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "gcode_parser.h"
@@ -117,7 +118,7 @@ class SendFixture : private helix::PrintSelectGlobalStateReset, public LVGLTestF
         settle();
     }
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     std::vector<std::string> exclusions() const {
         std::vector<std::string> out;

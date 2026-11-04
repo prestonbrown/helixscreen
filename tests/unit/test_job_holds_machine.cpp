@@ -19,7 +19,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -61,7 +60,7 @@ struct JobHoldsMachineFixture : public LVGLTestFixture {
     /// set_print_start_state() defers, so drive the queue to quiescence rather
     /// than once - a handler running during a drain can queue more work.
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void report_job_state(const char* moonraker_state) {
@@ -220,7 +219,7 @@ TEST_CASE_METHOD(XMLTestFixture, "the bypass tile is disabled during a host-side
     // of it and cannot keep this tile from being tapped.
     state().update_from_status(nlohmann::json{{"print_stats", {{"state", "standby"}}}});
     state().print_state().set_print_start_state(helix::PrintStartPhase::BED_MESH, "", 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(lv_subject_get_int(state().print_state().get_print_active_subject()) == 0);
     REQUIRE(lv_obj_has_state(tile, LV_STATE_DISABLED));
@@ -228,7 +227,7 @@ TEST_CASE_METHOD(XMLTestFixture, "the bypass tile is disabled during a host-side
     // And it comes back when the block is abandoned - a latched-disabled control
     // is the failure mode that would make this fix worse than the bug.
     state().print_state().set_print_start_state(helix::PrintStartPhase::IDLE, "", 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE_FALSE(lv_obj_has_state(tile, LV_STATE_DISABLED));
 }
 
@@ -253,14 +252,14 @@ TEST_CASE_METHOD(XMLTestFixture, "moves_machine installs the toolhead guard by c
     // lifecycle subject moves.
     state().update_from_status(nlohmann::json{{"print_stats", {{"state", "standby"}}}});
     state().print_state().set_print_start_state(helix::PrintStartPhase::BED_MESH, "", 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(lv_subject_get_int(state().print_state().get_print_active_subject()) == 0);
     REQUIRE(lv_obj_has_state(control, LV_STATE_DISABLED));
 
     // And it releases - a latched-disabled control is the failure mode.
     state().print_state().set_print_start_state(helix::PrintStartPhase::IDLE, "", 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE_FALSE(lv_obj_has_state(control, LV_STATE_DISABLED));
 
     // Spools on the bed block the same controls with no job at all

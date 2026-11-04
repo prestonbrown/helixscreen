@@ -5,6 +5,7 @@
 #include "ui_panel_print_status.h"
 #include "ui_print_preparation_manager.h"
 #include "ui_print_start_controller.h"
+#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/archive_transfers.h"
@@ -15,7 +16,6 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/snapmaker_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
@@ -52,7 +52,7 @@ std::string disk_bytes(const std::string& path) {
 }
 
 void drain_until_quiet() {
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 16);
+    UpdateQueue::instance().drain_until_empty(16);
 }
 
 constexpr const char* kArchive = "Door.gcode.3mf";

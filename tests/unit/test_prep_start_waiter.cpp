@@ -27,7 +27,6 @@
 #include "../test_helpers/queued_job_starter_test_access.h"
 #include "../test_helpers/queued_start_fixture.h"
 #include "../test_helpers/scoped_macros_read.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "gcode_ops_detector.h"
@@ -79,7 +78,7 @@ class WaiterFixture : private helix::PrintSelectGlobalStateReset, public LVGLUIT
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance(), 6);
+        helix::ui::UpdateQueue::instance().drain_until_empty(6);
     }
 
     /// when_ready_to_start(@p name, @p dir, @p version), recording its answer.

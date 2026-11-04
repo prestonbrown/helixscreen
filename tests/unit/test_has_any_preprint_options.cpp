@@ -22,7 +22,6 @@
 #include "ui_update_queue.h"
 
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "pre_print_option.h"
@@ -60,7 +59,7 @@ PrinterDiscovery hardware_with(bool bed_mesh, bool qgl, bool z_tilt, bool nozzle
 }
 
 int read_aggregate(PrinterState& state) {
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
     return lv_subject_get_int(
         state.composite_visibility_state().get_has_any_preprint_options_subject());
 }
@@ -165,7 +164,7 @@ TEST_CASE("has_any_preprint_options: framework option count drives card alone",
 // ---------------------------------------------------------------------------
 
 const PrePrintOption* find_timelapse_option(PrinterState& state) {
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
     return state.profile_state().pre_print_option_set().find("timelapse");
 }
 
@@ -227,7 +226,7 @@ TEST_CASE("a database option owning the timelapse capability suppresses the synt
     state.set_printer_type_sync("Snapmaker U1");
     state.set_timelapse_available(true);
     state.set_timelapse_default_enabled(true);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     const PrePrintOptionSet& set = state.profile_state().pre_print_option_set();
     REQUIRE(set.declares_capability("timelapse"));
@@ -250,7 +249,7 @@ TEST_CASE("a printer with no database timelapse option still gets the synthesize
     state.set_printer_type_sync("Voron 2.4");
     state.set_timelapse_available(true);
     state.set_timelapse_default_enabled(true);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     // The synthesized row carries id "timelapse", so it declares that
     // capability itself - what distinguishes the two cases is WHICH row
@@ -276,12 +275,12 @@ TEST_CASE("helix_plugin_installed keeps unknown (-1) apart from not installed (0
     CHECK_FALSE(state.plugin_status_state().service_has_helix_plugin());
 
     state.set_helix_plugin_installed(false);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(installed) == 0);
     CHECK_FALSE(state.plugin_status_state().service_has_helix_plugin());
 
     state.set_helix_plugin_installed(true);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(installed) == 1);
     CHECK(state.plugin_status_state().service_has_helix_plugin());
 }

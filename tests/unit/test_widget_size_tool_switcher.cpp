@@ -19,13 +19,13 @@
  */
 
 #include "ui_tile_rung.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/tool_switcher_test_access.h"
 #include "../test_helpers/tool_topologies.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "helix/ui/text_metrics.h"
@@ -55,7 +55,7 @@ namespace {
 struct ToolSwitcherFixture : public LVGLUITestFixture {
     ~ToolSwitcherFixture() override {
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -130,7 +130,7 @@ struct ParkingBackend {
         backend->wait_for_operation_thread();
         backend->stop();
         AmsState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 

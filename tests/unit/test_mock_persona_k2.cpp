@@ -13,7 +13,6 @@
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/mock_personas.h"
 #include "test_helpers/moonraker_client_mock_test_access.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include <algorithm>
 #include <chrono>
@@ -153,7 +152,7 @@ TEST_CASE("The k2 persona reports the declared 350 bed through discovery", "[moc
         volume = mock.hardware().build_volume();
     }
     // Discovery queues UI-thread callbacks; run them before the test ends.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(volume.declared_bed_x == Catch::Approx(350.0f));
     CHECK(volume.declared_bed_y == Catch::Approx(350.0f));
@@ -220,7 +219,7 @@ struct K2Cfs {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Run @p script as an @p intent action with the toolhead switch reading

@@ -5,13 +5,13 @@
 // TemperatureController takes when the backend has one, and the arbiter that
 // decides when a print held by an unheated chamber is put to the user.
 #include "ui_modal.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/abort_manager_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_shared_resource.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "abort_manager.h"
 #include "app_globals.h"
 #include "chamber_heater_backend.h"
@@ -43,7 +43,7 @@ using helix::chamber::RefusalCause;
 namespace {
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 struct RejectionStateFixture : public LVGLTestFixture {

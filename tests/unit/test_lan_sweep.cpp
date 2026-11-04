@@ -5,7 +5,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../mocks/mock_mdns_discovery.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "lan_sweep.h"
 #include "printer_discovery_list.h"
 
@@ -34,7 +33,7 @@ LocalIpv4 net(uint32_t address, uint32_t netmask) {
 }
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// Drain the UI queue until @p done or two seconds pass.

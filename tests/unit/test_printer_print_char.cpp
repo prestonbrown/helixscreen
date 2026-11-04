@@ -481,7 +481,7 @@ TEST_CASE("Print characterization: layer tracking from JSON", "[characterization
 
     SECTION("set_print_layer_total API updates subject") {
         state.print_state().set_print_layer_total(200);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_layer_total_subject()) == 200);
     }
@@ -489,7 +489,7 @@ TEST_CASE("Print characterization: layer tracking from JSON", "[characterization
     SECTION("null layer values are ignored") {
         // Set initial value
         state.print_state().set_print_layer_total(100);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Moonraker sometimes sends null for layer info
         json status = {{"print_stats", {{"info", {{"current_layer", nullptr}}}}}};
@@ -637,7 +637,7 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
                                                   30);
 
         // Drain the async queue to apply the updates
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::HEATING_BED));
@@ -650,17 +650,17 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
         REQUIRE(state.print_state().is_in_print_start() == false);
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(state.print_state().is_in_print_start() == true);
     }
 
     SECTION("reset_print_start_state sets phase to IDLE") {
         state.print_state().set_print_start_state(PrintStartPhase::QGL, "QGL...", 50);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         state.print_state().reset_print_start_state();
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::IDLE));
@@ -672,13 +672,13 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
     SECTION("progress is clamped to 0-100") {
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING, "Starting...",
                                                   150);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_progress_subject()) == 100);
 
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING, "Starting...",
                                                   -10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_progress_subject()) == 0);
     }
@@ -695,7 +695,7 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
 
         for (auto phase : phases) {
             state.print_state().set_print_start_state(phase, "Test", 50);
-            UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain();
 
             REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                     static_cast<int>(phase));
@@ -724,7 +724,7 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Outcome should be cleared — cancel button visible during pre-print
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
@@ -743,7 +743,7 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
 
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating bed...",
                                                   20);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
@@ -760,7 +760,7 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING, "Starting...", 5);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
@@ -776,14 +776,14 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
 
         // Advance through phases — outcome stays NONE, no redundant clearing
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating bed...",
                                                   40);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
     }
@@ -804,7 +804,7 @@ TEST_CASE("Print characterization: print start phase safety reset",
 
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_NOZZLE, "Heating...",
                                                   40);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
@@ -850,7 +850,7 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
         // Moonraker reports "printing" (print_active_ is still 0)
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING,
                                                   "Preparing Print...", 0);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Phase must update (not be rejected by the stale-update guard)
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
@@ -873,7 +873,7 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
                 static_cast<int>(PrintOutcome::CANCELLED));
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::HOMING));
@@ -886,7 +886,7 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
         json printing = {{"print_stats", {{"state", "printing"}}}};
         state.update_from_status(printing);
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating...", 30);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::HEATING_BED));
 
@@ -904,7 +904,7 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
 
         // Now a new print from IDLE phase should still work
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING, "Preparing...", 0);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::INITIALIZING));
     }
@@ -932,7 +932,7 @@ TEST_CASE("Print characterization: print_show_progress derived subject",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating...", 30);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Active but in start phase = don't show progress yet
         REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
@@ -963,12 +963,12 @@ TEST_CASE("Print characterization: print_show_progress derived subject",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::COMPLETE, "Done", 100);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_show_progress_subject()) == 0);
 
         // Phase goes to IDLE
         state.print_state().reset_print_start_state();
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_show_progress_subject()) == 1);
     }
@@ -989,12 +989,12 @@ TEST_CASE("Print characterization: workflow state", "[characterization][print][w
         REQUIRE(lv_subject_get_int(state.print_state().get_print_in_progress_subject()) == 0);
 
         state.print_state().set_print_in_progress(true);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_in_progress_subject()) == 1);
 
         state.print_state().set_print_in_progress(false);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_in_progress_subject()) == 0);
     }
@@ -1003,7 +1003,7 @@ TEST_CASE("Print characterization: workflow state", "[characterization][print][w
         REQUIRE(state.print_state().is_print_in_progress() == false);
 
         state.print_state().set_print_in_progress(true);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(state.print_state().is_print_in_progress() == true);
     }
@@ -1015,7 +1015,7 @@ TEST_CASE("Print characterization: workflow state", "[characterization][print][w
 
     SECTION("can_start_new_print returns false when print_in_progress is true") {
         state.print_state().set_print_in_progress(true);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(state.print_state().can_start_new_print() == false);
     }
@@ -1391,7 +1391,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     SECTION("slicer estimate seeds time_left at progress 0") {
         state.print_state().set_estimated_print_time(83);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Seeding sets time_left to slicer estimate
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 83);
@@ -1458,7 +1458,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
     SECTION("same-file reprint preserves time_left from slicer estimate") {
         // Simulate first print: slicer says 1469s (24.5 min)
         state.print_state().set_estimated_print_time(1469);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // time_left was seeded with slicer estimate
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 1469);
@@ -1473,7 +1473,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 
     SECTION("reset clears progress and duration but keeps estimate") {
         state.print_state().set_estimated_print_time(1469);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Simulate some print progress
         json progress = {{"virtual_sdcard", {{"progress", 0.50}}}};
@@ -1509,7 +1509,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
     SECTION("different file updates time_left even after reset seeded old value") {
         // First file: 1469s estimate
         state.print_state().set_estimated_print_time(1469);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Reset (re-seeds with old estimate)
         state.print_state().reset_for_new_print();
@@ -1517,7 +1517,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 
         // New file has different estimate (500s) — metadata callback fires
         state.print_state().set_estimated_print_time(500);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Progress is still 0, so set_estimated_print_time should update time_left
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 500);
@@ -1527,12 +1527,12 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
     SECTION("set_estimated_print_time updates time_left at progress 0 even when non-zero") {
         // Seed with initial estimate
         state.print_state().set_estimated_print_time(1000);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 1000);
 
         // New estimate arrives while still at 0% progress
         state.print_state().set_estimated_print_time(2000);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Should update to new value (not skip because time_left was already non-zero)
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 2000);
@@ -1540,7 +1540,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 
     SECTION("set_estimated_print_time does NOT update time_left once progress > 0") {
         state.print_state().set_estimated_print_time(1000);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Advance progress to 10%
         json progress = {{"virtual_sdcard", {{"progress", 0.10}}}};
@@ -1555,7 +1555,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 
         // Late metadata callback with a different estimate should NOT override
         state.print_state().set_estimated_print_time(5000);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // time_left should still be progress-based, not the new slicer estimate
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 900);

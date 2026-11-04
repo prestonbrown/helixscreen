@@ -14,7 +14,6 @@
 #include "../test_helpers/cfs_test_access.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "../test_helpers/toolchanger_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
@@ -64,7 +63,7 @@ class KlipperRestartFixture : public LVGLTestFixture {
     }
 
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void restart_klipper() {

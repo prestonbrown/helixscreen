@@ -24,7 +24,6 @@
 #include "../test_helpers/queued_start_fixture.h"
 #include "../test_helpers/scoped_macros_read.h"
 #include "../test_helpers/scoped_mock_ams.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "preprint_skip_wrappers.h"
@@ -462,7 +461,7 @@ class OneManagerFixture : private helix::PrintSelectGlobalStateReset, public LVG
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance(), 6);
+        helix::ui::UpdateQueue::instance().drain_until_empty(6);
     }
 
     static void set_connection(ConnectionState state) {

@@ -251,6 +251,26 @@ class UpdateQueue {
     }
 
     /**
+     * @brief Run drain passes until nothing is queued, at most @p max_passes
+     *
+     * Work a callback queues runs on the next pass, so drain() alone leaves it
+     * queued. Reaching the cap is not an error: whatever is still queued stays
+     * queued for the next drain.
+     *
+     * @note Must be called from the main LVGL thread.
+     */
+    void drain_until_empty(int max_passes = 10) {
+        for (int pass = 0; pass < max_passes; ++pass) {
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (pending_.empty())
+                    return;
+            }
+            process_pending();
+        }
+    }
+
+    /**
      * @brief Whether a queued callback is running, at any depth
      *
      * A drain() called from inside a callback runs further callbacks under the

@@ -19,7 +19,6 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_widget_labels.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "helix/ui/shared_font_style.h"
@@ -523,9 +522,7 @@ TEST_CASE("a hidden label costs a tile no glyph, and toggling it re-measures",
     helix::SettingsManager::instance().init_subjects();
     lv_subject_t* shown = helix::SettingsManager::instance().subject_show_widget_labels();
     const int original = lv_subject_get_int(shown);
-    auto drain = [] {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    };
+    auto drain = [] { helix::ui::UpdateQueue::instance().drain_until_empty(); };
     auto rung = [] {
         return lv_subject_get_int(lv_xml_get_subject(nullptr, "labeltest_tile_icon"));
     };

@@ -21,7 +21,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -70,7 +69,7 @@ struct PanelLifecycleFixture : public LVGLTestFixture {
     /// drain left the panel one transition behind the published subject and made
     /// every agreement case below look like a production defect.
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Drive the printer's reported job state, the way Moonraker would.

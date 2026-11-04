@@ -9,9 +9,10 @@
  * moved) or a closed session must not reach the API, the subjects or the steps.
  */
 
+#include "ui_update_queue.h"
+
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "discovery_steps.h"
 #include "filament_sensor_manager.h"
@@ -93,7 +94,7 @@ struct SessionWiringFixture : public LVGLTestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// One discovery as the WebSocket thread delivers it.

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_start_collector_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "moonraker_client_mock.h"
 #include "print_start_collector.h"
 #include "print_start_profile.h"
@@ -17,7 +18,6 @@
 
 using helix::PrinterState;
 using helix::PrintStartPhase;
-using helix::ui::UpdateQueueTestAccess;
 using json = nlohmann::json;
 
 namespace {
@@ -90,7 +90,7 @@ class StartMacroGateFixture : public LVGLTestFixture {
     }
 
     void drain() {
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     PrintStartPhase phase() {

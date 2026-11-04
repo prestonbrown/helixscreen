@@ -26,7 +26,7 @@
 #include "moonraker_client_mock.h"
 #include "moonraker_file_api.h"
 #include "moonraker_file_transfer_api.h"
-#include "printer_state.h"
+#include "test_helpers/update_queue_test_access.h"
 #include "three_mf_reader.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_processor.h"
@@ -110,7 +110,7 @@ class ActivePrintMediaManagerTestFixture {
         manager_.reset();
 
         // Drain any pending updates before shutdown to ensure clean state
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Shutdown update queue - also clears any remaining pending callbacks
         helix::ui::update_queue_shutdown();
@@ -142,7 +142,7 @@ class ActivePrintMediaManagerTestFixture {
         state_.update_from_status(status);
         // Drain all queued UI updates, including nested queue_update calls from
         // deferred observers (observer → handler → display filename setter)
-        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     // Get current print_filename (raw)
@@ -846,7 +846,7 @@ class ActivePrintMediaAsyncFixture {
     ~ActivePrintMediaAsyncFixture() {
         manager_.reset();
         api_.reset();
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         helix::ui::update_queue_shutdown();
         queue_initialized_ = false;
         if (display_created_ && display_) {
@@ -893,7 +893,7 @@ class ActivePrintMediaAsyncFixture {
     /// since a drained callback can commit further pool work.
     ///
     /// Test the settled condition BEFORE draining, never after. It is
-    /// drain_all() that commits the pool task (the metadata callback it runs
+    /// drain_until_empty() that commits the pool task (the metadata callback it runs
     /// reaches process_file_async), and pending_tasks() is HThreadPool::taskNum()
     /// — queue depth only. A worker that has already dequeued that task reports
     /// zero while still running it, so a post-drain check reads "settled" and
@@ -907,7 +907,7 @@ class ActivePrintMediaAsyncFixture {
             if (processor.pending_tasks() == 0 && UpdateQueueTestAccess::queue_empty(queue)) {
                 break;
             }
-            UpdateQueueTestAccess::drain_all(queue);
+            queue.drain_until_empty();
         }
     }
 
@@ -1703,7 +1703,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     REQUIRE(get_display_filename() == "previous");
 
     state().print_state().begin_preparing(helix::PrintJobRef{"next.gcode", "", ""});
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(get_display_filename() == "next");
 }
@@ -1715,7 +1715,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     // must go, including thumbnail_origin_ - a stale PreSet skips the thumbnail
     // fetch, which is the mechanism behind #526.
     state().print_state().begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(get_display_filename() == "mine");
 
     state().print_state().retire_preparing(helix::PreparingExit::Superseded);
@@ -1731,7 +1731,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     // because the printer may report a rewritten temp file standing in for the
     // file the user actually chose.
     state().print_state().begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     state().print_state().retire_preparing(helix::PreparingExit::Confirmed);
     set_print_filename(".helix_temp/modified_mine.gcode");
@@ -1823,7 +1823,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     // on the source being empty - so the panel showed `modified_1748_orig`.
     state().print_state().begin_preparing(
         helix::PrintJobRef{".helix_temp/modified_1748_orig.gcode", "", ""});
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(get_display_filename() == "orig");
 }
@@ -1919,7 +1919,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     set_print_filename("previous.gcode");
 
     state().print_state().begin_preparing(helix::PrintJobRef{"committed.gcode", "", ""});
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // Moonraker is still reporting the finished print while ours prepares.
     set_print_filename("previous.gcode");

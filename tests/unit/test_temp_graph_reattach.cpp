@@ -27,7 +27,6 @@
 #include "../../include/ui_temp_graph.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/temp_graph_controller_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "lvgl/lvgl.h"
 #include "printer_state.h"
@@ -77,7 +76,7 @@ class TempGraphReattachFixture : public LVGLTestFixture {
     /// callbacks queued FROM a callback (the attach fires, then the suppression
     /// clear behind them) land on the following tick.
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Drive a disconnect → reconnect transition past the controller's

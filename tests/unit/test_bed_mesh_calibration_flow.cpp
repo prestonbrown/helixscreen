@@ -6,12 +6,12 @@
 
 #include "ui_modal.h"
 #include "ui_panel_bed_mesh.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/bed_mesh_panel_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "moonraker_advanced_api.h"
@@ -37,7 +37,7 @@ using json = nlohmann::json;
 namespace {
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance(), 32);
+    helix::ui::UpdateQueue::instance().drain_until_empty(32);
 }
 
 bool mentions(const std::string& haystack, const char* needle) {

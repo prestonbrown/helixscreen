@@ -12,7 +12,6 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/emergency_stop_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_error.h"
@@ -103,7 +102,7 @@ class RestartInFlightFixture : public XMLTestFixture {
     }
 
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 16);
+        UpdateQueue::instance().drain_until_empty(16);
     }
 
     [[nodiscard]] bool toasted(const std::string& message) const {

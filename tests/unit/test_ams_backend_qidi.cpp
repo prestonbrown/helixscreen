@@ -21,7 +21,6 @@
 #include "test_helpers/qidi_box_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/seeded_override.h"
-#include "test_helpers/update_queue_test_access.h"
 #include "ui/ams_drawing_utils.h"
 
 #include <algorithm>
@@ -974,7 +973,7 @@ TEST_CASE("QIDI Box on_started dispatches printer.objects.query (integration)",
     // last_send_method() is captured synchronously inside the mock so we can
     // assert before draining the deferred response callback.
     REQUIRE(client.last_send_method() == "printer.objects.query");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE("QIDI Box write-path rejects out-of-range slot/tool indices",
@@ -2497,7 +2496,7 @@ TEST_CASE("QIDI Box clear writes the firmware zeros while a print is active", "[
     REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
 
     helix::test::set_wire_state(state, helix::PrintJobState::PRINTING);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(state.print_state().get_print_lifecycle() == PrintState::Printing);
 
     backend.clear_slot_override(0);

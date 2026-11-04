@@ -3,7 +3,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "led/led_controller.h"
 #include "led/led_device_page.h"
 #include "led/led_devices.h"
@@ -79,7 +78,7 @@ struct DeviceStateFixture : public LVGLTestFixture {
         ctrl.rebuild_macro_backend();
     }
     ~DeviceStateFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         LedController::instance().deinit();
     }
     int version() {
@@ -167,7 +166,7 @@ TEST_CASE_METHOD(DeviceStateFixture, "update_from_status bumps the version only 
 TEST_CASE_METHOD(DeviceStateFixture, "set_power reaches only the ids it is given", "[led][state]") {
     auto& ctrl = LedController::instance();
     ctrl.set_power({"neopixel a"}, true);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(ctrl.native().has_strip_color("neopixel a"));
     CHECK_FALSE(ctrl.native().has_strip_color("neopixel b"));
 }
@@ -177,7 +176,7 @@ TEST_CASE_METHOD(DeviceStateFixture, "set_power reads back exactly the Klipper d
     auto& ctrl = LedController::instance();
     client.queries.clear();
     ctrl.set_power({"neopixel a", "output_pin enc", "macro:Lamp", "printer_led"}, true);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(client.queries.size() == 1);
     CHECK(client.queries[0] == std::set<std::string>{"neopixel a", "output_pin enc"});
 }

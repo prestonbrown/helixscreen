@@ -21,7 +21,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/controls_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "led/led_controller.h"
 #include "macro_param_cache.h"
 #include "macro_param_defaults.h"
@@ -37,7 +36,6 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::ui::ControlsPanelTestAccess;
-using helix::ui::UpdateQueueTestAccess;
 
 namespace {
 
@@ -47,7 +45,7 @@ ControlsPanelTestAccess::QuickActionText probe_text() {
 }
 
 void drain() {
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 } // namespace

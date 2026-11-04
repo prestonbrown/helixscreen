@@ -19,8 +19,9 @@
  * callbacks, so every branch is fully testable with MoonrakerAPIMock.
  */
 
+#include "ui_update_queue.h"
+
 #include "../test_helpers/config_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
@@ -53,7 +54,7 @@ class PrinterNameSyncFixture {
 
     ~PrinterNameSyncFixture() {
         // Drain any remaining callbacks to avoid cross-test pollution
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         clear_name();
     }
 
@@ -70,7 +71,7 @@ class PrinterNameSyncFixture {
     }
 
     void drain() {
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
     }
 
   protected:

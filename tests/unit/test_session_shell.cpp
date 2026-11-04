@@ -11,9 +11,9 @@
 
 #include "ui_nav_manager.h"
 #include "ui_printer_status_icon.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "glass_painter.h"
 #include "printer_state.h"
@@ -39,7 +39,7 @@ struct SessionShellFixture : public LVGLUITestFixture {
     }
 
     ~SessionShellFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         NavigationManager::instance().set_printer_callbacks(nullptr, nullptr);
         PrinterStatusIcon::instance().deinit_subjects();
         // The navigation holds the layout, the navbar and the widgets wire_events() made;
@@ -84,7 +84,7 @@ TEST_CASE_METHOD(SessionShellFixture, "the printer icon follows the connection",
     ps.set_klippy_state_sync(KlippyState::READY);
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(ConnectionState::CONNECTED));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(icon_state() == static_cast<int>(PrinterIconState::READY));
 }

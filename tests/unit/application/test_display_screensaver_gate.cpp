@@ -5,7 +5,6 @@
 
 #include "ui_update_queue.h"
 
-#include "../../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "display_backend.h"
 #include "display_manager.h"
@@ -97,7 +96,7 @@ TEST_CASE_METHOD(
         printer_state.update_from_status(nlohmann::json{{"print_stats", {{"state", wire_state}}}});
         printer_state.print_state().set_print_start_state(helix::PrintStartPhase::IDLE, "", 0);
         process_lvgl(10);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     };
 
     const helix::ui::SaverHost host = DisplayManager::screensaver_host(nullptr);

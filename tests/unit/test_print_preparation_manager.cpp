@@ -5,6 +5,7 @@
 #include "ui_filename_utils.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
+#include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
 #include "../helix_test_fixture.h"
@@ -18,7 +19,6 @@
 #include "../test_helpers/print_preparation_manager_test_access.h"
 #include "../test_helpers/print_start_collector_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "capability_matrix.h"
@@ -253,7 +253,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     auto card = [&state]() {
         // The plugin lands through the queue and its observer queues the count.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         return lv_subject_get_int(
             state.composite_visibility_state().get_has_any_preprint_options_subject());
     };
@@ -295,14 +295,14 @@ TEST_CASE_METHOD(HelixTestFixture,
     state.set_helix_plugin_installed(true);
     helix::ui::UpdateQueue::instance().drain();
     device.reset();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(manager.gcode_rewrite_block() == helix::GcodeRewriteBlock::None);
 
     // Clearing the dependencies drops the observer, so a later change queues
     // nothing for this manager.
     manager.set_dependencies(nullptr, nullptr);
     state.set_helix_plugin_installed(false);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE("PrintPreparationManager: get_temp_directory", "[print_preparation][safety]") {
@@ -1331,7 +1331,7 @@ class MacroAnalysisRetryFixture {
 
         // Drain pending callbacks (manager_ is still alive here, so any final
         // deferred success/error lambda runs against a valid manager).
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Shutdown queue
         helix::ui::update_queue_shutdown();
@@ -1349,7 +1349,7 @@ class MacroAnalysisRetryFixture {
      * @brief Drain pending UI updates (simulates main loop iteration)
      */
     void drain_queue() {
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         lv_timer_handler_safe(); // Process LVGL timers for retry scheduling
     }
 
@@ -3175,7 +3175,7 @@ namespace {
 /// Run queued callbacks until nothing new is enqueued. Each drain() swaps out
 /// one batch, and these stages enqueue their successor from inside a batch.
 void drain_until_quiet() {
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 16);
+    UpdateQueue::instance().drain_until_empty(16);
 }
 
 /// Number of lines equal to @p want once any trailing CR is stripped.
@@ -4178,7 +4178,7 @@ TEST_CASE_METHOD(HelixTestFixture,
         printer_state.set_printer_type_sync("Voron 2.4");
         printer_state.set_helix_plugin_installed(true);
         auto aggregate = [&] {
-            UpdateQueueTestAccess::drain(UpdateQueue::instance());
+            UpdateQueue::instance().drain();
             return lv_subject_get_int(
                 printer_state.composite_visibility_state().get_has_any_preprint_options_subject());
         };
@@ -4200,7 +4200,7 @@ TEST_CASE_METHOD(HelixTestFixture,
         printer_state.set_printer_type_sync("Voron 2.4");
         printer_state.set_helix_plugin_installed(true);
         auto aggregate = [&] {
-            UpdateQueueTestAccess::drain(UpdateQueue::instance());
+            UpdateQueue::instance().drain();
             return lv_subject_get_int(
                 printer_state.composite_visibility_state().get_has_any_preprint_options_subject());
         };
@@ -4243,7 +4243,7 @@ struct ObjectScanFixture : public LVGLTestFixture {
         manager.set_dependencies(&mock_printer.api, &mock_printer.state);
     }
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 } // namespace

@@ -14,13 +14,14 @@
  * Uses mock client to simulate G-code responses from Klipper/Kalico.
  */
 
+#include "ui_update_queue.h"
+
 #include "../../include/moonraker_advanced_api.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -46,7 +47,7 @@ class MPCCalibrateTestFixture : public LVGLTestFixture {
         // Run what the collectors queued while this fixture's PrinterState is
         // still alive: the idle-fallback callbacks close over state_, so leaving
         // them for the next fixture's drain reaches a dead object.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
 
         api_.reset();
     }

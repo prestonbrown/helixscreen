@@ -14,7 +14,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/golden_json.h"
 #include "../test_helpers/sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "accel_sensor_manager.h"
 #include "config.h"
 #include "dynamic_subject_map.h"
@@ -140,7 +139,7 @@ class SensorManagerFixture : public LVGLTestFixture {
         mgr.discover(discovery_of(objects));
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     uint8_t role_of_name(const std::string& name) {
         SensorEntry e;

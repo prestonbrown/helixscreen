@@ -27,7 +27,6 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "display_settings_manager.h"
 #include "fault_modal_registry.h"
 #include "moonraker_api.h"
@@ -68,7 +67,7 @@ class FaultModalFixture : public XMLTestFixture {
     /// it touches any modal), so a single drain leaves work in flight — which
     /// showed up as a sweep firing in the middle of a later test step.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 16);
+        UpdateQueue::instance().drain_until_empty(16);
     }
 
     /// A fault alert exactly as ui_notification_printer_fault() builds it:

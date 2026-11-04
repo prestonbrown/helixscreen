@@ -24,7 +24,6 @@
 #include "../test_helpers/camera_view_test_access.h"
 #include "../test_helpers/camera_widget_test_access.h"
 #include "../test_helpers/navigation_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "camera_view.h"
 #include "display_settings_manager.h"
@@ -67,7 +66,7 @@ class StandaloneViewerFixture : public LVGLUITestFixture {
         DisplaySettingsManager::instance().set_animations_enabled(animations_were_enabled_);
     }
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void close_viewer() {
         helix::nav::go_back();

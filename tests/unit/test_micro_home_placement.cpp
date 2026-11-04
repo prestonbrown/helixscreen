@@ -31,7 +31,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_int_subject.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -67,7 +66,7 @@ class DefaultPlacementFixture : public LVGLUITestFixture {
     ~DefaultPlacementFixture() override {
         PrintStatusWidget::destroy_formatter_for_test();
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         if (lv_display_t* d = lv_display_get_default()) {
             theme_manager_refresh_layout_constants(d);
         }
@@ -86,7 +85,7 @@ class DefaultPlacementFixture : public LVGLUITestFixture {
         ToolState::instance().set_ams_topology(topo);
 
         state().temperature_state().init_extruders({"extruder"});
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // The default table's spool slot resolves off this subject; pin it to
         // 0 so the slot does not take the AMS. Registered here when no earlier
@@ -119,7 +118,7 @@ class DefaultPlacementFixture : public LVGLUITestFixture {
         auto& mgr = PanelWidgetManager::instance();
         mgr.clear_panel_config(panel_id);
         mgr.populate_widgets(panel_id, container, /*page_index=*/0);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         return container;
     }
 

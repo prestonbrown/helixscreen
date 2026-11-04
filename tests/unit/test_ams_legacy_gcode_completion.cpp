@@ -53,7 +53,7 @@ class LiveToolChanger : public helix::AmsBackendToolChanger {
     bool drain_on_destroy = true;
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Put tool @p n on the carriage with the toolchanger idle.

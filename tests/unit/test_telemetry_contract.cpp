@@ -14,12 +14,13 @@
  * goldens instead of comparing; review the diff before committing it.
  */
 
+#include "ui_update_queue.h"
+
 #include "../test_helpers/display_manager_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_moonraker_api.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/telemetry_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -333,7 +334,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Contract: every event matches its golden
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
     state.set_printer_type_sync("Voron 2.4");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     ContractClient client;
     ScopedMoonrakerClient installed_client(&client);

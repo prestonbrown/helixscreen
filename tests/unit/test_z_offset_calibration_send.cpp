@@ -18,6 +18,7 @@
  */
 
 #include "ui_panel_calibration_zoffset.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
@@ -27,7 +28,6 @@
 #include "probe_sensor_manager.h"
 #include "settings_manager.h"
 #include "test_helpers/printer_state_test_access.h"
-#include "test_helpers/update_queue_test_access.h"
 #include "test_helpers/zoffset_calibration_test_access.h"
 
 #include <algorithm>
@@ -63,7 +63,7 @@ class CalibrationSendFixture : public LVGLTestFixture {
     }
 
     ~CalibrationSendFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     helix::PrinterState& state() {
@@ -80,7 +80,7 @@ class CalibrationSendFixture : public LVGLTestFixture {
     void set_printing(bool printing) {
         state().update_from_status(
             json{{"print_stats", json{{"state", printing ? "printing" : "standby"}}}});
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Accept the calibrated -0.150 and return what went on the wire.
@@ -91,7 +91,7 @@ class CalibrationSendFixture : public LVGLTestFixture {
         panel.set_api(&api);
         ZOffsetCalibrationTestAccess::set_cumulative_delta(panel, -0.15f);
         ZOffsetCalibrationTestAccess::send_accept(panel);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         return client.last_send_script();
     }
 };
@@ -152,7 +152,7 @@ std::vector<std::string> probe_accept_scripts(helix::zoffset::SaveMode mode) {
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::send_accept(panel);
     for (int i = 0; i < 20; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     std::vector<std::string> sent = client.gcode_script_history();
     settings.set_z_offset_save_mode(static_cast<int>(helix::zoffset::SaveMode::Auto));
@@ -199,7 +199,7 @@ std::string abort_sends_for(DeactivateReason reason) {
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::PROBING);
     panel.on_deactivate(reason);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     return client.last_send_script();
 }
 
@@ -250,7 +250,7 @@ StartOutcome start_calibration(ZOffsetCalibrationStrategy strategy, helix::Print
         toolhead["axis_maximum"] = json::array({350.0, 350.0, 340.0, 0.0});
     }
     ps.update_from_status(json{{"toolhead", toolhead}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, ps);
@@ -258,7 +258,7 @@ StartOutcome start_calibration(ZOffsetCalibrationStrategy strategy, helix::Print
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     return {client.gcode_script_history(), panel.get_state()};
 }
 

@@ -11,7 +11,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/toast_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "display_settings_manager.h"
 
 #include <cstdint>
@@ -36,7 +35,7 @@ void* data_42() {
 }
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 } // namespace

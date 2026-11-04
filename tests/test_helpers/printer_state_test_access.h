@@ -7,7 +7,6 @@
 #include "capability_overrides.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "update_queue_test_access.h"
 
 #include <mutex>
 #include <vector>
@@ -217,7 +216,7 @@ class PrinterStateTestAccess {
     /// data isolation no longer needs this — HelixTestFixture::reset_all() calls
     /// clear_data() on the global PrinterState in its ctor and dtor.
     static void reset(PrinterState& ps) {
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         clear_data(ps);
         ps.deinit_subjects();
     }

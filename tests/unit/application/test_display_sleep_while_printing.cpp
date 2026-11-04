@@ -22,7 +22,6 @@
 
 #include "ui_update_queue.h"
 
-#include "../../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "display_awake_hold.h"
 #include "display_manager.h"
@@ -84,7 +83,7 @@ class SleepWhilePrintingFixture : public LVGLTestFixture {
         printer_state.print_state().set_print_start_state(phase, "", 0);
         // set_print_start_state defers; its callback is what publishes.
         process_lvgl(10);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     PrintState lifecycle() const {

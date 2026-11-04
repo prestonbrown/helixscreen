@@ -928,7 +928,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS slots landing after show() reveal the m
 
     // A four-lane backend comes up: one used tool is now worth mapping.
     ams.emplace(4);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(helix::AmsState::instance().get_slot_count_subject()) == 4);
     CHECK(lv_subject_get_int(visible) == 1);
     CHECK(lv_obj_find_by_name(root, "filament_chip_0") != nullptr);
@@ -944,7 +944,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Bypass engaging after show() hides the mapp
                  "[print_select][detail_view][subjects][filament_mapping][bypass]") {
     CacheDirGuard guard;
     ScopedAmsBackend ams(4);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
@@ -971,7 +971,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Bypass engaging after show() hides the mapp
 
     REQUIRE(helix::test::unload_for_bypass(*ams.backend));
     REQUIRE(ams.backend->enable_bypass().success());
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(helix::AmsState::instance().any_bypass_active());
     CHECK(lv_subject_get_int(visible) == 0);
     CHECK(lv_obj_find_by_name(root, "filament_chip_0") == nullptr);
@@ -2307,7 +2307,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A parse finishing after cleanup never reach
     lv_obj_t* viewer = lv_obj_find_by_name(d.view.get_widget(), "detail_gcode_viewer");
     REQUIRE(viewer != nullptr);
     auto& queue = helix::ui::UpdateQueue::instance();
-    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    queue.drain_until_empty();
 
     int loaded = 0;
     PrintSelectDetailViewTestAccess::begin_viewer_load(
@@ -2324,7 +2324,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A parse finishing after cleanup never reach
     REQUIRE(loaded == 0);
 
     d.view.cleanup();
-    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    queue.drain_until_empty();
     // What was queued was the parse result: the viewer installed it.
     REQUIRE(helix::ui::gcode_viewer_has_content(viewer));
     CHECK(loaded == 0);

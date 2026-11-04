@@ -78,7 +78,7 @@ class TrackerFixture : public LVGLTestFixture {
     }
 
     static void settle() {
-        ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+        ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static std::string reason() {

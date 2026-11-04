@@ -3,6 +3,7 @@
 
 #include "ui_batch_filament_modal.h"
 #include "ui_insert_notice.h"
+#include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -10,7 +11,6 @@
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/snapmaker_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_snapmaker.h"
@@ -62,7 +62,7 @@ using json = nlohmann::json;
 /// backend are still alive, before HelixTestFixture's own teardown.
 struct SnapmakerFixture : public HelixTestFixture {
     ~SnapmakerFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -1008,7 +1008,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     REQUIRE(backend.get_system_info().action == AmsAction::UNLOADING);
 
     backend.on_klipper_restarted();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     SECTION("a finished unload's action_state") {
         SnapmakerTestAccess::handle_status(backend,
@@ -3166,7 +3166,7 @@ struct ResumeRecoveryHarness {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -5013,7 +5013,7 @@ struct FilamentRecordHarness {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     [[nodiscard]] std::vector<std::string> history() const {

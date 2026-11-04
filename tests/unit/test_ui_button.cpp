@@ -17,7 +17,6 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_theme_mode.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "theme_manager.h"
@@ -157,7 +156,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button solid variant label is readable
             const char* attrs[] = {"text", "Go", "variant", variant, nullptr};
             lv_obj_t* btn = create_button(attrs);
             REQUIRE(btn != nullptr);
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
 
             lv_obj_t* label = nullptr;
             for (uint32_t i = 0; i < lv_obj_get_child_count(btn); ++i) {
@@ -540,7 +539,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE(btn != nullptr);
 
     // Drain any create-time deferred contrast passes first.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // STYLE_CHANGED enqueues a deferred contrast recompute; destroy the button
     // before the queue drains. helix::test::widget_in_tree() must reject the stale pointer.
@@ -548,8 +547,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     lv_obj_delete(btn);
 
     // Must not crash; the captured (now invalid) widget pointer is skipped.
-    REQUIRE_NOTHROW(
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance()));
+    REQUIRE_NOTHROW(helix::ui::UpdateQueue::instance().drain_until_empty());
 }
 
 // ============================================================================
@@ -833,7 +831,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: the next frame draws the contr
     const char* attrs[] = {"text", "Go", "variant", "primary", nullptr};
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_obj_t* label = nullptr;
     for (uint32_t i = 0; i < lv_obj_get_child_count(btn) && !label; ++i)
         if (lv_obj_check_type(lv_obj_get_child(btn, i), &lv_label_class))
@@ -849,7 +847,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: the next frame draws the contr
 
     lv_refr_now(nullptr); // no UpdateQueue drain
     const uint32_t drawn = lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     const uint32_t settled = lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN));
     CAPTURE(before & 0xFFFFFF, drawn & 0xFFFFFF, settled & 0xFFFFFF);
     REQUIRE(settled != before); // the new fill does change the text colour
@@ -880,7 +878,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: contrast reaches content insid
     lv_style_set_bg_color(&white_fill, lv_color_white());
     lv_style_set_bg_opa(&white_fill, LV_OPA_COVER);
     lv_obj_add_style(btn, &white_fill, LV_PART_MAIN);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     const uint32_t expected = lv_color_to_u32(theme_manager_get_contrast_adjusted_text(
         theme_manager_get_color("text"), lv_color_white()));
@@ -906,14 +904,14 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     const char* attrs[] = {"text", "Go", "variant", "primary", nullptr};
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_refr_now(nullptr);
 
     lv_display_t* disp = lv_obj_get_display(btn);
     s_invalidations = 0;
     lv_display_add_event_cb(disp, count_invalidation, LV_EVENT_INVALIDATE_AREA, nullptr);
     lv_obj_send_event(btn, LV_EVENT_STATE_CHANGED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_display_remove_event_cb_with_user_data(disp, count_invalidation, nullptr);
 
     CHECK(s_invalidations == 0);
@@ -1198,7 +1196,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button column holds a measured minimum
         lv_style_init(&content_min);
         lv_style_set_min_width(&content_min, LV_SIZE_CONTENT);
         lv_obj_add_style(btn, &content_min, LV_PART_MAIN);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_refr_now(nullptr);
         lv_obj_update_layout(test_screen());
         CHECK(lv_obj_get_style_min_width(btn, LV_PART_MAIN) == measured(btn));
@@ -1256,17 +1254,17 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button honors a style's opacity while 
         dim_ready = true;
     }
     lv_obj_add_style(btn, &dim, LV_PART_MAIN);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     process_lvgl(10);
     CHECK(lv_obj_get_style_opa(btn, LV_PART_MAIN) == LV_OPA_40);
 
     // Disabled still reads as disabled, and enabling hands opacity back.
     lv_obj_add_state(btn, LV_STATE_DISABLED);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     process_lvgl(10);
     CHECK(lv_obj_get_style_opa(btn, LV_PART_MAIN) == LV_OPA_50);
     lv_obj_remove_state(btn, LV_STATE_DISABLED);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     process_lvgl(10);
     CHECK(lv_obj_get_style_opa(btn, LV_PART_MAIN) == LV_OPA_40);
     lv_obj_remove_style(btn, &dim, LV_PART_MAIN);

@@ -8,9 +8,10 @@
  *        humidity subject. Humidity sensors have no persisted settings.
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "hardware_object_table.h"
 #include "humidity_sensor_manager.h"
 #include "humidity_sensor_types.h"
@@ -363,12 +364,12 @@ TEST_CASE_METHOD(HumiditySensorTestFixture, "HumiditySensorManager - status refr
 
     update_sensor_state("bme280 chamber", 45.0f, 25.0f);
     CHECK(chamber() == 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(chamber() == 450);
 
     update_sensor_state("bme280 chamber", 50.0f, 25.0f);
     mgr().deinit_subjects();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     mgr().init_subjects();
     mgr().set_sync_mode(true);
     CHECK(chamber() == -1);

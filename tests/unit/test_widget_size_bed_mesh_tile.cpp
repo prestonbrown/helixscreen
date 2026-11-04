@@ -14,12 +14,12 @@
  */
 
 #include "ui_bed_mesh.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "bed_mesh_state.h"
 #include "moonraker_api.h"
@@ -112,7 +112,7 @@ struct BedMeshTileFixture : public LVGLUITestFixture {
         drain();
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     /// A gcode no action sends, so "nothing was sent" is distinguishable.
     void sentinel() {

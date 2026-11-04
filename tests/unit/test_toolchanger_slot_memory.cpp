@@ -28,7 +28,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/toolchanger_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -391,13 +390,13 @@ struct PublishedToolChanger : LVGLTestFixture {
 
     /// Run every queued update, including the full sync a status frame asks for.
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// One pass of the update queue: what a slot event queued, and nothing that
     /// work queues in turn.
     static void deliver_events() {
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 };
 

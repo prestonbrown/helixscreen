@@ -22,6 +22,7 @@
  */
 
 #include "ui_panel_calibration_zoffset.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
@@ -31,7 +32,6 @@
 #include "printer_state.h"
 #include "rpc_error_correlation.h"
 #include "test_helpers/printer_state_test_access.h"
-#include "test_helpers/update_queue_test_access.h"
 #include "test_helpers/zoffset_calibration_test_access.h"
 
 #include <algorithm>
@@ -49,7 +49,7 @@ class OwnershipMoreFixture : public LVGLTestFixture {
         helix::rpc_error_correlation::clear_for_test();
     }
     ~OwnershipMoreFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::rpc_error_correlation::clear_for_test();
     }
 };

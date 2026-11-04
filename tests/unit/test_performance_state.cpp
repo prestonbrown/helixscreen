@@ -4,7 +4,6 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/performance_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "moonraker_performance_source.h"
 #include "performance_state.h"
 
@@ -17,7 +16,6 @@
 using helix::perf::PerformanceState;
 using helix::perf::PerformanceStateTestAccess;
 using helix::ui::UpdateQueue;
-using helix::ui::UpdateQueueTestAccess;
 
 namespace {
 
@@ -65,7 +63,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState applies sample and updates 
     s.host_throttle_bits = 0;
 
     PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "perf_host_cpu_pct")) == 37);
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "perf_host_cpu_pct_present")) == 1);
@@ -87,7 +85,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState ring buffer fills then roll
         s.host_cpu_pct = static_cast<float>(i);
         PerformanceStateTestAccess::apply_sample(ps, s);
     }
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     auto hist = ps.read_history("host_cpu_pct");
     REQUIRE(hist.size() == 60);
@@ -109,7 +107,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState absent fields drop _present
         s.host_mem_pct_used = 50.0f;
         PerformanceStateTestAccess::apply_sample(ps, s);
     }
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "perf_host_cpu_pct_present")) == 1);
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "perf_host_mem_present")) == 1);
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "perf_host_cpu_temp_present")) == 1);
@@ -117,7 +115,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState absent fields drop _present
     // Then push an all-absent sample — flags must clear back to 0
     PerfSample empty;
     PerformanceStateTestAccess::apply_sample(ps, empty);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "perf_host_cpu_pct_present")) == 0);
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "perf_host_mem_present")) == 0);
@@ -137,7 +135,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState about summary reflects host
     s.mcus.push_back(m);
 
     PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     const char* summary = lv_subject_get_string(lv_xml_get_subject(nullptr, "perf_about_summary"));
     REQUIRE(std::string(summary) == "37% CPU \xc2\xb7 14% MCU");
@@ -150,7 +148,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState about summary drops MCU whe
     s.host_cpu_pct = 37.0f;
 
     PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     const char* summary = lv_subject_get_string(lv_xml_get_subject(nullptr, "perf_about_summary"));
     REQUIRE(std::string(summary) == "37% CPU");
@@ -174,7 +172,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState creates per-MCU subjects on
     s.mcus = {a, b};
 
     PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     REQUIRE(lv_xml_get_subject(nullptr, "perf_mcu_mcu_load_pct") != nullptr);
     REQUIRE(lv_xml_get_subject(nullptr, "perf_mcu_mcu_sb_load_pct") != nullptr);
@@ -202,7 +200,7 @@ TEST_CASE_METHOD(PerfStateFixture,
         s.mcus = {a};
         PerformanceStateTestAccess::apply_sample(ps, s);
     }
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     auto* first = lv_xml_get_subject(nullptr, "perf_mcu_mcu_load_pct");
     REQUIRE(first != nullptr);
     {
@@ -213,7 +211,7 @@ TEST_CASE_METHOD(PerfStateFixture,
         s.mcus = {a};
         PerformanceStateTestAccess::apply_sample(ps, s);
     }
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_xml_get_subject(nullptr, "perf_mcu_mcu_load_pct") == first);
     REQUIRE(lv_subject_get_int(first) == 30);
 }
@@ -227,7 +225,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState formats CPU and Mem text ro
     s.host_mem_free_mb = 812;
     s.host_mem_pct_used = 41.0f;
     PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     const char* cpu_text =
         lv_subject_get_string(lv_xml_get_subject(nullptr, "perf_host_cpu_pct_text"));
@@ -249,7 +247,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState formats per-MCU text subjec
     a.retransmits = 14;
     s.mcus = {a};
     PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     const char* text = lv_subject_get_string(lv_xml_get_subject(nullptr, "perf_mcu_mcu_sb_text"));
     REQUIRE(std::string(text) == "22% \xc2\xb7 14 retx");
@@ -266,7 +264,7 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState formats per-MCU text with n
     a.retransmits = 0;
     s.mcus = {a};
     PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     const char* text = lv_subject_get_string(lv_xml_get_subject(nullptr, "perf_mcu_mcu_text"));
     REQUIRE(std::string(text) == "14%");

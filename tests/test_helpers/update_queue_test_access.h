@@ -13,13 +13,9 @@ namespace helix::ui {
 
 class UpdateQueueTestAccess {
   public:
-    static void drain(UpdateQueue& q) {
-        q.process_pending();
-    }
-
     /// Drop queued callbacks WITHOUT running them.
     ///
-    /// The cross-test counterpart to drain(). Once a test has returned, its
+    /// The cross-test counterpart to UpdateQueue::drain(). Once a test has returned, its
     /// fixture is destroyed and anything it left queued closes over dead state,
     /// so *executing* those callbacks is precisely the use-after-free — draining
     /// is only safe while the owning objects are still alive (i.e. inside the
@@ -96,7 +92,7 @@ class UpdateQueueTestAccess {
     /// Work queued from inside a pass runs on the NEXT pass, so this counts
     /// queue hops. A gcode answer that lands with its completion already
     /// deferred once must hold after exactly one pass; a second defer stacked
-    /// on top costs a pass that drain_all() hides.
+    /// on top costs a pass that drain_until_empty() hides.
     template <typename Done>
     static int passes_until(UpdateQueue& q, Done&& done, int max_passes = 10) {
         for (int pass = 0; pass <= max_passes; ++pass) {
@@ -113,18 +109,6 @@ class UpdateQueueTestAccess {
     /// passes_until() on the process-wide queue.
     template <typename Done> static int passes_until(Done&& done, int max_passes = 10) {
         return passes_until(UpdateQueue::instance(), std::forward<Done>(done), max_passes);
-    }
-
-    /// Drain repeatedly until the queue is fully empty (handles nested queue_update calls)
-    static void drain_all(UpdateQueue& q, int max_iterations = 10) {
-        for (int i = 0; i < max_iterations; ++i) {
-            {
-                std::lock_guard<std::mutex> lock(q.mutex_);
-                if (q.pending_.empty())
-                    return;
-            }
-            q.process_pending();
-        }
     }
 };
 

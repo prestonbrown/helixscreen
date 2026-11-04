@@ -10,7 +10,6 @@
 #include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "platform_info.h"
 #include "spdlog/spdlog.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include <algorithm>
 #include <atomic>
@@ -52,7 +51,7 @@ void ensure_displays_never_block_on_flush() {
 uint32_t lv_timer_handler_safe() {
     // Drain the UpdateQueue — executes pending callbacks which set subjects.
     // Subject observers fire synchronously during drain, propagating bindings.
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Pause ALL timers to prevent infinite handler loops, then selectively
     // execute one-shot timers (lv_async_call, retry timers) manually.

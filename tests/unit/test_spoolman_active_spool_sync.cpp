@@ -19,7 +19,6 @@
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/unique_temp_dir.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
@@ -131,7 +130,7 @@ struct SyncFixture : LVGLTestFixture {
 
     ~SyncFixture() override {
         spool_sync::detach(client);
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         AmsState::instance().clear_backends();
         AmsState::instance().clear_external_spool_info();
         Config::get_instance()->clear_path();
@@ -145,7 +144,7 @@ struct SyncFixture : LVGLTestFixture {
     }
 
     void pump() {
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     static int external_spool_id() {
@@ -380,7 +379,7 @@ void notify_spoolman_status(FakeMoonrakerClient& client, bool connected) {
 /// PrinterCapabilitiesState writes the flag through a deferral that lands on a
 /// later queue tick than the notification's own hop to the main thread.
 void settle() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 } // namespace

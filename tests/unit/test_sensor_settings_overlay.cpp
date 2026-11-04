@@ -23,7 +23,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "chamber_assignment_options.h"
 #include "data_root_resolver.h"
@@ -282,7 +281,7 @@ class ScopedSensorManagers {
     ScopedSensorManagers& operator=(const ScopedSensorManagers&) = delete;
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
   private:

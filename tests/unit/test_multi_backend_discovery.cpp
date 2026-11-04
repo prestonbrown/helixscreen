@@ -1,8 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_update_queue.h"
+
 #include "../helix_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -21,7 +22,7 @@ using helix::AmsState;
 /// before HelixTestFixture's own teardown.
 struct MultiBackendFixture : public HelixTestFixture {
     ~MultiBackendFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 

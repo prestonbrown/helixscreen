@@ -28,7 +28,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -64,7 +63,7 @@ struct FallingEdgeCounter {
 /// PrinterCapabilitiesState writes the flag through AsyncLifetimeGuard::defer(),
 /// so it lands on a later process_pending tick, not the current one.
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 /// The capability subjects must exist before the flag can be read back — a bare

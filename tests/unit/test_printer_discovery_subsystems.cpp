@@ -9,11 +9,12 @@
  * the previous printer's sensors.
  */
 
+#include "ui_update_queue.h"
+
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/snapmaker_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
@@ -55,7 +56,7 @@ struct DiscoverySubsystemsFixture : public LVGLTestFixture {
         // An empty printer is the clean slate: it clears every manager this
         // touched, through the same path the cases drive.
         helix::init_subsystems_from_hardware(PrinterDiscovery{}, nullptr, nullptr);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::led::LedAutoState::instance().deinit();
         helix::led::LedController::instance().deinit();
         StandardMacros::instance().reset();
@@ -129,12 +130,12 @@ TEST_CASE_METHOD(DiscoverySubsystemsFixture,
                                      {"extruder2", {{"state", "PARKED"}}},
                                      {"extruder3", {{"state", "PARKED"}}},
                                      {"toolhead", {{"extruder", "extruder2"}}}});
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         ams.sync_from_backend();
         REQUIRE(ts.active_tool_index() == -1);
 
         helix::init_subsystems_from_hardware(u1, nullptr, &client);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(ts.active_tool_index() == -1);
         CHECK(lv_subject_get_int(ts.get_active_tool_subject()) == -1);
     }
@@ -154,7 +155,7 @@ TEST_CASE_METHOD(DiscoverySubsystemsFixture,
         REQUIRE(backend->get_current_tool() == -1);
 
         helix::init_subsystems_from_hardware(hw, nullptr, &client);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(ts.active_tool_index() == 0);
         CHECK_FALSE(ts.backend_owns_active_tool());
     }

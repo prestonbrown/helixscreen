@@ -56,7 +56,7 @@ struct DryerModelFixture : public LVGLUITestFixture {
         state().print_state().set_spool_latch(false, {});
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     static bool gate() {
         lv_subject_t* subject = lv_xml_get_subject(nullptr, "home_dryer_available");

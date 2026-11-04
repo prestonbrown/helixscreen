@@ -24,7 +24,6 @@
 #include "../test_helpers/hardware_setup_prompter_test_access.h"
 #include "../test_helpers/notification_history_panel_test_access.h"
 #include "../test_helpers/scoped_config_write_counter.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
@@ -242,7 +241,7 @@ class TypeMismatchFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     helix::Config* cfg_ = nullptr;

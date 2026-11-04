@@ -7319,7 +7319,7 @@ class LiveAckAd5xIfsBackend : public AmsBackendAd5xIfs {
         Ad5xIfsTestAccess::set_zcolor_supported(*this, false);
     }
     ~LiveAckAd5xIfsBackend() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     bool toolhead_homed() const override {
         return true;

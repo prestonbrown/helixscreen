@@ -24,7 +24,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
@@ -188,18 +187,18 @@ TEST_CASE_METHOD(ManualPullFixture,
     fsm.set_role(kSensor, static_cast<uint8_t>(helix::FilamentSensorRole::TOOLHEAD));
     fsm.set_sync_mode(false);
 
-    // Each drain_all() runs the queue to a fixpoint, as successive app ticks do:
+    // Each drain_until_empty() runs the queue to a fixpoint, as successive app ticks do:
     // the manager's publish sets the subject, and the observer it wakes queues
     // its own body behind it.
     fsm.update_from_status(status(true));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(fsm.get_toolhead_detected_subject()) == 1);
     helix::ui::arm_manual_pull_prompt();
     CHECK(prompts_fired() == 0);
 
     fsm.update_from_status(status(false));
     CHECK(prompts_fired() == 0); // nothing reaches the subject until the queue drains
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(fsm.get_toolhead_detected_subject()) == 0);
     CHECK(prompts_fired() == 1);
 

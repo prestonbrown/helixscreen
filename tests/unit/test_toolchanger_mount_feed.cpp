@@ -17,7 +17,6 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
@@ -1967,7 +1966,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Every backend hears the connection drop, once
     AmsState::instance().init_subjects(true);
     const auto set_connection = [](ConnectionState state) {
         get_printer_state().set_printer_connection_state(static_cast<int>(state), "");
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     };
     set_connection(ConnectionState::CONNECTED);
     auto owned = std::make_unique<ConnectionRecordingBackend>();
@@ -2122,7 +2121,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     const auto set_connection = [](ConnectionState state) {
         get_printer_state().set_printer_connection_state(static_cast<int>(state), "");
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     };
     set_connection(ConnectionState::CONNECTED);
     auto owned = std::make_unique<ConnectionRecordingBackend>();

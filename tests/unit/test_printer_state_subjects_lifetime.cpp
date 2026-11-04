@@ -22,7 +22,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "observer_factory.h"
 #include "printer_state.h"
 
@@ -121,7 +120,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // And the detached observer must not be notified any more.
     panel.notifications = 0;
     lv_subject_set_int(subject, 42);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(panel.notifications == 0);
 
     state.deinit_subjects();

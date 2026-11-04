@@ -12,7 +12,6 @@
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "http_request_epoch.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -63,7 +62,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE(helix::thumbnail_hash("benchy.png") != key_at_submit);
     release.set_value();
     proc->wait_for_completion();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE_FALSE(output_path.empty());
     CHECK(std::filesystem::path(output_path).filename().string().rfind(key_at_submit + "_", 0) ==

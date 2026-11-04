@@ -24,7 +24,6 @@
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/telemetry_manager_test_access.h"
 #include "../test_helpers/telemetry_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
@@ -1408,13 +1407,13 @@ TEST_CASE_METHOD(TelemetryTestFixture, "settings_snapshot spoolman_configured fo
     auto& queue = helix::ui::UpdateQueue::instance();
 
     state.capabilities_state().set_spoolman_available(true);
-    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    queue.drain_until_empty();
     auto event = settings_snapshot_now();
     REQUIRE(event.contains("spoolman_configured"));
     CHECK(event["spoolman_configured"] == true);
 
     state.capabilities_state().set_spoolman_available(false);
-    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    queue.drain_until_empty();
     event = settings_snapshot_now();
     REQUIRE(event.contains("spoolman_configured"));
     CHECK(event["spoolman_configured"] == false);

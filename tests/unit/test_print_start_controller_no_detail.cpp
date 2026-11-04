@@ -20,7 +20,6 @@
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "../test_helpers/print_start_grace.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -71,7 +70,7 @@ class NoDetailFixture : private helix::PrintSelectGlobalStateReset, public LVGLU
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance(), 6);
+        helix::ui::UpdateQueue::instance().drain_until_empty(6);
     }
 
     /// printer.print.start answers with @p ok.

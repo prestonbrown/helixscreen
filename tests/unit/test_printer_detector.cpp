@@ -4,7 +4,6 @@
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/printer_capture.h"
 #include "../test_helpers/scoped_env.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
 #include "data_root_resolver.h"
@@ -3262,7 +3261,7 @@ class VariantPresetFixture {
     }
 
     void TearDown() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         std::filesystem::remove_all(temp_dir);
         if (had_config_dir_)
             setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);

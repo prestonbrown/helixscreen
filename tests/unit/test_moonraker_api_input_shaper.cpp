@@ -22,7 +22,6 @@
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/log_capture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <algorithm>
@@ -58,7 +57,7 @@ class InputShaperTestFixture : public LVGLTestFixture {
         // Run what the collectors queued while this fixture's PrinterState is
         // still alive: the idle-fallback callbacks close over state_, so leaving
         // them for the next fixture's drain reaches a dead object.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
 
         api_.reset();
 

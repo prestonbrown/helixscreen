@@ -16,7 +16,6 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/sound_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -199,7 +198,7 @@ TEST_CASE_METHOD(RetargetFixture,
     ps.update_from_status(
         nlohmann::json{{"display_status", {{"message", "Your part is finished!"}}},
                        {"heater_bed", {{"temperature", 61.0}, {"target", 60.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ps.print_state().get_print_job_state() == helix::PrintJobState::COMPLETE);
     REQUIRE(std::string(lv_subject_get_string(ps.print_state().get_display_message_subject())) ==
             "Your part is finished!");
@@ -213,7 +212,7 @@ TEST_CASE_METHOD(RetargetFixture,
     REQUIRE_FALSE(history.get_jobs().empty());
 
     helix::retarget_printer_connection();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(ps.print_state().get_print_job_state() == helix::PrintJobState::STANDBY);
     CHECK(

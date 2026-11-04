@@ -28,7 +28,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "printer_state.h"
 
 #include <memory>
@@ -67,7 +66,7 @@ struct FilenameObserverFixture : public LVGLTestFixture {
     }
 
     /// Drive the filename the way Moonraker does, then let the panel's deferred
-    /// observer run. Nested queue_update calls are why drain_all, not drain.
+    /// observer run. Nested queue_update calls are why drain_until_empty, not drain.
     void report_filename(const std::string& filename) {
         json status = {{"print_stats", {{"filename", filename}}}};
         state_.update_from_status(status);
@@ -75,7 +74,7 @@ struct FilenameObserverFixture : public LVGLTestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     PrinterState state_;

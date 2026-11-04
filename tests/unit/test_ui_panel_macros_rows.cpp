@@ -13,7 +13,6 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/macros_panel_test_access.h"
 #include "../test_helpers/scoped_pointer_indev.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
@@ -112,7 +111,7 @@ class MacrosRowsFixture : public XMLTestFixture {
 
     void settle() {
         for (int i = 0; i < 4; i++) {
-            helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+            UpdateQueue::instance().drain_until_empty();
             lv_obj_update_layout(test_screen());
         }
     }

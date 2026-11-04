@@ -17,7 +17,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -64,7 +63,7 @@ class WizardFilamentSensorSelectTestFixture : public LVGLTestFixture {
         // set_hardware fans out through capabilities_state_.set_hardware,
         // which sets lv_subjects; per L048, drain before assertions so
         // queued observer notifications can't race the test body.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     ~WizardFilamentSensorSelectTestFixture() {
@@ -73,7 +72,7 @@ class WizardFilamentSensorSelectTestFixture : public LVGLTestFixture {
         // they expected (not a forcibly-empty discovery).
         FilamentSensorManagerTestAccess::reset(sensor_mgr());
         get_printer_state().set_hardware(std::move(saved_discovery_));
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
   protected:

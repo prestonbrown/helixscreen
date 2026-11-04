@@ -30,7 +30,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/chaining_mock_backend.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -187,7 +186,7 @@ class DeviceOpsBypassFixture : public LVGLUITestFixture {
     }
 
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_lvgl(10);
     }
 

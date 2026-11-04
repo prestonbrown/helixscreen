@@ -16,7 +16,6 @@
 
 #include "../../lvgl_ui_test_fixture.h"
 #include "../../test_helpers/subject_initializer_test_access.h"
-#include "../../test_helpers/update_queue_test_access.h"
 #include "bed_drying_controller.h"
 #include "i_moonraker_api.h"
 #include "panel_widget_manager.h"
@@ -54,7 +53,7 @@ class SharedResourceFixture : public LVGLUITestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
   private:

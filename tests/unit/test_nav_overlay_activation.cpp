@@ -34,7 +34,6 @@
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/scoped_platform_tier.h"
 #include "../test_helpers/snapshot_backdrops_mode.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "connection_state.h"
 #include "display_settings_manager.h"
@@ -178,7 +177,7 @@ class OverlayActivationFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Open the overlay over whatever main panel is active, and settle.

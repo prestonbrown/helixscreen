@@ -15,8 +15,9 @@
  * the test link in mk/tests.mk to avoid duplicate symbols.
  */
 
+#include "ui_update_queue.h"
+
 #include "../test_fixtures.h"
-#include "../test_helpers/update_queue_test_access.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -59,14 +60,14 @@ TEST_CASE_METHOD(XMLTestFixture, "ui_button deferred contrast runs on a live but
     lv_obj_set_style_opa(btn, kSentinelOpa, LV_PART_MAIN);
 
     defer_button_contrast_update(btn);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     lv_opa_t after = lv_obj_get_style_opa(btn, LV_PART_MAIN);
     INFO("sentinel=" << int(kSentinelOpa) << " after=" << int(after));
     REQUIRE(after != kSentinelOpa); // contrast ran -> opacity forced to COVER/50
 
     lv_obj_delete(btn);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "ui_button deferred contrast skips a deleted button",
@@ -80,7 +81,7 @@ TEST_CASE_METHOD(XMLTestFixture, "ui_button deferred contrast skips a deleted bu
     lv_obj_t* replacement = make_fake_button(test_screen(), nullptr);
     lv_obj_set_style_opa(replacement, kSentinelOpa, LV_PART_MAIN);
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(lv_obj_get_style_opa(replacement, LV_PART_MAIN) == kSentinelOpa);
 

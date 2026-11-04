@@ -37,7 +37,6 @@
 
 #include "../fake_moonraker_client.h"
 #include "../test_fixtures.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "lan_client_auth_router.h"
 #include "lan_client_authorization.h"
 
@@ -89,7 +88,7 @@ class LanAuthRouterFixture : public XMLTestFixture {
     /// Drain until the queue stops producing work. A drained callback can
     /// enqueue more, so a single drain leaves work in flight.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 16);
+        UpdateQueue::instance().drain_until_empty(16);
     }
 
     /// Deliver a notification the way the WebSocket thread would, then let the

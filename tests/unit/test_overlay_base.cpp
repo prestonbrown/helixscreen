@@ -23,7 +23,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/process_async_timers.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "overlay_base.h"
 #include "ui/ui_widget_helpers.h"
@@ -230,7 +229,7 @@ class ShowFixture : public LVGLUITestFixture {
 
     static void settle() {
         for (int i = 0; i < 5; ++i) {
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
             lv_timer_handler();
         }
     }

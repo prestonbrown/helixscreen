@@ -737,7 +737,7 @@ TEST_CASE("UpdateChecker callback is optional", "[update_checker][callback][slow
         // makes it visible here.
         const uint32_t exceptions_before =
             helix::ui::UpdateQueueTestAccess::callback_exception_count();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(helix::ui::UpdateQueueTestAccess::callback_exception_count() == exceptions_before);
 
         checker.shutdown();
@@ -1410,7 +1410,7 @@ static void drive_lifecycle(PrinterState& ps, const char* wire_state, PrintStart
         .reset_print_start_state(); // force phase to IDLE so the next raise is a new print
     ps.update_from_status(json{{"print_stats", {{"state", wire_state}}}});
     ps.print_state().set_print_start_state(phase, "", 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 namespace {
@@ -1425,7 +1425,7 @@ struct GlobalPrintStateFixture : public HelixTestFixture {
         auto& ps = get_printer_state();
         ps.print_state().reset_print_start_state();
         ps.update_from_status(nlohmann::json{{"print_stats", {{"state", "standby"}}}});
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -3140,7 +3140,7 @@ struct ChannelSyncFixture : public GlobalPrintStateFixture {
         return drain();
     }
     std::string drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         return api.xfers_.get_uploaded_config("moonraker.conf").value_or("");
     }
     static std::string conf(const char* channel, const char* path = kInstallRoot) {

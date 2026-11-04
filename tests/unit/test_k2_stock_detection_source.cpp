@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_update_queue.h"
+
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/log_capture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "k2_stock_detection_source.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -102,13 +103,13 @@ struct PollHarness {
 
     void poll() {
         src.poll_tick();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
 void set_print_state(helix::PrinterState& state, const char* s) {
     state.update_from_status(json{{"print_stats", {{"state", s}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 } // namespace

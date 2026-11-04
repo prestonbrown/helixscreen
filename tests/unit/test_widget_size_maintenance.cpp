@@ -12,11 +12,12 @@
  * Run with: ./build/bin/helix-tests "[widget_size][maintenance]"
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "config.h"
 #include "panel_widget_manager.h"
 #include "src/ui/panel_widgets/maintenance_model.h"
@@ -53,7 +54,7 @@ struct MaintenanceTileFixture : public LVGLUITestFixture {
         drain();
     }
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 

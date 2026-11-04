@@ -1018,8 +1018,9 @@ TEST_CASE("should_stop_collector_on_klippy_state stops on shutdown and error",
 // is true, and it is true because this observer drove the phase subject off
 // IDLE. Drives the real manager with its mock client.
 
+#include "ui_update_queue.h"
+
 #include "../../test_helpers/moonraker_manager_test_access.h"
-#include "../../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "application_test_fixture.h"
@@ -1090,7 +1091,7 @@ TEST_CASE_METHOD(ManagerCollectorArmingFixture,
     // A print started from another frontend: only print_stats moves.
     lv_subject_set_int(ps.print_state().get_print_state_enum_subject(),
                        static_cast<int>(PrintJobState::PRINTING));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The collector started and published its first phase (deferred through
     // the UpdateQueue, hence the drain above): the phase left IDLE, which is
@@ -1112,11 +1113,11 @@ TEST_CASE_METHOD(ManagerCollectorArmingFixture,
     collector->enable_fallbacks();
     // The active flag a phase past INITIALIZING needs to publish.
     lv_subject_set_int(ps.print_state().get_print_active_subject(), 1);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // A cold G28 moves no heater target; only homed_axes changes.
     lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "xy");
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(ps.print_state().get_print_start_phase_subject()) ==
           static_cast<int>(PrintStartPhase::HOMING));
     collector->stop();

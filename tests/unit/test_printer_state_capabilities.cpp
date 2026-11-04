@@ -16,7 +16,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/sensors_forget.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "printer_detector.h"
@@ -71,10 +70,10 @@ TEST_CASE("PrinterState: a capability answered before subject init survives it",
 
     // Answer BEFORE the subjects exist, the way discovery can.
     state.capabilities_state().set_spoolman_available(true);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     state.init_subjects(false);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(state.is_spoolman_available());
 }
@@ -89,10 +88,10 @@ TEST_CASE("PrinterState: a pre-init 'absent' answer is honoured too",
     PrinterStateTestAccess::reset(state);
 
     state.capabilities_state().set_spoolman_available(false);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     state.init_subjects(false);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK_FALSE(state.is_spoolman_available());
 }
@@ -107,13 +106,13 @@ TEST_CASE("PrinterState: a post-init answer still wins over the latched one",
     PrinterStateTestAccess::reset(state);
 
     state.capabilities_state().set_spoolman_available(true);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     state.init_subjects(false);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(state.is_spoolman_available());
 
     state.capabilities_state().set_spoolman_available(false);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK_FALSE(state.is_spoolman_available());
 }

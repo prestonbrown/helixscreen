@@ -9,8 +9,9 @@
  * Run with: ./build/bin/helix-tests "[performance][moonraker_disk]"
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "mock_disk_usage.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -41,7 +42,7 @@ struct DiskSourceFixture : public LVGLUITestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     MoonrakerClientMock mock;

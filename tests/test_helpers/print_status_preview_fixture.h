@@ -144,7 +144,7 @@ class PrintStatusPreviewFixture : public LVGLTestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     // A cache directory of this fixture's own. A copy left by an earlier load of

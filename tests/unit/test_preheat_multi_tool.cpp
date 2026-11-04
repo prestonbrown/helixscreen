@@ -17,7 +17,6 @@
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/tool_topologies.h"
 #include "../test_helpers/toolchanger_test_helper.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_indx.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
@@ -246,7 +245,7 @@ void seed_extruders(int extruders) {
     disc.parse_objects(arr);
 
     ts.init_tools(disc);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ts.extruder_count() == extruders);
 }
 
@@ -333,7 +332,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target counts nozzl
     seed_extruders(1);
     auto& ts = ToolState::instance();
     ts.set_ams_topology(lane_topology(4));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(ts.tool_count() == 4);
     REQUIRE(ts.extruder_count() == 1);
@@ -343,7 +342,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target counts nozzl
     REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
 
     ts.clear_ams_topology();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -354,7 +353,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     seed_extruders(2);
     auto& ts = ToolState::instance();
     ts.set_ams_topology(lane_topology(8));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(ts.tool_count() == 8);
     REQUIRE(ts.extruder_count() == 2);
@@ -370,7 +369,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
 
     ts.clear_ams_topology();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 // ============================================================================
@@ -474,7 +473,7 @@ void seed_tools_without_heaters() {
     disc.parse_objects(nlohmann::json::array(
         {"toolchanger", "tool T0", "tool T1", "tool T2", "tool T3", "extruder", "extruder1"}));
     ts.init_tools(disc);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ts.physical_heads().size() == 4);
     REQUIRE(ts.extruder_count() == 2);
 }
@@ -533,7 +532,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Head 5 (extruder5, lanes 8 to 11) holds lane 10; head 6 (extruder6,
     // lanes 12 to 17) holds nothing.
     ts.set_ams_topology(helix::test::make_hub_topology(0, {0, 10}));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ts.tool_count() == 18);
     REQUIRE(ts.heated_heads().size() == 7);
 
@@ -556,13 +555,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // The mounted head names the lane it prints through, over a seat the
     // backend reports for another of its lanes.
     ts.set_ams_topology(helix::test::make_hub_topology(9, {10}));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     PreheatWidgetTestAccess::set_tool_target(widget, 5);
     CHECK(PreheatWidgetTestAccess::tool_target_caption(widget, label) ==
           ts.tools()[9].display_label);
 
     ts.clear_ams_topology();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: a refused nozzle target announces no preheat",

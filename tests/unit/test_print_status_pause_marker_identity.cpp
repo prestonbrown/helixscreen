@@ -34,7 +34,6 @@
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/print_status_preview_fixture.h"
 #include "../test_helpers/scoped_env.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"

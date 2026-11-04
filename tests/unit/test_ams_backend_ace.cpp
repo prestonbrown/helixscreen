@@ -1132,7 +1132,7 @@ class AceLiveAckHelper : public AmsBackendAceTestHelper {
         AceTestAccess::parse_ace(*this, make_kobra_instance_object());
     }
     ~AceLiveAckHelper() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 } // namespace
@@ -1163,7 +1163,7 @@ TEST_CASE("ACE load answered after a cancel leaves the cancelled state alone",
     REQUIRE(helper.load_filament(2).success());
     // The ack is queued; the user cancels before it runs.
     REQUIRE(helper.cancel().success());
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(helper.get_test_system_info().current_slot != 2);
 }

@@ -17,7 +17,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -137,7 +136,7 @@ bool within_rounding(uint32_t a, uint32_t b) {
 }
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 // A controller wired to a mock API with a live connection, so commands reach

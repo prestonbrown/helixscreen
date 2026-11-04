@@ -12,10 +12,11 @@
  * Run with: ./build/bin/helix-tests "[display_message]"
  */
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
@@ -92,7 +93,7 @@ struct DisplayMessageFixture : public LVGLUITestFixture {
     void set_message(const char* text) {
         nlohmann::json msg = text ? nlohmann::json(text) : nlohmann::json(nullptr);
         state().update_from_status({{"display_status", {{"message", msg}}}});
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 

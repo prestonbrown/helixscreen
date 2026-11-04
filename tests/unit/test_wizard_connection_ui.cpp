@@ -10,7 +10,6 @@
 #include "../mocks/mock_mdns_discovery.h"
 #include "../test_helpers/fake_connection_test.h"
 #include "../test_helpers/scoped_moonraker_client.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "config.h"
 #include "lan_sweep.h"
@@ -339,7 +338,7 @@ TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
     bool callback_ran = false;
     tok.defer("test_after_cleanup", [&callback_ran]() { callback_ran = true; });
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(callback_ran);
 }
 
@@ -373,7 +372,7 @@ TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
     bool callback_ran = false;
     tok.defer("test_valid_token", [&callback_ran]() { callback_ran = true; });
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(callback_ran);
 }
 
@@ -555,7 +554,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* btn = lv_obj_find_by_name(root, "btn_test_connection");
     REQUIRE(btn != nullptr);
     lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The untouched default also tries port 80 before giving up, and a failed test never
     // reaches the live client.
@@ -614,7 +613,7 @@ void click_test(lv_obj_t* root) {
     lv_obj_t* btn = lv_obj_find_by_name(root, "btn_test_connection");
     REQUIRE(btn != nullptr);
     lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 } // namespace
@@ -637,7 +636,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The live client goes straight to the port that answered, for discovery.
     REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
     REQUIRE(client.fire_connected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_port"))) ==
           "80");
@@ -846,7 +845,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_textarea_set_text(ip_input, "10.9.9.8");
 
     pending();
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     helix::set_connection_test_seams_for_test(nullptr, nullptr);
 
     // The answer was for the old address: no live connect, Next stays shut.
@@ -869,12 +868,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     step->arm_auto_probe_timer_for_test();
     process_lvgl(150);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(net.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
     REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
 
     REQUIRE(client.fire_connected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_port"))) ==
           "80");
     lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
@@ -898,7 +897,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     SECTION("the auto-probe") {
         step->arm_auto_probe_timer_for_test();
         process_lvgl(150);
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
     REQUIRE_FALSE(net.asked.empty());
     CHECK(client.disconnect_calls == 0);
@@ -925,7 +924,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: leaving the step drops a t
     step->cleanup();
 
     pending();
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     helix::set_connection_test_seams_for_test(nullptr, nullptr);
 
     CHECK(client.connect_urls.empty());
@@ -998,7 +997,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(helix::moonraker_auth::key_for("10.9.9.9", 7125) == kWizardKey);
 
         REQUIRE(client.fire_connected());
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         CHECK(restore_key.cfg->get<std::string>(restore_key.key_path, "") == kWizardKey);
     }
 }
