@@ -47,20 +47,6 @@ class ZOffsetCalibrationTestAccess {
         panel.begin_probe_sequence();
     }
 
-    /// Reports a calibration outcome, as the save and accept paths do.
-    static void on_calibration_result(ZOffsetCalibrationPanel& panel, bool success) {
-        panel.on_calibration_result(success, "test failure");
-    }
-
-    /// Fires the error screen's Retry button.
-    static void handle_retry_clicked(ZOffsetCalibrationPanel& panel) {
-        panel.handle_retry_clicked();
-    }
-
-    static ZOffsetCalibrationPanel::State state(const ZOffsetCalibrationPanel& panel) {
-        return panel.state_;
-    }
-
     /// Drops the panel straight into a phase. Assigns the member rather than
     /// calling set_state(), which also pushes subjects and touches widgets a
     /// bare panel does not have.

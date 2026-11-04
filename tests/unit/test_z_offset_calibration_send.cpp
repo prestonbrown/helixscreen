@@ -258,11 +258,11 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     panel.set_api(&api);
     ManualProbeActive session(true);
 
-    ZOffsetCalibrationTestAccess::on_calibration_result(panel, false);
+    panel.on_calibration_result(false, "test failure");
 
     CHECK(client.last_send_script() == "ABORT");
     // The user still has to read why the run failed.
-    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::ERROR);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture,
@@ -275,25 +275,28 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     ManualProbeActive session(false);
 
     // Klipper registers ABORT only during a session, so a stray one logs Unknown command.
-    ZOffsetCalibrationTestAccess::on_calibration_result(panel, false);
+    panel.on_calibration_result(false, "test failure");
 
     CHECK(client.last_send_script().empty());
-    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::ERROR);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture, "Calibration retry: an open session is aborted first",
                  "[ui_integration][zoffset]") {
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, state());
-    ZOffsetCalibrationPanel panel;
+    auto& panel = get_global_zoffset_cal_panel();
+    panel.init_subjects();
     panel.set_api(&api);
     ManualProbeActive session(true);
-    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::ERROR);
 
-    ZOffsetCalibrationTestAccess::handle_retry_clicked(panel);
+    lv_event_cb_t retry = lv_xml_get_event_cb(nullptr, "on_zoffset_retry_clicked");
+    REQUIRE(retry != nullptr);
+    retry(nullptr);
 
     CHECK(client.last_send_script() == "ABORT");
-    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::IDLE);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+    panel.set_api(nullptr);
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture,
@@ -305,7 +308,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     panel.set_api(&api);
     // A session Mainsail or Fluidd opened while this panel sat idle is not ours to end.
     ManualProbeActive session(true);
-    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::IDLE);
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
 
     panel.on_deactivate(DeactivateReason::NavigateAway);
 
