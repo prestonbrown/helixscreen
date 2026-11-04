@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 /**
  * @file cfs_status_parse.h
@@ -128,6 +129,18 @@ parse_filament_sensor(const nlohmann::json& params);
 /// factory serial 000001 there, so 1 names no spool, and neither does 0,
 /// a serial that is not all digits, or anything but a whole record.
 [[nodiscard]] std::optional<int> tag_record_spoolman_id(std::string_view vender);
+
+/// One bay's `vender` entry in a stock frame. `unit` is the T<n> number and
+/// `bay` its 0-based position in the unit.
+struct BayVender {
+    int unit = 0;
+    int bay = 0;
+    std::string vender;
+};
+
+/// Every string `vender` entry a stock `box` frame carries, in unit then bay
+/// order. A unit or field the frame omits contributes nothing.
+[[nodiscard]] std::vector<BayVender> parse_bay_venders(const nlohmann::json& box);
 
 /// Order @p info's units by address and stand an absent unit in for every
 /// address below the highest one that reported nothing, so a bay's global

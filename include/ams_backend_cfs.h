@@ -1250,10 +1250,10 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
     std::map<int, int> deferred_probes_;
 
     /// Collect the bays whose insert edge needs an RFID read. Called under
-    /// mutex_ with the raw box payload; returns unit number -> bay bitmask so
-    /// the caller can dispatch one command pair per unit AFTER releasing the
+    /// mutex_ with the frame's parsed bays; returns unit number -> bay bitmask
+    /// so the caller can dispatch one command pair per unit AFTER releasing the
     /// lock (execute_gcode must not run under mutex_).
-    std::map<int, int> collect_insert_probes_locked(const nlohmann::json& box);
+    std::map<int, int> collect_insert_probes_locked(const std::vector<cfs::BayVender>& bays);
 
     // Firmware-observed material_type code vocabulary, harvested from box
     // status by handle_status and consulted by

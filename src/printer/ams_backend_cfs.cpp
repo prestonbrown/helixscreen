@@ -1031,13 +1031,21 @@ static std::string build_cfs_flat_slot_uid(const nlohmann::json& slot_json) {
 /// What one full `box` frame carries from the parse to the locked steps that
 /// apply it.
 struct AmsBackendCfs::BoxFrame {
-    /// The frame as it arrived. Presence gates read it: a field it omits is
-    /// one this frame said nothing about.
-    const nlohmann::json* box = nullptr;
-    /// The box as the merge of every frame the parse has seen, which is what
-    /// it read. A value that needs the whole payload reads this.
-    const nlohmann::json* state = nullptr;
     bool is_flat = false;
+    /// This frame states the endless-spool enable bit: stock `auto_refill`, flat
+    /// `runout_swap_enabled`. A field it omits is one it said nothing about.
+    bool states_refill_enable = false;
+    /// This frame states the runout latch: stock `filament_useup`, or a flat
+    /// `filament_detected` holding a real reading.
+    bool states_runout = false;
+    /// This flat frame states `runout`; the plan names bays, so it is read
+    /// against the merged state and the frame need not carry `slots`.
+    bool states_runout_plan = false;
+    std::optional<std::vector<int>> flat_runout_edges;
+    /// The merged `state`: a delta omits it while unchanged.
+    std::string bus_state;
+    /// This frame's own `vender` entries, the insert edges' input.
+    std::vector<cfs::BayVender> bay_venders;
     bool has_unit_data = false;
     bool print_holds_machine = false;
     /// unit number -> bay bitmask of the inserts to probe once mutex_ is
@@ -1306,9 +1314,17 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
     file_box_readings(new_info, state);
 
     BoxFrame frame;
-    frame.box = &box;
-    frame.state = &state;
     frame.is_flat = is_flat;
+    frame.states_refill_enable =
+        box.contains("auto_refill") || (is_flat && box.contains("runout_swap_enabled"));
+    frame.states_runout =
+        box.contains("filament_useup") || (is_flat && flat_gate_filament_present(box).has_value());
+    frame.states_runout_plan = is_flat && box.contains("runout");
+    if (frame.states_runout_plan) {
+        frame.flat_runout_edges = parse_flat_runout_edges(state);
+    }
+    frame.bus_state = helix::json_util::safe_string(state, "state", "");
+    frame.bay_venders = cfs::parse_bay_venders(box);
     frame.has_unit_data = has_unit_data;
     frame.print_holds_machine = print_holds_machine;
     frame.insert_probes = &insert_probes;
@@ -1398,6 +1414,17 @@ void AmsBackendCfs::file_box_readings(const AmsSystemInfo& new_info,
     // A bay this frame did not describe is not in new_info and is filed
     // nothing. One ingest replaces a source's record whole, so a lane
     // the box said nothing about keeps the reading it last stated.
+    std::unordered_map<int, int> tag_spools;
+    for (const auto& unit : new_info.units) {
+        if (unit.absent) {
+            continue;
+        }
+        for (const auto& slot : unit.slots) {
+            if (const auto id = stock_tag_spoolman_id(box_state, slot.global_index)) {
+                tag_spools[slot.global_index] = *id;
+            }
+        }
+    }
     {
         // Both calls below document mutex_ as a precondition:
         // reconcile_lane_binding() consumes the slot's own-write expectation,
@@ -1449,8 +1476,9 @@ void AmsBackendCfs::file_box_readings(const AmsSystemInfo& new_info,
                 // The spool the tag record names. The fold above rebuilds the
                 // reading from this frame alone, and nothing of ours writes the
                 // record's serial back, so the id is this frame's too.
-                if (const auto tag_spool = stock_tag_spoolman_id(box_state, slot.global_index)) {
-                    tag_readings_[slot.global_index].spoolman_id = tag_spool;
+                if (const auto spool = tag_spools.find(slot.global_index);
+                    spool != tag_spools.end()) {
+                    tag_readings_[slot.global_index].spoolman_id = spool->second;
                 }
 
                 // Whether the identity declared on this bay still names
@@ -1493,7 +1521,7 @@ void AmsBackendCfs::apply_box_frame_locked(BoxFrame& f) {
     // Bays that just went from empty to occupied and still carry no
     // resolved tag. Dispatched after the lock — execute_gcode must not
     // run under mutex_.
-    *f.insert_probes = collect_insert_probes_locked(*f.box);
+    *f.insert_probes = collect_insert_probes_locked(f.bay_venders);
 
     converge_box_bypass_locked(f);
     const bool runout_field_present = apply_box_runout_locked(f);
@@ -1512,7 +1540,6 @@ void AmsBackendCfs::apply_box_frame_locked(BoxFrame& f) {
 }
 
 void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
-    const auto& box = *f.box;
     const bool is_flat = f.is_flat;
     AmsSystemInfo& new_info = f.new_info;
 
@@ -1524,7 +1551,7 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
     // frame that changed only a slot omits the bit while both parsers default
     // it to off. Stock spells it auto_refill, the flat schema
     // runout_swap_enabled.
-    if (box.contains("auto_refill") || (is_flat && box.contains("runout_swap_enabled"))) {
+    if (f.states_refill_enable) {
         system_info_.endless_spool_enabled = new_info.endless_spool_enabled;
         endless_spool_enable_reported_ = true;
     }
@@ -1533,10 +1560,9 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
     // "None" is the box before discovery has run, as every Klipper start
     // publishes it, so it says nothing about the bus and the last reading
     // stands.
-    const std::string bus_state = helix::json_util::safe_string(*f.state, "state", "");
-    if (is_flat || bus_state == "connect") {
+    if (is_flat || f.bus_state == "connect") {
         bus_reported_empty_ = false;
-    } else if (bus_state == "disconnect") {
+    } else if (f.bus_state == "disconnect") {
         bus_reported_empty_ = true;
     }
 
@@ -1593,8 +1619,8 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
         if (is_flat) {
             system_info_.endless_spool_group_ids.clear();
             system_info_.endless_spool_groups_reported = false;
-            if (box.contains("runout")) {
-                flat_backup_edges_ = parse_flat_runout_edges(*f.state);
+            if (f.states_runout_plan) {
+                flat_backup_edges_ = std::move(f.flat_runout_edges);
             }
         } else {
             flat_backup_edges_.reset();
@@ -1807,8 +1833,6 @@ void AmsBackendCfs::converge_box_bypass_locked(BoxFrame& f) {
 }
 
 bool AmsBackendCfs::apply_box_runout_locked(BoxFrame& f) {
-    const auto& box = *f.box;
-    const bool is_flat = f.is_flat;
     const AmsSystemInfo& new_info = f.new_info;
 
     // Deliberately do NOT touch filament_loaded here. box.filament is a
@@ -1823,12 +1847,10 @@ bool AmsBackendCfs::apply_box_runout_locked(BoxFrame& f) {
     // A delta carrying that key as null published no reading, so it is
     // gated out by the same optional the parse consults — the latch
     // keeps whatever the last frame with a real reading set.
-    const bool runout_field_present =
-        box.contains("filament_useup") || (is_flat && flat_gate_filament_present(box).has_value());
-    if (runout_field_present) {
+    if (f.states_runout) {
         system_info_.filament_runout = new_info.filament_runout;
     }
-    return runout_field_present;
+    return f.states_runout;
 }
 
 void AmsBackendCfs::gate_insert_probes_locked(BoxFrame& f) {
@@ -4611,51 +4633,40 @@ AmsError AmsBackendCfs::exit_chute_calibration() {
 // Override layering (shared FilamentSlotOverrideStore)
 // ============================================================================
 
-std::map<int, int> AmsBackendCfs::collect_insert_probes_locked(const nlohmann::json& box) {
+std::map<int, int>
+AmsBackendCfs::collect_insert_probes_locked(const std::vector<cfs::BayVender>& bays) {
     std::map<int, int> probes;
     // Stock dialect only. The flat/Fork modules define their own command set
     // and were never observed to expose BOX_GET_RFID.
     if (schema_ == CfsSchema::Flat)
         return probes;
 
-    for (int n = 1; n <= 4; ++n) {
-        auto unit_it = box.find("T" + std::to_string(n));
-        if (unit_it == box.end() || !unit_it->is_object())
+    for (const auto& [unit, bay, vender] : bays) {
+        const int global_idx = (unit - 1) * cfs::kBaysPerBox + bay;
+        const bool occupied = !is_vender_sentinel(vender);
+        bay_tag_resolved_[global_idx] = occupied && vender != "unknown";
+
+        // First sighting of this bay seeds the map WITHOUT probing. Every
+        // occupied bay would otherwise look like an insert on the first
+        // poll after startup and trigger a burst of reads for spools that
+        // have not moved.
+        auto prev = bay_occupied_.find(global_idx);
+        const bool first_sighting = prev == bay_occupied_.end();
+        const bool was_occupied = !first_sighting && prev->second;
+        bay_occupied_[global_idx] = occupied;
+
+        if (first_sighting || !occupied || was_occupied)
             continue;
-        auto vender_it = unit_it->find("vender");
-        if (vender_it == unit_it->end() || !vender_it->is_array())
-            continue;
-        const int bays = std::min(4, static_cast<int>(vender_it->size()));
-        for (int bay = 0; bay < bays; ++bay) {
-            const auto& v = (*vender_it)[bay];
-            if (!v.is_string())
-                continue;
-            const int global_idx = (n - 1) * 4 + bay;
-            const bool occupied = !is_vender_sentinel(v.get<std::string>());
-            bay_tag_resolved_[global_idx] = occupied && v.get<std::string>() != "unknown";
 
-            // First sighting of this bay seeds the map WITHOUT probing. Every
-            // occupied bay would otherwise look like an insert on the first
-            // poll after startup and trigger a burst of reads for spools that
-            // have not moved.
-            auto prev = bay_occupied_.find(global_idx);
-            const bool first_sighting = prev == bay_occupied_.end();
-            const bool was_occupied = !first_sighting && prev->second;
-            bay_occupied_[global_idx] = occupied;
-
-            if (first_sighting || !occupied || was_occupied)
-                continue;
-
-            // Occupied now, empty last poll: a spool went in, so probe it.
-            //
-            // Deliberately NOT skipped when material_type already holds a real
-            // code. material_type LATCHES: bay C on the test rig read a stale
-            // 101001 from a spool removed days earlier, so "already resolved"
-            // is indistinguishable from "stale" here and skipping on it means
-            // never probing the bays that most need it. One redundant refresh
-            // on a genuinely unchanged tag is the cheaper mistake.
-            probes[n] |= (1 << bay);
-        }
+        // Occupied now, empty last poll: a spool went in, so probe it.
+        //
+        // Deliberately NOT skipped when material_type already holds a real
+        // code. material_type LATCHES: bay C on the test rig read a stale
+        // 101001 from a spool removed days earlier, so "already resolved"
+        // is indistinguishable from "stale" here and skipping on it means
+        // never probing the bays that most need it. One redundant refresh
+        // on a genuinely unchanged tag is the cheaper mistake.
+        probes[unit] |= (1 << bay);
     }
     return probes;
 }
