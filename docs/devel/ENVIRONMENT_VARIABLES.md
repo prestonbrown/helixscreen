@@ -641,7 +641,7 @@ Level 0 frame period of every screensaver, for manual testing: the saver draws a
 | **Values** | Whole milliseconds, `8` to `100`, or `0` to run savers at the global period |
 | **Default** | Unset: level 0 runs at 16 ms |
 | **Invalid** | Ignored with a warning |
-| **File** | `include/refresh_period_hold.h`, `src/ui/screensaver_manager.cpp`, `src/ui/screensaver_base.cpp` |
+| **File** | `include/refresh_period_hold.h`, `src/ui/screensaver/screensaver_manager.cpp`, `src/ui/screensaver/screensaver_base.cpp` |
 
 ```bash
 # Savers at the global period instead of 16 ms
@@ -659,7 +659,7 @@ Replaces the screensaver gate's CPU budget, as a whole percent of one core. Each
 | **Values** | Whole percent, `1` to `400` |
 | **Default** | Unset: the core-count budget |
 | **Invalid** | Anything else (`0`, `25%`, `-5`, empty) is ignored with a warning |
-| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver_manager.cpp` |
+| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver/screensaver_manager.cpp` |
 
 ```bash
 HELIX_SCREENSAVER_BUDGET_PCT=5 HELIX_SCREENSAVER_NOW=toasters ./build/bin/helix-screen --test -vv
@@ -676,7 +676,7 @@ Runs every saver that starts at this quality level and turns the gate off for th
 | **Values** | Whole level number, `0` to `99` |
 | **Default** | Unset: the stored level for this saver, app version and board |
 | **Invalid** | Ignored with a warning |
-| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver_manager.cpp` |
+| **File** | `include/screensaver_gate.h#saver_env_overrides`, `src/ui/screensaver/screensaver_manager.cpp` |
 
 ```bash
 HELIX_SCREENSAVER_LEVEL=1 HELIX_SCREENSAVER_NOW=pipes ./build/bin/helix-screen --test -vv

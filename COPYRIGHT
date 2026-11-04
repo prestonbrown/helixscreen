@@ -50,7 +50,7 @@ This project includes third-party components with their own licenses:
 - cpp-terminal (lib/cpp-terminal) - MIT License
 - mdns (lib/mdns) - Public Domain
 - stb libraries (lib/stb) - MIT License / Public Domain
-- freeglut teapot data (src/ui/screensaver_pipes_teapot.cpp) - MIT License
+- freeglut teapot data (src/ui/screensaver/screensaver_pipes_teapot.cpp) - MIT License
 - Spoolman logo (assets/fonts/custom_icons/spoolman.svg, compiled into the
   icon fonts) - MIT License (see below)
 

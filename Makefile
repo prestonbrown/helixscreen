@@ -469,7 +469,7 @@ ifneq ($(ENABLE_GLES_3D),yes)
     APP_SRCS := $(filter-out $(SRC_DIR)/rendering/gcode_gles_renderer.cpp,$(APP_SRCS))
 endif
 # Screensaver sources: every saver, the parts they share and the manager
-SCREENSAVER_SRCS := $(SRC_DIR)/ui/ui_screensaver.cpp $(wildcard $(SRC_DIR)/ui/screensaver_*.cpp)
+SCREENSAVER_SRCS := $(wildcard $(SRC_DIR)/ui/screensaver/*.cpp)
 # Targets whose lv_conf.h LV_COLOR_DEPTH is 16. The savers below static_assert 32 bpp, so a
 # 16 bpp target missing here fails to compile rather than shipping them.
 SCREENSAVER_16BPP_TARGETS := ad5m ad5m-br cc1 mips k1 k1-dynamic ad5x k2 snapmaker-u1

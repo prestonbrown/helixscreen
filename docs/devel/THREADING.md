@@ -991,7 +991,7 @@ Share one `cancel_*_timer()` helper between both paths, and cancel with
 `lv_timer_cancel_safe()` (`include/ui_timer_guard.h`) — it self-guards on
 `lv_is_initialized()` and neuters the timer instead of unlinking it, so it is safe to call
 from a destructor and from inside `lv_timer_handler()` (#750, #751). Exemplar:
-`FlyingToasterScreensaver::cancel_timer()` in `src/ui/ui_screensaver.cpp`.
+`FlyingToasterScreensaver::cancel_timer()` in `src/ui/screensaver/ui_screensaver.cpp`.
 
 A `LifetimeToken`-guarded timer callback is the other valid answer — annotate those
 `// TIMER_DTOR_OK: <reason>`.

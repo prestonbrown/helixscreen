@@ -27,6 +27,7 @@ src/lvgl-demo/  # all 1 src/ files beneath
 src/network/  # all 2 src/ files beneath
 src/remote/  # all 8 src/ files beneath
 src/tools/  # all 1 src/ files beneath
+src/ui/screensaver/  # all 33 src/ files beneath
 
 # --- individual files (same dir, partially compiled) ---
 src/api/accel_batch_source_mock.cpp  # not in the v1 Core+AMS cut
@@ -278,38 +279,6 @@ src/ui/panel_widgets/toolhead_widget.cpp  # the Toolhead widget, compiled out (H
 src/ui/pid_progress_tracker.cpp  # not in the v1 Core+AMS cut
 src/ui/recovery_fault_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/recovery_modal_presenter.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_aqua.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_aqua_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_base.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_blur.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_bounce.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_canvas.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_clock.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_clock_reading.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_cpu_clock.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_fireflies.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_fireflies_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_fireworks.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_fireworks_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_flip_clock.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_flip_clock_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_hyperspace_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_frame.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_frame_timer.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_gate.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_heightfield.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_highfly.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_highfly_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_image.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_level_store.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_manager.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_maze.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_maze_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_overlay.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_pipes_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_pipes_teapot.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_starfield_sim.cpp  # not in the v1 Core+AMS cut
-src/ui/screensaver_stroke_digits.cpp  # not in the v1 Core+AMS cut
 src/system/splash_asset_choice.cpp  # not in the v1 Core+AMS cut
 src/ui/splash_screen.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_ams_tool_text.cpp  # not in the v1 Core+AMS cut
@@ -342,7 +311,6 @@ src/ui/ui_panel_input_shaper.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_memory_stats.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_screws_tilt.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_spoolman.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
-src/ui/ui_screensaver.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_screws_tilt_share_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_settings_barcode_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_settings_label_printer.cpp  # not in the v1 Core+AMS cut
