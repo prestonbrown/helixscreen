@@ -808,18 +808,31 @@ void ZOffsetCalibrationPanel::send_abort() {
             /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
             /*caller_surfaces_errors=*/false);
     } else {
-        spdlog::info("[ZOffsetCal] Sending ABORT");
-        api_->execute_gcode(
-            "ABORT", []() { spdlog::info("[ZOffsetCal] Aborted"); },
-            [](const MoonrakerError& err) {
-                spdlog::warn("[ZOffsetCal] ABORT failed: {}", err.message);
-            },
-            /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
-            /*caller_surfaces_errors=*/false);
+        send_manual_probe_abort();
     }
 
     turn_off_bed_if_needed();
     set_state(State::IDLE);
+}
+
+void ZOffsetCalibrationPanel::send_manual_probe_abort() {
+    spdlog::info("[ZOffsetCal] Sending ABORT");
+    api_->execute_gcode(
+        "ABORT", []() { spdlog::info("[ZOffsetCal] Aborted"); },
+        [](const MoonrakerError& err) {
+            spdlog::warn("[ZOffsetCal] ABORT failed: {}", err.message);
+        },
+        /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
+        /*caller_surfaces_errors=*/false);
+}
+
+void ZOffsetCalibrationPanel::abort_manual_probe_if_active() {
+    if (!api_ ||
+        lv_subject_get_int(
+            get_printer_state().calibration_state().get_manual_probe_active_subject()) == 0) {
+        return;
+    }
+    send_manual_probe_abort();
 }
 
 // ============================================================================
@@ -864,6 +877,7 @@ void ZOffsetCalibrationPanel::handle_done_clicked() {
 
 void ZOffsetCalibrationPanel::handle_retry_clicked() {
     spdlog::debug("[ZOffsetCal] Retry clicked");
+    abort_manual_probe_if_active();
     set_state(State::IDLE);
 }
 
@@ -928,6 +942,8 @@ void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::str
             lv_label_set_text(error_message_, message.c_str());
         }
         set_state(State::ERROR);
+        // An open session keeps the manual probe dialog up in Mainsail and Fluidd.
+        abort_manual_probe_if_active();
     }
 }
 

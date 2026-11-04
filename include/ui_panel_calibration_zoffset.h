@@ -172,6 +172,11 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void adjust_z(float delta);
     void send_accept();
     void send_abort();
+    /// Puts ABORT on the wire and leaves the panel state alone.
+    void send_manual_probe_abort();
+    /// Ends a manual probe session this panel's run left open. Klipper registers
+    /// ABORT only during a session, so without one nothing is sent.
+    void abort_manual_probe_if_active();
 
     // Event handlers
     void handle_start_clicked();
