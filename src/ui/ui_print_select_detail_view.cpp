@@ -67,30 +67,11 @@ namespace tio = ::helix::text_io;
 // Static instance pointer for callback access
 // ============================================================================
 
-// Static instance pointer for the helper functions in this TU (currently
-// just update_prep_time_label) to reach the live detail view. Only one
-// detail view exists at a time; set during init_subjects() / cleared in the
-// destructor.
-static PrintSelectDetailView* s_detail_view_instance = nullptr;
-
-// ============================================================================
-// Static callback declarations
-// ============================================================================
-
-// Forward decl for the prep-time estimate refresh that runs after every
-// toggle. Defined later in this TU.
-static void update_prep_time_label();
-
 // ============================================================================
 // Lifecycle
 // ============================================================================
 
 PrintSelectDetailView::~PrintSelectDetailView() {
-    // Clear static instance pointer
-    if (s_detail_view_instance == this) {
-        s_detail_view_instance = nullptr;
-    }
-
     // lifetime_ destructor auto-invalidates all outstanding tokens
 
     // Clean up temp gcode file
@@ -166,9 +147,6 @@ void PrintSelectDetailView::init_subjects() {
         spdlog::debug("[DetailView] Subjects already initialized, skipping");
         return;
     }
-
-    // Set static instance pointer for callbacks (must be before callback registration)
-    s_detail_view_instance = this;
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
     UI_MANAGED_SUBJECT_INT(detail_gcode_viewer_mode_, 0, "detail_gcode_viewer_mode", subjects_);
@@ -2711,20 +2689,18 @@ void PrintSelectDetailView::begin_viewer_load(const std::string& path,
 // Pre-print Estimate Label Update
 // ============================================================================
 
-static void update_prep_time_label() {
-    if (!s_detail_view_instance || !s_detail_view_instance->get_prep_manager()) {
+void PrintSelectDetailView::update_prep_time_label() {
+    if (!prep_manager_) {
         return;
     }
-    auto* mgr = s_detail_view_instance->get_prep_manager();
-    const auto& metadata = s_detail_view_instance->get_file_metadata();
-    mgr->recalculate_estimate(metadata ? &*metadata : nullptr,
-                              s_detail_view_instance->current_file_key());
+    const auto& metadata = cached_file_metadata_;
+    prep_manager_->recalculate_estimate(metadata ? &*metadata : nullptr, current_file_key());
 
-    int estimate_s = lv_subject_get_int(mgr->get_preprint_estimate_subject());
+    int estimate_s = lv_subject_get_int(prep_manager_->get_preprint_estimate_subject());
 
     if (estimate_s <= 0) {
-        lv_subject_copy_string(s_detail_view_instance->get_prep_time_estimate_subject(), "");
-        s_detail_view_instance->set_prep_estimate_visible(0);
+        lv_subject_copy_string(&prep_time_estimate_subject_, "");
+        lv_subject_set_int(&preprint_estimate_visible_, 0);
         return;
     }
 
@@ -2740,8 +2716,8 @@ static void update_prep_time_label() {
     } else {
         snprintf(buf, sizeof(buf), "~%d sec prep time", secs);
     }
-    lv_subject_copy_string(s_detail_view_instance->get_prep_time_estimate_subject(), buf);
-    s_detail_view_instance->set_prep_estimate_visible(1);
+    lv_subject_copy_string(&prep_time_estimate_subject_, buf);
+    lv_subject_set_int(&preprint_estimate_visible_, 1);
 }
 
 bool PrintSelectDetailView::apply_file_metadata(const std::string& file_key,
