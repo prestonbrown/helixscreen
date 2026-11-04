@@ -708,8 +708,6 @@ class PrintSelectDetailView : public OverlayBase {
         return timelapse_checkbox_;
     }
 
-    // === Subject Access ===
-
     // === Resize Handling ===
 
     /**

@@ -37,8 +37,6 @@ CrashReportModal::CrashReportModal(CrashReporter& reporter) : reporter_(reporter
 
 CrashReportModal::~CrashReportModal() {
     deinit_subjects();
-    // clear()-path teardown frees the instance without on_hide(), which is
-    // normally the one that drops the static pointer.
     spdlog::trace("[CrashReportModal] Destroyed");
 }
 

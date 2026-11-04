@@ -156,22 +156,9 @@ void PreheatWidget::detach() {
     bed_target_obs_.reset();
     language_obs_.reset();
 
-    if (split_btn_) {
-        lv_obj_set_user_data(split_btn_, nullptr);
-        split_btn_ = nullptr;
-    }
-
+    split_btn_ = nullptr;
     tool_target_btn_ = nullptr;
     tool_target_label_ = nullptr;
-
-    lv_obj_t* nozzle_row =
-        widget_obj_ ? lv_obj_find_by_name(widget_obj_, "preheat_nozzle_row") : nullptr;
-    if (nozzle_row)
-        lv_obj_set_user_data(nozzle_row, nullptr);
-    lv_obj_t* bed_row = widget_obj_ ? lv_obj_find_by_name(widget_obj_, "preheat_bed_row") : nullptr;
-    if (bed_row)
-        lv_obj_set_user_data(bed_row, nullptr);
-
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 
