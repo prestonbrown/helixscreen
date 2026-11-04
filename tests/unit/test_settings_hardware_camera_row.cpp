@@ -39,15 +39,12 @@ struct HardwareCameraRowFixture : public LVGLUITestFixture {
         return s;
     }
 
-    // The container hides without a webcam; the row inside it hides without
-    // camera support.
+    // The whole container hides, without a webcam or without camera support:
+    // a hidden row in a visible container still leaves a gap in the list.
     bool camera_row_hidden() const {
         lv_obj_t* container = lv_obj_find_by_name(root_, "container_camera");
-        lv_obj_t* row = lv_obj_find_by_name(root_, "row_camera");
         REQUIRE(container != nullptr);
-        REQUIRE(row != nullptr);
-        return lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN) ||
-               lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN);
     }
 
     lv_obj_t* root_ = nullptr;

@@ -34,14 +34,12 @@
         <!-- CAMERA (hidden without an enabled webcam in Moonraker or camera support in the build) -->
         <!-- ================================================================== -->
         <lv_obj name="container_camera" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_webcam" flag="hidden" ref_value="0"/>
+          <!-- One condition, not two binds: two binds on one flag overwrite each other.
+               Builds without camera support (HELIX_HAS_CAMERA=0) have no view to open. -->
+          <bind_flag_if cond="printer_has_webcam eq 0 or platform_camera_supported eq 0" flag="hidden"/>
           <setting_action_row name="row_camera"
                               label="Camera" label_tag="Camera" icon="video" description="View live camera feed"
-                              description_tag="View live camera feed" callback="on_camera_view_clicked">
-            <!-- Builds without camera support (HELIX_HAS_CAMERA=0) have no view to open.
-                 Bound on the row, not stacked on the container's webcam bind. -->
-            <bind_flag_if_eq subject="platform_camera_supported" flag="hidden" ref_value="0"/>
-          </setting_action_row>
+                              description_tag="View live camera feed" callback="on_camera_view_clicked"/>
         </lv_obj>
         <!-- ================================================================== -->
         <!-- MULTI-FILAMENT MANAGEMENT (hidden if no AMS detected) -->
