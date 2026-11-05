@@ -2319,5 +2319,25 @@
     "capture": "voron_trident_tzt85mq3",
     "expect": "Voron Trident",
     "autosave": true
+  },
+  {
+    "name": "a Kobrian Kobra X identifies itself by its KX head",
+    "note": "The capture's hostname names the image, not the model, and its ACE registers as the ACEPRO driver's ace rather than GoKlipper's filament_hub, so no Kobra 3 or S1 heuristic beyond cartesian kinematics fires. The kx_* objects are what identify the machine.",
+    "capture": "anycubic_kobra_x_kobrian",
+    "expect": "Anycubic Kobra X",
+    "autosave": true
+  },
+  {
+    "name": "a Kobra X hostname outscores the generic Kobra",
+    "note": "'kobra-x' also contains the Anycubic Kobra entry's 'kobra' pattern, so the model's own hostname has to lead it.",
+    "hardware": {
+      "heaters": ["extruder", "heater_bed"],
+      "hostname": "kobra-x",
+      "printer_objects": ["bed_mesh"],
+      "kinematics": "cartesian"
+    },
+    "expect": "Anycubic Kobra X",
+    "runner_up": "Anycubic Kobra",
+    "autosave": true
   }
 ]

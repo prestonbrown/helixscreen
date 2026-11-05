@@ -6236,6 +6236,79 @@
       ]
     },
     {
+      "id": "anycubic_kobra_x",
+      "name": "Anycubic Kobra X",
+      "manufacturer": "Anycubic",
+      "image": "anycubic-kobra-x.png",
+      "print_start_profile": "anycubic_kobra",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger) - confirmed via a Kobrian Kobra X printer.cfg"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^kx_toolchanger$",
+          "confidence": 95,
+          "reason": "KX multi-material head toolchanger (Kobra X kx_multimaterial.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^kx_selector$",
+          "confidence": 92,
+          "reason": "KX filament selector (Kobra X kx_multimaterial.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^kx_filament$",
+          "confidence": 90,
+          "reason": "KX filament manager (Kobra X kx_multimaterial.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^motor_link$",
+          "confidence": 50,
+          "corroborating": true,
+          "reason": "Corroboration only: Anycubic's closed-loop motor link (NF026) may ride on other Anycubic boards ported to Klipper"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "kobrian-kx",
+          "confidence": 95,
+          "reason": "Hostname contains 'kobrian-kx' (the Kobrian image names a Kobra X host kobrian-kx-<suffix>)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "kobrax",
+          "confidence": 97,
+          "reason": "Hostname contains 'kobrax'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "kobra-x",
+          "confidence": 97,
+          "reason": "Hostname contains 'kobra-x'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "anycubic",
+          "confidence": 80,
+          "reason": "Hostname contains 'anycubic'"
+        }
+      ]
+    },
+    {
       "id": "anycubic_i3_mega",
       "name": "Anycubic i3 Mega",
       "manufacturer": "Anycubic",
