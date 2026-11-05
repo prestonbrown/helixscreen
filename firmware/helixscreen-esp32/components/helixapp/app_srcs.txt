@@ -198,6 +198,7 @@ src/printer/chamber_heater_backend_dragonbreath.cpp
 src/printer/chamber_wait_line.cpp
 src/printer/gcode_wait_line.cpp
 src/printer/multiace_status.cpp
+src/printer/notice.cpp
 src/printer/wait_line_reader.cpp
 src/printer/chamber_heater_backend_generic.cpp
 src/printer/chamber_heater_backend_panda_breath.cpp

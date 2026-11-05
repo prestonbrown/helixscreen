@@ -13,6 +13,7 @@
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
+#include "notice.h"
 #include "pending_startup_warnings.h"
 #include "sound_manager.h"
 #include "theme_manager.h"
@@ -207,6 +208,42 @@ void ToastManager::exit_animation_complete_cb(lv_anim_t* anim) {
 // ============================================================================
 // Init / deinit
 // ============================================================================
+
+namespace {
+
+ToastSeverity toast_severity(helix::NoticeSeverity severity) {
+    switch (severity) {
+    case helix::NoticeSeverity::SUCCESS:
+        return ToastSeverity::SUCCESS;
+    case helix::NoticeSeverity::WARNING:
+        return ToastSeverity::WARNING;
+    case helix::NoticeSeverity::ERROR:
+        return ToastSeverity::ERROR;
+    case helix::NoticeSeverity::INFO:
+        break;
+    }
+    return ToastSeverity::INFO;
+}
+
+// Safe from any thread: every show*() marshals the widget work itself.
+void present_notice(const helix::Notice& notice) {
+    auto& toasts = ToastManager::instance();
+    const ToastSeverity severity = toast_severity(notice.severity);
+    if (notice.action) {
+        toasts.show_with_action(severity, notice.message.c_str(), notice.action_text.c_str(),
+                                notice.action, notice.action_user_data, notice.duration_ms);
+    } else {
+        toasts.show(severity, notice.message.c_str(), notice.duration_ms);
+    }
+}
+
+// At static initialization, so no notice can precede its subscriber and no boot
+// path (desktop, firmware, tests) has a step to forget. This file is linked by
+// every binary that shows a toast.
+[[maybe_unused]] const bool s_notice_presenter_installed =
+    (helix::set_notice_subscriber(present_notice), true);
+
+} // namespace
 
 void ToastManager::init() {
     if (initialized_.load(std::memory_order_acquire)) {
