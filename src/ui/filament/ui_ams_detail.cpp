@@ -25,6 +25,7 @@
 #include "filament_op_dispatch.h"      // kExternalSpoolSlot: the bypass sentinel
 #include "filament_op_slot_resolver.h" // clear_spool_blocked_by_print: the print guard
 #include "filament_tube_stroker.h"
+#include "notice.h"
 #include "panel_widget_size.h"
 #include "printer_detector.h"
 #include "printer_state.h" // PrinterState, complete for get_print_lifecycle()
@@ -1452,6 +1453,12 @@ void offer_clear_after_unverified_insert(int slot) {
         },
         reinterpret_cast<void*>(static_cast<intptr_t>(slot)), 10000);
 }
+
+namespace {
+const UiRequestRegistration s_insert_offer_registration{
+    UiRequestKind::OfferClearAfterUnverifiedInsert,
+    [](const UiRequest& request) { offer_clear_after_unverified_insert(request.slot); }};
+} // namespace
 
 } // namespace ui
 } // namespace helix

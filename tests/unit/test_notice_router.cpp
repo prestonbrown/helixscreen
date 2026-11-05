@@ -24,6 +24,9 @@
 using helix::Notice;
 using helix::NoticeSeverity;
 using helix::publish_notice;
+using helix::publish_ui_request;
+using helix::UiRequest;
+using helix::UiRequestKind;
 using helix::test::ToastLog;
 
 namespace {
@@ -46,6 +49,25 @@ struct CapturedNotices {
     }
     ~CapturedNotices() {
         helix::set_notice_subscriber(previous);
+    }
+};
+
+std::vector<UiRequest> g_requests;
+std::thread::id g_request_thread;
+
+/// Swaps @p kind's handler out for one that keeps the requests as data.
+struct CapturedRequests {
+    UiRequestKind kind;
+    helix::UiRequestHandler previous;
+    explicit CapturedRequests(UiRequestKind k)
+        : kind(k), previous(helix::set_ui_request_handler(k, [](const UiRequest& request) {
+              g_requests.push_back(request);
+              g_request_thread = std::this_thread::get_id();
+          })) {
+        g_requests.clear();
+    }
+    ~CapturedRequests() {
+        helix::set_ui_request_handler(kind, previous);
     }
 };
 
@@ -161,4 +183,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "Hardware validation publishes its notice with
     CHECK(g_captured[0].action_text == "View");
     CHECK(g_captured[0].action != nullptr);
     CHECK(g_captured[0].action_user_data == nullptr);
+}
+
+TEST_CASE("A UI request reaches its kind's handler with its fields, on the calling thread",
+          "[notification][notice]") {
+    CapturedRequests requests(UiRequestKind::OfferClearAfterUnverifiedInsert);
+    auto* const api = reinterpret_cast<helix::IMoonrakerAPI*>(&g_requests);
+
+    std::thread([api] {
+        publish_ui_request({UiRequestKind::OfferClearAfterUnverifiedInsert, 3, api});
+    }).join();
+
+    REQUIRE(g_requests.size() == 1);
+    CHECK(g_requests[0].kind == UiRequestKind::OfferClearAfterUnverifiedInsert);
+    CHECK(g_requests[0].slot == 3);
+    CHECK(g_requests[0].api == api);
+    CHECK(g_request_thread != std::this_thread::get_id());
+
+    // A kind with no handler is dropped, and reaches no other kind's.
+    const auto previous = helix::set_ui_request_handler(UiRequestKind::OpenHardwareHealth, nullptr);
+    publish_ui_request({UiRequestKind::OpenHardwareHealth});
+    helix::set_ui_request_handler(UiRequestKind::OpenHardwareHealth, previous);
+    CHECK(g_requests.size() == 1);
 }
