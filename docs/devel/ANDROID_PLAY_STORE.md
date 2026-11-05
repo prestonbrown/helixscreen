@@ -183,7 +183,7 @@ Before the first run of `publish-android` can succeed, the following must be don
   - **Escape hatch, if the split becomes a real support burden:** the Play Developer API's `generatedapks.download` returns the Play-signed universal APK for a given versionCode. Publishing *that* to GitHub releases instead of our own `assembleRelease` output would converge both channels on Google's key and make installs interchangeable. Not worth the extra API plumbing until someone actually hits the problem.
 - [ ] **Generate a service account for the API** — in Google Cloud Console (linked to the Play Developer account):
   1. Create a new service account named e.g. `helixscreen-ci`.
-  2. Enable the "Google Play Android Developer API" for the project.
+  2. Enable the "Google Play Android Developer API" for the project. Done 2026-11-04. Brave's Cloud Console page failed to load, so use Safari if that recurs.
   3. Create a JSON key for the service account and download it.
 - [ ] **Grant the service account access to the app** — Play Console → Users and permissions → Invite new users → add the service account email → grant **"Release manager"** role scoped to the HelixScreen app (production + testing tracks). Do **not** grant account-level admin.
 - [x] **Generate the upload keystore** — done 2026-04-23. Backed up at `~/.android-keystore/helixscreen-upload.jks`. Passwords stored in password manager.
