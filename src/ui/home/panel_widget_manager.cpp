@@ -1722,6 +1722,8 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
                                              std::vector<std::unique_ptr<PanelWidget>>& widgets,
                                              bool reseat_all) {
     if (!container || populating_) {
+        spdlog::debug("[PanelWidgetManager] relayout '{}' p{} refused: {}", panel_id, page_index,
+                      container ? "a populate is running" : "no container");
         return false;
     }
     const int cols =
@@ -1729,6 +1731,9 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
     const int rows =
         grid_count_tracks(lv_obj_get_style_grid_row_dsc_array(container, LV_PART_MAIN));
     if (cols <= 0 || rows <= 0) {
+        spdlog::debug("[PanelWidgetManager] relayout '{}' p{} refused: container has no grid "
+                      "tracks ({}x{})",
+                      panel_id, page_index, cols, rows);
         return false;
     }
     const CellMetrics metrics =
@@ -1775,6 +1780,9 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
             return name && e.enabled && e.id == name;
         });
         if (entry == entries.end() || !entry->is_placed()) {
+            spdlog::debug("[PanelWidgetManager] relayout '{}' p{} refused: tile '{}' has no "
+                          "enabled placed entry",
+                          panel_id, page_index, name ? name : "");
             return false;
         }
         // A tile the edit did not touch must already sit where its entry says.
@@ -1790,6 +1798,14 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
         if (!changed &&
             (lv_obj_get_style_grid_cell_column_pos(child, LV_PART_MAIN) != cell.col ||
              lv_obj_get_style_grid_cell_row_pos(child, LV_PART_MAIN) != cell.row || span_changed)) {
+            spdlog::debug("[PanelWidgetManager] relayout '{}' p{} refused: tile '{}' seated at "
+                          "({},{} {}x{}) but its entry says ({},{} {}x{})",
+                          panel_id, page_index, entry->id,
+                          lv_obj_get_style_grid_cell_column_pos(child, LV_PART_MAIN),
+                          lv_obj_get_style_grid_cell_row_pos(child, LV_PART_MAIN),
+                          lv_obj_get_style_grid_cell_column_span(child, LV_PART_MAIN),
+                          lv_obj_get_style_grid_cell_row_span(child, LV_PART_MAIN), cell.col,
+                          cell.row, cell.colspan, cell.rowspan);
             return false;
         }
         seats.push_back({child, &*entry, cell, span_changed});
@@ -1800,6 +1816,9 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
         }
     }
     if (!resized_id.empty() && !resized) {
+        spdlog::debug("[PanelWidgetManager] relayout '{}' p{} refused: resized tile '{}' not on "
+                      "the page",
+                      panel_id, page_index, resized_id);
         return false;
     }
     auto instance = std::find_if(widgets.begin(), widgets.end(),
@@ -1809,6 +1828,10 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
                                                                  resized->cell.colspan)),
                               static_cast<int>(grid_track_extent(metrics.cell_h, metrics.gutter,
                                                                  resized->cell.rowspan)))) {
+        spdlog::debug("[PanelWidgetManager] relayout '{}' p{} refused: tile '{}' cannot draw at "
+                      "{}x{} cells",
+                      panel_id, page_index, resized_id, resized->cell.colspan,
+                      resized->cell.rowspan);
         return false;
     }
     // Re-seating everything, every tile whose span changes is a resize: each must fit.
@@ -1824,6 +1847,10 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
                                                                     seat.cell.colspan)),
                                  static_cast<int>(grid_track_extent(metrics.cell_h, metrics.gutter,
                                                                     seat.cell.rowspan)))) {
+                spdlog::debug("[PanelWidgetManager] reseat '{}' p{} refused: tile '{}' cannot "
+                              "draw at {}x{} cells",
+                              panel_id, page_index, seat.entry->id, seat.cell.colspan,
+                              seat.cell.rowspan);
                 return false;
             }
         }
