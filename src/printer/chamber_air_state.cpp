@@ -38,7 +38,9 @@ void ChamberAirState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(chamber_air_exhaust_pct, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_recirculate_pct, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_has_targets, 0, subjects_, register_xml);
-    INIT_SUBJECT_INT(chamber_air_filter_minutes, -1, subjects_, register_xml);
+    // Read from C++ only (the maintenance model observes it), so it takes no XML name.
+    lv_subject_init_int(&chamber_air_filter_minutes_, -1);
+    subjects_.register_subject(&chamber_air_filter_minutes_, nullptr);
     const chamber_air::ModeTargets d{};
     INIT_SUBJECT_INT(chamber_air_target_c, static_cast<int>(d.target_c), subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_exhaust_target_pct, d.exhaust_pct, subjects_, register_xml);
