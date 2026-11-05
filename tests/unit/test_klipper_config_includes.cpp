@@ -125,6 +125,18 @@ TEST_CASE("config_resolve_path - resolves include relative to current file", "[c
         REQUIRE(config_resolve_path("conf.d/base.cfg", "extras/more.cfg") ==
                 "conf.d/extras/more.cfg");
     }
+
+    SECTION("Dot segments reduce to the path Moonraker lists") {
+        CHECK(config_resolve_path("printer.cfg", "./mod/config/a.cfg") == "mod/config/a.cfg");
+        CHECK(config_resolve_path("mod/config/a.cfg", "../macros/base.cfg") ==
+              "mod/macros/base.cfg");
+        CHECK(config_resolve_path("conf.d/a.cfg", "./*.cfg") == "conf.d/*.cfg");
+    }
+
+    SECTION("A path above the root keeps its dots, so it matches nothing") {
+        CHECK(config_resolve_path("a.cfg", "../b.cfg") == "../b.cfg");
+        CHECK(config_resolve_path("conf.d/a.cfg", "../../b.cfg") == "../b.cfg");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -867,6 +879,26 @@ TEST_CASE("walk_include_graph lists only the directories the includes name",
     REQUIRE(r.completions == 1);
     CHECK(r.active ==
           std::set<std::string>{"printer.cfg", "macros.cfg", "conf.d/a.cfg", "conf.d/z.cfg"});
+}
+
+TEST_CASE("walk_include_graph follows includes spelled with dot segments",
+          "[config][includes][include_graph]") {
+    DeferredDownloads dl;
+    dl.server = {
+        {"printer.cfg", "[include ./mod/config/a.cfg]\n"},
+        {"mod/config/a.cfg", "[include ../macros/*.cfg]\n"},
+        {"mod/macros/base.cfg", "[gcode_macro PRINT_START]\n"},
+    };
+    RecordingLister lister{dl};
+    GraphResult r;
+    run_walk(dl, lister.fn(), r);
+    dl.answer_all();
+    dl.answer_all();
+
+    REQUIRE(r.completions == 1);
+    CHECK(r.active ==
+          std::set<std::string>{"printer.cfg", "mod/config/a.cfg", "mod/macros/base.cfg"});
+    CHECK(lister.whole_trees == 0);
 }
 
 TEST_CASE("walk_include_graph needs the whole tree only for a wildcard directory",
