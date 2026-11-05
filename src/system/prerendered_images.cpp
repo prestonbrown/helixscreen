@@ -286,7 +286,11 @@ std::string get_cached_printer_image_path(const std::string& source_image_path, 
     std::string cache_dir = get_printer_image_cache_dir();
     std::string basename = extract_source_basename(source_image_path);
     return cache_dir + "/" + basename + "-" + std::to_string(width) + "x" + std::to_string(height) +
-           "-" + source_fingerprint(strip_lvgl_prefix(source_image_path)) + ".bin";
+           "-" + printer_image_source_fingerprint(source_image_path) + ".bin";
+}
+
+std::string printer_image_source_fingerprint(const std::string& source_image_path) {
+    return source_fingerprint(strip_lvgl_prefix(source_image_path));
 }
 
 bool printer_cache_entry_matches(const std::string& cache_filename,
