@@ -18,10 +18,12 @@ namespace helix::plugin {
 /// The plugin root inside Moonraker's config root.
 constexpr const char* kPluginRootPath = "helixscreen/plugins/";
 
-/// SourceDeps over the app's Moonraker API: `list` is one server.files.list of the config
-/// root filtered to kPluginRootPath (Moonraker lists a root whole), `download` is
-/// download_file_partial capped at `max_bytes` with the body written to the destination.
-/// `api` must outlive the deps' callbacks; the caller guards them.
+/// SourceDeps over the app's Moonraker API: `list` walks kPluginRootPath one directory at
+/// a time with server.files.get_directory, because server.files.list walks the whole config
+/// root with Moonraker's event loop blocked and that root can hold the mod and this app's
+/// install. A missing folder lists as empty. `download` is download_file_partial capped at
+/// `max_bytes` with the body written to the destination. `api` must outlive the deps' callbacks;
+/// the caller guards them.
 SourceDeps make_moonraker_source_deps(IMoonrakerAPI* api);
 
 /// True when a notify_filelist_changed message touches config/helixscreen/plugins/: its

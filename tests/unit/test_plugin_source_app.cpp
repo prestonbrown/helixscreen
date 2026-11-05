@@ -3,6 +3,8 @@
 
 #if HELIX_HAS_PLUGINS
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/plugin_test_support.h"
 #include "../test_helpers/scoped_env.h"
@@ -37,11 +39,23 @@ class ScriptedFiles : public MoonrakerFileAPIMock {
 
     std::vector<FileInfo> listing;
     bool fail = false;
+    int whole_root_lists = 0;
+    std::vector<std::string> dirs_listed;
+
+    void get_directory(const std::string& root, const std::string& path,
+                       FileListCallback on_success, ErrorCallback on_error) override {
+        dirs_listed.push_back(path);
+        answering_directory_ = true;
+        MoonrakerFileAPIMock::get_directory(root, path, std::move(on_success), std::move(on_error));
+        answering_directory_ = false;
+    }
 
     void list_files(const std::string& root, const std::string& path, bool recursive,
                     FileListCallback on_success, ErrorCallback on_error) override {
         (void)path;
         (void)recursive;
+        if (!answering_directory_)
+            ++whole_root_lists;
         if (fail) {
             if (on_error)
                 on_error(MoonrakerError::unknown("mock listing failure", "list_files"));
@@ -51,6 +65,9 @@ class ScriptedFiles : public MoonrakerFileAPIMock {
         if (on_success)
             on_success(listing);
     }
+
+  private:
+    bool answering_directory_ = false;
 };
 
 /// Records every download_file_partial() call and serves canned bytes.
@@ -108,6 +125,9 @@ std::vector<RemoteFile> listed(SourceDeps& deps, bool& ok) {
         files = std::move(f);
         done = true;
     });
+    // One queued step per folder, more of them than one drain call runs.
+    for (int i = 0; i < 1000 && !done; ++i)
+        helix::ui::UpdateQueue::instance().drain();
     REQUIRE(done);
     return files;
 }
@@ -193,6 +213,90 @@ TEST_CASE_METHOD(LVGLTestFixture, "source deps list skips directories and non-pl
     CHECK(files[0].path == "spark/main.lua");
     CHECK(files[0].size == 8);
     CHECK(files[0].modified == 12.5);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "source deps list walks only the plugin folder",
+                 "[plugin][source_app]") {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    RecordingApi api(client, state);
+    FileInfo lua;
+    lua.path = "helixscreen/plugins/spark/main.lua";
+    FileInfo nested;
+    nested.path = "helixscreen/plugins/spark/ui/tile.xml";
+    FileInfo install;
+    install.path = "mod_data/helixscreen/ui_xml/home.xml";
+    api.files_.listing = {lua, nested, install};
+
+    SourceDeps deps = make_moonraker_source_deps(&api);
+    bool ok = false;
+    const std::vector<RemoteFile> files = listed(deps, ok);
+
+    REQUIRE(ok);
+    REQUIRE(files.size() == 2);
+    CHECK(api.files_.whole_root_lists == 0);
+    CHECK(api.files_.dirs_listed == std::vector<std::string>{"helixscreen/plugins",
+                                                             "helixscreen/plugins/spark",
+                                                             "helixscreen/plugins/spark/ui"});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "source deps list reads a missing plugin folder as empty",
+                 "[plugin][source_app]") {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    RecordingApi api(client, state);
+    FileInfo stray;
+    stray.path = "saved_variables.cfg";
+    api.files_.listing = {stray};
+
+    SourceDeps deps = make_moonraker_source_deps(&api);
+    bool ok = false;
+    const std::vector<RemoteFile> files = listed(deps, ok);
+
+    CHECK(ok);
+    CHECK(files.empty());
+    CHECK(api.files_.whole_root_lists == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "source deps list leaves git metadata out",
+                 "[plugin][source_app]") {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    RecordingApi api(client, state);
+    FileInfo lua;
+    lua.path = "helixscreen/plugins/spark/main.lua";
+    FileInfo git;
+    git.path = "helixscreen/plugins/spark/.git/config";
+    api.files_.listing = {lua, git};
+
+    SourceDeps deps = make_moonraker_source_deps(&api);
+    bool ok = false;
+    const std::vector<RemoteFile> files = listed(deps, ok);
+
+    REQUIRE(ok);
+    REQUIRE(files.size() == 1);
+    CHECK(files[0].path == "spark/main.lua");
+    CHECK(api.files_.dirs_listed ==
+          std::vector<std::string>{"helixscreen/plugins", "helixscreen/plugins/spark"});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "source deps list fails rather than report a partial tree",
+                 "[plugin][source_app]") {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    RecordingApi api(client, state);
+    for (int i = 0; i < 300; ++i) {
+        FileInfo f;
+        f.path = "helixscreen/plugins/p" + std::to_string(i) + "/main.lua";
+        api.files_.listing.push_back(f);
+    }
+
+    SourceDeps deps = make_moonraker_source_deps(&api);
+    bool ok = true;
+    const std::vector<RemoteFile> files = listed(deps, ok);
+
+    CHECK_FALSE(ok);
+    CHECK(files.empty());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "source deps list reports a failed listing",

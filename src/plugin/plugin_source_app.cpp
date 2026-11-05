@@ -5,12 +5,17 @@
 
 #include "plugin_source_app.h"
 
+#include "ui_update_queue.h"
+
 #include "app_globals.h"
+#include "async_lifetime_guard.h"
 #include "json_utils.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
+#include <memory>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -35,25 +40,88 @@ bool is_plugin_filelist_change(const json& msg) {
     return (it != payload->end() && in_root(*it)) || (src != payload->end() && in_root(*src));
 }
 
+namespace {
+
+/// A plugin holds a few folders. The cap bounds a pathological tree or a symlink cycle.
+constexpr size_t kMaxPluginDirs = 256;
+
+struct PluginTreeWalk {
+    PluginTreeWalk(IMoonrakerAPI* a, std::function<void(bool, std::vector<RemoteFile>)> d)
+        : api(a), tok(a->lifetime_token()), done(std::move(d)) {}
+
+    IMoonrakerAPI* api;
+    helix::LifetimeToken tok;
+    std::vector<std::string> dirs; // still to list
+    size_t visited = 0;
+    std::vector<RemoteFile> files;
+    std::function<void(bool, std::vector<RemoteFile>)> done;
+};
+
+void list_next_plugin_dir(const std::shared_ptr<PluginTreeWalk>& walk);
+
+/// A response arrives on a background thread; the API may only be used, and proven
+/// alive, on the main thread.
+void queue_next_plugin_dir(const std::shared_ptr<PluginTreeWalk>& walk) {
+    helix::ui::queue_update("PluginSource::list", [walk]() {
+        if (walk->tok.expired()) {
+            walk->done(false, {});
+            return;
+        }
+        list_next_plugin_dir(walk);
+    });
+}
+
+void list_next_plugin_dir(const std::shared_ptr<PluginTreeWalk>& walk) {
+    if (walk->dirs.empty()) {
+        walk->done(true, std::move(walk->files));
+        return;
+    }
+    // A listing cut short must not read as complete: PluginSource removes every
+    // cached plugin a successful listing leaves out.
+    if (walk->visited >= kMaxPluginDirs) {
+        spdlog::warn("[PluginSource] over {} folders; listing abandoned", kMaxPluginDirs);
+        walk->done(false, {});
+        return;
+    }
+    const std::string dir = walk->dirs.back();
+    walk->dirs.pop_back();
+    ++walk->visited;
+    const size_t prefix_len = std::string_view(kPluginRootPath).size();
+    walk->api->files().get_directory(
+        "config", dir,
+        [walk, dir, prefix_len](const std::vector<FileInfo>& entries) {
+            for (const FileInfo& f : entries) {
+                // A plugin installed with git keeps its metadata beside its files.
+                if (f.filename.empty() || f.filename == ".git")
+                    continue;
+                std::string path = dir + "/" + f.filename;
+                if (f.is_dir)
+                    walk->dirs.push_back(std::move(path));
+                else if (path.size() > prefix_len)
+                    walk->files.push_back({path.substr(prefix_len), f.size, f.modified});
+            }
+            queue_next_plugin_dir(walk);
+        },
+        [walk, dir](const MoonrakerError& error) {
+            if (moonraker_directory_missing(error)) {
+                queue_next_plugin_dir(walk);
+                return;
+            }
+            spdlog::warn("[PluginSource] listing {} failed: {}", dir, error.message);
+            walk->done(false, {});
+        });
+}
+
+} // namespace
+
 SourceDeps make_moonraker_source_deps(IMoonrakerAPI* api) {
     SourceDeps deps;
     deps.list = [api](std::function<void(bool ok, std::vector<RemoteFile>)> done) {
-        api->files().list_files(
-            "config", "", false,
-            [done](const std::vector<FileInfo>& files) {
-                std::vector<RemoteFile> out;
-                const size_t prefix_len = std::string_view(kPluginRootPath).size();
-                for (const FileInfo& f : files) {
-                    if (f.is_dir || f.path.rfind(kPluginRootPath, 0) != 0)
-                        continue;
-                    out.push_back({f.path.substr(prefix_len), f.size, f.modified});
-                }
-                done(true, std::move(out));
-            },
-            [done](const MoonrakerError& error) {
-                spdlog::warn("[PluginSource] config listing failed: {}", error.message);
-                done(false, {});
-            });
+        auto walk = std::make_shared<PluginTreeWalk>(api, std::move(done));
+        std::string root(kPluginRootPath);
+        root.pop_back(); // the trailing slash
+        walk->dirs.push_back(std::move(root));
+        list_next_plugin_dir(walk);
     };
     deps.download = [api](const std::string& path, const std::string& dest, size_t max_bytes,
                           std::function<void(bool ok, std::string error)> done) {

@@ -307,6 +307,50 @@ void MoonrakerFileAPIMock::list_files(const std::string& root, const std::string
     MoonrakerFileAPI::list_files(root, path, recursive, std::move(on_success), std::move(on_error));
 }
 
+void MoonrakerFileAPIMock::get_directory(const std::string& root, const std::string& path,
+                                         FileListCallback on_success, ErrorCallback on_error) {
+    if (root != "config") {
+        MoonrakerFileAPI::get_directory(root, path, std::move(on_success), std::move(on_error));
+        return;
+    }
+    list_files(
+        root, "", true,
+        [path, on_success, on_error](const std::vector<FileInfo>& files) {
+            const std::string prefix = path.empty() ? std::string() : path + "/";
+            std::vector<FileInfo> out;
+            std::set<std::string> dirs;
+            for (const auto& f : files) {
+                const std::string full = f.path.empty() ? f.filename : f.path;
+                if (f.is_dir || full.rfind(prefix, 0) != 0)
+                    continue;
+                const std::string rest = full.substr(prefix.size());
+                const size_t slash = rest.find('/');
+                if (slash == std::string::npos) {
+                    FileInfo info = f;
+                    info.filename = rest;
+                    info.path.clear();
+                    out.push_back(std::move(info));
+                } else {
+                    dirs.insert(rest.substr(0, slash));
+                }
+            }
+            if (out.empty() && dirs.empty() && !path.empty()) {
+                if (on_error)
+                    on_error(MoonrakerError::file_not_found("get_directory", path));
+                return;
+            }
+            for (const auto& dir : dirs) {
+                FileInfo info;
+                info.filename = dir;
+                info.is_dir = true;
+                out.push_back(std::move(info));
+            }
+            if (on_success)
+                on_success(out);
+        },
+        on_error);
+}
+
 void MoonrakerFileAPIMock::delete_file(const std::string& filename, SuccessCallback on_success,
                                        ErrorCallback on_error) {
     (void)on_error; // Unused - the mock always accepts a delete

@@ -802,3 +802,255 @@ TEST_CASE("download_include_graph - a full queue reported after the call returns
     CHECK(r.active == std::set<std::string>{"printer.cfg", "a.cfg", "b.cfg"});
     CHECK(std::count(dl.requested.begin(), dl.requested.end(), "b.cfg") == 2);
 }
+
+namespace {
+
+/// Answers listings from DeferredDownloads::server, recording what was asked for.
+struct RecordingLister {
+    const DeferredDownloads& dl;
+    std::vector<std::string> dirs;
+    int whole_trees = 0;
+
+    ConfigListFn fn() {
+        return [this](const std::string& dir, bool whole_tree,
+                      helix::SharedCallback<void(std::vector<std::string>)> ok,
+                      helix::SharedCallback<void(std::string, bool)>) {
+            if (whole_tree)
+                ++whole_trees;
+            else
+                dirs.push_back(dir);
+            std::vector<std::string> out;
+            for (const auto& [path, _] : dl.server) {
+                if (whole_tree || config_get_directory(path) == dir)
+                    out.push_back(path);
+            }
+            ok(std::move(out));
+        };
+    }
+};
+
+void run_walk(DeferredDownloads& dl, ConfigListFn list, GraphResult& r) {
+    walk_include_graph(
+        "printer.cfg", std::move(list), dl.fn(),
+        [&r](const std::set<std::string>& active, const std::map<std::string, std::string>& c) {
+            ++r.completions;
+            r.active = active;
+            r.contents = c;
+        },
+        [&r](const std::string& err) {
+            ++r.errors;
+            r.error = err;
+        });
+}
+
+} // namespace
+
+TEST_CASE("walk_include_graph lists only the directories the includes name",
+          "[config][includes][include_graph]") {
+    DeferredDownloads dl;
+    dl.server = {
+        {"printer.cfg", "[include macros.cfg]\n[include conf.d/*.cfg]\n[include conf.d/z.cfg]\n"},
+        {"macros.cfg", "[m]\n"},
+        {"conf.d/a.cfg", "[a]\n"},
+        {"conf.d/z.cfg", "[z]\n"},
+        {"mod/huge/never.cfg", "[never]\n"},
+    };
+    RecordingLister lister{dl};
+    GraphResult r;
+    run_walk(dl, lister.fn(), r);
+    dl.answer_all();
+
+    CHECK(lister.whole_trees == 0);
+    CHECK(std::set<std::string>(lister.dirs.begin(), lister.dirs.end()) ==
+          std::set<std::string>{"", "conf.d"});
+    CHECK(lister.dirs.size() == 2); // a directory is listed once
+    REQUIRE(r.completions == 1);
+    CHECK(r.active ==
+          std::set<std::string>{"printer.cfg", "macros.cfg", "conf.d/a.cfg", "conf.d/z.cfg"});
+}
+
+TEST_CASE("walk_include_graph needs the whole tree only for a wildcard directory",
+          "[config][includes][include_graph]") {
+    DeferredDownloads dl;
+    dl.server = {
+        {"printer.cfg", "[include */x.cfg]\n[include deep/**/y.cfg]\n"},
+        {"a/x.cfg", "[x]\n"},
+        {"deep/b/c/y.cfg", "[y]\n"},
+    };
+    RecordingLister lister{dl};
+    GraphResult r;
+    run_walk(dl, lister.fn(), r);
+    dl.answer_all();
+
+    CHECK(lister.whole_trees == 1);
+    REQUIRE(r.completions == 1);
+    CHECK(r.active == std::set<std::string>{"printer.cfg", "a/x.cfg", "deep/b/c/y.cfg"});
+}
+
+TEST_CASE("walk_include_graph skips an include whose directory holds nothing",
+          "[config][includes][include_graph]") {
+    DeferredDownloads dl;
+    dl.server = {{"printer.cfg", "[include gone/a.cfg]\n[include ../b.cfg]\n[include /c.cfg]\n"
+                                 "[include a..b/d.cfg]\n"}};
+    RecordingLister lister{dl};
+    GraphResult r;
+    run_walk(dl, lister.fn(), r);
+    dl.answer_all();
+
+    CHECK(r.errors == 0);
+    REQUIRE(r.completions == 1);
+    CHECK(r.active == std::set<std::string>{"printer.cfg"});
+    // A path no listing can name is never asked about.
+    CHECK(std::set<std::string>(lister.dirs.begin(), lister.dirs.end()) ==
+          std::set<std::string>{"", "gone"});
+}
+
+TEST_CASE("walk_include_graph completes empty when the root file is absent",
+          "[config][includes][include_graph]") {
+    DeferredDownloads dl;
+    dl.server = {{"other.cfg", "[o]\n"}};
+    RecordingLister lister{dl};
+    GraphResult r;
+    run_walk(dl, lister.fn(), r);
+
+    REQUIRE(r.completions == 1);
+    CHECK(r.errors == 0);
+    CHECK(r.active.empty());
+    CHECK(dl.requested.empty());
+}
+
+TEST_CASE("walk_include_graph reports a failed listing as an error",
+          "[config][includes][include_graph]") {
+    DeferredDownloads dl;
+    dl.server = {{"printer.cfg", "[p]\n"}};
+    ConfigListFn list = [](const std::string&, bool,
+                           helix::SharedCallback<void(std::vector<std::string>)>,
+                           helix::SharedCallback<void(std::string, bool)> fail) {
+        fail("connection reset", false);
+    };
+    GraphResult r;
+    run_walk(dl, std::move(list), r);
+
+    CHECK(r.completions == 0);
+    REQUIRE(r.errors == 1);
+    CHECK(r.error == "Failed to list config files: connection reset");
+}
+
+TEST_CASE("walk_include_graph retries a listing refused for a full queue",
+          "[config][includes][include_graph]") {
+    DeferredDownloads dl;
+    dl.server = {
+        {"printer.cfg", "[include one/a.cfg]\n[include two/b.cfg]\n"},
+        {"one/a.cfg", "[a]\n"},
+        {"two/b.cfg", "[b]\n"},
+    };
+    using Ok = helix::SharedCallback<void(std::vector<std::string>)>;
+    std::vector<std::pair<std::string, Ok>> held;
+    int two_requests = 0;
+    ConfigListFn list = [&](const std::string& dir, bool, Ok ok,
+                            helix::SharedCallback<void(std::string, bool)> fail) {
+        if (dir == "two" && ++two_requests == 1) {
+            fail("queue full", true); // "one" is still outstanding
+            return;
+        }
+        held.emplace_back(dir, std::move(ok));
+    };
+    GraphResult r;
+    run_walk(dl, std::move(list), r);
+    auto answer_held = [&] {
+        while (!held.empty()) {
+            auto [dir, ok] = std::move(held.front());
+            held.erase(held.begin());
+            std::vector<std::string> out;
+            for (const auto& [path, _] : dl.server) {
+                if (config_get_directory(path) == dir)
+                    out.push_back(path);
+            }
+            ok(std::move(out));
+        }
+    };
+    answer_held();
+    dl.answer_all();
+    answer_held();
+    dl.answer_all();
+    answer_held();
+    dl.answer_all();
+
+    CHECK(two_requests == 2);
+    CHECK(r.errors == 0);
+    REQUIRE(r.completions == 1);
+    CHECK(r.active == std::set<std::string>{"printer.cfg", "one/a.cfg", "two/b.cfg"});
+}
+
+namespace {
+
+/// Counts every whole-root listing the API layer is asked for.
+class ListingSpyFiles : public MoonrakerFileAPIMock {
+  public:
+    using MoonrakerFileAPIMock::MoonrakerFileAPIMock;
+    int whole_root_lists = 0;
+    std::vector<std::string> dirs_listed;
+
+    void get_directory(const std::string& root, const std::string& path,
+                       FileListCallback on_success, ErrorCallback on_error) override {
+        dirs_listed.push_back(path);
+        inside_directory_ = true;
+        MoonrakerFileAPIMock::get_directory(root, path, std::move(on_success), std::move(on_error));
+        inside_directory_ = false;
+    }
+
+    void list_files(const std::string& root, const std::string& path, bool recursive,
+                    FileListCallback on_success, ErrorCallback on_error) override {
+        if (!inside_directory_)
+            ++whole_root_lists;
+        MoonrakerFileAPIMock::list_files(root, path, recursive, std::move(on_success),
+                                         std::move(on_error));
+    }
+
+  private:
+    bool inside_directory_ = false;
+};
+
+class ListingSpyApi : public MoonrakerAPIMock {
+  public:
+    ListingSpyApi(helix::MoonrakerClient& client, helix::PrinterState& state)
+        : MoonrakerAPIMock(client, state), spy_(client) {}
+    MoonrakerFileAPI& files() override {
+        return spy_;
+    }
+    ListingSpyFiles spy_;
+};
+
+} // namespace
+
+TEST_CASE("download_config_include_graph never walks the config root for plain includes",
+          "[config][includes][include_graph]") {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    ListingSpyApi api(client, state);
+    const std::map<std::string, std::string> files = {
+        {"printer.cfg", "[include conf.d/*.cfg]\n"},
+        {"conf.d/a.cfg", "[a]\n"},
+        {"conf.d/b.txt", "[not a config]\n"},
+        {"mod_data/helixscreen/config/z.cfg", "[z]\n"},
+    };
+    api.set_config_files(files);
+    api.spy_.set_config_files(files);
+
+    std::set<std::string> active;
+    std::string error;
+    download_config_include_graph(
+        api, "printer.cfg", ".cfg",
+        [&](const std::set<std::string>& a, const std::map<std::string, std::string>&) {
+            active = a;
+        },
+        [&](const std::string& err) { error = err; });
+    for (int i = 0; i < 20; ++i)
+        helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(error.empty());
+    CHECK(active == std::set<std::string>{"printer.cfg", "conf.d/a.cfg"});
+    CHECK(api.spy_.whole_root_lists == 0);
+    CHECK(std::set<std::string>(api.spy_.dirs_listed.begin(), api.spy_.dirs_listed.end()) ==
+          std::set<std::string>{"", "conf.d"});
+}
