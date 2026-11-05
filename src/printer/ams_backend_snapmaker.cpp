@@ -6,7 +6,6 @@
 #include "ui_insert_notice.h"
 #include "ui_notification.h"
 #include "ui_snapmaker_nozzle_offset_overlay.h"
-#include "ui_toast_manager.h"
 
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
@@ -28,6 +27,7 @@
 #include "macro_patterns.h"
 #include "moonraker_api.h"
 #include "multiace_status.h"
+#include "notice.h"
 #include "pause_cause.h"
 #include "post_op_cooldown_manager.h"
 #include "print_start_inputs.h"
@@ -1258,9 +1258,8 @@ void AmsBackendSnapmaker::run_runout_refeed(int slot, ResumeReadyCallback on_rea
     // the user what the wait is — otherwise the long pause reads as a hang.
     // prepare_for_resume runs on the main thread (resume-button path), so this
     // toast is safe to raise directly here.
-    ToastManager::instance().show(ToastSeverity::INFO,
-                                  lv_tr("Refeeding filament — this may take a minute"),
-                                  /*duration_ms=*/8000);
+    publish_notice({NoticeSeverity::INFO, lv_tr("Refeeding filament — this may take a minute"),
+                    /*duration_ms=*/8000});
 
     auto tok = lifetime_.token();
     const char* tag = backend_log_tag();
