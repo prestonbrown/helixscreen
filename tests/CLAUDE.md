@@ -497,8 +497,16 @@ case judges; a red Catch2 baseline still stops the run. Files sharing what judge
 them run as one group, each group a child run with its own baseline, inside the one
 30-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
 `--tests`, `--shell-tests` and `--python-tests`.
-Generated output (`src/generated/`) is not mutated: its source is, and the regeneration
-gates pin the two together.
+Generated output (`src/generated/`, `ui_xml/translations/`) is not mutated: its source is,
+and the regeneration gates pin the two together.
+
+**A whole-branch run is a release-class job, on an idle test host:** `--release --max-minutes
+0 --pool --auto-tests-max 100 --confirm-survivors --inside 2 --first <path>`. `--pool` keeps
+every hunk in one queue instead of a child run per filter. A hunk whose revert does not build
+stays `uncompilable` and the run stays incomplete; `--inside N` adds up to N small mutants of
+its added lines (negate an `if`, drop a call, flip an operator), each with its own verdict, and
+a survivor fails the run. A Catch2 baseline red once is asked again; green the second time, the
+assertions it named are printed and judge no mutant.
 
 **`make mutate-diff` runs where workers can run** (`scripts/mutate-diff.sh`). Parallel
 workers need reflink copies; a host without them (a Mac, an ext4 home) hands the run to the

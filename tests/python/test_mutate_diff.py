@@ -1312,8 +1312,16 @@ def test_inside_mutants_cover_added_lines_only_and_the_most_telling_first():
         (3, "negate if"), (2, "true to false")]
 
 
+def test_inside_drops_a_call_written_over_several_lines():
+    lines = ["void f() {\n", "    helix::publish_ui_request(\n", "        {Kind::Offer, slot});\n",
+             "    int y = g(\n", "        1);\n", "    spdlog::info(\n", "        \"x\");\n", "}\n"]
+    h = {"line": 1, "body": ["@@\n", " void f() {\n"] + ["+" + ln for ln in lines[1:7]] + [" }\n"]}
+    mutants = md.hunk_inside_mutants(h, lines)
+    assert [(m[0], m[1], m[2], m[3]) for m in mutants] == [(2, "drop call", "    ;\n", 2)]
+
+
 def test_inside_mutants_spread_across_a_long_hunk():
-    mutants = [(line, "negate if", "x") for line in range(1, 41)]
+    mutants = [(line, "negate if", "x", 1) for line in range(1, 41)]
     assert [m[0] for m in md.spread_mutants(mutants, 4)[:4]] == [1, 11, 21, 31]
     assert md.spread_mutants(mutants, 1) == mutants
     assert sorted(md.spread_mutants(mutants, 4)) == mutants

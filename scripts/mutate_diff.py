@@ -175,6 +175,16 @@
 # make and every extra process draws from the jobserver the run inherits, so
 # none of this runs on top of the machine's job budget (THE JOB BUDGET).
 #
+# A file's own filter takes seconds where the whole suite takes minutes, so a run
+# of many files is one child run per filter, each paying a diff, a no-op build, a
+# baseline and tree copies, with workers only inside a group. --pool drops all of
+# that for a long range: one build and one set of copies, each filter's baseline
+# once, in the tree no mutant touches, and any free worker takes the next hunk.
+# --first PATTERN says which files go ahead. --auto-tests-max and
+# --confirm-survivors let a stem many test files name use those files: a kill is a
+# kill whichever test made it, and a mutant green there faces the whole suite
+# before it reads SURVIVED.
+#
 # BOUNDS
 #
 # --max-minutes (default 45, 0 for none) caps the whole run, baseline included.
@@ -2823,8 +2833,32 @@ def inside_edits(line):
     return edits
 
 
+INSIDE_CALL_MAX_LINES = 12
+
+
+def multiline_call_end(lines, first):
+    """The index of the line ending the call statement that opens at `first`, or None.
+
+    A call whose `(` stays open at the end of its first line: notice and request
+    posts are mostly written this way, and dropping one is what a test should see.
+    """
+    head = code_mask(lines[first].rstrip('\n'))
+    if head is None or _INSIDE_SKIP.search(head) or head.count('(') <= head.count(')'):
+        return None
+    masks = [head]
+    for at in range(first + 1, min(first + INSIDE_CALL_MAX_LINES, len(lines))):
+        mask = code_mask(lines[at].rstrip('\n'))
+        if mask is None or _INSIDE_SKIP.search(mask):
+            return None
+        masks.append(mask)
+        joined = ' '.join(m.strip() for m in masks)
+        if joined.count('(') == joined.count(')'):
+            return at if _INSIDE_CALL.match(joined) else None
+    return None
+
+
 def hunk_inside_mutants(h, lines):
-    """[(1-based line, operator, rewritten line)] for a hunk's added lines.
+    """[(1-based line, operator, rewritten line, lines it replaces)] for added lines.
 
     Ordered by operator so a negated `if` anywhere in the hunk goes before a
     flipped literal, then by line. `lines` is the file as it stands.
@@ -2836,7 +2870,11 @@ def hunk_inside_mutants(h, lines):
         tag = raw[:1]
         if tag == '+':
             if at < len(lines):
-                out += [(at + 1, name, text) for name, text in inside_edits(lines[at])]
+                out += [(at + 1, name, text, 1) for name, text in inside_edits(lines[at])]
+                end = multiline_call_end(lines, at)
+                if end is not None:
+                    indent = lines[at][:len(lines[at]) - len(lines[at].lstrip())]
+                    out.append((at + 1, 'drop call', f'{indent};\n', end - at + 1))
             at += 1
         elif tag == ' ':
             at += 1
@@ -2872,14 +2910,14 @@ def mutate_inside(root, guard, suites, h, plan, args, log):
     mutants = spread_mutants(hunk_inside_mutants(h, lines), args.inside)
     if not mutants:
         note('[inside: no operator applies to its added lines] ')
-    for line_no, op, text in mutants:
+    for line_no, op, text, span in mutants:
         if tried >= INSIDE_MAX_TRIES or len(h['inside']) >= args.inside or RUN_STATE.out_of_time:
             break
         tried += 1
         try:
             guard.mark(h['file'])
             mutated = list(lines)
-            mutated[line_no - 1] = text
+            mutated[line_no - 1:line_no - 1 + span] = [text]
             target.write_text(''.join(mutated), errors='surrogateescape')
             verdict, note_, built = build_and_judge(root, suites, h['file'], plan, args, log)
             built_any = built_any or built
