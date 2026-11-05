@@ -170,6 +170,15 @@ TEST_CASE_METHOD(XMLTestFixture,
          "the display refresh, and at its exact-size copy rather than the scaled source");
     CHECK(src_of(img) == cache_src);
 
+    // A tree deleted under the widget, with no detach first: the next tree
+    // has shown nothing, so the exact-size copy must be set on it again.
+    lv_obj_delete(lv_obj_get_parent(widget_obj));
+    build_tree(widget_obj, img);
+    w.attach(widget_obj, test_screen());
+    fire_due_one_shots();
+    INFO("a tree deleted without a detach must not leave the next one blank");
+    CHECK(src_of(img) == cache_src);
+
     w.detach();
 }
 
