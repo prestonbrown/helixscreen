@@ -164,6 +164,20 @@ std::optional<FanRole> disabled_fan(AirMode mode);
 FanGuard guard_fan_change(std::optional<AirMode> mode, FanRole role, int requested_pct,
                           int current_pct, std::optional<int> threshold_pct, int floor_pct);
 
+/// What the screen tells the user about a detachable chamber air accessory. The
+/// strings are translation keys (TR_NOOP); the caller translates them.
+struct AccessoryCopy {
+    const char* name;     ///< "Top Cover"
+    const char* detected; ///< shown once per printer, the first time it is seen fitted
+    const char* removed;  ///< shown every time it comes off
+    /// Fitting it changes the machine's resonances, so input shaping is worth redoing.
+    bool suggests_shaper_recalibration;
+};
+
+/// The accessory copy for a provider whose presence is a live reading; nullopt for
+/// every other printer.
+std::optional<AccessoryCopy> accessory_copy(const PrinterDiscovery& hw);
+
 /// Stable identifier for @p mode ("recirculate", "exhaust", "off"), as XML
 /// event user_data names it.
 const char* mode_id(AirMode mode);

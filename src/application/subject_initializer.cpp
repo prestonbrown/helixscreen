@@ -4,6 +4,7 @@
 #include "subject_initializer.h"
 
 #include "ui_bed_drying_modal.h"
+#include "ui_chamber_air_notices.h"
 #include "ui_component_keypad.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
@@ -308,6 +309,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     helix::ui::init_stepper_resonance_cal_row_handler();
     init_zoffset_event_callbacks();
     init_probe_row_handler();
+    helix::ui::init_chamber_air_notices();
 
     // Wizard and keypad — cleanup self-registered inside init_subjects()
     ui_wizard_init_subjects();
