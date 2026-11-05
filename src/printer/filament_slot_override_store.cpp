@@ -1299,13 +1299,22 @@ nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json&
         return list != record.end() && list->is_array() &&
                std::find(list->begin(), list->end(), field) != list->end();
     };
-    // A field the printer's record declares yields only to an edit declaring it.
+    // A held save that does not declare a colour or material is a reading, and the
+    // record's own value outranks it, whoever wrote that and however it is marked.
+    // Linking a different spool replaces the identity, so nothing is kept from it.
+    const auto spool = held.find("spool_id");
+    const bool other_spool =
+        spool != held.end() && (!merged.contains("spool_id") || merged["spool_id"] != *spool);
+    const bool keep_color =
+        !other_spool && merged.contains("color") && !declares(held, "color_rgb");
+    const bool keep_material = !other_spool &&
+                               (merged.contains("material") || merged.contains("helix_material")) &&
+                               !declares(held, "material");
     const auto protected_key = [&](const std::string& key) {
         const bool color = key == "color" || key == "color_name" || key == "helix_locked_color";
         const bool material =
             key == "material" || key == "helix_material" || key == "helix_locked_material";
-        return (color && declares(merged, "color_rgb") && !declares(held, "color_rgb")) ||
-               (material && declares(merged, "material") && !declares(held, "material"));
+        return (color && keep_color) || (material && keep_material);
     };
     const auto apply_key = [&](const std::string& key) {
         // Declarations are combined below, and these two describe the write.
@@ -1332,18 +1341,23 @@ nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json&
         apply_key(it.key());
     }
 
-    nlohmann::json declared = nlohmann::json::array();
-    if (const auto list = merged.find("helix_declared"); list != merged.end() && list->is_array()) {
-        declared = *list;
-    }
-    if (const auto list = held.find("helix_declared"); list != held.end() && list->is_array()) {
-        for (const auto& field : *list) {
+    // Declarations combine. A record that has none and gains none stays without the
+    // key: stamping it would make another tool's record read as ours.
+    const auto stated = held.find("helix_declared");
+    const bool held_declares = stated != held.end() && stated->is_array() && !stated->empty();
+    if (held_declares) {
+        nlohmann::json declared = nlohmann::json::array();
+        if (const auto list = merged.find("helix_declared");
+            list != merged.end() && list->is_array()) {
+            declared = *list;
+        }
+        for (const auto& field : *stated) {
             if (std::find(declared.begin(), declared.end(), field) == declared.end()) {
                 declared.push_back(field);
             }
         }
+        merged["helix_declared"] = std::move(declared);
     }
-    merged["helix_declared"] = std::move(declared);
 
     // A marker naming the spool the printer's record links means the user cut that
     // link, which a record the edit never saw could not say by removing it.
