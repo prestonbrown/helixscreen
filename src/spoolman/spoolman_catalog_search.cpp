@@ -141,8 +141,8 @@ int temperature_for_range(int min_temp, int max_temp) {
 }
 
 const FilamentInfo* find_similar_filament(const std::vector<FilamentInfo>& filaments,
-                                          const std::string& material,
-                                          const std::string& color_hex) {
+                                          const std::string& material, const std::string& color_hex,
+                                          int exclude_id) {
     const std::string needle = normalize_color_hex(color_hex);
     if (needle.empty() || material.empty()) {
         return nullptr;
@@ -156,7 +156,8 @@ const FilamentInfo* find_similar_filament(const std::vector<FilamentInfo>& filam
     int best_distance = FilamentMapper::kColorMatchTolerance + 1;
     for (const auto& f : filaments) {
         const std::string hex = normalize_color_hex(f.color_hex);
-        if (hex.empty() || filament::slicer_material(f.material) != material) {
+        if ((exclude_id > 0 && f.id == exclude_id) || hex.empty() ||
+            filament::slicer_material(f.material) != material) {
             continue;
         }
         const auto rgb = parse_hex_color(hex.substr(0, 6));

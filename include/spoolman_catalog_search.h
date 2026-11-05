@@ -94,10 +94,12 @@ int temperature_for_range(int min_temp, int max_temp);
 /// same product: a material that records as @p material (filament::slicer_material()
 /// of both sides, so a record filed as "ABS+" still counts as ABS) and the
 /// nearest colour within FilamentMapper's colour tolerance. nullptr when none
-/// is near enough. Offered to the user, never taken silently.
+/// is near enough. Offered to the user, never taken silently. The record
+/// @p exclude_id, the one the spool already points at, is never offered:
+/// taking it would leave the spool where it is and drop the edit.
 const FilamentInfo* find_similar_filament(const std::vector<FilamentInfo>& filaments,
-                                          const std::string& material,
-                                          const std::string& color_hex);
+                                          const std::string& material, const std::string& color_hex,
+                                          int exclude_id = 0);
 
 /// The filament in @p filaments that is this catalog product: vendor
 /// @p vendor_id, and the same name and material (case-insensitive, trimmed)
