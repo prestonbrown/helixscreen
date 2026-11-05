@@ -3638,6 +3638,7 @@ translations:
   'Start next: {}': '开始下一个：{}'
   Start options for prints from other apps: '其他应用发起的打印的启动选项'
   Start print anyway?: 仍要开始打印吗？
+  Start the calibration again: 请重新开始校准
   Started: 已开始
   Starting Print...: 正在启动打印...
   Starting download...: 正在开始下载...
@@ -4162,6 +4163,7 @@ translations:
   Toolhead Style: 工具头样式
   Toolhead Y: 工具头 Y
   Toolhead jam: 工具头堵塞
+  Toolhead lost homing: 工具头已失去归位
   Toolhead offset calibration: 工具头偏移校准
   Toolhead position and homing, with a plate view and Home All: "工具头位置与归位，含热床视图和全部归位"
   Toolhead position unknown: 工具头位置未知

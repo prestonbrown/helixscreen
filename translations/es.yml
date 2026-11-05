@@ -3843,6 +3843,7 @@ translations:
   'Start next: {}': 'Iniciar siguiente: {}'
   Start options for prints from other apps: 'Opciones de inicio para impresiones de otras apps'
   Start print anyway?: ¿Iniciar la impresión de todos modos?
+  Start the calibration again: Inicie la calibración de nuevo
   Started: Iniciado
   Starting Print...: Iniciando impresión...
   Starting download...: Iniciando descarga...
@@ -4409,6 +4410,7 @@ translations:
   Toolhead Style: Estilo de Cabezal
   Toolhead Y: Cabezal Y
   Toolhead jam: Atasco del cabezal
+  Toolhead lost homing: El cabezal perdió el posicionamiento
   Toolhead offset calibration: Calibración de offsets de cabezales
   Toolhead position and homing, with a plate view and Home All: "Posición y posicionamiento del cabezal, con vista de la placa y Posicionar todo"
   Toolhead position unknown: Posición del cabezal desconocida

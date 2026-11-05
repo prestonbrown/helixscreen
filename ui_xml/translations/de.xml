@@ -3518,6 +3518,7 @@
   <translation tag="Start next: {}" de="Nächstes starten: {}"/>
   <translation tag="Start options for prints from other apps" de="Startoptionen für Drucke aus anderen Apps"/>
   <translation tag="Start print anyway?" de="Druck trotzdem starten?"/>
+  <translation tag="Start the calibration again" de="Starten Sie die Kalibrierung erneut"/>
   <translation tag="Started" de="Gestartet"/>
   <translation tag="Starting Print..." de="Druck starten..."/>
   <translation tag="Starting download..." de="Download wird gestartet..."/>
@@ -3989,6 +3990,7 @@
   <translation tag="Toolhead Style" de="Toolhead-Stil"/>
   <translation tag="Toolhead Y" de="Werkzeugkopf Y"/>
   <translation tag="Toolhead jam" de="Werkzeugkopf-Stau"/>
+  <translation tag="Toolhead lost homing" de="Werkzeugkopf hat die Referenzierung verloren"/>
   <translation tag="Toolhead offset calibration" de="Werkzeugkopf-Offset-Kalibrierung"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" de="Position und Referenzfahrt des Werkzeugkopfs, mit Plattenansicht und Alle referenzieren"/>
   <translation tag="Toolhead position unknown" de="Werkzeugkopfposition unbekannt"/>

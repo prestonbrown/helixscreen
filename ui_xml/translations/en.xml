@@ -3518,6 +3518,7 @@
   <translation tag="Start next: {}" en="Start next: {}"/>
   <translation tag="Start options for prints from other apps" en="Start options for prints from other apps"/>
   <translation tag="Start print anyway?" en="Start print anyway?"/>
+  <translation tag="Start the calibration again" en="Start the calibration again"/>
   <translation tag="Started" en="Started"/>
   <translation tag="Starting Print..." en="Starting Print..."/>
   <translation tag="Starting download..." en="Starting download..."/>
@@ -3989,6 +3990,7 @@
   <translation tag="Toolhead Style" en="Toolhead Style"/>
   <translation tag="Toolhead Y" en="Toolhead Y"/>
   <translation tag="Toolhead jam" en="Toolhead jam"/>
+  <translation tag="Toolhead lost homing" en="Toolhead lost homing"/>
   <translation tag="Toolhead offset calibration" en="Toolhead offset calibration"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" en="Toolhead position and homing, with a plate view and Home All"/>
   <translation tag="Toolhead position unknown" en="Toolhead position unknown"/>

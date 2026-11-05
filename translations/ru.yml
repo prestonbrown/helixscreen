@@ -3894,6 +3894,7 @@ translations:
   'Start next: {}': 'Запустить следующую: {}'
   Start options for prints from other apps: 'Параметры запуска для печати из других приложений'
   Start print anyway?: Всё равно начать печать?
+  Start the calibration again: Запустите калибровку снова
   Started: Начато
   Starting Print...: Запуск печати...
   Starting download...: Начало загрузки...
@@ -4449,6 +4450,7 @@ translations:
   Toolhead Style: Стиль печатающей головки
   Toolhead Y: Печатающая головка Y
   Toolhead jam: Замятие в печатающей головке
+  Toolhead lost homing: Печатающая головка потеряла парковку
   Toolhead offset calibration: Калибровка смещений головок
   Toolhead position and homing, with a plate view and Home All: "Положение и парковка печатающей головки, с видом стола и кнопкой «Парковка всех осей»"
   Toolhead position unknown: Положение печатающей головки неизвестно

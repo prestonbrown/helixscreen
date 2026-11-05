@@ -3518,6 +3518,7 @@
   <translation tag="Start next: {}" zh="开始下一个：{}"/>
   <translation tag="Start options for prints from other apps" zh="其他应用发起的打印的启动选项"/>
   <translation tag="Start print anyway?" zh="仍要开始打印吗？"/>
+  <translation tag="Start the calibration again" zh="请重新开始校准"/>
   <translation tag="Started" zh="已开始"/>
   <translation tag="Starting Print..." zh="正在启动打印..."/>
   <translation tag="Starting download..." zh="正在开始下载..."/>
@@ -3989,6 +3990,7 @@
   <translation tag="Toolhead Style" zh="工具头样式"/>
   <translation tag="Toolhead Y" zh="工具头 Y"/>
   <translation tag="Toolhead jam" zh="工具头堵塞"/>
+  <translation tag="Toolhead lost homing" zh="工具头已失去归位"/>
   <translation tag="Toolhead offset calibration" zh="工具头偏移校准"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" zh="工具头位置与归位，含热床视图和全部归位"/>
   <translation tag="Toolhead position unknown" zh="工具头位置未知"/>

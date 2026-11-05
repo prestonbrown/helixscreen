@@ -34,6 +34,7 @@
 #include "printer_state.h" // get_print_lifecycle_subject: the insert-probe gate
 #include "settings_manager.h"
 #include "text_io.h"
+#include "toolhead_homing.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -5052,16 +5053,31 @@ AmsError AmsBackendCfs::start_chute_calibration(
     // PREPARE having run is what makes leaving the flow require a re-park:
     // every failure leg re-sends Y_SAFE exactly when this is set.
     auto prepare_ran = std::make_shared<bool>(false);
-    auto fail = [this, token, on_failed, prepare_ran](const MoonrakerError& err) {
-        token.defer("AmsBackendCfs::chute_failed", [this, token, on_failed, prepare_ran, err]() {
-            calibration_in_flight_ = false;
-            if (*prepare_ran) {
-                execute_gcode("BOX_CUSTOM_COMMAND CMD=Y_SAFE");
-            }
-            if (on_failed) {
-                on_failed(err.message);
-            }
-        });
+    auto fail = [this, token, on_failed, prepare_ran, cancel_requested](const MoonrakerError& err) {
+        token.defer("AmsBackendCfs::chute_failed",
+                    [this, token, on_failed, prepare_ran, cancel_requested, err]() {
+                        calibration_in_flight_ = false;
+                        if (*prepare_ran) {
+                            repark_chute();
+                        }
+                        // A caller that has left has nothing to report into, and a later
+                        // session on the same overlay must not read this as its own.
+                        if (on_failed && !(cancel_requested && cancel_requested->load())) {
+                            on_failed(err.message);
+                        }
+                    });
+    };
+    // A print can start during either step, from another client. It owns the
+    // machine from then on, so the chain ends without another move.
+    auto print_took_over = [this, fail]() {
+        const AmsError refusal = refuse_motion_if_printing();
+        if (refusal.success()) {
+            return false;
+        }
+        MoonrakerError err;
+        err.message = refusal.user_msg;
+        fail(err);
+        return true;
     };
     // XYZ_ZERO is the flow's own full home (~55s incl. PRTouch Z); PREPARE
     // then parks Y at the box's safe position and extrudes X. Jogging may
@@ -5069,22 +5085,29 @@ AmsError AmsBackendCfs::start_chute_calibration(
     // once the user has left the flow, no further step goes out.
     const AmsError err = execute_gcode(
         "BOX_CUSTOM_COMMAND CMD=XYZ_ZERO",
-        [this, on_ready = std::move(on_ready), cancel_requested, prepare_ran, fail]() {
+        [this, on_ready = std::move(on_ready), cancel_requested, prepare_ran, fail,
+         print_took_over]() {
             if (cancel_requested && cancel_requested->load()) {
                 // Cancelled during the home: the head sits at the homed origin
                 // and PREPARE never ran, so there is nothing to unwind.
                 calibration_in_flight_ = false;
                 return;
             }
+            if (print_took_over()) {
+                return;
+            }
             *prepare_ran = true;
             execute_gcode(
                 "BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_PREPARE",
-                [this, on_ready, cancel_requested]() {
+                [this, on_ready, cancel_requested, print_took_over]() {
                     if (cancel_requested && cancel_requested->load()) {
                         // Cancelled while PREPARE ran: the caller is gone, so
                         // the backend re-parks itself.
                         calibration_in_flight_ = false;
-                        execute_gcode("BOX_CUSTOM_COMMAND CMD=Y_SAFE");
+                        repark_chute();
+                        return;
+                    }
+                    if (print_took_over()) {
                         return;
                     }
                     calibration_in_flight_ = false;
@@ -5122,6 +5145,17 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
     if (macro_variant_ != CfsMacroVariant::K1) {
         return AmsErrorHelper::not_supported("Purge chute save is K1-stock only");
     }
+    if (auto e = refuse_motion_if_printing(); !e.success()) {
+        return e;
+    }
+    // SAVE_POS writes the live position whatever it is, and one read without
+    // homing (idle timeout, M84) means nothing as a chute position.
+    const PrinterState& printer = api_->printer_state();
+    if (!helix::axis_is_homed(printer, helix::Axis::X) ||
+        !helix::axis_is_homed(printer, helix::Axis::Y)) {
+        return AmsError(AmsResult::WRONG_STATE, "Chute save refused: toolhead not homed",
+                        lv_tr("Toolhead lost homing"), lv_tr("Start the calibration again"));
+    }
     // The firmware reports the pair it wrote on the gcode response stream;
     // capture it the way calibrate_cutter watches its lines, with the same
     // shared_ptr lifetime so the WebSocket-thread handler stays valid even
@@ -5154,6 +5188,15 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
     };
 
     auto token = lifetime_.token();
+    // The park after a save: its failure is reported without another attempt.
+    auto park_failed = [token, on_failed, unregister](const MoonrakerError& err) {
+        token.defer("AmsBackendCfs::chute_park_failed", [on_failed, unregister, err]() {
+            unregister();
+            if (on_failed) {
+                on_failed(err.message);
+            }
+        });
+    };
     // SAVE_POS reads the LIVE toolhead position into box.cfg's
     // extrude_pos_x/y (HelixScreen sends no coordinate); Y_SAFE re-parks
     // after the save so the flow ends in the parked state. The save only
@@ -5163,7 +5206,7 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
         token.defer("AmsBackendCfs::chute_save_failed",
                     [this, token, on_failed, unregister, err]() {
                         unregister();
-                        execute_gcode("BOX_CUSTOM_COMMAND CMD=Y_SAFE");
+                        repark_chute();
                         if (on_failed) {
                             on_failed(err.message);
                         }
@@ -5171,13 +5214,18 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
     };
     const AmsError err = execute_gcode(
         "BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
-        [this, on_saved = std::move(on_saved), watch, unregister]() {
-            execute_gcode("BOX_CUSTOM_COMMAND CMD=Y_SAFE", [this, on_saved, watch, unregister]() {
+        [this, on_saved = std::move(on_saved), watch, unregister, park_failed]() {
+            auto finish = [this, on_saved, watch, unregister]() {
                 unregister();
                 last_chute_save_line_ = *watch;
                 if (on_saved)
                     on_saved();
-            });
+            };
+            if (!refuse_motion_if_printing().success()) {
+                finish();
+                return;
+            }
+            execute_gcode("BOX_CUSTOM_COMMAND CMD=Y_SAFE", finish, park_failed);
         },
         fail);
     if (!err.success()) {
@@ -5210,6 +5258,13 @@ AmsError AmsBackendCfs::exit_chute_calibration() {
     }
     // The cancel/back path from PREPARE onward. Before PREPARE the toolhead
     // is either unhomed or still parked, so the caller sends nothing.
+    return repark_chute();
+}
+
+AmsError AmsBackendCfs::repark_chute() {
+    if (auto e = refuse_motion_if_printing(); !e.success()) {
+        return e;
+    }
     return execute_gcode("BOX_CUSTOM_COMMAND CMD=Y_SAFE");
 }
 

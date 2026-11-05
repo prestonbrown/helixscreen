@@ -3759,6 +3759,7 @@ translations:
   'Start next: {}': 'Start next: {}'
   Start options for prints from other apps: Start options for prints from other apps
   Start print anyway?: Start print anyway?
+  Start the calibration again: Start the calibration again
   Started: Started
   Starting Print...: Starting Print...
   Starting download...: Starting download...
@@ -4309,6 +4310,7 @@ translations:
   Toolhead Style: Toolhead Style
   Toolhead Y: Toolhead Y
   Toolhead jam: Toolhead jam
+  Toolhead lost homing: Toolhead lost homing
   Toolhead offset calibration: Toolhead offset calibration
   Toolhead position and homing, with a plate view and Home All: Toolhead position and homing, with a plate view and Home All
   Toolhead position unknown: Toolhead position unknown
