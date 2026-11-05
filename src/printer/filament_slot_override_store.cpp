@@ -1312,8 +1312,10 @@ nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json&
                                !declares(held, "material");
     const auto protected_key = [&](const std::string& key) {
         const bool color = key == "color" || key == "color_name" || key == "helix_locked_color";
-        const bool material =
-            key == "material" || key == "helix_material" || key == "helix_locked_material";
+        // Temperatures come from the material, so they stay beside the one kept.
+        const bool material = key == "material" || key == "helix_material" ||
+                              key == "helix_locked_material" || key == "bed_temp" ||
+                              key == "nozzle_temp";
         return (color && keep_color) || (material && keep_material);
     };
     const auto apply_key = [&](const std::string& key) {
