@@ -2042,7 +2042,6 @@ translations:
   Jog Speed XY: Velocidad de movimiento XY
   Jog Speed Z: Velocidad de movimiento Z
   Jog X back to {:.1f} mm before moving Y further: Regrese X a {:.1f} mm antes de seguir moviendo Y
-  Jog Y back to {:.1f} mm before moving X: Regrese Y a {:.1f} mm antes de mover X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Mueva Y hasta que la boquilla quede centrada sobre la apertura del conducto y toque Guardar.
 
   'Jog failed: {}': 'Error en movimiento: {}'
@@ -2830,6 +2829,7 @@ translations:
   Password: Contraseña
   Password cannot be empty: La contraseña no puede estar vacía
   Password is required for secured networks: Se requiere contraseña para redes protegidas
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: Más allá de Y {:.1f} mm, X solo se mueve en pasos de {:.1f} mm
   Path A: "Ruta A"
   Path B: "Ruta B"
   Pause: Pausar

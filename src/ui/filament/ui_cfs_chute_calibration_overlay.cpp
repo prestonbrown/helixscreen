@@ -262,23 +262,23 @@ void CfsChuteCalibrationOverlay::set_jog_mode(helix::JogMode mode) {
 }
 
 bool CfsChuteCalibrationOverlay::jog_pad_jog_cb(helix::JogDirection direction, float distance_mm,
-                                                bool /*is_repeat*/, void* user_data) {
+                                                bool is_repeat, void* user_data) {
     auto* self = static_cast<CfsChuteCalibrationOverlay*>(user_data);
     switch (direction) {
     case helix::JogDirection::N:
-        return self->jog(Axis::Y, distance_mm);
+        return self->jog(Axis::Y, distance_mm, is_repeat);
     case helix::JogDirection::S:
-        return self->jog(Axis::Y, -static_cast<double>(distance_mm));
+        return self->jog(Axis::Y, -static_cast<double>(distance_mm), is_repeat);
     case helix::JogDirection::E:
-        return self->jog(Axis::X, distance_mm);
+        return self->jog(Axis::X, distance_mm, is_repeat);
     case helix::JogDirection::W:
-        return self->jog(Axis::X, -static_cast<double>(distance_mm));
+        return self->jog(Axis::X, -static_cast<double>(distance_mm), is_repeat);
     default:
         return false; // A cardinal-only pad never offers a diagonal.
     }
 }
 
-bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
+bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm, bool is_repeat) {
     auto* backend = chute_backend();
     if (!backend) {
         return false;
@@ -296,7 +296,7 @@ bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
     const uint32_t now = lv_tick_get();
     const auto decision =
         axis == Axis::X
-            ? jog_guard_.jog_x(delta_mm, now, current_x_mm_, current_y_mm_,
+            ? jog_guard_.jog_x(delta_mm, is_repeat, now, current_x_mm_, current_y_mm_,
                                static_cast<double>(bounds.x_min), static_cast<double>(bounds.x_max))
             : jog_guard_.jog_y(delta_mm, now, current_x_mm_, current_y_mm_,
                                static_cast<double>(bounds.y_min),
@@ -317,8 +317,11 @@ bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
                                         : lv_tr("Y axis limit reached"));
         }
         break;
-    case helix::ChuteJogGuard::Outcome::PastPark:
-        NOTIFY_INFO(lv_tr("Jog Y back to {:.1f} mm before moving X"), jog_guard_.park_y());
+    case helix::ChuteJogGuard::Outcome::CoarsePastPark:
+        NOTIFY_INFO(lv_tr("Past Y {:.1f} mm, X moves only in {:.1f} mm steps"), jog_guard_.park_y(),
+                    helix::ChuteJogGuard::kFineStepMm);
+        break;
+    case helix::ChuteJogGuard::Outcome::RepeatPastPark:
         break;
     case helix::ChuteJogGuard::Outcome::XDisplaced:
         NOTIFY_INFO(lv_tr("Jog X back to {:.1f} mm before moving Y further"), jog_guard_.park_x());

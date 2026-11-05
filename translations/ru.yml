@@ -2083,7 +2083,6 @@ translations:
   Jog Speed XY: Скорость перемещения XY
   Jog Speed Z: Скорость перемещения Z
   Jog X back to {:.1f} mm before moving Y further: Верните X на {:.1f} мм, прежде чем двигать Y дальше
-  Jog Y back to {:.1f} mm before moving X: Верните Y на {:.1f} мм, прежде чем двигать X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Двигайте Y, пока сопло не встанет по центру отверстия жёлоба, затем нажмите «Сохранить».
 
   'Jog failed: {}': 'Перемещение не удалось: {}'
@@ -2867,6 +2866,7 @@ translations:
   Password: Пароль
   Password cannot be empty: Пароль не может быть пустым
   Password is required for secured networks: Для защищённых сетей требуется пароль
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: За Y {:.1f} мм X движется только шагами {:.1f} мм
   Path A: "Путь A"
   Path B: "Путь B"
   Pause: Пауза

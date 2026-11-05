@@ -1860,7 +1860,6 @@
   <translation tag="Jog Speed XY" de="Bewegungsgeschwindigkeit XY"/>
   <translation tag="Jog Speed Z" de="Bewegungsgeschwindigkeit Z"/>
   <translation tag="Jog X back to {:.1f} mm before moving Y further" de="X auf {:.1f} mm zurückfahren, bevor Y weiter bewegt wird"/>
-  <translation tag="Jog Y back to {:.1f} mm before moving X" de="Y auf {:.1f} mm zurückfahren, bevor X bewegt wird"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." de="Verfahren Sie Y, bis die Düse mittig über der Rinnenöffnung steht, und tippen Sie dann auf Speichern."/>
   <translation tag="Jog failed: {}" de="Bewegung fehlgeschlagen: {}"/>
   <translation tag="Jog layout, speeds and step distances" de="Verfahr-Layout, Geschwindigkeiten und Schrittweiten"/>
@@ -2590,6 +2589,7 @@
   <translation tag="Password" de="Passwort"/>
   <translation tag="Password cannot be empty" de="Passwort darf nicht leer sein"/>
   <translation tag="Password is required for secured networks" de="Passwort ist für gesicherte Netzwerke erforderlich"/>
+  <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" de="Hinter Y {:.1f} mm bewegt sich X nur in Schritten von {:.1f} mm"/>
   <translation tag="Path A" de="Pfad A"/>
   <translation tag="Path B" de="Pfad B"/>
   <translation tag="Pause" de="Pause"/>

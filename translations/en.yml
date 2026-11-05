@@ -1991,7 +1991,6 @@ translations:
   Jog Speed XY: Jog Speed XY
   Jog Speed Z: Jog Speed Z
   Jog X back to {:.1f} mm before moving Y further: Jog X back to {:.1f} mm before moving Y further
-  Jog Y back to {:.1f} mm before moving X: Jog Y back to {:.1f} mm before moving X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Jog Y until the nozzle is centered over the chute opening, then tap Save.
   'Jog failed: {}': 'Jog failed: {}'
   Jog layout, speeds and step distances: Jog layout, speeds and step distances
@@ -2765,6 +2764,7 @@ translations:
   Password: Password
   Password cannot be empty: Password cannot be empty
   Password is required for secured networks: Password is required for secured networks
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: Past Y {:.1f} mm, X moves only in {:.1f} mm steps
   Path A: Path A
   Path B: Path B
   Pause: Pause

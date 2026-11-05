@@ -1860,7 +1860,6 @@
   <translation tag="Jog Speed XY" zh="XY 移动速度"/>
   <translation tag="Jog Speed Z" zh="Z 移动速度"/>
   <translation tag="Jog X back to {:.1f} mm before moving Y further" zh="继续移动 Y 轴前，请将 X 轴点动回 {:.1f} mm"/>
-  <translation tag="Jog Y back to {:.1f} mm before moving X" zh="移动 X 轴前，请将 Y 轴点动回 {:.1f} mm"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." zh="点动 Y 轴，直到喷嘴位于排料口开口中心，然后点击保存。"/>
   <translation tag="Jog failed: {}" zh="移动失败: {}"/>
   <translation tag="Jog layout, speeds and step distances" zh="点动布局、速度与步进距离"/>
@@ -2590,6 +2589,7 @@
   <translation tag="Password" zh="密码"/>
   <translation tag="Password cannot be empty" zh="密码不能为空"/>
   <translation tag="Password is required for secured networks" zh="加密网络需要密码"/>
+  <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" zh="超过 Y {:.1f} mm 后，X 轴只能以 {:.1f} mm 步进移动"/>
   <translation tag="Path A" zh="路径 A"/>
   <translation tag="Path B" zh="路径 B"/>
   <translation tag="Pause" zh="暂停"/>

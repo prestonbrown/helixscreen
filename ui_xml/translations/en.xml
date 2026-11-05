@@ -1860,7 +1860,6 @@
   <translation tag="Jog Speed XY" en="Jog Speed XY"/>
   <translation tag="Jog Speed Z" en="Jog Speed Z"/>
   <translation tag="Jog X back to {:.1f} mm before moving Y further" en="Jog X back to {:.1f} mm before moving Y further"/>
-  <translation tag="Jog Y back to {:.1f} mm before moving X" en="Jog Y back to {:.1f} mm before moving X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." en="Jog Y until the nozzle is centered over the chute opening, then tap Save."/>
   <translation tag="Jog failed: {}" en="Jog failed: {}"/>
   <translation tag="Jog layout, speeds and step distances" en="Jog layout, speeds and step distances"/>
@@ -2590,6 +2589,7 @@
   <translation tag="Password" en="Password"/>
   <translation tag="Password cannot be empty" en="Password cannot be empty"/>
   <translation tag="Password is required for secured networks" en="Password is required for secured networks"/>
+  <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" en="Past Y {:.1f} mm, X moves only in {:.1f} mm steps"/>
   <translation tag="Path A" en="Path A"/>
   <translation tag="Path B" en="Path B"/>
   <translation tag="Pause" en="Pause"/>

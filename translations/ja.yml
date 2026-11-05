@@ -1933,7 +1933,6 @@ translations:
   Jog Speed XY: XY ジョグ速度
   Jog Speed Z: Z ジョグ速度
   Jog X back to {:.1f} mm before moving Y further: Yをさらに動かす前にXを{:.1f} mmまでジョグして戻します
-  Jog Y back to {:.1f} mm before moving X: Xを動かす前にYを{:.1f} mmまでジョグして戻します
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Yをジョグしてノズルがシュートの開口部の中心に来たら、保存をタップします。
 
   'Jog failed: {}': 'ジョグに失敗しました: {}'
@@ -2692,6 +2691,7 @@ translations:
   Password: パスワード
   Password cannot be empty: パスワードを入力してください
   Password is required for secured networks: セキュリティ保護されたネットワークにはパスワードが必要です
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: Y {:.1f} mmを超えると、Xは{:.1f} mm単位でのみ移動します
   Path A: "パスA"
   Path B: "パスB"
   Pause: 一時停止

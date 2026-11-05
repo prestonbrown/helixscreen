@@ -2056,7 +2056,6 @@ translations:
   Jog Speed XY: Vitesse de déplacement XY
   Jog Speed Z: Vitesse de déplacement Z
   Jog X back to {:.1f} mm before moving Y further: Ramenez X à {:.1f} mm avant de déplacer davantage Y
-  Jog Y back to {:.1f} mm before moving X: Ramenez Y à {:.1f} mm avant de déplacer X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Déplacez Y jusqu'à ce que la buse soit centrée sur l'ouverture de la goulotte, puis appuyez sur Enregistrer.
 
   'Jog failed: {}': 'Échec du déplacement : {}'
@@ -2845,6 +2844,7 @@ translations:
   Password cannot be empty: Le mot de passe ne peut pas être vide
   Password is required for secured networks: Un mot de passe est requis pour les réseaux
     sécurisés
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: Au-delà de Y {:.1f} mm, X ne se déplace que par pas de {:.1f} mm
   Path A: "Chemin A"
   Path B: "Chemin B"
   Pause: Pause

@@ -1905,7 +1905,6 @@
   <translation tag="Jog Speed XY" ru="Скорость перемещения XY"/>
   <translation tag="Jog Speed Z" ru="Скорость перемещения Z"/>
   <translation tag="Jog X back to {:.1f} mm before moving Y further" ru="Верните X на {:.1f} мм, прежде чем двигать Y дальше"/>
-  <translation tag="Jog Y back to {:.1f} mm before moving X" ru="Верните Y на {:.1f} мм, прежде чем двигать X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." ru="Двигайте Y, пока сопло не встанет по центру отверстия жёлоба, затем нажмите «Сохранить»."/>
   <translation tag="Jog failed: {}" ru="Перемещение не удалось: {}"/>
   <translation tag="Jog layout, speeds and step distances" ru="Раскладка, скорости и шаги перемещения"/>
@@ -2635,6 +2634,7 @@
   <translation tag="Password" ru="Пароль"/>
   <translation tag="Password cannot be empty" ru="Пароль не может быть пустым"/>
   <translation tag="Password is required for secured networks" ru="Для защищённых сетей требуется пароль"/>
+  <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" ru="За Y {:.1f} мм X движется только шагами {:.1f} мм"/>
   <translation tag="Path A" ru="Путь A"/>
   <translation tag="Path B" ru="Путь B"/>
   <translation tag="Pause" ru="Пауза"/>

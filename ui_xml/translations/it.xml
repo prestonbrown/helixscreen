@@ -1860,7 +1860,6 @@
   <translation tag="Jog Speed XY" it="Velocità di movimento XY"/>
   <translation tag="Jog Speed Z" it="Velocità di movimento Z"/>
   <translation tag="Jog X back to {:.1f} mm before moving Y further" it="Riporta X a {:.1f} mm prima di muovere ancora Y"/>
-  <translation tag="Jog Y back to {:.1f} mm before moving X" it="Riporta Y a {:.1f} mm prima di muovere X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." it="Muovi Y finché l&apos;ugello non è centrato sull&apos;apertura del condotto, poi tocca Salva."/>
   <translation tag="Jog failed: {}" it="Movimento fallito: {}"/>
   <translation tag="Jog layout, speeds and step distances" it="Layout, velocità e distanze di passo del movimento"/>
@@ -2590,6 +2589,7 @@
   <translation tag="Password" it="Password"/>
   <translation tag="Password cannot be empty" it="La password non può essere vuota"/>
   <translation tag="Password is required for secured networks" it="La password è necessaria per le reti protette"/>
+  <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" it="Oltre Y {:.1f} mm, X si muove solo a passi di {:.1f} mm"/>
   <translation tag="Path A" it="Percorso A"/>
   <translation tag="Path B" it="Percorso B"/>
   <translation tag="Pause" it="Pausa"/>

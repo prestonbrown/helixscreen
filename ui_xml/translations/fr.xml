@@ -1860,7 +1860,6 @@
   <translation tag="Jog Speed XY" fr="Vitesse de déplacement XY"/>
   <translation tag="Jog Speed Z" fr="Vitesse de déplacement Z"/>
   <translation tag="Jog X back to {:.1f} mm before moving Y further" fr="Ramenez X à {:.1f} mm avant de déplacer davantage Y"/>
-  <translation tag="Jog Y back to {:.1f} mm before moving X" fr="Ramenez Y à {:.1f} mm avant de déplacer X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." fr="Déplacez Y jusqu&apos;à ce que la buse soit centrée sur l&apos;ouverture de la goulotte, puis appuyez sur Enregistrer."/>
   <translation tag="Jog failed: {}" fr="Échec du déplacement : {}"/>
   <translation tag="Jog layout, speeds and step distances" fr="Disposition, vitesses et distances de pas du déplacement"/>
@@ -2590,6 +2589,7 @@
   <translation tag="Password" fr="Mot de passe"/>
   <translation tag="Password cannot be empty" fr="Le mot de passe ne peut pas être vide"/>
   <translation tag="Password is required for secured networks" fr="Un mot de passe est requis pour les réseaux sécurisés"/>
+  <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" fr="Au-delà de Y {:.1f} mm, X ne se déplace que par pas de {:.1f} mm"/>
   <translation tag="Path A" fr="Chemin A"/>
   <translation tag="Path B" fr="Chemin B"/>
   <translation tag="Pause" fr="Pause"/>
