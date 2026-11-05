@@ -631,6 +631,20 @@ std::string orca_match_type(std::string_view display_type) {
     return "";
 }
 
+std::string slicer_material(std::string_view display_type) {
+    const std::string type(helix::text_io::trim(display_type));
+    if (type.empty()) {
+        return {};
+    }
+    if (std::string orca = orca_match_type(type); !orca.empty()) {
+        return orca;
+    }
+    if (std::string base = extract_base_material(type); !base.empty()) {
+        return base;
+    }
+    return type;
+}
+
 } // namespace filament
 
 namespace helix {

@@ -170,6 +170,17 @@ std::string compose_family_type(const std::string& family, const std::string& va
  */
 std::string orca_match_type(std::string_view display_type);
 
+/**
+ * @brief The material string a firmware or tracker field records for a type.
+ *
+ * For fields that must carry SOME material and that the slicer reads back
+ * verbatim: a Spoolman filament's `material`, AFC's `SET_MATERIAL`, which AFC
+ * copies into lane_data. orca_match_type(), else the base polymer, else the
+ * trimmed type itself, so "ABS+" records as "ABS" and "PLA-CF" stays
+ * "PLA-CF". Empty only for a blank type.
+ */
+std::string slicer_material(std::string_view display_type);
+
 /// True once the Orca tables have been loaded and are non-empty. A missing or
 /// pre-change assets/filaments.json yields empty tables, which makes
 /// orca_match_type() return "" for every input — safe for emit (we omit the

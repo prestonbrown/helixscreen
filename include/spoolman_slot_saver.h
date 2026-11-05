@@ -87,7 +87,7 @@ struct SaveResult {
  * into the name, the way SpoolmanDB files its own records ("PLA+ White").
  */
 struct NewFilament {
-    std::string material;     ///< spoolman::material_for_type() of the slot's type
+    std::string material;     ///< filament::slicer_material() of the slot's type
     std::string precise_type; ///< The slot's own type ("ABS+"), for the density lookup
     std::string name;         ///< "ABS+ Deep Gray", or the slot's own spool name
     std::string color_hex;    ///< "4A4A4A", no '#'

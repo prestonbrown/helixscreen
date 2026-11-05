@@ -4,6 +4,7 @@
 
 #include "color_utils.h"
 #include "filament_database.h"
+#include "filament_variants.h"
 #include "i_moonraker_api.h"
 #include "lane_translation.h"
 #include "spoolman_catalog_search.h"
@@ -50,7 +51,7 @@ bool SpoolmanSlotSaver::is_cancellation(const MoonrakerError& err) {
 NewFilament SpoolmanSlotSaver::new_filament_for(const SlotInfo& slot) {
     NewFilament f;
     f.precise_type = std::string(text_io::trim(slot.material));
-    f.material = spoolman::material_for_type(f.precise_type);
+    f.material = filament::slicer_material(f.precise_type);
     f.color_hex = color_to_hex(slot.color_rgb);
 
     // A spool name that is only the material names nothing Spoolman's own

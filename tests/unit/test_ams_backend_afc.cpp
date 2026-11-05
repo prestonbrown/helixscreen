@@ -1394,6 +1394,34 @@ TEST_CASE("AFC persistence: SET_MATERIAL carries material names with punctuation
     REQUIRE(err.success());
 }
 
+TEST_CASE("AFC persistence: a linked lane's SET_MATERIAL sends the type the slicer matches",
+          "[ams][afc][persistence][filament_naming]") {
+    // AFC copies the lane's material into lane_data, and OrcaSlicer resolves a
+    // type it has no preset for to Generic PLA. A linked lane's Spoolman
+    // filament records "ABS" for an "ABS+" spool; the lane says the same.
+    AmsBackendAfcTestHelper helper;
+
+    helper.set_afc_version("1.0.20");
+    helper.initialize_test_lanes_with_slots(4);
+
+    SlotInfo info;
+    info.material = "ABS+";
+    info.spoolman_id = 152;
+
+    AmsError err = helix::test::apply_edit(helper, 0, info);
+
+    REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=152"));
+    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=ABS"));
+    REQUIRE_FALSE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=ABS+"));
+    REQUIRE(err.success());
+
+    // An unlinked lane has no other record of the variant, so it keeps it.
+    SlotInfo unlinked;
+    unlinked.material = "ABS+";
+    REQUIRE(helix::test::apply_edit(helper, 1, unlinked).success());
+    REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane2 MATERIAL=ABS+"));
+}
+
 TEST_CASE("AFC persistence: SET_MATERIAL quotes multi-word material names",
           "[ams][afc][persistence]") {
     // `Silk PLA` and `Matte PLA` ship in filament_database.h too. They passed the
