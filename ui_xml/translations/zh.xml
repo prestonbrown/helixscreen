@@ -3482,7 +3482,7 @@
   <translation tag="Spoolman" zh="Spoolman"/>
   <translation tag="Spoolman Not Available" zh="Spoolman 不可用"/>
   <translation tag="Spoolman Server" zh="Spoolman 服务器"/>
-  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it, or add a new filament?" zh="Spoolman 中已有此品牌颜色相近的“{}”。使用它，还是添加新耗材？"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" zh="Spoolman 中已有此品牌颜色相近的“{}”。用于耗材通道{}，还是添加新耗材？"/>
   <translation tag="Spoolman connected!" zh="Spoolman 已连接！"/>
   <translation tag="Spoolman found! Configuring..." zh="已找到 Spoolman！正在配置..."/>
   <translation tag="Spoolman has no spools configured" zh="Spoolman 未配置料盘"/>

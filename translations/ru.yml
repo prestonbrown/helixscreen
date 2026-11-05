@@ -3845,7 +3845,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman недоступен'
   Spoolman Server: Сервер Spoolman
-  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: "В Spoolman уже есть «{}» этой марки близкого цвета. Использовать его или добавить новый филамент?"
+  Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: "В Spoolman уже есть «{}» этой марки близкого цвета. Использовать его для канала {} или добавить новый филамент?"
   Spoolman connected!: Spoolman подключен!
   Spoolman found! Configuring...: Spoolman найден! Настройка...
   Spoolman has no spools configured: В Spoolman нет настроенных катушек

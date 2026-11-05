@@ -179,15 +179,22 @@ void SpoolmanSlotSaver::save(const SlotInfo& original, const SlotInfo& edited, L
     // is mutex-guarded, shutdown-guarded and touches no LVGL, so no marshalling.
     const int original_id = original.spoolman_id;
     const int edited_id = edited.spoolman_id;
-    CompletionCallback invalidating =
-        [original_id, edited_id, on_complete = std::move(on_complete)](const SaveResult& result) {
-            SpoolmanManager::invalidate_identity(original_id);
-            SpoolmanManager::invalidate_identity(edited_id);
-            SpoolmanManager::invalidate_identity(result.new_spool_id);
-            if (on_complete) {
-                on_complete(result);
-            }
-        };
+    adopted_.reset();
+    CompletionCallback invalidating = [this, original_id, edited_id,
+                                       on_complete =
+                                           std::move(on_complete)](const SaveResult& result) {
+        SpoolmanManager::invalidate_identity(original_id);
+        SpoolmanManager::invalidate_identity(edited_id);
+        SpoolmanManager::invalidate_identity(result.new_spool_id);
+        SaveResult reported = result;
+        if (reported.success && adopted_ &&
+            (reported.created_new_spool || reported.repointed_filament)) {
+            reported.adopted = adopted_;
+        }
+        if (on_complete) {
+            on_complete(reported);
+        }
+    };
     on_complete = std::move(invalidating);
 
     // UnlinkLocalOnly never touches Spoolman: the lane stops being tracked and
@@ -519,13 +526,15 @@ void SpoolmanSlotSaver::find_or_create_filament(int vendor_id, const NewFilament
                 create_filament(vendor_id, wanted, on_found, on_error);
                 return;
             }
+            const FilamentInfo offered = *similar;
             const int similar_id = similar->id;
             spdlog::info("[SpoolmanSlotSaver] Offering filament id={} ('{}') before creating '{}'",
                          similar_id, similar->filament_name, wanted.name);
-            similar_chooser_(*similar, [this, vendor_id, wanted, similar_id, on_found,
+            similar_chooser_(*similar, [this, vendor_id, wanted, offered, similar_id, on_found,
                                         on_error](SimilarChoice choice) {
                 switch (choice) {
                 case SimilarChoice::UseExisting:
+                    adopted_ = offered;
                     if (on_found)
                         on_found(similar_id);
                     return;

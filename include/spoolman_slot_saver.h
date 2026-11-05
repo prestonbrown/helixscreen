@@ -3,12 +3,15 @@
 #pragma once
 
 #include "ams_types.h"
+#include "color_utils.h"
 #include "filament_database.h"
 #include "moonraker_error.h"
+#include "spoolman_catalog_search.h"
 #include "spoolman_types.h"
 
 #include <cmath>
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "hv/json.hpp"
@@ -77,6 +80,9 @@ struct SaveResult {
     int new_spool_id = 0;            ///< spool_id assigned on create (0 if unchanged)
     int new_filament_id = 0;         ///< filament_id after find-or-create (0 if unchanged)
     int new_vendor_id = 0;           ///< vendor_id after find-or-create (0 if unchanged)
+    /// The user took an existing record at the similar-filament offer; the
+    /// spool now carries that record's identity rather than the typed one.
+    std::optional<FilamentInfo> adopted;
 };
 
 /**
@@ -204,6 +210,20 @@ class SpoolmanSlotSaver {
         if (result.new_vendor_id != 0) {
             committed.spoolman_vendor_id = result.new_vendor_id;
         }
+        if (result.adopted) {
+            const FilamentInfo& f = *result.adopted;
+            // The first six digits are the colour; an alpha byte does not move it.
+            const std::string hex = spoolman::normalize_color_hex(f.color_hex);
+            if (auto rgb = hex.empty() ? std::nullopt : parse_hex_color(hex.substr(0, 6))) {
+                committed.color_rgb = *rgb;
+            }
+            committed.color_name.clear();
+            committed.multi_color_hexes.clear();
+            if (!f.material.empty()) {
+                committed.material = f.material;
+            }
+            committed.spool_name = f.filament_name;
+        }
     }
 
     /**
@@ -314,6 +334,8 @@ class SpoolmanSlotSaver {
     IMoonrakerAPI* api_;
     float filament_diameter_mm_;
     SimilarFilamentChooser similar_chooser_;
+    /// The record the user took at the offer, reported with the save's result.
+    std::optional<FilamentInfo> adopted_;
 
     /// POST @p filament under @p vendor_id.
     void create_filament(int vendor_id, const NewFilament& filament, FilamentCallback on_found,

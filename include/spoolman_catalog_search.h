@@ -86,6 +86,10 @@ const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& fila
 /// trimmed and joined by one space. Empty only when both are blank.
 std::string new_filament_name(const std::string& product, const std::string& color_name);
 
+/// What to call @p filament to the user: its name, or for a record with none
+/// its material and @p color_name ("ABS Gray").
+std::string filament_display_name(const FilamentInfo& filament, const std::string& color_name);
+
 /// The one temperature Spoolman stores for a range: the midpoint, or the one
 /// end that is set; 0 when neither is.
 int temperature_for_range(int min_temp, int max_temp);

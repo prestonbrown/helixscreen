@@ -3801,7 +3801,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman no disponible'
   Spoolman Server: Servidor Spoolman
-  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: "Spoolman ya tiene \"{}\" de esta marca en un color parecido. ¿Usarlo o añadir un filamento nuevo?"
+  Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: "Spoolman ya tiene \"{}\" de esta marca en un color parecido. ¿Usarlo para el carril {} o añadir un filamento nuevo?"
   Spoolman connected!: ¡Spoolman conectado!
   Spoolman found! Configuring...: ¡Spoolman encontrado! Configurando...
   Spoolman has no spools configured: Spoolman no tiene bobinas configuradas

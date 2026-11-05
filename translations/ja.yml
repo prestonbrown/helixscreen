@@ -3607,7 +3607,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman は利用できません'
   Spoolman Server: Spoolman サーバー
-  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: "Spoolman には、このブランドの近い色の「{}」がすでにあります。それを使用しますか、それとも新しいフィラメントを追加しますか？"
+  Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: "Spoolman には、このブランドの近い色の「{}」がすでにあります。レーン {} に使用しますか、それとも新しいフィラメントを追加しますか？"
   Spoolman connected!: Spoolman に接続しました！
   Spoolman found! Configuring...: Spoolman を検出しました！設定中...
   Spoolman has no spools configured: Spoolman にスプールが設定されていません

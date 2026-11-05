@@ -133,6 +133,11 @@ std::string new_filament_name(const std::string& product, const std::string& col
     return head + " " + tail;
 }
 
+std::string filament_display_name(const FilamentInfo& filament, const std::string& color_name) {
+    std::string name(text_io::trim(filament.filament_name));
+    return name.empty() ? new_filament_name(filament.material, color_name) : name;
+}
+
 int temperature_for_range(int min_temp, int max_temp) {
     if (min_temp > 0 && max_temp > 0) {
         return (min_temp + max_temp) / 2;
