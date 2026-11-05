@@ -19,6 +19,7 @@
 #include "moonraker_client_mock.h"
 #include "preflight_validator.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/device_action_controls.h"
 #include "test_helpers/happy_hare_test_access.h"
@@ -67,6 +68,12 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         nlohmann::json notification;
         notification["params"] = nlohmann::json::array({params, 0.0});
         handle_status_update(notification);
+    }
+
+    /// The re-layer a late read of the override store triggers.
+    void relayer_after_read() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        relayer_overrides_after_read_locked();
     }
 
     /// Seed a user override directly (no persist round-trip), as the AFC
@@ -1232,6 +1239,38 @@ TEST_CASE("Happy Hare external re-bind clears our override (#1281 step 7)",
     CHECK(helper.get_slot_info(0).spoolman_id == 169); // firmware truth paints
     CHECK(helper.get_slot_info(0).brand.empty());      // our stale brand no longer shadows
     CHECK_FALSE(helper.has_gate_override(0));          // record dropped
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare a late read's re-layer is not an eject",
+                 "[ams][happy_hare][override-merge]") {
+    auto& settings = helix::SettingsManager::instance();
+    settings.init_subjects();
+    settings.set_ams_keep_spool_info_on_eject(false);
+
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(2);
+    for (int gate = 0; gate < 2; ++gate) {
+        helix::ams::FilamentSlotOverride o;
+        o.spoolman_id = 42 + gate;
+        o.brand = "Polymaker";
+        helper.set_gate_override(gate, o);
+        REQUIRE(helper.get_slot_info(gate).spoolman_id == 0);
+    }
+
+    // No frame has painted the gates, so their empty spool ids say nothing.
+    helper.relayer_after_read();
+    for (int gate = 0; gate < 2; ++gate) {
+        CHECK(helper.has_gate_override(gate));
+        CHECK(helper.get_slot_info(gate).spoolman_id == 42 + gate);
+        CHECK(helper.get_slot_info(gate).brand == "Polymaker");
+    }
+
+    // A frame saying the spool left still counts.
+    helper.feed_mmu_gate_spool_ids({0, 43});
+    CHECK_FALSE(helper.has_gate_override(0));
+    CHECK(helper.has_gate_override(1));
+
+    settings.set_ams_keep_spool_info_on_eject(true);
 }
 
 // --- Phase 3: Dissimilar multi-unit ---
