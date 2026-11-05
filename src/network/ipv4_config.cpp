@@ -3,7 +3,6 @@
 
 #include "ipv4_config.h"
 
-#include "core/base64_field.h"
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "json_utils.h"
@@ -24,15 +23,9 @@ namespace helix::net {
 namespace {
 
 constexpr const char* kPendingRevertFile = "ipv4_pending_revert.json";
-constexpr const char* kDhcpcdMarkerBegin = "# HelixScreen static IPv4 begin: ";
-constexpr const char* kDhcpcdMarkerEnd = "# HelixScreen static IPv4 end: ";
 
 std::string_view trim(std::string_view s) {
     return helix::text_io::trim(s);
-}
-
-bool starts_with(std::string_view s, std::string_view prefix) {
-    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }
 
 uint32_t prefix_mask(int prefix) {
@@ -115,38 +108,6 @@ bool parse_cidr(std::string_view text, std::string& address, int& prefix) {
     address = format_ipv4(*addr);
     prefix = *p;
     return true;
-}
-
-// The first token of a whitespace-separated dhcpcd.conf line.
-std::string_view first_word(std::string_view line) {
-    line = trim(line);
-    const size_t sp = line.find_first_of(" \t");
-    return sp == std::string_view::npos ? line : line.substr(0, sp);
-}
-
-// The interface a dhcpcd.conf `interface X` line opens, or "" when the line
-// opens no stanza. `ssid` and `profile` lines open other stanzas.
-bool opens_stanza(std::string_view line, std::string_view& iface) {
-    const std::string_view word = first_word(line);
-    if (word == "interface") {
-        iface = trim(trim(line).substr(word.size()));
-        return true;
-    }
-    if (word == "ssid" || word == "profile") {
-        iface = {};
-        return true;
-    }
-    return false;
-}
-
-bool is_static_ipv4_line(std::string_view line) {
-    line = trim(line);
-    if (first_word(line) != "static") {
-        return false;
-    }
-    const std::string_view rest = trim(line.substr(6));
-    return starts_with(rest, "ip_address=") || starts_with(rest, "routers=") ||
-           starts_with(rest, "domain_name_servers=");
 }
 
 } // namespace
@@ -624,152 +585,6 @@ std::vector<std::string> nm_ipv4_modify_argv(const std::string& uuid, const Ipv4
 }
 
 // ============================================================================
-// dhcpcd
-// ============================================================================
-
-std::optional<std::string> dhcpcd_conf_with_ipv4(const std::string& conf, const std::string& iface,
-                                                 const Ipv4Config& config) {
-    const std::string begin = kDhcpcdMarkerBegin + iface;
-    const std::string end = kDhcpcdMarkerEnd + iface;
-
-    std::string out;
-    bool in_marked = false;
-    bool in_iface_stanza = false;
-    for (std::string_view line : lines_of(conf)) {
-        const std::string_view t = trim(line);
-        if (in_marked) {
-            if (t == end) {
-                in_marked = false;
-            }
-            continue;
-        }
-        if (t == begin) {
-            in_marked = true;
-            continue;
-        }
-        std::string_view opened;
-        if (opens_stanza(line, opened)) {
-            in_iface_stanza = (opened == iface);
-        } else if (in_iface_stanza && is_static_ipv4_line(line)) {
-            continue;
-        }
-        out.append(line);
-        out += '\n';
-    }
-    if (in_marked) {
-        return std::nullopt;
-    }
-
-    if (!config.dhcp) {
-        out += begin + "\n";
-        out += "interface " + iface + "\n";
-        out += "static ip_address=" + config.address + "/" + std::to_string(config.prefix) + "\n";
-        out += "static routers=" + config.gateway + "\n";
-        out += "static domain_name_servers=" + join_fields(config.dns, " ") + "\n";
-        out += end + "\n";
-    }
-    return out;
-}
-
-std::optional<Ipv4Config> dhcpcd_conf_read_ipv4(const std::string& conf, const std::string& iface) {
-    std::vector<std::string> addresses;
-    std::string routers, dns;
-    bool in_iface_stanza = false;
-    for (std::string_view line : lines_of(conf)) {
-        std::string_view opened;
-        if (opens_stanza(line, opened)) {
-            in_iface_stanza = (opened == iface);
-            continue;
-        }
-        if (!in_iface_stanza || !is_static_ipv4_line(line)) {
-            continue;
-        }
-        const std::string_view rest = trim(trim(line).substr(6));
-        const size_t eq = rest.find('=');
-        const std::string_view key = rest.substr(0, eq);
-        const std::string value(trim(rest.substr(eq + 1)));
-        if (key == "ip_address") {
-            addresses.push_back(value);
-        } else if (key == "routers") {
-            routers = value;
-        } else {
-            dns = value;
-        }
-    }
-    Ipv4Config c;
-    for (std::string_view server : split_on(dns, ' ')) {
-        server = trim(server);
-        if (!server.empty()) {
-            c.dns.emplace_back(server);
-        }
-    }
-    if (addresses.empty()) {
-        return c;
-    }
-    if (addresses.size() > 1 || !parse_cidr(addresses.front(), c.address, c.prefix)) {
-        return std::nullopt;
-    }
-    c.dhcp = false;
-    if (const auto gw = parse_ipv4(split_on(routers, ' ').front())) {
-        c.gateway = format_ipv4(*gw);
-    }
-    return c;
-}
-
-DhcpcdPrivilege select_dhcpcd_privilege(const DhcpcdAccessFacts& facts) {
-    if (facts.conf_writable) {
-        return DhcpcdPrivilege::Direct;
-    }
-    if (facts.root || !facts.conf_readable || facts.sudo != DhcpcdAccessFacts::Sudo::Ok) {
-        return DhcpcdPrivilege::Unsupported;
-    }
-    return DhcpcdPrivilege::Sudo;
-}
-
-std::vector<std::string> dhcpcd_sudo_argv(const DhcpcdTools& tools,
-                                          std::vector<std::string> command) {
-    std::vector<std::string> argv{tools.sudo, "-n", "--"};
-    argv.insert(argv.end(), std::make_move_iterator(command.begin()),
-                std::make_move_iterator(command.end()));
-    return argv;
-}
-
-std::vector<std::vector<std::string>> dhcpcd_sudo_write_argvs(const DhcpcdTools& tools,
-                                                              const std::string& temp,
-                                                              const std::string& staged,
-                                                              const std::string& real, unsigned uid,
-                                                              unsigned gid, unsigned mode) {
-    char mode_text[8];
-    std::snprintf(mode_text, sizeof(mode_text), "%04o", mode & 07777);
-    return {
-        dhcpcd_sudo_argv(tools, {tools.install, "-o", std::to_string(uid), "-g",
-                                 std::to_string(gid), "-m", mode_text, "--", temp, staged}),
-        dhcpcd_sudo_argv(tools, {tools.sync, "--", staged}),
-        dhcpcd_sudo_argv(tools, {tools.mv, "-f", "--", staged, real}),
-    };
-}
-
-std::vector<std::string> dhcpcd_rebind_argv(DhcpcdPrivilege privilege, const DhcpcdTools& tools,
-                                            const std::string& iface) {
-    std::vector<std::string> command{tools.dhcpcd, "-n", iface};
-    return privilege == DhcpcdPrivilege::Sudo ? dhcpcd_sudo_argv(tools, std::move(command))
-                                              : command;
-}
-
-Ipv4Result dhcpcd_step_result(const std::string& what, int exit_code, const std::string& output,
-                              bool via_sudo) {
-    if (exit_code == 0) {
-        return Ipv4Result::success();
-    }
-    const std::string line(text_io::trim(output.substr(0, output.find('\n'))));
-    if (via_sudo && (output.find("password is required") != std::string::npos ||
-                     output.find("a terminal is required") != std::string::npos)) {
-        return Ipv4Result::refused("sudo refused " + what + ": " + line);
-    }
-    return Ipv4Result::failed(what + ": " + line);
-}
-
-// ============================================================================
 // Confirm-or-revert
 // ============================================================================
 
@@ -808,18 +623,10 @@ std::string encode_pending_ipv4_revert(const PendingIpv4Revert& pending) {
     j["store"] = pending.snapshot.store;
     j["iface"] = pending.snapshot.iface;
     j["profile"] = pending.snapshot.profile;
-    j["original_b64"] = helix::encode_b64_field(pending.snapshot.original);
-    j["written_b64"] = helix::encode_b64_field(pending.snapshot.written);
+    j["original"] = pending.snapshot.original;
+    j["written"] = pending.snapshot.written;
     return helix::json_util::safe_dump(j, 2);
 }
-
-namespace {
-// Base64 to bytes; false for text that is not base64 (empty is empty).
-bool decode_bytes(const std::string& b64, std::string& out) {
-    out = helix::decode_b64_field(b64);
-    return b64.empty() || !out.empty();
-}
-} // namespace
 
 std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view text) {
     const nlohmann::json j = nlohmann::json::parse(text.begin(), text.end(), nullptr, false);
@@ -849,10 +656,8 @@ std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view tex
     snap.store = helix::json_util::safe_string(j, "store");
     snap.iface = helix::json_util::safe_string(j, "iface");
     snap.profile = helix::json_util::safe_string(j, "profile");
-    if (!decode_bytes(helix::json_util::safe_string(j, "original_b64"), snap.original) ||
-        !decode_bytes(helix::json_util::safe_string(j, "written_b64"), snap.written)) {
-        return std::nullopt;
-    }
+    snap.original = helix::json_util::safe_string(j, "original");
+    snap.written = helix::json_util::safe_string(j, "written");
     // What the restore needs, store by store. A failed record is kept only to
     // be shown, so it needs nothing.
     if (p.failed) {
@@ -860,10 +665,6 @@ std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view tex
     }
     if (snap.store == "networkmanager") {
         if (snap.profile.empty() || snap.iface.empty() || snap.original.empty()) {
-            return std::nullopt;
-        }
-    } else if (snap.store == "dhcpcd") {
-        if (snap.iface.empty()) {
             return std::nullopt;
         }
     } else if (snap.store == "mock") {

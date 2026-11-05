@@ -26,18 +26,6 @@ Ipv4Config static_config(const char* address, int prefix, const char* gateway,
     return c;
 }
 
-// The dhcpcd transforms, for input they must accept.
-std::string with_ipv4(const std::string& conf, const std::string& iface, const Ipv4Config& c) {
-    const auto out = dhcpcd_conf_with_ipv4(conf, iface, c);
-    REQUIRE(out);
-    return *out;
-}
-Ipv4Config read_ipv4(const std::string& conf, const std::string& iface) {
-    const auto out = dhcpcd_conf_read_ipv4(conf, iface);
-    REQUIRE(out);
-    return *out;
-}
-
 } // namespace
 
 // ============================================================================
@@ -346,70 +334,6 @@ TEST_CASE("nm_ipv4_modify_argv writes manual and auto", "[ipv4]") {
 }
 
 // ============================================================================
-// dhcpcd
-// ============================================================================
-
-TEST_CASE("dhcpcd_conf_with_ipv4 appends one marked block", "[ipv4]") {
-    const std::string base = "hostname\nclientid\n# a comment\n";
-    const auto s = static_config("192.168.1.50", 24, "192.168.1.1", {"1.1.1.1", "8.8.8.8"});
-    const std::string out = with_ipv4(base, "wlan0", s);
-
-    REQUIRE(out.rfind(base, 0) == 0);
-    REQUIRE(out.find("interface wlan0\n") != std::string::npos);
-    REQUIRE(out.find("static ip_address=192.168.1.50/24\n") != std::string::npos);
-    REQUIRE(out.find("static routers=192.168.1.1\n") != std::string::npos);
-    REQUIRE(out.find("static domain_name_servers=1.1.1.1 8.8.8.8\n") != std::string::npos);
-    REQUIRE(read_ipv4(out, "wlan0") == s);
-
-    SECTION("applying again replaces the block rather than adding one") {
-        const auto s2 = static_config("192.168.1.60", 24, "192.168.1.1", {"1.1.1.1"});
-        const std::string again = with_ipv4(out, "wlan0", s2);
-        REQUIRE(again.find("192.168.1.50") == std::string::npos);
-        REQUIRE(read_ipv4(again, "wlan0") == s2);
-        REQUIRE(again == with_ipv4(base, "wlan0", s2));
-    }
-    SECTION("DHCP removes the block and restores the file") {
-        REQUIRE(with_ipv4(out, "wlan0", Ipv4Config{}) == base);
-        REQUIRE(read_ipv4(base, "wlan0").dhcp);
-    }
-    SECTION("another interface's block is untouched") {
-        const auto e = static_config("10.0.0.2", 8, "10.0.0.1", {"10.0.0.1"});
-        const std::string both = with_ipv4(out, "eth0", e);
-        REQUIRE(read_ipv4(both, "wlan0") == s);
-        REQUIRE(read_ipv4(both, "eth0") == e);
-        REQUIRE(read_ipv4(with_ipv4(both, "eth0", Ipv4Config{}), "wlan0") == s);
-    }
-}
-
-TEST_CASE("dhcpcd_conf_with_ipv4 takes over a hand-written stanza", "[ipv4]") {
-    const std::string conf = "interface wlan0\n"
-                             "static ip_address=10.0.0.5/24\n"
-                             "static routers=10.0.0.1\n"
-                             "static domain_name_servers=10.0.0.1\n"
-                             "metric 300\n"
-                             "interface eth0\n"
-                             "static ip_address=172.16.0.2/16\n";
-    const Ipv4Config read = read_ipv4(conf, "wlan0");
-    REQUIRE(read == static_config("10.0.0.5", 24, "10.0.0.1", {"10.0.0.1"}));
-
-    const std::string dhcp = with_ipv4(conf, "wlan0", Ipv4Config{});
-    REQUIRE(dhcp == "interface wlan0\n"
-                    "metric 300\n"
-                    "interface eth0\n"
-                    "static ip_address=172.16.0.2/16\n");
-    REQUIRE(read_ipv4(dhcp, "wlan0").dhcp);
-    REQUIRE_FALSE(read_ipv4(dhcp, "eth0").dhcp);
-}
-
-TEST_CASE("dhcpcd_conf_with_ipv4 handles a file without a trailing newline", "[ipv4]") {
-    const auto s = static_config("192.168.1.50", 24, "192.168.1.1", {"1.1.1.1"});
-    const std::string out = with_ipv4("hostname", "wlan0", s);
-    REQUIRE(out.rfind("hostname\n", 0) == 0);
-    REQUIRE(read_ipv4(out, "wlan0") == s);
-    REQUIRE(with_ipv4("", "wlan0", Ipv4Config{}).empty());
-}
-
-// ============================================================================
 // Confirm-or-revert
 // ============================================================================
 
@@ -473,13 +397,13 @@ TEST_CASE("PendingIpv4Revert encodes and decodes", "[ipv4]") {
         REQUIRE(again);
         CHECK(again->previous == p.previous);
     }
-    SECTION("snapshot bytes survive exactly, UTF-8 or not") {
-        p.snapshot = {"dhcpcd", "wlan0", "", std::string("# K\xf6ln \xff\xfe\n", 12),
-                      std::string("\x80\x00x", 3)};
-        const auto again = decode_pending_ipv4_revert(encode_pending_ipv4_revert(p));
-        REQUIRE(again);
-        CHECK(again->snapshot.original == p.snapshot.original);
-        CHECK(again->snapshot.written == p.snapshot.written);
+    SECTION("a record from a store this build lacks goes unused, never half-read") {
+        CHECK_FALSE(decode_pending_ipv4_revert(
+            R"({"link":"wifi","store":"dhcpcd","iface":"wlan0","original_b64":"aG9zdG5hbWUK"})"));
+        CHECK_FALSE(decode_pending_ipv4_revert(
+            R"({"link":"ethernet","store":"networkmanager","iface":"eth0","profile":"u-1",)"
+            R"("original_b64":"aXB2NC5tZXRob2Q6bWFudWFsCg=="})"));
+        CHECK(decode_pending_ipv4_revert(R"({"link":"wifi","store":"dhcpcd","failed":true})"));
     }
 
     PendingIpv4Revert d;
@@ -499,8 +423,6 @@ TEST_CASE("PendingIpv4Revert encodes and decodes", "[ipv4]") {
         // A record with nothing a restore could use.
         REQUIRE_FALSE(decode_pending_ipv4_revert(R"({"link":"wifi","store":"networkmanager"})"));
         REQUIRE_FALSE(decode_pending_ipv4_revert(R"({"link":"wifi","store":"zeroconf"})"));
-        REQUIRE_FALSE(decode_pending_ipv4_revert(
-            R"({"link":"wifi","store":"dhcpcd","iface":"wlan0","original_b64":"*!"})"));
     }
 }
 
@@ -542,70 +464,6 @@ TEST_CASE("NetworkManager values restore exactly, lists intact", "[ipv4]") {
     CHECK(nm_ipv4_restore_argv("u-1", v) == V{"connection", "modify", "uuid", "u-1", "ipv4.method",
                                               "manual", "ipv4.addresses", "10.0.0.2/8,10.0.0.3/8",
                                               "ipv4.gateway", "", "ipv4.dns", "1.1.1.1,9.9.9.9"});
-}
-
-TEST_CASE("dhcpcd edits refuse what they cannot represent", "[ipv4]") {
-    SECTION("a block with no end marker is never cut to the end of the file") {
-        const std::string conf = "# HelixScreen static IPv4 begin: wlan0\n"
-                                 "interface wlan0\n"
-                                 "static ip_address=10.0.0.5/24\n"
-                                 "hostname\n";
-        CHECK_FALSE(dhcpcd_conf_with_ipv4(conf, "wlan0", Ipv4Config{}));
-    }
-    SECTION("an address without a prefix, or several, is not a config") {
-        CHECK_FALSE(dhcpcd_conf_read_ipv4("interface eth0\nstatic ip_address=10.0.0.5\n", "eth0"));
-        CHECK_FALSE(dhcpcd_conf_read_ipv4("interface eth0\nstatic ip_address=10.0.0.5/24\n"
-                                          "static ip_address=10.0.0.6/24\n",
-                                          "eth0"));
-    }
-    SECTION("DHCP keeps its DNS override") {
-        const auto c =
-            dhcpcd_conf_read_ipv4("interface wlan0\nstatic domain_name_servers=9.9.9.9\n", "wlan0");
-        REQUIRE(c);
-        CHECK(c->dhcp);
-        CHECK(c->dns == std::vector<std::string>{"9.9.9.9"});
-    }
-}
-
-TEST_CASE("dhcpcd edits go direct, through sudo -n, or not at all", "[ipv4]") {
-    using Sudo = DhcpcdAccessFacts::Sudo;
-    const auto mode = [](bool root, bool writable, bool readable, Sudo sudo) {
-        return select_dhcpcd_privilege({root, writable, readable, sudo});
-    };
-    CHECK(mode(true, true, true, Sudo::NotTried) == DhcpcdPrivilege::Direct);
-    CHECK(mode(false, true, true, Sudo::NotTried) == DhcpcdPrivilege::Direct);
-    CHECK(mode(true, false, true, Sudo::Ok) == DhcpcdPrivilege::Unsupported);
-    CHECK(mode(false, false, true, Sudo::Ok) == DhcpcdPrivilege::Sudo);
-    CHECK(mode(false, false, false, Sudo::Ok) == DhcpcdPrivilege::Unsupported);
-    CHECK(mode(false, false, true, Sudo::Failed) == DhcpcdPrivilege::Unsupported);
-    CHECK(mode(false, false, true, Sudo::NotTried) == DhcpcdPrivilege::Unsupported);
-
-    using Argv = std::vector<std::string>;
-    const DhcpcdTools t{"/usr/bin/sudo", "/usr/bin/install", "/bin/sync",
-                        "/bin/mv",       "/bin/rm",          "/usr/sbin/dhcpcd"};
-    CHECK(dhcpcd_sudo_write_argvs(t, "/tmp/helix-dhcpcd-a", "/etc/dhcpcd.conf.helix-new",
-                                  "/etc/dhcpcd.conf", 0, 108, 0100664) ==
-          std::vector<Argv>{
-              {"/usr/bin/sudo", "-n", "--", "/usr/bin/install", "-o", "0", "-g", "108", "-m",
-               "0664", "--", "/tmp/helix-dhcpcd-a", "/etc/dhcpcd.conf.helix-new"},
-              {"/usr/bin/sudo", "-n", "--", "/bin/sync", "--", "/etc/dhcpcd.conf.helix-new"},
-              {"/usr/bin/sudo", "-n", "--", "/bin/mv", "-f", "--", "/etc/dhcpcd.conf.helix-new",
-               "/etc/dhcpcd.conf"}});
-    CHECK(dhcpcd_rebind_argv(DhcpcdPrivilege::Sudo, t, "wlan0") ==
-          Argv{"/usr/bin/sudo", "-n", "--", "/usr/sbin/dhcpcd", "-n", "wlan0"});
-    CHECK(dhcpcd_rebind_argv(DhcpcdPrivilege::Direct, t, "wlan0") ==
-          Argv{"/usr/sbin/dhcpcd", "-n", "wlan0"});
-
-    using Status = Ipv4Result::Status;
-    const std::string prompt = "sudo: a password is required\n";
-    CHECK(dhcpcd_step_result("install", 1, prompt, true).status == Status::Refused);
-    CHECK(
-        dhcpcd_step_result("install", 1, "sudo: a terminal is required to read the password", true)
-            .status == Status::Refused);
-    CHECK(dhcpcd_step_result("install", 1, "install: cannot stat", true).status == Status::Failed);
-    CHECK(dhcpcd_step_result("install", -1, "", true).status == Status::Failed);
-    CHECK(dhcpcd_step_result("dhcpcd -n", 1, prompt, false).status == Status::Failed);
-    CHECK(dhcpcd_step_result("install", 0, prompt, true).ok());
 }
 
 TEST_CASE("ipv4_keep_unshown keeps the DNS servers the form cannot show", "[ipv4]") {

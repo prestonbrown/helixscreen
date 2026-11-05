@@ -9,21 +9,16 @@
 
 #if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
 
-#include "core/http_executor.h"
 #include "core/text_io.h"
 #include "system/child_process.h"
 
 #include <atomic>
 #include <cerrno>
 #include <chrono>
-#include <climits>
 #include <cstring>
 #include <fcntl.h>
-#include <initializer_list>
 #include <mutex>
-#include <optional>
 #include <spawn.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
 
@@ -273,356 +268,6 @@ Ipv4Result restore_network_manager(const Ipv4Snapshot& snapshot) {
         snapshot, /*required=*/nm_uuid_is_active(active.out, snapshot.profile));
 }
 
-// ============================================================================
-// dhcpcd
-// ============================================================================
-
-constexpr const char* kDhcpcdConf = "/etc/dhcpcd.conf";
-constexpr auto kDhcpcdTimeout = std::chrono::seconds(15);
-// A sudo'd install, sync or rename is quick; a slow one is sudo stuck on
-// something (PAM, a resolver), and the change fails instead of waiting.
-constexpr auto kSudoStepTimeout = std::chrono::seconds(5);
-constexpr auto kSudoProbeTimeout = std::chrono::seconds(3);
-// A dhcpcd.conf larger than this is not edited (the record carries it twice).
-constexpr std::size_t kDhcpcdConfMax = kIpv4SnapshotMaxBytes;
-
-const char* first_executable(std::initializer_list<const char*> paths) {
-    for (const char* p : paths) {
-        if (executable(p)) {
-            return p;
-        }
-    }
-    return nullptr;
-}
-
-const char* dhcpcd_binary() {
-    return first_executable({"/usr/sbin/dhcpcd", "/sbin/dhcpcd", "/usr/bin/dhcpcd"});
-}
-
-bool dhcpcd_running() {
-    // dhcpcd 9 keeps its pid and control sockets under /run/dhcpcd/; older
-    // releases write /run/dhcpcd.pid and /run/dhcpcd.sock.
-    for (const char* p : {"/run/dhcpcd/pid", "/run/dhcpcd.pid", "/var/run/dhcpcd.pid",
-                          "/run/dhcpcd/sock", "/run/dhcpcd.sock", "/var/run/dhcpcd.sock"}) {
-        if (exists(p)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Absolute paths, so neither this process's PATH nor sudo's secure_path picks
-// the program; empty when one is missing.
-std::optional<DhcpcdTools> find_dhcpcd_tools() {
-    DhcpcdTools t;
-    const auto set = [](std::string& slot, std::initializer_list<const char*> paths) {
-        const char* found = first_executable(paths);
-        slot = found ? found : "";
-        return found != nullptr;
-    };
-    const bool all = set(t.sudo, {"/usr/bin/sudo", "/bin/sudo"}) &&
-                     set(t.install, {"/usr/bin/install", "/bin/install"}) &&
-                     set(t.sync, {"/bin/sync", "/usr/bin/sync"}) &&
-                     set(t.mv, {"/bin/mv", "/usr/bin/mv"}) && set(t.rm, {"/bin/rm", "/usr/bin/rm"});
-    const char* dhcpcd = dhcpcd_binary();
-    if (!all || !dhcpcd) {
-        return std::nullopt;
-    }
-    t.dhcpcd = dhcpcd;
-    return t;
-}
-
-RunResult run_argv(const std::vector<std::string>& argv, std::chrono::seconds timeout) {
-    return run_capture(argv.front(), {argv.begin() + 1, argv.end()}, timeout);
-}
-
-// How this process edits dhcpcd.conf, decided once per process: the sudo
-// probe can take seconds, so it runs on a worker and the setting stays
-// hidden until it answers.
-class DhcpcdAccess {
-  public:
-    static DhcpcdAccess& instance() {
-        static DhcpcdAccess access;
-        return access;
-    }
-
-    // BLOCKING on the first call while sudo is probed.
-    DhcpcdPrivilege privilege() {
-        std::call_once(once_, [this] { decide(); });
-        return mode_.load();
-    }
-
-    std::optional<DhcpcdPrivilege> decided() const {
-        if (!decided_.load()) {
-            return std::nullopt;
-        }
-        return mode_.load();
-    }
-
-    const DhcpcdTools& tools() {
-        privilege();
-        return tools_;
-    }
-
-    // Decides now when no probe is needed, else on a worker.
-    void start() {
-        if (!needs_probe(facts_without_probe())) {
-            privilege();
-            return;
-        }
-        helix::http::HttpExecutor::fast().start();
-        helix::http::HttpExecutor::fast().submit([] { DhcpcdAccess::instance().privilege(); });
-    }
-
-  private:
-    static DhcpcdAccessFacts facts_without_probe() {
-        DhcpcdAccessFacts f;
-        f.root = geteuid() == 0;
-        f.conf_writable = access(kDhcpcdConf, W_OK) == 0 && access("/etc", W_OK) == 0;
-        f.conf_readable = access(kDhcpcdConf, R_OK) == 0;
-        return f;
-    }
-
-    static bool needs_probe(const DhcpcdAccessFacts& f) {
-        return !f.root && !f.conf_writable && f.conf_readable;
-    }
-
-    void decide() {
-        DhcpcdAccessFacts facts = facts_without_probe();
-        const auto tools = find_dhcpcd_tools();
-        if (tools) {
-            tools_ = *tools;
-        } else if (const char* dhcpcd = dhcpcd_binary()) {
-            tools_.dhcpcd = dhcpcd;
-        }
-        if (needs_probe(facts) && tools) {
-            const RunResult probe = run_argv(dhcpcd_sudo_argv(tools_, {"true"}), kSudoProbeTimeout);
-            facts.sudo = probe.exit_code == 0 ? DhcpcdAccessFacts::Sudo::Ok
-                                              : DhcpcdAccessFacts::Sudo::Failed;
-            if (probe.exit_code != 0) {
-                spdlog::info("[Ipv4] dhcpcd.conf is not writable and sudo -n refused: {}",
-                             first_output_line(probe.out));
-            }
-        }
-        const DhcpcdPrivilege mode = select_dhcpcd_privilege(facts);
-        spdlog::info("[Ipv4] dhcpcd store: {}", mode == DhcpcdPrivilege::Direct ? "direct"
-                                                : mode == DhcpcdPrivilege::Sudo ? "via sudo"
-                                                                                : "unsupported");
-        mode_.store(mode);
-        decided_.store(true);
-    }
-
-    std::once_flag once_;
-    std::atomic<DhcpcdPrivilege> mode_{DhcpcdPrivilege::Unsupported};
-    std::atomic<bool> decided_{false};
-    DhcpcdTools tools_; ///< written once inside call_once, read after it
-};
-
-Ipv4Result read_dhcpcd_conf(std::string& out) {
-    const auto conf = helix::text_io::read_file(kDhcpcdConf, kDhcpcdConfMax + 1);
-    if (!conf) {
-        return Ipv4Result::failed(std::string("cannot read ") + kDhcpcdConf);
-    }
-    if (conf->size() > kDhcpcdConfMax) {
-        return Ipv4Result::failed(std::string(kDhcpcdConf) + " is too large to edit safely");
-    }
-    out = *conf;
-    return Ipv4Result::success();
-}
-
-// The bytes of @p text in a file only this user can read or replace, for a
-// sudo'd install to copy from. Empty on failure.
-std::string write_private_temp(const std::string& text) {
-    char path[] = "/tmp/helix-dhcpcd-XXXXXX";
-    const int fd = mkstemp(path);
-    if (fd < 0) {
-        return {};
-    }
-    size_t done = 0;
-    while (done < text.size()) {
-        const ssize_t n = write(fd, text.data() + done, text.size() - done);
-        if (n <= 0) {
-            close(fd);
-            unlink(path);
-            return {};
-        }
-        done += static_cast<size_t>(n);
-    }
-    if (close(fd) != 0) {
-        unlink(path);
-        return {};
-    }
-    return path;
-}
-
-// Install, flush and rename through sudo. Nothing reaches @p real until the
-// rename, so a refusal at any step leaves it untouched.
-Ipv4Result write_dhcpcd_conf_sudo(const std::string& real, const struct stat& st,
-                                  const std::string& text) {
-    const DhcpcdTools& tools = DhcpcdAccess::instance().tools();
-    const std::string temp = write_private_temp(text);
-    if (temp.empty()) {
-        return Ipv4Result::failed(std::string("cannot stage the new ") + kDhcpcdConf + ": " +
-                                  std::strerror(errno));
-    }
-    const std::string staged = real + ".helix-new";
-    Ipv4Result result = Ipv4Result::success();
-    bool installed = false;
-    for (const auto& argv :
-         dhcpcd_sudo_write_argvs(tools, temp, staged, real, st.st_uid, st.st_gid, st.st_mode)) {
-        const RunResult step = run_argv(argv, kSudoStepTimeout);
-        result = dhcpcd_step_result(argv[3], step.exit_code, step.out, /*via_sudo=*/true);
-        if (!result.ok()) {
-            break;
-        }
-        installed = true;
-    }
-    unlink(temp.c_str());
-    if (!result.ok() && installed) {
-        run_argv(dhcpcd_sudo_argv(tools, {tools.rm, "-f", "--", staged}), kSudoStepTimeout);
-    }
-    return result;
-}
-
-// Writes through a symlink to its target and keeps the file's mode and owner.
-Ipv4Result write_dhcpcd_conf(const std::string& text) {
-    const DhcpcdPrivilege privilege = DhcpcdAccess::instance().privilege();
-    if (privilege == DhcpcdPrivilege::Unsupported) {
-        return Ipv4Result::refused(std::string("no permission to write ") + kDhcpcdConf);
-    }
-    char real[PATH_MAX];
-    if (!realpath(kDhcpcdConf, real)) {
-        return Ipv4Result::failed(std::string("cannot resolve ") + kDhcpcdConf);
-    }
-    struct stat st {};
-    const bool have_stat = stat(real, &st) == 0;
-    if (privilege == DhcpcdPrivilege::Sudo) {
-        // The owner and mode are handed to install, so they must be known.
-        if (!have_stat || !S_ISREG(st.st_mode)) {
-            return Ipv4Result::failed(std::string("cannot stat ") + real);
-        }
-        return write_dhcpcd_conf_sudo(real, st, text);
-    }
-    if (!helix::text_io::write_file_atomic(real, text, helix::text_io::Durability::Fsync)) {
-        return Ipv4Result::failed(std::string("cannot write ") + real + ": " +
-                                  std::strerror(errno));
-    }
-    if (have_stat) {
-        if (chown(real, st.st_uid, st.st_gid) != 0 || chmod(real, st.st_mode & 07777) != 0) {
-            spdlog::warn("[Ipv4] Could not keep the owner and mode of {}: {}", real,
-                         std::strerror(errno));
-        }
-    }
-    return Ipv4Result::success();
-}
-
-Ipv4Result rebind_dhcpcd(const std::string& iface) {
-    DhcpcdAccess& access = DhcpcdAccess::instance();
-    const DhcpcdPrivilege privilege = access.privilege();
-    if (access.tools().dhcpcd.empty()) {
-        return Ipv4Result::failed("dhcpcd not found");
-    }
-    if (privilege == DhcpcdPrivilege::Unsupported) {
-        return Ipv4Result::refused("no permission to run dhcpcd -n");
-    }
-    const RunResult rebind =
-        run_argv(dhcpcd_rebind_argv(privilege, access.tools(), iface), kDhcpcdTimeout);
-    return dhcpcd_step_result("dhcpcd -n " + iface, rebind.exit_code, rebind.out,
-                              privilege == DhcpcdPrivilege::Sudo);
-}
-
-class DhcpcdIpv4Store : public Ipv4SystemStore {
-  public:
-    bool available() const override {
-        const auto decided = DhcpcdAccess::instance().decided();
-        return decided && *decided != DhcpcdPrivilege::Unsupported;
-    }
-
-    Ipv4Result read(const std::string& iface, Ipv4Link, Ipv4Config& out) override {
-        std::string conf;
-        if (Ipv4Result r = read_dhcpcd_conf(conf); !r.ok()) {
-            return r;
-        }
-        const auto parsed = dhcpcd_conf_read_ipv4(conf, iface);
-        if (!parsed) {
-            return Ipv4Result::failed("the " + iface + " stanza in " + kDhcpcdConf +
-                                      " holds an address the screen cannot show");
-        }
-        out = *parsed;
-        return Ipv4Result::success();
-    }
-
-    Ipv4Result prepare(const std::string& iface, Ipv4Link, const Ipv4Config& next,
-                       Ipv4Snapshot& out) override {
-        if (iface.empty()) {
-            return Ipv4Result::failed("no interface");
-        }
-        std::string conf;
-        if (Ipv4Result r = read_dhcpcd_conf(conf); !r.ok()) {
-            return r;
-        }
-        const auto updated = dhcpcd_conf_with_ipv4(conf, iface, next);
-        if (!updated) {
-            return Ipv4Result::failed(std::string(kDhcpcdConf) +
-                                      " has a HelixScreen block with no end marker");
-        }
-        out = {};
-        out.store = "dhcpcd";
-        out.iface = iface;
-        out.original = conf;
-        out.written = *updated;
-        return Ipv4Result::success();
-    }
-
-    Ipv4Result apply(const Ipv4Snapshot& target, const Ipv4Config&) override {
-        std::string conf;
-        if (Ipv4Result r = read_dhcpcd_conf(conf); !r.ok()) {
-            return r;
-        }
-        if (conf != target.original) {
-            return Ipv4Result::failed(std::string(kDhcpcdConf) + " changed since it was read");
-        }
-        // Every failure here is Failed, never Refused: the record is on disk
-        // and the revert it starts finds the file as it is.
-        if (Ipv4Result r = write_dhcpcd_conf(target.written); !r.ok()) {
-            return Ipv4Result::failed(r.detail);
-        }
-        if (Ipv4Result r = rebind_dhcpcd(target.iface); !r.ok()) {
-            return Ipv4Result::failed(r.detail);
-        }
-        return Ipv4Result::success();
-    }
-};
-
-Ipv4Result restore_dhcpcd(const Ipv4Snapshot& snapshot) {
-    std::string conf;
-    if (Ipv4Result r = read_dhcpcd_conf(conf); !r.ok()) {
-        return r;
-    }
-    if (conf != snapshot.original) {
-        // Anything other than what the change wrote is someone else's edit.
-        if (conf != snapshot.written) {
-            return Ipv4Result::refused(std::string(kDhcpcdConf) +
-                                       " was edited since the change; not restoring over it");
-        }
-        // A write sudo refused may be allowed by the next attempt, so it is
-        // retried; only someone else's edit is final.
-        if (Ipv4Result r = write_dhcpcd_conf(snapshot.original); !r.ok()) {
-            return Ipv4Result::failed(r.detail);
-        }
-    }
-    if (!dhcpcd_running()) {
-        // The file is right; dhcpcd reads it when it starts.
-        return Ipv4Result::success();
-    }
-    // dhcpcd keeps the changed address until it rebinds, so a failed rebind
-    // is a failed restore; the retry finds the file right and rebinds again.
-    if (Ipv4Result r = rebind_dhcpcd(snapshot.iface); !r.ok()) {
-        return Ipv4Result::failed(std::string(kDhcpcdConf) + " restored, but " + r.detail);
-    }
-    return Ipv4Result::success();
-}
-
 } // namespace
 
 bool network_manager_active() {
@@ -639,27 +284,9 @@ std::unique_ptr<Ipv4SystemStore> make_network_manager_ipv4_store() {
     return std::make_unique<NetworkManagerIpv4Store>();
 }
 
-std::unique_ptr<Ipv4SystemStore> make_dhcpcd_ipv4_store() {
-    if (!dhcpcd_binary() || !dhcpcd_running()) {
-        return nullptr;
-    }
-    DhcpcdAccess::instance().start();
-    return std::make_unique<DhcpcdIpv4Store>();
-}
-
-std::unique_ptr<Ipv4SystemStore> make_system_ipv4_store() {
-    if (auto nm = make_network_manager_ipv4_store()) {
-        return nm;
-    }
-    return make_dhcpcd_ipv4_store();
-}
-
 Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
     if (snapshot.store == "networkmanager") {
         return restore_network_manager(snapshot);
-    }
-    if (snapshot.store == "dhcpcd") {
-        return restore_dhcpcd(snapshot);
     }
     if (snapshot.store == "mock") {
         return restore_mock_ipv4_snapshot(snapshot);
@@ -669,7 +296,7 @@ Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
 
 } // namespace helix::net
 
-#else // no Linux network configuration owners on this platform
+#else // no NetworkManager on this platform
 
 namespace helix::net {
 
@@ -677,12 +304,6 @@ bool network_manager_active() {
     return false;
 }
 std::unique_ptr<Ipv4SystemStore> make_network_manager_ipv4_store() {
-    return nullptr;
-}
-std::unique_ptr<Ipv4SystemStore> make_dhcpcd_ipv4_store() {
-    return nullptr;
-}
-std::unique_ptr<Ipv4SystemStore> make_system_ipv4_store() {
     return nullptr;
 }
 Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
@@ -699,7 +320,7 @@ Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
 namespace helix::net {
 
 bool store_supported(const Ipv4SystemStore* store) {
-    return store && store->available();
+    return store != nullptr;
 }
 
 Ipv4Result store_read(Ipv4SystemStore* store, const std::string& iface, Ipv4Link link,

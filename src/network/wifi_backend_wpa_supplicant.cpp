@@ -2352,34 +2352,6 @@ std::string WifiBackendWpaSupplicant::detect_security_type(const std::string& fl
     return "Open";
 }
 
-// ============================================================================
-// IPv4 Configuration
-// ============================================================================
-
-namespace {
-std::string managed_netdev(const std::optional<helix::wifi::WifiInterface>& iface) {
-    return iface ? iface->netdev : std::string();
-}
-} // namespace
-
-helix::net::Ipv4Result WifiBackendWpaSupplicant::get_ipv4_config(helix::net::Ipv4Config& out) {
-    return helix::net::store_read(ipv4_store_.get(), managed_netdev(resolved_interface()),
-                                  helix::net::Ipv4Link::Wifi, out);
-}
-
-helix::net::Ipv4Result
-WifiBackendWpaSupplicant::prepare_ipv4_change(const helix::net::Ipv4Config& next,
-                                              helix::net::Ipv4Snapshot& out) {
-    return helix::net::store_prepare(ipv4_store_.get(), managed_netdev(resolved_interface()),
-                                     helix::net::Ipv4Link::Wifi, next, out);
-}
-
-helix::net::Ipv4Result
-WifiBackendWpaSupplicant::apply_ipv4_config(const helix::net::Ipv4Snapshot& target,
-                                            const helix::net::Ipv4Config& config) {
-    return helix::net::store_apply(ipv4_store_.get(), target, config);
-}
-
 #else
 // ============================================================================
 // macOS Stub Implementation: No-op for simulator

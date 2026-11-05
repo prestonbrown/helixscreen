@@ -49,7 +49,7 @@ class EthernetBackendLinux : public EthernetBackend {
     bool has_interface() override;
     EthernetInfo get_info() override;
 
-    /// Whichever of NetworkManager or dhcpcd owns the interface.
+    /// Only where NetworkManager owns the interface.
     bool supports_ipv4_config() const override {
         return helix::net::store_supported(ipv4_store_.get());
     }
@@ -70,7 +70,8 @@ class EthernetBackendLinux : public EthernetBackend {
     }
 
   private:
-    std::unique_ptr<helix::net::Ipv4SystemStore> ipv4_store_ = helix::net::make_system_ipv4_store();
+    std::unique_ptr<helix::net::Ipv4SystemStore> ipv4_store_ =
+        helix::net::make_network_manager_ipv4_store();
     InterfaceLister lister_;
     std::string sysfs_root_ = "/sys";
 

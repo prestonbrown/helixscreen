@@ -234,14 +234,13 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that cannot be used is a failure,
         REQUIRE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "undecodable"));
         CHECK(std::filesystem::exists(pending_ipv4_revert_path() + ".unreadable"));
     }
-    SECTION("a dhcpcd-sized snapshot fits the record") {
-        PendingIpv4Revert p;
-        p.snapshot = {"dhcpcd", "wlan0", "", std::string(kIpv4SnapshotMaxBytes, '\xe9'),
-                      std::string(kIpv4SnapshotMaxBytes, 'x')};
-        REQUIRE(save_pending_ipv4_revert(p));
-        const auto back = load_pending_ipv4_revert();
-        REQUIRE(back);
-        CHECK(back->snapshot.original == p.snapshot.original);
+    SECTION("a dhcpcd record left by another build is given up, not restored") {
+        REQUIRE(helix::text_io::write_file_atomic(
+            pending_ipv4_revert_path(),
+            R"({"link":"wifi","store":"dhcpcd","iface":"wlan0","original_b64":"aG9zdG5hbWUK"})"));
+        CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind ==
+              Ipv4RestoreOutcome::Kind::Terminal);
+        CHECK(record_exists());
     }
 }
 

@@ -8,8 +8,8 @@
  * The hardware-agnostic half of static IPv4 (prestonbrown/helixscreen#1900):
  * the config value, the form validation the UI runs before Apply, the
  * capability interface every Wi-Fi and Ethernet backend implements, and the
- * pure text transforms the platform stores use (NetworkManager argv and
- * output, dhcpcd.conf). Nothing here touches a socket, a process or LVGL;
+ * pure text transforms the NetworkManager store uses (nmcli argv and
+ * output). Nothing here touches a socket, a process or LVGL;
  * the record of a change awaiting confirmation is the one piece that reads
  * and writes a file.
  *
@@ -166,10 +166,10 @@ struct Ipv4Result {
  * a re-rendering of what was parsed from it.
  */
 struct Ipv4Snapshot {
-    std::string store;    ///< "networkmanager", "dhcpcd" or "mock"
+    std::string store;    ///< "networkmanager" or "mock"
     std::string iface;    ///< The interface the change targets
     std::string profile;  ///< NetworkManager connection UUID; empty for the others
-    std::string original; ///< What a restore writes back (store-specific bytes)
+    std::string original; ///< What a restore writes back (store-specific text)
     std::string written;  ///< What the change writes; a restore refuses once the target moved on
 };
 
@@ -298,69 +298,6 @@ std::optional<Ipv4Config> nm_parse_ipv4(const std::string& output);
 std::vector<std::string> nm_ipv4_modify_argv(const std::string& uuid, const Ipv4Config& config);
 
 // ============================================================================
-// dhcpcd (dhcpcd.conf)
-// ============================================================================
-
-/// @p conf with @p iface's static IPv4 replaced by @p config: any static
-/// address, routers and DNS lines for the interface are removed, and a static
-/// config is appended as one block HelixScreen marks as its own. Every other
-/// line is kept as it was. nullopt when a HelixScreen block has no end marker:
-/// where it stops cannot be known, so nothing is edited.
-std::optional<std::string> dhcpcd_conf_with_ipv4(const std::string& conf, const std::string& iface,
-                                                 const Ipv4Config& config);
-
-/// @p iface's IPv4 config as @p conf states it: DHCP unless an
-/// `interface <iface>` block carries `static ip_address=`; a DNS override is
-/// kept either way. nullopt when the stanza says something the config cannot
-/// hold (an address without a prefix, or several addresses).
-std::optional<Ipv4Config> dhcpcd_conf_read_ipv4(const std::string& conf, const std::string& iface);
-
-/// How this process edits dhcpcd.conf and rebinds dhcpcd: itself (the file
-/// and /etc are writable, normally as root), or through `sudo -n` for a
-/// service user with passwordless sudo. Unsupported hides the setting.
-enum class DhcpcdPrivilege { Direct, Sudo, Unsupported };
-
-struct DhcpcdAccessFacts {
-    bool root = false;
-    bool conf_writable = false; ///< dhcpcd.conf and /etc writable by this process
-    bool conf_readable = false;
-    enum class Sudo { NotTried, Ok, Failed } sudo = Sudo::NotTried; ///< `sudo -n true`
-};
-
-/// Direct when the file is writable; otherwise Sudo for a non-root user that
-/// can read it and passed the sudo probe. Root that cannot write (a read-only
-/// /etc) gains nothing from sudo.
-DhcpcdPrivilege select_dhcpcd_privilege(const DhcpcdAccessFacts& facts);
-
-/// Absolute paths of the programs the dhcpcd store runs.
-struct DhcpcdTools {
-    std::string sudo, install, sync, mv, rm, dhcpcd;
-};
-
-/// @p command run as root without a prompt: a refusal fails instead of waiting.
-std::vector<std::string> dhcpcd_sudo_argv(const DhcpcdTools& tools,
-                                          std::vector<std::string> command);
-
-/// The sudo commands that replace @p real with @p temp's bytes: install a
-/// root-owned copy beside it with the given owner and mode, flush it, then
-/// rename it over @p real, so a reader sees the old file or the new one.
-std::vector<std::vector<std::string>> dhcpcd_sudo_write_argvs(const DhcpcdTools& tools,
-                                                              const std::string& temp,
-                                                              const std::string& staged,
-                                                              const std::string& real, unsigned uid,
-                                                              unsigned gid, unsigned mode);
-
-/// `dhcpcd -n <iface>`: reload the configuration and rebind the interface.
-std::vector<std::string> dhcpcd_rebind_argv(DhcpcdPrivilege privilege, const DhcpcdTools& tools,
-                                            const std::string& iface);
-
-/// One dhcpcd-store command's exit as a result. sudo answering that it needs
-/// a password (or a terminal to ask for one) is Refused; any other non-zero
-/// exit, a signal or a timeout (@p exit_code -1) is Failed.
-Ipv4Result dhcpcd_step_result(const std::string& what, int exit_code, const std::string& output,
-                              bool via_sudo);
-
-// ============================================================================
 // Confirm-or-revert
 // ============================================================================
 
@@ -415,10 +352,8 @@ struct PendingIpv4Revert {
     std::string failure; ///< Why, for the screen and the log
 };
 
-/// dhcpcd.conf larger than this is not edited, so the record that carries it
-/// twice (base64, about 4/3 each) stays well inside kIpv4RecordMaxBytes.
-constexpr std::size_t kIpv4SnapshotMaxBytes = 256 * 1024;
-constexpr std::size_t kIpv4RecordMaxBytes = 1024 * 1024;
+/// A record file larger than this is not one this app wrote, and is not read.
+constexpr std::size_t kIpv4RecordMaxBytes = 64 * 1024;
 
 /// A token unique to this process run, stamped into the records it writes.
 const std::string& ipv4_process_owner();
@@ -427,7 +362,6 @@ const std::string& ipv4_process_owner();
 /// for @p link and no countdown in this process owns it.
 bool is_stale_pending_ipv4_revert(const std::optional<PendingIpv4Revert>& pending, Ipv4Link link);
 
-/// The snapshot bytes are stored base64, so no byte is lost to UTF-8.
 std::string encode_pending_ipv4_revert(const PendingIpv4Revert& pending);
 /// nullopt when the text is not a record a restore can use: what decides is
 /// the snapshot's store and the fields it needs. `previous` is only shown, so
@@ -457,11 +391,10 @@ bool clear_pending_ipv4_revert();
 /**
  * @brief When a pending revert is tried again, and when it is given up
  *
- * At start the network may not exist yet (NetworkManager still activating,
- * dhcpcd not started), so a failed restore is retried every
- * kIpv4RetryEveryMs for kIpv4RetryForMs. Nothing is tried while a job holds
- * the machine, since a restore can bounce the link a print's clients use;
- * the window starts again when the job ends.
+ * At start the network may not exist yet (NetworkManager still starting or
+ * activating), so a failed restore is retried every kIpv4RetryEveryMs for kIpv4RetryForMs. Nothing
+ * is tried while a job holds the machine, since a restore can bounce the link a print's clients
+ * use; the window starts again when the job ends.
  */
 constexpr uint32_t kIpv4RetryEveryMs = 5000;
 constexpr uint32_t kIpv4RetryForMs = 120000;

@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "ipv4_config_system.h"
 #include "wifi_backend.h" // Base class
 #include "wifi_interface.h"
 
@@ -459,7 +458,6 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     // inconclusive; callers fall back to legacy first-match detection.
     mutable std::mutex iface_mutex_;
     std::optional<helix::wifi::WifiInterface> iface_;
-    std::unique_ptr<helix::net::Ipv4SystemStore> ipv4_store_ = helix::net::make_dhcpcd_ipv4_store();
 
     /// Resolve the managed interface and store it. Runs on the event loop
     /// thread during init_wpa(), after the control connection is live.
@@ -490,17 +488,6 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     /// The resolved interface, or nullopt when resolution was inconclusive and
     /// callers must fall back to legacy first-match behaviour.
     std::optional<helix::wifi::WifiInterface> resolved_interface() const override;
-
-    /// wpa_supplicant leaves addressing to whatever runs DHCP beside it; the
-    /// one such owner that can persist a static address here is dhcpcd.
-    bool supports_ipv4_config() const override {
-        return helix::net::store_supported(ipv4_store_.get());
-    }
-    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override;
-    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config& next,
-                                               helix::net::Ipv4Snapshot& out) override;
-    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot& target,
-                                             const helix::net::Ipv4Config& config) override;
 
     bool reports_frequency() const override {
         return true;

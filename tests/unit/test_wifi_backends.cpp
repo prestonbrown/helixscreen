@@ -776,6 +776,13 @@ TEST_CASE("WpaBackend honest is_running after failed init (#1036)",
 // command line. The /proc cmdline scan parses that file so we can auto-detect
 // the socket directory without a manual HELIX_WPA_SOCKET_DIR override.
 // ============================================================================
+TEST_CASE("WpaBackend never offers static IPv4, so the row hides", "[network][wifi][ipv4]") {
+    WifiBackendWpaSupplicant backend;
+    CHECK_FALSE(backend.supports_ipv4_config());
+    helix::net::Ipv4Config out;
+    CHECK(backend.get_ipv4_config(out).status == helix::net::Ipv4Result::Status::NotSupported);
+}
+
 TEST_CASE("read_ctrl_interface_from_conf parses ctrl_interface forms", "[network][backend][wpa]") {
     using helix::wifi::detail::read_ctrl_interface_from_conf;
 

@@ -101,4 +101,15 @@ TEST_CASE("Linux Ethernet get_info reports a listing failure", "[network][ethern
     CHECK(info.status == "Error querying interfaces");
 }
 
+TEST_CASE("EthernetBackendLinux offers static IPv4 only through NetworkManager",
+          "[network][ipv4]") {
+    EthernetBackendLinux backend;
+    const bool nm = helix::net::network_manager_active();
+    CHECK(backend.supports_ipv4_config() == nm);
+    if (!nm) {
+        helix::net::Ipv4Config out;
+        CHECK(backend.get_ipv4_config(out).status == helix::net::Ipv4Result::Status::NotSupported);
+    }
+}
+
 #endif // !__APPLE__ && !__ANDROID__
