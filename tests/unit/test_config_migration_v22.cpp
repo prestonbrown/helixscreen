@@ -22,73 +22,18 @@
 // sandboxed HELIX_CONFIG_DIR so backup-restore search paths stay in the temp dir.
 
 #include "config.h"
+#include "test_helpers/config_migration_fixture.h"
 
-#include <cstdlib>
-#include <filesystem>
-#include <fstream>
 #include <string>
-#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
-namespace fs = std::filesystem;
 using namespace helix;
 
-namespace {
+using helix::test::ConfigMigrationFixture;
 
-class MigrationV22Fixture {
-  protected:
-    Config config;
-    std::string temp_dir;
-    std::string config_path;
-    std::string saved_config_dir_;
-    bool had_config_dir_ = false;
-
-    void SetUp() {
-        temp_dir =
-            (fs::temp_directory_path() / ("helix_migration_v22_test_" + std::to_string(::getpid())))
-                .string();
-        fs::remove_all(temp_dir);
-        fs::create_directories(temp_dir);
-
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            saved_config_dir_ = prev;
-            had_config_dir_ = true;
-        }
-        setenv("HELIX_CONFIG_DIR", temp_dir.c_str(), 1);
-
-        config_path = temp_dir + "/settings.json";
-    }
-
-    void TearDown() {
-        fs::remove_all(temp_dir);
-        if (had_config_dir_) {
-            setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);
-        } else {
-            unsetenv("HELIX_CONFIG_DIR");
-        }
-        config.clear_path();
-    }
-
-    void write_and_init(const json& contents) {
-        std::ofstream f(config_path);
-        f << contents.dump(2);
-        f.close();
-        config.init(config_path);
-    }
-
-  public:
-    MigrationV22Fixture() {
-        SetUp();
-    }
-    ~MigrationV22Fixture() {
-        TearDown();
-    }
-};
-
-} // namespace
-
-TEST_CASE_METHOD(MigrationV22Fixture, "v22 keeps a printer's live external spool over the root one",
+TEST_CASE_METHOD(ConfigMigrationFixture,
+                 "v22 keeps a printer's live external spool over the root one",
                  "[config][migration]") {
     // The exact shape found on the K2 Plus: a stale red PETG at the root, the
     // real ASA-GF in the printer node.
@@ -111,7 +56,7 @@ TEST_CASE_METHOD(MigrationV22Fixture, "v22 keeps a printer's live external spool
     CHECK(config.get<std::string>("/filament/external_spool/material", "GONE") == "GONE");
 }
 
-TEST_CASE_METHOD(MigrationV22Fixture, "v22 promotes a root spool when the printer has none",
+TEST_CASE_METHOD(ConfigMigrationFixture, "v22 promotes a root spool when the printer has none",
                  "[config][migration]") {
     // Losing the value would be the other failure mode: an install that only
     // ever wrote the root key must come out the far side still configured.
@@ -128,7 +73,7 @@ TEST_CASE_METHOD(MigrationV22Fixture, "v22 promotes a root spool when the printe
     CHECK(config.get<std::string>("/filament/external_spool/material", "GONE") == "GONE");
 }
 
-TEST_CASE_METHOD(MigrationV22Fixture, "v22 fans the root value out to EVERY printer",
+TEST_CASE_METHOD(ConfigMigrationFixture, "v22 fans the root value out to EVERY printer",
                  "[config][migration]") {
     // Same rule migrate_v20_to_v21 established: an install-wide value becomes
     // every machine's value, so behaviour after the upgrade is unchanged.
@@ -146,7 +91,7 @@ TEST_CASE_METHOD(MigrationV22Fixture, "v22 fans the root value out to EVERY prin
     CHECK(config.get<bool>("/printers/show_printer_switcher", false));
 }
 
-TEST_CASE_METHOD(MigrationV22Fixture, "v22 leaves the root key alone when there is no printer",
+TEST_CASE_METHOD(ConfigMigrationFixture, "v22 leaves the root key alone when there is no printer",
                  "[config][migration]") {
     // fan_out_to_printers() refuses to erase a value it has nowhere to put -
     // the lesson from migrate_v19_to_v20's /led, which deleted user settings

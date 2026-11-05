@@ -19,63 +19,18 @@
 // HELIX_CONFIG_DIR keeps backup-restore search paths inside the temp dir.
 
 #include "config.h"
+#include "test_helpers/config_migration_fixture.h"
 
-#include <cstdlib>
-#include <filesystem>
-#include <fstream>
 #include <string>
-#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
-namespace fs = std::filesystem;
 using namespace helix;
 
 namespace {
 
-class MigrationV24Fixture {
+class MigrationV24Fixture : public helix::test::ConfigMigrationFixture {
   protected:
-    Config config;
-    std::string temp_dir;
-    std::string config_path;
-    std::string saved_config_dir_;
-    bool had_config_dir_ = false;
-
-    void SetUp() {
-        temp_dir =
-            (fs::temp_directory_path() / ("helix_migration_v23_test_" + std::to_string(::getpid())))
-                .string();
-        fs::remove_all(temp_dir);
-        fs::create_directories(temp_dir);
-
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            saved_config_dir_ = prev;
-            had_config_dir_ = true;
-        }
-        setenv("HELIX_CONFIG_DIR", temp_dir.c_str(), 1);
-
-        config_path = temp_dir + "/settings.json";
-    }
-
-    void TearDown() {
-        fs::remove_all(temp_dir);
-        if (had_config_dir_) {
-            setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);
-        } else {
-            unsetenv("HELIX_CONFIG_DIR");
-        }
-        config.clear_path();
-    }
-
-    /// Write a settings.json, then init Config from it so the real versioned
-    /// migrations run.
-    void write_and_init(const json& contents) {
-        std::ofstream f(config_path);
-        f << contents.dump(2);
-        f.close();
-        config.init(config_path);
-    }
-
     /// The multi-page panel_widgets shape, wrapping one page of widgets.
     static json home(std::initializer_list<json> widgets) {
         return json{{"main_page_index", 0},
@@ -91,14 +46,6 @@ class MigrationV24Fixture {
     json panel_of(const char* printer = "default") const {
         return config.get<json>(std::string("/printers/") + printer + "/panel_widgets/home",
                                 json());
-    }
-
-  public:
-    MigrationV24Fixture() {
-        SetUp();
-    }
-    ~MigrationV24Fixture() {
-        TearDown();
     }
 };
 
@@ -315,33 +262,28 @@ TEST_CASE_METHOD(MigrationV24Fixture, "Config migration v24: is idempotent",
 
 TEST_CASE_METHOD(MigrationV24Fixture, "Config migration v24: survives every missing node",
                  "[config][migration][24]") {
-    // No printers at all; a printers value that is not an object; a page that is
-    // a string; a widgets value that is an object. Each must migrate and stamp
-    // rather than throw.
-    write_and_init({{"config_version", 23}});
-    CHECK(config.get<int>("/config_version", 0) == helix::kCurrentConfigVersion);
-
-    TearDown();
-    SetUp();
-    write_and_init(
-        {{"config_version", 23},
-         {"printers",
-          {{"default", {{"panel_widgets", {{"home", {{"pages", json::array({"main"})}}}}}}}}}});
-    CHECK(config.get<int>("/config_version", 0) == helix::kCurrentConfigVersion);
-
-    TearDown();
-    SetUp();
-    write_and_init({{"config_version", 23},
-                    {"printers",
-                     {{"default",
-                       {{"panel_widgets",
-                         {{"home",
-                           {{"pages", json::array({json{{"id", "main"},
-                                                        {"widgets", json::object()}}})}}}}}}}}}});
-    CHECK(config.get<int>("/config_version", 0) == helix::kCurrentConfigVersion);
-
-    TearDown();
-    SetUp();
-    write_and_init({{"config_version", 23}, {"printers", "not-an-object"}});
+    // Each must migrate and stamp rather than throw.
+    SECTION("no printers at all") {
+        write_and_init({{"config_version", 23}});
+    }
+    SECTION("a page that is a string") {
+        write_and_init(
+            {{"config_version", 23},
+             {"printers",
+              {{"default", {{"panel_widgets", {{"home", {{"pages", json::array({"main"})}}}}}}}}}});
+    }
+    SECTION("a widgets value that is an object") {
+        write_and_init(
+            {{"config_version", 23},
+             {"printers",
+              {{"default",
+                {{"panel_widgets",
+                  {{"home",
+                    {{"pages",
+                      json::array({json{{"id", "main"}, {"widgets", json::object()}}})}}}}}}}}}});
+    }
+    SECTION("a printers value that is not an object") {
+        write_and_init({{"config_version", 23}, {"printers", "not-an-object"}});
+    }
     CHECK(config.get<int>("/config_version", 0) == helix::kCurrentConfigVersion);
 }

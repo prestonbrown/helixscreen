@@ -8,61 +8,18 @@
 // leaks from the host config.
 
 #include "config.h"
+#include "test_helpers/config_migration_fixture.h"
 #include "test_helpers/log_capture.h"
-#include "test_helpers/unique_temp_dir.h"
 
-#include <cstdlib>
-#include <filesystem>
-#include <fstream>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
 
-namespace fs = std::filesystem;
 using namespace helix;
 
+using helix::test::ConfigMigrationFixture;
+
 namespace {
-
-class MigrationFixture {
-  protected:
-    Config config;
-    std::string temp_dir;
-    std::string config_path;
-    std::string saved_config_dir_;
-    bool had_config_dir_ = false;
-
-  public:
-    MigrationFixture() {
-        temp_dir = helix::test::unique_temp_dir("helix_migration_test");
-        fs::remove_all(temp_dir);
-        fs::create_directories(temp_dir);
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            saved_config_dir_ = prev;
-            had_config_dir_ = true;
-        }
-        setenv("HELIX_CONFIG_DIR", temp_dir.c_str(), 1);
-        config_path = temp_dir + "/settings.json";
-    }
-
-    ~MigrationFixture() {
-        fs::remove_all(temp_dir);
-        if (had_config_dir_) {
-            setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);
-        } else {
-            unsetenv("HELIX_CONFIG_DIR");
-        }
-        config.clear_path();
-    }
-
-    // Write a settings.json with the given JSON contents, then init Config from it
-    // so the real versioned migrations run.
-    void write_and_init(const json& contents) {
-        std::ofstream f(config_path);
-        f << contents.dump(2);
-        f.close();
-        config.init(config_path);
-    }
-};
 
 json stale_display() {
     return {{"sleep_backlight_off", false}, {"hardware_blank", 0}};
@@ -79,7 +36,7 @@ json stale_display() {
 // migration did the repair: each repair logs its own tag, and the case asserts on that.
 // ============================================================================
 
-TEST_CASE_METHOD(MigrationFixture, "both AD5X sleep migrations repair the same stale pair",
+TEST_CASE_METHOD(ConfigMigrationFixture, "both AD5X sleep migrations repair the same stale pair",
                  "[config][migration]") {
     // The version below each migration. From 12 the v13 repair lands first and v15 finds
     // nothing left to do; from 14 only v15 runs.
@@ -130,7 +87,7 @@ TEST_CASE_METHOD(MigrationFixture, "both AD5X sleep migrations repair the same s
 // v17 -> v18: touch-calibration recheck
 // ============================================================================
 
-TEST_CASE_METHOD(MigrationFixture,
+TEST_CASE_METHOD(ConfigMigrationFixture,
                  "Config migration v18: sets recheck_pending=true from a v17 config",
                  "[config][migration]") {
     json v17 = {{"config_version", 17},
@@ -144,7 +101,7 @@ TEST_CASE_METHOD(MigrationFixture,
     REQUIRE(config.get<bool>("/input/calibration/valid", false) == true);
 }
 
-TEST_CASE_METHOD(MigrationFixture,
+TEST_CASE_METHOD(ConfigMigrationFixture,
                  "Config migration v18: does not throw when input section is absent",
                  "[config][migration]") {
     json v17 = {{"config_version", 17}, {"active_printer_id", "default"}};
@@ -154,7 +111,7 @@ TEST_CASE_METHOD(MigrationFixture,
     REQUIRE(config.get<bool>("/input/calibration/recheck_pending", false) == true);
 }
 
-TEST_CASE_METHOD(MigrationFixture,
+TEST_CASE_METHOD(ConfigMigrationFixture,
                  "Config migration v18: does not throw when calibration is absent",
                  "[config][migration]") {
     json v17 = {{"config_version", 17},
@@ -167,7 +124,7 @@ TEST_CASE_METHOD(MigrationFixture,
     REQUIRE(config.get<std::string>("/input/touch_device", "") == "/dev/input/event0");
 }
 
-TEST_CASE_METHOD(MigrationFixture,
+TEST_CASE_METHOD(ConfigMigrationFixture,
                  "Config migration v18: is idempotent — already-v18 config is untouched",
                  "[config][migration]") {
     // A config already at the current version must not have the flag flipped on.
@@ -180,7 +137,7 @@ TEST_CASE_METHOD(MigrationFixture,
     REQUIRE(config.get<bool>("/input/calibration/recheck_pending", true) == false);
 }
 
-TEST_CASE_METHOD(MigrationFixture,
+TEST_CASE_METHOD(ConfigMigrationFixture,
                  "Config migration v18: a seed with a printer node keeps its calibration",
                  "[config][migration]") {
     // seed_from_moonraker_detection's C path: a preset's input/display blocks
@@ -196,7 +153,8 @@ TEST_CASE_METHOD(MigrationFixture,
     REQUIRE(config.get<bool>("/input/calibration/valid", false));
 }
 
-TEST_CASE_METHOD(MigrationFixture, "Config migration v18: a packaged preset keeps its calibration",
+TEST_CASE_METHOD(ConfigMigrationFixture,
+                 "Config migration v18: a packaged preset keeps its calibration",
                  "[config][migration]") {
     // A preset shipped as the release tarball's settings.json, on a fresh
     // install with no rolling backup to restore.
@@ -211,7 +169,8 @@ TEST_CASE_METHOD(MigrationFixture, "Config migration v18: a packaged preset keep
     REQUIRE(config.get<bool>("/input/calibration/valid", false));
 }
 
-TEST_CASE_METHOD(MigrationFixture, "Config migration v18: a full preset seed keeps its calibration",
+TEST_CASE_METHOD(ConfigMigrationFixture,
+                 "Config migration v18: a full preset seed keeps its calibration",
                  "[config][migration]") {
     // seed_full_preset_for_printer's B path: the device blocks, the preset's
     // printer block under printers/default, and the root preset marker.
@@ -229,7 +188,7 @@ TEST_CASE_METHOD(MigrationFixture, "Config migration v18: a full preset seed kee
     REQUIRE(config.get<bool>("/input/calibration/valid", false));
 }
 
-TEST_CASE_METHOD(MigrationFixture,
+TEST_CASE_METHOD(ConfigMigrationFixture,
                  "Config migration v18: a versionless user config with a finished wizard is "
                  "rechecked",
                  "[config][migration]") {
