@@ -110,6 +110,12 @@ std::vector<int> apply_firmware_filter_hours(State& s, double hours) {
     Meter& m = s.meters[static_cast<size_t>(MeterId::Filter)];
     if (!enabled(m) || !std::isfinite(hours) || hours < 0.0)
         return due;
+    // A counter that went down was reset on the printer, from here or anywhere else:
+    // the interval starts over and its due notice is armed again.
+    if (hours < m.used_h) {
+        m.reset_at_h = s.total_h;
+        m.notified = false;
+    }
     m.used_h = std::min(hours, kMaxStoredHours);
     if (!m.notified && m.used_h >= static_cast<double>(m.interval_h)) {
         m.notified = true;

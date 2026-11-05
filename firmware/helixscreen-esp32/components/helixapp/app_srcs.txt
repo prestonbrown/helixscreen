@@ -384,6 +384,7 @@ src/system/update_checker_subjects.cpp
 src/system/wizard_step_logic.cpp
 src/temperature/temperature_history_manager.cpp
 src/temperature/thermal_rate_model.cpp
+src/ui/notify/ui_chamber_air_notices.cpp
 src/ui/notify/action_prompt_manager.cpp
 src/ui/filament/ams_drawing_utils.cpp
 src/ui/filament/ams_tray_projection.cpp

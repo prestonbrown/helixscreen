@@ -5,15 +5,16 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_modal.h"
 #include "ui_panel_input_shaper.h"
-#include "ui_update_queue.h"
+#include "core/update_queue.h"
 
 #include "app_globals.h"
 #include "chamber_air_modes.h"
 #include "config.h"
+#include "exception_policy.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -61,15 +62,24 @@ bool print_active() {
     return lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) != 0;
 }
 
+/// A translated "{}" template filled with the accessory's name. A translation whose
+/// placeholders do not match falls back to @p fallback rather than throwing.
+std::string with_name(const char* translated_fmt, const char* name, const char* fallback) {
+    std::string out = fallback;
+    helix::contain_exceptions("[ChamberAirNotices] format",
+                              [&] { out = fmt::format(fmt::runtime(translated_fmt), name); });
+    return out;
+}
+
 lv_obj_t* screen() {
     return lv_display_get_screen_active(nullptr);
 }
 
 void offer_shaper_recalibration(const chamber_air::AccessoryCopy& copy) {
-    const std::string message = fmt::format(
-        lv_tr("After connecting the {}, we recommend recalibrating input shaping to ensure "
-              "print quality."),
-        lv_tr(copy.name));
+    const std::string message =
+        with_name(lv_tr("After connecting the {}, we recommend recalibrating input shaping to "
+                        "ensure print quality."),
+                  lv_tr(copy.name), lv_tr("Recalibrate input shaping?"));
     ConfirmOptions opts;
     opts.cancel_text = lv_tr("Later");
     modal_confirm(
@@ -90,7 +100,7 @@ void show_first_fit(const chamber_air::AccessoryCopy& copy) {
     opts.cancel_text = lv_tr("OK");
     opts.on_cancel = after;
     opts.on_dismiss = after;
-    const std::string title = fmt::format(lv_tr("{} detected"), lv_tr(copy.name));
+    const std::string title = with_name(lv_tr("{} detected"), lv_tr(copy.name), lv_tr(copy.name));
     modal_confirm(
         title.c_str(), lv_tr(copy.detected), ModalSeverity::Info, lv_tr("Open Fans"),
         [after]() {
@@ -100,9 +110,21 @@ void show_first_fit(const chamber_air::AccessoryCopy& copy) {
         opts);
 }
 
+/// The removal warning on screen, so a flickering connector does not stack copies.
+bool s_removed_alert_open = false;
+
 void show_removed(const chamber_air::AccessoryCopy& copy) {
-    const std::string title = fmt::format(lv_tr("{} disconnected"), lv_tr(copy.name));
-    modal_alert(title.c_str(), lv_tr(copy.removed), ModalSeverity::Warning, lv_tr("OK"));
+    if (s_removed_alert_open) {
+        return;
+    }
+    s_removed_alert_open = true;
+    const std::string title =
+        with_name(lv_tr("{} disconnected"), lv_tr(copy.name), lv_tr(copy.name));
+    AlertOptions opts;
+    opts.on_dismiss = []() { s_removed_alert_open = false; };
+    modal_alert(
+        title.c_str(), lv_tr(copy.removed), ModalSeverity::Warning, lv_tr("OK"),
+        []() { s_removed_alert_open = false; }, opts);
 }
 
 void handle(bool present, bool at_startup) {
@@ -151,6 +173,7 @@ void init_chamber_air_notices() {
         s_print_active_observer.reset();
         get_printer_state().chamber_air().set_presence_edge_handler(nullptr);
         s_first_fit_pending = false;
+        s_removed_alert_open = false;
     });
 }
 

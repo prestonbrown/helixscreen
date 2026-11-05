@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-// What the screen says when a detachable chamber air accessory (the U1 Top Cover)
-// is fitted or removed: once per printer, a notice that it was found and where its
+// What the screen says when a detachable chamber air accessory is fitted or
+// removed: once per printer, a notice that it was found and where its
 // controls are, then an offer to redo input shaping; and every time it comes off, a
 // warning. The wording comes from the provider (chamber_air::accessory_copy).
 

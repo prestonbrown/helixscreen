@@ -206,6 +206,7 @@ class FanControlOverlay : public OverlayBase {
     std::vector<ObserverGuard> fan_speed_observers_; ///< Per-fan speed changes
     ObserverGuard anim_settings_observer_;           ///< Animation settings changes
     ObserverGuard chamber_air_observer_;             ///< Chamber air accessory fitted or removed
+    bool owned_confirm_open_ = false;                ///< A lower-speed confirmation is showing
     bool fans_rebuild_pending_ = false; ///< Coalesces rapid fans_version observer notifications
 
     //
