@@ -13,6 +13,7 @@
 
 #include <array>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -95,7 +96,7 @@ class GridEditMode {
     using RelayoutCallback = std::function<bool(const std::vector<std::string>& changed_ids,
                                                 const std::string& resized_id)>;
 
-    GridEditMode() = default;
+    GridEditMode();
     ~GridEditMode();
 
     GridEditMode(const GridEditMode&) = delete;
@@ -472,6 +473,23 @@ class GridEditMode {
     void remove_selected_widget();
     void configure_selected_widget();
 
+    /// What the last trash removal took off the grid, held for its toast's
+    /// Undo: the entry as it was (config and rectangle), and the page it sat on.
+    struct RemovedWidget;
+    /// Hold @p removed as the one removal Undo can reverse, replacing any
+    /// earlier one, and show the toast that offers it.
+    void offer_undo(std::unique_ptr<RemovedWidget> removed);
+    /// Forget the held removal: a late tap on its toast does nothing.
+    void cancel_undo();
+    /// Put the held removal back: on its own page (re-created when the removal
+    /// pruned it) at its own rectangle, or, when another widget took that spot,
+    /// where a catalog placement would land it on that page. A toast says so
+    /// when there is no room at all. Saves.
+    void undo_last_removal();
+    /// The toast's action: reaches the session that showed it only while that
+    /// removal is still the held one and the session is alive.
+    static void on_undo_toast(void* user_data);
+
     /// Run rebuild_cb_ on the next lv_timer_handler tick (helix::ui::run_next_tick),
     /// so its deletes run outside input dispatch. A request made while a
     /// rebuild is pending joins it: one rebuild restores every page.
@@ -525,7 +543,10 @@ class GridEditMode {
     /// The scoped page's placed widgets, @p exclude_id left out, on the grid its
     /// container is laid out on: the occupancy every drag, drop, resize and
     /// catalog placement checks a rectangle against.
-    GridLayout page_occupancy(const std::string& exclude_id, Occupants occupants) const;
+    /// @p page names another config page; OnScreen counts the scoped
+    /// container's objects, so another page is read with AllPlaced.
+    GridLayout page_occupancy(const std::string& exclude_id, Occupants occupants,
+                              int page = -1) const;
 
     // Drag helpers
     void handle_drag_start(lv_event_t* e);
@@ -810,6 +831,12 @@ class GridEditMode {
     // Destructor expires all tokens so callbacks become no-ops if GridEditMode
     // (and its owning HomePanel) is destroyed during switch_printer teardown.
     helix::AsyncLifetimeGuard lifetime_;
+
+    /// The removal the toast's Undo reverses; null when none is held.
+    std::unique_ptr<RemovedWidget> removed_;
+    /// Expires the toast's reach into this session: on every new removal, an
+    /// undo, exit() and destruction.
+    helix::AsyncLifetimeGuard undo_lifetime_;
 };
 
 } // namespace helix

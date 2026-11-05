@@ -2556,6 +2556,7 @@ translations:
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: 'このファイルを置く空き容量がプリンターにありません。設定 > システム > ストレージで空き容量を確保してください。'
   Not enough frequency data from the sweeps. Try again.: '測定から十分な周波数データが得られませんでした。再試行してください。'
   Not enough room for this widget. Rearrange or remove widgets to make space.: このウィジェットを配置するスペースが足りません。スペースを確保するためにウィジェットを整理または削除してください。
+  Not enough room to put the widget back. Rearrange or remove widgets to make space.: 'ウィジェットを元に戻すスペースが足りません。スペースを確保するためにウィジェットを整理または削除してください。'
   Not in your spools? Set it up: スプールにない？登録する
   Not now: 後で
   Not turned: '未回転'
@@ -4519,6 +4520,7 @@ translations:
   WiFi was configured but hardware is not available. Check system configuration.: WiFi
     は設定されていますが、ハードウェアが利用できません。システム設定を確認してください。
   Widget Labels: ウィジェットラベル
+  Widget removed: 'ウィジェットを削除しました'
   Width: 幅
   Width Sensor: '幅センサー'
   Width Sensors: 幅センサー

@@ -2463,6 +2463,7 @@
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." zh="打印机上的可用空间不足以存放此文件。请在设置 &gt; 系统 &gt; 存储中释放空间。"/>
   <translation tag="Not enough frequency data from the sweeps. Try again." zh="扫频得到的频率数据不足，请重试。"/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." zh="没有足够的空间放置此小组件。请重新排列或移除小组件以腾出空间。"/>
+  <translation tag="Not enough room to put the widget back. Rearrange or remove widgets to make space." zh="没有足够的空间恢复此小组件。请重新排列或移除小组件以腾出空间。"/>
   <translation tag="Not in your spools? Set it up" zh="不在您的料盘中？立即设置"/>
   <translation tag="Not now" zh="暂不"/>
   <translation tag="Not set" zh="未设置"/>
@@ -4341,6 +4342,7 @@
   <translation tag="WiFi unavailable. Cannot scan for networks." zh="WiFi 不可用。无法扫描网络。"/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." zh="已配置 WiFi 但硬件不可用。请检查系统配置。"/>
   <translation tag="Widget Labels" zh="小组件标签"/>
+  <translation tag="Widget removed" zh="已移除小组件"/>
   <translation tag="Width" zh="宽度"/>
   <translation tag="Width Sensor" zh="宽度传感器"/>
   <translation tag="Width Sensors" zh="宽度传感器"/>

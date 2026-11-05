@@ -2698,6 +2698,7 @@ translations:
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: 'Nicht genug freier Speicher auf dem Drucker für diese Datei. Schaffen Sie Platz unter Einstellungen > System > Speicher.'
   Not enough frequency data from the sweeps. Try again.: 'Nicht genügend Frequenzdaten aus den Messungen. Versuchen Sie es erneut.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: Nicht genug Platz für dieses Widget. Ordnen Sie Widgets neu an oder entfernen Sie welche, um Platz zu schaffen.
+  Not enough room to put the widget back. Rearrange or remove widgets to make space.: 'Nicht genug Platz, um das Widget wiederherzustellen. Ordnen Sie Widgets neu an oder entfernen Sie welche, um Platz zu schaffen.'
   Not in your spools? Set it up: Nicht in Ihren Spulen? Einrichten
   Not now: Nicht jetzt
   Not turned: 'Ungedreht'
@@ -4776,6 +4777,7 @@ translations:
   WiFi was configured but hardware is not available. Check system configuration.: WiFi
     wurde konfiguriert, aber die Hardware ist nicht verfügbar. Prüfen Sie die Systemkonfiguration.
   Widget Labels: Widget-Beschriftungen
+  Widget removed: 'Widget entfernt'
   Width: Breite
   Width Sensor: 'Breitensensor'
   Width Sensors: Breitensensoren
