@@ -18,6 +18,10 @@ class AfcTestAccess {
     template <class B> static auto& overrides(B& b) {
         return b.overrides_;
     }
+    // The re-layer a late read of the override store triggers.
+    static void relayer_after_read(AmsBackendAfc& b) {
+        b.relayer_overrides_after_read_locked();
+    }
     template <class B> static auto& toolchange_hold_since(B& b) {
         return b.toolchange_hold_since_;
     }

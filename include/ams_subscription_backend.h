@@ -173,6 +173,18 @@ class AmsSubscriptionBackend : public AmsBackend {
         }
     }
 
+    /// Runs relayer_overrides_locked() with relayering_overrides_ set. Caller holds
+    /// mutex_.
+    void relayer_overrides_after_read_locked() {
+        relayering_overrides_ = true;
+        relayer_overrides_locked();
+        relayering_overrides_ = false;
+    }
+    /// A re-layer is under way, so no firmware frame is speaking: a slot reading no
+    /// spool may simply not have been painted yet, which says nothing of an eject.
+    /// Under mutex_.
+    bool relayering_overrides_ = false;
+
     /// The next read of an unread store, no sooner than the retry interval.
     void retry_unread_overrides();
     /// The backend's members read_unread_overrides() was given, a read is out, and

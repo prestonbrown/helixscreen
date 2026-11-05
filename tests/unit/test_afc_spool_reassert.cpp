@@ -15,6 +15,7 @@
  * expectation the editor's re-link uses.
  */
 
+#include "../test_helpers/afc_test_access.h"
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
@@ -210,4 +211,26 @@ TEST_CASE_METHOD(LVGLTestFixture,
     afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}}); // transition 2
     afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}}); // level: no write
     CHECK(afc.gcode_count("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42") == 2);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a late read's re-layer is not an eject (#2013)",
+                 "[2013][ams][afc]") {
+    auto& settings = SettingsManager::instance();
+    settings.init_subjects();
+    settings.set_ams_keep_spool_info_on_eject(false);
+
+    AfcReassertHelper afc;
+    afc.set_override(0, spool_override(42));
+    REQUIRE(afc.visible_spool_id(0) == 0);
+
+    // No frame has painted the lane, so its empty spool id says nothing.
+    AfcTestAccess::relayer_after_read(afc);
+    CHECK(AfcTestAccess::overrides(afc).count(0) == 1);
+    CHECK(afc.visible_spool_id(0) == 42);
+
+    // A frame saying the spool left still counts.
+    afc.feed_stepper("lane1", nlohmann::json{{"status", "None"}, {"spool_id", nullptr}});
+    CHECK(AfcTestAccess::overrides(afc).count(0) == 0);
+
+    settings.set_ams_keep_spool_info_on_eject(true);
 }
