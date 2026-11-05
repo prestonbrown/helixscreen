@@ -1256,6 +1256,85 @@ def test_a_red_baseline_leaves_its_filter_unjudged_and_the_others_judged(tmp_pat
     assert "whose suite exited without a verdict" in r.stdout
 
 
+@pytest.mark.parametrize("line,expected", [
+    ("    if (a == b) {\n", ["    if (!(a == b)) {\n", "    if (a != b) {\n"]),
+    ("    helix::publish(x);\n", ["    ;\n"]),
+    ("    obj->call(a).then(b);\n", ["    ;\n"]),
+    ("    return true;\n", ["    return false;\n"]),
+    ("    auto x = (a < b);\n", ["    auto x = (a >= b);\n"]),
+    ('    s = "a && b";\n', []),
+    ("    x = 1;  // true && false\n", []),
+    ('    spdlog::info("x", y == z);\n', []),
+    ("#if X == 1\n", []),
+    ("    Foo bar(1);\n", []),
+    ("    /* a == b */ c = d;\n", []),
+    ('    t = R"(a == b)";\n', []),
+])
+def test_inside_edits_touch_code_and_never_a_literal_a_comment_or_a_log(line, expected):
+    assert [text for _, text in md.inside_edits(line)] == expected
+
+
+def test_inside_mutants_cover_added_lines_only_and_the_most_telling_first():
+    lines = ["int f() {\n", "    bool a = true;\n", "    if (b) {\n", "    if (old) {\n", "}\n"]
+    h = {"line": 1, "body": ["@@\n", " int f() {\n", "+    bool a = true;\n", "+    if (b) {\n",
+                             "-    gone();\n", "     if (old) {\n", " }\n"]}
+    assert [(m[0], m[1]) for m in md.hunk_inside_mutants(h, lines)] == [
+        (3, "negate if"), (2, "true to false")]
+
+
+INSIDE_CHANGED = "int f(int n) {\n    if (n == 2) { return 1; }  // NEW_BEHAVIOR\n    return n;\n}\n"
+# The revert removes a marker the build needs, so it can never build; the suite
+# reds on the original condition being edited.
+INSIDE_MAKEFILE = """test-build:
+\t@grep -q NEW_BEHAVIOR src/feature.cpp
+\t@printf '\\n# relinked\\n' >> build/bin/helix-tests
+"""
+INSIDE_SUITE = """#!/usr/bin/env bash
+grep -q 'if (n == 2) {' src/feature.cpp || {
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+def _inside_fixture(tmp_path, suite):
+    work = _fixture(tmp_path, INSIDE_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text(INSIDE_CHANGED)
+    (work / "build" / "bin" / "helix-tests").write_text(suite)
+    return work
+
+
+def test_an_inside_mutant_judges_a_hunk_whose_revert_does_not_build(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE)
+    without = _mutate(work, "--base", "main", "--no-record")
+    assert without.returncode == 3 and "inside mutants" not in without.stdout, without.stdout
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"uncompilable\s+src/feature.cpp:\d+", r.stdout), r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:2  negate if", r.stdout), r.stdout
+    # The revert's verdict stands: one edit is not the question a revert asks.
+    assert r.returncode == 3, r.stdout
+    assert "VERDICT: INCOMPLETE" in r.stdout
+    assert (work / "src" / "feature.cpp").read_text() == INSIDE_CHANGED
+
+
+def test_a_surviving_inside_mutant_fails_the_run(tmp_path):
+    work = _inside_fixture(tmp_path, "#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert r.returncode == 1, r.stdout
+    assert "1 inside mutant(s) survived" in r.stdout
+    assert "src/feature.cpp:2  negate if" in r.stdout
+
+
+def test_an_inside_mutant_that_does_not_build_is_passed_over(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE)
+    (work / "Makefile").write_text(INSIDE_MAKEFILE.replace(
+        "\t@printf", "\t@! grep -q 'if (!(' src/feature.cpp\n\t@printf", 1))
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"killed\s+src/feature.cpp:2  == to !=", r.stdout), r.stdout
+
+
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     (work / ".mutant-expect-other").write_text("")

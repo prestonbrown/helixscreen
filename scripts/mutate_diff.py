@@ -60,6 +60,8 @@
 #                as a kill: a compiler error proves the code is load-bearing
 #                for the build, not that any test checks its behaviour. It
 #                leaves the hunk UNPROVEN, so it makes the run incomplete.
+#                --inside N adds evidence beside this verdict without changing it:
+#                see INSIDE MUTANTS.
 #   unreversible the hunk does not apply in reverse against the working tree,
 #                so no mutant exists to judge. Also unproven.
 #   NOT COVERED  no strategy in this script can mutate the file at all. The
@@ -2306,6 +2308,7 @@ class FilterBaselines:
         return self.results[key]
 
 
+
 # ---------------------------------------------------------------------------
 # THE TREE AND THE BINARY A VERDICT IS ABOUT
 #
@@ -2667,8 +2670,210 @@ def resolve_run_base(root, args):
 
 
 # ---------------------------------------------------------------------------
+# INSIDE MUTANTS
+#
+# Over a long range most hunks of a busy file cannot be reverted alone: one adds
+# a helper another calls, one renames a member the rest of the file uses, one
+# drops a definition a header still declares. `uncompilable` is the true answer
+# to "does this revert build" and says nothing about whether a test watches the
+# code. --inside N asks that with a small edit to a line the hunk ADDED, which
+# keeps every name in place: negate an `if`, drop a call statement, flip a logical
+# or comparison operator or a boolean literal. An edit that does not build is
+# passed over for the next, up to INSIDE_MAX_TRIES.
+#
+# The hunk's verdict stays `uncompilable` and the run stays incomplete: one edit
+# to one line is not the question a revert asks. Each mutant is reported on its
+# own line, and a survivor fails the run like any other survivor. Headers are
+# left out, since a mutant there costs every includer's rebuild.
+# ---------------------------------------------------------------------------
+INSIDE_MAX_TRIES = 6
+# Nothing a test should pin (logging) or nothing a token edit can compile into a
+# different program (compile-time code, declarations of operators).
+_INSIDE_SKIP = re.compile(r'\b(?:spdlog|LOG_\w+|assert|static_assert|constexpr|operator|template'
+                          r'|lv_tr|HELIX_\w+)\b')
+_INSIDE_CALL = re.compile(r'^\s*(?!(?:return|if|for|while|switch|else|case|delete|throw|co_\w+)\b)'
+                          r'[A-Za-z_][\w:.\->\[\]]*(?:\(\))?(?:(?:\.|->)\w+)*\s*\(.*\);\s*$')
+# (name, pattern, replacement), most telling first; each applies at its first match.
+_INSIDE_TOKENS = (
+    ('&& to ||', re.compile(r'&&'), '||'),
+    ('|| to &&', re.compile(r'\|\|'), '&&'),
+    ('== to !=', re.compile(r'=='), '!='),
+    ('!= to ==', re.compile(r'!='), '=='),
+    ('<= to >', re.compile(r' <= '), ' > '),
+    ('>= to <', re.compile(r' >= '), ' < '),
+    ('< to >=', re.compile(r' < '), ' >= '),
+    ('> to <=', re.compile(r' > '), ' <= '),
+    ('true to false', re.compile(r'\btrue\b'), 'false'),
+    ('false to true', re.compile(r'\bfalse\b'), 'true'),
+)
+
+
+def code_mask(line):
+    """`line` with literal contents blanked and any comment cut, same offsets, or None.
+
+    None for a line a one-line scan cannot read: a raw string, a block comment.
+    """
+    if 'R"' in line or '/*' in line or '*/' in line:
+        return None
+    out, quote, i = [], '', 0
+    while i < len(line):
+        c = line[i]
+        if quote:
+            if c == '\\':
+                out.append('  ')
+                i += 2
+                continue
+            if c == quote:
+                quote = ''
+                out.append(c)
+            else:
+                out.append(' ')
+        elif line.startswith('//', i):
+            break
+        else:
+            if c in '"\'' and not (c == "'" and i and line[i - 1].isalnum()):
+                quote = c
+            out.append(c)
+        i += 1
+    return None if quote else ''.join(out)
+
+
+def _balanced_close(mask, opening):
+    """The index of the `)` closing the `(` at `opening`, or None on this line."""
+    depth = 0
+    for i in range(opening, len(mask)):
+        depth += {'(': 1, ')': -1}.get(mask[i], 0)
+        if depth == 0:
+            return i
+    return None
+
+
+def inside_edits(line):
+    """[(operator name, rewritten line)] for one added line, most telling first."""
+    mask = code_mask(line.rstrip('\n'))
+    if mask is None or not mask.strip() or mask.lstrip().startswith('#') or _INSIDE_SKIP.search(mask):
+        return []
+    edits = []
+    m = re.search(r'\bif\s*\(', mask)
+    if m:
+        close = _balanced_close(mask, m.end() - 1)
+        if close is not None:
+            edits.append(('negate if', f'{line[:m.end()]}!({line[m.end():close]}){line[close:]}'))
+    if _INSIDE_CALL.match(mask) and mask.count('(') == mask.count(')'):
+        indent = line[:len(line) - len(line.lstrip())]
+        edits.append(('drop call', f'{indent};\n'))
+    for name, rx, to in _INSIDE_TOKENS:
+        m = rx.search(mask)
+        if m:
+            edits.append((name, f'{line[:m.start()]}{to}{line[m.end():]}'))
+    return edits
+
+
+def hunk_inside_mutants(h, lines):
+    """[(1-based line, operator, rewritten line)] for a hunk's added lines.
+
+    Ordered by operator so a negated `if` anywhere in the hunk goes before a
+    flipped literal, then by line. `lines` is the file as it stands.
+    """
+    rank = ['negate if', 'drop call'] + [t[0] for t in _INSIDE_TOKENS]
+    out = []
+    at = h['line'] - 1
+    for raw in h['body'][1:]:
+        tag = raw[:1]
+        if tag == '+':
+            if at < len(lines):
+                out += [(at + 1, name, text) for name, text in inside_edits(lines[at])]
+            at += 1
+        elif tag == ' ':
+            at += 1
+    return sorted(out, key=lambda m: (rank.index(m[1]), m[0]))
+
+
+def mutate_inside(root, guard, suites, h, plan, args, log):
+    """Judge up to --inside mutants of a hunk's added lines; returns whether one built.
+
+    Appends (line, operator, verdict, note) to h['inside'].
+    """
+    h['inside'] = []
+    target = root / h['file']
+    built_any, tried = False, 0
+    lines = target.read_text(errors='surrogateescape').splitlines(keepends=True)
+    for line_no, op, text in hunk_inside_mutants(h, lines):
+        if tried >= INSIDE_MAX_TRIES or len(h['inside']) >= args.inside or RUN_STATE.out_of_time:
+            break
+        tried += 1
+        try:
+            guard.mark(h['file'])
+            mutated = list(lines)
+            mutated[line_no - 1] = text
+            target.write_text(''.join(mutated), errors='surrogateescape')
+            verdict, note_, built = build_and_judge(root, suites, h['file'], plan, args, log)
+            built_any = built_any or built
+            if verdict and verdict != 'uncompilable':
+                h['inside'].append((line_no, op, verdict, note_))
+                note(f'[inside :{line_no} {op}: {verdict}] ')
+        except OutOfTime:
+            break
+        finally:
+            guard.restore(h['file'])
+    if not h['inside'] and not RUN_STATE.out_of_time:
+        note('[inside: no mutant of its added lines built] ')
+    return built_any
+
+
+def inside_report(hunks):
+    """(lines of the report, survivors as labels) for every inside mutant judged."""
+    lines, survived, tally = [], [], {}
+    for h in hunks:
+        for line_no, op, verdict, _ in h.get('inside', ()):
+            label = f'{h["file"]}:{line_no}'
+            mark = LOUD_VERDICT.get(verdict, verdict)
+            lines.append(f'  {mark:<13} {label}  {op}  (revert of the hunk at '
+                         f':{h["line"]} did not build)')
+            tally[verdict] = tally.get(verdict, 0) + 1
+            if verdict == 'survived':
+                survived.append(f'{label}  {op}')
+    if lines:
+        lines.append(f'{sum(tally.values())} inside mutant(s): '
+                     + ', '.join(f'{v}={n}' for v, n in sorted(tally.items())))
+    return lines, survived
+
+
+# ---------------------------------------------------------------------------
 # ONE HUNK
 # ---------------------------------------------------------------------------
+def build_and_judge(root, suites, rel, plan, args, log):
+    """(verdict, note, built) for the mutant now in `root`.
+
+    `verdict` is '' when the deadline cut it off.
+    """
+    verdict, note_, built_any = '', '', False
+    # Only a mutant whose strategy builds, judged by the suite that
+    # binary IS, can be measured against the wrong one.
+    fingerprinted = plan['build'] and 'catch2' in plan['suites']
+    rebuilt = True
+    if plan['build'] and syntax_rejects(root, rel, log):
+        verdict, note_ = 'uncompilable', 'syntax'
+    elif plan['build']:
+        built_any = True
+        was = binary_fingerprint(suites.catch2_bin)
+        built, secs = build(root, args.jobs, log, mutant=True)
+        if not built:
+            verdict, note_ = 'uncompilable', f'{secs:.0f}s'
+        elif fingerprinted:
+            rebuilt = binary_fingerprint(suites.catch2_bin) != was
+    if not verdict and not RUN_STATE.out_of_time:
+        state, unexplained = judge(suites, plan['suites'])
+        if state == DETECTED and not rebuilt:
+            state, unexplained = INCONCLUSIVE, UNBUILT_MUTANT
+        verdict = {DETECTED: 'killed', GREEN: 'survived',
+                   INCONCLUSIVE: 'inconclusive'}[state]
+        if verdict == 'killed' and unexplained == TIMED_OUT:
+            verdict = 'killed (timeout)'
+        note_ = unexplained
+    return verdict, note_, built_any
+
+
 def mutate_hunk(root, guard, suites, h, plan, args, log):
     """(verdict, note, built) for one hunk reverted in `root`, then restored.
 
@@ -2684,33 +2889,14 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
         if not applied:
             verdict, note_ = 'unreversible', why.strip().splitlines()[:1]
         else:
-            # Only a mutant whose strategy builds, judged by the suite that
-            # binary IS, can be measured against the wrong one.
-            fingerprinted = plan['build'] and 'catch2' in plan['suites']
-            rebuilt = True
-            if plan['build'] and syntax_rejects(root, h['file'], log):
-                verdict, note_ = 'uncompilable', 'syntax'
-            elif plan['build']:
-                built_any = True
-                was = binary_fingerprint(suites.catch2_bin)
-                built, secs = build(root, args.jobs, log, mutant=True)
-                if not built:
-                    verdict, note_ = 'uncompilable', f'{secs:.0f}s'
-                elif fingerprinted:
-                    rebuilt = binary_fingerprint(suites.catch2_bin) != was
-            if not verdict and not RUN_STATE.out_of_time:
-                state, unexplained = judge(suites, plan['suites'])
-                if state == DETECTED and not rebuilt:
-                    state, unexplained = INCONCLUSIVE, UNBUILT_MUTANT
-                verdict = {DETECTED: 'killed', GREEN: 'survived',
-                           INCONCLUSIVE: 'inconclusive'}[state]
-                if verdict == 'killed' and unexplained == TIMED_OUT:
-                    verdict = 'killed (timeout)'
-                note_ = unexplained
+            verdict, note_, built_any = build_and_judge(root, suites, h['file'], plan, args, log)
     except OutOfTime:
         pass
     finally:
         guard.restore(h['file'])
+    if (args.inside and verdict == 'uncompilable' and plan['build']
+            and not h['file'].endswith(HEADER_SUFFIXES) and not RUN_STATE.out_of_time):
+        built_any = mutate_inside(root, guard, suites, h, plan, args, log) or built_any
     return verdict, note_, built_any
 
 
@@ -3005,6 +3191,9 @@ def main():
     ap.add_argument('--no-auto-tests', action='store_true',
                     help='do not give a file the test files that name its stem; '
                          'every file without --tests-for gets --tests')
+    ap.add_argument('--inside', type=int, default=0, metavar='N',
+                    help='for a .cpp hunk whose revert does not build, judge up to N small '
+                         'mutants of its added lines (see INSIDE MUTANTS)')
     ap.add_argument('--group-child', action='store_true', help=argparse.SUPPRESS)
     ap.add_argument('--group-files', default=None, help=argparse.SUPPRESS)
     ap.add_argument('--probe-workers', action='store_true',
@@ -3279,7 +3468,7 @@ def main():
                     else:
                         judged = ' + '.join(x for x in (shell, python) if x) or '-'
                         print(f'  {path}  {judged}  ({why_of[path]})')
-        pool = args.pool and len(groups) > 1 and not args.list_only
+        pool = args.pool and bool(groups) and not args.list_only
         if pool and plan_workers(root, args)[0] <= 1:
             pool = False
             print('--pool needs worker copies, which this run cannot have: '
@@ -3287,7 +3476,7 @@ def main():
         if len(groups) > 1 and not args.list_only and not pool:
             return run_groups(root, guard, args, base, groups, started, incomplete,
                               uncovered, deferred)
-        if len(groups) == 1:
+        if len(groups) == 1 and not pool:
             args.tests, args.shell_tests, args.python_tests = groups[0][0]
 
     def finish_proof(n_killed):
@@ -3509,6 +3698,10 @@ def main():
     if skipped_decl:
         print(f'{len(skipped_decl)} hunk(s) skipped (declaration-only): every changed '
               f'line is a declaration whose revert can only fail to compile')
+    inside_lines, inside_survived = inside_report(mutable)
+    if inside_lines:
+        print('\ninside mutants, beside the verdicts above:')
+        print('\n'.join(inside_lines))
     print(f'log: {args.log}')
 
     survived = [r for r in results if r[1] == 'survived']
@@ -3517,6 +3710,13 @@ def main():
     if unproven or unjudged or uncovered or deferred or unexamined:
         incomplete = True
 
+    if inside_survived and not survived:
+        sys.stdout.flush()
+        print(f'\nFAIL: {len(inside_survived)} inside mutant(s) survived, and no test detects them:',
+              file=sys.stderr)
+        for label in inside_survived:
+            print(f'  {label}', file=sys.stderr)
+        return 1
     if survived:
         # Name the suites that actually ran: a tooling hunk is judged by bats and
         # pytest, and quoting the Catch2 filter at it would misreport the verdict.
@@ -3529,6 +3729,8 @@ def main():
         for label, _, _ in survived:
             judged = f'  {describe_key(key_of[label.rsplit(":", 1)[0]])}' if pool else ''
             print(f'  {label}{judged}', file=sys.stderr)
+        for label in inside_survived:
+            print(f'  {label} (inside)', file=sys.stderr)
         return 1
     n_killed = sum(1 for r in results if r[1].startswith('killed'))
     if not (unproven or unjudged or deferred or unexamined):
@@ -3563,7 +3765,8 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
     leaving a file changed has it put back and named here.
     """
     passthrough = ['--jobs', str(args.jobs), '--shards', str(args.shards),
-                   '--workers', str(args.workers), '--timeout', str(args.timeout)]
+                   '--workers', str(args.workers), '--timeout', str(args.timeout),
+                   '--inside', str(args.inside)]
     for flag in ('no_skip_comments', 'no_skip_declarations', 'allow_orphan', 'release'):
         if getattr(args, flag):
             passthrough.append('--' + flag.replace('_', '-'))
