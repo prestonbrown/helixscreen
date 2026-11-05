@@ -25,7 +25,7 @@
     "led seg7_h",
     "led seg7_l"
   ],
-  "hostname": "kobrian-kx-fb77a9",
+  "hostname": "kobrian-kx-000000",
   "printer_objects": [
     "gcode",
     "webhooks",
