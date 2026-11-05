@@ -216,6 +216,7 @@
   <translation tag="A spool may be tangled or the drive gear is jammed" ru="Катушка может быть запутана или заклинило приводную шестерню"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." ru="Система, подающая несколько филаментов на печатающую головку, отображается с числом слотов. Слотами можно управлять на экране системы филамента."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" ru="Идёт калибровка смещений головок, возможно, с другого экрана. Завершить её сейчас?"/>
+  <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." ru="Обнаружена верхняя крышка. Её вентиляторы и режимы воздуха находятся на экране «Вентиляторы»."/>
   <translation tag="A upper, B lower" ru="A сверху, B снизу"/>
   <translation tag="ABS" ru="ABS"/>
   <translation tag="ACCELEROMETERS" ru="АКСЕЛЕРОМЕТРЫ"/>
@@ -300,6 +301,7 @@
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" ru="Настраивает индивидуальные характеристики нагревателей для оптимального контроля"/>
   <translation tag="Advanced" ru="Дополнительно"/>
   <translation tag="After an error" ru="После ошибки"/>
+  <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." ru="После подключения {} рекомендуем заново откалибровать компенсацию вибраций для качества печати."/>
   <translation tag="After running the commands, tap Check Again below." ru="После выполнения команд нажмите «Проверить снова» ниже."/>
   <translation tag="Alert" ru="Оповещение"/>
   <translation tag="Alerts" ru="Оповещения"/>
@@ -551,6 +553,7 @@
   <translation tag="CFS is busy" ru="CFS занят"/>
   <translation tag="CFS motor overloaded" ru="Двигатель CFS перегружен"/>
   <translation tag="CFS system error" ru="Системная ошибка CFS"/>
+  <translation tag="CHAMBER AIR" ru="ВОЗДУХ КАМЕРЫ"/>
   <translation tag="CHANGED FROM LAST SESSION" ru="ИЗМЕНЕНО С ПРОШЛОЙ СЕССИИ"/>
   <translation tag="CLOG" ru="ЗАСОР"/>
   <translation tag="COLOR SENSORS" ru="ДАТЧИКИ ЦВЕТА"/>
@@ -580,6 +583,7 @@
   <translation tag="Calibrate Y" ru="Калибровать Y"/>
   <translation tag="Calibrate heater" ru="Калибровать нагреватель"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ru="Калибровка компенсации вибраций для уменьшения артефактов звона"/>
+  <translation tag="Calibrate now" ru="Откалибровать"/>
   <translation tag="Calibrate part fan" ru="Калибровать обдув модели"/>
   <translation tag="Calibrate tool offsets?" ru="Калибровать смещения инструментов?"/>
   <translation tag="Calibrate your touchscreen for accurate input" ru="Калибровка сенсорного экрана для точного ввода"/>
@@ -680,6 +684,7 @@
   <translation tag="Chamber heating to %d°C..." ru="Нагрев камеры до %d°C..."/>
   <translation tag="Chamber target set to {}°C" ru="Целевая температура камеры установлена на {}°C"/>
   <translation tag="Chamber temp must be 0-%d°C" ru="Температура камеры должна быть 0-%d°C"/>
+  <translation tag="Chamber too hot" ru="Камера перегрета"/>
   <translation tag="Change" ru="Изменить"/>
   <translation tag="Change Address" ru="Изменить адрес"/>
   <translation tag="Change Blade" ru="Заменить лезвие"/>
@@ -1298,6 +1303,9 @@
   <translation tag="Execute printer macros" ru="Выполнить макросы принтера"/>
   <translation tag="Exhaust" ru="Вытяжка"/>
   <translation tag="Exhaust Fan" ru="Вытяжной вентилятор"/>
+  <translation tag="Exhaust fan" ru="Вытяжной вентилятор"/>
+  <translation tag="Exhaust fan speed" ru="Скорость вытяжного вентилятора"/>
+  <translation tag="Exhaust: keep chamber at or below" ru="Вытяжка: держать камеру не выше"/>
   <translation tag="Exit Code" ru="Код выхода"/>
   <translation tag="Expected boolean" ru="Ожидалось логическое значение"/>
   <translation tag="Expected float" ru="Ожидалось дробное число"/>
@@ -1452,6 +1460,7 @@
   <translation tag="Fan Tach" ru="Тахометр вентилятора"/>
   <translation tag="Fan Transfer" ru="Теплообмен с вентилятором"/>
   <translation tag="Fan available but not assigned to any role" ru="Вентилятор доступен, но не назначен ни на одну роль"/>
+  <translation tag="Fan control" ru="Управление вентиляторами"/>
   <translation tag="Fan control failed: {}" ru="Ошибка управления вентилятором: {}"/>
   <translation tag="FanSelect" ru="Выбрать вентилятор"/>
   <translation tag="Fans" ru="Вентиляторы"/>
@@ -2129,6 +2138,7 @@
   <translation tag="Low Memory" ru="Мало памяти"/>
   <translation tag="Lower" ru="Опустить"/>
   <translation tag="Lower belt" ru="Нижний ремень"/>
+  <translation tag="Lower fan speed?" ru="Снизить скорость вентилятора?"/>
   <translation tag="Lower the nozzle until it just touches the top of the print, then resume." ru="Опустите сопло, пока оно едва не коснётся верха печати, затем продолжите."/>
   <translation tag="Lowest notification level that interrupts with a toast" ru="Минимальный уровень уведомления, прерывающий всплывающим сообщением"/>
   <translation tag="M to toggle" ru="M для переключения"/>
@@ -2589,6 +2599,7 @@
   <translation tag="Only {} MB of memory is free, and Klipper&apos;s analysis needs about {} MB. Running the test would leave the printer stuck until it is power-cycled." ru="Свободно всего {} МБ памяти, а анализу Klipper нужно около {} МБ. Тест оставит принтер зависшим, пока его не выключат и снова не включат."/>
   <translation tag="Ooze Reduction" ru="Снижение подтекания"/>
   <translation tag="Open" ru="Открыть"/>
+  <translation tag="Open Fans" ru="Открыть «Вентиляторы»"/>
   <translation tag="Open Source Licenses" ru="Лицензии с открытым кодом"/>
   <translation tag="Open color and brightness controls" ru="Управление цветом и яркостью"/>
   <translation tag="Open feeder" ru="Открыть фидер"/>
@@ -3040,11 +3051,14 @@
   <translation tag="Reboot" ru="Перезагрузка"/>
   <translation tag="Reboot failed" ru="Ошибка перезагрузки"/>
   <translation tag="Reboot failed — host is still reachable" ru="Ошибка перезагрузки — хост всё ещё доступен"/>
+  <translation tag="Recalibrate input shaping?" ru="Откалибровать компенсацию вибраций?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." ru="Перекалибруйте или просмотрите подробные результаты в любое время в Настройках."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ru="От принтера получены слишком большие данные ({} байт). Возможна ошибка связи."/>
   <translation tag="Recent Prints" ru="Недавние печати"/>
   <translation tag="Recently Printed" ru="Недавно напечатано"/>
   <translation tag="Recirculate" ru="Рециркуляция"/>
+  <translation tag="Recirculation fan" ru="Вентилятор рециркуляции"/>
+  <translation tag="Recirculation fan speed" ru="Скорость вентилятора рециркуляции"/>
   <translation tag="Reconnect" ru="Переподключиться"/>
   <translation tag="Record Timelapse" ru="Записать таймлапс"/>
   <translation tag="Record timelapses of your prints" ru="Записывайте таймлапсы ваших печатей"/>
@@ -3063,6 +3077,8 @@
   <translation tag="Reduce Sensitivity" ru="Снизить чувствительность"/>
   <translation tag="Reduce ringing and ghosting artifacts" ru="Уменьшить артефакты звона и двоения"/>
   <translation tag="Reduce vibration artifacts like ringing and ghosting" ru="Уменьшить артефакты вибрации, такие как звон и двоение"/>
+  <translation tag="Reducing the fan speed may affect filtration performance. Do you want to continue?" ru="Снижение скорости вентилятора может ухудшить фильтрацию. Продолжить?"/>
+  <translation tag="Reducing the fan speed may affect print quality. Do you want to continue?" ru="Снижение скорости вентилятора может ухудшить качество печати. Продолжить?"/>
   <translation tag="Refeeding filament — this may take a minute" ru="Повторная подача филамента — это может занять минуту"/>
   <translation tag="Refill the spool, then Resume." ru="Пополните катушку, затем нажмите «Продолжить»."/>
   <translation tag="Refresh" ru="Обновить"/>
@@ -3810,6 +3826,7 @@
   <translation tag="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm." ru="Камере показалось, что на столе что-то есть, поэтому принтер остановился до начала печати. Если стол чист, это ложная тревога."/>
   <translation tag="The carriage was not put back: check which tool is mounted" ru="Каретка не возвращена: проверьте, какой инструмент установлен"/>
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." ru="Нагреватель камеры может запускать цикл сушки филамента. Запустите его из диалога сушки."/>
+  <translation tag="The chamber temperature is too high. This may cause extruder clogging. Continue printing?" ru="Температура камеры слишком высокая. Это может засорить экструдер. Продолжить печать?"/>
   <translation tag="The chamber wait already ended; nothing was stopped." ru="Ожидание камеры уже закончилось; ничего не остановлено."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." ru="Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны."/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." ru="Изменение не применено: не удалось сохранить текущие настройки для отката."/>
@@ -3886,6 +3903,7 @@
   <translation tag="The printer did not change its bed check" ru="Принтер не изменил проверку стола"/>
   <translation tag="The printer did not change its bed check: {}" ru="Принтер не изменил проверку стола: {}"/>
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ru="Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова."/>
+  <translation tag="The printer did not reset the filter" ru="Принтер не сбросил счётчик фильтра"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ru="Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз."/>
   <translation tag="The printer finishes this measurement on its own." ru="Принтер завершит это измерение сам."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ru="Принтер остановил эту печать и не может её возобновить. Начать с начала?"/>
@@ -3931,6 +3949,7 @@
   <translation tag="The toolhead is not homed, so this would home into the print" ru="Печатающая головка не запаркована, парковка ударит её о модель"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ru="Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ru="Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?"/>
+  <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." ru="Верхняя крышка отключена. Для качества печати подключите её, прежде чем продолжить."/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" ru="Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" ru="Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ru="Встроенная память блока вышла из строя. Требуется замена материнской платы CFS"/>
@@ -4111,6 +4130,7 @@
   <translation tag="Tools" ru="Инструменты"/>
   <translation tag="Tools Used" ru="Использовано инструментов"/>
   <translation tag="Tools: " ru="Инструменты: "/>
+  <translation tag="Top Cover" ru="Верхняя крышка"/>
   <translation tag="Total Prints" ru="Всего печатей"/>
   <translation tag="Total print time: {} h" ru="Общее время печати: {} ч"/>
   <translation tag="Touch &amp; Input" ru="Касание и ввод"/>
@@ -4392,6 +4412,8 @@
   <translation tag="Wipe nozzle on silicone cleaning strip" ru="Очистить сопло о силиконовую полоску"/>
   <translation tag="Wipe the mounted nozzle on the brush" ru="Протереть установленное сопло о щётку"/>
   <translation tag="Wiping {}..." ru="Очистка: {}..."/>
+  <translation tag="With exhaust cooling on, the recirculation fan cannot be turned on" ru="При охлаждении вытяжкой вентилятор рециркуляции включить нельзя"/>
+  <translation tag="With internal circulation on, the exhaust fan cannot be turned on" ru="При рециркуляции вытяжной вентилятор включить нельзя"/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" ru="В пределах {0:.1f} Гц друг от друга на {1:.0f} Гц"/>
   <translation tag="Wizard Error" ru="Ошибка мастера"/>
   <translation tag="Working..." ru="Выполнение..."/>
@@ -4609,8 +4631,10 @@
   <translation tag="{} critical hardware issues_few" ru="{} критические проблемы с оборудованием"/>
   <translation tag="{} critical hardware issues_many" ru="{} критических проблем с оборудованием"/>
   <translation tag="{} critical hardware issues_one" ru="{} критическая проблема с оборудованием"/>
+  <translation tag="{} detected" ru="{}: обнаружено"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ru="{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию."/>
   <translation tag="{} disabled" ru="{} выключено"/>
+  <translation tag="{} disconnected" ru="{}: отключено"/>
   <translation tag="{} enabled" ru="{} включено"/>
   <translation tag="{} failed: {}" ru="Ошибка {}: {}"/>
   <translation tag="{} filament" ru="{} филамента"/>
