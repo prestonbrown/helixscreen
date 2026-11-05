@@ -55,6 +55,11 @@ class FanDial {
      */
     void set_speed(int percent);
 
+    /// Puts the dial at @p percent even right after the user moved it: a value the
+    /// printer was never sent (refused, or awaiting a confirmation) must not stay
+    /// on screen. set_speed() ignores updates for a moment after a touch.
+    void restore_speed(int percent);
+
     /**
      * @brief Get current displayed speed
      * @return Current speed percentage (0-100)

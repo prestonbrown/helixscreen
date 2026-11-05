@@ -28,6 +28,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstdio>
 
 using namespace helix;
@@ -129,8 +130,8 @@ void on_chamber_air_mode_clicked(lv_event_t* e) {
         spdlog::warn("[FanControlOverlay] Unknown chamber air mode '{}'", id ? id : "");
         return;
     }
-    const std::string gcode =
-        helix::chamber_air::mode_gcode(get_printer_state().get_discovery(), *mode);
+    const std::string gcode = helix::chamber_air::mode_gcode(
+        get_printer_state().get_discovery(), *mode, helix::chamber_air::ModeTargets{});
     if (gcode.empty()) {
         spdlog::warn("[FanControlOverlay] This printer does not offer chamber air mode '{}'", id);
         return;
@@ -208,20 +209,20 @@ void FanControlOverlay::on_activate() {
                 // moves the rebuild off the observer callback's stack, and
                 // safe_clean_children escapes UpdateQueue::process_pending() so the
                 // sync clean can't corrupt LVGL's event linked list.
-                if (!self->fans_rebuild_pending_) {
-                    self->fans_rebuild_pending_ = true;
-                    self->lifetime_.defer("FanControlOverlay::rebuild_fans", [self]() {
-                        self->fans_rebuild_pending_ = false;
-                        if (!self->is_visible() || !self->fans_container_)
-                            return;
-                        self->unsubscribe_from_fan_speeds();
-                        self->populate_fans();
-                        self->subscribe_to_fan_speeds();
-                    });
-                }
+                self->schedule_fans_rebuild();
             },
             printer_state_.get_subjects_lifetime());
     }
+
+    // A chamber-air accessory fitted or removed adds or drops the fans it owns.
+    chamber_air_observer_ = observe<int>(
+        printer_state_.chamber_air().available_subject(), this,
+        [](FanControlOverlay* self, int /* available */) {
+            if (self->is_visible()) {
+                self->schedule_fans_rebuild();
+            }
+        },
+        printer_state_.get_subjects_lifetime());
 
     // Observe animation setting changes to refresh spin animations on all fan cards
     anim_settings_observer_ = observe<int>(
@@ -249,9 +250,29 @@ void FanControlOverlay::on_activate() {
     spdlog::trace("[{}] Activated", get_name());
 }
 
+void FanControlOverlay::schedule_fans_rebuild() {
+    if (fans_rebuild_pending_) {
+        return;
+    }
+    fans_rebuild_pending_ = true;
+    // Defer rebuild (#80) AND use safe_clean_children (#776): lifetime_.defer
+    // moves the rebuild off the observer callback's stack, and
+    // safe_clean_children escapes UpdateQueue::process_pending() so the
+    // sync clean can't corrupt LVGL's event linked list.
+    lifetime_.defer("FanControlOverlay::rebuild_fans", [this]() {
+        fans_rebuild_pending_ = false;
+        if (!is_visible() || !fans_container_)
+            return;
+        unsubscribe_from_fan_speeds();
+        populate_fans();
+        subscribe_to_fan_speeds();
+    });
+}
+
 void FanControlOverlay::on_deactivating(DeactivateReason) {
     // Unsubscribe from all observers
     fans_observer_.reset();
+    chamber_air_observer_.reset();
     anim_settings_observer_.reset();
     unsubscribe_from_fan_speeds();
 
@@ -270,6 +291,7 @@ void FanControlOverlay::cleanup() {
 
 void FanControlOverlay::release_fan_widgets() {
     fans_observer_.reset();
+    chamber_air_observer_.reset();
     anim_settings_observer_.reset();
     unsubscribe_from_fan_speeds();
     // Stop spin animations before clearing cards
@@ -322,18 +344,47 @@ void FanControlOverlay::populate_fans() {
 
     const auto& fans = printer_state_.fan_state().get_fans();
 
+    // Fans chamber air control owns. A printer that republishes one as a Klipper
+    // fan shows that fan's dial; the rest get a dial of their own. Either kind
+    // exists only while the accessory is fitted: without it the firmware drops
+    // every write.
+    const auto owned = helix::chamber_air::owned_fans(printer_state_.get_discovery());
+    const bool chamber_air_available = printer_state_.chamber_air().available();
+    auto owned_role_of =
+        [&owned](const std::string& object_name) -> std::optional<helix::chamber_air::FanRole> {
+        for (const auto& f : owned) {
+            if (f.equivalent_object && object_name == f.equivalent_object) {
+                return f.role;
+            }
+        }
+        return std::nullopt;
+    };
+
     // First pass: create controllable fans (FanDial widgets with animation)
     for (const auto& fan : fans) {
         if (fan.is_controllable) {
+            const auto role = owned_role_of(fan.object_name);
+            if (role && !chamber_air_available) {
+                continue;
+            }
             AnimatedFanDial afd;
             afd.object_name = fan.object_name;
+            afd.owned_role = role;
             afd.dial = std::make_unique<FanDial>(fans_container_, fan.display_name, fan.object_name,
                                                  fan.speed_percent);
 
             // Set callback for user-initiated speed changes (dial interaction)
-            afd.dial->set_on_speed_changed([this](const std::string& fan_id, int speed_percent) {
-                send_fan_speed(fan_id, speed_percent);
-            });
+            if (role) {
+                afd.dial->set_on_speed_changed(
+                    [this, r = *role](const std::string& fan_id, int speed_percent) {
+                        handle_owned_fan_change(fan_id, r, false, speed_percent);
+                    });
+            } else {
+                afd.dial->set_on_speed_changed(
+                    [this](const std::string& fan_id, int speed_percent) {
+                        send_fan_speed(fan_id, speed_percent);
+                    });
+            }
 
             // Long-press to rename — registered on card root only.
             // The arc is excluded so long-press on the arc/handle controls speed,
@@ -344,6 +395,33 @@ void FanControlOverlay::populate_fans() {
 
             spdlog::trace("[{}] Created AnimatedFanDial for '{}' ({}%)", get_name(),
                           fan.display_name, fan.speed_percent);
+        }
+    }
+
+    // Owned fans the printer does not publish as Klipper fans.
+    if (chamber_air_available) {
+        for (const auto& f : owned) {
+            const bool republished =
+                f.equivalent_object && std::any_of(fans.begin(), fans.end(), [&f](const auto& fan) {
+                    return fan.object_name == f.equivalent_object;
+                });
+            if (republished) {
+                continue;
+            }
+            const char* name = f.role == helix::chamber_air::FanRole::Exhaust
+                                   ? lv_tr("Exhaust fan")
+                                   : lv_tr("Recirculation fan");
+            AnimatedFanDial afd;
+            afd.object_name = f.id;
+            afd.owned_role = f.role;
+            afd.synthetic = true;
+            afd.dial = std::make_unique<FanDial>(fans_container_, name, f.id,
+                                                 printer_state_.chamber_air().speed_pct(f.role));
+            afd.dial->set_on_speed_changed(
+                [this, r = f.role](const std::string& fan_id, int speed_percent) {
+                    handle_owned_fan_change(fan_id, r, true, speed_percent);
+                });
+            animated_fan_dials_.push_back(std::move(afd));
         }
     }
 
@@ -492,14 +570,105 @@ void FanControlOverlay::send_fan_speed(const std::string& object_name, int speed
         });
 }
 
+void FanControlOverlay::restore_dial(const std::string& dial_id, int speed_percent) {
+    for (auto& afd : animated_fan_dials_) {
+        if (afd.object_name == dial_id && afd.dial) {
+            afd.dial->restore_speed(speed_percent);
+            return;
+        }
+    }
+}
+
+void FanControlOverlay::send_owned_fan_speed(const std::string& dial_id,
+                                             helix::chamber_air::FanRole role, bool synthetic,
+                                             int speed_percent) {
+    restore_dial(dial_id, speed_percent);
+    if (!synthetic) {
+        send_fan_speed(dial_id, speed_percent);
+        return;
+    }
+    const std::string gcode =
+        helix::chamber_air::fan_speed_gcode(printer_state_.get_discovery(), role, speed_percent);
+    if (gcode.empty()) {
+        return;
+    }
+    helix::MachineGcode cmd;
+    cmd.gcode = gcode;
+    cmd.log_name = gcode;
+    cmd.display_name = lv_tr("Fan control");
+    helix::execute_machine_gcode(api_, cmd, "[FanControlOverlay]");
+}
+
+void FanControlOverlay::handle_owned_fan_change(const std::string& dial_id,
+                                                helix::chamber_air::FanRole role, bool synthetic,
+                                                int speed_percent) {
+    using helix::chamber_air::FanGuardAction;
+    using helix::chamber_air::FanRole;
+    const auto& ca = printer_state_.chamber_air();
+    const int current = synthetic ? ca.speed_pct(role) : [&] {
+        for (const auto& fan : printer_state_.fan_state().get_fans()) {
+            if (fan.object_name == dial_id) {
+                return fan.speed_percent;
+            }
+        }
+        return ca.speed_pct(role);
+    }();
+    const auto guard = helix::chamber_air::guard_fan_change(
+        ca.mode(), role, speed_percent, current, ca.threshold_pct(role),
+        helix::chamber_air::guard_floor_pct(printer_state_.get_discovery()));
+
+    switch (guard.action) {
+    case FanGuardAction::Apply:
+        send_owned_fan_speed(dial_id, role, synthetic, guard.pct);
+        return;
+    case FanGuardAction::Blocked:
+        restore_dial(dial_id, current);
+        NOTIFY_WARNING(role == FanRole::Exhaust
+                           ? lv_tr("With internal circulation on, the exhaust fan cannot be "
+                                   "turned on")
+                           : lv_tr("With exhaust cooling on, the recirculation fan cannot be "
+                                   "turned on"));
+        return;
+    case FanGuardAction::Confirm: {
+        const int pct = guard.pct;
+        helix::ui::ConfirmOptions opts;
+        opts.owner_token = lifetime_.token();
+        opts.on_cancel = [this, dial_id, current]() { restore_dial(dial_id, current); };
+        opts.on_dismiss = [this, dial_id, current]() { restore_dial(dial_id, current); };
+        helix::ui::modal_confirm(
+            lv_tr("Lower fan speed?"),
+            role == FanRole::Exhaust
+                ? lv_tr("Reducing the fan speed may affect print quality. Do you want to "
+                        "continue?")
+                : lv_tr("Reducing the fan speed may affect filtration performance. Do you "
+                        "want to continue?"),
+            ModalSeverity::Warning, lv_tr("Lower"),
+            [this, dial_id, role, synthetic, pct]() {
+                send_owned_fan_speed(dial_id, role, synthetic, pct);
+            },
+            opts);
+        return;
+    }
+    }
+}
+
 void FanControlOverlay::subscribe_to_fan_speeds() {
     using helix::ui::observe;
 
     // Bind AnimatedValue for each FanDial - provides smooth animation when speed changes
     for (auto& afd : animated_fan_dials_) {
         SubjectLifetime lifetime;
-        if (auto* subject =
-                printer_state_.fan_state().get_fan_speed_subject(afd.object_name, lifetime)) {
+        lv_subject_t* subject = nullptr;
+        if (afd.synthetic) {
+            auto& ca = printer_state_.chamber_air();
+            subject = afd.owned_role == helix::chamber_air::FanRole::Exhaust
+                          ? ca.exhaust_pct_subject()
+                          : ca.recirculate_pct_subject();
+            lifetime = printer_state_.get_subjects_lifetime();
+        } else {
+            subject = printer_state_.fan_state().get_fan_speed_subject(afd.object_name, lifetime);
+        }
+        if (subject) {
             FanDial* dial_ptr = afd.dial.get();
             // 2% threshold to avoid micro-updates
             helix::ui::AnimatedValueConfig anim_config;
