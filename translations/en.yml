@@ -961,6 +961,7 @@ translations:
   Unload stopped: Unload stopped
   "User Guide": "User Guide"
   '{} could not be checked from Home - review it and tap Print': '{} could not be checked from Home - review it and tap Print'
+  Could not apply the new IPv4 settings.: Could not apply the new IPv4 settings.
   Could not change printer.cfg: Could not change printer.cfg
   ? "Could not check webcam status.\nCheck printer connection."
   : "Could not check webcam status.\nCheck printer connection."
@@ -977,11 +978,14 @@ translations:
   Could not open a browser for the update: Could not open a browser for the update
   Could not parse tips database: Could not parse tips database
   Could not reach Spoolman at: Could not reach Spoolman at
+  Could not read the current IPv4 settings.: Could not read the current IPv4 settings.
   Could not read the printer's storage: Could not read the printer's storage
   Could not read the screw adjustments from the printer: Could not read the screw adjustments from the printer
   Could not remove the job from the queue: Could not remove the job from the queue
   Could not reset the printer image tags: Could not reset the printer image tags
   Could not resolve printer RFCOMM channel: Could not resolve printer RFCOMM channel
+  Could not restore the previous IPv4 settings: Could not restore the previous IPv4 settings
+  Could not restore the previous IPv4 settings. They are restored at the next start.: Could not restore the previous IPv4 settings. They are restored at the next start.
   Could not save filament: Could not save filament
   Could not save the drying state: Could not save the drying state
   'Could not save the drying state: nothing was heated': 'Could not save the drying state: nothing was heated'
@@ -1028,6 +1032,7 @@ translations:
   'Current: %d°C | Target: %d°C': 'Current: %d°C | Target: %d°C'
   Currently Loaded: Currently Loaded
   Currently printing: Currently printing
+  'Currently:': 'Currently:'
   Curves differ in shape. Check the mechanics before chasing a perfect match.: Curves differ in shape. Check the mechanics before chasing a perfect match.
   Custom: Custom
   Custom...: Custom...
@@ -1051,9 +1056,11 @@ translations:
   Cycling tools...: Cycling tools...
   DETECTED USB PRINTERS: DETECTED USB PRINTERS
   DEVICES: DEVICES
+  DHCP: DHCP
   DISABLED: DISABLED
   DISCOVERED PRINTERS: DISCOVERED PRINTERS
   DISPLAY: DISPLAY
+  DNS server: DNS server
   DONE: DONE
   Damping (Kd): Damping (Kd)
   Danger: Danger
@@ -1262,10 +1269,14 @@ translations:
   Enter New PIN: Enter New PIN
   Enter PIN: Enter PIN
   Enter WiFi Password: Enter WiFi Password
+  Enter a DNS server address.: Enter a DNS server address.
+  Enter a gateway address.: Enter a gateway address.
   Enter a length between 100 and {:.0f}mm: Enter a length between 100 and {:.0f}mm
   Enter a multiplier between 0.5 and 2.0: Enter a multiplier between 0.5 and 2.0
   Enter a name for this profile: Enter a name for this profile
   'Enter a name for your custom theme:': 'Enter a name for your custom theme:'
+  Enter a subnet mask.: Enter a subnet mask.
+  Enter an IP address.: Enter an IP address.
   Enter network name: Enter network name
   Enter password: Enter password
   Enter printer IP address first: Enter printer IP address first
@@ -1301,6 +1312,7 @@ translations:
   Est. Duration: Est. Duration
   Estimating...: Estimating...
   Ethernet: Ethernet
+  Ethernet IPv4: Ethernet IPv4
   Events appear here after sessions and prints: Events appear here after sessions
     and prints
   Every browser needs a new code to control this screen: Every browser needs a new code to control this screen
@@ -1665,6 +1677,7 @@ translations:
   : "Game Over!\nScore: {}\nTap to restart"
   Gate: Gate
   Gates: Gates
+  Gateway: Gateway
   Gear Buffer Speed: Gear Buffer Speed
   Gear Spool Speed: Gear Spool Speed
   Gear Unload Speed: Gear Unload Speed
@@ -1881,8 +1894,11 @@ translations:
   INDX macros not recognized: INDX macros not recognized
   INPUTS: INPUTS
   IP Address / Hostname: IP Address / Hostname
+  IP address: IP address
   'IP:': 'IP:'
   'IPP error: {}': 'IPP error: {}'
+  IPv4: IPv4
+  IPv4 settings saved: IPv4 settings saved
   Icon: Icon
   Identify: Identify
   'Identify failed: {}': 'Identify failed: {}'
@@ -2011,6 +2027,8 @@ translations:
   KEYBOARD LAYOUT: KEYBOARD LAYOUT
   KLICKY CONTROLS: KLICKY CONTROLS
   Kalico: Kalico
+  Keep: Keep
+  Keep %s?: Keep %s?
   Keep Navigation Bar: Keep Navigation Bar
   Keep Printing: Keep Printing
   Keep Spool Info on Eject: Keep Spool Info on Eject
@@ -2907,6 +2925,7 @@ translations:
   Preview: Preview
   Preview Sounds: Preview Sounds
   Previous: Previous
+  Previous IPv4 settings restored: Previous IPv4 settings restored
   Price: Price
   Price, location, lot, notes: Price, location, lot, notes
   Primary: Primary
@@ -3143,6 +3162,7 @@ translations:
     state with the hardware.
   Re-test: Re-test
   Reaches {:g} mm from the center, past this printer's {:g} mm radius.: Reaches {:g} mm from the center, past this printer's {:g} mm radius.
+  Reading the current settings...: Reading the current settings...
   Readings don't repeat: Readings don't repeat
   Readings from extra temperature sensors: Readings from extra temperature sensors
   Ready: Ready
@@ -3339,6 +3359,7 @@ translations:
   Retraction distance to clear extruder gears: Retraction distance to clear extruder gears
   Retry: Retry
   Reverse Multiplier: Reverse Multiplier
+  Revert now: Revert now
   Review: Review
   Review detected hardware validation issues: Review detected hardware validation
     issues
@@ -3780,6 +3801,7 @@ translations:
   Startup Brightness: Startup Brightness
   Startup, auto-control, and macro devices: Startup, auto-control, and macro devices
   State: State
+  Static: Static
   Status: Status
   Status icons: Status icons
   Std Deviation: Std Deviation
@@ -3812,6 +3834,7 @@ translations:
   Storage: Storage
   Storage report: Storage report
   Stow: Stow
+  Subnet mask: Subnet mask
   Subtle: Subtle
   Success: Success
   Success Rate: Success Rate
@@ -3957,11 +3980,14 @@ translations:
   The CFS odometer hardware is faulty and needs repair or replacement: The CFS odometer hardware is faulty and needs repair or replacement
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: The CFS ran out of filament in {}. Printing continues on what is left in the tube.
   The CFS ran out of filament. Printing continues on what is left in the tube.: The CFS ran out of filament. Printing continues on what is left in the tube.
+  The DNS server is not a valid address.: The DNS server is not a valid address.
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   The IFS state file can't be read.: The IFS state file can't be read.
+  The IP address cannot be the subnet's network or broadcast address.: The IP address cannot be the subnet's network or broadcast address.
+  The IP address is not a valid address.: The IP address is not a valid address.
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.
   The PEI sheet is still on the bed. Take it off, then tap Next.: The PEI sheet is still on the bed. Take it off, then tap Next.
   The Spoolman spool currently loaded: The Spoolman spool currently loaded
@@ -3985,6 +4011,7 @@ translations:
   The chamber wait already ended; nothing was stopped.: The chamber wait already ended; nothing was stopped.
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
+  'The change was not applied: the current settings could not be saved for a revert.': 'The change was not applied: the current settings could not be saved for a revert.'
   The connection to Klipper was lost: The connection to Klipper was lost
   The controller boards Klipper runs on. See their load in the system settings.: The controller boards Klipper runs on. See their load in the system settings.
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
@@ -4001,6 +4028,10 @@ translations:
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: The gap grew after loosening {0}. Check you turned {0}'s tensioner.
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: The gap grew after tightening {0}. Check you turned {0}'s tensioner.
   The gap is not closing. Something besides tension may be shaping it.: The gap is not closing. Something besides tension may be shaping it.
+  The gateway cannot be the printer's own address.: The gateway cannot be the printer's own address.
+  The gateway cannot be the subnet's network or broadcast address.: The gateway cannot be the subnet's network or broadcast address.
+  The gateway is not a valid address.: The gateway is not a valid address.
+  The gateway is not on the same subnet as the IP address.: The gateway is not on the same subnet as the IP address.
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.
   The heater can't be changed while the printer is waiting.: The heater can't be changed while the printer is waiting.
   The heater did not accept the printer's credentials.: The heater did not accept the printer's credentials.
@@ -4039,6 +4070,7 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: The plugin can't reach the camera, so this screen takes the photos.
   The plugin can't save its recovery data to disk.: The plugin can't save its recovery data to disk.
   The plugin is turned off in moonraker.conf.: The plugin is turned off in moonraker.conf.
+  The previous settings come back in %d seconds unless you keep these.: The previous settings come back in %d seconds unless you keep these.
   The print ended before any layer was printed. Nothing was changed.: The print ended before any layer was printed. Nothing was changed.
   The print is canceled and you pick the best band from what has printed so far.: The print is canceled and you pick the best band from what has printed so far.
   The print is on its last layer.: The print is on its last layer.
@@ -4098,6 +4130,7 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: The saved position is kept. Reconnect or restart the screen to be offered the resume again.
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service
   The speed of one fan you choose: The speed of one fan you choose
+  The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.: The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
   The tool change under way finished, and the tool was not parked: The tool change under way finished, and the tool was not parked
@@ -4474,6 +4507,7 @@ translations:
   Uptime: Uptime
   Use Android native keyboard for text input: Use Android native keyboard for text
     input
+  Use DHCP: Use DHCP
   Use G10/G11 firmware retraction: Use G10/G11 firmware retraction
   Use New Address: Use New Address
   Use Unload before Eject: Use Unload before Eject
@@ -4591,6 +4625,7 @@ translations:
   WiFi: WiFi
   WiFi Disabled: WiFi Disabled
   WiFi Enabled: WiFi Enabled
+  WiFi IPv4: WiFi IPv4
   WiFi Network: WiFi Network
   WiFi Permission Denied: WiFi Permission Denied
   WiFi Service Not Running: WiFi Service Not Running

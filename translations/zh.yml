@@ -919,6 +919,7 @@ translations:
   Unload stopped: '卸载已停止'
   "User Guide": "用户指南"
   '{} could not be checked from Home - review it and tap Print': '无法从主页检查 {} – 请查看后点按打印'
+  Could not apply the new IPv4 settings.: '无法应用新的 IPv4 设置。'
   Could not change printer.cfg: 无法更改 printer.cfg
   ? "Could not check webcam status.\nCheck printer connection."
   : "无法检查摄像头状态。\n请检查打印机连接。"
@@ -936,11 +937,14 @@ translations:
   Could not open a browser for the update: 无法打开浏览器进行更新
   Could not parse tips database: 无法解析提示数据库
   Could not reach Spoolman at: 无法连接 Spoolman：
+  Could not read the current IPv4 settings.: '无法读取当前的 IPv4 设置。'
   Could not read the printer's storage: '无法读取打印机存储'
   Could not read the screw adjustments from the printer: 无法从打印机读取螺丝调整数据
   Could not remove the job from the queue: 无法从队列中移除任务
   Could not reset the printer image tags: 重置打印机图片标记失败
   Could not resolve printer RFCOMM channel: 无法解析打印机 RFCOMM 通道
+  Could not restore the previous IPv4 settings: '无法恢复之前的 IPv4 设置'
+  Could not restore the previous IPv4 settings. They are restored at the next start.: '无法恢复之前的 IPv4 设置。将在下次启动时恢复。'
   Could not save filament: 无法保存耗材
   Could not save the drying state: 无法保存烘干状态
 
@@ -989,6 +993,7 @@ translations:
   'Current: %d°C | Target: %d°C': '当前: %d°C | 目标: %d°C'
   Currently Loaded: 当前已装载
   Currently printing: 正在打印
+  'Currently:': '当前：'
   Curves differ in shape. Check the mechanics before chasing a perfect match.: "曲线形状不同。在追求完美匹配之前请先检查机械部分。"
   Custom: 自定义
   Custom...: 自定义...
@@ -1012,9 +1017,11 @@ translations:
   Cycling tools...: 正在依次更换工具...
   DETECTED USB PRINTERS: 已检测到的 USB 打印机
   DEVICES: 设备
+  DHCP: 'DHCP'
   DISABLED: 已禁用
   DISCOVERED PRINTERS: 已发现的打印机
   DISPLAY: 显示
+  DNS server: 'DNS 服务器'
   DONE: 完成
   Damping (Kd): 阻尼 (Kd)
   Danger: 危险
@@ -1226,10 +1233,14 @@ translations:
   Enter New PIN: 输入新 PIN
   Enter PIN: 输入 PIN
   Enter WiFi Password: 输入 WiFi 密码
+  Enter a DNS server address.: '请输入 DNS 服务器地址。'
+  Enter a gateway address.: '请输入网关地址。'
   Enter a length between 100 and {:.0f}mm: '请输入 100 至 {:.0f}mm 之间的长度'
   Enter a multiplier between 0.5 and 2.0: '请输入 0.5 至 2.0 之间的倍率'
   Enter a name for this profile: "输入此配置的名称"
   'Enter a name for your custom theme:': 输入自定义主题名称：
+  Enter a subnet mask.: '请输入子网掩码。'
+  Enter an IP address.: '请输入 IP 地址。'
   Enter network name: 输入网络名称
   Enter password: 输入密码
   Enter printer IP address first: 请先输入打印机 IP 地址
@@ -1263,6 +1274,7 @@ translations:
   Est. Duration: 预计时长
   Estimating...: 估算中...
   Ethernet: 以太网
+  Ethernet IPv4: '以太网 IPv4'
   Events appear here after sessions and prints: 会话和打印后事件将显示在此处
   Every browser needs a new code to control this screen: '每个浏览器都需要新代码才能控制此屏幕'
   Every browser that can control this screen will need the new pairing code.: '所有可以控制此屏幕的浏览器都需要新的配对码。'
@@ -1620,6 +1632,7 @@ translations:
   : "游戏结束！\n得分：{}\n点按重新开始"
   Gate: 通道
   Gates: 通道
+  Gateway: '网关'
   Gear Buffer Speed: '齿轮缓冲区速度'
   Gear Spool Speed: '齿轮料盘速度'
   Gear Unload Speed: '齿轮卸载速度'
@@ -1829,8 +1842,11 @@ translations:
   INDX macros not recognized: "无法识别 INDX 宏"
   INPUTS: 输入
   IP Address / Hostname: IP 地址 / 主机名
+  IP address: 'IP 地址'
   'IP:': IP：
   'IPP error: {}': 'IPP 错误: {}'
+  IPv4: 'IPv4'
+  IPv4 settings saved: 'IPv4 设置已保存'
   Icon: 图标
   Identify: "识别"
   'Identify failed: {}': "识别失败：{}"
@@ -1948,6 +1964,8 @@ translations:
   KEYBOARD LAYOUT: 键盘布局
   KLICKY CONTROLS: KLICKY 控制
   Kalico: 'Kalico'
+  Keep: '保留'
+  Keep %s?: '保留 %s？'
   Keep Navigation Bar: 保留导航栏
   Keep Printing: 继续打印
   Keep Spool Info on Eject: 弹出时保留料盘信息
@@ -2823,6 +2841,7 @@ translations:
   Preview: '预览'
   Preview Sounds: 预览声音
   Previous: 上一步
+  Previous IPv4 settings restored: '已恢复之前的 IPv4 设置'
   Price: 价格
   Primary: 主要
   Priming nozzle...: 正在预挤喷嘴...
@@ -3050,6 +3069,7 @@ translations:
   Re-syncs Happy Hare's tracked state with the hardware.: 将 Happy Hare 跟踪的状态与硬件重新同步。
   Re-test: 重新测试
   Reaches {:g} mm from the center, past this printer's {:g} mm radius.: '距中心 {:g} mm，超出此打印机 {:g} mm 的半径。'
+  Reading the current settings...: '正在读取当前设置...'
   Readings don't repeat: "读数无法重复"
   Readings from extra temperature sensors: 额外温度传感器的读数
   Ready: 就绪
@@ -3241,6 +3261,7 @@ translations:
   Retraction distance to clear extruder gears: '退出挤出机齿轮所需的回抽距离'
   Retry: 重试
   Reverse Multiplier: '反向倍率'
+  Revert now: '立即还原'
   Review: 查看
   Review detected hardware validation issues: 查看检测到的硬件验证问题
   Review your configuration below, then click Finish to save: 请检查以下配置，然后点击完成以保存
@@ -3659,6 +3680,7 @@ translations:
   Startup Brightness: 启动亮度
   Startup, auto-control, and macro devices: 启动、自动控制和宏设备
   State: 状态
+  Static: '静态'
   Status: 状态
   Status icons: 状态图标
   Std Deviation: 标准差
@@ -3691,6 +3713,7 @@ translations:
   Storage: '存储'
   Storage report: '存储报告'
   Stow: 收回
+  Subnet mask: '子网掩码'
   Subtle: 微妙
   Success: 成功
   Success Rate: 成功率
@@ -3829,10 +3852,13 @@ translations:
   The CFS odometer hardware is faulty and needs repair or replacement: CFS 计量硬件故障，需维修或更换
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: 'CFS 的 {} 耗材已用完。打印将使用管内剩余的耗材继续。'
   The CFS ran out of filament. Printing continues on what is left in the tube.: 'CFS 耗材已用完。打印将使用管内剩余的耗材继续。'
+  The DNS server is not a valid address.: 'DNS 服务器不是有效地址。'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : HelixPrint 插件可在打印机上直接进行快速 G-code 修改——例如跳过热床网格以快速重新打印。
   The IFS state file can't be read.: "无法读取 IFS 状态文件。"
+  The IP address cannot be the subnet's network or broadcast address.: 'IP 地址不能是子网的网络地址或广播地址。'
+  The IP address is not a valid address.: 'IP 地址不是有效地址。'
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: '已安装 Moonraker 延时摄影插件。在延时摄影设置中设定录制方式。'
   The PEI sheet is still on the bed. Take it off, then tap Next.: PEI 板仍在热床上。请取下后点击下一步。
   The Spoolman spool currently loaded: 当前装载的 Spoolman 料盘
@@ -3857,6 +3883,7 @@ translations:
   The chamber wait already ended; nothing was stopped.: '腔体等待已经结束，未停止任何操作。'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。
+  'The change was not applied: the current settings could not be saved for a revert.': '未应用更改：无法保存当前设置以便还原。'
   The connection to Klipper was lost: '与 Klipper 的连接已断开'
   The controller boards Klipper runs on. See their load in the system settings.: '运行 Klipper 的控制板。在系统设置中查看其负载。'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
@@ -3873,6 +3900,10 @@ translations:
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: "放松 {0} 后差距变大了。请确认转动的是 {0} 的张紧器。"
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: "拉紧 {0} 后差距变大了。请确认转动的是 {0} 的张紧器。"
   The gap is not closing. Something besides tension may be shaping it.: "差距没有缩小。可能有张力以外的因素在影响。"
+  The gateway cannot be the printer's own address.: '网关不能是打印机自身的地址。'
+  The gateway cannot be the subnet's network or broadcast address.: '网关不能是子网的网络地址或广播地址。'
+  The gateway is not a valid address.: '网关不是有效地址。'
+  The gateway is not on the same subnet as the IP address.: '网关与 IP 地址不在同一子网。'
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: '热床和机箱可以烘干放在热床上的料盘。在热床烘干对话框中启动周期。'
   The heater can't be changed while the printer is waiting.: '打印机等待期间无法更改加热器。'
   The heater did not accept the printer's credentials.: '加热器不接受打印机的凭据。'
@@ -3911,6 +3942,7 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "插件无法连接摄像头，因此由此屏幕拍照。"
   The plugin can't save its recovery data to disk.: "插件无法保存其恢复数据。"
   The plugin is turned off in moonraker.conf.: "插件已在 moonraker.conf 中关闭。"
+  The previous settings come back in %d seconds unless you keep these.: '如果不保留这些设置，之前的设置将在 %d 秒后恢复。'
   The print ended before any layer was printed. Nothing was changed.: 打印在任何一层完成前就结束了。未做任何更改。
   The print is canceled and you pick the best band from what has printed so far.: 打印将被取消,你可以从已打印的部分中选择最佳区段。
   The print is on its last layer.: '正在打印最后一层。'
@@ -3969,6 +4001,7 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: 无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修
   The speed of one fan you choose: 所选风扇的转速
+  The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.: '子网掩码无效。请使用 255.255.255.0 或 /24 这样的格式。'
   The time, date, and system uptime: 时间、日期和系统运行时长
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
   The tool change under way finished, and the tool was not parked: '正在进行的换工具已完成，工具未停放'
@@ -4319,6 +4352,7 @@ translations:
   Upper belt: "上皮带"
   Uptime: 运行时长
   Use Android native keyboard for text input: 使用 Android 原生键盘进行文本输入
+  Use DHCP: '使用 DHCP'
   Use G10/G11 firmware retraction: 使用 G10/G11 固件回抽
   Use New Address: '使用新地址'
   Use Unload before Eject: '请先使用“卸载”，再使用“弹出”'
@@ -4430,6 +4464,7 @@ translations:
   WiFi: WiFi
   WiFi Disabled: WiFi 已禁用
   WiFi Enabled: WiFi 已启用
+  WiFi IPv4: 'WiFi IPv4'
   WiFi Network: WiFi 网络
   WiFi Permission Denied: WiFi 权限被拒绝
   WiFi Service Not Running: WiFi 服务未运行

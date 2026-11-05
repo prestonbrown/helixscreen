@@ -929,6 +929,7 @@
   <translation tag="Could not add to queue" ru="Не удалось добавить в очередь"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." ru="Не удалось проанализировать макрос PRINT_START. Некоторые параметры печати могут быть недоступны."/>
   <translation tag="Could not answer the connection request" ru="Не удалось ответить на запрос подключения"/>
+  <translation tag="Could not apply the new IPv4 settings." ru="Не удалось применить новые настройки IPv4."/>
   <translation tag="Could not change printer.cfg" ru="Не удалось изменить printer.cfg"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." ru="Не удалось проверить статус веб-камеры.&#10;Проверьте подключение принтера."/>
   <translation tag="Could not check {} - it stays in the queue" ru="Не удалось проверить {} – остаётся в очереди"/>
@@ -945,11 +946,14 @@
   <translation tag="Could not open a browser for the update" ru="Не удалось открыть браузер для обновления"/>
   <translation tag="Could not parse tips database" ru="Не удалось разобрать базу данных советов"/>
   <translation tag="Could not reach Spoolman at" ru="Не удалось связаться со Spoolman по адресу"/>
+  <translation tag="Could not read the current IPv4 settings." ru="Не удалось прочитать текущие настройки IPv4."/>
   <translation tag="Could not read the printer&apos;s storage" ru="Не удалось прочитать хранилище принтера"/>
   <translation tag="Could not read the screw adjustments from the printer" ru="Не удалось получить данные регулировки винтов от принтера"/>
   <translation tag="Could not remove the job from the queue" ru="Не удалось удалить задание из очереди"/>
   <translation tag="Could not reset the printer image tags" ru="Не удалось сбросить отметки изображения"/>
   <translation tag="Could not resolve printer RFCOMM channel" ru="Не удалось определить RFCOMM-канал принтера"/>
+  <translation tag="Could not restore the previous IPv4 settings" ru="Не удалось восстановить прежние настройки IPv4"/>
+  <translation tag="Could not restore the previous IPv4 settings. They are restored at the next start." ru="Не удалось восстановить прежние настройки IPv4. Они будут восстановлены при следующем запуске."/>
   <translation tag="Could not save filament" ru="Не удалось сохранить филамент"/>
   <translation tag="Could not save the drying state" ru="Не удалось сохранить состояние сушки"/>
   <translation tag="Could not save the drying state: nothing was heated" ru="Не удалось сохранить состояние сушки: ничего не нагревалось"/>
@@ -996,6 +1000,7 @@
   <translation tag="Current: %d°C | Target: %d°C" ru="Текущая: %d°C | Целевая: %d°C"/>
   <translation tag="Currently Loaded" ru="Загружено"/>
   <translation tag="Currently printing" ru="Сейчас печатается"/>
+  <translation tag="Currently:" ru="Сейчас:"/>
   <translation tag="Curves differ in shape. Check the mechanics before chasing a perfect match." ru="Формы кривых различаются. Проверьте механику, прежде чем добиваться идеального совпадения."/>
   <translation tag="Custom" ru="Свой"/>
   <translation tag="Custom..." ru="Настроить..."/>
@@ -1019,9 +1024,11 @@
   <translation tag="Cycling tools..." ru="Перебор инструментов..."/>
   <translation tag="DETECTED USB PRINTERS" ru="ОБНАРУЖЕННЫЕ USB-ПРИНТЕРЫ"/>
   <translation tag="DEVICES" ru="УСТРОЙСТВА"/>
+  <translation tag="DHCP" ru="DHCP"/>
   <translation tag="DISABLED" ru="ОТКЛЮЧЕНО"/>
   <translation tag="DISCOVERED PRINTERS" ru="НАЙДЕННЫЕ ПРИНТЕРЫ"/>
   <translation tag="DISPLAY" ru="ДИСПЛЕЙ"/>
+  <translation tag="DNS server" ru="DNS-сервер"/>
   <translation tag="DONE" ru="ГОТОВО"/>
   <translation tag="Damping (Kd)" ru="Демпфирование (Kd)"/>
   <translation tag="Danger" ru="Опасность"/>
@@ -1224,10 +1231,14 @@
   <translation tag="Enter New PIN" ru="Введите новый PIN"/>
   <translation tag="Enter PIN" ru="Введите PIN"/>
   <translation tag="Enter WiFi Password" ru="Введите пароль WiFi"/>
+  <translation tag="Enter a DNS server address." ru="Введите адрес DNS-сервера."/>
+  <translation tag="Enter a gateway address." ru="Введите адрес шлюза."/>
   <translation tag="Enter a length between 100 and {:.0f}mm" ru="Введите длину от 100 до {:.0f}мм"/>
   <translation tag="Enter a multiplier between 0.5 and 2.0" ru="Введите множитель от 0,5 до 2,0"/>
   <translation tag="Enter a name for this profile" ru="Введите имя для этого профиля"/>
   <translation tag="Enter a name for your custom theme:" ru="Введите название для вашей темы:"/>
+  <translation tag="Enter a subnet mask." ru="Введите маску подсети."/>
+  <translation tag="Enter an IP address." ru="Введите IP-адрес."/>
   <translation tag="Enter network name" ru="Введите имя сети"/>
   <translation tag="Enter password" ru="Введите пароль"/>
   <translation tag="Enter printer IP address first" ru="Сначала введите IP-адрес принтера"/>
@@ -1261,6 +1272,7 @@
   <translation tag="Est. Duration" ru="Ожид. длительность"/>
   <translation tag="Estimating..." ru="Оценка..."/>
   <translation tag="Ethernet" ru="Ethernet"/>
+  <translation tag="Ethernet IPv4" ru="IPv4 Ethernet"/>
   <translation tag="Events appear here after sessions and prints" ru="События появятся здесь после сессий и печатей"/>
   <translation tag="Every browser needs a new code to control this screen" ru="Каждому браузеру понадобится новый код для управления этим экраном"/>
   <translation tag="Every browser that can control this screen will need the new pairing code." ru="Каждому браузеру, который может управлять этим экраном, понадобится новый код сопряжения."/>
@@ -1612,6 +1624,7 @@
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ru="Игра окончена!&#10;Счёт: {}&#10;Нажмите, чтобы начать заново"/>
   <translation tag="Gate" ru="Шлюз"/>
   <translation tag="Gates" ru="Шлюзы"/>
+  <translation tag="Gateway" ru="Шлюз"/>
   <translation tag="Gear Buffer Speed" ru="Скорость шестерни от буфера"/>
   <translation tag="Gear Spool Speed" ru="Скорость шестерни от катушки"/>
   <translation tag="Gear Unload Speed" ru="Скорость выгрузки шестерни"/>
@@ -1811,8 +1824,11 @@
   <translation tag="INDX macros not recognized" ru="Макросы INDX не распознаны"/>
   <translation tag="INPUTS" ru="ВХОДЫ"/>
   <translation tag="IP Address / Hostname" ru="IP-адрес / Имя хоста"/>
+  <translation tag="IP address" ru="IP-адрес"/>
   <translation tag="IP:" ru="IP:"/>
   <translation tag="IPP error: {}" ru="Ошибка IPP: {}"/>
+  <translation tag="IPv4" ru="IPv4"/>
+  <translation tag="IPv4 settings saved" ru="Настройки IPv4 сохранены"/>
   <translation tag="Icon" ru="Иконка"/>
   <translation tag="Identify" ru="Определить"/>
   <translation tag="Identify failed: {}" ru="Не удалось определить: {}"/>
@@ -1925,6 +1941,8 @@
   <translation tag="KEYBOARD LAYOUT" ru="РАСКЛАДКА КЛАВИАТУРЫ"/>
   <translation tag="KLICKY CONTROLS" ru="УПРАВЛЕНИЕ KLICKY"/>
   <translation tag="Kalico" ru="Kalico"/>
+  <translation tag="Keep" ru="Оставить"/>
+  <translation tag="Keep %s?" ru="Оставить %s?"/>
   <translation tag="Keep Navigation Bar" ru="Сохранить панель навигации"/>
   <translation tag="Keep Printing" ru="Продолжить печать"/>
   <translation tag="Keep Spool Info on Eject" ru="Сохранять данные катушки при извлечении"/>
@@ -2772,6 +2790,7 @@
   <translation tag="Preview" ru="Предпросмотр"/>
   <translation tag="Preview Sounds" ru="Предпросмотр звуков"/>
   <translation tag="Previous" ru="Прежняя"/>
+  <translation tag="Previous IPv4 settings restored" ru="Прежние настройки IPv4 восстановлены"/>
   <translation tag="Price" ru="Цена"/>
   <translation tag="Price, location, lot, notes" ru="Цена, место, партия, заметки"/>
   <translation tag="Primary" ru="Основной"/>
@@ -3005,6 +3024,7 @@
   <translation tag="Re-syncs Happy Hare&apos;s tracked state with the hardware." ru="Повторно синхронизирует отслеживаемое состояние Happy Hare с оборудованием."/>
   <translation tag="Re-test" ru="Повторить тест"/>
   <translation tag="Reaches {:g} mm from the center, past this printer&apos;s {:g} mm radius." ru="Достигает {:g} мм от центра, за пределами радиуса {:g} мм этого принтера."/>
+  <translation tag="Reading the current settings..." ru="Чтение текущих настроек..."/>
   <translation tag="Readings don&apos;t repeat" ru="Показания не повторяются"/>
   <translation tag="Readings from extra temperature sensors" ru="Показания доп. датчиков температуры"/>
   <translation tag="Ready" ru="Готов"/>
@@ -3195,6 +3215,7 @@
   <translation tag="Retraction distance to clear extruder gears" ru="Расстояние ретракции для выхода из шестерён экструдера"/>
   <translation tag="Retry" ru="Повторить"/>
   <translation tag="Reverse Multiplier" ru="Множитель обратного хода"/>
+  <translation tag="Revert now" ru="Вернуть сейчас"/>
   <translation tag="Review" ru="Проверить"/>
   <translation tag="Review detected hardware validation issues" ru="Просмотр обнаруженных проблем валидации оборудования"/>
   <translation tag="Review your configuration below, then click Finish to save" ru="Проверьте конфигурацию ниже, затем нажмите «Готово» для сохранения"/>
@@ -3602,6 +3623,7 @@
   <translation tag="Startup Brightness" ru="Яркость при запуске"/>
   <translation tag="Startup, auto-control, and macro devices" ru="Запуск, автоуправление и макро-устройства"/>
   <translation tag="State" ru="Состояние"/>
+  <translation tag="Static" ru="Статический"/>
   <translation tag="Status" ru="Статус"/>
   <translation tag="Status icons" ru="Иконки статуса"/>
   <translation tag="Std Deviation" ru="Станд. отклонение"/>
@@ -3632,6 +3654,7 @@
   <translation tag="Storage" ru="Хранилище"/>
   <translation tag="Storage report" ru="Отчёт о хранилище"/>
   <translation tag="Stow" ru="Убрать"/>
+  <translation tag="Subnet mask" ru="Маска подсети"/>
   <translation tag="Subtle" ru="Сдержанный"/>
   <translation tag="Success" ru="Успех"/>
   <translation tag="Success Rate" ru="Процент успеха"/>
@@ -3764,8 +3787,11 @@
   <translation tag="The CFS odometer hardware is faulty and needs repair or replacement" ru="Оборудование одометра CFS неисправно и требует ремонта или замены"/>
   <translation tag="The CFS ran out of filament in {}. Printing continues on what is left in the tube." ru="В CFS закончился филамент в {}. Печать продолжается остатком в трубке."/>
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." ru="В CFS закончился филамент. Печать продолжается остатком в трубке."/>
+  <translation tag="The DNS server is not a valid address." ru="DNS-сервер не является допустимым адресом."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." ru="Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например, пропускать сетку стола для быстрых перепечаток."/>
   <translation tag="The IFS state file can&apos;t be read." ru="Не удаётся прочитать файл состояния IFS."/>
+  <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." ru="IP-адрес не может быть сетевым или широковещательным адресом подсети."/>
+  <translation tag="The IP address is not a valid address." ru="IP-адрес не является допустимым адресом."/>
   <translation tag="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings." ru="Плагин таймлапса Moonraker установлен. Способ записи задается в настройках таймлапса."/>
   <translation tag="The PEI sheet is still on the bed. Take it off, then tap Next." ru="Лист PEI всё ещё на столе. Снимите его и нажмите «Далее»."/>
   <translation tag="The Spoolman spool currently loaded" ru="Текущая катушка Spoolman"/>
@@ -3784,6 +3810,7 @@
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." ru="Нагреватель камеры может запускать цикл сушки филамента. Запустите его из диалога сушки."/>
   <translation tag="The chamber wait already ended; nothing was stopped." ru="Ожидание камеры уже закончилось; ничего не остановлено."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." ru="Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны."/>
+  <translation tag="The change was not applied: the current settings could not be saved for a revert." ru="Изменение не применено: не удалось сохранить текущие настройки для отката."/>
   <translation tag="The connection to Klipper was lost" ru="Связь с Klipper потеряна"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." ru="Платы контроллеров, на которых работает Klipper. Их загрузку можно посмотреть в системных настройках."/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ru="Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм"/>
@@ -3798,6 +3825,10 @@
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ru="Разница выросла после ослабления ({0}). Проверьте, что крутили натяжитель: {0}."/>
   <translation tag="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner." ru="Разница выросла после натяжения ({0}). Проверьте, что крутили натяжитель: {0}."/>
   <translation tag="The gap is not closing. Something besides tension may be shaping it." ru="Разница не сокращается. Возможно, влияет что-то помимо натяжения."/>
+  <translation tag="The gateway cannot be the printer&apos;s own address." ru="Шлюз не может совпадать с адресом самого принтера."/>
+  <translation tag="The gateway cannot be the subnet&apos;s network or broadcast address." ru="Шлюз не может быть сетевым или широковещательным адресом подсети."/>
+  <translation tag="The gateway is not a valid address." ru="Шлюз не является допустимым адресом."/>
+  <translation tag="The gateway is not on the same subnet as the IP address." ru="Шлюз находится не в той же подсети, что и IP-адрес."/>
   <translation tag="The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog." ru="Подогреваемый стол и корпус могут сушить катушки, лежащие на столе. Запустите цикл из диалога сушки на столе."/>
   <translation tag="The heater can&apos;t be changed while the printer is waiting." ru="Нагреватель нельзя изменить, пока принтер ожидает."/>
   <translation tag="The heater did not accept the printer&apos;s credentials." ru="Нагреватель не принял учётные данные принтера."/>
@@ -3830,6 +3861,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." ru="Плагин не может подключиться к камере, поэтому фотографирует этот экран."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." ru="Плагин не может сохранить данные для восстановления."/>
   <translation tag="The plugin is turned off in moonraker.conf." ru="Плагин выключен в moonraker.conf."/>
+  <translation tag="The previous settings come back in %d seconds unless you keep these." ru="Прежние настройки вернутся через %d с, если вы не оставите эти."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." ru="Печать завершилась до первого слоя. Ничего не изменено."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." ru="Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного."/>
   <translation tag="The print is on its last layer." ru="Печатается последний слой."/>
@@ -3882,6 +3914,7 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." ru="Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ru="Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание"/>
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
+  <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or /24." ru="Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или /24."/>
   <translation tag="The time, date, and system uptime" ru="Время, дата и время работы системы"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ru="Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."/>
   <translation tag="The tool change under way finished, and the tool was not parked" ru="Текущая смена инструмента завершена, инструмент не припаркован"/>
@@ -4212,6 +4245,7 @@
   <translation tag="Upper belt" ru="Верхний ремень"/>
   <translation tag="Uptime" ru="Время работы"/>
   <translation tag="Use Android native keyboard for text input" ru="Использовать нативную клавиатуру Android для ввода текста"/>
+  <translation tag="Use DHCP" ru="Использовать DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" ru="Использовать аппаратный ретракт G10/G11"/>
   <translation tag="Use New Address" ru="Использовать новый адрес"/>
   <translation tag="Use Scan" ru="Взять скан"/>
@@ -4325,6 +4359,7 @@
   <translation tag="WiFi" ru="WiFi"/>
   <translation tag="WiFi Disabled" ru="WiFi отключён"/>
   <translation tag="WiFi Enabled" ru="WiFi включён"/>
+  <translation tag="WiFi IPv4" ru="IPv4 WiFi"/>
   <translation tag="WiFi Network" ru="Сеть WiFi"/>
   <translation tag="WiFi Permission Denied" ru="Нет доступа к WiFi"/>
   <translation tag="WiFi Service Not Running" ru="Служба WiFi не запущена"/>

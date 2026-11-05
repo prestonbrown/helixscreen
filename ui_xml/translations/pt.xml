@@ -884,6 +884,7 @@
   <translation tag="Could not add to queue" pt="Não foi possível adicionar à fila"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." pt="Não foi possível analisar a macro PRINT_START. Algumas opções de impressão podem estar indisponíveis."/>
   <translation tag="Could not answer the connection request" pt="Não foi possível responder à solicitação de conexão"/>
+  <translation tag="Could not apply the new IPv4 settings." pt="Não foi possível aplicar as novas configurações IPv4."/>
   <translation tag="Could not change printer.cfg" pt="Não foi possível alterar printer.cfg"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." pt="Não foi possível verificar status da webcam.&#10;Verifique a conexão da impressora."/>
   <translation tag="Could not check {} - it stays in the queue" pt="Não foi possível verificar {} – permanece na fila"/>
@@ -900,11 +901,14 @@
   <translation tag="Could not open a browser for the update" pt="Não foi possível abrir um navegador para a atualização"/>
   <translation tag="Could not parse tips database" pt="Não foi possível analisar o banco de dados de dicas"/>
   <translation tag="Could not reach Spoolman at" pt="Não foi possível alcançar o Spoolman em"/>
+  <translation tag="Could not read the current IPv4 settings." pt="Não foi possível ler as configurações IPv4 atuais."/>
   <translation tag="Could not read the printer&apos;s storage" pt="Não foi possível ler o armazenamento da impressora"/>
   <translation tag="Could not read the screw adjustments from the printer" pt="Não foi possível ler os ajustes dos parafusos da impressora"/>
   <translation tag="Could not remove the job from the queue" pt="Não foi possível remover o trabalho da fila"/>
   <translation tag="Could not reset the printer image tags" pt="Falha ao resetar as marcações da imagem"/>
   <translation tag="Could not resolve printer RFCOMM channel" pt="Não foi possível resolver o canal RFCOMM da impressora"/>
+  <translation tag="Could not restore the previous IPv4 settings" pt="Não foi possível restaurar as configurações IPv4 anteriores"/>
+  <translation tag="Could not restore the previous IPv4 settings. They are restored at the next start." pt="Não foi possível restaurar as configurações IPv4 anteriores. Elas serão restauradas na próxima inicialização."/>
   <translation tag="Could not save filament" pt="Não foi possível salvar o filamento"/>
   <translation tag="Could not save the drying state" pt="Não foi possível salvar o estado da secagem"/>
   <translation tag="Could not save the drying state: nothing was heated" pt="Não foi possível salvar o estado da secagem: nada foi aquecido"/>
@@ -951,6 +955,7 @@
   <translation tag="Current: %d°C | Target: %d°C" pt="Atual: %d°C | Alvo: %d°C"/>
   <translation tag="Currently Loaded" pt="Atualmente carregado"/>
   <translation tag="Currently printing" pt="Imprimindo atualmente"/>
+  <translation tag="Currently:" pt="Atual:"/>
   <translation tag="Curves differ in shape. Check the mechanics before chasing a perfect match." pt="As curvas diferem na forma. Verifique a mecânica antes de buscar uma igualdade perfeita."/>
   <translation tag="Custom" pt="Personalizado"/>
   <translation tag="Custom..." pt="Personalizado..."/>
@@ -974,9 +979,11 @@
   <translation tag="Cycling tools..." pt="Alternando ferramentas..."/>
   <translation tag="DETECTED USB PRINTERS" pt="IMPRESSORAS USB DETECTADAS"/>
   <translation tag="DEVICES" pt="DISPOSITIVOS"/>
+  <translation tag="DHCP" pt="DHCP"/>
   <translation tag="DISABLED" pt="DESABILITADO"/>
   <translation tag="DISCOVERED PRINTERS" pt="IMPRESSORAS DESCOBERTAS"/>
   <translation tag="DISPLAY" pt="TELA"/>
+  <translation tag="DNS server" pt="Servidor DNS"/>
   <translation tag="DONE" pt="CONCLUÍDO"/>
   <translation tag="Damping (Kd)" pt="Amortecimento (Kd)"/>
   <translation tag="Danger" pt="Perigo"/>
@@ -1179,10 +1186,14 @@
   <translation tag="Enter New PIN" pt="Digite o Novo PIN"/>
   <translation tag="Enter PIN" pt="Digite o PIN"/>
   <translation tag="Enter WiFi Password" pt="Digite a Senha WiFi"/>
+  <translation tag="Enter a DNS server address." pt="Digite o endereço de um servidor DNS."/>
+  <translation tag="Enter a gateway address." pt="Digite o endereço do gateway."/>
   <translation tag="Enter a length between 100 and {:.0f}mm" pt="Insira um comprimento entre 100 e {:.0f}mm"/>
   <translation tag="Enter a multiplier between 0.5 and 2.0" pt="Insira um multiplicador entre 0.5 e 2.0"/>
   <translation tag="Enter a name for this profile" pt="Digite um nome para este perfil"/>
   <translation tag="Enter a name for your custom theme:" pt="Digite um nome para seu tema personalizado:"/>
+  <translation tag="Enter a subnet mask." pt="Digite uma máscara de sub-rede."/>
+  <translation tag="Enter an IP address." pt="Digite um endereço IP."/>
   <translation tag="Enter network name" pt="Digite o nome da rede"/>
   <translation tag="Enter password" pt="Digite a senha"/>
   <translation tag="Enter printer IP address first" pt="Insira o endereço IP da impressora primeiro"/>
@@ -1216,6 +1227,7 @@
   <translation tag="Est. Duration" pt="Duração Est."/>
   <translation tag="Estimating..." pt="Estimando..."/>
   <translation tag="Ethernet" pt="Ethernet"/>
+  <translation tag="Ethernet IPv4" pt="IPv4 Ethernet"/>
   <translation tag="Events appear here after sessions and prints" pt="Eventos aparecem aqui após sessões e impressões"/>
   <translation tag="Every browser needs a new code to control this screen" pt="Cada navegador precisará de um novo código para controlar esta tela"/>
   <translation tag="Every browser that can control this screen will need the new pairing code." pt="Cada navegador que pode controlar esta tela precisará do novo código de pareamento."/>
@@ -1564,6 +1576,7 @@
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" pt="Fim de jogo!&#10;Pontuação: {}&#10;Toque para reiniciar"/>
   <translation tag="Gate" pt="Gate"/>
   <translation tag="Gates" pt="Gates"/>
+  <translation tag="Gateway" pt="Gateway"/>
   <translation tag="Gear Buffer Speed" pt="Velocidade da engrenagem a partir do buffer"/>
   <translation tag="Gear Spool Speed" pt="Velocidade da engrenagem a partir do carretel"/>
   <translation tag="Gear Unload Speed" pt="Velocidade de descarregamento da engrenagem"/>
@@ -1763,8 +1776,11 @@
   <translation tag="INDX macros not recognized" pt="Macros do INDX não reconhecidas"/>
   <translation tag="INPUTS" pt="ENTRADAS"/>
   <translation tag="IP Address / Hostname" pt="Endereço IP / Hostname"/>
+  <translation tag="IP address" pt="Endereço IP"/>
   <translation tag="IP:" pt="IP:"/>
   <translation tag="IPP error: {}" pt="Erro IPP: {}"/>
+  <translation tag="IPv4" pt="IPv4"/>
+  <translation tag="IPv4 settings saved" pt="Configurações IPv4 salvas"/>
   <translation tag="Icon" pt="Ícone"/>
   <translation tag="Identify" pt="Identificar"/>
   <translation tag="Identify failed: {}" pt="Falha ao identificar: {}"/>
@@ -1877,6 +1893,8 @@
   <translation tag="KEYBOARD LAYOUT" pt="LAYOUT DO TECLADO"/>
   <translation tag="KLICKY CONTROLS" pt="CONTROLES KLICKY"/>
   <translation tag="Kalico" pt="Kalico"/>
+  <translation tag="Keep" pt="Manter"/>
+  <translation tag="Keep %s?" pt="Manter %s?"/>
   <translation tag="Keep Navigation Bar" pt="Manter barra de navegação"/>
   <translation tag="Keep Printing" pt="Continuar Imprimindo"/>
   <translation tag="Keep Spool Info on Eject" pt="Manter Informações do Carretel ao Ejetar"/>
@@ -2721,6 +2739,7 @@
   <translation tag="Preview" pt="Pré-visualização"/>
   <translation tag="Preview Sounds" pt="Visualizar Sons"/>
   <translation tag="Previous" pt="Anterior"/>
+  <translation tag="Previous IPv4 settings restored" pt="Configurações IPv4 anteriores restauradas"/>
   <translation tag="Price" pt="Preço"/>
   <translation tag="Price, location, lot, notes" pt="Preço, local, lote, notas"/>
   <translation tag="Primary" pt="Primário"/>
@@ -2948,6 +2967,7 @@
   <translation tag="Re-syncs Happy Hare&apos;s tracked state with the hardware." pt="Ressincroniza o estado rastreado do Happy Hare com o hardware."/>
   <translation tag="Re-test" pt="Testar novamente"/>
   <translation tag="Reaches {:g} mm from the center, past this printer&apos;s {:g} mm radius." pt="Chega a {:g} mm do centro, além do raio de {:g} mm desta impressora."/>
+  <translation tag="Reading the current settings..." pt="Lendo as configurações atuais..."/>
   <translation tag="Readings don&apos;t repeat" pt="As leituras não se repetem"/>
   <translation tag="Readings from extra temperature sensors" pt="Leituras de sensores adicionais"/>
   <translation tag="Ready" pt="Pronto"/>
@@ -3138,6 +3158,7 @@
   <translation tag="Retraction distance to clear extruder gears" pt="Distância de retração para liberar as engrenagens do extrusor"/>
   <translation tag="Retry" pt="Tentar Novamente"/>
   <translation tag="Reverse Multiplier" pt="Multiplicador de retrocesso"/>
+  <translation tag="Revert now" pt="Reverter agora"/>
   <translation tag="Review" pt="Revisar"/>
   <translation tag="Review detected hardware validation issues" pt="Revisar problemas de validação de hardware detectados"/>
   <translation tag="Review your configuration below, then click Finish to save" pt="Revise sua configuração abaixo e clique em Finalizar para salvar"/>
@@ -3539,6 +3560,7 @@
   <translation tag="Startup Brightness" pt="Brilho na inicialização"/>
   <translation tag="Startup, auto-control, and macro devices" pt="Inicialização, controle automático e dispositivos de macro"/>
   <translation tag="State" pt="Estado"/>
+  <translation tag="Static" pt="Estático"/>
   <translation tag="Status" pt="Estado"/>
   <translation tag="Status icons" pt="Ícones de status"/>
   <translation tag="Std Deviation" pt="Desvio Padrão"/>
@@ -3569,6 +3591,7 @@
   <translation tag="Storage" pt="Armazenamento"/>
   <translation tag="Storage report" pt="Relatório de armazenamento"/>
   <translation tag="Stow" pt="Guardar"/>
+  <translation tag="Subnet mask" pt="Máscara de sub-rede"/>
   <translation tag="Subtle" pt="Sutil"/>
   <translation tag="Success" pt="Sucesso"/>
   <translation tag="Success Rate" pt="Taxa de Sucesso"/>
@@ -3701,8 +3724,11 @@
   <translation tag="The CFS odometer hardware is faulty and needs repair or replacement" pt="O hardware do odômetro do CFS está com defeito e precisa de reparo ou substituição"/>
   <translation tag="The CFS ran out of filament in {}. Printing continues on what is left in the tube." pt="O CFS ficou sem filamento em {}. A impressão continua com o que resta no tubo."/>
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." pt="O CFS ficou sem filamento. A impressão continua com o que resta no tubo."/>
+  <translation tag="The DNS server is not a valid address." pt="O servidor DNS não é um endereço válido."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." pt="O plugin HelixPrint permite modificações rápidas de G-code diretamente na sua impressora—como pular malha da mesa para reimpressões rápidas."/>
   <translation tag="The IFS state file can&apos;t be read." pt="Não é possível ler o arquivo de estado do IFS."/>
+  <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." pt="O endereço IP não pode ser o endereço de rede ou de broadcast da sub-rede."/>
+  <translation tag="The IP address is not a valid address." pt="O endereço IP não é um endereço válido."/>
   <translation tag="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings." pt="O plugin de timelapse do Moonraker está instalado. Defina como ele grava nas configurações de timelapse."/>
   <translation tag="The PEI sheet is still on the bed. Take it off, then tap Next." pt="A folha PEI ainda está na mesa. Retire-a e toque em Próximo."/>
   <translation tag="The Spoolman spool currently loaded" pt="O carretel do Spoolman em uso"/>
@@ -3721,6 +3747,7 @@
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." pt="O aquecedor da câmara pode executar um ciclo de secagem de filamento. Inicie pelo diálogo de secagem."/>
   <translation tag="The chamber wait already ended; nothing was stopped." pt="A espera da câmara já terminou; nada foi parado."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." pt="A mudança tem efeito depois que o Klipper reiniciar. O firmware Klipper será reiniciado. Operações ativas serão interrompidas."/>
+  <translation tag="The change was not applied: the current settings could not be saved for a revert." pt="A alteração não foi aplicada: não foi possível salvar as configurações atuais para reverter."/>
   <translation tag="The connection to Klipper was lost" pt="A conexão com o Klipper foi perdida"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." pt="As placas controladoras em que o Klipper roda. Veja a carga delas nas configurações do sistema."/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" pt="A lâmina não retornou. Verifique se há filamento enrolado no mecanismo de corte"/>
@@ -3735,6 +3762,10 @@
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." pt="A diferença aumentou após afrouxar {0}. Confira se girou o tensor de {0}."/>
   <translation tag="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner." pt="A diferença aumentou após apertar {0}. Confira se girou o tensor de {0}."/>
   <translation tag="The gap is not closing. Something besides tension may be shaping it." pt="A diferença não está diminuindo. Algo além da tensão pode estar influindo."/>
+  <translation tag="The gateway cannot be the printer&apos;s own address." pt="O gateway não pode ser o próprio endereço da impressora."/>
+  <translation tag="The gateway cannot be the subnet&apos;s network or broadcast address." pt="O gateway não pode ser o endereço de rede ou de broadcast da sub-rede."/>
+  <translation tag="The gateway is not a valid address." pt="O gateway não é um endereço válido."/>
+  <translation tag="The gateway is not on the same subnet as the IP address." pt="O gateway não está na mesma sub-rede que o endereço IP."/>
   <translation tag="The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog." pt="A mesa aquecida e o gabinete podem secar carretéis colocados sobre a mesa. Inicie um ciclo pelo diálogo de secagem da mesa."/>
   <translation tag="The heater can&apos;t be changed while the printer is waiting." pt="O aquecedor não pode ser alterado enquanto a impressora aguarda."/>
   <translation tag="The heater did not accept the printer&apos;s credentials." pt="O aquecedor não aceitou as credenciais da impressora."/>
@@ -3767,6 +3798,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." pt="O plugin não alcança a câmera, então esta tela tira as fotos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." pt="O plugin não consegue salvar seus dados de recuperação."/>
   <translation tag="The plugin is turned off in moonraker.conf." pt="O plugin está desligado no moonraker.conf."/>
+  <translation tag="The previous settings come back in %d seconds unless you keep these." pt="As configurações anteriores voltam em %d segundos, a menos que você mantenha estas."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." pt="A impressão terminou antes de qualquer camada ser impressa. Nada foi alterado."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." pt="A impressão é cancelada e você escolhe a melhor faixa do que foi impresso até agora."/>
   <translation tag="The print is on its last layer." pt="A impressão está na última camada."/>
@@ -3819,6 +3851,7 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." pt="A posição salva é mantida. Reconecte ou reinicie a tela para que a retomada seja oferecida de novo."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" pt="Não é possível ler o sensor desta unidade CFS. Verifique a conexão, ou a unidade pode precisar de manutenção"/>
   <translation tag="The speed of one fan you choose" pt="A velocidade de uma ventoinha escolhida"/>
+  <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or /24." pt="A máscara de sub-rede não é válida. Use um formato como 255.255.255.0 ou /24."/>
   <translation tag="The time, date, and system uptime" pt="Hora, data e tempo ativo"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." pt="A pasta de timelapse ou de logs sobrepõe-se a uma pasta protegida, por isso a limpeza está desligada."/>
   <translation tag="The tool change under way finished, and the tool was not parked" pt="A troca de ferramenta em andamento terminou e a ferramenta não foi estacionada"/>
@@ -4149,6 +4182,7 @@
   <translation tag="Upper belt" pt="Correia superior"/>
   <translation tag="Uptime" pt="Tempo Ativo"/>
   <translation tag="Use Android native keyboard for text input" pt="Usar teclado nativo do Android para entrada de texto"/>
+  <translation tag="Use DHCP" pt="Usar DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" pt="Usar retração de firmware G10/G11"/>
   <translation tag="Use New Address" pt="Usar novo endereço"/>
   <translation tag="Use Scan" pt="Usar leitura"/>
@@ -4262,6 +4296,7 @@
   <translation tag="WiFi" pt="WiFi"/>
   <translation tag="WiFi Disabled" pt="WiFi Desativado"/>
   <translation tag="WiFi Enabled" pt="WiFi Ativado"/>
+  <translation tag="WiFi IPv4" pt="IPv4 WiFi"/>
   <translation tag="WiFi Network" pt="Rede WiFi"/>
   <translation tag="WiFi Permission Denied" pt="Permissão de WiFi negada"/>
   <translation tag="WiFi Service Not Running" pt="O serviço WiFi não está em execução"/>

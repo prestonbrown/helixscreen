@@ -8,6 +8,7 @@
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
+#include "ui_overlay_ipv4_settings.h"
 #include "ui_step_progress.h"
 #include "ui_subject_registry.h"
 #include "ui_timer_guard.h"
@@ -100,6 +101,8 @@ NetworkSettingsOverlay::NetworkSettingsOverlay() {
     std::memset(eth_mac_buffer_, 0, sizeof(eth_mac_buffer_));
     std::memset(current_ssid_, 0, sizeof(current_ssid_));
     std::memset(password_modal_ssid_buffer_, 0, sizeof(password_modal_ssid_buffer_));
+    std::memset(wifi_ipv4_summary_buffer_, 0, sizeof(wifi_ipv4_summary_buffer_));
+    std::memset(eth_ipv4_summary_buffer_, 0, sizeof(eth_ipv4_summary_buffer_));
 
     spdlog::debug("[NetworkSettingsOverlay] Instance created");
 }
@@ -182,6 +185,13 @@ void NetworkSettingsOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(eth_mac_address_, eth_mac_buffer_, "", "eth_mac_address", subjects_);
 
     // Network test subjects
+    UI_MANAGED_SUBJECT_INT(wifi_ipv4_row_visible_, 0, "wifi_ipv4_row_visible", subjects_);
+    UI_MANAGED_SUBJECT_STRING(wifi_ipv4_summary_, wifi_ipv4_summary_buffer_, "",
+                              "wifi_ipv4_summary", subjects_);
+    UI_MANAGED_SUBJECT_INT(eth_ipv4_row_visible_, 0, "eth_ipv4_row_visible", subjects_);
+    UI_MANAGED_SUBJECT_STRING(eth_ipv4_summary_, eth_ipv4_summary_buffer_, "", "eth_ipv4_summary",
+                              subjects_);
+
     UI_MANAGED_SUBJECT_INT(any_network_connected_, 0, "any_network_connected", subjects_);
     UI_MANAGED_SUBJECT_INT(test_running_, 0, "test_running", subjects_);
     UI_MANAGED_SUBJECT_INT(test_gateway_status_, 0, "test_gateway_status", subjects_);
@@ -221,6 +231,14 @@ void NetworkSettingsOverlay::register_callbacks() {
         // Scoped name: the XML callback namespace is flat and other overlays have forget flows.
         {"on_network_settings_forget",
          [](lv_event_t*) { get_network_settings_overlay().handle_network_settings_forget(); }},
+        {"on_network_settings_wifi_ipv4",
+         [](lv_event_t*) {
+             get_network_settings_overlay().handle_ipv4_row_clicked(helix::net::Ipv4Link::Wifi);
+         }},
+        {"on_network_settings_eth_ipv4",
+         [](lv_event_t*) {
+             get_network_settings_overlay().handle_ipv4_row_clicked(helix::net::Ipv4Link::Ethernet);
+         }},
         {"on_network_settings_country_changed",
          [](lv_event_t* e) { get_network_settings_overlay().handle_country_changed(e); }},
         // Network test modal
@@ -350,6 +368,7 @@ void NetworkSettingsOverlay::on_activate() {
         lv_subject_set_int(&wifi_can_toggle_radio_, wifi_manager_->supports_radio_toggle() ? 1 : 0);
     }
     refresh_country();
+    refresh_ipv4_rows();
 
     // Start scanning if WiFi enabled
     if (wifi_manager_ && wifi_manager_->is_enabled()) {
@@ -437,6 +456,31 @@ void NetworkSettingsOverlay::refresh_transport_status() {
     update_wifi_status();
     update_ethernet_status();
     update_any_network_connected();
+    refresh_ipv4_rows();
+}
+
+void NetworkSettingsOverlay::refresh_ipv4_rows() {
+    auto token = lifetime_.token();
+    const auto summary_into = [](lv_subject_t& subject) {
+        return [&subject](bool ok, const helix::net::Ipv4Config& config) {
+            lv_subject_copy_string(&subject, ok ? helix::settings::ipv4_row_summary(config).c_str()
+                                                : lv_tr("Unknown"));
+        };
+    };
+    if (wifi_manager_ && wifi_manager_->supports_ipv4_config()) {
+        wifi_manager_->get_ipv4_config_async(token, summary_into(wifi_ipv4_summary_));
+    }
+    const bool eth_supported = ethernet_manager_ && ethernet_manager_->supports_ipv4_config();
+    lv_subject_set_int(&eth_ipv4_row_visible_, eth_supported ? 1 : 0);
+    if (eth_supported) {
+        ethernet_manager_->get_ipv4_config_async(token, summary_into(eth_ipv4_summary_));
+    }
+}
+
+void NetworkSettingsOverlay::handle_ipv4_row_clicked(helix::net::Ipv4Link link) {
+    const bool wifi = link == helix::net::Ipv4Link::Wifi;
+    const std::string current_ip = wifi ? ip_buffer_ : eth_ip_buffer_;
+    helix::settings::get_ipv4_settings_overlay().open(parent_screen_, link, current_ip);
 }
 
 void NetworkSettingsOverlay::refresh_band_capability() {
@@ -558,6 +602,9 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
     lv_subject_set_int(&wifi_unresponsive_, status.unresponsive ? 1 : 0);
     const bool connected = status.connected;
     lv_subject_set_int(&wifi_connected_, connected ? 1 : 0);
+    // The setting belongs to the network joined now, so it shows only while joined.
+    lv_subject_set_int(&wifi_ipv4_row_visible_,
+                       connected && wifi_manager_ && wifi_manager_->supports_ipv4_config() ? 1 : 0);
 
     if (connected) {
         const std::string& ssid = status.ssid;

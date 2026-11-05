@@ -884,6 +884,7 @@
   <translation tag="Could not add to queue" ja="キューに追加できませんでした"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." ja="PRINT_START マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。"/>
   <translation tag="Could not answer the connection request" ja="接続リクエストに応答できませんでした"/>
+  <translation tag="Could not apply the new IPv4 settings." ja="新しいIPv4設定を適用できませんでした。"/>
   <translation tag="Could not change printer.cfg" ja="printer.cfg を変更できませんでした"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." ja="ウェブカメラの状態を確認できませんでした。&#10;プリンター接続を確認してください。"/>
   <translation tag="Could not check {} - it stays in the queue" ja="{} を確認できませんでした – キューに残ります"/>
@@ -900,11 +901,14 @@
   <translation tag="Could not open a browser for the update" ja="更新用のブラウザを開けませんでした"/>
   <translation tag="Could not parse tips database" ja="ヒントデータベースを解析できませんでした"/>
   <translation tag="Could not reach Spoolman at" ja="Spoolman に接続できません:"/>
+  <translation tag="Could not read the current IPv4 settings." ja="現在のIPv4設定を読み取れませんでした。"/>
   <translation tag="Could not read the printer&apos;s storage" ja="プリンターのストレージを読み取れませんでした"/>
   <translation tag="Could not read the screw adjustments from the printer" ja="プリンターからネジ調整を読み取れませんでした"/>
   <translation tag="Could not remove the job from the queue" ja="キューからジョブを削除できませんでした"/>
   <translation tag="Could not reset the printer image tags" ja="プリンター画像のタグのリセットに失敗しました"/>
   <translation tag="Could not resolve printer RFCOMM channel" ja="プリンターの RFCOMM チャンネルを解決できませんでした"/>
+  <translation tag="Could not restore the previous IPv4 settings" ja="以前のIPv4設定を復元できませんでした"/>
+  <translation tag="Could not restore the previous IPv4 settings. They are restored at the next start." ja="以前のIPv4設定を復元できませんでした。次回の起動時に復元されます。"/>
   <translation tag="Could not save filament" ja="フィラメントを保存できませんでした"/>
   <translation tag="Could not save the drying state" ja="乾燥の状態を保存できませんでした"/>
   <translation tag="Could not save the drying state: nothing was heated" ja="乾燥の状態を保存できませんでした: 何も加熱していません"/>
@@ -951,6 +955,7 @@
   <translation tag="Current: %d°C | Target: %d°C" ja="現在: %d°C | 目標: %d°C"/>
   <translation tag="Currently Loaded" ja="現在ロード中"/>
   <translation tag="Currently printing" ja="印刷中"/>
+  <translation tag="Currently:" ja="現在:"/>
   <translation tag="Curves differ in shape. Check the mechanics before chasing a perfect match." ja="カーブの形が異なります。完全な一致を目指す前に機構を確認してください。"/>
   <translation tag="Custom" ja="カスタム"/>
   <translation tag="Custom..." ja="カスタム..."/>
@@ -974,9 +979,11 @@
   <translation tag="Cycling tools..." ja="ツールを順に交換中..."/>
   <translation tag="DETECTED USB PRINTERS" ja="検出されたUSBプリンター"/>
   <translation tag="DEVICES" ja="デバイス"/>
+  <translation tag="DHCP" ja="DHCP"/>
   <translation tag="DISABLED" ja="無効"/>
   <translation tag="DISCOVERED PRINTERS" ja="検出されたプリンター"/>
   <translation tag="DISPLAY" ja="ディスプレイ"/>
+  <translation tag="DNS server" ja="DNSサーバー"/>
   <translation tag="DONE" ja="完了"/>
   <translation tag="Damping (Kd)" ja="減衰 (Kd)"/>
   <translation tag="Danger" ja="危険"/>
@@ -1179,10 +1186,14 @@
   <translation tag="Enter New PIN" ja="新しい PIN を入力"/>
   <translation tag="Enter PIN" ja="PIN を入力"/>
   <translation tag="Enter WiFi Password" ja="WiFi パスワードを入力"/>
+  <translation tag="Enter a DNS server address." ja="DNSサーバーのアドレスを入力してください。"/>
+  <translation tag="Enter a gateway address." ja="ゲートウェイのアドレスを入力してください。"/>
   <translation tag="Enter a length between 100 and {:.0f}mm" ja="長さは 100〜{:.0f}mm にしてください"/>
   <translation tag="Enter a multiplier between 0.5 and 2.0" ja="倍率は 0.5〜2.0 にしてください"/>
   <translation tag="Enter a name for this profile" ja="このプロファイルの名前を入力"/>
   <translation tag="Enter a name for your custom theme:" ja="カスタムテーマの名前を入力してください:"/>
+  <translation tag="Enter a subnet mask." ja="サブネットマスクを入力してください。"/>
+  <translation tag="Enter an IP address." ja="IPアドレスを入力してください。"/>
   <translation tag="Enter network name" ja="ネットワーク名を入力"/>
   <translation tag="Enter password" ja="パスワードを入力"/>
   <translation tag="Enter printer IP address first" ja="先にプリンターのIPアドレスを入力してください"/>
@@ -1216,6 +1227,7 @@
   <translation tag="Est. Duration" ja="予想時間"/>
   <translation tag="Estimating..." ja="推定中..."/>
   <translation tag="Ethernet" ja="イーサネット"/>
+  <translation tag="Ethernet IPv4" ja="イーサネット IPv4"/>
   <translation tag="Events appear here after sessions and prints" ja="セッションと印刷の後にイベントがここに表示されます"/>
   <translation tag="Every browser needs a new code to control this screen" ja="この画面を操作するには、各ブラウザに新しいコードが必要です"/>
   <translation tag="Every browser that can control this screen will need the new pairing code." ja="この画面を操作できるすべてのブラウザで、新しいペアリングコードが必要になります。"/>
@@ -1564,6 +1576,7 @@
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ja="ゲームオーバー！&#10;スコア: {}&#10;タップでリスタート"/>
   <translation tag="Gate" ja="ゲート"/>
   <translation tag="Gates" ja="ゲート"/>
+  <translation tag="Gateway" ja="ゲートウェイ"/>
   <translation tag="Gear Buffer Speed" ja="ギアのバッファ速度"/>
   <translation tag="Gear Spool Speed" ja="ギアのスプール速度"/>
   <translation tag="Gear Unload Speed" ja="ギアのアンロード速度"/>
@@ -1763,8 +1776,11 @@
   <translation tag="INDX macros not recognized" ja="INDXマクロを認識できません"/>
   <translation tag="INPUTS" ja="入力"/>
   <translation tag="IP Address / Hostname" ja="IPアドレス / ホスト名"/>
+  <translation tag="IP address" ja="IPアドレス"/>
   <translation tag="IP:" ja="IP:"/>
   <translation tag="IPP error: {}" ja="IPP エラー: {}"/>
+  <translation tag="IPv4" ja="IPv4"/>
+  <translation tag="IPv4 settings saved" ja="IPv4設定を保存しました"/>
   <translation tag="Icon" ja="アイコン"/>
   <translation tag="Identify" ja="識別"/>
   <translation tag="Identify failed: {}" ja="識別に失敗しました: {}"/>
@@ -1877,6 +1893,8 @@
   <translation tag="KEYBOARD LAYOUT" ja="キーボードレイアウト"/>
   <translation tag="KLICKY CONTROLS" ja="Klickyコントロール"/>
   <translation tag="Kalico" ja="Kalico"/>
+  <translation tag="Keep" ja="保持"/>
+  <translation tag="Keep %s?" ja="%s を保持しますか?"/>
   <translation tag="Keep Navigation Bar" ja="ナビゲーションバーを維持"/>
   <translation tag="Keep Printing" ja="印刷を続行"/>
   <translation tag="Keep Spool Info on Eject" ja="取り出し時にスプール情報を保持"/>
@@ -2721,6 +2739,7 @@
   <translation tag="Preview" ja="プレビュー"/>
   <translation tag="Preview Sounds" ja="サウンドをプレビュー"/>
   <translation tag="Previous" ja="前回"/>
+  <translation tag="Previous IPv4 settings restored" ja="以前のIPv4設定を復元しました"/>
   <translation tag="Price" ja="価格"/>
   <translation tag="Price, location, lot, notes" ja="価格、場所、ロット、メモ"/>
   <translation tag="Primary" ja="プライマリ"/>
@@ -2948,6 +2967,7 @@
   <translation tag="Re-syncs Happy Hare&apos;s tracked state with the hardware." ja="Happy Hare が追跡している状態をハードウェアと再同期します。"/>
   <translation tag="Re-test" ja="再テスト"/>
   <translation tag="Reaches {:g} mm from the center, past this printer&apos;s {:g} mm radius." ja="中心から{:g} mmに達します。このプリンターの半径は{:g} mmです。"/>
+  <translation tag="Reading the current settings..." ja="現在の設定を読み取り中..."/>
   <translation tag="Readings don&apos;t repeat" ja="測定値が再現しません"/>
   <translation tag="Readings from extra temperature sensors" ja="追加の温度センサーの値"/>
   <translation tag="Ready" ja="準備完了"/>
@@ -3138,6 +3158,7 @@
   <translation tag="Retraction distance to clear extruder gears" ja="エクストルーダーギアから抜くための引き戻し距離"/>
   <translation tag="Retry" ja="再試行"/>
   <translation tag="Reverse Multiplier" ja="逆方向倍率"/>
+  <translation tag="Revert now" ja="今すぐ元に戻す"/>
   <translation tag="Review" ja="確認"/>
   <translation tag="Review detected hardware validation issues" ja="検出されたハードウェア検証の問題を確認"/>
   <translation tag="Review your configuration below, then click Finish to save" ja="以下の設定を確認し、「完了」をクリックして保存してください"/>
@@ -3539,6 +3560,7 @@
   <translation tag="Startup Brightness" ja="起動時の明るさ"/>
   <translation tag="Startup, auto-control, and macro devices" ja="起動、自動制御、マクロデバイス"/>
   <translation tag="State" ja="状態"/>
+  <translation tag="Static" ja="固定"/>
   <translation tag="Status" ja="ステータス"/>
   <translation tag="Status icons" ja="ステータスアイコン"/>
   <translation tag="Std Deviation" ja="標準偏差"/>
@@ -3569,6 +3591,7 @@
   <translation tag="Storage" ja="ストレージ"/>
   <translation tag="Storage report" ja="ストレージレポート"/>
   <translation tag="Stow" ja="格納"/>
+  <translation tag="Subnet mask" ja="サブネットマスク"/>
   <translation tag="Subtle" ja="サトル"/>
   <translation tag="Success" ja="成功"/>
   <translation tag="Success Rate" ja="成功率"/>
@@ -3701,8 +3724,11 @@
   <translation tag="The CFS odometer hardware is faulty and needs repair or replacement" ja="CFS の走行距離計ハードウェアが故障しています。修理または交換が必要です"/>
   <translation tag="The CFS ran out of filament in {}. Printing continues on what is left in the tube." ja="CFSの{}でフィラメントが切れました。チューブに残っている分で印刷を続けます。"/>
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." ja="CFSでフィラメントが切れました。チューブに残っている分で印刷を続けます。"/>
+  <translation tag="The DNS server is not a valid address." ja="DNSサーバーが有効なアドレスではありません。"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." ja="HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。"/>
   <translation tag="The IFS state file can&apos;t be read." ja="IFSの状態ファイルを読み取れません。"/>
+  <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." ja="IPアドレスにサブネットのネットワークアドレスまたはブロードキャストアドレスは使用できません。"/>
+  <translation tag="The IP address is not a valid address." ja="IPアドレスが有効なアドレスではありません。"/>
   <translation tag="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings." ja="Moonrakerのタイムラプスプラグインがインストールされています。録画方法はタイムラプス設定で決められます。"/>
   <translation tag="The PEI sheet is still on the bed. Take it off, then tap Next." ja="PEIシートがまだベッド上にあります。外してから「次へ」をタップしてください。"/>
   <translation tag="The Spoolman spool currently loaded" ja="現在装填中の Spoolman スプール"/>
@@ -3721,6 +3747,7 @@
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." ja="チャンバーヒーターでフィラメントの乾燥サイクルを実行できます。乾燥ダイアログから開始してください。"/>
   <translation tag="The chamber wait already ended; nothing was stopped." ja="チャンバーの待機はすでに終了しました。何も停止していません。"/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." ja="変更は Klipper の再起動後に反映されます。Klipperファームウェアを再起動します。実行中の操作は中断されます。"/>
+  <translation tag="The change was not applied: the current settings could not be saved for a revert." ja="変更は適用されませんでした: 復元用に現在の設定を保存できませんでした。"/>
   <translation tag="The connection to Klipper was lost" ja="Klipperとの接続が切れました"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." ja="Klipperが動作するコントローラーボード。負荷はシステム設定で確認できます。"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ja="カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください"/>
@@ -3735,6 +3762,10 @@
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ja="{0}を緩めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"/>
   <translation tag="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner." ja="{0}を締めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"/>
   <translation tag="The gap is not closing. Something besides tension may be shaping it." ja="差が縮まりません。張力以外の何かが影響している可能性があります。"/>
+  <translation tag="The gateway cannot be the printer&apos;s own address." ja="ゲートウェイにプリンター自身のアドレスは使用できません。"/>
+  <translation tag="The gateway cannot be the subnet&apos;s network or broadcast address." ja="ゲートウェイにサブネットのネットワークアドレスまたはブロードキャストアドレスは使用できません。"/>
+  <translation tag="The gateway is not a valid address." ja="ゲートウェイが有効なアドレスではありません。"/>
+  <translation tag="The gateway is not on the same subnet as the IP address." ja="ゲートウェイがIPアドレスと同じサブネットにありません。"/>
   <translation tag="The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog." ja="ヒートベッドとエンクロージャーで、ベッドに置いたスプールを乾燥できます。ベッド乾燥ダイアログからサイクルを開始してください。"/>
   <translation tag="The heater can&apos;t be changed while the printer is waiting." ja="プリンターの待機中はヒーターを変更できません。"/>
   <translation tag="The heater did not accept the printer&apos;s credentials." ja="ヒーターがプリンターの認証情報を受け付けませんでした。"/>
@@ -3767,6 +3798,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." ja="プラグインがカメラに接続できないため、この画面が写真を撮ります。"/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." ja="プラグインが復帰データを保存できません。"/>
   <translation tag="The plugin is turned off in moonraker.conf." ja="プラグインはmoonraker.confでオフになっています。"/>
+  <translation tag="The previous settings come back in %d seconds unless you keep these." ja="この設定を保持しない場合、%d 秒後に以前の設定に戻ります。"/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." ja="レイヤーが印刷される前に印刷が終了しました。何も変更されていません。"/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." ja="印刷をキャンセルし、ここまで印刷された中から最適な区間を選びます。"/>
   <translation tag="The print is on its last layer." ja="最後のレイヤーを印刷中です。"/>
@@ -3819,6 +3851,7 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." ja="保存された位置は残ります。再接続するか画面を再起動すると、再開が再び提示されます。"/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ja="この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です"/>
   <translation tag="The speed of one fan you choose" ja="選んだファン1つの速度"/>
+  <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or /24." ja="サブネットマスクが無効です。255.255.255.0 や /24 のような形式で入力してください。"/>
   <translation tag="The time, date, and system uptime" ja="時間、日付、稼働時間"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ja="タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"/>
   <translation tag="The tool change under way finished, and the tool was not parked" ja="実行中のツール変更は完了し、ツールは格納されていません"/>
@@ -4149,6 +4182,7 @@
   <translation tag="Upper belt" ja="上ベルト"/>
   <translation tag="Uptime" ja="稼働時間"/>
   <translation tag="Use Android native keyboard for text input" ja="テキスト入力に Android ネイティブキーボードを使用"/>
+  <translation tag="Use DHCP" ja="DHCPを使用"/>
   <translation tag="Use G10/G11 firmware retraction" ja="G10/G11 ファームウェアリトラクションを使用"/>
   <translation tag="Use New Address" ja="新しいアドレスを使用"/>
   <translation tag="Use Scan" ja="スキャンを使用"/>
@@ -4262,6 +4296,7 @@
   <translation tag="WiFi" ja="WiFi"/>
   <translation tag="WiFi Disabled" ja="WiFi 無効"/>
   <translation tag="WiFi Enabled" ja="WiFi 有効"/>
+  <translation tag="WiFi IPv4" ja="WiFi IPv4"/>
   <translation tag="WiFi Network" ja="WiFi ネットワーク"/>
   <translation tag="WiFi Permission Denied" ja="WiFi の権限がありません"/>
   <translation tag="WiFi Service Not Running" ja="WiFi サービスが動作していません"/>

@@ -1036,6 +1036,7 @@ translations:
   Unload stopped: 'Выгрузка остановлена'
   "User Guide": "Руководство пользователя"
   '{} could not be checked from Home - review it and tap Print': 'Не удалось проверить {} с главного экрана – проверьте файл и нажмите «Печать»'
+  Could not apply the new IPv4 settings.: 'Не удалось применить новые настройки IPv4.'
   Could not change printer.cfg: Не удалось изменить printer.cfg
   ? "Could not check webcam status.\nCheck printer connection."
   : "Не удалось проверить статус веб-камеры.\nПроверьте подключение принтера."
@@ -1053,11 +1054,14 @@ translations:
   Could not open a browser for the update: Не удалось открыть браузер для обновления
   Could not parse tips database: Не удалось разобрать базу данных советов
   Could not reach Spoolman at: Не удалось связаться со Spoolman по адресу
+  Could not read the current IPv4 settings.: 'Не удалось прочитать текущие настройки IPv4.'
   Could not read the printer's storage: 'Не удалось прочитать хранилище принтера'
   Could not read the screw adjustments from the printer: Не удалось получить данные регулировки винтов от принтера
   Could not remove the job from the queue: Не удалось удалить задание из очереди
   Could not reset the printer image tags: Не удалось сбросить отметки изображения
   Could not resolve printer RFCOMM channel: Не удалось определить RFCOMM-канал принтера
+  Could not restore the previous IPv4 settings: 'Не удалось восстановить прежние настройки IPv4'
+  Could not restore the previous IPv4 settings. They are restored at the next start.: 'Не удалось восстановить прежние настройки IPv4. Они будут восстановлены при следующем запуске.'
   Could not save filament: Не удалось сохранить филамент
   Could not save the drying state: Не удалось сохранить состояние сушки
 
@@ -1106,6 +1110,7 @@ translations:
   'Current: %d°C | Target: %d°C': 'Текущая: %d°C | Целевая: %d°C'
   Currently Loaded: Загружено
   Currently printing: Сейчас печатается
+  'Currently:': 'Сейчас:'
   Curves differ in shape. Check the mechanics before chasing a perfect match.: "Формы кривых различаются. Проверьте механику, прежде чем добиваться идеального совпадения."
   Custom: Свой
   Custom...: Настроить...
@@ -1129,9 +1134,11 @@ translations:
   Cycling tools...: Перебор инструментов...
   DETECTED USB PRINTERS: ОБНАРУЖЕННЫЕ USB-ПРИНТЕРЫ
   DEVICES: УСТРОЙСТВА
+  DHCP: 'DHCP'
   DISABLED: ОТКЛЮЧЕНО
   DISCOVERED PRINTERS: НАЙДЕННЫЕ ПРИНТЕРЫ
   DISPLAY: ДИСПЛЕЙ
+  DNS server: 'DNS-сервер'
   DONE: ГОТОВО
   Damping (Kd): Демпфирование (Kd)
   Danger: Опасность
@@ -1348,10 +1355,14 @@ translations:
   Enter New PIN: Введите новый PIN
   Enter PIN: Введите PIN
   Enter WiFi Password: Введите пароль WiFi
+  Enter a DNS server address.: 'Введите адрес DNS-сервера.'
+  Enter a gateway address.: 'Введите адрес шлюза.'
   Enter a length between 100 and {:.0f}mm: 'Введите длину от 100 до {:.0f}мм'
   Enter a multiplier between 0.5 and 2.0: 'Введите множитель от 0,5 до 2,0'
   Enter a name for this profile: "Введите имя для этого профиля"
   'Enter a name for your custom theme:': 'Введите название для вашей темы:'
+  Enter a subnet mask.: 'Введите маску подсети.'
+  Enter an IP address.: 'Введите IP-адрес.'
   Enter network name: Введите имя сети
   Enter password: Введите пароль
   Enter printer IP address first: Сначала введите IP-адрес принтера
@@ -1387,6 +1398,7 @@ translations:
   Est. Duration: Ожид. длительность
   Estimating...: Оценка...
   Ethernet: Ethernet
+  Ethernet IPv4: 'IPv4 Ethernet'
   Events appear here after sessions and prints: События появятся здесь после сессий
     и печатей
   Every browser needs a new code to control this screen: 'Каждому браузеру понадобится новый код для управления этим экраном'
@@ -1758,6 +1770,7 @@ translations:
   : "Игра окончена!\nСчёт: {}\nНажмите, чтобы начать заново"
   Gate: Шлюз
   Gates: Шлюзы
+  Gateway: 'Шлюз'
   Gear Buffer Speed: 'Скорость шестерни от буфера'
   Gear Spool Speed: 'Скорость шестерни от катушки'
   Gear Unload Speed: 'Скорость выгрузки шестерни'
@@ -1977,8 +1990,11 @@ translations:
   INDX macros not recognized: "Макросы INDX не распознаны"
   INPUTS: ВХОДЫ
   IP Address / Hostname: IP-адрес / Имя хоста
+  IP address: 'IP-адрес'
   'IP:': 'IP:'
   'IPP error: {}': 'Ошибка IPP: {}'
+  IPv4: 'IPv4'
+  IPv4 settings saved: 'Настройки IPv4 сохранены'
   Icon: Иконка
   Identify: "Определить"
   'Identify failed: {}': "Не удалось определить: {}"
@@ -2108,6 +2124,8 @@ translations:
   KEYBOARD LAYOUT: РАСКЛАДКА КЛАВИАТУРЫ
   KLICKY CONTROLS: УПРАВЛЕНИЕ KLICKY
   Kalico: 'Kalico'
+  Keep: 'Оставить'
+  Keep %s?: 'Оставить %s?'
   Keep Navigation Bar: Сохранить панель навигации
   Keep Printing: Продолжить печать
   Keep Spool Info on Eject: Сохранять данные катушки при извлечении
@@ -3017,6 +3035,7 @@ translations:
   Preview: 'Предпросмотр'
   Preview Sounds: Предпросмотр звуков
   Previous: Прежняя
+  Previous IPv4 settings restored: 'Прежние настройки IPv4 восстановлены'
   Price: Цена
   Primary: Основной
   Priming nozzle...: Подготовка сопла...
@@ -3264,6 +3283,7 @@ translations:
     отслеживаемое состояние Happy Hare с оборудованием.
   Re-test: Повторить тест
   Reaches {:g} mm from the center, past this printer's {:g} mm radius.: 'Достигает {:g} мм от центра, за пределами радиуса {:g} мм этого принтера.'
+  Reading the current settings...: 'Чтение текущих настроек...'
   Readings don't repeat: "Показания не повторяются"
   Readings from extra temperature sensors: Показания доп. датчиков температуры
   Ready: Готов
@@ -3461,6 +3481,7 @@ translations:
   Retraction distance to clear extruder gears: 'Расстояние ретракции для выхода из шестерён экструдера'
   Retry: Повторить
   Reverse Multiplier: 'Множитель обратного хода'
+  Revert now: 'Вернуть сейчас'
   Review: Проверить
   Review detected hardware validation issues: Просмотр обнаруженных проблем валидации
     оборудования
@@ -3919,6 +3940,7 @@ translations:
   Startup Brightness: Яркость при запуске
   Startup, auto-control, and macro devices: Запуск, автоуправление и макро-устройства
   State: Состояние
+  Static: 'Статический'
   Status: Статус
   Status icons: Иконки статуса
   Std Deviation: Станд. отклонение
@@ -3952,6 +3974,7 @@ translations:
   Storage: 'Хранилище'
   Storage report: 'Отчёт о хранилище'
   Stow: Убрать
+  Subnet mask: 'Маска подсети'
   Subtle: Сдержанный
   Success: Успех
   Success Rate: Процент успеха
@@ -4097,11 +4120,14 @@ translations:
   The CFS odometer hardware is faulty and needs repair or replacement: Оборудование одометра CFS неисправно и требует ремонта или замены
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: 'В CFS закончился филамент в {}. Печать продолжается остатком в трубке.'
   The CFS ran out of filament. Printing continues on what is left in the tube.: 'В CFS закончился филамент. Печать продолжается остатком в трубке.'
+  The DNS server is not a valid address.: 'DNS-сервер не является допустимым адресом.'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например,
     пропускать сетку стола для быстрых перепечаток.
   The IFS state file can't be read.: "Не удаётся прочитать файл состояния IFS."
+  The IP address cannot be the subnet's network or broadcast address.: 'IP-адрес не может быть сетевым или широковещательным адресом подсети.'
+  The IP address is not a valid address.: 'IP-адрес не является допустимым адресом.'
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'Плагин таймлапса Moonraker установлен. Способ записи задается в настройках таймлапса.'
   The PEI sheet is still on the bed. Take it off, then tap Next.: Лист PEI всё ещё на столе. Снимите его и нажмите «Далее».
   The Spoolman spool currently loaded: Текущая катушка Spoolman
@@ -4127,6 +4153,7 @@ translations:
   The chamber wait already ended; nothing was stopped.: 'Ожидание камеры уже закончилось; ничего не остановлено.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны.
+  'The change was not applied: the current settings could not be saved for a revert.': 'Изменение не применено: не удалось сохранить текущие настройки для отката.'
   The connection to Klipper was lost: 'Связь с Klipper потеряна'
   The controller boards Klipper runs on. See their load in the system settings.: 'Платы контроллеров, на которых работает Klipper. Их загрузку можно посмотреть в системных настройках.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм
@@ -4143,6 +4170,10 @@ translations:
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: "Разница выросла после ослабления ({0}). Проверьте, что крутили натяжитель: {0}."
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: "Разница выросла после натяжения ({0}). Проверьте, что крутили натяжитель: {0}."
   The gap is not closing. Something besides tension may be shaping it.: "Разница не сокращается. Возможно, влияет что-то помимо натяжения."
+  The gateway cannot be the printer's own address.: 'Шлюз не может совпадать с адресом самого принтера.'
+  The gateway cannot be the subnet's network or broadcast address.: 'Шлюз не может быть сетевым или широковещательным адресом подсети.'
+  The gateway is not a valid address.: 'Шлюз не является допустимым адресом.'
+  The gateway is not on the same subnet as the IP address.: 'Шлюз находится не в той же подсети, что и IP-адрес.'
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: 'Подогреваемый стол и корпус могут сушить катушки, лежащие на столе. Запустите цикл из диалога сушки на столе.'
   The heater can't be changed while the printer is waiting.: 'Нагреватель нельзя изменить, пока принтер ожидает.'
   The heater did not accept the printer's credentials.: 'Нагреватель не принял учётные данные принтера.'
@@ -4182,6 +4213,7 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "Плагин не может подключиться к камере, поэтому фотографирует этот экран."
   The plugin can't save its recovery data to disk.: "Плагин не может сохранить данные для восстановления."
   The plugin is turned off in moonraker.conf.: "Плагин выключен в moonraker.conf."
+  The previous settings come back in %d seconds unless you keep these.: 'Прежние настройки вернутся через %d с, если вы не оставите эти.'
   The print ended before any layer was printed. Nothing was changed.: Печать завершилась до первого слоя. Ничего не изменено.
   The print is canceled and you pick the best band from what has printed so far.: Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного.
   The print is on its last layer.: 'Печатается последний слой.'
@@ -4243,6 +4275,7 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить.
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание
   The speed of one fan you choose: Скорость выбранного вентилятора
+  The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.: 'Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или /24.'
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
   The tool change under way finished, and the tool was not parked: 'Текущая смена инструмента завершена, инструмент не припаркован'
@@ -4615,6 +4648,7 @@ translations:
   Uptime: Время работы
   Use Android native keyboard for text input: Использовать нативную клавиатуру Android
     для ввода текста
+  Use DHCP: 'Использовать DHCP'
   Use G10/G11 firmware retraction: Использовать аппаратный ретракт G10/G11
   Use New Address: 'Использовать новый адрес'
   Use Unload before Eject: 'Используйте «Выгрузить» перед «Извлечь»'
@@ -4730,6 +4764,7 @@ translations:
   WiFi: WiFi
   WiFi Disabled: WiFi отключён
   WiFi Enabled: WiFi включён
+  WiFi IPv4: 'IPv4 WiFi'
   WiFi Network: Сеть WiFi
   WiFi Permission Denied: Нет доступа к WiFi
   WiFi Service Not Running: Служба WiFi не запущена

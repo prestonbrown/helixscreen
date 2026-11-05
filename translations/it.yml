@@ -983,6 +983,7 @@ translations:
   Unload stopped: Scaricamento interrotto
   "User Guide": "Guida utente"
   '{} could not be checked from Home - review it and tap Print': 'Impossibile verificare {} dalla Home – controllalo e tocca Stampa'
+  Could not apply the new IPv4 settings.: 'Impossibile applicare le nuove impostazioni IPv4.'
   Could not change printer.cfg: Impossibile modificare printer.cfg
   ? "Could not check webcam status.\nCheck printer connection."
   : "Impossibile verificare stato webcam.\nControllare la connessione della stampante."
@@ -1000,12 +1001,15 @@ translations:
   Could not open a browser for the update: "Impossibile aprire un browser per l'aggiornamento"
   Could not parse tips database: Impossibile analizzare il database dei suggerimenti
   Could not reach Spoolman at: Impossibile raggiungere Spoolman a
+  Could not read the current IPv4 settings.: 'Impossibile leggere le impostazioni IPv4 attuali.'
   Could not read the printer's storage: 'Impossibile leggere l''archiviazione della stampante'
   Could not read the screw adjustments from the printer: Impossibile leggere le regolazioni delle viti dalla stampante
   Could not remove the job from the queue: Impossibile rimuovere il lavoro dalla coda
   Could not reset the printer image tags: 'Impossibile ripristinare i contrassegni dell''immagine'
   Could not resolve printer RFCOMM channel: Impossibile risolvere il canale RFCOMM
     della stampante
+  Could not restore the previous IPv4 settings: 'Impossibile ripristinare le impostazioni IPv4 precedenti'
+  Could not restore the previous IPv4 settings. They are restored at the next start.: 'Impossibile ripristinare le impostazioni IPv4 precedenti. Verranno ripristinate al prossimo avvio.'
   Could not save filament: Impossibile salvare il filamento
   Could not save the drying state: Impossibile salvare lo stato dell'essiccazione
 
@@ -1054,6 +1058,7 @@ translations:
   'Current: %d°C | Target: %d°C': 'Attuale: %d°C | Obiettivo: %d°C'
   Currently Loaded: Attualmente caricato
   Currently printing: Stampa in corso
+  'Currently:': 'Attuale:'
   Curves differ in shape. Check the mechanics before chasing a perfect match.: "Le curve differiscono nella forma. Controlla la meccanica prima di inseguire un allineamento perfetto."
   Custom: Personalizzato
   Custom...: Personalizzato...
@@ -1077,9 +1082,11 @@ translations:
   Cycling tools...: Ciclo degli strumenti...
   DETECTED USB PRINTERS: STAMPANTI USB RILEVATE
   DEVICES: DISPOSITIVI
+  DHCP: 'DHCP'
   DISABLED: DISABILITATO
   DISCOVERED PRINTERS: STAMPANTI SCOPERTE
   DISPLAY: SCHERMO
+  DNS server: 'Server DNS'
   DONE: FATTO
   Damping (Kd): Smorzamento (Kd)
   Danger: Pericolo
@@ -1298,10 +1305,14 @@ translations:
   Enter New PIN: Inserisci nuovo PIN
   Enter PIN: Inserisci PIN
   Enter WiFi Password: Inserisci password WiFi
+  Enter a DNS server address.: 'Inserisci l''indirizzo di un server DNS.'
+  Enter a gateway address.: 'Inserisci l''indirizzo del gateway.'
   Enter a length between 100 and {:.0f}mm: 'Inserisci una lunghezza tra 100 e {:.0f}mm'
   Enter a multiplier between 0.5 and 2.0: 'Inserisci un moltiplicatore tra 0.5 e 2.0'
   Enter a name for this profile: "Inserisci un nome per questo profilo"
   'Enter a name for your custom theme:': 'Inserisci un nome per il tuo tema personalizzato:'
+  Enter a subnet mask.: 'Inserisci una subnet mask.'
+  Enter an IP address.: 'Inserisci un indirizzo IP.'
   Enter network name: Inserisci il nome della rete
   Enter password: Inserisci password
   Enter printer IP address first: Inserire prima l'indirizzo IP della stampante
@@ -1339,6 +1350,7 @@ translations:
   Est. Duration: Durata stim.
   Estimating...: Stima in corso...
   Ethernet: Ethernet
+  Ethernet IPv4: 'IPv4 Ethernet'
   Events appear here after sessions and prints: Gli eventi appaiono qui dopo sessioni
     e stampe
   Every browser needs a new code to control this screen: 'Ogni browser avrà bisogno di un nuovo codice per controllare questo schermo'
@@ -1709,6 +1721,7 @@ translations:
   : "Partita finita!\nPunteggio: {}\nTocca per ricominciare"
   Gate: Gate
   Gates: Gate
+  Gateway: 'Gateway'
   Gear Buffer Speed: 'Velocità dell''ingranaggio dal buffer'
   Gear Spool Speed: 'Velocità dell''ingranaggio dalla bobina'
   Gear Unload Speed: 'Velocità di scarico dell''ingranaggio'
@@ -1930,8 +1943,11 @@ translations:
   INDX macros not recognized: "Macro INDX non riconosciute"
   INPUTS: INGRESSI
   IP Address / Hostname: Indirizzo IP / Hostname
+  IP address: 'Indirizzo IP'
   'IP:': 'IP:'
   'IPP error: {}': 'Errore IPP: {}'
+  IPv4: 'IPv4'
+  IPv4 settings saved: 'Impostazioni IPv4 salvate'
   Icon: Icona
   Identify: "Identifica"
   'Identify failed: {}': "Identificazione non riuscita: {}"
@@ -2061,6 +2077,8 @@ translations:
   KEYBOARD LAYOUT: LAYOUT TASTIERA
   KLICKY CONTROLS: CONTROLLI KLICKY
   Kalico: 'Kalico'
+  Keep: 'Mantieni'
+  Keep %s?: 'Mantenere %s?'
   Keep Navigation Bar: Mantieni barra di navigazione
   Keep Printing: Continua a stampare
   Keep Spool Info on Eject: Mantieni le informazioni sulla bobina all'espulsione
@@ -2973,6 +2991,7 @@ translations:
   Preview: 'Anteprima'
   Preview Sounds: Anteprima suoni
   Previous: Precedente
+  Previous IPv4 settings restored: 'Impostazioni IPv4 precedenti ripristinate'
   Price: Prezzo
   Primary: Primario
   Priming nozzle...: Preparazione ugello...
@@ -3211,6 +3230,7 @@ translations:
     di Happy Hare con l'hardware.
   Re-test: Ritesta
   Reaches {:g} mm from the center, past this printer's {:g} mm radius.: 'Arriva a {:g} mm dal centro, oltre il raggio di {:g} mm di questa stampante.'
+  Reading the current settings...: 'Lettura delle impostazioni attuali...'
   Readings don't repeat: "Le letture non si ripetono"
   Readings from extra temperature sensors: Letture dai sensori di temperatura extra
   Ready: Pronto
@@ -3409,6 +3429,7 @@ translations:
   Retraction distance to clear extruder gears: 'Distanza di retrazione per liberare gli ingranaggi dell''estrusore'
   Retry: Riprova
   Reverse Multiplier: 'Moltiplicatore all''indietro'
+  Revert now: 'Ripristina ora'
   Review: Rivedi
   Review detected hardware validation issues: Rivedi problemi di validazione hardware
     rilevati
@@ -3865,6 +3886,7 @@ translations:
   Startup, auto-control, and macro devices: Avvio, controllo automatico e dispositivi
     macro
   State: Stato
+  Static: 'Statico'
   Status: Stato
   Status icons: Icone stato
   Std Deviation: Dev. standard
@@ -3899,6 +3921,7 @@ translations:
   Storage: 'Archiviazione'
   Storage report: 'Rapporto archiviazione'
   Stow: Ritrai
+  Subnet mask: 'Subnet mask'
   Subtle: Sobrio
   Success: Successo
   Success Rate: Tasso di successo
@@ -4043,11 +4066,14 @@ translations:
   The CFS odometer hardware is faulty and needs repair or replacement: L'hardware dell'odometro del CFS è guasto e va riparato o sostituito
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: 'Il CFS ha esaurito il filamento in {}. La stampa continua con quello rimasto nel tubo.'
   The CFS ran out of filament. Printing continues on what is left in the tube.: 'Il CFS ha esaurito il filamento. La stampa continua con quello rimasto nel tubo.'
+  The DNS server is not a valid address.: 'Il server DNS non è un indirizzo valido.'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : Il plugin HelixPrint abilita modifiche G-code rapide direttamente sulla stampante,
     come saltare la mesh piano per ristampe veloci.
   The IFS state file can't be read.: "Impossibile leggere il file di stato dell'IFS."
+  The IP address cannot be the subnet's network or broadcast address.: 'L''indirizzo IP non può essere l''indirizzo di rete o di broadcast della sottorete.'
+  The IP address is not a valid address.: 'L''indirizzo IP non è un indirizzo valido.'
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'Il plugin timelapse di Moonraker è installato. Imposta come registra nelle impostazioni del timelapse.'
   The PEI sheet is still on the bed. Take it off, then tap Next.: Il foglio PEI è ancora sul piatto. Rimuovilo, poi tocca Avanti.
   The Spoolman spool currently loaded: La bobina Spoolman caricata
@@ -4073,6 +4099,7 @@ translations:
   The chamber wait already ended; nothing was stopped.: 'L''attesa della camera è già terminata; non è stato fermato nulla.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : La modifica ha effetto dopo il riavvio di Klipper. Il firmware Klipper verrà riavviato. Le operazioni attive saranno interrotte.
+  'The change was not applied: the current settings could not be saved for a revert.': 'La modifica non è stata applicata: impossibile salvare le impostazioni attuali per il ripristino.'
   The connection to Klipper was lost: 'La connessione a Klipper è stata persa'
   The controller boards Klipper runs on. See their load in the system settings.: 'Le schede controller su cui gira Klipper. Vedi il loro carico nelle impostazioni di sistema.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lama non è rientrata. Verificare che non ci sia filamento avvolto attorno al meccanismo di taglio
@@ -4089,6 +4116,10 @@ translations:
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: "La differenza è cresciuta dopo l'allentamento di {0}. Verifica di aver girato il tenditore di {0}."
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: "La differenza è cresciuta dopo il tensionamento di {0}. Verifica di aver girato il tenditore di {0}."
   The gap is not closing. Something besides tension may be shaping it.: "La differenza non si chiude. Qualcosa oltre alla tensione potrebbe influire."
+  The gateway cannot be the printer's own address.: 'Il gateway non può essere l''indirizzo della stampante stessa.'
+  The gateway cannot be the subnet's network or broadcast address.: 'Il gateway non può essere l''indirizzo di rete o di broadcast della sottorete.'
+  The gateway is not a valid address.: 'Il gateway non è un indirizzo valido.'
+  The gateway is not on the same subnet as the IP address.: 'Il gateway non è nella stessa sottorete dell''indirizzo IP.'
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: 'Il piano riscaldato e la camera possono essiccare le bobine posate sul piano. Avvia un ciclo dalla finestra di essiccazione del piano.'
   The heater can't be changed while the printer is waiting.: 'Il riscaldatore non può essere modificato mentre la stampante è in attesa.'
   The heater did not accept the printer's credentials.: 'Il riscaldatore non ha accettato le credenziali della stampante.'
@@ -4128,6 +4159,7 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "Il plugin non raggiunge la fotocamera, quindi le foto le scatta questo schermo."
   The plugin can't save its recovery data to disk.: "Il plugin non può salvare i dati di ripresa."
   The plugin is turned off in moonraker.conf.: "Il plugin è disattivato in moonraker.conf."
+  The previous settings come back in %d seconds unless you keep these.: 'Le impostazioni precedenti tornano tra %d secondi, a meno che tu non mantenga queste.'
   The print ended before any layer was printed. Nothing was changed.: La stampa è terminata prima di stampare uno strato. Non è stato cambiato nulla.
   The print is canceled and you pick the best band from what has printed so far.: La stampa viene annullata e scegli la fascia migliore tra quanto stampato finora.
   The print is on its last layer.: 'La stampa è all''ultimo strato.'
@@ -4193,6 +4225,7 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: La posizione salvata viene mantenuta. Riconnetti o riavvia lo schermo per vederti proporre di nuovo la ripresa.
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Il sensore di questa unità CFS non può essere letto. Controllare il collegamento, altrimenti l'unità richiede assistenza
   The speed of one fan you choose: La velocità di una ventola a scelta
+  The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.: 'La subnet mask non è valida. Usa una forma come 255.255.255.0 o /24.'
   The time, date, and system uptime: Ora, data e tempo di attività
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "La cartella timelapse o di log sovrappone una cartella protetta, quindi la pulizia è disattivata."
   The tool change under way finished, and the tool was not parked: 'Il cambio utensile in corso è terminato e l''utensile non è stato parcheggiato'
@@ -4572,6 +4605,7 @@ translations:
   Uptime: Tempo di attività
   Use Android native keyboard for text input: Usa la tastiera nativa di Android per
     l'inserimento testo
+  Use DHCP: 'Usa DHCP'
   Use G10/G11 firmware retraction: Usa retrazione firmware G10/G11
   Use New Address: 'Usa nuovo indirizzo'
   Use Unload before Eject: 'Usa Scarica prima di Espelli'
@@ -4689,6 +4723,7 @@ translations:
   WiFi: WiFi
   WiFi Disabled: WiFi disabilitato
   WiFi Enabled: WiFi abilitato
+  WiFi IPv4: 'IPv4 WiFi'
   WiFi Network: Rete WiFi
   WiFi Permission Denied: Permesso WiFi negato
   WiFi Service Not Running: Il servizio WiFi non è in esecuzione

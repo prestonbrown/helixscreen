@@ -921,6 +921,7 @@ translations:
   Unload stopped: 'アンロードを停止しました'
   "User Guide": "ユーザーガイド"
   '{} could not be checked from Home - review it and tap Print': '{} をホームから確認できませんでした – 内容を確認して印刷をタップしてください'
+  Could not apply the new IPv4 settings.: '新しいIPv4設定を適用できませんでした。'
   Could not change printer.cfg: printer.cfg を変更できませんでした
   ? "Could not check webcam status.\nCheck printer connection."
   : "ウェブカメラの状態を確認できませんでした。\nプリンター接続を確認してください。"
@@ -938,11 +939,14 @@ translations:
   Could not open a browser for the update: 更新用のブラウザを開けませんでした
   Could not parse tips database: ヒントデータベースを解析できませんでした
   Could not reach Spoolman at: 'Spoolman に接続できません:'
+  Could not read the current IPv4 settings.: '現在のIPv4設定を読み取れませんでした。'
   Could not read the printer's storage: 'プリンターのストレージを読み取れませんでした'
   Could not read the screw adjustments from the printer: プリンターからネジ調整を読み取れませんでした
   Could not remove the job from the queue: キューからジョブを削除できませんでした
   Could not reset the printer image tags: プリンター画像のタグのリセットに失敗しました
   Could not resolve printer RFCOMM channel: プリンターの RFCOMM チャンネルを解決できませんでした
+  Could not restore the previous IPv4 settings: '以前のIPv4設定を復元できませんでした'
+  Could not restore the previous IPv4 settings. They are restored at the next start.: '以前のIPv4設定を復元できませんでした。次回の起動時に復元されます。'
   Could not save filament: フィラメントを保存できませんでした
   Could not save the drying state: 乾燥の状態を保存できませんでした
 
@@ -991,6 +995,7 @@ translations:
   'Current: %d°C | Target: %d°C': '現在: %d°C | 目標: %d°C'
   Currently Loaded: 現在ロード中
   Currently printing: 印刷中
+  'Currently:': '現在:'
   Curves differ in shape. Check the mechanics before chasing a perfect match.: "カーブの形が異なります。完全な一致を目指す前に機構を確認してください。"
   Custom: カスタム
   Custom...: カスタム...
@@ -1014,9 +1019,11 @@ translations:
   Cycling tools...: ツールを順に交換中...
   DETECTED USB PRINTERS: 検出されたUSBプリンター
   DEVICES: デバイス
+  DHCP: 'DHCP'
   DISABLED: 無効
   DISCOVERED PRINTERS: 検出されたプリンター
   DISPLAY: ディスプレイ
+  DNS server: 'DNSサーバー'
   DONE: 完了
   Damping (Kd): 減衰 (Kd)
   Danger: 危険
@@ -1230,10 +1237,14 @@ translations:
   Enter New PIN: 新しい PIN を入力
   Enter PIN: PIN を入力
   Enter WiFi Password: WiFi パスワードを入力
+  Enter a DNS server address.: 'DNSサーバーのアドレスを入力してください。'
+  Enter a gateway address.: 'ゲートウェイのアドレスを入力してください。'
   Enter a length between 100 and {:.0f}mm: '長さは 100〜{:.0f}mm にしてください'
   Enter a multiplier between 0.5 and 2.0: '倍率は 0.5〜2.0 にしてください'
   Enter a name for this profile: "このプロファイルの名前を入力"
   'Enter a name for your custom theme:': 'カスタムテーマの名前を入力してください:'
+  Enter a subnet mask.: 'サブネットマスクを入力してください。'
+  Enter an IP address.: 'IPアドレスを入力してください。'
   Enter network name: ネットワーク名を入力
   Enter password: パスワードを入力
   Enter printer IP address first: 先にプリンターのIPアドレスを入力してください
@@ -1267,6 +1278,7 @@ translations:
   Est. Duration: 予想時間
   Estimating...: 推定中...
   Ethernet: イーサネット
+  Ethernet IPv4: 'イーサネット IPv4'
   Events appear here after sessions and prints: セッションと印刷の後にイベントがここに表示されます
   Every browser needs a new code to control this screen: 'この画面を操作するには、各ブラウザに新しいコードが必要です'
   Every browser that can control this screen will need the new pairing code.: 'この画面を操作できるすべてのブラウザで、新しいペアリングコードが必要になります。'
@@ -1624,6 +1636,7 @@ translations:
   : "ゲームオーバー！\nスコア: {}\nタップでリスタート"
   Gate: ゲート
   Gates: ゲート
+  Gateway: 'ゲートウェイ'
   Gear Buffer Speed: 'ギアのバッファ速度'
   Gear Spool Speed: 'ギアのスプール速度'
   Gear Unload Speed: 'ギアのアンロード速度'
@@ -1834,8 +1847,11 @@ translations:
   INDX macros not recognized: "INDXマクロを認識できません"
   INPUTS: 入力
   IP Address / Hostname: IPアドレス / ホスト名
+  IP address: 'IPアドレス'
   'IP:': 'IP:'
   'IPP error: {}': 'IPP エラー: {}'
+  IPv4: 'IPv4'
+  IPv4 settings saved: 'IPv4設定を保存しました'
   Icon: アイコン
   Identify: "識別"
   'Identify failed: {}': "識別に失敗しました: {}"
@@ -1953,6 +1969,8 @@ translations:
   KEYBOARD LAYOUT: キーボードレイアウト
   KLICKY CONTROLS: Klickyコントロール
   Kalico: 'Kalico'
+  Keep: '保持'
+  Keep %s?: '%s を保持しますか?'
   Keep Navigation Bar: ナビゲーションバーを維持
   Keep Printing: 印刷を続行
   Keep Spool Info on Eject: 取り出し時にスプール情報を保持
@@ -2831,6 +2849,7 @@ translations:
   Preview: 'プレビュー'
   Preview Sounds: サウンドをプレビュー
   Previous: 前回
+  Previous IPv4 settings restored: '以前のIPv4設定を復元しました'
   Price: 価格
   Primary: プライマリ
   Priming nozzle...: ノズルをプライム中...
@@ -3059,6 +3078,7 @@ translations:
   Re-syncs Happy Hare's tracked state with the hardware.: Happy Hare が追跡している状態をハードウェアと再同期します。
   Re-test: 再テスト
   Reaches {:g} mm from the center, past this printer's {:g} mm radius.: '中心から{:g} mmに達します。このプリンターの半径は{:g} mmです。'
+  Reading the current settings...: '現在の設定を読み取り中...'
   Readings don't repeat: "測定値が再現しません"
   Readings from extra temperature sensors: 追加の温度センサーの値
   Ready: 準備完了
@@ -3250,6 +3270,7 @@ translations:
   Retraction distance to clear extruder gears: 'エクストルーダーギアから抜くための引き戻し距離'
   Retry: 再試行
   Reverse Multiplier: '逆方向倍率'
+  Revert now: '今すぐ元に戻す'
   Review: 確認
   Review detected hardware validation issues: 検出されたハードウェア検証の問題を確認
   Review your configuration below, then click Finish to save: 以下の設定を確認し、「完了」をクリックして保存してください
@@ -3668,6 +3689,7 @@ translations:
   Startup Brightness: 起動時の明るさ
   Startup, auto-control, and macro devices: 起動、自動制御、マクロデバイス
   State: 状態
+  Static: '固定'
   Status: ステータス
   Status icons: ステータスアイコン
   Std Deviation: 標準偏差
@@ -3700,6 +3722,7 @@ translations:
   Storage: 'ストレージ'
   Storage report: 'ストレージレポート'
   Stow: 格納
+  Subnet mask: 'サブネットマスク'
   Subtle: サトル
   Success: 成功
   Success Rate: 成功率
@@ -3838,10 +3861,13 @@ translations:
   The CFS odometer hardware is faulty and needs repair or replacement: CFS の走行距離計ハードウェアが故障しています。修理または交換が必要です
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: 'CFSの{}でフィラメントが切れました。チューブに残っている分で印刷を続けます。'
   The CFS ran out of filament. Printing continues on what is left in the tube.: 'CFSでフィラメントが切れました。チューブに残っている分で印刷を続けます。'
+  The DNS server is not a valid address.: 'DNSサーバーが有効なアドレスではありません。'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。
   The IFS state file can't be read.: "IFSの状態ファイルを読み取れません。"
+  The IP address cannot be the subnet's network or broadcast address.: 'IPアドレスにサブネットのネットワークアドレスまたはブロードキャストアドレスは使用できません。'
+  The IP address is not a valid address.: 'IPアドレスが有効なアドレスではありません。'
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'Moonrakerのタイムラプスプラグインがインストールされています。録画方法はタイムラプス設定で決められます。'
   The PEI sheet is still on the bed. Take it off, then tap Next.: PEIシートがまだベッド上にあります。外してから「次へ」をタップしてください。
   The Spoolman spool currently loaded: 現在装填中の Spoolman スプール
@@ -3866,6 +3892,7 @@ translations:
   The chamber wait already ended; nothing was stopped.: 'チャンバーの待機はすでに終了しました。何も停止していません。'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 変更は Klipper の再起動後に反映されます。Klipperファームウェアを再起動します。実行中の操作は中断されます。
+  'The change was not applied: the current settings could not be saved for a revert.': '変更は適用されませんでした: 復元用に現在の設定を保存できませんでした。'
   The connection to Klipper was lost: 'Klipperとの接続が切れました'
   The controller boards Klipper runs on. See their load in the system settings.: 'Klipperが動作するコントローラーボード。負荷はシステム設定で確認できます。'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください
@@ -3882,6 +3909,10 @@ translations:
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: "{0}を緩めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: "{0}を締めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"
   The gap is not closing. Something besides tension may be shaping it.: "差が縮まりません。張力以外の何かが影響している可能性があります。"
+  The gateway cannot be the printer's own address.: 'ゲートウェイにプリンター自身のアドレスは使用できません。'
+  The gateway cannot be the subnet's network or broadcast address.: 'ゲートウェイにサブネットのネットワークアドレスまたはブロードキャストアドレスは使用できません。'
+  The gateway is not a valid address.: 'ゲートウェイが有効なアドレスではありません。'
+  The gateway is not on the same subnet as the IP address.: 'ゲートウェイがIPアドレスと同じサブネットにありません。'
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: 'ヒートベッドとエンクロージャーで、ベッドに置いたスプールを乾燥できます。ベッド乾燥ダイアログからサイクルを開始してください。'
   The heater can't be changed while the printer is waiting.: 'プリンターの待機中はヒーターを変更できません。'
   The heater did not accept the printer's credentials.: 'ヒーターがプリンターの認証情報を受け付けませんでした。'
@@ -3920,6 +3951,7 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "プラグインがカメラに接続できないため、この画面が写真を撮ります。"
   The plugin can't save its recovery data to disk.: "プラグインが復帰データを保存できません。"
   The plugin is turned off in moonraker.conf.: "プラグインはmoonraker.confでオフになっています。"
+  The previous settings come back in %d seconds unless you keep these.: 'この設定を保持しない場合、%d 秒後に以前の設定に戻ります。'
   The print ended before any layer was printed. Nothing was changed.: レイヤーが印刷される前に印刷が終了しました。何も変更されていません。
   The print is canceled and you pick the best band from what has printed so far.: 印刷をキャンセルし、ここまで印刷された中から最適な区間を選びます。
   The print is on its last layer.: '最後のレイヤーを印刷中です。'
@@ -3978,6 +4010,7 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 保存された位置は残ります。再接続するか画面を再起動すると、再開が再び提示されます。
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です
   The speed of one fan you choose: 選んだファン1つの速度
+  The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.: 'サブネットマスクが無効です。255.255.255.0 や /24 のような形式で入力してください。'
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
   The tool change under way finished, and the tool was not parked: '実行中のツール変更は完了し、ツールは格納されていません'
@@ -4328,6 +4361,7 @@ translations:
   Upper belt: "上ベルト"
   Uptime: 稼働時間
   Use Android native keyboard for text input: テキスト入力に Android ネイティブキーボードを使用
+  Use DHCP: 'DHCPを使用'
   Use G10/G11 firmware retraction: G10/G11 ファームウェアリトラクションを使用
   Use New Address: '新しいアドレスを使用'
   Use Unload before Eject: '先に「アンロード」してから「排出」してください'
@@ -4439,6 +4473,7 @@ translations:
   WiFi: WiFi
   WiFi Disabled: WiFi 無効
   WiFi Enabled: WiFi 有効
+  WiFi IPv4: 'WiFi IPv4'
   WiFi Network: WiFi ネットワーク
   WiFi Permission Denied: WiFi の権限がありません
   WiFi Service Not Running: WiFi サービスが動作していません
