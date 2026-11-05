@@ -3,6 +3,7 @@
 
 #include "ipv4_config.h"
 
+#include "core/base64_field.h"
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "json_utils.h"
@@ -14,6 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
 
 #include "hv/json.hpp"
 
@@ -398,23 +400,38 @@ MockIpv4Config& mock_ipv4_store(Ipv4Link link) {
 Ipv4Snapshot mock_ipv4_snapshot(Ipv4Link link) {
     Ipv4Config current;
     mock_ipv4_store(link).get(current);
-    PendingIpv4Revert carrier;
-    carrier.link = link;
-    carrier.previous = current;
+    nlohmann::json j;
+    j["dhcp"] = current.dhcp;
+    j["address"] = current.address;
+    j["prefix"] = current.prefix;
+    j["gateway"] = current.gateway;
+    j["dns"] = current.dns;
     Ipv4Snapshot snap;
     snap.store = "mock";
     snap.iface = ipv4_link_name(link);
-    snap.original = encode_pending_ipv4_revert(carrier);
+    snap.original = helix::json_util::safe_dump(j);
     return snap;
 }
 
 Ipv4Result restore_mock_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
     const auto link = ipv4_link_from_name(snapshot.iface);
-    const auto carrier = decode_pending_ipv4_revert(snapshot.original);
-    if (!link || !carrier) {
-        return Ipv4Result::failed("unreadable mock snapshot");
+    const nlohmann::json j =
+        nlohmann::json::parse(snapshot.original.begin(), snapshot.original.end(), nullptr, false);
+    if (!link || j.is_discarded() || !j.is_object()) {
+        return Ipv4Result::refused("unreadable mock snapshot");
     }
-    return mock_ipv4_store(*link).apply(carrier->previous);
+    Ipv4Config c;
+    c.dhcp = helix::json_util::safe_bool(j, "dhcp", true);
+    c.address = helix::json_util::safe_string(j, "address");
+    c.prefix = helix::json_util::safe_int(j, "prefix");
+    c.gateway = helix::json_util::safe_string(j, "gateway");
+    if (const nlohmann::json* dns = helix::json_util::find_member(j, "dns");
+        dns && dns->is_array()) {
+        for (const auto& server : *dns) {
+            c.dns.push_back(helix::json_util::as_string(server));
+        }
+    }
+    return mock_ipv4_store(*link).apply(c);
 }
 
 std::string MockIpv4Config::static_address() const {
@@ -498,6 +515,48 @@ std::string nm_encode_values(const NmIpv4Values& v) {
 
 NmIpv4Values nm_decode_values(const std::string& text) {
     return nm_parse_ipv4_values(text);
+}
+
+NmIpv4Values nm_values_for(const Ipv4Config& config) {
+    NmIpv4Values v;
+    v.method = config.dhcp ? "auto" : "manual";
+    if (!config.dhcp) {
+        v.addresses = config.address + "/" + std::to_string(config.prefix);
+        v.gateway = config.gateway;
+    }
+    v.dns = join_fields(config.dns, ",");
+    return v;
+}
+
+namespace {
+// nmcli prints lists as "a,b" or "a, b"; compare them item by item.
+std::string normalized_list(const std::string& list) {
+    std::string out;
+    for (std::string_view item : split_on(list, ',')) {
+        item = trim(item);
+        if (item.empty()) {
+            continue;
+        }
+        if (!out.empty()) {
+            out += ',';
+        }
+        out.append(item);
+    }
+    return out;
+}
+
+bool same_values(const NmIpv4Values& a, const NmIpv4Values& b) {
+    return a.method == b.method && normalized_list(a.addresses) == normalized_list(b.addresses) &&
+           a.gateway == b.gateway && normalized_list(a.dns) == normalized_list(b.dns);
+}
+} // namespace
+
+RestoreStep nm_restore_step(const NmIpv4Values& now, const NmIpv4Values& original,
+                            const NmIpv4Values& written) {
+    if (same_values(now, original)) {
+        return RestoreStep::AlreadyThere;
+    }
+    return same_values(now, written) ? RestoreStep::Write : RestoreStep::Refuse;
 }
 
 std::vector<std::string> nm_ipv4_restore_argv(const std::string& uuid, const NmIpv4Values& v) {
@@ -677,19 +736,21 @@ std::string encode_pending_ipv4_revert(const PendingIpv4Revert& pending) {
     j["gateway"] = pending.previous.gateway;
     j["dns"] = pending.previous.dns;
     j["owner"] = pending.owner;
+    j["failed"] = pending.failed;
+    j["failure"] = pending.failure;
     j["store"] = pending.snapshot.store;
     j["iface"] = pending.snapshot.iface;
     j["profile"] = pending.snapshot.profile;
-    j["original"] = pending.snapshot.original;
-    j["written"] = pending.snapshot.written;
+    j["original_b64"] = helix::encode_b64_field(pending.snapshot.original);
+    j["written_b64"] = helix::encode_b64_field(pending.snapshot.written);
     return helix::json_util::safe_dump(j, 2);
 }
 
 namespace {
-// A dotted quad in canonical form, or nullopt.
-std::optional<std::string> canonical_ipv4(const std::string& text) {
-    const auto a = parse_ipv4(text);
-    return a ? std::optional<std::string>(format_ipv4(*a)) : std::nullopt;
+// Base64 to bytes; false for text that is not base64 (empty is empty).
+bool decode_bytes(const std::string& b64, std::string& out) {
+    out = helix::decode_b64_field(b64);
+    return b64.empty() || !out.empty();
 }
 } // namespace
 
@@ -699,47 +760,51 @@ std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view tex
         return std::nullopt;
     }
     const auto link = ipv4_link_from_name(helix::json_util::safe_string(j, "link"));
-    const nlohmann::json* dhcp = helix::json_util::find_member(j, "dhcp");
-    if (!link || !dhcp || !dhcp->is_boolean()) {
+    if (!link) {
         return std::nullopt;
     }
     PendingIpv4Revert p;
     p.link = *link;
     p.owner = helix::json_util::safe_string(j, "owner");
-    p.snapshot.store = helix::json_util::safe_string(j, "store");
-    p.snapshot.iface = helix::json_util::safe_string(j, "iface");
-    p.snapshot.profile = helix::json_util::safe_string(j, "profile");
-    p.snapshot.original = helix::json_util::safe_string(j, "original");
-    p.snapshot.written = helix::json_util::safe_string(j, "written");
-    p.previous.dhcp = helix::json_util::as_bool(*dhcp);
-    // Every address must parse, since some of them reach a config file; nothing
-    // else is required, because the system may have held what the form never would.
+    p.failed = helix::json_util::safe_bool(j, "failed");
+    p.failure = helix::json_util::safe_string(j, "failure");
+    p.previous.dhcp = helix::json_util::safe_bool(j, "dhcp", true);
+    p.previous.address = helix::json_util::safe_string(j, "address");
+    p.previous.prefix = helix::json_util::safe_int(j, "prefix");
+    p.previous.gateway = helix::json_util::safe_string(j, "gateway");
     if (const nlohmann::json* dns = helix::json_util::find_member(j, "dns");
         dns && dns->is_array()) {
         for (const auto& server : *dns) {
-            const auto ok = canonical_ipv4(helix::json_util::as_string(server));
-            if (!ok) {
-                return std::nullopt;
-            }
-            p.previous.dns.push_back(*ok);
+            p.previous.dns.push_back(helix::json_util::as_string(server));
         }
     }
-    if (!p.previous.dhcp) {
-        const auto address = canonical_ipv4(helix::json_util::safe_string(j, "address"));
-        const int prefix = helix::json_util::safe_int(j, "prefix", -1);
-        if (!address || prefix < 1 || prefix > 32) {
+    Ipv4Snapshot& snap = p.snapshot;
+    snap.store = helix::json_util::safe_string(j, "store");
+    snap.iface = helix::json_util::safe_string(j, "iface");
+    snap.profile = helix::json_util::safe_string(j, "profile");
+    if (!decode_bytes(helix::json_util::safe_string(j, "original_b64"), snap.original) ||
+        !decode_bytes(helix::json_util::safe_string(j, "written_b64"), snap.written)) {
+        return std::nullopt;
+    }
+    // What the restore needs, store by store. A failed record is kept only to
+    // be shown, so it needs nothing.
+    if (p.failed) {
+        return p;
+    }
+    if (snap.store == "networkmanager") {
+        if (snap.profile.empty() || snap.iface.empty() || snap.original.empty()) {
             return std::nullopt;
         }
-        p.previous.address = *address;
-        p.previous.prefix = prefix;
-        const std::string gateway = helix::json_util::safe_string(j, "gateway");
-        if (!gateway.empty()) {
-            const auto gw = canonical_ipv4(gateway);
-            if (!gw) {
-                return std::nullopt;
-            }
-            p.previous.gateway = *gw;
+    } else if (snap.store == "dhcpcd") {
+        if (snap.iface.empty()) {
+            return std::nullopt;
         }
+    } else if (snap.store == "mock") {
+        if (!ipv4_link_from_name(snap.iface) || snap.original.empty()) {
+            return std::nullopt;
+        }
+    } else {
+        return std::nullopt;
     }
     return p;
 }
@@ -773,16 +838,37 @@ bool save_pending_ipv4_revert(const PendingIpv4Revert& pending) {
     return true;
 }
 
-std::optional<PendingIpv4Revert> load_pending_ipv4_revert() {
-    const auto text = helix::text_io::read_file(pending_ipv4_revert_path(), 64 * 1024);
+Ipv4RecordLoad read_pending_ipv4_revert() {
+    Ipv4RecordLoad out;
+    const std::string path = pending_ipv4_revert_path();
+    errno = 0;
+    const auto text = helix::text_io::read_file(path, kIpv4RecordMaxBytes + 1);
     if (!text) {
+        if (errno != ENOENT && access(path.c_str(), F_OK) == 0) {
+            out.kind = Ipv4RecordLoad::Kind::Unreadable;
+        }
+        return out;
+    }
+    std::optional<PendingIpv4Revert> pending;
+    if (text->size() <= kIpv4RecordMaxBytes) {
+        pending = decode_pending_ipv4_revert(*text);
+    }
+    if (!pending) {
+        spdlog::error("[Ipv4] {} cannot be used to restore anything", path);
+        out.kind = Ipv4RecordLoad::Kind::Unreadable;
+        return out;
+    }
+    out.kind = Ipv4RecordLoad::Kind::Ok;
+    out.record = std::move(*pending);
+    return out;
+}
+
+std::optional<PendingIpv4Revert> load_pending_ipv4_revert() {
+    Ipv4RecordLoad r = read_pending_ipv4_revert();
+    if (r.kind != Ipv4RecordLoad::Kind::Ok) {
         return std::nullopt;
     }
-    auto pending = decode_pending_ipv4_revert(*text);
-    if (!pending) {
-        spdlog::warn("[Ipv4] {} is unreadable; ignoring it", pending_ipv4_revert_path());
-    }
-    return pending;
+    return std::move(r.record);
 }
 
 bool clear_pending_ipv4_revert() {
@@ -816,18 +902,32 @@ Ipv4ChangeFlow::Action Ipv4ChangeFlow::begin(const Ipv4Config& current, const Ip
     return Action::Apply;
 }
 
-Ipv4ChangeFlow::Action Ipv4ChangeFlow::applied(bool ok, uint32_t now_ms) {
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::applied(Ipv4Result::Status outcome, uint32_t now_ms,
+                                               bool job_holds_machine) {
     if (state_ != State::Applying) {
         return Action::None;
     }
-    if (!ok) {
+    if (outcome == Ipv4Result::Status::Refused || outcome == Ipv4Result::Status::NotSupported) {
+        state_ = State::Idle;
+        return Action::NotApplied;
+    }
+    if (outcome != Ipv4Result::Status::Ok) {
         // A failed apply may still have written part of the change.
         state_ = State::Reverting;
         return Action::Revert;
     }
     state_ = State::Confirming;
     countdown_.start(now_ms);
+    if (job_holds_machine) {
+        return job_started();
+    }
     return Action::ShowKeepPrompt;
+}
+
+void Ipv4ChangeFlow::handed_off() {
+    if (state_ == State::Reverting) {
+        state_ = State::Idle;
+    }
 }
 
 Ipv4ChangeFlow::Action Ipv4ChangeFlow::tick(uint32_t now_ms) {
@@ -870,10 +970,11 @@ Ipv4ChangeFlow::Action Ipv4ChangeFlow::reverted(bool ok) {
 Ipv4ChangeFlow::Action Ipv4ChangeFlow::teardown() {
     switch (state_) {
     case State::Applying:
-        // The answer will find nobody: the apply restores the snapshot itself.
+        // The answer will find nobody. An apply not started yet refuses; one
+        // under way is restored once it lands, by the revert this asks for.
         abandoned_->store(true);
-        state_ = State::Idle;
-        return Action::None;
+        state_ = State::Reverting;
+        return Action::Revert;
     case State::Confirming:
         countdown_.stop();
         state_ = State::Reverting;

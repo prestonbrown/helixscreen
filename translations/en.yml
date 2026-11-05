@@ -306,6 +306,7 @@ translations:
   An accelerometer was detected on your printer.: An accelerometer was detected on
     your printer.
   An app on your network is asking to connect to this printer.: An app on your network is asking to connect to this printer.
+  An earlier IPv4 change is still being undone. Try again shortly.: An earlier IPv4 change is still being undone. Try again shortly.
   An error occurred during calibration.: An error occurred during calibration.
   An error occurred during filament loading.: An error occurred during filament loading.
   An error occurred during probing.: An error occurred during probing.
@@ -985,7 +986,7 @@ translations:
   Could not reset the printer image tags: Could not reset the printer image tags
   Could not resolve printer RFCOMM channel: Could not resolve printer RFCOMM channel
   Could not restore the previous IPv4 settings: Could not restore the previous IPv4 settings
-  Could not restore the previous IPv4 settings. They are restored at the next start.: Could not restore the previous IPv4 settings. They are restored at the next start.
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.
   Could not save filament: Could not save filament
   Could not save the drying state: Could not save the drying state
   'Could not save the drying state: nothing was heated': 'Could not save the drying state: nothing was heated'
@@ -4072,6 +4073,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: The plugin can't reach the camera, so this screen takes the photos.
   The plugin can't save its recovery data to disk.: The plugin can't save its recovery data to disk.
   The plugin is turned off in moonraker.conf.: The plugin is turned off in moonraker.conf.
+  The previous IPv4 settings come back when the print ends.: The previous IPv4 settings come back when the print ends.
+  'The previous IPv4 settings could not be restored: {}': 'The previous IPv4 settings could not be restored: {}'
   The previous settings come back in %d seconds unless you keep these.: The previous settings come back in %d seconds unless you keep these.
   The print ended before any layer was printed. Nothing was changed.: The print ended before any layer was printed. Nothing was changed.
   The print is canceled and you pick the best band from what has printed so far.: The print is canceled and you pick the best band from what has printed so far.

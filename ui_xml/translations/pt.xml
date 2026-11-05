@@ -293,6 +293,7 @@
   <translation tag="An API key is 32 characters, each 0-9 or a-f." pt="Uma chave de API tem 32 caracteres, cada um 0-9 ou a-f."/>
   <translation tag="An accelerometer was detected on your printer." pt="Um acelerômetro foi detectado na sua impressora."/>
   <translation tag="An app on your network is asking to connect to this printer." pt="Um aplicativo na sua rede quer conectar-se a esta impressora."/>
+  <translation tag="An earlier IPv4 change is still being undone. Try again shortly." pt="Uma alteração IPv4 anterior ainda está sendo desfeita. Tente novamente em instantes."/>
   <translation tag="An error occurred during calibration." pt="Ocorreu um erro durante a calibração."/>
   <translation tag="An error occurred during filament loading." pt="Ocorreu um erro durante o carregamento do filamento."/>
   <translation tag="An error occurred during probing." pt="Ocorreu um erro durante a sondagem."/>
@@ -908,7 +909,7 @@
   <translation tag="Could not reset the printer image tags" pt="Falha ao resetar as marcações da imagem"/>
   <translation tag="Could not resolve printer RFCOMM channel" pt="Não foi possível resolver o canal RFCOMM da impressora"/>
   <translation tag="Could not restore the previous IPv4 settings" pt="Não foi possível restaurar as configurações IPv4 anteriores"/>
-  <translation tag="Could not restore the previous IPv4 settings. They are restored at the next start." pt="Não foi possível restaurar as configurações IPv4 anteriores. Elas serão restauradas na próxima inicialização."/>
+  <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." pt="Ainda não foi possível restaurar as configurações IPv4 anteriores. Tentando novamente por até dois minutos."/>
   <translation tag="Could not save filament" pt="Não foi possível salvar o filamento"/>
   <translation tag="Could not save the drying state" pt="Não foi possível salvar o estado da secagem"/>
   <translation tag="Could not save the drying state: nothing was heated" pt="Não foi possível salvar o estado da secagem: nada foi aquecido"/>
@@ -3800,6 +3801,8 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." pt="O plugin não alcança a câmera, então esta tela tira as fotos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." pt="O plugin não consegue salvar seus dados de recuperação."/>
   <translation tag="The plugin is turned off in moonraker.conf." pt="O plugin está desligado no moonraker.conf."/>
+  <translation tag="The previous IPv4 settings come back when the print ends." pt="As configurações IPv4 anteriores voltam quando a impressão terminar."/>
+  <translation tag="The previous IPv4 settings could not be restored: {}" pt="Não foi possível restaurar as configurações IPv4 anteriores: {}"/>
   <translation tag="The previous settings come back in %d seconds unless you keep these." pt="As configurações anteriores voltam em %d segundos, a menos que você mantenha estas."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." pt="A impressão terminou antes de qualquer camada ser impressa. Nada foi alterado."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." pt="A impressão é cancelada e você escolhe a melhor faixa do que foi impresso até agora."/>

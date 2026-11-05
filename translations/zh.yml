@@ -295,6 +295,7 @@ translations:
   An API key is 32 characters, each 0-9 or a-f.: 'API 密钥为 32 个字符，每个为 0-9 或 a-f。'
   An accelerometer was detected on your printer.: 在您的打印机上检测到加速度计。
   An app on your network is asking to connect to this printer.: '网络中的某个应用请求连接到此打印机。'
+  An earlier IPv4 change is still being undone. Try again shortly.: '之前的 IPv4 更改仍在撤销中。请稍后再试。'
   An error occurred during calibration.: 校准过程中发生错误。
   An error occurred during filament loading.: 装载耗材时发生错误。
   An error occurred during probing.: 探测过程中发生错误。
@@ -944,7 +945,7 @@ translations:
   Could not reset the printer image tags: 重置打印机图片标记失败
   Could not resolve printer RFCOMM channel: 无法解析打印机 RFCOMM 通道
   Could not restore the previous IPv4 settings: '无法恢复之前的 IPv4 设置'
-  Could not restore the previous IPv4 settings. They are restored at the next start.: '无法恢复之前的 IPv4 设置。将在下次启动时恢复。'
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '暂时无法恢复之前的 IPv4 设置。将在最多两分钟内重试。'
   Could not save filament: 无法保存耗材
   Could not save the drying state: 无法保存烘干状态
 
@@ -3944,6 +3945,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "插件无法连接摄像头，因此由此屏幕拍照。"
   The plugin can't save its recovery data to disk.: "插件无法保存其恢复数据。"
   The plugin is turned off in moonraker.conf.: "插件已在 moonraker.conf 中关闭。"
+  The previous IPv4 settings come back when the print ends.: '打印结束后将恢复之前的 IPv4 设置。'
+  'The previous IPv4 settings could not be restored: {}': '无法恢复之前的 IPv4 设置：{}'
   The previous settings come back in %d seconds unless you keep these.: '如果不保留这些设置，之前的设置将在 %d 秒后恢复。'
   The print ended before any layer was printed. Nothing was changed.: 打印在任何一层完成前就结束了。未做任何更改。
   The print is canceled and you pick the best band from what has printed so far.: 打印将被取消,你可以从已打印的部分中选择最佳区段。

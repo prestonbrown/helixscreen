@@ -109,8 +109,9 @@ std::string first_output_line(const std::string& text) {
 // NetworkManager
 // ============================================================================
 
-// A change runs up to five nmcli calls (two lookups and a read to snapshot, a
-// modify, then reapply or up) inside WiFiManager's 58 s IPv4 deadline.
+// A change runs up to six nmcli calls (two lookups and a read to snapshot, a
+// modify, reapply, then up) inside WiFiManager's 58 s IPv4 deadline: 55 s
+// plus each call's termination grace.
 constexpr auto kNmcliQuick = std::chrono::seconds(5);
 constexpr auto kNmcliModify = std::chrono::seconds(10);
 constexpr auto kNmcliReapply = std::chrono::seconds(10);
@@ -138,7 +139,6 @@ class NetworkManagerIpv4Store : public Ipv4SystemStore {
 
     Ipv4Result prepare(const std::string& iface, Ipv4Link link, const Ipv4Config& next,
                        Ipv4Snapshot& out) override {
-        (void)next;
         std::string uuid;
         if (Ipv4Result r = profile_for(iface, link, uuid); !r.ok()) {
             return r;
@@ -152,6 +152,7 @@ class NetworkManagerIpv4Store : public Ipv4SystemStore {
         out.iface = iface;
         out.profile = uuid;
         out.original = nm_encode_values(values);
+        out.written = nm_encode_values(nm_values_for(next));
         return Ipv4Result::success();
     }
 
@@ -230,11 +231,27 @@ Ipv4Result restore_network_manager(const Ipv4Snapshot& snapshot) {
     if (!network_manager_active()) {
         return Ipv4Result::failed("NetworkManager is not running");
     }
-    const RunResult modify = run_capture(
-        "nmcli", nm_ipv4_restore_argv(snapshot.profile, nm_decode_values(snapshot.original)),
-        kNmcliModify);
-    if (modify.exit_code != 0) {
-        return Ipv4Result::failed("nmcli connection modify: " + first_output_line(modify.out));
+    const RunResult shown = run_capture("nmcli", nm_ipv4_show_argv(snapshot.profile), kNmcliQuick);
+    if (shown.exit_code != 0) {
+        return Ipv4Result::failed("nmcli connection show " + snapshot.profile + ": " +
+                                  first_output_line(shown.out));
+    }
+    const NmIpv4Values original = nm_decode_values(snapshot.original);
+    switch (nm_restore_step(nm_parse_ipv4_values(shown.out), original,
+                            nm_decode_values(snapshot.written))) {
+    case RestoreStep::AlreadyThere:
+        break;
+    case RestoreStep::Refuse:
+        return Ipv4Result::refused("profile " + snapshot.profile +
+                                   " was edited since the change; not restoring over it");
+    case RestoreStep::Write: {
+        const RunResult modify =
+            run_capture("nmcli", nm_ipv4_restore_argv(snapshot.profile, original), kNmcliModify);
+        if (modify.exit_code != 0) {
+            return Ipv4Result::failed("nmcli connection modify: " + first_output_line(modify.out));
+        }
+        break;
+    }
     }
     return NetworkManagerIpv4Store::activate(snapshot, /*required=*/false);
 }
@@ -245,8 +262,8 @@ Ipv4Result restore_network_manager(const Ipv4Snapshot& snapshot) {
 
 constexpr const char* kDhcpcdConf = "/etc/dhcpcd.conf";
 constexpr auto kDhcpcdTimeout = std::chrono::seconds(15);
-// A dhcpcd.conf this size or larger may have been cut short by the read.
-constexpr std::size_t kDhcpcdConfMax = 1024 * 1024;
+// A dhcpcd.conf larger than this is not edited (the record carries it twice).
+constexpr std::size_t kDhcpcdConfMax = kIpv4SnapshotMaxBytes;
 
 const char* dhcpcd_binary() {
     for (const char* p : {"/usr/sbin/dhcpcd", "/sbin/dhcpcd", "/usr/bin/dhcpcd"}) {
@@ -270,11 +287,11 @@ bool dhcpcd_running() {
 }
 
 Ipv4Result read_dhcpcd_conf(std::string& out) {
-    const auto conf = helix::text_io::read_file(kDhcpcdConf, kDhcpcdConfMax);
+    const auto conf = helix::text_io::read_file(kDhcpcdConf, kDhcpcdConfMax + 1);
     if (!conf) {
         return Ipv4Result::failed(std::string("cannot read ") + kDhcpcdConf);
     }
-    if (conf->size() >= kDhcpcdConfMax) {
+    if (conf->size() > kDhcpcdConfMax) {
         return Ipv4Result::failed(std::string(kDhcpcdConf) + " is too large to edit safely");
     }
     out = *conf;
@@ -376,8 +393,8 @@ Ipv4Result restore_dhcpcd(const Ipv4Snapshot& snapshot) {
     if (conf != snapshot.original) {
         // Anything other than what the change wrote is someone else's edit.
         if (conf != snapshot.written) {
-            return Ipv4Result::failed(std::string(kDhcpcdConf) +
-                                      " was edited since the change; not restoring over it");
+            return Ipv4Result::refused(std::string(kDhcpcdConf) +
+                                       " was edited since the change; not restoring over it");
         }
         if (Ipv4Result r = write_dhcpcd_conf(snapshot.original); !r.ok()) {
             return r;
@@ -435,7 +452,7 @@ Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
     if (snapshot.store == "mock") {
         return restore_mock_ipv4_snapshot(snapshot);
     }
-    return Ipv4Result::failed("unknown store '" + snapshot.store + "'");
+    return Ipv4Result::refused("unknown store '" + snapshot.store + "'");
 }
 
 } // namespace helix::net
@@ -502,47 +519,78 @@ Ipv4Result store_apply(Ipv4SystemStore* store, const Ipv4Snapshot& target,
 Ipv4Result apply_ipv4_change(Ipv4Configurable& backend, Ipv4Link link, const Ipv4Config& previous,
                              const Ipv4Config& next, const std::atomic<bool>* abandoned) {
     std::lock_guard<std::mutex> lock(ipv4_change_mutex());
+    if (abandoned && abandoned->load()) {
+        return Ipv4Result::refused("the IPv4 screen went away before the change started");
+    }
+    // One record holds the only way back to the config before a change. A
+    // pending one is restored first; only one the restore gave up on, which
+    // can no longer be used, may be replaced.
+    const Ipv4RecordLoad existing = read_pending_ipv4_revert();
+    if (existing.kind == Ipv4RecordLoad::Kind::Unreadable ||
+        (existing.kind == Ipv4RecordLoad::Kind::Ok && !existing.record.failed)) {
+        return Ipv4Result::refused("an earlier IPv4 change is still waiting to be undone");
+    }
     PendingIpv4Revert pending;
     pending.link = link;
     pending.previous = previous;
     pending.owner = ipv4_process_owner();
     if (Ipv4Result r = backend.prepare_ipv4_change(next, pending.snapshot); !r.ok()) {
-        return r;
+        return Ipv4Result::refused(r.detail);
     }
     // Without the record a restart mid-countdown would keep a config nobody
     // confirmed, so nothing is applied unless it is on disk first.
     if (!save_pending_ipv4_revert(pending)) {
-        return Ipv4Result::failed("could not save the revert record");
+        return Ipv4Result::refused("could not save the revert record");
     }
-    const Ipv4Result applied = backend.apply_ipv4_config(pending.snapshot, next);
-    if (applied.ok() && abandoned && abandoned->load()) {
-        spdlog::info("[Ipv4] The IPv4 screen went away mid-apply; restoring {}",
-                     ipv4_config_text(previous));
-        if (restore_ipv4_snapshot(pending.snapshot).ok()) {
-            clear_pending_ipv4_revert();
-        }
-    }
-    return applied;
+    return backend.apply_ipv4_config(pending.snapshot, next);
 }
 
-Ipv4Result restore_pending_ipv4(Ipv4Link link, bool stale_only) {
+Ipv4RestoreOutcome restore_pending_ipv4(Ipv4Link link, bool include_own) {
     std::lock_guard<std::mutex> lock(ipv4_change_mutex());
-    const auto pending = load_pending_ipv4_revert();
-    if (!pending || pending->link != link ||
-        (stale_only && !is_stale_pending_ipv4_revert(pending, link))) {
-        return Ipv4Result::success();
+    const Ipv4RecordLoad loaded = read_pending_ipv4_revert();
+    using Kind = Ipv4RestoreOutcome::Kind;
+    if (loaded.kind == Ipv4RecordLoad::Kind::None) {
+        return {Kind::Nothing, {}};
     }
-    spdlog::info("[Ipv4] Restoring {} on {} ({})", ipv4_config_text(pending->previous),
-                 pending->snapshot.iface, pending->snapshot.store);
-    const Ipv4Result r = restore_ipv4_snapshot(pending->snapshot);
+    if (loaded.kind == Ipv4RecordLoad::Kind::Unreadable) {
+        return {Kind::Terminal, pending_ipv4_revert_path() + " cannot be read"};
+    }
+    const PendingIpv4Revert& pending = loaded.record;
+    if (pending.link != link || pending.failed ||
+        (!include_own && pending.owner == ipv4_process_owner())) {
+        return {Kind::Skipped, {}};
+    }
+    spdlog::info("[Ipv4] Restoring {} on {} ({})", ipv4_config_text(pending.previous),
+                 pending.snapshot.iface, pending.snapshot.store);
+    const Ipv4Result r = restore_ipv4_snapshot(pending.snapshot);
+    if (r.status == Ipv4Result::Status::Refused) {
+        spdlog::error("[Ipv4] The previous IPv4 config cannot be restored: {}", r.detail);
+        return {Kind::Terminal, r.detail};
+    }
     if (!r.ok()) {
-        spdlog::warn("[Ipv4] Could not restore the previous IPv4 config: {}", r.detail);
-        return r;
+        spdlog::warn("[Ipv4] Could not restore the previous IPv4 config yet: {}", r.detail);
+        return {Kind::Retry, r.detail};
     }
     if (!clear_pending_ipv4_revert()) {
-        return Ipv4Result::failed("restored, but the revert record could not be removed");
+        return {Kind::Retry, "restored, but the revert record could not be removed"};
     }
-    return r;
+    return {Kind::Restored, {}};
+}
+
+bool mark_pending_ipv4_failed(Ipv4Link link, const std::string& why) {
+    std::lock_guard<std::mutex> lock(ipv4_change_mutex());
+    Ipv4RecordLoad loaded = read_pending_ipv4_revert();
+    PendingIpv4Revert& record = loaded.record;
+    if (loaded.kind == Ipv4RecordLoad::Kind::Unreadable) {
+        // Nothing in it can be restored; a failed stub keeps the user's notice.
+        record = {};
+        record.link = link;
+    } else if (loaded.kind != Ipv4RecordLoad::Kind::Ok || record.link != link) {
+        return false;
+    }
+    record.failed = true;
+    record.failure = why;
+    return save_pending_ipv4_revert(record);
 }
 
 } // namespace helix::net

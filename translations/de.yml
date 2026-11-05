@@ -313,6 +313,7 @@ translations:
   An accelerometer was detected on your printer.: Ein Beschleunigungssensor wurde
     an Ihrem Drucker erkannt.
   An app on your network is asking to connect to this printer.: 'Eine App in Ihrem Netzwerk möchte sich mit diesem Drucker verbinden.'
+  An earlier IPv4 change is still being undone. Try again shortly.: 'Eine frühere IPv4-Änderung wird noch rückgängig gemacht. Versuche es gleich noch einmal.'
   An error occurred during calibration.: Bei der Kalibrierung ist ein Fehler aufgetreten.
   An error occurred during filament loading.: Beim Laden des Filaments ist ein Fehler
     aufgetreten.
@@ -1017,7 +1018,7 @@ translations:
   Could not resolve printer RFCOMM channel: RFCOMM-Kanal des Druckers konnte nicht
     ermittelt werden
   Could not restore the previous IPv4 settings: 'Die vorherigen IPv4-Einstellungen konnten nicht wiederhergestellt werden'
-  Could not restore the previous IPv4 settings. They are restored at the next start.: 'Die vorherigen IPv4-Einstellungen konnten nicht wiederhergestellt werden. Sie werden beim nächsten Start wiederhergestellt.'
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Die vorherigen IPv4-Einstellungen konnten noch nicht wiederhergestellt werden. Neuer Versuch bis zu zwei Minuten lang.'
   Could not save filament: Filament konnte nicht gespeichert werden
   Could not save the drying state: Trocknungsstatus konnte nicht gespeichert werden
 
@@ -4168,6 +4169,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "Das Plugin erreicht die Kamera nicht, daher macht dieser Bildschirm die Fotos."
   The plugin can't save its recovery data to disk.: "Das Plugin kann seine Wiederherstellungsdaten nicht speichern."
   The plugin is turned off in moonraker.conf.: "Das Plugin ist in moonraker.conf ausgeschaltet."
+  The previous IPv4 settings come back when the print ends.: 'Die vorherigen IPv4-Einstellungen kehren zurück, wenn der Druck endet.'
+  'The previous IPv4 settings could not be restored: {}': 'Die vorherigen IPv4-Einstellungen konnten nicht wiederhergestellt werden: {}'
   The previous settings come back in %d seconds unless you keep these.: 'Die vorherigen Einstellungen kehren in %d Sekunden zurück, wenn du diese nicht behältst.'
   The print ended before any layer was printed. Nothing was changed.: Der Druck endete, bevor eine Schicht gedruckt wurde. Nichts wurde geändert.
   The print is canceled and you pick the best band from what has printed so far.: Der Druck wird abgebrochen und du wählst den besten Bereich aus dem bisher Gedruckten.

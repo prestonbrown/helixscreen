@@ -313,6 +313,7 @@ translations:
   An accelerometer was detected on your printer.: Un accéléromètre a été détecté sur
     votre imprimante.
   An app on your network is asking to connect to this printer.: 'Une application de votre réseau demande à se connecter à cette imprimante.'
+  An earlier IPv4 change is still being undone. Try again shortly.: 'Une modification IPv4 précédente est encore en cours d''annulation. Réessayez dans un instant.'
   An error occurred during calibration.: Une erreur s'est produite pendant la calibration.
   An error occurred during filament loading.: Une erreur s'est produite lors du chargement
     du filament.
@@ -1019,7 +1020,7 @@ translations:
   Could not resolve printer RFCOMM channel: Impossible de résoudre le canal RFCOMM
     de l'imprimante
   Could not restore the previous IPv4 settings: 'Impossible de restaurer les paramètres IPv4 précédents'
-  Could not restore the previous IPv4 settings. They are restored at the next start.: 'Impossible de restaurer les paramètres IPv4 précédents. Ils seront restaurés au prochain démarrage.'
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Impossible de restaurer les paramètres IPv4 précédents pour l''instant. Nouvelles tentatives pendant deux minutes au plus.'
   Could not save filament: 'Impossible d''enregistrer le filament'
   Could not save the drying state: Impossible d'enregistrer l'état du séchage
 
@@ -4187,6 +4188,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "Le plugin n'atteint pas la caméra, cet écran prend donc les photos."
   The plugin can't save its recovery data to disk.: "Le plugin ne peut pas enregistrer ses données de reprise."
   The plugin is turned off in moonraker.conf.: "Le plugin est désactivé dans moonraker.conf."
+  The previous IPv4 settings come back when the print ends.: 'Les paramètres IPv4 précédents reviendront à la fin de l''impression.'
+  'The previous IPv4 settings could not be restored: {}': 'Impossible de restaurer les paramètres IPv4 précédents : {}'
   The previous settings come back in %d seconds unless you keep these.: 'Les paramètres précédents reviennent dans %d secondes, sauf si vous conservez ceux-ci.'
   The print ended before any layer was printed. Nothing was changed.: L'impression s'est terminée avant la première couche. Rien n'a été modifié.
   The print is canceled and you pick the best band from what has printed so far.: L'impression est annulée et vous choisissez la meilleure bande parmi ce qui a été imprimé.

@@ -296,6 +296,7 @@ translations:
   An API key is 32 characters, each 0-9 or a-f.: 'APIキーは32文字で、各文字は0-9またはa-fです。'
   An accelerometer was detected on your printer.: プリンターで加速度センサーが検出されました。
   An app on your network is asking to connect to this printer.: 'ネットワーク上のアプリがこのプリンターへの接続を求めています。'
+  An earlier IPv4 change is still being undone. Try again shortly.: '以前のIPv4の変更をまだ元に戻しています。しばらくしてからもう一度お試しください。'
   An error occurred during calibration.: キャリブレーション中にエラーが発生しました。
   An error occurred during filament loading.: フィラメントの読み込み中にエラーが発生しました。
   An error occurred during probing.: プローブ中にエラーが発生しました。
@@ -946,7 +947,7 @@ translations:
   Could not reset the printer image tags: プリンター画像のタグのリセットに失敗しました
   Could not resolve printer RFCOMM channel: プリンターの RFCOMM チャンネルを解決できませんでした
   Could not restore the previous IPv4 settings: '以前のIPv4設定を復元できませんでした'
-  Could not restore the previous IPv4 settings. They are restored at the next start.: '以前のIPv4設定を復元できませんでした。次回の起動時に復元されます。'
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '以前のIPv4設定をまだ復元できていません。最大2分間再試行します。'
   Could not save filament: フィラメントを保存できませんでした
   Could not save the drying state: 乾燥の状態を保存できませんでした
 
@@ -3953,6 +3954,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "プラグインがカメラに接続できないため、この画面が写真を撮ります。"
   The plugin can't save its recovery data to disk.: "プラグインが復帰データを保存できません。"
   The plugin is turned off in moonraker.conf.: "プラグインはmoonraker.confでオフになっています。"
+  The previous IPv4 settings come back when the print ends.: '以前のIPv4設定は印刷の終了後に戻ります。'
+  'The previous IPv4 settings could not be restored: {}': '以前のIPv4設定を復元できませんでした: {}'
   The previous settings come back in %d seconds unless you keep these.: 'この設定を保持しない場合、%d 秒後に以前の設定に戻ります。'
   The print ended before any layer was printed. Nothing was changed.: レイヤーが印刷される前に印刷が終了しました。何も変更されていません。
   The print is canceled and you pick the best band from what has printed so far.: 印刷をキャンセルし、ここまで印刷された中から最適な区間を選びます。

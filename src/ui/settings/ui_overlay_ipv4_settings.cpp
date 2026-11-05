@@ -6,6 +6,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
+#include "ui_ipv4_revert_retry.h"
 #include "ui_keyboard_manager.h"
 #include "ui_toast_manager.h"
 
@@ -20,6 +21,7 @@
 #include "wifi_manager.h"
 
 #include <lvgl/lvgl.h>
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <cstdio>
@@ -316,6 +318,14 @@ void Ipv4SettingsOverlay::load_current() {
         loaded_ = true;
         fill_form(config);
         set_busy(false);
+        // A revert the retry gave up on stays on show until a change replaces it.
+        const auto pending = helix::net::load_pending_ipv4_revert();
+        if (pending && pending->failed && pending->link == link_) {
+            set_error(fmt::format(fmt::runtime(lv_tr(
+                                      "The previous IPv4 settings could not be restored: {}")),
+                                  pending->failure)
+                          .c_str());
+        }
     });
 }
 
@@ -388,7 +398,23 @@ void Ipv4SettingsOverlay::perform(helix::net::Ipv4ChangeFlow::Action action) {
         if (keep_modal_.is_visible()) {
             keep_modal_.hide();
         }
+        if (job_holds_machine()) {
+            // A revert can bounce the link a print's clients use: it waits for
+            // the job to end, on the retry.
+            flow_.handed_off();
+            set_busy(false);
+            loaded_ = false;
+            retry_ipv4_revert(link_, /*include_own=*/true);
+            NOTIFY_INFO("{}", lv_tr("The previous IPv4 settings come back when the print ends."));
+            return;
+        }
         run_revert();
+        return;
+    case Action::NotApplied:
+        set_busy(false);
+        set_error(earlier_change_pending()
+                      ? lv_tr("An earlier IPv4 change is still being undone. Try again shortly.")
+                      : lv_tr("Could not apply the new IPv4 settings."));
         return;
     case Action::KeptForJob:
     case Action::Kept:
@@ -423,15 +449,16 @@ void Ipv4SettingsOverlay::perform(helix::net::Ipv4ChangeFlow::Action action) {
                                       3000);
         return;
     case Action::RestoreFailed:
-        // The record stays, so the next start tries again. What the link runs
-        // now is unknown, so nothing more is applied until the screen reads it.
-        spdlog::error("[{}] Could not restore {}", get_name(),
+        // The record stays and the retry owns it. What the link runs now is
+        // unknown, so nothing more is applied until the screen reads it.
+        spdlog::error("[{}] Could not restore {} yet", get_name(),
                       helix::net::ipv4_config_text(previous_config_));
-        set_error(lv_tr("Could not restore the previous IPv4 settings. They are restored at the "
-                        "next start."));
+        set_error(lv_tr("Could not restore the previous IPv4 settings yet. Retrying for up to "
+                        "two minutes."));
         ToastManager::instance().show(ToastSeverity::ERROR,
                                       lv_tr("Could not restore the previous IPv4 settings"));
         loaded_ = false;
+        retry_ipv4_revert(link_, /*include_own=*/true);
         return;
     }
 }
@@ -443,14 +470,14 @@ void Ipv4SettingsOverlay::run_apply() {
                  helix::net::ipv4_link_name(link_));
     // The object's token: after Back the answer still raises the Keep dialog.
     auto token = object_lifetime_.token();
-    auto on_done = [this](bool ok) {
-        if (!ok) {
+    auto on_done = [this](helix::net::Ipv4Result::Status status) {
+        if (status == helix::net::Ipv4Result::Status::Failed) {
             set_error(lv_tr("Could not apply the new IPv4 settings."));
         }
-        perform(flow_.applied(ok, lv_tick_get()));
+        perform(flow_.applied(status, lv_tick_get(), job_holds_machine()));
     };
     if (!link_supported()) {
-        on_done(false);
+        on_done(helix::net::Ipv4Result::Status::NotSupported);
     } else if (link_ == helix::net::Ipv4Link::Wifi) {
         get_wifi_manager()->apply_ipv4_change_async(previous_config_, next, flow_.abandoned(),
                                                     token, on_done);
@@ -466,25 +493,56 @@ void Ipv4SettingsOverlay::run_revert() {
     const helix::net::Ipv4Link link = link_;
     helix::http::HttpExecutor::fast().start();
     helix::http::HttpExecutor::fast().submit([token, link]() {
-        const bool ok = helix::net::restore_pending_ipv4(link, /*stale_only=*/false).ok();
-        token.defer("Ipv4SettingsOverlay::reverted", [ok]() {
-            auto& self = get_ipv4_settings_overlay();
-            self.perform(self.flow_.reverted(ok));
-        });
+        const helix::net::Ipv4RestoreOutcome outcome =
+            helix::net::restore_pending_ipv4(link, /*include_own=*/true);
+        token.defer("Ipv4SettingsOverlay::reverted",
+                    [outcome]() { get_ipv4_settings_overlay().on_reverted(outcome); });
     });
 }
 
-void Ipv4SettingsOverlay::abandon_change() {
-    if (flow_.teardown() != helix::net::Ipv4ChangeFlow::Action::Revert) {
+void Ipv4SettingsOverlay::on_reverted(const helix::net::Ipv4RestoreOutcome& outcome) {
+    using Kind = helix::net::Ipv4RestoreOutcome::Kind;
+    switch (outcome.kind) {
+    case Kind::Restored:
+        perform(flow_.reverted(true));
+        return;
+    case Kind::Terminal:
+        // Never retried: the record is marked failed and the user told why.
+        flow_.handed_off();
+        set_busy(false);
+        loaded_ = false;
+        set_error(lv_tr("Could not restore the previous IPv4 settings"));
+        give_up_ipv4_revert(link_, outcome.detail);
+        return;
+    case Kind::Nothing:
+    case Kind::Skipped:
+    case Kind::Retry:
+        // Only a restore that happened counts: anything else is retried, and
+        // the retry says how it ends.
+        perform(flow_.reverted(false));
         return;
     }
-    // Nobody is left to answer: restore without waiting for the result.
+}
+
+void Ipv4SettingsOverlay::abandon_change() {
+    if (flow_.teardown() != helix::net::Ipv4ChangeFlow::Action::Revert || !lv_is_initialized()) {
+        return;
+    }
+    // Nobody is left to answer. The retry queues behind an apply still running
+    // and owns the record from here, failures included.
     spdlog::info("[{}] Leaving with a change unconfirmed: reverting it", get_name());
     stop_countdown();
-    const helix::net::Ipv4Link link = link_;
-    helix::http::HttpExecutor::fast().start();
-    helix::http::HttpExecutor::fast().submit(
-        [link]() { helix::net::restore_pending_ipv4(link, /*stale_only=*/false); });
+    retry_ipv4_revert(link_, /*include_own=*/true);
+}
+
+bool Ipv4SettingsOverlay::earlier_change_pending() const {
+    const auto pending = helix::net::load_pending_ipv4_revert();
+    return pending && !pending->failed;
+}
+
+bool Ipv4SettingsOverlay::job_holds_machine() {
+    return lv_subject_get_int(get_printer_state().print_state().get_job_holds_machine_subject()) !=
+           0;
 }
 
 void Ipv4SettingsOverlay::show_keep_prompt() {

@@ -463,13 +463,24 @@ TEST_CASE("PendingIpv4Revert encodes and decodes", "[ipv4]") {
             CHECK(again->previous == held);
         }
     }
-    SECTION("a DNS server that is not an address is no record") {
-        p.previous.dns = {"1.1.1.1\nstatic ip_address=6.6.6.6/8"};
-        REQUIRE_FALSE(decode_pending_ipv4_revert(encode_pending_ipv4_revert(p)));
+    SECTION("what the previous config holds never decides whether it loads") {
+        p.previous = static_config("10.0.0.5", 0, "", {"192.168.0.1", "fd51:42f8:caae:d92e::1"});
+        const auto again = decode_pending_ipv4_revert(encode_pending_ipv4_revert(p));
+        REQUIRE(again);
+        CHECK(again->previous == p.previous);
+    }
+    SECTION("snapshot bytes survive exactly, UTF-8 or not") {
+        p.snapshot = {"dhcpcd", "wlan0", "", std::string("# K\xf6ln \xff\xfe\n", 12),
+                      std::string("\x80\x00x", 3)};
+        const auto again = decode_pending_ipv4_revert(encode_pending_ipv4_revert(p));
+        REQUIRE(again);
+        CHECK(again->snapshot.original == p.snapshot.original);
+        CHECK(again->snapshot.written == p.snapshot.written);
     }
 
     PendingIpv4Revert d;
     d.previous.dns = {"9.9.9.9"};
+    d.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
     const auto dback = decode_pending_ipv4_revert(encode_pending_ipv4_revert(d));
     REQUIRE(dback);
     REQUIRE(dback->link == Ipv4Link::Wifi);
@@ -481,9 +492,11 @@ TEST_CASE("PendingIpv4Revert encodes and decodes", "[ipv4]") {
         REQUIRE_FALSE(decode_pending_ipv4_revert("[]"));
         REQUIRE_FALSE(decode_pending_ipv4_revert(R"({"link":"bluetooth","dhcp":true})"));
         REQUIRE_FALSE(decode_pending_ipv4_revert(R"({"link":"wifi"})"));
-        // A static record that would not validate is not replayed.
+        // A record with nothing a restore could use.
+        REQUIRE_FALSE(decode_pending_ipv4_revert(R"({"link":"wifi","store":"networkmanager"})"));
+        REQUIRE_FALSE(decode_pending_ipv4_revert(R"({"link":"wifi","store":"zeroconf"})"));
         REQUIRE_FALSE(decode_pending_ipv4_revert(
-            R"({"link":"wifi","dhcp":false,"address":"nope","prefix":24,"gateway":"","dns":[]})"));
+            R"({"link":"wifi","store":"dhcpcd","iface":"wlan0","original_b64":"*!"})"));
     }
 }
 
@@ -558,15 +571,39 @@ TEST_CASE("ipv4_keep_unshown keeps the DNS servers the form cannot show", "[ipv4
           std::vector<std::string>{"8.8.8.8"});
 }
 
-TEST_CASE("Ipv4RetrySchedule retries every few seconds, then gives up", "[ipv4]") {
-    Ipv4RetrySchedule r;
+TEST_CASE("Ipv4RevertRetry ends: retries fast failures, then gives up", "[ipv4]") {
+    using Step = Ipv4RevertRetry::Step;
+    Ipv4RevertRetry r;
     r.start(1000);
-    CHECK_FALSE(r.due(1000 + kIpv4RetryEveryMs - 1));
-    CHECK(r.due(1000 + kIpv4RetryEveryMs));
-    r.tried(1000 + kIpv4RetryEveryMs);
-    CHECK_FALSE(r.due(1000 + kIpv4RetryEveryMs + 1));
-    CHECK(r.exhausted(1000 + kIpv4RetryForMs));
-    CHECK_FALSE(r.due(1000 + kIpv4RetryForMs + kIpv4RetryEveryMs));
+    CHECK(r.tick(1000, false) == Step::Attempt);
+    CHECK(r.tick(1000 + kIpv4RetryEveryMs - 1, false) == Step::Wait);
+    // Every attempt failing at once: the window still ends in GiveUp.
+    uint32_t now = 1000;
+    Step last = Step::Wait;
+    while (now < 1000 + kIpv4RetryForMs + 2 * kIpv4RetryEveryMs && last != Step::GiveUp) {
+        now += 1000;
+        last = r.tick(now, false);
+    }
+    CHECK(last == Step::GiveUp);
+    CHECK(now <= 1000 + kIpv4RetryForMs);
+
+    SECTION("nothing is tried while a job holds the machine, and the window restarts") {
+        Ipv4RevertRetry j;
+        j.start(0);
+        CHECK(j.tick(0, true) == Step::Wait);
+        CHECK(j.tick(kIpv4RetryForMs + 10, true) == Step::Wait);
+        CHECK(j.tick(kIpv4RetryForMs + 20, false) == Step::Attempt);
+    }
+}
+
+TEST_CASE("nm_restore_step writes only over what the change wrote", "[ipv4]") {
+    const NmIpv4Values original{"manual", "10.0.0.2/24,10.0.0.3/24", "10.0.0.1", "1.1.1.1"};
+    const NmIpv4Values written = nm_values_for(Ipv4Config{});
+    CHECK(nm_restore_step(written, original, written) == RestoreStep::Write);
+    CHECK(nm_restore_step({"manual", "10.0.0.2/24, 10.0.0.3/24", "10.0.0.1", "1.1.1.1"}, original,
+                          written) == RestoreStep::AlreadyThere);
+    CHECK(nm_restore_step({"manual", "10.9.9.9/24", "10.9.9.1", ""}, original, written) ==
+          RestoreStep::Refuse);
 }
 
 TEST_CASE("Ipv4ChangeFlow: Keep makes a change final, everything else reverts", "[ipv4]") {
@@ -579,45 +616,52 @@ TEST_CASE("Ipv4ChangeFlow: Keep makes a change final, everything else reverts", 
     CHECK(f.begin(was, next) == A::None); // one change at a time
 
     SECTION("keep") {
-        REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
+        REQUIRE(f.applied(Ipv4Result::Status::Ok, 0, false) == A::ShowKeepPrompt);
         CHECK(f.keep() == A::Kept);
         CHECK(f.state() == Ipv4ChangeFlow::State::Idle);
         CHECK(f.reject() == A::None);
     }
     SECTION("the countdown runs out") {
-        REQUIRE(f.applied(true, 1000) == A::ShowKeepPrompt);
+        REQUIRE(f.applied(Ipv4Result::Status::Ok, 1000, false) == A::ShowKeepPrompt);
         CHECK(f.tick(1000 + kIpv4ConfirmSeconds * 1000 - 1) == A::None);
         CHECK(f.tick(1000 + kIpv4ConfirmSeconds * 1000) == A::Revert);
         CHECK(f.keep() == A::None); // too late
         CHECK(f.reverted(true) == A::Restored);
     }
     SECTION("Revert now or a dismissal") {
-        REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
+        REQUIRE(f.applied(Ipv4Result::Status::Ok, 0, false) == A::ShowKeepPrompt);
         CHECK(f.reject() == A::Revert);
         CHECK(f.reject() == A::None);
         CHECK(f.reverted(false) == A::RestoreFailed);
         CHECK(f.state() == Ipv4ChangeFlow::State::Idle);
     }
     SECTION("a failed apply reverts") {
-        CHECK(f.applied(false, 0) == A::Revert);
+        CHECK(f.applied(Ipv4Result::Status::Failed, 0, false) == A::Revert);
     }
     SECTION("an answer after Back still asks Keep") {
-        CHECK(f.applied(true, 0) == A::ShowKeepPrompt);
+        CHECK(f.applied(Ipv4Result::Status::Ok, 0, false) == A::ShowKeepPrompt);
     }
-    SECTION("leaving mid-apply hands the revert to the apply") {
-        CHECK(f.teardown() == A::None);
+    SECTION("leaving mid-apply asks for the revert and stops an apply not started") {
+        CHECK(f.teardown() == A::Revert);
         CHECK(f.abandoned()->load());
-        CHECK(f.applied(true, 0) == A::None);
+        CHECK(f.applied(Ipv4Result::Status::Ok, 0, false) == A::None);
+    }
+    SECTION("a refused change reverts nothing") {
+        CHECK(f.applied(Ipv4Result::Status::Refused, 0, false) == A::NotApplied);
+        CHECK(f.state() == Ipv4ChangeFlow::State::Idle);
+    }
+    SECTION("an answer while a print holds the machine keeps it, no dialog") {
+        CHECK(f.applied(Ipv4Result::Status::Ok, 0, true) == A::KeptForJob);
     }
     SECTION("a print starting while asked keeps the change") {
         CHECK(f.job_started() == A::None); // still applying
-        REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
+        REQUIRE(f.applied(Ipv4Result::Status::Ok, 0, false) == A::ShowKeepPrompt);
         CHECK(f.job_started() == A::KeptForJob);
         CHECK(f.tick(kIpv4ConfirmSeconds * 1000) == A::None); // no revert after
         CHECK(f.job_started() == A::None);
     }
     SECTION("leaving while asked reverts") {
-        REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
+        REQUIRE(f.applied(Ipv4Result::Status::Ok, 0, false) == A::ShowKeepPrompt);
         CHECK(f.teardown() == A::Revert);
     }
 }

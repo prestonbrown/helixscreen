@@ -3,8 +3,8 @@
 
 #include "netd_protocol.h"
 
+#include "core/base64_field.h"
 #include "core/text_io.h"
-#include "hv/base64.h"
 
 #include <spdlog/spdlog.h>
 
@@ -52,38 +52,6 @@ std::optional<int> parse_int(const std::string& s) {
             return std::nullopt;
     }
     return static_cast<int>(s[0] == '-' ? -value : value);
-}
-
-// Base64-decode a wire field with validation (the first-party client's
-// validate=True semantics): canonical length, alphabet only, '=' confined to
-// the trailing pad. Invalid input decodes to an empty string, never an error.
-// hv provides the codec; this only guards what it will accept.
-std::string decode_b64_field(const std::string& encoded) {
-    const size_t len = encoded.size();
-    if (len == 0)
-        return {};
-    if (len % 4 != 0)
-        return {};
-    for (size_t i = 0; i < len; ++i) {
-        const char c = encoded[i];
-        const bool in_alphabet = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-                                 (c >= '0' && c <= '9') || c == '+' || c == '/';
-        // '=' pads only the final quantum (last one or two positions).
-        const bool is_trailing_pad = c == '=' && i + 2 >= len;
-        if (!in_alphabet && !is_trailing_pad)
-            return {};
-    }
-    return hv::Base64Decode(encoded.c_str(), static_cast<unsigned int>(len));
-}
-
-std::string encode_b64_field(const std::string& raw) {
-    // hv_base64_encode dereferences its input even at length 0 (verified
-    // SIGSEGV), so the empty-string encoding — which is the empty string —
-    // must be answered here.
-    if (raw.empty())
-        return {};
-    return hv::Base64Encode(reinterpret_cast<const unsigned char*>(raw.data()),
-                            static_cast<unsigned int>(raw.size()));
 }
 
 // A partial line strictly larger than this is garbage (no legitimate netd line

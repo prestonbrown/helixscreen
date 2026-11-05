@@ -311,6 +311,7 @@ translations:
   An accelerometer was detected on your printer.: Um acelerômetro foi detectado na
     sua impressora.
   An app on your network is asking to connect to this printer.: 'Um aplicativo na sua rede quer conectar-se a esta impressora.'
+  An earlier IPv4 change is still being undone. Try again shortly.: 'Uma alteração IPv4 anterior ainda está sendo desfeita. Tente novamente em instantes.'
   An error occurred during calibration.: Ocorreu um erro durante a calibração.
   An error occurred during filament loading.: Ocorreu um erro durante o carregamento
     do filamento.
@@ -1014,7 +1015,7 @@ translations:
   Could not resolve printer RFCOMM channel: Não foi possível resolver o canal RFCOMM
     da impressora
   Could not restore the previous IPv4 settings: 'Não foi possível restaurar as configurações IPv4 anteriores'
-  Could not restore the previous IPv4 settings. They are restored at the next start.: 'Não foi possível restaurar as configurações IPv4 anteriores. Elas serão restauradas na próxima inicialização.'
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Ainda não foi possível restaurar as configurações IPv4 anteriores. Tentando novamente por até dois minutos.'
   Could not save filament: Não foi possível salvar o filamento
   Could not save the drying state: Não foi possível salvar o estado da secagem
 
@@ -4167,6 +4168,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "O plugin não alcança a câmera, então esta tela tira as fotos."
   The plugin can't save its recovery data to disk.: "O plugin não consegue salvar seus dados de recuperação."
   The plugin is turned off in moonraker.conf.: "O plugin está desligado no moonraker.conf."
+  The previous IPv4 settings come back when the print ends.: 'As configurações IPv4 anteriores voltam quando a impressão terminar.'
+  'The previous IPv4 settings could not be restored: {}': 'Não foi possível restaurar as configurações IPv4 anteriores: {}'
   The previous settings come back in %d seconds unless you keep these.: 'As configurações anteriores voltam em %d segundos, a menos que você mantenha estas.'
   The print ended before any layer was printed. Nothing was changed.: A impressão terminou antes de qualquer camada ser impressa. Nada foi alterado.
   The print is canceled and you pick the best band from what has printed so far.: A impressão é cancelada e você escolhe a melhor faixa do que foi impresso até agora.

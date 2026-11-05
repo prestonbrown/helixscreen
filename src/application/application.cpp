@@ -166,6 +166,8 @@
 #include "ui_panel_glyphs.h"
 #endif
 
+#include "ui_ipv4_revert_retry.h"
+
 #include "active_print_media_manager.h"
 #include "android_asset_extractor.h"
 #include "board_identity.h"
@@ -173,7 +175,6 @@
 #include "display_settings_manager.h"
 #include "glass_gate.h"
 #include "helix_sparkline.h"
-#include "ipv4_startup_revert.h"
 #include "setting_group.h"
 #include "temperature_service.h"
 #if HELIX_ENABLE_SCREENSAVER
@@ -2000,7 +2001,7 @@ void Application::check_wifi_availability() {
     auto wifi = get_wifi_manager();
 
     // An IPv4 change the user never kept is undone at boot.
-    helix::start_ipv4_startup_revert();
+    helix::settings::start_ipv4_startup_revert();
 
     // Link telemetry runs from boot, not only while a WiFi screen is open.
     helix::WifiLinkMonitor::instance().start();

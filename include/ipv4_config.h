@@ -134,7 +134,9 @@ Ipv4Config ipv4_keep_unshown(const Ipv4Config& current, Ipv4Config next);
 // ============================================================================
 
 struct Ipv4Result {
-    enum class Status { Ok, NotSupported, Failed };
+    /// Failed: it may have been partly done. Refused: nothing was touched, and
+    /// for a restore it never will be (the target was edited since, or is gone).
+    enum class Status { Ok, NotSupported, Failed, Refused };
     Status status = Status::Ok;
     std::string detail; ///< Technical detail for the log
 
@@ -150,6 +152,9 @@ struct Ipv4Result {
     static Ipv4Result failed(std::string why) {
         return {Status::Failed, std::move(why)};
     }
+    static Ipv4Result refused(std::string why) {
+        return {Status::Refused, std::move(why)};
+    }
 };
 
 /**
@@ -164,8 +169,8 @@ struct Ipv4Snapshot {
     std::string store;    ///< "networkmanager", "dhcpcd" or "mock"
     std::string iface;    ///< The interface the change targets
     std::string profile;  ///< NetworkManager connection UUID; empty for the others
-    std::string original; ///< What a restore writes back (store-specific text)
-    std::string written;  ///< dhcpcd: the file the change writes; restore refuses if it moved on
+    std::string original; ///< What a restore writes back (store-specific bytes)
+    std::string written;  ///< What the change writes; a restore refuses once the target moved on
 };
 
 /**
@@ -267,6 +272,16 @@ NmIpv4Values nm_decode_values(const std::string& text);
 /// Argument vector that writes @p values back into a profile exactly.
 std::vector<std::string> nm_ipv4_restore_argv(const std::string& uuid, const NmIpv4Values& values);
 
+/// The values a change to @p config writes, as nmcli then prints them.
+NmIpv4Values nm_values_for(const Ipv4Config& config);
+
+/// What a restore does with a profile that now holds @p now: write the
+/// original back over what the change wrote, nothing when the original is
+/// already there, and refuse over anything else, since someone fixed it by hand.
+enum class RestoreStep { Write, AlreadyThere, Refuse };
+RestoreStep nm_restore_step(const NmIpv4Values& now, const NmIpv4Values& original,
+                            const NmIpv4Values& written);
+
 /// Argument vector (program name excluded) that reads a profile's IPv4 settings.
 std::vector<std::string> nm_ipv4_show_argv(const std::string& uuid);
 
@@ -346,7 +361,16 @@ struct PendingIpv4Revert {
     /// this process wrote belongs to its live countdown, never to the startup
     /// revert.
     std::string owner;
+    /// The restore gave up for good: kept for the user, never retried, and a
+    /// new change may replace it.
+    bool failed = false;
+    std::string failure; ///< Why, for the screen and the log
 };
+
+/// dhcpcd.conf larger than this is not edited, so the record that carries it
+/// twice (base64, about 4/3 each) stays well inside kIpv4RecordMaxBytes.
+constexpr std::size_t kIpv4SnapshotMaxBytes = 256 * 1024;
+constexpr std::size_t kIpv4RecordMaxBytes = 1024 * 1024;
 
 /// A token unique to this process run, stamped into the records it writes.
 const std::string& ipv4_process_owner();
@@ -355,45 +379,64 @@ const std::string& ipv4_process_owner();
 /// for @p link and no countdown in this process owns it.
 bool is_stale_pending_ipv4_revert(const std::optional<PendingIpv4Revert>& pending, Ipv4Link link);
 
+/// The snapshot bytes are stored base64, so no byte is lost to UTF-8.
 std::string encode_pending_ipv4_revert(const PendingIpv4Revert& pending);
-/// nullopt for anything that is not a record. A previous config is accepted
-/// when every address in it parses: a system can hold configs the form never
-/// would (no gateway, a /32), and those must still come back.
+/// nullopt when the text is not a record a restore can use: what decides is
+/// the snapshot's store and the fields it needs. `previous` is only shown, so
+/// anything a system held is accepted (IPv6 DNS, no gateway, /0).
 std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view text);
 
 /// <user config dir>/ipv4_pending_revert.json: beside settings.json but not in
 /// it, so a restored settings backup can never replay a stale revert.
 std::string pending_ipv4_revert_path();
 bool save_pending_ipv4_revert(const PendingIpv4Revert& pending);
+
+/// A record file that exists but cannot be used is a failure to report, never
+/// "nothing to do".
+struct Ipv4RecordLoad {
+    enum class Kind { None, Ok, Unreadable };
+    Kind kind = Kind::None;
+    PendingIpv4Revert record;
+};
+Ipv4RecordLoad read_pending_ipv4_revert();
+/// The usable record, if any.
 std::optional<PendingIpv4Revert> load_pending_ipv4_revert();
 /// True when no record remains (removed now, or there was none).
 bool clear_pending_ipv4_revert();
 
 /**
- * @brief When a startup revert tries again
+ * @brief When a pending revert is tried again, and when it is given up
  *
  * At start the network may not exist yet (NetworkManager still activating,
  * dhcpcd not started), so a failed restore is retried every
- * kIpv4RetryEveryMs until kIpv4RetryForMs have passed since the first try.
+ * kIpv4RetryEveryMs for kIpv4RetryForMs. Nothing is tried while a job holds
+ * the machine, since a restore can bounce the link a print's clients use;
+ * the window starts again when the job ends.
  */
 constexpr uint32_t kIpv4RetryEveryMs = 5000;
 constexpr uint32_t kIpv4RetryForMs = 120000;
 
-class Ipv4RetrySchedule {
+class Ipv4RevertRetry {
   public:
+    enum class Step { Wait, Attempt, GiveUp };
     void start(uint32_t now_ms) {
         first_ms_ = now_ms;
+        last_ms_ = now_ms - kIpv4RetryEveryMs;
+    }
+    /// Called while no attempt is running.
+    Step tick(uint32_t now_ms, bool job_holds_machine) {
+        if (job_holds_machine) {
+            start(now_ms);
+            return Step::Wait;
+        }
+        if (now_ms - first_ms_ >= kIpv4RetryForMs) {
+            return Step::GiveUp;
+        }
+        if (now_ms - last_ms_ < kIpv4RetryEveryMs) {
+            return Step::Wait;
+        }
         last_ms_ = now_ms;
-    }
-    /// An attempt is starting now.
-    void tried(uint32_t now_ms) {
-        last_ms_ = now_ms;
-    }
-    bool due(uint32_t now_ms) const {
-        return now_ms - last_ms_ >= kIpv4RetryEveryMs && !exhausted(now_ms);
-    }
-    bool exhausted(uint32_t now_ms) const {
-        return now_ms - first_ms_ >= kIpv4RetryForMs;
+        return Step::Attempt;
     }
 
   private:
@@ -425,11 +468,12 @@ class Ipv4ChangeFlow {
         Apply,          ///< Apply next(); answer with applied()
         Close,          ///< Nothing changed: leave the screen
         ShowKeepPrompt, ///< Ask Keep or revert; the countdown has started
-        Revert,         ///< Restore the snapshot; answer with reverted()
+        Revert,         ///< Restore the snapshot; answer with reverted() or handed_off()
+        NotApplied,     ///< Refused before anything changed: nothing to revert
         Kept,           ///< Final: drop the record and leave the screen
         KeptForJob,     ///< Kept because a job took the machine: close the dialog, then as Kept
         Restored,       ///< The previous config is back
-        RestoreFailed,  ///< Still unconfirmed; the record stays for the next start
+        RestoreFailed,  ///< Not restored now; the record stays and is retried
     };
 
     State state() const {
@@ -438,8 +482,8 @@ class Ipv4ChangeFlow {
     const Ipv4Config& next() const {
         return next_;
     }
-    /// Set when the screen went away while the apply was running: the apply
-    /// restores the snapshot itself once it lands.
+    /// Set when the screen went away mid-apply: an apply not started yet
+    /// refuses instead of running.
     std::shared_ptr<std::atomic<bool>> abandoned() const {
         return abandoned_;
     }
@@ -448,12 +492,16 @@ class Ipv4ChangeFlow {
     }
 
     Action begin(const Ipv4Config& current, const Ipv4Config& next);
-    Action applied(bool ok, uint32_t now_ms);
+    /// The apply answered. A job holding the machine by then keeps the change
+    /// at once: the Keep dialog never opens over a print.
+    Action applied(Ipv4Result::Status outcome, uint32_t now_ms, bool job_holds_machine);
     Action tick(uint32_t now_ms);
     Action keep();
     /// Revert now, ESC, or the dialog closed without an answer.
     Action reject();
     Action reverted(bool ok);
+    /// The revert went to the retry, which owns the record from here.
+    void handed_off();
     /// A job started holding the machine. While asked, the change is kept:
     /// reverting mid-print could drop what the print depends on.
     Action job_started();

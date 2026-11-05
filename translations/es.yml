@@ -311,6 +311,7 @@ translations:
   An accelerometer was detected on your printer.: Se detectó un acelerómetro en su
     impresora.
   An app on your network is asking to connect to this printer.: 'Una aplicación de su red quiere conectarse a esta impresora.'
+  An earlier IPv4 change is still being undone. Try again shortly.: 'Todavía se está deshaciendo un cambio IPv4 anterior. Inténtalo de nuevo en un momento.'
   An error occurred during calibration.: Ocurrió un error durante la calibración.
   An error occurred during filament loading.: Ocurrió un error durante la carga del
     filamento.
@@ -1014,7 +1015,7 @@ translations:
   Could not resolve printer RFCOMM channel: No se pudo resolver el canal RFCOMM de
     la impresora
   Could not restore the previous IPv4 settings: 'No se pudo restaurar la configuración IPv4 anterior'
-  Could not restore the previous IPv4 settings. They are restored at the next start.: 'No se pudo restaurar la configuración IPv4 anterior. Se restaurará en el próximo inicio.'
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Aún no se pudo restaurar la configuración IPv4 anterior. Se reintentará durante hasta dos minutos.'
   Could not save filament: No se pudo guardar el filamento
   Could not save the drying state: No se pudo guardar el estado del secado
 
@@ -4162,6 +4163,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "El plugin no llega a la cámara, así que esta pantalla toma las fotos."
   The plugin can't save its recovery data to disk.: "El plugin no puede guardar sus datos de recuperación."
   The plugin is turned off in moonraker.conf.: "El plugin está desactivado en moonraker.conf."
+  The previous IPv4 settings come back when the print ends.: 'La configuración IPv4 anterior volverá cuando termine la impresión.'
+  'The previous IPv4 settings could not be restored: {}': 'No se pudo restaurar la configuración IPv4 anterior: {}'
   The previous settings come back in %d seconds unless you keep these.: 'La configuración anterior vuelve en %d segundos a menos que mantengas esta.'
   The print ended before any layer was printed. Nothing was changed.: La impresión terminó antes de imprimir ninguna capa. No se cambió nada.
   The print is canceled and you pick the best band from what has printed so far.: La impresión se cancela y eliges la mejor franja de lo impreso hasta ahora.

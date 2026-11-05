@@ -293,6 +293,7 @@
   <translation tag="An API key is 32 characters, each 0-9 or a-f." en="An API key is 32 characters, each 0-9 or a-f."/>
   <translation tag="An accelerometer was detected on your printer." en="An accelerometer was detected on your printer."/>
   <translation tag="An app on your network is asking to connect to this printer." en="An app on your network is asking to connect to this printer."/>
+  <translation tag="An earlier IPv4 change is still being undone. Try again shortly." en="An earlier IPv4 change is still being undone. Try again shortly."/>
   <translation tag="An error occurred during calibration." en="An error occurred during calibration."/>
   <translation tag="An error occurred during filament loading." en="An error occurred during filament loading."/>
   <translation tag="An error occurred during probing." en="An error occurred during probing."/>
@@ -908,7 +909,7 @@
   <translation tag="Could not reset the printer image tags" en="Could not reset the printer image tags"/>
   <translation tag="Could not resolve printer RFCOMM channel" en="Could not resolve printer RFCOMM channel"/>
   <translation tag="Could not restore the previous IPv4 settings" en="Could not restore the previous IPv4 settings"/>
-  <translation tag="Could not restore the previous IPv4 settings. They are restored at the next start." en="Could not restore the previous IPv4 settings. They are restored at the next start."/>
+  <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." en="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes."/>
   <translation tag="Could not save filament" en="Could not save filament"/>
   <translation tag="Could not save the drying state" en="Could not save the drying state"/>
   <translation tag="Could not save the drying state: nothing was heated" en="Could not save the drying state: nothing was heated"/>
@@ -3800,6 +3801,8 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." en="The plugin can&apos;t reach the camera, so this screen takes the photos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." en="The plugin can&apos;t save its recovery data to disk."/>
   <translation tag="The plugin is turned off in moonraker.conf." en="The plugin is turned off in moonraker.conf."/>
+  <translation tag="The previous IPv4 settings come back when the print ends." en="The previous IPv4 settings come back when the print ends."/>
+  <translation tag="The previous IPv4 settings could not be restored: {}" en="The previous IPv4 settings could not be restored: {}"/>
   <translation tag="The previous settings come back in %d seconds unless you keep these." en="The previous settings come back in %d seconds unless you keep these."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." en="The print ended before any layer was printed. Nothing was changed."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." en="The print is canceled and you pick the best band from what has printed so far."/>

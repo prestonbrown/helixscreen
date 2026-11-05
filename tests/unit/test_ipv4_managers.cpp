@@ -6,6 +6,7 @@
 #include "async_lifetime_guard.h"
 #include "config.h"
 #include "core/http_executor.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "ethernet_manager.h"
 #include "ipv4_config_system.h"
@@ -119,6 +120,7 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "pending revert record saves, loads and cle
     PendingIpv4Revert p;
     p.link = Ipv4Link::Ethernet;
     p.previous = static_config("192.168.1.40");
+    p.snapshot = mock_ipv4_snapshot(Ipv4Link::Ethernet);
     REQUIRE(save_pending_ipv4_revert(p));
     REQUIRE(pending_ipv4_revert_path().rfind(dir, 0) == 0);
     const auto back = load_pending_ipv4_revert();
@@ -136,12 +138,12 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "WiFiManager applies a change and the recor
     start(was);
     REQUIRE(wm->supports_ipv4_config());
 
-    std::optional<bool> applied;
+    std::optional<Ipv4Result::Status> applied;
     wm->apply_ipv4_change_async(was, static_config("192.168.1.50"),
                                 std::make_shared<std::atomic<bool>>(false), guard.token(),
-                                [&](bool ok) { applied = ok; });
+                                [&](Ipv4Result::Status st) { applied = st; });
     settle();
-    REQUIRE(applied == true);
+    REQUIRE(applied == Ipv4Result::Status::Ok);
     CHECK(backend_config() == static_config("192.168.1.50"));
     const auto record = load_pending_ipv4_revert();
     REQUIRE(record);
@@ -156,49 +158,87 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "WiFiManager applies a change and the recor
     CHECK(read == static_config("192.168.1.50"));
 
     SECTION("restoring the record puts the snapshot back and removes it") {
-        REQUIRE(restore_pending_ipv4(Ipv4Link::Wifi, /*stale_only=*/false).ok());
+        REQUIRE(restore_pending_ipv4(Ipv4Link::Wifi, /*include_own=*/true).kind ==
+                Ipv4RestoreOutcome::Kind::Restored);
         CHECK(backend_config() == was);
         CHECK_FALSE(record_exists());
     }
     SECTION("the startup revert leaves this run's own record alone") {
-        REQUIRE(restore_pending_ipv4(Ipv4Link::Wifi, /*stale_only=*/true).ok());
+        REQUIRE(restore_pending_ipv4(Ipv4Link::Wifi, /*include_own=*/false).kind ==
+                Ipv4RestoreOutcome::Kind::Skipped);
         CHECK(record_exists());
     }
     SECTION("an Ethernet restore does not touch a Wi-Fi record") {
-        REQUIRE(restore_pending_ipv4(Ipv4Link::Ethernet, /*stale_only=*/false).ok());
+        REQUIRE(restore_pending_ipv4(Ipv4Link::Ethernet, true).kind ==
+                Ipv4RestoreOutcome::Kind::Skipped);
         CHECK(record_exists());
     }
-    SECTION("a failed restore keeps the record for the next start") {
+    SECTION("a failed restore keeps the record and says Retry") {
         setenv("HELIX_MOCK_IPV4_APPLY_FAIL", "1", 1);
-        CHECK_FALSE(restore_pending_ipv4(Ipv4Link::Wifi, /*stale_only=*/false).ok());
+        CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Retry);
         CHECK(record_exists());
+    }
+    SECTION("a second change cannot replace the way back, until it is given up") {
+        std::optional<Ipv4Result::Status> again;
+        wm->apply_ipv4_change_async(static_config("192.168.1.50"), static_config("192.168.1.60"),
+                                    std::make_shared<std::atomic<bool>>(false), guard.token(),
+                                    [&](Ipv4Result::Status st) { again = st; });
+        settle();
+        CHECK(again == Ipv4Result::Status::Refused);
+        CHECK(backend_config() == static_config("192.168.1.50"));
+        CHECK(load_pending_ipv4_revert()->previous == was);
+
+        REQUIRE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "edited by hand"));
+        CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Skipped);
+        wm->apply_ipv4_change_async(static_config("192.168.1.50"), static_config("192.168.1.60"),
+                                    std::make_shared<std::atomic<bool>>(false), guard.token(),
+                                    [&](Ipv4Result::Status st) { again = st; });
+        settle();
+        CHECK(again == Ipv4Result::Status::Ok);
     }
 }
 
-TEST_CASE_METHOD(Ipv4ManagerFixture, "a refused apply answers false and leaves the record",
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a failed apply leaves the record for the revert",
                  "[ipv4][ipv4_manager]") {
     start(static_config("192.168.1.40"));
     setenv("HELIX_MOCK_IPV4_APPLY_FAIL", "1", 1);
-    std::optional<bool> applied;
+    std::optional<Ipv4Result::Status> applied;
     wm->apply_ipv4_change_async(static_config("192.168.1.40"), Ipv4Config{},
                                 std::make_shared<std::atomic<bool>>(false), guard.token(),
-                                [&](bool ok) { applied = ok; });
+                                [&](Ipv4Result::Status st) { applied = st; });
     settle();
-    REQUIRE(applied == false);
+    REQUIRE(applied == Ipv4Result::Status::Failed);
     CHECK(backend_config() == static_config("192.168.1.40"));
     CHECK(record_exists());
 }
 
-TEST_CASE_METHOD(Ipv4ManagerFixture, "an apply whose screen went away restores itself",
+TEST_CASE_METHOD(Ipv4ManagerFixture, "an apply whose screen went away first never starts",
                  "[ipv4][ipv4_manager]") {
     start(static_config("192.168.1.40"));
-    std::optional<bool> applied;
+    std::optional<Ipv4Result::Status> applied;
     wm->apply_ipv4_change_async(static_config("192.168.1.40"), static_config("192.168.1.50"),
                                 std::make_shared<std::atomic<bool>>(true), guard.token(),
-                                [&](bool ok) { applied = ok; });
+                                [&](Ipv4Result::Status st) { applied = st; });
     settle();
+    CHECK(applied == Ipv4Result::Status::Refused);
     CHECK(backend_config() == static_config("192.168.1.40"));
     CHECK_FALSE(record_exists());
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that cannot be used is a failure, not nothing",
+                 "[ipv4][ipv4_manager]") {
+    REQUIRE(helix::text_io::write_file_atomic(pending_ipv4_revert_path(), "{\"link\":\"wifi\""));
+    CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Terminal);
+
+    SECTION("a dhcpcd-sized snapshot fits the record") {
+        PendingIpv4Revert p;
+        p.snapshot = {"dhcpcd", "wlan0", "", std::string(kIpv4SnapshotMaxBytes, '\xe9'),
+                      std::string(kIpv4SnapshotMaxBytes, 'x')};
+        REQUIRE(save_pending_ipv4_revert(p));
+        const auto back = load_pending_ipv4_revert();
+        REQUIRE(back);
+        CHECK(back->snapshot.original == p.snapshot.original);
+    }
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "EthernetManager reads and applies through the mock",
@@ -206,12 +246,12 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "EthernetManager reads and applies through 
     EthernetManager eth;
     REQUIRE(eth.supports_ipv4_config());
 
-    std::optional<bool> applied;
+    std::optional<Ipv4Result::Status> applied;
     eth.apply_ipv4_change_async(Ipv4Config{}, static_config("192.168.1.60"),
                                 std::make_shared<std::atomic<bool>>(false), guard.token(),
-                                [&](bool ok) { applied = ok; });
+                                [&](Ipv4Result::Status st) { applied = st; });
     REQUIRE(wait_until([&] { return applied.has_value(); }, 5000));
-    REQUIRE(*applied);
+    REQUIRE(*applied == Ipv4Result::Status::Ok);
 
     std::optional<Ipv4Config> read;
     eth.get_ipv4_config_async(guard.token(), [&](bool ok, const Ipv4Config& c) {

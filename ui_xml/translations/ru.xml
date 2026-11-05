@@ -329,6 +329,7 @@
   <translation tag="An API key is 32 characters, each 0-9 or a-f." ru="API-ключ состоит из 32 символов, каждый 0-9 или a-f."/>
   <translation tag="An accelerometer was detected on your printer." ru="На вашем принтере обнаружен акселерометр."/>
   <translation tag="An app on your network is asking to connect to this printer." ru="Приложение в вашей сети запрашивает подключение к этому принтеру."/>
+  <translation tag="An earlier IPv4 change is still being undone. Try again shortly." ru="Предыдущее изменение IPv4 ещё отменяется. Повторите попытку чуть позже."/>
   <translation tag="An error occurred during calibration." ru="Во время калибровки произошла ошибка."/>
   <translation tag="An error occurred during filament loading." ru="Произошла ошибка при загрузке филамента."/>
   <translation tag="An error occurred during probing." ru="Во время зондирования произошла ошибка."/>
@@ -953,7 +954,7 @@
   <translation tag="Could not reset the printer image tags" ru="Не удалось сбросить отметки изображения"/>
   <translation tag="Could not resolve printer RFCOMM channel" ru="Не удалось определить RFCOMM-канал принтера"/>
   <translation tag="Could not restore the previous IPv4 settings" ru="Не удалось восстановить прежние настройки IPv4"/>
-  <translation tag="Could not restore the previous IPv4 settings. They are restored at the next start." ru="Не удалось восстановить прежние настройки IPv4. Они будут восстановлены при следующем запуске."/>
+  <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." ru="Пока не удалось восстановить прежние настройки IPv4. Повторные попытки в течение двух минут."/>
   <translation tag="Could not save filament" ru="Не удалось сохранить филамент"/>
   <translation tag="Could not save the drying state" ru="Не удалось сохранить состояние сушки"/>
   <translation tag="Could not save the drying state: nothing was heated" ru="Не удалось сохранить состояние сушки: ничего не нагревалось"/>
@@ -3863,6 +3864,8 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." ru="Плагин не может подключиться к камере, поэтому фотографирует этот экран."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." ru="Плагин не может сохранить данные для восстановления."/>
   <translation tag="The plugin is turned off in moonraker.conf." ru="Плагин выключен в moonraker.conf."/>
+  <translation tag="The previous IPv4 settings come back when the print ends." ru="Прежние настройки IPv4 вернутся после окончания печати."/>
+  <translation tag="The previous IPv4 settings could not be restored: {}" ru="Не удалось восстановить прежние настройки IPv4: {}"/>
   <translation tag="The previous settings come back in %d seconds unless you keep these." ru="Прежние настройки вернутся через %d с, если вы не оставите эти."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." ru="Печать завершилась до первого слоя. Ничего не изменено."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." ru="Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного."/>

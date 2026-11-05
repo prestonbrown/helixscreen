@@ -355,6 +355,7 @@ translations:
   An API key is 32 characters, each 0-9 or a-f.: 'API-ключ состоит из 32 символов, каждый 0-9 или a-f.'
   An accelerometer was detected on your printer.: На вашем принтере обнаружен акселерометр.
   An app on your network is asking to connect to this printer.: 'Приложение в вашей сети запрашивает подключение к этому принтеру.'
+  An earlier IPv4 change is still being undone. Try again shortly.: 'Предыдущее изменение IPv4 ещё отменяется. Повторите попытку чуть позже.'
   An error occurred during calibration.: Во время калибровки произошла ошибка.
   An error occurred during filament loading.: Произошла ошибка при загрузке филамента.
   An error occurred during probing.: Во время зондирования произошла ошибка.
@@ -1061,7 +1062,7 @@ translations:
   Could not reset the printer image tags: Не удалось сбросить отметки изображения
   Could not resolve printer RFCOMM channel: Не удалось определить RFCOMM-канал принтера
   Could not restore the previous IPv4 settings: 'Не удалось восстановить прежние настройки IPv4'
-  Could not restore the previous IPv4 settings. They are restored at the next start.: 'Не удалось восстановить прежние настройки IPv4. Они будут восстановлены при следующем запуске.'
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Пока не удалось восстановить прежние настройки IPv4. Повторные попытки в течение двух минут.'
   Could not save filament: Не удалось сохранить филамент
   Could not save the drying state: Не удалось сохранить состояние сушки
 
@@ -4215,6 +4216,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "Плагин не может подключиться к камере, поэтому фотографирует этот экран."
   The plugin can't save its recovery data to disk.: "Плагин не может сохранить данные для восстановления."
   The plugin is turned off in moonraker.conf.: "Плагин выключен в moonraker.conf."
+  The previous IPv4 settings come back when the print ends.: 'Прежние настройки IPv4 вернутся после окончания печати.'
+  'The previous IPv4 settings could not be restored: {}': 'Не удалось восстановить прежние настройки IPv4: {}'
   The previous settings come back in %d seconds unless you keep these.: 'Прежние настройки вернутся через %d с, если вы не оставите эти.'
   The print ended before any layer was printed. Nothing was changed.: Печать завершилась до первого слоя. Ничего не изменено.
   The print is canceled and you pick the best band from what has printed so far.: Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного.

@@ -311,6 +311,7 @@ translations:
   An accelerometer was detected on your printer.: È stato rilevato un accelerometro
     sulla stampante.
   An app on your network is asking to connect to this printer.: 'Un''app sulla tua rete chiede di connettersi a questa stampante.'
+  An earlier IPv4 change is still being undone. Try again shortly.: 'Una modifica IPv4 precedente è ancora in fase di annullamento. Riprova tra poco.'
   An error occurred during calibration.: Si è verificato un errore durante la calibrazione.
   An error occurred during filament loading.: Si è verificato un errore durante il
     caricamento del filamento.
@@ -1009,7 +1010,7 @@ translations:
   Could not resolve printer RFCOMM channel: Impossibile risolvere il canale RFCOMM
     della stampante
   Could not restore the previous IPv4 settings: 'Impossibile ripristinare le impostazioni IPv4 precedenti'
-  Could not restore the previous IPv4 settings. They are restored at the next start.: 'Impossibile ripristinare le impostazioni IPv4 precedenti. Verranno ripristinate al prossimo avvio.'
+  Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Non è ancora stato possibile ripristinare le impostazioni IPv4 precedenti. Nuovi tentativi per un massimo di due minuti.'
   Could not save filament: Impossibile salvare il filamento
   Could not save the drying state: Impossibile salvare lo stato dell'essiccazione
 
@@ -4161,6 +4162,8 @@ translations:
   The plugin can't reach the camera, so this screen takes the photos.: "Il plugin non raggiunge la fotocamera, quindi le foto le scatta questo schermo."
   The plugin can't save its recovery data to disk.: "Il plugin non può salvare i dati di ripresa."
   The plugin is turned off in moonraker.conf.: "Il plugin è disattivato in moonraker.conf."
+  The previous IPv4 settings come back when the print ends.: 'Le impostazioni IPv4 precedenti torneranno al termine della stampa.'
+  'The previous IPv4 settings could not be restored: {}': 'Impossibile ripristinare le impostazioni IPv4 precedenti: {}'
   The previous settings come back in %d seconds unless you keep these.: 'Le impostazioni precedenti tornano tra %d secondi, a meno che tu non mantenga queste.'
   The print ended before any layer was printed. Nothing was changed.: La stampa è terminata prima di stampare uno strato. Non è stato cambiato nulla.
   The print is canceled and you pick the best band from what has printed so far.: La stampa viene annullata e scegli la fascia migliore tra quanto stampato finora.

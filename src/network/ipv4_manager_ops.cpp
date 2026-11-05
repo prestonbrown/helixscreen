@@ -54,18 +54,18 @@ void WiFiManager::get_ipv4_config_async(
         });
 }
 
-void WiFiManager::apply_ipv4_change_async(const helix::net::Ipv4Config& previous,
-                                          const helix::net::Ipv4Config& next,
-                                          std::shared_ptr<std::atomic<bool>> abandoned,
-                                          helix::LifetimeToken token,
-                                          helix::SharedCallback<void(bool ok)> on_done) {
-    auto answer = [token, on_done](bool ok) {
+void WiFiManager::apply_ipv4_change_async(
+    const helix::net::Ipv4Config& previous, const helix::net::Ipv4Config& next,
+    std::shared_ptr<std::atomic<bool>> abandoned, helix::LifetimeToken token,
+    helix::SharedCallback<void(helix::net::Ipv4Result::Status)> on_done) {
+    using Status = helix::net::Ipv4Result::Status;
+    auto answer = [token, on_done](Status status) {
         if (on_done && !token.expired()) {
-            on_done(ok);
+            on_done(status);
         }
     };
     if (!supports_ipv4_config()) {
-        answer(false);
+        answer(Status::NotSupported);
         return;
     }
     spdlog::info("[WiFiManager] Applying IPv4 config: {}", helix::net::ipv4_config_text(next));
@@ -81,12 +81,13 @@ void WiFiManager::apply_ipv4_change_async(const helix::net::Ipv4Config& previous
                     spdlog::warn("[WiFiManager] Could not apply the IPv4 config: {}",
                                  result.detail);
                 }
-                answer(result.ok());
+                answer(result.status);
             };
         },
         [answer]() {
+            // Unanswered: it may still be running, so a revert follows.
             notify_unresponsive();
-            answer(false);
+            answer(Status::Failed);
         });
 }
 
@@ -124,14 +125,13 @@ void EthernetManager::get_ipv4_config_async(
     });
 }
 
-void EthernetManager::apply_ipv4_change_async(const helix::net::Ipv4Config& previous,
-                                              const helix::net::Ipv4Config& next,
-                                              std::shared_ptr<std::atomic<bool>> abandoned,
-                                              helix::LifetimeToken token,
-                                              helix::SharedCallback<void(bool ok)> on_done) {
+void EthernetManager::apply_ipv4_change_async(
+    const helix::net::Ipv4Config& previous, const helix::net::Ipv4Config& next,
+    std::shared_ptr<std::atomic<bool>> abandoned, helix::LifetimeToken token,
+    helix::SharedCallback<void(helix::net::Ipv4Result::Status)> on_done) {
     if (!supports_ipv4_config()) {
         if (on_done) {
-            on_done(false);
+            on_done(helix::net::Ipv4Result::Status::NotSupported);
         }
         return;
     }
@@ -145,9 +145,9 @@ void EthernetManager::apply_ipv4_change_async(const helix::net::Ipv4Config& prev
         if (!result.ok()) {
             spdlog::warn("[EthernetManager] Could not apply the IPv4 config: {}", result.detail);
         }
-        token.defer("EthernetManager::apply_ipv4_change", [on_done, ok = result.ok()]() {
+        token.defer("EthernetManager::apply_ipv4_change", [on_done, status = result.status]() {
             if (on_done) {
-                on_done(ok);
+                on_done(status);
             }
         });
     });

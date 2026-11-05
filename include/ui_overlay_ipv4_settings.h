@@ -11,10 +11,13 @@
  * makes it final, anything else (Revert now, a dismissal, the countdown
  * running out) restores the config it replaced. The config to restore is
  * written to disk before the change is applied, so a restart mid-countdown
- * restores it at the next start (WiFiManager / EthernetManager).
+ * restores it at the next start (start_ipv4_startup_revert()).
  *
  * Reverting is the default because a wrong address can leave the printer
  * unreachable from the network, and this screen is then the only way back.
+ * Only a restore that happened is reported as one: anything else goes to the
+ * retry (ui_ipv4_revert_retry.h), which ends restored or in a notice naming
+ * why not. While a job holds the machine the change is kept and no revert runs.
  */
 
 #pragma once
@@ -25,6 +28,7 @@
 
 #include "ethernet_manager.h"
 #include "ipv4_config.h"
+#include "ipv4_config_system.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -122,6 +126,10 @@ class Ipv4SettingsOverlay : public OverlayBase {
     void perform(helix::net::Ipv4ChangeFlow::Action action);
     void run_apply();
     void run_revert();
+    void on_reverted(const helix::net::Ipv4RestoreOutcome& outcome);
+    /// A record this screen did not write still waits to be undone.
+    bool earlier_change_pending() const;
+    static bool job_holds_machine();
     /// The overlay is going away: an unconfirmed change is reverted, and one
     /// still being applied reverts itself when it lands.
     void abandon_change();

@@ -131,14 +131,13 @@ class EthernetManager {
      *
      * The revert record and its snapshot are written first. @p previous is
      * what the record shows; @p abandoned, once set, makes the apply restore
-     * the snapshot itself. @p on_done(ok) runs on the LVGL thread while
+     * the snapshot itself. @p on_done(status) runs on the LVGL thread while
      * @p token lives; the failure's detail is logged here.
      */
-    void apply_ipv4_change_async(const helix::net::Ipv4Config& previous,
-                                 const helix::net::Ipv4Config& next,
-                                 std::shared_ptr<std::atomic<bool>> abandoned,
-                                 helix::LifetimeToken token,
-                                 helix::SharedCallback<void(bool ok)> on_done);
+    void apply_ipv4_change_async(
+        const helix::net::Ipv4Config& previous, const helix::net::Ipv4Config& next,
+        std::shared_ptr<std::atomic<bool>> abandoned, helix::LifetimeToken token,
+        helix::SharedCallback<void(helix::net::Ipv4Result::Status)> on_done);
 
     friend class EthernetManagerTestAccess;
 

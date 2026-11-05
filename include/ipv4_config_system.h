@@ -61,18 +61,31 @@ Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot);
 /**
  * @brief One change, under ipv4_change_mutex(): snapshot, record, apply
  *
- * The record is on disk before anything is applied. When @p abandoned is set
- * by the time the apply lands, nobody is left to ask Keep, so the snapshot is
- * restored here. A failed apply leaves the record for the caller's revert.
- * BLOCKING.
+ * Refused, with nothing touched and no record written, when @p abandoned is
+ * already set, when an earlier change still waits to be undone (only a record
+ * the restore gave up on may be replaced), or when the snapshot or the record
+ * cannot be made. Failed means it may have been partly applied, with the
+ * record on disk for the revert. BLOCKING.
  */
 Ipv4Result apply_ipv4_change(Ipv4Configurable& backend, Ipv4Link link, const Ipv4Config& previous,
                              const Ipv4Config& next, const std::atomic<bool>* abandoned);
 
-/// Restore and remove the pending record for @p link, if there is one; with
-/// @p stale_only, only one no countdown in this process owns. Success when
-/// there is nothing to do. BLOCKING.
-Ipv4Result restore_pending_ipv4(Ipv4Link link, bool stale_only);
+/// What restore_pending_ipv4() did. Only Restored means the previous config
+/// is back; Retry may succeed later; Terminal never will (the target was
+/// edited or is gone, or the record cannot be read).
+struct Ipv4RestoreOutcome {
+    enum class Kind { Restored, Nothing, Skipped, Retry, Terminal };
+    Kind kind = Kind::Nothing;
+    std::string detail;
+};
+
+/// Restore and remove the pending record for @p link. Skipped for another
+/// link's record, a failed one, or, without @p include_own, one this process's
+/// countdown owns. BLOCKING.
+Ipv4RestoreOutcome restore_pending_ipv4(Ipv4Link link, bool include_own);
+
+/// Mark @p link's record as given up: kept, with @p why, never retried. BLOCKING.
+bool mark_pending_ipv4_failed(Ipv4Link link, const std::string& why);
 
 /// Whether NetworkManager is the active network owner (nmcli + its runtime dir).
 bool network_manager_active();
