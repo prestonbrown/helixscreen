@@ -3,14 +3,17 @@
 
 #include "ui_color_picker.h"
 
+#include "color_utils.h"
 #include "lane_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "spoolman_catalog_search.h"
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
 
 #include <algorithm>
+#include <functional>
 #include <optional>
 
 #include "../catch_amalgamated.hpp"
@@ -1604,56 +1607,67 @@ static SlotInfo esun_abs_plus_slot() {
     return slot;
 }
 
-TEST_CASE("SpoolmanSlotSaver new_filament_for: the variant goes in the name, not the material",
+TEST_CASE("SpoolmanSlotSaver new_filament_for: the record a new filament files",
           "[spoolman][slot_saver][filament_naming]") {
-    const NewFilament f = SpoolmanSlotSaver::new_filament_for(esun_abs_plus_slot());
-    CHECK(f.material == "ABS");
-    CHECK(f.precise_type == "ABS+");
-    CHECK(f.name == "ABS+ Deep Gray");
-    CHECK(f.color_hex == "4A4A4A");
-    CHECK(f.extruder_temp == 255);
-    CHECK(f.bed_temp == 100);
-}
-
-TEST_CASE("SpoolmanSlotSaver new_filament_for: a finish keeps its word in the name",
-          "[spoolman][slot_saver][filament_naming]") {
-    SlotInfo slot = esun_abs_plus_slot();
-    slot.material = "Silk PLA";
-    slot.color_name = "Gold";
-    const NewFilament f = SpoolmanSlotSaver::new_filament_for(slot);
-    CHECK(f.material == "PLA");
-    CHECK(f.name == "Silk PLA Gold");
-}
-
-TEST_CASE("SpoolmanSlotSaver new_filament_for: the name comes from what the slot knows",
-          "[spoolman][slot_saver][filament_naming]") {
-    SlotInfo slot = esun_abs_plus_slot();
-
-    SECTION("a catalog product names the filament over the bare type") {
-        slot.product_name = "ABS+HS";
-        CHECK(SpoolmanSlotSaver::new_filament_for(slot).name == "ABS+HS Deep Gray");
-    }
-    SECTION("a spool name that says more than the material is kept") {
-        slot.spool_name = "Grey ABS+HS";
-        CHECK(SpoolmanSlotSaver::new_filament_for(slot).name == "Grey ABS+HS");
-    }
-    SECTION("a spool name that is only the material is not a name") {
-        slot.spool_name = "abs+";
-        CHECK(SpoolmanSlotSaver::new_filament_for(slot).name == "ABS+ Deep Gray");
-    }
-    SECTION("no colour name falls back to describing the colour") {
-        slot.color_name.clear();
-        const std::string name = SpoolmanSlotSaver::new_filament_for(slot).name;
-        CHECK(name.rfind("ABS+ ", 0) == 0);
-        CHECK(name.size() > std::string("ABS+ ").size());
-    }
-    SECTION("unknown temperatures are left out") {
-        slot.nozzle_temp_min = 0;
-        slot.nozzle_temp_max = 0;
-        slot.bed_temp = 0;
-        const NewFilament f = SpoolmanSlotSaver::new_filament_for(slot);
-        CHECK(f.extruder_temp == 0);
-        CHECK(f.bed_temp == 0);
+    struct Row {
+        const char* what;
+        std::function<void(SlotInfo& original, SlotInfo& edited)> edit;
+        const char* material;
+        const char* name;
+        int extruder;
+        int bed;
+    };
+    const auto none = [](SlotInfo&, SlotInfo&) {};
+    const Row rows[] = {
+        {"the variant goes in the name, not the material", none, "ABS", "ABS+ Deep Gray", 255, 100},
+        {"a finish keeps its word in the name",
+         [](SlotInfo&, SlotInfo& e) {
+             e.material = "Silk PLA";
+             e.color_name = "Gold";
+         },
+         "PLA", "Silk PLA Gold", 255, 100},
+        {"a catalog product names it over the bare type",
+         [](SlotInfo&, SlotInfo& e) { e.product_name = "ABS+HS"; }, "ABS", "ABS+HS Deep Gray", 255,
+         100},
+        {"an unmoved spool keeps its own name",
+         [](SlotInfo& o, SlotInfo& e) { o.spool_name = e.spool_name = "Grey ABS+HS"; }, "ABS",
+         "Grey ABS+HS", 255, 100},
+        {"a recoloured spool's name describes the old colour",
+         [](SlotInfo& o, SlotInfo& e) {
+             o.spool_name = e.spool_name = "ABS+ Deep Gray";
+             e.color_rgb = 0xFF0000;
+             e.color_name = "Red";
+         },
+         "ABS", "ABS+ Red", 255, 100},
+        {"a spool moved to another material drops its name",
+         [](SlotInfo& o, SlotInfo& e) {
+             o.spool_name = e.spool_name = "ABS+ Deep Gray";
+             e.material = "PETG";
+         },
+         "PETG", "PETG Deep Gray", 255, 100},
+        {"a spool name that is only the material is not a name",
+         [](SlotInfo& o, SlotInfo& e) { o.spool_name = e.spool_name = "abs+"; }, "ABS",
+         "ABS+ Deep Gray", 255, 100},
+        {"unknown temperatures are left out",
+         [](SlotInfo&, SlotInfo& e) {
+             e.nozzle_temp_min = e.nozzle_temp_max = 0;
+             e.bed_temp = 0;
+         },
+         "ABS", "ABS+ Deep Gray", 0, 0},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            SlotInfo original = esun_abs_plus_slot();
+            SlotInfo edited = original;
+            r.edit(original, edited);
+            const NewFilament f = SpoolmanSlotSaver::new_filament_for(original, edited);
+            CHECK(f.material == r.material);
+            CHECK(f.name == r.name);
+            CHECK(f.color_hex ==
+                  spoolman::normalize_color_hex(helix::color_to_hex_string(edited.color_rgb)));
+            CHECK(f.extruder_temp == r.extruder);
+            CHECK(f.bed_temp == r.bed);
+        }
     }
 }
 

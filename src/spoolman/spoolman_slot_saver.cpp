@@ -48,16 +48,20 @@ bool SpoolmanSlotSaver::is_cancellation(const MoonrakerError& err) {
     return err.type == MoonrakerErrorType::VALIDATION_ERROR && err.code == kCancelledByUserCode;
 }
 
-NewFilament SpoolmanSlotSaver::new_filament_for(const SlotInfo& slot) {
+NewFilament SpoolmanSlotSaver::new_filament_for(const SlotInfo& original, const SlotInfo& slot) {
     NewFilament f;
     f.precise_type = std::string(text_io::trim(slot.material));
     f.material = filament::slicer_material(f.precise_type);
     f.color_hex = color_to_hex(slot.color_rgb);
 
     // A spool name that is only the material names nothing Spoolman's own
-    // material field does not.
+    // material field does not, and one from before a brand, material or
+    // colour change names the old identity.
+    const bool identity_kept = slot.brand == original.brand && slot.material == original.material &&
+                               slot.color_rgb == original.color_rgb;
     const std::string spool_name(text_io::trim(slot.spool_name));
-    if (!spool_name.empty() && !text_io::equals_ignore_case(spool_name, f.precise_type) &&
+    if (identity_kept && !spool_name.empty() &&
+        !text_io::equals_ignore_case(spool_name, f.precise_type) &&
         !text_io::equals_ignore_case(spool_name, f.material)) {
         f.name = spool_name;
     } else {
@@ -234,7 +238,7 @@ void SpoolmanSlotSaver::save_impl(const SlotInfo& original, const SlotInfo& edit
         const double initial_weight =
             edited.total_weight_g > 0 ? static_cast<double>(edited.total_weight_g) : 1000.0;
 
-        const NewFilament filament = new_filament_for(edited);
+        const NewFilament filament = new_filament_for(original, edited);
         find_or_create_vendor(
             edited.brand,
             [this, filament, weight, initial_weight, on_complete](int vendor_id) {
@@ -342,7 +346,7 @@ void SpoolmanSlotSaver::save_impl(const SlotInfo& original, const SlotInfo& edit
             return;
         }
 
-        NewFilament filament = new_filament_for(edited);
+        NewFilament filament = new_filament_for(original, edited);
         filament.linked_filament_id = original.spoolman_filament_id;
         const float weight = edited.remaining_weight_g;
         const int original_filament_id = original.spoolman_filament_id;
