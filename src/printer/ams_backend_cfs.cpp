@@ -4,7 +4,6 @@
 #include "ams_backend_cfs.h"
 
 #include "ui_error_reporting.h"
-#include "ui_insert_notice.h"
 #include "ui_temperature_utils.h"
 
 #include "ams_bypass_policy.h"
@@ -4885,7 +4884,8 @@ bool AmsBackendCfs::judge_insert_locked(SlotInfo& slot, int slot_index,
         // Keep everything and ask. The notice is self-gating, so a lane with
         // nothing the new spool could contradict stays silent.
         helix::ui::queue_update("AmsBackendCfs::judge_insert_locked", [slot_index] {
-            helix::ui::offer_clear_after_unverified_insert(slot_index);
+            helix::publish_ui_request(
+                {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, slot_index});
         });
         return false;
     case helix::ams::InsertVerdict::SameSpool:
