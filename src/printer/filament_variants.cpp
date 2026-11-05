@@ -631,6 +631,7 @@ std::string orca_match_type(std::string_view display_type) {
     return "";
 }
 
+// NAMESPACE_OK: namespace filament, beside orca_match_type
 std::string slicer_material(std::string_view display_type) {
     const std::string type(helix::text_io::trim(display_type));
     if (type.empty()) {
