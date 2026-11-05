@@ -78,7 +78,16 @@ struct State {
 /// Adds @p hours to the total and to every enabled meter. Returns the meters that reached
 /// their interval for the first time since their last reset or interval change; each one
 /// is latched so it is returned once.
-std::vector<int> accrue(State& s, double hours);
+///
+/// @p skip_filter leaves the Filter meter out (its hours come from the firmware, see
+/// apply_firmware_filter_hours); the total and the other meters still accrue.
+std::vector<int> accrue(State& s, double hours, bool skip_filter = false);
+
+/// Sets the Filter meter's used hours to what a firmware filter counter reports, which
+/// counts the filter fan's own run time rather than print time. Returns {Filter} the
+/// first time those hours reach the interval since the last reset or interval change,
+/// latched like accrue(). An Off meter takes nothing.
+std::vector<int> apply_firmware_filter_hours(State& s, double hours);
 
 /// Starts a new interval: the used hours go to 0 and the reset is stamped with the total.
 void reset_meter(State& s, int meter);

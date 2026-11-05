@@ -285,3 +285,36 @@ TEST_CASE("DurationTracker: a local zero before Klipper's running value counts n
     CHECK(t.observe(1060) == 0);
     CHECK(t.observe(1120) == 60);
 }
+
+TEST_CASE("accrue can leave the filter to a firmware counter", "[maintenance][meters]") {
+    State s = default_state();
+    accrue(s, 2.0, true);
+    CHECK(s.total_h == Catch::Approx(2.0));
+    CHECK(s.meters[0].used_h == Catch::Approx(0.0));
+    CHECK(s.meters[1].used_h == Catch::Approx(2.0));
+    CHECK(s.meters[2].used_h == Catch::Approx(2.0));
+}
+
+TEST_CASE("firmware filter hours replace the filter's used hours and fall due once",
+          "[maintenance][meters]") {
+    State s = default_state();
+    REQUIRE(s.meters[0].interval_h == 200);
+    CHECK(apply_firmware_filter_hours(s, 12.5).empty());
+    CHECK(s.meters[0].used_h == Catch::Approx(12.5));
+    CHECK(s.total_h == Catch::Approx(0.0));
+    CHECK(apply_firmware_filter_hours(s, 200.0) == std::vector<int>{0});
+    CHECK(apply_firmware_filter_hours(s, 210.0).empty());
+    // The counter going back (reset on the printer) lowers the hours.
+    reset_meter(s, 0);
+    CHECK(apply_firmware_filter_hours(s, 0.1).empty());
+    CHECK(s.meters[0].used_h == Catch::Approx(0.1));
+    CHECK(apply_firmware_filter_hours(s, -1.0).empty());
+    CHECK(s.meters[0].used_h == Catch::Approx(0.1));
+}
+
+TEST_CASE("an Off filter meter takes no firmware hours", "[maintenance][meters]") {
+    State s = default_state();
+    set_interval(s, 0, 0);
+    CHECK(apply_firmware_filter_hours(s, 500.0).empty());
+    CHECK(s.meters[0].used_h == Catch::Approx(0.0));
+}
