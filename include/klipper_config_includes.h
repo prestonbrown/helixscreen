@@ -86,6 +86,16 @@ using ConfigDownloadFn = helix::SharedCallback<void(
     const std::string& path, helix::SharedCallback<void(std::string)> on_ok,
     helix::SharedCallback<void(std::string, bool queue_full)> on_fail)>;
 
+/// Lists one directory of the config root ("" is the root) and calls exactly one of
+/// @p on_ok (root-relative file paths) or @p on_fail (message, and whether the transport
+/// refused it for a full queue). @p whole_tree asks for every file in the root instead;
+/// the walk uses that only for a wildcard in an include's directory part. Either
+/// callback may run before the call returns. A missing directory is an empty listing.
+using ConfigListFn =
+    helix::SharedCallback<void(const std::string& dir, bool whole_tree,
+                               helix::SharedCallback<void(std::vector<std::string>)> on_ok,
+                               helix::SharedCallback<void(std::string, bool queue_full)> on_fail)>;
+
 /// Config downloads outstanding at once. The ESP32 HTTP lane queues 8 requests
 /// for every caller, thumbnails included, and frees a slot only after the
 /// completion callback returns, so the walk can hold one more than this.
@@ -104,9 +114,22 @@ inline constexpr const char* kConfigDownloadNotWanted = "no longer wanted";
 [[nodiscard]] ConfigDownloadFn api_config_download(IMoonrakerAPI& api,
                                                    helix::SharedCallback<bool()> still_wanted = {});
 
-/// Download @p root_file and every file its [include] chain reaches, following
-/// globs against @p listing (every path in the config root) and paths relative
-/// to the including file. Files outside the chain are never fetched. A download
+/// A ConfigListFn over @p api, keeping paths ending in @p suffix ("" keeps every file).
+/// One directory goes through server.files.get_directory, the whole tree through
+/// server.files.list, always from the main thread, for the reason
+/// api_config_download() gives. Once the API is gone the request fails untouched.
+[[nodiscard]] ConfigListFn api_config_list(IMoonrakerAPI& api, std::string suffix);
+
+/// Download @p root_file and every file its [include] chain reaches, listing only
+/// the directories those includes name. Failures behave as download_include_graph()
+/// describes; a failed listing fails the walk the same way.
+void walk_include_graph(const std::string& root_file, ConfigListFn list, ConfigDownloadFn download,
+                        ActiveFilesWithContentCallback on_complete, ErrorCallback on_error,
+                        size_t max_in_flight = kMaxConfigDownloadsInFlight, int max_depth = 5);
+
+/// walk_include_graph() over a listing already in hand: follows globs against
+/// @p listing (every path in the config root) and paths relative to the including
+/// file. Files outside the chain are never fetched. A download
 /// refused for a full queue is retried when an in-flight one completes; with
 /// nothing in flight, and for any other failure, the whole walk fails through
 /// @p on_error once the outstanding downloads have returned. A partial set would
@@ -116,19 +139,17 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
                             ErrorCallback on_error,
                             size_t max_in_flight = kMaxConfigDownloadsInFlight, int max_depth = 5);
 
-/// Lists the "config" root through @p api, then download_include_graph() from
-/// @p root_file over every listed file whose name ends in @p suffix ("" keeps
-/// every file). Each file is fetched with @p download, or with
-/// api_config_download(@p api) when it is empty.
+/// walk_include_graph() from @p root_file through api_config_list(@p api, @p suffix).
+/// Each file is fetched with @p download, or with api_config_download(@p api) when it
+/// is empty.
 void download_config_include_graph(IMoonrakerAPI& api, const std::string& root_file,
                                    const std::string& suffix,
                                    ActiveFilesWithContentCallback on_complete,
                                    ErrorCallback on_error, ConfigDownloadFn download = {});
 
-/// Async wrapper: lists config directory via Moonraker, downloads printer.cfg and
-/// all included files, then resolves the active file set.
-/// Handles glob includes by cross-referencing the full file listing — the
-/// pattern names files that are unknowable until Moonraker lists the directory.
+/// Async wrapper: downloads printer.cfg and all included files via Moonraker, then
+/// resolves the active file set. A glob include lists the directory it names, since
+/// the pattern names files that are unknowable until Moonraker lists it.
 void resolve_active_config_files(IMoonrakerAPI& api, ActiveFilesCallback on_complete,
                                  ErrorCallback on_error);
 
