@@ -976,7 +976,7 @@ reset_to() {
     # a hunk that removes a declaration its own file still uses. The verdict
     # names the cheap check, so a run says which step reached it.
     stub_tests_that_ignore
-    printf 'import sys\nsys.exit(1)\n' > "$WORK/scripts/syntax_check.py"
+    printf 'import sys\nprint(sys.argv[1] + ": FAILED (1.0s)")\nsys.exit(1)\n' > "$WORK/scripts/syntax_check.py"
 
     run mutate
     contains "uncompilable (syntax)" "$output"
