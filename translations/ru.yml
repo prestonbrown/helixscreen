@@ -107,7 +107,13 @@ translations:
   + Add Preset: + Добавить пресет
   + Add Printer: + Добавить принтер
   + New: + Новый
+  +1 tool: '+1 инструмент'
   +{} more: '+ещё {}'
+  +{} tools:
+    one: '+{} инструмент'
+    few: '+{} инструмента'
+    many: '+{} инструментов'
+    other: '+{} инструмента'
   ', also {}': ', также {}'
   '- Check [resonance_tester] in printer.cfg': '- Проверьте блок [resonance_tester]
     в printer.cfg'

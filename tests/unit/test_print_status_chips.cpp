@@ -182,7 +182,7 @@ TEST_CASE("phase budget expendable table", "[print_status_chips]") {
         {CalloutKind::Chamber, false, false},  {CalloutKind::Fan, false, true},
         {CalloutKind::HotendFan, true, true},  {CalloutKind::AuxFan, true, true},
         {CalloutKind::Light, true, true},      {CalloutKind::SpeedFlow, true, true},
-        {CalloutKind::Toolhead, false, false},
+        {CalloutKind::Toolhead, false, false}, {CalloutKind::OtherTools, false, false},
     };
     STATIC_REQUIRE(std::size(rows) == kCalloutKindCount);
     for (const Row& r : rows) {

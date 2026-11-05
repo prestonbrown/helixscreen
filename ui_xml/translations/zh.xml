@@ -63,7 +63,9 @@
   <translation tag="+ Add Preset" zh="+ 添加预设"/>
   <translation tag="+ Add Printer" zh="+ 添加打印机"/>
   <translation tag="+ New" zh="+ 新建"/>
+  <translation tag="+1 tool" zh="+1 个工具"/>
   <translation tag="+{} more" zh="还有 {} 个"/>
+  <translation tag="+{} tools" zh="+{} 个工具"/>
   <translation tag=", also {}" zh="，另有 {}"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" zh="- 检查 printer.cfg 中的 [resonance_tester]"/>
   <translation tag="- Ensure ADXL345 is connected" zh="- 确保 ADXL345 已连接"/>

@@ -620,6 +620,7 @@ void PrinterImageWidget::handle_callout_clicked(CalloutKind kind) {
     case CalloutKind::HotendFan:
     case CalloutKind::AuxFan:
     case CalloutKind::SpeedFlow:
+    case CalloutKind::OtherTools:
         break; // the home widget has no such chips
     }
 }

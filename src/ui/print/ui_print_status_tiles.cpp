@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "led/led_controller.h"
@@ -51,6 +52,7 @@ constexpr ChipSpec kChips[kPrintStatusChipCount] = {
     {CalloutKind::AuxFan, "aux_fan", "fan"},
     {CalloutKind::Light, "light", "lightbulb_on"},
     {CalloutKind::SpeedFlow, "speed_flow", "speed"},
+    {CalloutKind::OtherTools, "other_tools", "heater"},
 };
 
 constexpr size_t index_of(PrintStatusChip c) {
@@ -60,6 +62,11 @@ constexpr size_t index_of(PrintStatusChip c) {
 bool is_heater(PrintStatusChip c) {
     return c == PrintStatusChip::Nozzle || c == PrintStatusChip::Bed ||
            c == PrintStatusChip::Chamber;
+}
+
+/// Chips that draw a heat-up bar.
+bool has_progress(PrintStatusChip c) {
+    return is_heater(c) || c == PrintStatusChip::OtherTools;
 }
 
 int subject_int_or_zero(lv_subject_t* s) {
@@ -217,6 +224,17 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         observe<int>(printer_state_.get_heater_power_subject(HeaterType::Bed), this, update, ps);
     chamber_power_observer_ = observe<int>(
         printer_state_.get_heater_power_subject(HeaterType::Chamber), this, update, ps);
+    // The other-tools chip follows every head, and which heads there are.
+    const auto heads_changed = [](PrintStatusTiles* self, int) {
+        self->watch_extruders();
+        self->request_update();
+    };
+    auto& temps = printer_state_.temperature_state();
+    extruder_version_observer_ = observe<int>(temps.get_extruder_version_subject(), this,
+                                              heads_changed, temps.get_subjects_lifetime());
+    tools_version_observer_ = observe<int>(tools.get_tools_version_subject(), this, heads_changed,
+                                           tools.get_subjects_lifetime());
+    watch_extruders();
 
     // The same inputs the home printer image follows.
     const auto image_changed = [](PrintStatusTiles* self, int) {
@@ -250,6 +268,9 @@ void PrintStatusTiles::deinit() {
     nozzle_power_observer_.reset();
     bed_power_observer_.reset();
     chamber_power_observer_.reset();
+    extruder_version_observer_.reset();
+    tools_version_observer_.reset();
+    extruder_watches_.clear();
     image_observers_.clear();
     subjects_ready_ = false;
 }
@@ -295,13 +316,54 @@ void PrintStatusTiles::on_tree_destroyed() {
     last_mode_ = CalloutMode::ImageOnly;
 }
 
-int PrintStatusTiles::heat_start(PrintStatusChip chip, int current, int target) {
-    HeatStart& h = heat_starts_[index_of(chip)];
+namespace {
+/// The reading when the target last changed: where the heat-up bar starts.
+template <typename HeatStart> int track_heat_start(HeatStart& h, int current, int target) {
     if (target != h.target) {
         h.target = target;
         h.start = current;
     }
     return h.start;
+}
+} // namespace
+
+int PrintStatusTiles::heat_start(PrintStatusChip chip, int current, int target) {
+    return track_heat_start(heat_starts_[index_of(chip)], current, target);
+}
+
+std::vector<OtherToolReading> PrintStatusTiles::other_tool_readings() {
+    auto& tools = ToolState::instance();
+    auto& temps = printer_state_.temperature_state();
+    std::vector<OtherToolReading> out;
+    for (const OtherHead& head : other_heads(tools.physical_heads(), tools.active_tool_index(),
+                                             tools.heads_share_heater())) {
+        OtherToolReading r;
+        const auto& all = tools.tools();
+        const auto t = static_cast<size_t>(head.tool);
+        r.badge = other_tool_badge(t < all.size() ? all[t].name : tool_label(head.tool), head.tool);
+        r.current_deci = subject_int_or_zero(temps.get_extruder_temp_subject(head.extruder));
+        r.target_deci = subject_int_or_zero(temps.get_extruder_target_subject(head.extruder));
+        r.start_deci =
+            track_heat_start(other_heat_starts_[head.extruder], r.current_deci, r.target_deci);
+        out.push_back(std::move(r));
+    }
+    return out;
+}
+
+void PrintStatusTiles::watch_extruders() {
+    extruder_watches_.clear();
+    auto& temps = printer_state_.temperature_state();
+    extruder_watches_.reserve(temps.extruders().size());
+    const auto update = [](PrintStatusTiles* self, int) { self->request_update(); };
+    for (const auto& [name, info] : temps.extruders()) {
+        ExtruderWatch& w = extruder_watches_.emplace_back();
+        if (lv_subject_t* t = temps.get_extruder_temp_subject(name, w.temp_lifetime)) {
+            w.temp = observe<int>(t, this, update, w.temp_lifetime);
+        }
+        if (lv_subject_t* t = temps.get_extruder_target_subject(name, w.target_lifetime)) {
+            w.target = observe<int>(t, this, update, w.target_lifetime);
+        }
+    }
 }
 
 std::string PrintStatusTiles::tool_badge() const {
@@ -386,6 +448,9 @@ std::array<ChipContent, kPrintStatusChipCount> PrintStatusTiles::decide_chips(bo
     out[index_of(PrintStatusChip::SpeedFlow)] =
         speed_flow_chip(host_.speed_pct ? host_.speed_pct() : 100,
                         host_.flow_pct ? host_.flow_pct() : 100, host_.speed_text());
+    // Unmeasured here: update_now() sizes it to the room the layout gives it.
+    out[index_of(PrintStatusChip::OtherTools)] =
+        other_tools_chip(other_tool_readings(), [](const std::string&) { return true; });
     return out;
 }
 
@@ -394,7 +459,7 @@ void PrintStatusTiles::publish(PrintStatusChip chip, const ChipContent& c, bool 
     ChipSubjects& s = chips_[index_of(chip)];
     set_string(&s.text, s.text_buf, sizeof(s.text_buf), c.text);
     set_int(&s.tone, static_cast<int>(c.tone));
-    set_int(&s.progress, is_heater(chip) ? c.progress_pct : -1);
+    set_int(&s.progress, has_progress(chip) ? c.progress_pct : -1);
     set_int(&s.state, is_heater(chip) ? c.status_state : 0);
     set_int(&s.glow, glow ? 1 : 0);
     set_int(&s.line, line ? 1 : 0);
@@ -476,6 +541,7 @@ void PrintStatusTiles::update_now() {
     // digit coming or going never moves the picture: a heater heating or
     // holding, a fan at full speed, labeled and not, speed and flow at 100%.
     const std::string badge = tool_badge();
+    const std::vector<OtherToolReading> others = other_tool_readings();
     const auto worst = [&](PrintStatusChip c, bool labeled) -> std::string {
         switch (c) {
         case PrintStatusChip::Nozzle:
@@ -492,6 +558,8 @@ void PrintStatusTiles::update_now() {
             return {};
         case PrintStatusChip::SpeedFlow:
             return {}; // measured from its ChipContent, lead value included
+        case PrintStatusChip::OtherTools:
+            return other_tools_budget_text(others);
         }
         return {};
     };
@@ -520,6 +588,8 @@ void PrintStatusTiles::update_now() {
             return fan_slots.aux;
         case PrintStatusChip::Light:
             return contents[index_of(c)].shown;
+        case PrintStatusChip::OtherTools:
+            return !others.empty();
         }
         return false;
     };
@@ -553,6 +623,14 @@ void PrintStatusTiles::update_now() {
             budget_bare_w[i] = m.chip_w(icons[i], worst(chip, false));
         }
         column_w = std::max(column_w, budget_w[i]);
+    }
+
+    // The other-tools chip says as much as the column it shares holds.
+    {
+        const size_t i = index_of(PrintStatusChip::OtherTools);
+        contents[i] = other_tools_chip(
+            others, [&](const std::string& t) { return m.chip_w(icons[i], t) <= column_w; });
+        bare[i] = contents[i];
     }
 
     // Heater duty rides along only where the last layout put chips in a column

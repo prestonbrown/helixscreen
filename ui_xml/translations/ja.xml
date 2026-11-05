@@ -63,7 +63,9 @@
   <translation tag="+ Add Preset" ja="+ プリセットを追加"/>
   <translation tag="+ Add Printer" ja="+ プリンターを追加"/>
   <translation tag="+ New" ja="+ 新規"/>
+  <translation tag="+1 tool" ja="+1 ツール"/>
   <translation tag="+{} more" ja="他{}件"/>
+  <translation tag="+{} tools" ja="+{} ツール"/>
   <translation tag=", also {}" ja="、{}も"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" ja="- printer.cfg の [resonance_tester] を確認してください"/>
   <translation tag="- Ensure ADXL345 is connected" ja="- ADXL345 が接続されていることを確認してください"/>

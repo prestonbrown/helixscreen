@@ -63,7 +63,9 @@
   <translation tag="+ Add Preset" it="+ Aggiungi preset"/>
   <translation tag="+ Add Printer" it="+ Aggiungi stampante"/>
   <translation tag="+ New" it="+ Nuovo"/>
+  <translation tag="+1 tool" it="+1 strumento"/>
   <translation tag="+{} more" it="+{} altri"/>
+  <translation tag="+{} tools" it="+{} strumenti"/>
   <translation tag=", also {}" it=", anche {}"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" it="- Controllare [resonance_tester] in printer.cfg"/>
   <translation tag="- Ensure ADXL345 is connected" it="- Assicurarsi che ADXL345 sia collegato"/>

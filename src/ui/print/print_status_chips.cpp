@@ -2,9 +2,14 @@
 
 #include "print_status_chips.h"
 
+#include "display_numbering.h"
+#include "i18n_plural.h"
 #include "lvgl.h"
 #include "src/ui/panel_widgets/callout_chip.h"
+#include "tool_state.h"
 #include "tune_controller.h"
+
+#include <spdlog/fmt/fmt.h>
 
 #include <algorithm>
 
@@ -17,7 +22,132 @@ std::string heater_text(int current_deci, int target_deci) {
     return ui::compact_callout_text(
         ui::temperature::heater_display(current_deci, target_deci).temp);
 }
+
+/// Whole percent of the way from `start_deci` to `target_deci`, rounded down.
+int heat_progress(int current_deci, int target_deci, int start_deci) {
+    const int span = target_deci - start_deci;
+    if (span <= 0)
+        return 0;
+    return std::clamp((current_deci - start_deci) * 100 / span, 0, 100);
+}
+
+bool climbing(const OtherToolReading& t) {
+    using ui::temperature::HeaterStatusState;
+    return ui::temperature::classify_heater_status(t.current_deci, t.target_deci, 0).state ==
+           HeaterStatusState::Heating;
+}
+
+bool off(const OtherToolReading& t) {
+    return t.target_deci <= 0 && !ui::temperature::is_residual_hot(t.current_deci);
+}
+
+/// "2 184 / 220°" climbing or cooling, "2 150°" holding or cooling down with
+/// its heater off, "2 off" off and cold.
+std::string other_tool_text(const OtherToolReading& t) {
+    using ui::temperature::HeaterStatusState;
+    std::string text = t.badge + " ";
+    if (off(t))
+        return text + lv_tr("off");
+    const auto state =
+        ui::temperature::classify_heater_status(t.current_deci, t.target_deci, 0).state;
+    const bool off_target =
+        state == HeaterStatusState::Heating || state == HeaterStatusState::Cooling;
+    return text + heater_text(t.current_deci, off_target ? t.target_deci : 0);
+}
+
+/// The chip's entries, a middle dot between each.
+std::string dotted(const std::vector<std::string>& parts) {
+    std::string out;
+    for (const auto& p : parts) {
+        if (!out.empty())
+            out += " · ";
+        out += p;
+    }
+    return out;
+}
+
 } // namespace
+
+std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads, int active_tool,
+                                   bool heads_share_heater) {
+    std::vector<OtherHead> out;
+    if (heads_share_heater)
+        return out;
+    for (const PhysicalHead& head : heads) {
+        if (!head.extruder_name || head.holds_tool(active_tool))
+            continue;
+        out.push_back({head.representative_tool(active_tool), *head.extruder_name});
+    }
+    return out;
+}
+
+std::string other_tool_badge(std::string_view name, int index) {
+    return ui::is_generated_tool_name(name) ? ui::lane_number_text(index) : std::string(name);
+}
+
+ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
+                             const std::function<bool(const std::string&)>& fits) {
+    ChipContent c;
+    if (tools.empty())
+        return c;
+    c.shown = true;
+
+    std::vector<std::string> leading, rest;
+    const OtherToolReading* first_climbing = nullptr;
+    bool all_off = true;
+    for (const auto& t : tools) {
+        all_off = all_off && off(t);
+        if (climbing(t)) {
+            if (!first_climbing)
+                first_climbing = &t;
+            leading.push_back(other_tool_text(t));
+        } else {
+            rest.push_back(other_tool_text(t));
+        }
+    }
+
+    std::vector<std::string> all = leading;
+    all.insert(all.end(), rest.begin(), rest.end());
+    c.text = dotted(all);
+    if (!fits(c.text)) {
+        // As many heads as fit, in order, and a count of the rest. A climbing
+        // head always stays, even past the room: a pre-heat is never hidden.
+        const int n = static_cast<int>(all.size());
+        bool placed = false;
+        for (int k = n - 1; k >= 1 && !placed; --k) {
+            std::vector<std::string> parts(all.begin(), all.begin() + k);
+            parts.push_back(fmt::format("+{}", n - k));
+            c.text = dotted(parts);
+            placed = fits(c.text) || (k == 1 && first_climbing);
+        }
+        if (!placed)
+            c.text = fmt::format(fmt::runtime(ui::tr_plural("+1 tool", "+{} tools", n)), n);
+    }
+
+    if (first_climbing) {
+        c.tone = ChipTone::Active;
+        c.progress_pct = heat_progress(first_climbing->current_deci, first_climbing->target_deci,
+                                       first_climbing->start_deci);
+    } else {
+        c.expendable = true;
+        if (all_off)
+            c.tone = ChipTone::Dim;
+    }
+    return c;
+}
+
+std::string other_tools_budget_text(const std::vector<OtherToolReading>& tools) {
+    if (tools.empty())
+        return {};
+    std::string_view badge;
+    for (const auto& t : tools)
+        if (t.badge.size() > badge.size())
+            badge = t.badge;
+    std::string text = heater_budget_text(badge);
+    if (tools.size() > 1)
+        text += fmt::format(" · +{}", tools.size() - 1);
+    return text;
+}
 
 ChipContent heater_chip(bool present, int current_deci, int target_deci,
                         const ui::temperature::HeaterStatus& status, bool printing, bool show_power,
@@ -53,15 +183,8 @@ ChipContent heater_chip(bool present, int current_deci, int target_deci,
         c.tone = ChipTone::Active;
     }
 
-    if (heating) {
-        const int span = target_deci - start_deci;
-        if (span > 0) {
-            // Whole percent, rounded down.
-            c.progress_pct = std::clamp((current_deci - start_deci) * 100 / span, 0, 100);
-        } else {
-            c.progress_pct = 0;
-        }
-    }
+    if (heating)
+        c.progress_pct = heat_progress(current_deci, target_deci, start_deci);
     return c;
 }
 
@@ -135,6 +258,8 @@ bool phase_budget_expendable(CalloutKind kind, bool printing) {
     case CalloutKind::Bed:
     case CalloutKind::Chamber:
     case CalloutKind::Toolhead:
+    // A head may start pre-heating at any moment, and that must never be shed.
+    case CalloutKind::OtherTools:
         return false;
     case CalloutKind::Fan:
         return !printing;

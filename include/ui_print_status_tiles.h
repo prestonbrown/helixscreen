@@ -33,6 +33,8 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace helix {
 class PrinterState;
@@ -50,8 +52,9 @@ enum class PrintStatusChip {
     AuxFan,
     Light,
     SpeedFlow,
+    OtherTools,
 };
-inline constexpr size_t kPrintStatusChipCount = 8;
+inline constexpr size_t kPrintStatusChipCount = 9;
 
 /// The `<key>` in `ps_chip_<key>_*`, `ps_line_<key>` and `ps_glow_<key>`.
 [[nodiscard]] const char* print_status_chip_key(PrintStatusChip chip);
@@ -134,7 +137,7 @@ class PrintStatusTiles {
         lv_subject_t progress{};
         lv_subject_t line{};
         lv_subject_t state{};
-        char text_buf[32] = "";
+        char text_buf[96] = "";
     };
     struct StepSubjects {
         lv_subject_t name{};
@@ -157,6 +160,10 @@ class PrintStatusTiles {
     std::string tool_badge() const;
     ChipContent heater(PrintStatusChip chip, bool show_power);
     int heat_start(PrintStatusChip chip, int current, int target);
+    /// Every head but the printing one, read for the other-tools chip.
+    std::vector<OtherToolReading> other_tool_readings();
+    /// Watches every extruder's reading and target, so a parked head's pre-heat redraws.
+    void watch_extruders();
     ChipContent fan(PrintStatusChip chip, bool labeled);
     Image current_image() const;
 
@@ -187,6 +194,8 @@ class PrintStatusTiles {
     char step_current_time_buf_[16] = "";
 
     std::array<HeatStart, 3> heat_starts_{};
+    /// Keyed by extruder name, for the other-tools chip's bar.
+    std::unordered_map<std::string, HeatStart> other_heat_starts_;
     std::string part_fan_;
     std::string hotend_fan_;
     std::string aux_fan_;
@@ -216,6 +225,18 @@ class PrintStatusTiles {
     ObserverGuard nozzle_power_observer_;
     ObserverGuard bed_power_observer_;
     ObserverGuard chamber_power_observer_;
+
+    // Lifetimes before observers: members destroy in reverse, so each guard
+    // goes while its lifetime still says whether the subject lives.
+    struct ExtruderWatch {
+        SubjectLifetime temp_lifetime;
+        SubjectLifetime target_lifetime;
+        ObserverGuard temp;
+        ObserverGuard target;
+    };
+    std::vector<ExtruderWatch> extruder_watches_;
+    ObserverGuard extruder_version_observer_;
+    ObserverGuard tools_version_observer_;
 };
 
 } // namespace helix::ui

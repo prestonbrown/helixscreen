@@ -368,6 +368,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   with what it holds, pre-ticks loaded heads for an unload, and says which heads cannot take
   the operation and why. The printer's own batch command does the work, preheating the next
   head while the current one finishes, and the header names the head being worked on.
+- **Print Status shows every toolhead's temperature** (#1818) - the nozzle chip on the
+  printer picture keeps the active tool, and one more chip lists the others
+  (`2 150° · 3 off · 4 off`). A parked head heating up leads that chip with its reading,
+  target and a progress bar, so you can see the next tool pre-heating; where the chip has
+  no room for every head it shows the heating one and a count of the rest. Tap it for the
+  temperature graph. Lanes that share one nozzle count as one head.
 
 **Filament systems**
 

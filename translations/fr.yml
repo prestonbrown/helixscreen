@@ -63,7 +63,9 @@ translations:
   + Add Preset: + Ajouter un préréglage
   + Add Printer: + Ajouter une imprimante
   + New: + Nouveau
+  +1 tool: '+1 outil'
   +{} more: '+{} de plus'
+  +{} tools: '+{} outils'
   ', also {}': ', aussi {}'
   '- Check [resonance_tester] in printer.cfg': '- Vérifiez [resonance_tester] dans
     printer.cfg'
