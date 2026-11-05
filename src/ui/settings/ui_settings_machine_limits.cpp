@@ -195,6 +195,11 @@ void MachineLimitsOverlay::on_activate() {
     query_and_show(nullptr);
 }
 
+void MachineLimitsOverlay::on_ui_destroyed() {
+    // A rebuilt tree has no typed value to keep, so its first activate queries.
+    returning_from_keypad_ = false;
+}
+
 void MachineLimitsOverlay::on_deactivating(DeactivateReason) {
     spdlog::debug("[{}] on_deactivating()", get_name());
 

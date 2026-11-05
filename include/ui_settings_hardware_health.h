@@ -75,6 +75,9 @@ class HardwareHealthOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "hardware_health_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /**
      * @brief Called when overlay becomes visible

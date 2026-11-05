@@ -29,6 +29,9 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "barcode_scanner_settings";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
     HELIX_KIND_TAG(BarcodeScannerSettingsOverlay)
 
     void init_subjects() override;

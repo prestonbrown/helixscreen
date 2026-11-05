@@ -57,6 +57,9 @@ class FanSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "fan_settings_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Called when overlay becomes visible — repopulates fan lists
     void on_activate() override;
@@ -86,6 +89,12 @@ class FanSettingsOverlay : public OverlayBase {
     lv_obj_t* controllable_list_ = nullptr;
     lv_obj_t* auto_list_ = nullptr;
     lv_obj_t* no_fans_placeholder_ = nullptr;
+
+    void on_ui_destroyed() override {
+        controllable_list_ = nullptr;
+        auto_list_ = nullptr;
+        no_fans_placeholder_ = nullptr;
+    }
 
     // Rename modal state
     helix::ui::WidgetRef rename_modal_;
