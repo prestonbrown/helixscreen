@@ -4,8 +4,6 @@
 #include "ams_backend_afc.h"
 
 #include "ui_error_reporting.h"
-#include "ui_insert_notice.h"
-#include "ui_modal.h"
 #include "ui_notification.h"
 
 #include "action_prompt_manager.h"
@@ -23,6 +21,7 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"
@@ -2415,7 +2414,8 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
         const int firmware_id = fw_it != lane_firmware_spool_id_.end() ? fw_it->second : 0;
         if (firmware_id <= 0 && status_at_frame_start == SlotStatus::EMPTY) {
             helix::ui::queue_update("AmsBackendAfc::apply_lane_status", [slot_index] {
-                helix::ui::offer_clear_after_unverified_insert(slot_index);
+                helix::publish_ui_request(
+                    {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, slot_index});
             });
         }
     }
