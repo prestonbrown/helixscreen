@@ -587,10 +587,20 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// so a burst issues one read. Safe under mutex_.
     void schedule_lane_record_reread();
 
+    /// When the store's load got no answer, keep reading until one lands, then
+    /// take the printer's records as the start of this session would have.
+    /// Nothing is written over them until then. Main thread.
+    void read_unread_lane_records();
+
     /// Remember each slot's lane_data document as the store loaded it, so the
     /// first re-read files only what another tool changed since. Caller holds
     /// mutex_, after installing override_store_.
     void seed_lane_records_seen_locked();
+
+    /// read_unread_lane_records() got its answer: @p records replace what the
+    /// failed load left in overrides_, and the lanes and slots repaint.
+    void adopt_unread_lane_records(helix::ams::FilamentSlotOverrideStore* store,
+                                   std::unordered_map<int, helix::ams::LaneDataRecord> records);
 
     /// File each record that changed since it was last read as another tool's
     /// edit when it is one and newer (file_reread_outside_edit()), and move the

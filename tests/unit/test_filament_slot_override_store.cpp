@@ -3960,3 +3960,122 @@ TEST_CASE("persist_staged_override saves nothing for a slot with no staged recor
     helix::ams::persist_staged_override(&store, mutex, overrides, 0, "[TestIfs]", "Override");
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
 }
+
+// ============================================================================
+// A store whose load got no answer has not read the namespace (#2008)
+// ============================================================================
+
+namespace {
+
+FilamentSlotOverride polymaker_record() {
+    FilamentSlotOverride o;
+    o.brand = "Polymaker";
+    o.color_rgb = 0xFF9800;
+    o.color_set = true;
+    o.material = "ASA";
+    return o;
+}
+
+/// Loads @p store with the namespace GET left unanswered. The caller fires the
+/// deferred GET before it returns.
+void load_without_an_answer(MockPrinter& printer, FilamentSlotOverrideStore& store) {
+    printer.client.defer_next("server.database.get_item");
+    FilamentSlotOverrideStoreTestAccess::set_load_timeout(store, std::chrono::milliseconds(20));
+    (void)store.load_blocking();
+}
+
+} // namespace
+
+TEST_CASE("an unanswered load writes nothing over the printer's records",
+          "[filament_slot_override][2008]") {
+    TmpCacheDir tmp("unread_holds");
+    MockPrinter printer;
+    const json live = helix::ams::to_lane_data_record(0, polymaker_record());
+    printer.client.mock_db_set("lane_data", "lane1", live);
+
+    FilamentSlotOverrideStore store(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    load_without_an_answer(printer, store);
+    REQUIRE(store.namespace_unread());
+    const int posts_before = printer.client.call_count("server.database.post_item");
+
+    SECTION("the firmware mirror, which starts from a blank record") {
+        std::unordered_map<int, FilamentSlotOverride> overrides;
+        helix::ams::mirror_firmware_to_lane_data(&store, overrides, 0, 0x00FF00, "PLA", true,
+                                                 helix::ams::MirrorPolicy::OverwriteAlways,
+                                                 "[test]", helix::ams::DeclaredOnLane{});
+    }
+    SECTION("a save") {
+        bool ok = false;
+        store.save_async(0, FilamentSlotOverride{},
+                         [&ok](bool success, std::string) { ok = success; });
+        CHECK(ok);
+    }
+    SECTION("a clear, refused") {
+        bool ok = true;
+        store.clear_async(0, [&ok](bool success, std::string) { ok = success; });
+        CHECK_FALSE(ok);
+        CHECK(printer.client.call_count("server.database.delete_item") == 0);
+    }
+
+    CHECK(printer.client.call_count("server.database.post_item") == posts_before);
+    CHECK(printer.client.mock_db_get("lane_data", "lane1") == live);
+    printer.client.fire_deferred("server.database.get_item");
+}
+
+TEST_CASE("a load that fails is unread too, and one the database answers is not",
+          "[filament_slot_override][2008]") {
+    TmpCacheDir tmp("unread_kinds");
+    MockPrinter printer;
+    FilamentSlotOverrideStore store(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+
+    SECTION("a connection error") {
+        printer.client.fail_next("server.database.get_item", MoonrakerError::unknown("no route"));
+        (void)store.load_blocking();
+        CHECK(store.namespace_unread());
+    }
+    SECTION("an empty answer: saves go out") {
+        (void)store.load_blocking();
+        CHECK_FALSE(store.namespace_unread());
+        const int before = printer.client.call_count("server.database.post_item");
+        store.save_async(0, polymaker_record(), nullptr);
+        CHECK(printer.client.call_count("server.database.post_item") == before + 1);
+    }
+}
+
+TEST_CASE("the read that lands keeps a person's held save and drops the rest",
+          "[filament_slot_override][2008]") {
+    TmpCacheDir tmp("unread_adopt");
+    MockPrinter printer;
+
+    FilamentSlotOverride cached = polymaker_record();
+    cached.spoolman_id = 42;
+    {
+        FilamentSlotOverrideStore seed(&printer.api, "ifs");
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(seed, tmp.path);
+        seed.save_async(1, cached, nullptr);
+    }
+
+    FilamentSlotOverrideStore store(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    load_without_an_answer(printer, store);
+    REQUIRE(store.namespace_unread());
+
+    FilamentSlotOverride linked = polymaker_record();
+    linked.spoolman_id = 77;
+    store.save_async(0, polymaker_record(), nullptr); // a firmware reading: states nothing
+    store.save_async(1, cached, nullptr);             // what the cache already said
+    store.save_async(2, linked, nullptr);             // a spool linked since the load
+
+    const auto statements = store.adopt_namespace_read({});
+    CHECK_FALSE(store.namespace_unread());
+    REQUIRE(statements.size() == 1);
+    REQUIRE(statements.count(2) == 1);
+    CHECK(statements.at(2).spoolman_id == 77);
+
+    const int before = printer.client.call_count("server.database.post_item");
+    store.save_async(3, polymaker_record(), nullptr);
+    CHECK(printer.client.call_count("server.database.post_item") == before + 1);
+    printer.client.fire_deferred("server.database.get_item");
+}
