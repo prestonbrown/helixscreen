@@ -51,7 +51,8 @@ lv_obj_t* icon_label_of(lv_obj_t* pill) {
 }
 
 /// A 12x8 grid on page 1 holding one selected configurable widget, with the
-/// edit-mode chrome drawn around it.
+/// edit-mode chrome drawn around it. The widget spans @p span tracks each way
+/// from track (@p col, @p row): a whole cell by default.
 struct ChromeScene {
     ConfigurableWidget pw;
     lv_obj_t* container = nullptr;
@@ -62,7 +63,8 @@ struct ChromeScene {
     std::vector<int32_t> row_dsc;
     static constexpr int kPageIndex = 1;
 
-    explicit ChromeScene(lv_obj_t* screen) {
+    explicit ChromeScene(lv_obj_t* screen, int col = 0, int row = 0,
+                         int span = GridLayout::TRACKS_PER_CELL) {
         const int gutter = helix::GridLayout::gutter_px();
         REQUIRE(gutter > 0);
 
@@ -88,8 +90,8 @@ struct ChromeScene {
         widget = lv_obj_create(container);
         lv_obj_set_name(widget, "humidity");
         lv_obj_remove_flag(widget, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, 0, GridLayout::TRACKS_PER_CELL,
-                             LV_GRID_ALIGN_STRETCH, 0, GridLayout::TRACKS_PER_CELL);
+        lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, col, span, LV_GRID_ALIGN_STRETCH, row,
+                             span);
         lv_obj_set_user_data(widget, &pw);
         lv_obj_update_layout(container);
 
@@ -108,10 +110,10 @@ struct ChromeScene {
                               {"widgets",
                                {{{"id", "humidity"},
                                  {"enabled", true},
-                                 {"col", 0},
-                                 {"row", 0},
-                                 {"colspan", GridLayout::TRACKS_PER_CELL},
-                                 {"rowspan", GridLayout::TRACKS_PER_CELL}}}}}}}});
+                                 {"col", col},
+                                 {"row", row},
+                                 {"colspan", span},
+                                 {"rowspan", span}}}}}}}});
 
         auto& mgr = PanelWidgetManager::instance();
         mgr.get_widget_config(panel_id).mark_dirty();
@@ -195,6 +197,90 @@ TEST_CASE_METHOD(XMLTestFixture, "a press that slides off a selection pill is no
     pointer.press(cx, cy);
     pointer.release(cx, cy);
     CHECK(em.selected_widget() == nullptr);
+
+    em.exit();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "a half-cell widget carries its selection pills outside it",
+                 "[grid_edit][edit-chrome][halfcell]") {
+    // Track (8, 4) of the 12x8 track grid: room for the pills on every side.
+    ChromeScene scene(test_screen(), 8, 4, 1);
+    helix_test::ScopedPointerIndev pointer;
+    GridEditMode em;
+    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.select_widget(scene.widget);
+    REQUIRE(em.selected_widget() == scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    lv_area_t tile;
+    lv_area_t box;
+    lv_obj_get_coords(scene.widget, &tile);
+    lv_obj_get_coords(scene.container, &box);
+    lv_obj_t* trash = GridEditModeTestAccess::remove_button(em);
+    lv_obj_t* cfg = GridEditModeTestAccess::configure_button(em);
+    REQUIRE(trash != nullptr);
+    REQUIRE(cfg != nullptr);
+
+    for (lv_obj_t* pill : {trash, cfg}) {
+        lv_area_t a;
+        lv_obj_get_coords(pill, &a);
+        INFO("pill " << a.x1 << "," << a.y1 << "-" << a.x2 << "," << a.y2 << " tile " << tile.x1
+                     << "," << tile.y1 << "-" << tile.x2 << "," << tile.y2);
+        CHECK((a.x2 < tile.x1 || a.x1 > tile.x2 || a.y2 < tile.y1 || a.y1 > tile.y2));
+        CHECK((a.x1 >= box.x1 && a.y1 >= box.y1 && a.x2 <= box.x2 && a.y2 <= box.y2));
+        CHECK(a.y2 < tile.y1); // above the tile, off its top corners
+    }
+    lv_area_t trash_area;
+    lv_obj_get_coords(trash, &trash_area);
+    CHECK(trash_area.x1 > tile.x2);
+
+    // The pill is the hit target over the outward resize band it overlaps, so
+    // a press there neither drags nor resizes the widget.
+    const int cx = (trash_area.x1 + trash_area.x2) / 2;
+    const int cy = (trash_area.y1 + trash_area.y2) / 2;
+    lv_point_t centre{cx, cy};
+    REQUIRE(lv_indev_search_obj(lv_screen_active(), &centre) == trash);
+    pointer.press(trash_area.x1 + 1, trash_area.y2 - 1);
+    pointer.move(trash_area.x1 + 1, trash_area.y2 + 40);
+    pointer.move(trash_area.x1 + 1, trash_area.y2 + 80);
+    pointer.release(trash_area.x1 + 1, trash_area.y2 + 80);
+    CHECK(em.selected_widget() == scene.widget);
+    const auto& entries = scene.config->page_entries(ChromeScene::kPageIndex);
+    REQUIRE(entries.size() == 1);
+    CHECK(entries[0].colspan == 1);
+    CHECK(entries[0].rowspan == 1);
+
+    // The widget's centre is a drag target, not a pill.
+    lv_point_t mid{(tile.x1 + tile.x2) / 2, (tile.y1 + tile.y2) / 2};
+    lv_obj_t* under = lv_indev_search_obj(lv_screen_active(), &mid);
+    CHECK(under != trash);
+    CHECK(under != cfg);
+
+    // A tap on the outside trash pill removes the widget.
+    pointer.press(cx, cy);
+    pointer.release(cx, cy);
+    CHECK(em.selected_widget() == nullptr);
+    CHECK(scene.config->page_entries(ChromeScene::kPageIndex).empty());
+
+    em.exit();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "a whole-cell widget keeps its selection pills on its corners",
+                 "[grid_edit][edit-chrome][halfcell]") {
+    ChromeScene scene(test_screen(), 8, 4);
+    GridEditMode em;
+    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.select_widget(scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    lv_area_t tile;
+    lv_area_t trash;
+    lv_obj_get_coords(scene.widget, &tile);
+    lv_obj_get_coords(GridEditModeTestAccess::remove_button(em), &trash);
+    const int pill = lv_area_get_width(&trash);
+    // A quarter of the pill overhangs the top-right corner; the rest is on the tile.
+    CHECK(trash.x2 == tile.x2 + pill / 4);
+    CHECK(trash.y1 == tile.y1 - pill / 4);
 
     em.exit();
 }

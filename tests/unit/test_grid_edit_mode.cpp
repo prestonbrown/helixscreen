@@ -1554,6 +1554,150 @@ TEST_CASE("inward_edge_reach: the drag interior never drops below a touch target
     CHECK(reach(18, -10, 48) == 0);
 }
 
+TEST_CASE("pills_go_outside: a widget keeps its pills only with a touch target to spare",
+          "[grid_edit][edit-chrome][halfcell]") {
+    auto outside = [](int w, int h) {
+        // A 36px pill overhanging by 9px covers 27px of the widget at 800x480.
+        return GridEditModeTestAccess::pills_go_outside(w, h, 27, 48);
+    };
+    CHECK(outside(60, 59));         // a half cell at 800x480
+    CHECK(outside(74, 200));        // narrow: one px short on width
+    CHECK(outside(200, 74));        // short: one px short on height
+    CHECK_FALSE(outside(75, 75));   // exactly the pill plus the target
+    CHECK_FALSE(outside(120, 118)); // a full cell at 800x480
+    CHECK(outside(0, 0));
+}
+
+namespace {
+bool same_area(const lv_area_t& a, const lv_area_t& b) {
+    return a.x1 == b.x1 && a.y1 == b.y1 && a.x2 == b.x2 && a.y2 == b.y2;
+}
+bool overlaps(const lv_area_t& a, const lv_area_t& b) {
+    return !(a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2);
+}
+} // namespace
+
+TEST_CASE("outside_pill_area: pills sit diagonally off their corner and stay in the container",
+          "[grid_edit][edit-chrome][halfcell]") {
+    constexpr int kPill = 36;
+    constexpr int kGap = 5;
+    // The 800x480 home grid container, right of the navbar.
+    const lv_area_t bounds{80, 0, 799, 479};
+    auto place = [&](const lv_area_t& tile, bool top_right, const lv_area_t* avoid = nullptr) {
+        return GridEditModeTestAccess::outside_pill_area(tile, kPill, bounds, kGap, top_right,
+                                                         avoid);
+    };
+    auto inside_bounds = [&](const lv_area_t& a) {
+        return a.x1 >= bounds.x1 && a.y1 >= bounds.y1 && a.x2 <= bounds.x2 && a.y2 <= bounds.y2;
+    };
+
+    SECTION("mid-grid: trash off the top-right corner, configure off the top-left") {
+        const lv_area_t tile{400, 200, 459, 258};
+        const lv_area_t trash = place(tile, true);
+        CHECK(same_area(trash, {465, 159, 500, 194}));
+        const lv_area_t cfg = place(tile, false, &trash);
+        CHECK(same_area(cfg, {359, 159, 394, 194}));
+        CHECK_FALSE(overlaps(trash, tile));
+        CHECK_FALSE(overlaps(cfg, tile));
+    }
+
+    SECTION("top row: both pills flip below the tile") {
+        const lv_area_t tile{677, 5, 736, 63};
+        const lv_area_t trash = place(tile, true);
+        CHECK(same_area(trash, {742, 69, 777, 104}));
+        const lv_area_t cfg = place(tile, false, &trash);
+        CHECK(same_area(cfg, {636, 69, 671, 104}));
+    }
+
+    SECTION("right screen edge: trash flips left, configure moves below") {
+        const lv_area_t tile{740, 200, 799, 258};
+        const lv_area_t trash = place(tile, true);
+        CHECK(same_area(trash, {699, 159, 734, 194}));
+        const lv_area_t cfg = place(tile, false, &trash);
+        CHECK(same_area(cfg, {699, 264, 734, 299}));
+        CHECK_FALSE(overlaps(cfg, trash));
+    }
+
+    SECTION("top-right screen corner: trash goes below-left") {
+        const lv_area_t tile{740, 0, 799, 58};
+        const lv_area_t trash = place(tile, true);
+        CHECK(same_area(trash, {699, 64, 734, 99}));
+        // Every first-ring spot is off screen or taken: one pill further out.
+        const lv_area_t cfg = place(tile, false, &trash);
+        CHECK(same_area(cfg, {658, 64, 693, 99}));
+    }
+
+    SECTION("beside the navbar: configure flips right instead of over the navbar") {
+        const lv_area_t tile{80, 200, 139, 258};
+        const lv_area_t trash = place(tile, true);
+        CHECK(same_area(trash, {145, 159, 180, 194}));
+        const lv_area_t cfg = place(tile, false, &trash);
+        CHECK(inside_bounds(cfg));
+        CHECK(cfg.x1 >= bounds.x1);
+        CHECK_FALSE(overlaps(cfg, trash));
+        CHECK_FALSE(overlaps(cfg, tile));
+    }
+
+    SECTION("bottom-left corner beside the navbar") {
+        const lv_area_t tile{80, 421, 139, 479};
+        const lv_area_t trash = place(tile, true);
+        CHECK(same_area(trash, {145, 380, 180, 415}));
+        const lv_area_t cfg = place(tile, false, &trash);
+        CHECK(inside_bounds(cfg));
+        CHECK_FALSE(overlaps(cfg, trash));
+    }
+
+    SECTION("a container with no room anywhere clamps the pill inside it") {
+        const lv_area_t tight{0, 0, 59, 58};
+        const lv_area_t tile{0, 0, 59, 58};
+        const lv_area_t a =
+            GridEditModeTestAccess::outside_pill_area(tile, kPill, tight, kGap, true);
+        CHECK(same_area(a, {24, 0, 59, 35}));
+    }
+}
+
+TEST_CASE("outside pills leave every edge of a half-cell widget resizable",
+          "[grid_edit][edit-chrome][resize][halfcell]") {
+    // The pills overlap only the corner squares where two outward bands meet;
+    // a press there belongs to the pill (it is the indev's hit target), and
+    // the rest of each edge's outward band still resizes.
+    GridEditMode em;
+    const lv_area_t tile{400, 200, 459, 258};
+    const lv_area_t bounds{80, 0, 799, 479};
+    const lv_area_t trash = GridEditModeTestAccess::outside_pill_area(tile, 36, bounds, 5, true);
+    const lv_area_t cfg =
+        GridEditModeTestAccess::outside_pill_area(tile, 36, bounds, 5, false, &trash);
+    auto on_pill = [&](int x, int y) {
+        auto in = [&](const lv_area_t& a) {
+            return x >= a.x1 && x <= a.x2 && y >= a.y1 && y <= a.y2;
+        };
+        return in(trash) || in(cfg);
+    };
+
+    struct Probe {
+        int x;
+        int y;
+        GridEditMode::ResizeEdge edge;
+    };
+    const Probe probes[] = {
+        {429, 196, GridEditMode::ResizeEdge::Top},   {429, 262, GridEditMode::ResizeEdge::Bottom},
+        {396, 229, GridEditMode::ResizeEdge::Left},  {463, 229, GridEditMode::ResizeEdge::Right},
+        {463, 240, GridEditMode::ResizeEdge::Right}, {396, 240, GridEditMode::ResizeEdge::Left},
+        {440, 190, GridEditMode::ResizeEdge::Top},   {420, 190, GridEditMode::ResizeEdge::Top},
+    };
+    for (const auto& p : probes) {
+        INFO("probe " << p.x << "," << p.y);
+        CHECK_FALSE(on_pill(p.x, p.y));
+        CHECK(em.detect_resize_edge(p.x, p.y, tile) == p.edge);
+    }
+    // The pills never cover the widget's own drag interior.
+    for (int x = tile.x1; x <= tile.x2; ++x) {
+        for (int y = tile.y1; y <= tile.y2; ++y) {
+            REQUIRE_FALSE(on_pill(x, y));
+        }
+    }
+}
+
 TEST_CASE("detect_resize_edge: a half-cell widget drags from anywhere inside it",
           "[grid_edit][resize][halfcell]") {
     GridEditMode em;

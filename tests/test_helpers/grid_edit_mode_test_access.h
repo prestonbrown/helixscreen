@@ -94,6 +94,18 @@ struct GridEditModeTestAccess {
         return GridEditMode::inward_edge_reach(band, widget_px, min_drag_px);
     }
 
+    /// The pure rules for where a selection pill goes.
+    static bool pills_go_outside(int widget_w, int widget_h, int pill_inside_px, int min_drag_px) {
+        return GridEditMode::pills_go_outside(widget_w, widget_h, pill_inside_px, min_drag_px);
+    }
+    static lv_area_t outside_pill_area(const lv_area_t& tile, int pill_px, const lv_area_t& bounds,
+                                       int gap, bool top_right, const lv_area_t* avoid = nullptr) {
+        return GridEditMode::outside_pill_area(tile, pill_px, bounds, gap,
+                                               top_right ? GridEditMode::PillCorner::TopRight
+                                                         : GridEditMode::PillCorner::TopLeft,
+                                               avoid);
+    }
+
     /// Pointer travel from the press origin that an armed press must exceed,
     /// in px, before it becomes a drag or a resize.
     static int drag_threshold_px() {
