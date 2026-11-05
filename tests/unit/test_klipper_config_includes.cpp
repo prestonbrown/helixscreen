@@ -394,3 +394,25 @@ TEST_CASE("walk_config_includes stops on a fatal download failure", "[config][in
     CHECK(w.completions == 0);
     CHECK(w.error == "Failed to download printer.cfg: the printer disconnected");
 }
+
+TEST_CASE("config_resolve_path reduces dot segments to the path Moonraker lists",
+          "[config][includes]") {
+    CHECK(config_resolve_path("printer.cfg", "./mod/config/a.cfg") == "mod/config/a.cfg");
+    CHECK(config_resolve_path("mod/config/a.cfg", "../macros/base.cfg") == "mod/macros/base.cfg");
+    CHECK(config_resolve_path("conf.d/a.cfg", "./*.cfg") == "conf.d/*.cfg");
+    // Above the root the dots stay, so the path matches nothing.
+    CHECK(config_resolve_path("a.cfg", "../b.cfg") == "../b.cfg");
+}
+
+TEST_CASE("walk_config_includes follows includes spelled with dot segments", "[config][includes]") {
+    WalkFakes w;
+    w.server = {{"printer.cfg", "[include ./mod/config/a.cfg]\n"},
+                {"mod/config/a.cfg", "[include ../macros/*.cfg]\n"},
+                {"mod/macros/base.cfg", "[gcode_macro PRINT_START]\n"}};
+    w.run();
+
+    REQUIRE(w.completions == 1);
+    CHECK(w.active ==
+          std::set<std::string>{"printer.cfg", "mod/config/a.cfg", "mod/macros/base.cfg"});
+    CHECK(w.whole_trees == 0);
+}
