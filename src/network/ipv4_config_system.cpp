@@ -362,10 +362,7 @@ Ipv4Result apply_ipv4_change(Ipv4Configurable& backend, Ipv4Link link, const Ipv
     // One record holds the only way back to the config before a change. A
     // pending one is restored first; only one the restore gave up on, which
     // can no longer be used, may be replaced.
-    const Ipv4RecordLoad existing = read_pending_ipv4_revert();
-    if (existing.kind == Ipv4RecordLoad::Kind::Unreadable ||
-        existing.kind == Ipv4RecordLoad::Kind::ReadError ||
-        (existing.kind == Ipv4RecordLoad::Kind::Ok && !existing.record.failed)) {
+    if (ipv4_record_blocks_change(read_pending_ipv4_revert())) {
         return Ipv4Result::refused("an earlier IPv4 change is still waiting to be undone");
     }
     PendingIpv4Revert pending;

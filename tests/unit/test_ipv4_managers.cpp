@@ -12,6 +12,7 @@
 #include "core/update_queue.h"
 #include "ethernet_manager.h"
 #include "ipv4_config_system.h"
+#include "misc/lv_timer_private.h" // timer_cb: each tick is fired by hand
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 
@@ -274,6 +275,67 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that fails to read is retried, ne
     CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Retry);
     CHECK_FALSE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "read error"));
     CHECK(std::filesystem::is_directory(pending_ipv4_revert_path()));
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a give-up its record cannot hold says so and keeps refusing",
+                 "[ipv4][ipv4_manager]") {
+    using helix::settings::Ipv4RevertEnd;
+    REQUIRE(std::filesystem::create_directory(pending_ipv4_revert_path()));
+    std::optional<Ipv4RevertEnd> told;
+    helix::settings::set_ipv4_revert_listener([&](Ipv4Link, Ipv4RevertEnd end) { told = end; });
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "read error");
+    REQUIRE(wait_until([&] { return told.has_value(); }));
+    CHECK(told == Ipv4RevertEnd::GaveUpUnrecorded);
+    CHECK(helix::settings::ipv4_revert_unrecorded(Ipv4Link::Wifi) == "read error");
+    CHECK(std::filesystem::is_directory(pending_ipv4_revert_path()));
+
+    // Once a give-up is recorded, the screen takes a change again.
+    std::filesystem::remove(pending_ipv4_revert_path());
+    PendingIpv4Revert p;
+    p.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
+    REQUIRE(save_pending_ipv4_revert(p));
+    told.reset();
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "unreachable");
+    REQUIRE(wait_until([&] { return told.has_value(); }));
+    helix::settings::set_ipv4_revert_listener(nullptr);
+    CHECK(told == Ipv4RevertEnd::GaveUp);
+    CHECK_FALSE(helix::settings::ipv4_revert_unrecorded(Ipv4Link::Wifi));
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a startup record that fails to read is read again",
+                 "[ipv4][ipv4_manager]") {
+    // The test binary runs no periodic timer, so each tick is fired by hand.
+    const auto fire = [] {
+        lv_timer_t* t = helix::settings::ipv4_startup_read_timer_for_test();
+        REQUIRE(t);
+        t->timer_cb(t);
+    };
+    const Ipv4Config was = static_config("192.168.1.40");
+    REQUIRE(std::filesystem::create_directory(pending_ipv4_revert_path()));
+    helix::settings::start_ipv4_startup_revert();
+    fire();
+
+    SECTION("once it reads, another run's change is undone") {
+        REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(was).ok());
+        PendingIpv4Revert p;
+        p.previous = was;
+        p.owner = "another-run";
+        p.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
+        REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(static_config("192.168.1.50")).ok());
+        std::filesystem::remove(pending_ipv4_revert_path());
+        REQUIRE(save_pending_ipv4_revert(p));
+        process_lvgl(static_cast<int>(kIpv4RetryEveryMs));
+        fire();
+        CHECK(helix::settings::ipv4_startup_read_timer_for_test() == nullptr);
+        CHECK(wait_until([&] { return !record_exists(); }));
+        CHECK(backend_config() == was);
+    }
+    SECTION("one that never reads stops in two minutes and is left as it is") {
+        process_lvgl(static_cast<int>(kIpv4RetryForMs));
+        fire();
+        CHECK(helix::settings::ipv4_startup_read_timer_for_test() == nullptr);
+        CHECK(std::filesystem::is_directory(pending_ipv4_revert_path()));
+    }
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "EthernetManager reads and applies through the mock",

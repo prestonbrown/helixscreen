@@ -4217,6 +4217,8 @@ translations:
   The plugin can't save its recovery data to disk.: "Плагин не может сохранить данные для восстановления."
   The plugin is turned off in moonraker.conf.: "Плагин выключен в moonraker.conf."
   The previous IPv4 settings come back when the print ends.: 'Прежние настройки IPv4 вернутся после окончания печати.'
+  'The previous IPv4 settings could not be checked: {} could not be read': 'Не удалось проверить прежние настройки IPv4: не удалось прочитать {}'
+  'The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}': 'Не удалось восстановить прежние настройки IPv4 и обновить запись об изменении: {}'
   'The previous IPv4 settings could not be restored: {}': 'Не удалось восстановить прежние настройки IPv4: {}'
   The previous settings come back in %d seconds unless you keep these.: 'Прежние настройки вернутся через %d с, если вы не оставите эти.'
   The print ended before any layer was printed. Nothing was changed.: Печать завершилась до первого слоя. Ничего не изменено.

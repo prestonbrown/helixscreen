@@ -3802,6 +3802,8 @@
   <translation tag="The plugin can&apos;t save its recovery data to disk." pt="O plugin não consegue salvar seus dados de recuperação."/>
   <translation tag="The plugin is turned off in moonraker.conf." pt="O plugin está desligado no moonraker.conf."/>
   <translation tag="The previous IPv4 settings come back when the print ends." pt="As configurações IPv4 anteriores voltam quando a impressão terminar."/>
+  <translation tag="The previous IPv4 settings could not be checked: {} could not be read" pt="Não foi possível verificar as configurações IPv4 anteriores: não foi possível ler {}"/>
+  <translation tag="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}" pt="Não foi possível restaurar as configurações IPv4 anteriores nem atualizar o registro da alteração: {}"/>
   <translation tag="The previous IPv4 settings could not be restored: {}" pt="Não foi possível restaurar as configurações IPv4 anteriores: {}"/>
   <translation tag="The previous settings come back in %d seconds unless you keep these." pt="As configurações anteriores voltam em %d segundos, a menos que você mantenha estas."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." pt="A impressão terminou antes de qualquer camada ser impressa. Nada foi alterado."/>

@@ -318,8 +318,17 @@ void Ipv4SettingsOverlay::load_current() {
             return; // stays busy: nothing to change from
         }
         current_config_ = config;
-        loaded_ = true;
         fill_form(config);
+        if (const auto why = helix::settings::ipv4_revert_unrecorded(link_)) {
+            // The record still refuses a change, so none is offered.
+            set_error(fmt::format(fmt::runtime(lv_tr("The previous IPv4 settings could not be "
+                                                     "restored, and the record of the change "
+                                                     "could not be updated: {}")),
+                                  *why)
+                          .c_str());
+            return; // stays busy
+        }
+        loaded_ = true;
         set_busy(false);
         // A revert the retry gave up on stays on show until a change replaces it.
         const auto pending = helix::net::load_pending_ipv4_revert();
@@ -548,8 +557,7 @@ void Ipv4SettingsOverlay::abandon_change() {
 }
 
 bool Ipv4SettingsOverlay::earlier_change_pending() const {
-    const auto pending = helix::net::load_pending_ipv4_revert();
-    return pending && !pending->failed;
+    return helix::net::ipv4_record_blocks_change(helix::net::read_pending_ipv4_revert());
 }
 
 bool Ipv4SettingsOverlay::job_holds_machine() {
