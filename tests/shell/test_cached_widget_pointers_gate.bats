@@ -33,6 +33,26 @@ setup() {
     contains "❌ Raw lv_obj_t* members" "$output"
 }
 
+@test "a failure names the hits in files this branch changed, and only those" {
+    printf '    lv_obj_t* label_ = nullptr;\n' > "$FILE"
+    OTHER="$BATS_TEST_TMPDIR/other.h"
+    printf '    lv_obj_t* other_ = nullptr;\n' > "$OTHER"
+    mock_command_script git "echo '$FILE'"
+    run python3 "$GATE" --max-allowed=0 "$FILE" "$OTHER"
+    [ "$status" -eq 1 ]
+    contains "  $FILE:1: lv_obj_t* label_" "$output"
+    lacks "$OTHER:1:" "$output"
+}
+
+@test "a failure still reports when git cannot name the changed files" {
+    printf '    lv_obj_t* label_ = nullptr;\n' > "$FILE"
+    mock_command_fail git
+    run python3 "$GATE" --max-allowed=0 "$FILE"
+    [ "$status" -eq 1 ]
+    contains "1 > baseline 0" "$output"
+    lacks "$FILE:1:" "$output"
+}
+
 @test "an uninitialised member, a static member and a C array are each counted" {
     cat > "$FILE" <<'EOF'
     lv_obj_t* row_;

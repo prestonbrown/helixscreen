@@ -79,6 +79,7 @@ libhv.*.log
 # ============================================================================
 # IDE/LSP
 compile_commands.json
+compile_commands.json.*.tmp
 .cache/
 
 .idea/
