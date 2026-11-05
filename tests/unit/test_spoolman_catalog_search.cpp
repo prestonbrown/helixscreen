@@ -5,6 +5,7 @@
 #include "spoolman_catalog_search.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::SpoolmanCatalogSearch;
 using Availability = helix::SpoolmanCatalogSearch::Availability;

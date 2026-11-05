@@ -353,12 +353,6 @@ TEST_CASE("INDX: heating needs a mounted tool with a hotend", "[ams][indx][heat]
     CHECK(indx::heat_blocked_reason(0, {}).empty());
 }
 
-TEST_CASE("INDX: the type parses from its names and is a tool changer", "[ams][indx][detect]") {
-    CHECK(ams_type_from_string("indx") == AmsType::INDX);
-    CHECK(ams_type_from_string("INDX") == AmsType::INDX);
-    CHECK(is_tool_changer(AmsType::INDX));
-}
-
 // ============================================================================
 // Phase-3 device actions
 // ============================================================================

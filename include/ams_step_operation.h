@@ -18,10 +18,9 @@ namespace helix {
 /// Operation types for dynamic step progress.
 ///
 /// Backend-specific step models (e.g. the Snapmaker U1's firmware Home / Select
-/// / Heat / Move phases) are no longer separate operation types — each backend
+/// / Heat / Move phases) are not separate operation types: each backend
 /// supplies its own OperationStepModel and driving index subject for these base
-/// operations via AmsBackend::get_operation_step_model /
-/// get_operation_step_index_subject, so the UI renders generically.
+/// operations through IStepOperation (ams_step_model.h), so the UI renders generically.
 enum class StepOperationType {
     LOAD_FRESH, ///< Loading into empty toolhead
     LOAD_SWAP,  ///< Swap: unload current + load new
@@ -49,10 +48,8 @@ struct StepOperationResult {
  * @param current_op      Current operation type being displayed
  * @param is_external     True if this is an externally-initiated operation (not from our UI)
  * @param filament_loaded True if filament is currently loaded in the toolhead
- * @param is_active_action AmsBackend::action_tracks_step_operation(action) for the
- *        active backend. Passed in rather than recomputed here: this used to
- *        carry its own copy of the action list, the sidebar's visibility check
- *        carried another, and the two disagreed about SELECTING.
+ * @param is_active_action IStepOperation::action_tracks_step_operation(action) for the
+ *        active backend, the same answer the sidebar's visibility check reads.
  * @param unloads_stand_alone AmsBackend::unloads_stand_alone() for the active
  *        backend: an unload is never the first half of a swap, so UNLOADING
  *        means UNLOAD and a LOADING after it is a fresh load of its own.

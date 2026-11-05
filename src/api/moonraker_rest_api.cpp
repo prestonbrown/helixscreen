@@ -21,6 +21,7 @@
 #include "hv/requests.h"
 #include "json_utils.h"
 #include "moonraker_error.h"
+#include "rest_response.h"
 #include "spdlog/spdlog.h"
 
 namespace {

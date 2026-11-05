@@ -2995,8 +2995,7 @@ bool AmsBackendAd5xIfs::apply_ifs_vars_macro_locked(const ad5x::IfsVarsMacro& ma
 
 // --- Backend-driven operation step model ---
 
-AmsBackend::OperationStepModel
-AmsBackendAd5xIfs::get_operation_step_model(StepOperationType op) const {
+OperationStepModel AmsBackendAd5xIfs::get_operation_step_model(StepOperationType op) const {
     // The AD5X synthesizes three firmware phases for each direction (see
     // apply_phase_action_locked): unload = Heat → Cut → Retract, load = Heat →
     // Feed → Purge. phase_id matches the operation_phase index (0/1/2) the

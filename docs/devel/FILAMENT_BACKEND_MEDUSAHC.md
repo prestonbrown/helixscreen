@@ -459,7 +459,7 @@ controllers report phases - so in practice it is plain klipper-toolchanger, whos
 signal is `toolchanger.status == "changing"`.
 
 **Which actions count.** The bar's visibility and its operation-start detection both ask
-`AmsBackend::action_tracks_step_operation()`. They used to be two hardcoded action lists
+`IStepOperation::action_tracks_step_operation()`. They used to be two hardcoded action lists
 that disagreed, and a tool changer fell through both: it reports `SELECTING` for a swap and
 never heats, feeds or purges, so no start was detected, and once a bar did exist by accident
 it vanished for the half of the swap spent in `SELECTING`. The default is the

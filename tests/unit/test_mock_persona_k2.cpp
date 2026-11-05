@@ -9,6 +9,7 @@
 #include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/mock_personas.h"
 #include "test_helpers/moonraker_client_mock_test_access.h"
@@ -288,9 +289,9 @@ TEST_CASE("The k2 persona with HELIX_MOCK_CFS_BOXES=none publishes an empty bus"
     };
     // What the backend makes of the frame: the real parse, not the JSON shape.
     auto external_spool_only = [](const json& box) {
-        helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
-        helix::CfsTestAccess::handle_status(cfs,
-                                            json{{"params", json::array({{{"box", box}}, 0})}});
+        helix::test::StartedBackend<helix::printer::AmsBackendCfs> cfs;
+        helix::CfsTestAccess::answer_unit_registration(cfs, json::object());
+        cfs.fire_status(json{{"params", json::array({{{"box", box}}, 0})}});
         return cfs.get_system_info().external_spool_only;
     };
 

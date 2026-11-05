@@ -6,6 +6,8 @@
 #include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 
+#include "ams_feeder_control.h"
+#include "ams_step_model.h"
 #include "ams_subscription_backend.h"
 #include "filament_slot_override_store.h"
 #include "mount_feed_sequence.h"
@@ -59,8 +61,20 @@ class ToolChangerTestAccess;
  * - UNSELECT_TOOL          - Unmount current tool (park it)
  * - T{n}                   - Tool change macro (same as SELECT_TOOL)
  */
-class AmsBackendToolChanger : public AmsSubscriptionBackend {
+class AmsBackendToolChanger : public AmsSubscriptionBackend,
+                              public helix::IFeederControl,
+                              public helix::IStepOperation {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IFeederControl>()) {
+            return static_cast<helix::IFeederControl*>(this);
+        }
+        if (tag == helix::type_tag<helix::IStepOperation>()) {
+            return static_cast<helix::IStepOperation*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     /**
      * @brief Construct tool changer backend
      *
@@ -108,6 +122,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         // Tool changers give each tool its own independent toolhead with no shared
         // physical tray/housing, so the AMS detail view's tray graphic is hidden.
         t.has_physical_tray = false;
+        // Every tool docks: the carriage can hold none.
+        t.carriage_can_be_empty = true;
         // A slot's status is where its tool sits (carriage, dock, removed); nothing
         // here senses filament.
         t.slot_status_tracks_filament = false;
@@ -157,11 +173,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// unwinding, can be cancelled: the heater goes off and the carriage goes
     /// back. The same predicate cancel() acts on. Main thread.
     [[nodiscard]] bool can_cancel_operation() const override;
-
-    /// Every tool docks: the carriage can hold none.
-    [[nodiscard]] bool carriage_can_be_empty() const override {
-        return true;
-    }
 
     /**
      * @brief What each head can do with filament.

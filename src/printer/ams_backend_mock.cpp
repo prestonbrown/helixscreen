@@ -4169,13 +4169,6 @@ bool AmsBackendMock::owns_tool_mapping_table() const {
     return !snapmaker_mode_;
 }
 
-bool AmsBackendMock::carriage_can_be_empty() const {
-    // AmsBackendSnapmaker and AmsBackendToolChanger dock their heads; every
-    // other mode answers what the backend it stands in for answers.
-    std::lock_guard<std::mutex> lock(mutex_);
-    return snapmaker_mode_ || system_info_.type == AmsType::TOOL_CHANGER;
-}
-
 HeadFilamentOps AmsBackendMock::head_filament_ops(int head) const {
     bool changer = false;
     {

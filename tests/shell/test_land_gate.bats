@@ -202,6 +202,12 @@ order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
     [ "$(grep -c "^make quality" "$CALLS")" -eq 1 ]
 }
 
+@test "TEST_HOST=1 exports a load ceiling of zero, so the C++ run does not wait" {
+    unset HELIX_TEST_MAX_LOAD
+    TEST_HOST=1 MAKE_QUALITY_HOOK='echo "max-load ${HELIX_TEST_MAX_LOAD-unset}" >> "$CALLS"' run "$GATE"
+    grep -qx "max-load 0" "$CALLS"
+}
+
 @test "TEST_HOST=1 sends the C++ run to the test host, once, and runs none here" {
     TEST_HOST=1 run "$GATE"
     [ "$status" -eq 0 ]

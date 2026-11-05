@@ -485,8 +485,7 @@ AmsAction tc_step_action(TcStep step) {
 
 } // namespace
 
-AmsBackend::OperationStepModel
-AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
+OperationStepModel AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
     // A run of several tools (main thread, like every feed_run_ access) gets a
     // bar with one stride per tool, so the highlight walks forward through the
     // whole batch instead of restarting at each tool.

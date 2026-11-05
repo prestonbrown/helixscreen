@@ -193,11 +193,8 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
     if (script.empty() || ::access(script.c_str(), X_OK) != 0) {
         spdlog::info("[Recovery] local script not present ({}) — skipping local exec",
                      script.empty() ? "no install root" : script);
-        on_error(MoonrakerError{MoonrakerErrorType::VALIDATION_ERROR,
-                                -1,
-                                "Local recovery script not installed",
-                                "helix_recover_local",
-                                {}});
+        on_error(MoonrakerError{MoonrakerErrorType::VALIDATION_ERROR, -1,
+                                "Local recovery script not installed", "helix_recover_local"});
         return;
     }
 
@@ -211,11 +208,9 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
             spdlog::error("[Recovery] fork() for helix-recover.sh failed: {}", strerror(e));
             ui::queue_update("PrinterRecoveryService::run_local_recovery(fork-fail)", [on_error,
                                                                                        e]() {
-                on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN,
-                                        -1,
+                on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN, -1,
                                         std::string("Local recovery fork failed: ") + strerror(e),
-                                        "helix_recover_local",
-                                        {}});
+                                        "helix_recover_local"});
             });
             return;
         }
@@ -242,12 +237,10 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
                           timeout_ms);
             ui::queue_update(
                 "PrinterRecoveryService::run_local_recovery(timeout)", [on_error, timeout_ms]() {
-                    on_error(MoonrakerError{MoonrakerErrorType::TIMEOUT,
-                                            -1,
+                    on_error(MoonrakerError{MoonrakerErrorType::TIMEOUT, -1,
                                             "Local recovery script timed out after " +
                                                 std::to_string(timeout_ms / 1000) + "s",
-                                            "helix_recover_local",
-                                            {}});
+                                            "helix_recover_local"});
                 });
             return;
         }
@@ -256,11 +249,9 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
             spdlog::error("[Recovery] waitpid() failed: {}", strerror(e));
             ui::queue_update("PrinterRecoveryService::run_local_recovery(wait-fail)", [on_error,
                                                                                        e]() {
-                on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN,
-                                        -1,
+                on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN, -1,
                                         std::string("Local recovery wait failed: ") + strerror(e),
-                                        "helix_recover_local",
-                                        {}});
+                                        "helix_recover_local"});
             });
             return;
         }
@@ -275,11 +266,9 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
                     on_success(RecoveryOutcome::RESTART_ISSUED);
                 } else {
                     on_error(MoonrakerError{
-                        MoonrakerErrorType::UNKNOWN,
-                        rc,
+                        MoonrakerErrorType::UNKNOWN, rc,
                         "Local recovery script returned non-zero (rc=" + std::to_string(rc) + ")",
-                        "helix_recover_local",
-                        {}});
+                        "helix_recover_local"});
                 }
             });
     });

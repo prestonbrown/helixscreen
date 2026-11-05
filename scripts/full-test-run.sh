@@ -21,6 +21,9 @@ set -uo pipefail
 
 MAKE=${MAKE:-make}
 TEST_HOST_RUN=${TEST_HOST_RUN:-$(dirname "$0")/test-host-run.sh}
+# A gate step has its own time limit and is the work the host is there for, so it
+# does not wait behind whatever else is loading the host.
+export HELIX_TEST_MAX_LOAD=${HELIX_TEST_MAX_LOAD:-0}
 # shellcheck source-path=SCRIPTDIR source=lib/build_hosts.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/build_hosts.sh"
 

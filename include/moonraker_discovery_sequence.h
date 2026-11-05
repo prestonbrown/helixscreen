@@ -4,7 +4,6 @@
 #pragma once
 
 #include "helix_shared_callback.h"
-#include "json_fwd.h"
 #include "printer_discovery.h"
 #include "webcam_selection.h"
 
@@ -13,6 +12,8 @@
 #include <mutex>
 #include <string>
 #include <vector>
+
+#include "hv/json.hpp"
 
 namespace helix {
 

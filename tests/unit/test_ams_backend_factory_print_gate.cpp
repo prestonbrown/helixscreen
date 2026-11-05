@@ -5,20 +5,10 @@
  * @file test_ams_backend_factory_print_gate.cpp
  * @brief The print-active gate, asserted over everything AmsBackend::create() builds.
  *
- * 329e731e9 added check_preconditions(true) to seven backends and missed the
- * eighth (Snapmaker), which shipped with no print-active gate at all. The gate
- * is opt-in — hand-written at ~24 call sites — so "one backend forgot" is a
- * failure mode the type system does not catch.
- *
- * Neither did the tests. test_ams_paused_filament_ops.cpp names AD5X, AFC,
- * Happy Hare, QIDI and Snapmaker; ACE, CFS and Tool Changer call
- * check_preconditions(true) with nothing asserting that they do. A hand-written
- * coverage list has exactly the omission mode the bug had, one level up.
- *
- * So this file names no backends. It walks the AmsType enum's numeric range and
- * tests whatever the factory hands back. Adding an AmsType and a case in
- * AmsBackend::create() puts the new backend under these assertions with no edit
- * here; forgetting its guard turns this file red.
+ * The gate is opt-in, hand-written at each call site, so "one backend forgot" is
+ * a failure mode the type system does not catch. A hand-written coverage list would
+ * have the same omission one level up, so this file names no backends: it walks the
+ * AmsType enum's numeric range and tests whatever the factory hands back.
  *
  * What is pinned:
  *
@@ -34,10 +24,8 @@
  *      select_slot delegates to change_tool and moves the carriage; on Happy
  *      Hare it emits MMU_SELECT and moves no toolhead.
  *
- * Asserting the refusal is the specific print-active error (rather than merely
- * "some failure") is what gives this teeth: a backend with its guard deleted
- * still fails early on an unconfigured slot, so `!err.success()` alone would
- * stay green through the exact regression this file exists to catch.
+ * A backend with its guard deleted still fails early on an unconfigured slot, so
+ * these assert the specific print-active error, not merely `!err.success()`.
  */
 
 #include "../lvgl_test_fixture.h"
@@ -61,19 +49,13 @@
 
 namespace {
 
-/// AmsType is a plain 0..N enum with no sentinel. Probing a range well past the
-/// last value is what makes discovery automatic: create() returns nullptr for
-/// anything it does not know, so an added type is picked up the moment the
-/// factory learns to build it, and no list in this file needs touching.
+/// AmsType is a plain 0..N enum with no sentinel. create() returns nullptr for what
+/// it does not know, so probing past the last value picks up an added type unasked.
 constexpr int kAmsTypeProbeLimit = 64;
 
-/// Backends create() must produce in THIS build. Only three are compiled
-/// unconditionally (Happy Hare, AFC, Tool Changer); every vendor-specific
-/// backend is feature gated off on space-constrained targets. Deriving the
-/// floor from the gates keeps it honest instead of being a fixed number that
-/// silently goes stale each time another backend becomes gateable. Still a
-/// lower bound that catches "create() silently stopped producing anything" -
-/// it is NOT the coverage list; the loops below cover whatever exists.
+/// Backends create() must produce in THIS build: a lower bound that catches
+/// "create() silently stopped producing anything". Only three are compiled
+/// unconditionally, so the floor reads the gates rather than the factory's own table.
 constexpr int kExpectedBackendCount = 3
 #if HELIX_HAS_IFS
                                       + 1
@@ -234,7 +216,7 @@ TEST_CASE_METHOD(FactoryGateFixture, "AmsBackend::create builds a distinct backe
                  "[ams][safety][factory]") {
     const auto types = buildable_types();
     CAPTURE(types.size());
-    CHECK(types.size() >= kExpectedBackendCount);
+    CHECK(static_cast<int>(types.size()) >= kExpectedBackendCount);
 
     for (helix::AmsType type : types) {
         CAPTURE(helix::ams_type_to_string(type));

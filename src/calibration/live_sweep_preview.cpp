@@ -9,6 +9,7 @@
 #include "helix_thread.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "rest_response.h"
 #include "runtime_config.h"
 
 #ifdef HELIX_ENABLE_MOCKS

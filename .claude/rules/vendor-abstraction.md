@@ -40,7 +40,8 @@ asks `board::current_info()`), `AmsBackend*` (one class per filament system, `Am
 what stock load/unload macros do, guided-load wizards), `plr_backend` (power-loss recovery) and
 `pause_descriptor` (structured pause cause), `helix::faultpath` (`include/fault_path_position.h`),
 `detection_source_table` (detection sources), `kAmsTypeTraits` (`include/ams_types.h`: per-`AmsType`
-names, telemetry slug, expected-hardware entry, buffer rows), `klipper_error_table` rows (per-code
+names, telemetry slug, expected-hardware entry, buffer rows), `kBackendRows`
+(`src/printer/ams_backend.cpp`: one row per filament backend's construction, status objects and classification), `klipper_error_table` rows (per-code
 severity and recovery), and the `register_builtin_guided_device_flows()` registrar table.
 Follow those.
 

@@ -181,47 +181,10 @@ inline AmsType ams_type_for_expected_hardware(std::string_view name) {
 
 /**
  * @brief Parse AMS type from string (for Moonraker responses)
- * @param str String to parse (case-insensitive)
+ * @param str String to parse (exact spelling; see each row's name_aliases)
  * @return Matching AmsType or NONE if not recognized
  */
-inline AmsType ams_type_from_string(std::string_view str) {
-    // Simple comparison - backends will use their own detection
-    if (str == "mmu" || str == "happy_hare" || str == "Happy Hare") {
-        return AmsType::HAPPY_HARE;
-    }
-    if (str == "afc" || str == "AFC") {
-        return AmsType::AFC;
-    }
-    if (str == "valgace" || str == "ValgACE" || str == "bunnyace" || str == "BunnyACE" ||
-        str == "duckace" || str == "DuckACE" || str == "ace" || str == "ACE Pro") {
-        return AmsType::ACE;
-    }
-    if (str == "toolchanger" || str == "tool_changer" || str == "Tool Changer") {
-        return AmsType::TOOL_CHANGER;
-    }
-    if (str == "ad5x_ifs" || str == "ad5x ifs" || str == "ad5x" || str == "ifs") {
-        return AmsType::AD5X_IFS;
-    }
-    if (str == "cfs" || str == "CFS" || str == "box") {
-        return AmsType::CFS;
-    }
-    if (str == "snapmaker" || str == "Snapmaker" || str == "snapswap" || str == "SnapSwap") {
-        return AmsType::SNAPMAKER;
-    }
-    // QIDI Box: QIDI's 4-slot hub-style filament changer (PLUS4 / Q2 / MAX4).
-    // Note: the bare "box" alias is already claimed by CFS above, so QIDI Box
-    // requires the explicit "qidi_box" / "QIDI Box" spelling.
-    if (str == "qidi_box" || str == "QIDI Box" || str == "qidibox") {
-        return AmsType::QIDI_BOX;
-    }
-    if (str == "openams" || str == "OpenAMS" || str == "oams_manager") {
-        return AmsType::OPENAMS;
-    }
-    if (str == "indx" || str == "INDX") {
-        return AmsType::INDX;
-    }
-    return AmsType::NONE;
-}
+AmsType ams_type_from_string(std::string_view str);
 
 /**
  * @brief Check if AMS type is a physical tool changer
@@ -235,9 +198,7 @@ inline AmsType ams_type_from_string(std::string_view str) {
  * @param type The AMS type to check
  * @return true if this is a physical tool changer
  */
-inline bool is_tool_changer(AmsType type) {
-    return type == AmsType::TOOL_CHANGER || type == AmsType::SNAPMAKER || type == AmsType::INDX;
-}
+bool is_tool_changer(AmsType type);
 
 /**
  * @brief Check if AMS type is a filament-switching system
@@ -249,11 +210,7 @@ inline bool is_tool_changer(AmsType type) {
  * @param type The AMS type to check
  * @return true if this is a filament-switching system
  */
-inline bool is_filament_system(AmsType type) {
-    return type == AmsType::HAPPY_HARE || type == AmsType::AFC || type == AmsType::ACE ||
-           type == AmsType::AD5X_IFS || type == AmsType::CFS || type == AmsType::SNAPMAKER ||
-           type == AmsType::QIDI_BOX || type == AmsType::OPENAMS;
-}
+bool is_filament_system(AmsType type);
 
 /**
  * @brief Slot/Lane status
@@ -422,7 +379,7 @@ inline bool ams_action_holds_system(AmsAction action) {
  * and it is deliberately backend-independent: every backend reports these the
  * same way, and a pulse on a slot that turns out not to move is harmless.
  *
- * NOT the same question as AmsBackend::action_tracks_step_operation(), which
+ * NOT the same question as IStepOperation::action_tracks_step_operation(), which
  * asks what the STEP BAR should follow and genuinely differs per backend. This
  * one is the superset.
  */
@@ -444,9 +401,9 @@ inline bool ams_action_is_busy(AmsAction action) {
 /**
  * @brief The filament-system step vocabulary: heat, feed, purge, cut, tip, retract.
  *
- * The default answer to AmsBackend::action_tracks_step_operation(). Lives here
- * so the one caller that has no backend to ask still gets the same rule rather
- * than a fourth copy of the list.
+ * The default answer to IStepOperation::action_tracks_step_operation(). Lives
+ * here so a caller with no backend to ask, or a backend without the capability,
+ * gets the same rule.
  *
  * SELECTING is deliberately absent: a filament system passes through it on the
  * way to a slot, and the step bar is already tracking the load that follows.

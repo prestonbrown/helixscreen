@@ -18,6 +18,7 @@
 #include "ams_backend_cfs.h"
 #include "ams_types.h"
 #include "core/update_queue.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "ui/ams_drawing_utils.h"
@@ -785,6 +786,7 @@ namespace {
 
 class CapturingCfs : public AmsBackendCfs {
   public:
+    using AmsBackendCfs::AmsBackendCfs;
     CapturingCfs() : AmsBackendCfs(nullptr, nullptr) {}
 
     std::vector<std::string> captured;
@@ -797,6 +799,7 @@ class CapturingCfs : public AmsBackendCfs {
 
 struct CfsGoldenFixture : public HelixTestFixture {
     CfsGoldenFixture() {
+        CfsTestAccess::answer_unit_registration(backend, json::object());
         backend.set_event_callback(
             [this](const std::string& name, const std::string&) { events.push_back(name); });
     }
@@ -810,7 +813,7 @@ struct CfsGoldenFixture : public HelixTestFixture {
         backend.captured.clear();
         json notification;
         notification["params"] = json::array({params, 0.0});
-        CfsTestAccess::handle_status(backend, notification);
+        backend.fire_status(notification);
         helix::ui::UpdateQueue::instance().drain();
         return snapshot();
     }
@@ -846,8 +849,8 @@ struct CfsGoldenFixture : public HelixTestFixture {
         return out;
     }
 
-    helix::test::RegisteredBackend<CapturingCfs> backend_reg{};
-    CapturingCfs& backend = *backend_reg;
+    helix::test::RegisteredWired<CapturingCfs> backend_reg;
+    helix::test::WiredBackend<CapturingCfs>& backend = *backend_reg;
     std::vector<std::string> events;
 };
 

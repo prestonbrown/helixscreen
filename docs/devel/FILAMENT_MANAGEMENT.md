@@ -3501,7 +3501,7 @@ enum class AmsType {
 };
 ```
 
-Update `ams_type_to_string()`, `ams_type_from_string()`, and the `is_filament_system()` / `is_tool_changer()` helpers as appropriate.
+Add its row to `kAmsTypeTraits` (names, telemetry slug) and its row to `kBackendRows` in `src/printer/ams_backend.cpp`. The second row is the whole factory entry: the class's traits, `construct`, `needs_http_poll`, `owns_filament_sensor`, `required_status_objects`, the `tool_changer` / `filament_system` classification, the `ams_type_from_string()` spellings and any telemetry feature. A backend that a build can leave out gets one `HELIX_HAS_*` block at the top of that file and is empty when gated out; the row stays.
 
 ### 1a. Declare the status objects and the runout traits
 
@@ -3516,8 +3516,8 @@ static to the backend class:
 It returns `{object: field-array-or-null}` and answers only for its own printer (an empty
 map for any other). A field array is a strict allowlist: `null` makes Klipper serialize every
 internal field of the object on every notification, so narrow wherever the parser reads a
-known set. Then add the backend to the merge in `AmsBackend::required_status_objects`
-(`src/printer/ams_backend.cpp`), inside its `HELIX_HAS_*` guard. Sensors the backend publishes
+known set. The backend's row hands it to the merge in `AmsBackend::required_status_objects`
+(`src/printer/ams_backend.cpp`). Sensors the backend publishes
 under a non-stock object-type prefix go in `AmsBackend::filament_sensor_object_prefixes()`.
 `tests/unit/test_subscription_parity.cpp` pins the whole subscription map per backend against
 `tests/fixtures/subscription_parity/`; add a fixture for a new one.
@@ -3659,6 +3659,17 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   `get_bowden_progress()`.
 - `ILaneRecovery` (`include/ams_lane_recovery.h`) -- `recover_lane_position()`, the physical retract
   of a stranded lane, and the two questions that decide whether to offer it. AFC implements it.
+- `IFeederControl` (`include/ams_feeder_control.h`) -- The frame-side gripper that holds the filament:
+  `set_feeder_open()`, `feeder_open()`, and `supports_feeder_control()`, which is per machine because
+  a controller reports the gripper during discovery. The tool changer backend implements it.
+- `IStepOperation` (`include/ams_step_model.h`) -- A step bar from a firmware phase source: the model,
+  the subject carrying the current step, the operation the backend knows it is running, each step's
+  heater, and which actions the bar follows. The Snapmaker U1, the AD5X IFS and the tool changer
+  implement it. Everything else gets its bar through `operation_step_model()`: the narration template
+  below, or the coarse fallback.
+- `IInsertSignals` (`include/ams_insert_signals.h`) -- A lane's own insert reading and its tag reader's
+  verdict, for the insert watcher (§ Insert prompts). The Snapmaker U1 and MultiACE implement it. Without
+  it an insert is the slot status rising on a lane with a prep sensor, and no reader is waited on.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 

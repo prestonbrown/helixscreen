@@ -12,6 +12,7 @@
 #include "ams_types.h"
 #include "printer_discovery.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
+#include "test_helpers/backend_harness.h"
 
 #include <string>
 #include <vector>
@@ -105,9 +106,9 @@ TEST_CASE("AD5X IFS subscribes to the zmod objects only where they exist",
 }
 
 TEST_CASE("AD5X IFS applies a pushed zmod_ifs frame", "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(2, {true, true, false, false}));
+    backend.fire_status(ifs_frame(2, {true, true, false, false}));
 
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 1));
@@ -120,8 +121,8 @@ TEST_CASE("AD5X IFS applies a pushed zmod_ifs frame", "[ams][ad5x_ifs][zmod_stat
 }
 
 TEST_CASE("AD5X IFS honors a Ports-only diff frame", "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(1, {true, false, false, false}));
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(ifs_frame(1, {true, false, false, false}));
     REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
     REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 3));
 
@@ -129,19 +130,18 @@ TEST_CASE("AD5X IFS honors a Ports-only diff frame", "[ams][ad5x_ifs][zmod_statu
     // arrives as Ports alone with no Chan. The gcode path only ever saw this
     // object on a line that already matched "Chan"; requiring it here would
     // silently drop every presence-only update.
-    Ad5xIfsTestAccess::handle_status(
-        backend, json{{"zmod_ifs", {{"Ports", json::array({true, false, false, true})}}}});
+    backend.fire_status(json{{"zmod_ifs", {{"Ports", json::array({true, false, false, true})}}}});
 
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 3));
 }
 
 TEST_CASE("AD5X IFS applies pushed zmod_color slots", "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
     // Presence first: colors are only trusted for lanes the silk sensors see.
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(1, {true, true, true, true}));
-    Ad5xIfsTestAccess::handle_status(backend, color_frame());
+    backend.fire_status(ifs_frame(1, {true, true, true, true}));
+    backend.fire_status(color_frame());
 
     CHECK(backend.get_slot_info(0).material == "PLA");
     CHECK(backend.get_slot_info(0).color_rgb == 0xFF0000);
@@ -153,10 +153,10 @@ TEST_CASE("AD5X IFS applies pushed zmod_color slots", "[ams][ad5x_ifs][zmod_stat
 
 TEST_CASE("AD5X IFS does not surface the firmware's unset-material sentinel",
           "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(1, {true, false, false, true}));
-    Ad5xIfsTestAccess::handle_status(backend, live_color_frame());
+    backend.fire_status(ifs_frame(1, {true, false, false, true}));
+    backend.fire_status(live_color_frame());
 
     CHECK(backend.get_slot_info(0).material == "PLA");
     CHECK(backend.get_slot_info(0).color_rgb == 0xA03CF7);
@@ -170,19 +170,17 @@ TEST_CASE("AD5X IFS does not surface the firmware's unset-material sentinel",
 }
 
 TEST_CASE("AD5X IFS survives malformed zmod frames", "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(3, {false, false, true, false}));
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(ifs_frame(3, {false, false, true, false}));
     REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 2));
 
     // get_status() is exception-free by construction upstream, but a truncated
     // or type-shifted frame must not take the presence view with it.
-    Ad5xIfsTestAccess::handle_status(backend, json{{"zmod_ifs", "not an object"}});
-    Ad5xIfsTestAccess::handle_status(backend, json{{"zmod_ifs", {{"Ports", "nope"}}}});
-    Ad5xIfsTestAccess::handle_status(
-        backend, json{{"zmod_ifs", {{"Ports", json::array({true, false, 7, false})}}}});
-    Ad5xIfsTestAccess::handle_status(backend, json{{"zmod_color", {{"slots", 42}}}});
-    Ad5xIfsTestAccess::handle_status(
-        backend, json{{"zmod_color", {{"slots", json::array({json{{"ID", "9"}}})}}}});
+    backend.fire_status(json{{"zmod_ifs", "not an object"}});
+    backend.fire_status(json{{"zmod_ifs", {{"Ports", "nope"}}}});
+    backend.fire_status(json{{"zmod_ifs", {{"Ports", json::array({true, false, 7, false})}}}});
+    backend.fire_status(json{{"zmod_color", {{"slots", 42}}}});
+    backend.fire_status(json{{"zmod_color", {{"slots", json::array({json{{"ID", "9"}}})}}}});
 
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 2));
     CHECK_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
@@ -202,37 +200,36 @@ json change_macro_frame(int channel) {
 
 TEST_CASE("AD5X IFS reports a Z-Mod filament change it did not start",
           "[ams][ad5x_ifs][zmod_status][1714]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(change_macro_frame(99));
     REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
     REQUIRE(backend.can_cancel_operation());
 
     // The runout auto-swap starts: last_data carries the target tool.
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(2));
+    backend.fire_status(change_macro_frame(2));
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
     // Its macro holds the G-code queue; Abort would only land after it.
     CHECK_FALSE(backend.can_cancel_operation());
 
     // A diff frame that carries the macro without last_data changes nothing.
-    Ad5xIfsTestAccess::handle_status(backend,
-                                     json{{"gcode_macro END_CHANGE_FILAMENT", json::object()}});
+    backend.fire_status(json{{"gcode_macro END_CHANGE_FILAMENT", json::object()}});
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
 
     // END_CHANGE_FILAMENT resets it to 99: the change is over.
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    backend.fire_status(change_macro_frame(99));
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
     CHECK(backend.can_cancel_operation());
 }
 
 TEST_CASE("AD5X IFS leaves an action it did not set to its owner",
           "[ams][ad5x_ifs][zmod_status][1714]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
     // Something else already holds the action: the macro does not overwrite
     // it, and its return to 99 does not clear it.
     Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
+    backend.fire_status(change_macro_frame(1));
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    backend.fire_status(change_macro_frame(99));
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
 }

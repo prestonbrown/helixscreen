@@ -18,10 +18,12 @@
 
 #include "ams_backend_registry.h"
 #include "ams_bypass_policy.h"
+#include "ams_feeder_control.h"
 #include "ams_lane_state.h"
 #include "ams_runout_grace.h"
 #include "ams_standing_fault.h"
 #include "ams_state_internal.h"
+#include "ams_step_model.h"
 #include "ams_tool_topology.h"
 #include "app_globals.h"
 #include "core/data_root_resolver.h"
@@ -514,7 +516,8 @@ bool AmsState::any_bypass_active() const {
 bool AmsState::any_operation_running_here() const {
     assert_main_thread();
     for (const auto& backend : registry_.backends()) {
-        if (backend && backend->running_step_operation().has_value()) {
+        const IStepOperation* const steps = backend ? backend->as<IStepOperation>() : nullptr;
+        if (steps && steps->running_step_operation().has_value()) {
             return true;
         }
     }
@@ -949,7 +952,8 @@ void AmsState::sync_filament_runout(const AmsSystemInfo& info) {
 }
 
 void AmsState::sync_feeder(AmsBackend* backend) {
-    const int open = backend->supports_feeder_control() && backend->feeder_open() ? 1 : 0;
+    const IFeederControl* const feeder = backend->as<IFeederControl>();
+    const int open = feeder && feeder->supports_feeder_control() && feeder->feeder_open() ? 1 : 0;
     if (lv_subject_get_int(&ams_feeder_open_) != open) {
         spdlog::debug("[AmsState] feeder open -> {}", open);
         lv_subject_set_int(&ams_feeder_open_, open);

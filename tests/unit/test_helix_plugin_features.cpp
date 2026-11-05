@@ -9,6 +9,7 @@
 #include <string>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using helix::ui::plugin_feature_reason_text;

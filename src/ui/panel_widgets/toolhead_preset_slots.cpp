@@ -8,6 +8,8 @@
 
 #include <spdlog/fmt/fmt.h>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 namespace {

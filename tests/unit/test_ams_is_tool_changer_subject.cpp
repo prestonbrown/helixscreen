@@ -5,13 +5,8 @@
  * @file test_ams_is_tool_changer_subject.cpp
  * @brief The sidebar must hide filament controls for EVERY tool changer.
  *
- * ams_sidebar.xml gated btn_unload and btn_reset on `ams_type == 4`, the raw
- * value of AmsType::TOOL_CHANGER. That is one of three tool-changer types:
- * SNAPMAKER (7) and any later addition read as "not a tool changer" to XML and
- * get Unload and Reset buttons for a filament path they do not have.
- *
- * is_tool_changer() already answers this in C++. ams_is_tool_changer publishes
- * that answer so XML binds to the predicate instead of re-encoding the enum.
+ * ams_is_tool_changer publishes is_tool_changer() so XML binds to the predicate
+ * instead of re-encoding the enum.
  */
 
 #include "../lvgl_test_fixture.h"

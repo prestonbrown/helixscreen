@@ -51,13 +51,11 @@ template <class Real> void check_persona(void (AmsBackendMock::*set_persona)(boo
         (mock.*set_persona)(true);
     }
     CHECK(comparable(mock, Real::kTraits) == Real::kTraits);
-    Real real(nullptr, nullptr);
-    CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
 }
 
 } // namespace
 
-TEST_CASE("Mock personas answer their real backend's traits and carriage",
+TEST_CASE("Mock personas answer their real backend's traits",
           "[ams][mock][traits][tool_switcher][1784]") {
     SECTION("Happy Hare (default persona)") {
         check_persona<AmsBackendHappyHare>(nullptr);
@@ -158,6 +156,10 @@ TEST_CASE("Real kTraits name each machine's positions and constant answers", "[a
     CHECK(AmsBackendSnapmaker::kTraits.print_routing_resets_to_identity);
     CHECK(AmsBackendIndx::kIndxTraits.heads_share_heater);
     CHECK_FALSE(AmsBackendToolChanger::kTraits.heads_share_heater);
+    CHECK(AmsBackendToolChanger::kTraitsWithFeed.carriage_can_be_empty);
+    CHECK(AmsBackendIndx::kIndxTraits.carriage_can_be_empty);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).carriage_can_be_empty());
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.carriage_can_be_empty);
 }
 
 TEST_CASE("A U1 owns a spool per tool and has no bypass", "[ams][traits][spoolman]") {
@@ -176,7 +178,7 @@ TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
 }
 
 TEST_CASE("Each optional interface answers only on the backends that implement it",
-          "[ams][traits][cfs][happy_hare][afc]") {
+          "[ams][traits][cfs][happy_hare][afc][toolchanger]") {
     helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
     AmsBackendAce ace(nullptr, nullptr);
     AmsBackendAd5xIfs ad5x(nullptr, nullptr);
@@ -196,16 +198,19 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IGateSelector* gates = nullptr;
         const ILaneRecovery* recovery = nullptr;
         const INarrationMatcher* narration = nullptr;
+        const IFeederControl* feeder = nullptr;
+        const IStepOperation* steps = nullptr;
+        const IInsertSignals* insert = nullptr;
     };
     const Row rows[] = {
         {&ace},
-        {&ad5x},
-        {&indx},
-        {&multi_ace},
+        {&ad5x, nullptr, nullptr, nullptr, nullptr, nullptr, &ad5x},
+        {&multi_ace, nullptr, nullptr, nullptr, nullptr, nullptr, &multi_ace, &multi_ace},
         {&openams},
         {&qidi},
-        {&snapmaker},
-        {&tool_changer},
+        {&snapmaker, nullptr, nullptr, nullptr, nullptr, nullptr, &snapmaker, &snapmaker},
+        {&indx, nullptr, nullptr, nullptr, nullptr, &indx, &indx},
+        {&tool_changer, nullptr, nullptr, nullptr, nullptr, &tool_changer, &tool_changer},
         {&afc, nullptr, nullptr, &afc, &afc},
         {&cfs, &cfs},
         {&happy_hare, nullptr, &happy_hare},
@@ -218,8 +223,14 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IGateSelector>() == row.gates);
         CHECK(row.backend->as<ILaneRecovery>() == row.recovery);
         CHECK(row.backend->as<INarrationMatcher>() == row.narration);
+        CHECK(row.backend->as<IFeederControl>() == row.feeder);
+        CHECK(row.backend->as<IStepOperation>() == row.steps);
+        CHECK(row.backend->as<IInsertSignals>() == row.insert);
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
+    // No capability and no narration template: the sidebar's coarse fallback.
+    CHECK(operation_step_model(mock, StepOperationType::LOAD_SWAP).steps.empty());
+    CHECK(operation_step_index_subject(mock, StepOperationType::LOAD_SWAP) == nullptr);
 }
 
 TEST_CASE("Mock AFC load leaves only the new lane loaded", "[ams][mock][traits]") {

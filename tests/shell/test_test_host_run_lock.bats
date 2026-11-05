@@ -145,6 +145,47 @@ wait_for_line() { # <substring> <file>
     [ "$(wc -l < "$(lock_file)")" -eq 1 ]
 }
 
+@test "a run over the load ceiling waits, then starts when the load falls" {
+    export HELIX_TEST_MAX_LOAD=72 HELIX_TEST_LOAD_POLL_SECS=1
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    echo "103.20 90.00 80.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    # Each wait on the load drops it, so the second check passes.
+    mock_command_script sleep "echo \"12.00 90.00 80.00 3/900 1234\" > \"$HELIX_TEST_LOADAVG_FILE\""
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+    contains "load 103, ceiling 72; waiting" "$output"
+    [ -s "$MOCK_DOCKER_LOG" ]
+}
+
+@test "a run under the load ceiling starts without waiting" {
+    export HELIX_TEST_MAX_LOAD=72
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    echo "71.99 90.00 80.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+    lacks "waiting" "$output"
+}
+
+@test "a run still over the ceiling after the wait limit refuses and never starts" {
+    export HELIX_TEST_MAX_LOAD=72 HELIX_TEST_LOAD_WAIT_SECS=0
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    echo "72.00 90.00 80.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -ne 0 ]
+    contains "still over its ceiling of 72" "$output"
+    [ ! -s "$MOCK_DOCKER_LOG" ]
+}
+
+@test "a ceiling of zero never waits, and an unreadable load does not block" {
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    echo "999.00 90.00 80.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    HELIX_TEST_MAX_LOAD=0 run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+    export HELIX_TEST_MAX_LOAD=72 HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/absent"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+}
+
 @test "a second run waits for the workdir lock and names the holder" {
     local lock ready out holder runner
     lock="$(lock_file)"

@@ -81,7 +81,9 @@ pid_starttime() {
         proc_stat_tail "$1" | awk '{print $20}'
         return "${PIPESTATUS[0]}"
     fi
-    local st; st=$(LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | tr -s ' ')
+    # In UTC: lstart prints local time, and a laptop changing timezone must not
+    # read every live claim as stale.
+    local st; st=$(LC_ALL=C TZ=UTC ps -o lstart= -p "$1" 2>/dev/null | tr -s ' ')
     st=${st# }; st=${st% }
     [ -n "$st" ] || return 1
     printf '%s' "$st"

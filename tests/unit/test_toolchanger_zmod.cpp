@@ -2,6 +2,7 @@
 
 #include "ui_manual_pull_prompt.h"
 
+#include "../test_helpers/step_operation_helpers.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
 #include "filament_op_dispatch.h"
@@ -434,19 +435,6 @@ TEST_CASE("A slots-only frame keeps the latched palette and types",
     REQUIRE(types.has_value());
     CHECK(*types == std::vector<std::string>{"PLA", "PETG", "ABS"});
 }
-
-namespace {
-
-std::vector<std::string> step_labels(const AmsBackend::OperationStepModel& model) {
-    std::vector<std::string> out;
-    out.reserve(model.steps.size());
-    for (const auto& s : model.steps) {
-        out.push_back(s.label);
-    }
-    return out;
-}
-
-} // namespace
 
 TEST_CASE("Z-Mod's swap narration classifies into phase words", "[toolchanger][zmod][steps]") {
     // Marker text is verbatim from field bundle 5WSPTZBL's klippy log, with the

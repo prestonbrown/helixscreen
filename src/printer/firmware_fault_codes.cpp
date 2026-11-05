@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <array>
 
+#include "hv/json.hpp"
+
 namespace helix::faultcodes {
 namespace {
 

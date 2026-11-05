@@ -2,6 +2,9 @@
 # Shared test helpers for bats tests
 # Source this from setup() in each .bats file
 
+# Stubbed ssh runs test-host-run.sh's load check here, on a machine that may be busy.
+export HELIX_TEST_MAX_LOAD=0
+
 # Stub out logging functions (not available outside installer)
 log_info() { :; }
 log_warn() { :; }

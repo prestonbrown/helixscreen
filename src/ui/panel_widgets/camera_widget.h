@@ -3,6 +3,8 @@
 
 #include "lvgl.h"
 
+#include "hv/json.hpp"
+
 #if HELIX_HAS_CAMERA
 
 #include "async_lifetime_guard.h"

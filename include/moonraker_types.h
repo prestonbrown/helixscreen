@@ -6,15 +6,12 @@
 #include "core/gcode_filename.h"
 #include "core/text_io.h"
 #include "helix_plugin_features.h"
-#include "json_fwd.h"
 
 #include <algorithm>
 #include <cctype>
 #include <map>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file moonraker_types.h
@@ -478,19 +475,8 @@ struct ModifiedPrintResult {
 // REST API Types (for Moonraker extensions like ACE backend)
 // ============================================================================
 
-/**
- * @brief Response from a generic REST API call
- *
- * Used for communicating with Moonraker extension plugins that expose
- * REST endpoints (e.g., ACE backend via ValgACE's Moonraker bridge at /server/ace/). Encapsulates
- * both success and error cases in a single structure.
- */
-struct RestResponse {
-    bool success = false; ///< true if HTTP 2xx response
-    int status_code = 0;  ///< HTTP status code
-    json data; ///< Parsed JSON response. If response isn't JSON, contains {"_raw_body": "..."}
-    std::string error; ///< Error message (empty on success)
-};
+/// Defined in rest_response.h, for the code that reads or builds one.
+struct RestResponse; // NAMESPACE_OK: declared at global scope in rest_response.h
 
 // ============================================================================
 // G-code Store Types
