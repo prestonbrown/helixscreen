@@ -103,6 +103,7 @@ AmsError AmsSubscriptionBackend::start() {
 
     // Derived class post-start work (version detection, config loading, etc.)
     on_started();
+    read_unread_lane_records();
 
     return AmsErrorHelper::success();
 }
@@ -299,6 +300,75 @@ void AmsSubscriptionBackend::schedule_lane_record_reread() {
             reread_lane_records();
         });
     });
+}
+
+/// How long to wait before asking again for lane records that got no answer.
+constexpr std::chrono::seconds kUnreadLaneRecordsRetry{10};
+
+void AmsSubscriptionBackend::read_unread_lane_records() {
+    helix::ams::FilamentSlotOverrideStore* store = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        store = override_store_.get();
+    }
+    if (!store || !store->namespace_unread()) {
+        return;
+    }
+    spdlog::warn("{} lane records were not read at start; holding writes until they are",
+                 backend_log_tag());
+    auto token = lifetime_.token();
+    store->reload_async(
+        [this, token, store](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+            token.defer("AmsSubscriptionBackend::adopt_unread_lane_records",
+                        [this, store, records = std::move(records)]() mutable {
+                            adopt_unread_lane_records(store, std::move(records));
+                        });
+        },
+        [this, token]() {
+            helix::http::HttpExecutor::fast().submit([this, token, cancel = debounce_cancel_]() {
+                // BG THREAD: only the wait before the next try.
+                if (!debounce_wait(cancel, kUnreadLaneRecordsRetry)) {
+                    return;
+                }
+                token.defer("AmsSubscriptionBackend::retry_unread_lane_records",
+                            [this]() { read_unread_lane_records(); });
+            });
+        });
+}
+
+void AmsSubscriptionBackend::adopt_unread_lane_records(
+    helix::ams::FilamentSlotOverrideStore* store,
+    std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+    std::unordered_map<int, helix::ams::FilamentSlotOverride> statements;
+    int bound = 0;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        // A reconnect replaced the store while this read was out.
+        if (override_store_.get() != store) {
+            return;
+        }
+        statements = store->adopt_namespace_read(std::move(records));
+        overrides_.clear();
+        for (const auto& [slot, entry] : store->last_lane_data_records()) {
+            overrides_[slot] = entry.record;
+        }
+        for (const auto& [slot, held] : statements) {
+            overrides_[slot] = held;
+        }
+        seed_lane_records_seen_locked();
+        bound = slot_index_bound_locked();
+    }
+    spdlog::info("{} Lane records read: {} record(s), {} held edit(s) sent", backend_log_tag(),
+                 store->last_lane_data_records().size(), statements.size());
+    helix::ams::ingest_legacy_records(*store, helix::ams::LegacyLockKeys::LaneData,
+                                      backend_index());
+    for (const auto& [slot, held] : statements) {
+        helix::ams::save_override_async(store, slot, held, backend_log_tag(), "Held edit");
+    }
+    for (int slot = 0; slot < bound; ++slot) {
+        repaint_slot_from_lane(slot);
+    }
+    emit_event(EVENT_STATE_CHANGED);
 }
 
 void AmsSubscriptionBackend::seed_lane_records_seen_locked() {

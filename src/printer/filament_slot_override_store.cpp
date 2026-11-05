@@ -1291,11 +1291,56 @@ parse_namespace_document(const nlohmann::json& namespace_doc, LaneKeyStyle key_s
 // exceptions, anything else escaping it is contained here: worst case the user
 // sees no overrides, which is the fresh-install state and fully recoverable,
 // rather than an AMS subsystem that failed to come up.
+namespace {
+
+/// Whether a save held while the namespace was unread states something new:
+/// a person's declaration or a spool link that the failed load's cache does not
+/// already hold. Anything else is a reading the real record supersedes.
+bool held_save_is_a_statement(int slot_index, const FilamentSlotOverride& held,
+                              const FilamentSlotOverride* fallback) {
+    if (held.declared == DeclaredFields{} && held.spoolman_id <= 0) {
+        return false;
+    }
+    if (fallback == nullptr) {
+        return true;
+    }
+    const auto comparable = [slot_index](const FilamentSlotOverride& o) {
+        nlohmann::json j = to_lane_data_record(slot_index, o);
+        j.erase("scan_time");
+        j.erase("helix_fingerprint");
+        return j;
+    };
+    return comparable(held) != comparable(*fallback);
+}
+
+} // namespace
+
+std::unordered_map<int, FilamentSlotOverride>
+FilamentSlotOverrideStore::adopt_namespace_read(std::unordered_map<int, LaneDataRecord> records) {
+    std::unordered_map<int, FilamentSlotOverride> statements;
+    {
+        std::lock_guard<std::mutex> lock(held_mutex_);
+        for (const auto& [slot, held] : held_saves_) {
+            const auto fallback = unread_fallback_.find(slot);
+            if (held_save_is_a_statement(
+                    slot, held, fallback == unread_fallback_.end() ? nullptr : &fallback->second)) {
+                statements[slot] = held;
+            }
+        }
+        held_saves_.clear();
+        unread_fallback_.clear();
+        lane_data_records_ = std::move(records);
+    }
+    namespace_unread_ = false;
+    return statements;
+}
+
 std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking() {
     std::unordered_map<int, FilamentSlotOverride> result;
     if (!helix::contain_exceptions(fmt::format("[FilamentSlotOverrideStore:{}] load", backend_id_),
                                    [&] { result = load_blocking_impl(); })) {
         spdlog::warn("[FilamentSlotOverrideStore:{}] continuing with no overrides", backend_id_);
+        namespace_unread_ = true;
         return {};
     }
     return result;
@@ -1438,8 +1483,15 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         spdlog::debug("[FilamentSlotOverrideStore:{}] load_blocking: cache fallback "
                       "returned {} entries",
                       backend_id_, cached.size());
+        {
+            std::lock_guard<std::mutex> lock(held_mutex_);
+            unread_fallback_ = cached;
+            held_saves_.clear();
+        }
+        namespace_unread_ = true;
         return cached;
     }
+    namespace_unread_ = false;
     if (!received_copy.is_object())
         return result;
 
@@ -1613,6 +1665,17 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
             cb(false, "invalid slot_index");
         return;
     }
+    if (namespace_unread_) {
+        spdlog::debug("[FilamentSlotOverrideStore:{}] slot {} save held: {} not read yet",
+                      backend_id_, slot_index, namespace_);
+        {
+            std::lock_guard<std::mutex> lock(held_mutex_);
+            held_saves_[slot_index] = ovr;
+        }
+        if (cb)
+            cb(true, "");
+        return;
+    }
 
     // Stamp a fresh updated_at on a local copy. The caller's struct is NOT
     // mutated — callers may keep their original value for UI echo, diff checks,
@@ -1661,6 +1724,13 @@ void FilamentSlotOverrideStore::clear_async(int slot_index, SaveCallback cb) {
     if (!api_) {
         if (cb)
             cb(false, "no API");
+        return;
+    }
+    if (namespace_unread_) {
+        spdlog::warn("[FilamentSlotOverrideStore:{}] slot {} clear refused: {} not read yet",
+                     backend_id_, slot_index, namespace_);
+        if (cb)
+            cb(false, "lane records not read yet");
         return;
     }
     // Reject negative slot indices symmetrically with save_async and
