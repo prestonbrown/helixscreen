@@ -1155,7 +1155,10 @@ void ToolState::assign_spool(int tool_index, int spoolman_id, const std::string&
 
 void ToolState::clear_spool(int tool_index) {
     if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
-        spdlog::warn("[ToolState] clear_spool: invalid tool index {}", tool_index);
+        // Normal on single-extruder multi-material setups, as in assign_spool():
+        // an empty lane mapped to virtual tool T1-T3 has no real tool to clear
+        spdlog::trace("[ToolState] clear_spool: skipping tool index {} (have {} tools)", tool_index,
+                      tools_.size());
         return;
     }
 

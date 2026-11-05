@@ -72,6 +72,8 @@ Anycubic firmware is tracked by the Rinkhals RE community by an internal
 - **Rinkhals does not support the Kobra X** — "blocked by RSA signature."
   Documented bypass vectors are the usual last resorts: physical serial/UART
   access, or a software vuln in one of the `avata_*` processes.
+- **A Kobra X does run vanilla Klipper on its own board** under a Debian system
+  seen as "Kobrian" (below, "Community Debian systems on Kobra boards").
 - Asymmetry worth noting: Anycubic **open-sourced** the Go base
   ([Klipper-go](https://github.com/ANYCUBIC-3D/Klipper-go),
   [K3-klipper-mcu](https://github.com/ANYCUBIC-3D/K3-klipper-mcu)) but **locked
@@ -82,6 +84,47 @@ Anycubic firmware is tracked by the Rinkhals RE community by an internal
 > RSA details come from the **Rinkhals reverse-engineering community**
 > (PR #422, docs), **not** Anycubic documentation. Anycubic has not published
 > the K4 C++ port. Treat K4 internals as RE-derived.
+
+---
+
+### Community Debian systems on Kobra boards
+
+Two community systems replace the stock Anycubic OS with Debian 13 and run
+HelixScreen as the screen. They put Klipper in different places.
+
+**KobraNest (published).** [Gwebster-r/KobraNest](https://github.com/Gwebster-r/KobraNest)
+(releases from the fork [moosbewohner/KobraNest](https://github.com/moosbewohner/KobraNest))
+describes itself as a Debian 13 local display and maintenance system for the
+**Kobra S1**: HelixScreen, KlipperScreen as an alternative, and a maintenance web
+dashboard. Klipper and Moonraker run on an **external Raspberry Pi**, reached
+over a LAN or USB tunnel. Its README lists as prerequisites
+[Rinkhals](https://github.com/rinkhals-community/Rinkhals) (SSH access to the
+original system and the return/start app) and the Kobra-S1 organisation's
+[klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1) and
+[ACEPRO](https://github.com/Kobra-S1/ACEPRO), and says it installs neither of
+those nor flashes MCU firmware.
+
+**"Kobrian" (unpublished, provenance unknown).** No public project found uses the name.
+The only evidence is one tester's debug bundle (JYTPVPP9), from a **Kobra X**:
+
+- hostname `kobrian-kx-fb77a9`, Moonraker user name `KX`
+- Debian GNU/Linux 13 (trixie), armv7l, 1 core, 237 MB RAM, 480x320 fbdev,
+  tlsc6x touch
+- vanilla Python Klipper `6af413d-dirty` and Moonraker running **on the Kobra
+  X's own board**, not an external host: `[mcu]` on `/dev/ttyS3` and
+  `[mcu nozzle_mcu]` on `/dev/ttyS0` (the Klipper log reports stm32f103xe)
+- HelixScreen 1.1.0-beta.12 as the screen
+- config includes `kx_multimaterial.cfg`, `ace_KX.cfg` and
+  `kobra-x-load-cell.cfg`; the object list carries the KX head
+  (`kx_toolchanger`, `kx_selector`, `kx_filament`, `kx_clog_check`,
+  `kx_endless_spool`, `kx_rfid`), Anycubic's motor link (`motor_link`,
+  `motor_steploss`, `motor_anc`), a `load_cell_probe`, and the ACE through the
+  ACEPRO driver (`ace`, `ace_state`, `ace_instance_0`) rather than GoKlipper's
+  `filament_hub`
+
+Who builds it, how it is installed, and whether it is
+related to KobraNest are not known. HelixScreen detects this machine as
+`anycubic_kobra_x`, keyed on the `kx_*` objects and the `kobrian-kx` hostname.
 
 ---
 
@@ -164,9 +207,11 @@ manufacturers.
   Pro backend already supported. Watch for `klipper-go` WebSocket/object quirks
   (may need REST polling for some objects) — see
   [ANYCUBIC_KOBRA_COREXY_RESEARCH.md](ANYCUBIC_KOBRA_COREXY_RESEARCH.md).
-- **C++ closed + signed (Kobra X / K4):** effectively **not targetable** today.
-  No Moonraker overlay can be installed past the RSA wall without a serial/vuln
-  bypass. Park Kobra X support until the RE community breaks the signing chain.
+- **C++ closed + signed (Kobra X / K4):** the stock firmware is still not
+  targetable: no Moonraker overlay installs past the RSA wall. The Kobra X
+  itself has been seen running vanilla Klipper + Moonraker on the stock board
+  under the unpublished "Kobrian" system (§3), and HelixScreen detects it there
+  by its `kx_*` objects.
 - **Elegoo CC1:** OpenCentauri (COSMOS = full Klipper/Kalico replacement;
   Patched = overlay on stock) is the path to a sane Moonraker. The C++ transpile
   itself isn't something we integrate against directly.
