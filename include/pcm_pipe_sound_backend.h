@@ -29,8 +29,8 @@
 /// render thread feed silence for kIdleGraceMs and then closes the pipe, so
 /// the player drains and exits. A player that fails kMaxConsecutiveFailures
 /// times in a row disables the backend for the rest of the run.
-class PcmPipeSoundBackend
-    : public SoundBackend { // NAMESPACE_OK: sits beside its global base and siblings
+// NAMESPACE_OK: sits beside its global base and siblings
+class PcmPipeSoundBackend : public SoundBackend {
   public:
     static constexpr int kSampleRate = 44100;
     static constexpr size_t kFramesPerChunk = 512;
