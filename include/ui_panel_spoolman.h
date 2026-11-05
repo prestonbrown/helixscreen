@@ -59,6 +59,9 @@ class SpoolmanPanel : public OverlayBase {
     const char* xml_component() const override {
         return "spoolman_panel";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     // === Lifecycle hooks ===
     void on_activate() override;
@@ -80,6 +83,8 @@ class SpoolmanPanel : public OverlayBase {
   private:
     // ========== UI Widget Pointers ==========
     lv_obj_t* spool_list_ = nullptr;
+
+    void on_ui_destroyed() override;
 
     // ========== State ==========
     std::vector<SpoolInfo> cached_spools_;

@@ -228,6 +228,11 @@ void SpoolmanPanel::on_activate() {
     SpoolmanManager::instance().start_spoolman_polling();
 }
 
+void SpoolmanPanel::on_ui_destroyed() {
+    spool_list_ = nullptr;
+    list_view_.cleanup();
+}
+
 void SpoolmanPanel::on_deactivating(DeactivateReason) {
     SpoolmanManager::instance().stop_spoolman_polling();
 
@@ -370,8 +375,8 @@ const SpoolInfo* SpoolmanPanel::find_cached_spool(int spool_id) const {
 // ============================================================================
 
 void SpoolmanPanel::populate_spool_list() {
+    // An archive or delete answering after close refetches with no tree to fill.
     if (!spool_list_) {
-        spdlog::error("[{}] spool_list_ is null", get_name());
         return;
     }
 
