@@ -367,7 +367,9 @@ class MotionPanel : public OverlayBase {
 
     int gcode_z_centimm_ = 0;
 
-    lv_obj_t* jog_pad_ = nullptr;
+    // The panel body is an <if> on ui_is_portrait, so a rotation deletes the pad with
+    // the branch it sits in.
+    helix::ui::WidgetRef jog_pad_;
 
     /// One move in flight, the newest coalesced behind it, for jogs and targets alike.
     helix::ToolheadMoveSender move_sender_;
@@ -449,6 +451,7 @@ class MotionPanel : public OverlayBase {
     ObserverGuard homed_axes_observer_;
     ObserverGuard jog_ready_observer_;
     ObserverGuard layout_observer_;
+    ObserverGuard portrait_rewire_observer_;
     /// Redraws the plate when the bed-occupancy verdict or outlines change.
     ObserverGuard bed_occupancy_observer_;
     /// (Re)take bed_occupancy_observer_ on the current session's state.
@@ -487,6 +490,9 @@ class MotionPanel : public OverlayBase {
     // (connected AND klippy ready). Jogging while not ready is refused at the
     // API layer; this makes the pad visibly unavailable to match.
     void update_jog_pad_enabled();
+
+    /// Rebuild the pad in the branch a rotation just built, once its placeholder exists.
+    void rewire_jog_pad_after_orientation_flip();
 
     static bool jog_pad_jog_cb(helix::JogDirection direction, float distance_mm, bool is_repeat,
                                void* user_data);

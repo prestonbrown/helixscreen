@@ -595,7 +595,24 @@ lv_obj_t* MotionPanel::create(lv_obj_t* parent) {
         return nullptr;
     }
     setup_jog_pad();
+
+    // Immediate: the body's own <if> observer was added during create() and rebuilds the
+    // branch synchronously first, so the new placeholder is already there when this runs.
+    if (lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait")) {
+        portrait_rewire_observer_ = helix::ui::observe<int>(
+            portrait, this,
+            [](MotionPanel* self, int) { self->rewire_jog_pad_after_orientation_flip(); },
+            subject_never_freed(), helix::ui::Dispatch::Immediate);
+    }
     return overlay_root_;
+}
+
+void MotionPanel::rewire_jog_pad_after_orientation_flip() {
+    if (!overlay_root_ || !lv_obj_find_by_name(overlay_root_, "jog_pad_container")) {
+        return;
+    }
+    stop_hold_repeat();
+    setup_jog_pad();
 }
 
 // ============================================================================
