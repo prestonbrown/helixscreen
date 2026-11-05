@@ -89,6 +89,11 @@ struct GridEditModeTestAccess {
         return GridEditMode::edge_hit_band_for_cell(cell_px);
     }
 
+    /// The pure rule for how far an edge band reaches into a widget.
+    static int inward_edge_reach(int band, int widget_px, int min_drag_px) {
+        return GridEditMode::inward_edge_reach(band, widget_px, min_drag_px);
+    }
+
     /// Pointer travel from the press origin that an armed press must exceed,
     /// in px, before it becomes a drag or a resize.
     static int drag_threshold_px() {

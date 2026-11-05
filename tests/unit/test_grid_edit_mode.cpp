@@ -1527,30 +1527,81 @@ TEST_CASE("detect_resize_edge: 18+18 hit zone boundaries", "[grid_edit][resize]"
     CHECK(em.detect_resize_edge(200, 81, area) == GridEditMode::ResizeEdge::None);
 }
 
-TEST_CASE("detect_resize_edge: the inward band is a fraction of a narrow widget",
-          "[grid_edit][resize][1126]") {
+TEST_CASE("inward_edge_reach: the drag interior never drops below a touch target",
+          "[grid_edit][resize][halfcell]") {
+    auto reach = [](int band, int widget, int min_drag) {
+        return GridEditModeTestAccess::inward_edge_reach(band, widget, min_drag);
+    };
+
+    // Half-cell widgets: no room for an interior and an inward band, so the
+    // whole widget drags and resizing takes the outward band alone.
+    CHECK(reach(18, 30, 48) == 0);
+    CHECK(reach(18, 40, 48) == 0);
+    CHECK(reach(19, 48, 48) == 0); // exactly the target: nothing to spare
+
+    // Just above the target: the spare pixels split between the two edges.
+    CHECK(reach(19, 50, 48) == 1);
+    CHECK(reach(19, 59, 48) == 5); // a half cell at 800x480
+    CHECK(reach(18, 83, 48) == 17);
+
+    // Room for the full band and the interior: the band is the ceiling.
+    CHECK(reach(18, 84, 48) == 18);
+    CHECK(reach(18, 85, 48) == 18);
+    CHECK(reach(32, 400, 48) == 32);
+
+    // Degenerate input never yields a negative reach.
+    CHECK(reach(18, 0, 48) == 0);
+    CHECK(reach(18, -10, 48) == 0);
+}
+
+TEST_CASE("detect_resize_edge: a half-cell widget drags from anywhere inside it",
+          "[grid_edit][resize][halfcell]") {
     GridEditMode em;
-    // 30px wide, 90px tall — a half-cell-wide widget on a micro panel. Two flat
-    // 18px inward bands would overlap and leave no interior at all, so every
-    // pixel would report an edge and the widget could never be dragged.
+    // 30px wide, 90px tall: a half-cell-wide widget on a micro panel.
     lv_area_t narrow = {100, 100, 130, 190};
 
-    // Horizontal centre is 10px from each vertical edge: inward_x = 30/3 = 10,
-    // so x=115 is outside both the left and the right inward band.
-    CHECK(em.detect_resize_edge(115, 145, narrow) == GridEditMode::ResizeEdge::None);
+    // Every column inside the widget drags; only the boundary pixel and the
+    // outward band beyond it resize.
+    for (int x = 101; x <= 129; ++x) {
+        INFO("x=" << x);
+        CHECK(em.detect_resize_edge(x, 145, narrow) == GridEditMode::ResizeEdge::None);
+    }
 
-    // The edges themselves still resize.
-    CHECK(em.detect_resize_edge(101, 145, narrow) == GridEditMode::ResizeEdge::Left);
-    CHECK(em.detect_resize_edge(129, 145, narrow) == GridEditMode::ResizeEdge::Right);
+    CHECK(em.detect_resize_edge(100, 145, narrow) == GridEditMode::ResizeEdge::Left);
+    CHECK(em.detect_resize_edge(130, 145, narrow) == GridEditMode::ResizeEdge::Right);
+    CHECK(em.detect_resize_edge(99, 145, narrow) == GridEditMode::ResizeEdge::Left);
+    CHECK(em.detect_resize_edge(82, 145, narrow) == GridEditMode::ResizeEdge::Left);
+    CHECK(em.detect_resize_edge(131, 145, narrow) == GridEditMode::ResizeEdge::Right);
+    CHECK(em.detect_resize_edge(148, 145, narrow) == GridEditMode::ResizeEdge::Right);
+}
+
+TEST_CASE("detect_resize_edge: a 0.5x0.5 widget at 800x480 keeps a finger-sized interior",
+          "[grid_edit][resize][halfcell]") {
+    GridEditMode em;
+    // 59x58, the half-cell notifications tile measured in the mock at 800x480.
+    lv_area_t half = {677, 5, 736, 63};
+
+    // A finger 12px off centre in any direction still drags.
+    for (int d = -12; d <= 12; d += 4) {
+        INFO("d=" << d);
+        CHECK(em.detect_resize_edge(706 + d, 34, half) == GridEditMode::ResizeEdge::None);
+        CHECK(em.detect_resize_edge(706, 34 + d, half) == GridEditMode::ResizeEdge::None);
+    }
+
+    // Just outside each edge resizes.
+    CHECK(em.detect_resize_edge(674, 34, half) == GridEditMode::ResizeEdge::Left);
+    CHECK(em.detect_resize_edge(739, 34, half) == GridEditMode::ResizeEdge::Right);
+    CHECK(em.detect_resize_edge(706, 2, half) == GridEditMode::ResizeEdge::Top);
+    CHECK(em.detect_resize_edge(706, 66, half) == GridEditMode::ResizeEdge::Bottom);
 }
 
 TEST_CASE("detect_resize_edge: the two axes clamp independently", "[grid_edit][resize][1126]") {
     GridEditMode em;
-    // 30 wide x 200 tall. inward_x = 10, inward_y = min(18, 66) = 18.
+    // 30 wide x 200 tall. inward_x = 0, inward_y = min(18, (201 - 48) / 2) = 18.
     lv_area_t tall = {100, 100, 130, 300};
 
     // 12px below the top edge: inside the 18px vertical band, so Top wins even
-    // though the horizontal centre is outside the (narrower) horizontal bands.
+    // though the horizontal axis has no inward band at all.
     CHECK(em.detect_resize_edge(115, 112, tall) == GridEditMode::ResizeEdge::Top);
 
     // 40px below the top edge: outside both bands on both axes.
