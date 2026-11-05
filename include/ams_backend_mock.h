@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ams_backend.h"
+#include "ams_dryer.h"
 #include "ams_gate_selector.h"
 #include "slot_registry.h"
 
@@ -31,13 +32,16 @@ struct AfcMockUnit;
  * - Pre-populated filament colors and materials
  * - Responds to all AmsBackend operations
  */
-class AmsBackendMock : public AmsBackend, public IGateSelector {
+class AmsBackendMock : public AmsBackend, public IGateSelector, public IDryer {
   public:
     friend class AmsBackendMockTimingTestAccess;
 
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<IGateSelector>()) {
             return static_cast<IGateSelector*>(this);
+        }
+        if (tag == helix::type_tag<IDryer>()) {
+            return static_cast<IDryer*>(this);
         }
         return AmsBackend::capability(tag);
     }

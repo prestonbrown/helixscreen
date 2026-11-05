@@ -13,6 +13,7 @@
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
+#include "ams_dryer.h"
 #include "ams_gate_selector.h"
 #include "ams_lane_recovery.h"
 #include "ams_state.h"
@@ -364,7 +365,7 @@ tray::LidMode unit_lid_mode(int unit_index) {
         const int u = unit_index >= 0 ? unit_index : 0;
         if (u < static_cast<int>(info.units.size()))
             unit = info.units[u];
-        dryer = backend->get_dryer_info(u).supported;
+        dryer = helix::dryer_info(*backend, u).supported;
     }
     return tray::lid_mode(unit, unit_has_physical_tray(), dryer);
 }

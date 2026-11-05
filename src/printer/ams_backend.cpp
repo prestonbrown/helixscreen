@@ -7,6 +7,7 @@
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_indx.h"
 #include "ams_backend_openams.h"
+#include "ams_dryer.h"
 #include "ams_state.h"
 #include "ams_step_model.h"
 #include "settings_manager.h"
@@ -355,7 +356,7 @@ std::vector<helix::printer::EnvironmentZone> AmsBackend::get_environment_zones(i
             continue;
         }
         const AmsUnit& au = info.units[u];
-        const DryerInfo dryer = get_dryer_info(unit_idx);
+        const DryerInfo dryer = dryer_info(*this, unit_idx);
         // Only a running cycle is visible here. Queued needs a firmware report that
         // this layer does not receive, so a backend that caps concurrent heaters
         // overrides to say so.
@@ -411,22 +412,9 @@ std::vector<helix::printer::EnvironmentZone> AmsBackend::get_environment_zones(i
     return zones;
 }
 
-AmsError AmsBackend::start_drying_request(const DryingRequest& request) {
-    if (!request.gates.empty() || request.rotate) {
-        return AmsErrorHelper::not_supported("Drying selected gates");
-    }
-    if (request.humidity_pct) {
-        return start_drying_to_humidity(request.temp_c, request.duration_min, *request.humidity_pct,
-                                        request.fan_pct, request.unit);
-    }
-    return start_drying(request.temp_c, request.duration_min, request.fan_pct, request.unit);
-}
-
-AmsError AmsBackend::stop_drying_gates(int unit, const std::vector<int>& gates) {
-    if (!gates.empty()) {
-        return AmsErrorHelper::not_supported("Drying selected gates");
-    }
-    return stop_drying(unit);
+DryerInfo dryer_info(const AmsBackend& backend, int unit) {
+    const IDryer* const dryer = backend.as<IDryer>();
+    return dryer ? dryer->get_dryer_info(unit) : DryerInfo{.supported = false};
 }
 
 HeadFilamentOps AmsBackend::head_filament_ops(int /*head*/) const {

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ams_dryer.h"
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
@@ -29,8 +30,15 @@ class OpenAmsTestAccess;
 /// slot keeps the manager's slot id, group and lane for dispatch. Every action
 /// goes through the command the manager advertises for it, and an action whose
 /// command is not advertised is refused on its own while the rest keep working.
-class AmsBackendOpenAms : public AmsSubscriptionBackend {
+class AmsBackendOpenAms : public AmsSubscriptionBackend, public helix::IDryer {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IDryer>()) {
+            return static_cast<helix::IDryer*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     AmsBackendOpenAms(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendOpenAms() override = default;
 

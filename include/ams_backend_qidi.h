@@ -3,6 +3,7 @@
 #pragma once
 #if HELIX_HAS_QIDI
 
+#include "ams_dryer.h"
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
@@ -56,8 +57,15 @@ namespace helix {
 ///
 /// Until then: every operation logs a "not yet implemented" warning and
 /// returns a sensible no-op / NOT_SUPPORTED error.
-class AmsBackendQidi : public AmsSubscriptionBackend {
+class AmsBackendQidi : public AmsSubscriptionBackend, public helix::IDryer {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IDryer>()) {
+            return static_cast<helix::IDryer*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     AmsBackendQidi(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendQidi() override;
 

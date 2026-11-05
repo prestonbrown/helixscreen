@@ -201,20 +201,21 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IFeederControl* feeder = nullptr;
         const IStepOperation* steps = nullptr;
         const IInsertSignals* insert = nullptr;
+        const IDryer* dryer = nullptr;
     };
     const Row rows[] = {
-        {&ace},
-        {&ad5x, nullptr, nullptr, nullptr, nullptr, nullptr, &ad5x},
-        {&multi_ace, nullptr, nullptr, nullptr, nullptr, nullptr, &multi_ace, &multi_ace},
-        {&openams},
-        {&qidi},
-        {&snapmaker, nullptr, nullptr, nullptr, nullptr, nullptr, &snapmaker, &snapmaker},
-        {&indx, nullptr, nullptr, nullptr, nullptr, &indx, &indx},
-        {&tool_changer, nullptr, nullptr, nullptr, nullptr, &tool_changer, &tool_changer},
-        {&afc, nullptr, nullptr, &afc, &afc},
-        {&cfs, &cfs},
-        {&happy_hare, nullptr, &happy_hare},
-        {&mock, nullptr, &mock},
+        {.backend = &ace, .dryer = &ace},
+        {.backend = &ad5x, .steps = &ad5x},
+        {.backend = &multi_ace, .steps = &multi_ace, .insert = &multi_ace, .dryer = &multi_ace},
+        {.backend = &openams, .dryer = &openams},
+        {.backend = &qidi, .dryer = &qidi},
+        {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker},
+        {.backend = &indx, .feeder = &indx, .steps = &indx},
+        {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
+        {.backend = &afc, .recovery = &afc, .narration = &afc},
+        {.backend = &cfs, .calibration = &cfs},
+        {.backend = &happy_hare, .gates = &happy_hare, .dryer = &happy_hare},
+        {.backend = &mock, .gates = &mock, .dryer = &mock},
     };
     struct NothingImplementsThis {};
     for (const Row& row : rows) {
@@ -226,11 +227,13 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IFeederControl>() == row.feeder);
         CHECK(row.backend->as<IStepOperation>() == row.steps);
         CHECK(row.backend->as<IInsertSignals>() == row.insert);
+        CHECK(row.backend->as<IDryer>() == row.dryer);
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
     // No capability and no narration template: the sidebar's coarse fallback.
     CHECK(operation_step_model(mock, StepOperationType::LOAD_SWAP).steps.empty());
     CHECK(operation_step_index_subject(mock, StepOperationType::LOAD_SWAP) == nullptr);
+    CHECK_FALSE(dryer_info(afc, 0).supported);
 }
 
 TEST_CASE("Mock AFC load leaves only the new lane loaded", "[ams][mock][traits]") {

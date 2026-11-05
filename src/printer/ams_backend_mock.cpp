@@ -2151,7 +2151,7 @@ AmsError AmsBackendMock::start_drying_request(const DryingRequest& request) {
         }
     }
     if (!per_gate) {
-        return AmsBackend::start_drying_request(request);
+        return IDryer::start_drying_request(request);
     }
     return start_drying(request.temp_c, request.duration_min, request.fan_pct, request.unit);
 }
@@ -2187,7 +2187,7 @@ AmsError AmsBackendMock::stop_drying_gates(int unit, const std::vector<int>& gat
         }
     }
     if (!per_gate) {
-        return AmsBackend::stop_drying_gates(unit, gates);
+        return IDryer::stop_drying_gates(unit, gates);
     }
     if (any_left) {
         emit_event(EVENT_STATE_CHANGED);

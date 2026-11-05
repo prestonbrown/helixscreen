@@ -18,6 +18,7 @@
 
 #include "ams_backend_registry.h"
 #include "ams_bypass_policy.h"
+#include "ams_dryer.h"
 #include "ams_feeder_control.h"
 #include "ams_lane_state.h"
 #include "ams_runout_grace.h"
@@ -1231,7 +1232,7 @@ void AmsState::sync_unit_environment(AmsBackend* backend, const AmsSystemInfo& i
     // own, so a change in the set bumps one version the view watches.
     std::string drying(info.units.size(), '0');
     for (size_t k = 0; k < info.units.size(); ++k) {
-        const DryerInfo dryer = backend->get_dryer_info(info.units[k].unit_index);
+        const DryerInfo dryer = helix::dryer_info(*backend, info.units[k].unit_index);
         if (dryer.supported && dryer.active)
             drying[k] = '1';
     }
@@ -1310,7 +1311,7 @@ AmsState::UnitEnvIndicator AmsState::compute_unit_env_indicator(AmsBackend* back
 
     // Reachable with live environment data OR a supported dryer: a dryer-capable
     // box with no temp/humidity sensor still needs a way to open the drying controls.
-    const DryerInfo dryer = backend->get_dryer_info(unit.unit_index);
+    const DryerInfo dryer = helix::dryer_info(*backend, unit.unit_index);
     out.visible = has_env || dryer.supported;
     out.humidity_visible = has_env && unit.environment->has_humidity;
 

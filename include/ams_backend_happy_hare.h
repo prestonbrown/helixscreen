@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ams_dryer.h"
 #include "ams_environment_zone.h"
 #include "ams_gate_selector.h"
 #include "ams_subscription_backend.h"
@@ -66,11 +67,16 @@ struct HappyHareGateSensor {
     bool object_enabled = true;
 };
 
-class AmsBackendHappyHare : public AmsSubscriptionBackend, public helix::IGateSelector {
+class AmsBackendHappyHare : public AmsSubscriptionBackend,
+                            public helix::IGateSelector,
+                            public helix::IDryer {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IGateSelector>()) {
             return static_cast<helix::IGateSelector*>(this);
+        }
+        if (tag == helix::type_tag<helix::IDryer>()) {
+            return static_cast<helix::IDryer*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }

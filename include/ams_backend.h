@@ -2215,22 +2215,8 @@ class AmsBackend : public AmsCapabilityHost {
     [[nodiscard]] virtual bool is_bypass_active() const = 0;
 
     // ========================================================================
-    // Dryer Control (Optional - default implementations return "not supported")
+    // Environment zones
     // ========================================================================
-
-    /**
-     * @brief Get dryer state and capabilities
-     *
-     * Returns current dryer state including temperature, duration, and
-     * hardware capabilities. Not all AMS systems have dryers - check
-     * DryerInfo::supported before showing dryer UI.
-     *
-     * @return DryerInfo struct (supported=false if no dryer)
-     */
-    [[nodiscard]] virtual DryerInfo get_dryer_info(int unit = 0) const {
-        (void)unit;
-        return DryerInfo{.supported = false};
-    }
 
     /**
      * @brief The environment zones this system exposes.
@@ -2242,117 +2228,15 @@ class AmsBackend : public AmsCapabilityHost {
      *
      * The default derives zones from what every backend already publishes: a
      * unit-level sensor makes the unit one zone, per-slot sensors make one zone per
-     * lane, and a unit with neither a sensor nor a dryer contributes nothing. The
-     * default cannot express a per-lane heater; a backend whose hardware does
-     * overrides this.
+     * lane, and a unit with neither a sensor nor a dryer (IDryer, ams_dryer.h)
+     * contributes nothing. The default cannot express a per-lane heater; a backend whose hardware
+     * does overrides this.
      *
      * @param unit Unit to scope to, or -1 for every zone on the printer
      * @return Zones ordered by unit, then by lowest gate
      */
     [[nodiscard]] virtual std::vector<helix::printer::EnvironmentZone>
     get_environment_zones(int unit = -1) const;
-
-    /**
-     * @brief Start drying operation
-     *
-     * Initiates filament drying at specified temperature and duration.
-     * Not all AMS systems support drying - check get_dryer_info().supported.
-     *
-     * @param temp_c Target temperature in Celsius (within min_temp_c..max_temp_c)
-     * @param duration_min Drying duration in minutes (positive, capped at max_duration_min)
-     * @param fan_pct Fan speed percentage (0-100, -1 = use backend default)
-     * @return AmsError with SUCCESS result on success, or error with reason
-     */
-    virtual AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) {
-        (void)temp_c;
-        (void)duration_min;
-        (void)fan_pct;
-        (void)unit;
-        return AmsErrorHelper::not_supported("Dryer");
-    }
-
-    /**
-     * @brief Start drying that also ends once the box reaches a humidity target
-     *
-     * The cycle runs at most @p duration_min and ends sooner once the box's relative
-     * humidity reads at or below @p humidity_pct. Only a backend whose
-     * get_dryer_info(unit).supports_humidity_target is true implements this; callers
-     * with no target use start_drying(), which leaves any target to the dryer's own default.
-     *
-     * @param humidity_pct Target relative humidity, % (positive)
-     */
-    virtual AmsError start_drying_to_humidity(float temp_c, int duration_min, float humidity_pct,
-                                              int fan_pct = -1, int unit = 0) {
-        (void)temp_c;
-        (void)duration_min;
-        (void)humidity_pct;
-        (void)fan_pct;
-        (void)unit;
-        return AmsErrorHelper::not_supported("Dryer humidity target");
-    }
-
-    /**
-     * @brief Stop drying operation
-     *
-     * Stops any active drying and turns off heater/fan.
-     *
-     * @return AmsError with SUCCESS result on success, or error with reason
-     */
-    virtual AmsError stop_drying(int unit = 0) {
-        (void)unit;
-        return AmsErrorHelper::not_supported("Dryer");
-    }
-
-    /**
-     * @brief Start drying as @p request describes
-     *
-     * The one entry point a surface needs whatever the dryer can do. With no gates and
-     * no rotation it is exactly start_drying(), or start_drying_to_humidity() when a
-     * target is set, so a backend overrides it only to take a gate selection
-     * (DryerInfo::supports_gate_selection) or spool rotation (supports_rotation).
-     */
-    virtual AmsError start_drying_request(const DryingRequest& request);
-
-    /**
-     * @brief Stop drying on @p gates only, or everything on @p unit when empty
-     *
-     * Empty @p gates is exactly stop_drying(). Gates need
-     * DryerInfo::supports_gate_selection; the rest of the cycle keeps running.
-     */
-    virtual AmsError stop_drying_gates(int unit, const std::vector<int>& gates);
-
-    /**
-     * @brief Update drying parameters while running
-     *
-     * Adjusts temperature, duration, or fan speed during an active dry cycle.
-     * Pass -1 to keep current value for any parameter.
-     *
-     * @param temp_c New target temperature (-1 = no change)
-     * @param duration_min New duration (-1 = no change)
-     * @param fan_pct New fan speed (-1 = no change)
-     * @return AmsError with SUCCESS result on success, or error with reason
-     */
-    virtual AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1,
-                                   int unit = 0) {
-        (void)temp_c;
-        (void)duration_min;
-        (void)fan_pct;
-        (void)unit;
-        return AmsErrorHelper::not_supported("Dryer");
-    }
-
-    /**
-     * @brief Get available drying presets
-     *
-     * Returns preset profiles for common filament materials.
-     * Backends can override to provide hardware-specific presets.
-     * Falls back to get_default_drying_presets() if not overridden.
-     *
-     * @return Vector of DryingPreset structs
-     */
-    [[nodiscard]] virtual std::vector<DryingPreset> get_drying_presets() const {
-        return get_default_drying_presets();
-    }
 
     // ========================================================================
     // Endless Spool Control

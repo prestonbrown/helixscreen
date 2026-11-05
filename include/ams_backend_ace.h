@@ -7,6 +7,7 @@
 #include "ace_slot_parse.h"
 #include "ace_status_parse.h"
 #include "ams_bypass_policy.h"
+#include "ams_dryer.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "filament_slot_override.h"
@@ -58,8 +59,15 @@ namespace helix {
  */
 class AceTestAccess;
 
-class AmsBackendAce : public AmsSubscriptionBackend {
+class AmsBackendAce : public AmsSubscriptionBackend, public helix::IDryer {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IDryer>()) {
+            return static_cast<helix::IDryer*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     AmsBackendAce(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     ~AmsBackendAce() override;

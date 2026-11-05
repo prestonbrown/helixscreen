@@ -19,9 +19,14 @@ using namespace helix::printer;
 namespace {
 
 /// AFC has no per-gate heater lists, so it exercises the generic default.
-class ZoneSourceHelper : public AmsBackendAfc {
+class ZoneSourceHelper : public AmsBackendAfc, public IDryer {
   public:
     ZoneSourceHelper() : AmsBackendAfc(nullptr, nullptr) {}
+
+    void* capability(helix::TypeTag tag) override {
+        return tag == helix::type_tag<IDryer>() ? static_cast<IDryer*>(this)
+                                                : AmsBackendAfc::capability(tag);
+    }
 
     AmsSystemInfo& mutable_info() {
         return system_info_;
@@ -34,6 +39,12 @@ class ZoneSourceHelper : public AmsBackendAfc {
     DryerInfo get_dryer_info(int unit = 0) const override {
         auto it = dryers_.find(unit);
         return it == dryers_.end() ? DryerInfo{} : it->second;
+    }
+    AmsError start_drying(float, int, int, int) override {
+        return AmsErrorHelper::success();
+    }
+    AmsError stop_drying(int) override {
+        return AmsErrorHelper::success();
     }
 
     AmsError execute_gcode(const std::string& /*gcode*/) override {
