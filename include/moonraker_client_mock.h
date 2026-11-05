@@ -1511,6 +1511,19 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     nlohmann::json purifier_status() const;
 
+    /// The U1 top module's purifier as firmware 2.x keeps it: presence, mode and
+    /// the two fans' speeds, with the inner fan's work time accruing in the
+    /// recirculating modes (2 and 3).
+    struct MockPurifier {
+        bool present = true;
+        int mode = 0;
+        double exhaust = 0.0; ///< 0..1
+        double inner = 0.0;   ///< 0..1
+        double desired_c = 0.0;
+        double critical_c = 0.0;
+        double work_s = 0.0;
+    };
+
   private:
     // Test visibility into the chamber-key cache and the synchronous initial
     // state dispatch (see tests/test_helpers/moonraker_client_mock_test_access.h).
@@ -2823,6 +2836,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_openams(const std::string& script);
     GcodeResult gcode_openams_line(const std::string& gcode);
     GcodeResult gcode_u1_feeding(const std::string& gcode);
+    /// SET_PURIFIER_MODE, SET_PURIFIER and the mock-only HELIX_MOCK_TOP_COVER
+    /// PRESENT=0|1, which lifts the top off or puts it back. U1 only.
+    GcodeResult gcode_u1_purifier(const std::string& gcode);
+    /// Accrues the inner fan's work time over @p dt simulated seconds.
+    void service_purifier(double dt);
+    void publish_purifier();
+    mutable std::mutex purifier_mutex_;
+    MockPurifier purifier_;
     GcodeResult gcode_heater_temperature(const std::string& gcode);
     GcodeResult gcode_temperature_fan_target(const std::string& gcode);
     GcodeResult gcode_panda_dry_start(const std::string& gcode);
