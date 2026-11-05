@@ -35,6 +35,26 @@ RevertRetry& state() {
     return s;
 }
 
+/// The startup read of a record that failed to read: which link it is for is
+/// unknown until it reads, so the read itself is what retries.
+struct StartupRead {
+    net::Ipv4RevertRetry schedule;
+    ui::LvglTimerGuard timer;
+};
+
+StartupRead& startup_read() {
+    static StartupRead s;
+    return s;
+}
+
+/// A give-up whose record could not be marked failed, by link. A new change
+/// stays refused while it holds, so the screen says why instead of offering it.
+std::string& unrecorded_why(net::Ipv4Link link) {
+    static std::string wifi;
+    static std::string ethernet;
+    return link == net::Ipv4Link::Ethernet ? ethernet : wifi;
+}
+
 std::function<void(net::Ipv4Link, Ipv4RevertEnd)>& listener() {
     static std::function<void(net::Ipv4Link, Ipv4RevertEnd)> l;
     return l;
@@ -60,6 +80,7 @@ void finish(const net::Ipv4RestoreOutcome& outcome) {
         s.timer.reset();
         spdlog::info("[Ipv4] The unconfirmed IPv4 change is undone");
         NOTIFY_INFO("{}", lv_tr("Previous IPv4 settings restored"));
+        unrecorded_why(s.link).clear();
         announce(s.link, Ipv4RevertEnd::Restored);
         return;
     case Kind::Nothing:
@@ -128,33 +149,96 @@ void give_up_ipv4_revert(net::Ipv4Link link, const std::string& why) {
                   net::ipv4_link_name(link), why);
     http::HttpExecutor::fast().start();
     http::HttpExecutor::fast().submit([link, why]() {
-        net::mark_pending_ipv4_failed(link, why);
-        ui::queue_update("Ipv4RevertRetry::gave_up",
-                         [link]() { announce(link, Ipv4RevertEnd::GaveUp); });
+        const bool marked = net::mark_pending_ipv4_failed(link, why);
+        ui::queue_update("Ipv4RevertRetry::gave_up", [link, why, marked]() {
+            if (marked) {
+                unrecorded_why(link).clear();
+                NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored: {}"), why);
+                announce(link, Ipv4RevertEnd::GaveUp);
+                return;
+            }
+            spdlog::error("[Ipv4] {} could not be marked failed", net::pending_ipv4_revert_path());
+            unrecorded_why(link) = why;
+            NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored, and the record "
+                               "of the change could not be updated: {}"),
+                         why);
+            announce(link, Ipv4RevertEnd::GaveUpUnrecorded);
+        });
     });
-    NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored: {}"), why);
+}
+
+std::optional<std::string> ipv4_revert_unrecorded(net::Ipv4Link link) {
+    const std::string& why = unrecorded_why(link);
+    if (why.empty()) {
+        return std::nullopt;
+    }
+    return why;
 }
 
 void set_ipv4_revert_listener(std::function<void(net::Ipv4Link, Ipv4RevertEnd)> l) {
     listener() = std::move(l);
 }
 
-void start_ipv4_startup_revert() {
-    const net::Ipv4RecordLoad loaded = net::read_pending_ipv4_revert();
-    if (loaded.kind == net::Ipv4RecordLoad::Kind::Unreadable) {
+namespace {
+
+/// Acts on the record another run left. False while it cannot be read.
+bool act_on_startup_record(const net::Ipv4RecordLoad& loaded) {
+    using RecordKind = net::Ipv4RecordLoad::Kind;
+    if (loaded.kind == RecordKind::ReadError) {
+        return false;
+    }
+    if (loaded.kind == RecordKind::Unreadable) {
         give_up_ipv4_revert(net::Ipv4Link::Wifi,
                             net::pending_ipv4_revert_path() + " cannot be read");
-        return;
+        return true;
     }
-    // A record that failed to read (ReadError) is left as it is for the next start.
     const auto& pending = loaded.record;
-    if (loaded.kind != net::Ipv4RecordLoad::Kind::Ok || pending.failed ||
+    if (loaded.kind != RecordKind::Ok || pending.failed ||
         pending.owner == net::ipv4_process_owner()) {
-        return;
+        return true;
     }
     spdlog::warn("[Ipv4] An IPv4 change on {} was never kept: restoring {}",
                  net::ipv4_link_name(pending.link), net::ipv4_config_text(pending.previous));
     retry_ipv4_revert(pending.link, /*include_own=*/false);
+    return true;
+}
+
+void startup_read_tick() {
+    StartupRead& s = startup_read();
+    switch (s.schedule.tick(lv_tick_get(), job_holds_machine())) {
+    case net::Ipv4RevertRetry::Step::Wait:
+        return;
+    case net::Ipv4RevertRetry::Step::Attempt:
+        if (act_on_startup_record(net::read_pending_ipv4_revert())) {
+            s.timer.reset();
+        }
+        return;
+    case net::Ipv4RevertRetry::Step::GiveUp:
+        // The bytes may be good, so they stay for the next start.
+        s.timer.reset();
+        spdlog::error("[Ipv4] {} could not be read in two minutes",
+                      net::pending_ipv4_revert_path());
+        NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be checked: {} could not be "
+                           "read"),
+                     net::pending_ipv4_revert_path());
+        return;
+    }
+}
+
+} // namespace
+
+void start_ipv4_startup_revert() {
+    if (act_on_startup_record(net::read_pending_ipv4_revert())) {
+        return;
+    }
+    spdlog::warn("[Ipv4] {} could not be read: trying again", net::pending_ipv4_revert_path());
+    StartupRead& s = startup_read();
+    s.schedule.start(lv_tick_get());
+    s.timer.reset(lv_timer_create([](lv_timer_t*) { startup_read_tick(); }, kTickMs, nullptr));
+}
+
+lv_timer_t* ipv4_startup_read_timer_for_test() {
+    return startup_read().timer.get();
 }
 
 } // namespace helix::settings

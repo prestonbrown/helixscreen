@@ -732,6 +732,11 @@ Ipv4RecordLoad read_pending_ipv4_revert() {
     return out;
 }
 
+bool ipv4_record_blocks_change(const Ipv4RecordLoad& loaded) {
+    return loaded.kind != Ipv4RecordLoad::Kind::None &&
+           (loaded.kind != Ipv4RecordLoad::Kind::Ok || !loaded.record.failed);
+}
+
 std::optional<PendingIpv4Revert> load_pending_ipv4_revert() {
     Ipv4RecordLoad r = read_pending_ipv4_revert();
     if (r.kind != Ipv4RecordLoad::Kind::Ok) {

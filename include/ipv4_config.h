@@ -385,6 +385,9 @@ struct Ipv4RecordLoad {
 Ipv4RecordLoad read_pending_ipv4_revert();
 /// The usable record, if any.
 std::optional<PendingIpv4Revert> load_pending_ipv4_revert();
+/// True while the record still holds the only way back: anything but none or
+/// one marked failed, including one that cannot be read or decoded.
+bool ipv4_record_blocks_change(const Ipv4RecordLoad& loaded);
 /// True when no record remains (removed now, or there was none).
 bool clear_pending_ipv4_revert();
 
