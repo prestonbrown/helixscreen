@@ -10,15 +10,21 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "lvgl_image_writer.h"
+#include "misc/cache/instance/lv_image_header_cache.h"
 #include "misc/lv_timer_private.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "prerendered_images.h"
+#include "printer_image_manager.h"
+#include "printer_images.h"
 #include "src/ui/panel_widgets/printer_image_widget.h"
 #include "wizard_config_paths.h"
 
 #include <filesystem>
 #include <string>
+#include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -164,7 +170,102 @@ TEST_CASE_METHOD(XMLTestFixture,
          "the display refresh, and at its exact-size copy rather than the scaled source");
     CHECK(src_of(img) == cache_src);
 
+    // A tree deleted under the widget, with no detach first: the next tree
+    // has shown nothing, so the exact-size copy must be set on it again.
+    lv_obj_delete(lv_obj_get_parent(widget_obj));
+    build_tree(widget_obj, img);
+    w.attach(widget_obj, test_screen());
+    fire_due_one_shots();
+    INFO("a tree deleted without a detach must not leave the next one blank");
+    CHECK(src_of(img) == cache_src);
+
     w.detach();
+}
+
+// A custom image can be rewritten under its own path while the home grid is
+// being rebuilt. The recycled widget's fresh tree has shown nothing yet, so the
+// decoded copy it must drop is the one named by what it showed last.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PrinterImageWidget drops a rewritten source's decoded copy across a rebuild",
+                 "[panel_widget][printer_image][cache]") {
+    helix::init_widget_registrations();
+    helix::PanelWidgetManager::instance().init_widget_subjects();
+
+    // The header cache is the decoded state a read can observe; it ships at 0.
+    struct ScopedHeaderCache {
+        ScopedHeaderCache() {
+            lv_image_header_cache_resize(8, false);
+        }
+        ~ScopedHeaderCache() {
+            lv_image_header_cache_drop(nullptr);
+            lv_image_header_cache_resize(0, true);
+        }
+    } header_cache;
+
+    auto& pim = helix::PrinterImageManager::instance();
+    const std::string saved_custom_dir = pim.get_custom_dir();
+    const std::filesystem::path config_dir =
+        std::filesystem::temp_directory_path() /
+        ("helix_printer_image_rewrite_" + std::to_string(::getpid()));
+    std::filesystem::remove_all(config_dir);
+    pim.init(config_dir.string());
+
+    auto write_custom = [&](int w, int h) {
+        const std::vector<uint8_t> px(static_cast<size_t>(w) * h * 4, 0xFF);
+        for (const char* size : {"150", "300"}) {
+            REQUIRE(helix::write_lvgl_bin(pim.get_custom_dir() + "rewritten-" + size + ".bin", w, h,
+                                          LV_COLOR_FORMAT_ARGB8888, px.data(), px.size()));
+        }
+    };
+    write_custom(40, 30);
+    Config* cfg = Config::get_instance();
+    cfg->set<std::string>(cfg->df() + helix::PRINTER_IMAGE, "custom:rewritten");
+
+    auto build_tree = [&](lv_obj_t*& widget_obj, lv_obj_t*& img) {
+        lv_obj_t* container = lv_obj_create(test_screen());
+        lv_obj_set_size(container, 200, 200);
+        widget_obj = lv_obj_create(container);
+        lv_obj_set_size(widget_obj, 180, 160);
+        img = lv_image_create(widget_obj);
+        lv_obj_set_name(img, "printer_image");
+        lv_obj_set_size(img, LV_PCT(100), LV_PCT(100));
+        process_lvgl(2);
+    };
+    auto decoded_width = [](const std::string& src) {
+        lv_image_header_t hdr{};
+        REQUIRE(lv_image_decoder_get_info(src.c_str(), &hdr) == LV_RESULT_OK);
+        return static_cast<int>(hdr.w);
+    };
+
+    lv_obj_t* widget_obj = nullptr;
+    lv_obj_t* img = nullptr;
+    build_tree(widget_obj, img);
+    helix::PrinterImageWidget w;
+    w.attach(widget_obj, test_screen());
+    process_async_timers();
+    const std::string source = pim.get_displayed_image_path(printer_images::current_screen_width());
+    REQUIRE(source.find("rewritten-") != std::string::npos);
+    REQUIRE(decoded_width(source) == 40);
+
+    // The rebuild: the old tree goes, the file is rewritten with another size,
+    // and the new tree is attached.
+    w.detach();
+    lv_obj_delete(lv_obj_get_parent(widget_obj));
+    write_custom(20, 50);
+    build_tree(widget_obj, img);
+    w.attach(widget_obj, test_screen());
+    process_async_timers();
+
+    INFO("a source rewritten across a rebuild must not keep its stale decoded copy");
+    CHECK(decoded_width(source) == 20);
+
+    w.detach();
+    process_async_timers();
+    cfg->set<std::string>(cfg->df() + helix::PRINTER_IMAGE, "");
+    if (!saved_custom_dir.empty())
+        pim.init(std::filesystem::path(saved_custom_dir).parent_path().parent_path().string());
+    std::error_code ec;
+    std::filesystem::remove_all(config_dir, ec);
 }
 
 // Regression test for #1025 (grid walk-off crash family, #983). PrinterImageWidget
