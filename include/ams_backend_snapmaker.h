@@ -127,6 +127,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         // each side. The detail view's tray graphic draws a container that is not
         // there.
         t.has_physical_tray = false;
+        // PARK_EXTRUDER docks every head, so the carriage can be empty even though
+        // a load feeds filament rather than mounting a tool.
+        t.carriage_can_be_empty = true;
         t.supports_auto_heat_on_load = true;
         // AUTO_FEEDING ... UNLOAD=1 runs the firmware's unload state machine,
         // whose unload_heating stage heats (FILAMENT_BACKEND_SNAPMAKER_U1.md).
@@ -171,12 +174,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }();
     [[nodiscard]] BackendTraits traits() const override {
         return kTraits;
-    }
-
-    // PARK_EXTRUDER docks every head, so the carriage can be empty even though
-    // a load feeds filament rather than mounting a tool.
-    [[nodiscard]] bool carriage_can_be_empty() const override {
-        return true;
     }
 
     /// One head per extruder, each fed by the lane of the same index.

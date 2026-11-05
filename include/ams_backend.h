@@ -111,6 +111,7 @@ struct BackendTraits {
     bool sets_active_spool_on_link = false;
     bool print_routing_resets_to_identity = false;
     bool heads_share_heater = false;
+    bool carriage_can_be_empty = false;
     helix::ui::LaneNoun lane_noun = helix::ui::LaneNoun::Slot;
     helix::ui::LaneNoun tool_noun = helix::ui::LaneNoun::Tool;
     ToolheadStyle toolhead_style_hint = ToolheadStyle::AUTO;
@@ -808,11 +809,10 @@ class AmsBackend : public AmsCapabilityHost {
      * @brief True when the carriage can hold no tool at all, so a current tool
      *        of -1 means "nothing mounted" rather than "nothing loaded".
      *
-     * A machine whose heads dock (a tool changer, the Snapmaker U1) answers
-     * true: its heads are mounted and parked, which is never a filament op.
+     * True where heads dock: mounting and parking one is never a filament op.
      */
-    [[nodiscard]] virtual bool carriage_can_be_empty() const {
-        return false;
+    [[nodiscard]] bool carriage_can_be_empty() const {
+        return traits().carriage_can_be_empty;
     }
 
     /**
