@@ -408,7 +408,7 @@ TEST_CASE_METHOD(Landscape800, "outcome shows reprint and keeps preview", "[prin
 TEST_CASE_METHOD(Landscape800, "more menu lists only available actions", "[print_status]") {
     lv_subject_t* webcam = lv_xml_get_subject(nullptr, "printer_has_webcam");
     lv_subject_t* leds = lv_xml_get_subject(nullptr, "led_controllable");
-    lv_subject_t* timelapse = lv_xml_get_subject(nullptr, "printer_has_timelapse");
+    lv_subject_t* timelapse = lv_xml_get_subject(nullptr, "timelapse_owner");
     REQUIRE(webcam != nullptr);
     REQUIRE(leds != nullptr);
     REQUIRE(timelapse != nullptr);
@@ -521,7 +521,7 @@ TEST_CASE_METHOD(Portrait272, "a narrow job tile shows the current step compactl
 TEST_CASE_METHOD(Landscape800, "More hides when its menu has nothing to offer", "[print_status]") {
     lv_subject_t* webcam = lv_xml_get_subject(nullptr, "printer_has_webcam");
     lv_subject_t* leds = lv_xml_get_subject(nullptr, "led_controllable");
-    lv_subject_t* timelapse = lv_xml_get_subject(nullptr, "printer_has_timelapse");
+    lv_subject_t* timelapse = lv_xml_get_subject(nullptr, "timelapse_owner");
     REQUIRE(webcam != nullptr);
     REQUIRE(leds != nullptr);
     REQUIRE(timelapse != nullptr);

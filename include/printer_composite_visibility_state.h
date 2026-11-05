@@ -31,6 +31,17 @@ namespace helix {
  *   - Plugin status changes (set_helix_plugin_installed)
  *   - Printer type changes (set_printer_type_internal)
  */
+/// Who records timelapses on this printer, and so which controls it gets. Firmware
+/// that owns timelapse may also serve a stub of the plugin API that ignores writes,
+/// so it outranks the plugin. XML binds the int values.
+enum class TimelapseOwner { None = 0, Plugin = 1, Firmware = 2 };
+
+[[nodiscard]] constexpr TimelapseOwner timelapse_owner(bool firmware_owns, bool plugin_available) {
+    return firmware_owns      ? TimelapseOwner::Firmware
+           : plugin_available ? TimelapseOwner::Plugin
+                              : TimelapseOwner::None;
+}
+
 class PrinterCompositeVisibilityState {
   public:
     PrinterCompositeVisibilityState() = default;
@@ -81,6 +92,19 @@ class PrinterCompositeVisibilityState {
         return &has_any_preprint_options_;
     }
 
+    /// Publishes `timelapse_owner` for XML. Writes only on change.
+    void set_timelapse_owner(TimelapseOwner owner);
+
+    /// Publishes `timelapse_enabled`, the plugin's global setting. Writes only on change.
+    void set_timelapse_enabled(bool enabled);
+
+    lv_subject_t* get_timelapse_owner_subject() {
+        return &timelapse_owner_;
+    }
+    lv_subject_t* get_timelapse_enabled_subject() {
+        return &timelapse_enabled_;
+    }
+
   private:
     friend class PrinterCompositeVisibilityStateTestAccess;
 
@@ -93,6 +117,8 @@ class PrinterCompositeVisibilityState {
     bool last_plugin_ = false;
 
     lv_subject_t has_any_preprint_options_{};
+    lv_subject_t timelapse_owner_{};
+    lv_subject_t timelapse_enabled_{};
 };
 
 } // namespace helix

@@ -1183,9 +1183,13 @@ void PrintPreparationManager::start_print(const std::string& filename,
             const bool tl_enable = (sentinel == "timelapse:on");
             api_->timelapse().set_timelapse_enabled(
                 tl_enable,
-                [tl_enable]() {
+                [state = printer_state_, tl_enable]() {
                     spdlog::info("[PrintPreparationManager] Timelapse {} for this print",
                                  tl_enable ? "enabled" : "disabled");
+                    // The plugin has no per-print setting: this write is the global one.
+                    if (state) {
+                        state->set_timelapse_default_enabled(tl_enable);
+                    }
                 },
                 [](const MoonrakerError& err) {
                     spdlog::error("[PrintPreparationManager] Failed to update timelapse state: {}",

@@ -19,17 +19,25 @@
  * which is the only path that actually drives the inputs.
  */
 
+#include "ui_overlay_timelapse_settings.h"
+#include "ui_print_light_timelapse.h"
 #include "ui_update_queue.h"
 
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "moonraker_api.h"
+#include "moonraker_client_mock.h"
+#include "moonraker_timelapse_api.h"
 #include "pre_print_option.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 
 #include <algorithm>
+#include <memory>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -233,6 +241,8 @@ TEST_CASE("a database option owning the timelapse capability suppresses the synt
     REQUIRE(set.declares_capability("timelapse"));
     REQUIRE(set.find("u1_timelapse") != nullptr);
     REQUIRE(set.find("timelapse") == nullptr);
+    CHECK(lv_subject_get_int(state.composite_visibility_state().get_timelapse_owner_subject()) ==
+          static_cast<int>(TimelapseOwner::Firmware));
 
     const int timelapse_rows = static_cast<int>(
         std::count_if(set.options.begin(), set.options.end(),
@@ -258,9 +268,114 @@ TEST_CASE("a printer with no database timelapse option still gets the synthesize
     const PrePrintOptionSet& set = state.profile_state().pre_print_option_set();
     REQUIRE(set.find("timelapse") != nullptr);
     REQUIRE(set.find("u1_timelapse") == nullptr);
+    lv_subject_t* owner = state.composite_visibility_state().get_timelapse_owner_subject();
+    lv_subject_t* enabled = state.composite_visibility_state().get_timelapse_enabled_subject();
+    CHECK(lv_subject_get_int(owner) == static_cast<int>(TimelapseOwner::Plugin));
+    CHECK(lv_subject_get_int(enabled) == 1);
 
     const int timelapse_rows = static_cast<int>(
         std::count_if(set.options.begin(), set.options.end(),
                       [](const PrePrintOption& o) { return o.capability_key() == "timelapse"; }));
     REQUIRE(timelapse_rows == 1);
+
+    // A plugin that goes away leaves neither an owner nor its setting behind.
+    state.set_timelapse_available(false);
+    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    CHECK(lv_subject_get_int(owner) == static_cast<int>(TimelapseOwner::None));
+    CHECK(lv_subject_get_int(enabled) == 0);
+}
+
+TEST_CASE("firmware-owned timelapse needs no plugin component",
+          "[printer_state][preprint][timelapse][capability]") {
+    // The install row reads the same owner, so it must not offer the plugin here.
+    lv_init_safe();
+    PrinterState& state = fresh_state();
+
+    state.set_printer_type_sync("Snapmaker U1");
+    state.set_timelapse_available(false);
+    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    CHECK(lv_subject_get_int(state.composite_visibility_state().get_timelapse_owner_subject()) ==
+          static_cast<int>(TimelapseOwner::Firmware));
+}
+
+// ---------------------------------------------------------------------------
+// The plugin's global setting has one home: discovery seeds it and every
+// successful write refreshes it, so the Print Status button and the pre-print
+// default read the same value.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+class AcceptingTimelapseAPI : public MoonrakerTimelapseAPI {
+  public:
+    using MoonrakerTimelapseAPI::MoonrakerTimelapseAPI;
+    void set_timelapse_settings(const TimelapseSettings&, SuccessCallback on_success,
+                                ErrorCallback) override {
+        on_success();
+    }
+    void set_timelapse_enabled(bool enabled, SuccessCallback on_success, ErrorCallback) override {
+        last_enabled = enabled;
+        on_success();
+    }
+    bool last_enabled = false;
+};
+
+class AcceptingAPI : public MoonrakerAPI {
+  public:
+    AcceptingAPI(MoonrakerClient& client, PrinterState& state) : MoonrakerAPI(client, state) {
+        timelapse_api_ = std::make_unique<AcceptingTimelapseAPI>(client, "");
+    }
+};
+
+} // namespace
+
+TEST_CASE("the timelapse button and pre-print default follow the global setting",
+          "[printer_state][preprint][timelapse]") {
+    lv_init_safe();
+    PrinterState& state = fresh_state();
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    AcceptingAPI api(client, state);
+    auto& timelapse = static_cast<AcceptingTimelapseAPI&>(api.timelapse());
+    const std::string on = "\xF3\xB0\x95\xA7";
+    const std::string off = "\xF3\xB0\x95\xA8";
+
+    state.set_printer_type_sync("Voron 2.4");
+    state.set_timelapse_available(true);
+
+    PrintLightTimelapseControls controls;
+    controls.init_subjects();
+    controls.set_api(&api);
+    controls.set_printer_state(state);
+    lv_subject_t* icon = lv_xml_get_subject(nullptr, "timelapse_button_icon");
+    REQUIRE(icon != nullptr);
+
+    // A write queues its state update, which queues the button's observer.
+    const auto settle = [] {
+        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    };
+
+    // Discovery found it on: the button says so before any tap.
+    state.set_timelapse_default_enabled(true);
+    settle();
+    REQUIRE(find_timelapse_option(state) != nullptr);
+    CHECK(std::string(lv_subject_get_string(icon)) == on);
+
+    // So the first tap turns it off, and the pre-print default follows.
+    controls.handle_timelapse_button();
+    settle();
+    CHECK_FALSE(timelapse.last_enabled);
+    CHECK_FALSE(find_timelapse_option(state)->default_enabled);
+    CHECK(std::string(lv_subject_get_string(icon)) == off);
+
+    // Saving from the settings overlay refreshes the same value.
+    state.set_timelapse_default_enabled(true);
+    settle();
+    REQUIRE(find_timelapse_option(state)->default_enabled);
+    TimelapseSettingsOverlay overlay(&api);
+    overlay.save_settings(); // current_settings_ starts disabled
+    settle();
+    CHECK_FALSE(find_timelapse_option(state)->default_enabled);
+
+    controls.deinit_subjects();
 }
