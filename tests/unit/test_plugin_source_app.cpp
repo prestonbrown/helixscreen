@@ -125,7 +125,7 @@ std::vector<RemoteFile> listed(SourceDeps& deps, bool& ok) {
         done = true;
     });
     // One queued step per folder, more of them than one drain call runs.
-    for (int i = 0; i < 100 && !done; ++i)
+    for (int i = 0; i < 1000 && !done; ++i)
         helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(done);
     return files;
@@ -255,6 +255,47 @@ TEST_CASE_METHOD(LVGLTestFixture, "source deps list reads a missing plugin folde
     CHECK(ok);
     CHECK(files.empty());
     CHECK(api.files_.whole_root_lists == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "source deps list leaves git metadata out",
+                 "[plugin][source_app]") {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    RecordingApi api(client, state);
+    FileInfo lua;
+    lua.path = "helixscreen/plugins/spark/main.lua";
+    FileInfo git;
+    git.path = "helixscreen/plugins/spark/.git/config";
+    api.files_.listing = {lua, git};
+
+    SourceDeps deps = make_moonraker_source_deps(&api);
+    bool ok = false;
+    const std::vector<RemoteFile> files = listed(deps, ok);
+
+    REQUIRE(ok);
+    REQUIRE(files.size() == 1);
+    CHECK(files[0].path == "spark/main.lua");
+    CHECK(api.files_.dirs_listed ==
+          std::vector<std::string>{"helixscreen/plugins", "helixscreen/plugins/spark"});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "source deps list fails rather than report a partial tree",
+                 "[plugin][source_app]") {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    RecordingApi api(client, state);
+    for (int i = 0; i < 300; ++i) {
+        FileInfo f;
+        f.path = "helixscreen/plugins/p" + std::to_string(i) + "/main.lua";
+        api.files_.listing.push_back(f);
+    }
+
+    SourceDeps deps = make_moonraker_source_deps(&api);
+    bool ok = true;
+    const std::vector<RemoteFile> files = listed(deps, ok);
+
+    CHECK_FALSE(ok);
+    CHECK(files.empty());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "source deps list reports a failed listing",
