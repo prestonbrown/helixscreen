@@ -808,6 +808,11 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
     bool ready = false;
     std::string failure;
 
+    SECTION("a jog") {
+        print_starts();
+        CHECK_FALSE(backend.jog_chute_y(1.0f).success());
+        CHECK(backend.captured.empty());
+    }
     SECTION("the exit re-park") {
         print_starts();
         CHECK_FALSE(backend.exit_chute_calibration().success());
