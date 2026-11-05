@@ -7,6 +7,7 @@
  */
 
 #include "ui_button.h"
+#include "ui_emergency_stop.h"
 #include "ui_toast_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -209,4 +210,26 @@ TEST_CASE("A UI request reaches its kind's handler with its fields, on the calli
     publish_ui_request({UiRequestKind::OpenHardwareHealth});
     helix::set_ui_request_handler(UiRequestKind::OpenHardwareHealth, previous);
     CHECK(g_requests.size() == 1);
+}
+
+TEST_CASE("The UI installs a handler for every request kind", "[notification][notice]") {
+    for (int k = 0; k < static_cast<int>(UiRequestKind::kCount); ++k) {
+        const auto kind = static_cast<UiRequestKind>(k);
+        const auto installed = helix::set_ui_request_handler(kind, nullptr);
+        helix::set_ui_request_handler(kind, installed);
+        CAPTURE(k);
+        CHECK(installed != nullptr);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "A power device going off holds the recovery dialog back",
+                 "[notification][notice][recovery]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    estop.suppress_recovery_dialog(0);
+    REQUIRE_FALSE(estop.is_recovery_suppressed());
+
+    publish_ui_request({UiRequestKind::ExpectKlippyDisconnect});
+
+    CHECK(estop.is_recovery_suppressed());
+    estop.suppress_recovery_dialog(0);
 }

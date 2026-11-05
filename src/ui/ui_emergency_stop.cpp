@@ -19,6 +19,7 @@
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_recovery_service.h"
 
@@ -749,6 +750,15 @@ void EmergencyStopOverlay::recovery_recheck_cb(lv_timer_t* /*timer*/) {
     inst.arm_recovery_recheck_in(kRecoveryRecheckRetryMs);
 }
 
+namespace {
+// Runs on the WebSocket thread, before the disconnect that frame announces can
+// be judged: suppress_recovery_dialog() is an atomic store.
+const UiRequestRegistration s_expect_disconnect_registration{
+    UiRequestKind::ExpectKlippyDisconnect, [](const UiRequest&) {
+        EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::NORMAL);
+    }};
+} // namespace
+
 void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
     // Callable from the WebSocket background thread (Moonraker gcode callbacks) —
     // the deadline is atomic so main-thread readers never see a torn value.
@@ -1030,6 +1040,14 @@ void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t* e) {
 
 namespace helix {
 namespace ui {
+
+namespace {
+// The literal is the one the PID and input-shaper saves use for this event.
+const UiRequestRegistration s_expect_restart_registration{
+    UiRequestKind::ExpectKlippyRestart, [](const UiRequest& request) {
+        begin_expected_klippy_restart("Firmware restarting...", request.api);
+    }};
+} // namespace
 
 void begin_expected_klippy_restart(std::string message, IMoonrakerAPI* api) {
     // The suppression writes are atomic deadline stores, safe right here on
