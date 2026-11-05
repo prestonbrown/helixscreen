@@ -26,7 +26,7 @@ zone code.
 Backend hardware state
   |
   |  AmsBackend::get_environment_zones(unit)   (include/ams_backend.h)
-  |    default: walk AmsUnit::environment / SlotInfo::environment + get_dryer_info()
+  |    default: walk AmsUnit::environment / SlotInfo::environment + dryer_info()
   |    Happy Hare: derive_environment_zones() over its per-gate lists
   |    Mock: default walk, plus a simulated cap in "capped" mode
   v
@@ -46,7 +46,7 @@ open_environment_for_unit(unit)       (src/ui/filament/ui_ams_environment_overla
         readouts, material comfort strip, dryer controls, queued banner
           |
           v
-        AmsBackend::start_drying / stop_drying (unit = the shown zone's unit_index)
+        IDryer::start_drying_request / stop_drying_gates (unit = the shown zone's unit_index)
 ```
 
 The invariant: **a zone is what the UI selects, renders and controls.** Nothing above the
@@ -63,7 +63,7 @@ heater is shared or per-lane.
 | `src/printer/ams_environment_zone.cpp` | `derive_environment_zones()`, `fold_zone_drying_state()`, `queue_zones_waiting_for_the_cap()`, `select_zone_presentation()` |
 | `include/ui_zone_presentation.h` | `ZoneVerdict`, the humidity thresholds, `zone_display_label()`, `zone_slot_text()`, `zones_span_units()` |
 | `src/ui/filament/ui_zone_presentation.cpp` | Their implementations. LVGL-free and translation-free: callers pass translated words in |
-| `include/ams_backend.h` | `get_environment_zones()` - the sixth dryer-family virtual - and the five it sits beside |
+| `include/ams_backend.h`, `include/ams_dryer.h` | `get_environment_zones()` on the backend; the `IDryer` capability and `dryer_info()` beside it |
 | `src/printer/ams_backend.cpp` | `AmsBackend::get_environment_zones` - the default walk every backend gets for free |
 | `src/printer/ams_backend_happy_hare.cpp` | The one hardware override, plus `heater_suffix_locked()` and the `MMU_HEATER` command shapes |
 | `src/printer/ams_backend_mock.cpp` | Zone-shape rigs for the six `HELIX_MOCK_AMS_ENV` modes; the only caller of `queue_zones_waiting_for_the_cap()` |
@@ -525,7 +525,7 @@ site, so these are the contract for whoever wires the first one.
 |---------|-----------|
 | Happy Hare | Temperature alone re-sends the setpoint and leaves the cycle and its timer alone. Any duration change is a stop then a start, carrying the running target when only the duration moved |
 | ACE | Always a stop then a start. When the duration was not specified it restarts on `remaining_min` rather than `duration_min`, so a temperature change does not silently hand back time already served |
-| Every other backend | The `AmsBackend` default: `NOT_SUPPORTED` |
+| Every other backend | The `IDryer` default: `NOT_SUPPORTED` |
 
 QIDI overrides `get_dryer_info`, `start_drying` and `stop_drying` but **not** `update_drying`, so
 its adjustments fall to that default. Its input validation lives in `start_drying`, which range-
@@ -541,18 +541,16 @@ than silently dropping an adjustment.
 
 ## Adding environment support to a new backend
 
-`get_environment_zones()` is the sixth virtual in the dryer family, beside `get_dryer_info()`,
-`start_drying()`, `stop_drying()`, `update_drying()` and `get_drying_presets()`. Unlike the other
-five it is **not** a "not supported" stub - it has a working default, so most backends should
-never override it.
+`get_environment_zones()` is on `AmsBackend`, not `IDryer` (`include/ams_dryer.h`), because a zone
+needs no dryer. It has a working default, so most backends should never override it.
 
 **To get a passive zone from the default walk**, publish an `EnvironmentData` on the unit
 (`AmsUnit::environment`) or on each measured slot (`SlotInfo::environment`). Set `has_humidity`
 only when a real humidity channel exists; leaving it false with `humidity_pct == 0` is what makes
 the verdict `Unknown` instead of a fabricated `Ok`.
 
-**To get a heated zone**, additionally return `DryerInfo{.supported = true, ...}` from
-`get_dryer_info(unit)` and implement `start_drying()` / `stop_drying()`. Fill `min_temp_c`,
+**To get a heated zone**, additionally publish `IDryer`, return `DryerInfo{.supported = true, ...}`
+from `get_dryer_info(unit)` and implement `start_drying()` / `stop_drying()`. Fill `min_temp_c`,
 `max_temp_c` and `max_duration_min` from the hardware - the overlay clamps the keypad and the
 Start command to exactly those, so a wrong ceiling shows the user a number the command will
 silently replace. Set `supports_live_temp` / `supports_live_duration` only where the hardware

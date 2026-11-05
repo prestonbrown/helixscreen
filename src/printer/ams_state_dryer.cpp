@@ -8,6 +8,7 @@
  * class and its threading contract are in ams_state.h.
  */
 
+#include "ams_dryer.h"
 #include "ams_state.h"
 #include "ams_state_internal.h"
 
@@ -38,7 +39,7 @@ void AmsState::sync_dryer_from_backend() {
         return;
     }
 
-    DryerInfo dryer = backend->get_dryer_info(dryer_mirror_unit_);
+    DryerInfo dryer = helix::dryer_info(*backend, dryer_mirror_unit_);
 
     // Update integer subjects
     int new_supported = dryer.supported ? 1 : 0;
@@ -69,7 +70,7 @@ void AmsState::adjust_modal_temp(int delta_c) {
     float max_temp = static_cast<float>(kMaxDryerTempC);
     auto* backend = get_backend(0);
     if (backend) {
-        DryerInfo dryer = backend->get_dryer_info(dryer_mirror_unit_);
+        DryerInfo dryer = helix::dryer_info(*backend, dryer_mirror_unit_);
         min_temp = dryer.min_temp_c;
         max_temp = dryer.max_temp_c;
     }
@@ -89,7 +90,7 @@ void AmsState::adjust_modal_duration(int delta_min) {
     int max_duration = kMaxDryerDurationMin;
     auto* backend = get_backend(0);
     if (backend) {
-        DryerInfo dryer = backend->get_dryer_info(dryer_mirror_unit_);
+        DryerInfo dryer = helix::dryer_info(*backend, dryer_mirror_unit_);
         max_duration = dryer.max_duration_min;
     }
 

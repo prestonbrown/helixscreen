@@ -345,7 +345,7 @@ class FilamentMapper {
     /// A reprint has no detail view, no swatch card and no picker, so nothing on
     /// that path can recompute a colour match — the only thing that knows how the
     /// job was routed is the printer, and only while the task was still
-    /// configured (AmsBackend::last_print_tool_mapping() is that snapshot).
+    /// configured (IPrintRouting::last_print_tool_mapping() is that snapshot).
     ///
     /// Named and pure for the same reason effective_routing() is: getting it
     /// wrong is silent. An empty remap flows into build_preprint_gcode(), which

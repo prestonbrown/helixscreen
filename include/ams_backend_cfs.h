@@ -21,6 +21,7 @@ namespace helix::printer {
 #include "ui_timer_guard.h"
 
 #include "ams_cfs_calibration.h"
+#include "ams_print_routing.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "cfs_status_parse.h"
@@ -128,13 +129,16 @@ enum class CfsSchema {
 };
 
 /// CFS (Creality Filament System) backend — K1 + K2 series printers with RS-485 CFS units
-class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration {
+class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, public IPrintRouting {
   public:
     AmsBackendCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<ICfsCalibration>()) {
             return static_cast<ICfsCalibration*>(this);
+        }
+        if (tag == helix::type_tag<IPrintRouting>()) {
+            return static_cast<IPrintRouting*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }

@@ -13,6 +13,7 @@
 
 #include "../test_fixtures.h"
 #include "ams_backend_mock.h"
+#include "ams_dryer.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/static_panel_registry.h"
@@ -71,7 +72,7 @@ EnvironmentZone dryer_zone(const AmsBackend& backend) {
     zone.id = "unit0";
     zone.unit_index = 0;
     zone.gates = {0, 1, 2, 3};
-    zone.dryer = backend.get_dryer_info(0);
+    zone.dryer = dryer_info(backend, 0);
     return zone;
 }
 

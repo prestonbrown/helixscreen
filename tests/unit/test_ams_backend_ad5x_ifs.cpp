@@ -12690,7 +12690,7 @@ TEST_CASE("AD5X IFS purge-bin gcode by macro set and job state",
         helix::PrinterDiscovery hw;
         hw.parse_objects(objects);
         AmsBackendAd5xIfs backend(nullptr, nullptr);
-        const AmsBackend& base = backend;
+        const helix::IPrintRouting& base = backend;
         CHECK(base.purge_preamble_gcode(false).empty()); // nothing until discovery
         backend.set_discovery(hw);
         INFO(objects.dump());

@@ -363,7 +363,7 @@ void execute_filament_unload(AmsBackend* backend, int slot, bool target_is_loade
 void execute_filament_purge(const char* log_tag);
 
 /// Run @p purge once the active filament backend's purge preamble
-/// (AmsBackend::purge_preamble_gcode(), asked with whether a job holds the
+/// (IPrintRouting::purge_preamble_gcode(), asked with whether a job holds the
 /// machine right now) has completed. Every Purge surface sends its macro or raw
 /// fallback through this, so the preamble cannot be skipped by one of them.
 ///

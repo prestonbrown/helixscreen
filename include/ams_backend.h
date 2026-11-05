@@ -2215,22 +2215,8 @@ class AmsBackend : public AmsCapabilityHost {
     [[nodiscard]] virtual bool is_bypass_active() const = 0;
 
     // ========================================================================
-    // Dryer Control (Optional - default implementations return "not supported")
+    // Environment zones
     // ========================================================================
-
-    /**
-     * @brief Get dryer state and capabilities
-     *
-     * Returns current dryer state including temperature, duration, and
-     * hardware capabilities. Not all AMS systems have dryers - check
-     * DryerInfo::supported before showing dryer UI.
-     *
-     * @return DryerInfo struct (supported=false if no dryer)
-     */
-    [[nodiscard]] virtual DryerInfo get_dryer_info(int unit = 0) const {
-        (void)unit;
-        return DryerInfo{.supported = false};
-    }
 
     /**
      * @brief The environment zones this system exposes.
@@ -2242,117 +2228,15 @@ class AmsBackend : public AmsCapabilityHost {
      *
      * The default derives zones from what every backend already publishes: a
      * unit-level sensor makes the unit one zone, per-slot sensors make one zone per
-     * lane, and a unit with neither a sensor nor a dryer contributes nothing. The
-     * default cannot express a per-lane heater; a backend whose hardware does
-     * overrides this.
+     * lane, and a unit with neither a sensor nor a dryer (IDryer, ams_dryer.h)
+     * contributes nothing. The default cannot express a per-lane heater; a backend whose hardware
+     * does overrides this.
      *
      * @param unit Unit to scope to, or -1 for every zone on the printer
      * @return Zones ordered by unit, then by lowest gate
      */
     [[nodiscard]] virtual std::vector<helix::printer::EnvironmentZone>
     get_environment_zones(int unit = -1) const;
-
-    /**
-     * @brief Start drying operation
-     *
-     * Initiates filament drying at specified temperature and duration.
-     * Not all AMS systems support drying - check get_dryer_info().supported.
-     *
-     * @param temp_c Target temperature in Celsius (within min_temp_c..max_temp_c)
-     * @param duration_min Drying duration in minutes (positive, capped at max_duration_min)
-     * @param fan_pct Fan speed percentage (0-100, -1 = use backend default)
-     * @return AmsError with SUCCESS result on success, or error with reason
-     */
-    virtual AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) {
-        (void)temp_c;
-        (void)duration_min;
-        (void)fan_pct;
-        (void)unit;
-        return AmsErrorHelper::not_supported("Dryer");
-    }
-
-    /**
-     * @brief Start drying that also ends once the box reaches a humidity target
-     *
-     * The cycle runs at most @p duration_min and ends sooner once the box's relative
-     * humidity reads at or below @p humidity_pct. Only a backend whose
-     * get_dryer_info(unit).supports_humidity_target is true implements this; callers
-     * with no target use start_drying(), which leaves any target to the dryer's own default.
-     *
-     * @param humidity_pct Target relative humidity, % (positive)
-     */
-    virtual AmsError start_drying_to_humidity(float temp_c, int duration_min, float humidity_pct,
-                                              int fan_pct = -1, int unit = 0) {
-        (void)temp_c;
-        (void)duration_min;
-        (void)humidity_pct;
-        (void)fan_pct;
-        (void)unit;
-        return AmsErrorHelper::not_supported("Dryer humidity target");
-    }
-
-    /**
-     * @brief Stop drying operation
-     *
-     * Stops any active drying and turns off heater/fan.
-     *
-     * @return AmsError with SUCCESS result on success, or error with reason
-     */
-    virtual AmsError stop_drying(int unit = 0) {
-        (void)unit;
-        return AmsErrorHelper::not_supported("Dryer");
-    }
-
-    /**
-     * @brief Start drying as @p request describes
-     *
-     * The one entry point a surface needs whatever the dryer can do. With no gates and
-     * no rotation it is exactly start_drying(), or start_drying_to_humidity() when a
-     * target is set, so a backend overrides it only to take a gate selection
-     * (DryerInfo::supports_gate_selection) or spool rotation (supports_rotation).
-     */
-    virtual AmsError start_drying_request(const DryingRequest& request);
-
-    /**
-     * @brief Stop drying on @p gates only, or everything on @p unit when empty
-     *
-     * Empty @p gates is exactly stop_drying(). Gates need
-     * DryerInfo::supports_gate_selection; the rest of the cycle keeps running.
-     */
-    virtual AmsError stop_drying_gates(int unit, const std::vector<int>& gates);
-
-    /**
-     * @brief Update drying parameters while running
-     *
-     * Adjusts temperature, duration, or fan speed during an active dry cycle.
-     * Pass -1 to keep current value for any parameter.
-     *
-     * @param temp_c New target temperature (-1 = no change)
-     * @param duration_min New duration (-1 = no change)
-     * @param fan_pct New fan speed (-1 = no change)
-     * @return AmsError with SUCCESS result on success, or error with reason
-     */
-    virtual AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1,
-                                   int unit = 0) {
-        (void)temp_c;
-        (void)duration_min;
-        (void)fan_pct;
-        (void)unit;
-        return AmsErrorHelper::not_supported("Dryer");
-    }
-
-    /**
-     * @brief Get available drying presets
-     *
-     * Returns preset profiles for common filament materials.
-     * Backends can override to provide hardware-specific presets.
-     * Falls back to get_default_drying_presets() if not overridden.
-     *
-     * @return Vector of DryingPreset structs
-     */
-    [[nodiscard]] virtual std::vector<DryingPreset> get_drying_presets() const {
-        return get_default_drying_presets();
-    }
 
     // ========================================================================
     // Endless Spool Control
@@ -2534,54 +2418,11 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief Routing the printer last ran a CONFIGURED print task with.
-     *
-     * get_tool_mapping() answers "what routing is live right now" and goes empty
-     * the moment the task ends — which is exactly when a reprint needs the
-     * answer. This is the snapshot taken while the task was still configured:
-     * logical tool -> physical head for the most recent print, retained after the
-     * firmware clears its used-heads flags and (on some firmware) resets the
-     * table itself.
-     *
-     * EMPTY means NOT KNOWN — no configured task has been observed. A caller must
-     * not read that as identity; run it through FilamentMapper::reprint_remap(),
-     * which turns "not known" into "do not send" rather than into a default map.
-     *
-     * Not keyed to a file: it describes the most recent print, which is the only
-     * job a reprint can target.
-     *
-     * Default empty: only backends that need a pre-print send
-     * (requires_preprint_send()) have anything to answer.
-     */
-    [[nodiscard]] virtual std::vector<int> last_print_tool_mapping() const {
-        return {}; // Default: not known
-    }
-
-    /**
-     * @brief Does the firmware route each file tool to its own slot by default?
-     *
-     * When last_print_tool_mapping() is not known, a reprint has no routing to
-     * replay. A backend answering true runs every tool the pre-print send leaves
-     * out at the slot of the same number, so the identity map for the file's
-     * tools states that default rather than guessing one; a reprint sends it to
-     * overwrite any map the printer still holds for its next print. A backend
-     * whose jobs carry their own crossover (Snapmaker U1) answers false: there
-     * an identity map written for a reprint is a confident wrong answer, so an
-     * unknown routing writes no map. What such a reprint may still send is
-     * print_routing_resets_to_identity()'s question.
-     *
-     * Default false.
-     */
-    [[nodiscard]] virtual bool default_print_routing_is_identity() const {
-        return false;
-    }
-
-    /**
      * @brief Does the firmware return its routing to identity when each print ends?
      *
      * Then a print whose start writes no map runs file tool n at slot n, so a
      * reprint with an unknown routing can still tell the firmware which slots
-     * the file uses (build_unrouted_preprint_gcode()) without writing a map.
+     * the file uses (IPrintRouting::build_unrouted_preprint_gcode()) without writing a map.
      * Without it, that reprint sends only the routing-free part of the
      * pre-print step.
      *
@@ -2589,20 +2430,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] bool print_routing_resets_to_identity() const {
         return traits().print_routing_resets_to_identity;
-    }
-
-    /**
-     * @brief The pre-print step for a reprint whose routing is unknown.
-     *
-     * Asked only of a backend answering print_routing_resets_to_identity(): the
-     * slots @p tools_used run at under the firmware's default routing, and no
-     * map. A backend that cannot vouch for that default right now answers the
-     * routing-free part instead. Default: the routing-free part.
-     */
-    [[nodiscard]] virtual std::string
-    build_unrouted_preprint_gcode(const std::set<int>& tools_used) const {
-        (void)tools_used;
-        return build_preprint_gcode({}, {});
     }
 
     /**
@@ -3063,22 +2890,6 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief Gcode to run ahead of a user-requested purge, or "" for none.
-     *
-     * A machine whose firmware ships a "go to the purge bin" routine answers it
-     * here, so every Purge surface sends it before the purge macro or the raw
-     * extrude fallback and the filament lands in the bin instead of wherever the
-     * nozzle stopped. Callers dispatch the purge only once this has completed.
-     *
-     * @param job_holds_machine A print owns the toolhead (printing or paused):
-     *        the answer must not home then.
-     */
-    [[nodiscard]] virtual std::string purge_preamble_gcode(bool job_holds_machine) const {
-        (void)job_holds_machine;
-        return {};
-    }
-
-    /**
      * @brief Whether the backend assigns one spool per tool (tool-changer model).
      *
      * Drives the auto-assign-active-spool-to-tool path and the runout-guidance
@@ -3114,7 +2925,7 @@ class AmsBackend : public AmsCapabilityHost {
      *        PRINT_START.
      *
      * Backends that answer true have PrintStartController call
-     * build_preprint_gcode() and send the result (synchronously gating the print
+     * IPrintRouting::build_preprint_gcode() and send the result (synchronously gating the print
      * start) before the print begins. Default false — every backend takes the
      * unchanged synchronous start path. Snapmaker U1 overrides it true: its
      * firmware errors if SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP arrive
@@ -3126,72 +2937,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] bool requires_preprint_send() const {
         return traits().requires_preprint_send;
-    }
-
-    /**
-     * @brief Firmware-native pre-print command sequence (e.g. print_task_config).
-     *
-     * Backends that answer requires_preprint_send() == true emit firmware-native
-     * gcode (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) BEFORE PRINT_START.
-     * The caller gates on requires_preprint_send() and sends the returned gcode.
-     * Default returns "" (no native pre-print step); the Snapmaker backend
-     * overrides it.
-     *
-     * @param tools_used Logical tools the gcode body uses
-     * @param remap      Logical tool -> physical head, only for changed tools
-     * @return Newline-joined gcode (no trailing newline), or "" when none
-     */
-    [[nodiscard]] virtual std::string build_preprint_gcode(const std::set<int>& tools_used,
-                                                           const std::map<int, int>& remap) const {
-        (void)tools_used;
-        (void)remap;
-        return "";
-    }
-
-    /**
-     * @brief The user's standing per-print choices, for a print already running.
-     *
-     * A print some other client started (Mainsail, a slicer, Moonraker's job
-     * queue) skips this screen's pre-print step. This is the part of that step
-     * that still applies once the print is running, rendered by the same
-     * functions build_preprint_gcode() uses: no routing (it is refused or too
-     * late mid-print), only choices that act later in the print. It is sent
-     * right after such a start, by the HelixPrint plugin or by this screen.
-     * Default "" (nothing to send).
-     *
-     * @return Newline-joined gcode (no trailing newline), or "" when none
-     */
-    [[nodiscard]] virtual std::string standing_print_gcode() const {
-        return "";
-    }
-
-    /**
-     * @brief This screen is about to start a print on a pre-print-send backend.
-     *
-     * Called by every start that runs the pre-print step, as the start is
-     * dispatched, so a backend holding per-print state can begin it for the
-     * print that follows. Main thread. Default: no-op.
-     */
-    virtual void note_print_start_from_here() {}
-
-    /**
-     * @brief Whether the pre-print send can honor this remap right now.
-     *
-     * The pre-print counterpart to can_set_tool_mapping(): a remap naming a
-     * slot that cannot feed is refused here, and PrintStartController stops
-     * the print with the error's user_msg instead of sending a map the
-     * firmware would act on with a slot it cannot reach. A backend that
-     * refuses here also returns "" from build_preprint_gcode() for the same
-     * arguments. Default success.
-     *
-     * @param tools_used Logical tools the gcode body uses
-     * @param remap      Logical tool -> physical slot, only for changed tools
-     */
-    [[nodiscard]] virtual AmsError check_preprint_remap(const std::set<int>& tools_used,
-                                                        const std::map<int, int>& remap) const {
-        (void)tools_used;
-        (void)remap;
-        return AmsErrorHelper::success();
     }
 
     /**

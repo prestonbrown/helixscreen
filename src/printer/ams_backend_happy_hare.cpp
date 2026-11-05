@@ -3708,7 +3708,7 @@ AmsError AmsBackendHappyHare::start_drying_to_humidity(float temp_c, int duratio
 
 AmsError AmsBackendHappyHare::start_drying_request(const DryingRequest& request) {
     if (request.gates.empty() && !request.rotate) {
-        return AmsBackend::start_drying_request(request);
+        return IDryer::start_drying_request(request);
     }
 
     std::vector<int> selected;

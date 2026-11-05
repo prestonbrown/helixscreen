@@ -612,7 +612,7 @@ Settings > Printing > Apply start options to prints from other apps.
 | File | Role |
 |------|------|
 | `moonraker-plugin/helix_print_hooks.py` | `standing_gcode()`, `hook_gcode()` (pure), `PrintHooks` (history handler, `screen_start` endpoint) |
-| `include/ams_backend.h#standing_print_gcode` | `AmsBackend::standing_print_gcode()`, the capability: per-print choices that still apply to a running print. Default empty |
+| `include/ams_print_routing.h#standing_print_gcode` | `IPrintRouting::standing_print_gcode()`, the capability: per-print choices that still apply to a running print. Default empty |
 | `src/printer/ams_backend_snapmaker.cpp#standing_print_gcode` | U1: the end-unload list, with `FORCE=1` because the print is already running |
 | `include/standing_print_options.h` | `render_standing_gcode`, `standing_options_record`, `standing_options_sender`, `announce_screen_start`, `ScreenStartLedger` |
 | `src/printer/standing_print_options_controller.cpp` | Keeps the record current, registers `notify_history_changed`, the app fallback send, the presence heartbeat |

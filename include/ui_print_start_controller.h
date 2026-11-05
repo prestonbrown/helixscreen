@@ -150,7 +150,7 @@ class PrintStartController {
      * @p on_error are invoked on the MAIN thread.
      *
      * There is no detail view here and no reprint picker, so the routing comes
-     * from AmsBackend::last_print_tool_mapping() — the routing the printer ran
+     * from IPrintRouting::last_print_tool_mapping() — the routing the printer ran
      * the job with — via FilamentMapper::reprint_remap(). When that is not known
      * the map is SKIPPED rather than defaulted: an empty remap makes
      * build_preprint_gcode write every used tool to its firmware-default head,

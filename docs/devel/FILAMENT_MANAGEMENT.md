@@ -2729,7 +2729,7 @@ Some AMS backends include an integrated filament dryer — a heated chamber that
 ### Data Flow
 
 ```
-AmsBackend::get_dryer_info(unit)     populates DryerInfo (ams_drying_types.h)
+IDryer::get_dryer_info(unit)         populates DryerInfo (ams_drying_types.h)
 AmsBackend::get_environment_zones()  zones carry a DryerInfo each
         │
         ├──────────────────────────────┐
@@ -2799,15 +2799,15 @@ attributed to one unit refuses to start or stop rather than guessing.
 
 ### Backend Virtual Interface
 
-Declared in `include/ams_backend.h`. The command virtuals default to `supported=false` / `not_supported` so backends without a dryer need no changes. `get_environment_zones()` is the exception: it has a working default, and a backend that publishes environment data gets a box on screen without overriding anything.
+The dryer is the `IDryer` capability (`include/ams_dryer.h`), reached with `backend->as<IDryer>()`. `helix::dryer_info(backend, unit)` reads a unit's state from any backend, unsupported when it has no `IDryer`. `get_environment_zones()` stays on `AmsBackend` and has a working default, since a passive sensor makes a zone with no dryer behind it. The `Default` column is what a backend gets by inheriting `IDryer` and not overriding; `get_dryer_info()`, `start_drying()` and `stop_drying()` have no default.
 
 | Virtual | Default | Description |
 |---------|---------|-------------|
-| `get_dryer_info(unit)` | `DryerInfo{.supported=false}` | Read one unit's dryer state |
-| `get_environment_zones(unit)` | Derived from `AmsUnit::environment` / `SlotInfo::environment` + `get_dryer_info()` | The boxes this system exposes ([FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md)) |
-| `start_drying(temp, minutes, fan, unit)` | NOT_SUPPORTED | Begin a drying session |
+| `get_dryer_info(unit)` | none | Read one unit's dryer state |
+| `get_environment_zones(unit)` | Derived from `AmsUnit::environment` / `SlotInfo::environment` + `dryer_info()` | The boxes this system exposes ([FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md)) |
+| `start_drying(temp, minutes, fan, unit)` | none | Begin a drying session |
 | `start_drying_to_humidity(temp, minutes, humidity_pct, fan, unit)` | NOT_SUPPORTED | Begin a session that also ends at a humidity target. Only for a dryer reporting `supports_humidity_target`; with no target the overlay calls `start_drying()` |
-| `stop_drying(unit)` | NOT_SUPPORTED | End the active session |
+| `stop_drying(unit)` | none | End the active session |
 | `start_drying_request(request)` | `start_drying()`, or `start_drying_to_humidity()` with a target; NOT_SUPPORTED with gates or rotation | The overlay's one start call. `DryingRequest` carries temp, minutes, optional humidity target, unit, and optionally `gates` and `rotate`. Override only to take a selection |
 | `stop_drying_gates(unit, gates)` | `stop_drying()` with no gates; NOT_SUPPORTED with some | Stop just those gates; the rest of the cycle keeps running |
 | `update_drying(temp, minutes, fan, unit)` | NOT_SUPPORTED | Change temp/time mid-session |
@@ -2855,9 +2855,9 @@ Happy Hare's filament dryer is driven by the `MMU_HEATER` command and configured
 
 ### Adding Dryer Support to a New Backend
 
-Override the five dryer virtuals in your `AmsBackend` subclass. At minimum implement `get_dryer_info()` — the UI polls this to drive the display. Implement `start_drying()` and `stop_drying()` to make the controls functional. `update_drying()` and `get_drying_presets()` are optional enhancements.
+Inherit `IDryer` and return it from `capability()`. Implement `get_dryer_info()` — the UI polls this to drive the display — and `start_drying()` and `stop_drying()`, which make the controls functional. `update_drying()` and `get_drying_presets()` are optional enhancements.
 
-A sixth virtual sits in the same family: `get_environment_zones()`. Unlike the five it has a working default that derives zones from `AmsUnit::environment` / `SlotInfo::environment` plus `get_dryer_info()`, so most backends never override it - publishing an `EnvironmentData` is enough to get a box on screen, with or without a heater behind it. [FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md) § "Adding environment support to a new backend" has the full recipe and says when an override is actually needed.
+`get_environment_zones()` stays on `AmsBackend`. Its working default derives zones from `AmsUnit::environment` / `SlotInfo::environment` plus `dryer_info()`, so most backends never override it - publishing an `EnvironmentData` is enough to get a box on screen, with or without a heater behind it. [FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md) § "Adding environment support to a new backend" has the full recipe and says when an override is actually needed.
 
 Dryer status flows into `AmsState::sync_dryer_from_backend()` the same way slot state does — no additional wiring is required in `AmsState`.
 
@@ -3670,13 +3670,20 @@ A caller spells out what a backend without the interface means: the sidebar's bu
 - `IInsertSignals` (`include/ams_insert_signals.h`) -- A lane's own insert reading and its tag reader's
   verdict, for the insert watcher (§ Insert prompts). The Snapmaker U1 and MultiACE implement it. Without
   it an insert is the slot status rising on a lane with a prep sensor, and no reader is waited on.
+- `IDryer` (`include/ams_dryer.h`) -- Drying cycles and the per-unit `DryerInfo` (§ Data Flow above). ACE Pro,
+  MultiACE, OpenAMS, the QIDI box, Happy Hare and the mock implement it; `DryerInfo::supported` says whether
+  this machine's unit has the hardware.
+- `IPrintRouting` (`include/ams_print_routing.h`) -- Gcode the firmware gets ahead of a job: the pre-print
+  step and its refusal, a reprint's recorded routing, standing options and the purge preamble. The Snapmaker U1,
+  MultiACE, CFS, the AD5X IFS and the mock implement it. Without it nothing is sent. Whether a start runs the
+  step is `requires_preprint_send()` in `BackendTraits`, and `firmware_default_routing()` (§ 1b) stays on
+  `AmsBackend`, since every backend answers it.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 
 **Optional overrides (with default implementations):**
 
 - `clear_fault()` -- Clear a latched fault, bookkeeping only (default: forwards to `cancel()`)
-- `get_dryer_info()`, `start_drying()`, `stop_drying()`, `update_drying()` -- Dryer control
 - `get_endless_spool_capabilities()`, `get_endless_spool_config()` -- Endless spool state. `set_endless_spool_backup()` is **not** an override point: it is non-virtual and owns every rejection. Supply `apply_endless_spool_backup()` (protected, transport only), `endless_spool_slot_count()` (protected, only if `total_slots` is wrong for you), and `endless_spool_backup_eligibility()` (only to tighten the default polymer-plus-grade rule; return `Eligible`/`Incompatible` only, unless your firmware genuinely has a soft case). `reset_endless_spool()` already works for any editable backend by looping the setter with -1 - override it only if your firmware has a real reset primitive. See § [Endless Spool](#endless-spool-shared-model).
 - `get_remap_strategy()`, `remap_ready()`, `owns_tool_mapping_table()`, `get_tool_mapping()` -- Tool mapping. **Three questions, one spelling each.** `get_remap_strategy()` says HOW a user's tool->lane pick is carried out (`Native` writes your table, `GcodeRewrite` rewrites the job, `PrePrintSend` is a firmware pre-print send, `None` means it cannot be). `remap_ready()` says whether that route is usable YET -- default true, override only where discovery gates it, as AD5X IFS does on `_IFS_VARS`. `owns_tool_mapping_table()` says whether you hold a tool->slot table for `ToolState` to adopt; the Snapmaker U1 answers **no** and still honors every pick, through its pre-print send, which is why this is not the same question as the first two. Ask them through `ams_remap.h` -- never by combining them at a call site, which is how one question came to have six answers that could disagree. Three named predicates there, and the difference between them is `GcodeRewrite`: `can_remap()` asks whether the user's pick will be honored at all (yes), `remap_is_persistent()` whether the answer outlives the send (yes, it is in the job file), `can_write_mapping_table()` whether a `set_tool_mapping()` write lands (no, there is no table).
 - `get_device_sections()`, `get_device_actions()`, `do_execute_device_action()` -- Device-specific actions. `execute_device_action()` is `final` in the subscription base and refuses an id the two lists do not offer

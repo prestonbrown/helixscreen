@@ -3,7 +3,7 @@
 
 // The U1 forgets its unload-at-end list when each print ends, so every way a
 // print starts carries it: a reprint with no recorded routing and a restart
-// from the beginning included.
+// from the beginning included. A backend with no IPrintRouting sends nothing there.
 
 #if HELIX_HAS_SNAPMAKER
 
@@ -15,16 +15,19 @@
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/snapmaker_test_access.h"
+#include "ams_backend_afc.h"
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "filament_op_execute.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "standing_print_options.h"
 #include "test_helpers/backend_harness.h"
 
 #include <string>
@@ -68,6 +71,18 @@ struct U1StartFx : LVGLTestFixture {
     }
 };
 
+/// Promises the pre-print step with nothing to build it: no real backend does, so
+/// this reaches the fallback every caller spells out for a missing IPrintRouting.
+class NoRoutingBackend : public AmsBackendAfc {
+  public:
+    NoRoutingBackend(IMoonrakerAPI* api, IMoonrakerClient* client) : AmsBackendAfc(api, client) {}
+    [[nodiscard]] BackendTraits traits() const override {
+        BackendTraits t = AmsBackendAfc::traits();
+        t.requires_preprint_send = true;
+        return t;
+    }
+};
+
 void report_heads(test::WiredBackend<AmsBackendSnapmaker>& backend) {
     backend.fire_status(nlohmann::json{
         {"print_task_config", {{"end_unload_filament", {false, false, false, false}}}}});
@@ -89,6 +104,38 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint with no recorded routing still sends t
     CHECK(sent.find(kUnload) != std::string::npos);
     // No routing was recorded, so no map is invented.
     CHECK(sent.find("SET_PRINT_EXTRUDER_MAP") == std::string::npos);
+}
+
+TEST_CASE_METHOD(U1StartFx, "a backend without IPrintRouting sends nothing ahead of a job",
+                 "[print-start][preprint]") {
+    MoonrakerAPI api{client, ps};
+    test::RegisteredWired<NoRoutingBackend> backend;
+    REQUIRE(backend->requires_preprint_send());
+    REQUIRE(backend->as<IPrintRouting>() == nullptr);
+    client.clear_gcode_script_history();
+
+    SECTION("a reprint starts with no pre-print send") {
+        helix::ui::PrintStartController controller{ps, &api};
+        bool started = false;
+        controller.initiate_reprint(
+            "cal.gcode", "cal.gcode", {0}, [&started]() { started = true; }, []() {});
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(started);
+        CHECK(all_scripts().empty());
+    }
+    SECTION("a restart sends only its own clear") {
+        helix::ui::restart_print_from_beginning(&api, "cal.gcode", "[test]", nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(all_scripts() == "SDCARD_RESET_FILE\nCANCEL_PRINT_BASE\n");
+    }
+    SECTION("a purge goes straight out, and standing options are empty") {
+        bool purged = false;
+        helix::ui::run_after_purge_preamble(
+            &api, "[test]", [&purged]() { purged = true; }, [](const MoonrakerError&) {});
+        CHECK(purged);
+        CHECK(all_scripts().empty());
+        CHECK(render_standing_gcode({&*backend}).empty());
+    }
 }
 
 TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send never starts",

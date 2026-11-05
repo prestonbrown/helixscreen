@@ -24,6 +24,7 @@
 #include "ui_widget_ref.h"
 
 #include "ams_backend.h"
+#include "ams_dryer.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "ams_unit_pages.h"
@@ -982,7 +983,7 @@ void AmsOverviewPanel::sync_pages(bool reopen, int focus_unit) {
     const auto snapshot = AmsState::instance().system_info();
     const AmsSystemInfo& info = *snapshot;
     auto pages = helix::ui::build_unit_pages(info, [&](int pos) {
-        const DryerInfo dryer = backend->get_dryer_info(info.units[pos].unit_index);
+        const DryerInfo dryer = helix::dryer_info(*backend, info.units[pos].unit_index);
         return dryer.supported && dryer.active;
     });
     if (pages.empty()) {

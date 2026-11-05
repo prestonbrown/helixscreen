@@ -18,6 +18,7 @@
 #include "ui_zone_presentation.h"
 
 #include "ams_backend.h"
+#include "ams_dryer.h"
 #include "ams_environment_zone.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -452,7 +453,8 @@ std::vector<int> AmsEnvironmentOverlay::selected_dry_gates() const {
 void AmsEnvironmentOverlay::publish_dry_gates() {
     AmsBackend* backend = AmsState::instance().get_backend();
     const int unit = acting_unit_index();
-    const DryerInfo dryer = (backend && unit >= 0) ? backend->get_dryer_info(unit) : DryerInfo{};
+    const DryerInfo dryer =
+        (backend && unit >= 0) ? helix::dryer_info(*backend, unit) : DryerInfo{};
 
     // One chip per heated gate on the unit.
     dry_gates_.clear();
@@ -715,7 +717,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     // that is drying shows the running cycle, and Stop is what its button offers.
     DryerInfo dryer = zone.dryer;
     if (dryer.supports_gate_selection && backend && zone.unit_index >= 0) {
-        dryer.active = backend->get_dryer_info(zone.unit_index).active;
+        dryer.active = helix::dryer_info(*backend, zone.unit_index).active;
     }
     publish_dry_gates();
 
@@ -959,12 +961,13 @@ void AmsEnvironmentOverlay::populate_presets() {
         return;
     }
 
-    cached_presets_ = backend->get_drying_presets();
+    const IDryer* const drier = backend->as<IDryer>();
+    cached_presets_ = drier ? drier->get_drying_presets() : get_default_drying_presets();
 
     // The box's max settable temp clamps both the dropdown label and the applied
     // value, so a preset whose nominal dry temp exceeds this box's ceiling (e.g.
     // PA at 70°C on a 65°C box) displays and sends the same clamped value.
-    DryerInfo dryer = backend->get_dryer_info(acting_unit_index());
+    DryerInfo dryer = helix::dryer_info(*backend, acting_unit_index());
 
     // Build dropdown options string (newline-separated)
     std::string options;
@@ -995,7 +998,7 @@ void AmsEnvironmentOverlay::apply_preset(int index) {
     // what Start Drying will actually send (see populate_presets()).
     float applied_temp = preset.temp_c;
     if (AmsBackend* backend = AmsState::instance().get_backend()) {
-        applied_temp = backend->get_dryer_info(acting_unit_index()).clamp_temp(preset.temp_c);
+        applied_temp = helix::dryer_info(*backend, acting_unit_index()).clamp_temp(preset.temp_c);
     }
 
     if (temp_input_) {
@@ -1100,9 +1103,12 @@ void AmsEnvironmentOverlay::handle_start_stop() {
         NOTIFY_WARNING("{}", lv_tr("No Multi-Filament System connected"));
     } else {
         const int unit = acting_unit_index();
-        // get_dryer_info() is a read: every backend already treats a negative unit as
-        // "no per-unit data" and returns a safe default, so -1 costs nothing here.
-        DryerInfo dryer = backend->get_dryer_info(unit);
+        // A read: every backend treats a negative unit as "no per-unit data" and returns
+        // a safe default, so -1 costs nothing here.
+        DryerInfo dryer = helix::dryer_info(*backend, unit);
+        // A backend without the capability answers an unsupported dryer above: never active,
+        // with no gates, rotation or humidity target for a request to carry.
+        IDryer* const drier = backend->as<IDryer>();
         const std::string zone_id = zones_.empty() ? std::string{} : zones_[selected_zone_].id;
 
         if (dryer.active) {
@@ -1115,7 +1121,8 @@ void AmsEnvironmentOverlay::handle_start_stop() {
                 const std::vector<int> gates = selected_dry_gates();
                 spdlog::info("[AmsEnvironmentOverlay] Stopping drying ({} selected gates)",
                              gates.size());
-                AmsError result = backend->stop_drying_gates(unit, gates);
+                AmsError result = drier ? drier->stop_drying_gates(unit, gates)
+                                        : AmsErrorHelper::not_supported("Dryer");
                 if (result.success() && gates.empty()) {
                     NOTIFY_INFO("{}", lv_tr("Drying stopped"));
                 } else if (result.success()) {
@@ -1184,7 +1191,8 @@ void AmsEnvironmentOverlay::handle_start_stop() {
                 request.gates = selected_dry_gates();
                 request.rotate =
                     dry_rotate_ && lv_subject_get_int(&dry_rotate_visible_subject_) != 0;
-                AmsError result = backend->start_drying_request(request);
+                AmsError result = drier ? drier->start_drying_request(request)
+                                        : AmsErrorHelper::not_supported("Dryer");
                 if (result.success()) {
                     // Remember the chosen values so the next open restores them.
                     config->set<int>(config->df() + "ams/dryer_last_temp",
