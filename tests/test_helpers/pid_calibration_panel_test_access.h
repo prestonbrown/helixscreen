@@ -14,6 +14,15 @@ struct PIDCalibrationPanelTestAccess {
     static void send_save_config(PIDCalibrationPanel& p) {
         p.send_save_config();
     }
+    static void start_clicked(PIDCalibrationPanel& p) {
+        p.handle_start_clicked();
+    }
+    static void set_fan_speed(PIDCalibrationPanel& p, int percent) {
+        p.fan_speed_ = percent;
+    }
+    static void deactivate(PIDCalibrationPanel& p) {
+        p.on_deactivate();
+    }
 };
 
 } // namespace ui

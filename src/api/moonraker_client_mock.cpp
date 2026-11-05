@@ -2691,15 +2691,18 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
                     snprintf(buf, sizeof(buf), "measuring power usage with %d%% fan", fan_pct);
                     s->mock->dispatch_gcode_response(buf);
                 } else {
-                    // Final result
-                    s->mock->dispatch_gcode_response("Finished MPC calibration");
-                    s->mock->dispatch_gcode_response("block_heat_capacity=18.4321 [J/K]");
-                    s->mock->dispatch_gcode_response("sensor_responsiveness=0.123456 [K/s/K]");
-                    s->mock->dispatch_gcode_response("ambient_transfer=0.045678 [W/K]");
+                    // Kalico reports the result as one respond_info, so one
+                    // multi-line message.
+                    std::string result = "// Finished MPC calibration of heater '" + s->heater +
+                                         "'\n"
+                                         "// Measured:\n"
+                                         "// block_heat_capacity=18.4321 [J/K]\n"
+                                         "// sensor_responsiveness=0.123456 [K/s/K]\n"
+                                         "// ambient_transfer=0.045678 [W/K]";
                     if (s->fan_breakpoints > 0) {
-                        s->mock->dispatch_gcode_response(
-                            "fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]");
+                        result += "\n// fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]";
                     }
+                    s->mock->dispatch_gcode_response(result);
 
                     delete s;
                     lv_timer_delete(t);

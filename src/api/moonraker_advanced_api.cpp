@@ -502,7 +502,18 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
         if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty())
             return;
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        // Kalico sends the whole result block as one multi-line respond_info.
+        const std::string& text = msg["params"][0].get_ref<const std::string&>();
+        size_t start = 0;
+        while (start < text.size() && !completed_.load()) {
+            const size_t end = std::min(text.find('\n', start), text.size());
+            on_line(text.substr(start, end - start));
+            start = end + 1;
+        }
+    }
+
+  private:
+    void on_line(const std::string& line) {
         spdlog::trace("[MPCCalibrateCollector] Received: {}", line);
 
         // If we're accumulating result lines after "Finished MPC calibration"
@@ -552,7 +563,6 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
         }
     }
 
-  private:
     void report_progress(int phase, const std::string& description) {
         // Total phases: 1=settle, 2=heatup, 3=fan measurements
         static constexpr int TOTAL_PHASES = 3;
@@ -564,7 +574,7 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     void parse_result_line(const std::string& line) {
         // Parse: fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]
         // Must check BEFORE ambient_transfer since both contain "ambient_transfer"
-        static const std::regex fat_regex(R"(fan_ambient_transfer=([\d., ]+)\s*\[W/K\])");
+        static const std::regex fat_regex(R"(fan_ambient_transfer=([\deE.+\-, ]*)\[W/K\])");
         // Parse: block_heat_capacity=18.5432 [J/K]
         static const std::regex bhc_regex(R"(block_heat_capacity=([\d.]+))");
         // Parse: sensor_responsiveness=0.123456 [K/s/K]
@@ -578,8 +588,8 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
             result_.fan_ambient_transfer = match[1].str();
             // Trim trailing whitespace
             auto end = result_.fan_ambient_transfer.find_last_not_of(' ');
-            if (end != std::string::npos)
-                result_.fan_ambient_transfer.resize(end + 1);
+            // A heater with no cooling_fan reports an empty list.
+            result_.fan_ambient_transfer.resize(end == std::string::npos ? 0 : end + 1);
             spdlog::debug("[MPCCalibrateCollector] fan_ambient_transfer={}",
                           result_.fan_ambient_transfer);
             parsed_fan_ambient_ = true;
