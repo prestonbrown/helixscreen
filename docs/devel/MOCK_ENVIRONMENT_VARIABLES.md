@@ -1235,7 +1235,7 @@ Configure custom filament sensor configurations for testing.
 |----------|-------|
 | **Values** | Comma-separated `type:name` pairs, or `"none"` |
 | **Default** | Single runout switch sensor |
-| **File** | `src/mock/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock_discovery.cpp` |
 
 **Sensor Types:**
 - `switch` - Simple on/off runout switch
@@ -1534,7 +1534,7 @@ printer that is not a Z-Mod Creator 5.
 |----------|-------|
 | **Values** | `1` (the extra plus the stock `STEPPER_RESONANCE_FACTORY_CALIBRATE` macro), `bare` (the extra only, so the two `STEPPER_RESONANCE_SEARCH_CALIBRATE` lines are sent), `0` or unset (neither) |
 | **Default** | unset |
-| **File** | `src/mock/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock_discovery.cpp` |
 
 The mock accepts the calibration commands without simulating a sweep; the closing
 `SAVE_CONFIG` takes the mock's usual restart path.
@@ -1551,7 +1551,7 @@ Append additional Klipper objects to the mock's advertised object list, so capab
 |----------|-------|
 | **Values** | Space-separated object names |
 | **Default** | Unset — only the mock printer's built-in object set |
-| **File** | `src/mock/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock_discovery.cpp` |
 
 ```bash
 # Add a chamber temperature_fan and a generic heater

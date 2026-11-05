@@ -2801,7 +2801,7 @@ namespace {
  * @brief True when a status notification reports @p fan_key at @p expected speed.
  *
  * The simulation loop emits full-status notifications, and those always carry a
- * "fan" entry (moonraker_client_mock.cpp builds it unconditionally) plus every
+ * "fan" entry (moonraker_client_mock_temperature.cpp builds it unconditionally) plus every
  * fan already present in fan_speeds_. So the FIRST notification mentioning a fan
  * is not necessarily the one the gcode under test produced — it is just as
  * likely a periodic update carrying the pre-command value. Matching on the

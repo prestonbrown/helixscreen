@@ -6,7 +6,9 @@
 #include "helix_shared_callback.h"
 #include "moonraker_client_mock.h"
 
+#include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -67,6 +69,26 @@ toolhead_axis_minimum(const helix::mock::PersonaDescriptor& persona) {
 [[nodiscard]] inline std::array<double, 4>
 toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
     return {persona.axis_max.x, persona.axis_max.y, persona.axis_max.z, 0.0};
+}
+
+/// The mock AMS mode this process runs under; every is_mock_<vendor>() reads it.
+[[nodiscard]] inline std::string effective_mock_ams_env() {
+    return helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
+                                           std::getenv("HELIX_MOCK_PRINTER"));
+}
+
+/// Duty a real heater would be running at, 0.0-1.0, as Klipper reports it: flat
+/// out while far below target, tapering in, and a trickle once holding. The
+/// mock publishes this on every heater so a power readout has something to show.
+[[nodiscard]] inline double mock_heater_duty(double temperature, double target) {
+    if (target <= 0.0) {
+        return 0.0;
+    }
+    const double gap = target - temperature;
+    if (gap <= 0.0) {
+        return 0.05;
+    }
+    return std::clamp(gap / 10.0, 0.1, 1.0);
 }
 
 /**

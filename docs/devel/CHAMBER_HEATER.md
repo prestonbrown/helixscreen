@@ -66,7 +66,7 @@ The invariant: **vendor JSON schemas are translated to the generic `ChamberHeate
 | `ui_xml/components/chamber_fault_banner.xml` | Shared one-row banner: reason text (or "Heater offline") plus a compact Reset that hides while the device is offline. Instantiated by both orientation branches of the chamber card; each ships it and the banner self-hides while healthy |
 | `ui_xml/components/chamber_dryer_row.xml` | Shared one-row dryer control on the chamber card: Start Drying while idle, the live temp against the target plus the countdown and Stop while a cycle runs. Hidden unless `printer_has_chamber_dryer` |
 | `src/ui/filament/ui_chamber_dryer_modal.cpp` + `ui_xml/chamber_dryer_modal.xml` | The start modal: the shared drying presets labelled as the dryer will run them, and the bed-assist switch |
-| `src/mock/moonraker_client_mock.cpp` | Mock chamber backend shape (`HELIX_MOCK_OBJECTS` dragonbreath trio), registry-based chamber-status key |
+| `src/mock/moonraker_client_mock_temperature.cpp`, `src/mock/moonraker_client_mock_discovery.cpp` | Mock chamber backend shape (`HELIX_MOCK_OBJECTS` dragonbreath trio), registry-based chamber-status key |
 | `tests/unit/test_chamber_*.cpp` | Backend match/parse, subjects, ceiling, actions, discovery, mock — tags under `[chamber]` |
 
 ---
@@ -304,7 +304,7 @@ One file + one registry line + one test + one mock shape. The vendor-abstraction
 
 3. **Add a `parse_diagnostics` test** in `tests/unit/test_chamber_heater_backend.cpp` — a live nominal payload, a faulted/edge variant, and a foreign-payload rejection (mirror the three DragonBreath cases).
 
-4. **Mock shape** — for appliances with a status object, extend `append_chamber_backend_status()` in `moonraker_client_mock.cpp` with a branch on your backend id, and add any `HELIX_MOCK_*` hooks the interesting states need (`MOCK_ENVIRONMENT_VARIABLES.md`). Two references, both in `test_chamber_mock_appliances.cpp`: the dragonbreath trio `HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbreath_filter"` (heater, status object, filter pin) and the stock pair `HELIX_MOCK_OBJECTS="heater_generic panda_breath panda_breath"` (heater, status object, no pin). Synthesize only fields the real binding publishes — inventing one exercises a parse path no device can reach.
+4. **Mock shape** — for appliances with a status object, extend `append_chamber_backend_status()` in `moonraker_client_mock_temperature.cpp` with a branch on your backend id, and add any `HELIX_MOCK_*` hooks the interesting states need (`MOCK_ENVIRONMENT_VARIABLES.md`). Two references, both in `test_chamber_mock_appliances.cpp`: the dragonbreath trio `HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbreath_filter"` (heater, status object, filter pin) and the stock pair `HELIX_MOCK_OBJECTS="heater_generic panda_breath panda_breath"` (heater, status object, no pin). Synthesize only fields the real binding publishes — inventing one exercises a parse path no device can reach.
 
 Verify with `./build/bin/helix-tests "[chamber]"` and a mock run:
 
