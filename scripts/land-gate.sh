@@ -16,6 +16,10 @@
 #                     runs past the sweep's 300s SHARD_TIMEOUT on a slower host
 #                     without hanging. SHARD_CRASH_FAILS=1 fails a shard that
 #                     crashes after its assertions passed, as CI's step does.
+#   slow              make test-slow, right after ci-shards and where it ran: the
+#                     [slow] tier, which CI runs only nightly. Nothing ties a [slow]
+#                     test to the file a change touches, so this runs all of it
+#                     (about 4 minutes in one process on zeus, less sharded).
 #   bats              make test-shell BATS_REQUIRED=1 (a missing bats fails the row),
 #                     after app-build: its ctl tests run the binary that build links
 #   ui                make test-ui-ci: CI's exact tests/ui pytest slice, headless
@@ -66,7 +70,7 @@
 # pre-push skips the quality sweep when it pushes exactly that commit. A
 # result set for the commit that is not all PASS removes its stamp.
 #
-# Outside this gate: [.] (the commit hook), [slow] and the goldens (nightly and
+# Outside this gate: [.] (the commit hook), the goldens (nightly and
 # local-only), and build.yml's telemetry-worker vitest
 # (server/telemetry-worker: `npm install && npm test`).
 set -uo pipefail
@@ -91,7 +95,7 @@ LAND_GATE_HISTORY=${LAND_GATE_HISTORY:-${XDG_STATE_HOME:-$HOME/.local/state}/hel
 ROWS_DIR="$LAND_GATE_LOGDIR/rows"
 RESULTS_DIR="$LAND_GATE_LOGDIR/results"
 
-STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 quality"
+STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 quality"
 
 TIMEOUT_BIN=$(command -v timeout || command -v gtimeout || true)
 
@@ -143,6 +147,12 @@ run_step() {
             else
                 step ci-shards "${mk[@]}" unit-sweep "NPROCS=$CI_SHARDS" "SHARD_TIMEOUT=$CI_SHARD_TIMEOUT" SHARD_CRASH_FAILS=1
             fi ;;
+        slow)
+            if [ "$SWEEP_WHERE" = remote ]; then
+                step slow "$TEST_HOST_RUN" exec -- make --no-print-directory test-slow
+            else
+                step slow "${mk[@]}" test-slow
+            fi ;;
         bats) step bats "${mk[@]}" test-shell BATS_REQUIRED=1 ;;
         ui) step ui "${mk[@]}" test-ui-ci ;;
         plugin) step plugin "${mk[@]}" test-plugin ;;
@@ -161,6 +171,7 @@ lane() {
     case "$1" in
         unit)
             run_step ci-shards
+            run_step slow
             if [ "$SWEEP_WHERE" = local ]; then
                 # quality starts makes of its own in this tree (an incremental app
                 # build, the XML tools), so it waits for the local sweep to link
