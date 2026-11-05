@@ -218,6 +218,22 @@ order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
     grep -qx "make test-ui-ci" "$CALLS"
 }
 
+@test "a test-host C++ run starts only after patches/ is applied here; a failed apply runs no lane" {
+    TEST_HOST=1 run "$GATE"
+    [ "$status" -eq 0 ]
+    local applied swept
+    applied=$(grep -nx "make apply-patches" "$CALLS" | head -n 1 | cut -d: -f1)
+    swept=$(grep -n "^host-run sweep" "$CALLS" | head -n 1 | cut -d: -f1)
+    [ -n "$applied" ] && [ -n "$swept" ] && [ "$applied" -lt "$swept" ]
+    [ "$(order_of "end apply-patches")" -lt "$(order_of "start app")" ]
+    : >"$CALLS"
+    TEST_HOST=1 RC_apply_patches=2 run "$GATE"
+    [ "$status" -eq 1 ]
+    contains "output of apply-patches" "$output"
+    refute_grep "^host-run sweep" "$CALLS"
+    refute_grep "^make app$" "$CALLS"
+}
+
 @test "a bad TEST_HOST refuses before running anything" {
     TEST_HOST=maybe run "$GATE"
     [ "$status" -eq 2 ]
