@@ -4312,6 +4312,7 @@
   <translation tag="Z Calibration" zh="Z 轴校准"/>
   <translation tag="Z Movement" zh="Z 轴移动"/>
   <translation tag="Z Offset" zh="Z 偏移"/>
+  <translation tag="Z Probe" zh="Z 探针"/>
   <translation tag="Z Range" zh="Z 范围"/>
   <translation tag="Z Tilt Adjust..." zh="正在调整Z倾斜..."/>
   <translation tag="Z is at its limit ({}mm)" zh="Z 轴已到达限位 ({}mm)"/>

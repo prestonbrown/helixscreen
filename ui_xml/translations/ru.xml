@@ -4372,6 +4372,7 @@
   <translation tag="Z Calibration" ru="Калибровка Z"/>
   <translation tag="Z Movement" ru="Движение Z"/>
   <translation tag="Z Offset" ru="Z Offset"/>
+  <translation tag="Z Probe" ru="Z-зонд"/>
   <translation tag="Z Range" ru="Диапазон Z"/>
   <translation tag="Z Tilt Adjust..." ru="Регулировка наклона Z..."/>
   <translation tag="Z is at its limit ({}mm)" ru="Z на пределе ({}mm)"/>

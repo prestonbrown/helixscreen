@@ -4312,6 +4312,7 @@
   <translation tag="Z Calibration" it="Calibrazione Z"/>
   <translation tag="Z Movement" it="Movimento Z"/>
   <translation tag="Z Offset" it="Z Offset"/>
+  <translation tag="Z Probe" it="Sonda Z"/>
   <translation tag="Z Range" it="Intervallo Z"/>
   <translation tag="Z Tilt Adjust..." it="Regolazione inclinazione Z..."/>
   <translation tag="Z is at its limit ({}mm)" it="Z è al suo limite ({}mm)"/>

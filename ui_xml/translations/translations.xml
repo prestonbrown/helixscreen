@@ -4372,6 +4372,7 @@
   <translation tag="Z Calibration" de="Z-Kalibrierung" en="Z Calibration" es="Calibración Z" fr="Calibration Z" it="Calibrazione Z" ja="Z キャリブレーション" pt="Calibração Z" ru="Калибровка Z" zh="Z 轴校准"/>
   <translation tag="Z Movement" de="Z-Bewegung" en="Z Movement" es="Movimiento Z" fr="Mouvement Z" it="Movimento Z" ja="Z移動" pt="Movimento Z" ru="Движение Z" zh="Z 轴移动"/>
   <translation tag="Z Offset" de="Z Offset" en="Z Offset" es="Z Offset" fr="Z Offset" it="Z Offset" ja="Zオフセット" pt="Z Offset" ru="Z Offset" zh="Z 偏移"/>
+  <translation tag="Z Probe" de="Z-Sonde" en="Z Probe" es="Sonda Z" fr="Sonde Z" it="Sonda Z" ja="Zプローブ" pt="Sonda Z" ru="Z-зонд" zh="Z 探针"/>
   <translation tag="Z Range" de="Z-Bereich" en="Z Range" es="Rango Z" fr="Plage Z" it="Intervallo Z" ja="Z 範囲" pt="Alcance Z" ru="Диапазон Z" zh="Z 范围"/>
   <translation tag="Z Tilt Adjust..." de="Z-Neigung anpassen..." en="Z Tilt Adjust..." es="Ajuste de inclinación Z..." fr="Ajustement inclinaison Z..." it="Regolazione inclinazione Z..." ja="Zチルト調整中..." pt="Ajuste de inclinação Z..." ru="Регулировка наклона Z..." zh="正在调整Z倾斜..."/>
   <translation tag="Z is at its limit ({}mm)" de="Z ist an seinem Limit ({}mm)" en="Z is at its limit ({}mm)" es="Z está en su límite ({}mm)" fr="Z est à sa limite ({}mm)" it="Z è al suo limite ({}mm)" ja="Z軸は限界に達しています ({}mm)" pt="Z está no seu limite ({}mm)" ru="Z на пределе ({}mm)" zh="Z 轴已到达限位 ({}mm)"/>
