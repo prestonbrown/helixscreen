@@ -11,14 +11,14 @@
  * the firmware's checks.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/backend_harness.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_snapmaker.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
@@ -91,7 +91,9 @@ struct NozzleFixture : public LVGLTestFixture {
             frame[h == 0 ? std::string("extruder") : "extruder" + std::to_string(h)] = {
                 {"nozzle_diameter", diameter}, {"nozzle_volume_type", type}};
         }
-        helix::SnapmakerTestAccess::handle_status(*backend, frame);
+        REQUIRE(backend->start().success());
+        helix::test::fire_status(client, frame);
+        drain();
         backend->set_event_callback([this](const std::string& ev, const std::string&) {
             if (ev == helix::AmsBackend::EVENT_STATE_CHANGED) {
                 ++state_changes;
@@ -104,7 +106,7 @@ struct NozzleFixture : public LVGLTestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     helix::AmsError pick(const std::string& id, const char* option) {
