@@ -1180,6 +1180,82 @@ def test_release_lifts_the_cap(tmp_path):
     assert r.returncode == 0, r.stdout
 
 
+def test_first_puts_named_files_ahead_and_leaves_nothing_out():
+    assert md.first_rank("src/printer/notice.cpp", ["ams_backend", "notice"]) == 1
+    assert md.first_rank("src/printer/ams_backend.cpp", ["ams_backend", "notice"]) == 0
+    assert md.first_rank("src/other.cpp", ["ams_backend", "notice"]) == 2
+    assert md.split_patterns(["a,b", " c "]) == ["a", "b", "c"]
+
+
+def test_a_filter_is_ranked_by_how_much_it_runs():
+    defaults = ("~[.]", "tests/shell", "tests/python")
+    assert md.filter_scope(("[#a]", "", ""), defaults, True) == md.SCOPE_NARROW
+    assert md.filter_scope(("~[.]", "", ""), defaults, True) == md.SCOPE_WHOLE_CATCH2
+    assert md.filter_scope(("~[.]", "tests/shell/a.bats", ""), defaults, False) == md.SCOPE_NARROW
+    assert md.filter_scope(("~[.]", "tests/shell", "tests/python"), defaults, False) \
+        == md.SCOPE_WHOLE_SCRIPTS
+
+
+def test_first_orders_the_run_and_a_whole_suite_waits_behind_a_scoped_filter(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    r = _mutate(work, "--base", base, "--list-only", "--tests-for", "src/other.cpp=[oth]")
+    listed = [ln.split()[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert [p.split(":")[0] for p in listed] == ["src/other.cpp", "src/feature.cpp"], r.stdout
+    r = _mutate(work, "--base", base, "--list-only", "--tests-for", "src/other.cpp=[oth]",
+                "--first", "feature")
+    listed = [ln.split()[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert [p.split(":")[0] for p in listed] == ["src/feature.cpp", "src/other.cpp"], r.stdout
+
+
+def _pool(work, *args):
+    return subprocess.run(
+        [sys.executable, "scripts/mutate_diff.py", "--shards", "1", "--workers", "2", "--pool",
+         "--log", str(work / "mutate.log"), *args],
+        cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=120, env=PARALLEL_ENV)
+
+
+@linux_only
+def test_a_pool_judges_each_hunk_by_its_own_filter_with_one_build_and_one_set_of_copies(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / ".mutant-expect-other").write_text("")
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 0, r.stdout
+    assert "=== group" not in r.stdout
+    assert r.stdout.count("workers, each in a copy of the tree") == 1, r.stdout
+    assert "catch2 green" in r.stdout and r.stdout.count("catch2 green") == 2, r.stdout
+    assert [v[0] for v in _verdicts(r.stdout)] == ["killed", "killed"], r.stdout
+    assert "VERDICT: CLEAN" in r.stdout
+
+
+@linux_only
+def test_a_pool_names_the_filter_a_hunk_survived(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 1, r.stdout
+    assert re.search(r"src/other.cpp:\d+  \[oth\]", r.stdout), r.stdout
+
+
+@linux_only
+def test_a_red_baseline_leaves_its_filter_unjudged_and_the_others_judged(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(DETECTING_SUITE.replace(
+        "#!/usr/bin/env bash\n",
+        '#!/usr/bin/env bash\n[ "$1" != "[oth]" ] || '
+        '{ echo "tests/unit/test_o.cpp:1: FAILED:"; exit 1; }\n', 1))
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 3, r.stdout
+    assert "baseline catch2 suite is RED" in r.stdout
+    verdicts = {v[1]: v[0] for v in _verdicts(r.stdout)}
+    assert any(k.startswith("src/feature.cpp") and v == "killed" for k, v in verdicts.items()), r.stdout
+    assert any(k.startswith("src/other.cpp") and v == "INCONCLUSIVE" for k, v in verdicts.items()), r.stdout
+    assert "whose suite exited without a verdict" in r.stdout
+
+
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     (work / ".mutant-expect-other").write_text("")

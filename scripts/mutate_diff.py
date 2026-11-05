@@ -412,8 +412,33 @@ def select_only(hunks, only_args):
 
     Each --only value may itself list several patterns separated by commas.
     """
-    patterns = [p.strip() for arg in only_args for p in arg.split(',') if p.strip()]
+    patterns = split_patterns(only_args)
     return [h for h in hunks if any(p in h['file'] for p in patterns)]
+
+
+def split_patterns(args_):
+    """The patterns of a repeatable, comma-separated option."""
+    return [p.strip() for arg in args_ or () for p in arg.split(',') if p.strip()]
+
+
+def first_rank(path, patterns):
+    """The index of the first --first pattern `path` contains, else past them all."""
+    return next((i for i, p in enumerate(patterns) if p in path), len(patterns))
+
+
+# How much of its suites a hunk's filter runs: its own tests, all of Catch2, or
+# all of bats and pytest. A run cut short by its cap has then judged the most.
+SCOPE_NARROW, SCOPE_WHOLE_CATCH2, SCOPE_WHOLE_SCRIPTS = 0, 1, 2
+
+
+def filter_scope(key, default_key, is_compiled):
+    """Which SCOPE_* a group key is, given the defaults it falls back to."""
+    filt, shell, python = key
+    default_filter, default_shell, default_python = default_key
+    if not is_compiled:
+        whole = (shell and shell == default_shell) or (python and python == default_python)
+        return SCOPE_WHOLE_SCRIPTS if whole else SCOPE_NARROW
+    return SCOPE_WHOLE_CATCH2 if filt == default_filter else SCOPE_NARROW
 
 
 # ---------------------------------------------------------------------------
@@ -1334,6 +1359,10 @@ def suite_outcome(name, returncode, output, who=''):
     return GREEN, ''
 
 
+class BaselineRefused(RuntimeError):
+    """A filter's suites cannot judge a mutant: red, silent, or matching nothing."""
+
+
 class BuildUnavailable(RuntimeError):
     """The Catch2 binary is not there, so no verdict about a mutant is possible.
 
@@ -2189,6 +2218,94 @@ class Suites:
         return state, why
 
 
+def establish_baseline(suites, needed):
+    """Run `needed` once on the baseline and adopt their limits.
+
+    Raises BaselineRefused when a suite cannot judge a mutant: a red one makes
+    every mutant read as killed, and one that cannot report judges nothing.
+    """
+    args = suites.args
+    if 'catch2' in needed:
+        suites.ensure_catch2_binary()
+        matched = count_catch2_cases(suites.root, suites.catch2_bin, args.tests)
+        if matched is not None:
+            try:
+                args.shards = fit_shards(args.shards, matched)
+                suites.catch2 = Catch2Plan(
+                    fit_shards(args.shards * SHARDS_PER_SLOT, matched), args.shards)
+            except ValueError as e:
+                raise BaselineRefused(
+                    f'--tests {args.tests!r} {e}. Check the tag spelling '
+                    f'with: build/bin/helix-tests {args.tests!r} --list-tests') from e
+            print(f'  catch2: {matched} case(s) match {args.tests!r}, '
+                  f'{suites.catch2.shards} shard(s), up to {args.shards} at once')
+    for suite in sorted(needed):
+        state, why = suites.run(suite)
+        if RUN_STATE.out_of_time:
+            raise OutOfTime()
+        if state == DETECTED and suite in ('bats', 'pytest'):
+            state = adopt_baseline_reds(suites, suite)
+            if RUN_STATE.out_of_time:
+                raise OutOfTime()
+        if state == DETECTED:
+            raise BaselineRefused(f'baseline {suite} suite is RED. Fix it first, or every '
+                                  f'mutant will read as killed. See {args.log}')
+        if state == INCONCLUSIVE:
+            # No re-run here: the baseline exists to show the harness works, and
+            # a runner that cannot report is a reason to stop rather than to ask
+            # a second time.
+            raise BaselineRefused(f'baseline {suite} suite judged nothing - {why}. Every '
+                                  f'mutant would be measured by a suite that cannot report. '
+                                  f'See {args.log}')
+        lo, hi = suites.adopt_baseline(suite, suites.last_secs)
+        span = f'{lo:.0f}s' if round(lo) == round(hi) else f'{lo:.0f}-{hi:.0f}s'
+        per = ' per shard' if suite == 'catch2' and suites.catch2.shards > 1 else ''
+        print(f'  {suite} green ({suites.last_secs:.0f}s; mutant timeout {span}{per})', flush=True)
+
+
+class FilterBaselines:
+    """One baseline per filter for a --pool run, taken the first time a hunk needs it.
+
+    Each runs in the tree the run started in, which no mutant ever touches, so a
+    worker can take one between mutants whatever its own copy holds. A refusal is
+    kept: every hunk of that filter is unjudged, and every other filter carries on.
+    """
+
+    def __init__(self, root, args, log, key_of, needed_of):
+        self.root, self.args, self.log = root, args, log
+        self.key_of, self.needed_of = key_of, needed_of
+        self.locks = {key: threading.Lock() for key in needed_of}
+        self.results = {}
+        self._log_lock = threading.Lock()
+
+    def _establish(self, key):
+        args = copy.copy(self.args)
+        args.tests, args.shell_tests, args.python_tests = key
+        buf = io.StringIO()
+        suites = Suites(self.root, args, buf)
+        try:
+            establish_baseline(suites, self.needed_of[key])
+        except BaselineRefused as e:
+            print(f'  FAIL for {describe_key(key)}: {e}', flush=True)
+            return e
+        finally:
+            with self._log_lock:
+                self.log.write(f'\n===== baseline {describe_key(key)} =====\n')
+                self.log.write(buf.getvalue())
+                self.log.flush()
+        return suites
+
+    def suites_for(self, h):
+        """The established Suites judging this hunk; raises BaselineRefused."""
+        key = self.key_of[h['file']]
+        with self.locks[key]:
+            if key not in self.results:
+                self.results[key] = self._establish(key)
+        if isinstance(self.results[key], BaselineRefused):
+            raise self.results[key]
+        return self.results[key]
+
+
 # ---------------------------------------------------------------------------
 # THE TREE AND THE BINARY A VERDICT IS ABOUT
 #
@@ -2764,8 +2881,12 @@ def remove_worker_trees(trees):
             shutil.rmtree(t.root, ignore_errors=True)
 
 
-def run_parallel(trees, mutable, verdict_of, args, log, pristine, stop_why, progress):
-    """(results, unexamined, stop_reason, judged_by), one worker per tree."""
+def run_parallel(trees, mutable, verdict_of, args, log, pristine, stop_why, progress,
+                 baselines=None):
+    """(results, unexamined, stop_reason, judged_by), one worker per tree.
+
+    `baselines` (FilterBaselines) gives each hunk the suites of its own filter.
+    """
     lock = threading.Lock()
     queue = list(enumerate(mutable))
     in_flight, done, failures = {}, {}, []
@@ -2793,9 +2914,14 @@ def run_parallel(trees, mutable, verdict_of, args, log, pristine, stop_why, prog
                 _thread_state.notes = []
                 try:
                     tok = JOBS.take_base(halted)
-                    tree.suites.log = buf
-                    verdict, note_, _built = mutate_hunk(
-                        tree.root, tree.guard, tree.suites, h, plan, args, buf)
+                    try:
+                        if baselines:
+                            tree.suites = baselines.suites_for(h).for_tree(tree.root, buf)
+                        tree.suites.log = buf
+                        verdict, note_, _built = mutate_hunk(
+                            tree.root, tree.guard, tree.suites, h, plan, args, buf)
+                    except BaselineRefused as e:
+                        verdict, note_ = 'inconclusive', f'no baseline to judge it by: {e}'
                     if RUN_STATE.out_of_time or not verdict:
                         return
                     verify_pristine(tree.root, pristine,
@@ -2897,6 +3023,12 @@ def main():
                     help='seconds one suite (one Catch2 shard) may run for a mutant before '
                          'it counts as killed by timeout (0: the max of 60s and 5x its '
                          'baseline run)')
+    ap.add_argument('--first', action='append', default=None, metavar='PATTERN',
+                    help='mutate changed files whose path contains PATTERN first, in the '
+                         'order given (repeatable, or comma-separated). Nothing is left out')
+    ap.add_argument('--pool', action='store_true',
+                    help='one baseline build and one set of worker copies for the whole run, '
+                         'with every hunk in one queue, instead of a child run per filter')
     ap.add_argument('--limit', type=int, default=None, help='stop after N hunks')
     # A mutant costs a compile plus a whole-program link, so a 52-hunk range is
     # hours. Scoping to the files worth confirming is how this stays usable.
@@ -3025,7 +3157,10 @@ def main():
     # path order happens to run them first. Cheap and conclusive first, so a run
     # that is cut short -- by --limit, or by someone's patience -- has still
     # answered something.
-    mutable.sort(key=lambda h: (h['file'].endswith(HEADER_SUFFIXES), h['file'], h['line']))
+    # --first outranks all of it: it names what the run is for.
+    first = split_patterns(args.first)
+    mutable.sort(key=lambda h: (first_rank(h['file'], first),
+                                h['file'].endswith(HEADER_SUFFIXES), h['file'], h['line']))
 
     # --only and --limit are deliberate narrowings, but a narrowed run still did
     # not examine the whole change, so what they set aside is counted too.
@@ -3069,6 +3204,18 @@ def main():
                 path, auto, shell_sources, python_sources,
                 args.shell_tests, args.python_tests)
             key_of[path] = (args.tests, shell, python)
+
+    # Hunks that need only their own tests go before those that need a whole
+    # suite, and the one script nothing names, which pays all of bats, goes last.
+    default_key = (args.tests, args.shell_tests, args.python_tests)
+
+    def scope_of(path):
+        return filter_scope(key_of[path], default_key,
+                            'catch2' in STRATEGIES[verdict_of[path][1]]['suites'])
+    mutable.sort(key=lambda h: (first_rank(h['file'], first),
+                                scope_of(h['file']) == SCOPE_WHOLE_SCRIPTS,
+                                h['file'].endswith(HEADER_SUFFIXES),
+                                scope_of(h['file'])))
 
     # A strategy whose suite is not installed here cannot judge its hunks. Move
     # them to not-covered rather than letting an unrunnable suite read green.
@@ -3119,7 +3266,8 @@ def main():
         for h in mutable:
             print(f'  {h["file"]}:{h["line"]}  [{verdict_of[h["file"]][1]}]')
 
-    # ---- per-file filters: one child run per filter --------------------
+    # ---- per-file filters: one child run per filter, or one pool --------
+    pool = False
     if not args.group_child:
         groups = group_by_filter([h['file'] for h in mutable], key_of)
         if groups:
@@ -3131,7 +3279,12 @@ def main():
                     else:
                         judged = ' + '.join(x for x in (shell, python) if x) or '-'
                         print(f'  {path}  {judged}  ({why_of[path]})')
-        if len(groups) > 1 and not args.list_only:
+        pool = args.pool and len(groups) > 1 and not args.list_only
+        if pool and plan_workers(root, args)[0] <= 1:
+            pool = False
+            print('--pool needs worker copies, which this run cannot have: '
+                  'running one group at a time')
+        if len(groups) > 1 and not args.list_only and not pool:
             return run_groups(root, guard, args, base, groups, started, incomplete,
                               uncovered, deferred)
         if len(groups) == 1:
@@ -3151,7 +3304,8 @@ def main():
             root, proof_message(
                 f'mutate-diff: every mutatable hunk vs {base[:12]} killed or skipped '
                 f'({n_killed} killed, {len(skipped_decl)} declaration-only, '
-                f'{len(uncovered)} path(s) not covered); tests {args.tests!r}',
+                f'{len(uncovered)} path(s) not covered); tests '
+                + ('each file\'s own filter' if pool else repr(args.tests)),
                 [path for path, _, _ in uncovered]),
             head_at_start)
         if ok:
@@ -3204,6 +3358,9 @@ def main():
     if workers > 1 and not JOBS.pooled and not JOBS.make_private(args.jobs, os.environ):
         workers, why_serial = 1, 'no jobserver to share the job budget through'
         print(f'workers: 1 ({why_serial})')
+        if pool:
+            return run_groups(root, guard, args, base, groups, started, incomplete,
+                              uncovered, deferred)
 
     if args.max_minutes > 0:
         arm_deadline(args.max_minutes * 60 - (time.monotonic() - started))
@@ -3234,45 +3391,8 @@ def main():
                 print(f'FAIL: baseline build is broken. See {args.log}', file=sys.stderr)
                 return 2
             print(f'  build ok ({secs:.0f}s)')
-        if 'catch2' in needed:
-            suites.ensure_catch2_binary()
-            matched = count_catch2_cases(root, suites.catch2_bin, args.tests)
-            if matched is not None:
-                try:
-                    args.shards = fit_shards(args.shards, matched)
-                    suites.catch2 = Catch2Plan(
-                        fit_shards(args.shards * SHARDS_PER_SLOT, matched), args.shards)
-                except ValueError as e:
-                    print(f'FAIL: --tests {args.tests!r} {e}. Check the tag spelling '
-                          f'with: build/bin/helix-tests {args.tests!r} --list-tests',
-                          file=sys.stderr)
-                    return 2
-                print(f'  catch2: {matched} case(s) match {args.tests!r}, '
-                      f'{suites.catch2.shards} shard(s), up to {args.shards} at once')
-        for suite in sorted(needed):
-            state, why = suites.run(suite)
-            if RUN_STATE.out_of_time:
-                raise OutOfTime()
-            if state == DETECTED and suite in ('bats', 'pytest'):
-                state = adopt_baseline_reds(suites, suite)
-                if RUN_STATE.out_of_time:
-                    raise OutOfTime()
-            if state == DETECTED:
-                print(f'FAIL: baseline {suite} suite is RED. Fix it first, or every '
-                      f'mutant will read as killed. See {args.log}', file=sys.stderr)
-                return 2
-            if state == INCONCLUSIVE:
-                # No re-run here: the baseline exists to show the harness works, and
-                # a runner that cannot report is a reason to stop rather than to ask
-                # a second time.
-                print(f'FAIL: baseline {suite} suite judged nothing - {why}. Every '
-                      f'mutant would be measured by a suite that cannot report. '
-                      f'See {args.log}', file=sys.stderr)
-                return 2
-            lo, hi = suites.adopt_baseline(suite, suites.last_secs)
-            span = f'{lo:.0f}s' if round(lo) == round(hi) else f'{lo:.0f}-{hi:.0f}s'
-            per = ' per shard' if suite == 'catch2' and suites.catch2.shards > 1 else ''
-            print(f'  {suite} green ({suites.last_secs:.0f}s; mutant timeout {span}{per})')
+        if not pool:
+            establish_baseline(suites, needed)
 
         # Read once, before the first mutation: see SAFETY.
         for h in mutable:
@@ -3286,6 +3406,9 @@ def main():
                 guards.append(t.guard)
             print(f'  {len(trees)} workers, each in a copy of the tree '
                   f'({trees[0].root.parent}, {time.monotonic() - t0:.0f}s)')
+    except BaselineRefused as e:
+        print(f'FAIL: {e}', file=sys.stderr)
+        return 2
     except OutOfTime:
         out_of_time_report(mutable)
         print(report_incomplete(uncovered, deferred, unexamined=len(mutable),
@@ -3293,7 +3416,14 @@ def main():
                                             f'during the baseline'))
         remove_worker_trees(trees)
         return 0 if args.allow_incomplete else 3
-    print(f'  baseline established{cap_note}\n')
+    print(f'  {"build" if pool else "baseline"} established{cap_note}\n')
+    baselines = None
+    if pool:
+        needed_of = {}
+        for h in mutable:
+            needed_of.setdefault(key_of[h['file']], set()).update(
+                STRATEGIES[verdict_of[h['file']][1]]['suites'])
+        baselines = FilterBaselines(root, args, log, key_of, needed_of)
 
     def stop_why():
         """Why no further hunk may start, or ''."""
@@ -3319,7 +3449,8 @@ def main():
     try:
         if workers > 1:
             results, unexamined, stop_reason, judged_by = run_parallel(
-                trees, mutable, verdict_of, args, log, pristine, stop_why, progress)
+                trees, mutable, verdict_of, args, log, pristine, stop_why, progress,
+                baselines=baselines)
         else:
             for n, h in enumerate(mutable, 1):
                 stop_reason = stop_why()
@@ -3389,14 +3520,15 @@ def main():
     if survived:
         # Name the suites that actually ran: a tooling hunk is judged by bats and
         # pytest, and quoting the Catch2 filter at it would misreport the verdict.
-        where = ' + '.join(sorted(judged_by))
-        if 'catch2' in judged_by:
+        where = 'its own filter' if pool else ' + '.join(sorted(judged_by))
+        if 'catch2' in judged_by and not pool:
             where = where.replace('catch2', f'catch2 {args.tests!r}')
         sys.stdout.flush()
         print(f'\nFAIL: {len(survived)} hunk(s) survived reversion - nothing in '
               f'{where} detects them:', file=sys.stderr)
         for label, _, _ in survived:
-            print(f'  {label}', file=sys.stderr)
+            judged = f'  {describe_key(key_of[label.rsplit(":", 1)[0]])}' if pool else ''
+            print(f'  {label}{judged}', file=sys.stderr)
         return 1
     n_killed = sum(1 for r in results if r[1].startswith('killed'))
     if not (unproven or unjudged or deferred or unexamined):
@@ -3437,6 +3569,8 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
             passthrough.append('--' + flag.replace('_', '-'))
     if args.worker_dir:
         passthrough += ['--worker-dir', args.worker_dir]
+    for pattern in args.first or ():
+        passthrough += ['--first', pattern]
     codes = []
     for i, ((filt, shell, python), paths) in enumerate(groups, 1):
         left = args.max_minutes - (time.monotonic() - started) / 60
