@@ -476,7 +476,7 @@ struct ModifiedPrintResult {
 // ============================================================================
 
 /// Defined in rest_response.h, for the code that reads or builds one.
-struct RestResponse;
+struct RestResponse; // NAMESPACE_OK: declared at global scope in rest_response.h
 
 // ============================================================================
 // G-code Store Types
