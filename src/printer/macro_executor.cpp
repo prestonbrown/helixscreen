@@ -4,7 +4,6 @@
 #include "macro_executor.h"
 
 #include "ui_emergency_stop.h"
-#include "ui_toast_manager.h"
 
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
@@ -15,6 +14,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
+#include "notice.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "toolhead_homing.h"
@@ -157,7 +157,7 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
             spdlog::info("{} {} executed successfully", tag_copy, macro_copy);
             std::string msg = display_name + " sent";
             helix::ui::queue_update("macro_executor::execute_macro_gcode", [msg]() {
-                ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
+                publish_notice({NoticeSeverity::SUCCESS, msg, 2000});
             });
         },
         [api, tag_copy, macro_copy, display_name, host_effect](const MoonrakerError& err) {
@@ -194,7 +194,7 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
             spdlog::error("{} {} failed: {}", tag_copy, macro_copy, err.message);
             std::string msg = display_name + " failed";
             helix::ui::queue_update("macro_executor::execute_macro_gcode", [msg]() {
-                ToastManager::instance().show(ToastSeverity::ERROR, msg.c_str(), 4000);
+                publish_notice({NoticeSeverity::ERROR, msg, 4000});
             });
         },
         cmd.timeout_ms ? cmd.timeout_ms : IMoonrakerAPI::kMacroTimeoutMs);
@@ -218,8 +218,7 @@ void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool n
     // A print can start while a confirmation is open (Mainsail, the job queue).
     if (lv_subject_get_int(
             get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
-        ToastManager::instance().show(ToastSeverity::WARNING,
-                                      lv_tr("Cannot calibrate while printing"), 3000);
+        publish_notice({NoticeSeverity::WARNING, lv_tr("Cannot calibrate while printing"), 3000});
         return;
     }
     if (!api) {
@@ -237,8 +236,7 @@ void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool n
         api, homing_lifetime, [api, cmd, tag]() { execute_machine_gcode(api, cmd, tag.c_str()); },
         [cmd, tag](const MoonrakerError& err) {
             spdlog::error("{} Homing before {} failed: {}", tag, cmd.log_name, err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          (cmd.display_name + " failed").c_str(), 4000);
+            publish_notice({NoticeSeverity::ERROR, cmd.display_name + " failed", 4000});
         });
 }
 
