@@ -73,13 +73,6 @@ const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& fila
                                            const std::string& material,
                                            const std::string& color_hex);
 
-/// The material a Spoolman filament records for a slot whose precise type is
-/// @p display_type: the type OrcaSlicer matches (filament::orca_match_type()),
-/// else the base polymer, else @p display_type itself. AFC and the slicer read
-/// this field back verbatim, so "ABS+" is recorded as "ABS" and the "+" lives
-/// in the filament's name.
-std::string material_for_type(const std::string& display_type);
-
 /// The name a new Spoolman filament is filed under: @p product (a catalog
 /// product name or the precise type, "ABS+" or "Silk PLA") then the colour,
 /// trimmed and joined by one space. Empty only when both are blank.
@@ -90,7 +83,7 @@ std::string new_filament_name(const std::string& product, const std::string& col
 int temperature_for_range(int min_temp, int max_temp);
 
 /// Of @p filaments not already an exact match, the one that is most likely the
-/// same product: a material that records as @p material (material_for_type()
+/// same product: a material that records as @p material (filament::slicer_material()
 /// of both sides, so a record filed as "ABS+" still counts as ABS) and the
 /// nearest colour within FilamentMapper's colour tolerance. nullptr when none
 /// is near enough. Offered to the user, never taken silently.

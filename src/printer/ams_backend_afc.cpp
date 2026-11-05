@@ -15,6 +15,7 @@
 #include "config.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "filament_variants.h"
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
 #include "lane_legacy_migration.h"
@@ -5146,6 +5147,16 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info,
         // caused issue #644, where spool assignment silently bypassed AFC.
         std::string lane_name = slots_.name_of(slot_index);
         if (!lane_name.empty()) {
+            // AFC copies the lane's material into lane_data, where the slicer
+            // matches it verbatim. A linked lane's material is the Spoolman
+            // filament's, which records the type the slicer knows ("ABS" for
+            // "ABS+") and keeps the variant in its name, so SET_MATERIAL says
+            // the same. An unlinked lane has no other store, so it keeps the
+            // precise type. A name that cannot be sent is refused whole.
+            const std::string afc_material =
+                info.spoolman_id > 0 && IMoonrakerAPI::is_safe_material_param(info.material)
+                    ? filament::slicer_material(info.material)
+                    : info.material;
             // Remember what the user declared, pruned to what the SET_*
             // commands below actually carry, so the parse can tell firmware
             // repeating their choice back from AFC's own readings. Staged
@@ -5164,9 +5175,11 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info,
                 if (!ams::is_declarable_color(info.color_rgb)) {
                     staged->color_rgb.reset();
                 }
-                if (info.material.empty() ||
-                    !IMoonrakerAPI::is_safe_material_param(info.material)) {
+                if (afc_material.empty() || !IMoonrakerAPI::is_safe_material_param(afc_material)) {
                     staged->material.reset();
+                } else if (staged->material) {
+                    // Firmware repeats what SET_MATERIAL sent, not the precise type.
+                    staged->material = afc_material;
                 }
                 // No SET_* carries brand, spool name, a colour name or a
                 // product line, so any value firmware reports for them is its
@@ -5257,11 +5270,11 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info,
             // charset is deliberately wider than an identifier's: `PLA+`,
             // `PA6-CF` and `Silk PLA` are all in our own filament database, and
             // gating this on is_safe_gcode_param() dropped every one of them.
-            if (!info.material.empty() && IMoonrakerAPI::is_safe_material_param(info.material)) {
+            if (!afc_material.empty() && IMoonrakerAPI::is_safe_material_param(afc_material)) {
                 ams::Observation material_fields{ams::ObservationSource::LocalUser};
-                material_fields.material = info.material;
+                material_fields.material = afc_material;
                 execute_gcode(fmt::format("SET_MATERIAL LANE={} MATERIAL={}", lane_name,
-                                          IMoonrakerAPI::gcode_param_value(info.material)),
+                                          IMoonrakerAPI::gcode_param_value(afc_material)),
                               nullptr, release_refused_fields(material_fields));
             } else if (!info.material.empty()) {
                 spdlog::warn("[AMS AFC] Skipping SET_MATERIAL - unsafe characters in: {}",

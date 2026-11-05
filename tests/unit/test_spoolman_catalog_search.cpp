@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "filament_variants.h"
 #include "moonraker_error.h"
 #include "spoolman_catalog_search.h"
 
@@ -178,15 +179,14 @@ TEST_CASE("find_catalog_filament matches one catalog product exactly", "[spoolma
     }
 }
 
-TEST_CASE("material_for_type records the material the slicer and AFC understand",
+TEST_CASE("slicer_material is the material the slicer and AFC understand",
           "[spoolman_db][filament_naming]") {
-    using helix::spoolman::material_for_type;
-    CHECK(material_for_type("ABS+") == "ABS");
-    CHECK(material_for_type("PLA+") == "PLA");
-    CHECK(material_for_type("Silk PLA") == "PLA");
-    CHECK(material_for_type("PLA-CF") == "PLA-CF");
-    CHECK(material_for_type(" PETG ") == "PETG");
-    CHECK(material_for_type("").empty());
+    CHECK(filament::slicer_material("ABS+") == "ABS");
+    CHECK(filament::slicer_material("PLA+") == "PLA");
+    CHECK(filament::slicer_material("Silk PLA") == "PLA");
+    CHECK(filament::slicer_material("PLA-CF") == "PLA-CF");
+    CHECK(filament::slicer_material(" PETG ") == "PETG");
+    CHECK(filament::slicer_material("").empty());
 }
 
 TEST_CASE("new_filament_name puts the product before the colour",

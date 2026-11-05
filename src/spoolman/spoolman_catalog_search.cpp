@@ -91,20 +91,6 @@ const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& fila
     return nullptr;
 }
 
-std::string material_for_type(const std::string& display_type) {
-    const std::string type(text_io::trim(display_type));
-    if (type.empty()) {
-        return {};
-    }
-    if (std::string orca = filament::orca_match_type(type); !orca.empty()) {
-        return orca;
-    }
-    if (std::string base = filament::extract_base_material(type); !base.empty()) {
-        return base;
-    }
-    return type;
-}
-
 std::string new_filament_name(const std::string& product, const std::string& color_name) {
     const std::string head(text_io::trim(product));
     const std::string tail(text_io::trim(color_name));
@@ -137,7 +123,7 @@ const FilamentInfo* find_similar_filament(const std::vector<FilamentInfo>& filam
     int best_distance = FilamentMapper::kColorMatchTolerance + 1;
     for (const auto& f : filaments) {
         const std::string hex = normalize_color_hex(f.color_hex);
-        if (hex.empty() || material_for_type(f.material) != material) {
+        if (hex.empty() || filament::slicer_material(f.material) != material) {
             continue;
         }
         const auto rgb = parse_hex_color(hex.substr(0, 6));
