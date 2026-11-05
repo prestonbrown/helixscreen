@@ -541,6 +541,11 @@ class MoonrakerFileAPIMock : public MoonrakerFileAPI {
     void list_files(const std::string& root, const std::string& path, bool recursive,
                     FileListCallback on_success, ErrorCallback on_error) override;
 
+    /// The config root answers from the same files list_files("config", ...) reports,
+    /// one directory at a time; a directory holding nothing is reported missing.
+    void get_directory(const std::string& root, const std::string& path,
+                       FileListCallback on_success, ErrorCallback on_error) override;
+
     void delete_file(const std::string& filename, SuccessCallback on_success,
                      ErrorCallback on_error) override;
 

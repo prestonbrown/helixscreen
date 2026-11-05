@@ -438,3 +438,10 @@ struct MoonrakerError {
         return err;
     }
 };
+
+/// True when a server.files.get_directory failure means the directory is not there.
+/// Moonraker reports that as a plain 400 with this text, not as a not-found code.
+inline bool moonraker_directory_missing(const MoonrakerError& error) {
+    return error.type == MoonrakerErrorType::FILE_NOT_FOUND ||
+           error.message.find("Directory does not exist") != std::string::npos;
+}
