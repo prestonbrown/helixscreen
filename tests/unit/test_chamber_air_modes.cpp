@@ -289,3 +289,17 @@ TEST_CASE("chamber air: fan guard", "[chamber_air]") {
         CHECK(g.action == FanGuardAction::Apply);
     }
 }
+
+TEST_CASE("chamber air: resuming into a chamber above its alarm asks first", "[chamber_air]") {
+    CHECK(air::chamber_too_hot_to_resume(AirMode::Exhaust, 45.0, 43.0));
+    CHECK_FALSE(air::chamber_too_hot_to_resume(AirMode::Exhaust, 43.0, 43.0));
+    CHECK_FALSE(air::chamber_too_hot_to_resume(AirMode::Exhaust, 40.0, 43.0));
+    // Only the cooling mode holds a ceiling.
+    CHECK_FALSE(air::chamber_too_hot_to_resume(AirMode::Recirculate, 60.0, 43.0));
+    CHECK_FALSE(air::chamber_too_hot_to_resume(AirMode::Off, 60.0, 43.0));
+    // Any missing reading, or no alarm set, never asks.
+    CHECK_FALSE(air::chamber_too_hot_to_resume(std::nullopt, 60.0, 43.0));
+    CHECK_FALSE(air::chamber_too_hot_to_resume(AirMode::Exhaust, std::nullopt, 43.0));
+    CHECK_FALSE(air::chamber_too_hot_to_resume(AirMode::Exhaust, 60.0, std::nullopt));
+    CHECK_FALSE(air::chamber_too_hot_to_resume(AirMode::Exhaust, 60.0, 0.0));
+}

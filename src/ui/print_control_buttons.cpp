@@ -5,12 +5,14 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h" // NOTIFY_WARNING / NOTIFY_ERROR
 #include "ui_event_safety.h"    // LVGL_SAFE_EVENT_CB_BEGIN / END
+#include "ui_modal.h"
 #include "ui_resume_dispatch.h"
 #include "ui_timer_guard.h" // lv_timer_cancel_safe
 #include "ui_update_queue.h"
 
 #include "abort_manager.h"
 #include "app_globals.h" // get_printer_state()
+#include "chamber_air_modes.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h" // lv_tr
 #include "moonraker_error.h"
@@ -199,6 +201,29 @@ void PrintControlButtons::request_resume() {
         NOTIFY_WARNING(lv_tr("Resume macro not configured"));
         return;
     }
+    // In a cooling chamber mode a chamber above the firmware's alarm temperature can
+    // clog the extruder; the printer's own screen asks before resuming into it.
+    auto& ps = get_printer_state();
+    const auto& air = ps.chamber_air();
+    std::optional<double> chamber_c;
+    if (lv_subject_get_int(ps.capabilities_state().subject(helix::Capability::HasChamberSensor))) {
+        chamber_c = lv_subject_get_int(ps.temperature_state().get_chamber_temp_subject()) / 10.0;
+    }
+    if (helix::chamber_air::chamber_too_hot_to_resume(air.available() ? air.mode() : std::nullopt,
+                                                      chamber_c, air.critical_temp_c())) {
+        spdlog::info("[PrintControl] Chamber {:.1f}C above its {:.1f}C alarm - confirming resume",
+                     chamber_c.value_or(0.0), air.critical_temp_c().value_or(0.0));
+        ui::modal_confirm(lv_tr("Chamber too hot"),
+                          lv_tr("The chamber temperature is too high. This may cause extruder "
+                                "clogging. Continue printing?"),
+                          ModalSeverity::Warning, lv_tr("Resume"),
+                          []() { PrintControlButtons::instance().dispatch_resume(); });
+        return;
+    }
+    dispatch_resume();
+}
+
+void PrintControlButtons::dispatch_resume() {
     spdlog::info("[PrintControl] Resuming print");
     start_pending_action(PendingAction::Resuming);
     // dispatch_prepared_resume runs the backend prepare_for_resume → Resume
