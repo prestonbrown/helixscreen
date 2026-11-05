@@ -1577,99 +1577,132 @@ bool overlaps(const lv_area_t& a, const lv_area_t& b) {
 }
 } // namespace
 
-TEST_CASE("outside_pill_area: pills sit diagonally off their corner and stay in the container",
+TEST_CASE("outside_pill_area: pills sit off their corner, then beside, below last",
           "[grid_edit][edit-chrome][halfcell]") {
     constexpr int kPill = 36;
     constexpr int kGap = 5;
     // The 800x480 home grid container, right of the navbar.
     const lv_area_t bounds{80, 0, 799, 479};
     auto place = [&](const lv_area_t& tile, bool top_right,
-                     const std::vector<lv_area_t>& avoid = {}) {
-        return GridEditModeTestAccess::outside_pill_area(tile, kPill, bounds, kGap, top_right,
-                                                         avoid);
+                     const std::vector<lv_area_t>& blocked = {},
+                     const std::vector<lv_area_t>& tiles = {}) {
+        const auto a = GridEditModeTestAccess::outside_pill_area(tile, kPill, bounds, kGap,
+                                                                 top_right, blocked, tiles);
+        REQUIRE(a.has_value());
+        return *a;
     };
-    auto inside_bounds = [&](const lv_area_t& a) {
-        return a.x1 >= bounds.x1 && a.y1 >= bounds.y1 && a.x2 <= bounds.x2 && a.y2 <= bounds.y2;
+    const lv_area_t del = GridEditModeTestAccess::delete_page_button_area(bounds);
+    REQUIRE(same_area(del, {752, 8, 791, 47}));
+
+    // Each row places the trash pill, then the configure pill clear of it.
+    struct Row {
+        const char* what;
+        lv_area_t tile;
+        std::vector<lv_area_t> blocked; // fixed edit-mode buttons
+        std::vector<lv_area_t> tiles;   // the page's other widgets
+        lv_area_t trash, cfg;
     };
-
-    SECTION("mid-grid: trash off the top-right corner, configure off the top-left") {
-        const lv_area_t tile{400, 200, 459, 258};
-        const lv_area_t trash = place(tile, true);
-        CHECK(same_area(trash, {465, 159, 500, 194}));
-        const lv_area_t cfg = place(tile, false, {trash});
-        CHECK(same_area(cfg, {359, 159, 394, 194}));
-        CHECK_FALSE(overlaps(trash, tile));
-        CHECK_FALSE(overlaps(cfg, tile));
+    const Row rows[] = {
+        {"mid-grid: diagonally off each top corner",
+         {400, 200, 459, 258},
+         {},
+         {},
+         {465, 159, 500, 194},
+         {359, 159, 394, 194}},
+        {"top row: beside the tile, top-aligned",
+         {677, 5, 736, 63},
+         {},
+         {},
+         {742, 5, 777, 40},
+         {636, 5, 671, 40}},
+        {"top row, right taken by a tile: trash goes left",
+         {677, 5, 736, 63},
+         {},
+         {{742, 5, 799, 63}},
+         {636, 5, 671, 40},
+         {595, 5, 630, 40}},
+        {"top row, both sides taken: below, the last resort",
+         {677, 5, 736, 63},
+         {},
+         {{742, 5, 799, 63}, {617, 5, 671, 63}},
+         {742, 69, 777, 104},
+         {636, 69, 671, 104}},
+        {"right screen edge: trash beside on the left, configure above it",
+         {740, 200, 799, 258},
+         {},
+         {},
+         {699, 200, 734, 235},
+         {699, 159, 734, 194}},
+        {"top-right screen corner: configure one pill further out, still beside",
+         {740, 0, 799, 58},
+         {},
+         {},
+         {699, 0, 734, 35},
+         {658, 0, 693, 35}},
+        {"beside the navbar: configure goes beside on the right",
+         {80, 200, 139, 258},
+         {},
+         {},
+         {145, 159, 180, 194},
+         {145, 200, 180, 235}},
+        {"bottom-left corner beside the navbar",
+         {80, 421, 139, 479},
+         {},
+         {},
+         {145, 380, 180, 415},
+         {145, 421, 180, 456}},
+        {"a secondary page's delete-page button: trash beside instead of over it",
+         {677, 60, 736, 118},
+         {del},
+         {},
+         {742, 60, 777, 95},
+         {636, 19, 671, 54}},
+        {"a diagonal neighbour: trash beside instead of over its centre",
+         {400, 200, 459, 258},
+         {},
+         {{465, 141, 524, 199}},
+         {465, 200, 500, 235},
+         {359, 159, 394, 194}},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        const lv_area_t trash = place(row.tile, true, row.blocked, row.tiles);
+        CHECK(same_area(trash, row.trash));
+        std::vector<lv_area_t> taken = row.blocked;
+        taken.push_back(trash);
+        const lv_area_t cfg = place(row.tile, false, taken, row.tiles);
+        CHECK(same_area(cfg, row.cfg));
+        for (const lv_area_t& pill : {trash, cfg}) {
+            CHECK_FALSE(overlaps(pill, row.tile));
+            for (const lv_area_t& b : row.blocked) {
+                CHECK_FALSE(overlaps(pill, b));
+            }
+            for (const lv_area_t& t : row.tiles) {
+                CHECK_FALSE(overlaps(pill, t));
+            }
+        }
     }
 
-    SECTION("top row: both pills flip below the tile") {
-        const lv_area_t tile{677, 5, 736, 63};
-        const lv_area_t trash = place(tile, true);
-        CHECK(same_area(trash, {742, 69, 777, 104}));
-        const lv_area_t cfg = place(tile, false, {trash});
-        CHECK(same_area(cfg, {636, 69, 671, 104}));
-    }
-
-    SECTION("right screen edge: trash flips left, configure moves below") {
-        const lv_area_t tile{740, 200, 799, 258};
-        const lv_area_t trash = place(tile, true);
-        CHECK(same_area(trash, {699, 159, 734, 194}));
-        const lv_area_t cfg = place(tile, false, {trash});
-        CHECK(same_area(cfg, {699, 264, 734, 299}));
-        CHECK_FALSE(overlaps(cfg, trash));
-    }
-
-    SECTION("top-right screen corner: trash goes below-left") {
+    SECTION("with no clear spot, a sliver of a neighbour is allowed, never its centre") {
+        // The grid's top-right corner beside a neighbour that reaches three px
+        // under the spot on the tile's left, and fills every other spot.
         const lv_area_t tile{740, 0, 799, 58};
-        const lv_area_t trash = place(tile, true);
-        CHECK(same_area(trash, {699, 64, 734, 99}));
-        // Every first-ring spot is off screen or taken: one pill further out.
-        const lv_area_t cfg = place(tile, false, {trash});
-        CHECK(same_area(cfg, {658, 64, 693, 99}));
+        const lv_area_t neighbour{600, 0, 701, 140};
+        const lv_area_t trash = place(tile, true, {}, {neighbour});
+        CHECK(same_area(trash, {699, 0, 734, 35}));
+        CHECK(trash.x1 > (neighbour.x1 + neighbour.x2) / 2);
     }
 
-    SECTION("beside the navbar: configure flips right instead of over the navbar") {
-        const lv_area_t tile{80, 200, 139, 258};
-        const lv_area_t trash = place(tile, true);
-        CHECK(same_area(trash, {145, 159, 180, 194}));
-        const lv_area_t cfg = place(tile, false, {trash});
-        CHECK(inside_bounds(cfg));
-        CHECK(cfg.x1 >= bounds.x1);
-        CHECK_FALSE(overlaps(cfg, trash));
-        CHECK_FALSE(overlaps(cfg, tile));
-    }
-
-    SECTION("bottom-left corner beside the navbar") {
-        const lv_area_t tile{80, 421, 139, 479};
-        const lv_area_t trash = place(tile, true);
-        CHECK(same_area(trash, {145, 380, 180, 415}));
-        const lv_area_t cfg = place(tile, false, {trash});
-        CHECK(inside_bounds(cfg));
-        CHECK_FALSE(overlaps(cfg, trash));
-    }
-
-    SECTION("beside the delete-page button: neither pill covers it") {
-        // A secondary page draws the button in its top-right corner; a half-cell
-        // tile just left of and below it has its preferred trash spot on it.
-        const lv_area_t del = GridEditModeTestAccess::delete_page_button_area(bounds);
-        CHECK(same_area(del, {752, 8, 791, 47}));
-        const lv_area_t tile{677, 60, 736, 118};
-        REQUIRE(overlaps(place(tile, true), del));
-        const lv_area_t trash = place(tile, true, {del});
-        CHECK(same_area(trash, {742, 124, 777, 159}));
-        const lv_area_t cfg = place(tile, false, {del, trash});
-        CHECK(same_area(cfg, {636, 19, 671, 54}));
-        CHECK_FALSE(overlaps(trash, del));
-        CHECK_FALSE(overlaps(cfg, del));
-        CHECK_FALSE(overlaps(cfg, trash));
-    }
-
-    SECTION("a container with no room anywhere clamps the pill inside it") {
+    SECTION("no safe spot outside the tile: nullopt, so the pill keeps its corner") {
         const lv_area_t tight{0, 0, 59, 58};
-        const lv_area_t tile{0, 0, 59, 58};
-        const lv_area_t a =
-            GridEditModeTestAccess::outside_pill_area(tile, kPill, tight, kGap, true);
-        CHECK(same_area(a, {24, 0, 59, 35}));
+        CHECK_FALSE(
+            GridEditModeTestAccess::outside_pill_area(tight, kPill, tight, kGap, true).has_value());
+        const lv_area_t tile{400, 200, 459, 258};
+        const std::vector<lv_area_t> ring{
+            {300, 100, 559, 199}, {300, 200, 399, 358}, {460, 200, 559, 358}, {300, 259, 559, 358}};
+        CHECK_FALSE(
+            GridEditModeTestAccess::outside_pill_area(tile, kPill, bounds, kGap, true, {}, ring)
+                .has_value());
     }
 }
 
@@ -1681,9 +1714,9 @@ TEST_CASE("outside pills leave every edge of a half-cell widget resizable",
     GridEditMode em;
     const lv_area_t tile{400, 200, 459, 258};
     const lv_area_t bounds{80, 0, 799, 479};
-    const lv_area_t trash = GridEditModeTestAccess::outside_pill_area(tile, 36, bounds, 5, true);
+    const lv_area_t trash = *GridEditModeTestAccess::outside_pill_area(tile, 36, bounds, 5, true);
     const lv_area_t cfg =
-        GridEditModeTestAccess::outside_pill_area(tile, 36, bounds, 5, false, {trash});
+        *GridEditModeTestAccess::outside_pill_area(tile, 36, bounds, 5, false, {trash});
     auto on_pill = [&](int x, int y) {
         auto in = [&](const lv_area_t& a) {
             return x >= a.x1 && x <= a.x2 && y >= a.y1 && y <= a.y2;

@@ -42,6 +42,12 @@ class ConfigurableWidget : public PanelWidget {
     bool has_edit_configure() const override {
         return true;
     }
+    /// Counts the configure pill's taps; false asks for no rebuild.
+    bool on_edit_configure() override {
+        ++configure_calls;
+        return false;
+    }
+    int configure_calls = 0;
 };
 
 lv_obj_t* icon_label_of(lv_obj_t* pill) {
@@ -168,34 +174,58 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome icons clear WCAG AA on their 
 TEST_CASE_METHOD(XMLTestFixture, "a press that slides off a selection pill is not a click",
                  "[grid_edit][edit-chrome][halfcell]") {
     // A whole-cell widget carries the trash pill on its corner, so a drag aimed
-    // at the widget can start on the pill.
+    // at the widget can start on the pill. The configure pill and the
+    // delete-page button take the same guard.
     ChromeScene scene(test_screen());
     helix_test::ScopedPointerIndev pointer;
     GridEditMode em;
+    int delete_page_calls = 0;
+    em.set_delete_page_callback([&]() { ++delete_page_calls; });
     em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
     em.select_widget(scene.widget);
     REQUIRE(em.selected_widget() == scene.widget);
-
-    lv_obj_t* trash = GridEditModeTestAccess::remove_button(em);
-    REQUIRE(trash != nullptr);
     lv_obj_update_layout(scene.container);
-    lv_area_t pill;
-    lv_obj_get_coords(trash, &pill);
-    const int cx = (pill.x1 + pill.x2) / 2;
-    const int cy = (pill.y1 + pill.y2) / 2;
-    lv_point_t centre{cx, cy};
-    REQUIRE(lv_indev_search_obj(lv_screen_active(), &centre) == trash);
 
-    pointer.press(cx, cy);
-    pointer.move(cx + 30, cy + 30);
-    pointer.move(cx + 80, cy + 80);
-    pointer.release(cx + 80, cy + 80);
-    CHECK(em.selected_widget() == scene.widget);
-    CHECK(scene.config->page_entries(ChromeScene::kPageIndex).size() == 1);
+    auto centre_of = [](lv_obj_t* obj) {
+        REQUIRE(obj != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(obj, &a);
+        lv_point_t c{(a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2};
+        REQUIRE(lv_indev_search_obj(lv_screen_active(), &c) == obj);
+        return c;
+    };
+    // Slides toward the grid's middle, off every button, before lifting.
+    auto slide_off = [&](lv_point_t c) {
+        const int dx = c.x > 300 ? -40 : 40;
+        pointer.press(c.x, c.y);
+        pointer.move(c.x + dx, c.y + 30);
+        pointer.move(c.x + 2 * dx, c.y + 80);
+        pointer.release(c.x + 2 * dx, c.y + 80);
+    };
+    auto tap = [&](lv_point_t c) {
+        pointer.press(c.x, c.y);
+        pointer.release(c.x, c.y);
+    };
 
-    // A tap that lifts on the pill still removes the widget.
-    pointer.press(cx, cy);
-    pointer.release(cx, cy);
+    const lv_point_t trash = centre_of(GridEditModeTestAccess::remove_button(em));
+    const lv_point_t configure = centre_of(GridEditModeTestAccess::configure_button(em));
+    const lv_point_t delete_page = centre_of(GridEditModeTestAccess::delete_page_button(em));
+
+    for (const lv_point_t& c : {trash, configure, delete_page}) {
+        INFO("button at " << c.x << "," << c.y);
+        slide_off(c);
+        CHECK(em.selected_widget() == scene.widget);
+        CHECK(scene.config->page_entries(ChromeScene::kPageIndex).size() == 1);
+        CHECK(scene.pw.configure_calls == 0);
+        CHECK(delete_page_calls == 0);
+    }
+
+    // Taps that lift on the button still act.
+    tap(configure);
+    CHECK(scene.pw.configure_calls == 1);
+    tap(delete_page);
+    CHECK(delete_page_calls == 1);
+    tap(trash);
     CHECK(em.selected_widget() == nullptr);
 
     em.exit();
@@ -293,6 +323,36 @@ TEST_CASE_METHOD(XMLTestFixture, "a half-cell widget's outside pills leave the d
     }
     lv_point_t centre{(del_area.x1 + del_area.x2) / 2, (del_area.y1 + del_area.y2) / 2};
     CHECK(lv_indev_search_obj(lv_screen_active(), &centre) == del);
+
+    em.exit();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "a half-cell widget's outside pills spare a diagonal neighbour",
+                 "[grid_edit][edit-chrome][halfcell]") {
+    // A neighbour one track up and right sits where the trash pill would go
+    // first; a pill over it would turn the tap that selects it into a delete.
+    ChromeScene scene(test_screen(), 8, 4, 1);
+    lv_obj_t* neighbour = lv_obj_create(scene.container);
+    lv_obj_set_name(neighbour, "neighbour");
+    lv_obj_set_grid_cell(neighbour, LV_GRID_ALIGN_STRETCH, 9, 1, LV_GRID_ALIGN_STRETCH, 3, 1);
+    lv_obj_update_layout(scene.container);
+    GridEditMode em;
+    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.select_widget(scene.widget);
+    REQUIRE(em.selected_widget() == scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    lv_area_t n;
+    lv_obj_get_coords(neighbour, &n);
+    for (lv_obj_t* pill : {GridEditModeTestAccess::remove_button(em),
+                           GridEditModeTestAccess::configure_button(em)}) {
+        REQUIRE(pill != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(pill, &a);
+        INFO("pill " << a.x1 << "," << a.y1 << "-" << a.x2 << "," << a.y2 << " neighbour " << n.x1
+                     << "," << n.y1 << "-" << n.x2 << "," << n.y2);
+        CHECK((a.x2 < n.x1 || a.x1 > n.x2 || a.y2 < n.y1 || a.y1 > n.y2));
+    }
 
     em.exit();
 }

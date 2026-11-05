@@ -384,19 +384,26 @@ class GridEditMode {
     static bool pills_go_outside(int widget_w, int widget_h, int pill_inside_px, int min_drag_px);
 
     /// Screen rect of a @p pill_px selection pill placed just outside @p tile,
-    /// diagonally off its @p corner and @p gap px clear of it.
+    /// @p gap px clear of it, or nullopt when no spot outside it is safe.
     ///
-    /// The diagonal keeps the pill off every edge's resize band except the
-    /// corner square two bands share, so each edge still resizes along the rest
-    /// of its length. When the preferred spot leaves @p bounds (the grid
-    /// container: a widget at the screen edge, at the top, or beside the
-    /// navbar) or overlaps any of @p avoid (a pill already placed, the
-    /// delete-page button), the pill flips below, then to the other side, then
-    /// both, then tries the same four spots one pill further out. A pill that
-    /// fits nowhere is clamped into @p bounds.
-    static lv_area_t outside_pill_area(const lv_area_t& tile, int pill_px, const lv_area_t& bounds,
-                                       int gap, PillCorner corner,
-                                       const std::vector<lv_area_t>& avoid = {});
+    /// The preferred spot is diagonally off @p corner, which keeps the pill off
+    /// every edge's resize band except the corner square two bands share. When
+    /// that has no room the pill goes beside the tile, top-aligned with it, on
+    /// the @p corner side and then the other; then diagonally off the other top
+    /// corner; then the same four one pill further out; then below, the last
+    /// resort.
+    ///
+    /// A spot must lie inside @p bounds (the grid container, which excludes the
+    /// navbar and its Done button) and clear of every rect in @p blocked (a
+    /// pill already placed, the delete-page button). A pill above another
+    /// widget would take the tap that selects it, so a spot clear of every rect
+    /// in @p tiles wins, and a spot over another tile's centre, or over more
+    /// than a sliver of it, never qualifies.
+    static std::optional<lv_area_t> outside_pill_area(const lv_area_t& tile, int pill_px,
+                                                      const lv_area_t& bounds, int gap,
+                                                      PillCorner corner,
+                                                      const std::vector<lv_area_t>& blocked = {},
+                                                      const std::vector<lv_area_t>& tiles = {});
 
     /// Screen rect of the delete-page button in the top-right corner of a
     /// page whose content area is @p content.
