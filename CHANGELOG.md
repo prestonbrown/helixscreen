@@ -5,7 +5,7 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.8] - 2026-11-04
+## [1.0.8] - 2026-11-05
 
 1.0.8 is a maintenance release of fixes ported from 1.1. The main themes:
 
@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Printing**
 
+- **Leaving the heater calibration screen no longer stops a print** - if that screen was stuck on a running calibration, leaving it during a print turned the heaters off and could end the print. It now leaves the heaters and part fan alone while a print is running.
 - **A slow print start stays preparing** (#1898) - a printer that runs a long start sequence before answering no longer has the job marked failed while it carries on. Stop can still cancel it.
 - **Z-hops no longer bump the layer count** - when the slicer reports no layers, a hop over thin layers read as several layers up on every travel move.
 - **Very large layers draw in the G-code preview** - a layer bigger than the cache budget was refused and re-parsed on every frame, which made the screen crawl on a CC1 with a large multiboard print.
@@ -32,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Printers**
 
+- **MPC calibration finishes on Kalico** - Kalico sends its whole MPC result as one message, so the calibration screen never saw it finish.
 - **Centauri Carbon Bed Screws** (#2001) - it now uses Klipper's own calculation rather than COSMOS's Manual Leveling prompt, which gave advice like two turns on every corner of a nearly level bed. A prompt line can no longer add a false fifth screw, and quick-action Bed Screws and Bed Mesh buttons no longer fail with "Invalid macro name".
 - **RustiCC on the CC1** (#2001) - HelixScreen recognizes it as the printer's control software and runs with the right priority beside it.
 - **K1 with the Guilouz Helper Script** (#1894) - the installer no longer mistakes these printers for Simple AF, so it records the stock screen software it disables and uninstall can restore it.
