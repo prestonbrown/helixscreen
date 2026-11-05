@@ -68,7 +68,7 @@ void start_ipv4_startup_revert() {
     if (!pending || !net::is_stale_pending_ipv4_revert(pending, pending->link)) {
         return;
     }
-    spdlog::warn("[Ipv4] A {} IPv4 change was never kept: restoring {}",
+    spdlog::warn("[Ipv4] An IPv4 change on {} was never kept: restoring {}",
                  net::ipv4_link_name(pending->link), net::ipv4_config_text(pending->previous));
     StartupRevert& s = state();
     s.link = pending->link;
