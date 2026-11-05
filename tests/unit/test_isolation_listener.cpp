@@ -202,10 +202,10 @@ class IsolationListener : public Catch::EventListenerBase {
         auto null_logger = std::make_shared<spdlog::logger>("null", null_sink);
         spdlog::set_default_logger(std::move(null_logger));
 
-        // Report every LVGL call made off the LVGL thread (stderr, once per call
-        // site); HELIX_LVGL_THREAD_CHECK=abort makes the first one fail the run.
+        // The first LVGL call made off the LVGL thread aborts the run;
+        // HELIX_LVGL_THREAD_CHECK=report logs each call site and carries on.
         helix::lvgl_thread_check::set_mode(
-            helix::lvgl_thread_check::mode_from_env(helix::lvgl_thread_check::Mode::Report));
+            helix::lvgl_thread_check::mode_from_env(helix::lvgl_thread_check::Mode::Abort));
 
         // Pre-warm process-wide worker pools ONCE before any per-test thread
         // baseline is captured. ThumbnailProcessor is a Meyer's singleton whose

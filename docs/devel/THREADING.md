@@ -1016,16 +1016,18 @@ A `LifetimeToken`-guarded timer callback is the other valid answer — annotate 
 queued callbacks can't leak between tests. It also opts into
 `HELIX_STRICT_BG_THREAD_CHECK`, so any new L081 instance aborts the suite.
 
-### Off-thread LVGL calls are reported
+### Off-thread LVGL calls abort
 
-`helix-tests` and `--test` run with the LVGL thread check in report mode
+`helix-tests` and `--test` run with the LVGL thread check in abort mode
 (`src/system/lvgl_thread_check.cpp`, `patches/lvgl_thread_check_hook.patch`): a subject
 write or notify, `lv_timer_create`/`lv_timer_delete`, or `lv_obj_delete`/`lv_obj_clean`
 reached from a thread other than UpdateQueue's main thread prints an `[LvglThreadCheck]`
-block with a backtrace to stderr, once per call site. `HELIX_LVGL_THREAD_CHECK=abort`
-makes the first one fatal (`docs/devel/ENVIRONMENT_VARIABLES.md`). Release builds compile
-the check out. A sensor manager in `set_sync_mode(true)` refreshes its subjects inline on
-whatever thread published, so a test that publishes from a worker reports here.
+block with a backtrace to stderr and aborts. `HELIX_LVGL_THREAD_CHECK=report` instead
+prints one block per call site and carries on, to list every site in one run
+(`docs/devel/ENVIRONMENT_VARIABLES.md`). Release builds compile the check out. A sensor
+manager in `set_sync_mode(true)` refreshes its subjects inline on whatever thread
+published, so a test that publishes from a worker turns sync mode off first and drains
+the UpdateQueue on the main thread.
 
 XML subjects register into LVGL's global scope — per-test scopes are blocked by LVGL
 internals. Each test's `init_subjects(true)` overwrites prior entries with fresh pointers, and

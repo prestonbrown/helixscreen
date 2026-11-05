@@ -316,6 +316,18 @@ mkdir -p "$ROWS_DIR" || exit 2
 rm -f "$ROWS_DIR"/*
 gate_t0=$SECONDS
 
+# A test-host C++ run copies this tree to the host as it starts, beside the app
+# build that applies patches/ to the submodules. Applied first, the copy always
+# holds fully patched submodules; with the stamp current it is a no-op.
+if [ "$SWEEP_WHERE" = remote ] && { [ -z "$RERUN" ] || reruns ci-shards; }; then
+    if ! "$MAKE" --no-print-directory apply-patches >"$LAND_GATE_LOGDIR/apply-patches.log" 2>&1; then
+        echo "✗ applying patches/ failed, so the test host would get unpatched submodules:"
+        tail -n 25 "$LAND_GATE_LOGDIR/apply-patches.log"
+        echo "LAND GATE: FAIL ($judged)"
+        exit 1
+    fi
+fi
+
 # print_table <rows dir>: one row per step with its duration and log, then the
 # tail of each red log. Sets failed unless every step has a PASS row.
 print_table() {
