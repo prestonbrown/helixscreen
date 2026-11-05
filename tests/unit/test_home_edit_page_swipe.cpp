@@ -3467,6 +3467,7 @@ TEST_CASE_METHOD(EditHomeFixture,
         lv_point_t r = center_of(remove_button);
         REQUIRE(lv_indev_search_obj(lv_screen_active(), &r) == remove_button);
         PageSetChange change = watch_page_set_change();
+        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
         indev.press(r.x, r.y);
         indev.release(r.x, r.y);
         return change;
@@ -3651,6 +3652,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a commit saves the layout once when edits set
         const lv_point_t r = center_of(remove_button);
 
         ScopedConfigWriteCounter counter;
+        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
         indev.press(r.x, r.y);
         indev.release(r.x, r.y);
         settle();
@@ -4066,6 +4068,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     remove_dismiss_backdrop(c);
 
     SECTION("a press on it moved past the drag threshold") {
+        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
         indev.press(c.x, c.y);
         indev.move(c.x, c.y + past_drag_threshold());
         CHECK_FALSE(grid().owns_gesture());

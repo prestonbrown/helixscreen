@@ -217,6 +217,7 @@ TEST_CASE_METHOD(XMLTestFixture, "a press that slides off a selection pill is no
     em.select_widget(scene.widget);
     REQUIRE(em.selected_widget() == scene.widget);
     lv_obj_update_layout(scene.container);
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
 
     auto centre_of = [](lv_obj_t* obj) {
         REQUIRE(obj != nullptr);
@@ -273,6 +274,7 @@ TEST_CASE_METHOD(XMLTestFixture, "a half-cell widget carries its selection pills
     em.select_widget(scene.widget);
     REQUIRE(em.selected_widget() == scene.widget);
     lv_obj_update_layout(scene.container);
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
 
     lv_area_t tile;
     lv_area_t box;
@@ -488,6 +490,7 @@ TEST_CASE_METHOD(
     em.select_widget(scene.widget);
     REQUIRE(em.selected_widget() == scene.widget);
     lv_obj_update_layout(scene.container);
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
 
     lv_area_t tile;
     lv_obj_get_coords(scene.widget, &tile);
@@ -553,6 +556,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     em.select_widget(scene.widget);
     REQUIRE(em.selected_widget() == scene.widget);
     lv_obj_update_layout(scene.container);
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
 
     auto centre_on = [](lv_obj_t* obj) {
         REQUIRE(obj != nullptr);
@@ -575,6 +579,35 @@ TEST_CASE_METHOD(XMLTestFixture,
         CHECK(scene.pw.configure_calls == 0);
         CHECK(delete_page_calls == 0);
     }
+
+    em.exit();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "a selection pill ignores taps just after it appears",
+                 "[grid_edit][edit-chrome]") {
+    // A tap on a widget's top-right corner selects it and draws the trash
+    // pill under the finger; a double tap's second tap lands on that pill.
+    ChromeScene scene(test_screen(), 8, 4);
+    helix_test::ScopedPointerIndev pointer;
+    GridEditMode em;
+    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.select_widget(scene.widget);
+    REQUIRE(em.selected_widget() == scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    lv_area_t a;
+    lv_obj_get_coords(GridEditModeTestAccess::remove_button(em), &a);
+    const lv_point_t c = centre_of_area(a);
+    pointer.press(c.x, c.y);
+    pointer.release(c.x, c.y);
+    CHECK(em.selected_widget() == scene.widget);
+    CHECK(scene.config->page_entries(ChromeScene::kPageIndex).size() == 1);
+
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
+    pointer.press(c.x, c.y);
+    pointer.release(c.x, c.y);
+    CHECK(em.selected_widget() == nullptr);
+    CHECK(scene.config->page_entries(ChromeScene::kPageIndex).empty());
 
     em.exit();
 }

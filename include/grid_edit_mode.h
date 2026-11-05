@@ -422,7 +422,8 @@ class GridEditMode {
                                       const std::vector<lv_area_t>& tiles = {});
 
     /// Whether the release that produced @p e acts on the pill it ended on:
-    /// it lifted over the pill, and not over the delete-page button beneath.
+    /// it lifted over the pill, not over the delete-page button beneath, and
+    /// kPillLockoutMs after the pill appeared.
     bool pill_release_acts(lv_event_t* e) const;
 
     /// Screen rect of the delete-page button in the top-right corner of a
@@ -645,6 +646,9 @@ class GridEditMode {
     /// lv_tick_get() at the previous drag step, so the edge push advances by
     /// the time between reads rather than per read.
     uint32_t drag_step_tick_ = 0;
+    /// lv_tick_get() when the selection pills were drawn; kPillLockoutMs runs
+    /// from it.
+    uint32_t pills_drawn_tick_ = 0;
     /// One-shot flip a majority crossing requested, due
     /// kCrossPageCrossingDelayMs after the crossing, and its direction.
     /// Dwell changes never cancel it.
@@ -699,6 +703,10 @@ class GridEditMode {
 
     // Drag threshold: track press origin, only start real drag after movement
     static constexpr int kDragThresholdPx = 12;
+    /// A selection pill ignores taps this long after it appears. A tap
+    /// selects a widget and draws its trash pill under the finger, so a
+    /// double tap's second tap would otherwise remove the widget.
+    static constexpr uint32_t kPillLockoutMs = 300;
     /// A press on the selected widget is armed, watching for the drag threshold.
     bool press_armed_ = false;
     /// Where the grab's press armed: the arming cycle's point, or the point
