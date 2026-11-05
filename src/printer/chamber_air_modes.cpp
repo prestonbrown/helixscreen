@@ -361,6 +361,13 @@ std::optional<AirMode> parse_mode_id(std::string_view id) {
     return std::nullopt;
 }
 
+bool chamber_too_hot_to_resume(std::optional<AirMode> mode, std::optional<double> chamber_c,
+                               std::optional<double> critical_c) {
+    // A critical temperature of 0 is the firmware's "no alarm set".
+    return mode == AirMode::Exhaust && chamber_c && critical_c && *critical_c > 0.0 &&
+           *chamber_c > *critical_c;
+}
+
 std::optional<AccessoryCopy> accessory_copy(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     return p && p->live_presence ? p->copy : std::nullopt;

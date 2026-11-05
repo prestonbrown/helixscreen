@@ -77,6 +77,11 @@ class PrintControlButtons {
     /// same pending-UI + recovery behavior. Safe to call only on the main thread.
     void request_resume();
 
+  private:
+    /// request_resume() past its checks: the pending UI and the resume chain.
+    void dispatch_resume();
+
+  public:
     /// Klipper broadcast a `!!` error while a Pause/Resume was in flight.
     ///
     /// The optimistic spinner is cleared only by the real print-state transition

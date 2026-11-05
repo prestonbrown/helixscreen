@@ -164,6 +164,12 @@ std::optional<FanRole> disabled_fan(AirMode mode);
 FanGuard guard_fan_change(std::optional<AirMode> mode, FanRole role, int requested_pct,
                           int current_pct, std::optional<int> threshold_pct, int floor_pct);
 
+/// True when resuming a paused print should ask first: the chamber is exhausting to
+/// hold a ceiling and is above the firmware's alarm temperature, where a hot chamber
+/// can clog the extruder. False whenever a reading is missing.
+bool chamber_too_hot_to_resume(std::optional<AirMode> mode, std::optional<double> chamber_c,
+                               std::optional<double> critical_c);
+
 /// What the screen tells the user about a detachable chamber air accessory. The
 /// strings are translation keys (TR_NOOP); the caller translates them.
 struct AccessoryCopy {
