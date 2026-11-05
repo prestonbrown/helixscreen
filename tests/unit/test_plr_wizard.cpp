@@ -474,6 +474,6 @@ TEST_CASE("PLR prepare and commit outlast the plugin's longest heat waits", "[pl
     // NOZZLE_WAIT_TIMEOUT_S. Both phases can run all three waits back to back.
     constexpr uint32_t kHeatWaitsMs = (20U + 45U + 10U) * 60U * 1000U;
     constexpr uint32_t kMotionMarginMs = 10U * 60U * 1000U;
-    STATIC_CHECK(helix::plr_rpc::kPrepareTimeoutMs >= kHeatWaitsMs + kMotionMarginMs);
-    STATIC_CHECK(helix::plr_rpc::kCommitTimeoutMs >= kHeatWaitsMs + kMotionMarginMs);
+    CHECK(helix::plr_rpc::kPrepareTimeoutMs >= kHeatWaitsMs + kMotionMarginMs);
+    CHECK(helix::plr_rpc::kCommitTimeoutMs >= kHeatWaitsMs + kMotionMarginMs);
 }

@@ -18,9 +18,6 @@
 # compiler, so the property cannot break without failing the build - but Catch2
 # counts only runtime assertions, and emits no <Expression> for these at all.
 # Unlisted, each would fail the gate with no runtime assertion to add.
-Callback: storage path follows the callable's shape  # STATIC_REQUIRE on each callable shape
-PLR prepare and commit outlast the plugin's longest heat waits  # STATIC_CHECK on the timeouts
-the live preview's headers stay off libhv  # the file's #error fails the build
 Geometry Builder: RibbonVertex is 8 bytes  # 3 static_asserts on layout
 #1127 seeding state costs no extra bytes per layer entry  # static_assert on sizeof
 HeatingIconAnimator::State is the shared HeatState  # static_assert on type identity
