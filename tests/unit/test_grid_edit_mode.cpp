@@ -503,7 +503,10 @@ TEST_CASE("selection pills: outside a widget too small to share, off its corner,
     struct Row {
         const char* what;
         lv_area_t tile, trash, cfg;
+        std::vector<lv_area_t> fixed = {}; // edit-mode buttons both pills avoid
     };
+    const lv_area_t del = GridEditMode::delete_page_button_area(grid);
+    CHECK(same(del, {752, 8, 791, 47}));
     const Row rows[] = {
         {"mid-grid", {400, 200, 459, 258}, {465, 159, 500, 194}, {359, 159, 394, 194}},
         {"top row: below", {677, 5, 736, 63}, {742, 69, 777, 104}, {636, 69, 671, 104}},
@@ -520,13 +523,20 @@ TEST_CASE("selection pills: outside a widget too small to share, off its corner,
          {145, 159, 180, 194},
          {145, 264, 180, 299}},
         {"bottom-left corner", {80, 421, 139, 479}, {145, 380, 180, 415}, {186, 380, 221, 415}},
+        {"beside the delete-page button: trash below",
+         {677, 60, 736, 118},
+         {742, 124, 777, 159},
+         {636, 19, 671, 54},
+         {del}},
     };
     for (const auto& row : rows) {
         CAPTURE(row.what);
         const lv_area_t trash =
-            GridEditMode::outside_pill_area(row.tile, 36, grid, 5, Corner::TopRight);
+            GridEditMode::outside_pill_area(row.tile, 36, grid, 5, Corner::TopRight, row.fixed);
         CHECK(same(trash, row.trash));
-        CHECK(same(GridEditMode::outside_pill_area(row.tile, 36, grid, 5, Corner::TopLeft, &trash),
+        std::vector<lv_area_t> taken = row.fixed;
+        taken.push_back(trash);
+        CHECK(same(GridEditMode::outside_pill_area(row.tile, 36, grid, 5, Corner::TopLeft, taken),
                    row.cfg));
     }
     // No room anywhere: clamped inside the container.

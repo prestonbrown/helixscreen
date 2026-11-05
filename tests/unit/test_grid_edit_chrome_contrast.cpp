@@ -56,11 +56,14 @@ TEST_CASE_METHOD(XMLTestFixture,
                  "edit-mode chrome pills: icons clear WCAG AA, and only a tap presses one",
                  "[grid_edit][edit-chrome][halfcell]") {
     // A whole cell at the grid origin carries its pills on its corners; a half
-    // cell mid-grid, too small to share, carries them just outside it.
-    const bool half = GENERATE(false, true);
-    CAPTURE(half);
-    const int col = half ? 8 : 0;
-    const int row = half ? 4 : 0;
+    // cell, too small to share, carries them just outside it, mid-grid or
+    // beside the delete-page button in the page's top-right corner.
+    enum class Scene { Whole, HalfMidGrid, HalfBesideDeletePage };
+    const Scene scene = GENERATE(Scene::Whole, Scene::HalfMidGrid, Scene::HalfBesideDeletePage);
+    CAPTURE(static_cast<int>(scene));
+    const bool half = scene != Scene::Whole;
+    const int col = scene == Scene::HalfMidGrid ? 8 : scene == Scene::Whole ? 0 : 10;
+    const int row = scene == Scene::HalfMidGrid ? 4 : scene == Scene::Whole ? 0 : 1;
     const int span = half ? 1 : GridLayout::TRACKS_PER_CELL;
     const int gutter = helix::GridLayout::gutter_px();
     REQUIRE(gutter > 0);
@@ -164,14 +167,22 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_get_coords(container, &box);
     lv_obj_get_coords(trash, &pill);
     const int quarter = lv_area_get_width(&pill) / 4;
+    lv_area_t del_area;
+    lv_obj_get_coords(del, &del_area);
     if (half) {
         for (lv_obj_t* p : {trash, configure}) {
             lv_area_t a;
             lv_obj_get_coords(p, &a);
-            CHECK(a.y2 < tile.y1); // off the tile, above its top corners
+            if (scene == Scene::HalfMidGrid) {
+                CHECK(a.y2 < tile.y1); // off the tile, above its top corners
+            }
             CHECK((a.x1 >= box.x1 && a.y1 >= box.y1 && a.x2 <= box.x2 && a.y2 <= box.y2));
+            CHECK((a.x2 < del_area.x1 || a.x1 > del_area.x2 || a.y2 < del_area.y1 ||
+                   a.y1 > del_area.y2));
         }
         CHECK(pill.x1 > tile.x2);
+        lv_point_t del_centre{(del_area.x1 + del_area.x2) / 2, (del_area.y1 + del_area.y2) / 2};
+        CHECK(lv_indev_search_obj(lv_screen_active(), &del_centre) == del);
     } else {
         CHECK(pill.x2 == tile.x2 + quarter);
         CHECK(pill.y1 == tile.y1 - quarter);
