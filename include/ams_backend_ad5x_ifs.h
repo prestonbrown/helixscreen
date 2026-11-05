@@ -713,7 +713,14 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // firmware data untouched. Called from update_slot_from_state so every
     // parse path (save_variables, Adventurer5M.json, GET_ZCOLOR SILENT=1) picks
     // up the override before the SlotInfo is exposed via events.
-    void apply_overrides(SlotInfo& slot, int slot_index);
+    void apply_overrides(SlotInfo& slot, int slot_index) override;
+    void relayer_overrides_locked() override {
+        for (int i = 0; i < slots_.slot_count(); ++i) {
+            if (auto* entry = slots_.get_mut(i)) {
+                apply_overrides(entry->info, i);
+            }
+        }
+    }
     // External-edit sync: if the firmware-reported color for `slot_index`
     // differs from the previously observed value, treat it as an external
     // color/material edit (Mainsail console, AD5X LCD, native zmod dialog,

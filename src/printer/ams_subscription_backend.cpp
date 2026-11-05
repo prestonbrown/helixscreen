@@ -75,6 +75,7 @@ void AmsSubscriptionBackend::retry_unread_overrides() {
                                 }
                                 writes = reading->adopt_namespace_read(records);
                                 *unread_overrides_ = std::move(records);
+                                relayer_overrides_locked();
                             }
                             const std::string tag = backend_log_tag();
                             spdlog::info("{} Lane records read; sending {} held save(s), {} "

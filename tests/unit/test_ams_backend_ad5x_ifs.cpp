@@ -10898,6 +10898,8 @@ TEST_CASE("AD5X IFS takes the printer's records once a late read lands, and neve
         REQUIRE(adopted.has_value());
         CHECK(adopted->brand == "Polymaker");
         CHECK(api.mock_db_post_count() == 0);
+        // The slot shows it with no frame arriving: an edit starts from the slot.
+        CHECK(backend.get_slot_info(0).brand == "Polymaker");
 
         Ad5xIfsTestAccess::parse_adventurer_json(
             backend, R"({"FFMInfo": {"ffmColor1": "#00FF00", "ffmType1": "PETG"}})");
