@@ -1402,11 +1402,9 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
         subscription_objects[obj] = nullptr;
     }
 
-    // Firmware that reports a removable enclosure top fitted keeps the reading
-    // in its own status object; the home panel's printer picture follows it.
-    // Chamber air control can read further fields of that same object, so both
-    // are unioned rather than assigned: an assignment would keep only the later
-    // module's fields. See include/enclosure_top.h and include/chamber_air_modes.h.
+    // A removable enclosure top and chamber air control can read one status object;
+    // their field lists are unioned, as an assignment keeps only the later one's.
+    // See include/enclosure_top.h and include/chamber_air_modes.h.
     subscription_objects = helix::merge_subscription_objects(
         subscription_objects, helix::enclosure_top::required_status_objects(hw));
     subscription_objects = helix::merge_subscription_objects(

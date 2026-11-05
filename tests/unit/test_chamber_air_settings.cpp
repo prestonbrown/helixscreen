@@ -7,7 +7,6 @@
  */
 
 #include "../helix_test_fixture.h"
-#include "../test_helpers/config_test_access.h"
 #include "chamber_air_settings.h"
 #include "chamber_air_state.h"
 #include "config.h"
@@ -18,7 +17,6 @@
 
 using helix::ChamberAirState;
 using helix::Config;
-using helix::ConfigTestAccess;
 using helix::PrinterDiscovery;
 using nlohmann::json;
 namespace air = helix::chamber_air;
@@ -32,15 +30,11 @@ struct Fixture : HelixTestFixture {
     ~Fixture() {
         erase();
     }
+    /// As though this printer never stored targets: a null node reads as unset.
     static void erase() {
         Config* cfg = Config::get_instance();
         REQUIRE(cfg != nullptr);
-        json& data = ConfigTestAccess::data(*cfg);
-        const std::string prefix = cfg->df();
-        const json::json_pointer printer(prefix.substr(0, prefix.size() - 1));
-        if (data.contains(printer) && data[printer].is_object()) {
-            data[printer].erase("chamber_air");
-        }
+        cfg->set<json>(cfg->df() + "chamber_air", json());
     }
 };
 
