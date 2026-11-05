@@ -163,6 +163,35 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture,
     }
 }
 
+TEST_CASE_METHOD(MPCCalibrateTestFixture,
+                 "MPC calibrate collector reads Kalico's empty and exponent fan lists",
+                 "[mpc_collector]") {
+    const auto [fan_line, expected] = GENERATE(table<std::string, std::string>({
+        {"// fan_ambient_transfer= [W/K]", ""},
+        {"// fan_ambient_transfer=0.0892993, 1e-05, 2.5e+01 [W/K]", "0.0892993, 1e-05, 2.5e+01"},
+    }));
+    api_->advanced().start_mpc_calibrate(
+        "extruder", 220, 3,
+        [this](const MPCResult& result) {
+            captured_result_ = result;
+            result_received_.store(true);
+        },
+        [this](const MoonrakerError&) { error_received_.store(true); });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    mock_client_.dispatch_gcode_response("// Finished MPC calibration of heater 'extruder'\n"
+                                         "// Measured:\n"
+                                         "// block_heat_capacity=17.9784 [J/K]\n"
+                                         "// sensor_responsiveness=0.0971234 [K/s/K]\n"
+                                         "// ambient_transfer=0.0892993 [W/K]\n" +
+                                         fan_line);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    REQUIRE(result_received_.load());
+    REQUIRE_FALSE(error_received_.load());
+    CHECK(captured_result_.fan_ambient_transfer == expected);
+}
+
 TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector parses floats accurately",
                  "[mpc_collector]") {
     api_->advanced().start_mpc_calibrate(

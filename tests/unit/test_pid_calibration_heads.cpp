@@ -237,4 +237,15 @@ TEST_CASE_METHOD(
         helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::STANDBY);
         helix::ui::UpdateQueue::instance().drain();
     }
+    SECTION("a paused print: the calibration's fan goes off, the heaters stay") {
+        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PAUSED);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(get_printer_state().print_state().get_print_lifecycle() == PrintState::Paused);
+        Access::navigate_away(panel);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent("M107"));
+        CHECK_FALSE(sent("TURN_OFF_HEATERS"));
+        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::STANDBY);
+        helix::ui::UpdateQueue::instance().drain();
+    }
 }
