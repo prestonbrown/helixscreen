@@ -197,6 +197,21 @@ static void printer_image_widget_init_subjects() {
 }
 
 namespace helix {
+
+namespace ui {
+
+PrinterImageChange classify_printer_image_change(const PrinterImageStamp& shown,
+                                                 const PrinterImageStamp& next) {
+    if (shown.source.empty() || shown.source != next.source ||
+        shown.fingerprint != next.fingerprint)
+        return PrinterImageChange::NewPixels;
+    if (shown.area_w != next.area_w || shown.area_h != next.area_h)
+        return PrinterImageChange::Resized;
+    return PrinterImageChange::None;
+}
+
+} // namespace ui
+
 void register_printer_image_widget() {
     register_widget_factory(
         "printer_image", [](const std::string&) { return std::make_unique<PrinterImageWidget>(); });
@@ -267,10 +282,12 @@ void PrinterImageWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
             in.lifetime));
     }
 
-    // A recycled instance's mode is the last tree's; hide the layer until the
-    // timer has positioned this tree's chips.
+    // A recycled instance's mode is the last tree's; hide the layer until this
+    // tree's chips are positioned, which the deferred refresh does before the
+    // first frame draws them.
     lv_subject_set_int(&s_printer_callout_mode, static_cast<int>(CalloutMode::ImageOnly));
     arm_callout_observers();
+    callouts_unplaced_ = true;
     schedule_callout_layout();
 
     spdlog::debug("[PrinterImageWidget] Attached");
@@ -350,6 +367,8 @@ void PrinterImageWidget::on_hooked_root_deleted() {
     exact_image_.cancel();
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
+    // The next tree's image holds no src; nothing must count as already shown.
+    current_source_path_.clear();
 }
 
 void PrinterImageWidget::on_activate() {
@@ -388,8 +407,18 @@ void PrinterImageWidget::reload_from_config() {
 }
 
 void PrinterImageWidget::refresh_printer_image() {
+    apply_printer_image(/*force=*/true);
+}
+
+void PrinterImageWidget::apply_printer_image(bool force) {
     if (!widget_obj_)
         return;
+
+    // Never inside a rebuild: attach() and on_activate() reach this through a
+    // timer, so a layout pass is safe here (#983/#1025). A freshly built tree
+    // has had none, and both the exact-size copy and the callouts are sized
+    // from it.
+    lv_obj_update_layout(widget_obj_);
 
     lv_display_t* disp = lv_display_get_default();
     int screen_width = disp ? lv_display_get_horizontal_resolution(disp) : 800;
@@ -397,22 +426,41 @@ void PrinterImageWidget::refresh_printer_image() {
     const std::string source_path =
         helix::PrinterImageManager::instance().get_displayed_image_path(screen_width);
 
-    // LVGL keys its decoded copy on the path alone, and an import can rewrite an
-    // image in place under that same path, so the decoded copy and the natural
-    // size read from it are dropped on every refresh. The scaled entries on disk
-    // need no such sweep: their names carry the source's mtime and size, so the
-    // entry holding the old pixels is never named again.
-    if (!current_source_path_.empty()) {
-        lv_image_cache_drop(current_source_path_.c_str());
+    lv_obj_t* area = lv_obj_find_by_name(widget_obj_, "printer_container");
+    if (!area)
+        area = widget_obj_;
+    const helix::ui::PrinterImageStamp next{source_path,
+                                            helix::printer_image_source_fingerprint(source_path),
+                                            static_cast<int>(lv_obj_get_content_width(area)),
+                                            static_cast<int>(lv_obj_get_content_height(area))};
+    const helix::ui::PrinterImageChange change =
+        force ? helix::ui::PrinterImageChange::NewPixels
+              : helix::ui::classify_printer_image_change(shown_stamp_, next);
+    shown_stamp_ = next;
+
+    if (change == helix::ui::PrinterImageChange::NewPixels) {
+        // LVGL keys its decoded copy on the path alone, and an import can rewrite
+        // an image in place under that same path, so new pixels drop the decoded
+        // copy and the natural size read from it. The scaled entries on disk need
+        // no such sweep: their names carry the source's mtime and size, so the
+        // entry holding the old pixels is never named again.
+        if (!current_source_path_.empty())
+            lv_image_cache_drop(current_source_path_.c_str());
+        natural_size_path_.clear();
     }
-    natural_size_path_.clear();
-    // A new source, or new pixels under the same path, can have other tagged
-    // points and another aspect.
-    schedule_callout_layout();
 
     if (current_source_path_ != source_path)
         exact_image_.forget_displayed();
     current_source_path_ = source_path;
+
+    // New pixels can have other tagged points and another aspect, a new area
+    // other room, and a new tree has no chips placed. Laid out now, the image
+    // below is cut for the rect the callouts leave it.
+    if (change != helix::ui::PrinterImageChange::None || callouts_unplaced_) {
+        callouts_unplaced_ = false;
+        cancel_callout_timer();
+        apply_callout_layout();
+    }
 
     if (!exact_image_.show_cached(source_path)) {
         // No exact-size copy for this size yet. The tier image costs a decode plus a
@@ -440,21 +488,25 @@ void PrinterImageWidget::schedule_image_refresh() {
         refresh_timer_ = nullptr;
     }
 
+    // Period 0: a new timer goes to the head of LVGL's list and the handler
+    // restarts from the head after a create, so this runs once the rebuild has
+    // returned but before the display refresh of the same pass. The first frame
+    // of a rebuilt tree then already shows its picture.
     refresh_timer_ = lv_timer_create(
         [](lv_timer_t* timer) {
-            // Guard the C/C++ boundary: refresh_printer_image() sets the image
-            // source and forces an alignment-driven layout; an exception escaping
-            // into lv_timer_handler() (C) would terminate the process.
+            // Guard the C/C++ boundary: apply_printer_image() sets the image
+            // source and forces a layout; an exception escaping into
+            // lv_timer_handler() (C) would terminate the process.
             LVGL_SAFE_EVENT_CB_BEGIN("[PrinterImageWidget] refresh_timer");
             auto* self = static_cast<PrinterImageWidget*>(lv_timer_get_user_data(timer));
             if (self) {
                 self->refresh_timer_ = nullptr;
-                self->refresh_printer_image();
+                self->apply_printer_image(/*force=*/false);
             }
             lv_timer_delete(timer);
             LVGL_SAFE_EVENT_CB_END();
         },
-        1, this);
+        0, this);
     lv_timer_set_repeat_count(refresh_timer_, 1);
 }
 

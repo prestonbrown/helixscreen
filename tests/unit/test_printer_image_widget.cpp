@@ -44,7 +44,128 @@ bool fire_one_async_call() {
     return false;
 }
 
+/// Fire the one-shot timers that lv_timer_handler() would run at the current
+/// tick, without advancing it: what lands before the display's next refresh in
+/// the same timer pass.
+void fire_due_one_shots() {
+    for (int safety = 0; safety < 100; ++safety) {
+        bool fired = false;
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            if (t->repeat_count > 0 && t->timer_cb && !t->paused &&
+                lv_tick_elaps(t->last_run) >= t->period) {
+                t->repeat_count--;
+                t->last_run = lv_tick_get();
+                t->timer_cb(t);
+                if (timer_is_live(t) && t->repeat_count == 0) {
+                    lv_timer_delete(t);
+                }
+                fired = true;
+                break; // the callback may have changed the list
+            }
+        }
+        if (!fired)
+            return;
+    }
+}
+
 } // namespace
+
+TEST_CASE("classify_printer_image_change: a refresh redoes only what changed",
+          "[panel_widget][printer_image]") {
+    using helix::ui::classify_printer_image_change;
+    using helix::ui::PrinterImageChange;
+    using helix::ui::PrinterImageStamp;
+    const PrinterImageStamp shown{"A:/img/voron-v2.bin", "1700000000-478824", 220, 195};
+
+    SECTION("same source, same file, same area: nothing to redo") {
+        CHECK(classify_printer_image_change(shown, shown) == PrinterImageChange::None);
+    }
+    SECTION("another area width or height: relayout only") {
+        PrinterImageStamp next = shown;
+        next.area_w = 300;
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::Resized);
+        next = shown;
+        next.area_h = 120;
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::Resized);
+    }
+    SECTION("another source: new pixels") {
+        PrinterImageStamp next = shown;
+        next.source = "A:/img/voron-trident.bin";
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::NewPixels);
+    }
+    SECTION("the same path rewritten: new pixels") {
+        PrinterImageStamp next = shown;
+        next.fingerprint = "1700000999-478824";
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::NewPixels);
+        next.area_w = 300; // a rewrite outranks a resize
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::NewPixels);
+    }
+    SECTION("nothing shown yet: new pixels") {
+        CHECK(classify_printer_image_change(PrinterImageStamp{}, shown) ==
+              PrinterImageChange::NewPixels);
+    }
+}
+
+// A move or removal in grid edit mode rebuilds the page from XML, and the
+// recycled widget gets a fresh tree. Its picture must be on that tree, at the
+// exact-size copy, before the first frame draws it, or the tile visibly
+// re-lays itself out though nothing about it changed.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PrinterImageWidget shows its exact-size picture on a rebuilt tree's first frame",
+                 "[panel_widget][printer_image][cache]") {
+    helix::init_widget_registrations();
+    helix::PanelWidgetManager::instance().init_widget_subjects();
+
+    // The XML component's shape: a fixed tile, the image filling it.
+    auto build_tree = [&](lv_obj_t*& widget_obj, lv_obj_t*& img) {
+        lv_obj_t* container = lv_obj_create(test_screen());
+        lv_obj_set_size(container, 200, 200);
+        widget_obj = lv_obj_create(container);
+        lv_obj_set_size(widget_obj, 180, 160);
+        img = lv_image_create(widget_obj);
+        lv_obj_set_name(img, "printer_image");
+        lv_obj_set_size(img, LV_PCT(100), LV_PCT(100));
+    };
+    auto src_of = [](lv_obj_t* img) {
+        const auto* s = static_cast<const char*>(lv_image_get_src(img));
+        return std::string(s ? s : "");
+    };
+
+    lv_obj_t* widget_obj = nullptr;
+    lv_obj_t* img = nullptr;
+    build_tree(widget_obj, img);
+    process_lvgl(5);
+
+    helix::PrinterImageWidget w;
+    w.attach(widget_obj, test_screen());
+    process_async_timers();
+    const std::string source = src_of(img);
+    REQUIRE_FALSE(source.empty());
+    const int32_t img_w = lv_obj_get_width(img);
+    const int32_t img_h = lv_obj_get_height(img);
+    REQUIRE(img_w > 0);
+    REQUIRE(img_h > 0);
+    const std::string cache_src = "A:" + helix::get_cached_printer_image_path(source, img_w, img_h);
+    if (!wait_until([&]() { return src_of(img) == cache_src; })) {
+        w.detach();
+        SKIP("no cacheable printer image in this tree (source '" + source + "')");
+    }
+
+    // The rebuild: the old tree goes, a new one is built and attached, and no
+    // layout pass has run on it yet.
+    w.detach();
+    lv_obj_delete(lv_obj_get_parent(widget_obj));
+    build_tree(widget_obj, img);
+    w.attach(widget_obj, test_screen());
+    REQUIRE(src_of(img).empty()); // still deferred out of attach() (#1025)
+
+    fire_due_one_shots();
+    INFO("the picture must land in the timer pass that follows the rebuild, ahead of "
+         "the display refresh, and at its exact-size copy rather than the scaled source");
+    CHECK(src_of(img) == cache_src);
+
+    w.detach();
+}
 
 // Regression test for #1025 (grid walk-off crash family, #983). PrinterImageWidget
 // forced a SYNCHRONOUS LVGL layout from inside attach() -> reload_from_config() ->
