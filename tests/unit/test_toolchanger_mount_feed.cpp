@@ -1211,7 +1211,8 @@ TEST_CASE("MedusaHC tells the operator to pull the strand once an unload complet
         CHECK(tc.get_current_action() == AmsAction::IDLE);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
               "Unload complete. Pull the filament out of Tool 2.");
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::SUCCESS);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::SUCCESS);
     }
     SECTION("several tools, one toast naming them all") {
         AckingChanger tc(4);
@@ -1224,7 +1225,8 @@ TEST_CASE("MedusaHC tells the operator to pull the strand once an unload complet
         CHECK(tc.get_current_action() == AmsAction::IDLE);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
               "Unload complete. Pull the filament out of Tool 2, Tool 4.");
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::SUCCESS);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::SUCCESS);
     }
     SECTION("a stopped unload keeps its error toast") {
         AckingChanger tc(4);
@@ -1235,7 +1237,7 @@ TEST_CASE("MedusaHC tells the operator to pull the strand once an unload complet
         tc.ack();  // the cleanup landed
         CHECK(tc.get_current_action() == AmsAction::IDLE);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Unload stopped.");
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::ERROR);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == helix::NoticeSeverity::ERROR);
     }
 }
 
@@ -1430,7 +1432,8 @@ TEST_CASE("MedusaHC: a Cancel mid-swap waits for the swap, then stops without a 
         CHECK(std::find(tc.sent_.begin(), tc.sent_.end(), "SELECT_TOOL TOOL=\"tool T0\"") ==
               tc.sent_.end());
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) == toast);
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::WARNING);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::WARNING);
         tc.ack();
         CHECK(tc.get_current_action() == AmsAction::IDLE);
     }

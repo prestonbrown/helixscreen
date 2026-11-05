@@ -35,6 +35,7 @@
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/step_operation_helpers.h"
+#include "../test_helpers/toast_log.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_state.h"
@@ -557,8 +558,10 @@ TEST_CASE("MedusaHC's fault dialog quotes the controller's own failure",
     CHECK(generic->detail == unreported.unload_blocked_reason(1));
 }
 
-TEST_CASE("A last_error with no failed operation behind it is a controller error",
-          "[ams][toolchanger][medusahc][last_error]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A last_error with no failed operation behind it is a controller error",
+                 "[ams][toolchanger][medusahc][last_error][toast]") {
+    helix::test::ToastLog toasts;
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
     // What the controller publishes after a failed initialization.
@@ -570,7 +573,9 @@ TEST_CASE("A last_error with no failed operation behind it is a controller error
                    {"last_error", "Initialization failed; see klippy.log"}}}});
     CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
           "Tool changer error: Initialization failed; see klippy.log");
-    CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::ERROR);
+    toasts.expect_one(ToastSeverity::ERROR,
+                      "Tool changer error: Initialization failed; see klippy.log", 4000);
+    CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == helix::NoticeSeverity::ERROR);
     // Not a fault on the carriage: the docks agree.
     CHECK_FALSE(tc.current_error().has_value());
 
@@ -611,7 +616,8 @@ TEST_CASE("A failed swap names the tool it was changing to",
                        {"last_error", failure}}}});
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
               "Tool change to Tool 4 (T3) failed: " + failure);
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::WARNING);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::WARNING);
     }
 
     SECTION("a failed park names the tool it was parking") {
@@ -678,7 +684,8 @@ TEST_CASE("A controller failure the screen is not showing toasts once",
         tc.feed(json{{"medusahc", {{"current_tool", -1}}}});
         REQUIRE(tc.get_system_info().action == AmsAction::IDLE);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc).find(failure) != std::string::npos);
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::WARNING);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::WARNING);
 
         // Further frames under the same latched failure say nothing more.
         ToolChangerTestAccess::clear_feed_last_toast(tc);

@@ -3,8 +3,6 @@
 
 #include "ams_backend_toolchanger.h"
 
-#include "ui_toast_manager.h"
-
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
@@ -856,7 +854,7 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
     bool state_changed = false;
     bool sensor_fault = false;
     std::string failure_toast;
-    ToastSeverity failure_severity = ToastSeverity::WARNING;
+    NoticeSeverity failure_severity = NoticeSeverity::WARNING;
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -1077,7 +1075,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         !failure_already_noticed(controller_failure_, controller_failure_noticed_)) {
         controller_failure_noticed_ = controller_failure_;
         pending_failure_toast_ = controller_failure_text_locked();
-        pending_failure_severity_ = ToastSeverity::WARNING;
+        pending_failure_severity_ = NoticeSeverity::WARNING;
     }
     // A message with no failed operation behind it (the controller's own
     // startup failing) is about the controller, not a tool change.
@@ -1086,7 +1084,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         controller_failure_noticed_ = controller_failure_;
         pending_failure_toast_ =
             fmt::format(fmt::runtime(lv_tr("Tool changer error: {}")), controller_failure_);
-        pending_failure_severity_ = ToastSeverity::ERROR;
+        pending_failure_severity_ = NoticeSeverity::ERROR;
     }
 
     // Only when the frame named the carriage. A delta carrying just the gripper
@@ -2159,7 +2157,7 @@ void AmsBackendToolChanger::on_feed_stage_failed(uint64_t generation, const std:
         const helix::mount_feed::Stage* cleanup = feed_run_->current_stage();
         if (cleanup != nullptr && cleanup->heaters_off) {
             spdlog::error("[AMS ToolChanger] Mount-to-feed cleanup failed to send ({})", message);
-            show_feed_toast(lv_tr("Could not turn the heaters off"), ToastSeverity::ERROR);
+            show_feed_toast(lv_tr("Could not turn the heaters off"), NoticeSeverity::ERROR);
         } else {
             spdlog::warn("[AMS ToolChanger] Mount-to-feed prompt close failed ({})", message);
         }
@@ -2287,8 +2285,8 @@ void AmsBackendToolChanger::toast_partial_run(FeedStopReason why, const std::vec
         text += (text.empty() ? "" : " ") + sentence + ".";
     }
     // A Cancel the run carried out as asked is no error.
-    show_feed_toast(text, why == FeedStopReason::CancelledAfterSwap ? ToastSeverity::WARNING
-                                                                    : ToastSeverity::ERROR);
+    show_feed_toast(text, why == FeedStopReason::CancelledAfterSwap ? NoticeSeverity::WARNING
+                                                                    : NoticeSeverity::ERROR);
 }
 
 std::string AmsBackendToolChanger::still_heating_sentence(const std::vector<int>& heads) const {
@@ -2313,7 +2311,7 @@ void AmsBackendToolChanger::toast_unload_complete() {
     show_feed_toast(
         fmt::format(fmt::runtime(lv_tr("Unload complete. Pull the filament out of {}.")),
                     feed_lane_list(heads)),
-        ToastSeverity::SUCCESS);
+        NoticeSeverity::SUCCESS);
 }
 
 std::string AmsBackendToolChanger::feed_lane_list(const std::vector<int>& heads) const {
@@ -2327,14 +2325,14 @@ std::string AmsBackendToolChanger::feed_lane_list(const std::vector<int>& heads)
     return list;
 }
 
-void AmsBackendToolChanger::show_feed_toast(const std::string& message, ToastSeverity severity) {
+void AmsBackendToolChanger::show_feed_toast(const std::string& message, NoticeSeverity severity) {
     // Recorded before the guard: unit tests pin the wording without a display.
     feed_last_toast_ = message;
     feed_last_toast_severity_ = severity;
     if (!lv_is_initialized()) {
         return;
     }
-    ToastManager::instance().show(severity, message.c_str());
+    publish_notice({severity, message});
 }
 
 void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
@@ -2384,7 +2382,7 @@ void AmsBackendToolChanger::stop_feed_run_for_print() {
                           /*carriage_restored=*/false, heating);
     } else if (const std::string sentence = still_heating_sentence(heating); !sentence.empty()) {
         // The run already said why it stopped; what is new is the heat.
-        show_feed_toast(sentence + ".", ToastSeverity::WARNING);
+        show_feed_toast(sentence + ".", NoticeSeverity::WARNING);
     }
     reset_feed_run();
     if (prompt_open) {
@@ -2413,7 +2411,7 @@ void AmsBackendToolChanger::flush_owed_heaters_off() {
         spdlog::info("[AMS ToolChanger] A print holds the printer; dropping the heaters-off a "
                      "stopped mount-to-feed run owed");
         const std::vector<int> heads = std::exchange(owed_heaters_off_, {});
-        show_feed_toast(still_heating_sentence(heads) + ".", ToastSeverity::WARNING);
+        show_feed_toast(still_heating_sentence(heads) + ".", NoticeSeverity::WARNING);
         return;
     }
     std::vector<int> heads = std::exchange(owed_heaters_off_, {});

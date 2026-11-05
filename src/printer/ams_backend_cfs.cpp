@@ -6,7 +6,6 @@
 #include "ui_error_reporting.h"
 #include "ui_insert_notice.h"
 #include "ui_temperature_utils.h"
-#include "ui_toast_manager.h"
 
 #include "ams_bypass_policy.h"
 #include "ams_device_sections.h"
@@ -28,6 +27,7 @@
 #include "lvgl.h"
 #include "macro_param_cache.h"
 #include "moonraker_error.h"
+#include "notice.h"
 #include "post_op_cooldown_manager.h"
 #include "print_lifecycle_state.h" // PrintState, job_holds_machine
 #include "printer_detector.h"
@@ -1204,7 +1204,7 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
                                                          "in the tube.")),
                                       slot_name);
                 // handle_status runs on the main thread, so the toast is raised directly.
-                ToastManager::instance().show(ToastSeverity::WARNING, msg.c_str(), 10000);
+                publish_notice({NoticeSeverity::WARNING, msg, 10000});
             }
         }
     }

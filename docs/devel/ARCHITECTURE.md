@@ -208,6 +208,11 @@ directory-to-header pair bans it tree-wide through `CLEARED_PAIRS`, and a commit
 message line `Layering: <path> <reason>` grants one file that cannot wait. The
 upward includes the tree still carries are chapter 15's debt (#1946, #1952).
 
+To tell the user something, `src/printer` publishes a plain `helix::Notice`
+(`include/notice.h`) with `publish_notice()`, which delivers on the calling thread.
+`src/ui/notify/ui_toast_manager.cpp` subscribes during static initialization and
+shows the toast; `ToastManager` marshals its own widget work to the main thread.
+
 ## The rules with teeth
 
 New UI code is declarative, class-based, and token-styled: no

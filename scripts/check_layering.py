@@ -62,7 +62,9 @@ LAYER_NAME = {i: name for i, (name, _) in enumerate(LAYERS)}
 
 # (includer directory, header basename) pairs no file may include again. A
 # refactor that empties a pair adds it here in the same change.
-CLEARED_PAIRS: tuple[tuple[str, str], ...] = ()
+CLEARED_PAIRS: tuple[tuple[str, str], ...] = (
+    ("printer", "ui_toast_manager.h"),
+)
 
 # A header with no same-stem .cpp takes its owner from the first row whose prefix
 # matches its path or its basename. A header matching no row is header-only and

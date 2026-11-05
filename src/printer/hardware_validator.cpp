@@ -5,7 +5,6 @@
 
 #include "ui_nav.h"
 #include "ui_panel_settings.h"
-#include "ui_toast_manager.h"
 
 #include "ams_types.h" // ams_type_for_expected_hardware
 #include "config.h"
@@ -16,6 +15,7 @@
 #include "i18n_plural.h"
 #include "json_utils.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "printer_discovery.h"
 #include "printer_hardware.h"
 #include "spdlog/fmt/fmt.h"
@@ -263,7 +263,7 @@ void HardwareValidator::notify_user(const HardwareValidationResult& result) {
     }
 
     std::string message;
-    ToastSeverity severity = ToastSeverity::INFO;
+    NoticeSeverity severity = NoticeSeverity::INFO;
 
     if (result.has_critical()) {
         if (result.critical_missing.size() == 1) {
@@ -275,14 +275,14 @@ void HardwareValidator::notify_user(const HardwareValidationResult& result) {
                                       nullptr, "{} critical hardware issues", critical)),
                                   critical);
         }
-        severity = ToastSeverity::ERROR;
+        severity = NoticeSeverity::ERROR;
     } else if (!result.expected_missing.empty() || !result.changed_from_last_session.empty()) {
         size_t count = result.expected_missing.size() + result.changed_from_last_session.size();
         message =
             fmt::format(fmt::runtime(helix::ui::tr_plural("{} configured item not found",
                                                           "{} configured items not found", count)),
                         count);
-        severity = ToastSeverity::WARNING;
+        severity = NoticeSeverity::WARNING;
     } else {
         // Build intelligent message based on hardware types
         size_t led_count = 0, sensor_count = 0, other_count = 0;
@@ -312,16 +312,15 @@ void HardwareValidator::notify_user(const HardwareValidationResult& result) {
                                       nullptr, "{} new hardware available", discovered)),
                                   discovered);
         }
-        severity = ToastSeverity::INFO;
+        severity = NoticeSeverity::INFO;
     }
 
     // Show toast with action button to navigate to Hardware Health section
-    ToastManager::instance().show_with_action(severity, message.c_str(), lv_tr("View"),
-                                              on_hardware_toast_view_clicked, nullptr, 8000);
+    publish_notice({severity, message, 8000, lv_tr("View"), on_hardware_toast_view_clicked});
     spdlog::debug("[HardwareValidator] Notified user ({}): {}",
-                  severity == ToastSeverity::ERROR     ? "error"
-                  : severity == ToastSeverity::WARNING ? "warning"
-                                                       : "info",
+                  severity == NoticeSeverity::ERROR     ? "error"
+                  : severity == NoticeSeverity::WARNING ? "warning"
+                                                        : "info",
                   message);
 }
 

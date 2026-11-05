@@ -5,12 +5,12 @@
 
 #include "ui_error_reporting.h"
 #include "ui_format_utils.h"
-#include "ui_toast_manager.h"
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
+#include "notice.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
 #include "state/subject_macros.h"
@@ -191,8 +191,7 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
         if (status == "running") {
             // Show start toast on first progress event
             if (last_notified_progress_ < 0) {
-                ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Rendering timelapse..."),
-                                              3000);
+                publish_notice({NoticeSeverity::INFO, lv_tr("Rendering timelapse..."), 3000});
             }
             last_notified_progress_ = progress;
 
@@ -223,8 +222,8 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
                 });
 
             last_notified_progress_ = -1;
-            ToastManager::instance().show(ToastSeverity::SUCCESS,
-                                          lv_tr("Timelapse rendered successfully"), 5000);
+            publish_notice(
+                {NoticeSeverity::SUCCESS, lv_tr("Timelapse rendered successfully"), 5000});
 
             spdlog::info("[TimelapseState] Render complete: {}", filename);
 

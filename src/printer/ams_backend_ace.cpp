@@ -14,7 +14,6 @@
 #include "ams_backend_ace.h"
 
 #include "ui_insert_notice.h"
-#include "ui_toast_manager.h"
 
 #include "ams_bypass_policy.h"
 #include "ams_device_action_value.h"
@@ -34,6 +33,7 @@
 #include "lane_translation.h"
 #include "lvgl.h"
 #include "macro_choice.h"
+#include "notice.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_discovery.h"
 #include "rest_response.h"
@@ -2006,10 +2006,10 @@ void AmsBackendAce::note_rest_status_failure(const std::string& error) {
         emit_event(kEventError, "ACE detected but Moonraker bridge not found. "
                                 "Install the ace_status.py component for full ACE support.");
         helix::ui::queue_update("AmsBackendAce::poll_status", []() {
-            ToastManager::instance().show(
-                ToastSeverity::WARNING,
-                lv_tr("ACE Moonraker bridge not found. Install ace_status.py for full support."),
-                6000);
+            publish_notice(
+                {NoticeSeverity::WARNING,
+                 lv_tr("ACE Moonraker bridge not found. Install ace_status.py for full support."),
+                 6000});
         });
     }
 }

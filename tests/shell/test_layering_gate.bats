@@ -19,10 +19,10 @@ setup() {
     git -C "$REPO" init -q -b main
     git -C "$REPO" config user.email t@example.com
     git -C "$REPO" config user.name t
-    echo '#pragma once' > "$REPO/include/ui_toast_manager.h"
-    echo '#include "ui_toast_manager.h"' > "$REPO/src/ui/notify/ui_toast_manager.cpp"
+    echo '#pragma once' > "$REPO/include/ui_status_banner.h"
+    echo '#include "ui_status_banner.h"' > "$REPO/src/ui/notify/ui_status_banner.cpp"
     echo '#pragma once' > "$REPO/include/printer_state.h"
-    printf '#include "printer_state.h"\n#include "ui_toast_manager.h"\n' > "$REPO/src/printer/printer_state.cpp"
+    printf '#include "printer_state.h"\n#include "ui_status_banner.h"\n' > "$REPO/src/printer/printer_state.cpp"
     echo '#include "printer_state.h"' > "$REPO/src/printer/clean.cpp"
     echo '#pragma once' > "$REPO/include/header_only.h"
     echo '#pragma once' > "$REPO/include/app_wiring.h"
@@ -43,12 +43,12 @@ layering() {
 }
 
 @test "a new upward include fails and names the file, the header and both layers" {
-    echo '#include "ui_toast_manager.h"' >> "$REPO/src/printer/clean.cpp"
+    echo '#include "ui_status_banner.h"' >> "$REPO/src/printer/clean.cpp"
     commit_all "toast from the printer"
     layering
     [ "$status" -eq 1 ]
     contains "src/printer/clean.cpp: upward includes grew 0 -> 1" "$output"
-    contains "include/ui_toast_manager.h (src/ui, ui) from state" "$output"
+    contains "include/ui_status_banner.h (src/ui, ui) from state" "$output"
     contains "Layering: src/printer/clean.cpp <reason>" "$output"
 }
 
@@ -77,7 +77,7 @@ layering() {
 
 @test "removing an upward include in one file does not pay for adding one in another" {
     echo '#include "printer_state.h"' > "$REPO/src/printer/printer_state.cpp"
-    echo '#include "ui_toast_manager.h"' >> "$REPO/src/printer/clean.cpp"
+    echo '#include "ui_status_banner.h"' >> "$REPO/src/printer/clean.cpp"
     commit_all "move the toast"
     layering
     [ "$status" -eq 1 ]
@@ -94,7 +94,7 @@ layering() {
 }
 
 @test "a Layering: grant line in a branch commit exempts that one file" {
-    echo '#include "ui_toast_manager.h"' >> "$REPO/src/printer/clean.cpp"
+    echo '#include "ui_status_banner.h"' >> "$REPO/src/printer/clean.cpp"
     commit_all "toast" "Layering: src/printer/clean.cpp needs the toast until the notice router lands"
     layering
     [ "$status" -eq 0 ]
@@ -107,7 +107,7 @@ layering() {
 }
 
 @test "a header a lower layer owns may not start including an upper layer's header" {
-    echo '#include "ui_toast_manager.h"' >> "$REPO/include/printer_state.h"
+    echo '#include "ui_status_banner.h"' >> "$REPO/include/printer_state.h"
     commit_all "toast from the state header"
     layering
     [ "$status" -eq 1 ]
@@ -116,7 +116,7 @@ layering() {
 
 @test "a header with no .cpp is header-only and counts in neither direction" {
     echo '#include "header_only.h"' >> "$REPO/src/printer/clean.cpp"
-    echo '#include "ui_toast_manager.h"' >> "$REPO/include/header_only.h"
+    echo '#include "ui_status_banner.h"' >> "$REPO/include/header_only.h"
     commit_all "header-only both ways"
     layering
     [ "$status" -eq 0 ]
@@ -127,7 +127,7 @@ layering() {
     mkdir -p "$REPO/include/core"
     echo '#pragma once' > "$REPO/include/core/queue_bridge.h"
     echo '#include "core/queue_bridge.h"' >> "$REPO/src/printer/clean.cpp"
-    echo '#include "ui_toast_manager.h"' >> "$REPO/include/core/queue_bridge.h"
+    echo '#include "ui_status_banner.h"' >> "$REPO/include/core/queue_bridge.h"
     commit_all "core header"
     layering
     [ "$status" -eq 1 ]
@@ -155,7 +155,7 @@ layering() {
 
 @test "a directory missing from the layer table is reported, never failed" {
     mkdir -p "$REPO/src/newdir"
-    echo '#include "ui_toast_manager.h"' > "$REPO/src/newdir/x.cpp"
+    echo '#include "ui_status_banner.h"' > "$REPO/src/newdir/x.cpp"
     commit_all "unlayered"
     layering
     [ "$status" -eq 0 ]
@@ -169,18 +169,28 @@ layering() {
 import sys
 sys.path.insert(0, sys.argv[1])
 import check_layering as m
-m.CLEARED_PAIRS = (("printer", "ui_toast_manager.h"),)
+m.CLEARED_PAIRS = (("printer", "ui_status_banner.h"),)
 sys.exit(m.main(["--root", sys.argv[2], "--base", "HEAD"]))
 EOF
     [ "$status" -eq 1 ]
-    contains "src/printer/printer_state.cpp includes include/ui_toast_manager.h: src/printer no longer includes it anywhere" "$output"
+    contains "src/printer/printer_state.cpp includes include/ui_status_banner.h: src/printer no longer includes it anywhere" "$output"
+}
+
+@test "src/printer may not include the toast manager, by the shipped ban list" {
+    echo '#pragma once' > "$REPO/include/ui_toast_manager.h"
+    echo '#include "ui_toast_manager.h"' > "$REPO/src/ui/notify/ui_toast_manager.cpp"
+    echo '#include "ui_toast_manager.h"' >> "$REPO/src/printer/clean.cpp"
+    commit_all "toast from the printer" "Layering: src/printer/clean.cpp the grant does not lift a ban"
+    layering
+    [ "$status" -eq 1 ]
+    contains "src/printer/clean.cpp includes include/ui_toast_manager.h: src/printer no longer includes it anywhere" "$output"
 }
 
 @test "--report prints the matrix and every upward pair" {
     run python3 "$GATE" --root "$REPO" --report
     [ "$status" -eq 0 ]
     contains "Upward edges: 1 in 1 files" "$output"
-    contains "src/printer -> src/ui: 1; ui_toast_manager.h(1)" "$output"
+    contains "src/printer -> src/ui: 1; ui_status_banner.h(1)" "$output"
 }
 
 @test "a branch with no commits is not measured" {
@@ -202,7 +212,7 @@ qc_layering_run() {
 }
 
 @test "the qc wrapper measures the branch from its fork point and fails on a new upward include" {
-    echo '#include "ui_toast_manager.h"' >> "$REPO/src/printer/clean.cpp"
+    echo '#include "ui_status_banner.h"' >> "$REPO/src/printer/clean.cpp"
     commit_all "toast"
     qc_layering_run
     [ "$status" -eq 1 ]

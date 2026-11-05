@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "../helix_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/toast_log.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -460,9 +461,7 @@ TEST_CASE_METHOD(HelixTestFixture, "DetectionManager bed check switch waits for 
     lv_subject_t* enabled = m.subject_bed_check_enabled();
     REQUIRE(lv_subject_get_int(enabled) == 1);
 
-    std::vector<std::string> toasts;
-    helix::ui::set_test_toast_hook(
-        [&](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
+    helix::test::ToastLog toasts;
     int accepted = 0;
     REQUIRE(m.set_bed_check_enabled(false, [&] { ++accepted; }));
     REQUIRE(raw->pending_set);
@@ -475,18 +474,19 @@ TEST_CASE_METHOD(HelixTestFixture, "DetectionManager bed check switch waits for 
         drain();
         CHECK(accepted == 1);
         CHECK(lv_subject_get_int(enabled) == 0);
-        CHECK(toasts.empty());
+        CHECK(toasts.shown.empty());
     }
     SECTION("refused: the value goes back and the printer's reason is shown") {
         raw->pending_set(false, "Unknown command:\"DEFECT_DETECTION_CONFIG\"");
         drain();
         CHECK(accepted == 0);
         CHECK(lv_subject_get_int(enabled) == 1);
-        REQUIRE(toasts.size() == 1);
-        CHECK(toasts[0].find("Unknown command") != std::string::npos);
+        toasts.expect_one(ToastSeverity::ERROR,
+                          "The printer did not change its bed check: "
+                          "Unknown command:\"DEFECT_DETECTION_CONFIG\"",
+                          6000);
     }
 
-    helix::ui::set_test_toast_hook(nullptr);
     m.reset_for_test();
 }
 

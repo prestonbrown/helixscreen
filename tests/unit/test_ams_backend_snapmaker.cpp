@@ -10,6 +10,7 @@
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "../test_helpers/step_operation_helpers.h"
+#include "../test_helpers/toast_log.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_mock.h"
@@ -3078,6 +3079,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     helix::ui::UpdateQueue::instance().init();
 
     ResumeRecoveryHarness h;
+    helix::test::ToastLog toasts;
 
     bool callback_fired = false;
     AmsError captured{AmsResult::RESUME_REQUIRES_RESTART}; // poison
@@ -3085,6 +3087,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
         callback_fired = true;
         captured = err;
     });
+    toasts.expect_one(ToastSeverity::INFO, "Refeeding filament — this may take a minute", 8000);
     // The feeder reports the load before the command's answer is handled.
     h.backend.fire_status(make_feed_status(0, "load_finish"));
     ResumeRecoveryHarness::drain();
