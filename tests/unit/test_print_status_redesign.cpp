@@ -258,6 +258,12 @@ TEST_CASE_METHOD(Landscape800, "a heater chip paints every part from its heat st
     CHECK_FALSE(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::AtTemp));
     CHECK_FALSE(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Heating));
 
+    // A rebuilt tree starts unpainted, however unchanged the reading is.
+    lv_obj_remove_local_style_prop(text, LV_STYLE_TEXT_COLOR, LV_PART_MAIN);
+    tiles().on_tree_destroyed();
+    settle();
+    CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::AtTemp));
+
     // Every heater chip carries the glyph its binder tints.
     for (const char* name : {"nozzle_icon_glyph", "chamber_icon_glyph"})
         CHECK(lv_obj_find_by_name(root_, name) != nullptr);
