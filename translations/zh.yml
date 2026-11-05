@@ -4500,6 +4500,7 @@ translations:
   Z Calibration: Z 轴校准
   Z Movement: Z 轴移动
   Z Offset: Z 偏移
+  Z Probe: Z 探针
   Z Range: Z 范围
   Z Tilt Adjust...: 正在调整Z倾斜...
   Z is at its limit ({}mm): Z 轴已到达限位 ({}mm)

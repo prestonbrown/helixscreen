@@ -50,6 +50,9 @@ void markdown_text_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     spdlog::trace("[ui_markdown] Observer updated text ({} bytes)", len);
 }
 
+// Identifies a widget this file created, for ui_markdown_owns_user_data().
+void markdown_owner_marker_cb(lv_event_t* /*e*/) {}
+
 /**
  * @brief XML create callback for <ui_markdown> widget
  *
@@ -62,6 +65,7 @@ void* ui_markdown_create(lv_xml_parser_state_t* state, const char** /*attrs*/) {
 
     // Create the underlying markdown widget (sets up its own user_data internally)
     lv_obj_t* obj = lv_markdown_create(parent);
+    lv_obj_add_event_cb(obj, markdown_owner_marker_cb, LV_EVENT_DELETE, nullptr);
 
     // Build theme-aware style and apply — style is copied into the widget's internal data
     lv_markdown_style_t style{};
@@ -111,6 +115,18 @@ void ui_markdown_apply(lv_xml_parser_state_t* state, const char** attrs) {
 void ui_markdown_init() {
     lv_xml_register_widget("ui_markdown", ui_markdown_create, ui_markdown_apply);
     spdlog::trace("[ui_markdown] Registered markdown widget");
+}
+
+bool ui_markdown_owns_user_data(const lv_obj_t* obj) {
+    auto* widget = const_cast<lv_obj_t*>(obj);
+    const uint32_t count = lv_obj_get_event_count(widget);
+    for (uint32_t i = 0; i < count; ++i) {
+        lv_event_dsc_t* dsc = lv_obj_get_event_dsc(widget, i);
+        if (dsc && lv_event_dsc_get_cb(dsc) == markdown_owner_marker_cb) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void ui_markdown_get_theme_style(lv_markdown_style_t& style) {

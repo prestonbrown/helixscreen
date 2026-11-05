@@ -19,6 +19,7 @@
  */
 
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "env_refusal_notice.h"
 
 #include <cstdlib>
@@ -255,6 +256,7 @@ template <typename Fn> Surfaced surfaced_warnings(Fn&& fn) {
     helix::ui::set_test_notification_sticky_warning_hook(
         [&](const std::string& msg) { out.sticky.push_back(msg); });
     fn();
+    helix::ui::UpdateQueue::instance().drain();
     helix::ui::set_test_notification_warning_hook(nullptr);
     helix::ui::set_test_notification_sticky_warning_hook(nullptr);
     return out;

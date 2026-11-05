@@ -4803,6 +4803,7 @@ translations:
   Z Calibration: Калибровка Z
   Z Movement: Движение Z
   Z Offset: Z Offset
+  Z Probe: Z-зонд
   Z Range: Диапазон Z
   Z Tilt Adjust...: Регулировка наклона Z...
   Z is at its limit ({}mm): Z на пределе ({}mm)

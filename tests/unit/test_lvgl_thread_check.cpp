@@ -106,6 +106,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check is silent when off", "[lvgl
     lv_subject_deinit(&subject);
 }
 
+// TSan kills a forked child that starts a thread, before the check can abort.
+#if !defined(__SANITIZE_THREAD__) && !(defined(__has_feature) && __has_feature(thread_sanitizer))
 TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check aborts on an off-thread call in abort mode",
                  "[lvgl_thread_check][subprocess]") {
     lv_subject_t subject;
@@ -128,3 +130,4 @@ TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check aborts on an off-thread cal
 
     lv_subject_deinit(&subject);
 }
+#endif

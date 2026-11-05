@@ -1953,9 +1953,8 @@ TEST_CASE("preset seeds: shipped seeds are overlays that place no excluded widge
     // No seed ships today, so there may be nothing to examine; each one that
     // does ship is held to the same audit as the fixtures above.
     const SeedAudit audit = audit_seed_dir(root);
-    for (const auto& problem : audit.problems) {
-        FAIL_CHECK(problem);
-    }
+    CAPTURE(audit.problems);
+    CHECK(audit.problems.empty());
 }
 
 TEST_CASE_METHOD(PanelWidgetConfigFixture,

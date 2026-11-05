@@ -62,7 +62,7 @@ TEST_CASE("PrinterState: Singleton persists modifications", "[core][state][singl
 
     // Modify a value through one reference
     state.set_printer_connection_state(static_cast<int>(ConnectionState::CONNECTED), "Connected");
-    helix::ui::UpdateQueue::instance().drain();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // Read it back through another reference
     PrinterState& state2 = get_printer_state();

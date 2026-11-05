@@ -6,6 +6,9 @@
 // A one-request HTTP/1.0 client over a plain loopback socket, for tests of the
 // app's own HTTP servers. libhv's requests:: client starts event-loop threads that
 // outlive a test; this one is a connect, a send and a read to EOF.
+//
+// It reports failure as status 0 for the caller to assert on: tests also call it from
+// client threads, where a Catch2 macro races the main thread's assertion state.
 
 #include <arpa/inet.h>
 #include <cctype>
@@ -16,8 +19,6 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
-
-#include "../catch_amalgamated.hpp"
 
 namespace helix::test {
 
@@ -41,14 +42,6 @@ inline std::string raw_http_lower(std::string s) {
 inline RawHttpReply raw_http(int port, const std::string& method, const std::string& path,
                              const std::vector<std::pair<std::string, std::string>>& headers = {},
                              const std::string& body = "") {
-    int fd = ::socket(AF_INET, SOCK_STREAM, 0);
-    REQUIRE(fd >= 0);
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr.sin_port = htons(static_cast<uint16_t>(port));
-    REQUIRE(::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0);
-
     std::string req =
         method + " " + path + " HTTP/1.0\r\nHost: 127.0.0.1:" + std::to_string(port) + "\r\n";
     for (const auto& [name, value] : headers) {
@@ -58,7 +51,19 @@ inline RawHttpReply raw_http(int port, const std::string& method, const std::str
         req += "Content-Length: " + std::to_string(body.size()) + "\r\n";
     }
     req += "\r\n" + body;
-    REQUIRE(::send(fd, req.data(), req.size(), 0) == static_cast<ssize_t>(req.size()));
+
+    int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    if (fd < 0 || ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0 ||
+        ::send(fd, req.data(), req.size(), 0) != static_cast<ssize_t>(req.size())) {
+        if (fd >= 0) {
+            ::close(fd);
+        }
+        return {};
+    }
 
     std::string raw;
     char buf[4096];
@@ -69,7 +74,9 @@ inline RawHttpReply raw_http(int port, const std::string& method, const std::str
     ::close(fd);
 
     const size_t split = raw.find("\r\n\r\n");
-    REQUIRE(split != std::string::npos);
+    if (split == std::string::npos) {
+        return {};
+    }
     RawHttpReply reply;
     reply.status = std::atoi(raw.c_str() + 9); // past "HTTP/1.x "
     reply.headers = raw_http_lower(raw.substr(0, split));

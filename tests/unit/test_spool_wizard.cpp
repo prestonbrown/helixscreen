@@ -3,6 +3,7 @@
 
 #include "ui_spool_wizard.h"
 
+#include "../helix_test_fixture.h"
 #include "filament_database.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -154,7 +155,8 @@ TEST_CASE("SpoolWizardOverlay navigate_back does not trigger close when not at V
     CHECK(wizard.current_step() == SpoolWizardOverlay::Step::VENDOR);
 }
 
-TEST_CASE("SpoolWizardOverlay on_create_requested enters creating state", "[spool_wizard]") {
+TEST_CASE_METHOD(HelixTestFixture, "SpoolWizardOverlay on_create_requested enters creating state",
+                 "[spool_wizard]") {
     SpoolWizardOverlay wizard;
     bool completed = false;
     wizard.set_completion_callback([&completed]() { completed = true; });
@@ -447,7 +449,8 @@ TEST_CASE("spool details: remaining weight pre-filled from selected filament", "
     CHECK(wizard.spool_remaining_weight() == 0);
 }
 
-TEST_CASE("on_create_requested without API calls on_creation_error path", "[spool_wizard]") {
+TEST_CASE_METHOD(HelixTestFixture, "on_create_requested without API calls on_creation_error path",
+                 "[spool_wizard]") {
     SpoolWizardOverlay wizard;
     bool completed = false;
     wizard.set_completion_callback([&]() { completed = true; });
@@ -466,7 +469,9 @@ TEST_CASE("on_create_requested without API calls on_creation_error path", "[spoo
     CHECK_FALSE(completed);
 }
 
-TEST_CASE("on_create_requested fires completion when vendor+filament exist", "[spool_wizard]") {
+TEST_CASE_METHOD(HelixTestFixture,
+                 "on_create_requested fires completion when vendor+filament exist",
+                 "[spool_wizard]") {
     SpoolWizardOverlay wizard;
     bool completed = false;
     wizard.set_completion_callback([&]() { completed = true; });

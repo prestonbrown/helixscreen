@@ -45,9 +45,10 @@ template <typename BackendT> class RegisteredBackend {
         // nullptr, so every callback returns early and still bumps
         // ams_data_revision_, announcing a sync that did not happen. Draining
         // first runs them against the backend they were queued for and leaves
-        // nothing for the next test to inherit. clear_backends() writes its own
-        // subjects directly, so it queues nothing behind us.
-        helix::ui::UpdateQueue::instance().drain();
+        // nothing for the next test to inherit, including the toasts those
+        // callbacks queue in turn. clear_backends() writes its own subjects
+        // directly, so it queues nothing behind us.
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::AmsState::instance().clear_backends();
     }
 

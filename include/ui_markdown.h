@@ -4,6 +4,7 @@
 #pragma once
 
 #include "lv_markdown_style.h"
+#include "lvgl/lvgl.h"
 
 /**
  * @file ui_markdown.h
@@ -30,6 +31,15 @@
  * Must be called after lv_xml_init() and after theme is initialized.
  */
 void ui_markdown_init();
+
+/**
+ * @brief True when @p obj is a <ui_markdown> widget
+ *
+ * lv_markdown keeps its heap state in user_data and frees it by reading the slot
+ * back on delete, so a teardown path that nulls user_data across a tree must skip
+ * these widgets (see Modal::disarm_tree).
+ */
+bool ui_markdown_owns_user_data(const lv_obj_t* obj);
 
 /**
  * @brief Populate a lv_markdown_style_t from the current theme tokens
