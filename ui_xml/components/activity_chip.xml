@@ -13,9 +13,10 @@
      font_xs.
      Optional, left unset by the home screen: tone_subject (ChipTone: 2 Warn
      turns the border and text amber, 3 Dim greys the text) and
-     progress_subject (0-100 fills a thin bar along the chip's foot and turns
-     the border amber; -1 hides the bar). The bar ignores the flex layout, so
-     the chip measures the same with or without it. state_subject, also
+     progress_subject (0-100 fills a thin bar along the chip's foot; -1 hides
+     the bar). The bar ignores the flex layout, so the chip measures the same
+     with or without it. A heater chip's owner paints its text, border and bar
+     from get_heating_state_color(). state_subject, also
      optional, is a HeaterStatusState int: the chip then ends in the
      heater_status glyph (flame, check, snowflake, circled A). -->
 <component>
@@ -38,7 +39,6 @@
     <style name="styles.activity_chip"/>
     <bind_style_if_eq name="pinned" subject="$compact_subject" ref_value="1"/>
     <bind_style_if_eq name="accent_border" subject="$tone_subject" ref_value="2"/>
-    <bind_style_if_ge name="accent_border" subject="$progress_subject" ref_value="0"/>
     <!-- Before the label in markup, after it on screen: the pill lays out row_reverse. -->
     <!-- Takes no room without a state: an unset subject skips the binding and
          hidden stays, and state 0 (off) hides it. -->
@@ -49,14 +49,13 @@
       <bind_style_if_eq name="residual" subject="$shown_subject" ref_value="2"/>
       <bind_style_if_eq name="residual" subject="$tone_subject" ref_value="3"/>
       <bind_style_if_eq name="styles.chip_text_warning" subject="$tone_subject" ref_value="2"/>
-      <bind_style_if_ge name="styles.chip_text_warning" subject="$progress_subject" ref_value="0"/>
       <bind_style_if_eq name="styles.chip_text_compact" subject="$compact_subject" ref_value="1"/>
     </text_small>
     <lv_bar name="chip_progress"
             width="100%" height="#space_xxs" ignore_layout="true" align="bottom_mid" min_value="0" max_value="100"
             bind_value="$progress_subject" style_bg_color="#text_subtle" style_bg_opa="120" style_radius="0"
-            style_bg_color-indicator="#warning" style_bg_opa-indicator="255" style_radius-indicator="0"
-            clickable="false" hidden="true">
+            style_bg_color-indicator="#text" style_bg_opa-indicator="255" style_radius-indicator="0" clickable="false"
+            hidden="true">
       <bind_flag_if_lt subject="$progress_subject" flag="hidden" ref_value="0"/>
     </lv_bar>
   </view>

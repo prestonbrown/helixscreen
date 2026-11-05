@@ -183,20 +183,34 @@ bool is_residual_hot(int current_deci) {
     return current_deci > kResidualHeatThresholdDeci;
 }
 
-lv_color_t get_heating_state_color(HeatState state) {
+namespace {
+
+/// The one heat state to color rule: a theme token for colors, its icon variant beside it.
+struct HeatStateLook {
+    const char* token;
+    const char* variant;
+};
+
+HeatStateLook heat_state_look(HeatState state) {
     switch (state) {
     case HeatState::Off:
-        return theme_manager_get_color("text_muted");
+        return {"text_muted", "muted"};
     case HeatState::Heating:
-        return theme_manager_get_color("danger");
+        return {"danger", "danger"};
     case HeatState::Cooling:
-        return theme_manager_get_color("info");
+        return {"info", "info"};
     case HeatState::Neutral:
-        return theme_manager_get_color("text");
+        return {"text", "text"};
     case HeatState::AtTemp:
         break;
     }
-    return theme_manager_get_color("success");
+    return {"success", "success"};
+}
+
+} // namespace
+
+lv_color_t get_heating_state_color(HeatState state) {
+    return theme_manager_get_color(heat_state_look(state).token);
 }
 
 lv_color_t get_heating_state_color(int current_deg, int target_deg, int tolerance) {
@@ -204,21 +218,7 @@ lv_color_t get_heating_state_color(int current_deg, int target_deg, int toleranc
 }
 
 const char* get_heating_state_variant(int current_deg, int target_deg, int tolerance) {
-    switch (classify_heat_state(current_deg, target_deg, tolerance)) {
-    case HeatState::Off:
-        return "muted";
-    case HeatState::Heating:
-        return "danger";
-    case HeatState::Cooling:
-        return "info";
-    case HeatState::Neutral:
-        // classify_heat_state() (mode-unaware) never returns Neutral — only
-        // classify_heat_state_with_mode() does. Kept for switch exhaustiveness.
-        return "text";
-    case HeatState::AtTemp:
-        break;
-    }
-    return "success";
+    return heat_state_look(classify_heat_state(current_deg, target_deg, tolerance)).variant;
 }
 
 // ============================================================================
@@ -357,8 +357,9 @@ static HeaterStatusState status_state_of(HeatState heat) {
 HeaterStatus classify_heater_status(int current_deci, int target_deci, int power_pct,
                                     helix::ChamberMode mode) {
     HeaterStatus status;
-    status.state = status_state_of(classify_heat_state_with_mode(
-        displayed_deci(current_deci), target_deci, mode, kDefaultAtTempToleranceDeci));
+    status.heat = classify_heat_state_with_mode(displayed_deci(current_deci), target_deci, mode,
+                                                kDefaultAtTempToleranceDeci);
+    status.state = status_state_of(status.heat);
     // Resting holds at its ceiling as Neutral, which reads Ready — but the
     // check glyph means "your deliberate setpoint is satisfied". The standing
     // setpoint is the machine's own behavior, so it takes the auto glyph.

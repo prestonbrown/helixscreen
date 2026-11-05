@@ -64,6 +64,17 @@ class HeaterIconBinder {
               const char* icon_name = nullptr);
 
     /**
+     * @brief bind() for a glyph the caller's own component always carries.
+     *
+     * A missing glyph is a broken component that would otherwise leave the icon
+     * untinted with nothing on screen to say so, so it is logged as an error.
+     *
+     * @return true if the icon was found and bound.
+     */
+    bool bind_required(lv_obj_t* root, PrinterState& state, HeaterType heater,
+                       const char* icon_name = nullptr);
+
+    /**
      * @brief Bind an explicitly named icon to explicitly chosen subjects.
      *
      * For callers whose subjects are not the PrinterState defaults — notably the

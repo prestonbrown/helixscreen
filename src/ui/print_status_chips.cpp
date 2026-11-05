@@ -28,7 +28,8 @@ ChipContent heater_chip(bool present, int current_deci, int target_deci,
                      !ui::temperature::is_residual_hot(current_deci)))
         return c;
     c.shown = true;
-    c.glow = target_deci > 0;
+    c.glow = ui::temperature::heater_region_glows(status.heat);
+    c.heat = status.heat;
     c.status_state = static_cast<int>(status.state);
 
     const bool heating = status.state == HeaterStatusState::Heating;

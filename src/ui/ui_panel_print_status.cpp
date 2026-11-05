@@ -1133,11 +1133,14 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         lv_obj_add_event_cb(area, on_printer_area_size_changed, LV_EVENT_SIZE_CHANGED, this);
     }
 
-    // Thermal tint for the temp-card heater icons. The binder owns its own
+    // Thermal tint for the heater chip icons. The binder owns its own
     // observers, so this needs no hook into on_temperature_changed().
-    nozzle_icon_binder_.bind(overlay_root_, printer_state_, helix::HeaterType::Nozzle);
-    bed_icon_binder_.bind(overlay_root_, printer_state_, helix::HeaterType::Bed);
-    chamber_icon_binder_.bind(overlay_root_, printer_state_, helix::HeaterType::Chamber);
+    nozzle_icon_binder_.bind_required(lv_obj_find_by_name(overlay_root_, "ps_chip_nozzle"),
+                                      printer_state_, helix::HeaterType::Nozzle);
+    bed_icon_binder_.bind_required(lv_obj_find_by_name(overlay_root_, "ps_chip_bed"),
+                                   printer_state_, helix::HeaterType::Bed);
+    chamber_icon_binder_.bind_required(lv_obj_find_by_name(overlay_root_, "ps_chip_chamber"),
+                                       printer_state_, helix::HeaterType::Chamber);
 
     // The first arrangement is measured from on_activate(): overlay_root_ is
     // HIDDEN until then, and a hidden subtree lays out at 0 width.

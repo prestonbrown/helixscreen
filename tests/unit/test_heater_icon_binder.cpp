@@ -7,8 +7,13 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "app_globals.h"
 #include "printer_state.h"
 
+#include <spdlog/sinks/ringbuffer_sink.h>
+#include <spdlog/spdlog.h>
+
+#include <memory>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -63,6 +68,27 @@ TEST_CASE("HeaterIconBinder: bind_subjects refuses to bind when both subjects ar
 
 // One real subject is enough to be useful (e.g. a sensor-only display with no
 // controllable target) — only the BOTH-null case is refused.
+TEST_CASE("HeaterIconBinder: a missing required glyph is logged as an error", "[heater_binder]") {
+    LVGLTestFixture fixture;
+    lv_obj_t* root = lv_obj_create(lv_screen_active());
+    auto& state = get_printer_state();
+
+    auto sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(8);
+    sink->set_level(spdlog::level::err);
+    auto& sinks = spdlog::default_logger()->sinks();
+    sinks.push_back(sink);
+    HeaterIconBinder binder;
+    CHECK_FALSE(binder.bind(root, state, HeaterType::Bed));
+    const bool optional_silent = sink->last_formatted().empty();
+    CHECK_FALSE(binder.bind_required(root, state, HeaterType::Bed));
+    const auto logged = sink->last_formatted();
+    sinks.pop_back();
+
+    CHECK(optional_silent);
+    REQUIRE(logged.size() == 1);
+    CHECK(logged[0].find("bed_icon_glyph") != std::string::npos);
+}
+
 TEST_CASE("HeaterIconBinder: bind_subjects still binds when only one subject is non-null",
           "[heater_binder]") {
     LVGLTestFixture fixture;

@@ -23,12 +23,14 @@ struct ChipContent {
     ChipTone tone = ChipTone::Normal;
     /// Showing an expected value, so a tile too small for every chip drops it first.
     bool expendable = false;
-    /// Its region on the picture glows.
+    /// Its region on the picture glows; for a heater, heater_region_glows().
     bool glow = false;
     /// 0-100 heat-up progress for a climbing heater, -1 for no bar.
     int progress_pct = -1;
     /// A heater's HeaterStatusState as an int, for its heater_status glyph; 0 for any other chip.
     int status_state = 0;
+    /// A heater's classification: get_heating_state_color() of it paints the chip.
+    ui::temperature::HeatState heat = ui::temperature::HeatState::Off;
 };
 
 /// A heater chip. `status` is classify_heater_status() of the same reading.

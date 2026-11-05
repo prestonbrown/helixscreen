@@ -500,7 +500,7 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci);
  */
 enum class HeaterStatusState {
     None,    ///< heater off, or nothing to say
-    Heating, ///< below target: flame glyph, duty in warning color
+    Heating, ///< below target: flame glyph and duty in the Heating state color
     Ready,   ///< at target (or chamber holding at/below its ceiling): check glyph
     Cooling, ///< above target (or above the chamber ceiling): snowflake glyph
     Auto     ///< chamber at/below its standing (resting) setpoint: circled-A glyph, the
@@ -527,11 +527,22 @@ enum class HeaterStatusState {
  */
 struct HeaterStatus {
     HeaterStatusState state;
-    std::string duty; ///< "", or "NN%"
+    std::string duty;                ///< "", or "NN%"
+    HeatState heat = HeatState::Off; ///< The classification itself, for get_heating_state_color()
 };
 
 HeaterStatus classify_heater_status(int current_deci, int target_deci, int power_pct,
                                     helix::ChamberMode mode = helix::ChamberMode::Heating);
+
+/** Whether a heater lights its region of the printer picture: only while climbing to target. */
+inline bool heater_region_glows(HeatState state) {
+    return state == HeatState::Heating;
+}
+
+/** Whether a heater reads away from its target, so its chip outlines in the state color. */
+inline bool heater_off_target(HeatState state) {
+    return state == HeatState::Heating || state == HeatState::Cooling;
+}
 
 // ============================================================================
 // Heater GCode

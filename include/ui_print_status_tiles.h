@@ -135,6 +135,13 @@ class PrintStatusTiles {
         lv_subject_t line{};
         lv_subject_t state{};
         char text_buf[32] = "";
+        /// What paint_heater_chip() last wrote, so an unchanged reading writes no style.
+        struct {
+            bool valid = false;
+            lv_color_t color{};
+            bool warn = false;
+            bool off_target = false;
+        } painted;
     };
     struct StepSubjects {
         lv_subject_t name{};
@@ -153,6 +160,9 @@ class PrintStatusTiles {
     /// `labeled`: fan chips name their role ("Part 30%").
     std::array<ChipContent, kPrintStatusChipCount> decide_chips(bool show_power, bool labeled);
     void publish(PrintStatusChip chip, const ChipContent& c, bool shown, bool glow, bool line);
+    /// Text, outline, bar and glow take get_heating_state_color() of the chip's heat state;
+    /// a Warn chip keeps the amber its tone binds on text and outline.
+    void paint_heater_chip(PrintStatusChip chip, const ChipContent& c);
     /// The active tool's badge ("T1") on a multi-tool printer, empty otherwise.
     std::string tool_badge() const;
     ChipContent heater(PrintStatusChip chip, bool show_power);

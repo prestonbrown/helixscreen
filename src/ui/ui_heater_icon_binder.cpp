@@ -66,6 +66,17 @@ bool HeaterIconBinder::bind(lv_obj_t* root, PrinterState& state, HeaterType heat
     return attach_and_observe(icon);
 }
 
+bool HeaterIconBinder::bind_required(lv_obj_t* root, PrinterState& state, HeaterType heater,
+                                     const char* icon_name) {
+    const bool bound = bind(root, state, heater, icon_name);
+    if (!bound) {
+        spdlog::error(
+            "[HeaterIconBinder] Required icon '{}' is missing: it will not show heat state",
+            icon_name ? icon_name : default_icon_name(heater));
+    }
+    return bound;
+}
+
 bool HeaterIconBinder::bind_subjects(lv_obj_t* root, const char* icon_name,
                                      lv_subject_t* current_subject, lv_subject_t* target_subject) {
     unbind();
