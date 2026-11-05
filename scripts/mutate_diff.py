@@ -1566,6 +1566,13 @@ class JobBudget:
 JOBS = JobBudget()
 
 
+def header_includer(root, path):
+    """The source of the same stem as a header, relative to `root`, or None."""
+    stem = Path(path).name.rsplit('.', 1)[0]
+    found = sorted((root / 'src').rglob(f'{stem}.cpp')) if (root / 'src').is_dir() else []
+    return str(found[0].relative_to(root)) if found else None
+
+
 def syntax_rejects(root, path, log):
     """True when the reverted file does not even compile on its own.
 
@@ -1573,11 +1580,13 @@ def syntax_rejects(root, path, log):
     the one file is seconds, and a hunk that removes a declaration its own file
     still uses is rejected there. It is a negative filter only: passing says
     nothing, because a revert can break a DIFFERENT translation unit, which only
-    the real build sees. Headers are skipped for that reason -- reverting one
-    breaks its consumers, not itself, so the check would always pass.
+    the real build sees. A header is asked of the source of its own stem, its
+    likeliest user, since a failing rebuild of its includers costs minutes.
     """
     if path.endswith(HEADER_SUFFIXES):
-        return False
+        path = header_includer(root, path)
+        if path is None:
+            return False
     checker = root / 'scripts' / 'syntax_check.py'
     if not checker.exists():
         return False

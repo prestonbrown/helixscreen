@@ -1443,6 +1443,19 @@ def test_a_failure_only_at_a_flaky_site_judges_nothing(tmp_path):
     assert md.run_catch2(tmp_path, binary, "[x]", plan, io.StringIO())[0] == md.GREEN
 
 
+def test_a_header_revert_is_syntax_checked_through_the_source_of_its_stem(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "syntax_check.py").write_text(
+        "import sys\nprint(sys.argv[1] + ': FAILED (1.0s)')\nsys.exit(1)\n")
+    (tmp_path / "src" / "printer").mkdir(parents=True)
+    (tmp_path / "src" / "printer" / "foo.cpp").write_text("")
+    import io
+    log = io.StringIO()
+    assert md.syntax_rejects(tmp_path, "include/foo.h", log) is True
+    assert "src/printer/foo.cpp: FAILED" in log.getvalue()
+    assert md.syntax_rejects(tmp_path, "include/nothing_named_this.h", io.StringIO()) is False
+
+
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     (work / ".mutant-expect-other").write_text("")
