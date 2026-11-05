@@ -23,6 +23,7 @@
 #include "core/update_queue.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
+#include "filament_variants.h"
 #include "i_moonraker_api.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -643,9 +644,17 @@ void SpoolWizardOverlay::create_vendor_then_filament_then_spool() {
 nlohmann::json SpoolWizardOverlay::filament_create_payload(const FilamentEntry& f, int vendor_id) {
     nlohmann::json data;
     data["vendor_id"] = vendor_id;
-    data["name"] =
+    // Spoolman's material is what AFC copies to lane_data and the slicer
+    // matches, so it records the slicer's type; the precise one ("ABS+") is
+    // kept in the name, prefixed when a name of its own never states it.
+    const std::string recorded = filament::slicer_material(f.material);
+    std::string name =
         f.name.empty() ? helix::spoolman::new_filament_name(f.material, f.color_name) : f.name;
-    data["material"] = f.material;
+    if (recorded != f.material && !helix::name_states_material(name, f.material)) {
+        name = helix::spoolman::new_filament_name(f.material, name);
+    }
+    data["name"] = name;
+    data["material"] = recorded.empty() ? f.material : recorded;
     if (!f.multi_color_hexes.empty()) {
         data["multi_color_hexes"] = f.multi_color_hexes;
         if (!f.multi_color_direction.empty()) {

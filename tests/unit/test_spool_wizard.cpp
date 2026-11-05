@@ -528,6 +528,27 @@ TEST_CASE("filament_create_payload omits unset temperatures", "[spool_wizard][sp
     CHECK_FALSE(payload.contains("settings_bed_temp"));
 }
 
+TEST_CASE("filament_create_payload records the slicer's material and keeps the variant in the name",
+          "[spool_wizard][spoolman][filament_naming]") {
+    SpoolWizardOverlay::FilamentEntry f;
+    f.material = "ABS+";
+    f.color_name = "Deep Gray";
+
+    nlohmann::json payload = SpoolWizardOverlay::filament_create_payload(f, 7);
+    CHECK(payload["material"] == "ABS");
+    CHECK(payload["name"] == "ABS+ Deep Gray");
+
+    // A name of its own that never states the variant gets it in front.
+    f.name = "Deep Gray";
+    payload = SpoolWizardOverlay::filament_create_payload(f, 7);
+    CHECK(payload["material"] == "ABS");
+    CHECK(payload["name"] == "ABS+ Deep Gray");
+
+    // A name that already says it is kept as it is.
+    f.name = "Grey ABS+HS";
+    CHECK(SpoolWizardOverlay::filament_create_payload(f, 7)["name"] == "Grey ABS+HS");
+}
+
 TEST_CASE("vendor_create_payload keeps the website Spoolman has no field for",
           "[spool_wizard][spoolman]") {
     // Spoolman's vendor has no url field and silently drops unknown keys, so
