@@ -460,6 +460,20 @@ std::string nm_active_uuid_for_device(const std::string& output, const std::stri
     return {};
 }
 
+bool nm_uuid_is_active(const std::string& output, const std::string& uuid) {
+    if (uuid.empty()) {
+        return false;
+    }
+    for (std::string_view line : lines_of(output)) {
+        const size_t colon = line.rfind(':');
+        if (colon != std::string_view::npos && trim(line.substr(0, colon)) == uuid &&
+            !trim(line.substr(colon + 1)).empty()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<std::string> nm_ipv4_show_argv(const std::string& uuid) {
     return {"-t",   "-f", "ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns", "connection", "show",
             "uuid", uuid};
@@ -898,7 +912,8 @@ Ipv4RecordLoad read_pending_ipv4_revert() {
     const auto text = helix::text_io::read_file(path, kIpv4RecordMaxBytes + 1);
     if (!text) {
         if (errno != ENOENT && access(path.c_str(), F_OK) == 0) {
-            out.kind = Ipv4RecordLoad::Kind::Unreadable;
+            spdlog::error("[Ipv4] {} exists but could not be read: {}", path, std::strerror(errno));
+            out.kind = Ipv4RecordLoad::Kind::ReadError;
         }
         return out;
     }

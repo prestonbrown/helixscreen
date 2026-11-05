@@ -230,6 +230,10 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that cannot be used is a failure,
     REQUIRE(helix::text_io::write_file_atomic(pending_ipv4_revert_path(), "{\"link\":\"wifi\""));
     CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Terminal);
 
+    SECTION("its bytes are kept beside the failed stub") {
+        REQUIRE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "undecodable"));
+        CHECK(std::filesystem::exists(pending_ipv4_revert_path() + ".unreadable"));
+    }
     SECTION("a dhcpcd-sized snapshot fits the record") {
         PendingIpv4Revert p;
         p.snapshot = {"dhcpcd", "wlan0", "", std::string(kIpv4SnapshotMaxBytes, '\xe9'),
@@ -239,6 +243,16 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that cannot be used is a failure,
         REQUIRE(back);
         CHECK(back->snapshot.original == p.snapshot.original);
     }
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that fails to read is retried, never replaced",
+                 "[ipv4][ipv4_manager]") {
+    // A directory exists, opens, and fails every read.
+    REQUIRE(std::filesystem::create_directory(pending_ipv4_revert_path()));
+    CHECK(read_pending_ipv4_revert().kind == Ipv4RecordLoad::Kind::ReadError);
+    CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Retry);
+    CHECK_FALSE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "read error"));
+    CHECK(std::filesystem::is_directory(pending_ipv4_revert_path()));
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "EthernetManager reads and applies through the mock",

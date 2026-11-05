@@ -126,6 +126,7 @@ void start_ipv4_startup_revert() {
                             net::pending_ipv4_revert_path() + " cannot be read");
         return;
     }
+    // A record that failed to read (ReadError) is left as it is for the next start.
     const auto& pending = loaded.record;
     if (loaded.kind != net::Ipv4RecordLoad::Kind::Ok || pending.failed ||
         pending.owner == net::ipv4_process_owner()) {

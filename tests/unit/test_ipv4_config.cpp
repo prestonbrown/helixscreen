@@ -274,7 +274,7 @@ TEST_CASE("MockIpv4Config stores what is applied and can be told to fail", "[ipv
 // NetworkManager
 // ============================================================================
 
-TEST_CASE("nm_active_uuid_for_device picks the device's row", "[ipv4]") {
+TEST_CASE("nm_active_uuid_for_device and nm_uuid_is_active read the active rows", "[ipv4]") {
     const std::string out = "aaaa-1111:eth0\n"
                             "bbbb-2222:wlan0\n"
                             "cccc-3333:\n";
@@ -283,6 +283,10 @@ TEST_CASE("nm_active_uuid_for_device picks the device's row", "[ipv4]") {
     REQUIRE(nm_active_uuid_for_device(out, "eth1").empty());
     REQUIRE(nm_active_uuid_for_device("", "wlan0").empty());
     REQUIRE(nm_active_uuid_for_device(out, "").empty());
+    CHECK(nm_uuid_is_active(out, "bbbb-2222"));
+    CHECK_FALSE(nm_uuid_is_active(out, "cccc-3333"));
+    CHECK_FALSE(nm_uuid_is_active(out, "dddd-4444"));
+    CHECK_FALSE(nm_uuid_is_active(out, ""));
 }
 
 TEST_CASE("nm_parse_ipv4 reads manual and auto profiles", "[ipv4]") {

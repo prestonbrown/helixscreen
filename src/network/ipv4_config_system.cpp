@@ -5,6 +5,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cstdio>
+
 #if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
 
 #include "core/http_executor.h"
@@ -209,7 +211,8 @@ class NetworkManagerIpv4Store : public Ipv4SystemStore {
     // Moves the interface onto the edited profile. reapply keeps the
     // association; a device that refuses it, or a profile not active, is
     // brought up on the recorded interface. When @p required is false a
-    // failure is only logged: the profile holds the config, and autoconnect
+    // failure is only logged: the caller has shown the profile is active on
+    // no device, so the written profile is the whole change and autoconnect
     // brings it up when the link can.
     static Ipv4Result activate(const Ipv4Snapshot& target, bool required) {
         const RunResult reapply =
@@ -258,7 +261,16 @@ Ipv4Result restore_network_manager(const Ipv4Snapshot& snapshot) {
         break;
     }
     }
-    return NetworkManagerIpv4Store::activate(snapshot, /*required=*/false);
+    // An active profile still runs the changed config until it is reapplied,
+    // so only one active nowhere is restored by the write alone.
+    const RunResult active = run_capture(
+        "nmcli", {"-t", "-f", "UUID,DEVICE", "connection", "show", "--active"}, kNmcliQuick);
+    if (active.exit_code != 0) {
+        return Ipv4Result::failed("nmcli connection show --active: " +
+                                  first_output_line(active.out));
+    }
+    return NetworkManagerIpv4Store::activate(
+        snapshot, /*required=*/nm_uuid_is_active(active.out, snapshot.profile));
 }
 
 // ============================================================================
@@ -603,8 +615,10 @@ Ipv4Result restore_dhcpcd(const Ipv4Snapshot& snapshot) {
         // The file is right; dhcpcd reads it when it starts.
         return Ipv4Result::success();
     }
+    // dhcpcd keeps the changed address until it rebinds, so a failed rebind
+    // is a failed restore; the retry finds the file right and rebinds again.
     if (Ipv4Result r = rebind_dhcpcd(snapshot.iface); !r.ok()) {
-        spdlog::warn("[Ipv4] {} restored, but {}", kDhcpcdConf, r.detail);
+        return Ipv4Result::failed(std::string(kDhcpcdConf) + " restored, but " + r.detail);
     }
     return Ipv4Result::success();
 }
@@ -729,6 +743,7 @@ Ipv4Result apply_ipv4_change(Ipv4Configurable& backend, Ipv4Link link, const Ipv
     // can no longer be used, may be replaced.
     const Ipv4RecordLoad existing = read_pending_ipv4_revert();
     if (existing.kind == Ipv4RecordLoad::Kind::Unreadable ||
+        existing.kind == Ipv4RecordLoad::Kind::ReadError ||
         (existing.kind == Ipv4RecordLoad::Kind::Ok && !existing.record.failed)) {
         return Ipv4Result::refused("an earlier IPv4 change is still waiting to be undone");
     }
@@ -754,8 +769,11 @@ Ipv4RestoreOutcome restore_pending_ipv4(Ipv4Link link, bool include_own) {
     if (loaded.kind == Ipv4RecordLoad::Kind::None) {
         return {Kind::Nothing, {}};
     }
+    if (loaded.kind == Ipv4RecordLoad::Kind::ReadError) {
+        return {Kind::Retry, pending_ipv4_revert_path() + " could not be read"};
+    }
     if (loaded.kind == Ipv4RecordLoad::Kind::Unreadable) {
-        return {Kind::Terminal, pending_ipv4_revert_path() + " cannot be read"};
+        return {Kind::Terminal, pending_ipv4_revert_path() + " cannot be decoded"};
     }
     const PendingIpv4Revert& pending = loaded.record;
     if (pending.link != link || pending.failed ||
@@ -784,7 +802,12 @@ bool mark_pending_ipv4_failed(Ipv4Link link, const std::string& why) {
     Ipv4RecordLoad loaded = read_pending_ipv4_revert();
     PendingIpv4Revert& record = loaded.record;
     if (loaded.kind == Ipv4RecordLoad::Kind::Unreadable) {
-        // Nothing in it can be restored; a failed stub keeps the user's notice.
+        // Nothing in it can be restored; a failed stub keeps the user's notice,
+        // and the bytes are kept beside it as the only evidence.
+        const std::string path = pending_ipv4_revert_path();
+        if (std::rename(path.c_str(), (path + ".unreadable").c_str()) != 0) {
+            return false;
+        }
         record = {};
         record.link = link;
     } else if (loaded.kind != Ipv4RecordLoad::Kind::Ok || record.link != link) {

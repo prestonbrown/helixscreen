@@ -253,6 +253,9 @@ Ipv4Result restore_mock_ipv4_snapshot(const Ipv4Snapshot& snapshot);
 /// `nmcli -t -f UUID,DEVICE connection show --active`. Empty when none is.
 std::string nm_active_uuid_for_device(const std::string& output, const std::string& iface);
 
+/// Whether @p uuid is active on any device, from the same output.
+bool nm_uuid_is_active(const std::string& output, const std::string& uuid);
+
 /// The profile a link uses while nothing is active on it: from
 /// `nmcli -t -f UUID,TYPE,TIMESTAMP,DEVICE connection show`, the most recently
 /// used inactive profile of @p link's type. Empty when there is none.
@@ -437,9 +440,11 @@ std::string pending_ipv4_revert_path();
 bool save_pending_ipv4_revert(const PendingIpv4Revert& pending);
 
 /// A record file that exists but cannot be used is a failure to report, never
-/// "nothing to do".
+/// "nothing to do". ReadError is a read that failed (EIO, EMFILE): the bytes
+/// may be good, so nothing may replace them. Unreadable is text that does not
+/// decode, which can never restore anything.
 struct Ipv4RecordLoad {
-    enum class Kind { None, Ok, Unreadable };
+    enum class Kind { None, Ok, ReadError, Unreadable };
     Kind kind = Kind::None;
     PendingIpv4Revert record;
 };
