@@ -659,8 +659,7 @@ TEST_CASE("selection pills: off every centre in a packed micro grid, clear of th
         CHECK_FALSE(covers(*cfg, t));
     }
 
-    // Neighbours centred inside every spot: nullopt, and the pill goes on the
-    // tile's corner.
+    // A neighbour centred inside every spot: nullopt, the pill goes on its corner.
     std::vector<lv_area_t> dots;
     for (int32_t cx : {480, 375, 520, 335}) {
         for (int32_t cy : {175, 215, 280}) {
@@ -680,37 +679,18 @@ TEST_CASE("selection pills: off every centre in a packed micro grid, clear of th
         std::vector<lv_area_t> blocked;
         lv_area_t pill;
     };
+    // A whole cell mid-grid; under the delete-page button, which the trash
+    // slides below, or left along the top edge when that is taken; a tile too
+    // small for its corner, whose pills sit out past its centre.
+    constexpr Corner R = Corner::TopRight;
+    constexpr Corner L = Corner::TopLeft;
     const Row rows[] = {
-        {"a whole cell mid-grid",
-         {400, 200, 517, 317},
-         Corner::TopRight,
-         {del},
-         {491, 191, 526, 226}},
-        {"its configure corner",
-         {400, 200, 517, 317},
-         Corner::TopLeft,
-         {del},
-         {391, 191, 426, 226}},
-        {"the top-right whole cell: below the delete-page button",
-         {682, 0, 799, 117},
-         Corner::TopRight,
-         {del},
-         {773, 53, 808, 88}},
-        {"something below the button: left along the top edge",
-         {682, 0, 799, 117},
-         Corner::TopRight,
-         {del, {760, 48, 810, 100}},
-         {711, -9, 746, 26}},
-        {"a tile too small for its corner: out past its centre",
-         {400, 200, 430, 228},
-         Corner::TopRight,
-         {},
-         {416, 178, 451, 213}},
-        {"the small tile's configure corner",
-         {400, 200, 430, 228},
-         Corner::TopLeft,
-         {},
-         {379, 178, 414, 213}},
+        {"whole", {400, 200, 517, 317}, R, {del}, {491, 191, 526, 226}},
+        {"whole cfg", {400, 200, 517, 317}, L, {del}, {391, 191, 426, 226}},
+        {"under delete", {682, 0, 799, 117}, R, {del}, {773, 53, 808, 88}},
+        {"below taken", {682, 0, 799, 117}, R, {del, {760, 48, 810, 100}}, {711, -9, 746, 26}},
+        {"small", {400, 200, 430, 228}, R, {}, {416, 178, 451, 213}},
+        {"small cfg", {400, 200, 430, 228}, L, {}, {379, 178, 414, 213}},
     };
     for (const auto& row : rows) {
         CAPTURE(row.what);
