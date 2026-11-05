@@ -2,6 +2,9 @@
 # Shared test helpers for bats tests
 # Source this from setup() in each .bats file
 
+# A test of test-host-run.sh must not re-exec it under the real caffeinate.
+export HELIX_TEST_AWAKE=1
+
 # Stubbed ssh runs test-host-run.sh's load check here, on a machine that may be busy.
 export HELIX_TEST_MAX_LOAD=0
 
