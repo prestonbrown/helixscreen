@@ -622,6 +622,34 @@ build_inline_fixture() {
     contains "Pwm::update()" "$output"
 }
 
+# A static member called by its qualified name inside a guarded branch, in a file
+# whose live code also uses the bare member word for something else.
+build_qualified_fixture() {
+    printf '#pragma once\nstruct Tracker { static int load(); };\n' > "$ROOT/src/printer/excluded_one.h"
+    printf '#include "excluded_one.h"\nint Tracker::load() { return 1; }\n' \
+        > "$ROOT/src/printer/excluded_one.cpp"
+    printf '#include <atomic>\n#include "excluded_one.h"\nstd::atomic<int> busy{0};\nint live() { return busy.load(); }\n%s\n' "$1" \
+        > "$ROOT/src/printer/compiled.cpp"
+    mkdir -p "$ROOT/obj/printer" "$ROOT/fwroot"
+    c++ -DHELIX_HAS_CAMERA=1 -I"$ROOT/src/printer" -c "$ROOT/src/printer/compiled.cpp" -o "$ROOT/obj/printer/compiled.o"
+    c++ -I"$ROOT/src/printer" -c "$ROOT/src/printer/excluded_one.cpp" -o "$ROOT/obj/printer/excluded_one.o"
+    printf 'target_compile_definitions(${COMPONENT_LIB} PRIVATE\n    HELIX_HAS_CAMERA=0)\n' > "$ROOT/CMakeLists.txt"
+    printf 'max-edges: 0\n' > "$ROOT/link_baseline.txt"
+}
+
+@test "--link passes a guarded qualified call whose member name live code also spells" {
+    build_qualified_fixture $'#if HELIX_HAS_CAMERA\nint guarded() { return Tracker::load(); }\n#endif'
+    run_link_gate
+    [ "$status" -eq 0 ]
+}
+
+@test "--link fails a qualified call the firmware compiles" {
+    build_qualified_fixture 'int unguarded() { return Tracker::load(); }'
+    run_link_gate
+    [ "$status" -eq 1 ]
+    contains "Tracker::load()" "$output"
+}
+
 @test "--link: a Makefile flag a firmware sdkconfig mentions may be set on the firmware" {
     build_link_fixture $'\n#ifdef HELIX_HAS_BUZZER\n    return only_excluded_defines();\n#endif\n    return 0;\n'
     c++ -DHELIX_HAS_BUZZER -c "$ROOT/src/printer/compiled.cpp" -o "$ROOT/obj/printer/compiled.o"

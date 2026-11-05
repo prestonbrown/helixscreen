@@ -755,6 +755,17 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
             return (any(word in words_of(h) for h in all_headers - live_headers)
                     and not any(word in words_of(h) for h in live_headers))
 
+        live_text = "\n".join(c for _, c in firmware_code_lines(text, defines))
+
+        def qualified_dead(owner_name: str, member: str) -> bool:
+            """The source spells `Owner::member`, and neither that spelling nor `Owner`
+            appears on a line the firmware compiles. A bare member word is no evidence
+            either way: `load` is also every std::atomic's read.
+            """
+            spelled = re.compile(rf"\b{re.escape(owner_name)}\s*::\s*{re.escape(member)}\b")
+            return (bool(spelled.search(text)) and not spelled.search(live_text)
+                    and owner_name not in live_words)
+
         for sym in syms:
             parts = symbol_name(demangled[sym])
             if demangled[sym].startswith(("vtable for ", "typeinfo for ")):
@@ -763,6 +774,8 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
             elif firmware_defines_symbol(parts, firmware_defined, firmware_namespaces):
                 continue
             if dead(parts[-1].lstrip("~")):
+                continue
+            if len(parts) >= 2 and qualified_dead(parts[-2], parts[-1].lstrip("~")):
                 continue
             edge = (f, owner[sym])
             seen.add(edge)
