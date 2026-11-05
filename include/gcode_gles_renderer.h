@@ -319,8 +319,9 @@ class GCodeGLESRenderer {
     void upload_geometry(const RibbonGeometry& geom, std::vector<LayerVBO>& vbos);
 
     /// Fill `out` with one layer's VBO (prepared buffer, else expanded strips via `buf`).
-    /// An empty layer or a GL error leaves `out` empty.
-    void upload_layer(const RibbonGeometry& geom, size_t layer, std::vector<uint8_t>& buf,
+    /// An empty layer or a GL error leaves `out` empty. Returns false on a GL error that
+    /// gl_draw_error_is_fatal() calls fatal.
+    bool upload_layer(const RibbonGeometry& geom, size_t layer, std::vector<uint8_t>& buf,
                       LayerVBO& out);
 
     /// Upload a time-budgeted batch of layers. Returns true when all layers are done.
@@ -328,6 +329,9 @@ class GCodeGLESRenderer {
                                size_t& next_layer, size_t total_layers);
 
     void free_vbos(std::vector<LayerVBO>& vbos);
+
+    /// Free every uploaded VBO and fall back to 2D for the session.
+    void abandon_upload();
 
     // ====== Internal Rendering ======
 

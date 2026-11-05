@@ -913,18 +913,22 @@ void GCodeGLESRenderer::destroy_gl() {
 // Geometry Upload
 // ============================================================
 
-// Creates a static VBO holding `bytes` of `data`. Returns an empty handle when GL reports an error.
-static GLBufferHandle make_vbo(const void* data, size_t bytes, const char* what) {
+// Creates a static VBO holding `bytes` of `data`. Returns an empty handle when GL reports an
+// error, and that error in `err`.
+static GLBufferHandle make_vbo(const void* data, size_t bytes, const char* what, GLenum& err) {
     GLBufferHandle vbo;
     glGenBuffers(1, &vbo.id);
     glBindBuffer(GL_ARRAY_BUFFER, vbo.id);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(bytes), data, GL_STATIC_DRAW);
-    bool ok = check_gl_error(what);
+    err = glGetError();
+    if (err != GL_NO_ERROR) {
+        spdlog::error("[GCode GLES] GL error after {}: 0x{:04X}", what, err);
+    }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    return ok ? std::move(vbo) : GLBufferHandle();
+    return err == GL_NO_ERROR ? std::move(vbo) : GLBufferHandle();
 }
 
-void GCodeGLESRenderer::upload_layer(const RibbonGeometry& geom, size_t layer,
+bool GCodeGLESRenderer::upload_layer(const RibbonGeometry& geom, size_t layer,
                                      std::vector<uint8_t>& buf, LayerVBO& out) {
     constexpr size_t kVertexStride = PackedVertex::stride();
 
@@ -941,22 +945,23 @@ void GCodeGLESRenderer::upload_layer(const RibbonGeometry& geom, size_t layer,
     }
 
     if (strip_count == 0) {
-        return;
+        return true;
     }
 
     // Use pre-computed buffers if available (prepared on background thread)
     if (!geom.prepared_buffers.empty() && layer < geom.prepared_buffers.size() &&
         geom.prepared_buffers[layer].vertex_count > 0) {
         const auto& prepared = geom.prepared_buffers[layer];
+        GLenum err = GL_NO_ERROR;
         GLBufferHandle vbo = make_vbo(prepared.data.data(), prepared.vertex_count * kVertexStride,
-                                      "glBufferData (prepared)");
+                                      "glBufferData (prepared)", err);
         if (!vbo.id) {
             spdlog::error("[GCode GLES] VBO creation failed for layer {} (prepared)", layer);
-            return;
+            return !gl_draw_error_is_fatal(err);
         }
         out.vbo = std::move(vbo);
         out.vertex_count = prepared.vertex_count;
-        return;
+        return true;
     }
 
     // CPU fallback: expand strips inline. Each strip = 4 vertices -> 2 triangles -> 6 vertices
@@ -969,13 +974,15 @@ void GCodeGLESRenderer::upload_layer(const RibbonGeometry& geom, size_t layer,
 
     geom.expand_strips(first_strip, strip_count, reinterpret_cast<PackedVertex*>(buf.data()));
 
-    GLBufferHandle vbo = make_vbo(buf.data(), buf_bytes, "glBufferData");
+    GLenum err = GL_NO_ERROR;
+    GLBufferHandle vbo = make_vbo(buf.data(), buf_bytes, "glBufferData", err);
     if (!vbo.id) {
         spdlog::error("[GCode GLES] VBO creation failed for layer {}", layer);
-        return;
+        return !gl_draw_error_is_fatal(err);
     }
     out.vbo = std::move(vbo);
     out.vertex_count = total_verts;
+    return true;
 }
 
 void GCodeGLESRenderer::upload_geometry(const RibbonGeometry& geom, std::vector<LayerVBO>& vbos) {
@@ -995,7 +1002,10 @@ void GCodeGLESRenderer::upload_geometry(const RibbonGeometry& geom, std::vector<
     // Reuse upload buffer across layers (sized to largest layer)
     std::vector<uint8_t> buf;
     for (size_t layer = 0; layer < num_layers; ++layer) {
-        upload_layer(geom, layer, buf, vbos[layer]);
+        if (!upload_layer(geom, layer, buf, vbos[layer])) {
+            abandon_upload();
+            return;
+        }
     }
 
     spdlog::debug("[GCode GLES] Uploaded {} layers, {} total strips to VBOs", num_layers,
@@ -1033,7 +1043,11 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
     std::vector<uint8_t> buf;
 
     while (next_layer < total_layers) {
-        upload_layer(geom, next_layer, buf, vbos[next_layer]);
+        if (!upload_layer(geom, next_layer, buf, vbos[next_layer])) {
+            abandon_upload();
+            next_layer = 0;
+            return false;
+        }
         ++next_layer;
 
         // Check time budget (check every layer, glBufferData can be slow)
@@ -1049,6 +1063,17 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
                       total_layers);
     }
     return done;
+}
+
+// A driver that has run out of memory can fault on the next allocation anyone makes, the
+// display's own included, so the buffers already uploaded go back and nothing more is drawn.
+void GCodeGLESRenderer::abandon_upload() {
+    spdlog::error("[GCode GLES] Fatal GL error during VBO upload — disabling GPU rendering, "
+                  "falling back to 2D");
+    free_vbos(layer_vbos_);
+    free_vbos(moving_vbos_);
+    gl_render_failed_ = true;
+    cancel_job();
 }
 
 void GCodeGLESRenderer::free_vbos(std::vector<LayerVBO>& vbos) {
@@ -1122,6 +1147,10 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
 
         bool done = upload_geometry_chunk(*geometry_, layer_vbos_, upload_next_layer_,
                                           upload_total_layers_);
+        if (gl_render_failed_) {
+            upload_total_layers_ = 0;
+            return;
+        }
         if (done) {
             geometry_uploaded_ = true;
             upload_next_layer_ = 0;
@@ -1150,6 +1179,9 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
             // re-enters this branch, so the mesh re-uploads with whatever the
             // palette says by then.
             upload_moving_mesh();
+            if (gl_render_failed_) {
+                return;
+            }
             // Defer first GPU render by a few frames to avoid blocking panel animations
             render_defer_frames_ = 3;
         } else {
