@@ -106,7 +106,9 @@ set -euo pipefail
 
 # A Mac in idle sleep drops the ssh link and stalls the run, so hold it awake.
 if [ "$(uname)" = Darwin ] && [ -z "${HELIX_TEST_AWAKE:-}" ] && command -v caffeinate >/dev/null; then
-    HELIX_TEST_AWAKE=1 exec caffeinate -is "$0" "$@"
+    # caffeinate searches PATH for a bare name, which `bash test-host-run.sh` passes.
+    case "$0" in */*) _self=$0 ;; *) _self=./$0 ;; esac
+    HELIX_TEST_AWAKE=1 exec caffeinate -is "$_self" "$@"
 fi
 
 # shellcheck source-path=SCRIPTDIR source=lib/build_hosts.sh

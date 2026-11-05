@@ -488,6 +488,7 @@
   <translation tag="Bypass Is Active" ja="バイパス使用中"/>
   <translation tag="Bypass Mode" ja="バイパスモード"/>
   <translation tag="Bypass active — this print runs on the external spool." ja="バイパス使用中 — この印刷は外部スプールから供給されます。"/>
+  <translation tag="Bypass canceled" ja="バイパスをキャンセルしました"/>
   <translation tag="Bypass cannot be changed while printing" ja="印刷中はバイパスを変更できません"/>
   <translation tag="Bypass controlled by sensor" ja="バイパスはセンサーで制御中"/>
   <translation tag="Bypass disabled" ja="バイパス無効"/>

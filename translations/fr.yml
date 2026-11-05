@@ -528,6 +528,7 @@ translations:
   Bypass Is Active: Bypass actif
   Bypass Mode: Mode bypass
   Bypass active — this print runs on the external spool.: 'Bypass actif : cette impression utilise la bobine externe.'
+  Bypass canceled: Bypass annulé
   Bypass cannot be changed while printing: Le bypass ne peut pas être modifié pendant l'impression
   Bypass controlled by sensor: Bypass contrôlé par le capteur
   Bypass disabled: Bypass désactivé

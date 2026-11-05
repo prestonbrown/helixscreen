@@ -494,6 +494,7 @@ translations:
   Bypass Is Active: 旁路已启用
   Bypass Mode: 旁路模式
   Bypass active — this print runs on the external spool.: 旁路已启用 — 本次打印使用外部料盘。
+  Bypass canceled: 旁路已取消
   Bypass cannot be changed while printing: 打印时无法切换旁路
   Bypass controlled by sensor: 旁通由传感器控制
   Bypass disabled: 旁通已禁用

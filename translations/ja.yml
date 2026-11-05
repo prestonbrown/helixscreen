@@ -495,6 +495,7 @@ translations:
   Bypass Is Active: バイパス使用中
   Bypass Mode: バイパスモード
   Bypass active — this print runs on the external spool.: バイパス使用中 — この印刷は外部スプールから供給されます。
+  Bypass canceled: バイパスをキャンセルしました
   Bypass cannot be changed while printing: 印刷中はバイパスを変更できません
   Bypass controlled by sensor: バイパスはセンサーで制御中
   Bypass disabled: バイパス無効

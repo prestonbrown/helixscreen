@@ -24,6 +24,7 @@
 
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
+#include "ui_notification.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -41,6 +42,7 @@
 #include <lvgl/lvgl.h>
 #include <spdlog/fmt/fmt.h>
 
+#include <algorithm>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -281,6 +283,28 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
     CHECK_FALSE(backend->is_bypass_active());
     // ...and the switch does not sit there claiming bypass is on.
     CHECK_FALSE(lv_obj_has_state(toggle, LV_STATE_CHECKED));
+}
+
+TEST_CASE_METHOD(DeviceOpsBypassFixture,
+                 "Closing Device Operations mid-chain says the bypass was canceled",
+                 "[ui_integration][ams][bypass-device-ops]") {
+    std::vector<std::string> surfaced;
+    helix::ui::set_notification_observer(
+        [&surfaced](const helix::ui::NotificationEvent& e) { surfaced.push_back(e.message); });
+
+    lv_obj_t* toggle = show_and_find_toggle();
+    backend->close_gate();
+    tap(toggle);
+
+    // The tree goes only when the slide-out animation ends.
+    NavigationManager::instance().go_back();
+    for (int i = 0; i < 20; ++i) {
+        settle();
+        process_lvgl(50);
+    }
+    helix::ui::set_notification_observer(nullptr);
+
+    CHECK(std::find(surfaced.begin(), surfaced.end(), "Bypass canceled") != surfaced.end());
 }
 
 TEST_CASE_METHOD(DeviceOpsBypassFixture,

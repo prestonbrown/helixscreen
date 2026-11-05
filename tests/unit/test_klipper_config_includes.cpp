@@ -111,6 +111,10 @@ TEST_CASE("config_get_directory - extracts parent directory", "[config][includes
 // ---------------------------------------------------------------------------
 
 TEST_CASE("config_resolve_path - resolves include relative to current file", "[config][includes]") {
+    SECTION("Absolute include ignores the including file's directory") {
+        REQUIRE(config_resolve_path("conf.d/a.cfg", "/abs/x.cfg") == "/abs/x.cfg");
+    }
+
     SECTION("Root-level include from root file") {
         REQUIRE(config_resolve_path("printer.cfg", "macros.cfg") == "macros.cfg");
     }

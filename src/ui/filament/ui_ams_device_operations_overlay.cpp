@@ -265,6 +265,10 @@ void AmsDeviceOperationsOverlay::on_ui_destroyed() {
     section_list_container_ = nullptr;
     action_observer_.reset();
     can_cancel_observer_.reset();
+    // The user was told the unload leads to bypass, so closing must say it no longer will.
+    if (bypass_toggle_.pending_enable()) {
+        NOTIFY_INFO("{}", lv_tr("Bypass canceled"));
+    }
     bypass_toggle_.cancel_pending();
 }
 

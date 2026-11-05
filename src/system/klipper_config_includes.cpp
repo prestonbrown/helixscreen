@@ -36,8 +36,11 @@ std::string config_get_directory(const std::string& path) {
 std::string config_resolve_path(const std::string& current_file, const std::string& include_path) {
     // Normal form, because Moonraker lists and serves paths without "." or "..",
     // while Klipper resolves them, so `../macros/x.cfg` is a file it really reads.
+    // An absolute include replaces the including file's directory, as os.path.join does.
     std::string dir = config_get_directory(current_file);
-    return helix::fs::lexically_normal(dir.empty() ? include_path : dir + "/" + include_path);
+    const bool absolute = !include_path.empty() && include_path[0] == '/';
+    return helix::fs::lexically_normal(dir.empty() || absolute ? include_path
+                                                               : dir + "/" + include_path);
 }
 
 bool config_glob_match(const std::string& pattern, const std::string& text) {

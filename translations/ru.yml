@@ -569,6 +569,7 @@ translations:
   Bypass Is Active: Байпас активен
   Bypass Mode: Режим обхода
   Bypass active — this print runs on the external spool.: Байпас активен — эта печать идёт с внешней катушки.
+  Bypass canceled: Байпас отменён
   Bypass cannot be changed while printing: Байпас нельзя переключить во время печати
   Bypass controlled by sensor: Байпас управляется датчиком
   Bypass disabled: Байпас отключён
