@@ -103,7 +103,8 @@
             flex_flow="row" style_pad_gap="#space_xs">
       <motion_jog_modes name="rows_modes"
                         width="0" height="100%" flex_grow="3" button_height="100%" max_width="100%"
-                        text_font="#font_jog_key"/>
+                        text_font="#font_jog_key" fine_callback="on_jog_mode_fine" coarse_callback="on_jog_mode_coarse"
+                        turbo_callback="on_jog_mode_turbo"/>
       <motion_home_button name="rows_home_all"
                           width="0" height="100%" style_text_font="#font_jog_key" flex_grow="1" text="All" axis="all"
                           needs_home="motion_x_homed eq 0 or motion_y_homed eq 0 or motion_z_homed eq 0"/>
