@@ -54,6 +54,11 @@ struct TmpCacheDir {
         std::filesystem::remove_all(path, ec);
     }
 };
+
+/// Keeps a test store's read-cache out of the user's real config.
+void use_cache_dir(FilamentSlotOverrideStore& store, const std::filesystem::path& dir) {
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, dir);
+}
 } // namespace
 
 TEST_CASE("resolved_temps preserves explicit values, falls back to material DB",
@@ -573,7 +578,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async writes AFC-shaped record to lane
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.brand = "Polymaker";
@@ -644,7 +649,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async emits the shared lane_data key a
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.brand = "Polymaker";
@@ -675,7 +680,7 @@ TEST_CASE("FilamentSlotOverrideStore lane_data carries the real Spoolman filamen
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     SpoolInfo spool;
     spool.id = 42;
@@ -723,7 +728,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async omits aliases when source empty"
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.material = "PLA"; // brand + spool_name + catalog identity left empty
@@ -759,7 +764,7 @@ TEST_CASE("FilamentSlotOverride persists product_name independently of catalog_i
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.material = "PLA";
@@ -821,7 +826,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async emits explicit bed/nozzle temps"
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     // Override carries explicit temps (e.g. user-entered or Spoolman-derived).
     // These must override any material-DB defaults, so we use a material whose
@@ -847,7 +852,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async falls back to material DB when t
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     // Override has only material set — no explicit temps. The writer must
     // pull recommended values from the internal material DB so OrcaSlicer's
@@ -873,7 +878,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async omits temps when no material and
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     // No material → nothing to look up, no explicit values → nothing to emit.
     FilamentSlotOverride ovr;
@@ -895,7 +900,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async sets updated_at on the stored re
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.brand = "eSUN";
@@ -994,7 +999,7 @@ TEST_CASE("FilamentSlotOverrideStore clear_async deletes one slot and reads a mi
         if (row.fail)
             mock_printer.client.fail_next("server.database.delete_item", *row.fail);
         FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
 
         std::optional<std::pair<bool, std::string>> answer;
         store.clear_async(row.slot, [&](bool ok, std::string err) { answer.emplace(ok, err); });
@@ -1017,7 +1022,7 @@ TEST_CASE("FilamentSlotOverrideStore clear_async handles null callback gracefull
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     mock_printer.client.mock_db_set("lane_data", "lane1", nlohmann::json{{"lane", "0"}});
     // Should not crash with no callback provided.
     store.clear_async(0, {});
@@ -1050,7 +1055,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async callback fires after store destr
     bool cb_fired = false;
     {
         FilamentSlotOverrideStore store(&api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
         FilamentSlotOverride ovr;
         ovr.brand = "Polymaker";
         store.save_async(0, ovr, [&](bool, std::string) { cb_fired = true; });
@@ -1075,7 +1080,7 @@ TEST_CASE("FilamentSlotOverrideStore clear_async callback fires after store dest
     bool cb_fired = false;
     {
         FilamentSlotOverrideStore store(&api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
         store.clear_async(0, [&](bool, std::string) { cb_fired = true; });
     }
 
@@ -1236,7 +1241,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async writes local cache on success",
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.brand = "Polymaker";
@@ -1273,7 +1278,7 @@ TEST_CASE("FilamentSlotOverrideStore clear_async erases from local cache on succ
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.brand = "Polymaker";
@@ -1305,7 +1310,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async preserves other backends in cach
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.brand = "Polymaker";
@@ -1330,7 +1335,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async survives corrupt existing cache"
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.brand = "Polymaker";
@@ -1384,7 +1389,7 @@ TEST_CASE(
         if (row.db == Db::TimesOut)
             mock_printer.client.defer_next("server.database.get_item");
         FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
         FilamentSlotOverrideStoreTestAccess::set_load_timeout(store, std::chrono::milliseconds(50));
 
         auto overrides = store.load_blocking();
@@ -1442,7 +1447,7 @@ TEST_CASE("Migration: ACE backend migrates legacy namespace to lane_data on firs
     mock_printer.client.mock_db_set("helix-screen", "ace_slot_overrides", legacy);
 
     FilamentSlotOverrideStore store(&api, "ace", helix::ams::LaneKeyStyle::Lane, "lane_data", true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     auto overrides = store.load_blocking();
 
@@ -1490,7 +1495,7 @@ TEST_CASE("Migration: CFS backend migrates its legacy namespace, not ACE's",
                                     json{{"0", {{"brand", "ACE-Brand"}}}});
 
     FilamentSlotOverrideStore store(&api, "cfs", helix::ams::LaneKeyStyle::Lane, "lane_data", true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     auto overrides = store.load_blocking();
     REQUIRE(overrides.count(0) == 1);
@@ -1518,7 +1523,7 @@ TEST_CASE("Migration: IFS backend skips migration entirely",
                                     json{{"0", {{"brand", "X"}}}});
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     auto overrides = store.load_blocking();
     CHECK(overrides.empty());
@@ -1543,7 +1548,7 @@ TEST_CASE("Migration: no-op when lane_data already populated",
                                     json{{"0", {{"brand", "LegacyData"}}}});
 
     FilamentSlotOverrideStore store(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     auto overrides = store.load_blocking();
     REQUIRE(overrides.count(0) == 1);
@@ -1564,7 +1569,7 @@ TEST_CASE("Migration: idempotent (second startup after migration is no-op)",
 
     FilamentSlotOverrideStore store1(&api, "ace", helix::ams::LaneKeyStyle::Lane, "lane_data",
                                      true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store1, tmp.path);
+    use_cache_dir(store1, tmp.path);
     auto first = store1.load_blocking();
     REQUIRE(first.count(0) == 1);
     CHECK(first[0].brand == "Polymaker");
@@ -1574,7 +1579,7 @@ TEST_CASE("Migration: idempotent (second startup after migration is no-op)",
     // literally nothing for a second migration attempt to latch onto.
     FilamentSlotOverrideStore store2(&api, "ace", helix::ams::LaneKeyStyle::Lane, "lane_data",
                                      true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store2, tmp.path);
+    use_cache_dir(store2, tmp.path);
     auto second = store2.load_blocking();
     REQUIRE(second.count(0) == 1);
     CHECK(second[0].brand == "Polymaker");
@@ -1595,7 +1600,7 @@ TEST_CASE("Migration: aborts without deleting legacy if write fails",
     mock_printer.client.fail_next("server.database.post_item", MoonrakerError{});
 
     FilamentSlotOverrideStore store(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto overrides = store.load_blocking();
     // Migration failed — empty result (load_blocking falls through to return
     // the empty lane_data map; no cache fallback because MR DB was reachable).
@@ -1624,7 +1629,7 @@ TEST_CASE("Migration: non-object slot entries are skipped silently",
     mock_printer.client.mock_db_set("helix-screen", "ace_slot_overrides", legacy);
 
     FilamentSlotOverrideStore store(&api, "ace", helix::ams::LaneKeyStyle::Lane, "lane_data", true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto overrides = store.load_blocking();
     REQUIRE(overrides.count(1) == 1);
     CHECK(overrides[1].brand == "Good");
@@ -1645,7 +1650,7 @@ TEST_CASE("Migration: legacy with only malformed entries is still cleaned up",
     mock_printer.client.mock_db_set("helix-screen", "ace_slot_overrides", legacy);
 
     FilamentSlotOverrideStore store(&api, "ace", helix::ams::LaneKeyStyle::Lane, "lane_data", true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     auto overrides = store.load_blocking();
     CHECK(overrides.empty());
@@ -1674,7 +1679,7 @@ TEST_CASE("Migration: deletes legacy per-backend local JSON file after success",
                                     json{{"0", {{"brand", "Polymaker"}}}});
 
     FilamentSlotOverrideStore store(&api, "ace", helix::ams::LaneKeyStyle::Lane, "lane_data", true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto overrides = store.load_blocking();
     REQUIRE(overrides.count(0) == 1);
 
@@ -1707,7 +1712,7 @@ TEST_CASE("mirror_firmware_to_lane_data FillUnsetOnly: empty override gets firmw
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     std::unordered_map<int, FilamentSlotOverride> overrides;
     bool changed = helix::ams::mirror_firmware_to_lane_data(
@@ -1730,7 +1735,7 @@ TEST_CASE("mirror_firmware_to_lane_data FillUnsetOnly: user color preserved agai
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     // Simulate a user who already set blue + brand "Bambu" via apply_user_edit.
     // color_set is the explicit "user set this" signal — pure black is a
@@ -1769,7 +1774,7 @@ TEST_CASE("mirror_firmware_to_lane_data: pure black firmware color is mirrored "
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     std::unordered_map<int, FilamentSlotOverride> overrides;
 
@@ -1811,7 +1816,7 @@ TEST_CASE("mirror_firmware_to_lane_data FillUnsetOnly: partial override fills on
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     // User has set brand/spool_name but never picked color/material — firmware
     // RFID is the source for those.
@@ -1841,7 +1846,7 @@ TEST_CASE("mirror_firmware_to_lane_data: no-signal cases skip writing", "[mirror
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     std::unordered_map<int, FilamentSlotOverride> overrides;
 
@@ -1865,7 +1870,7 @@ TEST_CASE("mirror_firmware_to_lane_data OverwriteAlways: external color edit pro
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     // IFS state: user previously picked blue via Helix; that wrote
     // Adventurer5M.json AND saved override blue. Then someone edited the color
@@ -1898,7 +1903,7 @@ TEST_CASE("mirror_firmware_to_lane_data: steady state does not churn lane_data",
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     std::unordered_map<int, FilamentSlotOverride> overrides;
 
@@ -2112,7 +2117,7 @@ TEST_CASE("load_blocking: a lane_data record with no lock keys declares no colou
         nlohmann::json{{"lane", "1"}, {"color", "#112233"}, {"vendor", "eSun"}});
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     auto loaded = store.load_blocking();
     REQUIRE(loaded.size() == 2);
@@ -2140,7 +2145,7 @@ TEST_CASE("save + load round-trip preserves explicit lock state", "[filament_slo
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     // Slot 0: a simulated auto-mirror write, both fields set and neither declared.
     FilamentSlotOverride auto_mirrored;
@@ -2306,7 +2311,7 @@ TEST_CASE("FilamentSlotOverrideStore save_async keys a Tool store T<n>, a Lane s
         TmpCacheDir tmp("key_style_save");
         MockPrinter mock_printer;
         FilamentSlotOverrideStore store(&mock_printer.api, row.backend, row.style);
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
         FilamentSlotOverride ovr;
         ovr.material = "PLA";
         bool done = false;
@@ -2334,7 +2339,7 @@ TEST_CASE("FilamentSlotOverrideStore records carry a 0-based STRING lane field (
     SECTION("Tool style") {
         TmpCacheDir tmp("orca_contract_tool");
         FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
         bool cb_done = false;
         store.save_async(2, ovr, [&](bool, std::string) { cb_done = true; });
         REQUIRE(cb_done);
@@ -2347,7 +2352,7 @@ TEST_CASE("FilamentSlotOverrideStore records carry a 0-based STRING lane field (
     SECTION("Lane style") {
         TmpCacheDir tmp("orca_contract_lane");
         FilamentSlotOverrideStore store(&api, "ace", LaneKeyStyle::Lane);
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
         bool cb_done = false;
         store.save_async(2, ovr, [&](bool, std::string) { cb_done = true; });
         REQUIRE(cb_done);
@@ -2367,7 +2372,7 @@ TEST_CASE("FilamentSlotOverrideStore clear_async deletes the T-key on Tool key s
     mock_printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}, {"material", "PLA"}});
 
     FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     bool cb_done = false;
     store.clear_async(0, [&](bool, std::string) { cb_done = true; });
@@ -2569,7 +2574,7 @@ TEST_CASE("Key migration: a tool changer moves its laneN records to T<n>",
             mock_printer.client.fail_next("server.database.get_item");
         FilamentSlotOverrideStore store(
             &mock_printer.api, row.style == LaneKeyStyle::Tool ? "snapmaker" : "ace", row.style);
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
         const auto overrides = store.load_blocking();
 
         for (const auto& [key, material] : row.db) {
@@ -2650,7 +2655,7 @@ TEST_CASE("Legacy migration on ace still writes lane keys",
                                     json{{"0", {{"brand", "Polymaker"}, {"material", "PLA"}}}});
 
     FilamentSlotOverrideStore store(&api, "ace", LaneKeyStyle::Lane, "lane_data", true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto overrides = store.load_blocking();
 
     REQUIRE(overrides.count(0) == 1);
@@ -2734,7 +2739,7 @@ TEST_CASE("lane_data carries both the Orca match string and our display string",
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.material = "ASA-GF";
@@ -2758,7 +2763,7 @@ TEST_CASE("material is omitted when nothing is safely matchable",
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     FilamentSlotOverride ovr;
     ovr.material = "PPS-CF"; // no Orca library equivalent
@@ -2814,7 +2819,7 @@ TEST_CASE("load heals our own records with an unmatchable material",
                                          {"helix_locked_material", true}});
 
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto loaded = store.load_blocking();
 
     // In memory we keep the precise identity.
@@ -2840,7 +2845,7 @@ TEST_CASE("load never rewrites a foreign record",
         "lane_data", "lane2", json{{"lane", "1"}, {"material", "ASA-GF"}, {"color", "#1A1A1A"}});
 
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto loaded = store.load_blocking();
 
     auto after = mock_printer.client.mock_db_get("lane_data", "lane2");
@@ -2868,7 +2873,7 @@ TEST_CASE("healed record is not re-healed on a second load",
 
     {
         FilamentSlotOverrideStore store(&api, "cfs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+        use_cache_dir(store, tmp.path);
         auto loaded = store.load_blocking();
         REQUIRE(loaded.count(1) == 1);
     }
@@ -2882,7 +2887,7 @@ TEST_CASE("healed record is not re-healed on a second load",
     // load again — a second boot must not re-fire the heal.
     {
         FilamentSlotOverrideStore store2(&api, "cfs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(store2, tmp.path);
+        use_cache_dir(store2, tmp.path);
         auto loaded2 = store2.load_blocking();
         REQUIRE(loaded2.count(1) == 1);
         CHECK(loaded2[1].material == "ASA-GF");
@@ -2927,7 +2932,7 @@ TEST_CASE("load skips the heal entirely when Orca tables are unavailable",
                                          {"helix_locked_material", true}});
 
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto loaded = store.load_blocking();
     REQUIRE(loaded.count(1) == 1);
     // In memory the precise identity is still readable.
@@ -2968,7 +2973,7 @@ TEST_CASE("load heals a stale laneN record before the Tool-key migration moves i
                                          {"helix_locked_material", true}});
 
     FilamentSlotOverrideStore store(&api, "snapmaker", LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto loaded = store.load_blocking();
 
     REQUIRE(loaded.count(1) == 1);
@@ -3016,7 +3021,7 @@ TEST_CASE("drift: heal repairs an already-healed record whose match no longer ex
                                          {"helix_locked_material", true}});
 
     FilamentSlotOverrideStore store(&api, "cfs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     auto loaded = store.load_blocking();
 
     REQUIRE(loaded.count(1) == 1);
@@ -3217,7 +3222,7 @@ TEST_CASE("rewriting a record without an edit never adds a colour or material de
     mock_printer.client.mock_db_set("lane_data", "lane1", shape);
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     auto overrides = store.load_blocking();
     REQUIRE(overrides.size() == 1);
@@ -3915,7 +3920,7 @@ TEST_CASE("persist_staged_override saves the record the map holds under the lock
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     std::mutex mutex;
     std::unordered_map<int, FilamentSlotOverride> overrides;
@@ -3944,7 +3949,7 @@ TEST_CASE("persist_staged_override saves nothing for a slot with no staged recor
     auto& api = mock_printer.api;
 
     FilamentSlotOverrideStore store(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     std::mutex mutex;
     std::unordered_map<int, FilamentSlotOverride> overrides;
@@ -3994,7 +3999,7 @@ TEST_CASE("an unanswered load writes nothing over the printer's records",
     printer.client.mock_db_set("lane_data", "lane1", live);
 
     FilamentSlotOverrideStore store(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     load_without_an_answer(printer, store);
     REQUIRE(store.namespace_unread());
     const int posts_before = printer.client.call_count("server.database.post_item");
@@ -4028,7 +4033,7 @@ TEST_CASE("a load that fails is unread too, and one the database answers is not"
     TmpCacheDir tmp("unread_kinds");
     MockPrinter printer;
     FilamentSlotOverrideStore store(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
 
     SECTION("a connection error") {
         printer.client.fail_next("server.database.get_item", MoonrakerError::unknown("no route"));
@@ -4053,12 +4058,12 @@ TEST_CASE("the read that lands merges held saves onto the real records",
     cached.spoolman_id = 42;
     {
         FilamentSlotOverrideStore seed(&printer.api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(seed, tmp.path);
+        use_cache_dir(seed, tmp.path);
         seed.save_async(1, cached, nullptr);
     }
 
     FilamentSlotOverrideStore store(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    use_cache_dir(store, tmp.path);
     load_without_an_answer(printer, store);
     REQUIRE(store.namespace_unread());
 
