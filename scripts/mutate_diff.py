@@ -1573,7 +1573,9 @@ def syntax_rejects(root, path, log):
         return False
     rc, out = run_tracked([sys.executable, str(checker), path], root)
     log.write(out)
-    return rc != 0
+    # A failed compile only. A reverted new file leaves nothing to compile, and
+    # flags the checker could not get judge nothing: the real build decides those.
+    return rc != 0 and f'{path}: FAILED' in out
 
 
 # Every child that builds, runs a suite or writes the tree leads its own

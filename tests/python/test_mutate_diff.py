@@ -1365,6 +1365,20 @@ def test_an_inside_mutant_that_does_not_build_is_passed_over(tmp_path):
     assert re.search(r"killed\s+src/feature.cpp:2  == to !=", r.stdout), r.stdout
 
 
+@pytest.mark.parametrize("rc,printed,rejected", [
+    (1, "src/feature.cpp: FAILED (1.0s)\nsummary: 1 compiled, 0 skipped, 1 failed", True),
+    (0, "src/feature.cpp: ok (1.0s)", False),
+    (1, "src/feature.cpp: no such file\nsummary: 0 compiled, 0 skipped, 1 failed", False),
+    (2, "make compile-prereqs failed, so no make-derived command can run", False),
+])
+def test_only_a_compile_that_ran_and_failed_is_a_syntax_rejection(tmp_path, rc, printed, rejected):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "syntax_check.py").write_text(
+        f"import sys\nprint({printed!r})\nsys.exit({rc})\n")
+    import io
+    assert md.syntax_rejects(tmp_path, "src/feature.cpp", io.StringIO()) is rejected
+
+
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     (work / ".mutant-expect-other").write_text("")
