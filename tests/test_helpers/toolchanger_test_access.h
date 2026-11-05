@@ -120,7 +120,7 @@ class ToolChangerTestAccess {
     }
 
     /// The severity of the last toast a feed run raised.
-    static ToastSeverity feed_last_toast_severity(const AmsBackendToolChanger& b) {
+    static helix::NoticeSeverity feed_last_toast_severity(const AmsBackendToolChanger& b) {
         return b.feed_last_toast_severity_;
     }
 

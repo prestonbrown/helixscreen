@@ -4,13 +4,13 @@
 #pragma once
 
 #include "ui_timer_guard.h"
-#include "ui_toast_manager.h"
 
 #include "ams_feeder_control.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
 #include "filament_slot_override_store.h"
 #include "mount_feed_sequence.h"
+#include "notice.h"
 #include "toolchanger_addon.h"
 
 #include <chrono>
@@ -699,7 +699,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// @p heads as lane labels joined with ", " ("Tool 2, Tool 4").
     [[nodiscard]] std::string feed_lane_list(const std::vector<int>& heads) const;
     /// One toast about a run, with the no-LVGL test guard in one place.
-    void show_feed_toast(const std::string& message, ToastSeverity severity);
+    void show_feed_toast(const std::string& message, NoticeSeverity severity);
     /// Mirror the run onto the published action and step. Caller holds mutex_.
     void publish_feed_state_locked();
     void register_mount_feed_listener();
@@ -748,7 +748,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// The last toast a feed run raised, recorded before the LVGL guard so
     /// unit tests can pin the wording without a display.
     std::string feed_last_toast_;
-    ToastSeverity feed_last_toast_severity_ = ToastSeverity::INFO;
+    NoticeSeverity feed_last_toast_severity_ = NoticeSeverity::INFO;
     /// The stage in flight swaps the carriage. Guarded by mutex_.
     bool feed_swap_in_flight_ = false;
     /// The stage in flight is the operator prompt. Guarded by mutex_.
@@ -797,7 +797,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// A toast apply_tool_sensor_locked() decided on, whole and ready to show
     /// once mutex_ is free, and how loud.
     std::string pending_failure_toast_;
-    ToastSeverity pending_failure_severity_ = ToastSeverity::WARNING;
+    NoticeSeverity pending_failure_severity_ = NoticeSeverity::WARNING;
     /// The controller's failure as the user reads it: the swap's target tool
     /// when the controller named one, then its own message. Caller holds mutex_.
     [[nodiscard]] std::string controller_failure_text_locked() const;
