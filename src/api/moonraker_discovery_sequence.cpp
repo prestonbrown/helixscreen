@@ -9,6 +9,7 @@
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
 #include "board_identity.h"
+#include "chamber_air_modes.h"
 #include "chamber_heater_backend.h"
 #include "config.h"
 #include "core/text_io.h"
@@ -1403,11 +1404,13 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
 
     // Firmware that reports a removable enclosure top fitted keeps the reading
     // in its own status object; the home panel's printer picture follows it.
-    // See include/enclosure_top.h.
-    const json enclosure_top_objects = helix::enclosure_top::required_status_objects(hw);
-    for (auto it = enclosure_top_objects.begin(); it != enclosure_top_objects.end(); ++it) {
-        subscription_objects[it.key()] = it.value();
-    }
+    // Chamber air control can read further fields of that same object, so both
+    // are unioned rather than assigned: an assignment would keep only the later
+    // module's fields. See include/enclosure_top.h and include/chamber_air_modes.h.
+    subscription_objects = helix::merge_subscription_objects(
+        subscription_objects, helix::enclosure_top::required_status_objects(hw));
+    subscription_objects = helix::merge_subscription_objects(
+        subscription_objects, helix::chamber_air::required_status_objects(hw));
 
     // Firmware that keeps a z-offset PER TOOL needs whatever object stores it.
     // Empty for klipper-toolchanger, whose offsets ride on the `tool T*`

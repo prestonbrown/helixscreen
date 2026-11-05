@@ -8,6 +8,7 @@
 #include "async_lifetime_guard.h"
 #include "busy_episode_owner.h"
 #include "capability_overrides.h"
+#include "chamber_air_state.h"
 #include "hardware_validator.h"
 #include "heater_type.h" // helix::HeaterType
 #include "json_fwd.h"
@@ -345,6 +346,13 @@ class PrinterState {
     }
     helix::PrinterCompositeVisibilityState& composite_visibility_state() {
         return composite_visibility_state_;
+    }
+    /// Live chamber air readings and subjects (include/chamber_air_state.h).
+    helix::ChamberAirState& chamber_air() {
+        return chamber_air_state_;
+    }
+    const helix::ChamberAirState& chamber_air() const {
+        return chamber_air_state_;
     }
     const helix::PrinterCompositeVisibilityState& composite_visibility_state() const {
         return composite_visibility_state_;
@@ -904,6 +912,7 @@ class PrinterState {
 
     /// Composite visibility state component (has_any_preprint_options aggregate)
     helix::PrinterCompositeVisibilityState composite_visibility_state_;
+    helix::ChamberAirState chamber_air_state_;
 
     /// Network state component (connection, klippy, nav buttons)
     helix::PrinterNetworkState network_state_;
