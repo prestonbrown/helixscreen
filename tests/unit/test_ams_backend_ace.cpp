@@ -6,6 +6,7 @@
 
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
+#include "../test_helpers/toast_log.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_ace.h"
 #include "ams_bypass_policy.h"
@@ -2786,6 +2787,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE surfaces an error when the data endpoints
             ++error_events;
     });
 
+    helix::test::ToastLog toasts;
     // Drive enough failing /status cycles to cross the threshold.
     for (int i = 0; i < 5; ++i) {
         AceTestAccess::poll_status(backend);
@@ -2793,6 +2795,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE surfaces an error when the data endpoints
     }
 
     CHECK(error_events >= 1);
+    toasts.expect_one(ToastSeverity::WARNING,
+                      "ACE Moonraker bridge not found. Install ace_status.py for full support.",
+                      6000);
 }
 
 TEST_CASE("ACE adjusts a running dryer only by stopping and restarting it",
