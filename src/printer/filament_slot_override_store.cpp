@@ -1291,11 +1291,142 @@ parse_namespace_document(const nlohmann::json& namespace_doc, LaneKeyStyle key_s
 // exceptions, anything else escaping it is contained here: worst case the user
 // sees no overrides, which is the fresh-install state and fully recoverable,
 // rather than an AMS subsystem that failed to come up.
+nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json& held,
+                               const nlohmann::json& live) {
+    nlohmann::json merged = live.is_object() ? live : nlohmann::json::object();
+    const auto declares = [](const nlohmann::json& record, const char* field) {
+        const auto list = record.find("helix_declared");
+        return list != record.end() && list->is_array() &&
+               std::find(list->begin(), list->end(), field) != list->end();
+    };
+    // A held save that does not declare a colour or material is a reading, and the
+    // record's own value outranks it, whoever wrote that and however it is marked.
+    // Linking a different spool replaces the identity, so nothing is kept from it.
+    const auto spool = held.find("spool_id");
+    const bool other_spool =
+        spool != held.end() && (!merged.contains("spool_id") || merged["spool_id"] != *spool);
+    const bool keep_color =
+        !other_spool && merged.contains("color") && !declares(held, "color_rgb");
+    const bool keep_material = !other_spool &&
+                               (merged.contains("material") || merged.contains("helix_material")) &&
+                               !declares(held, "material");
+    const auto protected_key = [&](const std::string& key) {
+        const bool color = key == "color" || key == "color_name" || key == "helix_locked_color";
+        // Temperatures come from the material, so they stay beside the one kept.
+        const bool material = key == "material" || key == "helix_material" ||
+                              key == "helix_locked_material" || key == "bed_temp" ||
+                              key == "nozzle_temp";
+        return (color && keep_color) || (material && keep_material);
+    };
+    const auto apply_key = [&](const std::string& key) {
+        // Declarations are combined below, and these two describe the write.
+        if (key == "scan_time" || key == "helix_declared" || protected_key(key)) {
+            return;
+        }
+        const auto was = base.find(key);
+        const auto now = held.find(key);
+        const bool had = was != base.end();
+        const bool has = now != held.end();
+        if (had == has && (!has || *was == *now)) {
+            return;
+        }
+        if (has) {
+            merged[key] = *now;
+        } else {
+            merged.erase(key);
+        }
+    };
+    for (auto it = base.begin(); it != base.end(); ++it) {
+        apply_key(it.key());
+    }
+    for (auto it = held.begin(); it != held.end(); ++it) {
+        apply_key(it.key());
+    }
+
+    // Declarations combine. A record that has none and gains none stays without the
+    // key: stamping it would make another tool's record read as ours.
+    const auto stated = held.find("helix_declared");
+    const bool held_declares = stated != held.end() && stated->is_array() && !stated->empty();
+    if (held_declares) {
+        nlohmann::json declared = nlohmann::json::array();
+        if (const auto list = merged.find("helix_declared");
+            list != merged.end() && list->is_array()) {
+            declared = *list;
+        }
+        for (const auto& field : *stated) {
+            if (std::find(declared.begin(), declared.end(), field) == declared.end()) {
+                declared.push_back(field);
+            }
+        }
+        merged["helix_declared"] = std::move(declared);
+    }
+
+    // A marker naming the spool the printer's record links means the user cut that
+    // link, which a record the edit never saw could not say by removing it.
+    const auto unlinked = held.find("helix_unlinked_spool_id");
+    const auto linked = merged.find("spool_id");
+    if (unlinked != held.end() && linked != merged.end() && *unlinked == *linked) {
+        merged.erase("spool_id");
+        merged.erase("spoolman_vendor_id");
+        merged.erase("helix_spoolman_filament_id");
+        if (merged.contains("helix_filament_id_source")) {
+            merged.erase("helix_filament_id_source");
+            merged.erase("filament_id");
+        }
+    }
+    return merged;
+}
+
+FilamentSlotOverrideStore::HeldWrites
+FilamentSlotOverrideStore::adopt_namespace_read(std::unordered_map<int, LaneDataRecord> records) {
+    HeldWrites writes;
+    std::lock_guard<std::mutex> lock(held_mutex_);
+    for (const auto& [slot, held] : held_writes_) {
+        if (held.cleared) {
+            records.erase(slot);
+            writes.clears.push_back(slot);
+        }
+        if (!held.save) {
+            continue;
+        }
+        const auto fallback = unread_fallback_.find(slot);
+        const nlohmann::json base = fallback != unread_fallback_.end() && !held.cleared
+                                        ? to_lane_data_record(slot, fallback->second)
+                                        : to_lane_data_record(slot, FilamentSlotOverride{});
+        const auto real = records.find(slot);
+        const nlohmann::json live = real != records.end() ? real->second.wire : nlohmann::json();
+        nlohmann::json merged = merge_held_save(base, to_lane_data_record(slot, *held.save), live);
+        // A held save that changed nothing the record says owes it no write.
+        if (live.is_object() && merged == live) {
+            continue;
+        }
+        // Every record carries its lane, even one the printer did not have.
+        const nlohmann::json own = to_lane_data_record(slot, *held.save);
+        if (const auto lane = own.find("lane"); lane != own.end()) {
+            merged["lane"] = *lane;
+        }
+        auto parsed = from_lane_data_record(merged);
+        if (!parsed) {
+            spdlog::warn("[FilamentSlotOverrideStore:{}] slot {} held save did not merge",
+                         backend_id_, slot);
+            continue;
+        }
+        writes.saves[slot] = parsed->second;
+        records[slot] = LaneDataRecord{std::move(parsed->second), std::move(merged)};
+    }
+    held_writes_.clear();
+    unread_fallback_.clear();
+    lane_data_records_ = std::move(records);
+    namespace_unread_ = false;
+    return writes;
+}
+
 std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking() {
     std::unordered_map<int, FilamentSlotOverride> result;
     if (!helix::contain_exceptions(fmt::format("[FilamentSlotOverrideStore:{}] load", backend_id_),
                                    [&] { result = load_blocking_impl(); })) {
         spdlog::warn("[FilamentSlotOverrideStore:{}] continuing with no overrides", backend_id_);
+        namespace_unread_ = true;
         return {};
     }
     return result;
@@ -1439,8 +1570,15 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         spdlog::debug("[FilamentSlotOverrideStore:{}] load_blocking: cache fallback "
                       "returned {} entries",
                       backend_id_, cached.size());
+        {
+            std::lock_guard<std::mutex> lock(held_mutex_);
+            unread_fallback_ = cached;
+            held_writes_.clear();
+            namespace_unread_ = true;
+        }
         return cached;
     }
+    namespace_unread_ = false;
     if (!received_copy.is_object())
         return result;
 
@@ -1614,6 +1752,18 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
             cb(false, "invalid slot_index");
         return;
     }
+    {
+        std::unique_lock<std::mutex> lock(held_mutex_);
+        if (namespace_unread_) {
+            spdlog::debug("[FilamentSlotOverrideStore:{}] slot {} save held: {} not read yet",
+                          backend_id_, slot_index, namespace_);
+            held_writes_[slot_index].save = ovr;
+            lock.unlock();
+            if (cb)
+                cb(true, "");
+            return;
+        }
+    }
 
     // Stamp a fresh updated_at on a local copy. The caller's struct is NOT
     // mutated — callers may keep their original value for UI echo, diff checks,
@@ -1663,6 +1813,20 @@ void FilamentSlotOverrideStore::clear_async(int slot_index, SaveCallback cb) {
         if (cb)
             cb(false, "no API");
         return;
+    }
+    {
+        std::unique_lock<std::mutex> lock(held_mutex_);
+        if (namespace_unread_) {
+            spdlog::debug("[FilamentSlotOverrideStore:{}] slot {} clear held: {} not read yet",
+                          backend_id_, slot_index, namespace_);
+            HeldWrite& held = held_writes_[slot_index];
+            held.cleared = true;
+            held.save.reset();
+            lock.unlock();
+            if (cb)
+                cb(true, "");
+            return;
+        }
     }
     // Reject negative slot indices symmetrically with save_async and
     // from_lane_data_record (matches OrcaSlicer's MoonrakerPrinterAgent.cpp:796).

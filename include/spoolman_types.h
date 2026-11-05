@@ -37,11 +37,21 @@ inline constexpr const char* kSpoolmanPaExtraKey = "pressure_advance";
 /// and AFC read, and the one lane-status-spec RFC 0001 §6 names.
 inline constexpr const char* kSpoolmanOrcaIdExtraKey = "orca_filament_id";
 
-/// True when @p id can go out as a lane's OrcaSlicer `filament_id`. Empty names
-/// nothing, and a `GF` id is a Bambu catalog code that only Orca's Bambu agent
-/// translates: on the Moonraker path it never matches a preset.
+/// True when @p id can go out as a lane's OrcaSlicer `filament_id`: one token of
+/// ASCII letters, digits, `_` and `-` with at least one letter. All digits is a
+/// Spoolman record id typed into the field, a space means a preset's display
+/// name, and a `GF` id is a Bambu catalog code that only Orca's Bambu agent
+/// translates: on the Moonraker path none of them matches a preset.
 inline bool is_usable_orca_filament_id(const std::string& id) {
-    return !id.empty() && id.rfind("GF", 0) != 0;
+    bool has_letter = false;
+    for (const char c : id) {
+        const bool letter = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+        if (!letter && !(c >= '0' && c <= '9') && c != '_' && c != '-') {
+            return false;
+        }
+        has_letter = has_letter || letter;
+    }
+    return has_letter && id.rfind("GF", 0) != 0;
 }
 
 // apply_spool_to_slot() writes a slot, out of line: its callers include ams_types.h.

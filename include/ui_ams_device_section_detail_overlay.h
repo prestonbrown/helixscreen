@@ -26,6 +26,7 @@
 #include <lvgl/lvgl.h>
 
 #include <any>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -151,7 +152,10 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
 
     /// Run @p action through the backend, reporting a failure, and on success record
     /// @p value as the one its row shows. Returns the result.
-    AmsError execute(const helix::printer::DeviceAction& action, std::any value);
+    /// With @p on_done, the backend reports through it once the action has ended,
+    /// on the main thread; it is not called when the send itself is refused.
+    AmsError execute(const helix::printer::DeviceAction& action, std::any value,
+                     std::function<void(const AmsError&)> on_done = nullptr);
 
     /// Show slider @p position as @p action's value in its row's value display.
     void show_slider_value(lv_obj_t* row, const helix::printer::DeviceAction& action,
@@ -160,6 +164,22 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
     /// Set @p action's slider to @p value (clamped to its range and step) and send it.
     /// A refused value puts the slider back on the action's current value.
     void apply_slider_value(const helix::printer::DeviceAction& action, double value);
+
+    /// Show @p choice in @p action's dropdown and send it. A refused choice puts
+    /// the section back on what the backend reports.
+    void apply_dropdown_choice(const helix::printer::DeviceAction& action,
+                               const std::string& choice);
+
+    /// Ask @p confirm's question before @p choice is sent. Confirmed, it goes
+    /// through on_choice_confirmed(); cancelled or dismissed, nothing is sent and
+    /// the section goes back to what the backend reports.
+    void confirm_dropdown_choice(const helix::printer::DeviceAction& action,
+                                 const std::string& choice,
+                                 const helix::printer::DeviceAction::OptionConfirm& confirm);
+
+    /// Send a confirmed @p choice, unless @p action_id has since gone or become
+    /// unavailable (or no longer lists it), when the pick is dropped.
+    void on_choice_confirmed(const std::string& action_id, const std::string& choice);
 
     //
     // === Static Callbacks ===

@@ -6,6 +6,7 @@
 #include "helix_shared_callback.h"
 #include "lane_source_store.h"
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -124,6 +125,15 @@ inline std::string& slot_override_cache_dir_ref() {
 }
 } // namespace detail
 
+/// @p live with the changes @p held makes to @p base, all three lane_data records:
+/// only a field that differs between @p base and @p held moves, so what the
+/// printer's record says beyond that survives a save built without seeing it. A
+/// colour or material @p live holds stays unless @p held declares it or links a
+/// different spool, declarations combine, and a marker unlinking the spool @p live
+/// links cuts that link. Pure.
+[[nodiscard]] nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json& held,
+                                             const nlohmann::json& live);
+
 class FilamentSlotOverrideStore {
   public:
     // key_style defaults to Lane so the many lane-based construction sites and
@@ -172,8 +182,28 @@ class FilamentSlotOverrideStore {
     void reload_async(ReloadCallback cb, helix::SharedCallback<void()> on_failure = nullptr);
 
     using SaveCallback = helix::SharedCallback<void(bool success, std::string error)>;
+    /// While namespace_unread(), saves and clears are held rather than sent: a
+    /// record built without the live one would replace it wholesale.
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
     void clear_async(int slot_index, SaveCallback cb);
+
+    /// load_blocking() got no answer from the database, so what it returned is at
+    /// best the local cache and says nothing about the records on the printer.
+    [[nodiscard]] bool namespace_unread() const {
+        return namespace_unread_.load();
+    }
+
+    /// What the caller still has to send once the namespace has been read.
+    struct HeldWrites {
+        std::unordered_map<int, FilamentSlotOverride> saves;
+        std::vector<int> clears;
+    };
+
+    /// The namespace has now been read as @p records. Held clears remove their
+    /// record, and each held save is merged onto the real one
+    /// (merge_held_save()); the result becomes last_lane_data_records() and writes
+    /// go out again. A save merging to no change is not returned.
+    [[nodiscard]] HeldWrites adopt_namespace_read(std::unordered_map<int, LaneDataRecord> records);
 
     // Seated-lane persistence. Unlike the per-lane overrides above, this is a
     // single scalar (the 0-based index of the lane currently loaded to the
@@ -257,6 +287,19 @@ class FilamentSlotOverrideStore {
     // load_blocking_impl() and populated only on the lane_data parse path, so
     // a cache-fallback load leaves it empty rather than stale.
     std::unordered_map<int, LaneDataRecord> lane_data_records_;
+    std::atomic<bool> namespace_unread_{false};
+    // A slot's writes made while the namespace is unread, in the order that
+    // matters: a clear, then whatever was saved after it.
+    struct HeldWrite {
+        bool cleared = false;
+        std::optional<FilamentSlotOverride> save;
+    };
+    // The held writes, and the cache the failed load returned, which is what a
+    // held save changed from. namespace_unread_ changes and is tested under
+    // held_mutex_ too: a save can come from any thread.
+    std::mutex held_mutex_;
+    std::unordered_map<int, HeldWrite> held_writes_;
+    std::unordered_map<int, FilamentSlotOverride> unread_fallback_;
     // Absolute path to the cache JSON file. Computed from cache_dir_ (or
     // get_user_config_dir() if empty). One file serves all backends; each
     // backend's slots live under doc[backend_id]["slots"].
