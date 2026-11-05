@@ -104,20 +104,18 @@ ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
     all.insert(all.end(), rest.begin(), rest.end());
     c.text = dotted(all);
     if (!fits(c.text)) {
-        const int n = static_cast<int>(tools.size());
-        if (leading.empty()) {
-            c.text = fmt::format(fmt::runtime(ui::tr_plural("+1 tool", "+{} tools", n)), n);
-        } else {
-            // As many climbing heads as fit, and always the first: a pre-heat is never hidden.
-            for (size_t k = leading.size(); k >= 1; --k) {
-                std::vector<std::string> parts(leading.begin(), leading.begin() + long(k));
-                if (const int more = n - static_cast<int>(k); more > 0)
-                    parts.push_back(fmt::format("+{}", more));
-                c.text = dotted(parts);
-                if (k == 1 || fits(c.text))
-                    break;
-            }
+        // As many heads as fit, in order, and a count of the rest. A climbing
+        // head always stays, even past the room: a pre-heat is never hidden.
+        const int n = static_cast<int>(all.size());
+        bool placed = false;
+        for (int k = n - 1; k >= 1 && !placed; --k) {
+            std::vector<std::string> parts(all.begin(), all.begin() + k);
+            parts.push_back(fmt::format("+{}", n - k));
+            c.text = dotted(parts);
+            placed = fits(c.text) || (k == 1 && first_climbing);
         }
+        if (!placed)
+            c.text = fmt::format(fmt::runtime(ui::tr_plural("+1 tool", "+{} tools", n)), n);
     }
 
     if (first_climbing) {

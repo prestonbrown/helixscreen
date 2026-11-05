@@ -88,15 +88,17 @@ TEST_CASE("other tools: a head cooling to its standby shows the target and does 
     CHECK(c.expendable);
 }
 
-TEST_CASE("other tools: too narrow, the climbing head keeps its place and the rest count",
+TEST_CASE("other tools: too narrow, the heads that fit stay in order and the rest count",
           "[print_status_other_tools]") {
     const std::vector<OtherToolReading> t = {tool("1", 1500, 1500), tool("3", 1840, 2200),
                                              tool("4", 250, 0)};
     const std::string full = other_tools_chip(t, always).text;
     const ChipContent c = other_tools_chip(t, room(full.size() - 1));
-    CHECK(c.text == "3 184 / 220° · +2");
+    CHECK(c.text == "3 184 / 220° · 1 150° · +1");
     CHECK(c.tone == ChipTone::Active);
     CHECK(c.progress_pct >= 0);
+    const std::string one = "3 184 / 220° · +2";
+    CHECK(other_tools_chip(t, room(one.size())).text == one);
     // A room smaller than even that still shows the climbing head: a pre-heat is never hidden.
     CHECK(other_tools_chip(t, room(3)).text == "3 184 / 220° · +2");
 }
@@ -110,11 +112,15 @@ TEST_CASE("other tools: too narrow for two climbing heads keeps as many as fit",
     CHECK(other_tools_chip(t, room(two.size() - 1)).text == "2 110 / 200° · +2");
 }
 
-TEST_CASE("other tools: too narrow with none climbing counts the tools",
+TEST_CASE("other tools: too narrow with none climbing lists what fits, then counts the tools",
           "[print_status_other_tools]") {
     const std::vector<OtherToolReading> t = {tool("1", 1500, 1500), tool("3", 250, 0),
                                              tool("4", 250, 0)};
-    CHECK(other_tools_chip(t, room(10)).text == "+3 tools");
+    CHECK(other_tools_chip(t, room(std::string("1 150° · 3 off · +1").size())).text ==
+          "1 150° · 3 off · +1");
+    const std::string first = "1 150° · +2";
+    CHECK(other_tools_chip(t, room(first.size())).text == first);
+    CHECK(other_tools_chip(t, room(first.size() - 1)).text == "+3 tools");
     CHECK(other_tools_chip({tool("2", 250, 0)}, room(1)).text == "+1 tool");
 }
 

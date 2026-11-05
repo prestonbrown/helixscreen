@@ -74,9 +74,10 @@ struct OtherToolReading {
 /// The chip listing every head but the printing one: "2 150° · 3 off · 4 off".
 /// A head climbing to its target leads with value / target, the chip is
 /// Active and its bar follows the first climbing head. `fits` says whether a
-/// text fits the chip's room; the full list gives way to the climbing heads
-/// and a count of the rest ("2 184 / 220° · +2"), then with none climbing to a
-/// count alone ("+3 tools"). Expendable only while no head climbs; Dim while
+/// text fits the chip's room; the full list gives way to as many heads as fit,
+/// in that order, and a count of the rest ("2 off · +2"). A climbing head
+/// always stays ("2 184 / 220° · +2"); with none climbing and no head fitting,
+/// the count alone ("+3 tools"). Expendable only while no head climbs; Dim while
 /// every head is off. Not shown with no other heads.
 [[nodiscard]] ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
                                            const std::function<bool(const std::string&)>& fits);
