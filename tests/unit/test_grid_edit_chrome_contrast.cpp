@@ -141,7 +141,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     };
     lv_obj_t* trash = GridEditModeTestAccess::remove_button(em);
     check_pill(trash, "trash");
-    check_pill(GridEditModeTestAccess::configure_button(em), "configure");
+    lv_obj_t* configure = GridEditModeTestAccess::configure_button(em);
+    check_pill(configure, "configure");
 
     // The delete-page pill: danger fill at 80% over the screen background.
     // The theme layer's own contrast bar is 4:1, so that is the assertion.
@@ -164,7 +165,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_get_coords(trash, &pill);
     const int quarter = lv_area_get_width(&pill) / 4;
     if (half) {
-        for (lv_obj_t* p : {trash, GridEditModeTestAccess::configure_button(em)}) {
+        for (lv_obj_t* p : {trash, configure}) {
             lv_area_t a;
             lv_obj_get_coords(p, &a);
             CHECK(a.y2 < tile.y1); // off the tile, above its top corners
