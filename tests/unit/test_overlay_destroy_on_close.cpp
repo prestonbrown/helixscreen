@@ -12,6 +12,8 @@
  * reopens it and pops it again.
  */
 
+#include "ui_ams_device_operations_overlay.h"
+#include "ui_ams_device_section_detail_overlay.h"
 #include "ui_ams_environment_overlay.h"
 #include "ui_cfs_chute_calibration_overlay.h"
 #include "ui_nav_manager.h"
@@ -19,23 +21,39 @@
 #include "ui_overlay_printer_image.h"
 #include "ui_overlay_printer_image_tagger.h"
 #include "ui_overlay_printer_type.h"
+#include "ui_overlay_retraction_settings.h"
 #include "ui_overlay_temp_graph.h"
+#include "ui_overlay_timelapse_install.h"
+#include "ui_overlay_timelapse_settings.h"
+#include "ui_overlay_timelapse_videos.h"
+#include "ui_panel_belt_tension.h"
 #include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
+#include "ui_panel_history_list.h"
 #include "ui_panel_motion.h"
+#include "ui_panel_screws_tilt.h"
+#include "ui_panel_spoolman.h"
+#include "ui_plugin_overview_overlay.h"
 #include "ui_printer_list_overlay.h"
 #include "ui_printer_manager_overlay.h"
+#include "ui_probe_overlay.h"
+#include "ui_settings_about.h"
 #include "ui_settings_appearance.h"
+#include "ui_settings_barcode_scanner.h"
 #include "ui_settings_connection.h"
 #include "ui_settings_display.h"
+#include "ui_settings_fans.h"
 #include "ui_settings_hardware.h"
+#include "ui_settings_hardware_health.h"
 #include "ui_settings_help.h"
 #include "ui_settings_label_printer.h"
 #include "ui_settings_language_time.h"
 #include "ui_settings_led.h"
+#include "ui_settings_machine_limits.h"
 #include "ui_settings_macro_buttons.h"
+#include "ui_settings_material_temps.h"
 #include "ui_settings_motion.h"
 #include "ui_settings_printing.h"
 #include "ui_settings_safety.h"
@@ -49,6 +67,7 @@
 #include "ui_settings_updates.h"
 #include "ui_snapmaker_nozzle_offset_overlay.h"
 #include "ui_sound_preview_overlay.h"
+#include "ui_spool_wizard.h"
 #include "ui_theme_editor_overlay.h"
 #include "ui_touch_calibration_overlay.h"
 
@@ -132,6 +151,24 @@ template <auto Get> OverlayBase& as_base() {
 
 using namespace helix::settings;
 
+/// These singletons refuse to construct through their getter.
+OverlayBase& timelapse_settings() {
+    init_global_timelapse_settings(nullptr);
+    return get_global_timelapse_settings();
+}
+OverlayBase& timelapse_install() {
+    init_global_timelapse_install(nullptr);
+    return get_global_timelapse_install();
+}
+OverlayBase& timelapse_videos() {
+    init_global_timelapse_videos(nullptr);
+    return get_global_timelapse_videos();
+}
+OverlayBase& retraction() {
+    init_global_retraction_settings(nullptr);
+    return get_global_retraction_settings();
+}
+
 /// An overlay reached through its singleton. A null open shows it through
 /// OverlayBase::show(); after_close is a late callback that reaches for the tree.
 struct OverlayCase {
@@ -195,6 +232,41 @@ const OverlayCase kOverlayCases[] = {
      }},
     {"Printer Image Tagger", as_base<&get_printer_image_tagger_overlay>,
      [] { get_printer_image_tagger_overlay().show(lv_screen_active(), ImageTagTarget{}); }},
+    {"About", as_base<&get_about_settings_overlay>},
+    {"Barcode Scanner", as_base<&get_barcode_scanner_settings_overlay>},
+    {"Fan Settings", as_base<&get_fan_settings_overlay>},
+    {"Hardware Health", as_base<&get_hardware_health_overlay>},
+    {"Material Temps", as_base<&get_material_temps_overlay>},
+    {"Machine Limits", as_base<&get_machine_limits_overlay>},
+    {"Retraction", retraction},
+    {"Plugin Overview", as_base<&helix::ui::get_plugin_overview_overlay>, nullptr,
+     [] {
+         auto* seq = get_printer_state().plugin_status_state().get_helix_plugin_probe_seq_subject();
+         lv_subject_set_int(seq, lv_subject_get_int(seq) + 1);
+     }},
+    {"Timelapse Settings", timelapse_settings},
+    {"Timelapse Install", timelapse_install},
+#if HELIX_HAS_TIMELAPSE_VIEWER
+    {"Timelapse Videos", timelapse_videos},
+#endif
+    {"Spoolman", as_base<&get_global_spoolman_panel>, nullptr,
+     [] { get_global_spoolman_panel().refresh_spools(); }},
+    {"Spool Wizard", as_base<&get_global_spool_wizard>},
+    {"Probe", as_base<&get_global_probe_overlay>},
+    {"History List", as_base<&get_global_history_list_panel>},
+    {"AMS Device Operations", as_base<&helix::ui::get_ams_device_operations_overlay>, nullptr,
+     [] { helix::ui::get_ams_device_operations_overlay().refresh(); }},
+    {"AMS Device Section", as_base<&helix::ui::get_ams_device_section_detail_overlay>,
+     [] {
+         helix::ui::get_ams_device_section_detail_overlay().show(lv_screen_active(), "hub", "Hub");
+     },
+     [] { helix::ui::get_ams_device_section_detail_overlay().refresh(); }},
+    {"Screws Tilt", as_base<&get_global_screws_tilt_panel>},
+    {"Belt Tension", as_base<&get_global_belt_tension_panel>, nullptr,
+     [] {
+         auto* active = get_printer_state().print_state().get_print_active_subject();
+         lv_subject_set_int(active, lv_subject_get_int(active) == 0 ? 1 : 0);
+     }},
 };
 
 } // namespace
@@ -221,6 +293,45 @@ TEST_CASE_METHOD(DestroyOnCloseFixture, "Overlays rebuild on reopen and take lat
     }
     settle();
     CHECK(overlay.get_root() == nullptr);
+}
+
+TEST_CASE_METHOD(DestroyOnCloseFixture, "History List repopulates when closed under its detail",
+                 "[overlay_destroy_on_close][history]") {
+    auto& p = get_global_history_list_panel();
+    PrintHistoryJob job;
+    job.filename = "cube.gcode";
+    p.set_jobs({job});
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    const auto rows = [&] {
+        lv_obj_t* list = lv_obj_find_by_name(p.get_root(), "list_rows");
+        REQUIRE(list != nullptr);
+        return lv_obj_get_child_count(list);
+    };
+    REQUIRE(rows() > 0);
+    lv_obj_t* list = lv_obj_find_by_name(p.get_root(), "list_rows");
+    lv_obj_t* row = nullptr;
+    for (uint32_t i = 0; !row && i < lv_obj_get_child_count(list); ++i) {
+        lv_obj_t* child = lv_obj_get_child(list, static_cast<int32_t>(i));
+        row = lv_obj_get_event_count(child) > 0 && !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)
+                  ? child
+                  : nullptr;
+    }
+    REQUIRE(row != nullptr);
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+    settle();
+
+    // Closed from under its open detail, then the detail pops.
+    p.close();
+    settle();
+    REQUIRE(p.get_root() == nullptr);
+    NavigationManager::instance().go_back();
+    settle();
+
+    p.set_jobs({job}); // the dashboard hands over its jobs on every open
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    CHECK(rows() > 0);
 }
 
 TEST_CASE_METHOD(DestroyOnCloseFixture, "Label Printer wires its inputs on every build",
