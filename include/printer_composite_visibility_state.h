@@ -8,6 +8,17 @@
 
 namespace helix {
 
+/// Who records timelapses on this printer, and so which controls it gets. Firmware
+/// that owns timelapse may also serve a stub of the plugin API that ignores writes,
+/// so it outranks the plugin. XML binds the int values.
+enum class TimelapseOwner { None = 0, Plugin = 1, Firmware = 2 };
+
+[[nodiscard]] constexpr TimelapseOwner timelapse_owner(bool firmware_owns, bool plugin_available) {
+    return firmware_owns      ? TimelapseOwner::Firmware
+           : plugin_available ? TimelapseOwner::Plugin
+                              : TimelapseOwner::None;
+}
+
 /**
  * @brief Manages the aggregate `has_any_preprint_options` visibility subject
  *
@@ -31,17 +42,6 @@ namespace helix {
  *   - Plugin status changes (set_helix_plugin_installed)
  *   - Printer type changes (set_printer_type_internal)
  */
-/// Who records timelapses on this printer, and so which controls it gets. Firmware
-/// that owns timelapse may also serve a stub of the plugin API that ignores writes,
-/// so it outranks the plugin. XML binds the int values.
-enum class TimelapseOwner { None = 0, Plugin = 1, Firmware = 2 };
-
-[[nodiscard]] constexpr TimelapseOwner timelapse_owner(bool firmware_owns, bool plugin_available) {
-    return firmware_owns      ? TimelapseOwner::Firmware
-           : plugin_available ? TimelapseOwner::Plugin
-                              : TimelapseOwner::None;
-}
-
 class PrinterCompositeVisibilityState {
   public:
     PrinterCompositeVisibilityState() = default;
