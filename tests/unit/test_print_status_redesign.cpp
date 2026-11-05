@@ -217,6 +217,66 @@ TEST_CASE_METHOD(Landscape800, "phase switch relayouts and clears pre-print glow
     CHECK(subject_int("ps_chip_nozzle_progress") == -1);
 }
 
+TEST_CASE_METHOD(Landscape800, "a heater chip paints every part from its heat state",
+                 "[print_status]") {
+    using namespace helix::ui::temperature;
+    auto& temps = state().temperature_state();
+    lv_obj_t* chip = lv_obj_find_by_name(root_, "ps_chip_bed");
+    REQUIRE(chip != nullptr);
+    lv_obj_t* glyph = lv_obj_find_by_name(chip, "bed_icon_glyph");
+    REQUIRE(glyph != nullptr);
+    lv_obj_t* text = lv_obj_find_by_name(chip, "chip_text");
+    lv_obj_t* bar = lv_obj_find_by_name(chip, "chip_progress");
+    lv_obj_t* glow = lv_obj_find_by_name(root_, "ps_glow_bed");
+    const auto same = [](lv_color_t a, HeatState s) {
+        return lv_color_eq(a, get_heating_state_color(s));
+    };
+
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HEATING_BED));
+    set_int(temps.get_bed_target_subject(), 600);
+    set_int(temps.get_bed_temp_subject(), 300);
+    settle();
+    REQUIRE(subject_int("ps_chip_bed_tone") == static_cast<int>(ChipTone::Active));
+    CHECK(same(lv_obj_get_style_text_color(glyph, LV_PART_MAIN), HeatState::Heating));
+    CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::Heating));
+    CHECK(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Heating));
+    CHECK(same(lv_obj_get_style_bg_color(bar, LV_PART_INDICATOR), HeatState::Heating));
+    CHECK(same(lv_obj_get_style_bg_color(glow, LV_PART_MAIN), HeatState::Heating));
+    CHECK(subject_int("ps_glow_bed") == 1);
+
+    set_int(temps.get_bed_temp_subject(), 900);
+    settle();
+    CHECK(same(lv_obj_get_style_text_color(glyph, LV_PART_MAIN), HeatState::Cooling));
+    CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::Cooling));
+    CHECK(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Cooling));
+    CHECK(subject_int("ps_glow_bed") == 0);
+
+    set_int(temps.get_bed_temp_subject(), 600);
+    settle();
+    CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::AtTemp));
+    // Holding, the outline goes back to the plain pill.
+    CHECK_FALSE(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::AtTemp));
+    CHECK_FALSE(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Heating));
+
+    // Past pre-print an off-target heater is Warn: amber text and outline, state color bar.
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::IDLE));
+    set_int(temps.get_bed_temp_subject(), 300);
+    UpdateQueue::instance().drain();
+    process_lvgl(50);
+    settle();
+    REQUIRE(subject_int("ps_chip_bed_tone") == static_cast<int>(ChipTone::Warn));
+    const lv_color_t amber = theme_manager_get_color("warning");
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(text, LV_PART_MAIN), amber));
+    CHECK(lv_color_eq(lv_obj_get_style_border_color(chip, LV_PART_MAIN), amber));
+    CHECK(same(lv_obj_get_style_bg_color(bar, LV_PART_INDICATOR), HeatState::Heating));
+
+    // Every heater chip carries the glyph its binder tints.
+    for (const char* name : {"nozzle_icon_glyph", "chamber_icon_glyph"})
+        CHECK(lv_obj_find_by_name(root_, name) != nullptr);
+}
+
 TEST_CASE_METHOD(Landscape800, "a heater at its target shows the check", "[print_status]") {
     auto& temps = state().temperature_state();
     set_int(temps.get_bed_target_subject(), 600);
@@ -904,8 +964,8 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
                  "[print_status]") {
     const char* keys[] = {"nozzle",     "bed",     "chamber", "part_fan",
                           "hotend_fan", "aux_fan", "light",   "speed_flow"};
-    const char* colors[] = {"danger", "danger", "danger",  "info",
-                            "info",   "info",   "warning", "warning"};
+    const char* colors[] = {nullptr, nullptr, nullptr,   "info",
+                            "info",  "info",  "warning", "warning"};
     const auto subj = [](const std::string& name) {
         lv_subject_t* s = lv_xml_get_subject(nullptr, name.c_str());
         REQUIRE(s != nullptr);
@@ -929,8 +989,10 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
         INFO(k);
         lv_obj_t* glow = obj("ps_glow_" + k);
         lv_obj_t* line = obj("ps_line_" + k);
-        CHECK(lv_color_eq(lv_obj_get_style_bg_color(glow, LV_PART_MAIN),
-                          theme_manager_get_color(colors[i])));
+        // A heater glow is painted from its heat state, not from the markup.
+        if (colors[i])
+            CHECK(lv_color_eq(lv_obj_get_style_bg_color(glow, LV_PART_MAIN),
+                              theme_manager_get_color(colors[i])));
         set_int(subj("ps_glow_" + k), 1);
         set_int(subj("ps_line_" + k), 1);
         for (const char* other : keys) {
@@ -1075,6 +1137,15 @@ TEST_CASE_METHOD(Landscape800, "the other-tools chip lists every head but the pr
     CHECK(subject_int("ps_chip_other_tools_tone") == static_cast<int>(ChipTone::Normal));
     CHECK(subject_int("ps_chip_other_tools_progress") == -1);
     CHECK_FALSE(hidden(root_, "ps_chip_other_tools"));
+    using namespace helix::ui::temperature;
+    const lv_color_t heating = get_heating_state_color(HeatState::Heating);
+    lv_obj_t* chip = lv_obj_find_by_name(root_, "ps_chip_other_tools");
+    REQUIRE(chip != nullptr);
+    lv_obj_t* text = lv_obj_find_by_name(chip, "chip_text");
+    lv_obj_t* glyph = lv_obj_find_by_name(chip, "chip_glyph");
+    REQUIRE(glyph != nullptr);
+    CHECK_FALSE(lv_color_eq(lv_obj_get_style_text_color(text, LV_PART_MAIN), heating));
+    CHECK_FALSE(lv_color_eq(lv_obj_get_style_text_color(glyph, LV_PART_MAIN), heating));
 
     // A parked head pre-heating leads, in the working tone, with its bar.
     state().update_from_status({{"extruder2", {{"temperature", 30.0}, {"target", 220.0}}}});
@@ -1084,6 +1155,12 @@ TEST_CASE_METHOD(Landscape800, "the other-tools chip lists every head but the pr
     CHECK(subject_str("ps_chip_other_tools_text").rfind("3 125 / 220°", 0) == 0);
     CHECK(subject_int("ps_chip_other_tools_tone") == static_cast<int>(ChipTone::Active));
     CHECK(subject_int("ps_chip_other_tools_progress") == 50);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(text, LV_PART_MAIN), heating));
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(glyph, LV_PART_MAIN), heating));
+    CHECK(lv_color_eq(lv_obj_get_style_border_color(chip, LV_PART_MAIN), heating));
+    CHECK(lv_color_eq(
+        lv_obj_get_style_bg_color(lv_obj_find_by_name(chip, "chip_progress"), LV_PART_INDICATOR),
+        heating));
     // It sits in a chip slot with no line to the picture.
     for (const auto& c : tiles().last_layout().chips) {
         if (c.kind == CalloutKind::OtherTools) {

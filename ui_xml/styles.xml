@@ -62,7 +62,7 @@
     <!-- Heater status-area duty text. Two mutually exclusive bindings partition
          the state space (heating vs everything else); the pair lives here so
          every heater surface colors the duty identically. -->
-    <style name="heater_duty_heating" text_color="#warning"/>
+    <style name="heater_duty_heating" text_color="#danger"/>
     <style name="heater_duty_muted" text_color="#text_muted"/>
 
     <!-- The count-badge box paired with each tile icon rung: 2/5 of
