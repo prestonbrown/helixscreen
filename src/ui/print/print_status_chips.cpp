@@ -43,9 +43,9 @@ bool off(const OtherToolReading& t) {
 
 /// "2 184 / 220°" climbing or cooling, "2 150°" holding or cooling down with
 /// its heater off, "2 off" off and cold.
-std::string other_tool_text(const OtherToolReading& t) {
+std::string other_tool_text(const OtherToolReading& t, bool by_number) {
     using ui::temperature::HeaterStatusState;
-    std::string text = t.badge + " ";
+    std::string text = (by_number && !t.number.empty() ? t.number : t.badge) + " ";
     if (off(t))
         return text + lv_tr("off");
     const auto state =
@@ -71,7 +71,8 @@ std::string dotted(const std::vector<std::string>& parts) {
 std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads, int active_tool,
                                    bool heads_share_heater) {
     std::vector<OtherHead> out;
-    if (heads_share_heater)
+    // With nothing mounted a lone head is not "another" head either.
+    if (heads_share_heater || heads.size() < 2)
         return out;
     for (const PhysicalHead& head : heads) {
         if (!head.extruder_name || head.holds_tool(active_tool))
@@ -92,37 +93,46 @@ ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
         return c;
     c.shown = true;
 
-    std::vector<std::string> leading, rest;
     const OtherToolReading* first_climbing = nullptr;
     bool all_off = true;
+    bool any_named = false;
     for (const auto& t : tools) {
         all_off = all_off && off(t);
-        if (climbing(t)) {
-            if (!first_climbing)
-                first_climbing = &t;
-            leading.push_back(other_tool_text(t));
-        } else {
-            rest.push_back(other_tool_text(t));
-        }
+        any_named = any_named || !t.number.empty();
+        if (!first_climbing && climbing(t))
+            first_climbing = &t;
     }
 
-    std::vector<std::string> all = leading;
-    all.insert(all.end(), rest.begin(), rest.end());
-    c.text = dotted(all);
-    if (!fits(c.text)) {
-        // As many heads as fit, in order, and a count of the rest. A climbing
-        // head always stays, even past the room: a pre-heat is never hidden.
+    // The full list, else as many heads as fit, in order, and a count of the
+    // rest. A climbing head always stays, even past the room: a pre-heat is
+    // never hidden. Returns whether the text fits.
+    const auto ladder = [&](bool by_number) {
+        std::vector<std::string> all;
+        for (const bool want_climbing : {true, false})
+            for (const auto& t : tools)
+                if (climbing(t) == want_climbing)
+                    all.push_back(other_tool_text(t, by_number));
+        c.text = dotted(all);
+        if (fits(c.text))
+            return true;
         const int n = static_cast<int>(all.size());
-        bool placed = false;
-        for (int k = n - 1; k >= 1 && !placed; --k) {
+        for (int k = n - 1; k >= 1; --k) {
             std::vector<std::string> parts(all.begin(), all.begin() + k);
             parts.push_back(fmt::format("+{}", n - k));
             c.text = dotted(parts);
-            placed = fits(c.text) || (k == 1 && first_climbing);
+            if (fits(c.text))
+                return true;
         }
-        if (!placed)
+        if (first_climbing) {
+            // A lone climbing head, or the first one, with the rest counted.
+            c.text = n > 1 ? dotted({all.front(), fmt::format("+{}", n - 1)}) : all.front();
+        } else {
             c.text = fmt::format(fmt::runtime(ui::tr_plural("+1 tool", "+{} tools", n)), n);
-    }
+        }
+        return false;
+    };
+    if (!ladder(false) && any_named)
+        ladder(true);
 
     if (first_climbing) {
         c.tone = ChipTone::Active;
@@ -140,9 +150,11 @@ std::string other_tools_budget_text(const std::vector<OtherToolReading>& tools) 
     if (tools.empty())
         return {};
     std::string_view badge;
-    for (const auto& t : tools)
-        if (t.badge.size() > badge.size())
-            badge = t.badge;
+    for (const auto& t : tools) {
+        const std::string& b = t.number.empty() ? t.badge : t.number;
+        if (b.size() > badge.size())
+            badge = b;
+    }
     std::string text = heater_budget_text(badge);
     if (tools.size() > 1)
         text += fmt::format(" · +{}", tools.size() - 1);

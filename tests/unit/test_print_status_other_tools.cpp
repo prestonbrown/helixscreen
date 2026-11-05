@@ -142,6 +142,18 @@ TEST_CASE("other tools: a configured tool name shows verbatim", "[print_status_o
           "Left 150° · 3 off");
 }
 
+TEST_CASE("other tools: configured names give way to numbers where they do not fit",
+          "[print_status_other_tools]") {
+    OtherToolReading left = tool("Left Extruder Hotend", 1500, 1500);
+    left.number = "2";
+    const std::vector<OtherToolReading> t = {left, tool("3", 250, 0)};
+    CHECK(other_tools_chip(t, always).text == "Left Extruder Hotend 150° · 3 off");
+    const std::string numbered = "2 150° · 3 off";
+    CHECK(other_tools_chip(t, room(numbered.size())).text == numbered);
+    // The budget measures the number, so a long name never widens the layout's room.
+    CHECK(other_tools_budget_text(t) == "2 999 / 999° · +1");
+}
+
 TEST_CASE("other tools: a generated tool name shows the 1-based number",
           "[print_status_other_tools]") {
     CHECK(other_tool_badge("T2", 2) == "3");
@@ -158,6 +170,18 @@ TEST_CASE("other heads: the active head is left out and each head is named by it
     CHECK(others[0].extruder == "extruder");
     CHECK(others[1].tool == 2);
     CHECK(others[1].extruder == "extruder2");
+}
+
+TEST_CASE("other tools: a lone climbing head that does not fit still shows",
+          "[print_status_other_tools]") {
+    const ChipContent c = other_tools_chip({tool("2", 1840, 2200)}, room(1));
+    CHECK(c.text == "2 184 / 220°");
+    CHECK(c.tone == ChipTone::Active);
+}
+
+TEST_CASE("other heads: a one-head printer with nothing mounted lists none",
+          "[print_status_other_tools]") {
+    CHECK(other_heads(physical_heads({tool_on(0, "extruder")}), -1, false).empty());
 }
 
 TEST_CASE("other heads: nothing mounted lists every head", "[print_status_other_tools]") {
