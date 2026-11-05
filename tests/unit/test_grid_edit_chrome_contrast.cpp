@@ -167,8 +167,8 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome icons clear WCAG AA on their 
 
 TEST_CASE_METHOD(XMLTestFixture, "a press that slides off a selection pill is not a click",
                  "[grid_edit][edit-chrome][halfcell]") {
-    // On a half-cell widget the trash pill covers a quarter of the widget, so a
-    // drag aimed at the widget often starts on the pill.
+    // A whole-cell widget carries the trash pill on its corner, so a drag aimed
+    // at the widget can start on the pill.
     ChromeScene scene(test_screen());
     helix_test::ScopedPointerIndev pointer;
     GridEditMode em;
