@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <any>
+#include <chrono>
 #include <filesystem>
 #include <json.hpp> // nlohmann/json from libhv
 #include <memory>
@@ -36,6 +37,10 @@ class FilamentSlotOverrideStoreTestAccess {
     static void set_cache_directory(helix::ams::FilamentSlotOverrideStore& store,
                                     std::filesystem::path dir) {
         store.cache_dir_ = std::move(dir);
+    }
+    static void set_load_timeout(helix::ams::FilamentSlotOverrideStore& store,
+                                 std::chrono::milliseconds ms) {
+        store.load_timeout_ = ms;
     }
 };
 
@@ -101,6 +106,24 @@ class AceTestAccess {
         unit.slots.resize(static_cast<size_t>(slot_count));
         b.system_info_.units.push_back(unit);
         b.system_info_.total_slots += slot_count;
+    }
+    static void set_slot_global_index(AmsBackendAce& b, size_t unit, size_t slot, int index) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.system_info_.units[unit].slots[slot].global_index = index;
+    }
+    static std::string slot_brand(AmsBackendAce& b, size_t unit, size_t slot) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        return b.system_info_.units[unit].slots[slot].brand;
+    }
+    static void read_unread_overrides(AmsBackendAce& b) {
+        b.read_unread_overrides(b.override_store_, b.overrides_);
+    }
+    // Ages the last read past the retry interval, so the next status frame asks again.
+    static void let_unread_retry_come_due(AmsBackendAce& b) {
+        b.unread_read_started_ -= std::chrono::minutes(1);
+    }
+    static bool namespace_unread(const AmsBackendAce& b) {
+        return b.override_store_->namespace_unread();
     }
 };
 
@@ -1739,5 +1762,101 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE INSTANCE= base follows the displayed inst
         answer_initial_query(client, json{{"ace", json{{"slots", four_slot_array()}}}});
         AceTestAccess::set_current_slot(b, 2);
         CHECK(run_slot_actions(b).front() == "ACE_FEED INDEX=2 LENGTH=50 SPEED=50");
+    }
+}
+
+namespace {
+/// A backend holding a store whose load got no answer, the way a slow Moonraker leaves it.
+struct AceUnreadRig {
+    AceTmpCacheDir tmp;
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState state;
+    std::unique_ptr<MoonrakerAPIMock> api;
+
+    explicit AceUnreadRig(const std::string& name) : tmp(name) {
+        state.init_subjects(false);
+        api = std::make_unique<MoonrakerAPIMock>(client, state);
+    }
+
+    void hold_unread_store(AmsBackendAce& backend) {
+        auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(api.get(), "ace");
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+        FilamentSlotOverrideStoreTestAccess::set_load_timeout(*store, std::chrono::milliseconds(20));
+        api->mock_defer_next_db_get();
+        (void)store->load_blocking();
+        REQUIRE(store->namespace_unread());
+        AceTestAccess::inject_override_store(backend, std::move(store));
+    }
+};
+
+json polymaker_record(int slot_index) {
+    return json{{"lane" + std::to_string(slot_index + 1),
+                 {{"lane", std::to_string(slot_index)},
+                  {"color", "#FF5500"},
+                  {"material", "PLA"},
+                  {"vendor", "Polymaker"}}}};
+}
+} // namespace
+
+TEST_CASE("ACE status frames ask again for lane records no read has reached",
+          "[ams][ace][filament_slot_override][2008]") {
+    AceUnreadRig rig("status_frame_retry");
+    AmsBackendAce backend(rig.api.get(), &rig.client);
+    REQUIRE(backend.start().success());
+    rig.hold_unread_store(backend);
+
+    rig.api->mock_defer_next_db_get();
+    AceTestAccess::read_unread_overrides(backend);
+    rig.api->fire_deferred_db_get_error(MoonrakerError::unknown("down"));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(AceTestAccess::namespace_unread(backend));
+
+    const json frame = {{"print_stats", {{"state", "standby"}}}};
+    rig.api->mock_defer_next_db_get();
+
+    SECTION("a frame inside the retry interval asks nothing") {
+        rig.client.dispatch_status_update(frame);
+        helix::ui::UpdateQueue::instance().drain();
+        rig.api->fire_deferred_db_get_success(polymaker_record(0));
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(AceTestAccess::namespace_unread(backend));
+    }
+    SECTION("the first frame after it takes the records") {
+        AceTestAccess::let_unread_retry_come_due(backend);
+        rig.client.dispatch_status_update(frame);
+        helix::ui::UpdateQueue::instance().drain();
+        rig.api->fire_deferred_db_get_success(polymaker_record(0));
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(AceTestAccess::namespace_unread(backend));
+        const auto adopted = AceTestAccess::get_override(backend, 0);
+        REQUIRE(adopted.has_value());
+        CHECK(adopted->brand == "Polymaker");
+    }
+
+    backend.stop();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE("Lane records read late reach the slots the default walk finds",
+          "[ams][ace][filament_slot_override][2008]") {
+    AceUnreadRig rig("default_relayer_walk");
+    AmsBackendAce backend(rig.api.get(), nullptr);
+    rig.hold_unread_store(backend);
+    AceTestAccess::append_unit(backend, 2);
+    AceTestAccess::append_unit(backend, 2);
+    rig.api->mock_defer_next_db_get();
+    AceTestAccess::read_unread_overrides(backend);
+
+    SECTION("a slot with no index takes its position across units") {
+        rig.api->fire_deferred_db_get_success(polymaker_record(3));
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(AceTestAccess::slot_brand(backend, 1, 1) == "Polymaker");
+        CHECK(AceTestAccess::slot_brand(backend, 0, 0).empty());
+    }
+    SECTION("a slot with an index takes that index, not its position") {
+        AceTestAccess::set_slot_global_index(backend, 0, 1, 3);
+        rig.api->fire_deferred_db_get_success(polymaker_record(3));
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(AceTestAccess::slot_brand(backend, 0, 1) == "Polymaker");
     }
 }
