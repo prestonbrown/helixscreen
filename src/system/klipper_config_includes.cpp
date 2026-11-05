@@ -6,6 +6,7 @@
 #include "ui_update_queue.h"
 
 #include "async_lifetime_guard.h"
+#include "helix_fs.h"
 #include "i_moonraker_api.h"
 #include "moonraker_validation.h"
 #include "text_io.h"
@@ -34,10 +35,10 @@ std::string config_get_directory(const std::string& path) {
 }
 
 std::string config_resolve_path(const std::string& current_file, const std::string& include_path) {
+    // Normal form, because Moonraker lists and serves paths without "." or "..",
+    // while Klipper resolves them, so `../macros/x.cfg` is a file it really reads.
     std::string dir = config_get_directory(current_file);
-    if (dir.empty())
-        return include_path;
-    return dir + "/" + include_path;
+    return helix::fs::lexically_normal(dir.empty() ? include_path : dir + "/" + include_path);
 }
 
 bool config_glob_match(const std::string& pattern, const std::string& text) {
