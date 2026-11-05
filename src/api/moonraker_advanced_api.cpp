@@ -1113,7 +1113,7 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     void parse_result_line(const std::string& line) {
         // Parse: fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]
         // Must check BEFORE ambient_transfer since both contain "ambient_transfer"
-        static const helix::Regex fat_regex(R"(fan_ambient_transfer=([\d., ]+)\s*\[W/K\])");
+        static const helix::Regex fat_regex(R"(fan_ambient_transfer=([\deE.+\-, ]*)\[W/K\])");
         // Parse: block_heat_capacity=18.5432 [J/K]
         static const helix::Regex bhc_regex(R"(block_heat_capacity=([\d.]+))");
         // Parse: sensor_responsiveness=0.123456 [K/s/K]
@@ -1127,8 +1127,8 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
             result_.fan_ambient_transfer = match[1].str();
             // Trim trailing whitespace
             auto end = result_.fan_ambient_transfer.find_last_not_of(' ');
-            if (end != std::string::npos)
-                result_.fan_ambient_transfer.resize(end + 1);
+            // A heater with no cooling_fan reports an empty list.
+            result_.fan_ambient_transfer.resize(end == std::string::npos ? 0 : end + 1);
             spdlog::debug("[MPCCalibrateCollector] fan_ambient_transfer={}",
                           result_.fan_ambient_transfer);
             parsed_fan_ambient_ = true;
