@@ -438,6 +438,29 @@ def first_rank(path, patterns):
     return next((i for i, p in enumerate(patterns) if p in path), len(patterns))
 
 
+# A mutant of a header recompiles every includer: about half a second of wall
+# clock per includer at -j36, and a range's headers run from a dozen includers to
+# thousands. Past this many, a hunk waits for every other hunk in the run.
+HEADER_COSTLY_INCLUDERS = 100
+
+
+def header_fanout(root):
+    """{header path: translation units whose dependency file names it} from build/."""
+    counts, prefix = {}, f'{root}/'
+    name = re.compile(r'(?:^|\s)(?:' + re.escape(prefix) + r')?(include/[\w/.+-]+)')
+    for dirpath, _dirs, names in os.walk(root / 'build'):
+        for n in names:
+            if not n.endswith('.d'):
+                continue
+            try:
+                text = Path(dirpath, n).read_text(errors='replace')
+            except OSError:
+                continue
+            for header in set(name.findall(text)):
+                counts[header] = counts.get(header, 0) + 1
+    return counts
+
+
 # How much of its suites a hunk's filter runs: its own tests, all of Catch2, or
 # all of bats and pytest. A run cut short by its cap has then judged the most.
 SCOPE_NARROW, SCOPE_WHOLE_CATCH2, SCOPE_WHOLE_SCRIPTS = 0, 1, 2
@@ -3538,7 +3561,13 @@ def main():
     def scope_of(path):
         return filter_scope(key_of[path], default_key,
                             'catch2' in STRATEGIES[verdict_of[path][1]]['suites'])
-    mutable.sort(key=lambda h: (first_rank(h['file'], first),
+    fanout = header_fanout(root) if args.pool else {}
+
+    def includers(path):
+        return fanout.get(path, 0) if path.endswith(HEADER_SUFFIXES) else 0
+    mutable.sort(key=lambda h: (includers(h['file']) > HEADER_COSTLY_INCLUDERS,
+                                first_rank(h['file'], first),
+                                includers(h['file']) if includers(h['file']) > HEADER_COSTLY_INCLUDERS else 0,
                                 scope_of(h['file']) == SCOPE_WHOLE_SCRIPTS,
                                 h['file'].endswith(HEADER_SUFFIXES),
                                 scope_of(h['file'])))

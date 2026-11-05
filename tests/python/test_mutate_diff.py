@@ -1467,6 +1467,35 @@ def test_a_header_revert_is_syntax_checked_through_the_source_of_its_stem(tmp_pa
     assert md.syntax_rejects(tmp_path, "include/nothing_named_this.h", io.StringIO()) is False
 
 
+def test_header_fanout_counts_the_units_naming_a_header(tmp_path):
+    objs = tmp_path / "build" / "obj"
+    objs.mkdir(parents=True)
+    (objs / "a.d").write_text(f"a.o: src/a.cpp include/x.h {tmp_path}/include/y.h \\\n include/x.h\n")
+    (objs / "b.d").write_text("b.o: src/b.cpp include/x.h /usr/include/z.h\n")
+    (objs / "b.o").write_text("include/x.h\n")
+    assert md.header_fanout(tmp_path) == {"include/x.h": 2, "include/y.h": 1}
+
+
+def test_a_pool_leaves_a_header_with_many_includers_until_last(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "include").mkdir()
+    (work / "include" / "wide.h").write_text("inline int w() { return 1; }\n")
+    (work / "include" / "thin.h").write_text("inline int t() { return 1; }\n")
+    _git(work, "add", "include", "src")
+    _git(work, "commit", "-qm", "headers")
+    base = _git(work, "rev-parse", "HEAD~1").strip()
+    (work / "include" / "wide.h").write_text("inline int w() { return 2; }\n")
+    (work / "include" / "thin.h").write_text("inline int t() { return 2; }\n")
+    objs = work / "build" / "obj"
+    objs.mkdir(parents=True)
+    for i in range(md.HEADER_COSTLY_INCLUDERS + 1):
+        (objs / f"u{i}.d").write_text("u.o: u.cpp include/wide.h\n")
+    r = _mutate(work, "--base", base, "--list-only", "--pool", "--first", "wide")
+    listed = [ln.split()[0].split(":")[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert listed[-1] == "include/wide.h", r.stdout
+    assert "include/thin.h" in listed[:-1], r.stdout
+
+
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     (work / ".mutant-expect-other").write_text("")
