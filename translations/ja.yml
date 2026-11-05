@@ -247,6 +247,7 @@ translations:
   Add Widget: ウィジェットを追加
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: printer.cfg に [include helix-plr/*.cfg] を追加し、再開時に印刷開始時のメッシュを読み込み直します
   Add custom filament: カスタムフィラメントを追加
+  Add new: "新規追加"
   Add page: 'ページを追加'
   Add to Mainsail/Fluidd Webcams: 'Mainsail/Fluiddのウェブカメラに追加'
   Add to Queue: キューに追加
@@ -3606,6 +3607,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman は利用できません'
   Spoolman Server: Spoolman サーバー
+  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: "Spoolman には、このブランドの近い色の「{}」がすでにあります。それを使用しますか、それとも新しいフィラメントを追加しますか？"
   Spoolman connected!: Spoolman に接続しました！
   Spoolman found! Configuring...: Spoolman を検出しました！設定中...
   Spoolman has no spools configured: Spoolman にスプールが設定されていません
@@ -4341,6 +4343,8 @@ translations:
   Use G10/G11 firmware retraction: G10/G11 ファームウェアリトラクションを使用
   Use New Address: '新しいアドレスを使用'
   Use Unload before Eject: '先に「アンロード」してから「排出」してください'
+  Use existing: "既存を使用"
+  Use existing filament?: "既存のフィラメントを使用しますか？"
   Use first HID scanner found: '最初に見つかった HID スキャナーを使用'
   Use printer type to select image: プリンタータイプで画像を選択
   Use Scan: スキャンを使用

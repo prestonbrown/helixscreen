@@ -4302,3 +4302,76 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear is not offered for a slot with nothin
     CHECK(access.clear_visible() == 0);
     close_editor_overlay();
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a new spool close to an existing Spoolman filament asks before filing another",
+                 "[ams_edit_overlay][spoolman][similar_filament]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    auto& spools = client.spoolman_mock().get_mock_spools();
+    spools.clear();
+    client.spoolman_mock().add_vendor(2, "eSUN");
+    client.spoolman_mock().add_filament(73, 2, "ABS", "636363", "Grey ABS+HS");
+    client.spoolman_mock().next_created_filament_id = 117;
+    client.spoolman_mock().next_created_spool_id = 152;
+
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 1);
+    get_printer_state().capabilities_state().set_spoolman_available(true);
+    UpdateQueue::instance().drain();
+
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), &api,
+                                  [](const AmsEditOverlay::EditResult&) {}));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    SlotInfo edited = access.working_info();
+    edited.brand = "eSUN";
+    edited.material = "ABS+";
+    edited.color_rgb = 0x4A4A4A;
+    edited.color_name = "Deep Gray";
+    access.set_working_info(edited);
+
+    access.call_do_spoolman_save(SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    REQUIRE_FALSE(ModalStack::instance().stack_empty());
+    lv_obj_t* dlg = ModalStack::instance().top_dialog();
+    REQUIRE(dlg != nullptr);
+    // Nothing is filed while the question is open.
+    CHECK(client.spoolman_mock().created_filaments.empty());
+    CHECK(client.spoolman_mock().created_spools.empty());
+
+    SECTION("Use existing points the new spool at that filament") {
+        lv_obj_send_event(lv_obj_find_by_name(dlg, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        UpdateQueue::instance().drain();
+        CHECK(client.spoolman_mock().created_filaments.empty());
+        REQUIRE(client.spoolman_mock().created_spools.size() == 1);
+        CHECK(client.spoolman_mock().created_spools[0]["filament_id"] == 73);
+    }
+    SECTION("Add new files a filament of its own") {
+        lv_obj_send_event(lv_obj_find_by_name(dlg, "btn_secondary"), LV_EVENT_CLICKED, nullptr);
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        UpdateQueue::instance().drain();
+        REQUIRE(client.spoolman_mock().created_filaments.size() == 1);
+        CHECK(client.spoolman_mock().created_filaments[0]["name"] == "ABS+ Deep Gray");
+        REQUIRE(client.spoolman_mock().created_spools.size() == 1);
+        CHECK(client.spoolman_mock().created_spools[0]["filament_id"] == 117);
+    }
+
+    if (!ModalStack::instance().stack_empty()) {
+        Modal::hide(Modal::get_top());
+    }
+    close_editor_overlay();
+    get_printer_state().capabilities_state().set_spoolman_available(false);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+}

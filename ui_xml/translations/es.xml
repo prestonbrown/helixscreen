@@ -243,6 +243,7 @@
   <translation tag="Add Widget" es="Agregar widget"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" es="Agrega [include helix-plr/*.cfg] a printer.cfg para que una reanudación vuelva a cargar la malla con la que empezó la impresión"/>
   <translation tag="Add custom filament" es="Añadir filamento personalizado"/>
+  <translation tag="Add new" es="Añadir nuevo"/>
   <translation tag="Add page" es="Añadir página"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" es="Añadir a las webcams de Mainsail/Fluidd"/>
   <translation tag="Add to Queue" es="Añadir a la cola"/>
@@ -3481,6 +3482,7 @@
   <translation tag="Spoolman" es="Spoolman"/>
   <translation tag="Spoolman Not Available" es="Spoolman no disponible"/>
   <translation tag="Spoolman Server" es="Servidor Spoolman"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it, or add a new filament?" es="Spoolman ya tiene &quot;{}&quot; de esta marca en un color parecido. ¿Usarlo o añadir un filamento nuevo?"/>
   <translation tag="Spoolman connected!" es="¡Spoolman conectado!"/>
   <translation tag="Spoolman found! Configuring..." es="¡Spoolman encontrado! Configurando..."/>
   <translation tag="Spoolman has no spools configured" es="Spoolman no tiene bobinas configuradas"/>
@@ -4163,6 +4165,8 @@
   <translation tag="Use New Address" es="Usar nueva dirección"/>
   <translation tag="Use Scan" es="Usar escaneo"/>
   <translation tag="Use Unload before Eject" es="Use Descargar antes de Expulsar"/>
+  <translation tag="Use existing" es="Usar existente"/>
+  <translation tag="Use existing filament?" es="¿Usar un filamento existente?"/>
   <translation tag="Use first HID scanner found" es="Usar el primer escáner HID encontrado"/>
   <translation tag="Use printer type to select image" es="Usar tipo de impresora para seleccionar imagen"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" es="Usar el diseño de inicio definido en la pantalla de la impresora"/>

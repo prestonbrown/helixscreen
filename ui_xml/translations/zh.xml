@@ -243,6 +243,7 @@
   <translation tag="Add Widget" zh="添加小组件"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" zh="在 printer.cfg 中添加 [include helix-plr/*.cfg]，恢复时重新加载打印开始时的网格"/>
   <translation tag="Add custom filament" zh="添加自定义耗材"/>
+  <translation tag="Add new" zh="新增"/>
   <translation tag="Add page" zh="添加页面"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" zh="添加到 Mainsail/Fluidd 摄像头"/>
   <translation tag="Add to Queue" zh="添加到队列"/>
@@ -3481,6 +3482,7 @@
   <translation tag="Spoolman" zh="Spoolman"/>
   <translation tag="Spoolman Not Available" zh="Spoolman 不可用"/>
   <translation tag="Spoolman Server" zh="Spoolman 服务器"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it, or add a new filament?" zh="Spoolman 中已有此品牌颜色相近的“{}”。使用它，还是添加新耗材？"/>
   <translation tag="Spoolman connected!" zh="Spoolman 已连接！"/>
   <translation tag="Spoolman found! Configuring..." zh="已找到 Spoolman！正在配置..."/>
   <translation tag="Spoolman has no spools configured" zh="Spoolman 未配置料盘"/>
@@ -4163,6 +4165,8 @@
   <translation tag="Use New Address" zh="使用新地址"/>
   <translation tag="Use Scan" zh="使用扫描"/>
   <translation tag="Use Unload before Eject" zh="请先使用“卸载”，再使用“弹出”"/>
+  <translation tag="Use existing" zh="使用现有"/>
+  <translation tag="Use existing filament?" zh="使用现有耗材？"/>
   <translation tag="Use first HID scanner found" zh="使用找到的第一个 HID 扫描器"/>
   <translation tag="Use printer type to select image" zh="使用打印机类型选择图片"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" zh="使用打印机自身屏幕上设置的主屏幕布局"/>

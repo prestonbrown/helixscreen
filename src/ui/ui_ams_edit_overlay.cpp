@@ -2338,6 +2338,15 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
     auto token = object_lifetime_.token();
     auto saver = std::make_shared<helix::SpoolmanSlotSaver>(
         api_, get_printer_state().get_discovery().filament_diameter_mm());
+    // The offer arrives on the Spoolman reply's thread; the dialog is LVGL.
+    saver->set_similar_filament_chooser(
+        [token](const FilamentInfo& similar,
+                std::function<void(helix::SpoolmanSlotSaver::SimilarChoice)> answer) {
+            token.defer("AmsEditOverlay::offer_similar_filament",
+                        [name = similar.filament_name, answer = std::move(answer)]() {
+                            get_ams_edit_overlay().offer_similar_filament(name, answer);
+                        });
+        });
     // One save at a time: the editor stays open while this runs.
     if (cap.session == session_) {
         save_in_flight_ = true;
@@ -2358,6 +2367,15 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     spdlog::info("[AmsEditOverlay] Spoolman save stopped: the filament is "
                                  "missing a field it is identified by");
                     show_missing_filament_toast(result.missing);
+                    if (live) {
+                        stay_open_after_failed_save();
+                    }
+                    end_slot_save(cap.slot_index);
+                    return;
+                }
+                if (result.cancelled) {
+                    // The user declined at the similar-filament offer: nothing
+                    // was written and the edits stay staged.
                     if (live) {
                         stay_open_after_failed_save();
                     }
@@ -2513,6 +2531,38 @@ void AmsEditOverlay::prompt_identity_change_then_save() {
     if (!dlg) {
         spdlog::warn("[AmsEditOverlay] identity confirmation failed to show; aborting save");
         close_editor(false);
+    }
+}
+
+void AmsEditOverlay::offer_similar_filament(
+    const std::string& filament_name,
+    std::function<void(helix::SpoolmanSlotSaver::SimilarChoice)> answer) {
+    using Choice = helix::SpoolmanSlotSaver::SimilarChoice;
+    // One reply per offer, whichever of the three paths reaches it.
+    auto reply = std::make_shared<std::function<void(Choice)>>(std::move(answer));
+    auto send = [reply](Choice choice) {
+        if (*reply) {
+            auto once = std::move(*reply);
+            *reply = nullptr;
+            once(choice);
+        }
+    };
+
+    ConfirmOptions opts;
+    opts.cancel_text = lv_tr("Add new");
+    opts.on_cancel = [send] { send(Choice::CreateNew); };
+    opts.on_dismiss = [send] { send(Choice::Cancel); };
+    opts.owner_token = lifetime_.token();
+    const std::string message = fmt::format(
+        fmt::runtime(lv_tr("Spoolman already has \"{}\" from this brand in a close color. Use "
+                           "it, or add a new filament?")),
+        filament_name);
+    lv_obj_t* dlg = modal_confirm(
+        lv_tr("Use existing filament?"), message.c_str(), ModalSeverity::Info,
+        lv_tr("Use existing"), [send] { send(Choice::UseExisting); }, opts);
+    if (!dlg) {
+        spdlog::warn("[AmsEditOverlay] similar-filament offer failed to show; adding a new one");
+        send(Choice::CreateNew);
     }
 }
 

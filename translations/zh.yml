@@ -246,6 +246,7 @@ translations:
   Add Widget: 添加小组件
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: 在 printer.cfg 中添加 [include helix-plr/*.cfg]，恢复时重新加载打印开始时的网格
   Add custom filament: 添加自定义耗材
+  Add new: "新增"
   Add page: '添加页面'
   Add to Mainsail/Fluidd Webcams: '添加到 Mainsail/Fluidd 摄像头'
   Add to Queue: 添加到队列
@@ -3597,6 +3598,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman 不可用'
   Spoolman Server: Spoolman 服务器
+  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: "Spoolman 中已有此品牌颜色相近的“{}”。使用它，还是添加新耗材？"
   Spoolman connected!: Spoolman 已连接！
   Spoolman found! Configuring...: 已找到 Spoolman！正在配置...
   Spoolman has no spools configured: Spoolman 未配置料盘
@@ -4332,6 +4334,8 @@ translations:
   Use G10/G11 firmware retraction: 使用 G10/G11 固件回抽
   Use New Address: '使用新地址'
   Use Unload before Eject: '请先使用“卸载”，再使用“弹出”'
+  Use existing: "使用现有"
+  Use existing filament?: "使用现有耗材？"
   Use first HID scanner found: '使用找到的第一个 HID 扫描器'
   Use printer type to select image: 使用打印机类型选择图片
   Use Scan: 使用扫描
