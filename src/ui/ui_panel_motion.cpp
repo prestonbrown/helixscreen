@@ -822,8 +822,9 @@ void MotionPanel::setup_jog_pad() {
         // Set initial jog mode
         ui_jog_pad_set_mode(jog_pad_, current_mode_);
 
-        // Apply initial enabled/dimmed state (the observer only fires on change)
+        // Apply initial enabled/dimmed and homed state (the observers only fire on change)
         update_jog_pad_enabled();
+        update_jog_pad_homed();
 
         spdlog::debug("[{}] Jog pad widget created", get_name());
     } else {
@@ -989,8 +990,7 @@ void MotionPanel::register_position_observers() {
             lv_subject_set_int(&self->motion_z_homed_, z);
             self->update_z_button_blocked();
             self->refresh_bed_readout();
-            if (self->jog_pad_)
-                ui_jog_pad_set_homed(self->jog_pad_, x && y && z);
+            self->update_jog_pad_homed();
         },
         get_printer_state().get_subjects_lifetime());
 
@@ -1013,6 +1013,15 @@ void MotionPanel::register_position_observers() {
 
     spdlog::debug("[{}] Position + kinematics + homing observers registered (observer factory)",
                   get_name());
+}
+
+void MotionPanel::update_jog_pad_homed() {
+    if (!jog_pad_)
+        return;
+    const char* axes =
+        lv_subject_get_string(get_printer_state().motion_state().get_homed_axes_subject());
+    ui_jog_pad_set_homed(jog_pad_,
+                         axes && strchr(axes, 'x') && strchr(axes, 'y') && strchr(axes, 'z'));
 }
 
 void MotionPanel::update_jog_pad_enabled() {

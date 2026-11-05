@@ -20,12 +20,15 @@
  * converges on the live panel's rebuilt widget, not a third one.
  */
 
+#include "ui_jog_pad.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "app_globals.h"
+#include "printer_state.h"
 #include "static_panel_registry.h"
 
 #include <array>
@@ -215,6 +218,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the panel h
     lv_obj_t* old_pad = lv_obj_find_by_name(root, "jog_pad");
     REQUIRE(old_pad != nullptr);
 
+    lv_subject_t* homed_axes = get_printer_state().motion_state().get_homed_axes_subject();
+    lv_subject_copy_string(homed_axes, "xyz");
+    helix::ui::UpdateQueue::instance().drain();
+
     lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
     REQUIRE(portrait != nullptr);
     const int was_portrait = lv_subject_get_int(portrait);
@@ -225,6 +232,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the panel h
     REQUIRE(new_pad != nullptr);
     CHECK(new_pad != old_pad);
     CHECK(lv_obj_find_by_name(root, "jog_pad_container") == nullptr);
+    // It starts in the printer's homed state, not the pad's unhomed default.
+    CHECK(ui_jog_pad_get_homed(new_pad));
 
     // Free the condemned branch, then leave: deactivating stops the pad's repeat.
     process_lvgl(100);
@@ -233,6 +242,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the panel h
     process_lvgl(100);
 
     lv_subject_set_int(portrait, was_portrait);
+    lv_subject_copy_string(homed_axes, "");
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
 }

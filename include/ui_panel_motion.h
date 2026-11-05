@@ -491,6 +491,7 @@ class MotionPanel : public OverlayBase {
     // (connected AND klippy ready). Jogging while not ready is refused at the
     // API layer; this makes the pad visibly unavailable to match.
     void update_jog_pad_enabled();
+    void update_jog_pad_homed();
 
     /// Rebuild the pad in the branch a rotation just built, once its placeholder exists.
     void rewire_jog_pad_after_orientation_flip();
