@@ -73,6 +73,9 @@ struct OtherToolReading {
     int current_deci = 0;
     int target_deci = 0;
     int start_deci = 0;
+    /// The 1-based number a configured name gives way to where names do not
+    /// fit; empty when `badge` is that number already.
+    std::string number;
 };
 
 /// The chip listing every head but the printing one: "2 150° · 3 off · 4 off".
@@ -81,13 +84,14 @@ struct OtherToolReading {
 /// text fits the chip's room; the full list gives way to as many heads as fit,
 /// in that order, and a count of the rest ("2 off · +2"). A climbing head
 /// always stays ("2 184 / 220° · +2"); with none climbing and no head fitting,
-/// the count alone ("+3 tools"). Expendable only while no head climbs; Dim while
+/// the count alone ("+3 tools"). Configured names give way to the heads'
+/// numbers where the list with names does not fit. Expendable only while no head climbs; Dim while
 /// every head is off. Not shown with no other heads.
 [[nodiscard]] ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
                                            const std::function<bool(const std::string&)>& fits);
 
 /// The text the layout budgets the other-tools chip at: one head climbing at
-/// the widest reading and the count of the rest, the shortest text
+/// the widest reading, by its number, and the count of the rest, the shortest text
 /// other_tools_chip() shows while a head climbs. Empty with no other heads.
 [[nodiscard]] std::string other_tools_budget_text(const std::vector<OtherToolReading>& tools);
 
