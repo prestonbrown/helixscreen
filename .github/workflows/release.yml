@@ -256,16 +256,22 @@ jobs:
         printf 'max_size = 2G\ncompression = true\n' > /tmp/.ccache-${{ matrix.docker_image || matrix.platform }}/ccache.conf
 
     - name: Build ${{ matrix.docker_image || matrix.platform }} toolchain image
-      # type=gha uses GitHub Actions' native buildx cache backend (faster + simpler
-      # than the previous type=local + actions/cache + "Move cache" shuffle).
-      run: |
-        docker buildx build \
-          --cache-from type=gha,scope=toolchain-${{ matrix.docker_image || matrix.platform }} \
-          --cache-to type=gha,mode=max,scope=toolchain-${{ matrix.docker_image || matrix.platform }} \
-          --load \
-          -t helixscreen/toolchain-${{ matrix.docker_image || matrix.platform }} \
-          -f docker/Dockerfile.${{ matrix.docker_image || matrix.platform }} \
-          docker/
+      # type=gha is GitHub Actions' native buildx cache backend. A cache miss makes
+      # apt fetch from snapshot.debian.org, the only source Bullseye has left, and
+      # that returns 503s for minutes at a time, so the build retries with a wait.
+      uses: nick-fields/retry@v4
+      with:
+        timeout_minutes: 45
+        max_attempts: 3
+        retry_wait_seconds: 180
+        command: |
+          docker buildx build \
+            --cache-from type=gha,scope=toolchain-${{ matrix.docker_image || matrix.platform }} \
+            --cache-to type=gha,mode=max,scope=toolchain-${{ matrix.docker_image || matrix.platform }} \
+            --load \
+            -t helixscreen/toolchain-${{ matrix.docker_image || matrix.platform }} \
+            -f docker/Dockerfile.${{ matrix.docker_image || matrix.platform }} \
+            docker/
 
     - name: Cross-compile for ${{ matrix.display_name }}
       run: |
