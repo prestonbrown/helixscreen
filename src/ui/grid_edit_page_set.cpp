@@ -28,6 +28,9 @@ int renumbered(const PageSetChange& change, int page) {
             page -= 1;
         }
     }
+    if (change.inserted_page >= 0 && page >= change.inserted_page) {
+        page += 1;
+    }
     // A page created before the first shifts every earlier page one later.
     return change.page_prepended ? page + 1 : page;
 }
@@ -35,6 +38,9 @@ int renumbered(const PageSetChange& change, int page) {
 } // namespace
 
 int page_set_focus(const PageSetChange& change) {
+    if (change.inserted_page >= 0) {
+        return change.inserted_page;
+    }
     const int focus = renumbered(change, change.focus_page);
     if (focus >= 0) {
         return focus;

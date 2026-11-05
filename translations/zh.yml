@@ -2523,6 +2523,7 @@ translations:
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: '打印机上的可用空间不足以存放此文件。请在设置 > 系统 > 存储中释放空间。'
   Not enough frequency data from the sweeps. Try again.: '扫频得到的频率数据不足，请重试。'
   Not enough room for this widget. Rearrange or remove widgets to make space.: 没有足够的空间放置此小组件。请重新排列或移除小组件以腾出空间。
+  Not enough room to put the widget back. Rearrange or remove widgets to make space.: '没有足够的空间恢复此小组件。请重新排列或移除小组件以腾出空间。'
   'Not in your spools? Set it up': 不在您的料盘中？立即设置
   Not now: 暂不
   Not turned: '未转动'
@@ -4458,6 +4459,7 @@ translations:
   WiFi was configured but hardware is not available. Check system configuration.: 已配置
     WiFi 但硬件不可用。请检查系统配置。
   Widget Labels: 小组件标签
+  Widget removed: '已移除小组件'
   Width: 宽度
   Width Sensor: '宽度传感器'
   Width Sensors: 宽度传感器

@@ -2437,6 +2437,7 @@
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." ja="このファイルを置く空き容量がプリンターにありません。設定 &gt; システム &gt; ストレージで空き容量を確保してください。"/>
   <translation tag="Not enough frequency data from the sweeps. Try again." ja="測定から十分な周波数データが得られませんでした。再試行してください。"/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." ja="このウィジェットを配置するスペースが足りません。スペースを確保するためにウィジェットを整理または削除してください。"/>
+  <translation tag="Not enough room to put the widget back. Rearrange or remove widgets to make space." ja="ウィジェットを元に戻すスペースが足りません。スペースを確保するためにウィジェットを整理または削除してください。"/>
   <translation tag="Not in your spools? Set it up" ja="スプールにない？登録する"/>
   <translation tag="Not now" ja="後で"/>
   <translation tag="Not set" ja="未設定"/>
@@ -4289,6 +4290,7 @@
   <translation tag="WiFi unavailable. Cannot scan for networks." ja="WiFi を利用できません。ネットワークをスキャンできません。"/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." ja="WiFi は設定されていますが、ハードウェアが利用できません。システム設定を確認してください。"/>
   <translation tag="Widget Labels" ja="ウィジェットラベル"/>
+  <translation tag="Widget removed" ja="ウィジェットを削除しました"/>
   <translation tag="Width" ja="幅"/>
   <translation tag="Width Sensor" ja="幅センサー"/>
   <translation tag="Width Sensors" ja="幅センサー"/>

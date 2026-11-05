@@ -261,6 +261,16 @@ class PanelWidgetConfig {
     /// the catalog disabled and unplaced. Does not save().
     void remove_from_page(size_t page_index, size_t index);
 
+    /// Put @p entry back on page @p page_index at list position @p index
+    /// (clamped to the page's end), undoing remove_from_page(). An entry named
+    /// entry.id on that page, the disabled one a built-in widget's removal
+    /// leaves behind, is erased first. One on another page stays: it holds no
+    /// cell, and load() puts an unplaced twin of a default-enabled widget on the
+    /// main page anyway. Refuses, returning false and changing nothing, when
+    /// @p page_index is past the last page or an entry named entry.id holds a
+    /// cell on any page. The rectangle is written as given. Does not save().
+    bool restore_entry(size_t page_index, size_t index, PanelWidgetEntry entry);
+
     /// Generate the default layout for a measured grid.
     ///
     /// @p grid_cols / @p grid_rows are the track counts the layout will be

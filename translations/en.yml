@@ -2602,6 +2602,7 @@ translations:
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: Not enough free space on the printer for this file. Free some in Settings > System > Storage.
   Not enough frequency data from the sweeps. Try again.: 'Not enough frequency data from the sweeps. Try again.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: Not enough room for this widget. Rearrange or remove widgets to make space.
+  Not enough room to put the widget back. Rearrange or remove widgets to make space.: Not enough room to put the widget back. Rearrange or remove widgets to make space.
   Not in your spools? Set it up: Not in your spools? Set it up
   Not now: Not now
   Not turned: Not turned
@@ -4619,6 +4620,7 @@ translations:
   WiFi was configured but hardware is not available. Check system configuration.: WiFi
     was configured but hardware is not available. Check system configuration.
   Widget Labels: Widget Labels
+  Widget removed: Widget removed
   Width: Width
   Width Sensor: Width Sensor
   Width Sensors: Width Sensors
