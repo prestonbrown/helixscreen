@@ -37,6 +37,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$REPO_ROOT"
 
 EXIT_CODE=0
+FAILED_GATES=""
 SCRIPT_START=$(date +%s)
 
 # Each gate is one file, scripts/qc/<gate>.sh: its qc_<gate> function and the
@@ -305,7 +306,10 @@ for fn in $QC_ALL; do
   rc=$(cat "$QC_TMP/$fn.rc" 2>/dev/null || echo 0)
   [ -f "$QC_TMP/$fn.ms" ] &&
     qc_keep_gate_log "$fn" "$rc" "$(cat "$QC_TMP/$fn.ms")" "$QC_TMP" "${HELIX_QC_LOG_DIR:-$PWD/build/qc-logs}"
-  [ "$rc" != "0" ] && EXIT_CODE=1
+  if [ "$rc" != "0" ]; then
+    EXIT_CODE=1
+    FAILED_GATES="$FAILED_GATES $fn"
+  fi
 done
 
 if [ -n "$QC_DEFERRED" ]; then
@@ -351,5 +355,6 @@ if [ $EXIT_CODE -eq 0 ]; then
   exit 0
 else
   echo "❌ Quality checks failed! (${TOTAL_SEC}s total)"
+  [ -z "$FAILED_GATES" ] || echo "   Failed gates:$FAILED_GATES"
   exit 1
 fi

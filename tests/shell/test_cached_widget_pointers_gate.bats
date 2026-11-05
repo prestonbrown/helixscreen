@@ -27,6 +27,12 @@ setup() {
     contains "1 > baseline 0" "$output"
 }
 
+@test "a failure carries the marker that a gate log search looks for" {
+    printf '    lv_obj_t* label_ = nullptr;\n' > "$FILE"
+    run python3 "$GATE" --max-allowed=0 "$FILE"
+    contains "❌ Raw lv_obj_t* members" "$output"
+}
+
 @test "an uninitialised member, a static member and a C array are each counted" {
     cat > "$FILE" <<'EOF'
     lv_obj_t* row_;

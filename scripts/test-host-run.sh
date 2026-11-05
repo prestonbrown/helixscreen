@@ -104,6 +104,11 @@
 # refuses and names the file to put it in.
 set -euo pipefail
 
+# A Mac in idle sleep drops the ssh link and stalls the run, so hold it awake.
+if [ "$(uname)" = Darwin ] && [ -z "${HELIX_TEST_AWAKE:-}" ] && command -v caffeinate >/dev/null; then
+    HELIX_TEST_AWAKE=1 exec caffeinate -is "$0" "$@"
+fi
+
 # shellcheck source-path=SCRIPTDIR source=lib/build_hosts.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/build_hosts.sh"
 # shellcheck source-path=SCRIPTDIR source=lib/ccache_shared.sh

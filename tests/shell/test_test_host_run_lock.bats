@@ -145,6 +145,15 @@ wait_for_line() { # <substring> <file>
     [ "$(wc -l < "$(lock_file)")" -eq 1 ]
 }
 
+@test "on a Mac a run re-executes itself holding the machine awake" {
+    mock_command_script uname 'echo Darwin'
+    mock_command_script caffeinate 'echo "awake: $*"'
+    unset HELIX_TEST_AWAKE
+    run "$SCRIPT" --help
+    [ "$status" -eq 0 ]
+    contains "awake: -is $SCRIPT --help" "$output"
+}
+
 @test "a run over the load ceiling waits, then starts when the load falls" {
     export HELIX_TEST_MAX_LOAD=72 HELIX_TEST_LOAD_POLL_SECS=1
     export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
