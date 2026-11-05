@@ -131,7 +131,7 @@ void on_chamber_air_mode_clicked(lv_event_t* e) {
         return;
     }
     const std::string gcode = helix::chamber_air::mode_gcode(
-        get_printer_state().get_discovery(), *mode, helix::chamber_air::ModeTargets{});
+        get_printer_state().get_discovery(), *mode, get_printer_state().chamber_air().targets());
     if (gcode.empty()) {
         spdlog::warn("[FanControlOverlay] This printer does not offer chamber air mode '{}'", id);
         return;

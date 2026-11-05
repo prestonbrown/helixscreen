@@ -2,6 +2,7 @@
 
 #include "chamber_air_state.h"
 
+#include "chamber_air_settings.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 
@@ -37,6 +38,11 @@ void ChamberAirState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(chamber_air_exhaust_pct, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_recirculate_pct, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_has_targets, 0, subjects_, register_xml);
+    const chamber_air::ModeTargets d{};
+    INIT_SUBJECT_INT(chamber_air_target_c, static_cast<int>(d.target_c), subjects_, register_xml);
+    INIT_SUBJECT_INT(chamber_air_exhaust_target_pct, d.exhaust_pct, subjects_, register_xml);
+    INIT_SUBJECT_INT(chamber_air_recirculate_target_pct, d.recirculate_pct, subjects_,
+                     register_xml);
     subjects_initialized_ = true;
 }
 
@@ -55,6 +61,12 @@ void ChamberAirState::set_hardware(const PrinterDiscovery& hw) {
     startup_pending_ = live_presence_;
     present_.reset();
     last_ = chamber_air::Reading{};
+    if (subjects_initialized_ && takes_targets_) {
+        const chamber_air::ModeTargets t = chamber_air::load_targets();
+        lv_subject_set_int(&chamber_air_target_c_, static_cast<int>(std::lround(t.target_c)));
+        lv_subject_set_int(&chamber_air_exhaust_target_pct_, t.exhaust_pct);
+        lv_subject_set_int(&chamber_air_recirculate_target_pct_, t.recirculate_pct);
+    }
     spdlog::debug("[ChamberAir] Provider '{}' (live presence {}, targets {})",
                   chamber_air::provider_name(hw), live_presence_, takes_targets_);
     publish();
@@ -125,6 +137,22 @@ std::optional<int> ChamberAirState::threshold_pct(FanRole role) const {
     const auto& v =
         role == FanRole::Exhaust ? last_.exhaust_threshold : last_.recirculate_threshold;
     return v ? std::optional<int>(to_pct(*v)) : std::nullopt;
+}
+
+chamber_air::ModeTargets ChamberAirState::targets() const {
+    if (!subjects_initialized_) {
+        return chamber_air::ModeTargets{};
+    }
+    chamber_air::ModeTargets t;
+    t.target_c = lv_subject_get_int(const_cast<lv_subject_t*>(&chamber_air_target_c_));
+    t.exhaust_pct = lv_subject_get_int(const_cast<lv_subject_t*>(&chamber_air_exhaust_target_pct_));
+    t.recirculate_pct =
+        lv_subject_get_int(const_cast<lv_subject_t*>(&chamber_air_recirculate_target_pct_));
+    return chamber_air::clamp_targets(t);
+}
+
+void ChamberAirState::commit_targets() {
+    chamber_air::save_targets(targets());
 }
 
 void ChamberAirState::publish() {

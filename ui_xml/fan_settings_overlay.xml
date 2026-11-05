@@ -13,6 +13,29 @@
             style_pad_gap="#space_sm">
 
       <!-- ================================================================== -->
+      <!-- CHAMBER AIR TARGETS: what the fan screen's Exhaust and Recirculate  -->
+      <!-- buttons send, on a printer whose modes carry targets               -->
+      <!-- ================================================================== -->
+      <setting_group name="chamber_air_section">
+        <bind_flag_if_eq subject="chamber_air_has_targets" flag="hidden" ref_value="0"/>
+        <setting_group_header title="CHAMBER AIR" icon="fan" hide_badge="true"/>
+        <lv_obj name="chamber_air_targets"
+                width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
+                style_pad_top="#space_sm" style_pad_bottom="#space_md" scrollable="false" flex_flow="column"
+                style_pad_gap="0">
+          <chamber_air_target_row name="row_chamber_air_target_c"
+                                  label="Exhaust: keep chamber at or below" subject="chamber_air_target_c" fmt="%d°C"
+                                  min="20" max="80"/>
+          <chamber_air_target_row name="row_chamber_air_exhaust_pct"
+                                  label="Exhaust fan speed" subject="chamber_air_exhaust_target_pct" fmt="%d%%" min="10"
+                                  max="100"/>
+          <chamber_air_target_row name="row_chamber_air_recirculate_pct"
+                                  label="Recirculation fan speed" subject="chamber_air_recirculate_target_pct"
+                                  fmt="%d%%" min="10" max="100"/>
+        </lv_obj>
+      </setting_group>
+
+      <!-- ================================================================== -->
       <!-- CONTROLLABLE FANS SECTION (part cooling, fan_generic, output_pin) -->
       <!-- ================================================================== -->
       <setting_group name="controllable_section">

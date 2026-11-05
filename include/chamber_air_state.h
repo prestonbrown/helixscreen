@@ -14,6 +14,10 @@
 //   chamber_air_exhaust_pct      owned exhaust fan speed, 0-100
 //   chamber_air_recirculate_pct  owned recirculation fan speed, 0-100
 //   chamber_air_has_targets      1 while available and the modes carry targets
+//   chamber_air_target_c, chamber_air_exhaust_target_pct,
+//   chamber_air_recirculate_target_pct
+//                                the stored mode targets (chamber_air_settings.h),
+//                                which the settings sliders bind two-way
 
 #include "chamber_air_modes.h"
 #include "subject_managed_panel.h"
@@ -55,6 +59,11 @@ class ChamberAirState {
     [[nodiscard]] int speed_pct(chamber_air::FanRole role) const;
     [[nodiscard]] std::optional<int> threshold_pct(chamber_air::FanRole role) const;
 
+    /// The targets the settings sliders hold right now.
+    [[nodiscard]] chamber_air::ModeTargets targets() const;
+    /// Stores the sliders' targets for the active printer.
+    void commit_targets();
+
     lv_subject_t* available_subject() {
         return &chamber_air_available_;
     }
@@ -87,6 +96,9 @@ class ChamberAirState {
     lv_subject_t chamber_air_exhaust_pct_{};
     lv_subject_t chamber_air_recirculate_pct_{};
     lv_subject_t chamber_air_has_targets_{};
+    lv_subject_t chamber_air_target_c_{};
+    lv_subject_t chamber_air_exhaust_target_pct_{};
+    lv_subject_t chamber_air_recirculate_target_pct_{};
 };
 
 } // namespace helix
