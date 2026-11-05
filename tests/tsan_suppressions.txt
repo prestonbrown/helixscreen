@@ -60,3 +60,21 @@ race:lv_thread_sync_signal
 # race from SplitButtonLogCapture reporting. Races elsewhere in spdlog still
 # report.
 race:spdlog::details::registry::set_default_logger
+
+# libhv's response writer refcount.
+#
+# ScreenHttpServer holds an HttpResponseWriterPtr per open stream, and HttpHandler
+# holds the same writer on the server's event-loop thread. The count is an atomic,
+# but libhv is built without TSan, so the loop thread's release is invisible: TSan
+# sees our atomic decrement and then only the free interceptor beneath
+# ~HttpHandler, with no ordering between them. Scoped to that destructor; races in
+# our own code against libhv state still report.
+race:HttpHandler::~HttpHandler
+
+# The mock backend's finished scan thread on the global WiFiManager.
+#
+# get_wifi_manager()'s instance is deliberately never destroyed, so its backend
+# never reaches the stop() that joins the last scan. Scoped to the thread that
+# request_scan() starts through the mock; WiFiManagers tests own are destroyed and
+# joined normally.
+thread:helix::WiFiManager::request_scan
