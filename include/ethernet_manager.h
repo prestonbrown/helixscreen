@@ -3,13 +3,16 @@
 
 #pragma once
 
-#include "async_lifetime_guard.h"
 #include "ethernet_backend.h"
 #include "helix_shared_callback.h"
 
 #include <functional>
 #include <memory>
 #include <string>
+
+namespace helix {
+class LifetimeToken;
+}
 
 /**
  * @brief Ethernet Manager - High-level interface for Ethernet status queries

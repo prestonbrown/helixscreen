@@ -3,6 +3,7 @@
 
 #include "ethernet_manager.h"
 
+#include "async_lifetime_guard.h"
 #include "core/http_executor.h"
 
 #include <spdlog/spdlog.h>

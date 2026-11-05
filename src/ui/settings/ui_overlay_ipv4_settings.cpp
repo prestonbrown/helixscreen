@@ -21,6 +21,49 @@ namespace {
 
 constexpr uint32_t kCountdownTickMs = 250;
 
+// The sentence the form shows for a validation verdict, translated.
+const char* ipv4_problem_text(helix::net::Ipv4Problem problem, helix::net::Ipv4Field field) {
+    switch (problem) {
+    case helix::net::Ipv4Problem::None:
+        return "";
+    case helix::net::Ipv4Problem::Empty:
+        switch (field) {
+        case helix::net::Ipv4Field::Address:
+            return lv_tr("Enter an IP address.");
+        case helix::net::Ipv4Field::Netmask:
+            return lv_tr("Enter a subnet mask.");
+        case helix::net::Ipv4Field::Gateway:
+            return lv_tr("Enter a gateway address.");
+        case helix::net::Ipv4Field::Dns:
+        case helix::net::Ipv4Field::None:
+            return lv_tr("Enter a DNS server address.");
+        }
+        break;
+    case helix::net::Ipv4Problem::NotAnAddress:
+    case helix::net::Ipv4Problem::NotUsable:
+        switch (field) {
+        case helix::net::Ipv4Field::Gateway:
+            return lv_tr("The gateway is not a valid address.");
+        case helix::net::Ipv4Field::Dns:
+            return lv_tr("The DNS server is not a valid address.");
+        default:
+            return lv_tr("The IP address is not a valid address.");
+        }
+    case helix::net::Ipv4Problem::NotAMask:
+        return lv_tr("The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.");
+    case helix::net::Ipv4Problem::NetworkAddress:
+    case helix::net::Ipv4Problem::BroadcastAddress:
+        return field == helix::net::Ipv4Field::Gateway
+                   ? lv_tr("The gateway cannot be the subnet's network or broadcast address.")
+                   : lv_tr("The IP address cannot be the subnet's network or broadcast address.");
+    case helix::net::Ipv4Problem::GatewayOutsideSubnet:
+        return lv_tr("The gateway is not on the same subnet as the IP address.");
+    case helix::net::Ipv4Problem::GatewayIsAddress:
+        return lv_tr("The gateway cannot be the printer's own address.");
+    }
+    return "";
+}
+
 void copy_to(lv_subject_t& subject, const std::string& text) {
     lv_subject_copy_string(&subject, text.c_str());
 }
@@ -239,7 +282,7 @@ void Ipv4SettingsOverlay::handle_apply() {
     form.dns = lv_subject_get_string(&dns_);
     const helix::net::Ipv4Verdict verdict = helix::net::validate_ipv4_form(form);
     if (!verdict.ok()) {
-        set_error(lv_tr(helix::net::ipv4_problem_text(verdict.problem, verdict.field)));
+        set_error(ipv4_problem_text(verdict.problem, verdict.field));
         return;
     }
     start_change(verdict.config);

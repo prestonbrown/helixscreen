@@ -22,6 +22,7 @@
 #include "ui_modal.h"
 #include "ui_timer_guard.h"
 
+#include "ethernet_manager.h"
 #include "ipv4_config.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -29,8 +30,6 @@
 #include <functional>
 #include <memory>
 #include <string>
-
-class EthernetManager;
 
 namespace helix::settings {
 

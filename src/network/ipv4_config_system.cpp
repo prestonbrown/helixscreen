@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <vector>
 
-extern char** environ; // the libc environment, handed to posix_spawnp
+extern char** environ; // NAMESPACE_OK: libc global, handed to posix_spawnp
 
 namespace helix::net {
 

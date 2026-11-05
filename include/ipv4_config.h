@@ -122,10 +122,6 @@ Ipv4Verdict validate_ipv4_form(const Ipv4Form& form);
 /// The form a config pre-fills: the mask as a dotted quad, the first DNS server.
 Ipv4Form ipv4_form_from_config(const Ipv4Config& config);
 
-/// One sentence naming @p problem in @p field. An untranslated literal marked
-/// for extraction; callers pass it to lv_tr(). Empty for Ipv4Problem::None.
-const char* ipv4_problem_text(Ipv4Problem problem, Ipv4Field field);
-
 // ============================================================================
 // Backend capability
 // ============================================================================

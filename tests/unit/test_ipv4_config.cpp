@@ -167,7 +167,6 @@ TEST_CASE("validate_ipv4_form names the first bad field", "[ipv4]") {
         REQUIRE_FALSE(v.ok());
         REQUIRE(v.problem == c.problem);
         REQUIRE(v.field == c.field);
-        REQUIRE(ipv4_problem_text(v.problem, v.field)[0] != '\0');
     }
 }
 

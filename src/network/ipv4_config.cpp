@@ -6,7 +6,6 @@
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "json_utils.h"
-#include "translation_loader.h"
 
 #include <spdlog/spdlog.h>
 
@@ -359,48 +358,6 @@ Ipv4Form ipv4_form_from_config(const Ipv4Config& config) {
         f.dns = config.dns.front();
     }
     return f;
-}
-
-const char* ipv4_problem_text(Ipv4Problem problem, Ipv4Field field) {
-    switch (problem) {
-    case Ipv4Problem::None:
-        return "";
-    case Ipv4Problem::Empty:
-        switch (field) {
-        case Ipv4Field::Address:
-            return TR_NOOP("Enter an IP address.");
-        case Ipv4Field::Netmask:
-            return TR_NOOP("Enter a subnet mask.");
-        case Ipv4Field::Gateway:
-            return TR_NOOP("Enter a gateway address.");
-        case Ipv4Field::Dns:
-        case Ipv4Field::None:
-            return TR_NOOP("Enter a DNS server address.");
-        }
-        break;
-    case Ipv4Problem::NotAnAddress:
-    case Ipv4Problem::NotUsable:
-        switch (field) {
-        case Ipv4Field::Gateway:
-            return TR_NOOP("The gateway is not a valid address.");
-        case Ipv4Field::Dns:
-            return TR_NOOP("The DNS server is not a valid address.");
-        default:
-            return TR_NOOP("The IP address is not a valid address.");
-        }
-    case Ipv4Problem::NotAMask:
-        return TR_NOOP("The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.");
-    case Ipv4Problem::NetworkAddress:
-    case Ipv4Problem::BroadcastAddress:
-        return field == Ipv4Field::Gateway
-                   ? TR_NOOP("The gateway cannot be the subnet's network or broadcast address.")
-                   : TR_NOOP("The IP address cannot be the subnet's network or broadcast address.");
-    case Ipv4Problem::GatewayOutsideSubnet:
-        return TR_NOOP("The gateway is not on the same subnet as the IP address.");
-    case Ipv4Problem::GatewayIsAddress:
-        return TR_NOOP("The gateway cannot be the printer's own address.");
-    }
-    return "";
 }
 
 // ============================================================================
