@@ -384,19 +384,45 @@ class GridEditMode {
     static bool pills_go_outside(int widget_w, int widget_h, int pill_inside_px, int min_drag_px);
 
     /// Screen rect of a @p pill_px selection pill placed just outside @p tile,
-    /// diagonally off its @p corner and @p gap px clear of it.
+    /// @p gap px clear of it, or nullopt when no spot outside it is safe.
     ///
-    /// The diagonal keeps the pill off every edge's resize band except the
-    /// corner square two bands share, so each edge still resizes along the rest
-    /// of its length. When the preferred spot leaves @p bounds (the grid
-    /// container: a widget at the screen edge, at the top, or beside the
-    /// navbar) or overlaps @p avoid (a pill already placed), the pill flips
-    /// below, then to the other side, then both, then tries the same four spots
-    /// one pill further out. A pill that fits nowhere is clamped into
-    /// @p bounds.
-    static lv_area_t outside_pill_area(const lv_area_t& tile, int pill_px, const lv_area_t& bounds,
-                                       int gap, PillCorner corner,
-                                       const lv_area_t* avoid = nullptr);
+    /// The preferred spot is diagonally off @p corner, which keeps the pill off
+    /// every edge's resize band except the corner square two bands share. When
+    /// that has no room the pill goes beside the tile, top-aligned with it, on
+    /// the @p corner side and then the other; then diagonally off the other top
+    /// corner; then the same four one pill further out; then below, the last
+    /// resort.
+    ///
+    /// A spot must lie inside @p bounds (the grid container, which excludes the
+    /// navbar and its Done button) and clear of every rect in @p blocked (a
+    /// pill already placed, the delete-page button). A pill above another
+    /// widget would take the tap that selects it, so a spot clear of every rect
+    /// in @p tiles wins, then a spot over no more than a sliver of any of
+    /// them, then any spot over none of their centres. A spot over another
+    /// tile's centre never qualifies.
+    static std::optional<lv_area_t> outside_pill_area(const lv_area_t& tile, int pill_px,
+                                                      const lv_area_t& bounds, int gap,
+                                                      PillCorner corner,
+                                                      const std::vector<lv_area_t>& blocked = {},
+                                                      const std::vector<lv_area_t>& tiles = {});
+
+    /// Screen rect of a @p pill_px selection pill on @p tile's @p corner, a
+    /// pill that overhangs the corner by @p overhang px on each axis.
+    ///
+    /// A pill over a rect in @p blocked (the delete-page button, a pill
+    /// already placed) would take its taps, so the pill slides down the
+    /// tile's side, then along its top edge toward its middle, @p gap px clear
+    /// of the rect. A pill over the tile's centre would leave no drag target,
+    /// so on a tile too small for the corner spot to miss it the pill moves
+    /// out past the centre, and a slide never ends on it. With no clear spot
+    /// the pill keeps its corner.
+    static lv_area_t corner_pill_area(const lv_area_t& tile, int pill_px, int overhang, int gap,
+                                      PillCorner corner,
+                                      const std::vector<lv_area_t>& blocked = {});
+
+    /// Screen rect of the delete-page button in the top-right corner of a
+    /// page whose content area is @p content.
+    static lv_area_t delete_page_button_area(const lv_area_t& content);
 
     /// Edge grab band in px, derived from the live grid's cell size. Falls back
     /// to a fixed band before a grid exists (cell_w/cell_h are 0 then).
