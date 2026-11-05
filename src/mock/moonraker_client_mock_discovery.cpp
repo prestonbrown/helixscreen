@@ -15,7 +15,9 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <cstddef>
 #include <cstdlib>
 #include <memory>
 #include <mutex>
@@ -57,6 +59,18 @@ bool is_registered_diagnostics_object(const std::string& token) {
         }
     }
     return false;
+}
+
+/// Replaces @p out with the names up to the first empty entry of @p names.
+template <std::size_t N>
+void assign_names(std::vector<std::string>& out, const std::array<std::string_view, N>& names) {
+    out.clear();
+    for (const std::string_view name : names) {
+        if (name.empty()) {
+            break;
+        }
+        out.emplace_back(name);
+    }
 }
 
 } // namespace
@@ -847,200 +861,11 @@ void MoonrakerClientMock::populate_hardware() {
     // that freed string buffers out from under the simulation thread.
     std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
 
-    // Clear existing data (in discovery sequence)
-    discovery_.heaters().clear();
-    discovery_.sensors().clear();
-    discovery_.fans().clear();
-    discovery_.leds().clear();
-
-    // Populate based on printer type
-    switch (printer_type_) {
-    case PrinterType::VORON_24:
-        // Voron 2.4 configuration
-        discovery_.heaters() = {"heater_bed", "extruder", "heater_generic chamber"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder", // Hotend thermistor (Klipper naming: bare heater name)
-                                "temperature_sensor chamber",
-                                "temperature_sensor raspberry_pi",
-                                "temperature_sensor mcu_temp",
-                                "tmc2240 stepper_x",
-                                "tmc2240 stepper_y"};
-        discovery_.fans() = {"heater_fan hotend_fan",
-                             "fan", // Part cooling fan
-                             "fan_generic nevermore", "controller_fan controller_fan"};
-        discovery_.leds() = {"neopixel chamber_light", "neopixel status_led", "led caselight",
-                             "output_pin Enclosure_LEDs"};
-        break;
-
-    case PrinterType::VORON_TRIDENT:
-        // Voron Trident configuration
-        discovery_.heaters() = {"heater_bed", "extruder"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder", // Hotend thermistor (Klipper naming: bare heater name)
-                                "temperature_sensor chamber",
-                                "temperature_sensor raspberry_pi",
-                                "temperature_sensor mcu_temp",
-                                "temperature_sensor z_thermal_adjust",
-                                "tmc2240 stepper_x",
-                                "tmc2240 stepper_y"};
-        discovery_.fans() = {"heater_fan hotend_fan", "fan", "fan_generic exhaust_fan",
-                             "controller_fan electronics_fan"};
-        discovery_.leds() = {"neopixel sb_leds", "neopixel chamber_leds"};
-        break;
-
-    case PrinterType::CREALITY_K1:
-    case PrinterType::CREALITY_K1_MAX:
-        // Creality K1-family configuration
-        discovery_.heaters() = {"heater_bed", "extruder"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder", // Hotend thermistor (Klipper naming: bare heater name)
-                                "temperature_sensor mcu_temp", "temperature_sensor host_temp"};
-        discovery_.fans() = {"heater_fan hotend_fan", "fan", "fan_generic auxiliary_fan"};
-        discovery_.leds() = {"neopixel logo_led"};
-        break;
-
-    case PrinterType::FLASHFORGE_AD5M:
-        // FlashForge Adventurer 5M configuration
-        discovery_.heaters() = {"heater_bed", "extruder"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder", // Hotend thermistor (Klipper naming: bare heater name)
-                                "temperature_sensor chamber", "temperature_sensor mcu_temp"};
-        // Fans mirror assets/config/presets/ad5m.json hardware/expected. No chamber
-        // light: a chamber_l* LED is what tells the 5M Pro apart.
-        discovery_.fans() = {"fan", "heater_fan hotend_fan", "controller_fan stepper_driver_fan"};
-        discovery_.leds() = {};
-        break;
-
-    case PrinterType::FLASHFORGE_CREATOR5_ZMOD: // Z-Mod: same machine, same hardware
-    case PrinterType::FLASHFORGE_CREATOR5:
-        // FlashForge Creator 5 Pro: 4-head tool changer, enclosed, heated chamber.
-        // Object names mirror assets/config/presets/creator5_pro.json so the mock and
-        // the shipped preset describe the same machine.
-        discovery_.heaters() = {"heater_bed", "extruder",  "extruder1",
-                                "extruder2",  "extruder3", "heater_generic chamber_heater"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder",   // Hotend thermistors, one per head
-                                "extruder1",
-                                "extruder2",
-                                "extruder3",
-                                "heater_generic chamber_heater",
-                                "temperature_sensor mcu_temp"};
-        discovery_.fans() = {"heater_fan heat_fan", "fan_generic fanM106",
-                             "fan_generic chamber_fan", "fan_generic chamber_loop_fan"};
-        discovery_.leds() = {"led chamber_led"};
-        break;
-
-    case PrinterType::GENERIC_COREXY:
-        // Generic CoreXY printer
-        discovery_.heaters() = {"heater_bed", "extruder"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder", // Hotend thermistor (Klipper naming: bare heater name)
-                                "temperature_sensor raspberry_pi"};
-        discovery_.fans() = {"heater_fan hotend_fan", "fan"};
-        discovery_.leds() = {"neopixel chamber_led"};
-        break;
-
-    case PrinterType::GENERIC_BEDSLINGER:
-        // Generic i3-style bedslinger
-        discovery_.heaters() = {"heater_bed", "extruder"};
-        discovery_.sensors() = {
-            "heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-            "extruder"    // Hotend thermistor (Klipper naming: bare heater name)
-        };
-        discovery_.fans() = {"heater_fan hotend_fan", "fan"};
-        discovery_.leds() = {};
-        break;
-
-    case PrinterType::DELTA:
-        // Generic linear delta: no gantry leveling, bare heaters and fans
-        discovery_.heaters() = {"heater_bed", "extruder"};
-        discovery_.sensors() = {
-            "heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-            "extruder"    // Hotend thermistor (Klipper naming: bare heater name)
-        };
-        discovery_.fans() = {"heater_fan hotend_fan", "fan"};
-        discovery_.leds() = {};
-        break;
-
-    case PrinterType::ELEGOO_CC1:
-        // Elegoo Centauri Carbon on COSMOS. Names mirror
-        // tests/fixtures/printers/elegoo_centauri_carbon.json and
-        // assets/config/presets/cc1.json hardware/expected.
-        discovery_.heaters() = {"heater_bed", "extruder"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder", // Hotend thermistor (Klipper naming: bare heater name)
-                                "temperature_sensor chamber", "temperature_sensor mcu_toolhead",
-                                "temperature_sensor mcu_bed"};
-        discovery_.fans() = {"heater_fan extruder", "fan", "fan_generic aux_fan",
-                             "fan_generic case_fan", "temperature_fan mainboard"};
-        discovery_.leds() = {"led case", "led hotend"};
-        break;
-
-    case PrinterType::FLASHFORGE_AD5X:
-        // FlashForge Adventurer 5X. Fans mirror assets/config/presets/ad5x.json
-        // hardware/expected.
-        discovery_.heaters() = {"heater_bed", "extruder"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder", // Hotend thermistor (Klipper naming: bare heater name)
-                                "temperature_sensor chamber"};
-        discovery_.fans() = {"fan_generic fanM106", "heater_fan heat_fan",
-                             "fan_generic chamber_fan", "controller_fan driver_fan"};
-        discovery_.leds() = {"led chamber_led"};
-        break;
-
-    case PrinterType::CREALITY_K2_PLUS:
-        // Creality K2 Plus. Names mirror tests/fixtures/printers/creality_k2_plus.json
-        // and assets/config/presets/k2.json hardware/expected. `temperature_fan
-        // chamber_fan` is the M141 thermostat half of the chamber pair (its
-        // PTC-fan twin is the heater_fan of the same bare name).
-        discovery_.heaters() = {"heater_bed", "extruder", "heater_generic chamber_heater"};
-        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-                                "extruder", // Hotend thermistor (Klipper naming: bare heater name)
-                                "temperature_sensor chamber_temp",
-                                // The thermostat is a sensor too (subscription and
-                                // status emission key on the sensors list)
-                                "temperature_fan chamber_fan"};
-        discovery_.fans() = {"fan",
-                             "heater_fan chamber_fan",
-                             "temperature_fan chamber_fan",
-                             "output_pin fan0",
-                             "output_pin fan1",
-                             "output_pin fan2"};
-        discovery_.leds() = {"output_pin LED"};
-        break;
-
-    case PrinterType::SNAPMAKER_U1:
-        // Snapmaker U1: four independent extruders. Names mirror
-        // tests/fixtures/printers/snapmaker_u1.json and assets/config/presets/snapmaker_u1.json.
-        discovery_.heaters() = {"heater_bed", "extruder", "extruder1", "extruder2", "extruder3"};
-        discovery_.sensors() = {"heater_bed", "extruder",  "extruder1",
-                                "extruder2",  "extruder3", "temperature_sensor cavity"};
-        discovery_.fans() = {"fan",
-                             "heater_fan power_fan",
-                             "fan_generic cavity_fan",
-                             "heater_fan e0_nozzle_fan",
-                             "fan_generic e1_fan",
-                             "heater_fan e1_nozzle_fan",
-                             "fan_generic e2_fan",
-                             "heater_fan e2_nozzle_fan",
-                             "fan_generic e3_fan",
-                             "heater_fan e3_nozzle_fan"};
-        discovery_.leds() = {"led cavity_led"};
-        break;
-
-    case PrinterType::MULTI_EXTRUDER:
-        // Multi-extruder test case
-        discovery_.heaters() = {"heater_bed", "extruder", "extruder1"};
-        discovery_.sensors() = {
-            "heater_bed", // Bed thermistor (Klipper naming: bare heater name)
-            "extruder",   // Hotend thermistor primary (Klipper naming: bare heater name)
-            "extruder1",  // Hotend thermistor secondary (Klipper naming: bare heater name)
-            "temperature_sensor chamber", "temperature_sensor mcu_temp"};
-        discovery_.fans() = {"heater_fan hotend_fan", "heater_fan hotend_fan1", "fan",
-                             "fan_generic exhaust_fan"};
-        discovery_.leds() = {"neopixel chamber_light"};
-        break;
-    }
+    const helix::mock::PersonaHardware& hardware = *helix::mock::descriptor(printer_type_).hardware;
+    assign_names(discovery_.heaters(), hardware.heaters);
+    assign_names(discovery_.sensors(), hardware.sensors);
+    assign_names(discovery_.fans(), hardware.fans);
+    assign_names(discovery_.leds(), hardware.leds);
 
     // Toolchanger mock mode (HELIX_MOCK_AMS=toolchanger): emulate a real Klipper
     // toolchanger with 4 distinct extruder heaters so ToolState::init_tools()
