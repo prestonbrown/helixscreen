@@ -674,7 +674,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// Called from handle_status_update AFTER firmware parse populates the slot
     /// and AFTER check_hardware_event_clear, so the final SlotInfo visible via
     /// get_slot_info reflects the override layer.
-    void apply_overrides(SlotInfo& slot, int slot_index);
+    void apply_overrides(SlotInfo& slot, int slot_index) override;
 
     /// Hardware-event detection: CFS exposes per-slot RFID material data. The
     /// composite (material_type + color_value) raw RFID strings form a

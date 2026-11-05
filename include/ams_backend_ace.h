@@ -352,7 +352,7 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // events. ACE hardware doesn't carry brand/spool/weights, so the override
     // is the only source for those fields; color/material come from both the
     // firmware and user edits and the override wins per the merge policy.
-    void apply_overrides(SlotInfo& slot, int slot_index);
+    void apply_overrides(SlotInfo& slot, int slot_index) override;
 
     // Hardware-event detection: ACE has no RFID UID, so "user physically
     // swapped the spool" is inferred from a status transition EMPTY -> present

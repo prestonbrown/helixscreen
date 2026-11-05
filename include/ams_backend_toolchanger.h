@@ -447,7 +447,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// The store is the SOLE source of filament identity here, not a layer over
     /// a firmware reading, and initialize_tools() resets colour to default grey
     /// on every rediscovery - which is exactly what used to wipe the user's edit.
-    void apply_overrides(SlotInfo& slot, int slot_index);
+    void apply_overrides(SlotInfo& slot, int slot_index) override;
 
     /// Per-slot user metadata, keyed by slot index. Written and read only under
     /// mutex_.

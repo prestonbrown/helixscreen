@@ -654,7 +654,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// Callers must hold mutex_. Called from the tail of handle_status_update
     /// AFTER firmware data has been populated and BEFORE event emission, so
     /// the very next get_slot_info() reflects the overridden values.
-    void apply_overrides(SlotInfo& slot, int slot_index);
+    void apply_overrides(SlotInfo& slot, int slot_index) override;
 
     /// Hardware-event detection: if the RFID CARD_UID changes between parses,
     /// the user physically swapped the spool. Clears the stored override so

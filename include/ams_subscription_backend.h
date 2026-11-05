@@ -154,6 +154,25 @@ class AmsSubscriptionBackend : public AmsBackend {
         std::unique_ptr<helix::ams::FilamentSlotOverrideStore>& store,
         std::unordered_map<int, helix::ams::FilamentSlotOverride>& overrides);
 
+    /// Layers the backend's overrides on @p slot. Caller holds mutex_.
+    virtual void apply_overrides(SlotInfo& slot, int slot_index) {
+        (void)slot;
+        (void)slot_index;
+    }
+    /// Layers the adopted overrides on every slot at once, since a backend can go
+    /// a long time between frames that would, and an edit starts from the slot.
+    /// The default walks system_info_; a backend keeping slots elsewhere overrides
+    /// it. Caller holds mutex_.
+    virtual void relayer_overrides_locked() {
+        int next = 0;
+        for (auto& unit : system_info_.units) {
+            for (auto& slot : unit.slots) {
+                apply_overrides(slot, slot.global_index >= 0 ? slot.global_index : next);
+                ++next;
+            }
+        }
+    }
+
     /// The next read of an unread store, no sooner than the retry interval.
     void retry_unread_overrides();
     /// The backend's members read_unread_overrides() was given, a read is out, and

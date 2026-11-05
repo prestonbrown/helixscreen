@@ -345,7 +345,14 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// publish_external_spool_lane. Happy Hare's plugin owns that namespace.
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
-    void apply_overrides(SlotInfo& slot, int slot_index);
+    void apply_overrides(SlotInfo& slot, int slot_index) override;
+    void relayer_overrides_locked() override {
+        for (int i = 0; i < slots_.slot_count(); ++i) {
+            if (auto* entry = slots_.get_mut(i)) {
+                apply_overrides(entry->info, i);
+            }
+        }
+    }
     void persist_override(int slot_index, const SlotInfo& info);
 
     // Build context-aware recovery actions from live MMU state. Caller holds mutex_
