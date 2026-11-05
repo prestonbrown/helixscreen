@@ -697,9 +697,9 @@ void PrinterImageWidget::arm_callout_observers() {
     const auto chip = [&](const char* name) { return lv_obj_find_by_name(widget_obj_, name); };
     callout_spin_pct_ = -1;        // fresh icons: the next update sets their spin
     callout_glow_pulsing_ = false; // fresh glow: nothing animates it yet
-    nozzle_binder_.bind(chip("callout_chip_nozzle"), ps, HeaterType::Nozzle);
-    bed_binder_.bind(chip("callout_chip_bed"), ps, HeaterType::Bed);
-    chamber_binder_.bind(chip("callout_chip_chamber"), ps, HeaterType::Chamber);
+    nozzle_binder_.bind_required(chip("callout_chip_nozzle"), ps, HeaterType::Nozzle);
+    bed_binder_.bind_required(chip("callout_chip_bed"), ps, HeaterType::Bed);
+    chamber_binder_.bind_required(chip("callout_chip_chamber"), ps, HeaterType::Chamber);
     update_callouts();
 }
 
@@ -735,8 +735,15 @@ void PrinterImageWidget::update_callouts() {
     const int bed_cur = read_int_or_zero(ps.temperature_state().get_bed_temp_subject());
     const int bed_tgt = read_int_or_zero(ps.temperature_state().get_bed_target_subject());
     heater(bed_cur, bed_tgt, true, &s_callout_bed_shown, CalloutKind::Bed, &s_callout_bed_text);
-    const int bed_heating = heater_display(bed_cur, bed_tgt).state == HeatState::Heating ? 1 : 0;
+    const HeatState bed_heat = heater_display(bed_cur, bed_tgt).state;
+    const int bed_heating = heater_region_glows(bed_heat) ? 1 : 0;
     lv_subject_set_int(&s_callout_bed_heating, bed_heating);
+    if (lv_obj_t* glow = bed_heating && widget_obj_
+                             ? lv_obj_find_by_name(widget_obj_, "callout_bed_glow")
+                             : nullptr) {
+        // DECLARATIVE_OK: heat color comes from get_heating_state_color()
+        lv_obj_set_style_bg_color(glow, get_heating_state_color(bed_heat), LV_PART_MAIN);
+    }
     heater(read_int_or_zero(ps.temperature_state().get_chamber_temp_subject()),
            read_int_or_zero(ps.temperature_state().get_chamber_effective_target_subject()),
            read_int_or_zero(ps.capabilities_state().subject(Capability::HasChamber)) != 0,

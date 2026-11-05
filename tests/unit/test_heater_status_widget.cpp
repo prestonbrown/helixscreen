@@ -51,7 +51,15 @@ class HeaterStatusFixture : public XMLTestFixture {
 
 TEST_CASE_METHOD(HeaterStatusFixture, "heater_status shows exactly one glyph per state",
                  "[temperature][heater_status]") {
-    using helix::ui::temperature::HeaterStatusState;
+    using namespace helix::ui::temperature;
+    const auto color = [](const char* name) {
+        return lv_obj_get_style_text_color(lv_obj_find_by_name(lv_screen_active(), name),
+                                           LV_PART_MAIN);
+    };
+    CHECK(lv_color_eq(color("status_heating"), get_heating_state_color(HeatState::Heating)));
+    CHECK(lv_color_eq(color("status_ready"), get_heating_state_color(HeatState::AtTemp)));
+    CHECK(lv_color_eq(color("status_cooling"), get_heating_state_color(HeatState::Cooling)));
+
     const int all_states[] = {
         static_cast<int>(HeaterStatusState::None),  static_cast<int>(HeaterStatusState::Heating),
         static_cast<int>(HeaterStatusState::Ready), static_cast<int>(HeaterStatusState::Cooling),

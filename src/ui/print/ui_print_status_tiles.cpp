@@ -314,6 +314,9 @@ void PrintStatusTiles::on_tree_destroyed() {
     exact_image_.cancel();
     exact_image_.forget_displayed();
     last_mode_ = CalloutMode::ImageOnly;
+    for (auto& c : chips_) {
+        c.painted.valid = false;
+    }
 }
 
 namespace {
@@ -467,6 +470,69 @@ void PrintStatusTiles::publish(PrintStatusChip chip, const ChipContent& c, bool 
     set_int(&s.glow, glow ? 1 : 0);
     set_int(&s.line, line ? 1 : 0);
     set_int(&s.shown, shown ? 1 : 0);
+    if (has_progress(chip)) {
+        paint_heat_chip(chip, c);
+    }
+}
+
+void PrintStatusTiles::paint_heat_chip(PrintStatusChip chip, const ChipContent& c) {
+    using namespace ui::temperature;
+    lv_obj_t* root = host_.root ? host_.root() : nullptr;
+    if (!root) {
+        return;
+    }
+    auto& painted = chips_[index_of(chip)].painted;
+    // Theme colors are looked up here, so a theme change repaints on the next reading.
+    const lv_color_t color = get_heating_state_color(c.heat);
+    const bool warn = c.tone == ChipTone::Warn;
+    const bool off_target = heater_off_target(c.heat);
+    if (painted.valid && lv_color_eq(painted.color, color) && painted.warn == warn &&
+        painted.off_target == off_target) {
+        return;
+    }
+    painted = {true, color, warn, off_target};
+
+    const auto paint = [&](lv_obj_t* obj) {
+        if (!obj) {
+            return;
+        }
+        lv_obj_t* text = lv_obj_find_by_name(obj, "chip_text");
+        lv_obj_t* bar = lv_obj_find_by_name(obj, "chip_progress");
+        if (text && (warn || (!is_heater(chip) && !off_target))) {
+            lv_obj_remove_local_style_prop(text, LV_STYLE_TEXT_COLOR, LV_PART_MAIN);
+        } else if (text) {
+            // DECLARATIVE_OK: heat color comes from get_heating_state_color()
+            lv_obj_set_style_text_color(text, color, LV_PART_MAIN);
+        }
+        // A heater chip's icon has its own HeaterIconBinder; this one lists several heads.
+        if (lv_obj_t* glyph = lv_obj_find_by_name(obj, "chip_glyph")) {
+            if (off_target) {
+                // DECLARATIVE_OK: heat color comes from get_heating_state_color()
+                lv_obj_set_style_text_color(glyph, color, LV_PART_MAIN);
+            } else {
+                lv_obj_remove_local_style_prop(glyph, LV_STYLE_TEXT_COLOR, LV_PART_MAIN);
+            }
+        }
+        if (off_target && !warn) {
+            // DECLARATIVE_OK: heat color comes from get_heating_state_color()
+            lv_obj_set_style_border_color(obj, color, LV_PART_MAIN);
+        } else {
+            lv_obj_remove_local_style_prop(obj, LV_STYLE_BORDER_COLOR, LV_PART_MAIN);
+        }
+        if (bar) {
+            // DECLARATIVE_OK: heat color comes from get_heating_state_color()
+            lv_obj_set_style_bg_color(bar, color, LV_PART_INDICATOR);
+        }
+    };
+    const std::string key(kChips[index_of(chip)].key);
+    paint(lv_obj_find_by_name(root, ("ps_chip_" + key).c_str()));
+    if (chip == PrintStatusChip::Nozzle) {
+        paint(lv_obj_find_by_name(root, "ps_chip_toolhead"));
+    }
+    if (lv_obj_t* glow = lv_obj_find_by_name(root, ("ps_glow_" + key).c_str())) {
+        // DECLARATIVE_OK: heat color comes from get_heating_state_color()
+        lv_obj_set_style_bg_color(glow, color, LV_PART_MAIN);
+    }
 }
 
 PrintStatusTiles::Image PrintStatusTiles::current_image() const {

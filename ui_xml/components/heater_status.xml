@@ -17,11 +17,12 @@
     overflows narrow heater rows. The glyph comes last so a right-justified
     status area keeps it at one x while the duty text grows from "0%" to
     "100%". The state subject picks the
-    glyph: flame while heating (warning amber), check at target (success),
+    glyph: flame while heating (danger), check at target (success),
     snowflake while cooling (info), circled-A while the chamber holds its
     standing auto setpoint (secondary - the machine's behavior, not a
-    deliberate set), nothing when off. The duty text renders
-    amber while heating and muted otherwise, and is empty when there is no
+    deliberate set), nothing when off. These tokens are
+    get_heating_state_color()'s, pinned by test_heater_status_widget.cpp. The duty
+    text renders danger while heating and muted otherwise, and is empty when there is no
     duty to show.
 
     All four glyphs stay in the tree and only flip visibility, so a state
@@ -31,14 +32,14 @@
         width="content" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
         style_pad_column="#space_xxs" scrollable="false" clickable="false" event_bubble="true">
     <!-- Duty color is bound, not inline: an inline style_text_color would
-         outrank both bound styles, leaving the amber unreachable. -->
+         outrank both bound styles, leaving the heating color unreachable. -->
     <!-- Empty until bound: a host without a duty subject shows the glyph alone. -->
     <text_small name="status_duty" text="" bind_text="$duty_subject" style_text_align="right">
       <bind_style_if_eq name="styles.heater_duty_heating" subject="$state_subject" ref_value="1"/>
       <bind_style_if_not_eq name="styles.heater_duty_muted" subject="$state_subject" ref_value="1"/>
     </text_small>
     <icon name="status_heating"
-          src="fire" size="xs" style_text_color="#warning" hidden="true" clickable="false" event_bubble="true">
+          src="fire" size="xs" style_text_color="#danger" hidden="true" clickable="false" event_bubble="true">
       <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="1"/>
     </icon>
     <icon name="status_ready"

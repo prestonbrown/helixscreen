@@ -44,8 +44,7 @@
 
         <!-- Under the chips, so lines and glow draw beneath them. -->
         <lv_obj name="callout_bed_glow"
-                style_radius="32767" style_bg_color="#danger" style_bg_opa="60" style_border_width="0"
-                scrollable="false" clickable="false">
+                style_radius="32767" style_bg_opa="60" style_border_width="0" scrollable="false" clickable="false">
           <bind_flag_if cond="callout_bed_heating eq 0 or printer_callout_mode eq 0 or printer_callout_mode eq 2"
                         flag="hidden"/>
         </lv_obj>
