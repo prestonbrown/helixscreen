@@ -12,6 +12,10 @@ This document defines the logging standards for HelixScreen. All new code should
 | **DEBUG** | `-vv` | Troubleshooting info | Component init summaries, state changes |
 | **TRACE** | `-vvv` | Wire-level details | Per-item loops, JSON-RPC protocol, observer plumbing |
 
+## Print Health Line
+
+During a print the main loop logs one `[PrintHealth]` line a minute at INFO: process and main-thread CPU as percent of one core, frames and flushed screens per second, RSS, available memory and free swap. Read it first when a report describes a stalled print or heavy host load (`src/application/print_health_log.cpp#format_print_health`).
+
 ## When to Use Each Level
 
 ### ERROR
