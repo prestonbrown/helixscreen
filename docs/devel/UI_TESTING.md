@@ -237,7 +237,7 @@ down everything a screen might show:
 
 - **Live mock telemetry** (`home`, `controls`, `filament`, `fan`, and any screen that
   leaves the Controls temperature card visible) drifts via the mock backend's
-  `simulation_thread_` (`moonraker_client_mock.cpp`), a raw background thread, not
+  `simulation_thread_` (`moonraker_client_mock_temperature.cpp`), a raw background thread, not
   an LVGL timer, so it's invisible to both `freeze()` and `wait_idle()`.
 - **Wall-clock content** (`console`'s gcode log timestamps, `filament`'s usage-chart
   x-axis) is never the same twice by construction.

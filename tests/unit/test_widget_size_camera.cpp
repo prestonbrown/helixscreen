@@ -163,7 +163,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[1563][widget_size][camera]") {
     // Actively zero the global PrinterState singleton's webcam config rather
     // than trusting it is already empty: MoonrakerClientMock::discover_printer()
-    // (src/mock/moonraker_client_mock.cpp) calls
+    // (src/mock/moonraker_client_mock_discovery.cpp) calls
     // get_printer_state().set_webcam_available(true, ...) on this SAME
     // process-wide singleton, and MoonrakerAPIDomainTestFixture's constructor
     // (test_moonraker_api_domain.cpp) triggers that before every test case in

@@ -73,7 +73,7 @@ _RECIPES = _load_recipes()
 # because their content is not a function of the boot:
 #
 #   - `home`, `controls`, `filament`, `fan`: the mock's `simulation_thread_`
-#     (moonraker_client_mock.cpp) drifts temperatures and the motor-idle timer.
+#     (moonraker_client_mock_temperature.cpp) drifts temperatures and the motor-idle timer.
 #     `freeze()` parks that thread from the moment it is called, so the value
 #     it parks on is wherever the drift had reached, and `wait_idle()` has
 #     nothing to gate on. `fan` is a card on the same Controls panel and shows

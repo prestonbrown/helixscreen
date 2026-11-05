@@ -19,7 +19,7 @@ _BINARY = Path(os.environ.get("HELIX_UI_BINARY", str(_REPO_ROOT / "build" / "bin
 
 def test_stable_capture_is_reproducible_when_frozen(helix_app, tmp_path):
     # Deliberately "settings", not "home". Home carries a live temperature
-    # readout driven by moonraker_client_mock.cpp's temperature_simulation_loop
+    # readout driven by moonraker_client_mock_temperature.cpp's temperature_simulation_loop
     # — a perpetual sine wave on a raw background thread, invisible to
     # freeze() (LVGL timers/animations only). Targeting Home here used to make
     # this test intermittently assert something we've documented as

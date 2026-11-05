@@ -119,7 +119,7 @@ Eight managers derive the base: `FilamentSensorManager` (namespace `helix`), and
 | Subscription | `build_subscription_objects` (same file) | `status_fields()` per classified object plus each manager's `extra_subscriptions()` |
 | Status | `dispatch_status_frame()` ([`src/printer/status_dispatch.cpp`](../../../src/printer/status_dispatch.cpp), chapter 05) | every manager's `update_from_status()` |
 
-The mock seeds the same managers directly ([`src/mock/moonraker_client_mock.cpp#populate_capabilities`](../../../src/mock/moonraker_client_mock.cpp), `src/mock/moonraker_client_mock.cpp#populate_capabilities/"hw.parse_objects(mock_objects);"`), so `--test` exercises identical code paths.
+The mock seeds the same managers directly ([`src/mock/moonraker_client_mock_discovery.cpp#populate_capabilities`](../../../src/mock/moonraker_client_mock_discovery.cpp), `src/mock/moonraker_client_mock_discovery.cpp#populate_capabilities/"hw.parse_objects(mock_objects);"`), so `--test` exercises identical code paths.
 
 The threading split is built into the base rather than left to convention: `discover()`, `load_settings()` and the setters touch subjects and run on the main thread; `update_from_status()` parses under the mutex and `publish()` defers `refresh_subjects()` to the main thread, which runs with the mutex released. Consumers read subjects: the Settings > Sensors overlay draws every manager through one `sensor_row` component ([`ui_settings_sensors.cpp`](../../../src/ui/settings/ui_settings_sensors.cpp)), the thermistor home widget observes per-sensor subjects, and telemetry reports per-manager counts.
 

@@ -126,7 +126,7 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
 
 TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture, "PrinterHardware::guess_main_led_strip returns LED",
                  "[printer][guessing]") {
-    // VORON_24 seeds four LEDs (moonraker_client_mock.cpp): "neopixel chamber_light",
+    // VORON_24 seeds four LEDs (mock_persona.h): "neopixel chamber_light",
     // "neopixel status_led", "led caselight", "output_pin Enclosure_LEDs". Priority 1
     // walks its keyword list {"case", "chamber", ...} in order and returns the first LED
     // matching the CURRENT keyword, so "case" resolves before "chamber" is ever tried —
