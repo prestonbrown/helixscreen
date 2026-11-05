@@ -180,7 +180,6 @@ TEST_CASE("MoonrakerError::unknown sets UNKNOWN type + message + optional method
         CHECK(err.message == "QGL not yet implemented");
         CHECK(err.method.empty());
         CHECK(err.code == 0);
-        CHECK(err.details.is_null());
     }
 
     SECTION("message + method sets both") {
@@ -214,23 +213,12 @@ TEST_CASE("MoonrakerError::file_not_found sets FILE_NOT_FOUND type + method + me
     CHECK(err.message == "File does not exist on printer");
 }
 
-TEST_CASE("MoonrakerError::json_rpc_error sets JSON_RPC type, message, method, optional details",
+TEST_CASE("MoonrakerError::json_rpc_error sets JSON_RPC type, message, method",
           "[moonraker][error]") {
-    SECTION("without details leaves details null") {
-        auto err = MoonrakerError::json_rpc_error("PID_CALIBRATE", "Calibration failed");
-        CHECK(err.type == MoonrakerErrorType::JSON_RPC_ERROR);
-        CHECK(err.method == "PID_CALIBRATE");
-        CHECK(err.message == "Calibration failed");
-        CHECK(err.details.is_null());
-    }
-
-    SECTION("details payload is carried through") {
-        json payload = {{"result", "failed"}, {"code", 5}};
-        auto err =
-            MoonrakerError::json_rpc_error("some.method", "Server returned failure", payload);
-        CHECK(err.type == MoonrakerErrorType::JSON_RPC_ERROR);
-        CHECK(err.details == payload);
-    }
+    auto err = MoonrakerError::json_rpc_error("PID_CALIBRATE", "Calibration failed");
+    CHECK(err.type == MoonrakerErrorType::JSON_RPC_ERROR);
+    CHECK(err.method == "PID_CALIBRATE");
+    CHECK(err.message == "Calibration failed");
 }
 
 TEST_CASE("MoonrakerError::connection_lost preserves the default message and allows override",

@@ -4,6 +4,7 @@
 #include "z_offset_calibration_approach.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::AxisBounds;
 using helix::ProbeXYOffset;

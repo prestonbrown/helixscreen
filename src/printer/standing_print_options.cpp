@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <iterator>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 std::string render_standing_gcode(const std::vector<const AmsBackend*>& backends) {

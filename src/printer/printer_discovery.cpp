@@ -22,13 +22,6 @@
 
 namespace helix {
 
-PrinterDiscovery::PrinterDiscovery() = default;
-PrinterDiscovery::PrinterDiscovery(const PrinterDiscovery&) = default;
-PrinterDiscovery::PrinterDiscovery(PrinterDiscovery&&) noexcept = default;
-PrinterDiscovery& PrinterDiscovery::operator=(const PrinterDiscovery&) = default;
-PrinterDiscovery& PrinterDiscovery::operator=(PrinterDiscovery&&) noexcept = default;
-PrinterDiscovery::~PrinterDiscovery() = default;
-
 void remember_printer_hostname(const std::string& hostname) {
     if (hostname.empty() || hostname == "unknown") {
         return;

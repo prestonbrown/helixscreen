@@ -8,6 +8,8 @@
 #include <cmath>
 #include <cstdio>
 
+#include "hv/json.hpp"
+
 namespace helix::tool_offsets {
 
 /// One firmware's per-tool offset model. The header declares it only as an

@@ -19,6 +19,7 @@
 #include <fstream>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 // ============================================================================

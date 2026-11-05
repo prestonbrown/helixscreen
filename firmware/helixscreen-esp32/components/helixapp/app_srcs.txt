@@ -805,6 +805,7 @@ src/api/moonraker_subscription_merge.cpp
 src/api/moonraker_gcode_guards.cpp
 src/api/moonraker_api_validation.cpp
 src/api/moonraker_error.cpp
+src/api/moonraker_error_rpc.cpp
 src/calibration/screws_tilt_parser.cpp
 src/api/moonraker_advanced_api.cpp
 src/api/moonraker_file_api.cpp

@@ -25,6 +25,8 @@
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
+#include "hv/json.hpp"
+
 namespace helix::test {
 
 /**

@@ -21,13 +21,14 @@ set(SHIM ${CMAKE_CURRENT_LIST_DIR}/shim)
 # EspMoonrakerClient calls PrinterDiscovery::parse_objects(), defined out of line
 # in printer_discovery_parse.cpp; helixapp links before helixnet, so its copy
 # of that TU cannot satisfy a reference from here.
-# MoonrakerError::from_json_rpc() (inline) decodes firmware error envelopes via
-# src/printer/firmware_error_envelope.cpp, which needs only hv/json.hpp; it
-# compiles here for the same link-order reason.
+# MoonrakerError::from_json_rpc() (src/api/moonraker_error_rpc.cpp) decodes
+# firmware error envelopes via src/printer/firmware_error_envelope.cpp; each needs
+# only hv/json.hpp, and both compile here for the same link-order reason.
 # EspMoonrakerClient asks src/api/moonraker_auth.cpp for the printer's API key,
 # also for the link-order reason.
 set(REPO_SRCS ${REPO_ROOT}/src/format_utils.cpp
               ${REPO_ROOT}/src/api/moonraker_auth.cpp
+              ${REPO_ROOT}/src/api/moonraker_error_rpc.cpp
               ${REPO_ROOT}/src/printer/firmware_error_envelope.cpp
               ${REPO_ROOT}/src/printer/printer_discovery_parse.cpp)
 

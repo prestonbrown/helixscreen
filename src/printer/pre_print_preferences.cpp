@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "hv/json.hpp"
+
 namespace helix::preprint_prefs {
 namespace {
 

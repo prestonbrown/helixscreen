@@ -41,6 +41,8 @@
 #include <sys/types.h>
 #include <vector>
 
+#include "hv/json.hpp"
+
 // --- DisplayManager (SDL/DRM/fbdev backends; ESP32 uses esp_lcd) -----------
 // The header contract allows instance() to return nullptr when no Application
 // has constructed one — exactly the slice's situation, so no static instance

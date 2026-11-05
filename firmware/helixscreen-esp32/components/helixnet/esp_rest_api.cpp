@@ -73,6 +73,7 @@
 #include "moonraker_file_transfer_api.h"
 #include "moonraker_rest_api.h"
 #include "moonraker_validation.h"
+#include "rest_response.h"
 
 #include <algorithm>
 #include <cctype>

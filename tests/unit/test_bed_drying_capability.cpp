@@ -16,6 +16,7 @@
 #include "settings_manager.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using bed_drying::EnclosureStyle;

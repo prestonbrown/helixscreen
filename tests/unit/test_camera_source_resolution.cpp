@@ -11,6 +11,8 @@
 
 #include "lvgl.h"
 
+#include "hv/json.hpp"
+
 #if HELIX_HAS_CAMERA
 
 #include "../lvgl_test_fixture.h"

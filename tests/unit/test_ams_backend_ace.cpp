@@ -24,6 +24,7 @@
 #include "moonraker_types.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "rest_response.h"
 #include "settings_manager.h"
 #include "test_helpers/ace_backend_test_helper.h"
 #include "test_helpers/ace_test_access.h"

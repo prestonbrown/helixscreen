@@ -36,6 +36,7 @@
 #include "macro_choice.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_discovery.h"
+#include "rest_response.h"
 #include "settings_manager.h"
 #include "spdlog/spdlog.h"
 

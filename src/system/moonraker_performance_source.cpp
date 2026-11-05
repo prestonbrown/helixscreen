@@ -5,6 +5,7 @@
 #include "hardware_object_table.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h"
+#include "rest_response.h"
 
 #include <spdlog/spdlog.h>
 
