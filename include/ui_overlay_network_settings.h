@@ -138,6 +138,10 @@ class NetworkSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "network_settings_overlay";
     }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
+    bool destroy_on_close() const override {
+        return false;
+    }
 
     /**
      * @brief Called when overlay becomes visible

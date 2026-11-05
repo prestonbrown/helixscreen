@@ -34,6 +34,9 @@ class TimelapseVideosOverlay : public OverlayBase {
     [[nodiscard]] const char* xml_component() const override {
         return "timelapse_videos_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
@@ -97,6 +100,12 @@ class TimelapseVideosOverlay : public OverlayBase {
 
     lv_obj_t* video_grid_container_ = nullptr;
     lv_obj_t* video_grid_empty_ = nullptr;
+
+    void on_ui_destroyed() override {
+        thumb_lifetime_.invalidate();
+        video_grid_container_ = nullptr;
+        video_grid_empty_ = nullptr;
+    }
 
     std::string pending_delete_filename_;
     helix::ui::WidgetRef delete_confirmation_dialog_;

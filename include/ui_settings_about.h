@@ -58,6 +58,9 @@ class AboutSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "about_settings_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
@@ -99,6 +102,10 @@ class AboutSettingsOverlay : public OverlayBase {
     void setup_contributor_marquee();
 
     lv_obj_t* marquee_content_ = nullptr;
+
+    void on_ui_destroyed() override {
+        marquee_content_ = nullptr;
+    }
 
     //
     // === Reactive Subjects ===

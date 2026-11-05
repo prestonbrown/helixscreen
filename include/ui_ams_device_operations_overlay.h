@@ -97,6 +97,9 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "ams_device_operations";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     //
     // === Public API ===

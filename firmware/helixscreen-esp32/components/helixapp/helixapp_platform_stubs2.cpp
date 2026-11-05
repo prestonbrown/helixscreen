@@ -198,6 +198,7 @@ lv_obj_t* SpoolmanPanel::create(lv_obj_t*) {
 }
 void SpoolmanPanel::on_activate() {}
 void SpoolmanPanel::on_deactivating(DeactivateReason) {}
+void SpoolmanPanel::on_ui_destroyed() {}
 
 SpoolmanPanel& get_global_spoolman_panel() {
     static HELIX_PSRAM_BSS SpoolmanPanel panel;

@@ -34,6 +34,9 @@ class MaterialTempsOverlay : public OverlayBase {
     const char* get_name() const override {
         return "Material Temperatures";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Custom create(): caches the list and edit views. The back button's handler comes
     /// from the XML root's back_button_callback (on_material_back_clicked).
@@ -88,6 +91,13 @@ class MaterialTempsOverlay : public OverlayBase {
     lv_subject_t shipped_subject_{};   // 1=editing a shipped type (has a default to reset to)
     lv_obj_t* macro_dropdown_ = nullptr;
     lv_obj_t* macro_heating_switch_ = nullptr;
+
+    void on_ui_destroyed() override {
+        list_view_ = nullptr;
+        edit_view_ = nullptr;
+        macro_dropdown_ = nullptr;
+        macro_heating_switch_ = nullptr;
+    }
     std::vector<std::string> macro_names_; // Parallel to dropdown options (index 0 = "None")
 
     void populate_macro_dropdown();

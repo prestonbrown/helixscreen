@@ -274,6 +274,20 @@ void HistoryListPanel::on_activate() {
     }
 }
 
+void HistoryListPanel::on_ui_destroyed() {
+    list_view_.reset();
+    connection_observer_.reset();
+    list_content_ = nullptr;
+    list_rows_ = nullptr;
+    empty_state_ = nullptr;
+    search_box_ = nullptr;
+    filter_status_ = nullptr;
+    sort_dropdown_ = nullptr;
+    // The stack can pop past an open detail overlay; a rebuilt list always populates.
+    detail_overlay_open_ = false;
+    history_changed_while_detail_open_ = false;
+}
+
 void HistoryListPanel::on_deactivating(DeactivateReason) {
     spdlog::debug("[{}] on_deactivating()", get_name());
 

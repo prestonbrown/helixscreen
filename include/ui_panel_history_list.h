@@ -141,6 +141,9 @@ class HistoryListPanel : public OverlayBase {
     const char* xml_component() const override {
         return "history_list_panel";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     lv_obj_t* create(lv_obj_t* parent) override;
 
@@ -163,6 +166,7 @@ class HistoryListPanel : public OverlayBase {
      * @brief Called when panel is hidden
      */
     void on_deactivating(DeactivateReason reason) override;
+    void on_ui_destroyed() override;
 
     //
     // === Public API ===

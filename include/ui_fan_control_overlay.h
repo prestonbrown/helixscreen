@@ -52,6 +52,10 @@ class FanControlOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "fan_control_overlay";
     }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
+    bool destroy_on_close() const override {
+        return false;
+    }
     lv_obj_t* create(lv_obj_t* parent) override;
 
     /**

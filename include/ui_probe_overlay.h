@@ -60,6 +60,9 @@ class ProbeOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "probe_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void on_activate() override;
 
@@ -219,6 +222,10 @@ class ProbeOverlay : public OverlayBase {
 
     // Type-specific panel container
     lv_obj_t* type_panel_container_ = nullptr;
+
+    void on_ui_destroyed() override {
+        type_panel_container_ = nullptr;
+    }
 
     // Transition accuracy modal to error state (call from UI thread only)
     void set_accuracy_error(const std::string& msg);

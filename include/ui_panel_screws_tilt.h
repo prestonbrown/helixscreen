@@ -87,6 +87,9 @@ class ScrewsTiltPanel : public OverlayBase {
     const char* xml_component() const override {
         return "screws_tilt_panel";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     const char* get_name() const override {
         return "Screws Tilt Adjust";
@@ -208,6 +211,12 @@ class ScrewsTiltPanel : public OverlayBase {
 
     // Screw row dot widgets (for color updates - XML handles text via subjects)
     std::array<lv_obj_t*, 4> screw_dots_ = {nullptr, nullptr, nullptr, nullptr};
+
+    void on_ui_destroyed() override {
+        bed_diagram_container_ = nullptr;
+        results_instruction_ = nullptr;
+        screw_dots_.fill(nullptr);
+    }
 
     // Subjects for reactive screw list (4 slots max)
     static constexpr size_t kMaxScrews = 4;

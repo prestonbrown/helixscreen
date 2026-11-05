@@ -115,6 +115,9 @@ class MachineLimitsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "machine_limits_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /**
      * @brief Get human-readable overlay name
@@ -137,6 +140,7 @@ class MachineLimitsOverlay : public OverlayBase {
      * Flushes a pending debounced apply.
      */
     void on_deactivating(DeactivateReason reason) override;
+    void on_ui_destroyed() override;
 
     //
     // === Accessors ===

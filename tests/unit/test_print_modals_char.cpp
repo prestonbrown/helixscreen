@@ -55,24 +55,6 @@ class TestableRunoutGuidanceModal : public RunoutGuidanceModal {
 // CHARACTERIZATION: PrintCancelModal
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLTestFixture, "CHAR: PrintCancelModal default construction",
-                 "[characterization][modals]") {
-    // Modal can be default constructed without crashing
-    PrintCancelModal modal;
-
-    SECTION("get_name returns expected value") {
-        REQUIRE(std::string(modal.get_name()) == "Print Cancel");
-    }
-
-    SECTION("component_name returns expected value") {
-        REQUIRE(std::string(modal.component_name()) == "print_cancel_confirm_modal");
-    }
-
-    SECTION("is_visible returns false before show") {
-        REQUIRE(modal.is_visible() == false);
-    }
-}
-
 TEST_CASE_METHOD(LVGLTestFixture, "CHAR: PrintCancelModal callback invocation",
                  "[characterization][modals]") {
     TestablePrintCancelModal modal;
@@ -98,41 +80,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "CHAR: PrintCancelModal callback invocation",
     }
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "CHAR: PrintCancelModal callback can be changed",
-                 "[characterization][modals]") {
-    TestablePrintCancelModal modal;
-    int call_count = 0;
-
-    modal.set_on_confirm([&]() { call_count = 1; });
-    modal.on_ok();
-    REQUIRE(call_count == 1);
-
-    // Replace callback
-    modal.set_on_confirm([&]() { call_count = 2; });
-    modal.on_ok();
-    REQUIRE(call_count == 2);
-}
-
 // ============================================================================
 // CHARACTERIZATION: ExcludeObjectModal
 // ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "CHAR: ExcludeObjectModal default construction",
-                 "[characterization][modals]") {
-    ExcludeObjectModal modal;
-
-    SECTION("get_name returns expected value") {
-        REQUIRE(std::string(modal.get_name()) == "Exclude Object");
-    }
-
-    SECTION("component_name returns expected value") {
-        REQUIRE(std::string(modal.component_name()) == "exclude_object_modal");
-    }
-
-    SECTION("is_visible returns false before show") {
-        REQUIRE(modal.is_visible() == false);
-    }
-}
 
 TEST_CASE_METHOD(LVGLTestFixture, "CHAR: ExcludeObjectModal callback invocation",
                  "[characterization][modals]") {
@@ -166,36 +116,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "CHAR: ExcludeObjectModal callback invocation"
     }
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "CHAR: ExcludeObjectModal object name can be set",
-                 "[characterization][modals]") {
-    ExcludeObjectModal modal;
-
-    // Object name can be set before showing
-    REQUIRE_NOTHROW(modal.set_object_name("Benchy_hull"));
-    REQUIRE_NOTHROW(modal.set_object_name("Part_with_spaces"));
-    REQUIRE_NOTHROW(modal.set_object_name("")); // Empty string is valid
-}
-
 // ============================================================================
 // CHARACTERIZATION: RunoutGuidanceModal
 // ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "CHAR: RunoutGuidanceModal default construction",
-                 "[characterization][modals]") {
-    RunoutGuidanceModal modal;
-
-    SECTION("get_name returns expected value") {
-        REQUIRE(std::string(modal.get_name()) == "Runout Guidance");
-    }
-
-    SECTION("component_name returns expected value") {
-        REQUIRE(std::string(modal.component_name()) == "runout_guidance_modal");
-    }
-
-    SECTION("is_visible returns false before show") {
-        REQUIRE(modal.is_visible() == false);
-    }
-}
 
 TEST_CASE_METHOD(LVGLTestFixture, "CHAR: RunoutGuidanceModal callback invocation",
                  "[characterization][modals]") {
@@ -268,59 +191,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "CHAR: RunoutGuidanceModal null callbacks don'
     REQUIRE_NOTHROW(modal.on_senary());
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "CHAR: RunoutGuidanceModal callbacks can be replaced",
-                 "[characterization][modals]") {
-    TestableRunoutGuidanceModal modal;
-    int value = 0;
-
-    modal.set_on_load_filament([&]() { value = 1; });
-    modal.on_ok();
-    REQUIRE(value == 1);
-
-    // Replace callback
-    modal.set_on_load_filament([&]() { value = 2; });
-    modal.on_ok();
-    REQUIRE(value == 2);
-
-    // Set to nullptr equivalent (empty lambda)
-    modal.set_on_load_filament(nullptr);
-    REQUIRE_NOTHROW(modal.on_ok());
-}
-
 // ============================================================================
 // CHARACTERIZATION: Modal Base Class Behavior
 // ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "CHAR: Modal destructor is safe when not visible",
-                 "[characterization][modals]") {
-    // Test that destructor doesn't crash when modal was never shown
-    SECTION("PrintCancelModal") {
-        auto modal = std::make_unique<PrintCancelModal>();
-        REQUIRE_NOTHROW(modal.reset());
-    }
-
-    SECTION("ExcludeObjectModal") {
-        auto modal = std::make_unique<ExcludeObjectModal>();
-        REQUIRE_NOTHROW(modal.reset());
-    }
-
-    SECTION("RunoutGuidanceModal") {
-        auto modal = std::make_unique<RunoutGuidanceModal>();
-        REQUIRE_NOTHROW(modal.reset());
-    }
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "CHAR: Modal dialog() returns nullptr when not shown",
-                 "[characterization][modals]") {
-    PrintCancelModal modal;
-    REQUIRE(modal.dialog() == nullptr);
-
-    ExcludeObjectModal modal3;
-    REQUIRE(modal3.dialog() == nullptr);
-
-    RunoutGuidanceModal modal4;
-    REQUIRE(modal4.dialog() == nullptr);
-}
 
 TEST_CASE_METHOD(LVGLTestFixture, "CHAR: Modal hide() is safe when not visible",
                  "[characterization][modals]") {

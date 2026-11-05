@@ -51,6 +51,9 @@ class RetractionSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "retraction_settings_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void on_activate() override;
 
@@ -118,6 +121,16 @@ class RetractionSettingsOverlay : public OverlayBase {
     lv_obj_t* retract_speed_slider_ = nullptr;
     lv_obj_t* unretract_extra_slider_ = nullptr;
     lv_obj_t* unretract_speed_slider_ = nullptr;
+
+    /// A rebuilt tree has no typed value to keep, so its first activate syncs.
+    void on_ui_destroyed() override {
+        enable_switch_ = nullptr;
+        retract_length_slider_ = nullptr;
+        retract_speed_slider_ = nullptr;
+        unretract_extra_slider_ = nullptr;
+        unretract_speed_slider_ = nullptr;
+        returning_from_keypad_ = false;
+    }
 
     // Subject manager for automatic cleanup
     SubjectManager subjects_;

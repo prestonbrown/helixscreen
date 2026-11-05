@@ -32,6 +32,9 @@ class PluginOverviewOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "plugin_overview_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     lv_obj_t* create(lv_obj_t* parent) override;
 
@@ -54,6 +57,11 @@ class PluginOverviewOverlay : public OverlayBase {
     lv_obj_t* rows_container_ = nullptr;
     std::vector<PluginFeatureLine> lines_;
     ObserverGuard probe_observer_;
+
+    void on_ui_destroyed() override {
+        rows_container_ = nullptr;
+        probe_observer_.reset();
+    }
 };
 
 /// A feature line's short status as the overview shows it at the right:

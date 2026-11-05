@@ -38,6 +38,9 @@ class TimelapseInstallOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "timelapse_install_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     lv_obj_t* create(lv_obj_t* parent) override;
     void register_callbacks() override;
@@ -109,6 +112,13 @@ class TimelapseInstallOverlay : public OverlayBase {
     lv_obj_t* status_label_ = nullptr;
     lv_obj_t* action_btn_ = nullptr;
     lv_obj_t* ssh_container_ = nullptr;
+
+    void on_ui_destroyed() override {
+        step_progress_ = nullptr;
+        status_label_ = nullptr;
+        action_btn_ = nullptr;
+        ssh_container_ = nullptr;
+    }
 
     Step current_step_ = Step::CHECKING_WEBCAM;
     bool wizard_active_ = false;

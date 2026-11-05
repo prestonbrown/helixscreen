@@ -262,6 +262,7 @@ lv_obj_t* AmsDeviceOperationsOverlay::create(lv_obj_t* parent) {
 }
 
 void AmsDeviceOperationsOverlay::on_ui_destroyed() {
+    section_list_container_ = nullptr;
     action_observer_.reset();
     can_cancel_observer_.reset();
     bypass_toggle_.cancel_pending();

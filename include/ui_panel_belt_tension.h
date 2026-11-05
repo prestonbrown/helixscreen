@@ -127,6 +127,9 @@ class BeltTensionPanel : public OverlayBase {
     const char* xml_component() const override {
         return "panel_belt_tension";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     const char* get_name() const override {
         return "Belt Tension";

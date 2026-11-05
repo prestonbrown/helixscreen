@@ -81,6 +81,10 @@ class HistoryDashboardPanel : public OverlayBase {
     const char* xml_component() const override {
         return "history_dashboard_panel";
     }
+    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
+    bool destroy_on_close() const override {
+        return false;
+    }
 
     lv_obj_t* create(lv_obj_t* parent) override;
 

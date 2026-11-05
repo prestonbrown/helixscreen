@@ -80,6 +80,9 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "ams_device_section_detail";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     lv_obj_t* create(lv_obj_t* parent) override;
 
@@ -182,6 +185,10 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
 
     /// Container for section action controls
     lv_obj_t* actions_container_ = nullptr;
+
+    void on_ui_destroyed() override {
+        actions_container_ = nullptr;
+    }
 
     /// The section ID this overlay is currently showing
     std::string section_id_;
