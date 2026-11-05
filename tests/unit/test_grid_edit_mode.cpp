@@ -486,6 +486,85 @@ TEST_CASE("inward_edge_reach: the drag interior never drops below a touch target
     }
 }
 
+TEST_CASE("selection pills: outside a widget too small to share, off its corner, inside the grid",
+          "[grid_edit][edit-chrome][halfcell]") {
+    // 36px pills overhang by 9, covering 27px of the widget, at 800x480.
+    CHECK(GridEditMode::pills_go_outside(60, 59, 27, 48));  // a half cell
+    CHECK(GridEditMode::pills_go_outside(74, 200, 27, 48)); // one px short on width
+    CHECK(GridEditMode::pills_go_outside(200, 74, 27, 48)); // one px short on height
+    CHECK_FALSE(GridEditMode::pills_go_outside(75, 75, 27, 48));
+    CHECK_FALSE(GridEditMode::pills_go_outside(120, 118, 27, 48)); // a whole cell
+
+    using Corner = GridEditMode::PillCorner;
+    auto same = [](const lv_area_t& a, const lv_area_t& b) {
+        return a.x1 == b.x1 && a.y1 == b.y1 && a.x2 == b.x2 && a.y2 == b.y2;
+    };
+    const lv_area_t grid{80, 0, 799, 479}; // right of the navbar
+    struct Row {
+        const char* what;
+        lv_area_t tile, trash, cfg;
+    };
+    const Row rows[] = {
+        {"mid-grid", {400, 200, 459, 258}, {465, 159, 500, 194}, {359, 159, 394, 194}},
+        {"top row: below", {677, 5, 736, 63}, {742, 69, 777, 104}, {636, 69, 671, 104}},
+        {"right edge: trash left, configure below it",
+         {740, 200, 799, 258},
+         {699, 159, 734, 194},
+         {699, 264, 734, 299}},
+        {"top-right corner: configure one pill further out",
+         {740, 0, 799, 58},
+         {699, 64, 734, 99},
+         {658, 64, 693, 99}},
+        {"beside the navbar: configure flips right",
+         {80, 200, 139, 258},
+         {145, 159, 180, 194},
+         {145, 264, 180, 299}},
+        {"bottom-left corner", {80, 421, 139, 479}, {145, 380, 180, 415}, {186, 380, 221, 415}},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        const lv_area_t trash =
+            GridEditMode::outside_pill_area(row.tile, 36, grid, 5, Corner::TopRight);
+        CHECK(same(trash, row.trash));
+        CHECK(same(GridEditMode::outside_pill_area(row.tile, 36, grid, 5, Corner::TopLeft, &trash),
+                   row.cfg));
+    }
+    // No room anywhere: clamped inside the container.
+    const lv_area_t tight{0, 0, 59, 58};
+    CHECK(same(GridEditMode::outside_pill_area(tight, 36, tight, 5, Corner::TopRight),
+               {24, 0, 59, 35}));
+
+    // The pills take only the corner squares two outward bands share: every
+    // edge still resizes beside them, and the widget's interior stays clear.
+    GridEditMode em;
+    const Row& mid = rows[0];
+    auto on_pill = [&](int x, int y) {
+        auto in = [&](const lv_area_t& a) {
+            return x >= a.x1 && x <= a.x2 && y >= a.y1 && y <= a.y2;
+        };
+        return in(mid.trash) || in(mid.cfg);
+    };
+    using Edge = GridEditMode::ResizeEdge;
+    struct Probe {
+        int x, y;
+        Edge edge;
+    };
+    const Probe probes[] = {
+        {429, 196, Edge::Top},    {440, 190, Edge::Top},  {420, 190, Edge::Top},
+        {429, 262, Edge::Bottom}, {396, 240, Edge::Left}, {463, 240, Edge::Right},
+    };
+    for (const auto& p : probes) {
+        CAPTURE(p.x, p.y);
+        CHECK_FALSE(on_pill(p.x, p.y));
+        CHECK(em.detect_resize_edge(p.x, p.y, mid.tile) == p.edge);
+    }
+    for (int x = mid.tile.x1; x <= mid.tile.x2; ++x) {
+        for (int y = mid.tile.y1; y <= mid.tile.y2; ++y) {
+            REQUIRE_FALSE(on_pill(x, y));
+        }
+    }
+}
+
 TEST_CASE("press_owns_widget: the press origin decides, with the grab band of drift",
           "[grid_edit][drag][resize][1169]") {
     GridEditMode em;
