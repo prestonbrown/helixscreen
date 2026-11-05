@@ -203,6 +203,7 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: every edit asks for a save once 
         em.select_widget(scene.widget);
         lv_obj_t* remove = GridEditModeTestAccess::remove_button(em);
         REQUIRE(remove != nullptr);
+        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
         lv_obj_send_event(remove, LV_EVENT_CLICKED, nullptr);
         REQUIRE_FALSE(scene.config->is_placed("temperature"));
         CHECK(scene.config->save_pending());

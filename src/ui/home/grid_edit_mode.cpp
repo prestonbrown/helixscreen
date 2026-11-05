@@ -893,6 +893,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         return to_rel(*a);
     };
     const lv_point_t trash_pos = place_pill(PillCorner::TopRight, "trash");
+    pills_drawn_tick_ = lv_tick_get();
     remove_btn_ = make_chrome_pill(trash_pos.x, trash_pos.y, ICON_TRASH);
     lv_obj_add_event_cb(
         remove_btn_,
@@ -928,7 +929,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
 }
 
 bool GridEditMode::pill_release_acts(lv_event_t* e) const {
-    if (!released_over_target(e)) {
+    if (!released_over_target(e) || lv_tick_elaps(pills_drawn_tick_) < kPillLockoutMs) {
         return false;
     }
     // A packed corner can leave a pill no spot but one over the delete-page

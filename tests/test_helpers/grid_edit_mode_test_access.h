@@ -98,6 +98,11 @@ struct GridEditModeTestAccess {
         return GridEditMode::kDragThresholdPx;
     }
 
+    /// How long a selection pill ignores taps after it appears, in ms.
+    static uint32_t pill_lockout_ms() {
+        return GridEditMode::kPillLockoutMs;
+    }
+
     /// The container the session is scoped to, or nullptr outside a session.
     static lv_obj_t* container(const GridEditMode& em) {
         return em.container_;

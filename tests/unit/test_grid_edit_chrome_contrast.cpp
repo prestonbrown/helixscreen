@@ -227,6 +227,16 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_area_t del_area;
     lv_obj_get_coords(del, &del_area);
     helix_test::ScopedPointerIndev pointer;
+    // A tap selects a widget and draws its trash under the finger, so a pill
+    // ignores taps for a moment after it appears: a double tap's second tap.
+    {
+        lv_area_t t;
+        lv_obj_get_coords(trash, &t);
+        pointer.press((t.x1 + t.x2) / 2, (t.y1 + t.y2) / 2);
+        pointer.release((t.x1 + t.x2) / 2, (t.y1 + t.y2) / 2);
+        REQUIRE(config.page_entries(kPageIndex).size() == 1);
+        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
+    }
     auto covers_centre_of = [](const lv_area_t& a, lv_obj_t* obj) {
         lv_area_t t;
         lv_obj_get_coords(obj, &t);
