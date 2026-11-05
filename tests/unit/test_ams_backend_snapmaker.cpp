@@ -12,6 +12,7 @@
 #include "../test_helpers/step_operation_helpers.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_afc.h"
+#include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "ams_step_operation.h"
@@ -3857,6 +3858,18 @@ int judge(FilamentInsertWatcher& watcher, const AmsBackend& backend) {
     return watcher.judge_lanes(backend, ctx);
 }
 } // namespace
+
+TEST_CASE_METHOD(SnapmakerInsertFixture,
+                 "A backend without insert signals judges the slot status of a prep sensor lane",
+                 "[ams][insert_watcher]") {
+    helix::ui::reset_insert_offers_for_test();
+    FilamentInsertWatcher watcher(nullptr);
+    AmsBackendMock mock(4);
+    mock.force_slot_status(1, SlotStatus::EMPTY);
+    REQUIRE(judge(watcher, mock) == -1);
+    mock.force_slot_status(1, SlotStatus::AVAILABLE);
+    CHECK(judge(watcher, mock) == 1);
+}
 
 TEST_CASE_METHOD(SnapmakerInsertFixture,
                  "Snapmaker an idle tool parking an empty lane is no insert",

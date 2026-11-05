@@ -198,14 +198,15 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const INarrationMatcher* narration = nullptr;
         const IFeederControl* feeder = nullptr;
         const IStepOperation* steps = nullptr;
+        const IInsertSignals* insert = nullptr;
     };
     const Row rows[] = {
         {&ace},
         {&ad5x, nullptr, nullptr, nullptr, nullptr, nullptr, &ad5x},
-        {&multi_ace, nullptr, nullptr, nullptr, nullptr, nullptr, &multi_ace},
+        {&multi_ace, nullptr, nullptr, nullptr, nullptr, nullptr, &multi_ace, &multi_ace},
         {&openams},
         {&qidi},
-        {&snapmaker, nullptr, nullptr, nullptr, nullptr, nullptr, &snapmaker},
+        {&snapmaker, nullptr, nullptr, nullptr, nullptr, nullptr, &snapmaker, &snapmaker},
         {&indx, nullptr, nullptr, nullptr, nullptr, &indx, &indx},
         {&tool_changer, nullptr, nullptr, nullptr, nullptr, &tool_changer, &tool_changer},
         {&afc, nullptr, nullptr, &afc, &afc},
@@ -222,6 +223,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<INarrationMatcher>() == row.narration);
         CHECK(row.backend->as<IFeederControl>() == row.feeder);
         CHECK(row.backend->as<IStepOperation>() == row.steps);
+        CHECK(row.backend->as<IInsertSignals>() == row.insert);
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
     // No capability and no narration template: the sidebar's coarse fallback.

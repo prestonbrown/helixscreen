@@ -987,32 +987,6 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief How the spool last inserted in this lane was identified
-     *
-     * A backend whose tag reader answers after the lane's presence rises
-     * reports Pending until it does, so an insert is not taken as unnamed
-     * before the reader has spoken. Default: NotRead (no reader).
-     */
-    [[nodiscard]] virtual InsertIdentity slot_insert_identity(int slot_index) const {
-        (void)slot_index;
-        return InsertIdentity::NotRead;
-    }
-
-    /**
-     * @brief The presence reading the insert watcher judges on this lane
-     *
-     * An insert is this reading's empty to present edge. nullopt means the lane
-     * cannot tell an insert. Default: the slot status, on lanes with a prep
-     * sensor. A backend whose status also moves for reasons other than a spool
-     * going in (a tool parking, firmware metadata) answers from the sensor itself.
-     */
-    [[nodiscard]] virtual std::optional<bool> slot_insert_presence(int slot_index) const {
-        if (!slot_has_prep_sensor(slot_index))
-            return std::nullopt;
-        return slot_status_reports_filament(get_slot_info(slot_index).status);
-    }
-
-    /**
      * @brief The lane whose spool is this lane's, when the two lanes share one
      *
      * A lane fed from storage upstream (a bay routed to a toolhead lane) shows

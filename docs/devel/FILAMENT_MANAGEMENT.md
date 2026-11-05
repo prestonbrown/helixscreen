@@ -3667,6 +3667,9 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   heater, and which actions the bar follows. The Snapmaker U1, the AD5X IFS and the tool changer
   implement it. Everything else gets its bar through `operation_step_model()`: the narration template
   below, or the coarse fallback.
+- `IInsertSignals` (`include/ams_insert_signals.h`) -- A lane's own insert reading and its tag reader's
+  verdict, for the insert watcher (§ Insert prompts). The Snapmaker U1 and MultiACE implement it. Without
+  it an insert is the slot status rising on a lane with a prep sensor, and no reader is waited on.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 
