@@ -21,6 +21,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "preset_materials.h"
+#include "print_lifecycle_state.h"
 #include "static_panel_registry.h"
 #include "static_subject_registry.h"
 #include "temperature_service.h"
@@ -383,8 +384,14 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
     // Turn off fan if it was running
     turn_off_fan();
 
-    // If calibration is in progress, abort it
+    // If calibration is in progress, abort it. Klipper runs one command at a
+    // time, so a print job means the calibration already ended and the heaters
+    // are the print's.
     if (state_ == State::CALIBRATING) {
+        if (job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+            spdlog::info("[PIDCal] Leaving calibration: a print is running, heaters left on");
+            return;
+        }
         spdlog::info("[PIDCal] Aborting calibration on deactivate");
         EmergencyStopOverlay::instance().suppress_recovery_dialog(
             helix::recovery_suppression::LONG);

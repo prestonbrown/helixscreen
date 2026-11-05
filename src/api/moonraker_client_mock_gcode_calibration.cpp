@@ -103,14 +103,18 @@ MoonrakerClientMock::gcode_mpc_calibrate(const std::string& gcode) {
                  (i * 100) / fan_breakpoints);
         lines.emplace_back(buf);
     }
-    play_console_lines(std::move(lines), 500, [this, fan_breakpoints] {
-        dispatch_gcode_response("Finished MPC calibration");
-        dispatch_gcode_response("block_heat_capacity=18.4321 [J/K]");
-        dispatch_gcode_response("sensor_responsiveness=0.123456 [K/s/K]");
-        dispatch_gcode_response("ambient_transfer=0.045678 [W/K]");
+    // Kalico reports the result as one respond_info, so one multi-line message.
+    play_console_lines(std::move(lines), 500, [this, heater, fan_breakpoints] {
+        std::string result = "// Finished MPC calibration of heater '" + heater +
+                             "'\n"
+                             "// Measured:\n"
+                             "// block_heat_capacity=18.4321 [J/K]\n"
+                             "// sensor_responsiveness=0.123456 [K/s/K]\n"
+                             "// ambient_transfer=0.045678 [W/K]";
         if (fan_breakpoints > 0) {
-            dispatch_gcode_response("fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]");
+            result += "\n// fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]";
         }
+        dispatch_gcode_response(result);
     });
 
     return 0; // Success - results come asynchronously via gcode_response

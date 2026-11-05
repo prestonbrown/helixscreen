@@ -26,6 +26,7 @@
 #include "shaper_csv_parser.h"
 #include "spdlog/spdlog.h"
 #include "standard_macros.h"
+#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -1042,7 +1043,17 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
             !msg["params"][0].is_string())
             return;
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        // Kalico sends the whole result block as one multi-line respond_info.
+        const std::string& text = msg["params"][0].get_ref<const std::string&>();
+        for (std::string_view line : text_io::Lines(text, '\n')) {
+            if (core_.completed())
+                return;
+            on_line(std::string(line));
+        }
+    }
+
+  private:
+    void on_line(const std::string& line) {
         spdlog::trace("[MPCCalibrateCollector] Received: {}", line);
 
         // If we're accumulating result lines after "Finished MPC calibration"
@@ -1091,7 +1102,6 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
         }
     }
 
-  private:
     void report_progress(int phase, const std::string& description) {
         // Total phases: 1=settle, 2=heatup, 3=fan measurements
         static constexpr int kTotalPhases = 3;
