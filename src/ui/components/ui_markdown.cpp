@@ -117,6 +117,7 @@ void ui_markdown_init() {
     spdlog::trace("[ui_markdown] Registered markdown widget");
 }
 
+// NAMESPACE_OK: beside this widget's global C API
 bool ui_markdown_owns_user_data(const lv_obj_t* obj) {
     auto* widget = const_cast<lv_obj_t*>(obj);
     const uint32_t count = lv_obj_get_event_count(widget);

@@ -39,6 +39,7 @@ void ui_markdown_init();
  * back on delete, so a teardown path that nulls user_data across a tree must skip
  * these widgets (see Modal::disarm_tree).
  */
+// NAMESPACE_OK: beside this widget's global C API
 bool ui_markdown_owns_user_data(const lv_obj_t* obj);
 
 /**
