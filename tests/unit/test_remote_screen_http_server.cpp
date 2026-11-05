@@ -359,17 +359,23 @@ namespace {
 /// server closes, or @p timeout passes). Returns the raw bytes read.
 std::string read_stream(int port, int parts, std::chrono::milliseconds timeout,
                         std::atomic<bool>* closed_by_server = nullptr) {
+    // Empty on a failed request, for the caller to assert on: some callers are client
+    // threads, where a Catch2 macro races the main thread's assertion state.
     int fd = ::socket(AF_INET, SOCK_STREAM, 0);
-    REQUIRE(fd >= 0);
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     addr.sin_port = htons(static_cast<uint16_t>(port));
-    REQUIRE(::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0);
+    const std::string req = "GET /stream.mjpg HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+    if (fd < 0 || ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0 ||
+        ::send(fd, req.data(), req.size(), 0) != static_cast<ssize_t>(req.size())) {
+        if (fd >= 0) {
+            ::close(fd);
+        }
+        return {};
+    }
     timeval tv{0, 100 * 1000};
     ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-    const std::string req = "GET /stream.mjpg HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
-    REQUIRE(::send(fd, req.data(), req.size(), 0) == static_cast<ssize_t>(req.size()));
 
     std::string raw;
     const auto deadline = std::chrono::steady_clock::now() + timeout;
