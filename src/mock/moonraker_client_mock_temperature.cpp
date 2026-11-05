@@ -317,6 +317,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         if (is_mock_openams()) {
             service_openams_dryers(effective_dt);
         }
+        service_purifier(effective_dt);
 
         // Get current temperature state
         double ext_temp = extruder_temp_.load();

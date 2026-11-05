@@ -168,6 +168,10 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         dragonbreath_reject_code_ = reject;
     }
     panda_breath_offline_ = helix::env_flag("HELIX_MOCK_PANDA_BREATH_OFFLINE");
+    {
+        const char* top = std::getenv("HELIX_MOCK_ENCLOSURE_TOP");
+        purifier_.present = !(top && std::string(top) == "0");
+    }
     panda_breath_auto_ = helix::env_flag("HELIX_MOCK_PANDA_BREATH_AUTO");
     // Another screen's toolhead offset calibration, already holding the state at connect.
     nozzle_cal_active_ = helix::env_flag("HELIX_MOCK_NOZZLE_CAL_HELD");
@@ -889,18 +893,34 @@ nlohmann::json MoonrakerClientMock::purifier_status() const {
     if (printer_type_ != PrinterType::SNAPMAKER_U1) {
         return nlohmann::json::object();
     }
-    const char* env = std::getenv("HELIX_MOCK_ENCLOSURE_TOP");
-    const bool fitted = !(env && std::string(env) == "0");
-    const auto fan = nlohmann::json{{"speed", 0.0}, {"rpm", 0.0}};
-    return nlohmann::json{{"power_detected", fitted},
-                          {"power_det_value", fitted ? 2.5 : 0.0},
-                          {"mode", 0},
-                          {"desired_chamber_temp", 0},
-                          {"critical_chamber_temp", 0},
-                          {"inner_fan_work_time", 0.0},
-                          {"inner_fan_rpm", 0.0},
-                          {"exhaust_fan", fan},
-                          {"inner_fan", fan}};
+    std::lock_guard<std::mutex> lock(purifier_mutex_);
+    const auto& p = purifier_;
+    auto fan = [](double speed, double threshold) {
+        return nlohmann::json{{"speed", speed}, {"delay", 180}, {"speed_threshold", threshold}};
+    };
+    return nlohmann::json{{"power_detected", p.present},
+                          {"power_det_value", p.present ? 0.4 : 3.3},
+                          {"mode", p.mode},
+                          {"desired_chamber_temp", p.desired_c},
+                          {"critical_chamber_temp", p.critical_c},
+                          {"inner_fan_work_time", p.work_s},
+                          {"inner_fan_rpm", p.inner > 0 ? 3200.0 * p.inner : 0.0},
+                          {"exhaust_fan", fan(p.exhaust, 0.6)},
+                          {"inner_fan", fan(p.inner, 0.6)}};
+}
+
+void MoonrakerClientMock::publish_purifier() {
+    dispatch_status_update({{"purifier", purifier_status()}});
+}
+
+void MoonrakerClientMock::service_purifier(double dt) {
+    if (printer_type_ != PrinterType::SNAPMAKER_U1) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(purifier_mutex_);
+    if ((purifier_.mode == 2 || purifier_.mode == 3) && purifier_.inner > 0) {
+        purifier_.work_s += dt;
+    }
 }
 
 json MoonrakerClientMock::zmod_color_status() const {
