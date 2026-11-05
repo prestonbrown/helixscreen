@@ -206,32 +206,68 @@ std::set<std::string> resolve_active_files(const std::map<std::string, std::stri
 // Async Moonraker integration
 // ============================================================================
 
-void download_include_graph(std::vector<std::string> listing, const std::string& root_file,
-                            ConfigDownloadFn download, ActiveFilesWithContentCallback on_complete,
-                            ErrorCallback on_error, size_t max_in_flight, int max_depth) {
-    // Keyed like the downloaded map so include_targets() globs against it; the
-    // values stay empty, only the names are known until a file arrives.
-    std::map<std::string, std::string> known;
-    for (auto& path : listing) {
-        known.emplace(std::move(path), std::string());
-    }
-    if (!known.count(root_file)) {
-        if (on_complete)
-            on_complete({}, {});
-        return;
-    }
+namespace {
 
-    // Shared by every download callback, which may run on any thread or inside
-    // the download() call itself; the lock is never held across download().
+/// What must be listed before an [include] can be resolved. A literal directory
+/// costs Moonraker one scandir; only a wildcard in the directory part needs the
+/// whole tree, which Moonraker walks with its event loop blocked (seconds per
+/// thousand files on a printer board).
+struct IncludeListing {
+    enum class Kind { None, Dir, WholeTree };
+    Kind kind = Kind::None;
+    std::string dir;
+};
+
+IncludeListing include_listing(const std::string& current_file, const std::string& pattern) {
+    const std::string resolved = config_resolve_path(current_file, pattern);
+    const std::string dir = config_get_directory(resolved);
+    if (dir.find_first_of("*?") != std::string::npos || resolved.find("**") != std::string::npos) {
+        return {IncludeListing::Kind::WholeTree, {}};
+    }
+    // Listed paths are root-relative and never spell these, so neither can match.
+    if (!resolved.empty() && resolved.front() == '/') {
+        return {};
+    }
+    if (dir == ".." || dir.rfind("../", 0) == 0 || dir.find("/../") != std::string::npos ||
+        (dir.size() >= 3 && dir.compare(dir.size() - 3, 3, "/..") == 0)) {
+        return {};
+    }
+    return {IncludeListing::Kind::Dir, dir};
+}
+
+/// Key in Walk::requested for the one whole-tree listing; no directory is named this.
+constexpr const char* kWholeTreeKey = "*";
+
+} // namespace
+
+void walk_include_graph(const std::string& root_file, ConfigListFn list, ConfigDownloadFn download,
+                        ActiveFilesWithContentCallback on_complete, ErrorCallback on_error,
+                        size_t max_in_flight, int max_depth) {
+    // An [include] waiting on the listing that resolves it.
+    struct PendingInclude {
+        std::string file;
+        std::string pattern;
+        int depth = 0;
+    };
+
+    // Shared by every callback, which may run on any thread or inside the list()
+    // or download() call itself; the lock is never held across either.
     struct Walk {
         std::mutex mutex;
+        // Keyed like the downloaded map so include_targets() globs against it; the
+        // values stay empty, only the names are known until a file arrives.
         std::map<std::string, std::string> known;
         std::string root;
+        ConfigListFn list;
         ConfigDownloadFn download;
         ActiveFilesWithContentCallback on_complete;
         ErrorCallback on_error;
         size_t max_in_flight = 1;
         int max_depth = 0;
+        std::vector<PendingInclude> pending;
+        std::set<std::string> requested; // directories asked for, or kWholeTreeKey
+        std::set<std::string> listed;    // directories answered
+        bool whole_tree_listed = false;
         std::vector<std::pair<std::string, int>> queue; // path, include depth
         std::set<std::string> seen;
         std::map<std::string, std::string> files;
@@ -240,20 +276,20 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
         bool reported = false;
     };
     auto walk = std::make_shared<Walk>();
-    walk->known = std::move(known);
     walk->root = root_file;
+    walk->list = std::move(list);
     walk->download = std::move(download);
     walk->on_complete = std::move(on_complete);
     walk->on_error = std::move(on_error);
     walk->max_in_flight = std::max<size_t>(1, max_in_flight);
     walk->max_depth = max_depth;
-    walk->queue.emplace_back(root_file, 0);
-    walk->seen.insert(root_file);
+    walk->pending.push_back({std::string(), root_file, 0});
 
     // Report once every outstanding download has returned. Called with the lock
     // held; the returned closure runs after it is released.
     auto take_report = [](Walk& w) -> helix::Callback<void()> {
-        if (w.reported || w.in_flight > 0 || (w.error.empty() && !w.queue.empty()))
+        if (w.reported || w.in_flight > 0 ||
+            (w.error.empty() && (!w.queue.empty() || !w.pending.empty())))
             return {};
         w.reported = true;
         if (!w.error.empty()) {
@@ -263,7 +299,11 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
             };
         }
         return [cb = w.on_complete, root = w.root, files = std::move(w.files)]() {
-            if (cb)
+            if (!cb)
+                return;
+            if (files.empty())
+                cb({}, {}); // the root file does not exist
+            else
                 cb(resolve_active_files(files, root), files);
         };
     };
@@ -274,15 +314,102 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
     *pump = [walk, take_report, weak_pump]() {
         for (;;) {
             std::pair<std::string, int> next;
+            bool have_next = false;
+            IncludeListing to_list;
+            bool have_list = false;
+            helix::Callback<void()> idle_report;
             {
                 std::lock_guard<std::mutex> lock(walk->mutex);
-                if (!walk->error.empty() || walk->queue.empty() ||
-                    walk->in_flight >= walk->max_in_flight)
+                if (!walk->error.empty())
                     return;
-                next = std::move(walk->queue.front());
-                walk->queue.erase(walk->queue.begin());
-                ++walk->in_flight;
+                for (auto it = walk->pending.begin(); it != walk->pending.end();) {
+                    const IncludeListing need = include_listing(it->file, it->pattern);
+                    const bool ready = need.kind == IncludeListing::Kind::None ||
+                                       walk->whole_tree_listed ||
+                                       (need.kind == IncludeListing::Kind::Dir &&
+                                        walk->listed.count(need.dir) > 0);
+                    if (ready) {
+                        for (auto& t : include_targets(walk->known, it->file, it->pattern)) {
+                            if (walk->known.count(t) && walk->seen.insert(t).second)
+                                walk->queue.emplace_back(std::move(t), it->depth);
+                        }
+                        it = walk->pending.erase(it);
+                        continue;
+                    }
+                    const std::string key =
+                        need.kind == IncludeListing::Kind::WholeTree ? kWholeTreeKey : need.dir;
+                    if (!have_list && walk->in_flight < walk->max_in_flight &&
+                        walk->requested.insert(key).second) {
+                        to_list = need;
+                        have_list = true;
+                        ++walk->in_flight;
+                    }
+                    ++it;
+                }
+                if (!have_list) {
+                    if (!walk->queue.empty() && walk->in_flight < walk->max_in_flight) {
+                        next = std::move(walk->queue.front());
+                        walk->queue.erase(walk->queue.begin());
+                        ++walk->in_flight;
+                        have_next = true;
+                    } else {
+                        idle_report = take_report(*walk);
+                    }
+                }
             }
+            if (idle_report) {
+                idle_report();
+                return;
+            }
+            if (have_list) {
+                auto self = weak_pump.lock();
+                const bool whole = to_list.kind == IncludeListing::Kind::WholeTree;
+                const std::string dir = to_list.dir;
+                auto deferred = std::make_shared<std::atomic<bool>>(false);
+                walk->list(
+                    dir, whole,
+                    [walk, take_report, self, dir, whole](std::vector<std::string> paths) {
+                        helix::Callback<void()> report;
+                        {
+                            std::lock_guard<std::mutex> lock(walk->mutex);
+                            --walk->in_flight;
+                            for (auto& path : paths)
+                                walk->known.emplace(std::move(path), std::string());
+                            if (whole)
+                                walk->whole_tree_listed = true;
+                            else
+                                walk->listed.insert(dir);
+                            report = take_report(*walk);
+                        }
+                        if (report)
+                            report();
+                        else if (self)
+                            (*self)();
+                    },
+                    [walk, take_report, dir, whole, deferred](std::string message,
+                                                              bool queue_full) {
+                        helix::Callback<void()> report;
+                        {
+                            std::lock_guard<std::mutex> lock(walk->mutex);
+                            --walk->in_flight;
+                            if (queue_full && walk->in_flight > 0 && walk->error.empty()) {
+                                walk->requested.erase(whole ? std::string(kWholeTreeKey) : dir);
+                                deferred->store(true);
+                                return;
+                            }
+                            if (walk->error.empty())
+                                walk->error = "Failed to list config files: " + message;
+                            report = take_report(*walk);
+                        }
+                        if (report)
+                            report();
+                    });
+                if (deferred->load())
+                    return;
+                continue;
+            }
+            if (!have_next)
+                return;
             auto self = weak_pump.lock();
             const std::string path = next.first;
             const int depth = next.second;
@@ -295,12 +422,8 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
                         std::lock_guard<std::mutex> lock(walk->mutex);
                         --walk->in_flight;
                         if (walk->error.empty() && depth < walk->max_depth) {
-                            for (const auto& pattern : extract_includes(content)) {
-                                for (auto& t : include_targets(walk->known, path, pattern)) {
-                                    if (walk->known.count(t) && walk->seen.insert(t).second)
-                                        walk->queue.emplace_back(std::move(t), depth + 1);
-                                }
-                            }
+                            for (auto& pattern : extract_includes(content))
+                                walk->pending.push_back({path, std::move(pattern), depth + 1});
                         }
                         walk->files[path] = std::move(content);
                         report = take_report(*walk);
@@ -368,32 +491,89 @@ ConfigDownloadFn api_config_download(IMoonrakerAPI& api,
     };
 }
 
+void download_include_graph(std::vector<std::string> listing, const std::string& root_file,
+                            ConfigDownloadFn download, ActiveFilesWithContentCallback on_complete,
+                            ErrorCallback on_error, size_t max_in_flight, int max_depth) {
+    auto paths = std::make_shared<const std::vector<std::string>>(std::move(listing));
+    ConfigListFn list = [paths](const std::string& dir, bool whole_tree,
+                                helix::SharedCallback<void(std::vector<std::string>)> ok,
+                                helix::SharedCallback<void(std::string, bool)>) {
+        std::vector<std::string> out;
+        for (const auto& path : *paths) {
+            if (whole_tree || config_get_directory(path) == dir)
+                out.push_back(path);
+        }
+        ok(std::move(out));
+    };
+    walk_include_graph(root_file, std::move(list), std::move(download), std::move(on_complete),
+                       std::move(on_error), max_in_flight, max_depth);
+}
+
+ConfigListFn api_config_list(IMoonrakerAPI& api, std::string suffix) {
+    return [&api, tok = api.lifetime_token(),
+            suffix = std::move(suffix)](const std::string& dir, bool whole_tree,
+                                        helix::SharedCallback<void(std::vector<std::string>)> ok,
+                                        helix::SharedCallback<void(std::string, bool)> fail) {
+        // Queued directly for the reason api_config_download() is: the next step
+        // of the walk runs from a completion on a background thread.
+        helix::ui::queue_update(
+            "ConfigIncludes::list", [&api, tok, suffix, dir, whole_tree, ok, fail]() {
+                if (tok.expired()) {
+                    fail("the printer disconnected", false);
+                    return;
+                }
+                auto keep = [suffix](const std::string& path) {
+                    return path.size() > suffix.size() &&
+                           path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0;
+                };
+                auto on_error = [ok, fail](const MoonrakerError& err) {
+                    fail(err.message, err.type == MoonrakerErrorType::QUEUE_FULL);
+                };
+                if (whole_tree) {
+                    api.files().list_files(
+                        "config", "", true,
+                        [keep, ok](const std::vector<FileInfo>& files) {
+                            std::vector<std::string> out;
+                            for (const auto& f : files) {
+                                std::string path = f.path.empty() ? f.filename : f.path;
+                                if (!f.is_dir && keep(path))
+                                    out.push_back(std::move(path));
+                            }
+                            ok(std::move(out));
+                        },
+                        on_error);
+                    return;
+                }
+                api.files().get_directory(
+                    "config", dir,
+                    [keep, dir, ok](const std::vector<FileInfo>& files) {
+                        std::vector<std::string> out;
+                        for (const auto& f : files) {
+                            std::string path = dir.empty() ? f.filename : dir + "/" + f.filename;
+                            if (!f.is_dir && keep(path))
+                                out.push_back(std::move(path));
+                        }
+                        ok(std::move(out));
+                    },
+                    [ok, on_error](const MoonrakerError& err) {
+                        // An [include] may name a directory that is not there.
+                        if (moonraker_directory_missing(err))
+                            ok({});
+                        else
+                            on_error(err);
+                    });
+            });
+    };
+}
+
 void download_config_include_graph(IMoonrakerAPI& api, const std::string& root_file,
                                    const std::string& suffix,
                                    ActiveFilesWithContentCallback on_complete,
                                    ErrorCallback on_error, ConfigDownloadFn download) {
     if (!download)
         download = api_config_download(api);
-    api.files().list_files(
-        "config", "", true,
-        [root_file, suffix, download, on_complete,
-         on_error](const std::vector<FileInfo>& file_list) {
-            std::vector<std::string> paths;
-            for (const auto& f : file_list) {
-                if (!f.is_dir) {
-                    std::string path = f.path.empty() ? f.filename : f.path;
-                    if (path.size() > suffix.size() &&
-                        path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0) {
-                        paths.push_back(path);
-                    }
-                }
-            }
-            download_include_graph(std::move(paths), root_file, download, on_complete, on_error);
-        },
-        [on_error](const MoonrakerError& err) {
-            if (on_error)
-                on_error("Failed to list config files: " + err.message);
-        });
+    walk_include_graph(root_file, api_config_list(api, suffix), std::move(download),
+                       std::move(on_complete), std::move(on_error));
 }
 
 void resolve_active_config_files_with_content(IMoonrakerAPI& api,

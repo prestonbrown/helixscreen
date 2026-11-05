@@ -149,8 +149,12 @@ void MoonrakerFileAPI::get_directory(const std::string& root, const std::string&
             on_success(*files);
         },
         [full_path, on_error](const MoonrakerError& error) {
-            spdlog::error("[FileAPI] get_directory FAILED for '{}': {} ({})", full_path,
-                          error.message, error.get_type_string());
+            if (moonraker_directory_missing(error)) {
+                spdlog::debug("[FileAPI] get_directory: '{}' does not exist", full_path);
+            } else {
+                spdlog::error("[FileAPI] get_directory FAILED for '{}': {} ({})", full_path,
+                              error.message, error.get_type_string());
+            }
             if (on_error) {
                 on_error(error);
             }
