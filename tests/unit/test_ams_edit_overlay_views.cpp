@@ -43,6 +43,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -4328,8 +4329,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     loaded.color_rgb = 0x4A4A4A;
     loaded.color_name = "Deep Gray";
     auto& overlay = get_ams_edit_overlay();
+    std::optional<SlotInfo> committed;
     REQUIRE(overlay.show_for_slot(test_screen(), 0, loaded, &api,
-                                  [](const AmsEditOverlay::EditResult&) {}));
+                                  [&](const AmsEditOverlay::EditResult& r) {
+                                      if (r.saved) {
+                                          committed = r.slot_info;
+                                      }
+                                  }));
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
@@ -4342,6 +4348,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE_FALSE(ModalStack::instance().stack_empty());
     lv_obj_t* dlg = ModalStack::instance().top_dialog();
     REQUIRE(dlg != nullptr);
+    // The offer names the record and the lane the save is for.
+    const std::string asked = helix::test::subtree_text(dlg);
+    CHECK(asked.find("\"Grey ABS+HS\"") != std::string::npos);
+    CHECK(asked.find("lane 1") != std::string::npos);
     // Nothing is filed while the question is open.
     CHECK(client.spoolman_mock().created_filaments.empty());
     CHECK(client.spoolman_mock().created_spools.empty());
@@ -4354,6 +4364,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(client.spoolman_mock().created_filaments.empty());
         REQUIRE(client.spoolman_mock().created_spools.size() == 1);
         CHECK(client.spoolman_mock().created_spools[0]["filament_id"] == 73);
+        // The lane takes the record it now points at, not what was typed.
+        REQUIRE(committed.has_value());
+        CHECK(committed->color_rgb == 0x636363u);
+        CHECK(committed->spool_name == "Grey ABS+HS");
+        CHECK(committed->material == "ABS");
     }
     SECTION("Add new files a filament of its own") {
         lv_obj_send_event(lv_obj_find_by_name(dlg, "btn_secondary"), LV_EVENT_CLICKED, nullptr);

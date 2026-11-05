@@ -291,3 +291,13 @@ TEST_CASE("is_filament_of_type: a record is reused only for the same type and gr
         CHECK_FALSE(is_filament_of_type(make("PETG", "Black"), "PLA"));
     }
 }
+
+TEST_CASE("filament_display_name names a record with no name by its material and colour",
+          "[spoolman_db][similar_filament]") {
+    FilamentInfo f;
+    f.material = "ABS";
+    f.filament_name = " ";
+    CHECK(helix::spoolman::filament_display_name(f, "Gray") == "ABS Gray");
+    f.filament_name = "Grey ABS+HS";
+    CHECK(helix::spoolman::filament_display_name(f, "Gray") == "Grey ABS+HS");
+}

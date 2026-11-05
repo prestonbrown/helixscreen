@@ -3628,7 +3628,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman 不可用'
   Spoolman Server: Spoolman 服务器
-  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: "Spoolman 中已有此品牌颜色相近的“{}”。使用它，还是添加新耗材？"
+  Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: "Spoolman 中已有此品牌颜色相近的“{}”。用于耗材通道{}，还是添加新耗材？"
   Spoolman connected!: Spoolman 已连接！
   Spoolman found! Configuring...: 已找到 Spoolman！正在配置...
   Spoolman has no spools configured: Spoolman 未配置料盘

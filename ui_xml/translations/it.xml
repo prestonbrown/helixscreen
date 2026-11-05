@@ -3512,7 +3512,7 @@
   <translation tag="Spoolman" it="Spoolman"/>
   <translation tag="Spoolman Not Available" it="Spoolman non disponibile"/>
   <translation tag="Spoolman Server" it="Server Spoolman"/>
-  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it, or add a new filament?" it="Spoolman ha già &quot;{}&quot; di questa marca in un colore simile. Usarlo o aggiungere un nuovo filamento?"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" it="Spoolman ha già &quot;{}&quot; di questa marca in un colore simile. Usarlo per la corsia {} o aggiungere un nuovo filamento?"/>
   <translation tag="Spoolman connected!" it="Spoolman connesso!"/>
   <translation tag="Spoolman found! Configuring..." it="Spoolman trovato! Configurazione..."/>
   <translation tag="Spoolman has no spools configured" it="Spoolman non ha bobine configurate"/>

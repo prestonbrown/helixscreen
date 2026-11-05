@@ -3752,7 +3752,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: Spoolman Not Available
   Spoolman Server: Spoolman Server
-  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?
+  Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?
   Spoolman connected!: Spoolman connected!
   Spoolman found! Configuring...: Spoolman found! Configuring...
   Spoolman has no spools configured: Spoolman has no spools configured
