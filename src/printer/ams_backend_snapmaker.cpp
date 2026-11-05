@@ -3014,10 +3014,9 @@ void AmsBackendSnapmaker::dispatch_effects(const FrameEffects& fx) {
         AmsState::instance().mark_slot_unloaded(lane);
     }
 
-    // An insert the RFID side vouches nothing for asks whether the stored
-    // record still describes the spool that went in (#1710). The notice
-    // re-checks its own guards (print-feeding lane, lane with nothing to
-    // clear) on the UI thread.
+    // An insert the RFID side vouches nothing for asks whether the stored record still
+    // describes the spool that went in (#1710). The notice re-checks its own guards
+    // (print-feeding lane, lane with nothing to clear) on the UI thread.
     for (int lane : fx.unverified_insert_lanes) {
         helix::ui::queue_update("AmsBackendSnapmaker::handle_status", [lane] {
             helix::publish_ui_request(

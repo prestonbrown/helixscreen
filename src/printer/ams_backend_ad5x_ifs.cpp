@@ -1142,10 +1142,9 @@ void AmsBackendAd5xIfs::note_presence_transition_locked(int slot_index, bool was
     // about the port is its own word again.
     own_write_echoes_.abandon(slot_index);
     if (!was_present && now_present && sensor_edge) {
-        // The IFS reads nothing off a spool: its colour and material are its
-        // own memory of the last write. An insert therefore carries no
-        // evidence under the slot spec's insert rule and the user is asked
-        // instead (docs/specs/filament_slots.md §6).
+        // The IFS reads nothing off a spool: its colour and material are its own memory
+        // of the last write, so an insert carries no evidence under the slot spec's
+        // insert rule and the user is asked instead (docs/specs/filament_slots.md §6).
         helix::ui::queue_update("AmsBackendAd5xIfs::note_presence_transition_locked", [slot_index] {
             helix::publish_ui_request(
                 {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, slot_index});
