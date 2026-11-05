@@ -268,7 +268,7 @@ resolve() { run bash -c '. "$1"; resolve_build_host "$2"; rc=$?; echo "value=[${
     contains "hang.invalid: timeout after 1s" "$output"
 }
 
-@test "no candidate answering fails in one line naming every one tried" {
+@test "no candidate answering fails naming every one tried, with what to try" {
     mock_candidate_ssh
     HELIX_HOST_PROBE_SECS=1 HELIX_TEST_HOST=dead.invalid,hang.invalid resolve HELIX_TEST_HOST
     [ "$status" -ne 0 ]
@@ -277,6 +277,7 @@ resolve() { run bash -c '. "$1"; resolve_build_host "$2"; rc=$?; echo "value=[${
     HELIX_HOST_PROBE_SECS=1 HELIX_TEST_HOST=dead.invalid run bash -c '. "$1"; HELIX_TEST_HOST=dead.invalid,dead2.invalid; require_build_host HELIX_TEST_HOST' _ "$LIB"
     [ "$status" -eq 2 ]
     contains "no candidate answered" "$output"
+    contains "HELIX_HOST_PROBE_SECS=30" "$output"
 }
 
 @test "a resolved host is not probed again, in the same shell or a child" {
