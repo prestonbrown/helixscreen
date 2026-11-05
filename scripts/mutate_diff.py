@@ -2754,7 +2754,7 @@ def resolve_run_base(root, args):
 # or comparison operator or a boolean literal. An edit that does not build is
 # passed over for the next, up to INSIDE_MAX_TRIES.
 #
-# The hunk's verdict stays `uncompilable` and the run stays incomplete: one edit
+# The hunk's verdict stands and the run stays incomplete: one edit
 # to one line is not the question a revert asks. Each mutant is reported on its
 # own line, and a survivor fails the run like any other survivor. Headers are
 # left out, since a mutant there costs every includer's rebuild.
@@ -2949,8 +2949,8 @@ def inside_report(hunks):
         for line_no, op, verdict, _ in h.get('inside', ()):
             label = f'{h["file"]}:{line_no}'
             mark = LOUD_VERDICT.get(verdict, verdict)
-            lines.append(f'  {mark:<13} {label}  {op}  (revert of the hunk at '
-                         f':{h["line"]} did not build)')
+            lines.append(f'  {mark:<13} {label}  {op}  (the revert of the hunk at '
+                         f':{h["line"]} judged nothing)')
             tally[verdict] = tally.get(verdict, 0) + 1
             if verdict == 'survived':
                 survived.append(f'{label}  {op}')
@@ -3020,7 +3020,10 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
         pass
     finally:
         guard.restore(h['file'])
-    if (args.inside and verdict == 'uncompilable' and plan['build']
+    # A reverted new file can also build with the old binary left in place, which
+    # judges nothing either.
+    revert_judged_nothing = verdict in ('uncompilable', 'unreversible') or note_ == UNBUILT_MUTANT
+    if (args.inside and revert_judged_nothing and plan['build']
             and not h['file'].endswith(HEADER_SUFFIXES) and not RUN_STATE.out_of_time):
         built_any = mutate_inside(root, guard, suites, h, plan, args, log) or built_any
     return verdict, note_, built_any

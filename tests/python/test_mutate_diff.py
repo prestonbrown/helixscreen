@@ -1372,6 +1372,17 @@ def test_a_surviving_inside_mutant_fails_the_run(tmp_path):
     assert "src/feature.cpp:2  negate if" in r.stdout
 
 
+def test_an_inside_mutant_judges_a_revert_that_left_the_old_binary_in_place(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE.replace(
+        "if (n == 2) {' src/feature.cpp", "if (n == 2) { return 1; }  // NEW_BEHAVIOR' src/feature.cpp"))
+    (work / "Makefile").write_text(
+        "test-build:\n\t@! grep -q NEW_BEHAVIOR src/feature.cpp || "
+        "printf '\\n# relinked\\n' >> build/bin/helix-tests\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"INCONCLUSIVE\s+src/feature.cpp", r.stdout), r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:2  negate if", r.stdout), r.stdout
+
+
 def test_an_inside_mutant_that_does_not_build_is_passed_over(tmp_path):
     work = _inside_fixture(tmp_path, INSIDE_SUITE)
     (work / "Makefile").write_text(INSIDE_MAKEFILE.replace(
