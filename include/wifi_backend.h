@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "ipv4_config.h"
 #include "wifi_interface.h"
 
 #include <cstdint>
@@ -255,8 +256,11 @@ std::vector<WiFiNetwork> wifi_merge_networks_by_ssid(const std::vector<WiFiNetwo
  * - Provide async operations with event-based completion
  * - Thread-safe operations where needed
  * - Clean error handling with meaningful messages
+ *
+ * IPv4 configuration comes from helix::net::Ipv4Configurable; its get/apply
+ * BLOCK and run on WiFiManager's control lane.
  */
-class WifiBackend {
+class WifiBackend : public helix::net::Ipv4Configurable {
   public:
     virtual ~WifiBackend() = default;
 

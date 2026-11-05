@@ -108,3 +108,83 @@ std::string EthernetManager::get_ip_address() {
 
     return "";
 }
+
+bool EthernetManager::supports_ipv4_config() {
+    return backend_ && backend_->supports_ipv4_config();
+}
+
+void EthernetManager::get_ipv4_config_async(
+    helix::LifetimeToken token,
+    helix::SharedCallback<void(bool ok, const helix::net::Ipv4Config& config)> on_done) {
+    if (!on_done) {
+        return;
+    }
+    if (!supports_ipv4_config()) {
+        on_done(false, helix::net::Ipv4Config{});
+        return;
+    }
+    helix::http::HttpExecutor::fast().start();
+    // The backend is captured by value so it outlives this manager mid-call.
+    std::shared_ptr<EthernetBackend> backend = backend_;
+    helix::http::HttpExecutor::fast().submit([backend, token, on_done]() {
+        helix::net::Ipv4Config config;
+        const helix::net::Ipv4Result result = backend->get_ipv4_config(config);
+        if (!result.ok()) {
+            spdlog::debug("[EthernetManager] Could not read the IPv4 config: {}", result.detail);
+        }
+        token.defer("EthernetManager::get_ipv4_config",
+                    [on_done, ok = result.ok(), config]() { on_done(ok, config); });
+    });
+}
+
+void EthernetManager::apply_ipv4_config_async(const helix::net::Ipv4Config& config,
+                                              helix::LifetimeToken token,
+                                              helix::SharedCallback<void(bool ok)> on_done) {
+    if (!supports_ipv4_config()) {
+        if (on_done) {
+            on_done(false);
+        }
+        return;
+    }
+    spdlog::info("[EthernetManager] Applying IPv4 config: {}",
+                 helix::net::ipv4_config_text(config));
+    helix::http::HttpExecutor::fast().start();
+    std::shared_ptr<EthernetBackend> backend = backend_;
+    helix::http::HttpExecutor::fast().submit([backend, config, token, on_done]() {
+        const helix::net::Ipv4Result result = backend->apply_ipv4_config(config);
+        if (!result.ok()) {
+            spdlog::warn("[EthernetManager] Could not apply the IPv4 config: {}", result.detail);
+        }
+        token.defer("EthernetManager::apply_ipv4_config", [on_done, ok = result.ok()]() {
+            if (on_done) {
+                on_done(ok);
+            }
+        });
+    });
+}
+
+void EthernetManager::revert_pending_ipv4_at_startup() {
+    const auto pending = helix::net::load_pending_ipv4_revert();
+    if (!helix::net::is_stale_pending_ipv4_revert(pending, helix::net::Ipv4Link::Ethernet)) {
+        return;
+    }
+    auto backend = std::shared_ptr<EthernetBackend>(EthernetBackend::create());
+    if (!backend || !backend->supports_ipv4_config()) {
+        spdlog::warn("[EthernetManager] An Ethernet IPv4 change was never kept, but this "
+                     "backend cannot restore it");
+        return;
+    }
+    spdlog::warn("[EthernetManager] An Ethernet IPv4 change was never kept: restoring {}",
+                 helix::net::ipv4_config_text(pending->previous));
+    helix::http::HttpExecutor::fast().start();
+    helix::http::HttpExecutor::fast().submit([backend, previous = pending->previous]() {
+        const helix::net::Ipv4Result result = backend->apply_ipv4_config(previous);
+        if (!result.ok()) {
+            spdlog::error("[EthernetManager] Could not restore the previous IPv4 config: {}",
+                          result.detail);
+            return;
+        }
+        spdlog::info("[EthernetManager] Previous IPv4 config restored");
+        helix::net::clear_pending_ipv4_revert();
+    });
+}

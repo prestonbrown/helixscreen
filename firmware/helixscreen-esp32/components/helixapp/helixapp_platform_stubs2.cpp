@@ -740,6 +740,13 @@ int dup2(int, int) {
 EthernetManager::EthernetManager() {}
 EthernetManager::~EthernetManager() = default;
 void EthernetManager::get_info_async(std::function<void(const EthernetInfo&)>) {}
+bool EthernetManager::supports_ipv4_config() {
+    return false;
+}
+void EthernetManager::get_ipv4_config_async(
+    helix::LifetimeToken, helix::SharedCallback<void(bool, const helix::net::Ipv4Config&)>) {}
+void EthernetManager::apply_ipv4_config_async(const helix::net::Ipv4Config&, helix::LifetimeToken,
+                                              helix::SharedCallback<void(bool)>) {}
 
 // --- app_globals, fourth batch ------------------------------------------------
 // Process-global storage for both accessors (get returns what set stored),

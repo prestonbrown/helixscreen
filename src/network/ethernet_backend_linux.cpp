@@ -120,4 +120,31 @@ EthernetInfo EthernetBackendLinux::get_info() {
     return helix::ethernet::select_interface(ethernet_interfaces);
 }
 
+// ============================================================================
+// IPv4 Configuration
+// ============================================================================
+
+helix::net::Ipv4Result EthernetBackendLinux::get_ipv4_config(helix::net::Ipv4Config& out) {
+    if (!ipv4_store_) {
+        return Ipv4Configurable::get_ipv4_config(out);
+    }
+    const std::string iface = get_info().interface;
+    if (iface.empty()) {
+        return helix::net::Ipv4Result::failed("no Ethernet interface");
+    }
+    return ipv4_store_->read(iface, out);
+}
+
+helix::net::Ipv4Result
+EthernetBackendLinux::apply_ipv4_config(const helix::net::Ipv4Config& config) {
+    if (!ipv4_store_) {
+        return Ipv4Configurable::apply_ipv4_config(config);
+    }
+    const std::string iface = get_info().interface;
+    if (iface.empty()) {
+        return helix::net::Ipv4Result::failed("no Ethernet interface");
+    }
+    return ipv4_store_->apply(iface, config);
+}
+
 #endif // !__ANDROID__ && !__APPLE__

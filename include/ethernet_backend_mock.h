@@ -35,6 +35,19 @@ class EthernetBackendMock : public EthernetBackend {
     bool has_interface() override;
     EthernetInfo get_info() override;
 
+    /// In memory, one config for the process: every EthernetManager builds its
+    /// own backend, and they all stand for the same port.
+    /// HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
+    bool supports_ipv4_config() const override {
+        return true;
+    }
+    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override {
+        return ipv4_store().get(out);
+    }
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Config& config) override {
+        return ipv4_store().apply(config);
+    }
+
     /// Test helper — drive connected state directly, mirroring
     /// WifiBackendMock::set_connected_state. The interface itself stays
     /// present (has_interface() is a hardware-presence question, not a link
@@ -50,6 +63,10 @@ class EthernetBackendMock : public EthernetBackend {
     }
 
   private:
+    static helix::net::MockIpv4Config& ipv4_store() {
+        static helix::net::MockIpv4Config store;
+        return store;
+    }
     std::string real_mac_; ///< Real MAC from system for realistic demo display
     static inline bool default_connected_ = true;
     /// Set by tests on the main thread, read by get_info() on executor threads.

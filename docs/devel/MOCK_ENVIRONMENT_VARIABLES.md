@@ -57,6 +57,20 @@ The regulatory country the mock WiFi radio reports at startup, standing in for o
 HELIX_MOCK_WIFI_COUNTRY=DE ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_IPV4_APPLY_FAIL`
+
+Make every IPv4 apply on the mock Wi-Fi and Ethernet backends fail, so the IPv4 screen's failure path (Network Settings > IPv4 > Apply) can be driven under `--test`. The revert that follows fails too, which leaves the pending-revert record for the next start.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` fails every apply; anything else applies |
+| **Default** | unset |
+| **File** | `src/network/ipv4_config.cpp` |
+
+```bash
+HELIX_MOCK_IPV4_APPLY_FAIL=1 ./build/bin/helix-screen --test
+```
+
 ### `HELIX_MOCK_REMOTE_THUMBS`
 
 Make the mock advertise Moonraker-relative thumbnail paths and fetch them over real HTTP, so `--test` exercises the cold-fetch pipeline instead of short-cutting it.

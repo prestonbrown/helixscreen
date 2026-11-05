@@ -2352,6 +2352,39 @@ std::string WifiBackendWpaSupplicant::detect_security_type(const std::string& fl
     return "Open";
 }
 
+// ============================================================================
+// IPv4 Configuration
+// ============================================================================
+
+namespace {
+std::string managed_netdev(const std::optional<helix::wifi::WifiInterface>& iface) {
+    return iface ? iface->netdev : std::string();
+}
+} // namespace
+
+helix::net::Ipv4Result WifiBackendWpaSupplicant::get_ipv4_config(helix::net::Ipv4Config& out) {
+    if (!ipv4_store_) {
+        return Ipv4Configurable::get_ipv4_config(out);
+    }
+    const std::string netdev = managed_netdev(resolved_interface());
+    if (netdev.empty()) {
+        return helix::net::Ipv4Result::failed("WiFi interface not resolved");
+    }
+    return ipv4_store_->read(netdev, out);
+}
+
+helix::net::Ipv4Result
+WifiBackendWpaSupplicant::apply_ipv4_config(const helix::net::Ipv4Config& config) {
+    if (!ipv4_store_) {
+        return Ipv4Configurable::apply_ipv4_config(config);
+    }
+    const std::string netdev = managed_netdev(resolved_interface());
+    if (netdev.empty()) {
+        return helix::net::Ipv4Result::failed("WiFi interface not resolved");
+    }
+    return ipv4_store_->apply(netdev, config);
+}
+
 #else
 // ============================================================================
 // macOS Stub Implementation: No-op for simulator

@@ -797,6 +797,8 @@ src/network/wifi_scan_scheduler.cpp
 src/network/wifi_control_breaker.cpp
 src/network/wifi_backend.cpp
 src/network/wifi_country.cpp
+# The IPv4 model WiFiManager's startup revert reads.
+src/network/ipv4_config.cpp
 src/api/moonraker_api.cpp
 src/api/moonraker_auth.cpp
 src/api/moonraker_api_config.cpp

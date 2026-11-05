@@ -171,6 +171,7 @@
 #include "board_identity.h"
 #include "core/data_root_resolver.h"
 #include "display_settings_manager.h"
+#include "ethernet_manager.h"
 #include "glass_gate.h"
 #include "helix_sparkline.h"
 #include "setting_group.h"
@@ -1997,6 +1998,10 @@ void Application::check_wifi_availability() {
     // started WiFi at boot at all, and only ever connected once the user opened
     // a WiFi screen. Bringup is not a user-intent question.
     auto wifi = get_wifi_manager();
+
+    // An IPv4 change the user never kept is undone at boot. Wi-Fi's waits for
+    // its backend's READY (WiFiManager::revert_pending_ipv4); Ethernet's runs now.
+    EthernetManager::revert_pending_ipv4_at_startup();
 
     // Link telemetry runs from boot, not only while a WiFi screen is open.
     helix::WifiLinkMonitor::instance().start();

@@ -44,6 +44,7 @@ src/network/ethernet_backend_linux.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_backend_netd.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_manager.cpp  # not in the v1 Core+AMS cut
+src/network/ipv4_config_system.cpp  # NetworkManager and dhcpcd stores; Linux only
 src/platform/display/fbdev_signal_clear.cpp  # not in the v1 Core+AMS cut
 src/platform/display/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
 src/platform/display/gpu_libs.cpp  # not in the v1 Core+AMS cut

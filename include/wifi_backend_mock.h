@@ -83,6 +83,17 @@ class WifiBackendMock : public WifiBackend {
     WiFiError get_country(std::string& code) override;
     WiFiError set_country(const std::string& code) override;
 
+    /// In memory; HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
+    bool supports_ipv4_config() const override {
+        return true;
+    }
+    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override {
+        return ipv4_.get(out);
+    }
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Config& config) override {
+        return ipv4_.apply(config);
+    }
+
     /// Test helpers: stand in for a country the device's own configuration
     /// set, and count the set_country() calls that reached the radio.
     void set_country_for_test(const std::string& code);
@@ -128,6 +139,7 @@ class WifiBackendMock : public WifiBackend {
     void release_held_status();
 
   private:
+    helix::net::MockIpv4Config ipv4_;
     // ========================================================================
     // Internal State
     // ========================================================================

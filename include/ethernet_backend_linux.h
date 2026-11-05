@@ -4,8 +4,10 @@
 #pragma once
 
 #include "ethernet_backend.h"
+#include "ipv4_config_system.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -47,6 +49,13 @@ class EthernetBackendLinux : public EthernetBackend {
     bool has_interface() override;
     EthernetInfo get_info() override;
 
+    /// Whichever of NetworkManager or dhcpcd owns the interface.
+    bool supports_ipv4_config() const override {
+        return ipv4_store_ != nullptr;
+    }
+    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override;
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Config& config) override;
+
     /// Lists interfaces with their name, ip and mac (operstate stays empty;
     /// get_info() reads it from sysfs). Returns 0, or ifconfig()'s error code.
     using InterfaceLister = std::function<int(std::vector<helix::ethernet::InterfaceState>&)>;
@@ -58,6 +67,7 @@ class EthernetBackendLinux : public EthernetBackend {
     }
 
   private:
+    std::unique_ptr<helix::net::Ipv4SystemStore> ipv4_store_ = helix::net::make_system_ipv4_store();
     InterfaceLister lister_;
     std::string sysfs_root_ = "/sys";
 

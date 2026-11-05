@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include "async_lifetime_guard.h"
 #include "ethernet_backend.h"
+#include "helix_shared_callback.h"
 
 #include <functional>
 #include <memory>
@@ -106,6 +108,38 @@ class EthernetManager {
      * @return IP address string (e.g., "192.168.1.100"), or empty if not connected
      */
     std::string get_ip_address();
+
+    /// Whether the backend can persist a static IPv4 config
+    /// (helix::net::Ipv4Configurable::supports_ipv4_config()).
+    bool supports_ipv4_config();
+
+    /**
+     * @brief Read the interface's IPv4 config on an HTTP fast-lane worker
+     *
+     * @p on_done(ok, config) runs on the LVGL thread while @p token lives. A
+     * backend without support answers at once with ok false.
+     */
+    void get_ipv4_config_async(
+        helix::LifetimeToken token,
+        helix::SharedCallback<void(bool ok, const helix::net::Ipv4Config& config)> on_done);
+
+    /**
+     * @brief Persist and apply an IPv4 config on an HTTP fast-lane worker
+     *
+     * @p on_done(ok) runs on the LVGL thread while @p token lives; the
+     * failure's detail is logged here.
+     */
+    void apply_ipv4_config_async(const helix::net::Ipv4Config& config, helix::LifetimeToken token,
+                                 helix::SharedCallback<void(bool ok)> on_done);
+
+    /**
+     * @brief Restore the Ethernet IPv4 config a change awaiting confirmation replaced
+     *
+     * Called once at startup: a helix::net::PendingIpv4Revert for Ethernet
+     * means the app or device restarted before the user kept the change. Runs
+     * on a worker and returns at once.
+     */
+    static void revert_pending_ipv4_at_startup();
 
     friend class EthernetManagerTestAccess;
 

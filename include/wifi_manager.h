@@ -324,6 +324,33 @@ class WiFiManager {
                            helix::SharedCallback<void(bool success)> on_done);
 
     // ========================================================================
+    // IPv4 Configuration
+    // ========================================================================
+
+    /// Whether the backend can persist a static IPv4 config
+    /// (helix::net::Ipv4Configurable::supports_ipv4_config()).
+    bool supports_ipv4_config();
+
+    /**
+     * @brief Read the interface's IPv4 config on the control lane
+     *
+     * @p on_done(ok, config) runs on the LVGL thread while @p token lives. A
+     * backend without support answers at once with ok false.
+     */
+    void get_ipv4_config_async(
+        helix::LifetimeToken token,
+        helix::SharedCallback<void(bool ok, const helix::net::Ipv4Config& config)> on_done);
+
+    /**
+     * @brief Persist and apply an IPv4 config on the control lane
+     *
+     * @p on_done(ok) runs on the LVGL thread while @p token lives; the
+     * failure's detail is logged here.
+     */
+    void apply_ipv4_config_async(const helix::net::Ipv4Config& config, helix::LifetimeToken token,
+                                 helix::SharedCallback<void(bool ok)> on_done);
+
+    // ========================================================================
     // Hardware Detection (Legacy Compatibility)
     // ========================================================================
 
@@ -558,6 +585,10 @@ class WiFiManager {
     // Any thread: saves @p system as the last real country the radio
     // reported, on the LVGL thread. World and junk are ignored.
     void remember_radio_country(const std::string& system);
+    // LVGL thread, once the backend is READY: restores the Wi-Fi IPv4 config a
+    // change awaiting confirmation replaced, when the app or device restarted
+    // before the user kept it (helix::net::PendingIpv4Revert).
+    void revert_pending_ipv4();
 
     // Registers SCAN_COMPLETE/CONNECTED/DISCONNECTED/AUTH_FAILED/INIT_FAILED/READY
     // handlers on the current backend_. Called once from the constructor and

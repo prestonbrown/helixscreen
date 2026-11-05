@@ -1205,4 +1205,25 @@ void WifiBackendNetworkManager::request_status_refresh() {
     status_cv_.notify_one();
 }
 
+// ============================================================================
+// IPv4 Configuration
+// ============================================================================
+
+helix::net::Ipv4Result WifiBackendNetworkManager::get_ipv4_config(helix::net::Ipv4Config& out) {
+    if (!ipv4_store_) {
+        return Ipv4Configurable::get_ipv4_config(out);
+    }
+    return ipv4_store_->read(wifi_interface_, out);
+}
+
+helix::net::Ipv4Result
+WifiBackendNetworkManager::apply_ipv4_config(const helix::net::Ipv4Config& config) {
+    if (!ipv4_store_) {
+        return Ipv4Configurable::apply_ipv4_config(config);
+    }
+    auto result = ipv4_store_->apply(wifi_interface_, config);
+    request_status_refresh();
+    return result;
+}
+
 #endif // !__APPLE__ && !__ANDROID__
