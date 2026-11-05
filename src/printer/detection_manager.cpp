@@ -2,12 +2,12 @@
 #include "detection_manager.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_toast_manager.h"
 
 #include "core/static_subject_registry.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "i_moonraker_client.h"
 #include "non_filament_pause.h"
+#include "notice.h"
 #include "settings_manager.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -121,7 +121,7 @@ void DetectionManager::show_bed_check_refusal(const std::string& refusal) {
         refusal.empty()
             ? std::string(lv_tr("The printer did not change its bed check"))
             : fmt::format(lv_tr("The printer did not change its bed check: {}"), refusal);
-    ToastManager::instance().show(ToastSeverity::ERROR, text.c_str(), 6000);
+    publish_notice({NoticeSeverity::ERROR, text, 6000});
 }
 
 bool DetectionManager::pause_explained_by_detection() const {
