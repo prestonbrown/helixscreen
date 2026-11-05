@@ -233,7 +233,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the panel h
     CHECK(new_pad != old_pad);
     CHECK(lv_obj_find_by_name(root, "jog_pad_container") == nullptr);
     // It starts in the printer's homed state, not the pad's unhomed default.
-    CHECK(ui_jog_pad_get_homed(new_pad));
+    CHECK(helix::ui::jog_pad_is_homed(new_pad));
 
     // Free the condemned branch, then leave: deactivating stops the pad's repeat.
     process_lvgl(100);

@@ -112,10 +112,10 @@ void ui_jog_pad_set_enabled(lv_obj_t* obj, bool enabled);
  */
 void ui_jog_pad_set_homed(lv_obj_t* obj, bool homed);
 
-/**
- * @brief Whether the pad currently draws its home button as homed
- */
-bool ui_jog_pad_get_homed(lv_obj_t* obj);
+namespace helix::ui {
+/// Whether the pad currently draws its home button as homed
+bool jog_pad_is_homed(lv_obj_t* obj);
+} // namespace helix::ui
 
 /**
  * Layout box for the home glyph inside its ring.
