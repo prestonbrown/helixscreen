@@ -282,6 +282,11 @@ void FanDial::set_speed(int percent) {
     spdlog::trace("[FanDial] '{}' set_speed({}%)", name_, percent);
 }
 
+void FanDial::restore_speed(int percent) {
+    last_user_input_ = 0;
+    set_speed(percent);
+}
+
 int FanDial::get_speed() const {
     return current_speed_;
 }

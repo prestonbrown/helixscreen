@@ -6,12 +6,14 @@
 #include "ui_observer_guard.h"
 
 #include "app_globals.h"
+#include "chamber_air_modes.h"
 #include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "printer_state.h"
 #include "ui/animated_value.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace helix {
@@ -125,6 +127,16 @@ class FanControlOverlay : public OverlayBase {
      * @param speed_percent Speed 0-100%
      */
     void send_fan_speed(const std::string& object_name, int speed_percent);
+    /// A speed change on a chamber-air fan: runs the provider's guard, then sends,
+    /// asks first, or refuses and puts the dial back.
+    void handle_owned_fan_change(const std::string& dial_id, helix::chamber_air::FanRole role,
+                                 bool synthetic, int speed_percent);
+    void send_owned_fan_speed(const std::string& dial_id, helix::chamber_air::FanRole role,
+                              bool synthetic, int speed_percent);
+    /// Puts a dial back to the speed the printer reports.
+    void restore_dial(const std::string& dial_id, int speed_percent);
+    /// Coalesced, deferred rebuild of every dial and card.
+    void schedule_fans_rebuild();
 
     /**
      * @brief Subscribe to all per-fan speed subjects
@@ -164,6 +176,11 @@ class FanControlOverlay : public OverlayBase {
         std::unique_ptr<FanDial> dial;
         std::string object_name; ///< Moonraker object name for subject lookup
         helix::ui::AnimatedValue<int> animation;
+        /// Set for a fan chamber air control owns: its speed changes pass the
+        /// provider's guard. A synthetic dial has no Klipper object behind it and
+        /// sends through the provider's own command.
+        std::optional<helix::chamber_air::FanRole> owned_role;
+        bool synthetic = false;
     };
     std::vector<AnimatedFanDial> animated_fan_dials_;
 
@@ -188,6 +205,7 @@ class FanControlOverlay : public OverlayBase {
     ObserverGuard fans_observer_;                    ///< Structural changes (fan discovery)
     std::vector<ObserverGuard> fan_speed_observers_; ///< Per-fan speed changes
     ObserverGuard anim_settings_observer_;           ///< Animation settings changes
+    ObserverGuard chamber_air_observer_;             ///< Chamber air accessory fitted or removed
     bool fans_rebuild_pending_ = false; ///< Coalesces rapid fans_version observer notifications
 
     //
