@@ -5,6 +5,7 @@
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"
 
+#include <filesystem>
 #include <fstream>
 #include <unistd.h>
 
