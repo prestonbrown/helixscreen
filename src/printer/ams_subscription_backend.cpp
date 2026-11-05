@@ -3,6 +3,7 @@
 
 #include "ams_subscription_backend.h"
 
+#include "filament_slot_override_store.h"
 #include "moonraker_error.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -26,6 +27,75 @@ AmsSubscriptionBackend::AmsSubscriptionBackend(IMoonrakerAPI* api, helix::IMoonr
 AmsSubscriptionBackend::~AmsSubscriptionBackend() {
     // Release without unsubscribe -- MoonrakerClient may already be destroyed
     subscription_.release();
+}
+
+void AmsSubscriptionBackend::read_unread_overrides(
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore>& store,
+    std::unordered_map<int, helix::ams::FilamentSlotOverride>& overrides) {
+    unread_store_ = &store;
+    unread_overrides_ = &overrides;
+    unread_read_in_flight_ = false;
+    unread_read_started_ = {};
+    if (store && store->namespace_unread()) {
+        spdlog::warn("{} lane records were not read at start; holding writes until they are",
+                     backend_log_tag());
+    }
+    retry_unread_overrides();
+}
+
+void AmsSubscriptionBackend::retry_unread_overrides() {
+    // How long to wait before asking again for records that got no answer.
+    constexpr std::chrono::seconds kRetry{10};
+    if (unread_store_ == nullptr || unread_read_in_flight_) {
+        return;
+    }
+    helix::ams::FilamentSlotOverrideStore* const reading = unread_store_->get();
+    if (!reading || !reading->namespace_unread()) {
+        return;
+    }
+    const auto now = std::chrono::steady_clock::now();
+    const bool first = unread_read_started_ == std::chrono::steady_clock::time_point{};
+    if (!first && now - unread_read_started_ < kRetry) {
+        return;
+    }
+    unread_read_in_flight_ = true;
+    unread_read_started_ = now;
+    auto token = lifetime_.token();
+    reading->read_namespace_async(
+        [this, token, reading](std::unordered_map<int, helix::ams::FilamentSlotOverride> records) {
+            token.defer("AmsSubscriptionBackend::read_unread_overrides",
+                        [this, reading, records = std::move(records)]() mutable {
+                            unread_read_in_flight_ = false;
+                            helix::ams::FilamentSlotOverrideStore::HeldWrites writes;
+                            {
+                                std::lock_guard<std::mutex> lock(mutex_);
+                                // A reconnect replaced the store while this read was out.
+                                if (unread_store_->get() != reading) {
+                                    return;
+                                }
+                                writes = reading->adopt_namespace_read(records);
+                                *unread_overrides_ = std::move(records);
+                            }
+                            const std::string tag = backend_log_tag();
+                            spdlog::info("{} Lane records read; sending {} held save(s), {} "
+                                         "clear(s)",
+                                         tag, writes.saves.size(), writes.clears.size());
+                            for (const int slot : writes.clears) {
+                                // A slot saved after its clear replaces the record instead.
+                                if (writes.saves.count(slot) == 0) {
+                                    reading->clear_async(slot, nullptr);
+                                }
+                            }
+                            for (const auto& [slot, held] : writes.saves) {
+                                reading->save_async(slot, held, nullptr);
+                            }
+                            emit_event(EVENT_STATE_CHANGED);
+                        });
+        },
+        [this, token]() {
+            token.defer("AmsSubscriptionBackend::unread_overrides_failed",
+                        [this]() { unread_read_in_flight_ = false; });
+        });
 }
 
 AmsError AmsSubscriptionBackend::start() {
@@ -63,7 +133,10 @@ AmsError AmsSubscriptionBackend::start() {
                 // the new buffer-not-drop semantics, plain defer is sufficient — buffered
                 // callbacks splice back into pending_ when the freeze releases.
                 token.defer("AmsSubscriptionBackend::notify_update",
-                            [this, notification]() { handle_status_update(notification); });
+                            [this, notification]() {
+                                retry_unread_overrides();
+                                handle_status_update(notification);
+                            });
             });
 
         if (id == helix::INVALID_SUBSCRIPTION_ID) {

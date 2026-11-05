@@ -321,6 +321,17 @@ class Ad5xIfsTestAccess {
     // write. Production creates the store inside on_started(); tests that
     // build the backend with a concrete MoonrakerAPIMock but never call
     // on_started() need this shim to populate override_store_.
+    static void read_unread_overrides(AmsBackendAd5xIfs& b) {
+        b.read_unread_overrides(b.override_store_, b.overrides_);
+    }
+    // The next read a status frame would start, after the retry interval.
+    static void retry_unread_overrides_now(AmsBackendAd5xIfs& b) {
+        b.unread_read_started_ -= std::chrono::minutes(1);
+        b.retry_unread_overrides();
+    }
+    static helix::ams::FilamentSlotOverrideStore* override_store(AmsBackendAd5xIfs& b) {
+        return b.override_store_.get();
+    }
     static void inject_override_store(AmsBackendAd5xIfs& b,
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
         b.override_store_ = std::move(s);

@@ -104,6 +104,17 @@ If it errors or times out, we fall back to `read_cache()` for this backend's
 entries. The cache is the offline-fallback view, never authoritative — a
 successful MR fetch always supersedes it.
 
+An errored or timed-out load leaves the store `namespace_unread()`, because the
+cache says nothing about the records on the printer and every save replaces a
+whole record (prestonbrown/helixscreen#2008). Until the namespace is read, saves
+and clears are held in memory, so a restart during the hold loses them. Each backend
+calls `AmsSubscriptionBackend::read_unread_overrides()` from `on_started()`, and
+status frames retry it at most every 10 seconds. When a read lands,
+`FilamentSlotOverrideStore::adopt_namespace_read()` applies the held clears and merges
+each held save onto the real record (`merge_held_save()`): only what the save changed
+from the failed load's cache moves, and a colour or material the record holds stays
+unless the save locks it or links a different spool. `overrides_` then takes the result.
+
 ### Lifetime safety
 
 MR DB callbacks can fire up to ~60 seconds after the initial call, long after

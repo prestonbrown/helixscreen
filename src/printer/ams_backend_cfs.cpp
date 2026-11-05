@@ -595,6 +595,7 @@ void AmsBackendCfs::on_started() {
             std::lock_guard<std::mutex> lock(mutex_);
             overrides_ = std::move(loaded);
         }
+        read_unread_overrides(override_store_, overrides_);
         spdlog::info("[AMS CFS] Loaded {} slot overrides from filament_slot store", loaded_count);
     }
 
