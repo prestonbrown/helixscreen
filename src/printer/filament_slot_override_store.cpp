@@ -1287,10 +1287,6 @@ parse_namespace_document(const nlohmann::json& namespace_doc, LaneKeyStyle key_s
     return records;
 }
 
-// load_blocking_impl reads every record without throwing. Where the build has
-// exceptions, anything else escaping it is contained here: worst case the user
-// sees no overrides, which is the fresh-install state and fully recoverable,
-// rather than an AMS subsystem that failed to come up.
 nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json& held,
                                const nlohmann::json& live) {
     nlohmann::json merged = live.is_object() ? live : nlohmann::json::object();
@@ -1421,6 +1417,10 @@ FilamentSlotOverrideStore::adopt_namespace_read(std::unordered_map<int, LaneData
     return writes;
 }
 
+// load_blocking_impl reads every record without throwing. Where the build has
+// exceptions, anything else escaping it is contained here: worst case the user
+// sees no overrides, which is the fresh-install state and fully recoverable,
+// rather than an AMS subsystem that failed to come up.
 std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking() {
     std::unordered_map<int, FilamentSlotOverride> result;
     if (!helix::contain_exceptions(fmt::format("[FilamentSlotOverrideStore:{}] load", backend_id_),

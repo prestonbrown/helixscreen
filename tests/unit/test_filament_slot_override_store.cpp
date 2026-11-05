@@ -4060,6 +4060,7 @@ TEST_CASE("the read that lands merges held saves onto the real records",
         FilamentSlotOverrideStore seed(&printer.api, "ifs");
         use_cache_dir(seed, tmp.path);
         seed.save_async(1, cached, nullptr);
+        seed.save_async(7, cached, nullptr);
     }
 
     FilamentSlotOverrideStore store(&printer.api, "ifs");
@@ -4078,6 +4079,7 @@ TEST_CASE("the read that lands merges held saves onto the real records",
     records[3] = helix::ams::LaneDataRecord{spool, helix::ams::to_lane_data_record(3, spool)};
     records[4] = helix::ams::LaneDataRecord{spool, helix::ams::to_lane_data_record(4, spool)};
     records[5] = helix::ams::LaneDataRecord{spool, helix::ams::to_lane_data_record(5, spool)};
+    records[7] = helix::ams::LaneDataRecord{newer, helix::ams::to_lane_data_record(7, newer)};
 
     // Unchanged from the cache: a stale record must not replace the newer one.
     store.save_async(1, cached, nullptr);
@@ -4093,6 +4095,9 @@ TEST_CASE("the read that lands merges held saves onto the real records",
     // Cleared, then given a new record that owes nothing to the old one.
     store.clear_async(5, nullptr);
     store.save_async(5, edit, nullptr);
+    // Cleared, then saved with what the cache already held: all of it is new.
+    store.clear_async(7, nullptr);
+    store.save_async(7, cached, nullptr);
 
     const int posts_before = printer.client.call_count("server.database.post_item");
     const auto writes = store.adopt_namespace_read(std::move(records));
@@ -4116,9 +4121,17 @@ TEST_CASE("the read that lands merges held saves onto the real records",
     CHECK(writes.saves.at(5).spoolman_id == 0);
     CHECK(writes.saves.at(5).brand.empty());
 
+    REQUIRE(writes.saves.count(7) == 1);
+    CHECK(writes.saves.at(7).brand == "Polymaker");
+
     const int before = printer.client.call_count("server.database.post_item");
     store.save_async(6, polymaker_record(), nullptr);
     CHECK(printer.client.call_count("server.database.post_item") == before + 1);
+
+    // Held writes go out once.
+    const auto again = store.adopt_namespace_read({});
+    CHECK(again.saves.empty());
+    CHECK(again.clears.empty());
     printer.client.fire_deferred("server.database.get_item");
 }
 
@@ -4172,9 +4185,42 @@ TEST_CASE("merge_held_save moves only what the held save changed",
         json held = blank;
         held["spool_id"] = 77;
         held["color"] = "#00FF00";
+        held["material"] = "PLA";
         const json merged = merge_held_save(blank, held, live);
         CHECK(merged["spool_id"] == 77);
         CHECK(merged["color"] == "#00FF00");
+        CHECK(merged["material"] == "PLA");
+    }
+    SECTION("linking a spool onto a record with none replaces the colour too") {
+        const json unlinked = {{"lane", "0"}, {"color", "#FF9800"}, {"material", "ASA"}};
+        json held = blank;
+        held["spool_id"] = 77;
+        held["color"] = "#00FF00";
+        held["material"] = "PLA";
+        const json merged = merge_held_save(blank, held, unlinked);
+        CHECK(merged["color"] == "#00FF00");
+        CHECK(merged["material"] == "PLA");
+    }
+    SECTION("a kept colour keeps its name") {
+        json named = live;
+        named["color_name"] = "Medium Vibrant Orange";
+        json held = blank;
+        held["color"] = "#00FF00";
+        held["color_name"] = "Green";
+        CHECK(merge_held_save(blank, held, named) == named);
+    }
+    SECTION("a material recorded under the helix key alone is kept") {
+        const json older = {{"lane", "0"}, {"helix_material", "ASA"}};
+        json held = blank;
+        held["material"] = "PLA";
+        CHECK(merge_held_save(blank, held, older) == older);
+    }
+    SECTION("declarations combine with the ones the record holds") {
+        json held = blank;
+        held["material"] = "PLA";
+        held["helix_declared"] = json::array({"material"});
+        const json merged = merge_held_save(blank, held, live);
+        CHECK(merged["helix_declared"] == json::array({"color_rgb", "material"}));
     }
     SECTION("another tool's record stays exactly as it is when nothing changed") {
         const json foreign = {{"lane", "0"}, {"color", "#FF9800"}, {"vendor", "Polymaker"}};
