@@ -162,6 +162,15 @@ If it errors or times out, we fall back to `read_cache()` for this backend's
 entries. The cache is the offline-fallback view, never authoritative — a
 successful MR fetch always supersedes it.
 
+An errored or timed-out load leaves the store `namespace_unread()`, because the
+cache says nothing about the records on the printer and every save replaces a
+whole record (prestonbrown/helixscreen#2008). Until the namespace is read, a save
+is held and a clear is refused. `AmsSubscriptionBackend::read_unread_lane_records()`
+runs after `on_started()` and keeps reading; when an answer lands,
+`adopt_unread_lane_records()` replaces `overrides_`, files the records onto the
+lanes and repaints. Of the held saves, only one stating a declaration or spool
+link the cache did not already hold is sent. The rest are dropped.
+
 ### Lifetime safety
 
 MR DB callbacks can fire up to ~60 seconds after the initial call, long after

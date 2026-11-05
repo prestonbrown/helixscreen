@@ -373,6 +373,9 @@ class Ad5xIfsTestAccess {
         b.lane_reread_pending_.store(false);
         b.reread_lane_records();
     }
+    static void read_unread_lane_records(AmsBackendAd5xIfs& b) {
+        b.read_unread_lane_records();
+    }
     static bool lane_reread_pending(const AmsBackendAd5xIfs& b) {
         return b.lane_reread_pending_.load();
     }

@@ -5,6 +5,7 @@
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -171,8 +172,24 @@ class FilamentSlotOverrideStore {
     void reload_async(ReloadCallback cb, std::function<void()> on_failure = nullptr);
 
     using SaveCallback = std::function<void(bool success, std::string error)>;
+    /// While namespace_unread(), a save is held rather than sent and a clear is
+    /// refused: a record built without the live one would replace it wholesale.
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
     void clear_async(int slot_index, SaveCallback cb);
+
+    /// load_blocking() got no answer from the database, so what it returned is at
+    /// best the local cache and says nothing about the records on the printer.
+    [[nodiscard]] bool namespace_unread() const {
+        return namespace_unread_.load();
+    }
+
+    /// The namespace has now been read as @p records: they become
+    /// last_lane_data_records() and saves go out again. Returns the held saves
+    /// that state something a person or a Spoolman link said since the failed
+    /// load, for the caller to send. A held save that only restates the cache or
+    /// a firmware reading is dropped, since the real record is better.
+    [[nodiscard]] std::unordered_map<int, FilamentSlotOverride>
+    adopt_namespace_read(std::unordered_map<int, LaneDataRecord> records);
 
     // Seated-lane persistence. Unlike the per-lane overrides above, this is a
     // single scalar (the 0-based index of the lane currently loaded to the
@@ -256,6 +273,13 @@ class FilamentSlotOverrideStore {
     // load_blocking_impl() and populated only on the lane_data parse path, so
     // a cache-fallback load leaves it empty rather than stale.
     std::unordered_map<int, LaneDataRecord> lane_data_records_;
+    std::atomic<bool> namespace_unread_{false};
+    // Saves made while the namespace is unread, and the cache the failed load
+    // returned to judge them against. Both under held_mutex_: a save can come
+    // from any thread.
+    std::mutex held_mutex_;
+    std::unordered_map<int, FilamentSlotOverride> held_saves_;
+    std::unordered_map<int, FilamentSlotOverride> unread_fallback_;
     // Absolute path to the cache JSON file. Computed from cache_dir_ (or
     // get_user_config_dir() if empty). One file serves all backends; each
     // backend's slots live under doc[backend_id]["slots"].
