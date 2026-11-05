@@ -809,12 +809,47 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         return lv_point_t{a.x1 - container_area.x1 - pad_left, a.y1 - container_area.y1 - pad_top};
     };
 
-    lv_area_t trash_area{};
+    // An outside pill floats above the shield and every widget, so one drawn
+    // over the delete-page button or another tile would take the tap meant for
+    // it. With no safe spot outside, a pill keeps its corner on the tile.
+    std::vector<lv_area_t> pill_blocked;
+    std::vector<lv_area_t> other_tiles;
+    if (pills_outside) {
+        if (delete_page_btn_) {
+            lv_area_t content{};
+            current_metrics(&content);
+            pill_blocked.push_back(delete_page_button_area(content));
+        }
+        const uint32_t n = lv_obj_get_child_count(container_);
+        for (uint32_t i = 0; i < n; ++i) {
+            lv_obj_t* child = lv_obj_get_child(container_, static_cast<int32_t>(i));
+            // Floating children are overlays and unnamed ones are merged card
+            // backgrounds; neither is a tile a tap selects.
+            const char* name = lv_obj_get_name(child);
+            if (child == widget || lv_obj_has_flag(child, LV_OBJ_FLAG_FLOATING) ||
+                lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) || !name || name[0] == '\0') {
+                continue;
+            }
+            lv_area_t a;
+            lv_obj_get_coords(child, &a);
+            other_tiles.push_back(a);
+        }
+    }
+    auto place_outside = [&](PillCorner corner, lv_point_t& pos, const char* what) {
+        const std::optional<lv_area_t> a = outside_pill_area(
+            widget_area, BTN_SIZE, container_area, pill_gap, corner, pill_blocked, other_tiles);
+        if (!a) {
+            spdlog::debug("[GridEditMode] No safe spot outside the tile for its {} pill; "
+                          "it stays on the tile's corner",
+                          what);
+            return;
+        }
+        pos = to_rel(*a);
+        pill_blocked.push_back(*a);
+    };
     lv_point_t trash_pos{rel_x1 + widget_w - BTN_SIZE + kBtnOverhang, rel_y1 - kBtnOverhang};
     if (pills_outside) {
-        trash_area = outside_pill_area(widget_area, BTN_SIZE, container_area, pill_gap,
-                                       PillCorner::TopRight);
-        trash_pos = to_rel(trash_area);
+        place_outside(PillCorner::TopRight, trash_pos, "trash");
     }
     remove_btn_ = make_chrome_pill(trash_pos.x, trash_pos.y, ICON_TRASH);
     lv_obj_add_event_cb(
@@ -836,9 +871,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         if (pw && pw->has_edit_configure()) {
             lv_point_t configure_pos{rel_x1 - kBtnOverhang, rel_y1 - kBtnOverhang};
             if (pills_outside) {
-                configure_pos =
-                    to_rel(outside_pill_area(widget_area, BTN_SIZE, container_area, pill_gap,
-                                             PillCorner::TopLeft, &trash_area));
+                place_outside(PillCorner::TopLeft, configure_pos, "configure");
             }
             configure_btn_ = make_chrome_pill(configure_pos.x, configure_pos.y, ICON_SETTINGS);
             lv_obj_add_event_cb(
@@ -1255,9 +1288,11 @@ bool GridEditMode::pills_go_outside(int widget_w, int widget_h, int pill_inside_
     return widget_w < needed || widget_h < needed;
 }
 
-lv_area_t GridEditMode::outside_pill_area(const lv_area_t& tile, int pill_px,
-                                          const lv_area_t& bounds, int gap, PillCorner corner,
-                                          const lv_area_t* avoid) {
+std::optional<lv_area_t> GridEditMode::outside_pill_area(const lv_area_t& tile, int pill_px,
+                                                         const lv_area_t& bounds, int gap,
+                                                         PillCorner corner,
+                                                         const std::vector<lv_area_t>& blocked,
+                                                         const std::vector<lv_area_t>& tiles) {
     const int32_t right_x = tile.x2 + 1 + gap;
     const int32_t left_x = tile.x1 - gap - pill_px;
     const int32_t above_y = tile.y1 - gap - pill_px;
@@ -1266,13 +1301,14 @@ lv_area_t GridEditMode::outside_pill_area(const lv_area_t& tile, int pill_px,
     const int32_t near_x = prefer_right ? right_x : left_x;
     const int32_t far_x = prefer_right ? left_x : right_x;
     // The second ring sits one pill further out, for when the first ring is
-    // off the container or taken by @p avoid.
+    // off the container or taken.
     const int32_t step = pill_px + gap;
     const int32_t near_x2 = prefer_right ? right_x + step : left_x - step;
     const int32_t far_x2 = prefer_right ? left_x - step : right_x + step;
-    const lv_point_t candidates[] = {{near_x, above_y}, {near_x, below_y},  {far_x, above_y},
-                                     {far_x, below_y},  {near_x2, above_y}, {near_x2, below_y},
-                                     {far_x2, above_y}, {far_x2, below_y}};
+    const lv_point_t candidates[] = {{near_x, above_y}, {near_x, tile.y1},  {far_x, tile.y1},
+                                     {far_x, above_y},  {near_x2, above_y}, {near_x2, tile.y1},
+                                     {far_x2, tile.y1}, {far_x2, above_y},  {near_x, below_y},
+                                     {far_x, below_y},  {near_x2, below_y}, {far_x2, below_y}};
 
     auto rect_at = [pill_px](lv_point_t p) {
         return lv_area_t{p.x, p.y, p.x + pill_px - 1, p.y + pill_px - 1};
@@ -1280,26 +1316,57 @@ lv_area_t GridEditMode::outside_pill_area(const lv_area_t& tile, int pill_px,
     auto inside_bounds = [&bounds](const lv_area_t& a) {
         return a.x1 >= bounds.x1 && a.y1 >= bounds.y1 && a.x2 <= bounds.x2 && a.y2 <= bounds.y2;
     };
-    auto clear_of_avoid = [avoid](const lv_area_t& a) {
-        return !avoid || a.x2 < avoid->x1 || a.x1 > avoid->x2 || a.y2 < avoid->y1 ||
-               a.y1 > avoid->y2;
+    auto disjoint = [](const lv_area_t& a, const lv_area_t& b) {
+        return a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2;
+    };
+    auto clear_of_blocked = [&](const lv_area_t& a) {
+        return std::all_of(blocked.begin(), blocked.end(),
+                           [&](const lv_area_t& b) { return disjoint(a, b); });
+    };
+    auto clear_of_tiles = [&](const lv_area_t& a) {
+        return std::all_of(tiles.begin(), tiles.end(),
+                           [&](const lv_area_t& t) { return disjoint(a, t); });
+    };
+    // A sliver: at most a quarter pill deep into the tile on one axis, and
+    // never over its centre.
+    const int32_t sliver = pill_px / 4;
+    auto spares_tiles = [&](const lv_area_t& a) {
+        return std::all_of(tiles.begin(), tiles.end(), [&](const lv_area_t& t) {
+            if (disjoint(a, t)) {
+                return true;
+            }
+            const int32_t cx = (t.x1 + t.x2) / 2;
+            const int32_t cy = (t.y1 + t.y2) / 2;
+            if (cx >= a.x1 && cx <= a.x2 && cy >= a.y1 && cy <= a.y2) {
+                return false;
+            }
+            const int32_t ow = std::min(a.x2, t.x2) - std::max(a.x1, t.x1) + 1;
+            const int32_t oh = std::min(a.y2, t.y2) - std::max(a.y1, t.y1) + 1;
+            return std::min(ow, oh) <= sliver;
+        });
     };
 
     for (const auto& p : candidates) {
         const lv_area_t a = rect_at(p);
-        if (inside_bounds(a) && clear_of_avoid(a)) {
+        if (inside_bounds(a) && clear_of_blocked(a) && clear_of_tiles(a)) {
             return a;
         }
     }
     for (const auto& p : candidates) {
         const lv_area_t a = rect_at(p);
-        if (inside_bounds(a)) {
+        if (inside_bounds(a) && clear_of_blocked(a) && spares_tiles(a)) {
             return a;
         }
     }
-    const int32_t x = std::clamp(near_x, bounds.x1, std::max(bounds.x1, bounds.x2 - pill_px + 1));
-    const int32_t y = std::clamp(above_y, bounds.y1, std::max(bounds.y1, bounds.y2 - pill_px + 1));
-    return rect_at({x, y});
+    return std::nullopt;
+}
+
+lv_area_t GridEditMode::delete_page_button_area(const lv_area_t& content) {
+    constexpr int kDelBtnSize = 40;
+    constexpr int kDelBtnMargin = 8;
+    const int32_t x1 = content.x2 + 1 - kDelBtnMargin - kDelBtnSize;
+    const int32_t y1 = content.y1 + kDelBtnMargin;
+    return lv_area_t{x1, y1, x1 + kDelBtnSize - 1, y1 + kDelBtnSize - 1};
 }
 
 int GridEditMode::edge_hit_band() const {
@@ -2905,11 +2972,11 @@ void GridEditMode::rebuild_lattice() {
     // Create "Delete Page" button — hidden for the main page, shown for secondary pages
     delete_page_btn_ = nullptr;
     if (show_delete_page) {
-        constexpr int kDelBtnSize = 40;
-        constexpr int kDelBtnMargin = 8;
+        const lv_area_t del_area = delete_page_button_area(content_area);
 
         delete_page_btn_ = lv_obj_create(shield_);
-        lv_obj_set_size(delete_page_btn_, kDelBtnSize, kDelBtnSize);
+        lv_obj_set_size(delete_page_btn_, lv_area_get_width(&del_area),
+                        lv_area_get_height(&del_area));
         lv_obj_set_style_radius(delete_page_btn_, LV_RADIUS_CIRCLE, 0);
         const lv_color_t del_bg = ThemeManager::instance().current_palette().danger;
         lv_obj_set_style_bg_color(delete_page_btn_, del_bg, 0);
@@ -2918,7 +2985,8 @@ void GridEditMode::rebuild_lattice() {
         lv_obj_set_style_pad_all(delete_page_btn_, 0, 0);
         lv_obj_add_flag(delete_page_btn_, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(delete_page_btn_, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_pos(delete_page_btn_, w - kDelBtnSize - kDelBtnMargin, kDelBtnMargin);
+        lv_obj_set_pos(delete_page_btn_, del_area.x1 - content_area.x1,
+                       del_area.y1 - content_area.y1);
 
         // Trash icon label: contrasted against the danger fill composited over
         // the screen background at the pill's opacity

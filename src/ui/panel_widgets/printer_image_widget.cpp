@@ -432,18 +432,20 @@ void PrinterImageWidget::apply_printer_image(bool force) {
     const helix::ui::PrinterImageChange change =
         force ? helix::ui::PrinterImageChange::NewPixels
               : helix::ui::classify_printer_image_change(shown_stamp_, next);
-    shown_stamp_ = next;
 
     if (change == helix::ui::PrinterImageChange::NewPixels) {
         // LVGL keys its decoded copy on the path alone, and an import can rewrite
         // an image in place under that same path, so new pixels drop the decoded
-        // copy and the natural size read from it. The scaled entries on disk need
-        // no such sweep: their names carry the source's mtime and size, so the
-        // entry holding the old pixels is never named again.
-        if (!current_source_path_.empty())
-            lv_image_cache_drop(current_source_path_.c_str());
+        // copy and the natural size read from it. The stamp names that path even
+        // on a freshly attached tree, where nothing has been shown on it yet. The
+        // scaled entries on disk need no such sweep: their names carry the
+        // source's mtime and size, so the entry holding the old pixels is never
+        // named again.
+        if (!shown_stamp_.source.empty())
+            lv_image_cache_drop(shown_stamp_.source.c_str());
         natural_size_path_.clear();
     }
+    shown_stamp_ = next;
 
     if (current_source_path_ != source_path)
         exact_image_.forget_displayed();
