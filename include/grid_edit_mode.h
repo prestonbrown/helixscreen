@@ -381,6 +381,11 @@ class GridEditMode {
                                       PillCorner corner, const std::vector<lv_area_t>& blocked = {},
                                       const std::vector<lv_area_t>& tiles = {});
 
+    /// A selection pill ignores taps this long after it appears. A tap
+    /// selects a widget and draws its trash pill under the finger, so a
+    /// double tap's second tap would otherwise remove the widget.
+    static constexpr uint32_t kPillLockoutMs = 300;
+
     /// Whether the release that produced @p e acts on the pill it ended on:
     /// it lifted over the pill, not over the delete-page button beneath, and
     /// kPillLockoutMs after the pill appeared.
@@ -705,10 +710,6 @@ class GridEditMode {
 
     // Drag threshold: track press origin, only start real drag after movement
     static constexpr int kDragThresholdPx = 12;
-    /// A selection pill ignores taps this long after it appears. A tap
-    /// selects a widget and draws its trash pill under the finger, so a
-    /// double tap's second tap would otherwise remove the widget.
-    static constexpr uint32_t kPillLockoutMs = 300;
     /// A press on the selected widget is armed, watching for the drag threshold.
     bool press_armed_ = false;
     /// Where the grab's press armed: the arming cycle's point, or the point
