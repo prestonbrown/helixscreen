@@ -166,7 +166,7 @@ shortest target name is the one people type, so it must not start a full run.
 `make land-gate` is the gate a branch passes before it reaches main, and it is the one a
 batch landing runs on the combined result. It runs the C++ suite once, in CI's 8-shard
 layout rather than the local sweep's 96 (a use-after-free can crash only next to the
-neighbours CI's layout gives it, and CI never runs the 96), the bats suite, CI's exact
+neighbours CI's layout gives it, and CI never runs the 96), the `[slow]` tier, the bats suite, CI's exact
 `tests/ui` pytest slice, the moonraker plugin tests and `tests/python` (`make test-ui-ci`, `make test-plugin`, `make test-python`), and the
 generated-artefact checks
 (`check-theme-tokens`, `check-xml-schema`, `lint-xml`, `check-lvgl-event-codes`), and the

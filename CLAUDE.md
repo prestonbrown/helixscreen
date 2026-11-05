@@ -65,7 +65,7 @@ make unit-sweep                      # C++ unit tests only, sharded (~50s idle)
 make full-test-run                   # unit-sweep + the bats suite (~2m) - the completion gate
 #   Nothing else runs bats locally: not the commit hook, not test-xml. Without this
 #   the shell suite reaches CI unrun. [.] and [slow] stay outside it deliberately -
-#   quality-checks.sh runs [.] on any staged code change, nightly CI runs [slow].
+#   quality-checks.sh runs [.] on any staged code change; land-gate and nightly CI run [slow].
 #   The bats half runs every product file, and a build-tooling file only when
 #   the branch touches a path it names (tests/shell/tooling-triggers.tsv, read by
 #   scripts/bats_select.py); land-gate and CI do the same, the nightly runs all.
@@ -77,7 +77,7 @@ make land-gate                       # THE pre-landing gate: ONCE per batch, bef
 #   Running it in the background: watch its log for ": FAIL in|: TIMEOUT in" and
 #   report a failed stage the moment it lands, not when the whole gate ends.
 #   The C++ suite once, in CI's 8-shard layout (not the local sweep's 96: CI
-#   never runs that grouping), bats, CI's tests/ui pytest slice (headless), the
+#   never runs that grouping), the [slow] tier, bats, CI's tests/ui pytest slice (headless), the
 #   moonraker plugin tests, the generated-artefact checks (theme token table,
 #   xml schema + lint-xml, lvgl event codes), the ESP32 syntax check (needs
 #   docker + the IDF image: thelio/zeus), and quality-checks.sh: pushing the
