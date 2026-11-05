@@ -9,7 +9,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -214,7 +213,6 @@ TEST_CASE_METHOD(PidHeadsFixture, "Leaving a calibrating panel stops only what n
         {PrintJobState::PRINTING, false, false},
         {PrintJobState::PAUSED, false, true},
     }));
-    helix::PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
     load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
     Access::activate(panel);
