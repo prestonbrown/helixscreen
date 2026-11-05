@@ -217,6 +217,7 @@ class Ipv4Configurable {
     }
 };
 
+#ifdef HELIX_ENABLE_MOCKS
 /**
  * @brief An in-memory IPv4 configuration, for the mock backends
  *
@@ -244,6 +245,7 @@ Ipv4Snapshot mock_ipv4_snapshot(Ipv4Link link);
 
 /// Restore a "mock" snapshot.
 Ipv4Result restore_mock_ipv4_snapshot(const Ipv4Snapshot& snapshot);
+#endif // HELIX_ENABLE_MOCKS
 
 // ============================================================================
 // NetworkManager (nmcli)

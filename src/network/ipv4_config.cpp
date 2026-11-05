@@ -330,6 +330,7 @@ Ipv4Config ipv4_keep_unshown(const Ipv4Config& current, Ipv4Config next) {
     return next;
 }
 
+#ifdef HELIX_ENABLE_MOCKS
 // ============================================================================
 // Mock store
 // ============================================================================
@@ -399,6 +400,8 @@ std::string MockIpv4Config::static_address() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return config_.dhcp ? std::string() : config_.address;
 }
+
+#endif // HELIX_ENABLE_MOCKS
 
 // ============================================================================
 // NetworkManager

@@ -288,9 +288,11 @@ Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
     if (snapshot.store == "networkmanager") {
         return restore_network_manager(snapshot);
     }
+#ifdef HELIX_ENABLE_MOCKS
     if (snapshot.store == "mock") {
         return restore_mock_ipv4_snapshot(snapshot);
     }
+#endif
     return Ipv4Result::refused("unknown store '" + snapshot.store + "'");
 }
 
@@ -307,9 +309,11 @@ std::unique_ptr<Ipv4SystemStore> make_network_manager_ipv4_store() {
     return nullptr;
 }
 Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
+#ifdef HELIX_ENABLE_MOCKS
     if (snapshot.store == "mock") {
         return restore_mock_ipv4_snapshot(snapshot);
     }
+#endif
     return Ipv4Result::not_supported();
 }
 
