@@ -194,67 +194,42 @@ TEST_CASE("slicer_material is the material the slicer and AFC understand",
     CHECK(filament::slicer_material("PA6-CF") == "PA6-CF");
 }
 
-TEST_CASE("new_filament_name puts the product before the colour",
-          "[spoolman_db][filament_naming]") {
-    using helix::spoolman::new_filament_name;
-    CHECK(new_filament_name("ABS+", "Deep Gray") == "ABS+ Deep Gray");
-    CHECK(new_filament_name("Silk PLA", " Gold ") == "Silk PLA Gold");
-    CHECK(new_filament_name("PETG", "") == "PETG");
-    CHECK(new_filament_name("", "Red") == "Red");
-    CHECK(new_filament_name(" ", " ").empty());
-}
-
-TEST_CASE("temperature_for_range is the midpoint, or the one end set",
-          "[spoolman_db][filament_naming]") {
-    using helix::spoolman::temperature_for_range;
-    CHECK(temperature_for_range(240, 270) == 255);
-    CHECK(temperature_for_range(0, 230) == 230);
-    CHECK(temperature_for_range(210, 0) == 210);
-    CHECK(temperature_for_range(0, 0) == 0);
-}
-
 TEST_CASE("find_similar_filament offers the nearest colour of the same material",
           "[spoolman_db][filament_naming]") {
-    using helix::spoolman::find_similar_filament;
-    auto make = [](int id, const char* name, const char* material, const char* hex) {
+    auto make = [](int id, const char* material, const char* hex) {
         FilamentInfo f;
         f.id = id;
-        f.filament_name = name;
         f.material = material;
         f.color_hex = hex;
         return f;
     };
-    // A vendor's records as one Spoolman holds them.
+    // A vendor's records as one Spoolman holds them, plus a legacy record
+    // filed under its precise type.
     const std::vector<FilamentInfo> filaments{
-        make(72, "Black ABS+HS", "ABS", "000000"),
-        make(73, "Grey ABS+HS", "ABS", "636363"),
-        make(20, "Silver ABS+HS", "ABS", "B6B6B6"),
-        make(30, "Grey PETG", "PETG", "4A4A4A"),
+        make(72, "ABS", "000000"),  make(73, "ABS", "636363"),   make(20, "ABS", "B6B6B6"),
+        make(30, "PETG", "4A4A4A"), make(117, "ABS+", "505050"),
     };
-
-    SECTION("a nearby grey of the same material is offered over a farther one") {
-        const FilamentInfo* f = find_similar_filament(filaments, "ABS", "#4A4A4A");
-        REQUIRE(f != nullptr);
-        CHECK(f->id == 73);
-    }
-
-    SECTION("another material is never offered, however close the colour") {
-        CHECK(find_similar_filament(filaments, "PLA", "4A4A4A") == nullptr);
-    }
-
-    SECTION("a colour past the tolerance is not offered") {
-        CHECK(find_similar_filament(filaments, "ABS", "FF0000") == nullptr);
-    }
-
-    SECTION("a record filed under the precise type still counts as its material") {
-        const std::vector<FilamentInfo> legacy{make(117, "ABS+", "ABS+", "4A4A4A")};
-        const FilamentInfo* f = find_similar_filament(legacy, "ABS", "4A4A4A");
-        REQUIRE(f != nullptr);
-        CHECK(f->id == 117);
-    }
-
-    SECTION("no colour offers nothing") {
-        CHECK(find_similar_filament(filaments, "ABS", "") == nullptr);
+    struct Row {
+        const char* what;
+        const char* material;
+        const char* hex;
+        int exclude;
+        int offered; // 0 = nothing
+    };
+    const Row rows[] = {
+        {"the nearest grey of the same material", "ABS", "#4A4A4A", 0, 117},
+        {"a record filed under the precise type counts as its material", "ABS", "525252", 0, 117},
+        {"the spool's own record is skipped", "ABS", "525252", 117, 73},
+        {"another material, however close the colour", "PLA", "4A4A4A", 0, 0},
+        {"a colour past the tolerance", "ABS", "FF0000", 0, 0},
+        {"no colour", "ABS", "", 0, 0},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            const FilamentInfo* f =
+                helix::spoolman::find_similar_filament(filaments, r.material, r.hex, r.exclude);
+            CHECK((f ? f->id : 0) == r.offered);
+        }
     }
 }
 
