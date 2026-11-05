@@ -12,6 +12,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/toast_log.h"
 #include "core/update_queue.h"
+#include "hardware_validator.h"
 #include "notice.h"
 
 #include <string>
@@ -131,4 +132,33 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A notice's action becomes the toast's butto
 
     toasts.deinit_subjects();
     drain();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Hardware validation publishes its notice with a View action",
+                 "[toast][hardware][validator]") {
+    CapturedNotices notices;
+    HardwareValidator validator;
+    HardwareValidationResult result;
+
+    SECTION("missing critical hardware is an error") {
+        result.critical_missing.push_back(
+            HardwareIssue::critical("heater_bed", HardwareType::HEATER, "Bed heater not found"));
+        validator.notify_user(result);
+        REQUIRE(g_captured.size() == 1);
+        CHECK(g_captured[0].severity == NoticeSeverity::ERROR);
+        CHECK(g_captured[0].message == "Critical hardware missing: heater_bed");
+    }
+    SECTION("new hardware is information") {
+        result.newly_discovered.push_back(
+            HardwareIssue::info("neopixel chamber", HardwareType::LED, "New LED found"));
+        validator.notify_user(result);
+        REQUIRE(g_captured.size() == 1);
+        CHECK(g_captured[0].severity == NoticeSeverity::INFO);
+        CHECK(g_captured[0].message == "LED strip available for lighting control");
+    }
+
+    CHECK(g_captured[0].duration_ms == 8000);
+    CHECK(g_captured[0].action_text == "View");
+    CHECK(g_captured[0].action != nullptr);
+    CHECK(g_captured[0].action_user_data == nullptr);
 }
