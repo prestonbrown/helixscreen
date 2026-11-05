@@ -791,7 +791,7 @@ Located in the `output` section:
 
 ## Network Settings
 
-Nothing about the network connection is stored in `settings.json`. The connection type, SSID and IP address shown in **Settings > Connection > Network Settings** are read live from the printer's operating system, and the setup wizard configures the actual network through the printer, not through this file.
+Nothing about the network connection is stored in `settings.json`. The connection type, SSID and IP address shown in **Settings > Connection > Network Settings** are read live from the printer's operating system, and the setup wizard configures the actual network through the printer, not through this file. A static IPv4 address set in Network Settings is written to the printer's own network configuration (a NetworkManager connection profile, or `/etc/dhcpcd.conf`). While a change waits for **Keep**, the settings it replaced are kept in `<config dir>/ipv4_pending_revert.json`, beside `settings.json`, so a restart puts them back.
 
 ---
 

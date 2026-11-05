@@ -849,6 +849,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 **Setup and settings**
 
+- **Static IP address for Wi-Fi and Ethernet** (#1900) - Settings > Connection > Network
+  Settings has an IPv4 row under each connection: set the IP address, subnet mask, gateway and
+  DNS server, or go back to DHCP with one tap. After a change the screen asks whether to keep
+  it, and puts the previous settings back on its own after 60 seconds, so an address that
+  leaves the printer unreachable undoes itself. The row appears where the printer's network
+  setup can keep a static address across a reboot (NetworkManager, or dhcpcd running as root).
 - **Share the screen with Mainsail and Fluidd** (#1825) - Settings > Connection > Screen
   Sharing > Share Screen adds a **HelixScreen Screen** webcam that shows the printer's screen, and Allow
   Remote Control lets you tap and drag on it from the browser. On MainsailOS and KIAUH
