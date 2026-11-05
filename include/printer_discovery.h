@@ -18,8 +18,8 @@
 #include "filament_database.h" // filament::kDefaultDiameterMm
 #include "fit_check.h"
 #include "hardware_object_table.h"
+#include "json_fwd.h"
 #include "leveling_probe_points.h"
-#include "openams_api.h" // OpenAMS claims only a manager speaking its API
 #include "preprint_skip_wrappers.h"
 #include "printer_detector.h" // For BuildVolume struct
 
@@ -32,8 +32,6 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -80,13 +78,7 @@ class PrinterDiscovery {
      * queries these (a `printer.objects.query` "objects" map) before the
      * hardware callback and hands the reply to settle_status_claims().
      */
-    [[nodiscard]] nlohmann::json claim_status_query() const {
-        nlohmann::json query = nlohmann::json::object();
-        if (has_openams_manager_ && !has_mmu_) {
-            query[openams::kManagerObject] = nlohmann::json::array({"api_version", "schema"});
-        }
-        return query;
-    }
+    [[nodiscard]] nlohmann::json claim_status_query() const;
 
     /**
      * @brief Finish the claims claim_status_query() left open
@@ -661,20 +653,7 @@ class PrinterDiscovery {
      *
      * @param settings JSON object from a configfile.settings response
      */
-    void parse_extruder_dimensions(const nlohmann::json& settings) {
-        const auto extruder = settings.find("extruder");
-        if (extruder == settings.end() || !extruder->is_object()) {
-            return;
-        }
-        auto read_positive = [&extruder](const char* key, float& out) {
-            const auto v = extruder->find(key);
-            if (v != extruder->end() && v->is_number() && v->get<float>() > 0.0f) {
-                out = v->get<float>();
-            }
-        };
-        read_positive("filament_diameter", filament_diameter_mm_);
-        read_positive("nozzle_diameter", nozzle_diameter_mm_);
-    }
+    void parse_extruder_dimensions(const nlohmann::json& settings);
 
     /// Nozzle diameter in mm, [extruder] nozzle_diameter.
     [[nodiscard]] float nozzle_diameter_mm() const {
@@ -706,32 +685,7 @@ class PrinterDiscovery {
      *
      * @param settings JSON object from a configfile.settings response
      */
-    void parse_leveling_probe_points(const nlohmann::json& settings) {
-        leveling_probe_points_.clear();
-        auto read = [&](const char* section, PrintStartPhase phase) {
-            const auto s = settings.find(section);
-            if (s == settings.end() || !s->is_object()) {
-                return;
-            }
-            const auto pts = s->find("points");
-            if (pts == s->end() || !pts->is_array()) {
-                return;
-            }
-            std::vector<LevelingProbePoint> parsed;
-            for (const auto& p : *pts) {
-                if (!p.is_array() || p.size() < 2 || !p[0].is_number() || !p[1].is_number()) {
-                    return;
-                }
-                parsed.push_back({p[0].get<double>(), p[1].get<double>(), phase});
-            }
-            leveling_probe_points_.insert(leveling_probe_points_.end(), parsed.begin(),
-                                          parsed.end());
-        };
-        if (settings.is_object()) {
-            read("quad_gantry_level", PrintStartPhase::QGL);
-            read("z_tilt", PrintStartPhase::Z_TILT);
-        }
-    }
+    void parse_leveling_probe_points(const nlohmann::json& settings);
 
     /// Configured gantry-leveling / Z-tilt probe points; empty when neither is configured.
     [[nodiscard]] const std::vector<LevelingProbePoint>& leveling_probe_points() const {
@@ -1093,11 +1047,9 @@ class PrinterDiscovery {
         std::string name;
         hw::ObjectClass cls;
     };
-    struct ClassifiedSection {
-        std::string name;
-        hw::ObjectClass cls;
-        nlohmann::json body;
-    };
+    /// Holds a json by value, so it is complete only in printer_discovery_parse.cpp, which also
+    /// defines the special members that need it.
+    struct ClassifiedSection;
 
     /// Recomputes the bucket lists below from objects_.
     void rebuild_buckets();

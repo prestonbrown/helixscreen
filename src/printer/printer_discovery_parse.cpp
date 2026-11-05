@@ -10,6 +10,7 @@
 #include "json_utils.h"
 #include "klipper_extruder_naming.h" // count_extruder_names
 #include "macro_patterns.h"
+#include "openams_api.h" // OpenAMS claims only a manager speaking its API
 #include "printer_discovery.h"
 #include "start_macro_injection.h"
 #include "toolchanger_addon.h" // zmod_c5_present
@@ -20,7 +21,22 @@
 #include <climits>
 #include <cstdlib>
 
+#include "hv/json.hpp"
+
 namespace helix {
+
+struct PrinterDiscovery::ClassifiedSection {
+    std::string name;
+    hw::ObjectClass cls;
+    nlohmann::json body;
+};
+
+PrinterDiscovery::PrinterDiscovery() = default;
+PrinterDiscovery::PrinterDiscovery(const PrinterDiscovery&) = default;
+PrinterDiscovery::PrinterDiscovery(PrinterDiscovery&&) noexcept = default;
+PrinterDiscovery& PrinterDiscovery::operator=(const PrinterDiscovery&) = default;
+PrinterDiscovery& PrinterDiscovery::operator=(PrinterDiscovery&&) noexcept = default;
+PrinterDiscovery::~PrinterDiscovery() = default;
 
 void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     clear();
@@ -737,6 +753,14 @@ void PrinterDiscovery::rebuild_buckets() {
     filament_sensor_names_ = objects_of({ObjectKind::FilamentSwitch, ObjectKind::FilamentMotion});
 }
 
+nlohmann::json PrinterDiscovery::claim_status_query() const {
+    nlohmann::json query = nlohmann::json::object();
+    if (has_openams_manager_ && !has_mmu_) {
+        query[openams::kManagerObject] = nlohmann::json::array({"api_version", "schema"});
+    }
+    return query;
+}
+
 void PrinterDiscovery::settle_status_claims(const nlohmann::json& status) {
     if (!has_openams_manager_ || has_mmu_) {
         return;
@@ -1124,6 +1148,47 @@ bool PrinterDiscovery::parse_sensor_toggle_command(const nlohmann::json& setting
 bool PrinterDiscovery::parse_screws_tilt_builtin(const nlohmann::json& settings) {
     screws_tilt_builtin_ = renamed_builtin(settings, "gcode_macro screws_tilt_calculate");
     return !screws_tilt_builtin_.empty();
+}
+
+void PrinterDiscovery::parse_extruder_dimensions(const nlohmann::json& settings) {
+    const auto extruder = settings.find("extruder");
+    if (extruder == settings.end() || !extruder->is_object()) {
+        return;
+    }
+    auto read_positive = [&extruder](const char* key, float& out) {
+        const auto v = extruder->find(key);
+        if (v != extruder->end() && v->is_number() && v->get<float>() > 0.0f) {
+            out = v->get<float>();
+        }
+    };
+    read_positive("filament_diameter", filament_diameter_mm_);
+    read_positive("nozzle_diameter", nozzle_diameter_mm_);
+}
+
+void PrinterDiscovery::parse_leveling_probe_points(const nlohmann::json& settings) {
+    leveling_probe_points_.clear();
+    auto read = [&](const char* section, PrintStartPhase phase) {
+        const auto s = settings.find(section);
+        if (s == settings.end() || !s->is_object()) {
+            return;
+        }
+        const auto pts = s->find("points");
+        if (pts == s->end() || !pts->is_array()) {
+            return;
+        }
+        std::vector<LevelingProbePoint> parsed;
+        for (const auto& p : *pts) {
+            if (!p.is_array() || p.size() < 2 || !p[0].is_number() || !p[1].is_number()) {
+                return;
+            }
+            parsed.push_back({p[0].get<double>(), p[1].get<double>(), phase});
+        }
+        leveling_probe_points_.insert(leveling_probe_points_.end(), parsed.begin(), parsed.end());
+    };
+    if (settings.is_object()) {
+        read("quad_gantry_level", PrintStartPhase::QGL);
+        read("z_tilt", PrintStartPhase::Z_TILT);
+    }
 }
 
 void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_status) {
