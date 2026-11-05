@@ -82,23 +82,37 @@ std::optional<std::string> volume_type_from_option(const std::string& option) {
 std::optional<nlohmann::json> change_params(int head, const Nozzle& reported,
                                             const Nozzle& wanted) {
     nlohmann::json params = {{"extruder", head}};
-    bool any = false;
-    if (wanted.diameter) {
-        const auto want = listed_diameter(*wanted.diameter);
-        if (want &&
-            (!reported.diameter || std::fabs(*reported.diameter - *want) > kDiameterTolerance)) {
-            params["diameter"] = *want;
-            any = true;
-        }
-    }
-    if (wanted.volume_type && wanted.volume_type != reported.volume_type) {
-        params["volume_type"] = *wanted.volume_type;
-        any = true;
-    }
-    if (!any) {
+    const std::optional<double>& source = wanted.diameter ? wanted.diameter : reported.diameter;
+    const auto diameter = source ? listed_diameter(*source) : std::nullopt;
+    if (!diameter) {
         return std::nullopt;
     }
+    params["diameter"] = *diameter;
+
+    const bool high_flow_fits = *diameter == kHighFlowDiameter;
+    if (wanted.volume_type == kHighFlow && !high_flow_fits) {
+        return std::nullopt;
+    }
+    std::optional<std::string> volume_type;
+    if (wanted.volume_type && wanted.volume_type != reported.volume_type) {
+        volume_type = wanted.volume_type;
+    } else if (!wanted.volume_type && !high_flow_fits && reported.volume_type == kHighFlow) {
+        volume_type = kStandard;
+    }
+    const bool diameter_differs =
+        !reported.diameter || std::fabs(*reported.diameter - *diameter) > kDiameterTolerance;
+    if (!diameter_differs && !volume_type) {
+        return std::nullopt;
+    }
+    if (volume_type) {
+        params["volume_type"] = *volume_type;
+    }
     return params;
+}
+
+bool flow_selectable(const Nozzle& reported) {
+    const auto diameter = reported.diameter ? listed_diameter(*reported.diameter) : std::nullopt;
+    return diameter && (*diameter == kHighFlowDiameter || reported.volume_type == kHighFlow);
 }
 
 Reply read_reply(const nlohmann::json& response) {

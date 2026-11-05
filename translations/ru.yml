@@ -198,8 +198,8 @@ translations:
   = Loosen: = Ослабить
   = Tighten: = Затянуть
   A: A
-  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
-  : "Сопло 0,2 мм не может печатать некоторые филаменты: PA, PC и PCTG, TPU, PVA, PEBA, с углеволокном или стекловолокном, Glow, Marble и Wood. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."
+  ? A 0.2 mm nozzle can't print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again.
+  : "Сопло 0,2 мм может печатать не все филаменты: в их числе PA, PC, TPU и материалы с углеволокном или стекловолокном. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Зуммер или динамик для оповещений и звуков. Что воспроизводится, настраивается в настройках звука.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Камера, которую транслирует Moonraker. Добавьте виджет камеры на главный экран, чтобы смотреть ее, в том числе во время печати.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры.'
@@ -1887,6 +1887,7 @@ translations:
   Hide Firmware Noise: Скрыть служебные сообщения прошивки
   Hide Temperature Reports: Скрыть отчёты о температуре
   Hide the on-screen keyboard while a USB keyboard is attached: Скрывать экранную клавиатуру, пока подключена USB-клавиатура
+  High Flow needs a 0.4 mm nozzle: "Для High Flow нужно сопло 0,4 мм"
   High Fly: 'Над облаками'
   High Water Mark: Пиковое значение
   Hold anywhere to cancel: Удерживайте в любом месте для отмены

@@ -148,7 +148,7 @@
   <translation tag="= Loosen" ja="= 緩める"/>
   <translation tag="= Tighten" ja="= 締める"/>
   <translation tag="A" ja="A"/>
-  <translation tag="A 0.2 mm nozzle can&apos;t print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." ja="0.2 mmノズルでは一部のフィラメントを印刷できません: PA、PCおよびPCTG、TPU、PVA、PEBA、カーボンファイバー・グラスファイバー入り、Glow、Marble、Wood。このツールヘッドにそのいずれかが装填されている場合、プリンターはフィラメント情報を消去するため、再設定が必要です。"/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." ja="0.2 mmノズルでは、PA、PC、TPU、カーボンファイバー・グラスファイバー入りなど、印刷できないフィラメントがあります。このツールヘッドにそのいずれかが装填されている場合、プリンターはフィラメント情報を消去するため、再設定が必要です。"/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." ja="アラートやサウンド用のブザーまたはスピーカー。再生内容はサウンド設定で選べます。"/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." ja="Moonrakerが配信するカメラ。ホーム画面にカメラウィジェットを追加すると、印刷中も映像を確認できます。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ja="チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。"/>
@@ -1685,6 +1685,7 @@
   <translation tag="Hide Firmware Noise" ja="ファームウェアノイズを非表示"/>
   <translation tag="Hide Temperature Reports" ja="温度レポートを非表示"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" ja="USBキーボード接続中は画面キーボードを非表示にする"/>
+  <translation tag="High Flow needs a 0.4 mm nozzle" ja="High Flowには0.4 mmノズルが必要です"/>
   <translation tag="High Fly" ja="雲の上"/>
   <translation tag="High Water Mark" ja="最大値"/>
   <translation tag="Hold anywhere to cancel" ja="どこかを長押ししてキャンセル"/>

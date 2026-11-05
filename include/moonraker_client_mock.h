@@ -1398,10 +1398,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] std::pair<double, std::string> nozzle_properties(int head) const;
 
     /// The U1 firmware's control/nozzle_properties webhook: @p params carries
-    /// extruder and optionally diameter and volume_type. Refuses the way the
+    /// extruder and diameter, and optionally volume_type. Refuses the way the
     /// firmware does, inside the reply ({"state": "error", "message": ...}),
-    /// for no extruder, an unknown one, a print printing or paused, or a value
-    /// it does not accept; otherwise stores the change, pushes the extruder's
+    /// for no extruder or diameter, an unknown extruder, a print printing or
+    /// paused, or a value it does not accept; otherwise stores the change, pushes the extruder's
     /// status update and answers {"state": "success"}.
     nlohmann::json set_nozzle_properties(const nlohmann::json& params);
 

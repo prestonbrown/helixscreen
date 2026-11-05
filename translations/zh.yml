@@ -150,8 +150,8 @@ translations:
   = Loosen: = 松开
   = Tighten: = 拧紧
   A: 辅
-  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
-  : "0.2 mm 喷嘴无法打印部分耗材：PA、PC 和 PCTG、TPU、PVA、PEBA、CF 或 GF 增强型、Glow、Marble 和 Wood。如果此工具头装有其中之一，打印机会清除其耗材信息，需要重新设置。"
+  ? A 0.2 mm nozzle can't print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again.
+  : "0.2 mm 喷嘴无法打印部分耗材，如 PA、PC、TPU、CF 或 GF 增强型。如果此工具头装有其中之一，打印机会清除其耗材信息，需要重新设置。"
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: '用于提示和声音的蜂鸣器或扬声器。在声音设置中选择播放内容。'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Moonraker 推流的摄像头。将摄像头小组件添加到主屏幕即可查看,打印时也能看到。'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: '让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。'
@@ -1748,6 +1748,7 @@ translations:
   Hide Firmware Noise: 隐藏固件噪声
   Hide Temperature Reports: 隐藏温度报告
   Hide the on-screen keyboard while a USB keyboard is attached: 连接 USB 键盘时隐藏屏幕键盘
+  High Flow needs a 0.4 mm nozzle: "High Flow 需要 0.4 mm 喷嘴"
   High Fly: '云端飞翔'
   High Water Mark: 峰值标记
   Hold anywhere to cancel: 长按任意位置取消

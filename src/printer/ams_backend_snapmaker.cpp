@@ -3783,6 +3783,17 @@ constexpr std::string_view kNozzleDiameterPrefix = "snapmaker_nozzle_diameter_t"
 constexpr std::string_view kNozzleFlowPrefix = "snapmaker_nozzle_flow_t";
 constexpr const char* kToolheadSection = "toolhead";
 
+/// The failure a nozzle change that was answered reports. @p reason is the
+/// firmware's or the transport's words, empty when neither gave any.
+AmsError nozzle_refusal(const std::string& reason) {
+    AmsError error = AmsErrorHelper::command_failed(snapmaker::nozzle::kMethod, reason);
+    error.user_msg = reason.empty()
+                         ? std::string(lv_tr("Nozzle not changed: the printer did not confirm it"))
+                         : fmt::format(fmt::runtime(lv_tr("Nozzle not changed: {}")), reason);
+    error.suggestion.clear();
+    return error;
+}
+
 /// The tool a per-tool action id (@p prefix, then the tool number) names, or
 /// nullopt for an id that is not one.
 std::optional<size_t> tool_from_action_id(std::string_view prefix, const std::string& action_id) {
@@ -3800,6 +3811,11 @@ std::optional<size_t> tool_from_action_id(std::string_view prefix, const std::st
         return std::nullopt;
     }
     return static_cast<size_t>(*parsed);
+}
+
+bool is_nozzle_action(const std::string& action_id) {
+    return tool_from_action_id(kNozzleDiameterPrefix, action_id) ||
+           tool_from_action_id(kNozzleFlowPrefix, action_id);
 }
 } // namespace
 
@@ -3923,20 +3939,23 @@ std::vector<helix::printer::DeviceAction> AmsBackendSnapmaker::get_device_action
                                             shown.empty() ? std::any{} : std::any(shown))
                          .with_option_confirm(
                              nozzle::diameter_option(0.2),
-                             TR_NOOP("A 0.2 mm nozzle can't print some filaments: PA, PC and "
-                                     "PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, "
-                                     "Marble and Wood. If this head has one of them loaded, "
-                                     "the printer clears its filament info and you'll need to "
-                                     "set it again."),
+                             TR_NOOP("A 0.2 mm nozzle can't print every filament, including "
+                                     "PA, PC, TPU and carbon- or glass-filled types. If this "
+                                     "head has one of them loaded, the printer clears its "
+                                     "filament info and you'll need to set it again."),
                              TR_NOOP("Change")),
                      head);
         }
         if (const auto& t = nozzles[h].volume_type) {
             const std::string shown = nozzle::flow_option(*t);
-            per_head(DeviceAction::dropdown(std::string(kNozzleFlowPrefix) + std::to_string(h),
-                                            "Nozzle flow", kToolheadSection, nozzle::flow_options(),
-                                            shown.empty() ? std::any{} : std::any(shown)),
-                     head);
+            DeviceAction flow = DeviceAction::dropdown(
+                std::string(kNozzleFlowPrefix) + std::to_string(h), "Nozzle flow", kToolheadSection,
+                nozzle::flow_options(), shown.empty() ? std::any{} : std::any(shown));
+            if (!nozzle::flow_selectable(nozzles[h])) {
+                flow.enabled = false;
+                flow.disable_reason = TR_NOOP("High Flow needs a 0.4 mm nozzle");
+            }
+            per_head(std::move(flow), head);
         }
     }
     return out;
@@ -4035,18 +4054,8 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
 
 AmsError AmsBackendSnapmaker::do_execute_device_action(const std::string& action_id,
                                                        const std::any& value) {
-    if (tool_from_action_id(kNozzleDiameterPrefix, action_id) ||
-        tool_from_action_id(kNozzleFlowPrefix, action_id)) {
-        NozzleChange change = build_nozzle_change(action_id, value);
-        if (!change.valid) {
-            return AmsErrorHelper::not_supported(action_id);
-        }
-        if (!change.params) {
-            spdlog::debug("{} {}: the head already reports that; nothing sent", backend_log_tag(),
-                          action_id);
-            return AmsErrorHelper::success();
-        }
-        return send_nozzle_change(std::move(*change.params));
+    if (is_nozzle_action(action_id)) {
+        return do_run_device_action(action_id, value, nullptr);
     }
     const std::string gcode = build_preference_gcode(action_id, value);
     if (gcode.empty()) {
@@ -4074,7 +4083,28 @@ AmsError AmsBackendSnapmaker::do_execute_device_action(const std::string& action
     return execute_gcode(gcode);
 }
 
-AmsError AmsBackendSnapmaker::send_nozzle_change(nlohmann::json params) {
+AmsError AmsBackendSnapmaker::do_run_device_action(const std::string& action_id,
+                                                   const std::any& value,
+                                                   DeviceActionDone on_done) {
+    if (!is_nozzle_action(action_id)) {
+        return AmsSubscriptionBackend::do_run_device_action(action_id, value, std::move(on_done));
+    }
+    NozzleChange change = build_nozzle_change(action_id, value);
+    if (!change.valid) {
+        return AmsErrorHelper::not_supported(action_id);
+    }
+    if (!change.params) {
+        spdlog::debug("{} {}: the head already reports that; nothing sent", backend_log_tag(),
+                      action_id);
+        if (on_done) {
+            on_done(AmsErrorHelper::success());
+        }
+        return AmsErrorHelper::success();
+    }
+    return send_nozzle_change(std::move(*change.params), std::move(on_done));
+}
+
+AmsError AmsBackendSnapmaker::send_nozzle_change(nlohmann::json params, DeviceActionDone on_done) {
     if (!client_) {
         return AmsErrorHelper::not_connected("No Moonraker client");
     }
@@ -4085,33 +4115,45 @@ AmsError AmsBackendSnapmaker::send_nozzle_change(nlohmann::json params) {
     client_->send_jsonrpc(
         snapmaker::nozzle::kMethod, params,
         lifetime_.bg_cb("AmsBackendSnapmaker::nozzle_change.reply",
-                        [this](const nlohmann::json& response) {
+                        [this, on_done](const nlohmann::json& response) {
                             const auto reply = snapmaker::nozzle::read_reply(response);
                             switch (reply.kind) {
                             case snapmaker::nozzle::ReplyKind::Accepted:
                                 spdlog::info("{} Nozzle change accepted", backend_log_tag());
+                                if (on_done) {
+                                    on_done(AmsErrorHelper::success());
+                                }
                                 return;
                             case snapmaker::nozzle::ReplyKind::Refused:
-                                nozzle_change_failed(reply.message);
+                                nozzle_change_failed(nozzle_refusal(reply.message), on_done);
                                 return;
                             case snapmaker::nozzle::ReplyKind::Unexpected:
                                 spdlog::warn("{} Nozzle change: unexpected reply {}",
                                              backend_log_tag(), response.dump());
-                                nozzle_change_failed({});
+                                nozzle_change_failed(nozzle_refusal({}), on_done);
                                 return;
                             }
                         }),
         lifetime_.bg_cb("AmsBackendSnapmaker::nozzle_change.error",
-                        [this](const MoonrakerError& err) { nozzle_change_failed(err.message); }),
+                        [this, on_done](const MoonrakerError& err) {
+                            // No answer does not say the change was refused.
+                            nozzle_change_failed(
+                                err.type == MoonrakerErrorType::TIMEOUT ||
+                                        err.type == MoonrakerErrorType::CONNECTION_LOST
+                                    ? AmsErrorHelper::timeout(snapmaker::nozzle::kMethod)
+                                    : nozzle_refusal(err.message),
+                                on_done);
+                        }),
         snapmaker::nozzle::kTimeoutMs, /*silent=*/true);
     return AmsErrorHelper::success();
 }
 
-void AmsBackendSnapmaker::nozzle_change_failed(const std::string& reason) {
-    if (reason.empty()) {
-        NOTIFY_ERROR("{}", lv_tr("Nozzle not changed: the printer did not confirm it"));
+void AmsBackendSnapmaker::nozzle_change_failed(const AmsError& error,
+                                               const DeviceActionDone& on_done) {
+    if (on_done) {
+        on_done(error);
     } else {
-        NOTIFY_ERROR(lv_tr("Nozzle not changed: {}"), reason);
+        helix::ui::notify_ams_error(error);
     }
     emit_event(EVENT_STATE_CHANGED);
 }

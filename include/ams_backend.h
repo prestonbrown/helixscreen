@@ -2717,9 +2717,11 @@ class AmsBackend : public AmsCapabilityHost {
     /**
      * @brief Execute a device action and report when it ends
      *
-     * For an action that runs long on the printer (a calibration, a tool cycle):
-     * the returned AmsError says whether it was sent, @p on_done how it ended.
-     * @p on_done is not called when the send itself is refused.
+     * For an action the printer answers later (a calibration, a tool cycle, a
+     * setting it can refuse): the returned AmsError says whether it was sent,
+     * @p on_done how it ended. @p on_done is not called when the send itself is
+     * refused. A backend that does not override this ends an action when
+     * execute_device_action() returns.
      *
      * @param action_id The action ID from get_device_actions()
      * @param value Optional value for toggles/sliders/dropdowns
@@ -2728,10 +2730,11 @@ class AmsBackend : public AmsCapabilityHost {
      */
     virtual AmsError run_device_action(const std::string& action_id, const std::any& value,
                                        DeviceActionDone on_done) {
-        (void)action_id;
-        (void)value;
-        (void)on_done;
-        return AmsErrorHelper::not_supported("Device actions");
+        AmsError result = execute_device_action(action_id, value);
+        if (result.success() && on_done) {
+            on_done(result);
+        }
+        return result;
     }
 
     /// A run_device_action() has been sent and has not reported its end. While

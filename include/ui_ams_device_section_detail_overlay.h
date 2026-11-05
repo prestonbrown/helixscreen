@@ -26,6 +26,7 @@
 #include <lvgl/lvgl.h>
 
 #include <any>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -148,7 +149,10 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
 
     /// Run @p action through the backend, reporting a failure, and on success record
     /// @p value as the one its row shows. Returns the result.
-    AmsError execute(const helix::printer::DeviceAction& action, std::any value);
+    /// With @p on_done, the backend reports through it once the action has ended,
+    /// on the main thread; it is not called when the send itself is refused.
+    AmsError execute(const helix::printer::DeviceAction& action, std::any value,
+                     std::function<void(const AmsError&)> on_done = nullptr);
 
     /// Show slider @p position as @p action's value in its row's value display.
     void show_slider_value(lv_obj_t* row, const helix::printer::DeviceAction& action,

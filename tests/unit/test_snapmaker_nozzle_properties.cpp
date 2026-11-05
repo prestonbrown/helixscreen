@@ -43,19 +43,39 @@ TEST_CASE("an option maps back to the exact value the firmware accepts",
     CHECK_FALSE(volume_type_from_option("high_flow"));
 }
 
-TEST_CASE("a change carries only the field that differs from the report",
+TEST_CASE("every change names a diameter and the flow type only when it changes",
           "[snapmaker][nozzle][nozzle_properties]") {
     const Nozzle reported{0.4, std::string("standard")};
 
-    SECTION("a new diameter sends the diameter alone") {
+    SECTION("a new diameter leaves the flow type out") {
         const auto p = change_params(2, reported, Nozzle{0.6, std::nullopt});
         REQUIRE(p);
         CHECK(*p == json{{"extruder", 2}, {"diameter", 0.6}});
     }
-    SECTION("a new flow type sends the flow type alone") {
+    SECTION("a new flow type also names the head's own diameter") {
         const auto p = change_params(0, reported, Nozzle{std::nullopt, std::string("high_flow")});
         REQUIRE(p);
-        CHECK(*p == json{{"extruder", 0}, {"volume_type", "high_flow"}});
+        CHECK(*p == json{{"extruder", 0}, {"diameter", 0.4}, {"volume_type", "high_flow"}});
+    }
+    SECTION("a flow type on a head with no usable diameter cannot be sent") {
+        const Nozzle high{std::nullopt, std::string("high_flow")};
+        CHECK_FALSE(change_params(0, Nozzle{std::nullopt, std::string("standard")}, high));
+        CHECK_FALSE(change_params(0, Nozzle{0.5, std::string("standard")}, high));
+    }
+    SECTION("leaving 0.4 mm on High Flow goes back to standard") {
+        const Nozzle high_flow{0.4, std::string("high_flow")};
+        const double diameter = GENERATE(0.2, 0.6, 0.8);
+        const auto p = change_params(1, high_flow, Nozzle{diameter, std::nullopt});
+        REQUIRE(p);
+        CHECK(*p == json{{"extruder", 1}, {"diameter", diameter}, {"volume_type", "standard"}});
+    }
+    SECTION("a head outside 0.4 mm still on High Flow can leave it, and not re-enter it") {
+        const Nozzle stuck{0.6, std::string("high_flow")};
+        const auto p = change_params(1, stuck, Nozzle{std::nullopt, std::string("standard")});
+        REQUIRE(p);
+        CHECK(*p == json{{"extruder", 1}, {"diameter", 0.6}, {"volume_type", "standard"}});
+        CHECK_FALSE(change_params(1, Nozzle{0.6, std::string("standard")},
+                                  Nozzle{std::nullopt, std::string("high_flow")}));
     }
     SECTION("the reported value sends nothing") {
         CHECK_FALSE(change_params(1, reported, Nozzle{0.4, std::nullopt}));
@@ -76,6 +96,18 @@ TEST_CASE("a change carries only the field that differs from the report",
     SECTION("nothing wanted sends nothing") {
         CHECK_FALSE(change_params(1, reported, Nozzle{}));
     }
+}
+
+TEST_CASE("a head's flow type is selectable at 0.4 mm or to leave High Flow",
+          "[snapmaker][nozzle][nozzle_properties]") {
+    CHECK(flow_selectable(Nozzle{0.4, std::string("standard")}));
+    CHECK(flow_selectable(Nozzle{0.4, std::string("high_flow")}));
+    CHECK(flow_selectable(Nozzle{0.6, std::string("high_flow")}));
+    CHECK_FALSE(flow_selectable(Nozzle{0.2, std::string("standard")}));
+    CHECK_FALSE(flow_selectable(Nozzle{0.6, std::string("standard")}));
+    CHECK_FALSE(flow_selectable(Nozzle{0.8, std::string("standard")}));
+    CHECK_FALSE(flow_selectable(Nozzle{0.5, std::string("high_flow")}));
+    CHECK_FALSE(flow_selectable(Nozzle{std::nullopt, std::string("standard")}));
 }
 
 TEST_CASE("the firmware's reply decides whether the change was made",

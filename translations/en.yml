@@ -149,8 +149,8 @@ translations:
   = Loosen: = Loosen
   = Tighten: = Tighten
   A: A
-  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
-  : "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
+  ? A 0.2 mm nozzle can't print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again.
+  : A 0.2 mm nozzle can't print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again.
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.
@@ -1797,6 +1797,7 @@ translations:
   Hide Firmware Noise: Hide Firmware Noise
   Hide Temperature Reports: Hide Temperature Reports
   Hide the on-screen keyboard while a USB keyboard is attached: Hide the on-screen keyboard while a USB keyboard is attached
+  High Flow needs a 0.4 mm nozzle: High Flow needs a 0.4 mm nozzle
   High Fly: High Fly
   High Water Mark: High Water Mark
   Hold anywhere to cancel: Hold anywhere to cancel

@@ -155,8 +155,8 @@ translations:
   = Loosen: = Allentare
   = Tighten: = Stringere
   A: A
-  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
-  : "Un ugello da 0,2 mm non può stampare alcuni filamenti: PA, PC e PCTG, TPU, PVA, PEBA, caricati con fibra di carbonio o di vetro, Glow, Marble e Wood. Se questa testina ne ha uno caricato, la stampante cancella le sue informazioni sul filamento e andranno impostate di nuovo."
+  ? A 0.2 mm nozzle can't print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again.
+  : "Un ugello da 0,2 mm non può stampare tutti i filamenti, tra cui PA, PC, TPU e i tipi caricati con fibra di carbonio o di vetro. Se questa testina ne ha uno caricato, la stampante cancella le sue informazioni sul filamento e andranno impostate di nuovo."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un cicalino o altoparlante per avvisi e suoni. Scegli cosa riprodurre nelle impostazioni audio.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Una telecamera trasmessa da Moonraker. Aggiungi il widget telecamera alla schermata iniziale per guardarla, anche durante una stampa.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Una ventola che fa passare l''aria della camera attraverso un filtro. Controllala nella schermata della temperatura camera.'
@@ -1843,6 +1843,7 @@ translations:
   Hide Firmware Noise: Nascondi rumore firmware
   Hide Temperature Reports: Nascondi report temperature
   Hide the on-screen keyboard while a USB keyboard is attached: Nascondi la tastiera su schermo quando è collegata una tastiera USB
+  High Flow needs a 0.4 mm nozzle: "High Flow richiede un ugello da 0,4 mm"
   High Fly: 'Sopra le nuvole'
   High Water Mark: Picco massimo
   Hold anywhere to cancel: Tieni premuto ovunque per annullare
