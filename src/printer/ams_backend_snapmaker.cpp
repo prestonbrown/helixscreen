@@ -3952,13 +3952,19 @@ std::vector<helix::printer::DeviceAction> AmsBackendSnapmaker::get_device_action
     namespace nozzle = snapmaker::nozzle;
     const auto nozzles = reported_nozzles();
     bool in_progress = false;
+    std::array<bool, snapmaker::kToolCount> changing{};
     {
         std::lock_guard<std::mutex> lock(mutex_);
         in_progress = print_in_progress_locked();
+        changing = nozzle_change_in_flight_;
     }
     auto per_head = [&](DeviceAction a, int head) {
         a.slot_index = head;
         a.tool_index = head;
+        if (changing[static_cast<size_t>(head)]) {
+            a.enabled = false;
+            a.disable_reason = TR_NOOP("Wait for the current operation to complete");
+        }
         // The firmware refuses the change while printing or paused.
         if (in_progress) {
             a.enabled = false;
@@ -4145,34 +4151,47 @@ AmsError AmsBackendSnapmaker::send_nozzle_change(nlohmann::json params, DeviceAc
     if (!client_) {
         return AmsErrorHelper::not_connected("No Moonraker client");
     }
+    const int head = json_util::safe_int(params, "extruder", -1);
+    if (head < 0 || head >= static_cast<int>(nozzle_change_in_flight_.size())) {
+        return AmsErrorHelper::not_supported(snapmaker::nozzle::kMethod);
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        nozzle_change_in_flight_[static_cast<size_t>(head)] = true;
+    }
+    emit_event(EVENT_STATE_CHANGED);
     spdlog::info("{} Nozzle change: {}", backend_log_tag(), params.dump());
     // The firmware refuses inside a successful reply, so the reply is read
     // before anything counts as changed. A change it takes arrives as an
     // extruder status update, which is what moves the row.
     client_->send_jsonrpc(
         snapmaker::nozzle::kMethod, params,
-        lifetime_.bg_cb("AmsBackendSnapmaker::nozzle_change.reply",
-                        [this, on_done](const nlohmann::json& response) {
-                            const auto reply = snapmaker::nozzle::read_reply(response);
-                            switch (reply.kind) {
-                            case snapmaker::nozzle::ReplyKind::Accepted:
-                                spdlog::info("{} Nozzle change accepted", backend_log_tag());
-                                if (on_done) {
-                                    on_done(AmsErrorHelper::success());
-                                }
-                                return;
-                            case snapmaker::nozzle::ReplyKind::Refused:
-                                nozzle_change_failed(nozzle_refusal(reply.message), on_done);
-                                return;
-                            case snapmaker::nozzle::ReplyKind::Unexpected:
-                                spdlog::warn("{} Nozzle change: unexpected reply {}",
-                                             backend_log_tag(), response.dump());
-                                nozzle_change_failed(nozzle_refusal({}), on_done);
-                                return;
-                            }
-                        }),
+        lifetime_.bg_cb(
+            "AmsBackendSnapmaker::nozzle_change.reply",
+            [this, on_done, head, params](const nlohmann::json& response) {
+                const auto reply = snapmaker::nozzle::read_reply(response);
+                finish_nozzle_change(
+                    head, reply.kind == snapmaker::nozzle::ReplyKind::Accepted ? &params : nullptr);
+                switch (reply.kind) {
+                case snapmaker::nozzle::ReplyKind::Accepted:
+                    spdlog::info("{} Nozzle change accepted", backend_log_tag());
+                    if (on_done) {
+                        on_done(AmsErrorHelper::success());
+                    }
+                    return;
+                case snapmaker::nozzle::ReplyKind::Refused:
+                    nozzle_change_failed(nozzle_refusal(reply.message), on_done);
+                    return;
+                case snapmaker::nozzle::ReplyKind::Unexpected:
+                    spdlog::warn("{} Nozzle change: unexpected reply {}", backend_log_tag(),
+                                 response.dump());
+                    nozzle_change_failed(nozzle_refusal({}), on_done);
+                    return;
+                }
+            }),
         lifetime_.bg_cb("AmsBackendSnapmaker::nozzle_change.error",
-                        [this, on_done](const MoonrakerError& err) {
+                        [this, on_done, head](const MoonrakerError& err) {
+                            finish_nozzle_change(head, nullptr);
                             // No answer does not say the change was refused.
                             nozzle_change_failed(
                                 err.type == MoonrakerErrorType::TIMEOUT ||
@@ -4183,6 +4202,23 @@ AmsError AmsBackendSnapmaker::send_nozzle_change(nlohmann::json params, DeviceAc
                         }),
         snapmaker::nozzle::kTimeoutMs, /*silent=*/true);
     return AmsErrorHelper::success();
+}
+
+void AmsBackendSnapmaker::finish_nozzle_change(int head, const nlohmann::json* accepted) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto h = static_cast<size_t>(head);
+        nozzle_change_in_flight_[h] = false;
+        if (accepted != nullptr && h < extruder_states_.size()) {
+            extruder_states_[h].apply(snapmaker::parse_extruder_delta(nlohmann::json{
+                {"nozzle_diameter",
+                 accepted->contains("diameter") ? (*accepted)["diameter"] : nlohmann::json()},
+                {"nozzle_volume_type", accepted->contains("volume_type")
+                                           ? (*accepted)["volume_type"]
+                                           : nlohmann::json()}}));
+        }
+    }
+    emit_event(EVENT_STATE_CHANGED);
 }
 
 void AmsBackendSnapmaker::nozzle_change_failed(const AmsError& error,

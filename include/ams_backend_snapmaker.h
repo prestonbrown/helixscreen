@@ -1233,6 +1233,16 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// print_stats.state names a print in progress (printing or paused).
     [[nodiscard]] bool print_in_progress_locked() const;
 
+    /// A nozzle change is out on this head. Its rows are disabled until the answer,
+    /// since another pick would be built from a report the change is about to
+    /// replace. Under mutex_.
+    std::array<bool, snapmaker::kToolCount> nozzle_change_in_flight_{};
+
+    /// Ends the head's in-flight change. @p accepted carries the params the
+    /// firmware took, which the head reports from now on: the status frame saying
+    /// so can lag the reply, and the next pick is built from this.
+    void finish_nozzle_change(int head, const nlohmann::json* accepted);
+
     /// Sends a nozzle change (@p params from build_nozzle_change()) and reads
     /// the firmware's reply, which @p on_done (may be empty) receives. A refusal,
     /// an unexpected reply or a failed send goes to nozzle_change_failed().

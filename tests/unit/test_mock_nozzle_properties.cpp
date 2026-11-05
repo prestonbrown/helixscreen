@@ -273,6 +273,61 @@ TEST_CASE_METHOD(NozzleFixture, "a tracked pick ends when the firmware has answe
     }
 }
 
+TEST_CASE_METHOD(NozzleFixture, "a head takes one nozzle change at a time",
+                 "[mock][snapmaker][nozzle]") {
+    const auto row_enabled = [this](const char* id) {
+        const auto actions = backend->get_device_actions();
+        const auto it = std::find_if(actions.begin(), actions.end(),
+                                     [id](const auto& a) { return a.id == id; });
+        REQUIRE(it != actions.end());
+        return it->enabled;
+    };
+    client.defer_next(nozzle::kMethod);
+    REQUIRE(
+        backend
+            ->execute_device_action("snapmaker_nozzle_flow_t2", std::any(std::string("High Flow")))
+            .success());
+    REQUIRE(client.sent.size() == 1);
+
+    // Until the firmware answers, the head's rows take nothing and another's do.
+    CHECK_FALSE(row_enabled("snapmaker_nozzle_diameter_t2"));
+    CHECK_FALSE(row_enabled("snapmaker_nozzle_flow_t2"));
+    CHECK(row_enabled("snapmaker_nozzle_diameter_t1"));
+    CHECK_FALSE(
+        backend
+            ->execute_device_action("snapmaker_nozzle_diameter_t2", std::any(std::string("0.6 mm")))
+            .success());
+    CHECK(client.sent.size() == 1);
+
+    SECTION("accepted: the next pick starts from what the head was just given") {
+        // The reply lands with no status frame behind it.
+        MoonrakerClientMockTestAccess::set_method_handler(
+            client, nozzle::kMethod,
+            [](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)> ok,
+               helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
+                if (ok) {
+                    ok(json{{"result", {{"state", "success"}}}});
+                }
+                return true;
+            });
+        client.fire_deferred(nozzle::kMethod);
+        drain();
+        CHECK(row_enabled("snapmaker_nozzle_diameter_t2"));
+        REQUIRE(pick("snapmaker_nozzle_diameter_t2", "0.6 mm").success());
+        REQUIRE(client.sent.size() == 2);
+        // Built from High Flow, not the standard the last status frame said.
+        CHECK(client.sent[1] ==
+              json{{"extruder", 2}, {"diameter", 0.6}, {"volume_type", "standard"}});
+    }
+    SECTION("refused: the rows come back and the report stands") {
+        client.fire_deferred_error(nozzle::kMethod, MoonrakerError::unknown("no"));
+        drain();
+        CHECK(row_enabled("snapmaker_nozzle_flow_t2"));
+        const auto nozzles = backend->reported_nozzles();
+        CHECK(nozzles[2].volume_type == std::string("standard"));
+    }
+}
+
 TEST_CASE_METHOD(NozzleFixture, "a pick of the value a head reports sends nothing",
                  "[mock][snapmaker][nozzle]") {
     CHECK(pick("snapmaker_nozzle_diameter_t0", "0.4 mm").success());
