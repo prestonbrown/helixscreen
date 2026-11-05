@@ -18,6 +18,7 @@
  * the skipped-lines notice takes the timed one.
  */
 
+#include "../helix_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "env_refusal_notice.h"
 
@@ -262,7 +263,9 @@ template <typename Fn> Surfaced surfaced_warnings(Fn&& fn) {
 
 } // namespace
 
-TEST_CASE("env-refusal: a mode refusal becomes one sticky warning naming the chmod", "[1712]") {
+TEST_CASE_METHOD(HelixTestFixture,
+                 "env-refusal: a mode refusal becomes one sticky warning naming the chmod",
+                 "[1712]") {
     const Surfaced surfaced = surfaced_warnings([] {
         EnvVarGuard refused("HELIX_ENV_FILE_REFUSED", "mode|||/etc/helixscreen/helixscreen.env");
         surface_env_refusal_from_launcher();
@@ -277,7 +280,9 @@ TEST_CASE("env-refusal: a mode refusal becomes one sticky warning naming the chm
     CHECK(surfaced.sticky[0].find("chown") == std::string::npos);
 }
 
-TEST_CASE("env-refusal: skipped lines become one timed warning naming every entry", "[1712]") {
+TEST_CASE_METHOD(HelixTestFixture,
+                 "env-refusal: skipped lines become one timed warning naming every entry",
+                 "[1712]") {
     const Surfaced surfaced = surfaced_warnings([] {
         EnvVarGuard skipped(
             "HELIX_ENV_LINES_SKIPPED",
@@ -292,7 +297,8 @@ TEST_CASE("env-refusal: skipped lines become one timed warning naming every entr
     CHECK(surfaced.timed[0].find("HELIX_NICE") != std::string::npos);
 }
 
-TEST_CASE("env-refusal: one skipped line uses the singular wording", "[1712]") {
+TEST_CASE_METHOD(HelixTestFixture, "env-refusal: one skipped line uses the singular wording",
+                 "[1712]") {
     const Surfaced surfaced = surfaced_warnings([] {
         EnvVarGuard skipped("HELIX_ENV_LINES_SKIPPED", "HELIX_NICE:must be 0-19");
         surface_env_refusal_from_launcher();
@@ -302,7 +308,8 @@ TEST_CASE("env-refusal: one skipped line uses the singular wording", "[1712]") {
     CHECK(surfaced.timed[0].find("lines in helixscreen.env were ignored") == std::string::npos);
 }
 
-TEST_CASE("env-refusal: a truncated handoff words the count as a lower bound", "[1712]") {
+TEST_CASE_METHOD(HelixTestFixture,
+                 "env-refusal: a truncated handoff words the count as a lower bound", "[1712]") {
     const Surfaced surfaced = surfaced_warnings([] {
         EnvVarGuard skipped("HELIX_ENV_LINES_SKIPPED", capped_handoff_value().c_str());
         surface_env_refusal_from_launcher();
@@ -317,7 +324,8 @@ TEST_CASE("env-refusal: a truncated handoff words the count as a lower bound", "
           std::string::npos);
 }
 
-TEST_CASE("env-refusal: a handoff at the cap exactly keeps the exact count", "[1712]") {
+TEST_CASE_METHOD(HelixTestFixture,
+                 "env-refusal: a handoff at the cap exactly keeps the exact count", "[1712]") {
     const Surfaced surfaced = surfaced_warnings([] {
         const std::string value = capped_handoff_value();
         EnvVarGuard skipped("HELIX_ENV_LINES_SKIPPED", value.substr(0, value.rfind('|')).c_str());

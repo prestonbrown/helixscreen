@@ -62,7 +62,7 @@ TEST_CASE("CameraStream: construct and destroy without crash", "[camera]") {
     REQUIRE_FALSE(stream.is_running());
 }
 
-TEST_CASE("CameraStream: start with empty URLs does nothing", "[camera]") {
+TEST_CASE_METHOD(HelixTestFixture, "CameraStream: start with empty URLs does nothing", "[camera]") {
     CameraStream stream;
     bool callback_called = false;
     stream.start("", "", [&](lv_draw_buf_t*) { callback_called = true; });
