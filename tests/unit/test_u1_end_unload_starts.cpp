@@ -116,8 +116,11 @@ TEST_CASE_METHOD(U1StartFx, "a backend without IPrintRouting sends nothing ahead
 
     SECTION("a reprint starts with no pre-print send") {
         helix::ui::PrintStartController controller{ps, &api};
-        controller.initiate_reprint("cal.gcode", "cal.gcode", {0}, []() {}, []() {});
+        bool started = false;
+        controller.initiate_reprint(
+            "cal.gcode", "cal.gcode", {0}, [&started]() { started = true; }, []() {});
         helix::ui::UpdateQueue::instance().drain();
+        CHECK(started);
         CHECK(all_scripts().empty());
     }
     SECTION("a restart sends only its own clear") {
