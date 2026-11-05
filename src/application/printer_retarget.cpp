@@ -13,6 +13,7 @@
 #include "lap_log.h"
 #include "moonraker_manager.h"
 #include "print_history_manager.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "sound_manager.h"
 #include "utils/network_validation.h"
@@ -59,6 +60,8 @@ void forget_previous_printer() {
         neutral[name] = {{"temperature", 0.0}, {"target", 0.0}};
     }
     ps.update_from_status(neutral);
+    // Chamber air controls follow a provider the new printer may not have.
+    ps.chamber_air().set_hardware(PrinterDiscovery{});
 
     if (PrintHistoryManager* history = get_print_history_manager()) {
         history->forget_printer();

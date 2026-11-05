@@ -237,6 +237,7 @@ translations:
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Система, подающая несколько филаментов на печатающую головку, отображается с числом слотов. Слотами можно управлять на экране системы филамента.'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: 'Идёт калибровка смещений головок, возможно, с другого экрана. Завершить её сейчас?'
+  A top cover was detected. Its fans and air modes are on the Fans screen.: 'Обнаружена верхняя крышка. Её вентиляторы и режимы воздуха находятся на экране «Вентиляторы».'
   A upper, B lower: "A сверху, B снизу"
   ABS: ABS
   ACCELEROMETERS: АКСЕЛЕРОМЕТРЫ
@@ -322,6 +323,7 @@ translations:
     индивидуальные характеристики нагревателей для оптимального контроля
   Advanced: Дополнительно
   After an error: После ошибки
+  After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'После подключения {} рекомендуем заново откалибровать компенсацию вибраций для качества печати.'
   After running the commands, tap Check Again below.: После выполнения команд нажмите
     «Проверить снова» ниже.
   Alert: Оповещение
@@ -595,6 +597,7 @@ translations:
   CFS is busy: CFS занят
   CFS motor overloaded: Двигатель CFS перегружен
   CFS system error: Системная ошибка CFS
+  CHAMBER AIR: 'ВОЗДУХ КАМЕРЫ'
   CHANGED FROM LAST SESSION: ИЗМЕНЕНО С ПРОШЛОЙ СЕССИИ
   CLOG: ЗАСОР
   COLOR SENSORS: ДАТЧИКИ ЦВЕТА
@@ -627,6 +630,7 @@ translations:
   Calibrate heater: Калибровать нагреватель
   Calibrate input shaping to reduce ringing artifacts in prints: Калибровка компенсации
     вибраций для уменьшения артефактов звона
+  Calibrate now: 'Откалибровать'
   Calibrate part fan: Калибровать обдув модели
   Calibrate tool offsets?: Калибровать смещения инструментов?
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для
@@ -741,6 +745,7 @@ translations:
   Chamber heating to %d°C...: Нагрев камеры до %d°C...
   Chamber target set to {}°C: Целевая температура камеры установлена на {}°C
   Chamber temp must be 0-%d°C: Температура камеры должна быть 0-%d°C
+  Chamber too hot: 'Камера перегрета'
   Change: Изменить
   Change Address: Изменить адрес
   Change Blade: 'Заменить лезвие'
@@ -1424,6 +1429,9 @@ translations:
   Execute printer macros: Выполнить макросы принтера
   Exhaust: Вытяжка
   Exhaust Fan: Вытяжной вентилятор
+  Exhaust fan: 'Вытяжной вентилятор'
+  Exhaust fan speed: 'Скорость вытяжного вентилятора'
+  'Exhaust: keep chamber at or below': 'Вытяжка: держать камеру не выше'
   Exit Code: Код выхода
   Expected boolean: 'Ожидалось логическое значение'
   Expected float: 'Ожидалось дробное число'
@@ -1589,6 +1597,7 @@ translations:
   Fan Tach: 'Тахометр вентилятора'
   Fan Transfer: Теплообмен с вентилятором
   Fan available but not assigned to any role: 'Вентилятор доступен, но не назначен ни на одну роль'
+  Fan control: 'Управление вентиляторами'
   'Fan control failed: {}': 'Ошибка управления вентилятором: {}'
   FanSelect: Выбрать вентилятор
   Fans: Вентиляторы
@@ -2329,6 +2338,7 @@ translations:
   Low Memory: Мало памяти
   Lower: Опустить
   Lower belt: "Нижний ремень"
+  Lower fan speed?: 'Снизить скорость вентилятора?'
   Lower the nozzle until it just touches the top of the print, then resume.: Опустите сопло, пока оно едва не коснётся верха печати, затем продолжите.
   Lowest notification level that interrupts with a toast: 'Минимальный уровень уведомления, прерывающий всплывающим сообщением'
   M to toggle: M для переключения
@@ -2817,6 +2827,7 @@ translations:
   : "Свободно всего {} МБ памяти, а анализу Klipper нужно около {} МБ. Тест оставит принтер зависшим, пока его не выключат и снова не включат."
   Ooze Reduction: 'Снижение подтекания'
   Open: Открыть
+  Open Fans: 'Открыть «Вентиляторы»'
   Open Source Licenses: Лицензии с открытым кодом
   Open color and brightness controls: Управление цветом и яркостью
   Open feeder macro: Макрос для открытия фидера
@@ -3300,12 +3311,15 @@ translations:
   Reboot: Перезагрузка
   Reboot failed: Ошибка перезагрузки
   Reboot failed — host is still reachable: Ошибка перезагрузки — хост всё ещё доступен
+  Recalibrate input shaping?: 'Откалибровать компенсацию вибраций?'
   Recalibrate or view detailed results anytime in Settings.: Перекалибруйте или просмотрите
     подробные результаты в любое время в Настройках.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: От принтера получены слишком большие данные ({} байт). Возможна ошибка связи.
   Recent Prints: Недавние печати
   Recently Printed: Недавно напечатано
   Recirculate: 'Рециркуляция'
+  Recirculation fan: 'Вентилятор рециркуляции'
+  Recirculation fan speed: 'Скорость вентилятора рециркуляции'
   Reconnect: Переподключиться
   Record Timelapse: Записать таймлапс
   Record timelapses of your prints: Записывайте таймлапсы ваших печатей
@@ -3324,6 +3338,8 @@ translations:
   Reduce ringing and ghosting artifacts: Уменьшить артефакты звона и двоения
   Reduce vibration artifacts like ringing and ghosting: Уменьшить артефакты вибрации,
     такие как звон и двоение
+  Reducing the fan speed may affect filtration performance. Do you want to continue?: 'Снижение скорости вентилятора может ухудшить фильтрацию. Продолжить?'
+  Reducing the fan speed may affect print quality. Do you want to continue?: 'Снижение скорости вентилятора может ухудшить качество печати. Продолжить?'
   Refeeding filament — this may take a minute: Повторная подача филамента — это может
     занять минуту
   Refill the spool, then Resume.: Пополните катушку, затем нажмите «Продолжить».
@@ -4152,6 +4168,7 @@ translations:
   : 'Камере показалось, что на столе что-то есть, поэтому принтер остановился до начала печати. Если стол чист, это ложная тревога.'
   'The carriage was not put back: check which tool is mounted': 'Каретка не возвращена: проверьте, какой инструмент установлен'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'Нагреватель камеры может запускать цикл сушки филамента. Запустите его из диалога сушки.'
+  The chamber temperature is too high. This may cause extruder clogging. Continue printing?: 'Температура камеры слишком высокая. Это может засорить экструдер. Продолжить печать?'
   The chamber wait already ended; nothing was stopped.: 'Ожидание камеры уже закончилось; ничего не остановлено.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны.
@@ -4239,6 +4256,7 @@ translations:
   The printer did not change its bed check: 'Принтер не изменил проверку стола'
   'The printer did not change its bed check: {}': 'Принтер не изменил проверку стола: {}'
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова.'
+  The printer did not reset the filter: 'Принтер не сбросил счётчик фильтра'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз.'
   The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер
@@ -4297,6 +4315,7 @@ translations:
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: Датчик
     печатающей головки показывает, что филамент отсутствует. Всё равно продолжить
     выгрузку?
+  The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'Верхняя крышка отключена. Для качества печати подключите её, прежде чем продолжить.'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис
   The unit reported a fault with no further detail. Restart the printer if it repeats: Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
@@ -4512,6 +4531,7 @@ translations:
   Tools: Инструменты
   Tools Used: Использовано инструментов
   'Tools: ': 'Инструменты: '
+  Top Cover: 'Верхняя крышка'
   Total Prints: Всего печатей
   'Total print time: {} h': 'Общее время печати: {} ч'
   Touch & Input: Касание и ввод
@@ -4796,6 +4816,8 @@ translations:
   Wifi: Wi-Fi
   Will not switch spools on runout: При обрыве катушка не переключится
   Wipe nozzle on silicone cleaning strip: 'Очистить сопло о силиконовую полоску'
+  With exhaust cooling on, the recirculation fan cannot be turned on: 'При охлаждении вытяжкой вентилятор рециркуляции включить нельзя'
+  With internal circulation on, the exhaust fan cannot be turned on: 'При рециркуляции вытяжной вентилятор включить нельзя'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "В пределах {0:.1f} Гц друг от друга на {1:.0f} Гц"
   Wipe the mounted nozzle on the brush: 'Протереть установленное сопло о щётку'
   Wiping {}...: 'Очистка: {}...'
@@ -5033,8 +5055,10 @@ translations:
     few: '{} критические проблемы с оборудованием'
     many: '{} критических проблем с оборудованием'
     other: '{} критические проблемы с оборудованием'
+  '{} detected': '{}: обнаружено'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию.'
   '{} disabled': '{} выключено'
+  '{} disconnected': '{}: отключено'
   '{} enabled': '{} включено'
   '{} failed: {}': 'Ошибка {}: {}'
   '{} filament': '{} филамента'

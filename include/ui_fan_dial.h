@@ -57,6 +57,18 @@ class FanDial {
      */
     void set_speed(int percent);
 
+    /// Puts the dial at @p percent even right after the user moved it: a value the
+    /// printer was never sent (refused, or awaiting a confirmation) must not stay
+    /// on screen. set_speed() ignores updates for a moment after a touch.
+    void restore_speed(int percent);
+
+    /// While the arc is held, keep a changed speed back until the finger lifts instead
+    /// of sending it from the mid-drag debounce. For a fan whose changes may be refused
+    /// or need a confirmation: neither can be shown under a finger still moving the arc.
+    void set_hold_until_release(bool hold) {
+        hold_until_release_ = hold;
+    }
+
     /**
      * @brief Get current displayed speed
      * @return Current speed percentage (0-100)
@@ -151,6 +163,7 @@ class FanDial {
     lv_timer_t* debounce_timer_ = nullptr;
     int pending_speed_ = 0;
     bool has_pending_send_ = false;
+    bool hold_until_release_ = false;
 };
 
 /**

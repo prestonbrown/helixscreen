@@ -299,6 +299,7 @@ src/printer/toolhead_homing.cpp
 src/printer/tool_offset_calibration.cpp
 src/printer/stepper_resonance_calibration.cpp
 src/printer/chamber_air_modes.cpp
+src/printer/chamber_air_state.cpp
 src/printer/pa_calibration.cpp
 src/printer/pa_tuning.cpp
 src/printer/tool_offsets.cpp
@@ -323,6 +324,7 @@ src/system/capability_overrides.cpp
 src/system/child_process.cpp
 src/system/cjk_font_manager.cpp
 src/system/config.cpp
+src/system/chamber_air_settings.cpp
 src/system/config_migrations.cpp
 src/system/config_trust.cpp
 src/system/config_backup.cpp
@@ -382,6 +384,7 @@ src/system/update_checker_subjects.cpp
 src/system/wizard_step_logic.cpp
 src/temperature/temperature_history_manager.cpp
 src/temperature/thermal_rate_model.cpp
+src/ui/notify/ui_chamber_air_notices.cpp
 src/ui/notify/action_prompt_manager.cpp
 src/ui/filament/ams_drawing_utils.cpp
 src/ui/filament/ams_tray_projection.cpp

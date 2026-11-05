@@ -8,11 +8,13 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "chamber_air_modes.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "helix_psram_attr.h"
+#include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "observe_language.h"
 #include "printer_state.h"
@@ -193,15 +195,35 @@ void notify_due(int i) {
     ToastManager::instance().show(ToastSeverity::WARNING, msg.c_str());
 }
 
+/// Whether the Filter meter follows a firmware filter counter: the printer's chamber
+/// air provider keeps one and it has reported a value.
+bool filter_from_firmware() {
+    auto& ps = get_printer_state();
+    return !chamber_air::filter_reset_gcode(ps.get_discovery()).empty() &&
+           ps.chamber_air().filter_seconds().has_value();
+}
+
 void on_print_duration(int*, int seconds) {
     const int delta = s_tracker.observe(seconds);
     if (delta <= 0)
         return;
-    const auto due = maintenance::accrue(s_state, delta / 3600.0);
+    const auto due = maintenance::accrue(s_state, delta / 3600.0, filter_from_firmware());
     s_unsaved_s += delta;
     for (int i : due)
         notify_due(i);
     if (!due.empty() || s_unsaved_s >= s_save_at_s)
+        save();
+    publish();
+}
+
+void on_firmware_filter_minutes(int*, int minutes) {
+    if (minutes < 0 || !filter_from_firmware())
+        return;
+    const auto secs = get_printer_state().chamber_air().filter_seconds();
+    const auto due = maintenance::apply_firmware_filter_hours(s_state, secs.value_or(0.0) / 3600.0);
+    for (int i : due)
+        notify_due(i);
+    if (!due.empty())
         save();
     publish();
 }
@@ -262,6 +284,8 @@ void attach_observers() {
                          on_connection_changed, printer_life));
     s_observers.push_back(ui::observe<int>(ps.print_state().get_print_active_subject(), &s_anchor,
                                            on_print_active, printer_life));
+    s_observers.push_back(ui::observe<int>(ps.chamber_air().filter_minutes_subject(), &s_anchor,
+                                           on_firmware_filter_minutes, printer_life));
 }
 
 void teardown() {
@@ -363,6 +387,38 @@ SubjectLifetime lifetime() {
 }
 
 void reset_meter(int meter) {
+    if (meter < 0 || meter >= kMeterCount)
+        return;
+    // A firmware-kept filter counter is cleared on the printer first; the meter
+    // follows once the printer has taken it, so a refused reset leaves both alone.
+    if (meter == static_cast<int>(maintenance::MeterId::Filter) && filter_from_firmware()) {
+        IMoonrakerAPI* api = get_moonraker_api();
+        if (!api) {
+            ToastManager::instance().show(ToastSeverity::WARNING, lv_tr("No printer connection"));
+            return;
+        }
+        const std::string gcode =
+            chamber_air::filter_reset_gcode(get_printer_state().get_discovery());
+        spdlog::info("[MaintenanceModel] Resetting the firmware filter counter: {}", gcode);
+        api->execute_gcode(
+            gcode,
+            [meter]() {
+                ui::queue_update("MaintenanceModel::filter_reset",
+                                 [meter]() { reset_meter_locally(meter); });
+            },
+            [](const MoonrakerError& err) {
+                spdlog::warn("[MaintenanceModel] Filter counter reset failed: {}", err.message);
+                ui::queue_update("MaintenanceModel::filter_reset_failed", []() {
+                    ToastManager::instance().show(ToastSeverity::ERROR,
+                                                  lv_tr("The printer did not reset the filter"));
+                });
+            });
+        return;
+    }
+    reset_meter_locally(meter);
+}
+
+void reset_meter_locally(int meter) {
     if (meter < 0 || meter >= kMeterCount)
         return;
     maintenance::reset_meter(s_state, meter);

@@ -121,3 +121,39 @@ TEST_CASE_METHOD(HelixTestFixture, "enclosure top: the U1 mock reports its top f
     MoonrakerClientMock voron(MoonrakerClientMock::PrinterType::VORON_24);
     CHECK(voron.purifier_status().empty());
 }
+
+TEST_CASE_METHOD(HelixTestFixture, "enclosure top: the U1 mock purifier behaves like firmware 2.x",
+                 "[enclosure_top][chamber_air][mock]") {
+    helix::ScopedEnv env("HELIX_MOCK_ENCLOSURE_TOP", nullptr);
+    MoonrakerClientMock u1(MoonrakerClientMock::PrinterType::SNAPMAKER_U1);
+
+    u1.gcode_script("SET_PURIFIER_MODE MODE=3 FAN_SPEED=0.50");
+    json p = u1.purifier_status();
+    CHECK(p["mode"] == 3);
+    CHECK(p["inner_fan"]["speed"].get<double>() == Catch::Approx(0.5));
+    CHECK(p["exhaust_fan"]["speed"].get<double>() == Catch::Approx(0.0));
+
+    u1.gcode_script("SET_PURIFIER FAN=inner WORK=0");
+    u1.gcode_script("SET_PURIFIER_MODE MODE=1 FAN_SPEED=0.70 DESIRE_TEMP=38 ALARM_TEMP=39");
+    p = u1.purifier_status();
+    CHECK(p["mode"] == 1);
+    CHECK(p["exhaust_fan"]["speed"].get<double>() == Catch::Approx(0.7));
+    CHECK(p["inner_fan"]["speed"].get<double>() == Catch::Approx(0.0));
+    CHECK(p["critical_chamber_temp"].get<double>() == Catch::Approx(39.0));
+
+    // Lifting the top off stops both fans and drops to idle, and every
+    // non-zero speed or mode is refused until it is back.
+    u1.gcode_script("HELIX_MOCK_TOP_COVER PRESENT=0");
+    p = u1.purifier_status();
+    CHECK(p["power_detected"] == false);
+    CHECK(p["mode"] == 0);
+    CHECK(p["exhaust_fan"]["speed"].get<double>() == Catch::Approx(0.0));
+    u1.gcode_script("SET_PURIFIER FAN=exhaust SPEED=0.50");
+    u1.gcode_script("SET_PURIFIER_MODE MODE=3");
+    p = u1.purifier_status();
+    CHECK(p["exhaust_fan"]["speed"].get<double>() == Catch::Approx(0.0));
+    CHECK(p["mode"] == 0);
+
+    u1.gcode_script("HELIX_MOCK_TOP_COVER PRESENT=1");
+    CHECK(u1.purifier_status()["power_detected"] == true);
+}

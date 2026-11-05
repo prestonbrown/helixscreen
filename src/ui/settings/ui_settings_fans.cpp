@@ -33,6 +33,8 @@ void FanSettingsOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_fan_rename_confirm", [](lv_event_t*) { get_fan_settings_overlay().confirm_rename(); }},
         {"on_fan_rename_cancel", [](lv_event_t*) { get_fan_settings_overlay().cancel_rename(); }},
+        {"on_chamber_air_targets_commit",
+         [](lv_event_t*) { get_printer_state().chamber_air().commit_targets(); }},
     });
 }
 

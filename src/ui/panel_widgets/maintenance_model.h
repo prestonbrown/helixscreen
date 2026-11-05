@@ -50,6 +50,10 @@ void confirm_reset(int meter);
 /// Resets a meter now and saves.
 void reset_meter(int meter);
 
+/// Starts a new interval on this screen only, without asking the printer; reset_meter()
+/// calls it once a firmware-kept counter has been cleared.
+void reset_meter_locally(int meter);
+
 /// Sets a meter's interval from a kIntervalChoices index and saves.
 void set_interval_choice(int meter, int choice_index);
 

@@ -388,7 +388,12 @@
       "power_loss"
     ],
     "purifier": [
-      "power_detected"
+      "power_detected",
+      "mode",
+      "critical_chamber_temp",
+      "inner_fan_work_time",
+      "exhaust_fan",
+      "inner_fan"
     ],
     "stepper_enable": [
       "steppers"

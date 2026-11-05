@@ -1459,6 +1459,9 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if ((r = gcode_u1_feeding(g))) {
         return *r;
     }
+    if ((r = gcode_u1_purifier(g))) {
+        return *r;
+    }
 
     // Heater and pin targets: the first match wins.
     if (has_token(g, "SET_HEATER_TEMPERATURE")) {

@@ -87,20 +87,39 @@ int longest_interval(const State& s) {
     return longest;
 }
 
-std::vector<int> accrue(State& s, double hours) {
+std::vector<int> accrue(State& s, double hours, bool skip_filter) {
     std::vector<int> due;
     if (!(hours > 0.0) || !std::isfinite(hours))
         return due;
     s.total_h = std::min(s.total_h + hours, kMaxStoredHours);
     for (int i = 0; i < kMeterCount; ++i) {
         Meter& m = s.meters[static_cast<size_t>(i)];
-        if (!enabled(m))
+        if (!enabled(m) || (skip_filter && i == static_cast<int>(MeterId::Filter)))
             continue;
         m.used_h = std::min(m.used_h + hours, kMaxStoredHours);
         if (!m.notified && m.used_h >= static_cast<double>(m.interval_h)) {
             m.notified = true;
             due.push_back(i);
         }
+    }
+    return due;
+}
+
+std::vector<int> apply_firmware_filter_hours(State& s, double hours) {
+    std::vector<int> due;
+    Meter& m = s.meters[static_cast<size_t>(MeterId::Filter)];
+    if (!enabled(m) || !std::isfinite(hours) || hours < 0.0)
+        return due;
+    // A counter that went down was reset on the printer, from here or anywhere else:
+    // the interval starts over and its due notice is armed again.
+    if (hours < m.used_h) {
+        m.reset_at_h = s.total_h;
+        m.notified = false;
+    }
+    m.used_h = std::min(hours, kMaxStoredHours);
+    if (!m.notified && m.used_h >= static_cast<double>(m.interval_h)) {
+        m.notified = true;
+        due.push_back(static_cast<int>(MeterId::Filter));
     }
     return due;
 }
