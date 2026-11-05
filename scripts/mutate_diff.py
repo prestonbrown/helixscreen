@@ -3280,10 +3280,11 @@ def main():
         pristine = guard.pristine
         if workers > 1:
             t0 = time.monotonic()
-            trees = make_worker_trees(root, args, workers, guard, suites)
+            # A copy per hunk at most: a group of one hunk has no use for six.
+            trees = make_worker_trees(root, args, min(workers, len(mutable)), guard, suites)
             for t in trees:
                 guards.append(t.guard)
-            print(f'  {workers} workers, each in a copy of the tree '
+            print(f'  {len(trees)} workers, each in a copy of the tree '
                   f'({trees[0].root.parent}, {time.monotonic() - t0:.0f}s)')
     except OutOfTime:
         out_of_time_report(mutable)

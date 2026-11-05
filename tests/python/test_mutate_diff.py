@@ -950,6 +950,19 @@ def test_parallel_verdicts_match_serial(tmp_path):
 
 
 @linux_only
+def test_a_parallel_run_makes_no_more_copies_than_it_has_hunks(tmp_path):
+    work = _fixture(tmp_path)
+    r = subprocess.run(
+        [sys.executable, "scripts/mutate_diff.py", "--shards", "1", "--workers", "4",
+         "--worker-dir", str(tmp_path / "copies"), "--log", str(work / "mutate.log"),
+         "--base", "main", "--no-record"],
+        cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=120, env=PARALLEL_ENV)
+    assert r.returncode == 0, r.stdout
+    assert "1 workers, each in a copy of the tree" in r.stdout
+
+
+@linux_only
 def test_no_two_mutants_share_a_tree_and_the_original_holds_none(tmp_path):
     work, base, seen = _parallel_fixture(tmp_path)
     r = subprocess.run(
