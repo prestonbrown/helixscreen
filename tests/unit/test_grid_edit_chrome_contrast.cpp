@@ -14,6 +14,7 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/grid_edit_mode_test_access.h"
+#include "../test_helpers/scoped_pointer_indev.h"
 #include "../ui_test_utils.h"
 #include "config.h"
 #include "grid_edit_mode.h"
@@ -51,8 +52,9 @@ lv_obj_t* icon_label_of(lv_obj_t* pill) {
 
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome icons clear WCAG AA on their composited pills",
-                 "[grid_edit][edit-chrome]") {
+TEST_CASE_METHOD(XMLTestFixture,
+                 "edit-mode chrome pills: icons clear WCAG AA, and only a tap presses one",
+                 "[grid_edit][edit-chrome][halfcell]") {
     const int gutter = helix::GridLayout::gutter_px();
     REQUIRE(gutter > 0);
 
@@ -130,7 +132,8 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome icons clear WCAG AA on their 
                 wcag::contrast(icon, pill_composited));
         CHECK(wcag::contrast(icon, pill_composited) >= 4.5);
     };
-    check_pill(GridEditModeTestAccess::remove_button(em), "trash");
+    lv_obj_t* trash = GridEditModeTestAccess::remove_button(em);
+    check_pill(trash, "trash");
     check_pill(GridEditModeTestAccess::configure_button(em), "configure");
 
     // The delete-page pill: danger fill at 80% over the screen background.
@@ -144,6 +147,26 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome icons clear WCAG AA on their 
     CAPTURE(lv_color_to_u32(del_icon) & 0xFFFFFF, lv_color_to_u32(del_composited) & 0xFFFFFF,
             wcag::contrast(del_icon, del_composited));
     CHECK(wcag::contrast(del_icon, del_composited) >= 4.0);
+
+    // On a half-cell widget the trash pill covers a quarter of the widget, so
+    // a drag aimed at the widget often starts on it: lifting elsewhere is not
+    // a tap.
+    helix_test::ScopedPointerIndev pointer;
+    lv_obj_update_layout(container);
+    lv_area_t pill;
+    lv_obj_get_coords(trash, &pill);
+    lv_point_t centre{(pill.x1 + pill.x2) / 2, (pill.y1 + pill.y2) / 2};
+    REQUIRE(lv_indev_search_obj(lv_screen_active(), &centre) == trash);
+    pointer.press(centre.x, centre.y);
+    pointer.move(centre.x + 30, centre.y + 30);
+    pointer.release(centre.x + 80, centre.y + 80);
+    CHECK(em.selected_widget() == widget);
+    CHECK(config.page_entries(kPageIndex).size() == 1);
+
+    // A tap that lifts on the pill still removes the widget.
+    pointer.press(centre.x, centre.y);
+    pointer.release(centre.x, centre.y);
+    CHECK(em.selected_widget() == nullptr);
 
     em.exit();
 }

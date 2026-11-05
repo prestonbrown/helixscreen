@@ -321,6 +321,16 @@ class GridEditMode {
     /// Detect which resize edge the pointer is near, or None if not near any edge.
     ResizeEdge detect_resize_edge(int px, int py, const lv_area_t& widget_area) const;
 
+    /// How far an edge grab band of @p band px reaches into a widget that is
+    /// @p widget_px across, so that the interior left for dragging is never
+    /// narrower than @p min_drag_px.
+    ///
+    /// A widget with room to spare gets the full band; a smaller one splits
+    /// what is left over the drag target between its two edges, down to 0 for
+    /// a widget no wider than the target. The outward band is untouched, so a
+    /// half-cell widget still resizes from just outside its edges.
+    static int inward_edge_reach(int band, int widget_px, int min_drag_px);
+
   private:
     friend struct helix::GridEditModeTestAccess;
 
