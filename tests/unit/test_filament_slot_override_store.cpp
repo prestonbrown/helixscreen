@@ -4381,10 +4381,10 @@ TEST_CASE("an unanswered load writes nothing over the printer's records",
                          [&ok](bool success, std::string) { ok = success; });
         CHECK(ok);
     }
-    SECTION("a clear, refused") {
-        bool ok = true;
+    SECTION("a clear") {
+        bool ok = false;
         store.clear_async(0, [&ok](bool success, std::string) { ok = success; });
-        CHECK_FALSE(ok);
+        CHECK(ok);
         CHECK(printer.client.call_count("server.database.delete_item") == 0);
     }
 
@@ -4414,7 +4414,7 @@ TEST_CASE("a load that fails is unread too, and one the database answers is not"
     }
 }
 
-TEST_CASE("the read that lands keeps a person's held save and drops the rest",
+TEST_CASE("the read that lands merges held saves onto the real records",
           "[filament_slot_override][2008]") {
     TmpCacheDir tmp("unread_adopt");
     MockPrinter printer;
@@ -4432,20 +4432,118 @@ TEST_CASE("the read that lands keeps a person's held save and drops the rest",
     load_without_an_answer(printer, store);
     REQUIRE(store.namespace_unread());
 
-    FilamentSlotOverride linked = polymaker_record();
-    linked.spoolman_id = 77;
-    store.save_async(0, polymaker_record(), nullptr); // a firmware reading: states nothing
-    store.save_async(1, cached, nullptr);             // what the cache already said
-    store.save_async(2, linked, nullptr);             // a spool linked since the load
+    // What the printer really holds: another tool has moved slot 1 on since the
+    // cache was written, and slot 3 has a record the edit below never saw.
+    FilamentSlotOverride newer = cached;
+    newer.brand = "Prusament";
+    FilamentSlotOverride spool = polymaker_record();
+    spool.spoolman_id = 12;
+    std::unordered_map<int, helix::ams::LaneDataRecord> records;
+    records[1] = helix::ams::LaneDataRecord{newer, helix::ams::to_lane_data_record(1, newer)};
+    records[3] = helix::ams::LaneDataRecord{spool, helix::ams::to_lane_data_record(3, spool)};
+    records[4] = helix::ams::LaneDataRecord{spool, helix::ams::to_lane_data_record(4, spool)};
+    records[5] = helix::ams::LaneDataRecord{spool, helix::ams::to_lane_data_record(5, spool)};
 
-    const auto statements = store.adopt_namespace_read({});
+    // Unchanged from the cache: a stale record must not replace the newer one.
+    store.save_async(1, cached, nullptr);
+    // An edit made without seeing the record: only what it changed moves.
+    FilamentSlotOverride edit;
+    edit.color_rgb = 0x00FF00;
+    edit.color_set = true;
+    store.save_async(3, edit, nullptr);
+    // Cleared while held, however the save before it read.
+    store.save_async(4, edit, nullptr);
+    store.clear_async(4, nullptr);
+    // Cleared, then given a new record that owes nothing to the old one.
+    store.clear_async(5, nullptr);
+    store.save_async(5, edit, nullptr);
+
+    const int posts_before = printer.client.call_count("server.database.post_item");
+    const auto writes = store.adopt_namespace_read(std::move(records));
     CHECK_FALSE(store.namespace_unread());
-    REQUIRE(statements.size() == 1);
-    REQUIRE(statements.count(2) == 1);
-    CHECK(statements.at(2).spoolman_id == 77);
+    CHECK(printer.client.call_count("server.database.post_item") == posts_before);
+
+    CHECK(writes.saves.count(1) == 0);
+    CHECK(store.last_lane_data_records().at(1).record.brand == "Prusament");
+
+    REQUIRE(writes.saves.count(3) == 1);
+    CHECK(writes.saves.at(3).color_rgb == 0x00FF00u);
+    CHECK(writes.saves.at(3).brand == "Polymaker");
+    CHECK(writes.saves.at(3).spoolman_id == 12);
+    CHECK(store.last_lane_data_records().at(3).record.spoolman_id == 12);
+
+    CHECK(writes.saves.count(4) == 0);
+    CHECK(store.last_lane_data_records().count(4) == 0);
+    CHECK(std::find(writes.clears.begin(), writes.clears.end(), 4) != writes.clears.end());
+
+    REQUIRE(writes.saves.count(5) == 1);
+    CHECK(writes.saves.at(5).spoolman_id == 0);
+    CHECK(writes.saves.at(5).brand.empty());
 
     const int before = printer.client.call_count("server.database.post_item");
-    store.save_async(3, polymaker_record(), nullptr);
+    store.save_async(6, polymaker_record(), nullptr);
     CHECK(printer.client.call_count("server.database.post_item") == before + 1);
     printer.client.fire_deferred("server.database.get_item");
+}
+
+TEST_CASE("merge_held_save moves only what the held save changed",
+          "[filament_slot_override][2008]") {
+    using helix::ams::merge_held_save;
+    const json live = {{"lane", "0"},
+                       {"color", "#FF9800"},
+                       {"material", "ASA"},
+                       {"vendor", "Polymaker"},
+                       {"spool_id", 12},
+                       {"helix_declared", json::array({"color_rgb"})},
+                       {"helix_locked_color", true}};
+    const json blank = {{"lane", "0"}, {"helix_declared", json::array()}};
+
+    SECTION("a reading does not move a colour the record declares") {
+        json held = blank;
+        held["color"] = "#00FF00";
+        held["material"] = "PLA";
+        const json merged = merge_held_save(blank, held, live);
+        CHECK(merged["color"] == "#FF9800");
+        CHECK(merged["helix_locked_color"] == true);
+        CHECK(merged["material"] == "PLA");
+        CHECK(merged["vendor"] == "Polymaker");
+    }
+    SECTION("an edit declaring the colour does") {
+        json held = blank;
+        held["color"] = "#00FF00";
+        held["helix_declared"] = json::array({"color_rgb", "material"});
+        held["material"] = "PLA";
+        const json merged = merge_held_save(blank, held, live);
+        CHECK(merged["color"] == "#00FF00");
+        CHECK(merged["helix_declared"] == json::array({"color_rgb", "material"}));
+    }
+    SECTION("a field the held save removed from its base leaves") {
+        json base = blank;
+        base["vendor"] = "Polymaker";
+        const json merged = merge_held_save(base, blank, live);
+        CHECK_FALSE(merged.contains("vendor"));
+        CHECK(merged["spool_id"] == 12);
+    }
+    SECTION("no difference from the base leaves the record alone") {
+        CHECK(merge_held_save(blank, blank, live) == live);
+    }
+    SECTION("an unlink marker for the linked spool cuts the link") {
+        json linked = live;
+        linked["helix_spoolman_filament_id"] = 7;
+        linked["filament_id"] = "OGFL99";
+        linked["helix_filament_id_source"] = "spoolman";
+        json held = blank;
+        held["helix_unlinked_spool_id"] = 12;
+        const json merged = merge_held_save(blank, held, linked);
+        CHECK_FALSE(merged.contains("spool_id"));
+        CHECK_FALSE(merged.contains("helix_spoolman_filament_id"));
+        CHECK_FALSE(merged.contains("filament_id"));
+        CHECK(merged["helix_unlinked_spool_id"] == 12);
+        CHECK(merged["vendor"] == "Polymaker");
+    }
+    SECTION("a marker for another spool leaves the link") {
+        json held = blank;
+        held["helix_unlinked_spool_id"] = 99;
+        CHECK(merge_held_save(blank, held, live)["spool_id"] == 12);
+    }
 }
