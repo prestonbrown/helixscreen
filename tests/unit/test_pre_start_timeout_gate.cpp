@@ -26,6 +26,7 @@
 #include "moonraker_error.h"
 #include "moonraker_job_api.h"
 #include "moonraker_request_tracker.h"
+#include "moonraker_timelapse_api.h"
 #include "pre_start_exclude.h"
 #include "print_job_ref.h"
 #include "printer_state.h"
@@ -64,12 +65,20 @@ struct RecordingJobAPI : public MoonrakerJobAPI {
     }
 };
 
+/// Accepts every write, so a start reaches the timelapse option's success path.
+struct AcceptingTimelapseAPI : public MoonrakerTimelapseAPI {
+    using MoonrakerTimelapseAPI::MoonrakerTimelapseAPI;
+    void set_timelapse_enabled(bool, SuccessCallback on_success, ErrorCallback) override {
+        on_success();
+    }
+};
+
 /// Intercepts the pre-start block so the test controls when the RPC answers
 /// (or times out). Everything else behaves like the stock mock API.
 struct PreStartGateAPI : public MoonrakerAPIMock {
     PreStartGateAPI(helix::MoonrakerClient& client, helix::PrinterState& state,
                     RecordingJobAPI& jobs)
-        : MoonrakerAPIMock(client, state), jobs_(jobs) {}
+        : MoonrakerAPIMock(client, state), jobs_(jobs), timelapse_(client, "") {}
 
     void execute_gcode(const std::string& gcode, IMoonrakerAPI::SuccessCallback on_success,
                        IMoonrakerAPI::ErrorCallback on_error, uint32_t timeout_ms = 0,
@@ -86,7 +95,12 @@ struct PreStartGateAPI : public MoonrakerAPIMock {
         return jobs_;
     }
 
+    MoonrakerTimelapseAPI& timelapse() override {
+        return timelapse_;
+    }
+
     RecordingJobAPI& jobs_;
+    AcceptingTimelapseAPI timelapse_;
     std::string captured_gcode;
     IMoonrakerAPI::SuccessCallback captured_success;
     IMoonrakerAPI::ErrorCallback captured_error;
@@ -142,6 +156,25 @@ class PreStartGateFixture : public LVGLTestFixture {
         };
     }
 };
+
+TEST_CASE_METHOD(PreStartGateFixture, "a start that turns timelapse off updates the global setting",
+                 "[print_preparation][timelapse]") {
+    state.set_printer_type_sync("Voron 2.4");
+    state.set_timelapse_available(true);
+    state.set_timelapse_default_enabled(true);
+    drain();
+    const auto default_enabled = [this] {
+        return state.profile_state().pre_print_option_set().find("timelapse")->default_enabled;
+    };
+    REQUIRE(default_enabled());
+    manager.set_option_state_provider(
+        [](const std::string& id) { return id == "timelapse" ? 0 : -1; });
+
+    manager.start_print("part.gcode", "", []() {}, completion());
+    drain();
+
+    CHECK_FALSE(default_enabled());
+}
 
 TEST_CASE_METHOD(PreStartGateFixture,
                  "Pre-start RPC timeout with printer still busy waits for the busy->idle edge",

@@ -215,7 +215,7 @@ void PrinterProfileState::apply_dynamic_options(bool exclude_object_known, bool 
     // Moonraker. Synthesising on top of it gives the user two timelapse
     // toggles, and on firmware that ships a compatibility stub for the plugin
     // API the synthesised one silently does nothing. The database wins.
-    const bool database_owns_timelapse = pre_print_option_set_.declares_capability("timelapse");
+    firmware_owns_timelapse_ = pre_print_option_set_.declares_capability("timelapse");
 
     // Timelapse: append when the moonraker-timelapse plugin reports available.
     // Strategy is RuntimeCommand with sentinel values that
@@ -223,7 +223,7 @@ void PrinterProfileState::apply_dynamic_options(bool exclude_object_known, bool 
     // for command_enabled / command_disabled prefixed with "timelapse:").
     // These are NOT gcode lines — start_print() routes them to
     // `api_->timelapse().set_timelapse_enabled(...)`.
-    if (!database_owns_timelapse && timelapse_available) {
+    if (!firmware_owns_timelapse_ && timelapse_available) {
         PrePrintOption tl;
         tl.id = "timelapse";
         tl.label_key = "Timelapse";

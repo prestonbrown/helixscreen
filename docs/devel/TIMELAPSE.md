@@ -41,10 +41,16 @@ This flows through:
 
 The advanced panel uses dual visibility binding for the setup row:
 ```xml
-<bind_flag_if_eq subject="printer_has_timelapse" flag="hidden" ref_value="1"/>
+<bind_flag_if_not_eq subject="timelapse_owner" flag="hidden" ref_value="0"/>
 <bind_flag_if_eq subject="printer_has_webcam" flag="hidden" ref_value="0"/>
 ```
-This means "show when timelapse is NOT installed AND webcam IS available."
+This means "show when nothing records timelapses AND webcam IS available."
+
+### Firmware-owned timelapse
+
+A printer whose database entry declares a pre-print option with `"capability": "timelapse"` records timelapses in its firmware (Snapmaker U1: `u1_timelapse`, which writes `time_lapse_camera`). That firmware can also register a stub `timelapse` Moonraker component that answers `/machine/timelapse/settings` with `{"enabled": false}` and ignores writes, so `printer_has_timelapse` alone does not mean the plugin works.
+
+The `timelapse_owner` subject (`TimelapseOwner`: 0 none, 1 plugin, 2 firmware) carries the decision. Firmware outranks the plugin. The plugin settings row and the Print Status button need owner 1, and the install row needs owner 0. On a firmware-owned printer the pre-print option is the only control. The Timelapse Videos row, the printer manager chip and `has_any_preprint_options` still read `printer_has_timelapse`.
 
 ---
 
@@ -86,8 +92,9 @@ Settings are read via `GET /machine/timelapse/settings` and saved via `POST /mac
 ## Print Status Toggle
 
 `PrintLightTimelapseControls` manages the timelapse toggle button on the print status panel. It:
-- Shows a video/video-off icon with On/Off label via string subjects (`timelapse_button_icon`, `timelapse_button_label`)
+- Shows a video/video-off icon via the `timelapse_button_icon` string subject, from the `timelapse_enabled` subject: the plugin's global setting, seeded at discovery and refreshed by every successful write from this button, the settings overlay and the pre-print toggle
 - Calls `api->set_timelapse_enabled(bool)` on click
+- Is hidden unless `timelapse_owner` is 1 (plugin), because firmware-owned timelapse is set per print and a plugin write does nothing there
 - Uses `ui_queue_update()` to marshal UI updates from API callback thread to LVGL thread
 
 This class also manages the light button (LED toggle) -- they share the same helper since both appear as action buttons on the print status panel.

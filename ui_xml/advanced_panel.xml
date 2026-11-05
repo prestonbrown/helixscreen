@@ -106,12 +106,12 @@
           <event_cb trigger="clicked" callback="on_timelapse_videos_clicked"/>
         </setting_action_row>
         <!-- Timelapse Setup (shown when plugin not installed but webcam available).
-           Two visibility conditions are nested — outer hides when timelapse is
-           already installed, inner hides when no webcam — instead of stacking
+           Two visibility conditions are nested — outer hides when the plugin is
+           already installed or the firmware owns timelapse, inner hides when no webcam — instead of stacking
            two bind_flags on a single element, where last-observer-wins
            semantics produce an OR-show race. -->
         <lv_obj width="100%" height="content" style_pad_all="0" style_pad_gap="0">
-          <bind_flag_if_eq subject="printer_has_timelapse" flag="hidden" ref_value="1"/>
+          <bind_flag_if_not_eq subject="timelapse_owner" flag="hidden" ref_value="0"/>
           <setting_action_row name="row_timelapse_setup"
                               label="Setup Timelapse" icon="camera_timer" description="Install timelapse plugin">
             <bind_flag_if_eq subject="printer_has_webcam" flag="hidden" ref_value="0"/>

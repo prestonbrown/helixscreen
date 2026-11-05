@@ -14,6 +14,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observe_language.h"
 #include "observer_factory.h"
+#include "printer_state.h"
 
 #include <spdlog/spdlog.h>
 
@@ -100,9 +101,21 @@ void PrintLightTimelapseControls::deinit_subjects() {
 
     led_state_observer_.reset();
     language_observer_.reset();
+    timelapse_enabled_observer_.reset();
     subjects_.deinit_all();
     subjects_initialized_ = false;
     spdlog::debug("[PrintLightTimelapseControls] Subjects deinitialized");
+}
+
+void PrintLightTimelapseControls::set_printer_state(helix::PrinterState& printer_state) {
+    printer_state_ = &printer_state;
+    timelapse_enabled_observer_ = helix::ui::observe<int>(
+        printer_state.composite_visibility_state().get_timelapse_enabled_subject(), this,
+        [](PrintLightTimelapseControls* self, int enabled) {
+            self->timelapse_enabled_ = enabled != 0;
+            self->refresh_timelapse_display();
+        },
+        printer_state.get_subjects_lifetime());
 }
 
 // ============================================================================
@@ -138,8 +151,9 @@ void PrintLightTimelapseControls::handle_timelapse_button() {
                                 spdlog::info(
                                     "[PrintLightTimelapseControls] Timelapse {} successfully",
                                     new_state ? "enabled" : "disabled");
-                                timelapse_enabled_ = new_state;
-                                refresh_timelapse_display();
+                                if (printer_state_) {
+                                    printer_state_->set_timelapse_default_enabled(new_state);
+                                }
                             }),
             [](const MoonrakerError& err) {
                 spdlog::error("[PrintLightTimelapseControls] Failed to toggle timelapse: {}",

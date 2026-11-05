@@ -482,11 +482,30 @@ TEST_CASE_METHOD(XMLTestFixture,
     // an inverted ref_value here offers an action that cannot work.
     PrintStatusSubjects owner(state());
     REQUIRE(register_component("print_status_more_menu"));
-    set_xml_subject("printer_has_timelapse", 0);
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::None));
     lv_obj_t* menu = create_component("print_status_more_menu");
     lv_obj_t* btn = require_named(menu, "btn_more_timelapse");
     CHECK(is_hidden(btn));
 
-    set_xml_subject("printer_has_timelapse", 1);
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::Plugin));
     CHECK_FALSE(is_hidden(btn));
+
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::Firmware));
+    CHECK(is_hidden(btn));
+
+    // The plugin settings row wants the plugin; the install row wants no owner at all.
+    REQUIRE(register_component("settings_printing_overlay"));
+    REQUIRE(register_component("advanced_panel"));
+    lv_obj_t* settings = require_named(create_component("settings_printing_overlay"),
+                                       "container_timelapse_settings");
+    lv_obj_t* install =
+        lv_obj_get_parent(require_named(create_component("advanced_panel"), "row_timelapse_setup"));
+    CHECK(is_hidden(settings));
+    CHECK(is_hidden(install));
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::Plugin));
+    CHECK_FALSE(is_hidden(settings));
+    CHECK(is_hidden(install));
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::None));
+    CHECK(is_hidden(settings));
+    CHECK_FALSE(is_hidden(install));
 }

@@ -117,6 +117,12 @@ class PrinterProfileState {
         timelapse_default_enabled_ = enabled;
     }
 
+    /// The database declares this printer's own timelapse option, so its firmware
+    /// records timelapses and the plugin's controls do not apply.
+    [[nodiscard]] bool firmware_owns_timelapse() const {
+        return firmware_owns_timelapse_;
+    }
+
     /// Merge the settings a self-storing firmware holds, keyed by option id.
     /// Merges rather than replaces: Moonraker sends deltas, so a frame mentioning
     /// one setting is silent about the rest. @return true when any changed
@@ -190,6 +196,7 @@ class PrinterProfileState {
     bool db_enclosed_ = false;
     bool db_hides_dot_dirs_ = false;
     bool timelapse_default_enabled_ = false;
+    bool firmware_owns_timelapse_ = false;
     /// What the firmware reports for each pre-print option it stores itself.
     /// Empty on printers whose firmware stores none.
     std::map<std::string, bool> firmware_option_defaults_;
