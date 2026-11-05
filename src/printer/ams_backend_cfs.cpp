@@ -5128,6 +5128,9 @@ AmsError AmsBackendCfs::jog_chute_y(float delta_mm) {
     if (macro_variant_ != CfsMacroVariant::K1) {
         return AmsErrorHelper::not_supported("Purge chute jog is K1-stock only");
     }
+    if (auto e = refuse_motion_if_printing(); !e.success()) {
+        return e;
+    }
     // The stock screen's script form, verbatim: the state save/restore keeps
     // the caller's absolute/relative mode intact and M400 makes the RPC ack
     // wait for the move to finish, so back-to-back jogs cannot accumulate
