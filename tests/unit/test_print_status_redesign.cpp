@@ -258,9 +258,30 @@ TEST_CASE_METHOD(Landscape800, "a heater chip paints every part from its heat st
     CHECK_FALSE(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::AtTemp));
     CHECK_FALSE(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Heating));
 
-    // Every heater chip carries the glyph its binder tints.
-    for (const char* name : {"nozzle_icon_glyph", "chamber_icon_glyph"})
-        CHECK(lv_obj_find_by_name(root_, name) != nullptr);
+    // A rebuilt tree starts unpainted, however unchanged the reading is.
+    lv_obj_remove_local_style_prop(text, LV_STYLE_TEXT_COLOR, LV_PART_MAIN);
+    tiles().on_tree_destroyed();
+    settle();
+    CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::AtTemp));
+
+    // Each of the other heater chips has its own binder tinting its own glyph.
+    const struct {
+        const char* glyph;
+        lv_subject_t* temp;
+        lv_subject_t* target;
+    } others[] = {{"nozzle_icon_glyph", temps.get_active_extruder_temp_subject(),
+                   temps.get_active_extruder_target_subject()},
+                  {"chamber_icon_glyph", temps.get_chamber_temp_subject(),
+                   temps.get_chamber_effective_target_subject()}};
+    for (const auto& o : others) {
+        INFO(o.glyph);
+        set_int(o.target, 600);
+        set_int(o.temp, 300);
+        settle();
+        lv_obj_t* other = lv_obj_find_by_name(root_, o.glyph);
+        REQUIRE(other != nullptr);
+        CHECK(same(lv_obj_get_style_text_color(other, LV_PART_MAIN), HeatState::Heating));
+    }
 }
 
 TEST_CASE_METHOD(Landscape800, "a heater off target mid-print keeps the amber of Warn",

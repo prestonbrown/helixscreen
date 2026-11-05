@@ -1022,6 +1022,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: wide widget draws a line to the b
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::BothSides));
     CHECK_FALSE(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(h.child("callout_bed_glow"), LV_PART_MAIN),
+                      helix::ui::temperature::get_heating_state_color(
+                          helix::ui::temperature::HeatState::Heating)));
     CHECK(lv_obj_has_flag(h.child("callout_line_nozzle"), LV_OBJ_FLAG_HIDDEN));
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(),
                        600); // at target: glow off, line stays
