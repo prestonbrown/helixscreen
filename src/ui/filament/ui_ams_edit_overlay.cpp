@@ -2536,7 +2536,9 @@ void AmsEditOverlay::offer_similar_filament(
     opts.cancel_text = lv_tr("Add new");
     opts.on_cancel = [send] { send(Choice::CreateNew); };
     opts.on_dismiss = [send] { send(Choice::Cancel); };
-    opts.owner_token = lifetime_.token();
+    // The save outlives the editor, so the answer must too: the editor closing
+    // under the dialog would otherwise strand the slot's save for good.
+    opts.owner_token = object_lifetime_.token();
     const std::string message = fmt::format(
         fmt::runtime(lv_tr("Spoolman already has \"{}\" from this brand in a close color. Use "
                            "it, or add a new filament?")),
