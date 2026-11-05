@@ -7,6 +7,7 @@
 #include "moonraker_client_mock.h"
 
 #include <array>
+#include <cstdlib>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -67,6 +68,12 @@ toolhead_axis_minimum(const helix::mock::PersonaDescriptor& persona) {
 [[nodiscard]] inline std::array<double, 4>
 toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
     return {persona.axis_max.x, persona.axis_max.y, persona.axis_max.z, 0.0};
+}
+
+/// The mock AMS mode this process runs under; every is_mock_<vendor>() reads it.
+[[nodiscard]] inline std::string effective_mock_ams_env() {
+    return helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
+                                           std::getenv("HELIX_MOCK_PRINTER"));
 }
 
 /**
