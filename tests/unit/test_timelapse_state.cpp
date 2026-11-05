@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/toast_log.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -114,6 +115,27 @@ TEST_CASE("TimelapseState: render running updates progress and status", "[timela
     REQUIRE(lv_subject_get_int(state.get_render_progress_subject()) == 45);
     REQUIRE(std::string(lv_subject_get_string(state.get_render_status_subject())) == "rendering");
 
+    state.deinit_subjects();
+}
+
+TEST_CASE("TimelapseState: a render toasts its start once and its success, from the event's thread",
+          "[timelapse_state][toast]") {
+    lv_init_safe();
+    auto& state = TimelapseState::instance();
+    state.deinit_subjects();
+    state.init_subjects(false);
+    state.reset();
+    helix::test::ToastLog toasts;
+
+    state.handle_timelapse_event({{"action", "render"}, {"status", "running"}, {"progress", 10}});
+    state.handle_timelapse_event({{"action", "render"}, {"status", "running"}, {"progress", 20}});
+    toasts.expect_one(ToastSeverity::INFO, "Rendering timelapse...", 3000);
+    toasts.shown.clear();
+
+    state.handle_timelapse_event({{"action", "render"}, {"status", "success"}, {"filename", "a"}});
+    toasts.expect_one(ToastSeverity::SUCCESS, "Timelapse rendered successfully", 5000);
+
+    flush_queue();
     state.deinit_subjects();
 }
 
