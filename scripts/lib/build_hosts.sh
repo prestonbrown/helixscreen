@@ -95,7 +95,8 @@ probe_build_host() { # <ssh target> [remote command]
     local err out pid tenths=0 limit=$((BUILD_HOST_PROBE_SECS * 10)) rc why
     err=$(mktemp "${TMPDIR:-/tmp}/build-host-probe.XXXXXX") || return 1
     out=$(mktemp "${TMPDIR:-/tmp}/build-host-probe.XXXXXX") || { rm -f "$err"; return 1; }
-    ssh -o BatchMode=yes -o ConnectTimeout=3 "$1" "${2:-true}" </dev/null >"$out" 2>"$err" &
+    # The limit below decides; ConnectTimeout only must not undercut a raised one.
+    ssh -o BatchMode=yes -o "ConnectTimeout=$BUILD_HOST_PROBE_SECS" "$1" "${2:-true}" </dev/null >"$out" 2>"$err" &
     pid=$!
     while kill -0 "$pid" 2>/dev/null; do
         if [ "$tenths" -ge "$limit" ]; then
@@ -141,6 +142,8 @@ resolve_build_host() { # <variable>
         tried+="$cand: $why; "
     done
     echo "✗ $1: no candidate answered ssh (tried ${tried%; })" >&2
+    echo "  On a slow link, HELIX_HOST_PROBE_SECS=30 gives each more time (now ${BUILD_HOST_PROBE_SECS}s)." >&2
+    echo "  A VPN can read connected with nothing crossing it: reconnect it if its far end does not ping." >&2
     return 1
 }
 
