@@ -750,7 +750,8 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   Standard or High Flow in the filament system's Toolhead settings, and the printer stores
   it. Locked while a print runs or is paused. Choosing 0.2 mm asks first, because the
   printer then clears the head's filament info if the loaded filament can't go through a
-  0.2 mm nozzle. A change the printer refuses is reported and the setting goes back.
+  0.2 mm nozzle. High Flow is available at 0.4 mm only. A change the printer refuses is
+  reported and the setting goes back.
 - **Power-loss recovery works on Qidi printers (#1716)** - on a Q2, Q1 Pro or Plus 4 running
   the stock firmware, the resume dialog now appears after a print was cut short by a power
   loss, offering the printer's own `RESUME_INTERRUPTED` flow or a clean discard.
