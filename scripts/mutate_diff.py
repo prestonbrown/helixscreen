@@ -1837,6 +1837,14 @@ def fit_shards(requested, matched):
 SHARDS_PER_SLOT = 4
 
 
+_CATCH2_FAILURE_SITE = re.compile(r'^(.+:\d+): FAILED:', re.M)
+
+
+def catch2_failure_sites(output):
+    """The `file:line` of every failing assertion a Catch2 run names."""
+    return set(_CATCH2_FAILURE_SITE.findall(output))
+
+
 class Catch2Plan:
     """How the C++ suite is split, and what the baseline measured of each part.
 
@@ -1849,6 +1857,10 @@ class Catch2Plan:
         self.width = max(1, width)         # shards run at once, at most
         self.secs = {}                     # shard -> baseline wall seconds
         self.limits = None                 # shard -> mutant timeout seconds
+        self.failed_sites = set()          # what the last baseline run named
+        # Assertions that failed one baseline run and passed the next. They fail
+        # under load with nothing wrong, so they cannot judge a mutant.
+        self.flaky = set()
 
     def order(self):
         """Shard indices, longest baseline first; index order before one."""
@@ -1915,6 +1927,11 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
                 running.remove(entry)
                 out = reap(entry)
                 state, why = suite_outcome('catch2', entry[2].returncode, out, entry[1])
+                sites = catch2_failure_sites(out)
+                if measuring:
+                    plan.failed_sites |= sites
+                if state == DETECTED and sites and sites <= plan.flaky:
+                    state = GREEN
                 if state == DETECTED:
                     detected = True
                 elif state == INCONCLUSIVE and not unexplained:
@@ -2249,6 +2266,20 @@ def establish_baseline(suites, needed):
         state, why = suites.run(suite)
         if RUN_STATE.out_of_time:
             raise OutOfTime()
+        if state == DETECTED and suite == 'catch2':
+            # A wall-clock budget in a test can run out on a machine this run
+            # shares, and one such case must not cost a night's run its filter.
+            # Asked once more, at normal priority; red twice is a red tree.
+            plan = suites.catch2
+            seen, plan.failed_sites = plan.failed_sites, set()
+            with normal_priority():
+                state, why = suites.run(suite)
+            if RUN_STATE.out_of_time:
+                raise OutOfTime()
+            if state == GREEN:
+                plan.flaky = seen
+                print(f'  catch2: red once and green on a re-run, so these judge no mutant: '
+                      f'{", ".join(sorted(seen))}', flush=True)
         if state == DETECTED and suite in ('bats', 'pytest'):
             state = adopt_baseline_reds(suites, suite)
             if RUN_STATE.out_of_time:
@@ -2314,6 +2345,12 @@ class FilterBaselines:
         if isinstance(self.results[key], BaselineRefused):
             raise self.results[key]
         return self.results[key]
+
+    def take_whole_suite_first(self, hunks):
+        """The whole suite's baseline now, when any hunk or survivor will need it."""
+        if self.args.confirm_survivors or any(self.key_of[h['file']] == self.whole_key
+                                              for h in hunks):
+            self._established(self.whole_key)
 
     def wider_for(self, h, plan, tree_root, log):
         """() -> the whole suite's Suites in this tree, or None when `h` has it already.
@@ -2815,7 +2852,10 @@ def mutate_inside(root, guard, suites, h, plan, args, log):
     target = root / h['file']
     built_any, tried = False, 0
     lines = target.read_text(errors='surrogateescape').splitlines(keepends=True)
-    for line_no, op, text in hunk_inside_mutants(h, lines):
+    mutants = hunk_inside_mutants(h, lines)
+    if not mutants:
+        note('[inside: no operator applies to its added lines] ')
+    for line_no, op, text in mutants:
         if tried >= INSIDE_MAX_TRIES or len(h['inside']) >= args.inside or RUN_STATE.out_of_time:
             break
         tried += 1
@@ -2833,7 +2873,7 @@ def mutate_inside(root, guard, suites, h, plan, args, log):
             break
         finally:
             guard.restore(h['file'])
-    if not h['inside'] and not RUN_STATE.out_of_time:
+    if mutants and not h['inside'] and not RUN_STATE.out_of_time:
         note('[inside: no mutant of its added lines built] ')
     return built_any
 
@@ -3610,7 +3650,17 @@ def main():
                 print(f'FAIL: baseline build is broken. See {args.log}', file=sys.stderr)
                 return 2
             print(f'  build ok ({secs:.0f}s)')
-        if not pool:
+        baselines = None
+        if pool:
+            needed_of = {}
+            for h in mutable:
+                needed_of.setdefault(key_of[h['file']], set()).update(
+                    STRATEGIES[verdict_of[h['file']][1]]['suites'])
+            baselines = FilterBaselines(root, args, log, key_of, needed_of)
+            # Measured before any worker starts, so its shard limits are not
+            # taken on a machine a whole pool is loading.
+            baselines.take_whole_suite_first(mutable)
+        else:
             establish_baseline(suites, needed)
 
         # Read once, before the first mutation: see SAFETY.
@@ -3636,13 +3686,6 @@ def main():
         remove_worker_trees(trees)
         return 0 if args.allow_incomplete else 3
     print(f'  {"build" if pool else "baseline"} established{cap_note}\n')
-    baselines = None
-    if pool:
-        needed_of = {}
-        for h in mutable:
-            needed_of.setdefault(key_of[h['file']], set()).update(
-                STRATEGIES[verdict_of[h['file']][1]]['suites'])
-        baselines = FilterBaselines(root, args, log, key_of, needed_of)
 
     def stop_why():
         """Why no further hunk may start, or ''."""

@@ -1379,6 +1379,55 @@ def test_only_a_compile_that_ran_and_failed_is_a_syntax_rejection(tmp_path, rc, 
     assert md.syntax_rejects(tmp_path, "src/feature.cpp", io.StringIO()) is rejected
 
 
+def _flaky_suite(tmp_path):
+    """Red the first time its baseline runs, then green unless a mutant is in."""
+    return f"""#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+if [ ! -e {tmp_path}/flaked ]; then
+    touch {tmp_path}/flaked
+    echo "tests/unit/test_budget.cpp:9: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+fi
+grep -q NEW_BEHAVIOR src/feature.cpp || {{
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}}
+exit 0
+"""
+
+
+def test_a_catch2_baseline_red_once_is_retried_and_its_flake_named(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(_flaky_suite(tmp_path))
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert "red once and green on a re-run" in r.stdout, r.stdout
+    assert "tests/unit/test_budget.cpp:9" in r.stdout
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+
+
+def test_a_catch2_baseline_red_twice_still_stops_the_run(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(
+        '#!/usr/bin/env bash\necho "t.cpp:1: FAILED:"\nexit 1\n')
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert r.returncode == 2, r.stdout
+    assert "baseline catch2 suite is RED" in r.stdout
+
+
+def test_a_failure_only_at_a_flaky_site_judges_nothing(tmp_path):
+    binary = tmp_path / "suite"
+    binary.write_text('#!/usr/bin/env bash\necho "t.cpp:1: FAILED:"\nexit 1\n')
+    binary.chmod(0o755)
+    plan = md.Catch2Plan(1, 1)
+    plan.limits = {0: 60}
+    import io
+    assert md.run_catch2(tmp_path, binary, "[x]", plan, io.StringIO())[0] == md.DETECTED
+    plan.flaky = {"t.cpp:1"}
+    assert md.run_catch2(tmp_path, binary, "[x]", plan, io.StringIO())[0] == md.GREEN
+
+
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     (work / ".mutant-expect-other").write_text("")
