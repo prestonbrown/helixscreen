@@ -229,6 +229,10 @@ class CfsCalibHelper : public CfsLifecycleHelper {
             }
             return AmsErrorHelper::success();
         }
+        if (fail_later.count(gcode)) {
+            held_failures.push_back(std::move(on_error));
+            return AmsErrorHelper::success();
+        }
         if (hold.count(gcode)) {
             held.push_back(std::move(on_complete));
             return AmsErrorHelper::success();
@@ -246,6 +250,21 @@ class CfsCalibHelper : public CfsLifecycleHelper {
     /// macro failing after the RPC acked.
     std::set<std::string> fail;
     std::vector<helix::SharedCallback<void()>> held;
+    /// Commands whose on_error waits for fail_held(), so the world can change
+    /// between the send and its failure.
+    std::set<std::string> fail_later;
+    std::vector<helix::SharedCallback<void(const MoonrakerError&)>> held_failures;
+
+    void fail_held() {
+        auto pending = std::move(held_failures);
+        held_failures.clear();
+        for (auto& cb : pending) {
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+            err.message = "Macro error";
+            cb(err);
+        }
+    }
 
     void release_held() {
         auto pending = std::move(held);
@@ -873,6 +892,16 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
         drain_calib_queue();
         CHECK(backend.captured == std::vector<std::string>{kHome, kPrepare});
         CHECK_FALSE(ready);
+        CHECK_FALSE(failure.empty());
+    }
+    SECTION("the re-park after a save that fails once the print has arrived") {
+        backend.fail_later = {kSave};
+        REQUIRE(backend.save_chute_position(nullptr, [&](const std::string& m) { failure = m; })
+                    .success());
+        print_starts();
+        backend.fail_held();
+        drain_calib_queue();
+        CHECK(backend.captured == std::vector<std::string>{kSave});
         CHECK_FALSE(failure.empty());
     }
     SECTION("the park after a save the print arrived during") {
