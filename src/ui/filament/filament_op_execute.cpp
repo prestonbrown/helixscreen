@@ -9,6 +9,7 @@
 #include "ui_temperature_utils.h"
 
 #include "ams_backend.h"
+#include "ams_print_routing.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -903,7 +904,8 @@ void run_after_purge_preamble(helix::IMoonrakerAPI* api, const char* log_tag,
     const bool job_holds =
         get_printer_state().are_subjects_initialized() &&
         job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
-    const std::string preamble = backend ? backend->purge_preamble_gcode(job_holds) : std::string{};
+    const IPrintRouting* const routing = backend ? backend->as<IPrintRouting>() : nullptr;
+    const std::string preamble = routing ? routing->purge_preamble_gcode(job_holds) : std::string{};
     if (preamble.empty() || !api) {
         purge();
         return;

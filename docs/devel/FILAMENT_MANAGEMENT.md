@@ -3673,6 +3673,11 @@ A caller spells out what a backend without the interface means: the sidebar's bu
 - `IDryer` (`include/ams_dryer.h`) -- Drying cycles and the per-unit `DryerInfo` (§ Data Flow above). ACE Pro,
   MultiACE, OpenAMS, the QIDI box, Happy Hare and the mock implement it; `DryerInfo::supported` says whether
   this machine's unit has the hardware.
+- `IPrintRouting` (`include/ams_print_routing.h`) -- Gcode the firmware gets ahead of a job: the pre-print
+  step and its refusal, a reprint's recorded routing, standing options and the purge preamble. The Snapmaker U1,
+  MultiACE, CFS, the AD5X IFS and the mock implement it. Without it nothing is sent. Whether a start runs the
+  step is `requires_preprint_send()` in `BackendTraits`, and `firmware_default_routing()` (§ 1b) stays on
+  `AmsBackend`, since every backend answers it.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 

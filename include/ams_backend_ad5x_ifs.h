@@ -6,6 +6,7 @@
 #if HELIX_HAS_IFS
 
 #include "ad5x_status_parse.h"
+#include "ams_print_routing.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
 #include "error_event.h"
@@ -107,11 +108,16 @@ class Ad5xIfsTestAccess;
 ///
 /// Ports are 1-based (1-4), slots are 0-based (0-3).
 /// slot_to_port = slot + 1, port_to_slot = port - 1.
-class AmsBackendAd5xIfs : public AmsSubscriptionBackend, public helix::IStepOperation {
+class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
+                          public helix::IStepOperation,
+                          public helix::IPrintRouting {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IStepOperation>()) {
             return static_cast<helix::IStepOperation*>(this);
+        }
+        if (tag == helix::type_tag<helix::IPrintRouting>()) {
+            return static_cast<helix::IPrintRouting*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }

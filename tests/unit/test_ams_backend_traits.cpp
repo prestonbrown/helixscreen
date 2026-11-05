@@ -202,20 +202,25 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IStepOperation* steps = nullptr;
         const IInsertSignals* insert = nullptr;
         const IDryer* dryer = nullptr;
+        const IPrintRouting* routing = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
-        {.backend = &ad5x, .steps = &ad5x},
-        {.backend = &multi_ace, .steps = &multi_ace, .insert = &multi_ace, .dryer = &multi_ace},
+        {.backend = &ad5x, .steps = &ad5x, .routing = &ad5x},
+        {.backend = &multi_ace,
+         .steps = &multi_ace,
+         .insert = &multi_ace,
+         .dryer = &multi_ace,
+         .routing = &multi_ace},
         {.backend = &openams, .dryer = &openams},
         {.backend = &qidi, .dryer = &qidi},
-        {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker},
+        {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker, .routing = &snapmaker},
         {.backend = &indx, .feeder = &indx, .steps = &indx},
         {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
         {.backend = &afc, .recovery = &afc, .narration = &afc},
-        {.backend = &cfs, .calibration = &cfs},
+        {.backend = &cfs, .calibration = &cfs, .routing = &cfs},
         {.backend = &happy_hare, .gates = &happy_hare, .dryer = &happy_hare},
-        {.backend = &mock, .gates = &mock, .dryer = &mock},
+        {.backend = &mock, .gates = &mock, .dryer = &mock, .routing = &mock},
     };
     struct NothingImplementsThis {};
     for (const Row& row : rows) {
@@ -228,6 +233,9 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IStepOperation>() == row.steps);
         CHECK(row.backend->as<IInsertSignals>() == row.insert);
         CHECK(row.backend->as<IDryer>() == row.dryer);
+        CHECK(row.backend->as<IPrintRouting>() == row.routing);
+        // A start that promises a pre-print step needs something to build it.
+        CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
     }
     // No capability and no narration template: the sidebar's coarse fallback.

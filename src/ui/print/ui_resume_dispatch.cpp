@@ -10,6 +10,7 @@
 #include "ui_print_start_controller.h"
 
 #include "ams_backend.h"
+#include "ams_print_routing.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -96,11 +97,13 @@ void restart_print_from_beginning(IMoonrakerAPI* api, const std::string& filenam
         std::string prep = "SDCARD_RESET_FILE\nCANCEL_PRINT_BASE";
         if (AmsBackend* backend = AmsState::instance().get_backend();
             backend && backend->requires_preprint_send()) {
-            const std::string prefs = backend->print_routing_resets_to_identity()
-                                          ? backend->build_unrouted_preprint_gcode(tools)
-                                          : backend->build_preprint_gcode({}, {});
-            if (!prefs.empty())
-                prep += "\n" + prefs;
+            if (const IPrintRouting* const routing = backend->as<IPrintRouting>()) {
+                const std::string prefs = backend->print_routing_resets_to_identity()
+                                              ? routing->build_unrouted_preprint_gcode(tools)
+                                              : routing->build_preprint_gcode({}, {});
+                if (!prefs.empty())
+                    prep += "\n" + prefs;
+            }
         }
         api->execute_gcode(
             prep,
@@ -108,7 +111,9 @@ void restart_print_from_beginning(IMoonrakerAPI* api, const std::string& filenam
                 queue_update("ui_resume_dispatch::restart_start_print", [api, filename, log_prefix,
                                                                          on_failure]() {
                     if (AmsBackend* backend = AmsState::instance().get_backend()) {
-                        backend->note_print_start_from_here();
+                        if (IPrintRouting* const routing = backend->as<IPrintRouting>()) {
+                            routing->note_print_start_from_here();
+                        }
                     }
                     api->job().start_print(
                         filename,

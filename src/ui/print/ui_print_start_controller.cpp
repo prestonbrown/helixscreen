@@ -20,6 +20,7 @@
 #include "ui_print_select_detail_view.h"
 
 #include "active_print_media_manager.h"
+#include "ams_print_routing.h"
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "app_constants.h"
@@ -404,8 +405,9 @@ void PrintStartController::send_backend_preprint_then(const std::set<int>& tools
                                                       helix::SharedCallback<void()> on_abort,
                                                       bool routed) {
     AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend) {
-        // No backend — nothing to pre-send; proceed with the start step.
+    const IPrintRouting* const print_routing = backend ? backend->as<IPrintRouting>() : nullptr;
+    if (!print_routing) {
+        // Nothing to pre-send and no per-print state to begin: proceed with the start step.
         if (on_done) {
             on_done();
         }
@@ -415,7 +417,9 @@ void PrintStartController::send_backend_preprint_then(const std::set<int>& tools
     // step went through.
     on_done = [on_done = std::move(on_done)]() {
         if (AmsBackend* b = AmsState::instance().get_backend()) {
-            b->note_print_start_from_here();
+            if (IPrintRouting* const pr = b->as<IPrintRouting>()) {
+                pr->note_print_start_from_here();
+            }
         }
         if (on_done) {
             on_done();
@@ -424,7 +428,7 @@ void PrintStartController::send_backend_preprint_then(const std::set<int>& tools
 
     // A remap the backend cannot honor stops the print here, before anything
     // is sent, with the same report a printer-side refusal gets below.
-    if (const AmsError refused = backend->check_preprint_remap(tools_used, remap);
+    if (const AmsError refused = print_routing->check_preprint_remap(tools_used, remap);
         !refused.success()) {
         LOG_ERROR_INTERNAL("[PrintStartController] pre-print remap refused: {}",
                            refused.technical_msg);
@@ -435,8 +439,8 @@ void PrintStartController::send_backend_preprint_then(const std::set<int>& tools
         return;
     }
 
-    std::string gcode = routed ? backend->build_preprint_gcode(tools_used, remap)
-                               : backend->build_unrouted_preprint_gcode(tools_used);
+    std::string gcode = routed ? print_routing->build_preprint_gcode(tools_used, remap)
+                               : print_routing->build_unrouted_preprint_gcode(tools_used);
 
     if (gcode.empty()) {
         // Nothing the firmware needs (e.g. no parsed tools) — start immediately.
@@ -684,10 +688,13 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             // which is what last_print_tool_mapping() snapshots. An empty remap is
             // not "no routing": build_preprint_gcode resolves a tool it is not told
             // about to that tool's firmware-default head.
+            const IPrintRouting* const print_routing = backend->as<IPrintRouting>();
             auto remap = routing ? routing
                                  : helix::FilamentMapper::reprint_remap(
-                                       backend->last_print_tool_mapping(), tools_used);
-            if (!remap && backend->default_print_routing_is_identity()) {
+                                       print_routing ? print_routing->last_print_tool_mapping()
+                                                     : std::vector<int>{},
+                                       tools_used);
+            if (!remap && print_routing && print_routing->default_print_routing_is_identity()) {
                 // The firmware's own default is tool n = slot n, so the empty remap
                 // sends exactly that for the file's tools and overwrites any map the
                 // printer still holds for its next print.

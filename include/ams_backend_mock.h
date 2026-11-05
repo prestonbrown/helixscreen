@@ -6,6 +6,7 @@
 #include "ams_backend.h"
 #include "ams_dryer.h"
 #include "ams_gate_selector.h"
+#include "ams_print_routing.h"
 #include "slot_registry.h"
 
 #include <atomic>
@@ -32,7 +33,10 @@ struct AfcMockUnit;
  * - Pre-populated filament colors and materials
  * - Responds to all AmsBackend operations
  */
-class AmsBackendMock : public AmsBackend, public IGateSelector, public IDryer {
+class AmsBackendMock : public AmsBackend,
+                       public IGateSelector,
+                       public IDryer,
+                       public IPrintRouting {
   public:
     friend class AmsBackendMockTimingTestAccess;
 
@@ -42,6 +46,9 @@ class AmsBackendMock : public AmsBackend, public IGateSelector, public IDryer {
         }
         if (tag == helix::type_tag<IDryer>()) {
             return static_cast<IDryer*>(this);
+        }
+        if (tag == helix::type_tag<IPrintRouting>()) {
+            return static_cast<IPrintRouting*>(this);
         }
         return AmsBackend::capability(tag);
     }

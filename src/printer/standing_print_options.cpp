@@ -3,6 +3,7 @@
 #include "standing_print_options.h"
 
 #include "ams_backend.h"
+#include "ams_print_routing.h"
 
 #include <algorithm>
 #include <iterator>
@@ -17,7 +18,8 @@ std::string render_standing_gcode(const std::vector<const AmsBackend*>& backends
         if (backend == nullptr) {
             continue;
         }
-        const std::string gcode = backend->standing_print_gcode();
+        const IPrintRouting* const routing = backend->as<IPrintRouting>();
+        const std::string gcode = routing ? routing->standing_print_gcode() : std::string{};
         if (gcode.empty()) {
             continue;
         }
