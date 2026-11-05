@@ -55,6 +55,13 @@ lv_obj_t* icon_label_of(lv_obj_t* pill) {
 TEST_CASE_METHOD(XMLTestFixture,
                  "edit-mode chrome pills: icons clear WCAG AA, and only a tap presses one",
                  "[grid_edit][edit-chrome][halfcell]") {
+    // A whole cell at the grid origin carries its pills on its corners; a half
+    // cell mid-grid, too small to share, carries them just outside it.
+    const bool half = GENERATE(false, true);
+    CAPTURE(half);
+    const int col = half ? 8 : 0;
+    const int row = half ? 4 : 0;
+    const int span = half ? 1 : GridLayout::TRACKS_PER_CELL;
     const int gutter = helix::GridLayout::gutter_px();
     REQUIRE(gutter > 0);
 
@@ -81,8 +88,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_t* widget = lv_obj_create(container);
     lv_obj_set_name(widget, "humidity");
     lv_obj_remove_flag(widget, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, 0, GridLayout::TRACKS_PER_CELL,
-                         LV_GRID_ALIGN_STRETCH, 0, GridLayout::TRACKS_PER_CELL);
+    lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, col, span, LV_GRID_ALIGN_STRETCH, row,
+                         span);
     lv_obj_set_user_data(widget, &pw);
     lv_obj_update_layout(container);
 
@@ -101,10 +108,10 @@ TEST_CASE_METHOD(XMLTestFixture,
                           {"widgets",
                            {{{"id", "humidity"},
                              {"enabled", true},
-                             {"col", 0},
-                             {"row", 0},
-                             {"colspan", GridLayout::TRACKS_PER_CELL},
-                             {"rowspan", GridLayout::TRACKS_PER_CELL}}}}}}}});
+                             {"col", col},
+                             {"row", row},
+                             {"colspan", span},
+                             {"rowspan", span}}}}}}}});
 
     auto& mgr = PanelWidgetManager::instance();
     mgr.get_widget_config(panel_id).mark_dirty();
@@ -134,7 +141,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     };
     lv_obj_t* trash = GridEditModeTestAccess::remove_button(em);
     check_pill(trash, "trash");
-    check_pill(GridEditModeTestAccess::configure_button(em), "configure");
+    lv_obj_t* configure = GridEditModeTestAccess::configure_button(em);
+    check_pill(configure, "configure");
 
     // The delete-page pill: danger fill at 80% over the screen background.
     // The theme layer's own contrast bar is 4:1, so that is the assertion.
@@ -148,20 +156,38 @@ TEST_CASE_METHOD(XMLTestFixture,
             wcag::contrast(del_icon, del_composited));
     CHECK(wcag::contrast(del_icon, del_composited) >= 4.0);
 
-    // On a half-cell widget the trash pill covers a quarter of the widget, so
-    // a drag aimed at the widget often starts on it: lifting elsewhere is not
-    // a tap.
-    helix_test::ScopedPointerIndev pointer;
     lv_obj_update_layout(container);
+    lv_area_t tile;
+    lv_area_t box;
     lv_area_t pill;
+    lv_obj_get_coords(widget, &tile);
+    lv_obj_get_coords(container, &box);
     lv_obj_get_coords(trash, &pill);
+    const int quarter = lv_area_get_width(&pill) / 4;
+    if (half) {
+        for (lv_obj_t* p : {trash, configure}) {
+            lv_area_t a;
+            lv_obj_get_coords(p, &a);
+            CHECK(a.y2 < tile.y1); // off the tile, above its top corners
+            CHECK((a.x1 >= box.x1 && a.y1 >= box.y1 && a.x2 <= box.x2 && a.y2 <= box.y2));
+        }
+        CHECK(pill.x1 > tile.x2);
+    } else {
+        CHECK(pill.x2 == tile.x2 + quarter);
+        CHECK(pill.y1 == tile.y1 - quarter);
+    }
+
+    // A press that starts on a pill is the pill's, even over the outward
+    // resize band: sliding off neither resizes the widget nor taps the pill.
+    helix_test::ScopedPointerIndev pointer;
     lv_point_t centre{(pill.x1 + pill.x2) / 2, (pill.y1 + pill.y2) / 2};
     REQUIRE(lv_indev_search_obj(lv_screen_active(), &centre) == trash);
     pointer.press(centre.x, centre.y);
     pointer.move(centre.x + 30, centre.y + 30);
     pointer.release(centre.x + 80, centre.y + 80);
     CHECK(em.selected_widget() == widget);
-    CHECK(config.page_entries(kPageIndex).size() == 1);
+    REQUIRE(config.page_entries(kPageIndex).size() == 1);
+    CHECK(config.page_entries(kPageIndex)[0].colspan == span);
 
     // A tap that lifts on the pill still removes the widget.
     pointer.press(centre.x, centre.y);

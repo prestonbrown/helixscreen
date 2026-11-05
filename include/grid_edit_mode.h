@@ -331,6 +331,33 @@ class GridEditMode {
     /// half-cell widget still resizes from just outside its edges.
     static int inward_edge_reach(int band, int widget_px, int min_drag_px);
 
+    /// The top corner of the selected widget a selection pill belongs to.
+    enum class PillCorner { TopLeft, TopRight };
+
+    /// Whether a widget of @p widget_w x @p widget_h px is too small to carry
+    /// its selection pills on top of it.
+    ///
+    /// A pill drawn on the widget covers @p pill_inside_px of each axis at its
+    /// corner. A widget that cannot hold that footprint plus a @p min_drag_px
+    /// drag interior on both axes would lose its drag target to the pills, so
+    /// its pills go outside instead.
+    static bool pills_go_outside(int widget_w, int widget_h, int pill_inside_px, int min_drag_px);
+
+    /// Screen rect of a @p pill_px selection pill placed just outside @p tile,
+    /// diagonally off its @p corner and @p gap px clear of it.
+    ///
+    /// The diagonal keeps the pill off every edge's resize band except the
+    /// corner square two bands share, so each edge still resizes along the rest
+    /// of its length. When the preferred spot leaves @p bounds (the grid
+    /// container: a widget at the screen edge, at the top, or beside the
+    /// navbar) or overlaps @p avoid (a pill already placed), the pill flips
+    /// below, then to the other side, then both, then tries the same four spots
+    /// one pill further out. A pill that fits nowhere is clamped into
+    /// @p bounds.
+    static lv_area_t outside_pill_area(const lv_area_t& tile, int pill_px, const lv_area_t& bounds,
+                                       int gap, PillCorner corner,
+                                       const lv_area_t* avoid = nullptr);
+
   private:
     friend struct helix::GridEditModeTestAccess;
 
