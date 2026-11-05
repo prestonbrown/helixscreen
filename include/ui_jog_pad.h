@@ -148,6 +148,11 @@ void ui_jog_pad_set_enabled(lv_obj_t* obj, bool enabled);
 void ui_jog_pad_set_homed(lv_obj_t* obj, bool homed);
 
 /**
+ * @brief Whether the pad currently draws its home button as homed
+ */
+bool ui_jog_pad_get_homed(lv_obj_t* obj);
+
+/**
  * Layout box for the home glyph inside its ring.
  *
  * lv_draw_label centres vertically by laying the font's full line height down

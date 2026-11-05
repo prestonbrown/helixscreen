@@ -723,6 +723,21 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
         return true; // Already correct size
     }
 
+    // Each scale switch rebuilds the FBO, so an out-of-memory here would otherwise repeat
+    // on every frame against an exhausted driver.
+    auto renderbuffer_stored = [this](const char* what) {
+        const GLenum err = glGetError();
+        if (err == GL_NO_ERROR) {
+            return true;
+        }
+        spdlog::error("[GCode GLES] GL error after {}: 0x{:04X}", what, err);
+        destroy_fbo();
+        if (gl_draw_error_is_fatal(err)) {
+            abandon_gpu(what);
+        }
+        return false;
+    };
+
     destroy_fbo();
 
     glGenFramebuffers(1, &fbo_.id);
@@ -739,8 +754,7 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
     glGenRenderbuffers(1, &color_rbo_.id);
     glBindRenderbuffer(GL_RENDERBUFFER, color_rbo_.id);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8_OES, width, height);
-    if (!check_gl_error("glRenderbufferStorage(color)")) {
-        destroy_fbo();
+    if (!renderbuffer_stored("glRenderbufferStorage(color)")) {
         return false;
     }
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color_rbo_.id);
@@ -750,8 +764,7 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
     glGenRenderbuffers(1, &depth_rbo_.id);
     glBindRenderbuffer(GL_RENDERBUFFER, depth_rbo_.id);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
-    if (!check_gl_error("glRenderbufferStorage(depth)")) {
-        destroy_fbo();
+    if (!renderbuffer_stored("glRenderbufferStorage(depth)")) {
         return false;
     }
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rbo_.id);
@@ -1003,7 +1016,7 @@ void GCodeGLESRenderer::upload_geometry(const RibbonGeometry& geom, std::vector<
     std::vector<uint8_t> buf;
     for (size_t layer = 0; layer < num_layers; ++layer) {
         if (!upload_layer(geom, layer, buf, vbos[layer])) {
-            abandon_upload();
+            abandon_gpu("VBO upload");
             return;
         }
     }
@@ -1044,7 +1057,7 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
 
     while (next_layer < total_layers) {
         if (!upload_layer(geom, next_layer, buf, vbos[next_layer])) {
-            abandon_upload();
+            abandon_gpu("VBO upload");
             next_layer = 0;
             return false;
         }
@@ -1067,9 +1080,10 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
 
 // A driver that has run out of memory can fault on the next allocation anyone makes, the
 // display's own included, so the buffers already uploaded go back and nothing more is drawn.
-void GCodeGLESRenderer::abandon_upload() {
-    spdlog::error("[GCode GLES] Fatal GL error during VBO upload — disabling GPU rendering, "
-                  "falling back to 2D");
+void GCodeGLESRenderer::abandon_gpu(const char* during) {
+    spdlog::error("[GCode GLES] Fatal GL error during {} — disabling GPU rendering, "
+                  "falling back to 2D",
+                  during);
     free_vbos(layer_vbos_);
     free_vbos(moving_vbos_);
     gl_render_failed_ = true;
