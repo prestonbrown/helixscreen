@@ -9,6 +9,7 @@
 #include "ui_observer_guard.h"
 
 #include "ams_backend.h"
+#include "ams_step_model.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
@@ -216,7 +217,7 @@ class AmsOperationSidebar {
     ObserverGuard extruder_temp_observer_;
     ObserverGuard extruder_target_observer_;
     // The heaters the step bar's live-temp steps heat, where the backend names
-    // one other than the active extruder (AmsBackend::step_heater).
+    // one other than the active extruder (IStepOperation::step_heater).
     std::vector<ObserverGuard> step_heater_observers_;
     // The extruder set changing re-creates per-extruder subjects: the step
     // heater observers re-attach to the new ones.
@@ -247,7 +248,7 @@ class AmsOperationSidebar {
     lv_subject_t* step_index_subject_ = nullptr;
     // Keeps the current backend step model alive so live_temp / phase lookups
     // work for the active operation. Empty => legacy coarse model.
-    AmsBackend::OperationStepModel current_step_model_;
+    OperationStepModel current_step_model_;
 
     // Bypass toggle policy (guards, unload-first chain, print refusal)
     BypassToggleController bypass_toggle_;
@@ -320,7 +321,7 @@ class AmsOperationSidebar {
     void refresh_live_temp_step_label(int current_index);
 
     // Watch the heater of every live-temp step the backend names
-    // (AmsBackend::step_heater), so a step's readout moves with its own heater.
+    // (IStepOperation::step_heater), so a step's readout moves with its own heater.
     void observe_step_heaters();
     // observe_step_heaters(), and again whenever the extruder set changes.
     void watch_step_heaters();

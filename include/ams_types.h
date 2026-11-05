@@ -379,7 +379,7 @@ inline bool ams_action_holds_system(AmsAction action) {
  * and it is deliberately backend-independent: every backend reports these the
  * same way, and a pulse on a slot that turns out not to move is harmless.
  *
- * NOT the same question as AmsBackend::action_tracks_step_operation(), which
+ * NOT the same question as IStepOperation::action_tracks_step_operation(), which
  * asks what the STEP BAR should follow and genuinely differs per backend. This
  * one is the superset.
  */
@@ -401,9 +401,9 @@ inline bool ams_action_is_busy(AmsAction action) {
 /**
  * @brief The filament-system step vocabulary: heat, feed, purge, cut, tip, retract.
  *
- * The default answer to AmsBackend::action_tracks_step_operation(). Lives here
- * so the one caller that has no backend to ask still gets the same rule rather
- * than a fourth copy of the list.
+ * The default answer to IStepOperation::action_tracks_step_operation(). Lives
+ * here so a caller with no backend to ask, or a backend without the capability,
+ * gets the same rule.
  *
  * SELECTING is deliberately absent: a filament system passes through it on the
  * way to a slot, and the step bar is already tracking the load that follows.

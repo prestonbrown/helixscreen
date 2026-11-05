@@ -2948,11 +2948,7 @@ TEST_CASE("Happy Hare toolchange_phase_template: ops declare ordered phases",
     // Fresh load skips the unload/cut phases.
     auto fresh = hh.toolchange_phase_template(StepOperationType::LOAD_FRESH);
     REQUIRE_FALSE(fresh.empty());
-    bool fresh_has_unload = false;
-    for (const auto& p : fresh)
-        if (p.id == "unload")
-            fresh_has_unload = true;
-    CHECK_FALSE(fresh_has_unload);
+    CHECK(std::none_of(fresh.begin(), fresh.end(), [](const auto& p) { return p.id == "unload"; }));
     // Unload op ends at "unload".
     auto unload = hh.toolchange_phase_template(StepOperationType::UNLOAD);
     REQUIRE_FALSE(unload.empty());

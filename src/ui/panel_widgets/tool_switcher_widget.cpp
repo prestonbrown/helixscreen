@@ -9,6 +9,7 @@
 #include "ui_utils.h"
 
 #include "ams_error.h"
+#include "ams_feeder_control.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
@@ -1050,7 +1051,8 @@ ToolSwitcherActions ToolSwitcherWidget::actions_offered() {
     ToolSwitcherActions actions;
     if (const AmsBackend* backend = AmsState::instance().get_backend()) {
         actions.park = backend->supports_tool_park();
-        actions.feeder = backend->supports_feeder_control();
+        const IFeederControl* const feeder = backend->as<IFeederControl>();
+        actions.feeder = feeder && feeder->supports_feeder_control();
     }
     return actions;
 }
@@ -1102,7 +1104,8 @@ void ToolSwitcherWidget::handle_park_requested() {
 
 void ToolSwitcherWidget::handle_feeder_toggled() {
     AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend || !backend->supports_feeder_control()) {
+    IFeederControl* const feeder = backend ? backend->as<IFeederControl>() : nullptr;
+    if (!feeder || !feeder->supports_feeder_control()) {
         return;
     }
 
@@ -1113,9 +1116,9 @@ void ToolSwitcherWidget::handle_feeder_toggled() {
         return;
     }
 
-    const bool open = !backend->feeder_open();
+    const bool open = !feeder->feeder_open();
     spdlog::info("[ToolSwitcher] {} the feeder", open ? "Opening" : "Closing");
-    const AmsError err = backend->set_feeder_open(open);
+    const AmsError err = feeder->set_feeder_open(open);
     if (!err.success()) {
         helix::ui::notify_ams_error(err);
     }

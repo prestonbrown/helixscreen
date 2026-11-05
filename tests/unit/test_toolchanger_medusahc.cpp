@@ -34,6 +34,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/step_operation_helpers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_state.h"
@@ -432,19 +433,6 @@ TEST_CASE("A swap reported only as 'changing' still reads as busy",
 // ============================================================================
 // Step model
 // ============================================================================
-
-namespace {
-
-std::vector<std::string> step_labels(const AmsBackend::OperationStepModel& model) {
-    std::vector<std::string> out;
-    out.reserve(model.steps.size());
-    for (const auto& s : model.steps) {
-        out.push_back(s.label);
-    }
-    return out;
-}
-
-} // namespace
 
 TEST_CASE("A controller that names the direction gets the four-step bar",
           "[ams][toolchanger][steps]") {

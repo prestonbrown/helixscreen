@@ -5,6 +5,8 @@
 
 #include "ui_timer_guard.h"
 
+#include "ams_insert_signals.h"
+#include "ams_step_model.h"
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
@@ -52,8 +54,20 @@ class RunoutScopeTestAccess;
  * Path topology is PARALLEL (each tool has its own independent path).
  */
 
-class AmsBackendSnapmaker : public AmsSubscriptionBackend {
+class AmsBackendSnapmaker : public AmsSubscriptionBackend,
+                            public helix::IStepOperation,
+                            public helix::IInsertSignals {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IInsertSignals>()) {
+            return static_cast<helix::IInsertSignals*>(this);
+        }
+        if (tag == helix::type_tag<helix::IStepOperation>()) {
+            return static_cast<helix::IStepOperation*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     ~AmsBackendSnapmaker() override;

@@ -21,6 +21,7 @@
 #include "ams_backend.h"
 #include "ams_gate_selector.h"
 #include "ams_state.h"
+#include "ams_step_model.h"
 #include "ams_types.h"
 #include "app_constants.h"
 #include "app_globals.h"
@@ -948,7 +949,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
     // (Snapmaker U1), narration phases (AFC), etc. The sidebar renders generically
     // and observes the backend-supplied index subject. No backend-type checks here.
     if (backend) {
-        current_step_model_ = backend->get_operation_step_model(op_type);
+        current_step_model_ = operation_step_model(*backend, op_type);
         // A backend that reports no phases AND says the legacy bar would lie
         // gets no bar. Distinct from an empty model, which still means "fall
         // back". A tool changer has no Heat/Feed/Purge to show: it mounts a
@@ -989,7 +990,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
                 // freed node. A backend that owns its own subject outlives that
                 // teardown and must NOT get the token: suppressing a removal it
                 // still needs orphans a live observer node.
-                step_index_subject_ = backend->get_operation_step_index_subject(op_type);
+                step_index_subject_ = operation_step_index_subject(*backend, op_type);
                 if (step_index_subject_) {
                     auto& ams = AmsState::instance();
                     SubjectLifetime step_lifetime;
@@ -1184,8 +1185,9 @@ void AmsOperationSidebar::refresh_live_temp_step_label(int current_index) {
             lv_subject_t* temp_subject = temps.get_active_extruder_temp_subject();
             lv_subject_t* target_subject = temps.get_active_extruder_target_subject();
             AmsBackend* backend = AmsState::instance().get_backend();
+            const IStepOperation* const steps = backend ? backend->as<IStepOperation>() : nullptr;
             const std::string heater =
-                backend ? backend->step_heater(live_temp_step_index_) : std::string();
+                steps ? steps->step_heater(live_temp_step_index_) : std::string();
             if (!heater.empty()) {
                 lv_subject_t* own_temp = temps.get_extruder_temp_subject(heater);
                 lv_subject_t* own_target = temps.get_extruder_target_subject(heater);
@@ -1219,7 +1221,8 @@ void AmsOperationSidebar::refresh_live_temp_step_label(int current_index) {
 void AmsOperationSidebar::observe_step_heaters() {
     step_heater_observers_.clear();
     AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend) {
+    const IStepOperation* const steps = backend ? backend->as<IStepOperation>() : nullptr;
+    if (!steps) {
         return;
     }
     auto& temps = printer_state_.temperature_state();
@@ -1228,7 +1231,7 @@ void AmsOperationSidebar::observe_step_heaters() {
         if (!current_step_model_.steps[i].live_temp) {
             continue;
         }
-        const std::string heater = backend->step_heater(static_cast<int>(i));
+        const std::string heater = steps->step_heater(static_cast<int>(i));
         if (heater.empty() || std::find(watched.begin(), watched.end(), heater) != watched.end()) {
             continue;
         }
@@ -1393,8 +1396,9 @@ void AmsOperationSidebar::update_step_progress(AmsAction action) {
     // operation the bar should be following? The backend owns the answer,
     // because the action vocabulary differs by backend family - a filament
     // system heats and feeds, a tool changer selects.
-    const bool is_active_action = backend ? backend->action_tracks_step_operation(action)
-                                          : ams_action_is_filament_operation(action);
+    const IStepOperation* const steps = backend ? backend->as<IStepOperation>() : nullptr;
+    const bool is_active_action = steps ? steps->action_tracks_step_operation(action)
+                                        : ams_action_is_filament_operation(action);
 
     // Heuristic detection for externally-started operations
     bool is_external = (target_load_slot_ < 0);
@@ -1408,9 +1412,8 @@ void AmsOperationSidebar::update_step_progress(AmsAction action) {
     // An operation this sidebar did not start is named by the backend when it
     // knows it: read from the action frames, a load still heating looks like a
     // swap.
-    const std::optional<StepOperationType> known_op = is_external && is_active_action && backend
-                                                          ? backend->running_step_operation()
-                                                          : std::nullopt;
+    const std::optional<StepOperationType> known_op =
+        is_external && is_active_action && steps ? steps->running_step_operation() : std::nullopt;
     if (known_op) {
         if (!step_progress_ || current_operation_type_ != *known_op) {
             recreate_step_progress_for_operation(*known_op);

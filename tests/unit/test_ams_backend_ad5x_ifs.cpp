@@ -8929,41 +8929,24 @@ TEST_CASE("AD5X IFS load publishes busy state + EVENT_STATE_CHANGED on dispatch"
 // "Heat nozzle -> Feed filament -> Purge" (load).
 // ==========================================================================
 
-TEST_CASE("AD5X IFS get_operation_step_model UNLOAD is the 3-phase synth sequence",
+TEST_CASE("AD5X IFS operation_step_model is the 3-phase synth sequence per direction",
           "[ams][ad5x_ifs][stepmodel]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
-    auto model = backend.get_operation_step_model(StepOperationType::UNLOAD);
-    REQUIRE(model.steps.size() == 3);
-    CHECK(std::string(model.steps[0].label) == "Heat nozzle");
-    CHECK(std::string(model.steps[1].label) == "Cut filament");
-    CHECK(std::string(model.steps[2].label) == "Retract");
-    // phase_id mirrors the synthesized operation_phase index (0/1/2).
-    CHECK(model.steps[0].phase_id == 0);
-    CHECK(model.steps[1].phase_id == 1);
-    CHECK(model.steps[2].phase_id == 2);
-    // Only the heat step shows a live nozzle temperature.
-    CHECK(model.steps[0].live_temp);
-    CHECK_FALSE(model.steps[1].live_temp);
-    CHECK_FALSE(model.steps[2].live_temp);
-}
-
-TEST_CASE("AD5X IFS get_operation_step_model LOAD is the 3-phase synth sequence",
-          "[ams][ad5x_ifs][stepmodel]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    for (auto op : {StepOperationType::LOAD_FRESH, StepOperationType::LOAD_SWAP}) {
-        auto model = backend.get_operation_step_model(op);
+    const std::vector<std::string> unload{"Heat nozzle", "Cut filament", "Retract"};
+    const std::vector<std::string> load{"Heat nozzle", "Feed filament", "Purge"};
+    for (const auto& [op, labels] : {std::pair{StepOperationType::UNLOAD, unload},
+                                     std::pair{StepOperationType::LOAD_FRESH, load},
+                                     std::pair{StepOperationType::LOAD_SWAP, load}}) {
+        auto model = operation_step_model(backend, op);
         REQUIRE(model.steps.size() == 3);
-        CHECK(std::string(model.steps[0].label) == "Heat nozzle");
-        CHECK(std::string(model.steps[1].label) == "Feed filament");
-        CHECK(std::string(model.steps[2].label) == "Purge");
-        CHECK(model.steps[0].phase_id == 0);
-        CHECK(model.steps[1].phase_id == 1);
-        CHECK(model.steps[2].phase_id == 2);
-        CHECK(model.steps[0].live_temp);
-        CHECK_FALSE(model.steps[1].live_temp);
-        CHECK_FALSE(model.steps[2].live_temp);
+        for (size_t i = 0; i < 3; ++i) {
+            CHECK(std::string(model.steps[i].label) == labels[i]);
+            // phase_id mirrors the synthesized operation_phase index.
+            CHECK(model.steps[i].phase_id == static_cast<int>(i));
+            // Only the heat step shows a live nozzle temperature.
+            CHECK(model.steps[i].live_temp == (i == 0));
+        }
     }
 }
 
@@ -8991,8 +8974,7 @@ TEST_CASE("AD5X IFS get_operation_step_index_subject is the AmsState phase subje
     AmsBackendAd5xIfs& backend = *backend_reg;
     for (auto op :
          {StepOperationType::LOAD_FRESH, StepOperationType::LOAD_SWAP, StepOperationType::UNLOAD}) {
-        CHECK(backend.get_operation_step_index_subject(op) != nullptr);
-        CHECK(backend.get_operation_step_index_subject(op) ==
+        CHECK(operation_step_index_subject(backend, op) ==
               AmsState::instance().get_ams_operation_phase_subject());
     }
 }

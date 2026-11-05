@@ -471,8 +471,7 @@ SlotInfo* AmsBackendSnapmaker::cached_slot_locked(int slot_index) {
     return system_info_.get_slot_global(slot_index);
 }
 
-AmsBackend::OperationStepModel
-AmsBackendSnapmaker::get_operation_step_model(StepOperationType op) const {
+OperationStepModel AmsBackendSnapmaker::get_operation_step_model(StepOperationType op) const {
     // Per-direction firmware step sequence. Each step's phase_id is the index the
     // classifier (classify_channel_state) emits into system_info_.operation_phase,
     // which the sidebar consumes directly as the current step index via the
