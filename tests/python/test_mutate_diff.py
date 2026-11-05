@@ -1312,6 +1312,13 @@ def test_inside_mutants_cover_added_lines_only_and_the_most_telling_first():
         (3, "negate if"), (2, "true to false")]
 
 
+def test_inside_mutants_spread_across_a_long_hunk():
+    mutants = [(line, "negate if", "x") for line in range(1, 41)]
+    assert [m[0] for m in md.spread_mutants(mutants, 4)[:4]] == [1, 11, 21, 31]
+    assert md.spread_mutants(mutants, 1) == mutants
+    assert sorted(md.spread_mutants(mutants, 4)) == mutants
+
+
 INSIDE_CHANGED = "int f(int n) {\n    if (n == 2) { return 1; }  // NEW_BEHAVIOR\n    return n;\n}\n"
 # The revert removes a marker the build needs, so it can never build; the suite
 # reds on the original condition being edited.

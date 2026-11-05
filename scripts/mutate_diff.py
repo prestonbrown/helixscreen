@@ -2843,6 +2843,23 @@ def hunk_inside_mutants(h, lines):
     return sorted(out, key=lambda m: (rank.index(m[1]), m[0]))
 
 
+def spread_mutants(mutants, n):
+    """`mutants`, reordered so the first `n` are spaced across the hunk.
+
+    A new file is one hunk, and its first `n` mutants by operator would all sit in
+    its first function. One mutant per line, the most telling on that line, evenly
+    spaced; everything else follows as the fallback when one does not build.
+    """
+    if n <= 1:
+        return list(mutants)
+    best = {}
+    for m in mutants:
+        best.setdefault(m[0], m)
+    by_line = [best[line] for line in sorted(best)]
+    picked = [by_line[i * len(by_line) // n] for i in range(n)] if len(by_line) > n else by_line
+    return picked + [m for m in mutants if m not in picked]
+
+
 def mutate_inside(root, guard, suites, h, plan, args, log):
     """Judge up to --inside mutants of a hunk's added lines; returns whether one built.
 
@@ -2852,7 +2869,7 @@ def mutate_inside(root, guard, suites, h, plan, args, log):
     target = root / h['file']
     built_any, tried = False, 0
     lines = target.read_text(errors='surrogateescape').splitlines(keepends=True)
-    mutants = hunk_inside_mutants(h, lines)
+    mutants = spread_mutants(hunk_inside_mutants(h, lines), args.inside)
     if not mutants:
         note('[inside: no operator applies to its added lines] ')
     for line_no, op, text in mutants:
