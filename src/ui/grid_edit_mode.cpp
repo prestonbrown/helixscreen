@@ -94,6 +94,14 @@ static constexpr float kEdgeHitCellDivisor = 6.0f;
 // The touch_target_min token's value, for a theme that has not registered it.
 static constexpr int kMinDragTargetFallback = 48;
 
+/// A hold on an edit-mode button is not a tap on it: LVGL still sends CLICKED
+/// on the release that ends a long press, and an outside pill sits over cells
+/// a hold may be aimed at. Ending the press turns that release into PRESS_LOST.
+static void ignore_release_after_hold(lv_obj_t* btn) {
+    lv_obj_add_event_cb(
+        btn, [](lv_event_t* ev) { helix::ui::end_press(ev); }, LV_EVENT_LONG_PRESSED, nullptr);
+}
+
 /// Whether the press that produced @p e lifted over the object that handles it.
 /// LVGL press-locks a child, so its CLICKED fires wherever the finger lifts; a
 /// drag that happens to start on a chrome pill is not a tap on it. A click with
@@ -108,6 +116,17 @@ static bool released_over_target(lv_event_t* e) {
     lv_area_t area;
     lv_obj_get_coords(static_cast<lv_obj_t*>(lv_event_get_current_target(e)), &area);
     return point.x >= area.x1 && point.x <= area.x2 && point.y >= area.y1 && point.y <= area.y2;
+}
+
+static bool areas_disjoint(const lv_area_t& a, const lv_area_t& b) {
+    return a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2;
+}
+
+/// Whether @p a covers the centre point of @p tile.
+static bool covers_centre(const lv_area_t& a, const lv_area_t& tile) {
+    const int32_t cx = (tile.x1 + tile.x2) / 2;
+    const int32_t cy = (tile.y1 + tile.y2) / 2;
+    return cx >= a.x1 && cx <= a.x2 && cy >= a.y1 && cy <= a.y2;
 }
 
 // disable_widget_clicks_recursive() is in ui_utils.h (helix::ui namespace)
@@ -782,6 +801,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         lv_obj_set_style_pad_all(btn, 0, 0);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+        ignore_release_after_hold(btn);
 
         lv_obj_t* label = lv_label_create(btn);
         lv_label_set_text(label, icon);
@@ -806,17 +826,17 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         return lv_point_t{a.x1 - container_area.x1 - pad_left, a.y1 - container_area.y1 - pad_top};
     };
 
-    // An outside pill floats above the shield and every widget, so one drawn
-    // over the delete-page button or another tile would take the tap meant for
-    // it. With no safe spot outside, a pill keeps its corner on the tile.
+    // A pill floats above the shield and every widget, so one drawn over the
+    // delete-page button or another tile would take the tap meant for it.
+    // With no safe spot outside, a pill goes on the tile's corner.
     std::vector<lv_area_t> pill_blocked;
     std::vector<lv_area_t> other_tiles;
+    if (delete_page_btn_) {
+        lv_area_t content{};
+        current_metrics(&content);
+        pill_blocked.push_back(delete_page_button_area(content));
+    }
     if (pills_outside) {
-        if (delete_page_btn_) {
-            lv_area_t content{};
-            current_metrics(&content);
-            pill_blocked.push_back(delete_page_button_area(content));
-        }
         const uint32_t n = lv_obj_get_child_count(container_);
         for (uint32_t i = 0; i < n; ++i) {
             lv_obj_t* child = lv_obj_get_child(container_, static_cast<int32_t>(i));
@@ -832,22 +852,25 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
             other_tiles.push_back(a);
         }
     }
-    auto place_outside = [&](PillCorner corner, lv_point_t& pos, const char* what) {
-        const std::optional<lv_area_t> a = outside_pill_area(
-            widget_area, BTN_SIZE, container_area, pill_gap, corner, pill_blocked, other_tiles);
-        if (!a) {
-            spdlog::debug("[GridEditMode] No safe spot outside the tile for its {} pill; "
-                          "it stays on the tile's corner",
-                          what);
-            return;
+    auto place_pill = [&](PillCorner corner, const char* what) {
+        std::optional<lv_area_t> a;
+        if (pills_outside) {
+            a = outside_pill_area(widget_area, BTN_SIZE, container_area, pill_gap, corner,
+                                  pill_blocked, other_tiles);
+            if (!a) {
+                spdlog::debug("[GridEditMode] No safe spot outside the tile for its {} pill; "
+                              "it goes on the tile's corner",
+                              what);
+            }
         }
-        pos = to_rel(*a);
+        if (!a) {
+            a = corner_pill_area(widget_area, BTN_SIZE, kBtnOverhang, pill_gap, corner,
+                                 pill_blocked);
+        }
         pill_blocked.push_back(*a);
+        return to_rel(*a);
     };
-    lv_point_t trash_pos{rel_x1 + widget_w - BTN_SIZE + kBtnOverhang, rel_y1 - kBtnOverhang};
-    if (pills_outside) {
-        place_outside(PillCorner::TopRight, trash_pos, "trash");
-    }
+    const lv_point_t trash_pos = place_pill(PillCorner::TopRight, "trash");
     remove_btn_ = make_chrome_pill(trash_pos.x, trash_pos.y, ICON_TRASH);
     lv_obj_add_event_cb(
         remove_btn_,
@@ -866,10 +889,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         auto* raw = lv_obj_get_user_data(widget);
         auto* pw = raw ? static_cast<PanelWidget*>(raw) : nullptr;
         if (pw && pw->has_edit_configure()) {
-            lv_point_t configure_pos{rel_x1 - kBtnOverhang, rel_y1 - kBtnOverhang};
-            if (pills_outside) {
-                place_outside(PillCorner::TopLeft, configure_pos, "configure");
-            }
+            const lv_point_t configure_pos = place_pill(PillCorner::TopLeft, "configure");
             configure_btn_ = make_chrome_pill(configure_pos.x, configure_pos.y, ICON_SETTINGS);
             lv_obj_add_event_cb(
                 configure_btn_,
@@ -1313,28 +1333,23 @@ std::optional<lv_area_t> GridEditMode::outside_pill_area(const lv_area_t& tile, 
     auto inside_bounds = [&bounds](const lv_area_t& a) {
         return a.x1 >= bounds.x1 && a.y1 >= bounds.y1 && a.x2 <= bounds.x2 && a.y2 <= bounds.y2;
     };
-    auto disjoint = [](const lv_area_t& a, const lv_area_t& b) {
-        return a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2;
-    };
     auto clear_of_blocked = [&](const lv_area_t& a) {
         return std::all_of(blocked.begin(), blocked.end(),
-                           [&](const lv_area_t& b) { return disjoint(a, b); });
+                           [&](const lv_area_t& b) { return areas_disjoint(a, b); });
     };
     auto clear_of_tiles = [&](const lv_area_t& a) {
         return std::all_of(tiles.begin(), tiles.end(),
-                           [&](const lv_area_t& t) { return disjoint(a, t); });
+                           [&](const lv_area_t& t) { return areas_disjoint(a, t); });
     };
     // A sliver: at most a quarter pill deep into the tile on one axis, and
     // never over its centre.
     const int32_t sliver = pill_px / 4;
     auto spares_tiles = [&](const lv_area_t& a) {
         return std::all_of(tiles.begin(), tiles.end(), [&](const lv_area_t& t) {
-            if (disjoint(a, t)) {
+            if (areas_disjoint(a, t)) {
                 return true;
             }
-            const int32_t cx = (t.x1 + t.x2) / 2;
-            const int32_t cy = (t.y1 + t.y2) / 2;
-            if (cx >= a.x1 && cx <= a.x2 && cy >= a.y1 && cy <= a.y2) {
+            if (covers_centre(a, t)) {
                 return false;
             }
             const int32_t ow = std::min(a.x2, t.x2) - std::max(a.x1, t.x1) + 1;
@@ -1349,13 +1364,72 @@ std::optional<lv_area_t> GridEditMode::outside_pill_area(const lv_area_t& tile, 
             return a;
         }
     }
+    auto off_tile_centres = [&](const lv_area_t& a) {
+        return std::none_of(tiles.begin(), tiles.end(),
+                            [&](const lv_area_t& t) { return covers_centre(a, t); });
+    };
+
+    for (const auto& p : candidates) {
+        const lv_area_t a = rect_at(p);
+        if (inside_bounds(a) && clear_of_blocked(a) && clear_of_tiles(a)) {
+            return a;
+        }
+    }
     for (const auto& p : candidates) {
         const lv_area_t a = rect_at(p);
         if (inside_bounds(a) && clear_of_blocked(a) && spares_tiles(a)) {
             return a;
         }
     }
+    // A packed grid of small tiles leaves no spot short of a neighbour's
+    // body; one off every tile's centre still keeps each tile's tap and drag.
+    for (const auto& p : candidates) {
+        const lv_area_t a = rect_at(p);
+        if (inside_bounds(a) && clear_of_blocked(a) && off_tile_centres(a)) {
+            return a;
+        }
+    }
     return std::nullopt;
+}
+
+lv_area_t GridEditMode::corner_pill_area(const lv_area_t& tile, int pill_px, int overhang, int gap,
+                                         PillCorner corner, const std::vector<lv_area_t>& blocked) {
+    const bool right = corner == PillCorner::TopRight;
+    const lv_point_t centre{(tile.x1 + tile.x2) / 2, (tile.y1 + tile.y2) / 2};
+    int32_t x1 = right ? tile.x2 + overhang - pill_px + 1 : tile.x1 - overhang;
+    int32_t y1 = tile.y1 - overhang;
+    // Out past the centre on both axes, away from the tile's middle.
+    x1 = right ? std::max(x1, centre.x + 1) : std::min(x1, centre.x - pill_px);
+    y1 = std::min(y1, centre.y - pill_px);
+    auto rect_at = [pill_px](int32_t x, int32_t y) {
+        return lv_area_t{x, y, x + pill_px - 1, y + pill_px - 1};
+    };
+    const lv_area_t home = rect_at(x1, y1);
+    auto usable = [&](const lv_area_t& a) {
+        return !covers_centre(a, tile) &&
+               std::all_of(blocked.begin(), blocked.end(),
+                           [&](const lv_area_t& b) { return areas_disjoint(a, b); });
+    };
+    if (usable(home)) {
+        return home;
+    }
+    std::vector<lv_area_t> slides;
+    for (const lv_area_t& b : blocked) {
+        if (!areas_disjoint(home, b)) {
+            slides.push_back(rect_at(x1, b.y2 + 1 + gap));
+        }
+    }
+    for (const lv_area_t& b : blocked) {
+        if (!areas_disjoint(home, b)) {
+            slides.push_back(rect_at(right ? b.x1 - gap - pill_px : b.x2 + 1 + gap, y1));
+        }
+    }
+    for (const lv_area_t& a : slides) {
+        if (usable(a)) {
+            return a;
+        }
+    }
+    return home;
 }
 
 lv_area_t GridEditMode::delete_page_button_area(const lv_area_t& content) {
@@ -2982,6 +3056,7 @@ void GridEditMode::rebuild_lattice() {
         lv_obj_set_style_pad_all(delete_page_btn_, 0, 0);
         lv_obj_add_flag(delete_page_btn_, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(delete_page_btn_, LV_OBJ_FLAG_SCROLLABLE);
+        ignore_release_after_hold(delete_page_btn_);
         lv_obj_set_pos(delete_page_btn_, del_area.x1 - content_area.x1,
                        del_area.y1 - content_area.y1);
 
