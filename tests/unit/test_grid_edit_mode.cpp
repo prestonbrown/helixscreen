@@ -617,6 +617,113 @@ TEST_CASE("selection pills: outside a widget too small to share, off its corner,
     }
 }
 
+TEST_CASE("selection pills: off every centre in a packed micro grid, clear of the delete-page "
+          "button on a corner",
+          "[grid_edit][edit-chrome][halfcell]") {
+    using Corner = GridEditMode::PillCorner;
+    auto same = [](const lv_area_t& a, const lv_area_t& b) {
+        return a.x1 == b.x1 && a.y1 == b.y1 && a.x2 == b.x2 && a.y2 == b.y2;
+    };
+    auto covers = [](const lv_area_t& a, const lv_area_t& t) {
+        const int32_t cx = (t.x1 + t.x2) / 2;
+        const int32_t cy = (t.y1 + t.y2) / 2;
+        return cx >= a.x1 && cx <= a.x2 && cy >= a.y1 && cy <= a.y2;
+    };
+
+    // 480x272: 24px pills, 2px gaps, 34x31 half-cell tiles on a 36x33 pitch,
+    // every track taken. Every first-ring spot off track (5, 4) covers a
+    // neighbour's centre, so the pills go one pill further out, between two.
+    const lv_area_t micro{42, 4, 471, 267};
+    std::vector<lv_area_t> tiles;
+    lv_area_t tile{};
+    for (int c = 0; c < 12; ++c) {
+        for (int r = 0; r < 8; ++r) {
+            const lv_area_t t{42 + 36 * c, 4 + 33 * r, 42 + 36 * c + 33, 4 + 33 * r + 30};
+            if (c == 5 && r == 4) {
+                tile = t;
+            } else {
+                tiles.push_back(t);
+            }
+        }
+    }
+    const auto trash =
+        GridEditMode::outside_pill_area(tile, 24, micro, 2, Corner::TopRight, {}, tiles);
+    REQUIRE(trash.has_value());
+    CHECK(same(*trash, {284, 110, 307, 133}));
+    const auto cfg =
+        GridEditMode::outside_pill_area(tile, 24, micro, 2, Corner::TopLeft, {*trash}, tiles);
+    REQUIRE(cfg.has_value());
+    CHECK(same(*cfg, {170, 110, 193, 133}));
+    for (const lv_area_t& t : tiles) {
+        CHECK_FALSE(covers(*trash, t));
+        CHECK_FALSE(covers(*cfg, t));
+    }
+
+    // Neighbours centred inside every spot: nullopt, and the pill goes on the
+    // tile's corner.
+    std::vector<lv_area_t> dots;
+    for (int32_t cx : {480, 375, 520, 335}) {
+        for (int32_t cy : {175, 215, 280}) {
+            dots.push_back({cx - 5, cy - 5, cx + 5, cy + 5});
+        }
+    }
+    CHECK_FALSE(GridEditMode::outside_pill_area({400, 200, 459, 258}, 36, {80, 0, 799, 479}, 5,
+                                                Corner::TopRight, {}, dots)
+                    .has_value());
+
+    // On the tile's corner: 36px pills overhanging by 9, at 800x480.
+    const lv_area_t del = GridEditMode::delete_page_button_area({80, 0, 799, 479});
+    struct Row {
+        const char* what;
+        lv_area_t tile;
+        Corner corner;
+        std::vector<lv_area_t> blocked;
+        lv_area_t pill;
+    };
+    const Row rows[] = {
+        {"a whole cell mid-grid",
+         {400, 200, 517, 317},
+         Corner::TopRight,
+         {del},
+         {491, 191, 526, 226}},
+        {"its configure corner",
+         {400, 200, 517, 317},
+         Corner::TopLeft,
+         {del},
+         {391, 191, 426, 226}},
+        {"the top-right whole cell: below the delete-page button",
+         {682, 0, 799, 117},
+         Corner::TopRight,
+         {del},
+         {773, 53, 808, 88}},
+        {"something below the button: left along the top edge",
+         {682, 0, 799, 117},
+         Corner::TopRight,
+         {del, {760, 48, 810, 100}},
+         {711, -9, 746, 26}},
+        {"a tile too small for its corner: out past its centre",
+         {400, 200, 430, 228},
+         Corner::TopRight,
+         {},
+         {416, 178, 451, 213}},
+        {"the small tile's configure corner",
+         {400, 200, 430, 228},
+         Corner::TopLeft,
+         {},
+         {379, 178, 414, 213}},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        const lv_area_t pill =
+            GridEditMode::corner_pill_area(row.tile, 36, 9, 5, row.corner, row.blocked);
+        CHECK(same(pill, row.pill));
+        CHECK_FALSE(covers(pill, row.tile));
+        for (const lv_area_t& b : row.blocked) {
+            CHECK((pill.x2 < b.x1 || pill.x1 > b.x2 || pill.y2 < b.y1 || pill.y1 > b.y2));
+        }
+    }
+}
+
 TEST_CASE("press_owns_widget: the press origin decides, with the grab band of drift",
           "[grid_edit][drag][resize][1169]") {
     GridEditMode em;
