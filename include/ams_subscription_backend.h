@@ -7,12 +7,14 @@
 
 #include "ams_backend.h"
 #include "async_lifetime_guard.h"
+#include "filament_slot_override_store.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 
 #include <spdlog/spdlog.h>
 
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <optional>
 
@@ -141,6 +143,25 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Called after subscription is established and running_ is set.
     /// Lock is NOT held. Safe to call emit_event().
     virtual void on_started() {}
+
+    /// When @p store's load got no answer, read the namespace without blocking,
+    /// and from the status frames until a read lands, then replace @p overrides
+    /// with what the printer holds. Nothing is written over those records until
+    /// then. Call from on_started() outside mutex_, passing the backend's own
+    /// members, which must outlive it: both are read under mutex_ when the answer
+    /// lands, and a store replaced meanwhile drops it. Main thread.
+    void read_unread_overrides(
+        std::unique_ptr<helix::ams::FilamentSlotOverrideStore>& store,
+        std::unordered_map<int, helix::ams::FilamentSlotOverride>& overrides);
+
+    /// The next read of an unread store, no sooner than the retry interval.
+    void retry_unread_overrides();
+    /// The backend's members read_unread_overrides() was given, a read is out, and
+    /// when the last one started. Main thread.
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore>* unread_store_ = nullptr;
+    std::unordered_map<int, helix::ams::FilamentSlotOverride>* unread_overrides_ = nullptr;
+    bool unread_read_in_flight_ = false;
+    std::chrono::steady_clock::time_point unread_read_started_{};
 
     /// Called before stop() releases the subscription.
     /// Lock IS held.

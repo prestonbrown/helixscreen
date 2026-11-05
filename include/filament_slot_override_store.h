@@ -4,6 +4,8 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 
+#include <atomic>
+#include <mutex>
 #include <chrono>
 #include <filesystem>
 #include <functional>
@@ -11,6 +13,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "hv/json.hpp"
 
@@ -86,6 +89,16 @@ inline std::filesystem::path& slot_override_cache_dir_ref() {
 }
 } // namespace detail
 
+/// @p live with the changes @p held makes to @p base, all three lane_data records:
+/// only a field that differs between @p base and @p held moves, so what the
+/// printer's record says beyond that survives a save built without seeing it. A
+/// colour or material @p live holds stays unless @p held locks it or links a
+/// different spool, and a marker unlinking the spool @p live links cuts that link.
+/// Pure.
+[[nodiscard]] nlohmann::json merge_held_save(const nlohmann::json& base,
+                                             const nlohmann::json& held,
+                                             const nlohmann::json& live);
+
 class FilamentSlotOverrideStore {
   public:
     // key_style defaults to Lane so the many lane-based construction sites and
@@ -116,8 +129,36 @@ class FilamentSlotOverrideStore {
     std::unordered_map<int, FilamentSlotOverride> load_blocking();
 
     using SaveCallback = std::function<void(bool success, std::string error)>;
+    /// While namespace_unread(), saves and clears are held rather than sent: a
+    /// record built without the live one would replace it wholesale.
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
     void clear_async(int slot_index, SaveCallback cb);
+
+    /// load_blocking() got no answer from the database, so what it returned is at
+    /// best the local cache and says nothing about the records on the printer.
+    [[nodiscard]] bool namespace_unread() const {
+        return namespace_unread_.load();
+    }
+
+    using NamespaceReadCallback =
+        std::function<void(std::unordered_map<int, FilamentSlotOverride> records)>;
+    /// Reads the namespace without blocking. Exactly one of the two runs, on the
+    /// API's callback thread; marshal from there. Neither may reach this store
+    /// unguarded, since it can be gone by then.
+    void read_namespace_async(NamespaceReadCallback cb, std::function<void()> on_failure);
+
+    /// What the caller still has to send once the namespace has been read.
+    struct HeldWrites {
+        std::unordered_map<int, FilamentSlotOverride> saves;
+        std::vector<int> clears;
+    };
+
+    /// The namespace has now been read as @p records. Held clears remove their
+    /// record from it and each held save is merged onto the real one
+    /// (merge_held_save()), and writes go out again. A save merging to no change
+    /// is not returned.
+    [[nodiscard]] HeldWrites
+    adopt_namespace_read(std::unordered_map<int, FilamentSlotOverride>& records);
 
     // Seated-lane persistence. Unlike the per-lane overrides above, this is a
     // single scalar (the 0-based index of the lane currently loaded to the
@@ -167,6 +208,19 @@ class FilamentSlotOverrideStore {
     // Stored as milliseconds (not seconds) because tests need sub-second
     // resolution — a chrono::seconds member would truncate 50ms to 0s.
     std::chrono::milliseconds load_timeout_{5000};
+    std::atomic<bool> namespace_unread_{false};
+    // A slot's writes made while the namespace is unread, in the order that
+    // matters: a clear, then whatever was saved after it.
+    struct HeldWrite {
+        bool cleared = false;
+        std::optional<FilamentSlotOverride> save;
+    };
+    // The held writes, and the cache the failed load returned, which is what a
+    // held save changed from. namespace_unread_ changes and is tested under
+    // held_mutex_ too: a save can come from any thread.
+    std::mutex held_mutex_;
+    std::unordered_map<int, HeldWrite> held_writes_;
+    std::unordered_map<int, FilamentSlotOverride> unread_fallback_;
     // On-disk read-cache directory. Empty = use helix::get_user_config_dir().
     // Overridable by FilamentSlotOverrideStoreTestAccess so tests write to a
     // per-PID tmp dir instead of polluting the user's config. The cache is

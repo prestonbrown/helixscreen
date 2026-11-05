@@ -100,6 +100,7 @@ void AmsBackendToolChanger::on_started() {
             }
         }
     }
+    read_unread_overrides(override_store_, overrides_);
     spdlog::info("{} Loaded {} slot overrides from filament_slot store", backend_log_tag(),
                  loaded_count);
 }

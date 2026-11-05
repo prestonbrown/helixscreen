@@ -39,6 +39,10 @@
 // successful save_async calls don't pollute the developer's real config.
 class FilamentSlotOverrideStoreTestAccess {
   public:
+    static void set_load_timeout(helix::ams::FilamentSlotOverrideStore& store,
+                                 std::chrono::milliseconds ms) {
+        store.load_timeout_ = ms;
+    }
     static void set_cache_directory(helix::ams::FilamentSlotOverrideStore& store,
                                     std::filesystem::path dir) {
         store.cache_dir_ = std::move(dir);
@@ -10823,5 +10827,84 @@ TEST_CASE("AD5X IFS runout Purge gcode in both firmware shapes",
         const auto macros = AmsBackendAd5xIfs::bin_purge_macros(
             discovery_with({"gcode_macro _G28", "gcode_macro _GOTO_TRASH"}));
         CHECK(AmsBackendAd5xIfs::runout_purge_gcode(macros) == "M83\nG1 E50 F600");
+    }
+}
+
+TEST_CASE("AD5X IFS takes the printer's records once a late read lands, and never overwrites them",
+          "[ams][ad5x_ifs][filament_slot_override][2008]") {
+    Ad5xIfsTmpCacheDir tmp("unread_lane_records");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    const nlohmann::json document = {{"lane1",
+                                      {{"lane", "0"},
+                                       {"color", "#FF5500"},
+                                       {"material", "PLA"},
+                                       {"vendor", "Polymaker"},
+                                       {"spool_name", "PolyLite Orange"}}}};
+
+    AmsBackendAd5xIfs backend(&api, nullptr);
+    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    FilamentSlotOverrideStoreTestAccess::set_load_timeout(*store, std::chrono::milliseconds(20));
+    api.mock_defer_next_db_get();
+    (void)store->load_blocking();
+    REQUIRE(store->namespace_unread());
+    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
+    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
+
+    Ad5xIfsTestAccess::parse_adventurer_json(
+        backend, R"({"FFMInfo": {"ffmColor1": "#FF5500", "ffmType1": "PLA"}})");
+    Ad5xIfsTestAccess::parse_adventurer_json(
+        backend, R"({"FFMInfo": {"ffmColor1": "#0055FF", "ffmType1": "PETG"}})");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(api.mock_db_post_count() == 0);
+
+    api.mock_defer_next_db_get();
+    Ad5xIfsTestAccess::read_unread_overrides(backend);
+
+    SECTION("a read that fails changes nothing, and the next one takes the records") {
+        api.fire_deferred_db_get_error(MoonrakerError::unknown("down"));
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(Ad5xIfsTestAccess::override_store(backend)->namespace_unread());
+        CHECK(api.mock_db_post_count() == 0);
+
+        api.mock_defer_next_db_get();
+        Ad5xIfsTestAccess::retry_unread_overrides_now(backend);
+        api.fire_deferred_db_get_success(document);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(Ad5xIfsTestAccess::override_store(backend)->namespace_unread());
+        CHECK(Ad5xIfsTestAccess::get_override(backend, 0)->brand == "Polymaker");
+    }
+    SECTION("an edit made during the hold reaches the record and the printer") {
+        helix::ams::FilamentSlotOverride edit;
+        edit.spool_name = "Edited During Hold";
+        Ad5xIfsTestAccess::override_store(backend)->save_async(0, edit, nullptr);
+        api.fire_deferred_db_get_success(document);
+        helix::ui::UpdateQueue::instance().drain();
+        const auto adopted = Ad5xIfsTestAccess::get_override(backend, 0);
+        REQUIRE(adopted.has_value());
+        CHECK(adopted->spool_name == "Edited During Hold");
+        CHECK(adopted->brand == "Polymaker");
+        CHECK(api.mock_db_post_count() == 1);
+    }
+    SECTION("a read that lands restores the record, and later writes keep it") {
+        api.fire_deferred_db_get_success(document);
+        helix::ui::UpdateQueue::instance().drain();
+        const auto adopted = Ad5xIfsTestAccess::get_override(backend, 0);
+        REQUIRE(adopted.has_value());
+        CHECK(adopted->brand == "Polymaker");
+        CHECK(api.mock_db_post_count() == 0);
+
+        Ad5xIfsTestAccess::parse_adventurer_json(
+            backend, R"({"FFMInfo": {"ffmColor1": "#00FF00", "ffmType1": "PETG"}})");
+        helix::ui::UpdateQueue::instance().drain();
+        const auto after = Ad5xIfsTestAccess::get_override(backend, 0);
+        REQUIRE(after.has_value());
+        CHECK(after->brand == "Polymaker");
+        CHECK(after->color_rgb == 0x00FF00u);
     }
 }

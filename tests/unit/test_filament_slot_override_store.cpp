@@ -3539,3 +3539,253 @@ TEST_CASE("SlotFingerprintTracker forget_baseline keeps the slot's expectation",
     CHECK(t.observe(0, "C") == helix::ams::FingerprintEvent::Baseline);
     CHECK(t.observe(0, "B") == helix::ams::FingerprintEvent::OwnWriteEcho);
 }
+
+// ============================================================================
+// A store whose load got no answer has not read the namespace (#2008)
+// ============================================================================
+
+namespace {
+
+FilamentSlotOverride polymaker_record() {
+    FilamentSlotOverride o;
+    o.brand = "Polymaker";
+    o.color_rgb = 0xFF9800;
+    o.color_set = true;
+    o.material = "ASA";
+    return o;
+}
+
+} // namespace
+
+TEST_CASE("an unanswered load writes nothing over the printer's records",
+          "[filament_slot_override][2008]") {
+    TmpCacheDir tmp("unread_holds");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    FilamentSlotOverrideStore store(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    FilamentSlotOverrideStoreTestAccess::set_load_timeout(store, std::chrono::milliseconds(20));
+    api.mock_defer_next_db_get();
+    (void)store.load_blocking();
+    REQUIRE(store.namespace_unread());
+    const int posts_before = api.mock_db_post_count();
+
+    SECTION("the firmware mirror, which starts from a blank record") {
+        std::unordered_map<int, FilamentSlotOverride> overrides;
+        helix::ams::mirror_firmware_to_lane_data(&store, overrides, 0, 0x00FF00, "PLA", true,
+                                                 helix::ams::MirrorPolicy::OverwriteAlways,
+                                                 "[test]");
+    }
+    SECTION("a save") {
+        bool ok = false;
+        store.save_async(0, FilamentSlotOverride{},
+                         [&ok](bool success, std::string) { ok = success; });
+        CHECK(ok);
+    }
+    SECTION("a clear") {
+        bool ok = false;
+        store.clear_async(0, [&ok](bool success, std::string) { ok = success; });
+        CHECK(ok);
+        CHECK(api.mock_db_delete_count() == 0);
+    }
+    CHECK(api.mock_db_post_count() == posts_before);
+}
+
+TEST_CASE("a load that fails is unread, and one the database answers is not",
+          "[filament_slot_override][2008]") {
+    TmpCacheDir tmp("unread_kinds");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+    FilamentSlotOverrideStore store(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    FilamentSlotOverrideStoreTestAccess::set_load_timeout(store, std::chrono::milliseconds(200));
+    api.mock_defer_next_db_get();
+
+    MoonrakerError err;
+    bool expect_unread = true;
+    SECTION("a connection error") {
+        err = MoonrakerError::unknown("no route");
+    }
+    SECTION("a namespace nothing has written yet") {
+        err.code = 404;
+        err.message = "Namespace 'lane_data' not found";
+        expect_unread = false;
+    }
+    std::thread answer([&api, err]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        api.fire_deferred_db_get_error(err);
+    });
+    (void)store.load_blocking();
+    answer.join();
+    CHECK(store.namespace_unread() == expect_unread);
+
+    const int before = api.mock_db_post_count();
+    store.save_async(0, polymaker_record(), nullptr);
+    CHECK(api.mock_db_post_count() == before + (expect_unread ? 0 : 1));
+}
+
+TEST_CASE("the read that lands merges held saves onto the real records",
+          "[filament_slot_override][2008]") {
+    TmpCacheDir tmp("unread_adopt");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    FilamentSlotOverride cached = polymaker_record();
+    cached.spoolman_id = 42;
+    {
+        FilamentSlotOverrideStore seed(&api, "ifs");
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(seed, tmp.path);
+        seed.save_async(1, cached, nullptr);
+    }
+
+    FilamentSlotOverrideStore store(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+    FilamentSlotOverrideStoreTestAccess::set_load_timeout(store, std::chrono::milliseconds(20));
+    api.mock_defer_next_db_get();
+    (void)store.load_blocking();
+    REQUIRE(store.namespace_unread());
+
+    // What the printer really holds: another tool has moved slot 1 on since the
+    // cache was written, and slot 3 has a record the edit below never saw.
+    FilamentSlotOverride newer = cached;
+    newer.brand = "Prusament";
+    FilamentSlotOverride spool = polymaker_record();
+    spool.spoolman_id = 12;
+    std::unordered_map<int, FilamentSlotOverride> records;
+    records[1] = newer;
+    records[3] = spool;
+    records[4] = spool;
+    records[5] = spool;
+
+    // Unchanged from the cache: a stale record must not replace the newer one.
+    store.save_async(1, cached, nullptr);
+    // An edit made without seeing the record: only what it changed moves.
+    FilamentSlotOverride edit;
+    edit.color_rgb = 0x00FF00;
+    edit.color_set = true;
+    edit.user_locked_color = true;
+    store.save_async(3, edit, nullptr);
+    // Cleared while held, however the save before it read.
+    store.save_async(4, edit, nullptr);
+    store.clear_async(4, nullptr);
+    // Cleared, then given a new record that owes nothing to the old one.
+    store.clear_async(5, nullptr);
+    store.save_async(5, edit, nullptr);
+
+    const int posts_before = api.mock_db_post_count();
+    const auto writes = store.adopt_namespace_read(records);
+    CHECK_FALSE(store.namespace_unread());
+    CHECK(api.mock_db_post_count() == posts_before);
+
+    CHECK(writes.saves.count(1) == 0);
+    CHECK(records.at(1).brand == "Prusament");
+
+    REQUIRE(writes.saves.count(3) == 1);
+    CHECK(writes.saves.at(3).color_rgb == 0x00FF00u);
+    CHECK(writes.saves.at(3).brand == "Polymaker");
+    CHECK(writes.saves.at(3).spoolman_id == 12);
+    CHECK(records.at(3).spoolman_id == 12);
+
+    CHECK(writes.saves.count(4) == 0);
+    CHECK(records.count(4) == 0);
+    CHECK(std::find(writes.clears.begin(), writes.clears.end(), 4) != writes.clears.end());
+
+    REQUIRE(writes.saves.count(5) == 1);
+    CHECK(writes.saves.at(5).spoolman_id == 0);
+    CHECK(writes.saves.at(5).brand.empty());
+
+    const int before = api.mock_db_post_count();
+    store.save_async(6, polymaker_record(), nullptr);
+    CHECK(api.mock_db_post_count() == before + 1);
+}
+
+TEST_CASE("merge_held_save moves only what the held save changed",
+          "[filament_slot_override][2008]") {
+    using helix::ams::merge_held_save;
+    using json = nlohmann::json;
+    const json live = {{"lane", "0"},
+                       {"color", "#FF9800"},
+                       {"material", "ASA"},
+                       {"vendor", "Polymaker"},
+                       {"spool_id", 12},
+                       {"helix_locked_color", true},
+                       {"helix_locked_material", false}};
+    const json blank = {{"lane", "0"},
+                        {"helix_locked_color", false},
+                        {"helix_locked_material", false}};
+
+    SECTION("a reading moves neither a colour nor a material the record holds") {
+        json held = blank;
+        held["color"] = "#00FF00";
+        held["material"] = "PLA";
+        const json merged = merge_held_save(blank, held, live);
+        CHECK(merged["color"] == "#FF9800");
+        CHECK(merged["helix_locked_color"] == true);
+        CHECK(merged["material"] == "ASA");
+        CHECK(merged["vendor"] == "Polymaker");
+    }
+    SECTION("a kept material keeps its temperatures") {
+        json hot = live;
+        hot["bed_temp"] = 100;
+        hot["nozzle_temp"] = 260;
+        json held = blank;
+        held["material"] = "PETG";
+        held["bed_temp"] = 80;
+        held["nozzle_temp"] = 245;
+        CHECK(merge_held_save(blank, held, hot) == hot);
+    }
+    SECTION("a reading fills a colour the record does not have") {
+        const json bare = {{"lane", "0"}, {"vendor", "Polymaker"}};
+        json held = blank;
+        held["color"] = "#00FF00";
+        CHECK(merge_held_save(blank, held, bare)["color"] == "#00FF00");
+    }
+    SECTION("linking a different spool replaces the colour too") {
+        json held = blank;
+        held["spool_id"] = 77;
+        held["color"] = "#00FF00";
+        const json merged = merge_held_save(blank, held, live);
+        CHECK(merged["spool_id"] == 77);
+        CHECK(merged["color"] == "#00FF00");
+    }
+    SECTION("another tool's record stays exactly as it is when nothing changed") {
+        const json foreign = {{"lane", "0"}, {"color", "#FF9800"}, {"vendor", "Polymaker"}};
+        CHECK(merge_held_save(blank, blank, foreign) == foreign);
+    }
+    SECTION("an edit locking the colour does") {
+        json held = blank;
+        held["color"] = "#00FF00";
+        held["helix_locked_color"] = true;
+        CHECK(merge_held_save(blank, held, live)["color"] == "#00FF00");
+    }
+    SECTION("a field the held save removed from its base leaves") {
+        json base = blank;
+        base["vendor"] = "Polymaker";
+        const json merged = merge_held_save(base, blank, live);
+        CHECK_FALSE(merged.contains("vendor"));
+        CHECK(merged["spool_id"] == 12);
+    }
+    SECTION("no difference from the base leaves the record alone") {
+        CHECK(merge_held_save(blank, blank, live) == live);
+    }
+    SECTION("an unlink marker for the linked spool cuts the link") {
+        json held = blank;
+        held["helix_unlinked_spool_id"] = 12;
+        const json merged = merge_held_save(blank, held, live);
+        CHECK_FALSE(merged.contains("spool_id"));
+        CHECK(merged["helix_unlinked_spool_id"] == 12);
+        CHECK(merged["vendor"] == "Polymaker");
+    }
+    SECTION("a marker for another spool leaves the link") {
+        json held = blank;
+        held["helix_unlinked_spool_id"] = 99;
+        CHECK(merge_held_save(blank, held, live)["spool_id"] == 12);
+    }
+}

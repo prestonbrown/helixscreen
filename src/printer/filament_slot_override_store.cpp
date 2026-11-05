@@ -1063,114 +1063,13 @@ void try_migrate_lane_keys_to_tool_keys(IMoonrakerAPI* api, const std::string& b
 // one lost slot. This catch is the backstop for everything else: worst case the
 // user sees no overrides, which is the fresh-install state and fully
 // recoverable, rather than an AMS subsystem that failed to come up.
-std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking() {
-    try {
-        return load_blocking_impl();
-    } catch (const std::exception& e) {
-        spdlog::warn("[FilamentSlotOverrideStore:{}] load aborted ({}); continuing with no "
-                     "overrides",
-                     backend_id_, e.what());
-        return {};
-    }
-}
+namespace {
 
-std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking_impl() {
+/// The records a lane_data document holds, by slot.
+std::unordered_map<int, FilamentSlotOverride>
+parse_namespace_document(const nlohmann::json& received_copy, LaneKeyStyle key_style,
+                         const std::string& backend_id) {
     std::unordered_map<int, FilamentSlotOverride> result;
-    if (!api_)
-        return result;
-
-    // Wrap sync state in shared_ptr so callbacks firing after our local
-    // cv.wait_for timeout (load_timeout_, default 5s) don't touch a freed
-    // stack frame. Moonraker's request tracker has its own ~60s boundary,
-    // so an error callback can fire well after we've already returned.
-    // Captured by value, the shared_ptr keeps the state alive for the
-    // orphaned callback to flip done/got harmlessly.
-    // (Same pattern as AmsBackendAce::poll_info in src/printer/ams_backend_ace.cpp)
-    struct SyncState {
-        std::mutex m;
-        std::condition_variable cv;
-        bool done{false};
-        bool got{false};
-        nlohmann::json received;
-    };
-    auto state = std::make_shared<SyncState>();
-    // Copy strings into the error lambda: the store may be destroyed before
-    // Moonraker's request tracker fires its ~60s error timeout, so the lambda
-    // can't rely on backend_id_/namespace_ still being alive.
-    const std::string backend_id_copy = backend_id_;
-    const std::string namespace_copy = namespace_;
-
-    api_->database_get_namespace(
-        namespace_,
-        [state](const nlohmann::json& value) {
-            std::lock_guard<std::mutex> lk(state->m);
-            state->received = value;
-            state->got = true;
-            state->done = true;
-            state->cv.notify_one();
-        },
-        [state, backend_id_copy, namespace_copy](const MoonrakerError& err) {
-            spdlog::debug("[FilamentSlotOverrideStore:{}] database_get_namespace({}) failed: {}",
-                          backend_id_copy, namespace_copy, err.message);
-            std::lock_guard<std::mutex> lk(state->m);
-            state->done = true;
-            state->cv.notify_one();
-        });
-
-    // Snapshot the shared state under lock: after wait_for returns, a callback
-    // firing from a background thread could still write to state->got /
-    // state->received concurrently with our reads. Take the lock, copy what we
-    // need, release. The shared_ptr keeps the state alive for any late
-    // callback — it just writes to the copy-source without racing us.
-    bool got_copy;
-    bool done_copy;
-    nlohmann::json received_copy;
-    {
-        std::unique_lock<std::mutex> lk(state->m);
-        state->cv.wait_for(lk, load_timeout_, [state] { return state->done; });
-        got_copy = state->got;
-        done_copy = state->done;
-        if (got_copy)
-            received_copy = state->received;
-    }
-
-    spdlog::debug("[FilamentSlotOverrideStore:{}] load_blocking: got={} done={} "
-                  "received_type={} received_size={}",
-                  backend_id_, got_copy, done_copy,
-                  got_copy ? (received_copy.is_object()  ? "object"
-                              : received_copy.is_null()  ? "null"
-                              : received_copy.is_array() ? "array"
-                                                         : "other")
-                           : "n/a",
-                  got_copy && received_copy.is_object() ? received_copy.size() : 0u);
-
-    // Fall back to local cache ONLY when the MR DB round-trip didn't yield a
-    // value — either because the error callback fired (got==false, done==true)
-    // or the cv.wait_for timeout elapsed (got==false, done==false). A
-    // successful MR DB response with an empty namespace is authoritative ("no
-    // overrides configured") and must NOT be replaced by stale cache data.
-    if (!got_copy) {
-        auto cached = read_cache(cache_path(), backend_id_);
-        spdlog::debug("[FilamentSlotOverrideStore:{}] load_blocking: cache fallback "
-                      "returned {} entries",
-                      backend_id_, cached.size());
-        return cached;
-    }
-    if (!received_copy.is_object())
-        return result;
-
-    // One-shot diagnostic: surface lane_data records that are inconsistent or
-    // invisible to other readers (OrcaSlicer drops int-typed lanes; key/inner
-    // mismatches and residual duplicates confuse interop). Read-only — we do NOT
-    // rewrite third-party/corrupt records here; the migration below only touches
-    // keys we authored. This just turns silent field weirdness into one log line.
-    if (const auto anomalies = scan_lane_data_anomalies(received_copy); anomalies.total() > 0) {
-        spdlog::info("[FilamentSlotOverrideStore:{}] lane_data has {} anomalous record(s): "
-                     "{} int-typed lane, {} key/inner mismatch, {} unparseable, {} duplicate slot",
-                     backend_id_, anomalies.total(), anomalies.int_typed_lane,
-                     anomalies.key_inner_mismatch, anomalies.unparseable, anomalies.duplicate_slot);
-    }
-
     // Key-agnostic ingest with canonical-key duplicate reconciliation. The
     // outer key is NOT a filter anymore — Mainsail writes "T0", AFC "lane1",
     // Happy Hare its own — so we ingest any well-formed lane record and let
@@ -1196,7 +1095,7 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         // Non-objects are namespace siblings, not malformed records — a separate
         // debug line so genuine parse failures below stay distinguishable.
         if (!it.value().is_object()) {
-            spdlog::debug("[FilamentSlotOverrideStore:{}] skipping non-object key: {}", backend_id_,
+            spdlog::debug("[FilamentSlotOverrideStore:{}] skipping non-object key: {}", backend_id,
                           key);
             continue;
         }
@@ -1211,16 +1110,16 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         } catch (const std::exception& e) {
             spdlog::warn("[FilamentSlotOverrideStore:{}] skipping unreadable lane_data record "
                          "{}: {}",
-                         backend_id_, key, e.what());
+                         backend_id, key, e.what());
             continue;
         }
         if (!parsed) {
             spdlog::debug("[FilamentSlotOverrideStore:{}] from_lane_data_record failed for {}",
-                          backend_id_, key);
+                          backend_id, key);
             continue;
         }
         const int idx = parsed->first;
-        const bool canonical = (key == format_lane_key(idx, key_style_));
+        const bool canonical = (key == format_lane_key(idx, key_style));
         auto seen = canonical_seen.find(idx);
         if (seen == canonical_seen.end()) {
             result[idx] = std::move(parsed->second);
@@ -1228,15 +1127,276 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         } else if (canonical && !seen->second) {
             spdlog::warn("[FilamentSlotOverrideStore:{}] duplicate lane_data records for slot {}; "
                          "preferring canonical key {}",
-                         backend_id_, idx, key);
+                         backend_id, idx, key);
             result[idx] = std::move(parsed->second);
             seen->second = true;
         } else {
             spdlog::warn("[FilamentSlotOverrideStore:{}] duplicate lane_data record for slot {} "
                          "under key {}; keeping the incumbent",
-                         backend_id_, idx, key);
+                         backend_id, idx, key);
         }
     }
+    return result;
+}
+
+} // namespace
+
+void FilamentSlotOverrideStore::read_namespace_async(NamespaceReadCallback cb,
+                                                     std::function<void()> on_failure) {
+    if (!api_) {
+        return;
+    }
+    const LaneKeyStyle style = key_style_;
+    const std::string id = backend_id_;
+    api_->database_get_namespace(
+        namespace_,
+        [style, id, cb, on_failure](const nlohmann::json& value) {
+            if (!value.is_object()) {
+                if (on_failure)
+                    on_failure();
+                return;
+            }
+            cb(parse_namespace_document(value, style, id));
+        },
+        [cb, on_failure](const MoonrakerError& err) {
+            if (err.is_not_found()) {
+                cb({});
+                return;
+            }
+            if (on_failure)
+                on_failure();
+        });
+}
+
+nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json& held,
+                               const nlohmann::json& live) {
+    nlohmann::json merged = live.is_object() ? live : nlohmann::json::object();
+    const auto locks = [](const nlohmann::json& record, const char* key) {
+        const auto lock = record.find(key);
+        return lock != record.end() && lock->is_boolean() && lock->get<bool>();
+    };
+    // A held save that does not lock a colour or material is a reading, and the
+    // record's own value outranks it, whoever wrote that and however it is marked.
+    // Linking a different spool replaces the identity, so nothing is kept from it.
+    const auto spool = held.find("spool_id");
+    const bool other_spool =
+        spool != held.end() && (!merged.contains("spool_id") || merged["spool_id"] != *spool);
+    const bool keep_color =
+        !other_spool && merged.contains("color") && !locks(held, "helix_locked_color");
+    const bool keep_material = !other_spool &&
+                               (merged.contains("material") || merged.contains("helix_material")) &&
+                               !locks(held, "helix_locked_material");
+    const auto protected_key = [&](const std::string& key) {
+        const bool color = key == "color" || key == "color_name" || key == "helix_locked_color";
+        // Temperatures come from the material, so they stay beside the one kept.
+        const bool material = key == "material" || key == "helix_material" ||
+                              key == "helix_locked_material" || key == "bed_temp" ||
+                              key == "nozzle_temp";
+        return (color && keep_color) || (material && keep_material);
+    };
+    const auto apply_key = [&](const std::string& key) {
+        if (key == "scan_time" || protected_key(key)) {
+            return;
+        }
+        const auto was = base.find(key);
+        const auto now = held.find(key);
+        const bool had = was != base.end();
+        const bool has = now != held.end();
+        if (had == has && (!has || *was == *now)) {
+            return;
+        }
+        if (has) {
+            merged[key] = *now;
+        } else {
+            merged.erase(key);
+        }
+    };
+    for (auto it = base.begin(); it != base.end(); ++it) {
+        apply_key(it.key());
+    }
+    for (auto it = held.begin(); it != held.end(); ++it) {
+        apply_key(it.key());
+    }
+
+    // A marker naming the spool the printer's record links means the user cut that
+    // link, which a record the edit never saw could not say by removing it.
+    const auto unlinked = held.find("helix_unlinked_spool_id");
+    const auto linked = merged.find("spool_id");
+    if (unlinked != held.end() && linked != merged.end() && *unlinked == *linked) {
+        merged.erase("spool_id");
+        merged.erase("spoolman_vendor_id");
+    }
+    return merged;
+}
+
+FilamentSlotOverrideStore::HeldWrites FilamentSlotOverrideStore::adopt_namespace_read(
+    std::unordered_map<int, FilamentSlotOverride>& records) {
+    HeldWrites writes;
+    std::lock_guard<std::mutex> lock(held_mutex_);
+    for (const auto& [slot, held] : held_writes_) {
+        if (held.cleared) {
+            records.erase(slot);
+            writes.clears.push_back(slot);
+        }
+        if (!held.save) {
+            continue;
+        }
+        const auto fallback = unread_fallback_.find(slot);
+        const nlohmann::json base =
+            fallback != unread_fallback_.end() && !held.cleared
+                ? to_lane_data_record(slot, fallback->second)
+                : to_lane_data_record(slot, FilamentSlotOverride{});
+        const auto real = records.find(slot);
+        const nlohmann::json live =
+            real != records.end() ? to_lane_data_record(slot, real->second) : nlohmann::json();
+        const nlohmann::json own = to_lane_data_record(slot, *held.save);
+        nlohmann::json merged = merge_held_save(base, own, live);
+        // A held save that changed nothing the record says owes it no write.
+        if (live.is_object() && merged == live) {
+            continue;
+        }
+        // Every record carries its lane, even one the printer did not have.
+        if (const auto lane = own.find("lane"); lane != own.end()) {
+            merged["lane"] = *lane;
+        }
+        auto parsed = from_lane_data_record(merged);
+        if (!parsed) {
+            spdlog::warn("[FilamentSlotOverrideStore:{}] slot {} held save did not merge",
+                         backend_id_, slot);
+            continue;
+        }
+        writes.saves[slot] = parsed->second;
+        records[slot] = std::move(parsed->second);
+    }
+    held_writes_.clear();
+    unread_fallback_.clear();
+    namespace_unread_ = false;
+    return writes;
+}
+
+std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking() {
+    try {
+        return load_blocking_impl();
+    } catch (const std::exception& e) {
+        spdlog::warn("[FilamentSlotOverrideStore:{}] load aborted ({}); continuing with no "
+                     "overrides",
+                     backend_id_, e.what());
+        namespace_unread_ = true;
+        return {};
+    }
+}
+
+std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking_impl() {
+    std::unordered_map<int, FilamentSlotOverride> result;
+    if (!api_)
+        return result;
+
+    // Wrap sync state in shared_ptr so callbacks firing after our local
+    // cv.wait_for timeout (load_timeout_, default 5s) don't touch a freed
+    // stack frame. Moonraker's request tracker has its own ~60s boundary,
+    // so an error callback can fire well after we've already returned.
+    // Captured by value, the shared_ptr keeps the state alive for the
+    // orphaned callback to flip done/got harmlessly.
+    // (Same pattern as AmsBackendAce::poll_info in src/printer/ams_backend_ace.cpp)
+    struct SyncState {
+        std::mutex m;
+        std::condition_variable cv;
+        bool done{false};
+        bool got{false};
+        bool absent{false};
+        nlohmann::json received;
+    };
+    auto state = std::make_shared<SyncState>();
+    // Copy strings into the error lambda: the store may be destroyed before
+    // Moonraker's request tracker fires its ~60s error timeout, so the lambda
+    // can't rely on backend_id_/namespace_ still being alive.
+    const std::string backend_id_copy = backend_id_;
+    const std::string namespace_copy = namespace_;
+
+    api_->database_get_namespace(
+        namespace_,
+        [state](const nlohmann::json& value) {
+            std::lock_guard<std::mutex> lk(state->m);
+            state->received = value;
+            state->got = true;
+            state->done = true;
+            state->cv.notify_one();
+        },
+        [state, backend_id_copy, namespace_copy](const MoonrakerError& err) {
+            spdlog::debug("[FilamentSlotOverrideStore:{}] database_get_namespace({}) failed: {}",
+                          backend_id_copy, namespace_copy, err.message);
+            std::lock_guard<std::mutex> lk(state->m);
+            state->absent = err.is_not_found();
+            state->done = true;
+            state->cv.notify_one();
+        });
+
+    // Snapshot the shared state under lock: after wait_for returns, a callback
+    // firing from a background thread could still write to state->got /
+    // state->received concurrently with our reads. Take the lock, copy what we
+    // need, release. The shared_ptr keeps the state alive for any late
+    // callback — it just writes to the copy-source without racing us.
+    bool got_copy;
+    bool done_copy;
+    bool absent_copy;
+    nlohmann::json received_copy;
+    {
+        std::unique_lock<std::mutex> lk(state->m);
+        state->cv.wait_for(lk, load_timeout_, [state] { return state->done; });
+        got_copy = state->got;
+        done_copy = state->done;
+        absent_copy = state->absent;
+        if (got_copy)
+            received_copy = state->received;
+    }
+
+    spdlog::debug("[FilamentSlotOverrideStore:{}] load_blocking: got={} done={} "
+                  "received_type={} received_size={}",
+                  backend_id_, got_copy, done_copy,
+                  got_copy ? (received_copy.is_object()  ? "object"
+                              : received_copy.is_null()  ? "null"
+                              : received_copy.is_array() ? "array"
+                                                         : "other")
+                           : "n/a",
+                  got_copy && received_copy.is_object() ? received_copy.size() : 0u);
+
+    // Fall back to local cache ONLY when the MR DB round-trip didn't yield a
+    // value — either because the error callback fired (got==false, done==true)
+    // or the cv.wait_for timeout elapsed (got==false, done==false). A
+    // successful MR DB response with an empty namespace is authoritative ("no
+    // overrides configured") and must NOT be replaced by stale cache data.
+    if (!got_copy) {
+        auto cached = read_cache(cache_path(), backend_id_);
+        spdlog::debug("[FilamentSlotOverrideStore:{}] load_blocking: cache fallback "
+                      "returned {} entries",
+                      backend_id_, cached.size());
+        // A namespace nothing has written yet is an answer. Silence or an error
+        // says nothing about the records on the printer.
+        if (!absent_copy) {
+            std::lock_guard<std::mutex> lock(held_mutex_);
+            unread_fallback_ = cached;
+            held_writes_.clear();
+            namespace_unread_ = true;
+        }
+        return cached;
+    }
+    namespace_unread_ = false;
+    if (!received_copy.is_object())
+        return result;
+
+    // One-shot diagnostic: surface lane_data records that are inconsistent or
+    // invisible to other readers (OrcaSlicer drops int-typed lanes; key/inner
+    // mismatches and residual duplicates confuse interop). Read-only — we do NOT
+    // rewrite third-party/corrupt records here; the migration below only touches
+    // keys we authored. This just turns silent field weirdness into one log line.
+    if (const auto anomalies = scan_lane_data_anomalies(received_copy); anomalies.total() > 0) {
+        spdlog::info("[FilamentSlotOverrideStore:{}] lane_data has {} anomalous record(s): "
+                     "{} int-typed lane, {} key/inner mismatch, {} unparseable, {} duplicate slot",
+                     backend_id_, anomalies.total(), anomalies.int_typed_lane,
+                     anomalies.key_inner_mismatch, anomalies.unparseable, anomalies.duplicate_slot);
+    }
+
+    result = parse_namespace_document(received_copy, key_style_, backend_id_);
 
     // One-shot heal: records written before orca_match_type existed (or whose
     // match has drifted since — see below) carry a `material` OrcaSlicer
@@ -1399,6 +1559,18 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
             cb(false, "invalid slot_index");
         return;
     }
+    {
+        std::unique_lock<std::mutex> lock(held_mutex_);
+        if (namespace_unread_) {
+            spdlog::debug("[FilamentSlotOverrideStore:{}] slot {} save held: {} not read yet",
+                          backend_id_, slot_index, namespace_);
+            held_writes_[slot_index].save = ovr;
+            lock.unlock();
+            if (cb)
+                cb(true, "");
+            return;
+        }
+    }
 
     // Stamp a fresh updated_at on a local copy. The caller's struct is NOT
     // mutated — callers may keep their original value for UI echo, diff checks,
@@ -1448,6 +1620,20 @@ void FilamentSlotOverrideStore::clear_async(int slot_index, SaveCallback cb) {
         if (cb)
             cb(false, "no API");
         return;
+    }
+    {
+        std::unique_lock<std::mutex> lock(held_mutex_);
+        if (namespace_unread_) {
+            spdlog::debug("[FilamentSlotOverrideStore:{}] slot {} clear held: {} not read yet",
+                          backend_id_, slot_index, namespace_);
+            HeldWrite& held = held_writes_[slot_index];
+            held.cleared = true;
+            held.save.reset();
+            lock.unlock();
+            if (cb)
+                cb(true, "");
+            return;
+        }
     }
     // Reject negative slot indices symmetrically with save_async and
     // from_lane_data_record (matches OrcaSlicer's MoonrakerPrinterAgent.cpp:796).
