@@ -18,7 +18,8 @@ uint64_t s_frames = 0;
 uint64_t s_flushed_px = 0;
 lv_display_t* s_attached_display = nullptr;
 
-void on_refresh_ready(lv_event_t*) {
+// The refresh timer ticks whether or not anything changed; a render means a drawn frame.
+void on_render_start(lv_event_t*) {
     ++s_frames;
 }
 
@@ -78,7 +79,7 @@ void attach_print_health_counters(lv_display_t* display) {
     if (!display || display == s_attached_display) {
         return;
     }
-    lv_display_add_event_cb(display, on_refresh_ready, LV_EVENT_REFR_READY, nullptr);
+    lv_display_add_event_cb(display, on_render_start, LV_EVENT_RENDER_START, nullptr);
     lv_display_add_event_cb(display, on_flush_start, LV_EVENT_FLUSH_START, nullptr);
     s_attached_display = display;
 }
