@@ -5,6 +5,60 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-11-04
+
+1.0.8 is a maintenance release of fixes ported from 1.1. The main themes:
+
+- **Long print starts.** A printer that takes a long time to answer a print start no longer has its job marked failed while it keeps printing.
+- **Filament handling on specific printers.** Snapmaker U1 loads, purging on the AD5X and toolchanger remaps.
+- **Network status that tells the truth.** Unplugged Ethernet, missing WiFi addresses and hidden networks.
+
+### Fixed
+
+**Printing**
+
+- **A slow print start stays preparing** (#1898) - a printer that runs a long start sequence before answering no longer has the job marked failed while it carries on. Stop can still cancel it.
+- **Z-hops no longer bump the layer count** - when the slicer reports no layers, a hop over thin layers read as several layers up on every travel move.
+- **Very large layers draw in the G-code preview** - a layer bigger than the cache budget was refused and re-parsed on every frame, which made the screen crawl on a CC1 with a large multiboard print.
+
+**Filament**
+
+- **Filament slots keep their details when Moonraker is slow to answer** (#2008) - if the printer's saved lane records could not be read within 5 seconds of connecting, HelixScreen could overwrite them with what the firmware reports. It now waits until it has read them.
+- **Snapmaker U1 loads** (#1832) - the U1 homes and heats for its own loads, so HelixScreen no longer preheats first, and a load or unload the printer declines now raises an error for that lane.
+- **AD5X with zMod purges over the bin** - Purge used to extrude wherever the nozzle was. It now goes to the bin first, and a Forge-X AD5X is unchanged.
+- **A purge that timed out does not run late** - a slow home no longer times out the purge on screen and then runs it anyway, and a purge that failed on the way to the bin stays cancelled.
+- **Remaps go to the right filament system** - with two systems attached, picking a slot on one could rewrite the same-numbered slot on the other.
+- **Toolchanger remaps work** - `ASSIGN_TOOL` now names the tool the way klipper-toolchanger expects, so remaps are no longer refused.
+
+**Printers**
+
+- **Centauri Carbon Bed Screws** (#2001) - it now uses Klipper's own calculation rather than COSMOS's Manual Leveling prompt, which gave advice like two turns on every corner of a nearly level bed. A prompt line can no longer add a false fifth screw, and quick-action Bed Screws and Bed Mesh buttons no longer fail with "Invalid macro name".
+- **RustiCC on the CC1** (#2001) - HelixScreen recognizes it as the printer's control software and runs with the right priority beside it.
+- **K1 with the Guilouz Helper Script** (#1894) - the installer no longer mistakes these printers for Simple AF, so it records the stock screen software it disables and uninstall can restore it.
+- **K2 hotend fans** - these fans run with the heater, so Fan Control shows them without a dial and never sends them a speed.
+
+**Startup**
+
+- **Moonraker stays responsive on a large config folder** - finding `PRINT_START` at each connect walked the whole config folder. It now lists only the folders your includes name.
+
+**Network**
+
+- **Unplugged Ethernet reads No cable** - a pulled cable left the port showing Connected with its old address.
+- **WiFi shows its address** - some printers showed Connected with no IP. The address now comes from the system when WiFi does not report it.
+- **Hidden networks stay out of the list** - they appeared as a row of `\x00` text in the network picker.
+
+**Interface**
+
+- **No camera row where there is no camera view** (#1993) - on K1, K2, AD5M, CC1 and U1 builds, a webcam in Moonraker left a Settings row that opened nothing.
+- **Thermistor carousel fills in** - a home widget created before sensors were discovered stayed empty.
+- **Plugin install result icon** - the result screen shows its icon correctly.
+
+**Stability**
+
+- **More crashes leave a report** - a crash from an illegal instruction, trap or bad system call now writes a crash file.
+- **Color picker and dialog crashes** (#1836) - a color picker or dialog destroyed while open could crash the next one shown, and each close of the color picker leaked memory.
+- **Print start collector** (#1875) - fixed a crash risk from the collector being destroyed off the UI thread.
+
 ## [1.0.7] - 2026-10-28
 
 1.0.7 is a maintenance release of fixes ported from 1.1. The main themes:
@@ -7214,6 +7268,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.8]: https://github.com/prestonbrown/helixscreen/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/prestonbrown/helixscreen/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/prestonbrown/helixscreen/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/prestonbrown/helixscreen/compare/v1.0.4...v1.0.5
