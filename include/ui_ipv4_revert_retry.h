@@ -5,6 +5,7 @@
 
 #include "ipv4_config.h"
 
+#include <functional>
 #include <string>
 
 namespace helix::settings {
@@ -22,6 +23,14 @@ void retry_ipv4_revert(helix::net::Ipv4Link link, bool include_own);
 
 /// Mark @p link's record failed and say why, once. LVGL thread.
 void give_up_ipv4_revert(helix::net::Ipv4Link link, const std::string& why);
+
+/// How a revert the retry owned ended: the previous config is back, or the
+/// record is marked failed on disk and a new change may replace it.
+enum class Ipv4RevertEnd { Restored, GaveUp };
+
+/// Called on the LVGL thread each time a revert ends, after the record says
+/// so. One listener; an empty function clears it. LVGL thread.
+void set_ipv4_revert_listener(std::function<void(helix::net::Ipv4Link, Ipv4RevertEnd)> listener);
 
 /// At app start: retry a record another run left. LVGL thread.
 void start_ipv4_startup_revert();

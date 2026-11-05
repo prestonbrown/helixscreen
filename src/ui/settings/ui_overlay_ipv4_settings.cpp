@@ -135,6 +135,7 @@ void open_ipv4_settings(lv_obj_t* parent_screen, helix::net::Ipv4Link link,
 }
 
 Ipv4SettingsOverlay::~Ipv4SettingsOverlay() {
+    set_ipv4_revert_listener(nullptr);
     abandon_change();
     stop_countdown();
     if (subjects_initialized_) {
@@ -165,6 +166,8 @@ void Ipv4SettingsOverlay::init_subjects() {
                 }
             },
             state.get_subjects_lifetime());
+        set_ipv4_revert_listener(
+            [this](helix::net::Ipv4Link link, Ipv4RevertEnd) { on_revert_ended(link); });
     });
 }
 
@@ -522,6 +525,15 @@ void Ipv4SettingsOverlay::on_reverted(const helix::net::Ipv4RestoreOutcome& outc
         perform(flow_.reverted(false));
         return;
     }
+}
+
+void Ipv4SettingsOverlay::on_revert_ended(helix::net::Ipv4Link link) {
+    // The screen rereads what the link runs now, with the failure if the retry
+    // gave up, and takes a new change again.
+    if (link != link_ || change_pending() || !is_visible()) {
+        return;
+    }
+    load_current();
 }
 
 void Ipv4SettingsOverlay::abandon_change() {

@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_ipv4_revert_retry.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "async_lifetime_guard.h"
@@ -242,6 +244,26 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that cannot be used is a failure,
               Ipv4RestoreOutcome::Kind::Terminal);
         CHECK(record_exists());
     }
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a given-up revert is announced once its record says so",
+                 "[ipv4][ipv4_manager]") {
+    PendingIpv4Revert p;
+    p.link = Ipv4Link::Ethernet;
+    p.snapshot = mock_ipv4_snapshot(Ipv4Link::Ethernet);
+    REQUIRE(save_pending_ipv4_revert(p));
+    std::optional<bool> failed_when_told;
+    helix::settings::set_ipv4_revert_listener(
+        [&](Ipv4Link link, helix::settings::Ipv4RevertEnd end) {
+            CHECK(link == Ipv4Link::Ethernet);
+            CHECK(end == helix::settings::Ipv4RevertEnd::GaveUp);
+            const auto record = load_pending_ipv4_revert();
+            failed_when_told = record && record->failed;
+        });
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Ethernet, "unreachable");
+    CHECK(wait_until([&] { return failed_when_told.has_value(); }));
+    helix::settings::set_ipv4_revert_listener(nullptr);
+    CHECK(failed_when_told.value_or(false));
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that fails to read is retried, never replaced",

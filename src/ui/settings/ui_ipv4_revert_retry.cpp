@@ -35,6 +35,17 @@ RevertRetry& state() {
     return s;
 }
 
+std::function<void(net::Ipv4Link, Ipv4RevertEnd)>& listener() {
+    static std::function<void(net::Ipv4Link, Ipv4RevertEnd)> l;
+    return l;
+}
+
+void announce(net::Ipv4Link link, Ipv4RevertEnd end) {
+    if (auto& l = listener()) {
+        l(link, end);
+    }
+}
+
 bool job_holds_machine() {
     return lv_subject_get_int(get_printer_state().print_state().get_job_holds_machine_subject()) !=
            0;
@@ -49,6 +60,7 @@ void finish(const net::Ipv4RestoreOutcome& outcome) {
         s.timer.reset();
         spdlog::info("[Ipv4] The unconfirmed IPv4 change is undone");
         NOTIFY_INFO("{}", lv_tr("Previous IPv4 settings restored"));
+        announce(s.link, Ipv4RevertEnd::Restored);
         return;
     case Kind::Nothing:
     case Kind::Skipped:
@@ -115,8 +127,16 @@ void give_up_ipv4_revert(net::Ipv4Link link, const std::string& why) {
     spdlog::error("[Ipv4] Gave up restoring the previous IPv4 config on {}: {}",
                   net::ipv4_link_name(link), why);
     http::HttpExecutor::fast().start();
-    http::HttpExecutor::fast().submit([link, why]() { net::mark_pending_ipv4_failed(link, why); });
+    http::HttpExecutor::fast().submit([link, why]() {
+        net::mark_pending_ipv4_failed(link, why);
+        ui::queue_update("Ipv4RevertRetry::gave_up",
+                         [link]() { announce(link, Ipv4RevertEnd::GaveUp); });
+    });
     NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored: {}"), why);
+}
+
+void set_ipv4_revert_listener(std::function<void(net::Ipv4Link, Ipv4RevertEnd)> l) {
+    listener() = std::move(l);
 }
 
 void start_ipv4_startup_revert() {

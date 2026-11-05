@@ -127,6 +127,8 @@ class Ipv4SettingsOverlay : public OverlayBase {
     void run_apply();
     void run_revert();
     void on_reverted(const helix::net::Ipv4RestoreOutcome& outcome);
+    /// The retry ended a revert of @p link: restored, or given up.
+    void on_revert_ended(helix::net::Ipv4Link link);
     /// A record this screen did not write still waits to be undone.
     bool earlier_change_pending() const;
     static bool job_holds_machine();
