@@ -5,19 +5,32 @@
     "print": "Mock print with a deliberately long filename and animations ON. A short filename does not overflow its label, no scroll animation starts, and the regression this gate exists to catch is invisible.",
     "print_anim_off": "Same, animations OFF. The sharpest probe we have: with the preference off, any remaining per-frame animation is one that IGNORES it, which is the defect class of prestonbrown/helixscreen#1440. Should sit close to the short-filename floor."
   },
-  "_calibration": "Measured on the K1C 2026-09-04 against the UNFIXED 0.99.117 build: idle 6.5, print 26.4, print-off 20.5, and a short-filename print 12.5. The print-off budget is set BELOW the unfixed 20.5 deliberately, so this gate fails on a build carrying that defect. Recalibrate every budget from a fixed build before treating a pass as meaningful.",
+  "_calibration": "Measured 2026-11-04 and 2026-11-05 on a K1C and an AD5X. Print phases, with a 1.2-dev mock-enabled build on the print status panel: animations on with a long filename K1C 16.4 and AD5X 15.8, animations off K1C 7.2 and AD5X 6.4. Idle, on the installed release: K1C 5.1, AD5X 3.5. Mock prints carry no real status stream or Klipper load, so these are a floor. Each budget leaves about 25-40 percent above the measurement.",
   "devices": [
     {
       "name": "k1c",
-      "ssh": "k1c",
+      "ssh": "root@192.168.30.182",
       "binary": "/usr/data/helixscreen/bin/helix-screen",
       "service_stop": "/etc/init.d/S99helixscreen stop",
       "service_start": "/etc/init.d/S99helixscreen start",
       "extra_flags": "--rotate=270",
-      "idle_budget_pct": 10,
-      "print_budget_pct": 30,
-      "print_anim_off_budget_pct": 16,
-      "note": "Ingenic XBurst II MIPS32, 2 cores, 256 MB. No SIMD blend path, draw loop at -Os, framebuffer is 32bpp so LV_COLOR_DEPTH 16 never applies. Shares its CPU with Klipper. Dropbear 2019.78 needs an RSA key."
+      "idle_budget_pct": 7,
+      "print_budget_pct": 22,
+      "print_anim_off_budget_pct": 10,
+      "note": "Ingenic XBurst II MIPS32, 2 cores, 256 MB. No SIMD blend path, draw loop at -Os, framebuffer is 32bpp so LV_COLOR_DEPTH 16 never applies. Shares its CPU with Klipper. Takes a password; set HELIX_K1C_PASSWORD. Dropbear 2019.78 needs an RSA key where keys are used.",
+      "password_env": "HELIX_K1C_PASSWORD"
+    },
+    {
+      "name": "ad5x",
+      "ssh": "root@192.168.30.254",
+      "binary": "/usr/data/.mod/.forge-x/opt/config/mod_data/helixscreen/bin/helix-screen",
+      "service_stop": "chroot /usr/data/.mod/.forge-x /etc/init.d/S80helixscreen stop",
+      "service_start": "chroot /usr/data/.mod/.forge-x /etc/init.d/S80helixscreen start",
+      "extra_flags": "",
+      "idle_budget_pct": 5,
+      "print_budget_pct": 22,
+      "print_anim_off_budget_pct": 10,
+      "note": "Ingenic X2600, 2 cores, 473 MB, one-of-one Forge-X port with the app in a chroot; the unified static binary runs from outside it. No curl outside the chroot, so the state check uses wget. The init script prints Failed to start though the app starts. A release binary has no mock, so it is measured idle only."
     },
     {
       "name": "ad5m",

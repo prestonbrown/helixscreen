@@ -9,7 +9,9 @@
 # difference between a print finishing and an MCU timer shutdown. This measures
 # that number on the hardware where it decides outcomes.
 #
-# Run it from a host that reaches the fleet and stays up (zeus).
+# Run it from a host that reaches the fleet and stays up. PERF_SSH_OPTS adds ssh options,
+# such as -o ProxyJump=user@host from off the printers' network. A device whose budget row
+# names password_env uses sshpass with that variable; every other device uses keys.
 #
 #   0  every device inside budget
 #   1  a device over budget
@@ -64,7 +66,9 @@ SETTLE="${SETTLE:-30}"
 SAMPLES="${SAMPLES:-2}"
 ONLY="${ONLY:-}"
 IDLE_ONLY="${IDLE_ONLY:-false}"
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=no)
+SSH_OPTS=(-o ConnectTimeout=15 -o StrictHostKeyChecking=no)
+# shellcheck disable=SC2206
+SSH_OPTS+=(${PERF_SSH_OPTS:-})
 
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[0;33m'
 CYAN=$'\033[0;36m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
@@ -89,10 +93,14 @@ TJ=$(awk '/^cpu0 /{s=0; for(i=2;i<=8;i++) s+=$i; print s}' /proc/stat)
 HZ=$(awk -v t="$TJ" -v u="$UP" 'BEGIN{r=t/u; if(r<160) print 100; else if(r<400) print 250; else print 1000}')
 
 # Never disturb a machine that is mid-print.
-STATE=$(curl -s --max-time 5 "http://127.0.0.1:7125/printer/objects/query?print_stats" 2>/dev/null \
-        | sed 's/.*"state"[[:space:]]*:[[:space:]]*"//' | sed 's/".*//')
+# A state it cannot read is a refusal too: not every board has curl, and stopping the UI
+# on a printer that may be mid-print is the one thing this must never do.
+QUERY="http://127.0.0.1:7125/printer/objects/query?print_stats"
+STATE=$( { curl -s --max-time 5 "$QUERY" 2>/dev/null || wget -q -T 5 -O - "$QUERY" 2>/dev/null; } \
+        | sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p')
 case "$STATE" in
     printing|paused) say "SKIPPED the printer is busy (print_stats.state=$STATE)"; exit 0 ;;
+    "") say "SKIPPED could not read print_stats.state from Moonraker"; exit 0 ;;
 esac
 
 [ -n "$STOP" ] && [ -n "$START" ] && [ -n "$BIN" ] || { say "SKIPPED no service control configured"; exit 0; }
@@ -196,13 +204,19 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
     b_print=$(jq -r ".devices[$i].print_budget_pct // empty" "$BUDGETS")
     b_poff=$(jq -r  ".devices[$i].print_anim_off_budget_pct // empty" "$BUDGETS")
 
+    pass_env=$(jq -r ".devices[$i].password_env // \"\"" "$BUDGETS")
+    device_ssh=(ssh -o BatchMode=yes)
+    if [[ -n "$pass_env" && -n "${!pass_env:-}" ]]; then
+        device_ssh=(env "SSHPASS=${!pass_env}" sshpass -e ssh -o PubkeyAuthentication=no)
+    fi
+
     printf '%s%-6s%s\n' "$BOLD" "$name" "$RESET"
-    if ! ssh "${SSH_OPTS[@]}" "$host" true 2>/dev/null; then
+    if ! "${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" true 2>/dev/null; then
         printf '    %sUNREACHABLE%s (%s)\n' "$RED" "$RESET" "$host"
         SUMMARY+=("$name UNREACHABLE"); overall=2; continue
     fi
 
-    out=$(ssh "${SSH_OPTS[@]}" "$host" \
+    out=$("${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" \
           "sh -s -- '$bin' '$flags' '$stop' '$start' $SETTLE $WINDOW $SAMPLES $IDLE_ONLY" \
           <<<"$REMOTE" 2>/dev/null)
     res=$(grep '^RESULT ' <<<"$out" | head -n 1 | sed 's/^RESULT //')
@@ -217,10 +231,10 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
         MEASURED*)
             idle=$(sed 's/.*idle=//;   s/ print=.*//'    <<<"$res")
             pr=$(sed   's/.*[^f]print=//; s/ printoff=.*//' <<<"$res")
-            poff=$(sed 's/.*printoff=//' <<<"$res")
+            poff=$(sed 's/.*printoff=//; s/(.*//' <<<"$res")
             worst=0
             score "$name" idle     "$idle" "$b_idle";                     r=$?; [[ $r -gt $worst ]] && worst=$r
-            if [[ -n "$b_print" ]]; then
+            if [[ -n "$b_print" && "$IDLE_ONLY" != "true" ]]; then
                 score "$name" print    "$pr"   "$b_print";                r=$?; [[ $r -gt $worst ]] && worst=$r
                 score "$name" print-off "$poff" "$b_poff";                r=$?; [[ $r -gt $worst ]] && worst=$r
             fi
