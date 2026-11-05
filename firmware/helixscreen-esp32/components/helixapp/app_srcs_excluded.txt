@@ -90,6 +90,7 @@ src/network/wifi_saved_config.cpp  # not in the v1 Core+AMS cut
 src/app_globals.cpp  # not in the v1 Core+AMS cut
 src/application/ams_error_bridge.cpp  # not in the v1 Core+AMS cut
 src/application/filament_insert_watcher.cpp  # not in the v1 Core+AMS cut
+src/application/print_health_log.cpp  # called only from application.cpp, which is excluded
 src/application/android_asset_extractor.cpp  # not in the v1 Core+AMS cut
 src/application/application.cpp  # not in the v1 Core+AMS cut
 src/application/application_sdl_shortcuts.cpp  # not in the v1 Core+AMS cut
