@@ -108,6 +108,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         // Tool changers give each tool its own independent toolhead with no shared
         // physical tray/housing, so the AMS detail view's tray graphic is hidden.
         t.has_physical_tray = false;
+        // Every tool docks: the carriage can hold none.
+        t.carriage_can_be_empty = true;
         // A slot's status is where its tool sits (carriage, dock, removed); nothing
         // here senses filament.
         t.slot_status_tracks_filament = false;
@@ -157,11 +159,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// unwinding, can be cancelled: the heater goes off and the carriage goes
     /// back. The same predicate cancel() acts on. Main thread.
     [[nodiscard]] bool can_cancel_operation() const override;
-
-    /// Every tool docks: the carriage can hold none.
-    [[nodiscard]] bool carriage_can_be_empty() const override {
-        return true;
-    }
 
     /**
      * @brief What each head can do with filament.

@@ -51,13 +51,11 @@ template <class Real> void check_persona(void (AmsBackendMock::*set_persona)(boo
         (mock.*set_persona)(true);
     }
     CHECK(comparable(mock, Real::kTraits) == Real::kTraits);
-    Real real(nullptr, nullptr);
-    CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
 }
 
 } // namespace
 
-TEST_CASE("Mock personas answer their real backend's traits and carriage",
+TEST_CASE("Mock personas answer their real backend's traits",
           "[ams][mock][traits][tool_switcher][1784]") {
     SECTION("Happy Hare (default persona)") {
         check_persona<AmsBackendHappyHare>(nullptr);
@@ -158,6 +156,10 @@ TEST_CASE("Real kTraits name each machine's positions and constant answers", "[a
     CHECK(AmsBackendSnapmaker::kTraits.print_routing_resets_to_identity);
     CHECK(AmsBackendIndx::kIndxTraits.heads_share_heater);
     CHECK_FALSE(AmsBackendToolChanger::kTraits.heads_share_heater);
+    CHECK(AmsBackendToolChanger::kTraitsWithFeed.carriage_can_be_empty);
+    CHECK(AmsBackendIndx::kIndxTraits.carriage_can_be_empty);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).carriage_can_be_empty());
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.carriage_can_be_empty);
 }
 
 TEST_CASE("A U1 owns a spool per tool and has no bypass", "[ams][traits][spoolman]") {

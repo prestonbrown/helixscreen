@@ -1,4 +1,3 @@
 # Vendor branches in generic code, per file and shape. Ratchet: may fall, never rise.
 # Lower one by asking the owning module instead, then re-run with --write-baseline.
 4 src/printer/printer_discovery_parse.cpp:amstype-branch
-3 src/system/telemetry_manager.cpp:amstype-branch

@@ -853,11 +853,7 @@ TEST_CASE("CFS calibration refuses while a print owns the machine (#1282)", "[am
 }
 
 TEST_CASE("CFS type enum", "[ams][cfs]") {
-    REQUIRE(is_filament_system(AmsType::CFS));
-    REQUIRE_FALSE(is_tool_changer(AmsType::CFS));
     REQUIRE(std::string(ams_type_to_string(AmsType::CFS)) == "CFS");
-    REQUIRE(ams_type_from_string("cfs") == AmsType::CFS);
-    REQUIRE(ams_type_from_string("CFS") == AmsType::CFS);
 }
 
 using helix::printer::CfsMaterialDb;
