@@ -12,6 +12,7 @@
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/force_bypass_controls_guard.h"
 #include "../test_helpers/mock_printer.h"
+#include "../test_helpers/toast_log.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_cfs.h"
@@ -5109,6 +5110,27 @@ TEST_CASE("CFS box runout notice: a fresh mid-job runout with a fed toolhead",
     CHECK_FALSE(B::box_runout_needs_notice(0, 1, false, true));
     // Toolhead already empty: the firmware's own runout fault covers it.
     CHECK_FALSE(B::box_runout_needs_notice(0, 1, true, false));
+}
+
+TEST_CASE("CFS box runout mid-job warns that the print continues on the tube",
+          "[ams][cfs][runout][toast]") {
+    helix::test::StartedBackend<CfsLifecycleHelper> backend;
+    helix::test::ToastLog toasts;
+    const auto frame = [](int useup) {
+        json box = make_multi_unit_box(1);
+        box["filament_useup"] = useup;
+        return json{{"params", json::array({json{{"filament_switch_sensor filament_sensor",
+                                                  {{"filament_detected", true}}},
+                                                 {"box", box}},
+                                            0})}};
+    };
+    helix::test::set_wire_state(backend.state, helix::PrintJobState::PRINTING);
+    backend.fire_status(frame(0));
+    backend.fire_status(frame(1));
+    toasts.expect_one(
+        ToastSeverity::WARNING,
+        "The CFS ran out of filament. Printing continues on what is left in the tube.", 10000);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE("CFS phase verify: a good load completes to IDLE with no fault", "[ams][cfs][968]") {
