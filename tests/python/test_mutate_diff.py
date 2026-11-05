@@ -1452,6 +1452,23 @@ exit 0
     assert r.returncode == 1, r.stdout
 
 
+def test_a_reverted_new_source_is_inconclusive_with_no_build(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    (work / "src" / "added.cpp").write_text("int a() {\n    if (x) { return 1; }\n    return 0;\n}\n")
+    _git(work, "add", "-N", "src/added.cpp")
+    (work / "Makefile").write_text(
+        "test-build:\n\t@[ -e src/added.cpp ] || touch .mutant-built\n"
+        "\t@printf '\\n# relinked\\n' >> build/bin/helix-tests\n")
+    (work / "build" / "bin" / "helix-tests").write_text("#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--only", "added", "--inside", "1")
+    assert re.search(r"INCONCLUSIVE\s+src/added.cpp:1", r.stdout), r.stdout
+    assert "deletes a new source file" in r.stdout
+    assert not (work / ".mutant-built").exists(), "a deleted source reached a build"
+    assert re.search(r"SURVIVED\s+src/added.cpp:2  negate if", r.stdout), r.stdout
+    assert (work / "src" / "added.cpp").exists()
+
+
 def test_a_catch2_baseline_red_twice_still_stops_the_run(tmp_path):
     work = _fixture(tmp_path)
     (work / "build" / "bin" / "helix-tests").write_text(

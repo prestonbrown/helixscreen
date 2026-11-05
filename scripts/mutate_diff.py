@@ -2451,6 +2451,9 @@ class FilterBaselines:
 # ---------------------------------------------------------------------------
 UNBUILT_MUTANT = ('the build reported success and left the test binary '
                   'untouched, so the suite ran a binary this mutant is not in')
+# A source file gone from the tree does not make the binary out of date, so make
+# keeps the old object linked and any suite would judge the unreverted code.
+DELETED_SOURCE = 'its revert deletes a new source file, which no build takes out of the binary'
 
 
 class TreeDrift(RuntimeError):
@@ -3071,13 +3074,17 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
         applied, why = apply_reverse(root, h['patch'])
         if not applied:
             verdict, note_ = 'unreversible', why.strip().splitlines()[:1]
+        elif (plan['build'] and not (root / h['file']).exists()
+              and not h['file'].endswith(HEADER_SUFFIXES)):
+            verdict, note_ = 'inconclusive', DELETED_SOURCE
         else:
             verdict, note_, built_any = build_and_judge(root, suites, h['file'], plan, args, log)
     except OutOfTime:
         pass
     finally:
         guard.restore(h['file'])
-    revert_judged_nothing = verdict in ('uncompilable', 'unreversible') or note_ == UNBUILT_MUTANT
+    revert_judged_nothing = (verdict in ('uncompilable', 'unreversible')
+                             or note_ in (UNBUILT_MUTANT, DELETED_SOURCE))
     if (args.inside and revert_judged_nothing and plan['build']
             and not h['file'].endswith(HEADER_SUFFIXES) and not RUN_STATE.out_of_time):
         built_any = mutate_inside(root, guard, suites, h, plan, args, log) or built_any
