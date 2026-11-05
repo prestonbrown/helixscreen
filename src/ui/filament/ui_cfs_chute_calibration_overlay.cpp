@@ -116,6 +116,18 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
     // Live toolhead X and Y: the save step writes whatever position the head is
     // in, so the readouts are the values being calibrated.
     auto& ps = get_printer_state();
+    print_takeover_observer_ = observe<int>(
+        ps.print_state().get_machine_motion_blocked_subject(), this,
+        [](CfsChuteCalibrationOverlay* self, int blocked) {
+            // A print owns the machine now, and nothing in the session still holds
+            // once it ends: the head will not be where the flow left it.
+            if (blocked != 0 &&
+                lv_subject_get_int(&s_cfs_chute_state) == static_cast<int>(State::ADJUSTING)) {
+                NOTIFY_INFO(lv_tr("Printer is busy with a print"));
+                self->set_state(State::IDLE);
+            }
+        },
+        ps.get_subjects_lifetime());
     y_observer_ = observe<int>(
         ps.motion_state().get_position_y_subject(), this,
         [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_y_display(centimm); },
@@ -152,7 +164,11 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
 
 void CfsChuteCalibrationOverlay::on_activate() {
     OverlayBase::on_activate();
-    cancel_requested_->store(false);
+    if (suspended_) {
+        // A wake, not a fresh open: the session carries on where it was.
+        suspended_ = false;
+        return;
+    }
     set_state(State::IDLE);
     // A coarse mode left selected from an earlier session must not carry over.
     set_jog_mode(helix::JogMode::Fine);
@@ -160,6 +176,13 @@ void CfsChuteCalibrationOverlay::on_activate() {
 }
 
 void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
+    // Nobody walked away from a blanked screen: the head stays where it is, and
+    // a home under way carries on.
+    if (reason == DeactivateReason::Suspended) {
+        suspended_ = true;
+        return;
+    }
+    suspended_ = false;
     // Leaving mid-flow must stop the step chain: the flag first, so a cancel
     // during the home is already visible when the home-done defer runs.
     cancel_requested_->store(true);
@@ -199,7 +222,9 @@ void CfsChuteCalibrationOverlay::start_calibration() {
         return;
     }
     set_state(State::HOMING);
-    cancel_requested_->store(false);
+    // One flag per run: a chain still waiting on its home keeps the one it was
+    // cancelled with, so no later session can revive it.
+    cancel_requested_ = std::make_shared<std::atomic<bool>>(false);
     auto err = backend->start_chute_calibration(
         [this]() {
             // Armed here and not in set_state(): a refused save also returns to
@@ -324,7 +349,9 @@ void CfsChuteCalibrationOverlay::save_position() {
             set_state(State::IDLE);
         });
     if (!err.success()) {
-        set_state(State::ADJUSTING);
+        // Refused because a print holds the machine or homing was lost: either
+        // way the session has to start over.
+        set_state(State::IDLE);
         notify_ams_error(err);
     }
 }

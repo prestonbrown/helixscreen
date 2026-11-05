@@ -3843,6 +3843,7 @@ translations:
   'Start next: {}': 'Iniciar próximo: {}'
   Start options for prints from other apps: 'Opções de início para impressões de outros apps'
   Start print anyway?: Iniciar impressão mesmo assim?
+  Start the calibration again: Inicie a calibração novamente
   Started: Iniciado
   Starting Print...: Iniciando impressão...
   Starting download...: Iniciando download...
@@ -4411,6 +4412,7 @@ translations:
   Toolhead X: Cabeçote X
   Toolhead Y: Cabeçote Y
   Toolhead jam: Atolamento do cabeçote
+  Toolhead lost homing: O cabeçote perdeu o posicionamento
   Toolhead offset calibration: Calibração de offsets dos cabeçotes
   Toolhead position and homing, with a plate view and Home All: "Posição e posicionamento do cabeçote, com vista da mesa e Posicionar tudo"
   Toolhead position unknown: Posição do cabeçote desconhecida

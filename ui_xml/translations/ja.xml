@@ -3514,6 +3514,7 @@
   <translation tag="Start next: {}" ja="次を開始：{}"/>
   <translation tag="Start options for prints from other apps" ja="他のアプリからの印刷の開始オプション"/>
   <translation tag="Start print anyway?" ja="それでも印刷を開始しますか？"/>
+  <translation tag="Start the calibration again" ja="キャリブレーションをやり直してください"/>
   <translation tag="Started" ja="開始"/>
   <translation tag="Starting Print..." ja="印刷開始中..."/>
   <translation tag="Starting download..." ja="ダウンロードを開始中..."/>
@@ -3988,6 +3989,7 @@
   <translation tag="Toolhead X" ja="ツールヘッド X"/>
   <translation tag="Toolhead Y" ja="ツールヘッド Y"/>
   <translation tag="Toolhead jam" ja="ツールヘッドの詰まり"/>
+  <translation tag="Toolhead lost homing" ja="ツールヘッドのホーミングが解除されました"/>
   <translation tag="Toolhead offset calibration" ja="ツールヘッドオフセットのキャリブレーション"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" ja="ツールヘッドの位置とホーミング。プレート表示と全軸ホーミング付き"/>
   <translation tag="Toolhead position unknown" ja="ツールヘッドの位置が不明です"/>

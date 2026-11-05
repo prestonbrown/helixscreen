@@ -75,6 +75,10 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
         DONE = 4,
     };
 
+    /// True from a Suspended deactivate until the wake's on_activate.
+    bool suspended_ = false;
+    ObserverGuard print_takeover_observer_;
+
     void set_state(State state);
     void start_calibration();
     enum class Axis { X, Y };

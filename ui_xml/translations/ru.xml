@@ -3574,6 +3574,7 @@
   <translation tag="Start next: {}" ru="Запустить следующую: {}"/>
   <translation tag="Start options for prints from other apps" ru="Параметры запуска для печати из других приложений"/>
   <translation tag="Start print anyway?" ru="Всё равно начать печать?"/>
+  <translation tag="Start the calibration again" ru="Запустите калибровку снова"/>
   <translation tag="Started" ru="Начато"/>
   <translation tag="Starting Print..." ru="Запуск печати..."/>
   <translation tag="Starting download..." ru="Начало загрузки..."/>
@@ -4048,6 +4049,7 @@
   <translation tag="Toolhead X" ru="Печатающая головка X"/>
   <translation tag="Toolhead Y" ru="Печатающая головка Y"/>
   <translation tag="Toolhead jam" ru="Замятие в печатающей головке"/>
+  <translation tag="Toolhead lost homing" ru="Печатающая головка потеряла парковку"/>
   <translation tag="Toolhead offset calibration" ru="Калибровка смещений головок"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" ru="Положение и парковка печатающей головки, с видом стола и кнопкой «Парковка всех осей»"/>
   <translation tag="Toolhead position unknown" ru="Положение печатающей головки неизвестно"/>

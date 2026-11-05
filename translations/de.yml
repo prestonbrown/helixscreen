@@ -3847,6 +3847,7 @@ translations:
   'Start next: {}': 'Nächstes starten: {}'
   Start options for prints from other apps: 'Startoptionen für Drucke aus anderen Apps'
   Start print anyway?: Druck trotzdem starten?
+  Start the calibration again: Starten Sie die Kalibrierung erneut
   Started: Gestartet
   Starting Print...: Druck starten...
   Starting download...: Download wird gestartet...
@@ -4413,6 +4414,7 @@ translations:
   Toolhead X: Werkzeugkopf X
   Toolhead Y: Werkzeugkopf Y
   Toolhead jam: Werkzeugkopf-Stau
+  Toolhead lost homing: Werkzeugkopf hat die Referenzierung verloren
   Toolhead offset calibration: Werkzeugkopf-Offset-Kalibrierung
   Toolhead position and homing, with a plate view and Home All: "Position und Referenzfahrt des Werkzeugkopfs, mit Plattenansicht und Alle referenzieren"
   Toolhead position unknown: Werkzeugkopfposition unbekannt

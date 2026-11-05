@@ -196,6 +196,7 @@ class CfsCalibHelper : public CfsLifecycleHelper {
   public:
     CfsCalibHelper() {
         CfsTestAccess::set_macro_variant_k1(*this);
+        lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "xyz");
     }
 
     // Keep the 1-arg capture visible beside these overrides.
@@ -748,6 +749,7 @@ class CfsLiveAckBackend : public AmsBackendCfs {
     CfsLiveAckBackend() : AmsBackendCfs(nullptr, nullptr) {
         api_ = &printer.api;
         CfsTestAccess::set_macro_variant_k1(*this);
+        lv_subject_copy_string(printer.state.motion_state().get_homed_axes_subject(), "xyz");
         running_ = true;
     }
     ~CfsLiveAckBackend() override {
@@ -824,6 +826,107 @@ TEST_CASE("CFS chute cancel path re-parks with Y_SAFE (#1282)", "[ams][cfs][cali
     CfsCalibHelper backend;
     REQUIRE(backend.exit_chute_calibration().success());
     REQUIRE(backend.captured == std::vector<std::string>{"BOX_CUSTOM_COMMAND CMD=Y_SAFE"});
+}
+
+TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][cfs][calib]") {
+    CfsCalibHelper backend;
+    const std::string kHome = "BOX_CUSTOM_COMMAND CMD=XYZ_ZERO";
+    const std::string kPrepare = "BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_PREPARE";
+    const std::string kSave = "BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS";
+    auto print_starts = [&] {
+        helix::test::set_wire_state(backend.state, helix::PrintJobState::PRINTING);
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    bool ready = false;
+    std::string failure;
+
+    SECTION("the exit re-park") {
+        print_starts();
+        CHECK_FALSE(backend.exit_chute_calibration().success());
+        CHECK(backend.captured.empty());
+    }
+    SECTION("a save") {
+        print_starts();
+        CHECK_FALSE(backend.save_chute_position().success());
+        CHECK(backend.captured.empty());
+    }
+    SECTION("prepare after a home the print arrived during") {
+        backend.hold = {kHome};
+        REQUIRE(backend
+                    .start_chute_calibration([&] { ready = true; },
+                                             [&](const std::string& m) { failure = m; })
+                    .success());
+        print_starts();
+        backend.release_held();
+        drain_calib_queue();
+        CHECK(backend.captured == std::vector<std::string>{kHome});
+        CHECK_FALSE(ready);
+        CHECK_FALSE(failure.empty());
+    }
+    SECTION("ready and the re-park after a prepare the print arrived during") {
+        backend.hold = {kPrepare};
+        REQUIRE(backend
+                    .start_chute_calibration([&] { ready = true; },
+                                             [&](const std::string& m) { failure = m; })
+                    .success());
+        print_starts();
+        backend.release_held();
+        drain_calib_queue();
+        CHECK(backend.captured == std::vector<std::string>{kHome, kPrepare});
+        CHECK_FALSE(ready);
+        CHECK_FALSE(failure.empty());
+    }
+    SECTION("the park after a save the print arrived during") {
+        backend.hold = {kSave};
+        bool saved = false;
+        REQUIRE(backend.save_chute_position([&] { saved = true; }).success());
+        print_starts();
+        backend.release_held();
+        drain_calib_queue();
+        CHECK(backend.captured == std::vector<std::string>{kSave});
+        CHECK(saved);
+    }
+}
+
+TEST_CASE("CFS chute save refuses a toolhead that lost its homing", "[ams][cfs][calib]") {
+    CfsCalibHelper backend;
+    for (const char* axes : {"", "z", "xz", "yz"}) {
+        lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), axes);
+        CHECK_FALSE(backend.save_chute_position().success());
+        CHECK(backend.captured.empty());
+    }
+    lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
+    CHECK(backend.save_chute_position().success());
+    CHECK_FALSE(backend.captured.empty());
+}
+
+TEST_CASE("CFS chute save reports a park that fails after the save", "[ams][cfs][calib]") {
+    CfsCalibHelper backend;
+    backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
+    bool saved = false;
+    std::string failure;
+    REQUIRE(
+        backend
+            .save_chute_position([&] { saved = true; }, [&](const std::string& m) { failure = m; })
+            .success());
+    drain_calib_queue();
+    CHECK_FALSE(saved);
+    CHECK(failure.find("Y_SAFE") != std::string::npos);
+    // The failed park is reported once, not retried.
+    CHECK(backend.captured.size() == 2);
+}
+
+TEST_CASE("CFS chute failure after the caller left is not reported to it", "[ams][cfs][calib]") {
+    CfsCalibHelper backend;
+    backend.fail = {"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"};
+    auto cancel = std::make_shared<std::atomic<bool>>(true);
+    bool failed = false;
+    REQUIRE(
+        backend.start_chute_calibration(
+                   nullptr, [&](const std::string&) { failed = true; }, cancel)
+            .success());
+    drain_calib_queue();
+    CHECK_FALSE(failed);
 }
 
 TEST_CASE("CFS chute save line parses both firmware echo forms (#1282)", "[ams][cfs][calib]") {
