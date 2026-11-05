@@ -26,7 +26,8 @@ namespace helix::system {
 /// Get the directory portion of a file path (everything before the last '/')
 [[nodiscard]] std::string config_get_directory(const std::string& path);
 
-/// Resolve a relative include path against the directory of the including file
+/// Resolve a relative include path against the directory of the including file, in
+/// normal form: "." and any ".." that stays inside the root are gone.
 [[nodiscard]] std::string config_resolve_path(const std::string& current_file,
                                               const std::string& include_path);
 
