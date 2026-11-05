@@ -150,8 +150,9 @@ SHARD_ARTIFACTS=build/shard-artifacts                    # failing shard logs, m
 # BatchMode: never a password prompt. The keepalives bound a link that dies
 # mid-run, at a minute: a cross-site link to a host saturated by a cold build
 # can go unanswered for well over ten seconds and still be alive, and dropping
-# it throws away the run's verdict. ConnectTimeout bounds one that never answers.
-SSH_OPTS=(-o ConnectTimeout=3 -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=12)
+# it throws away the run's verdict. ConnectTimeout bounds one that never answers;
+# a slow link raises it with the same setting that lets the host probe wait longer.
+SSH_OPTS=(-o "ConnectTimeout=${HELIX_HOST_PROBE_SECS:-3}" -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=12)
 MAX_LOAD="${HELIX_TEST_MAX_LOAD:-}"                      # empty: the host's thread count; 0: never wait
 LOAD_POLL_SECS="${HELIX_TEST_LOAD_POLL_SECS:-60}"        # between load checks on a busy host
 LOAD_WAIT_SECS="${HELIX_TEST_LOAD_WAIT_SECS:-3600}"      # how long a run waits before it refuses
