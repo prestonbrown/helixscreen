@@ -4,6 +4,7 @@
 #include "ui_overlay_ipv4_settings.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_keyboard_manager.h"
 #include "ui_toast_manager.h"
 
 #include "core/static_panel_registry.h"
@@ -20,6 +21,7 @@ namespace helix::settings {
 namespace {
 
 constexpr uint32_t kCountdownTickMs = 250;
+constexpr uint32_t kKeyboardWaitTickMs = 50;
 
 // The sentence the form shows for a validation verdict, translated.
 const char* ipv4_problem_text(helix::net::Ipv4Problem problem, helix::net::Ipv4Field field) {
@@ -302,6 +304,8 @@ void Ipv4SettingsOverlay::handle_use_dhcp() {
 }
 
 void Ipv4SettingsOverlay::start_change(const helix::net::Ipv4Config& next) {
+    // The keep dialog opens over this form; a keyboard left up sits behind it.
+    KeyboardManager::instance().hide();
     set_error("");
     if (next == current_config_) {
         close();
@@ -337,6 +341,19 @@ void Ipv4SettingsOverlay::start_change(const helix::net::Ipv4Config& next) {
 }
 
 void Ipv4SettingsOverlay::show_keep_prompt() {
+    // The dialog's backdrop is drawn from what is behind it at show time, so it
+    // waits until the keyboard has finished sliding away.
+    if (KeyboardManager::instance().is_visible()) {
+        countdown_timer_.reset(lv_timer_create(
+            [](lv_timer_t* t) {
+                if (!KeyboardManager::instance().is_visible()) {
+                    static_cast<Ipv4SettingsOverlay*>(lv_timer_get_user_data(t))
+                        ->show_keep_prompt();
+                }
+            },
+            kKeyboardWaitTickMs, this));
+        return;
+    }
     char title[sizeof(keep_title_buf_)];
     const std::string what = next_config_.dhcp ? std::string(lv_tr("DHCP")) : next_config_.address;
     std::snprintf(title, sizeof(title), lv_tr("Keep %s?"), what.c_str());
