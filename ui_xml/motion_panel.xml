@@ -351,7 +351,9 @@
         <lv_obj name="bottom_row"
                 width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                 scrollable="false">
-          <motion_jog_modes name="jog_modes" width="0" flex_grow="3">
+          <motion_jog_modes name="jog_modes"
+                            width="0" flex_grow="3" fine_callback="on_jog_mode_fine"
+                            coarse_callback="on_jog_mode_coarse" turbo_callback="on_jog_mode_turbo">
             <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
             <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
           </motion_jog_modes>
@@ -468,7 +470,10 @@
             <!-- Fine/Coarse/Turbo jog mode toggle -->
             <!-- Landscape keeps full-width mode buttons at button height: a taller
                  near-square key would take its height from the pad above. -->
-            <motion_jog_modes name="jog_modes" button_height="#motion_mode_row_h" max_width="100%" icon_position="left">
+            <motion_jog_modes name="jog_modes"
+                              button_height="#motion_mode_row_h" max_width="100%" icon_position="left"
+                              fine_callback="on_jog_mode_fine" coarse_callback="on_jog_mode_coarse"
+                              turbo_callback="on_jog_mode_turbo">
               <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
               <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
             </motion_jog_modes>
