@@ -194,9 +194,7 @@ namespace printer {
 /// CFS, running, with the action script captured instead of sent.
 class CfsOptimisticBackend : public AmsBackendCfs {
   public:
-    CfsOptimisticBackend() : AmsBackendCfs(nullptr, nullptr) {
-        running_ = true;
-    }
+    using AmsBackendCfs::AmsBackendCfs;
     bool toolhead_homed() const override {
         return true;
     }
@@ -378,7 +376,8 @@ TEST_CASE_METHOD(OptimisticSidebarFixture, "AFC unload: AFC's own dispatch actio
 
 TEST_CASE_METHOD(OptimisticSidebarFixture, "CFS unload: CFS's own dispatch action holds the window",
                  "[ams][optimistic_action][cfs]") {
-    auto& cfs = build<helix::printer::CfsOptimisticBackend>();
+    auto& cfs = build<helix::test::WiredBackend<helix::printer::CfsOptimisticBackend>>();
+    REQUIRE(cfs.start().success());
     helix::CfsTestAccess::set_loaded_state(cfs, true, 1);
     AmsState::instance().sync_from_backend();
 
@@ -387,9 +386,9 @@ TEST_CASE_METHOD(OptimisticSidebarFixture, "CFS unload: CFS's own dispatch actio
     REQUIRE(cfs.dispatched.size() == 1);
 
     // The K2 streams extruder temperatures while it heats for the cut.
-    helix::CfsTestAccess::handle_status(
-        cfs, {{"params", nlohmann::json::array(
-                             {{{"extruder", {{"temperature", 180.0}, {"target", 220.0}}}}, 0.0})}});
+    cfs.fire_status(
+        {{"params", nlohmann::json::array(
+                        {{{"extruder", {{"temperature", 180.0}, {"target", 220.0}}}}, 0.0})}});
     let_watchdog_run();
     CHECK(shown_action() != AmsAction::IDLE);
 }

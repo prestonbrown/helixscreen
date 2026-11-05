@@ -33,6 +33,7 @@
 #include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/backend_user_edit.h"
 #include "test_helpers/cfs_test_access.h"
 
@@ -288,26 +289,14 @@ class CfsPublishFixture : public HelixTestFixture {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     PrinterState state;
     std::unique_ptr<MoonrakerAPIMock> api;
-    std::unique_ptr<helix::printer::AmsBackendCfs> backend;
+    std::unique_ptr<helix::test::StartedBackend<helix::printer::AmsBackendCfs>> backend;
     CfsTmpCacheDir tmp{"pub"};
 
     CfsPublishFixture() {
         state.init_subjects(false);
         api = std::make_unique<MoonrakerAPIMock>(client, state);
-        // Same shape as test_ams_backend_cfs.cpp's CfsRemapHelper: status
-        // parsing (including the supports_bypass flip) is gated on running_,
-        // which start() normally sets. Subclass exposes it.
-        class RunningCfs : public helix::printer::AmsBackendCfs {
-          public:
-            RunningCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
-                : AmsBackendCfs(api, client) {}
-            void mark_running() {
-                running_ = true;
-            }
-        };
-        auto running_backend = std::make_unique<RunningCfs>(api.get(), &client);
-        running_backend->mark_running();
-        backend = std::move(running_backend);
+        backend =
+            std::make_unique<helix::test::StartedBackend<helix::printer::AmsBackendCfs>>(api.get());
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(api.get(), "cfs");
         FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         CfsTestAccess::inject_override_store(*backend, std::move(store));
@@ -331,8 +320,7 @@ class CfsPublishFixture : public HelixTestFixture {
     }
 
     void send(const json& box) {
-        CfsTestAccess::handle_status(*backend,
-                                     json{{"params", json::array({json{{"box", box}}, 0})}});
+        backend->fire_status(json{{"params", json::array({json{{"box", box}}, 0})}});
     }
 
     /// A fork box frame listing @p bays bays (0..bays-1) and the external

@@ -235,19 +235,18 @@ std::vector<BackendCensus> census_of_every_backend() {
     }
 
     {
-        RegisteredBackend<AmsBackendCfs> harness(nullptr, nullptr);
-        CfsTestAccess::handle_status(
-            *harness,
-            status_frame("box", nlohmann::json{{"api_version", 1},
-                                               {"slots", nlohmann::json::array({nlohmann::json{
-                                                             {"index", 0},
-                                                             {"material", "PLA"},
-                                                             {"brand", "Creality"},
-                                                             {"name", "Hyper PLA"},
-                                                             {"color", "#ED2C2C"},
-                                                             {"present", true},
-                                                             {"loaded", false},
-                                                             {"spoolman_id", 7}}})}}));
+        helix::test::RegisteredWired<AmsBackendCfs> harness;
+        harness->fire_status(status_frame(
+            "box", nlohmann::json{
+                       {"api_version", 1},
+                       {"slots", nlohmann::json::array({nlohmann::json{{"index", 0},
+                                                                       {"material", "PLA"},
+                                                                       {"brand", "Creality"},
+                                                                       {"name", "Hyper PLA"},
+                                                                       {"color", "#ED2C2C"},
+                                                                       {"present", true},
+                                                                       {"loaded", false},
+                                                                       {"spoolman_id", 7}}})}}));
         out.push_back({"CFS", filed_on(harness.lane(0))});
     }
 
@@ -459,16 +458,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "a firmware name reaches the field its own ven
 
     {
         // The CFS tag's `name` is which PRODUCT the bay holds.
-        RegisteredBackend<AmsBackendCfs> harness(nullptr, nullptr);
-        CfsTestAccess::handle_status(
-            *harness,
-            status_frame("box", nlohmann::json{{"api_version", 1},
-                                               {"slots", nlohmann::json::array({nlohmann::json{
-                                                             {"index", 0},
-                                                             {"material", "PLA"},
-                                                             {"name", "Hyper PLA"},
-                                                             {"present", true},
-                                                             {"loaded", false}}})}}));
+        helix::test::RegisteredWired<AmsBackendCfs> harness;
+        harness->fire_status(status_frame(
+            "box",
+            nlohmann::json{{"api_version", 1},
+                           {"slots", nlohmann::json::array({nlohmann::json{{"index", 0},
+                                                                           {"material", "PLA"},
+                                                                           {"name", "Hyper PLA"},
+                                                                           {"present", true},
+                                                                           {"loaded", false}}})}}));
 
         const auto lane = lane_sources(harness.lane(0));
         REQUIRE(lane.vendor_cache.has_value());

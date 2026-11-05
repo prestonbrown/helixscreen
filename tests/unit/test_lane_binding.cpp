@@ -18,6 +18,7 @@
 #include "lane_source_store.h"
 #include "settings_manager.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/happy_hare_test_access.h"
 #include "test_helpers/registered_backend.h"
@@ -85,7 +86,7 @@ BindingReading id_reporting_firmware_says(int spool_id, bool keep_on_eject) {
 
 using AfcHarness = RegisteredBackend<AmsBackendAfc>;
 using HappyHareHarness = RegisteredBackend<AmsBackendHappyHare>;
-using CfsHarness = RegisteredBackend<AmsBackendCfs>;
+using CfsHarness = helix::test::RegisteredWired<AmsBackendCfs>;
 
 void init_afc_lanes(AmsBackendAfc& backend) {
     AfcTestAccess::initialize_slots(backend, std::vector<std::string>{"lane1", "lane2"});
@@ -112,16 +113,12 @@ void feed_mmu(AmsBackendHappyHare& backend, const nlohmann::json& mmu) {
 
 /// A community-fork CFS `box`: a flat self-describing slots[] array, the one
 /// CFS schema that states a per-bay spool id.
-void feed_cfs_flat(AmsBackendCfs& backend, int spoolman_id) {
+void feed_cfs_flat(helix::test::WiredBackend<AmsBackendCfs>& backend, int spoolman_id) {
     nlohmann::json slot{{"id", 0},           {"name", "PLA Black"},       {"material", "PLA"},
                         {"brand", "Elegoo"}, {"color", "ED2C2C"},         {"present", true},
                         {"loaded", false},   {"spoolman_id", spoolman_id}};
     nlohmann::json box{{"api_version", 1}, {"slots", nlohmann::json::array({slot})}};
-    nlohmann::json params;
-    params["box"] = box;
-    nlohmann::json notification;
-    notification["params"] = nlohmann::json::array({params, 0.0});
-    CfsTestAccess::handle_status(backend, notification);
+    backend.fire_status({{"box", box}});
 }
 
 /// The user's own declaration on a lane: a link and nothing else, which is
@@ -660,7 +657,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a flat-schema CFS bay re-bound by the fork dr
                  "[lane][binding][cfs]") {
     SettingsManager::instance().init_subjects();
 
-    CfsHarness harness(nullptr, nullptr);
+    CfsHarness harness;
 
     feed_cfs_flat(*harness, 42);
     user_links(harness.lane(0), 42);
@@ -680,7 +677,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a CFS bay reading zero is never an eject",
     settings.init_subjects();
     settings.set_ams_keep_spool_info_on_eject(false);
 
-    CfsHarness harness(nullptr, nullptr);
+    CfsHarness harness;
 
     feed_cfs_flat(*harness, 42);
     user_links(harness.lane(0), 42);
