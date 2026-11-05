@@ -1990,6 +1990,7 @@ translations:
   Jog Pad: Jog Pad
   Jog Speed XY: Jog Speed XY
   Jog Speed Z: Jog Speed Z
+  Jog X back to {:.1f} mm before moving Y further: Jog X back to {:.1f} mm before moving Y further
   Jog Y back to {:.1f} mm before moving X: Jog Y back to {:.1f} mm before moving X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Jog Y until the nozzle is centered over the chute opening, then tap Save.
   'Jog failed: {}': 'Jog failed: {}'

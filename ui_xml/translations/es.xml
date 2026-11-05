@@ -1859,6 +1859,7 @@
   <translation tag="Jog Pad" es="Pad de jog"/>
   <translation tag="Jog Speed XY" es="Velocidad de movimiento XY"/>
   <translation tag="Jog Speed Z" es="Velocidad de movimiento Z"/>
+  <translation tag="Jog X back to {:.1f} mm before moving Y further" es="Regrese X a {:.1f} mm antes de seguir moviendo Y"/>
   <translation tag="Jog Y back to {:.1f} mm before moving X" es="Regrese Y a {:.1f} mm antes de mover X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." es="Mueva Y hasta que la boquilla quede centrada sobre la apertura del conducto y toque Guardar."/>
   <translation tag="Jog failed: {}" es="Error en movimiento: {}"/>

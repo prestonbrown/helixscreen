@@ -1859,6 +1859,7 @@
   <translation tag="Jog Pad" zh="点动盘"/>
   <translation tag="Jog Speed XY" zh="XY 移动速度"/>
   <translation tag="Jog Speed Z" zh="Z 移动速度"/>
+  <translation tag="Jog X back to {:.1f} mm before moving Y further" zh="继续移动 Y 轴前，请将 X 轴点动回 {:.1f} mm"/>
   <translation tag="Jog Y back to {:.1f} mm before moving X" zh="移动 X 轴前，请将 Y 轴点动回 {:.1f} mm"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." zh="点动 Y 轴，直到喷嘴位于排料口开口中心，然后点击保存。"/>
   <translation tag="Jog failed: {}" zh="移动失败: {}"/>

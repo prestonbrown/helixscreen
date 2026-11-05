@@ -144,6 +144,39 @@ TEST_CASE("Chute X is refused while Y is past park", "[chute_jog]") {
     }
 }
 
+TEST_CASE("Chute Y is refused past park while X is off its park", "[chute_jog]") {
+    auto guard = settled_guard();
+    REQUIRE(jog_x(guard, 15.0).outcome == Outcome::Move);
+
+    SECTION("X off park first cannot reach the rear zone by moving Y second") {
+        const auto refused = jog_y(guard, 10.0);
+        CHECK(refused.outcome == Outcome::XDisplaced);
+        CHECK(refused.delta == 0.0);
+        CHECK(refused.warn);
+        CHECK(guard.park_x() == Approx(kParkX));
+    }
+
+    SECTION("a live X off park counts before the commanded one") {
+        auto fresh = settled_guard();
+        REQUIRE(jog_y(fresh, 1.0).outcome == Outcome::Move);
+        REQUIRE(jog_y(fresh, -1.0).outcome == Outcome::Move);
+        CHECK(jog_y(fresh, 10.0, kParkX + 1.0, kParkY).outcome == Outcome::XDisplaced);
+    }
+
+    SECTION("on the bed side of park Y moves, and stops at park") {
+        CHECK(jog_y(guard, -5.0).delta == Approx(-5.0));
+        const auto partial = jog_y(guard, 10.0, kParkX + 15.0, kParkY - 5.0);
+        CHECK(partial.outcome == Outcome::Move);
+        CHECK(partial.delta == Approx(5.0));
+        CHECK(jog_y(guard, 10.0, kParkX + 15.0, kParkY).outcome == Outcome::XDisplaced);
+    }
+
+    SECTION("X back at park frees the rear zone") {
+        REQUIRE(jog_x(guard, -15.0).outcome == Outcome::Move);
+        CHECK(jog_y(guard, 10.0).delta == Approx(10.0));
+    }
+}
+
 TEST_CASE("Chute Y clamps to the machine limits on the commanded position", "[chute_jog]") {
     auto guard = settled_guard();
     const double total = jog_y(guard, 10.0).delta + jog_y(guard, 10.0).delta;

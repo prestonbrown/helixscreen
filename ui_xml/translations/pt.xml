@@ -1859,6 +1859,7 @@
   <translation tag="Jog Pad" pt="Pad de jog"/>
   <translation tag="Jog Speed XY" pt="Velocidade de movimento XY"/>
   <translation tag="Jog Speed Z" pt="Velocidade de movimento Z"/>
+  <translation tag="Jog X back to {:.1f} mm before moving Y further" pt="Retorne X para {:.1f} mm antes de continuar movendo Y"/>
   <translation tag="Jog Y back to {:.1f} mm before moving X" pt="Retorne Y para {:.1f} mm antes de mover X"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." pt="Mova Y até o bocal ficar centralizado sobre a abertura da calha e toque em Salvar."/>
   <translation tag="Jog failed: {}" pt="Falha ao mover: {}"/>

@@ -12,10 +12,13 @@ namespace helix {
 /// Decides how far each chute calibration jog may move.
 ///
 /// The park position, where the calibration's prepare step leaves the toolhead,
-/// is the reference for two limits. The rear zone past park Y holds the chute and
-/// the cutter, and the only recorded X there is the stored chute X, so X is
-/// refused while Y is past park. Whatever X is saved is where the firmware sends
-/// the head for every later purge, so X stays within kXReachMm of park.
+/// is the reference for three limits. The rear zone past park Y holds the chute
+/// and the cutter, and the only recorded X there is the stored chute X, so the
+/// head enters that zone only at park X: X is refused while Y is past park, and Y
+/// is refused past park while X is off it. Whatever X is saved is where the
+/// firmware sends the head for every later purge, so X stays within kXReachMm of
+/// park. That reach is per session because no factory chute X is recorded to
+/// bound it absolutely: each save moves the next session's park.
 ///
 /// Limits apply to the commanded position as well as the live one. A jog is sent
 /// without waiting for the previous one and the live position lags it, so a live
@@ -34,6 +37,7 @@ class ChuteJogGuard {
         PositionUnknown, ///< Not armed, or the park position has not settled.
         AxisLimit,       ///< At a limit; `warn` is set on the first blocked attempt.
         PastPark,        ///< X refused because Y is past park.
+        XDisplaced,      ///< Y refused past park because X is off its park.
     };
 
     struct Decision {
@@ -71,12 +75,25 @@ class ChuteJogGuard {
         if (!latch_park(now_ms, live_x, live_y)) {
             return {0.0, Outcome::PositionUnknown, false};
         }
+        const double x_off_park =
+            std::max(std::abs(commanded_x_ - park_x_), std::abs(live_x - park_x_));
+        if (x_off_park > kParkToleranceMm) {
+            if (delta > 0.0 && std::max(commanded_y_, live_y) >= park_y_ - kParkToleranceMm) {
+                return {0.0, Outcome::XDisplaced, true};
+            }
+            axis_max = std::min(axis_max, park_y_);
+        }
         return step(delta, live_y, commanded_y_, axis_min, axis_max, warned_y_);
     }
 
     /// Park Y of this session; meaningful once a jog has returned PastPark.
     [[nodiscard]] double park_y() const {
         return park_y_;
+    }
+
+    /// Park X of this session; meaningful once a jog has returned XDisplaced.
+    [[nodiscard]] double park_x() const {
+        return park_x_;
     }
 
   private:

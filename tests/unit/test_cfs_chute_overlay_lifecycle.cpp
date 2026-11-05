@@ -42,7 +42,7 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
         token = std::move(cancel);
         return AmsErrorHelper::success();
     }
-    AmsError jog_chute_x(float) {
+    AmsError jog_chute_x(float) override {
         return AmsErrorHelper::success();
     }
     AmsError jog_chute_y(float) override {

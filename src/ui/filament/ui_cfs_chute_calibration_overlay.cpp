@@ -176,6 +176,9 @@ void CfsChuteCalibrationOverlay::on_activate() {
 }
 
 void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
+    if (jog_pad_) {
+        ui_jog_pad_stop_repeat(jog_pad_);
+    }
     // Nobody walked away from a blanked screen: the head stays where it is, and
     // a home under way carries on.
     if (reason == DeactivateReason::Suspended) {
@@ -198,9 +201,6 @@ void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
                 backend->exit_chute_calibration();
             }
         }
-    }
-    if (jog_pad_) {
-        ui_jog_pad_stop_repeat(jog_pad_);
     }
 }
 
@@ -227,8 +227,7 @@ void CfsChuteCalibrationOverlay::start_calibration() {
     cancel_requested_ = std::make_shared<std::atomic<bool>>(false);
     auto err = backend->start_chute_calibration(
         [this]() {
-            // Armed here and not in set_state(): a refused save also returns to
-            // ADJUSTING, with the head possibly past park.
+            // Armed only here: the prepare ack is what puts the head at park.
             jog_guard_.arm(lv_tick_get());
             set_state(State::ADJUSTING);
         },
@@ -320,6 +319,9 @@ bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
         break;
     case helix::ChuteJogGuard::Outcome::PastPark:
         NOTIFY_INFO(lv_tr("Jog Y back to {:.1f} mm before moving X"), jog_guard_.park_y());
+        break;
+    case helix::ChuteJogGuard::Outcome::XDisplaced:
+        NOTIFY_INFO(lv_tr("Jog X back to {:.1f} mm before moving Y further"), jog_guard_.park_x());
         break;
     }
     return false;

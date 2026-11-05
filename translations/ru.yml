@@ -2082,6 +2082,7 @@ translations:
   Jog Pad: 'Джог-панель'
   Jog Speed XY: Скорость перемещения XY
   Jog Speed Z: Скорость перемещения Z
+  Jog X back to {:.1f} mm before moving Y further: Верните X на {:.1f} мм, прежде чем двигать Y дальше
   Jog Y back to {:.1f} mm before moving X: Верните Y на {:.1f} мм, прежде чем двигать X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Двигайте Y, пока сопло не встанет по центру отверстия жёлоба, затем нажмите «Сохранить».
 

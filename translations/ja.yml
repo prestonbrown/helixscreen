@@ -1932,6 +1932,7 @@ translations:
   Jog Pad: 'ジョグパッド'
   Jog Speed XY: XY ジョグ速度
   Jog Speed Z: Z ジョグ速度
+  Jog X back to {:.1f} mm before moving Y further: Yをさらに動かす前にXを{:.1f} mmまでジョグして戻します
   Jog Y back to {:.1f} mm before moving X: Xを動かす前にYを{:.1f} mmまでジョグして戻します
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Yをジョグしてノズルがシュートの開口部の中心に来たら、保存をタップします。
 

@@ -633,8 +633,11 @@ HelixScreen also offers X jogging, which the stock screen does not. The capture 
 before a save, so SAVE_POS writing a jogged X is read from its "reads the live position"
 behaviour and not yet seen on a machine, and nothing is recorded about what clears the head
 at other X positions past `safe_pos_y`, where the chute and cutter sit. `ChuteJogGuard`
-(`include/chute_jog_guard.h`) therefore refuses X while Y is past the park position and keeps
-X within 15 mm of where PREPARE parked it, on top of the live axis bounds.
+(`include/chute_jog_guard.h`) therefore refuses X while Y is past the park position, refuses Y
+past park while X is off park, and keeps X within 15 mm of where PREPARE parked it, on top of the
+live axis bounds. PREPARE parks at the stored `extrude_pos_x`, so that reach is per session: the
+only value on record, 184.5, is one K1 Max's stored setting and not a factory chute X, so nothing
+bounds the stored X absolutely across repeated saves.
 
 ### Machine geometry from the same log
 

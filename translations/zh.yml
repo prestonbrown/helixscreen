@@ -1927,6 +1927,7 @@ translations:
   Jog Pad: '点动盘'
   Jog Speed XY: XY 移动速度
   Jog Speed Z: Z 移动速度
+  Jog X back to {:.1f} mm before moving Y further: 继续移动 Y 轴前，请将 X 轴点动回 {:.1f} mm
   Jog Y back to {:.1f} mm before moving X: 移动 X 轴前，请将 Y 轴点动回 {:.1f} mm
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: 点动 Y 轴，直到喷嘴位于排料口开口中心，然后点击保存。
 

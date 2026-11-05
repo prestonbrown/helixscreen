@@ -2043,6 +2043,7 @@ translations:
   Jog Pad: 'Pad de jog'
   Jog Speed XY: Velocidade de movimento XY
   Jog Speed Z: Velocidade de movimento Z
+  Jog X back to {:.1f} mm before moving Y further: Retorne X para {:.1f} mm antes de continuar movendo Y
   Jog Y back to {:.1f} mm before moving X: Retorne Y para {:.1f} mm antes de mover X
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Mova Y até o bocal ficar centralizado sobre a abertura da calha e toque em Salvar.
 
