@@ -74,6 +74,9 @@ set -uo pipefail
 MAKE=${MAKE:-make}
 SELF="${BASH_SOURCE[0]}"
 TEST_HOST_RUN=${TEST_HOST_RUN:-$(dirname "$SELF")/test-host-run.sh}
+# A gate step has its own time limit and is the work the host is there for, so it
+# does not wait behind whatever else is loading the host.
+export HELIX_TEST_MAX_LOAD=${HELIX_TEST_MAX_LOAD:-0}
 HELIX_CLAIM=${HELIX_CLAIM:-$(dirname "$SELF")/helix-claim}
 ESP32_CHECK=${ESP32_CHECK:-$(dirname "$SELF")/esp32_syntax_check.py}
 LAND_GATE_BASE_REF=${LAND_GATE_BASE_REF:-origin/main}

@@ -47,7 +47,6 @@ namespace {
 /// What a row takes from a backend's class. Empty for a backend this build
 /// leaves out, which is all that a HELIX_HAS_* gate decides in this file.
 struct BackendClassOps {
-    const BackendTraits* traits = nullptr;
     AmsBackendRow::Construct construct = nullptr;
     AmsBackendRow::OwnsFilamentSensor owns_filament_sensor = nullptr;
     AmsBackendRow::RequiredStatusObjects required_status_objects = nullptr;
@@ -74,7 +73,7 @@ nlohmann::json ifs_required_status_objects(const PrinterDiscovery& hw) {
     }
     return objects;
 }
-constexpr BackendClassOps kIfsOps{&AmsBackendAd5xIfs::kTraits, construct_backend<AmsBackendAd5xIfs>,
+constexpr BackendClassOps kIfsOps{construct_backend<AmsBackendAd5xIfs>,
                                   AmsBackendAd5xIfs::owns_filament_sensor,
                                   ifs_required_status_objects};
 } // namespace
@@ -91,9 +90,9 @@ constexpr BackendClassOps kIfsOps{};
 #include "ams_backend_cfs.h"
 namespace helix {
 namespace {
-constexpr BackendClassOps kCfsOps{
-    &printer::AmsBackendCfs::kTraits, construct_backend<printer::AmsBackendCfs>,
-    printer::AmsBackendCfs::owns_filament_sensor, printer::AmsBackendCfs::required_status_objects};
+constexpr BackendClassOps kCfsOps{construct_backend<printer::AmsBackendCfs>,
+                                  printer::AmsBackendCfs::owns_filament_sensor,
+                                  printer::AmsBackendCfs::required_status_objects};
 } // namespace
 } // namespace helix
 #else
@@ -108,8 +107,8 @@ constexpr BackendClassOps kCfsOps{};
 #include "ams_backend_ace.h"
 namespace helix {
 namespace {
-constexpr BackendClassOps kAceOps{&AmsBackendAce::kTraits, construct_backend<AmsBackendAce>,
-                                  nullptr, AmsBackendAce::required_status_objects};
+constexpr BackendClassOps kAceOps{construct_backend<AmsBackendAce>, nullptr,
+                                  AmsBackendAce::required_status_objects};
 } // namespace
 } // namespace helix
 #else
@@ -124,8 +123,8 @@ constexpr BackendClassOps kAceOps{};
 #include "ams_backend_qidi.h"
 namespace helix {
 namespace {
-constexpr BackendClassOps kQidiOps{&AmsBackendQidi::kTraits, construct_backend<AmsBackendQidi>,
-                                   nullptr, AmsBackendQidi::required_status_objects};
+constexpr BackendClassOps kQidiOps{construct_backend<AmsBackendQidi>, nullptr,
+                                   AmsBackendQidi::required_status_objects};
 } // namespace
 } // namespace helix
 #else
@@ -149,7 +148,7 @@ std::unique_ptr<AmsBackend> construct_snapmaker(IMoonrakerAPI* api, IMoonrakerCl
     }
     return std::make_unique<AmsBackendSnapmaker>(api, client);
 }
-constexpr BackendClassOps kSnapmakerOps{&AmsBackendSnapmaker::kTraits, construct_snapmaker, nullptr,
+constexpr BackendClassOps kSnapmakerOps{construct_snapmaker, nullptr,
                                         AmsBackendSnapmaker::required_status_objects};
 } // namespace
 } // namespace helix
@@ -956,21 +955,19 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
 
 namespace {
 
-constexpr BackendClassOps kHappyHareOps{
-    &AmsBackendHappyHare::kTraits, construct_backend<AmsBackendHappyHare>,
-    AmsBackendHappyHare::owns_filament_sensor, AmsBackendHappyHare::required_status_objects};
-constexpr BackendClassOps kAfcOps{&AmsBackendAfc::kTraits, construct_backend<AmsBackendAfc>,
+constexpr BackendClassOps kHappyHareOps{construct_backend<AmsBackendHappyHare>,
+                                        AmsBackendHappyHare::owns_filament_sensor,
+                                        AmsBackendHappyHare::required_status_objects};
+constexpr BackendClassOps kAfcOps{construct_backend<AmsBackendAfc>,
                                   AmsBackendAfc::owns_filament_sensor,
                                   AmsBackendAfc::required_status_objects};
-constexpr BackendClassOps kOpenAmsOps{&AmsBackendOpenAms::kTraits,
-                                      construct_backend<AmsBackendOpenAms>, nullptr,
+constexpr BackendClassOps kOpenAmsOps{construct_backend<AmsBackendOpenAms>, nullptr,
                                       AmsBackendOpenAms::required_status_objects};
 // Sized and wired by set_discovery() before start().
-constexpr BackendClassOps kIndxOps{&AmsBackendIndx::kIndxTraits, construct_backend<AmsBackendIndx>,
-                                   nullptr, AmsBackendIndx::required_status_objects};
+constexpr BackendClassOps kIndxOps{construct_backend<AmsBackendIndx>, nullptr,
+                                   AmsBackendIndx::required_status_objects};
 // The caller names the tools through set_discovered_tools() after creation.
-constexpr BackendClassOps kToolChangerOps{&AmsBackendToolChanger::kTraits,
-                                          construct_backend<AmsBackendToolChanger>};
+constexpr BackendClassOps kToolChangerOps{construct_backend<AmsBackendToolChanger>};
 
 // Exact spellings: case matters.
 constexpr std::string_view kAfcAliases[] = {"afc", "AFC"};
@@ -991,7 +988,6 @@ constexpr AmsBackendRow make_row(AmsType type, const BackendClassOps& ops, bool 
                                  AmsNameAliases name_aliases,
                                  const char* telemetry_feature = nullptr) {
     return {type,
-            ops.traits,
             ops.construct,
             needs_http_poll,
             ops.owns_filament_sensor,

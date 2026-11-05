@@ -14,7 +14,6 @@
 namespace helix {
 
 class AmsBackend;
-struct BackendTraits;
 class IMoonrakerAPI;
 class IMoonrakerClient;
 class PrinterDiscovery;
@@ -43,7 +42,7 @@ class AmsNameAliases {
  *
  * One row per AmsType, in src/printer/ams_backend.cpp: a new backend is one row
  * plus its entry in kAmsTypeTraits. A backend this build leaves out through its
- * HELIX_HAS_* gate keeps its row with `traits`, `construct`,
+ * HELIX_HAS_* gate keeps its row with `construct`,
  * `owns_filament_sensor` and `required_status_objects` null, so the type's
  * classification and names still answer.
  *
@@ -57,9 +56,6 @@ struct AmsBackendRow {
     using RequiredStatusObjects = nlohmann::json (*)(const PrinterDiscovery&);
 
     AmsType type;
-    /// The class's declared traits. The live answers come from AmsBackend::traits(),
-    /// which some backends adjust once discovery reports.
-    const BackendTraits* traits;
     Construct construct;
     /// Polls raw HTTP instead of riding the WebSocket, so a screen without that
     /// transport cannot host it.

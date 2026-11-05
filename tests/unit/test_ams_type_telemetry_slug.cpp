@@ -105,15 +105,12 @@ TEST_CASE("Every compiled-in backend row builds its own type", "[ams][traits]") 
     for (const auto& type_row : helix::kAmsTypeTraits) {
         const helix::AmsBackendRow& row = helix::ams_backend_row(type_row.type);
         CAPTURE(type_row.name);
-        CHECK((row.traits != nullptr) == (row.construct != nullptr));
         if (!row.construct) {
             continue;
         }
         const auto backend = row.construct(nullptr, nullptr, nullptr);
         REQUIRE(backend != nullptr);
         CHECK(backend->get_type() == type_row.type);
-        CHECK(backend->traits().lane_noun == row.traits->lane_noun);
-        CHECK(backend->traits().has_physical_tray == row.traits->has_physical_tray);
     }
     CHECK(helix::ams_backend_row(AmsType::NONE).construct == nullptr);
     CHECK(helix::ams_backend_row(AmsType::TOOL_CHANGER).construct != nullptr);

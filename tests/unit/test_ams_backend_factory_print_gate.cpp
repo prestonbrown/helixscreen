@@ -31,7 +31,6 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend.h"
-#include "ams_backend_row.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_error.h"
 #include "ams_types.h"
@@ -55,14 +54,25 @@ namespace {
 constexpr int kAmsTypeProbeLimit = 64;
 
 /// Backends create() must produce in THIS build: a lower bound that catches
-/// "create() silently stopped producing anything". The loops below are the coverage.
-int expected_backend_count() {
-    int count = 0;
-    for (const auto& row : helix::kAmsTypeTraits) {
-        count += helix::ams_backend_row(row.type).construct ? 1 : 0;
-    }
-    return count;
-}
+/// "create() silently stopped producing anything". Only three are compiled
+/// unconditionally, so the floor reads the gates rather than the factory's own table.
+constexpr int kExpectedBackendCount = 3
+#if HELIX_HAS_IFS
+                                      + 1
+#endif
+#if HELIX_HAS_CFS
+                                      + 1
+#endif
+#if HELIX_HAS_ACE
+                                      + 1
+#endif
+#if HELIX_HAS_QIDI
+                                      + 1
+#endif
+#if HELIX_HAS_SNAPMAKER
+                                      + 1
+#endif
+    ;
 
 /// True when @p e is the Layer 2 print-active refusal specifically, as opposed
 /// to any other failure a backend might return first. Derived from the error
@@ -206,7 +216,7 @@ TEST_CASE_METHOD(FactoryGateFixture, "AmsBackend::create builds a distinct backe
                  "[ams][safety][factory]") {
     const auto types = buildable_types();
     CAPTURE(types.size());
-    CHECK(static_cast<int>(types.size()) >= expected_backend_count());
+    CHECK(static_cast<int>(types.size()) >= kExpectedBackendCount);
 
     for (helix::AmsType type : types) {
         CAPTURE(helix::ams_type_to_string(type));
@@ -243,7 +253,7 @@ TEST_CASE_METHOD(FactoryGateFixture,
             ++checked;
         }
     }
-    CHECK(checked >= expected_backend_count() * static_cast<int>(motion_ops().size()));
+    CHECK(checked >= kExpectedBackendCount * static_cast<int>(motion_ops().size()));
 }
 
 // ============================================================================
@@ -406,5 +416,5 @@ TEST_CASE_METHOD(FactoryGateFixture, "the backend refusal matches print_blocks_f
     }
     // Guards against a loop that compared nothing: 3 states over at least the
     // unconditionally-built backends.
-    CHECK(compared >= expected_backend_count() * 3);
+    CHECK(compared >= kExpectedBackendCount * 3);
 }
