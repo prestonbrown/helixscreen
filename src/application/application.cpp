@@ -225,6 +225,7 @@
 #include "moonraker_client.h"
 #include "moonraker_performance_source.h"
 #include "performance_state.h"
+#include "print_health_log.h"
 #if HELIX_HAS_PLUGINS
 #include "plugin_dir_watcher.h"
 #include "plugin_host.h"
@@ -2038,6 +2039,12 @@ int Application::main_loop() {
     static constexpr uint32_t kTickCrumbIntervalMs = 30000;
     uint64_t frame_counter = 0;
 
+    // One line a minute during a print, so a report of a stalled print carries what the
+    // UI was costing the board at the time.
+    helix::attach_print_health_counters(m_display->display());
+    helix::PrintHealthLog print_health(
+        [this] { return helix::read_print_health_sample(m_display->display()); });
+
     // Heap snapshot refresh cadence — cheap, called from the main thread so the
     // crash signal handler can read the cached values without touching
     // non-async-signal-safe APIs (mallinfo, open, lv_mem_monitor).
@@ -2173,6 +2180,13 @@ int Application::main_loop() {
             if ((current_tick - last_tick_crumb) >= kTickCrumbIntervalMs) {
                 crash_handler::breadcrumb::note("tick", "", static_cast<long>(frame_counter));
                 last_tick_crumb = current_tick;
+            }
+
+            if (const auto line = print_health.tick(
+                    current_tick,
+                    lv_subject_get_int(
+                        get_printer_state().print_state().get_print_active_subject()) != 0)) {
+                spdlog::info("[PrintHealth] {}", *line);
             }
 
             // Refresh cached heap snapshot so any crash within the next window
