@@ -15,6 +15,8 @@
 #include <lvgl.h>
 #include <optional>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 /// A plugin feature with a switch in the settings. Each gets two XML subjects:

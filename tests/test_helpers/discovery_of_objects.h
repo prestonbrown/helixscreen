@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix::test {
 
 /// A PrinterDiscovery that knows exactly these printer.objects.list names.

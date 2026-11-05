@@ -8,6 +8,7 @@
 #include "lvgl.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 #if HELIX_HAS_CAMERA
 #include "../lvgl_test_fixture.h"

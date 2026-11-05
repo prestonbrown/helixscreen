@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::probe_prep::Operation;
 using helix::probe_prep::Preparation;

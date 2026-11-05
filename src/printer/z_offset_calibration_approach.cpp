@@ -8,6 +8,8 @@
 
 #include <algorithm>
 
+#include "hv/json.hpp"
+
 namespace helix::zoffset_cal {
 
 CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,
