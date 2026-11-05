@@ -2,6 +2,7 @@
 
 #include "print_status_chips.h"
 
+#include "display_numbering.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
 #include "src/ui/panel_widgets/callout_chip.h"
@@ -77,6 +78,10 @@ std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads, int a
         out.push_back({head.representative_tool(active_tool), *head.extruder_name});
     }
     return out;
+}
+
+std::string other_tool_badge(std::string_view name, int index) {
+    return ui::is_generated_tool_name(name) ? ui::lane_number_text(index) : std::string(name);
 }
 
 ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,

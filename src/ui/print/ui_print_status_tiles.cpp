@@ -338,7 +338,9 @@ std::vector<OtherToolReading> PrintStatusTiles::other_tool_readings() {
     for (const OtherHead& head : other_heads(tools.physical_heads(), tools.active_tool_index(),
                                              tools.heads_share_heater())) {
         OtherToolReading r;
-        r.badge = lane_number_text(head.tool);
+        const auto& all = tools.tools();
+        const auto t = static_cast<size_t>(head.tool);
+        r.badge = other_tool_badge(t < all.size() ? all[t].name : tool_label(head.tool), head.tool);
         r.current_deci = subject_int_or_zero(temps.get_extruder_temp_subject(head.extruder));
         r.target_deci = subject_int_or_zero(temps.get_extruder_target_subject(head.extruder));
         r.start_deci =

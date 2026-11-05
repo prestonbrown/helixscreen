@@ -136,6 +136,18 @@ TEST_CASE("other tools: the budget is one climbing head at its widest and the co
     CHECK(other_tools_chip(t, room(budget.size())).text.size() <= budget.size());
 }
 
+TEST_CASE("other tools: a configured tool name shows verbatim", "[print_status_other_tools]") {
+    CHECK(other_tool_badge("Left", 0) == "Left");
+    CHECK(other_tools_chip({tool("Left", 1500, 1500), tool("3", 250, 0)}, always).text ==
+          "Left 150° · 3 off");
+}
+
+TEST_CASE("other tools: a generated tool name shows the 1-based number",
+          "[print_status_other_tools]") {
+    CHECK(other_tool_badge("T2", 2) == "3");
+    CHECK(other_tool_badge("T0", 0) == "1");
+}
+
 TEST_CASE("other heads: the active head is left out and each head is named by its tool",
           "[print_status_other_tools]") {
     const std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder1"),

@@ -62,10 +62,14 @@ struct OtherHead {
 [[nodiscard]] std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads,
                                                  int active_tool, bool heads_share_heater);
 
+/// What the other-tools chip calls tool `index`: its configured name ("Left")
+/// verbatim, or the 1-based display number for a generated "T<n>" name.
+[[nodiscard]] std::string other_tool_badge(std::string_view name, int index);
+
 /// One head's reading for the other-tools chip. `start_deci` is the reading
 /// when its target was set, for the progress bar.
 struct OtherToolReading {
-    std::string badge; ///< "2", spelled as the nozzle chip's badge
+    std::string badge; ///< other_tool_badge(): "2", or a configured "Left"
     int current_deci = 0;
     int target_deci = 0;
     int start_deci = 0;
