@@ -402,10 +402,10 @@ TEST_CASE("detect_resize_edge: the edge whose band holds the point, nearest firs
 
     // 200x200 at 100..300: each band runs 18px inside and 18px outside its edge.
     const lv_area_t sq = {100, 100, 300, 300};
-    // 30 wide x 90 tall: two 18px inward bands would overlap and leave no
-    // interior to drag by, so the inward band is a third of the width (10px).
+    // 30 wide x 90 tall: narrower than a touch target, so there is no inward
+    // band across and the whole width drags; only the outward band resizes.
     const lv_area_t narrow = {100, 100, 130, 190};
-    // 30 wide x 200 tall: the axes clamp independently, 10px across, 18px down.
+    // 30 wide x 200 tall: the axes clamp independently, 0px across, 18px down.
     const lv_area_t tall = {100, 100, 130, 300};
     struct Row {
         const char* what;
@@ -446,8 +446,12 @@ TEST_CASE("detect_resize_edge: the edge whose band holds the point, nearest firs
         {"right band, above the widget", 295, 50, sq, Edge::None},
         {"right band, below the widget", 295, 350, sq, Edge::None},
         {"narrow: centre is interior", 115, 145, narrow, Edge::None},
-        {"narrow: left edge", 101, 145, narrow, Edge::Left},
-        {"narrow: right edge", 129, 145, narrow, Edge::Right},
+        {"narrow: one inside the left edge drags", 101, 145, narrow, Edge::None},
+        {"narrow: one inside the right edge drags", 129, 145, narrow, Edge::None},
+        {"narrow: on the left edge", 100, 145, narrow, Edge::Left},
+        {"narrow: on the right edge", 130, 145, narrow, Edge::Right},
+        {"narrow: left band outer limit", 82, 145, narrow, Edge::Left},
+        {"narrow: right band outer limit", 148, 145, narrow, Edge::Right},
         {"tall: 12px below the top", 115, 112, tall, Edge::Top},
         {"tall: 40px below the top", 115, 140, tall, Edge::None},
     };
@@ -457,6 +461,53 @@ TEST_CASE("detect_resize_edge: the edge whose band holds the point, nearest firs
     }
     // Equidistant from two edges: one of them wins, never neither.
     CHECK(em.detect_resize_edge(295, 295, sq) != Edge::None);
+}
+
+TEST_CASE("inward_edge_reach: the drag interior never drops below a touch target",
+          "[grid_edit][resize][halfcell]") {
+    struct Row {
+        const char* what;
+        int band, widget, min_drag, reach;
+    };
+    const Row rows[] = {
+        {"half cell on a micro panel", 18, 30, 48, 0},
+        {"under the target", 18, 40, 48, 0},
+        {"exactly the target: nothing to spare", 19, 48, 48, 0},
+        {"just above it: the spare splits between the edges", 19, 50, 48, 1},
+        {"a half cell at 800x480", 19, 59, 48, 5},
+        {"one short of the full band", 18, 83, 48, 17},
+        {"room for band and interior", 18, 84, 48, 18},
+        {"the band is the ceiling", 18, 85, 48, 18},
+        {"a large widget", 32, 400, 48, 32},
+        {"zero-size widget", 18, 0, 48, 0},
+        {"negative size", 18, -10, 48, 0},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        CHECK(GridEditModeTestAccess::inward_edge_reach(row.band, row.widget, row.min_drag) ==
+              row.reach);
+    }
+}
+
+TEST_CASE("detect_resize_edge: a 0.5x0.5 widget at 800x480 drags from anywhere inside it",
+          "[grid_edit][resize][halfcell]") {
+    using Edge = GridEditMode::ResizeEdge;
+    GridEditMode em;
+    // 60x59, the half-cell notifications tile measured in the mock at 800x480.
+    const lv_area_t half = {677, 5, 736, 63};
+
+    // A finger 12px off centre in any direction still drags.
+    for (int d = -12; d <= 12; d += 4) {
+        CAPTURE(d);
+        CHECK(em.detect_resize_edge(706 + d, 34, half) == Edge::None);
+        CHECK(em.detect_resize_edge(706, 34 + d, half) == Edge::None);
+    }
+
+    // Just outside each edge resizes.
+    CHECK(em.detect_resize_edge(674, 34, half) == Edge::Left);
+    CHECK(em.detect_resize_edge(739, 34, half) == Edge::Right);
+    CHECK(em.detect_resize_edge(706, 2, half) == Edge::Top);
+    CHECK(em.detect_resize_edge(706, 66, half) == Edge::Bottom);
 }
 
 TEST_CASE("press_owns_widget: the press origin decides, with the grab band of drift",
