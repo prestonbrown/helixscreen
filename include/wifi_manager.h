@@ -324,6 +324,37 @@ class WiFiManager {
                            helix::SharedCallback<void(bool success)> on_done);
 
     // ========================================================================
+    // IPv4 Configuration
+    // ========================================================================
+
+    /// Whether the backend can persist a static IPv4 config
+    /// (helix::net::Ipv4Configurable::supports_ipv4_config()).
+    bool supports_ipv4_config();
+
+    /**
+     * @brief Read the interface's IPv4 config on the control lane
+     *
+     * @p on_done(ok, config) runs on the LVGL thread while @p token lives. A
+     * backend without support answers at once with ok false.
+     */
+    void get_ipv4_config_async(
+        helix::LifetimeToken token,
+        helix::SharedCallback<void(bool ok, const helix::net::Ipv4Config& config)> on_done);
+
+    /**
+     * @brief On the control lane, apply @p next through helix::net::apply_ipv4_change()
+     *
+     * The revert record and its snapshot are written first. @p previous is
+     * what the record shows; @p abandoned, once set, makes the apply restore
+     * the snapshot itself. @p on_done(status) runs on the LVGL thread while
+     * @p token lives; the failure's detail is logged here.
+     */
+    void apply_ipv4_change_async(
+        const helix::net::Ipv4Config& previous, const helix::net::Ipv4Config& next,
+        std::shared_ptr<std::atomic<bool>> abandoned, helix::LifetimeToken token,
+        helix::SharedCallback<void(helix::net::Ipv4Result::Status)> on_done);
+
+    // ========================================================================
     // Hardware Detection (Legacy Compatibility)
     // ========================================================================
 
@@ -700,6 +731,7 @@ class WiFiManager {
         uint32_t connect_ms = 45000; // the connect watchdog's window
         uint32_t other_ms = 40000;   // disconnect, forget, radio: two wpa_ctrl
                                      // round trips at their 15 s worst, plus margin
+        uint32_t ipv4_ms = 58000;    // an IPv4 change: up to six nmcli calls
         uint32_t stall_ms = 60000;   // past every deadline above, and nmcli's 30 s
     };
     UserOpTimeouts user_op_timeouts_;

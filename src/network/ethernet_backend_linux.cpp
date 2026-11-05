@@ -120,4 +120,27 @@ EthernetInfo EthernetBackendLinux::get_info() {
     return helix::ethernet::select_interface(ethernet_interfaces);
 }
 
+// ============================================================================
+// IPv4 Configuration
+// ============================================================================
+
+// The interface is chosen when a change is prepared and recorded in its
+// snapshot; apply never picks again, so a revert cannot land on another NIC.
+helix::net::Ipv4Result EthernetBackendLinux::get_ipv4_config(helix::net::Ipv4Config& out) {
+    return helix::net::store_read(ipv4_store_.get(), get_info().interface,
+                                  helix::net::Ipv4Link::Ethernet, out);
+}
+
+helix::net::Ipv4Result EthernetBackendLinux::prepare_ipv4_change(const helix::net::Ipv4Config& next,
+                                                                 helix::net::Ipv4Snapshot& out) {
+    return helix::net::store_prepare(ipv4_store_.get(), get_info().interface,
+                                     helix::net::Ipv4Link::Ethernet, next, out);
+}
+
+helix::net::Ipv4Result
+EthernetBackendLinux::apply_ipv4_config(const helix::net::Ipv4Snapshot& target,
+                                        const helix::net::Ipv4Config& config) {
+    return helix::net::store_apply(ipv4_store_.get(), target, config);
+}
+
 #endif // !__ANDROID__ && !__APPLE__

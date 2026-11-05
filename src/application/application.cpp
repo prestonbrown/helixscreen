@@ -166,6 +166,8 @@
 #include "ui_panel_glyphs.h"
 #endif
 
+#include "ui_ipv4_revert_retry.h"
+
 #include "active_print_media_manager.h"
 #include "android_asset_extractor.h"
 #include "board_identity.h"
@@ -1998,6 +2000,9 @@ void Application::check_wifi_availability() {
     // started WiFi at boot at all, and only ever connected once the user opened
     // a WiFi screen. Bringup is not a user-intent question.
     auto wifi = get_wifi_manager();
+
+    // An IPv4 change the user never kept is undone at boot.
+    helix::settings::start_ipv4_startup_revert();
 
     // Link telemetry runs from boot, not only while a WiFi screen is open.
     helix::WifiLinkMonitor::instance().start();

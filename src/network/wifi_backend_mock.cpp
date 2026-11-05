@@ -372,6 +372,12 @@ WifiBackend::ConnectionStatus WifiBackendMock::get_status() {
     status.connected = connected_;
     status.ssid = connected_ssid_;
     status.ip_address = connected_ip_;
+    // A static address the mock was given is the address it reports.
+    if (const std::string fixed =
+            helix::net::mock_ipv4_store(helix::net::Ipv4Link::Wifi).static_address();
+        status.connected && !fixed.empty()) {
+        status.ip_address = fixed;
+    }
     status.signal_strength = connected_signal_;
     status.mac_address = "de:ad:be:ef:ca:fe"; // Mock device WiFi adapter MAC
 

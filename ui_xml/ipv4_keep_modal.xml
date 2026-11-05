@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Keep-or-revert after an IPv4 change. Backdrop and buttons are wired by
+     Ipv4KeepModal; the title and countdown come from Ipv4SettingsOverlay. -->
+<component>
+  <view name="ipv4_keep_modal"
+        extends="ui_dialog" width="70%" height="content" style_max_width="480" align="center" flex_flow="column"
+        style_flex_main_place="start" style_pad_gap="0">
+    <lv_obj width="100%"
+            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
+            style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md">
+      <icon src="lan" size="lg" variant="primary"/>
+      <text_heading width="100%" bind_text="ipv4_keep_title" style_text_align="center" long_mode="wrap"/>
+      <text_muted width="100%" bind_text="ipv4_keep_message" long_mode="wrap" style_text_align="center"/>
+    </lv_obj>
+    <modal_button_row secondary_text="Revert now" primary_text="Keep"/>
+  </view>
+</component>

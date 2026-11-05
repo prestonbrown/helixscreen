@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ipv4_config.h"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -103,12 +105,13 @@ EthernetInfo select_interface(const std::vector<InterfaceState>& interfaces);
  * - EthernetBackendMock: Simulator mode with fake data
  *
  * Design principles:
- * - Query-only API (no enable/disable, no configuration)
+ * - Status queries, plus the interface's IPv4 configuration through
+ *   helix::net::Ipv4Configurable (its get/apply BLOCK: worker threads only)
  * - Synchronous operations (no async complexity)
  * - Simple status checking for UI display
  * - Clean error handling with meaningful messages
  */
-class EthernetBackend {
+class EthernetBackend : public helix::net::Ipv4Configurable {
   public:
     virtual ~EthernetBackend() = default;
 

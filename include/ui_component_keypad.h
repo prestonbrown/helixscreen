@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "keypad_input.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -52,6 +53,13 @@ struct ui_keypad_config_t {
     std::function<void(float)> on_confirm;
     /// Called once when the keypad closes without a confirmed value.
     std::function<void()> on_cancel;
+    /// Ipv4 types a dotted quad: the dot key shows, the sign key does not, and the
+    /// numeric range, `callback`, `validate` and `on_confirm` are unused.
+    helix::ui::KeypadInput::Mode mode = helix::ui::KeypadInput::Mode::Number;
+    /// Ipv4 mode: what the display starts with, kept only if it types as an address.
+    std::string initial_text;
+    /// Ipv4 mode: called with the typed text once the keypad has closed.
+    std::function<void(const std::string&)> on_confirm_text;
 };
 
 /**

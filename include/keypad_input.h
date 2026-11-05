@@ -12,6 +12,11 @@ namespace helix::ui {
 struct KeypadInput {
     static constexpr size_t BUF_SIZE = 16;
 
+    /// What the buffer holds. Number is a signed decimal; Ipv4 is a dotted quad
+    /// typed octet by octet, which the digit caps and the sign below ignore.
+    enum class Mode { Number, Ipv4 };
+    Mode mode = Mode::Number;
+
     char buf[BUF_SIZE] = "";
 
     /// Digits accepted before a decimal point is entered. The default suits a
@@ -51,6 +56,8 @@ struct KeypadInput {
     bool append_digit(int digit) {
         if (digit < 0 || digit > 9)
             return false;
+        if (mode == Mode::Ipv4)
+            return append_ipv4_digit(digit);
 
         size_t len = length();
         int digit_count = 0;
@@ -79,6 +86,8 @@ struct KeypadInput {
 
     /// Append a decimal point. Only one allowed, and only when allow_dot.
     bool append_dot() {
+        if (mode == Mode::Ipv4)
+            return append_ipv4_dot();
         if (!allow_dot)
             return false;
         if (has_dot())
@@ -99,7 +108,7 @@ struct KeypadInput {
     /// Flip the draft's sign, typed digits or not. The sign is not a digit, so the
     /// digit caps are unaffected; it only needs room in the buffer.
     bool toggle_sign() {
-        if (!allow_sign)
+        if (!allow_sign || mode == Mode::Ipv4)
             return false;
         size_t len = length();
         if (negative()) {
@@ -122,6 +131,11 @@ struct KeypadInput {
         return true;
     }
 
+    /// The buffer as typed.
+    const char* text() const {
+        return buf;
+    }
+
     /// Parse buffer as float. Empty buffer returns 0, and so does a signed zero
     /// ("-", "-0.") rather than -0.
     float value() const {
@@ -129,6 +143,47 @@ struct KeypadInput {
             return 0.0f;
         const float v = static_cast<float>(atof(buf));
         return v == 0.0f ? 0.0f : v;
+    }
+
+  private:
+    /// The octet being typed: the digits after the last dot.
+    const char* current_octet() const {
+        const char* dot = strrchr(buf, '.');
+        return dot ? dot + 1 : buf;
+    }
+
+    bool append_char(char c) {
+        size_t len = length();
+        if (len >= BUF_SIZE - 1)
+            return false;
+        buf[len] = c;
+        buf[len + 1] = '\0';
+        return true;
+    }
+
+    /// At most three digits an octet, and never a digit that takes it past 255.
+    bool append_ipv4_digit(int digit) {
+        const char* octet = current_octet();
+        if (strlen(octet) >= 3)
+            return false;
+        if (atoi(octet) * 10 + digit > 255)
+            return false;
+        return append_char(static_cast<char>('0' + digit));
+    }
+
+    /// A dot ends a non-empty octet; a quad has three.
+    bool append_ipv4_dot() {
+        size_t len = length();
+        if (len == 0 || buf[len - 1] == '.')
+            return false;
+        int dots = 0;
+        for (size_t i = 0; i < len; i++) {
+            if (buf[i] == '.')
+                dots++;
+        }
+        if (dots >= 3)
+            return false;
+        return append_char('.');
     }
 };
 

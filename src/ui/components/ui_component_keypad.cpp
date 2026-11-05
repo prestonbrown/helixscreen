@@ -79,6 +79,7 @@ static ui_keypad_config_t current_config;
 // Set by a confirm: the close that follows is not a cancel, and carries this value.
 static bool confirmed = false;
 static float confirmed_value = 0.0f;
+static std::string confirmed_text;
 static helix::ui::KeypadInput input;
 
 // ============================================================================
@@ -211,6 +212,7 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
 
     // Start with empty display (user enters fresh value)
     input.clear();
+    input.mode = config->mode;
 
     // Size the buffer to this field's own range. The 3-digit default is
     // temperature-shaped and cannot express a max accel of 50000; deriving the
@@ -227,10 +229,24 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         input.max_frac_digits = static_cast<int>(helix::ui::KeypadInput::BUF_SIZE);
         input.max_total_digits = input.max_int_digits + kKeypadFractionDigits;
     }
-    input.allow_dot = config->allow_decimal;
-    lv_subject_set_int(&keypad_allow_decimal_subject, config->allow_decimal ? 1 : 0);
-    input.allow_sign = config->allow_negative;
-    lv_subject_set_int(&keypad_allow_negative_subject, config->allow_negative ? 1 : 0);
+    if (config->mode == helix::ui::KeypadInput::Mode::Ipv4) {
+        lv_subject_set_int(&keypad_allow_decimal_subject, 1);
+        lv_subject_set_int(&keypad_allow_negative_subject, 0);
+        // Typed key by key, so a prefill the keys could not produce starts empty.
+        for (char ch : config->initial_text) {
+            const bool ok = ch == '.' ? input.append_dot()
+                                      : (ch >= '0' && ch <= '9' && input.append_digit(ch - '0'));
+            if (!ok) {
+                input.clear();
+                break;
+            }
+        }
+    } else {
+        input.allow_dot = config->allow_decimal;
+        lv_subject_set_int(&keypad_allow_decimal_subject, config->allow_decimal ? 1 : 0);
+        input.allow_sign = config->allow_negative;
+        lv_subject_set_int(&keypad_allow_negative_subject, config->allow_negative ? 1 : 0);
+    }
 
     lv_subject_copy_string(&keypad_title_subject, config->title_label ? config->title_label : "");
 
@@ -263,16 +279,20 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
     }
     confirmed = false;
     // Runs once the keypad is off screen, so either hook may open the keypad again.
-    helix::nav::on_close(keypad_widget,
-                         [on_confirm = config->on_confirm, on_cancel = config->on_cancel]() {
-                             destroy_keypad_backdrop();
-                             const bool was_confirmed = confirmed;
-                             const float value = confirmed_value;
-                             if (was_confirmed && on_confirm)
-                                 on_confirm(value);
-                             else if (!was_confirmed && on_cancel)
-                                 on_cancel();
-                         });
+    helix::nav::on_close(keypad_widget, [on_confirm = config->on_confirm,
+                                         on_confirm_text = config->on_confirm_text,
+                                         on_cancel = config->on_cancel]() {
+        destroy_keypad_backdrop();
+        const bool was_confirmed = confirmed;
+        const float value = confirmed_value;
+        const std::string text = confirmed_text;
+        if (was_confirmed && on_confirm_text)
+            on_confirm_text(text);
+        else if (was_confirmed && on_confirm)
+            on_confirm(value);
+        else if (!was_confirmed && on_cancel)
+            on_cancel();
+    });
 
     // Show via overlay navigation, but keep previous panel visible (transparent overlay)
     helix::nav::push_overlay(keypad_widget, false /* hide_previous */);
@@ -306,6 +326,14 @@ static void update_display() {
 }
 
 static void handle_confirm() {
+    if (input.mode == helix::ui::KeypadInput::Mode::Ipv4) {
+        // The form the text goes back to validates the whole address.
+        confirmed = true;
+        confirmed_text = input.text();
+        spdlog::info("[Keypad] Confirmed text={}", confirmed_text);
+        ui_keypad_hide();
+        return;
+    }
     float value = input.value();
 
     // Validate range - show error if out of bounds

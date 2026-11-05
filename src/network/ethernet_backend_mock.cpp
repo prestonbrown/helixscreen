@@ -54,7 +54,9 @@ EthernetInfo EthernetBackendMock::get_info() {
     const bool connected = connected_.load();
     info.connected = connected;
     info.interface = "en0";
-    info.ip_address = connected ? "192.168.1.150" : "";
+    const std::string fixed =
+        helix::net::mock_ipv4_store(helix::net::Ipv4Link::Ethernet).static_address();
+    info.ip_address = connected ? (fixed.empty() ? std::string("192.168.1.150") : fixed) : "";
     info.mac_address = real_mac_;
     info.status = connected ? "Connected" : "No cable";
 

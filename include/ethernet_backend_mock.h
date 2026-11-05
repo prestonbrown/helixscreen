@@ -35,6 +35,24 @@ class EthernetBackendMock : public EthernetBackend {
     bool has_interface() override;
     EthernetInfo get_info() override;
 
+    /// In memory, one config for the process (helix::net::mock_ipv4_store).
+    /// HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
+    bool supports_ipv4_config() const override {
+        return true;
+    }
+    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override {
+        return helix::net::mock_ipv4_store(helix::net::Ipv4Link::Ethernet).get(out);
+    }
+    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config&,
+                                               helix::net::Ipv4Snapshot& out) override {
+        out = helix::net::mock_ipv4_snapshot(helix::net::Ipv4Link::Ethernet);
+        return helix::net::Ipv4Result::success();
+    }
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot&,
+                                             const helix::net::Ipv4Config& config) override {
+        return helix::net::mock_ipv4_store(helix::net::Ipv4Link::Ethernet).apply(config);
+    }
+
     /// Test helper — drive connected state directly, mirroring
     /// WifiBackendMock::set_connected_state. The interface itself stays
     /// present (has_interface() is a hardware-presence question, not a link

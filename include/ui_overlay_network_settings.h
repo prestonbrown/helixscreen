@@ -55,6 +55,7 @@
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
+#include "ipv4_config.h"
 #include "lvgl/lvgl.h"
 #include "network_tester.h"
 #include "overlay_base.h"
@@ -207,6 +208,14 @@ class NetworkSettingsOverlay : public OverlayBase {
     lv_subject_t eth_ip_address_{};
     lv_subject_t eth_mac_address_{};
 
+    // IPv4 rows: shown where the backend can persist a static address
+    lv_subject_t wifi_ipv4_row_visible_{}; // 1 while connected on a backend that supports it
+    lv_subject_t wifi_ipv4_summary_{};     // "DHCP" / "Static <address>"
+    lv_subject_t eth_ipv4_row_visible_{};
+    lv_subject_t eth_ipv4_summary_{};
+    char wifi_ipv4_summary_buffer_[48];
+    char eth_ipv4_summary_buffer_[48];
+
     // Network test subjects
     lv_subject_t any_network_connected_{}; // 1 if wifi OR ethernet connected
     lv_subject_t test_running_{};
@@ -314,6 +323,9 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Applies an EthernetInfo to the overlay subjects. UI-thread only.
     void apply_ethernet_status(const EthernetInfo& info);
     void update_any_network_connected();
+    // Reads each link's IPv4 config off the UI thread and fills its row.
+    void refresh_ipv4_rows();
+    void handle_ipv4_row_clicked(helix::net::Ipv4Link link);
     // Refresh BOTH transport rows after a WiFi transition (connect, forget).
     // On single-transport platforms (netd enforces this) a join or leave
     // downs/ups the OTHER transport too, so the ethernet row is as stale as

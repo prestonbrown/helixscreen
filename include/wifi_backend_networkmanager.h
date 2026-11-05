@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ipv4_config_system.h"
 #include "wifi_backend.h"
 
 #ifndef __APPLE__
@@ -80,6 +81,18 @@ class WifiBackendNetworkManager : public WifiBackend {
     WiFiError get_country(std::string& code) override;
     WiFiError set_country(const std::string& code) override;
 
+    /// The connection profile in use on the interface, through NetworkManager.
+    /// Not when the daemon refused this user (polkit): the apply and its
+    /// revert would both be refused.
+    bool supports_ipv4_config() const override {
+        return ipv4_store_ != nullptr && !daemon_refused_access_.load();
+    }
+    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override;
+    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config& next,
+                                               helix::net::Ipv4Snapshot& out) override;
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot& target,
+                                             const helix::net::Ipv4Config& config) override;
+
   private:
     // ========================================================================
     // Internal State
@@ -89,6 +102,8 @@ class WifiBackendNetworkManager : public WifiBackend {
     std::atomic<bool> daemon_refused_access_{false}; ///< Last start() hit a polkit denial
     std::mutex start_mutex_;     // Serializes start() against concurrent start_async()
     std::string wifi_interface_; ///< Detected WiFi interface (e.g., "wlan0")
+    std::unique_ptr<helix::net::Ipv4SystemStore> ipv4_store_ =
+        helix::net::make_network_manager_ipv4_store();
 
     // Async threads for scan/connect (same pattern as mock backend)
     std::thread scan_thread_;
