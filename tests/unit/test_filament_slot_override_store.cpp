@@ -4524,6 +4524,16 @@ TEST_CASE("merge_held_save moves only what the held save changed",
         CHECK(merged["material"] == "ASA");
         CHECK(merged["vendor"] == "Polymaker");
     }
+    SECTION("a kept material keeps its temperatures") {
+        json hot = live;
+        hot["bed_temp"] = 100;
+        hot["nozzle_temp"] = 260;
+        json held = blank;
+        held["material"] = "PETG";
+        held["bed_temp"] = 80;
+        held["nozzle_temp"] = 245;
+        CHECK(merge_held_save(blank, held, hot) == hot);
+    }
     SECTION("a colour locked by the older key is held the same way") {
         const json older = {{"lane", "0"}, {"color", "#FF9800"}, {"helix_locked_color", true}};
         json held = blank;
