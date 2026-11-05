@@ -4,7 +4,6 @@
 
 #include "ams_backend_ad5x_ifs.h"
 
-#include "ui_insert_notice.h"
 #include "ui_temperature_utils.h"
 
 #include "ams_fault_event.h"
@@ -27,6 +26,7 @@
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
+#include "notice.h"
 #include "post_op_cooldown_manager.h"
 #include "print_lifecycle_state.h"
 #include "printer_discovery.h"
@@ -1147,7 +1147,8 @@ void AmsBackendAd5xIfs::note_presence_transition_locked(int slot_index, bool was
         // evidence under the slot spec's insert rule and the user is asked
         // instead (docs/specs/filament_slots.md §6).
         helix::ui::queue_update("AmsBackendAd5xIfs::note_presence_transition_locked", [slot_index] {
-            helix::ui::offer_clear_after_unverified_insert(slot_index);
+            helix::publish_ui_request(
+                {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, slot_index});
         });
     }
 }
