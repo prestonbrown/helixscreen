@@ -6,6 +6,7 @@
 #include "ui_temperature_utils.h"
 
 #include "accel_sensor_manager.h"
+#include "ams_backend_row.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
@@ -1638,18 +1639,8 @@ nlohmann::json TelemetryManager::build_session_event() const {
         }
 
         // MMU
-        switch (hw.mmu_type()) {
-        case AmsType::HAPPY_HARE:
-            features.push_back("mmu_happy_hare");
-            break;
-        case AmsType::AFC:
-            features.push_back("mmu_afc");
-            break;
-        case AmsType::TOOL_CHANGER:
-            features.push_back("tool_changer");
-            break;
-        default:
-            break;
+        if (const char* feature = ams_backend_row(hw.mmu_type()).telemetry_feature) {
+            features.push_back(feature);
         }
 
         event["features"] = features;

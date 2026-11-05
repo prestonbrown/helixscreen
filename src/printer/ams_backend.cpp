@@ -17,19 +17,7 @@
 #include "moonraker_client_mock.h"
 #endif
 #include "ams_backend_ad5x_ifs.h"
-#if HELIX_HAS_CFS
-#include "ams_backend_cfs.h"
-#endif
-#if HELIX_HAS_ACE
-#include "ams_backend_ace.h"
-#endif
-#if HELIX_HAS_QIDI
-#include "ams_backend_qidi.h"
-#endif
-#if HELIX_HAS_SNAPMAKER
-#include "ams_backend_multiace.h"
-#include "ams_backend_snapmaker.h"
-#endif
+#include "ams_backend_row.h"
 #include "ams_backend_toolchanger.h"
 #include "core/text_io.h"
 #include "filament_database.h"
@@ -51,6 +39,126 @@
 #include <cstdlib>
 #include <string_view>
 #include <tuple>
+
+namespace helix {
+namespace {
+
+/// What a row takes from a backend's class. Empty for a backend this build
+/// leaves out, which is all that a HELIX_HAS_* gate decides in this file.
+struct BackendClassOps {
+    const BackendTraits* traits = nullptr;
+    AmsBackendRow::Construct construct = nullptr;
+    AmsBackendRow::OwnsFilamentSensor owns_filament_sensor = nullptr;
+    AmsBackendRow::RequiredStatusObjects required_status_objects = nullptr;
+};
+
+template <class Backend>
+std::unique_ptr<AmsBackend> construct_backend(IMoonrakerAPI* api, IMoonrakerClient* client,
+                                              const PrinterDiscovery* /*hw*/) {
+    return std::make_unique<Backend>(api, client);
+}
+
+} // namespace
+} // namespace helix
+
+#if HELIX_HAS_IFS
+namespace helix {
+namespace {
+nlohmann::json ifs_required_status_objects(const PrinterDiscovery& hw) {
+    nlohmann::json objects = nlohmann::json::object();
+    if (hw.mmu_type() == AmsType::AD5X_IFS) {
+        for (const auto& name : AmsBackendAd5xIfs::required_status_objects(hw)) {
+            objects[name] = nullptr;
+        }
+    }
+    return objects;
+}
+constexpr BackendClassOps kIfsOps{&AmsBackendAd5xIfs::kTraits, construct_backend<AmsBackendAd5xIfs>,
+                                  AmsBackendAd5xIfs::owns_filament_sensor,
+                                  ifs_required_status_objects};
+} // namespace
+} // namespace helix
+#else
+namespace helix {
+namespace {
+constexpr BackendClassOps kIfsOps{};
+} // namespace
+} // namespace helix
+#endif
+
+#if HELIX_HAS_CFS
+#include "ams_backend_cfs.h"
+namespace helix {
+namespace {
+constexpr BackendClassOps kCfsOps{
+    &printer::AmsBackendCfs::kTraits, construct_backend<printer::AmsBackendCfs>,
+    printer::AmsBackendCfs::owns_filament_sensor, printer::AmsBackendCfs::required_status_objects};
+} // namespace
+} // namespace helix
+#else
+namespace helix {
+namespace {
+constexpr BackendClassOps kCfsOps{};
+} // namespace
+} // namespace helix
+#endif
+
+#if HELIX_HAS_ACE
+#include "ams_backend_ace.h"
+namespace helix {
+namespace {
+constexpr BackendClassOps kAceOps{&AmsBackendAce::kTraits, construct_backend<AmsBackendAce>,
+                                  nullptr, AmsBackendAce::required_status_objects};
+} // namespace
+} // namespace helix
+#else
+namespace helix {
+namespace {
+constexpr BackendClassOps kAceOps{};
+} // namespace
+} // namespace helix
+#endif
+
+#if HELIX_HAS_QIDI
+#include "ams_backend_qidi.h"
+namespace helix {
+namespace {
+constexpr BackendClassOps kQidiOps{&AmsBackendQidi::kTraits, construct_backend<AmsBackendQidi>,
+                                   nullptr, AmsBackendQidi::required_status_objects};
+} // namespace
+} // namespace helix
+#else
+namespace helix {
+namespace {
+constexpr BackendClassOps kQidiOps{};
+} // namespace
+} // namespace helix
+#endif
+
+#if HELIX_HAS_SNAPMAKER
+#include "ams_backend_multiace.h"
+#include "ams_backend_snapmaker.h"
+namespace helix {
+namespace {
+std::unique_ptr<AmsBackend> construct_snapmaker(IMoonrakerAPI* api, IMoonrakerClient* client,
+                                                const PrinterDiscovery* hw) {
+    if (hw && multiace::present(*hw)) {
+        spdlog::debug("[AMS Backend] Snapmaker SnapSwap has multiACE");
+        return std::make_unique<AmsBackendMultiAce>(api, client);
+    }
+    return std::make_unique<AmsBackendSnapmaker>(api, client);
+}
+constexpr BackendClassOps kSnapmakerOps{&AmsBackendSnapmaker::kTraits, construct_snapmaker, nullptr,
+                                        AmsBackendSnapmaker::required_status_objects};
+} // namespace
+} // namespace helix
+#else
+namespace helix {
+namespace {
+constexpr BackendClassOps kSnapmakerOps{};
+} // namespace
+} // namespace helix
+#endif
 
 namespace helix {
 
@@ -829,41 +937,116 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
 }
 #endif
 
+// ============================================================================
+// One row per backend
+// ============================================================================
+
+namespace {
+
+constexpr BackendClassOps kHappyHareOps{
+    &AmsBackendHappyHare::kTraits, construct_backend<AmsBackendHappyHare>,
+    AmsBackendHappyHare::owns_filament_sensor, AmsBackendHappyHare::required_status_objects};
+constexpr BackendClassOps kAfcOps{&AmsBackendAfc::kTraits, construct_backend<AmsBackendAfc>,
+                                  AmsBackendAfc::owns_filament_sensor,
+                                  AmsBackendAfc::required_status_objects};
+constexpr BackendClassOps kOpenAmsOps{&AmsBackendOpenAms::kTraits,
+                                      construct_backend<AmsBackendOpenAms>, nullptr,
+                                      AmsBackendOpenAms::required_status_objects};
+// Sized and wired by set_discovery() before start().
+constexpr BackendClassOps kIndxOps{&AmsBackendIndx::kIndxTraits, construct_backend<AmsBackendIndx>,
+                                   nullptr, AmsBackendIndx::required_status_objects};
+// The caller names the tools through set_discovered_tools() after creation.
+constexpr BackendClassOps kToolChangerOps{&AmsBackendToolChanger::kTraits,
+                                          construct_backend<AmsBackendToolChanger>};
+
+// Exact spellings: case matters.
+constexpr std::string_view kAfcAliases[] = {"afc", "AFC"};
+constexpr std::string_view kHappyHareAliases[] = {"mmu", "happy_hare", "Happy Hare"};
+constexpr std::string_view kOpenAmsAliases[] = {"openams", "OpenAMS", "oams_manager"};
+constexpr std::string_view kIndxAliases[] = {"indx", "INDX"};
+constexpr std::string_view kIfsAliases[] = {"ad5x_ifs", "ad5x ifs", "ad5x", "ifs"};
+// The bare "box" is Creality's K2 wording; a QIDI Box needs an explicit spelling.
+constexpr std::string_view kCfsAliases[] = {"cfs", "CFS", "box"};
+constexpr std::string_view kAceAliases[] = {"valgace", "ValgACE", "bunnyace", "BunnyACE",
+                                            "duckace", "DuckACE", "ace",      "ACE Pro"};
+constexpr std::string_view kQidiAliases[] = {"qidi_box", "QIDI Box", "qidibox"};
+constexpr std::string_view kSnapmakerAliases[] = {"snapmaker", "Snapmaker", "snapswap", "SnapSwap"};
+constexpr std::string_view kToolChangerAliases[] = {"toolchanger", "tool_changer", "Tool Changer"};
+
+constexpr AmsBackendRow make_row(AmsType type, const BackendClassOps& ops, bool needs_http_poll,
+                                 bool tool_changer, bool filament_system,
+                                 AmsNameAliases name_aliases,
+                                 const char* telemetry_feature = nullptr) {
+    return {type,
+            ops.traits,
+            ops.construct,
+            needs_http_poll,
+            ops.owns_filament_sensor,
+            ops.required_status_objects,
+            tool_changer,
+            filament_system,
+            name_aliases,
+            telemetry_feature};
+}
+
+// NONE comes first: it answers for a value with no row. AmsBackend::required_status_objects()
+// merges in this order, and a later row wins a key two rows share.
+//
+//       type, class, needs_http_poll, tool_changer, filament_system, aliases, telemetry feature
+constexpr AmsBackendRow kBackendRows[] = {
+    make_row(AmsType::NONE, {}, false, false, false, {}),
+    make_row(AmsType::AFC, kAfcOps, false, false, true, kAfcAliases, "mmu_afc"),
+    make_row(AmsType::HAPPY_HARE, kHappyHareOps, false, false, true, kHappyHareAliases,
+             "mmu_happy_hare"),
+    make_row(AmsType::OPENAMS, kOpenAmsOps, false, false, true, kOpenAmsAliases),
+    make_row(AmsType::INDX, kIndxOps, false, true, false, kIndxAliases),
+    make_row(AmsType::AD5X_IFS, kIfsOps, true, false, true, kIfsAliases),
+    make_row(AmsType::CFS, kCfsOps, false, false, true, kCfsAliases),
+    make_row(AmsType::ACE, kAceOps, true, false, true, kAceAliases),
+    make_row(AmsType::QIDI_BOX, kQidiOps, false, false, true, kQidiAliases),
+    // A U1 is both: it swaps heads and feeds each from a lane.
+    make_row(AmsType::SNAPMAKER, kSnapmakerOps, false, true, true, kSnapmakerAliases),
+    make_row(AmsType::TOOL_CHANGER, kToolChangerOps, false, true, false, kToolChangerAliases,
+             "tool_changer"),
+};
+
+} // namespace
+
+const AmsBackendRow& ams_backend_row(AmsType type) {
+    for (const auto& row : kBackendRows) {
+        if (row.type == type) {
+            return row;
+        }
+    }
+    return kBackendRows[0];
+}
+
+bool is_tool_changer(AmsType type) {
+    return ams_backend_row(type).tool_changer;
+}
+
+bool is_filament_system(AmsType type) {
+    return ams_backend_row(type).filament_system;
+}
+
+AmsType ams_type_from_string(std::string_view str) {
+    for (const auto& row : kBackendRows) {
+        for (const std::string_view alias : row.name_aliases) {
+            if (str == alias) {
+                return row.type;
+            }
+        }
+    }
+    return AmsType::NONE;
+}
+
 bool AmsBackend::sensor_belongs_to_backend(AmsType type, const std::string& bare_name,
                                            const helix::PrinterDiscovery& discovery) {
-    // Route to the backend that owns its named (keyword-free) filament sensors.
-    // Each backend declares its own patterns in its translation unit (#1054), so
-    // adding a backend no longer means editing PrinterHardware. Backends with no
-    // named-sensor case (ACE, Tool Changer, Snapmaker, QIDI Box, NONE) fall
-    // through to false — their sensors are caught only by the keyword substring
-    // path in PrinterHardware, exactly as before.
-    switch (type) {
-    case AmsType::HAPPY_HARE:
-        return AmsBackendHappyHare::owns_filament_sensor(bare_name, discovery);
-    case AmsType::AFC:
-        return AmsBackendAfc::owns_filament_sensor(bare_name, discovery);
-    case AmsType::AD5X_IFS:
-#if HELIX_HAS_IFS
-        return AmsBackendAd5xIfs::owns_filament_sensor(bare_name, discovery);
-#else
-        return false;
-#endif
-    case AmsType::CFS:
-#if HELIX_HAS_CFS
-        return printer::AmsBackendCfs::owns_filament_sensor(bare_name, discovery);
-#else
-        return false;
-#endif
-    case AmsType::ACE:
-    case AmsType::TOOL_CHANGER:
-    case AmsType::INDX:
-    case AmsType::SNAPMAKER:
-    case AmsType::QIDI_BOX:
-    case AmsType::OPENAMS:
-    case AmsType::NONE:
-    default:
-        return false;
-    }
+    // A backend's named (keyword-free) filament sensors, by the patterns it declares
+    // in its own translation unit (#1054). Every other sensor is caught only by the
+    // keyword substring path in PrinterHardware.
+    const auto owns = ams_backend_row(type).owns_filament_sensor;
+    return owns && owns(bare_name, discovery);
 }
 
 bool AmsBackend::sensor_name_names_filament_system(std::string_view lower_name) {
@@ -881,35 +1064,15 @@ bool AmsBackend::sensor_name_names_filament_system(std::string_view lower_name) 
 
 nlohmann::json AmsBackend::required_status_objects(const helix::PrinterDiscovery& hw) {
     nlohmann::json objects = nlohmann::json::object();
-    const auto merge = [&objects](const nlohmann::json& from) {
+    for (const auto& row : kBackendRows) {
+        if (!row.required_status_objects) {
+            continue;
+        }
+        const nlohmann::json from = row.required_status_objects(hw);
         for (auto it = from.begin(); it != from.end(); ++it) {
             objects[it.key()] = it.value();
         }
-    };
-
-    merge(AmsBackendAfc::required_status_objects(hw));
-    merge(AmsBackendHappyHare::required_status_objects(hw));
-    merge(AmsBackendOpenAms::required_status_objects(hw));
-    merge(AmsBackendIndx::required_status_objects(hw));
-#if HELIX_HAS_IFS
-    if (hw.mmu_type() == AmsType::AD5X_IFS) {
-        for (const auto& name : AmsBackendAd5xIfs::required_status_objects(hw)) {
-            objects[name] = nullptr;
-        }
     }
-#endif
-#if HELIX_HAS_CFS
-    merge(printer::AmsBackendCfs::required_status_objects(hw));
-#endif
-#if HELIX_HAS_ACE
-    merge(AmsBackendAce::required_status_objects(hw));
-#endif
-#if HELIX_HAS_QIDI
-    merge(AmsBackendQidi::required_status_objects(hw));
-#endif
-#if HELIX_HAS_SNAPMAKER
-    merge(AmsBackendSnapmaker::required_status_objects(hw));
-#endif
     return objects;
 }
 
@@ -924,138 +1087,32 @@ void AmsBackend::shutdown_persistent_state() {
 std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonrakerAPI* api,
                                                IMoonrakerClient* client,
                                                const helix::PrinterDiscovery* hw) {
-    (void)hw; // only variant-bearing types read it, and those can be compiled out
 #ifdef HELIX_ENABLE_MOCKS
     if (auto mock = try_create_mock(client)) {
         return mock;
     }
 #endif
 
-    switch (detected_type) {
-    case AmsType::HAPPY_HARE:
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] Happy Hare requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating Happy Hare backend");
-        return std::make_unique<AmsBackendHappyHare>(api, client);
-
-    case AmsType::AFC:
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] AFC requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating AFC backend");
-        return std::make_unique<AmsBackendAfc>(api, client);
-
-    case AmsType::ACE:
-#if HELIX_HAS_ACE
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] ACE requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        if (!http_poll_ams_backends_supported()) {
-            spdlog::info("[AMS Backend] AMS backend 'ACE' unsupported on this screen");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating ACE backend");
-        return std::make_unique<AmsBackendAce>(api, client);
-#else
-        spdlog::info("[AMS Backend] ACE support not compiled in");
-        return nullptr;
-#endif
-
-    case AmsType::TOOL_CHANGER:
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] Tool changer requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating Tool Changer backend");
-        // Note: Caller must use set_discovered_tools() after creation to set tool names
-        return std::make_unique<AmsBackendToolChanger>(api, client);
-
-    case AmsType::INDX:
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] INDX requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating INDX backend");
-        // Sized and wired by set_discovery() before start()
-        return std::make_unique<AmsBackendIndx>(api, client);
-
-    case AmsType::AD5X_IFS:
-#if HELIX_HAS_IFS
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] AD5X IFS requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        if (!http_poll_ams_backends_supported()) {
-            spdlog::info("[AMS Backend] AMS backend 'AD5X IFS' unsupported on this screen");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating AD5X IFS backend");
-        return std::make_unique<AmsBackendAd5xIfs>(api, client);
-#else
-        spdlog::info("[AMS Backend] IFS support not compiled in");
-        return nullptr;
-#endif
-
-    case AmsType::CFS:
-#if HELIX_HAS_CFS
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] CFS requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating CFS backend");
-        return std::make_unique<printer::AmsBackendCfs>(api, client);
-#else
-        spdlog::info("[AMS Backend] CFS support not compiled in");
-        return nullptr;
-#endif
-
-    case AmsType::SNAPMAKER:
-#if HELIX_HAS_SNAPMAKER
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] Snapmaker requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        if (hw && multiace::present(*hw)) {
-            spdlog::debug("[AMS Backend] Creating Snapmaker SnapSwap backend with multiACE");
-            return std::make_unique<AmsBackendMultiAce>(api, client);
-        }
-        spdlog::debug("[AMS Backend] Creating Snapmaker SnapSwap backend");
-        return std::make_unique<AmsBackendSnapmaker>(api, client);
-#else
-        spdlog::info("[AMS Backend] Snapmaker support not compiled in");
-        return nullptr;
-#endif
-
-    case AmsType::QIDI_BOX:
-#if HELIX_HAS_QIDI
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] QIDI Box requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating QIDI Box backend (stub)");
-        return std::make_unique<AmsBackendQidi>(api, client);
-#else
-        spdlog::info("[AMS Backend] QIDI Box support not compiled in");
-        return nullptr;
-#endif
-
-    case AmsType::OPENAMS:
-        if (!api || !client) {
-            spdlog::error("[AMS Backend] OpenAMS requires IMoonrakerAPI and MoonrakerClient");
-            return nullptr;
-        }
-        spdlog::debug("[AMS Backend] Creating OpenAMS backend");
-        return std::make_unique<AmsBackendOpenAms>(api, client);
-
-    case AmsType::NONE:
-    default:
+    const AmsBackendRow& row = ams_backend_row(detected_type);
+    const char* const name = ams_type_to_string(row.type);
+    if (row.type == AmsType::NONE) {
         spdlog::debug("[AMS Backend] No AMS detected");
         return nullptr;
     }
+    if (!row.construct) {
+        spdlog::info("[AMS Backend] {} support not compiled in", name);
+        return nullptr;
+    }
+    if (!api || !client) {
+        spdlog::error("[AMS Backend] {} requires IMoonrakerAPI and MoonrakerClient", name);
+        return nullptr;
+    }
+    if (row.needs_http_poll && !http_poll_ams_backends_supported()) {
+        spdlog::info("[AMS Backend] AMS backend '{}' unsupported on this screen", name);
+        return nullptr;
+    }
+    spdlog::debug("[AMS Backend] Creating {} backend", name);
+    return row.construct(api, client, hw);
 }
 
 // ============================================================================

@@ -156,7 +156,6 @@ TEST_CASE("Real kTraits name each machine's positions and constant answers", "[a
     CHECK(AmsBackendSnapmaker::kTraits.print_routing_resets_to_identity);
     CHECK(AmsBackendIndx::kIndxTraits.heads_share_heater);
     CHECK_FALSE(AmsBackendToolChanger::kTraits.heads_share_heater);
-    // Heads that dock: the carriage can hold none, whichever way a load works.
     CHECK(AmsBackendToolChanger::kTraitsWithFeed.carriage_can_be_empty);
     CHECK(AmsBackendIndx::kIndxTraits.carriage_can_be_empty);
     CHECK(AmsBackendMultiAce(nullptr, nullptr).carriage_can_be_empty());
