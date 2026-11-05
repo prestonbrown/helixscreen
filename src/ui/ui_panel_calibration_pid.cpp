@@ -18,6 +18,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "preset_materials.h"
+#include "print_lifecycle_state.h"
 #include "static_panel_registry.h"
 #include "static_subject_registry.h"
 #include "temperature_service.h"
@@ -379,6 +380,23 @@ void PIDCalibrationPanel::on_deactivate() {
 
     // Teardown graph before deactivating
     teardown_pid_graph();
+
+    // Klipper runs one command at a time, so a running print means any
+    // calibration started here already ended, and the fan and heaters are the
+    // print's. A paused print accepts commands, so a calibration may have been
+    // started during the pause: its fan is ours, while its heater is turned off
+    // by the calibration itself and the print's resume owns the rest.
+    const PrintState lifecycle = get_printer_state().get_print_lifecycle();
+    if (job_holds_machine(lifecycle)) {
+        if (lifecycle == PrintState::Paused) {
+            turn_off_fan();
+        }
+        if (state_ == State::CALIBRATING) {
+            spdlog::info("[PIDCal] Leaving calibration: a print is running, heaters left on");
+        }
+        OverlayBase::on_deactivate();
+        return;
+    }
 
     // Turn off fan if it was running
     turn_off_fan();
