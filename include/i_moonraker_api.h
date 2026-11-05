@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "async_lifetime_guard.h"
 #include "i_moonraker_sub_apis.h" // sub-API interfaces returned by the accessors
 #include "json_fwd.h"
 #include "lvgl.h"             // lv_subject_t
@@ -321,6 +322,10 @@ class IMoonrakerAPI {
 
     /// @brief Get client lifetime guard (for SubscriptionGuard safety)
     virtual std::weak_ptr<bool> client_lifetime_weak() const = 0;
+
+    /// Expires when this API is destroyed. Check it on the main thread before using
+    /// the API from work that outlives the call that started it.
+    virtual helix::LifetimeToken lifetime_token() const = 0;
 
     // ========================================================================
     // Internal Access

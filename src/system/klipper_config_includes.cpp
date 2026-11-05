@@ -4,6 +4,7 @@
 #include "klipper_config_includes.h"
 
 #include "i_moonraker_api.h"
+#include "ui_update_queue.h"
 
 #include <spdlog/spdlog.h>
 
@@ -264,7 +265,12 @@ void step_include_walk(const std::shared_ptr<IncludeWalk>& walk) {
             walk->files[path] = std::move(content);
             step_include_walk(walk);
         },
-        [walk, path = path](const std::string& message) {
+        [walk, path = path](const std::string& message, bool fatal) {
+            if (fatal) {
+                if (walk->on_error)
+                    walk->on_error("Failed to download " + path + ": " + message);
+                return;
+            }
             // An include that cannot be fetched leaves the rest of the config readable.
             spdlog::warn("[ConfigIncludes] Failed to download {}: {}", path, message);
             step_include_walk(walk);
@@ -290,55 +296,70 @@ void walk_config_includes(const std::string& root_file, ConfigListDirFn list, Co
 void resolve_active_config_files_with_content(IMoonrakerAPI& api,
                                               ActiveFilesWithContentCallback on_complete,
                                               ErrorCallback on_error) {
-    // api must outlive all async callbacks (guaranteed: IMoonrakerAPI is owned by Printer
-    // singleton)
+    // Each step starts from a completion on a background thread, while teardown destroys
+    // the API on the main thread without draining those. On the main thread the token
+    // proves the API still alive.
     auto is_cfg = [](const std::string& path) {
         return path.size() > 4 && path.compare(path.size() - 4, 4, ".cfg") == 0;
     };
-    ConfigListDirFn list = [&api, is_cfg](const std::string& dir, bool whole_tree,
-                                          std::function<void(std::vector<std::string>)> ok,
-                                          std::function<void(std::string)> fail) {
-        if (whole_tree) {
-            api.files().list_files(
-                "config", "", true,
-                [is_cfg, ok](const std::vector<FileInfo>& files) {
+    ConfigListDirFn list = [&api, tok = api.lifetime_token(),
+                            is_cfg](const std::string& dir, bool whole_tree,
+                                    std::function<void(std::vector<std::string>)> ok,
+                                    std::function<void(std::string)> fail) {
+        helix::ui::queue_update([&api, tok, is_cfg, dir, whole_tree, ok, fail]() {
+            if (tok.expired()) {
+                fail("the printer disconnected");
+                return;
+            }
+            if (whole_tree) {
+                api.files().list_files(
+                    "config", "", true,
+                    [is_cfg, ok](const std::vector<FileInfo>& files) {
+                        std::vector<std::string> out;
+                        for (const auto& f : files) {
+                            std::string path = f.path.empty() ? f.filename : f.path;
+                            if (!f.is_dir && is_cfg(path))
+                                out.push_back(std::move(path));
+                        }
+                        ok(std::move(out));
+                    },
+                    [fail](const MoonrakerError& err) { fail(err.message); });
+                return;
+            }
+            api.files().get_directory(
+                "config", dir,
+                [is_cfg, dir, ok](const std::vector<FileInfo>& files) {
                     std::vector<std::string> out;
                     for (const auto& f : files) {
-                        std::string path = f.path.empty() ? f.filename : f.path;
+                        std::string path = dir.empty() ? f.filename : dir + "/" + f.filename;
                         if (!f.is_dir && is_cfg(path))
                             out.push_back(std::move(path));
                     }
                     ok(std::move(out));
                 },
-                [fail](const MoonrakerError& err) { fail(err.message); });
-            return;
-        }
-        api.files().get_directory(
-            "config", dir,
-            [is_cfg, dir, ok](const std::vector<FileInfo>& files) {
-                std::vector<std::string> out;
-                for (const auto& f : files) {
-                    std::string path = dir.empty() ? f.filename : dir + "/" + f.filename;
-                    if (!f.is_dir && is_cfg(path))
-                        out.push_back(std::move(path));
-                }
-                ok(std::move(out));
-            },
-            [ok, fail](const MoonrakerError& err) {
-                // Moonraker reports this as a plain 400 with this text. An [include] may
-                // name a directory that is not there.
-                if (err.type == MoonrakerErrorType::FILE_NOT_FOUND ||
-                    err.message.find("Directory does not exist") != std::string::npos)
-                    ok({});
-                else
-                    fail(err.message);
-            });
+                [ok, fail](const MoonrakerError& err) {
+                    // Moonraker reports this as a plain 400 with this text. An [include]
+                    // may name a directory that is not there.
+                    if (err.type == MoonrakerErrorType::FILE_NOT_FOUND ||
+                        err.message.find("Directory does not exist") != std::string::npos)
+                        ok({});
+                    else
+                        fail(err.message);
+                });
+        });
     };
-    ConfigFetchFn fetch = [&api](const std::string& path, std::function<void(std::string)> ok,
-                                 std::function<void(std::string)> fail) {
-        api.transfers().download_file(
-            "config", path, [ok](const std::string& content) { ok(content); },
-            [fail](const MoonrakerError& err) { fail(err.message); });
+    ConfigFetchFn fetch = [&api, tok = api.lifetime_token()](
+                              const std::string& path, std::function<void(std::string)> ok,
+                              std::function<void(std::string, bool)> fail) {
+        helix::ui::queue_update([&api, tok, path, ok, fail]() {
+            if (tok.expired()) {
+                fail("the printer disconnected", true);
+                return;
+            }
+            api.transfers().download_file(
+                "config", path, [ok](const std::string& content) { ok(content); },
+                [fail](const MoonrakerError& err) { fail(err.message, false); });
+        });
     };
     walk_config_includes("printer.cfg", std::move(list), std::move(fetch), std::move(on_complete),
                          std::move(on_error));

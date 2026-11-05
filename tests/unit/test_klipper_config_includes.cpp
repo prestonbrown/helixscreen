@@ -303,6 +303,7 @@ struct WalkFakes {
     int completions = 0;
     std::string error;
     bool fail_list = false;
+    bool fatal_fetch = false;
 
     void run() {
         walk_config_includes(
@@ -322,7 +323,11 @@ struct WalkFakes {
                 ok(std::move(out));
             },
             [this](const std::string& path, std::function<void(std::string)> ok,
-                   std::function<void(std::string)>) {
+                   std::function<void(std::string, bool)> fail) {
+                if (fatal_fetch) {
+                    fail("the printer disconnected", true);
+                    return;
+                }
                 fetched.push_back(path);
                 ok(server.at(path));
             },
@@ -378,4 +383,14 @@ TEST_CASE("walk_config_includes reports a missing root and a failed listing", "[
     failed.run();
     CHECK(failed.completions == 0);
     CHECK(failed.error == "Failed to list config files: reset");
+}
+
+TEST_CASE("walk_config_includes stops on a fatal download failure", "[config][includes]") {
+    WalkFakes w;
+    w.server = {{"printer.cfg", "[p]\n"}};
+    w.fatal_fetch = true;
+    w.run();
+
+    CHECK(w.completions == 0);
+    CHECK(w.error == "Failed to download printer.cfg: the printer disconnected");
 }

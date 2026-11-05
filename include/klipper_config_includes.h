@@ -69,10 +69,11 @@ using ConfigListDirFn =
     std::function<void(const std::string& dir, bool whole_tree,
                        std::function<void(std::vector<std::string>)> ok,
                        std::function<void(std::string)> fail)>;
-/// Downloads one config file.
+/// Downloads one config file. @p fail's bool says the walk cannot continue; otherwise only
+/// this file is skipped.
 using ConfigFetchFn = std::function<void(const std::string& path,
                                          std::function<void(std::string)> ok,
-                                         std::function<void(std::string)> fail)>;
+                                         std::function<void(std::string, bool fatal)> fail)>;
 
 /// Fetches @p root_file and every file its [include] chain reaches, listing only the
 /// directories those includes name: server.files.list walks a whole root with
