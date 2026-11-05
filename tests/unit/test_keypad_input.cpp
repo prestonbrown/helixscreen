@@ -417,3 +417,71 @@ TEST_CASE("KeypadInput sign toggle", "[keypad]") {
         CHECK_FALSE(std::signbit(kp.value()));
     }
 }
+
+namespace {
+/// Types @p keys into @p kp ('.' for the dot key); false at the first key refused.
+bool type_keys(KeypadInput& kp, const char* keys) {
+    for (const char* k = keys; *k; ++k) {
+        const bool ok = *k == '.' ? kp.append_dot() : kp.append_digit(*k - '0');
+        if (!ok)
+            return false;
+    }
+    return true;
+}
+} // namespace
+
+TEST_CASE("KeypadInput Ipv4 mode types a dotted quad", "[keypad][ipv4]") {
+    KeypadInput kp;
+    kp.mode = KeypadInput::Mode::Ipv4;
+
+    REQUIRE(type_keys(kp, "192.168.1.50"));
+    CHECK(std::string(kp.text()) == "192.168.1.50");
+    CHECK_FALSE(kp.append_dot()); // a fourth dot
+
+    SECTION("an octet stops at three digits") {
+        kp.clear();
+        REQUIRE(type_keys(kp, "001"));
+        CHECK_FALSE(kp.append_digit(1));
+        CHECK(std::string(kp.text()) == "001");
+    }
+
+    SECTION("a dot needs an octet before it") {
+        kp.clear();
+        CHECK_FALSE(kp.append_dot());
+        REQUIRE(type_keys(kp, "10."));
+        CHECK_FALSE(kp.append_dot());
+        CHECK(std::string(kp.text()) == "10.");
+    }
+    SECTION("an octet stops at 255") {
+        kp.clear();
+        REQUIRE(type_keys(kp, "25"));
+        CHECK_FALSE(kp.append_digit(6));
+        CHECK(kp.append_digit(5));
+        REQUIRE(type_keys(kp, ".26"));
+        CHECK_FALSE(kp.append_digit(0));
+        CHECK(std::string(kp.text()) == "255.26");
+    }
+    SECTION("backspace across a dot resumes the octet before it") {
+        kp.clear();
+        REQUIRE(type_keys(kp, "10.0."));
+        CHECK(kp.backspace());
+        CHECK(kp.backspace());
+        CHECK(std::string(kp.text()) == "10.");
+        CHECK(kp.backspace());
+        CHECK(kp.append_digit(0));
+        CHECK(std::string(kp.text()) == "100");
+        CHECK_FALSE(kp.append_digit(0)); // "1000" is no octet
+    }
+    SECTION("no sign") {
+        kp.allow_sign = true;
+        CHECK_FALSE(kp.toggle_sign());
+    }
+}
+
+TEST_CASE("KeypadInput Number mode ignores the Ipv4 rules", "[keypad][ipv4]") {
+    KeypadInput kp;
+    kp.max_int_digits = 5;
+    REQUIRE(type_keys(kp, "9999"));     // no 255 cap, no three-digit octet
+    CHECK_FALSE(type_keys(kp, ".5.5")); // one dot only
+    CHECK(std::string(kp.text()) == "9999.5");
+}
