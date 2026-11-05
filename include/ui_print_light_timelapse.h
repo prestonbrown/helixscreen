@@ -66,6 +66,14 @@ class PrintLightTimelapseControls {
     }
 
     /**
+     * @brief Follow the printer's global timelapse setting
+     *
+     * The button shows that setting, and a successful toggle writes it back here,
+     * so the button and the pre-print default cannot disagree.
+     */
+    void set_printer_state(helix::PrinterState& printer_state);
+
+    /**
      * @brief Handle light button click
      *
      * Toggles the LED state via Moonraker API.
@@ -100,6 +108,7 @@ class PrintLightTimelapseControls {
     //
 
     helix::IMoonrakerAPI* api_ = nullptr;
+    helix::PrinterState* printer_state_ = nullptr;
 
     //
     // === Subject Management ===
@@ -122,6 +131,7 @@ class PrintLightTimelapseControls {
     //
 
     bool timelapse_enabled_ = false;
+    ObserverGuard timelapse_enabled_observer_;
     lv_subject_t timelapse_button_subject_{};
     char timelapse_button_buf_[8] = ""; // MDI video/video-off icon
 

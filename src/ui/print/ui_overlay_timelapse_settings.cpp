@@ -5,8 +5,10 @@
 
 #include "ui_callback_helpers.h"
 
+#include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "lvgl.h"
+#include "printer_state.h"
 #include "runtime_config.h"
 #include "theme_manager.h"
 #include "timelapse_state.h"
@@ -204,9 +206,12 @@ void TimelapseSettingsOverlay::save_settings() {
 
     api_->timelapse().set_timelapse_settings(
         current_settings_,
-        lifetime_.bg_cb(
-            "TimelapseSettingsOverlay::save_settings",
-            [this]() { spdlog::info("[{}] Timelapse settings saved successfully", get_name()); }),
+        lifetime_.bg_cb("TimelapseSettingsOverlay::save_settings",
+                        [this, enabled = current_settings_.enabled]() {
+                            spdlog::info("[{}] Timelapse settings saved successfully", get_name());
+                            // The pre-print toggle writes this setting back at print start.
+                            get_printer_state().set_timelapse_default_enabled(enabled);
+                        }),
         lifetime_.bg_cb("TimelapseSettingsOverlay::save_settings_error",
                         [this](const MoonrakerError& error) {
                             spdlog::error("[{}] Failed to save timelapse settings: {}", get_name(),

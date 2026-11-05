@@ -621,7 +621,13 @@ void PrinterState::set_timelapse_available(bool available) {
     // Resynthesize the option set (timelapse is appended dynamically when
     // available) and recompute aggregate visibility — both must run on the
     // main thread.
-    async_lifetime_.defer("PrinterState::set_timelapse_available", [this]() {
+    async_lifetime_.defer("PrinterState::set_timelapse_available", [this, available]() {
+        // A plugin that went away takes its setting with it; the next printer's
+        // discovery seeds its own.
+        if (!available) {
+            profile_state_.set_timelapse_default_enabled(false);
+            composite_visibility_state_.set_timelapse_enabled(false);
+        }
         apply_dynamic_options();
         update_gcode_modification_visibility();
     });
@@ -633,6 +639,7 @@ void PrinterState::set_timelapse_default_enabled(bool enabled) {
     // resynthesis must run on the main thread (#1094).
     async_lifetime_.defer("PrinterState::set_timelapse_default_enabled", [this, enabled]() {
         profile_state_.set_timelapse_default_enabled(enabled);
+        composite_visibility_state_.set_timelapse_enabled(enabled);
         apply_dynamic_options();
         update_gcode_modification_visibility();
     });
@@ -703,6 +710,8 @@ void PrinterState::update_gcode_modification_visibility() {
     composite_visibility_state_.update_visibility(
         plugin, capabilities_state_, profile_state_.pre_print_option_set().options.size(),
         macro_option_count_);
+    composite_visibility_state_.set_timelapse_owner(
+        timelapse_owner(profile_state_.firmware_owns_timelapse(), timelapse_available()));
 }
 
 bool PrinterState::is_blocking_operation_active() {
