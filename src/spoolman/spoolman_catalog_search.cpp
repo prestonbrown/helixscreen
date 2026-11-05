@@ -3,6 +3,9 @@
 
 #include "spoolman_catalog_search.h"
 
+#include "color_utils.h"
+#include "filament_mapper.h"
+#include "filament_variants.h"
 #include "moonraker_error.h"
 #include "text_io.h"
 
@@ -86,6 +89,68 @@ const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& fila
         }
     }
     return nullptr;
+}
+
+std::string material_for_type(const std::string& display_type) {
+    const std::string type(text_io::trim(display_type));
+    if (type.empty()) {
+        return {};
+    }
+    if (std::string orca = filament::orca_match_type(type); !orca.empty()) {
+        return orca;
+    }
+    if (std::string base = filament::extract_base_material(type); !base.empty()) {
+        return base;
+    }
+    return type;
+}
+
+std::string new_filament_name(const std::string& product, const std::string& color_name) {
+    const std::string head(text_io::trim(product));
+    const std::string tail(text_io::trim(color_name));
+    if (head.empty() || tail.empty()) {
+        return head.empty() ? tail : head;
+    }
+    return head + " " + tail;
+}
+
+int temperature_for_range(int min_temp, int max_temp) {
+    if (min_temp > 0 && max_temp > 0) {
+        return (min_temp + max_temp) / 2;
+    }
+    return std::max({min_temp, max_temp, 0});
+}
+
+const FilamentInfo* find_similar_filament(const std::vector<FilamentInfo>& filaments,
+                                          const std::string& material,
+                                          const std::string& color_hex) {
+    const std::string needle = normalize_color_hex(color_hex);
+    if (needle.empty() || material.empty()) {
+        return nullptr;
+    }
+    // The first six digits are the colour; an alpha byte does not move it.
+    const auto wanted = parse_hex_color(needle.substr(0, 6));
+    if (!wanted) {
+        return nullptr;
+    }
+    const FilamentInfo* best = nullptr;
+    int best_distance = FilamentMapper::kColorMatchTolerance + 1;
+    for (const auto& f : filaments) {
+        const std::string hex = normalize_color_hex(f.color_hex);
+        if (hex.empty() || material_for_type(f.material) != material) {
+            continue;
+        }
+        const auto rgb = parse_hex_color(hex.substr(0, 6));
+        if (!rgb) {
+            continue;
+        }
+        const int distance = FilamentMapper::color_distance(*wanted, *rgb);
+        if (distance < best_distance) {
+            best = &f;
+            best_distance = distance;
+        }
+    }
+    return best;
 }
 
 namespace {

@@ -44,13 +44,11 @@ namespace {
 constexpr size_t kMaxVendorNameLen = 256;
 constexpr size_t kMaxVendorUrlLen = 2048;
 
-/// Spoolman stores one integer temperature per filament. A catalog range
-/// becomes its midpoint; a range with one end set becomes that end.
+/// Spoolman stores one integer temperature per filament; an unknown one is
+/// left out.
 void set_spoolman_temp(nlohmann::json& data, const char* key, int min_val, int max_val) {
-    if (min_val > 0 && max_val > 0) {
-        data[key] = (min_val + max_val) / 2;
-    } else if (min_val > 0 || max_val > 0) {
-        data[key] = std::max(min_val, max_val);
+    if (const int temp = helix::spoolman::temperature_for_range(min_val, max_val); temp > 0) {
+        data[key] = temp;
     }
 }
 
@@ -645,7 +643,8 @@ void SpoolWizardOverlay::create_vendor_then_filament_then_spool() {
 nlohmann::json SpoolWizardOverlay::filament_create_payload(const FilamentEntry& f, int vendor_id) {
     nlohmann::json data;
     data["vendor_id"] = vendor_id;
-    data["name"] = f.name.empty() ? f.material + " " + f.color_name : f.name;
+    data["name"] =
+        f.name.empty() ? helix::spoolman::new_filament_name(f.material, f.color_name) : f.name;
     data["material"] = f.material;
     if (!f.multi_color_hexes.empty()) {
         data["multi_color_hexes"] = f.multi_color_hexes;
