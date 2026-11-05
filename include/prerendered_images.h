@@ -109,6 +109,15 @@ namespace helix {
                                                         int width, int height);
 
 /**
+ * @brief The source image's "<mtime>-<size>", as the cache names carry it
+ *
+ * Changes when the file is rewritten in place under the same path.
+ *
+ * @param source_image_path The LVGL source path (with or without A: prefix)
+ */
+[[nodiscard]] std::string printer_image_source_fingerprint(const std::string& source_image_path);
+
+/**
  * @brief Whether a cache filename is an entry generated from a given source image
  *
  * Pure name arithmetic — touches no filesystem. A match requires the source's
