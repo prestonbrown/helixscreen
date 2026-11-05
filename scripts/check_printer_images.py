@@ -24,14 +24,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DB = REPO_ROOT / "assets" / "config" / "printer_database.json"
 IMG_DIR = REPO_ROOT / "assets" / "images" / "printers"
 
-# Empty, and worth keeping that way. Every database entry now names an image that
-# exists: art was drawn for the Artillery Genius Pro, Kingroon KLP1 and Sovol SV07,
-# the Sidewinder X2 shares the Genius Pro frame, the five community-config entries
-# (KAMP, Klippain Shake&Tune, ERCF/Happy Hare, Klicky, Ellis) use generic-corexy,
-# and the Bambu and two unillustrated Kingroon entries were dropped. A new entry
-# without art belongs here WITH a reason, not silently falling through to the
-# generic frame - which is what hid the previous twenty.
-KNOWN_MISSING: set[str] = set()
+# A new entry without art belongs here WITH a reason, not silently falling through to
+# the generic frame. Keep the list short: every image here still needs drawing.
+KNOWN_MISSING: set[str] = {
+    # Anycubic Kobra X: no artwork exists yet. Detection is verified from a real
+    # machine (debug bundle JYTPVPP9); until the art lands it shows generic-corexy.
+    "anycubic-kobra-x.png",
+}
 
 
 def referenced_images(entry):
