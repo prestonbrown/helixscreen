@@ -198,3 +198,41 @@ TEST_CASE("motion panel fills the header slot and carries the portrait strip", "
     // subjects (motion_x_homed & co.) that no C++ registers any more.
     CHECK(xml.find("motion_position_card") == std::string::npos);
 }
+
+// motion_panel.xml's body is an <if> on ui_is_portrait, so a rotation (an Android window
+// resize) deletes the branch holding the jog pad while the panel stays on the stack.
+TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the panel holds",
+                 "[motion][uaf][rotation]") {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    NavigationManager::instance().set_panels(panels.data());
+
+    REQUIRE(get_global_motion_panel().show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* root = get_global_motion_panel().get_root();
+    REQUIRE(root != nullptr);
+    lv_obj_t* old_pad = lv_obj_find_by_name(root, "jog_pad");
+    REQUIRE(old_pad != nullptr);
+
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int was_portrait = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, was_portrait ? 0 : 1);
+
+    // The rebuilt branch carries a live pad, not the placeholder it was built with.
+    lv_obj_t* new_pad = lv_obj_find_by_name(root, "jog_pad");
+    REQUIRE(new_pad != nullptr);
+    CHECK(new_pad != old_pad);
+    CHECK(lv_obj_find_by_name(root, "jog_pad_container") == nullptr);
+
+    // Free the condemned branch, then leave: deactivating stops the pad's repeat.
+    process_lvgl(100);
+    NavigationManager::instance().go_back();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(100);
+
+    lv_subject_set_int(portrait, was_portrait);
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+}
