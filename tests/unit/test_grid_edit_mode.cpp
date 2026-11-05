@@ -617,6 +617,87 @@ TEST_CASE("selection pills: outside a widget too small to share, off its corner,
     }
 }
 
+TEST_CASE("selection pills: on their own corner in a packed micro grid, clear of the delete-page "
+          "button on a corner",
+          "[grid_edit][edit-chrome][halfcell]") {
+    using Corner = GridEditMode::PillCorner;
+    auto same = [](const lv_area_t& a, const lv_area_t& b) {
+        return a.x1 == b.x1 && a.y1 == b.y1 && a.x2 == b.x2 && a.y2 == b.y2;
+    };
+    auto covers = [](const lv_area_t& a, const lv_area_t& t) {
+        const int32_t cx = (t.x1 + t.x2) / 2;
+        const int32_t cy = (t.y1 + t.y2) / 2;
+        return cx >= a.x1 && cx <= a.x2 && cy >= a.y1 && cy <= a.y2;
+    };
+
+    // 480x272: 24px pills overhanging by 6, 2px gaps, every track taken. No
+    // spot outside the tile spares its neighbours, so the pills go on its own
+    // corner, out past its centre, a few px onto the neighbours.
+    const lv_area_t micro{42, 4, 471, 267};
+    struct Grid {
+        int pitch_x, pitch_y, w, h;
+        lv_area_t tile, trash, cfg;
+    };
+    const Grid grids[] = {
+        {36, 33, 34, 31, {222, 136, 255, 166}, {239, 127, 262, 150}, {214, 127, 237, 150}},
+        {72, 66, 70, 64, {186, 70, 255, 133}, {238, 64, 261, 87}, {180, 64, 203, 87}},
+    };
+    for (const auto& g : grids) {
+        CAPTURE(g.w, g.h);
+        std::vector<lv_area_t> others;
+        for (int32_t x = micro.x1; x + g.w - 1 <= micro.x2; x += g.pitch_x) {
+            for (int32_t y = micro.y1; y + g.h - 1 <= micro.y2; y += g.pitch_y) {
+                const lv_area_t t{x, y, x + g.w - 1, y + g.h - 1};
+                if (!same(t, g.tile)) {
+                    others.push_back(t);
+                }
+            }
+        }
+        CHECK_FALSE(
+            GridEditMode::outside_pill_area(g.tile, 24, micro, 2, Corner::TopRight, {}, others)
+                .has_value());
+        const lv_area_t trash =
+            GridEditMode::corner_pill_area(g.tile, 24, 6, 2, Corner::TopRight, {}, others);
+        CHECK(same(trash, g.trash));
+        CHECK(
+            same(GridEditMode::corner_pill_area(g.tile, 24, 6, 2, Corner::TopLeft, {trash}, others),
+                 g.cfg));
+    }
+
+    // On the tile's corner: 36px pills overhanging by 9, at 800x480.
+    const lv_area_t del = GridEditMode::delete_page_button_area({80, 0, 799, 479});
+    struct Row {
+        const char* what;
+        lv_area_t tile;
+        Corner corner;
+        std::vector<lv_area_t> blocked;
+        lv_area_t pill;
+    };
+    // A whole cell mid-grid; under the delete-page button, which the trash
+    // slides below, or left along the top edge when that is taken; a tile too
+    // small for its corner, whose pills sit out past its centre.
+    constexpr Corner R = Corner::TopRight;
+    constexpr Corner L = Corner::TopLeft;
+    const Row rows[] = {
+        {"whole", {400, 200, 517, 317}, R, {del}, {491, 191, 526, 226}},
+        {"whole cfg", {400, 200, 517, 317}, L, {del}, {391, 191, 426, 226}},
+        {"under delete", {682, 0, 799, 117}, R, {del}, {773, 53, 808, 88}},
+        {"below taken", {682, 0, 799, 117}, R, {del, {760, 48, 810, 100}}, {711, -9, 746, 26}},
+        {"small", {400, 200, 430, 228}, R, {}, {416, 178, 451, 213}},
+        {"small cfg", {400, 200, 430, 228}, L, {}, {379, 178, 414, 213}},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        const lv_area_t pill =
+            GridEditMode::corner_pill_area(row.tile, 36, 9, 5, row.corner, row.blocked);
+        CHECK(same(pill, row.pill));
+        CHECK_FALSE(covers(pill, row.tile));
+        for (const lv_area_t& b : row.blocked) {
+            CHECK((pill.x2 < b.x1 || pill.x1 > b.x2 || pill.y2 < b.y1 || pill.y1 > b.y2));
+        }
+    }
+}
+
 TEST_CASE("press_owns_widget: the press origin decides, with the grab band of drift",
           "[grid_edit][drag][resize][1169]") {
     GridEditMode em;

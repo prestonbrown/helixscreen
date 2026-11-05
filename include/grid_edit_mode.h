@@ -358,12 +358,32 @@ class GridEditMode {
     /// pill already placed, the delete-page button). A pill above another
     /// widget would take the tap that selects it, so a spot clear of every rect
     /// in @p tiles wins, and a spot over another tile's centre, or over more
-    /// than a sliver of it, never qualifies.
+    /// than a sliver of it, never qualifies: a tap meant to select that tile
+    /// would land on the pill.
     static std::optional<lv_area_t> outside_pill_area(const lv_area_t& tile, int pill_px,
                                                       const lv_area_t& bounds, int gap,
                                                       PillCorner corner,
                                                       const std::vector<lv_area_t>& blocked = {},
                                                       const std::vector<lv_area_t>& tiles = {});
+
+    /// Screen rect of a @p pill_px selection pill on @p tile's @p corner, a
+    /// pill that overhangs the corner by @p overhang px on each axis.
+    ///
+    /// A pill over a rect in @p blocked (the delete-page button, a pill
+    /// already placed) would take its taps, so the pill slides down the
+    /// tile's side, then along its top edge toward its middle, @p gap px clear
+    /// of the rect. A pill over the tile's centre would leave no drag target,
+    /// so on a tile too small for the corner spot to miss it the pill moves
+    /// out past the centre, and a slide never ends on it nor on more than a
+    /// sliver of any of @p tiles. With no clear spot the pill keeps its
+    /// corner.
+    static lv_area_t corner_pill_area(const lv_area_t& tile, int pill_px, int overhang, int gap,
+                                      PillCorner corner, const std::vector<lv_area_t>& blocked = {},
+                                      const std::vector<lv_area_t>& tiles = {});
+
+    /// Whether the release that produced @p e acts on the pill it ended on:
+    /// it lifted over the pill, and not over the delete-page button beneath.
+    bool pill_release_acts(lv_event_t* e) const;
 
     /// Screen rect of the delete-page button in the top-right corner of a
     /// page whose content area is @p content.
