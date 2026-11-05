@@ -8,6 +8,7 @@
 #include "ui_info_qr_modal.h"
 #include "ui_modal.h"
 #if HELIX_HAS_PLUGINS
+#include "notice.h"
 #include "plugins_overlay.h"
 #endif
 #include "ui_nav.h"
@@ -317,6 +318,14 @@ void SettingsPanel::show_restart_prompt() {
         InputSettingsManager::instance().clear_restart_pending();
     }
 }
+
+namespace {
+const UiRequestRegistration s_hardware_health_registration{
+    UiRequestKind::OpenHardwareHealth, [](const UiRequest&) {
+        helix::nav::set_active(PanelId::Settings);
+        get_global_settings_panel().handle_hardware_health_clicked();
+    }};
+} // namespace
 
 void SettingsPanel::handle_hardware_health_clicked() {
     spdlog::debug("[{}] Hardware Health clicked - delegating to HardwareHealthOverlay", get_name());

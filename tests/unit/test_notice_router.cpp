@@ -181,8 +181,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "Hardware validation publishes its notice with
 
     CHECK(g_captured[0].duration_ms == 8000);
     CHECK(g_captured[0].action_text == "View");
-    CHECK(g_captured[0].action != nullptr);
+    REQUIRE(g_captured[0].action != nullptr);
     CHECK(g_captured[0].action_user_data == nullptr);
+
+    CapturedRequests requests(UiRequestKind::OpenHardwareHealth);
+    g_captured[0].action(g_captured[0].action_user_data);
+    CHECK(g_requests.size() == 1);
 }
 
 TEST_CASE("A UI request reaches its kind's handler with its fields, on the calling thread",
