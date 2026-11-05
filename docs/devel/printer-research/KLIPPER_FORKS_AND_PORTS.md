@@ -72,6 +72,18 @@ Anycubic firmware is tracked by the Rinkhals RE community by an internal
 - **Rinkhals does not support the Kobra X** — "blocked by RSA signature."
   Documented bypass vectors are the usual last resorts: physical serial/UART
   access, or a software vuln in one of the `avata_*` processes.
+- **The Kobra X does run vanilla Klipper now, by replacing the stock OS.** The
+  community "Kobrian" image is Debian 13 running upstream Python Klipper
+  (`6af413d-dirty`) and Moonraker on the Kobra X's own board (armv7l, 1 core,
+  237 MB RAM, 480x320 fbdev, tlsc6x touch). HelixScreen 1.1.0-beta.12 runs on
+  it as the screen (debug bundle JYTPVPP9). How the image gets onto the board
+  is not recorded in that bundle.
+- What a Kobrian Kobra X reports: hostname `kobrian-kx-<suffix>`, the KX head
+  as `kx_toolchanger`, `kx_selector`, `kx_filament`, `kx_clog_check`,
+  `kx_endless_spool` and `kx_rfid`, Anycubic's motor link as `motor_link` /
+  `motor_steploss` / `motor_anc`, a `load_cell_probe`, and the ACE through the
+  ACEPRO driver (`ace`, `ace_state`, `ace_instance_0`) rather than GoKlipper's
+  `filament_hub`. The detection entry is `anycubic_kobra_x`.
 - Asymmetry worth noting: Anycubic **open-sourced** the Go base
   ([Klipper-go](https://github.com/ANYCUBIC-3D/Klipper-go),
   [K3-klipper-mcu](https://github.com/ANYCUBIC-3D/K3-klipper-mcu)) but **locked
@@ -164,9 +176,11 @@ manufacturers.
   Pro backend already supported. Watch for `klipper-go` WebSocket/object quirks
   (may need REST polling for some objects) — see
   [ANYCUBIC_KOBRA_COREXY_RESEARCH.md](ANYCUBIC_KOBRA_COREXY_RESEARCH.md).
-- **C++ closed + signed (Kobra X / K4):** effectively **not targetable** today.
-  No Moonraker overlay can be installed past the RSA wall without a serial/vuln
-  bypass. Park Kobra X support until the RE community breaks the signing chain.
+- **C++ closed + signed (Kobra X / K4):** the stock firmware is still not
+  targetable: no Moonraker overlay installs past the RSA wall. The Kobra X
+  itself is targetable through the Kobrian image (vanilla Klipper + Moonraker
+  on the stock board, §3), and HelixScreen detects it there by its `kx_*`
+  objects.
 - **Elegoo CC1:** OpenCentauri (COSMOS = full Klipper/Kalico replacement;
   Patched = overlay on stock) is the path to a sane Moonraker. The C++ transpile
   itself isn't something we integrate against directly.
