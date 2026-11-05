@@ -3,8 +3,6 @@
 
 #include "ams_backend_happy_hare.h"
 
-#include "ui_insert_notice.h"
-
 #include "ams_bypass_policy.h"
 #include "ams_device_action_value.h"
 #include "ams_fault_event.h"
@@ -21,6 +19,7 @@
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
+#include "notice.h"
 #include "print_lifecycle_state.h" // job_holds_machine
 #include "printer_discovery.h"
 #include "printer_state.h" // PrinterState: mid-print clear guard
@@ -469,7 +468,8 @@ void AmsBackendHappyHare::handle_status(const nlohmann::json& params) {
         // on the UI thread.
         for (const int gate : frame.unverified_insert_gates) {
             helix::ui::queue_update("AmsBackendHappyHare::handle_status", [gate] {
-                helix::ui::offer_clear_after_unverified_insert(gate);
+                helix::publish_ui_request(
+                    {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, gate});
             });
         }
     }
