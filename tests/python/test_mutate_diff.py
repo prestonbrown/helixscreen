@@ -1276,6 +1276,27 @@ needs_bats = pytest.mark.skipif(shutil.which("bats") is None, reason="needs bats
 
 
 @needs_bats
+def test_a_cxx_file_with_no_tests_pays_no_baseline_for_a_script_with_none(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho old\n")
+    (work / "tests" / "shell" / "test_other.bats").write_text('@test "other" {\n  true\n}\n')
+    _git(work, "add", "scripts/tool.sh", "tests/shell")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho NEW\n")
+    r = _mutate(work, "--base", base, "--python-tests", "")
+    groups = [ln for ln in r.stdout.splitlines() if ln.startswith("=== group ")]
+    assert len(groups) == 2, r.stdout
+    cxx = next(g for g in groups if "| tests/shell" not in g)
+    tool = next(g for g in groups if "| tests/shell" in g)
+    assert "~[.]~[slow]  (1 file(s))" in cxx and "~[.]~[slow] | tests/shell  (1 file(s))" in tool
+    # The C++ group's own section runs no bats at all.
+    section = r.stdout.split(cxx, 1)[1].split("=== group ", 1)[0]
+    assert "bats green" not in section, section
+
+
+@needs_bats
 def test_each_script_runs_only_the_bats_file_that_names_it(tmp_path):
     work = _fixture(tmp_path)
     (work / "tests" / "shell").mkdir(parents=True)

@@ -3059,7 +3059,9 @@ def main():
             continue
         if 'catch2' in STRATEGIES[verdict_of[path][1]]['suites']:
             filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests)
-            key_of[path] = (filt, args.shell_tests, args.python_tests)
+            # No script suite in the key: a C++ file sharing a group with a
+            # script nothing names would pay the whole bats suite's baseline.
+            key_of[path] = (filt, '', '')
         else:
             shell, python, why_of[path] = script_tests_for(
                 path, auto, shell_sources, python_sources,
