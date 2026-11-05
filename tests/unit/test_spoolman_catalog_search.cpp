@@ -187,6 +187,12 @@ TEST_CASE("slicer_material is the material the slicer and AFC understand",
     CHECK(filament::slicer_material("PLA-CF") == "PLA-CF");
     CHECK(filament::slicer_material(" PETG ") == "PETG");
     CHECK(filament::slicer_material("").empty());
+    // A filled grade the library lacks keeps its filler on the base polymer.
+    CHECK(filament::slicer_material("PA12-CF") == "PA-CF");
+    CHECK(filament::slicer_material("PA66-CF") == "PA-CF");
+    CHECK(filament::slicer_material("PAHT-CF") == "PA-CF");
+    CHECK(filament::slicer_material("PA6-GF") == "PA-GF");
+    CHECK(filament::slicer_material("PA6-CF") == "PA6-CF");
 }
 
 TEST_CASE("new_filament_name puts the product before the colour",

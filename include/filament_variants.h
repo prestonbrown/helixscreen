@@ -166,8 +166,10 @@ std::string compose_family_type(const std::string& family, const std::string& va
  * unmatchable one. Resolution order:
  *   1. explicit override from orca_type_overrides
  *   2. the type itself, if present in orca_library_types
- *   3. extract_base_material(type), if that is in orca_library_types
- *   4. "" — caller must omit the field entirely
+ *   3. extract_base_material(type) plus the type's one filler ("PA12-CF" is
+ *      "PA-CF"), if that is in orca_library_types
+ *   4. extract_base_material(type), if that is in orca_library_types
+ *   5. "" — caller must omit the field entirely
  *
  * Both tables ship in assets/filaments.json, generated from OrcaSlicer's
  * filament library by scripts/import_orca_filaments.py. Only library presets
