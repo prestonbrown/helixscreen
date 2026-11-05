@@ -1869,3 +1869,36 @@ TEST_CASE("SpoolmanSlotSaver save: the record of the precise type wins over the 
         CHECK(got.new_filament_id == 6);
     }
 }
+
+TEST_CASE("SpoolmanSlotSaver save: the spool's own filament is never offered as a near match",
+          "[spoolman][slot_saver][similar_filament]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    serve_only_linked_spool(client);
+    client.spoolman_mock().add_vendor(1, "Polymaker");
+    client.spoolman_mock().add_filament(7, 1, "ABS", "4A4A4A", "Deep Gray ABS");
+    client.spoolman_mock().next_created_filament_id = 501;
+
+    SpoolmanSlotSaver saver(&api);
+    int offered = 0;
+    saver.set_similar_filament_chooser(
+        [&](const FilamentInfo&, std::function<void(SpoolmanSlotSaver::SimilarChoice)> answer) {
+            ++offered;
+            answer(SpoolmanSlotSaver::SimilarChoice::UseExisting);
+        });
+
+    SlotInfo original = make_test_slot();
+    original.material = "ABS";
+    original.color_rgb = 0x4A4A4A;
+    original.spoolman_filament_id = 7;
+    SlotInfo edited = original;
+    edited.color_rgb = 0x4F4F4F;
+    SaveResult got{};
+    saver.save(original, edited, [&](const SaveResult& r) { got = r; });
+
+    REQUIRE(got.success);
+    CHECK(offered == 0);
+    CHECK(got.repointed_filament);
+    CHECK(got.new_filament_id == 501);
+}

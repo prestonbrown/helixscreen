@@ -342,7 +342,8 @@ void SpoolmanSlotSaver::save_impl(const SlotInfo& original, const SlotInfo& edit
             return;
         }
 
-        const NewFilament filament = new_filament_for(edited);
+        NewFilament filament = new_filament_for(edited);
+        filament.linked_filament_id = original.spoolman_filament_id;
         const float weight = edited.remaining_weight_g;
         const int original_filament_id = original.spoolman_filament_id;
         const bool weight_changed = changes.spool_level;
@@ -508,8 +509,8 @@ void SpoolmanSlotSaver::find_or_create_filament(int vendor_id, const NewFilament
                     on_found(f->id);
                 return;
             }
-            const FilamentInfo* similar =
-                spoolman::find_similar_filament(filaments, wanted.material, wanted.color_hex);
+            const FilamentInfo* similar = spoolman::find_similar_filament(
+                filaments, wanted.material, wanted.color_hex, wanted.linked_filament_id);
             if (!similar || !similar_chooser_) {
                 create_filament(vendor_id, wanted, on_found, on_error);
                 return;
