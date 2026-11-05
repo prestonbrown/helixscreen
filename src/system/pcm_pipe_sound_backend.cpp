@@ -20,7 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-extern char** environ;
+extern char** environ; // NAMESPACE_OK: declared by POSIX, not ours to scope
 
 namespace {
 
