@@ -20,6 +20,7 @@
 #include "i_moonraker_client.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -172,6 +173,12 @@ void SnapmakerNozzleOffsetOverlay::on_deactivating(DeactivateReason reason) {
         runner_.cancel();
     }
 }
+
+namespace {
+const UiRequestRegistration s_held_calibration_registration{
+    UiRequestKind::PromptEndHeldNozzleOffsetCalibration,
+    [](const UiRequest&) { get_snapmaker_nozzle_offset_overlay().prompt_end_held_calibration(); }};
+} // namespace
 
 void SnapmakerNozzleOffsetOverlay::prompt_end_held_calibration() {
     if (held_prompt_open_) {

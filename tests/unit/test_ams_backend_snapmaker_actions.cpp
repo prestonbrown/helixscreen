@@ -6,6 +6,8 @@
 #include "../test_helpers/snapmaker_test_access.h"
 #include "ams_backend_snapmaker.h"
 #include "config.h"
+#include "core/update_queue.h"
+#include "notice.h"
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "snapmaker_nozzle_offset.h"
@@ -385,6 +387,31 @@ TEST_CASE("toolhead offset calibration is not a Multi-Filament setting",
         CHECK(a.guided_flow != snapmaker::nozzle_offset::kGuidedFlowId);
     }
     CHECK(backend.get_device_sections().empty());
+}
+
+TEST_CASE("snapmaker asks the UI about a held calibration no run here owns, from the queue",
+          "[ams][snapmaker][actions][nozzle_offset]") {
+    HelixTestFixture fixture;
+    static int s_asked = 0;
+    s_asked = 0;
+    const auto previous = set_ui_request_handler(
+        UiRequestKind::PromptEndHeldNozzleOffsetCalibration, [](const UiRequest&) { ++s_asked; });
+    snapmaker::nozzle_offset::clear_exit_pending();
+    {
+        helix::test::WiredBackend<AmsBackendSnapmaker> backend;
+        backend.set_discovery(nozzle_offset_discovery());
+        backend.wire().respond_to(
+            "printer.objects.query",
+            {{"status",
+              {{"machine_state_manager",
+                {{"main_state", snapmaker::nozzle_offset::kMainStateXyzOffsetCalibrate}}}}}});
+        REQUIRE(backend.start().success());
+        CHECK(s_asked == 0);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(s_asked == 1);
+        backend.stop();
+    }
+    set_ui_request_handler(UiRequestKind::PromptEndHeldNozzleOffsetCalibration, previous);
 }
 
 TEST_CASE("snapmaker auto-replenish is the Endless Spool switch", "[ams][snapmaker][endless]") {

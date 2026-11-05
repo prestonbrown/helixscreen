@@ -4,9 +4,7 @@
 #include "ams_backend_snapmaker.h"
 
 #include "ui_error_reporting.h"
-#include "ui_insert_notice.h"
 #include "ui_notification.h"
-#include "ui_snapmaker_nozzle_offset_overlay.h"
 
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
@@ -338,7 +336,8 @@ void AmsBackendSnapmaker::on_started() {
     if (nozzle_offset && client_) {
         snapmaker::nozzle_offset::reconcile_on_connect(*client_, [] {
             helix::ui::queue_update("AmsBackendSnapmaker::held_nozzle_offset_cal", [] {
-                helix::ui::get_snapmaker_nozzle_offset_overlay().prompt_end_held_calibration();
+                helix::publish_ui_request(
+                    {helix::UiRequestKind::PromptEndHeldNozzleOffsetCalibration});
             });
         });
     }
@@ -3020,8 +3019,10 @@ void AmsBackendSnapmaker::dispatch_effects(const FrameEffects& fx) {
     // re-checks its own guards (print-feeding lane, lane with nothing to
     // clear) on the UI thread.
     for (int lane : fx.unverified_insert_lanes) {
-        helix::ui::queue_update("AmsBackendSnapmaker::handle_status",
-                                [lane] { helix::ui::offer_clear_after_unverified_insert(lane); });
+        helix::ui::queue_update("AmsBackendSnapmaker::handle_status", [lane] {
+            helix::publish_ui_request(
+                {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, lane});
+        });
     }
 
     if (fx.batch_failed_head >= 0) {
