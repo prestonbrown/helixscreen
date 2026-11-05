@@ -91,8 +91,8 @@ ChangeSet SpoolmanSlotSaver::detect_changes(const SlotInfo& original, const Slot
     // needs_identity_confirmation() additionally requires
     // is_material_identity_change(), which compares materials and colors only.
     // On a linked spool it routes through find_or_create_filament(), which
-    // matches on material + color and therefore resolves back to the same
-    // filament record: a repoint that is a no-op by construction.
+    // reuses a record only of the same type, grade and colour, so the spool
+    // stays on its record unless the pick names a different type.
     if (original.brand != edited.brand || original.material != edited.material ||
         original.color_rgb != edited.color_rgb) {
         changes.filament_identity = true;
@@ -496,15 +496,11 @@ void SpoolmanSlotSaver::find_or_create_filament(int vendor_id, const NewFilament
     api_->spoolman().get_spoolman_filaments(
         vendor_id,
         [this, vendor_id, wanted, on_found, on_error](const std::vector<FilamentInfo>& filaments) {
-            // A record filed under the precise type ("ABS+") is the same filament
-            // as one filed under the material it records as.
-            const FilamentInfo* f =
-                spoolman::find_matching_filament(filaments, wanted.material, wanted.color_hex);
-            if (!f && wanted.precise_type != wanted.material) {
-                f = spoolman::find_matching_filament(filaments, wanted.precise_type,
-                                                     wanted.color_hex);
-            }
-            if (f) {
+            // Only a record of the same type and grade is reused without
+            // asking; one that merely records the same material goes to the
+            // chooser below.
+            if (const FilamentInfo* f = spoolman::find_matching_filament(
+                    filaments, wanted.precise_type, wanted.color_hex)) {
                 spdlog::debug("[SpoolmanSlotSaver] Reusing filament id={} "
                               "(vendor={}, material={}, color={})",
                               f->id, vendor_id, wanted.material, wanted.color_hex);

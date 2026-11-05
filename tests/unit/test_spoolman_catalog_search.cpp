@@ -252,3 +252,42 @@ TEST_CASE("find_similar_filament offers the nearest colour of the same material"
         CHECK(find_similar_filament(filaments, "ABS", "") == nullptr);
     }
 }
+
+TEST_CASE("is_filament_of_type: a record is reused only for the same type and grade",
+          "[spoolman_db][filament_naming][exact_filament]") {
+    using helix::spoolman::is_filament_of_type;
+    auto make = [](const char* material, const char* name) {
+        FilamentInfo f;
+        f.material = material;
+        f.filament_name = name;
+        return f;
+    };
+
+    SECTION("a plain record is the plain type") {
+        CHECK(is_filament_of_type(make("PLA", "Jet Black"), "PLA"));
+        CHECK(is_filament_of_type(make("PC", "Black PC"), "PC"));
+        CHECK(is_filament_of_type(make("ABS", "Black ABS"), "ABS"));
+    }
+    SECTION("a filled grade is never its unfilled base, either way round") {
+        CHECK_FALSE(is_filament_of_type(make("PC", "Black PC"), "PC-CF"));
+        CHECK_FALSE(is_filament_of_type(make("ABS", "Black"), "ABS-CF"));
+        CHECK_FALSE(is_filament_of_type(make("PETG", "PETG-GF Grey"), "PETG"));
+        CHECK_FALSE(is_filament_of_type(make("PLA", "Wood Brown"), "PLA"));
+        CHECK(is_filament_of_type(make("PLA-CF", "Black PLA-CF"), "PLA-CF"));
+    }
+    SECTION("silk and plain are different types") {
+        CHECK_FALSE(is_filament_of_type(make("PLA", "Silk PLA Gold"), "PLA"));
+        CHECK_FALSE(is_filament_of_type(make("PLA", "Gold"), "Silk PLA"));
+        CHECK(is_filament_of_type(make("PLA", "Silk PLA Gold"), "Silk PLA"));
+        CHECK(is_filament_of_type(make("Silk PLA", "Silk Blue"), "Silk PLA"));
+    }
+    SECTION("a plus grade is told from the plain one by its name or its material") {
+        CHECK(is_filament_of_type(make("ABS", "ABS+ Deep Gray"), "ABS+"));
+        CHECK(is_filament_of_type(make("ABS+", "ABS+"), "ABS+"));
+        CHECK_FALSE(is_filament_of_type(make("ABS", "Grey ABS+HS"), "ABS"));
+        CHECK_FALSE(is_filament_of_type(make("ABS", "Black ABS"), "ABS+"));
+    }
+    SECTION("another polymer is never the type") {
+        CHECK_FALSE(is_filament_of_type(make("PETG", "Black"), "PLA"));
+    }
+}

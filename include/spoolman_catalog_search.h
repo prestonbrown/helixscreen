@@ -67,10 +67,18 @@ namespace spoolman {
 /// colour form, alpha last), else empty.
 std::string normalize_color_hex(const std::string& hex);
 
-/// The first of @p filaments with @p material and the same colour, or nullptr.
-/// The one rule for "Spoolman already has this filament".
+/// Whether @p filament is a record of the type @p precise_type ("ABS+",
+/// "PC-CF", "Silk PLA"), read from its material and its name together: the
+/// same recorded material (filament::slicer_material() of both), the same
+/// grade-significant fillers (filament::grades_match()), the same finish and
+/// the same "+" grade. "ABS+HS" and "ABS+" are one type here.
+bool is_filament_of_type(const FilamentInfo& filament, const std::string& precise_type);
+
+/// The first of @p filaments of the type @p precise_type in the same colour,
+/// or nullptr. The one rule for "Spoolman already has this filament", which
+/// is reused without asking.
 const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& filaments,
-                                           const std::string& material,
+                                           const std::string& precise_type,
                                            const std::string& color_hex);
 
 /// The name a new Spoolman filament is filed under: @p product (a catalog

@@ -279,8 +279,10 @@ class SpoolmanSlotSaver {
      * @brief Resolve @p filament under @p vendor_id to a Spoolman filament_id,
      *        creating a new filament if none matches.
      *
-     * An exact match (spoolman::find_matching_filament() on the record's
-     * material and colour) is reused. Otherwise a near one
+     * A record of the same type, grade and colour
+     * (spoolman::find_matching_filament() on the precise type) is reused.
+     * Otherwise a near one, including a record of another grade of the same
+     * material
      * (spoolman::find_similar_filament()) goes to the chooser, when one is
      * set, and the user picks it, a new filament, or neither. A create POSTs
      * every field of @p filament plus the density and the printer's diameter,

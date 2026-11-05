@@ -91,6 +91,17 @@ bool materials_compatible(std::string_view a, std::string_view b);
 bool grades_match(std::string_view a, std::string_view b);
 
 /**
+ * @brief Does a free-text filament name carry the fillers @p type carries?
+ *
+ * grades_match() for a Spoolman-style name ("Black PC-CF", "Wood Brown",
+ * "PETG-GF Grey") rather than a type string: each word is read on its own and
+ * beside the type's base polymer, so a filler word anywhere in the name
+ * counts. Same filler set as @p type, or both none.
+ */
+// NAMESPACE_OK: namespace filament, beside grades_match
+bool name_grades_match(std::string_view name, std::string_view type);
+
+/**
  * @brief Does this name carry any grade-significant filler?
  *
  * The directional half of grades_match(): tells a caller which of two

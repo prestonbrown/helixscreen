@@ -1775,3 +1775,97 @@ TEST_CASE("SpoolmanSlotSaver save: a near-identical filament is offered before o
         }
     }
 }
+
+TEST_CASE("SpoolmanSlotSaver save: a record of another grade in the same colour is never reused "
+          "silently",
+          "[spoolman][slot_saver][exact_filament]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    serve_only_linked_spool(client);
+    client.spoolman_mock().add_vendor(1, "Polymaker");
+    client.spoolman_mock().next_created_filament_id = 501;
+
+    SpoolmanSlotSaver saver(&api);
+
+    SECTION("a carbon-filled grade does not land on the plain record") {
+        client.spoolman_mock().add_filament(300, 1, "PC", "000000", "Black PC");
+        SlotInfo edited = make_test_slot();
+        edited.spoolman_id = 0;
+        edited.material = "PC-CF";
+        edited.color_rgb = 0x000000;
+        SaveResult got{};
+        saver.save(SlotInfo{}, edited, SpoolmanSlotSaver::LinkIntent::CreateAndRebind,
+                   [&](const SaveResult& r) { got = r; });
+        REQUIRE(got.success);
+        CHECK(got.new_filament_id == 501);
+    }
+
+    SECTION("a linked plain spool changed to silk in the same colour is repointed") {
+        client.spoolman_mock().add_filament(100, 1, "PLA", "FF0000", "Red PLA");
+        SlotInfo original = make_test_slot();
+        SlotInfo edited = original;
+        edited.material = "Silk PLA";
+        SaveResult got{};
+        saver.save(original, edited, [&](const SaveResult& r) { got = r; });
+        REQUIRE(got.success);
+        CHECK(got.repointed_filament);
+        CHECK(got.new_filament_id == 501);
+    }
+
+    SECTION("a catalog pick stays on a record filed under the precise type") {
+        // The plain ABS record in the same colour is served first.
+        client.spoolman_mock().add_filament(118, 1, "ABS", "4A4A4A", "Dark Grey ABS");
+        client.spoolman_mock().add_filament(117, 1, "ABS+", "4A4A4A", "ABS+");
+        SlotInfo original = make_test_slot();
+        original.material = "ABS+";
+        original.color_rgb = 0x4A4A4A;
+        original.spoolman_filament_id = 117;
+        SlotInfo edited = original;
+        edited.catalog_id = "esun-abs-plus";
+        edited.product_name = "ABS+";
+        SaveResult got{};
+        saver.save(original, edited, [&](const SaveResult& r) { got = r; });
+        REQUIRE(got.success);
+        CHECK_FALSE(got.repointed_filament);
+        CHECK(client.spoolman_mock().spool_updates.empty());
+    }
+}
+
+TEST_CASE("SpoolmanSlotSaver save: the record of the precise type wins over the plain one",
+          "[spoolman][slot_saver][exact_filament]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    serve_only_linked_spool(client);
+    client.spoolman_mock().add_vendor(1, "Polymaker");
+    client.spoolman_mock().add_filament(5, 1, "ABS", "000000", "Black ABS");
+    client.spoolman_mock().add_filament(6, 1, "ABS+", "000000", "ABS+");
+    client.spoolman_mock().next_created_filament_id = 501;
+    SpoolmanSlotSaver saver(&api);
+
+    SECTION("a new ABS+ black spool files on the ABS+ record") {
+        SlotInfo edited = make_test_slot();
+        edited.spoolman_id = 0;
+        edited.material = "ABS+";
+        edited.color_rgb = 0x000000;
+        SaveResult got{};
+        saver.save(SlotInfo{}, edited, SpoolmanSlotSaver::LinkIntent::CreateAndRebind,
+                   [&](const SaveResult& r) { got = r; });
+        REQUIRE(got.success);
+        CHECK(got.new_filament_id == 6);
+    }
+    SECTION("a linked ABS spool moved to ABS+ is repointed, not dropped") {
+        SlotInfo original = make_test_slot();
+        original.material = "ABS";
+        original.color_rgb = 0x000000;
+        original.spoolman_filament_id = 5;
+        SlotInfo edited = original;
+        edited.material = "ABS+";
+        SaveResult got{};
+        saver.save(original, edited, [&](const SaveResult& r) { got = r; });
+        REQUIRE(got.success);
+        CHECK(got.repointed_filament);
+        CHECK(got.new_filament_id == 6);
+    }
+}
