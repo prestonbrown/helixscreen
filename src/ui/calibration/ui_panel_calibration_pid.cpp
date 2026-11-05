@@ -380,21 +380,17 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
         return;
     }
 
-    // Klipper runs one command at a time, so a running print means any
-    // calibration started here already ended, and the fan and heaters are the
-    // print's. A paused print accepts commands, so a calibration may have been
-    // started during the pause: its fan is ours, while its heater is turned off
-    // by the calibration itself and the print's resume owns the rest.
+    // Klipper runs one command at a time, so a running print owns the fan and
+    // heaters. A paused one accepts commands: a calibration started then set the
+    // fan, and turns its own heater off.
     const PrintState lifecycle = get_printer_state().print_state().get_print_lifecycle();
     if (job_holds_machine(lifecycle)) {
-        if (lifecycle == PrintState::Paused) {
+        if (state_ == State::CALIBRATING)
+            spdlog::info("[PIDCal] Leaving calibration during a print: heaters left on");
+        if (lifecycle == PrintState::Paused)
             turn_off_fan();
-        } else {
+        else
             fan_sent_ = false;
-        }
-        if (state_ == State::CALIBRATING) {
-            spdlog::info("[PIDCal] Leaving calibration: a print is running, heaters left on");
-        }
         return;
     }
 

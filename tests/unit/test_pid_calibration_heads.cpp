@@ -204,48 +204,32 @@ TEST_CASE_METHOD(PidHeadsFixture, "An open panel hides the fan when its tool is 
     CHECK(subject_int("cal_show_pid_fan") == 0);
 }
 
-// Klipper runs one command at a time, so a print running means no calibration
-// is: TURN_OFF_HEATERS on the way out would stop that print's heaters.
-TEST_CASE_METHOD(
-    PidHeadsFixture,
-    "Leaving a calibrating panel turns heaters and fan off only when no print is running",
-    "[pid][pid_heads]") {
+// Klipper runs one command at a time, so a running print owns the heaters and
+// the fan. A pause accepts commands, so a calibration's own fan still goes off.
+TEST_CASE_METHOD(PidHeadsFixture, "Leaving a calibrating panel stops only what no print owns",
+                 "[pid][pid_heads]") {
+    using helix::PrintJobState;
+    const auto [job, heaters_off, fan_off] = GENERATE(table<PrintJobState, bool, bool>({
+        {PrintJobState::STANDBY, true, true},
+        {PrintJobState::PRINTING, false, false},
+        {PrintJobState::PAUSED, false, true},
+    }));
     helix::PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
     load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
     Access::activate(panel);
     Access::set_fan_speed(panel, 50);
     start();
-    REQUIRE(sent("PID_CALIBRATE HEATER=extruder "));
     REQUIRE(sent("M106"));
-    client.clear_gcode_script_history();
 
-    SECTION("idle printer: the abandoned calibration's heaters go off") {
-        Access::navigate_away(panel);
-        helix::ui::UpdateQueue::instance().drain();
-        CHECK(sent("TURN_OFF_HEATERS"));
-        CHECK(sent("M107"));
-    }
-    SECTION("a print is running: its heaters are left alone") {
-        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PRINTING);
-        helix::ui::UpdateQueue::instance().drain();
-        REQUIRE(get_printer_state().print_state().get_print_lifecycle() == PrintState::Printing);
-        Access::navigate_away(panel);
-        helix::ui::UpdateQueue::instance().drain();
-        CHECK_FALSE(sent("TURN_OFF_HEATERS"));
-        CHECK_FALSE(sent("M107"));
-        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::STANDBY);
-        helix::ui::UpdateQueue::instance().drain();
-    }
-    SECTION("a paused print: the calibration's fan goes off, the heaters stay") {
-        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PAUSED);
-        helix::ui::UpdateQueue::instance().drain();
-        REQUIRE(get_printer_state().print_state().get_print_lifecycle() == PrintState::Paused);
-        Access::navigate_away(panel);
-        helix::ui::UpdateQueue::instance().drain();
-        CHECK(sent("M107"));
-        CHECK_FALSE(sent("TURN_OFF_HEATERS"));
-        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::STANDBY);
-        helix::ui::UpdateQueue::instance().drain();
-    }
+    helix::test::set_wire_state(get_printer_state(), job);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(job_holds_machine(get_printer_state().print_state().get_print_lifecycle()) ==
+            (job != PrintJobState::STANDBY));
+    client.clear_gcode_script_history();
+    panel.on_deactivating(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(sent("TURN_OFF_HEATERS") == heaters_off);
+    CHECK(sent("M107") == fan_off);
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
 }

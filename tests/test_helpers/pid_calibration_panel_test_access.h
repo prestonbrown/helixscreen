@@ -35,9 +35,6 @@ struct PIDCalibrationPanelTestAccess {
     static void turn_off_fan(PIDCalibrationPanel& p) {
         p.turn_off_fan();
     }
-    static void navigate_away(PIDCalibrationPanel& p) {
-        p.on_deactivating(DeactivateReason::NavigateAway);
-    }
 };
 
 } // namespace ui

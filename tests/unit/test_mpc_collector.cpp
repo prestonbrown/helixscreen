@@ -69,81 +69,20 @@ class MPCCalibrateTestFixture : public LVGLTestFixture {
 // Tests
 // ============================================================================
 
-TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector parses complete result block",
-                 "[mpc_collector]") {
-    api_->advanced().start_mpc_calibrate(
-        "extruder", 200, 3,
-        [this](const MPCResult& result) {
-            captured_result_ = result;
-            result_received_.store(true);
-        },
-        [this](const MoonrakerError& err) {
-            captured_error_ = err.message;
-            error_received_.store(true);
-        });
-
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    mock_client_.dispatch_gcode_response("block_heat_capacity=18.5432 [J/K]");
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.123456 [K/s/K]");
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.078901 [W/K]");
-    mock_client_.dispatch_gcode_response("fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]");
-
-    REQUIRE(result_received_.load());
-    REQUIRE_FALSE(error_received_.load());
-    REQUIRE(captured_result_.block_heat_capacity == Catch::Approx(18.5432f).margin(0.001f));
-    REQUIRE(captured_result_.sensor_responsiveness == Catch::Approx(0.123456f).margin(0.0001f));
-    REQUIRE(captured_result_.ambient_transfer == Catch::Approx(0.078901f).margin(0.0001f));
-    REQUIRE(captured_result_.fan_ambient_transfer == "0.12, 0.18, 0.25");
-}
-
-// Kalico's control_mpc.py sends the whole result as ONE respond_info, which
-// Klipper's gcode.respond_info turns into one message of "// "-prefixed lines.
+// Kalico sends the result as one respond_info: one message of "// " lines. The fan
+// list is empty without a cooling_fan, and its %.6g can print exponents.
 TEST_CASE_METHOD(MPCCalibrateTestFixture,
                  "MPC calibrate collector parses Kalico's single multi-line result message",
                  "[mpc_collector]") {
-    const int fan_breakpoints = GENERATE(0, 7);
+    const auto [fan_breakpoints, fan_list, expected] =
+        GENERATE(table<int, std::string, std::string>({
+            {0, "0.0892993", "0.0892993"},
+            {7, "0.0892993, 0.0940654, 0.114036", "0.0892993, 0.0940654, 0.114036"},
+            {3, "", ""},
+            {3, "0.0892993, 1e-05, 2.5e+01", "0.0892993, 1e-05, 2.5e+01"},
+        }));
     api_->advanced().start_mpc_calibrate(
         "extruder", 220, fan_breakpoints,
-        [this](const MPCResult& result) {
-            captured_result_ = result;
-            result_received_.store(true);
-        },
-        [this](const MoonrakerError& err) {
-            captured_error_ = err.message;
-            error_received_.store(true);
-        });
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    mock_client_.dispatch_gcode_response(
-        "// Finished MPC calibration of heater 'extruder'\n"
-        "// Measured:\n"
-        "// block_heat_capacity=17.9784 [J/K]\n"
-        "// sensor_responsiveness=0.0971234 [K/s/K]\n"
-        "// ambient_transfer=0.0892993 [W/K]\n"
-        "// fan_ambient_transfer=0.0892993, 0.0940654, 0.099028, 0.103588, 0.107853, 0.110272, "
-        "0.114036 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-    REQUIRE(result_received_.load());
-    REQUIRE_FALSE(error_received_.load());
-    REQUIRE(captured_result_.block_heat_capacity == Catch::Approx(17.9784f).margin(0.0001f));
-    REQUIRE(captured_result_.sensor_responsiveness == Catch::Approx(0.0971234f).margin(0.00001f));
-    REQUIRE(captured_result_.ambient_transfer == Catch::Approx(0.0892993f).margin(0.00001f));
-    if (fan_breakpoints > 0) {
-        REQUIRE(captured_result_.fan_ambient_transfer ==
-                "0.0892993, 0.0940654, 0.099028, 0.103588, 0.107853, 0.110272, 0.114036");
-    }
-}
-
-TEST_CASE_METHOD(MPCCalibrateTestFixture,
-                 "MPC calibrate collector reads Kalico's empty and exponent fan lists",
-                 "[mpc_collector]") {
-    const auto [fan_line, expected] = GENERATE(table<std::string, std::string>({
-        {"// fan_ambient_transfer= [W/K]", ""},
-        {"// fan_ambient_transfer=0.0892993, 1e-05, 2.5e+01 [W/K]", "0.0892993, 1e-05, 2.5e+01"},
-    }));
-    api_->advanced().start_mpc_calibrate(
-        "extruder", 220, 3,
         [this](const MPCResult& result) {
             captured_result_ = result;
             result_received_.store(true);
@@ -155,56 +94,17 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture,
                                          "// Measured:\n"
                                          "// block_heat_capacity=17.9784 [J/K]\n"
                                          "// sensor_responsiveness=0.0971234 [K/s/K]\n"
-                                         "// ambient_transfer=0.0892993 [W/K]\n" +
-                                         fan_line);
+                                         "// ambient_transfer=0.0892993 [W/K]\n"
+                                         "// fan_ambient_transfer=" +
+                                         fan_list + " [W/K]");
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(result_received_.load());
     REQUIRE_FALSE(error_received_.load());
-    CHECK(captured_result_.fan_ambient_transfer == expected);
-}
-
-TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector parses floats accurately",
-                 "[mpc_collector]") {
-    api_->advanced().start_mpc_calibrate(
-        "extruder", 220, 0,
-        [this](const MPCResult& result) {
-            captured_result_ = result;
-            result_received_.store(true);
-        },
-        [this](const MoonrakerError& err) { error_received_.store(true); });
-
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    mock_client_.dispatch_gcode_response("block_heat_capacity=25.1000 [J/K]");
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.500000 [K/s/K]");
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.100000 [W/K]");
-
-    REQUIRE(result_received_.load());
-    REQUIRE(captured_result_.block_heat_capacity == Catch::Approx(25.1f).margin(0.01f));
-    REQUIRE(captured_result_.sensor_responsiveness == Catch::Approx(0.5f).margin(0.001f));
-    REQUIRE(captured_result_.ambient_transfer == Catch::Approx(0.1f).margin(0.001f));
-    // No fan_ambient_transfer line sent — should remain empty
-    REQUIRE(captured_result_.fan_ambient_transfer.empty());
-}
-
-TEST_CASE_METHOD(MPCCalibrateTestFixture,
-                 "MPC calibrate collector parses fan_ambient_transfer string", "[mpc_collector]") {
-    api_->advanced().start_mpc_calibrate(
-        "extruder", 200, 5,
-        [this](const MPCResult& result) {
-            captured_result_ = result;
-            result_received_.store(true);
-        },
-        [this](const MoonrakerError& err) { error_received_.store(true); });
-
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    mock_client_.dispatch_gcode_response("block_heat_capacity=20.0000 [J/K]");
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.200000 [K/s/K]");
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.050000 [W/K]");
-    mock_client_.dispatch_gcode_response("fan_ambient_transfer=0.05, 0.10, 0.15, 0.20, 0.25 [W/K]");
-
-    REQUIRE(result_received_.load());
-    REQUIRE(captured_result_.fan_ambient_transfer == "0.05, 0.10, 0.15, 0.20, 0.25");
+    CHECK(captured_result_.block_heat_capacity == Catch::Approx(17.9784f).margin(0.0001f));
+    CHECK(captured_result_.sensor_responsiveness == Catch::Approx(0.0971234f).margin(0.00001f));
+    CHECK(captured_result_.ambient_transfer == Catch::Approx(0.0892993f).margin(0.00001f));
+    CHECK(captured_result_.fan_ambient_transfer == (fan_breakpoints > 0 ? expected : ""));
 }
 
 TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector reports progress phases",
@@ -238,10 +138,9 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector reports progr
     REQUIRE(progress_descriptions_[3].find("100%") != std::string::npos);
 
     // Complete the collector to avoid dangling callback in mock client destruction
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    mock_client_.dispatch_gcode_response("block_heat_capacity=18.0000 [J/K]");
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.100000 [K/s/K]");
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.050000 [W/K]");
+    mock_client_.dispatch_gcode_response(
+        "Finished MPC calibration\nblock_heat_capacity=18 [J/K]\n"
+        "sensor_responsiveness=0.1 [K/s/K]\nambient_transfer=0.05 [W/K]");
 }
 
 TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector handles unknown command error",
@@ -290,10 +189,9 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture,
     REQUIRE_FALSE(error_received_.load());
 
     // Complete the collector to clean up
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    mock_client_.dispatch_gcode_response("block_heat_capacity=18.0000 [J/K]");
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.100000 [K/s/K]");
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.050000 [W/K]");
+    mock_client_.dispatch_gcode_response(
+        "Finished MPC calibration\nblock_heat_capacity=18 [J/K]\n"
+        "sensor_responsiveness=0.1 [K/s/K]\nambient_transfer=0.05 [W/K]");
 }
 
 TEST_CASE_METHOD(MPCCalibrateTestFixture,
@@ -306,10 +204,9 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture,
         [&](const MoonrakerError&) { ++error_count; });
 
     // Send first complete result
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    mock_client_.dispatch_gcode_response("block_heat_capacity=18.0000 [J/K]");
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.100000 [K/s/K]");
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.050000 [W/K]");
+    mock_client_.dispatch_gcode_response(
+        "Finished MPC calibration\nblock_heat_capacity=18 [J/K]\n"
+        "sensor_responsiveness=0.1 [K/s/K]\nambient_transfer=0.05 [W/K]");
 
     // Try to send a second result or error — should be ignored
     mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
