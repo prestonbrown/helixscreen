@@ -556,11 +556,11 @@ int Application::run(int argc, char** argv) {
     spdlog::info("[Application] ========================");
     spdlog::info("[Application] HelixScreen {} ({})", helix_version(), helix_git_hash());
 
-    // --test reports every LVGL call made off the LVGL thread, as the unit tests
-    // do; HELIX_LVGL_THREAD_CHECK=abort makes the first one fatal.
+    // --test aborts on the first LVGL call made off the LVGL thread, as the unit
+    // tests do; HELIX_LVGL_THREAD_CHECK=report logs each call site and carries on.
     {
         using namespace helix::lvgl_thread_check;
-        set_mode(mode_from_env(get_runtime_config()->is_test_mode() ? Mode::Report : Mode::Off));
+        set_mode(mode_from_env(get_runtime_config()->is_test_mode() ? Mode::Abort : Mode::Off));
     }
 
     // Every path this process uses is chosen by a cascade with a user override
