@@ -169,7 +169,8 @@ layout rather than the local sweep's 96 (a use-after-free can crash only next to
 neighbours CI's layout gives it, and CI never runs the 96), the `[slow]` tier, the bats suite, CI's exact
 `tests/ui` pytest slice, the moonraker plugin tests and `tests/python` (`make test-ui-ci`, `make test-plugin`, `make test-python`), and the
 generated-artefact checks
-(`check-theme-tokens`, `check-xml-schema`, `lint-xml`, `check-lvgl-event-codes`), and the
+(`check-theme-tokens`, `check-xml-schema`, `lint-xml`, `check-lvgl-event-codes`), the
+packaged no-mocks scan of the branch's units (`scripts/check_no_mocks.py`), and the
 `quality-checks.sh` sweep pre-push would otherwise repeat on the same commit. The C++
 run goes to the test host when `full-test-run`'s would (`TEST_HOST`); everything else runs
 here in parallel, and it ends with a PASS/FAIL/TIMEOUT table with durations, naming the

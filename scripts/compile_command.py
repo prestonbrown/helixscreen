@@ -128,12 +128,15 @@ def make_program() -> str | None:
     return None
 
 
-def make_commands(paths: list[str], make_root: str, make: str | None = None) -> dict[str, dict]:
+def make_commands(paths: list[str], make_root: str, make: str | None = None,
+                  make_vars: tuple[str, ...] = ()) -> dict[str, dict]:
     """realpath -> entry, for each of paths that a rule in make_root compiles.
 
     One make run for all of them: parsing the Makefile costs a couple of seconds,
     and -k keeps a file with no rule from hiding the others' lines. Each line ends
     in ``-c <path as passed>``, which is how it is matched back to its file.
+    make_vars are command-line assignments, for the command another configuration
+    of the build would run.
     """
     make = make or make_program()
     if not make or not paths or not os.path.isfile(os.path.join(make_root, "Makefile")):
@@ -148,7 +151,7 @@ def make_commands(paths: list[str], make_root: str, make: str | None = None) -> 
     try:
         proc = subprocess.run(
             [make, "-s", "-k", "--no-print-directory", "-C", make_root,
-             "print-compile-command", "F=" + " ".join(sorted(rel_of))],
+             "print-compile-command", "F=" + " ".join(sorted(rel_of)), *make_vars],
             capture_output=True, text=True, timeout=600,
         )
     except (OSError, subprocess.SubprocessError):

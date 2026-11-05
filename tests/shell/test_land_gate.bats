@@ -11,7 +11,7 @@ load helpers
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 GATE="$REPO_ROOT/scripts/land-gate.sh"
 
-ALL_STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 quality"
+ALL_STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 no-mocks quality"
 
 # Every make here is a stub, and a stub must never reach the real make or the
 # jobpool shim: JOBPOOL=0 keeps the shim out of any make that does run, and the
@@ -62,8 +62,13 @@ case "$1" in take) exit "${CLAIM_TAKE_RC:-0}" ;; esac'
 echo "esp32 $*" >> "$CALLS"
 echo "output of esp32"
 exit "${RC_esp32:-0}"'
+    # The no-mocks check, likewise, with $RC_no_mocks.
+    mock_command_script fake-no-mocks '
+echo "no-mocks $*" >> "$CALLS"
+echo "output of no-mocks"
+exit "${RC_no_mocks:-0}"'
     export MAKE=fake-make TEST_HOST_RUN=fake-test-host-run HELIX_CLAIM=fake-claim
-    export ESP32_CHECK=fake-esp32 LAND_GATE_BASE_REF=HEAD
+    export ESP32_CHECK=fake-esp32 NO_MOCKS_CHECK=fake-no-mocks LAND_GATE_BASE_REF=HEAD
     export HELIX_TEST_HOST=testhost.invalid HELIX_BUILD_HOSTS_FILE=/nonexistent
     unset CI_SHARDS CI_SHARD_TIMEOUT
     export TEST_HOST=0
@@ -95,6 +100,14 @@ row() { # <status> <step>: the table row for step has that status
     grep -qx "make check-lvgl-event-codes" "$CALLS"
     grep -qx "make quality" "$CALLS"
     grep -qx "esp32 --require --base $(git rev-parse HEAD) --head HEAD" "$CALLS"
+    grep -qx "no-mocks --base $(git rev-parse HEAD)" "$CALLS"
+}
+
+@test "the no-mocks check measures from the merge-base; with none its row fails" {
+    LAND_GATE_BASE_REF=refs/heads/no-such-branch-for-the-gate run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL no-mocks
+    refute_grep "^no-mocks " "$CALLS"
 }
 
 @test "the ESP32 check measures from the merge-base with the base ref; with none its row fails" {
@@ -129,7 +142,7 @@ row() { # <status> <step>: the table row for step has that status
     local target step
     for pair in app:app-build unit-sweep:ci-shards test-slow:slow test-shell:bats test-ui-ci:ui test-plugin:plugin test-python:python \
                 check-theme-tokens:theme-tokens check-xml-schema:xml-schema lint-xml:lint-xml \
-                check-lvgl-event-codes:lvgl-event-codes esp32:esp32; do
+                check-lvgl-event-codes:lvgl-event-codes esp32:esp32 no-mocks:no-mocks; do
         target=${pair%%:*} step=${pair#*:}
         eval "export RC_$(echo "$target" | tr - _)=3"
         run "$GATE"
@@ -166,8 +179,10 @@ row() { # <status> <step>: the table row for step has that status
     row FAIL app-build
     row SKIP ui
     row SKIP plugin
+    row SKIP no-mocks
     row SKIP quality
     refute_grep "make test-ui-ci" "$CALLS"
+    refute_grep "^no-mocks " "$CALLS"
     row PASS bats
 }
 
@@ -491,13 +506,13 @@ gate_in_tree() { run bash -c 'cd "$1" && shift && "$@"' _ "$T" "$GATE" "$@"; }
     [ "$status" -eq 1 ]
     row PASS bats
     : >"$CALLS"
-    RC_test_shell=1 gate_in_tree --rerun app-build,plugin
+    RC_test_shell=1 gate_in_tree --rerun app-build,plugin,no-mocks
     [ "$status" -eq 1 ]
     grep -qx "make test-shell BATS_REQUIRED=1" "$CALLS"
     row PASS app-build
     row FAIL bats
     [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
-    gate_in_tree --rerun app-build,plugin
+    gate_in_tree --rerun app-build,plugin,no-mocks
     [ "$status" -eq 0 ]
     [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
 }

@@ -80,7 +80,8 @@ make land-gate                       # THE pre-landing gate: ONCE per batch, bef
 #   never runs that grouping), the [slow] tier, bats, CI's tests/ui pytest slice (headless), the
 #   moonraker plugin tests, the generated-artefact checks (theme token table,
 #   xml schema + lint-xml, lvgl event codes), the ESP32 syntax check (needs
-#   docker + the IDF image: thelio/zeus), and quality-checks.sh: pushing the
+#   docker + the IDF image: thelio/zeus), the packaged no-mocks scan of the
+#   branch's units, and quality-checks.sh: pushing the
 #   exact commit it passed skips that sweep, from any clone on the gate's host
 #   or from a machine whose build-hosts.env names that host in
 #   HELIX_LAND_GATE_HOSTS (pre-push asks it over ssh). A gate red on one step:

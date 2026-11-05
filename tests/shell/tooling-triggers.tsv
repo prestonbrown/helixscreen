@@ -98,7 +98,7 @@ tests/shell/test_json_const_subscript_gate.bats	scripts/check_subscription_null_
 tests/shell/test_json_dump_utf8_gate.bats	scripts/check_json_dump_utf8.py
 tests/shell/test_keep_unchanged_mtimes.bats	Makefile mk/deps.mk scripts/keep-unchanged-mtimes.sh
 tests/shell/test_l081_gate.bats	scripts/check_l081_anti_pattern.py scripts/staged_content.py
-tests/shell/test_land_gate.bats	.githooks/lib/land-gate-stamp.sh .github/workflows/build.yml Makefile mk/tests.mk scripts/helix-claim scripts/land-gate.sh scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/sweep_location.sh
+tests/shell/test_land_gate.bats	.githooks/lib/land-gate-stamp.sh .github/workflows/build.yml Makefile mk/tests.mk scripts/check_no_mocks.py scripts/helix-claim scripts/land-gate.sh scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/sweep_location.sh
 tests/shell/test_lane_binding_reconcile_gate.bats	scripts/check_lane_binding_reconcile.py
 tests/shell/test_latest_green_sha.bats	scripts/latest-green-sha.sh
 tests/shell/test_libhv_dns_resolver_patch.bats	lib/libhv mk/patches.mk mk/rules.mk patches/libhv-dns-resolver-fallback.patch
@@ -117,6 +117,7 @@ tests/shell/test_mutate_diff_jobserver.bats	scripts/diff_base.py scripts/mutate_
 tests/shell/test_namespace_gate.bats	docs/devel/DEVELOPMENT.md scripts/check_namespace_compliance.py scripts/qc/namespace.sh scripts/quality-checks.sh src/printer/ams_backend_cfs.cpp
 tests/shell/test_ninja_jobserver.bats	scripts/ninja-jobserver.sh
 tests/shell/test_no_echo_ansi.bats	scripts/install-dev.sh scripts/lib/installer/
+tests/shell/test_no_mocks_gate.bats	Makefile scripts/check_no_mocks.py scripts/compile_command.py scripts/diff_base.py scripts/esp32_syntax_check.py scripts/merge_compile_commands.py scripts/mock_symbol_pattern.txt
 tests/shell/test_order_dependence_gate.bats	scripts/check_test_order_dependence.py
 tests/shell/test_orphan_callbacks_gate.bats	scripts/check_orphan_callbacks.py scripts/check_required_names.py
 tests/shell/test_orphan_subjects_gate.bats	assets/config/default_layout.json scripts/check_orphan_subjects.py
@@ -145,7 +146,7 @@ tests/shell/test_raw_this_queue_update_gate.bats	scripts/check_raw_this_queue_up
 tests/shell/test_release_channel.bats	RELEASE_CHANNEL scripts/release-channel.sh
 tests/shell/test_release_config_deploy.bats	Makefile config/99-helixscreen-backlight.rules config/creality-backend.init config/helixscreen.env config/helixscreen.init mk/cross.mk scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/release.sh tests/shell/helpers.bash
 tests/shell/test_release_dry_run.bats	scripts/generate-manifest.sh scripts/verify-dry-run-release.sh
-tests/shell/test_release_gate.bats	CHANGELOG.md VERSION.txt scripts/android-version-code.sh scripts/changelog-section.sh scripts/generate-whatsnew.sh scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/release-gate.sh scripts/release-health.sh
+tests/shell/test_release_gate.bats	CHANGELOG.md VERSION.txt scripts/android-version-code.sh scripts/changelog-section.sh scripts/generate-whatsnew.sh scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/mock_symbol_pattern.txt scripts/release-gate.sh scripts/release-health.sh
 tests/shell/test_release_health.bats	VERSION.txt scripts/release-health.sh server/telemetry-worker/
 tests/shell/test_release_naming_agreement.bats	scripts/dev-release.sh scripts/generate-manifest.sh scripts/lib/installer/release.sh tests/fixtures/version_precedence.txt
 tests/shell/test_release_packaging_artifacts.bats	lv_conf.h mk/cross.mk moonraker-plugin/helix_print.py moonraker-plugin/install.sh scripts/gen_splash_3d.py scripts/lib/lvgl_image_lib.sh
