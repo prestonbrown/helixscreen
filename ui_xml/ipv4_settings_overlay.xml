@@ -2,7 +2,8 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- IPv4 settings for one interface: static address or DHCP. Subjects are C++
-     (Ipv4SettingsOverlay::init_subjects); the title names the interface. -->
+     (Ipv4SettingsOverlay::init_subjects); the title names the interface. Each
+     field is typed on the numeric keypad in its IPv4 mode, opened by a tap. -->
 <component>
   <view name="ipv4_settings_overlay"
         extends="overlay_panel" title="IPv4" title_subject="ipv4_title" title_transform="none" bg_color="#screen_bg">
@@ -19,9 +20,9 @@
                 style_pad_gap="#space_xs" scrollable="false">
           <text_small text="IP address"/>
           <text_input name="ipv4_address_input"
-                      width="100%" bind_text="ipv4_address" keyboard_hint="numeric" max_length="15"
-                      placeholder_text="192.168.1.50">
+                      width="100%" bind_text="ipv4_address" max_length="15" placeholder_text="192.168.1.50">
             <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_ipv4_edit_address"/>
           </text_input>
         </lv_obj>
         <lv_obj width="0"
@@ -29,9 +30,9 @@
                 style_pad_gap="#space_xs" scrollable="false">
           <text_small text="Subnet mask"/>
           <text_input name="ipv4_netmask_input"
-                      width="100%" bind_text="ipv4_netmask" keyboard_hint="numeric" max_length="15"
-                      placeholder_text="255.255.255.0">
+                      width="100%" bind_text="ipv4_netmask" max_length="15" placeholder_text="255.255.255.0">
             <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_ipv4_edit_netmask"/>
           </text_input>
         </lv_obj>
         <lv_obj width="0"
@@ -39,9 +40,9 @@
                 style_pad_gap="#space_xs" scrollable="false">
           <text_small text="Gateway"/>
           <text_input name="ipv4_gateway_input"
-                      width="100%" bind_text="ipv4_gateway" keyboard_hint="numeric" max_length="15"
-                      placeholder_text="192.168.1.1">
+                      width="100%" bind_text="ipv4_gateway" max_length="15" placeholder_text="192.168.1.1">
             <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_ipv4_edit_gateway"/>
           </text_input>
         </lv_obj>
         <lv_obj width="0"
@@ -49,9 +50,9 @@
                 style_pad_gap="#space_xs" scrollable="false">
           <text_small text="DNS server"/>
           <text_input name="ipv4_dns_input"
-                      width="100%" bind_text="ipv4_dns" keyboard_hint="numeric" max_length="15"
-                      placeholder_text="192.168.1.1">
+                      width="100%" bind_text="ipv4_dns" max_length="15" placeholder_text="192.168.1.1">
             <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_ipv4_edit_dns"/>
           </text_input>
         </lv_obj>
       </lv_obj>

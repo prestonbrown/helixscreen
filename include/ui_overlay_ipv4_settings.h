@@ -60,6 +60,9 @@ class Ipv4KeepModal : public Modal {
     std::function<void()> on_revert_;
 };
 
+/// The four fields of the IPv4 form, each typed on the numeric keypad.
+enum class Ipv4FormField { Address, Netmask, Gateway, Dns };
+
 class Ipv4SettingsOverlay : public OverlayBase {
   public:
     Ipv4SettingsOverlay() = default;
@@ -80,8 +83,12 @@ class Ipv4SettingsOverlay : public OverlayBase {
 
     void init_subjects() override;
     void register_callbacks() override;
+    void before_show() override;
     void on_activate() override;
     void cleanup() override;
+
+    /// Opens the keypad on @p field, prefilled with its text.
+    void edit_field(Ipv4FormField field);
 
     /**
      * @brief Show the overlay for @p link

@@ -4,11 +4,13 @@
 #include "ui_overlay_ipv4_settings.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_component_keypad.h"
 #include "ui_keyboard_manager.h"
 #include "ui_toast_manager.h"
 
 #include "core/static_panel_registry.h"
 #include "ethernet_manager.h"
+#include "ui/ui_widget_helpers.h"
 #include "wifi_manager.h"
 
 #include <lvgl/lvgl.h>
@@ -21,7 +23,6 @@ namespace helix::settings {
 namespace {
 
 constexpr uint32_t kCountdownTickMs = 250;
-constexpr uint32_t kKeyboardWaitTickMs = 50;
 
 // The sentence the form shows for a validation verdict, translated.
 const char* ipv4_problem_text(helix::net::Ipv4Problem problem, helix::net::Ipv4Field field) {
@@ -52,7 +53,7 @@ const char* ipv4_problem_text(helix::net::Ipv4Problem problem, helix::net::Ipv4F
             return lv_tr("The IP address is not a valid address.");
         }
     case helix::net::Ipv4Problem::NotAMask:
-        return lv_tr("The subnet mask is not valid. Use a form such as 255.255.255.0 or /24.");
+        return lv_tr("The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.");
     case helix::net::Ipv4Problem::NetworkAddress:
     case helix::net::Ipv4Problem::BroadcastAddress:
         return field == helix::net::Ipv4Field::Gateway
@@ -153,6 +154,14 @@ void Ipv4SettingsOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_ipv4_apply", [](lv_event_t*) { get_ipv4_settings_overlay().handle_apply(); }},
         {"on_ipv4_use_dhcp", [](lv_event_t*) { get_ipv4_settings_overlay().handle_use_dhcp(); }},
+        {"on_ipv4_edit_address",
+         [](lv_event_t*) { get_ipv4_settings_overlay().edit_field(Ipv4FormField::Address); }},
+        {"on_ipv4_edit_netmask",
+         [](lv_event_t*) { get_ipv4_settings_overlay().edit_field(Ipv4FormField::Netmask); }},
+        {"on_ipv4_edit_gateway",
+         [](lv_event_t*) { get_ipv4_settings_overlay().edit_field(Ipv4FormField::Gateway); }},
+        {"on_ipv4_edit_dns",
+         [](lv_event_t*) { get_ipv4_settings_overlay().edit_field(Ipv4FormField::Dns); }},
     });
 }
 
@@ -165,6 +174,52 @@ void Ipv4SettingsOverlay::open(lv_obj_t* parent_screen, helix::net::Ipv4Link lin
     link_ = link;
     current_ip_ = current_ip;
     show(parent_screen);
+}
+
+void Ipv4SettingsOverlay::before_show() {
+    // The fields are typed on the numeric keypad, so they opt out of the software
+    // keyboard <text_input> gives every textarea; without this a tap raises both.
+    for (const char* name :
+         {"ipv4_address_input", "ipv4_netmask_input", "ipv4_gateway_input", "ipv4_dns_input"}) {
+        if (lv_obj_t* field = helix::ui::find_required(overlay_root_, name, get_name())) {
+            KeyboardManager::instance().unregister_textarea(field);
+        }
+    }
+}
+
+void Ipv4SettingsOverlay::edit_field(Ipv4FormField field) {
+    if (!loaded_ || change_pending_ || lv_subject_get_int(&busy_)) {
+        return;
+    }
+    lv_subject_t* subject = &address_;
+    const char* title = lv_tr("IP address");
+    switch (field) {
+    case Ipv4FormField::Address:
+        break;
+    case Ipv4FormField::Netmask:
+        subject = &netmask_;
+        title = lv_tr("Subnet mask");
+        break;
+    case Ipv4FormField::Gateway:
+        subject = &gateway_;
+        title = lv_tr("Gateway");
+        break;
+    case Ipv4FormField::Dns:
+        subject = &dns_;
+        title = lv_tr("DNS server");
+        break;
+    }
+    ui_keypad_config_t config{};
+    config.title_label = title;
+    config.unit_label = "";
+    config.mode = helix::ui::KeypadInput::Mode::Ipv4;
+    config.initial_text = lv_subject_get_string(subject);
+    // The overlay is process-wide, so the subject outlives the keypad.
+    config.on_confirm_text = [this, subject](const std::string& text) {
+        lv_subject_copy_string(subject, text.c_str());
+        set_error("");
+    };
+    ui_keypad_show(&config);
 }
 
 void Ipv4SettingsOverlay::on_activate() {
@@ -304,8 +359,6 @@ void Ipv4SettingsOverlay::handle_use_dhcp() {
 }
 
 void Ipv4SettingsOverlay::start_change(const helix::net::Ipv4Config& next) {
-    // The keep dialog opens over this form; a keyboard left up sits behind it.
-    KeyboardManager::instance().hide();
     set_error("");
     if (next == current_config_) {
         close();
@@ -341,19 +394,6 @@ void Ipv4SettingsOverlay::start_change(const helix::net::Ipv4Config& next) {
 }
 
 void Ipv4SettingsOverlay::show_keep_prompt() {
-    // The dialog's backdrop is drawn from what is behind it at show time, so it
-    // waits until the keyboard has finished sliding away.
-    if (KeyboardManager::instance().is_visible()) {
-        countdown_timer_.reset(lv_timer_create(
-            [](lv_timer_t* t) {
-                if (!KeyboardManager::instance().is_visible()) {
-                    static_cast<Ipv4SettingsOverlay*>(lv_timer_get_user_data(t))
-                        ->show_keep_prompt();
-                }
-            },
-            kKeyboardWaitTickMs, this));
-        return;
-    }
     char title[sizeof(keep_title_buf_)];
     const std::string what = next_config_.dhcp ? std::string(lv_tr("DHCP")) : next_config_.address;
     std::snprintf(title, sizeof(title), lv_tr("Keep %s?"), what.c_str());
