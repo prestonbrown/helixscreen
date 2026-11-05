@@ -362,6 +362,8 @@ TEST_CASE_METHOD(XMLTestFixture, "clear gives the bytes back for the same drawin
     CHECK_FALSE(b.t.rt->faulted());
 }
 
+// Under TSan the load outruns the fixed CPU budget PluginHost gives a plugin.
+#if !defined(__SANITIZE_THREAD__) && !(defined(__has_feature) && __has_feature(thread_sanitizer))
 TEST_CASE_METHOD(XMLTestFixture, "unload releases a plugin's canvases", "[plugin][lua][canvas]") {
     TempDir tmp;
     std::filesystem::create_directories(tmp.path / "canvas-fill");
@@ -408,6 +410,7 @@ TEST_CASE_METHOD(XMLTestFixture, "unload releases a plugin's canvases", "[plugin
     rig.host->disable("canvas-fill");
     drain();
 }
+#endif
 
 TEST_CASE_METHOD(XMLTestFixture, "list bytes count against the memory cap",
                  "[plugin][lua][canvas]") {
