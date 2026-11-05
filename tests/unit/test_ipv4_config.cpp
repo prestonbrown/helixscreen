@@ -563,6 +563,47 @@ TEST_CASE("dhcpcd edits refuse what they cannot represent", "[ipv4]") {
     }
 }
 
+TEST_CASE("dhcpcd edits go direct, through sudo -n, or not at all", "[ipv4]") {
+    using Sudo = DhcpcdAccessFacts::Sudo;
+    const auto mode = [](bool root, bool writable, bool readable, Sudo sudo) {
+        return select_dhcpcd_privilege({root, writable, readable, sudo});
+    };
+    CHECK(mode(true, true, true, Sudo::NotTried) == DhcpcdPrivilege::Direct);
+    CHECK(mode(false, true, true, Sudo::NotTried) == DhcpcdPrivilege::Direct);
+    CHECK(mode(true, false, true, Sudo::Ok) == DhcpcdPrivilege::Unsupported);
+    CHECK(mode(false, false, true, Sudo::Ok) == DhcpcdPrivilege::Sudo);
+    CHECK(mode(false, false, false, Sudo::Ok) == DhcpcdPrivilege::Unsupported);
+    CHECK(mode(false, false, true, Sudo::Failed) == DhcpcdPrivilege::Unsupported);
+    CHECK(mode(false, false, true, Sudo::NotTried) == DhcpcdPrivilege::Unsupported);
+
+    using Argv = std::vector<std::string>;
+    const DhcpcdTools t{"/usr/bin/sudo", "/usr/bin/install", "/bin/sync",
+                        "/bin/mv",       "/bin/rm",          "/usr/sbin/dhcpcd"};
+    CHECK(dhcpcd_sudo_write_argvs(t, "/tmp/helix-dhcpcd-a", "/etc/dhcpcd.conf.helix-new",
+                                  "/etc/dhcpcd.conf", 0, 108, 0100664) ==
+          std::vector<Argv>{
+              {"/usr/bin/sudo", "-n", "--", "/usr/bin/install", "-o", "0", "-g", "108", "-m",
+               "0664", "--", "/tmp/helix-dhcpcd-a", "/etc/dhcpcd.conf.helix-new"},
+              {"/usr/bin/sudo", "-n", "--", "/bin/sync", "--", "/etc/dhcpcd.conf.helix-new"},
+              {"/usr/bin/sudo", "-n", "--", "/bin/mv", "-f", "--", "/etc/dhcpcd.conf.helix-new",
+               "/etc/dhcpcd.conf"}});
+    CHECK(dhcpcd_rebind_argv(DhcpcdPrivilege::Sudo, t, "wlan0") ==
+          Argv{"/usr/bin/sudo", "-n", "--", "/usr/sbin/dhcpcd", "-n", "wlan0"});
+    CHECK(dhcpcd_rebind_argv(DhcpcdPrivilege::Direct, t, "wlan0") ==
+          Argv{"/usr/sbin/dhcpcd", "-n", "wlan0"});
+
+    using Status = Ipv4Result::Status;
+    const std::string prompt = "sudo: a password is required\n";
+    CHECK(dhcpcd_step_result("install", 1, prompt, true).status == Status::Refused);
+    CHECK(
+        dhcpcd_step_result("install", 1, "sudo: a terminal is required to read the password", true)
+            .status == Status::Refused);
+    CHECK(dhcpcd_step_result("install", 1, "install: cannot stat", true).status == Status::Failed);
+    CHECK(dhcpcd_step_result("install", -1, "", true).status == Status::Failed);
+    CHECK(dhcpcd_step_result("dhcpcd -n", 1, prompt, false).status == Status::Failed);
+    CHECK(dhcpcd_step_result("install", 0, prompt, true).ok());
+}
+
 TEST_CASE("ipv4_keep_unshown keeps the DNS servers the form cannot show", "[ipv4]") {
     const auto current = static_config("10.0.0.2", 24, "10.0.0.1", {"1.1.1.1", "9.9.9.9"});
     CHECK(ipv4_keep_unshown(current, static_config("10.0.0.2", 24, "10.0.0.1", {"1.1.1.1"})) ==

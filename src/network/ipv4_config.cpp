@@ -702,6 +702,59 @@ std::optional<Ipv4Config> dhcpcd_conf_read_ipv4(const std::string& conf, const s
     return c;
 }
 
+DhcpcdPrivilege select_dhcpcd_privilege(const DhcpcdAccessFacts& facts) {
+    if (facts.conf_writable) {
+        return DhcpcdPrivilege::Direct;
+    }
+    if (facts.root || !facts.conf_readable || facts.sudo != DhcpcdAccessFacts::Sudo::Ok) {
+        return DhcpcdPrivilege::Unsupported;
+    }
+    return DhcpcdPrivilege::Sudo;
+}
+
+std::vector<std::string> dhcpcd_sudo_argv(const DhcpcdTools& tools,
+                                          std::vector<std::string> command) {
+    std::vector<std::string> argv{tools.sudo, "-n", "--"};
+    argv.insert(argv.end(), std::make_move_iterator(command.begin()),
+                std::make_move_iterator(command.end()));
+    return argv;
+}
+
+std::vector<std::vector<std::string>> dhcpcd_sudo_write_argvs(const DhcpcdTools& tools,
+                                                              const std::string& temp,
+                                                              const std::string& staged,
+                                                              const std::string& real, unsigned uid,
+                                                              unsigned gid, unsigned mode) {
+    char mode_text[8];
+    std::snprintf(mode_text, sizeof(mode_text), "%04o", mode & 07777);
+    return {
+        dhcpcd_sudo_argv(tools, {tools.install, "-o", std::to_string(uid), "-g",
+                                 std::to_string(gid), "-m", mode_text, "--", temp, staged}),
+        dhcpcd_sudo_argv(tools, {tools.sync, "--", staged}),
+        dhcpcd_sudo_argv(tools, {tools.mv, "-f", "--", staged, real}),
+    };
+}
+
+std::vector<std::string> dhcpcd_rebind_argv(DhcpcdPrivilege privilege, const DhcpcdTools& tools,
+                                            const std::string& iface) {
+    std::vector<std::string> command{tools.dhcpcd, "-n", iface};
+    return privilege == DhcpcdPrivilege::Sudo ? dhcpcd_sudo_argv(tools, std::move(command))
+                                              : command;
+}
+
+Ipv4Result dhcpcd_step_result(const std::string& what, int exit_code, const std::string& output,
+                              bool via_sudo) {
+    if (exit_code == 0) {
+        return Ipv4Result::success();
+    }
+    const std::string line(text_io::trim(output.substr(0, output.find('\n'))));
+    if (via_sudo && (output.find("password is required") != std::string::npos ||
+                     output.find("a terminal is required") != std::string::npos)) {
+        return Ipv4Result::refused("sudo refused " + what + ": " + line);
+    }
+    return Ipv4Result::failed(what + ": " + line);
+}
+
 // ============================================================================
 // Confirm-or-revert
 // ============================================================================

@@ -14,8 +14,10 @@
  *   modify`), reapplied to the device. Needs the daemon running, which is
  *   how the backend factory already decides NetworkManager owns the box.
  * - dhcpcd: a block in /etc/dhcpcd.conf, then `dhcpcd -n <iface>`. Needs
- *   the daemon running and the file writable by this process (root); a
- *   non-root service user cannot edit it, so the setting stays hidden.
+ *   the daemon running and either the file writable by this process (root)
+ *   or a service user whose `sudo -n` needs no password; then the file is
+ *   staged privately and installed over the original through sudo. Neither,
+ *   and the setting stays hidden.
  *
  * Anything else (BusyBox udhcpc started by firmware init scripts, ifupdown,
  * systemd-networkd, the printer network daemon) has no store here and
@@ -36,6 +38,11 @@ namespace helix::net {
 class Ipv4SystemStore {
   public:
     virtual ~Ipv4SystemStore() = default;
+    /// False while the store cannot edit anything yet or ever (dhcpcd still
+    /// probing sudo, or no way to write its file). Never blocks.
+    virtual bool available() const {
+        return true;
+    }
     virtual Ipv4Result read(const std::string& iface, Ipv4Link link, Ipv4Config& out) = 0;
     virtual Ipv4Result prepare(const std::string& iface, Ipv4Link link, const Ipv4Config& next,
                                Ipv4Snapshot& out) = 0;
@@ -45,6 +52,7 @@ class Ipv4SystemStore {
 
 /// What a backend's Ipv4Configurable overrides forward to: unsupported with
 /// no store, failed with no interface, else the store's answer.
+bool store_supported(const Ipv4SystemStore* store);
 Ipv4Result store_read(Ipv4SystemStore* store, const std::string& iface, Ipv4Link link,
                       Ipv4Config& out);
 Ipv4Result store_prepare(Ipv4SystemStore* store, const std::string& iface, Ipv4Link link,
@@ -93,8 +101,9 @@ bool network_manager_active();
 /// A NetworkManager store, or null when NetworkManager is not active.
 std::unique_ptr<Ipv4SystemStore> make_network_manager_ipv4_store();
 
-/// A dhcpcd store, or null when dhcpcd is not running or its config is not
-/// writable by this process.
+/// A dhcpcd store, or null when dhcpcd is not running. It is available once
+/// this process is known to be able to write dhcpcd.conf, directly or through
+/// sudo; the sudo probe runs on a worker.
 std::unique_ptr<Ipv4SystemStore> make_dhcpcd_ipv4_store();
 
 /// Whichever owns this system's interfaces: NetworkManager first, then dhcpcd.

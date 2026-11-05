@@ -494,7 +494,7 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     /// wpa_supplicant leaves addressing to whatever runs DHCP beside it; the
     /// one such owner that can persist a static address here is dhcpcd.
     bool supports_ipv4_config() const override {
-        return ipv4_store_ != nullptr;
+        return helix::net::store_supported(ipv4_store_.get());
     }
     helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override;
     helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config& next,

@@ -312,6 +312,51 @@ std::optional<std::string> dhcpcd_conf_with_ipv4(const std::string& conf, const 
 /// hold (an address without a prefix, or several addresses).
 std::optional<Ipv4Config> dhcpcd_conf_read_ipv4(const std::string& conf, const std::string& iface);
 
+/// How this process edits dhcpcd.conf and rebinds dhcpcd: itself (the file
+/// and /etc are writable, normally as root), or through `sudo -n` for a
+/// service user with passwordless sudo. Unsupported hides the setting.
+enum class DhcpcdPrivilege { Direct, Sudo, Unsupported };
+
+struct DhcpcdAccessFacts {
+    bool root = false;
+    bool conf_writable = false; ///< dhcpcd.conf and /etc writable by this process
+    bool conf_readable = false;
+    enum class Sudo { NotTried, Ok, Failed } sudo = Sudo::NotTried; ///< `sudo -n true`
+};
+
+/// Direct when the file is writable; otherwise Sudo for a non-root user that
+/// can read it and passed the sudo probe. Root that cannot write (a read-only
+/// /etc) gains nothing from sudo.
+DhcpcdPrivilege select_dhcpcd_privilege(const DhcpcdAccessFacts& facts);
+
+/// Absolute paths of the programs the dhcpcd store runs.
+struct DhcpcdTools {
+    std::string sudo, install, sync, mv, rm, dhcpcd;
+};
+
+/// @p command run as root without a prompt: a refusal fails instead of waiting.
+std::vector<std::string> dhcpcd_sudo_argv(const DhcpcdTools& tools,
+                                          std::vector<std::string> command);
+
+/// The sudo commands that replace @p real with @p temp's bytes: install a
+/// root-owned copy beside it with the given owner and mode, flush it, then
+/// rename it over @p real, so a reader sees the old file or the new one.
+std::vector<std::vector<std::string>> dhcpcd_sudo_write_argvs(const DhcpcdTools& tools,
+                                                              const std::string& temp,
+                                                              const std::string& staged,
+                                                              const std::string& real, unsigned uid,
+                                                              unsigned gid, unsigned mode);
+
+/// `dhcpcd -n <iface>`: reload the configuration and rebind the interface.
+std::vector<std::string> dhcpcd_rebind_argv(DhcpcdPrivilege privilege, const DhcpcdTools& tools,
+                                            const std::string& iface);
+
+/// One dhcpcd-store command's exit as a result. sudo answering that it needs
+/// a password (or a terminal to ask for one) is Refused; any other non-zero
+/// exit, a signal or a timeout (@p exit_code -1) is Failed.
+Ipv4Result dhcpcd_step_result(const std::string& what, int exit_code, const std::string& output,
+                              bool via_sudo);
+
 // ============================================================================
 // Confirm-or-revert
 // ============================================================================
