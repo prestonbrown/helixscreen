@@ -468,7 +468,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
 
     /// Chute save: COORDINATES_ADJUST_SAVE_POS (the firmware reads the LIVE
     /// toolhead position and rewrites extrude_pos_x/y in box.cfg; HelixScreen
-    /// sends no coordinate) followed by Y_SAFE to re-park. on_saved fires on
+    /// sends no coordinate) followed by Y_SAFE to re-park. Refused while a print
+    /// holds the machine or X or Y is unhomed. on_saved fires on
     /// the main thread after both completed; @p on_failed when either gcode
     /// fails (the backend has already sent Y_SAFE, which is an idempotent
     /// park).
@@ -477,7 +478,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
         std::function<void(const std::string& klipper_msg)> on_failed = nullptr) override;
 
     /// Abort path: re-park Y with CMD=Y_SAFE. Required once PREPARE has run,
-    /// which is the point from which the toolhead is left off-park.
+    /// which is the point from which the toolhead is left off-park. Refused
+    /// while a print holds the machine.
     AmsError exit_chute_calibration() override;
 
     /// The position pair the last successful save reported on the response
@@ -869,6 +871,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// Save-response line captured by the last chute save (main thread only:
     /// written when the save completes, read by last_chute_saved_position).
     std::string last_chute_save_line_;
+
+    /// Y_SAFE, unless a print holds the machine: every chute re-park goes here.
+    AmsError repark_chute();
 
     /// Both calibration flows home the machine; only one may own it at a
     /// time. Set once a flow's first gcode is on the wire, cleared in every

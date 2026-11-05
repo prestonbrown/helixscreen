@@ -3639,6 +3639,7 @@ translations:
   'Start next: {}': '次を開始：{}'
   Start options for prints from other apps: '他のアプリからの印刷の開始オプション'
   Start print anyway?: それでも印刷を開始しますか？
+  Start the calibration again: キャリブレーションをやり直してください
   Started: 開始
   Starting Print...: 印刷開始中...
   Starting download...: ダウンロードを開始中...
@@ -4163,6 +4164,7 @@ translations:
   Toolhead Style: ツールヘッドスタイル
   Toolhead Y: ツールヘッド Y
   Toolhead jam: ツールヘッドの詰まり
+  Toolhead lost homing: ツールヘッドのホーミングが解除されました
   Toolhead offset calibration: ツールヘッドオフセットのキャリブレーション
   Toolhead position and homing, with a plate view and Home All: "ツールヘッドの位置とホーミング。プレート表示と全軸ホーミング付き"
   Toolhead position unknown: ツールヘッドの位置が不明です

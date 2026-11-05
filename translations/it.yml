@@ -3835,6 +3835,7 @@ translations:
   'Start next: {}': 'Avvia il prossimo: {}'
   Start options for prints from other apps: 'Opzioni di avvio per le stampe da altre app'
   Start print anyway?: Avviare comunque la stampa?
+  Start the calibration again: Avvia di nuovo la calibrazione
   Started: Avviato
   Starting Print...: Avvio stampa...
   Starting download...: Avvio del download...
@@ -4401,6 +4402,7 @@ translations:
   Toolhead Style: Stile testina
   Toolhead Y: Testina Y
   Toolhead jam: Inceppamento testina
+  Toolhead lost homing: La testina ha perso l'homing
   Toolhead offset calibration: Calibrazione offset testine
   Toolhead position and homing, with a plate view and Home All: "Posizione e homing della testina, con vista del piatto e Homing tutto"
   Toolhead position unknown: Posizione della testina sconosciuta
