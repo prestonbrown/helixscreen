@@ -42,6 +42,12 @@ class ConfigurableWidget : public PanelWidget {
     bool has_edit_configure() const override {
         return true;
     }
+    /// Counts the configure pill's taps; false asks for no rebuild.
+    bool on_edit_configure() override {
+        ++configure_calls;
+        return false;
+    }
+    int configure_calls = 0;
 };
 
 lv_obj_t* icon_label_of(lv_obj_t* pill) {
@@ -56,14 +62,16 @@ TEST_CASE_METHOD(XMLTestFixture,
                  "edit-mode chrome pills: icons clear WCAG AA, and only a tap presses one",
                  "[grid_edit][edit-chrome][halfcell]") {
     // A whole cell at the grid origin carries its pills on its corners; a half
-    // cell, too small to share, carries them just outside it, mid-grid or
-    // beside the delete-page button in the page's top-right corner.
-    enum class Scene { Whole, HalfMidGrid, HalfBesideDeletePage };
-    const Scene scene = GENERATE(Scene::Whole, Scene::HalfMidGrid, Scene::HalfBesideDeletePage);
+    // cell, too small to share, carries them just outside it: mid-grid, beside
+    // the delete-page button in the page's top-right corner, or beside a
+    // diagonal neighbour whose select tap a pill must not take.
+    enum class Scene { Whole, HalfMidGrid, HalfBesideDeletePage, HalfBesideNeighbour };
+    const Scene scene = GENERATE(Scene::Whole, Scene::HalfMidGrid, Scene::HalfBesideDeletePage,
+                                 Scene::HalfBesideNeighbour);
     CAPTURE(static_cast<int>(scene));
     const bool half = scene != Scene::Whole;
-    const int col = scene == Scene::HalfMidGrid ? 8 : scene == Scene::Whole ? 0 : 10;
-    const int row = scene == Scene::HalfMidGrid ? 4 : scene == Scene::Whole ? 0 : 1;
+    const int col = scene == Scene::Whole ? 0 : scene == Scene::HalfBesideDeletePage ? 10 : 8;
+    const int row = scene == Scene::Whole ? 0 : scene == Scene::HalfBesideDeletePage ? 1 : 4;
     const int span = half ? 1 : GridLayout::TRACKS_PER_CELL;
     const int gutter = helix::GridLayout::gutter_px();
     REQUIRE(gutter > 0);
@@ -94,6 +102,13 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, col, span, LV_GRID_ALIGN_STRETCH, row,
                          span);
     lv_obj_set_user_data(widget, &pw);
+    lv_obj_t* neighbour = nullptr;
+    if (scene == Scene::HalfBesideNeighbour) {
+        neighbour = lv_obj_create(container);
+        lv_obj_set_name(neighbour, "neighbour");
+        lv_obj_set_grid_cell(neighbour, LV_GRID_ALIGN_STRETCH, col + 1, 1, LV_GRID_ALIGN_STRETCH,
+                             row - 1, 1);
+    }
     lv_obj_update_layout(container);
 
     // A second page holds the widget (see test_grid_edit_drag_path.cpp for why
@@ -123,6 +138,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     constexpr int kPageIndex = 1;
 
     GridEditMode em;
+    int delete_page_calls = 0;
+    em.set_delete_page_callback([&]() { ++delete_page_calls; });
     em.enter(container, &config, kPageIndex);
     em.select_widget(widget);
     REQUIRE(em.selected_widget() == widget);
@@ -179,6 +196,11 @@ TEST_CASE_METHOD(XMLTestFixture,
             CHECK((a.x1 >= box.x1 && a.y1 >= box.y1 && a.x2 <= box.x2 && a.y2 <= box.y2));
             CHECK((a.x2 < del_area.x1 || a.x1 > del_area.x2 || a.y2 < del_area.y1 ||
                    a.y1 > del_area.y2));
+            if (neighbour) {
+                lv_area_t n;
+                lv_obj_get_coords(neighbour, &n);
+                CHECK((a.x2 < n.x1 || a.x1 > n.x2 || a.y2 < n.y1 || a.y1 > n.y2));
+            }
         }
         CHECK(pill.x1 > tile.x2);
         lv_point_t del_centre{(del_area.x1 + del_area.x2) / 2, (del_area.y1 + del_area.y2) / 2};
@@ -188,21 +210,42 @@ TEST_CASE_METHOD(XMLTestFixture,
         CHECK(pill.y1 == tile.y1 - quarter);
     }
 
-    // A press that starts on a pill is the pill's, even over the outward
-    // resize band: sliding off neither resizes the widget nor taps the pill.
+    // A press that starts on a pill or the delete-page button is that
+    // button's, even over the outward resize band: sliding off neither resizes
+    // the widget nor taps the button.
     helix_test::ScopedPointerIndev pointer;
-    lv_point_t centre{(pill.x1 + pill.x2) / 2, (pill.y1 + pill.y2) / 2};
-    REQUIRE(lv_indev_search_obj(lv_screen_active(), &centre) == trash);
-    pointer.press(centre.x, centre.y);
-    pointer.move(centre.x + 30, centre.y + 30);
-    pointer.release(centre.x + 80, centre.y + 80);
-    CHECK(em.selected_widget() == widget);
-    REQUIRE(config.page_entries(kPageIndex).size() == 1);
-    CHECK(config.page_entries(kPageIndex)[0].colspan == span);
+    auto centre_of = [](lv_obj_t* obj) {
+        lv_area_t a;
+        lv_obj_get_coords(obj, &a);
+        lv_point_t c{(a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2};
+        REQUIRE(lv_indev_search_obj(lv_screen_active(), &c) == obj);
+        return c;
+    };
+    auto tap = [&](lv_point_t c) {
+        pointer.press(c.x, c.y);
+        pointer.release(c.x, c.y);
+    };
+    const lv_point_t centre = centre_of(trash);
+    for (lv_obj_t* button : {trash, configure, del}) {
+        const lv_point_t c = centre_of(button);
+        const int dx = c.x > 300 ? -40 : 40; // toward the grid's middle
+        pointer.press(c.x, c.y);
+        pointer.move(c.x + dx, c.y + 30);
+        pointer.release(c.x + 2 * dx, c.y + 80);
+        CHECK(em.selected_widget() == widget);
+        REQUIRE(config.page_entries(kPageIndex).size() == 1);
+        CHECK(config.page_entries(kPageIndex)[0].colspan == span);
+        CHECK(pw.configure_calls == 0);
+        CHECK(delete_page_calls == 0);
+    }
 
-    // A tap that lifts on the pill still removes the widget.
-    pointer.press(centre.x, centre.y);
-    pointer.release(centre.x, centre.y);
+    // A tap that lifts on the button still acts; the trash last, as it
+    // removes the widget.
+    tap(centre_of(configure));
+    CHECK(pw.configure_calls == 1);
+    tap(centre_of(del));
+    CHECK(delete_page_calls == 1);
+    tap(centre);
     CHECK(em.selected_widget() == nullptr);
 
     em.exit();
