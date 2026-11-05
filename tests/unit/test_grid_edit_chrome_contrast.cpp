@@ -464,9 +464,10 @@ TEST_CASE_METHOD(XMLTestFixture, "a whole-cell widget's corner pill leaves the d
     em.exit();
 }
 
-TEST_CASE_METHOD(XMLTestFixture,
-                 "a packed half-cell widget at 480x272 keeps its pills off every tile's centre",
-                 "[grid_edit][edit-chrome][halfcell]") {
+TEST_CASE_METHOD(
+    XMLTestFixture,
+    "a packed half-cell widget at 480x272 keeps its pills to a sliver of any neighbour",
+    "[grid_edit][edit-chrome][halfcell]") {
     helix::test::ScopedBreakpoint bp(UiBreakpoint::Micro);
     struct Spot {
         const char* what;
@@ -479,7 +480,10 @@ TEST_CASE_METHOD(XMLTestFixture,
     CAPTURE(spot.what, spot.col, spot.row);
     ChromeScene scene(test_screen(), spot.col, spot.row, 1, UiBreakpoint::Micro);
     scene.pack_half_cells(spot.col, spot.row);
+    helix_test::ScopedPointerIndev pointer;
     GridEditMode em;
+    int delete_page_calls = 0;
+    em.set_delete_page_callback([&]() { ++delete_page_calls; });
     em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
     em.select_widget(scene.widget);
     REQUIRE(em.selected_widget() == scene.widget);
@@ -502,17 +506,31 @@ TEST_CASE_METHOD(XMLTestFixture,
                      << "," << tile.y1 << "-" << tile.x2 << "," << tile.y2);
         CHECK(lv_area_get_width(&a) == 24);
         CHECK_FALSE(area_has_point(a, centre_of_area(tile)));
+        // A pill deeper into a neighbour than a few px takes the tap that
+        // would select it.
         for (lv_obj_t* n : scene.neighbours) {
             lv_area_t na;
             lv_obj_get_coords(n, &na);
-            INFO("neighbour " << lv_obj_get_name(n));
-            CHECK_FALSE(area_has_point(a, centre_of_area(na)));
+            const int32_t ow = std::min(a.x2, na.x2) - std::max(a.x1, na.x1) + 1;
+            const int32_t oh = std::min(a.y2, na.y2) - std::max(a.y1, na.y1) + 1;
+            INFO("neighbour " << lv_obj_get_name(n) << " overlap " << ow << "x" << oh);
+            CHECK((ow <= 0 || oh <= 0 || std::min(ow, oh) <= 6));
         }
-        CHECK(
-            (a.x2 < del_area.x1 || a.x1 > del_area.x2 || a.y2 < del_area.y1 || a.y1 > del_area.y2));
+        // Where the corner leaves a pill nowhere but over the delete-page
+        // button, a tap on the part over the button acts on neither.
+        if (!(a.x2 < del_area.x1 || a.x1 > del_area.x2 || a.y2 < del_area.y1 ||
+              a.y1 > del_area.y2)) {
+            const int32_t x = (std::max(a.x1, del_area.x1) + std::min(a.x2, del_area.x2)) / 2;
+            const int32_t y = (std::max(a.y1, del_area.y1) + std::min(a.y2, del_area.y2)) / 2;
+            pointer.press(x, y);
+            pointer.release(x, y);
+            CHECK(scene.config->page_entries(ChromeScene::kPageIndex).size() == 1);
+            CHECK(scene.pw.configure_calls == 0);
+            CHECK(delete_page_calls == 0);
+        }
     }
     // A press on the tile's centre lands on the tile, so a drag from there
-    // moves it and a double tap removes nothing.
+    // moves it.
     lv_point_t mid = centre_of_area(tile);
     lv_obj_t* under = lv_indev_search_obj(lv_screen_active(), &mid);
     CHECK(under != trash);

@@ -1693,73 +1693,72 @@ TEST_CASE("outside_pill_area: pills sit off their corner, then beside, below las
         CHECK(trash.x1 > (neighbour.x1 + neighbour.x2) / 2);
     }
 
-    SECTION("neighbours on every side: over one of them, clear of its centre") {
-        const lv_area_t tile{400, 200, 459, 258};
-        const std::vector<lv_area_t> ring{
-            {300, 100, 559, 199}, {300, 200, 399, 358}, {460, 200, 559, 358}, {300, 259, 559, 358}};
-        CHECK(same_area(place(tile, true, {}, ring), {465, 159, 500, 194}));
-    }
-
     SECTION("no safe spot outside the tile: nullopt, so the pill goes on its corner") {
         const lv_area_t tight{0, 0, 59, 58};
         CHECK_FALSE(
             GridEditModeTestAccess::outside_pill_area(tight, kPill, tight, kGap, true).has_value());
-        // Small neighbours centred inside every spot.
+        // Neighbours on every side: every spot lies on one of them, clear of
+        // its centre but deeper than a sliver.
         const lv_area_t tile{400, 200, 459, 258};
-        std::vector<lv_area_t> ring;
-        for (int32_t cx : {480, 375, 520, 335}) {
-            for (int32_t cy : {175, 215, 280}) {
-                ring.push_back({cx - 5, cy - 5, cx + 5, cy + 5});
-            }
-        }
+        const std::vector<lv_area_t> ring{
+            {300, 100, 559, 199}, {300, 200, 399, 358}, {460, 200, 559, 358}, {300, 259, 559, 358}};
         CHECK_FALSE(
             GridEditModeTestAccess::outside_pill_area(tile, kPill, bounds, kGap, true, {}, ring)
                 .has_value());
     }
 }
 
-TEST_CASE("outside_pill_area: a packed grid of small tiles spares every tile's centre",
+TEST_CASE("selection pills in a packed 480x272 grid go on their own tile's corner",
           "[grid_edit][edit-chrome][halfcell]") {
-    // 480x272: 24 px pills, 2 px gaps, 34x31 half-cell tiles on a 36x33 pitch,
-    // every track taken.
+    // 480x272: 24 px pills overhanging by 6, 2 px gaps, every track taken.
+    // No spot outside the tile spares its neighbours, so the pills go on the
+    // tile's own corner, out past its centre, a few px onto the neighbours.
     constexpr int kPill = 24;
     constexpr int kGap = 2;
     const lv_area_t bounds{42, 4, 471, 267};
-    std::vector<lv_area_t> tiles;
-    for (int c = 0; c < 12; ++c) {
-        for (int r = 0; r < 8; ++r) {
-            const int32_t x = 42 + 36 * c;
-            const int32_t y = 4 + 33 * r;
-            tiles.push_back({x, y, x + 33, y + 30});
-        }
-    }
-    auto centre = [](const lv_area_t& a) {
-        return lv_point_t{(a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2};
+    struct Grid {
+        const char* what;
+        int pitch_x, pitch_y, w, h;
+        lv_area_t tile, trash, cfg;
     };
-    auto contains = [](const lv_area_t& a, lv_point_t p) {
-        return p.x >= a.x1 && p.x <= a.x2 && p.y >= a.y1 && p.y <= a.y2;
+    const Grid grids[] = {
+        {"half cells",
+         36,
+         33,
+         34,
+         31,
+         {222, 136, 255, 166},
+         {239, 127, 262, 150},
+         {214, 127, 237, 150}},
+        {"whole cells",
+         72,
+         66,
+         70,
+         64,
+         {186, 70, 255, 133},
+         {238, 64, 261, 87},
+         {180, 64, 203, 87}},
     };
-    // Track (5, 4): every first-ring spot covers a neighbour's centre, so the
-    // trash goes one pill further out, between two neighbours' centres.
-    const lv_area_t tile = tiles[5 * 8 + 4];
-    std::vector<lv_area_t> others;
-    for (const lv_area_t& t : tiles) {
-        if (!same_area(t, tile)) {
-            others.push_back(t);
+    for (const auto& g : grids) {
+        CAPTURE(g.what);
+        std::vector<lv_area_t> others;
+        for (int32_t x = bounds.x1; x + g.w - 1 <= bounds.x2; x += g.pitch_x) {
+            for (int32_t y = bounds.y1; y + g.h - 1 <= bounds.y2; y += g.pitch_y) {
+                const lv_area_t t{x, y, x + g.w - 1, y + g.h - 1};
+                if (!same_area(t, g.tile)) {
+                    others.push_back(t);
+                }
+            }
         }
-    }
-    const auto trash =
-        GridEditModeTestAccess::outside_pill_area(tile, kPill, bounds, kGap, true, {}, others);
-    REQUIRE(trash.has_value());
-    CHECK(same_area(*trash, {284, 110, 307, 133}));
-    const auto cfg = GridEditModeTestAccess::outside_pill_area(tile, kPill, bounds, kGap, false,
-                                                               {*trash}, others);
-    REQUIRE(cfg.has_value());
-    CHECK(same_area(*cfg, {170, 110, 193, 133}));
-    for (const lv_area_t& pill : {*trash, *cfg}) {
-        for (const lv_area_t& t : tiles) {
-            CHECK_FALSE(contains(pill, centre(t)));
-        }
+        CHECK_FALSE(
+            GridEditModeTestAccess::outside_pill_area(g.tile, kPill, bounds, kGap, true, {}, others)
+                .has_value());
+        const lv_area_t trash = GridEditModeTestAccess::corner_pill_area(g.tile, kPill, kPill / 4,
+                                                                         kGap, true, {}, others);
+        CHECK(same_area(trash, g.trash));
+        const lv_area_t cfg = GridEditModeTestAccess::corner_pill_area(
+            g.tile, kPill, kPill / 4, kGap, false, {trash}, others);
+        CHECK(same_area(cfg, g.cfg));
     }
 }
 

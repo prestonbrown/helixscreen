@@ -113,11 +113,12 @@ struct GridEditModeTestAccess {
     }
 
     static lv_area_t corner_pill_area(const lv_area_t& tile, int pill_px, int overhang, int gap,
-                                      bool top_right, const std::vector<lv_area_t>& blocked = {}) {
+                                      bool top_right, const std::vector<lv_area_t>& blocked = {},
+                                      const std::vector<lv_area_t>& tiles = {}) {
         return GridEditMode::corner_pill_area(tile, pill_px, overhang, gap,
                                               top_right ? GridEditMode::PillCorner::TopRight
                                                         : GridEditMode::PillCorner::TopLeft,
-                                              blocked);
+                                              blocked, tiles);
     }
 
     /// Pointer travel from the press origin that an armed press must exceed,
