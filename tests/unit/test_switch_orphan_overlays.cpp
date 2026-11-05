@@ -28,6 +28,7 @@
  */
 
 #include "ui_component_keypad.h"
+#include "ui_jog_pad.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_console.h"
 #include "ui_panel_macros.h"
@@ -35,10 +36,12 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "overlay_base.h"
 #include "printer_cache_registry.h"
+#include "printer_state.h"
 
 #include <array>
 
@@ -230,4 +233,44 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     CHECK(deletes == 1);
     CHECK(s_detach_shape_root == nullptr);
+}
+
+// motion_panel.xml's body is an <if> on ui_is_portrait, so a rotation (an Android window
+// resize) deletes the branch holding the jog pad while the panel stays on the stack.
+TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the motion panel holds",
+                 "[overlays][motion][rotation]") {
+    seed_nav_panels();
+    REQUIRE(get_global_motion_panel().show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* root = get_global_motion_panel().get_root();
+    REQUIRE(root != nullptr);
+    lv_obj_t* old_pad = lv_obj_find_by_name(root, "jog_pad");
+    REQUIRE(old_pad != nullptr);
+
+    lv_subject_t* homed_axes = get_printer_state().motion_state().get_homed_axes_subject();
+    lv_subject_copy_string(homed_axes, "xyz");
+    helix::ui::UpdateQueue::instance().drain();
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int was_portrait = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, was_portrait ? 0 : 1);
+
+    // The rebuilt branch carries a live pad in the printer's homed state, not the placeholder.
+    lv_obj_t* new_pad = lv_obj_find_by_name(root, "jog_pad");
+    REQUIRE(new_pad != nullptr);
+    CHECK(new_pad != old_pad);
+    CHECK(lv_obj_find_by_name(root, "jog_pad_container") == nullptr);
+    CHECK(helix::ui::jog_pad_is_homed(new_pad));
+
+    // Free the condemned branch, then leave: deactivating stops the pad's repeat.
+    process_lvgl(100);
+    NavigationManager::instance().go_back();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(100);
+
+    lv_subject_set_int(portrait, was_portrait);
+    lv_subject_copy_string(homed_axes, "");
+    helix::PrinterCacheRegistry::instance().invalidate_all();
+    helix::ui::destroy_static_panels();
+    helix::ui::UpdateQueue::instance().drain();
 }
