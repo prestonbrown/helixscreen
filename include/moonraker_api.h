@@ -561,6 +561,10 @@ class MoonrakerAPI : public IMoonrakerAPI {
     bool unsubscribe_notifications(helix::SubscriptionId id) override;
 
     /// Get client lifetime guard (for SubscriptionGuard safety)
+    helix::LifetimeToken lifetime_token() const override {
+        return async_lifetime_.token();
+    }
+
     std::weak_ptr<bool> client_lifetime_weak() const override;
 
     /// Register a persistent callback for a specific notification method
