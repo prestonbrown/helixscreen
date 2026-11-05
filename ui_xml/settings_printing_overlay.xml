@@ -76,7 +76,7 @@
         <setting_group_header title="EXTRAS"/>
         <!-- TIMELAPSE (conditional) -->
         <lv_obj name="container_timelapse_settings" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_timelapse" flag="hidden" ref_value="0"/>
+          <bind_flag_if_not_eq subject="timelapse_owner" flag="hidden" ref_value="1"/>
           <setting_action_row name="row_timelapse_settings"
                               label="Timelapse" icon="camera_timer" description="Configure timelapse recording"
                               callback="on_timelapse_settings_clicked"/>

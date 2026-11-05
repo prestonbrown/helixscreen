@@ -68,16 +68,18 @@ class TimelapseSettingsOverlay : public OverlayBase {
         api_ = api;
     }
 
+    /**
+     * @brief Update settings to Moonraker
+     *
+     * A successful save also refreshes the printer's global timelapse setting.
+     */
+    void save_settings();
+
   private:
     /**
      * @brief Fetch current settings from Moonraker
      */
     void fetch_settings();
-
-    /**
-     * @brief Update settings to Moonraker
-     */
-    void save_settings();
 
     /**
      * @brief Update mode info text based on current selection

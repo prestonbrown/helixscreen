@@ -572,6 +572,7 @@ void PrintStatusPanel::init_subjects() {
     // Initialize light/timelapse controls (extracted Phase 2)
     light_timelapse_controls_.init_subjects();
     light_timelapse_controls_.set_api(api_);
+    light_timelapse_controls_.set_printer_state(printer_state_);
     set_global_light_timelapse_controls(&light_timelapse_controls_);
     layer_pause_controls_.init_subjects(printer_state_);
     layer_pause_controls_.set_api(api_);
