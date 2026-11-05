@@ -165,10 +165,10 @@ void WiFiManager::register_backend_callbacks(bool silent) {
         // network path (wired or otherwise) is actually up. When resolution of
         // the WiFi interface itself is inconclusive, fail safe: treat it the
         // same as "no known wired fallback" and do not disable the radio.
-        async_lifetime_.defer("WiFiManager::apply_stored_country",
-                              [this]() { apply_stored_country(); });
-        async_lifetime_.defer("WiFiManager::revert_pending_ipv4",
-                              [this]() { revert_pending_ipv4(); });
+        async_lifetime_.defer("WiFiManager::apply_stored_network", [this]() {
+            apply_stored_country();
+            revert_pending_ipv4();
+        });
         async_lifetime_.defer("WiFiManager::reassert_stored_radio_state", [this]() {
             if (backend_ && !backend_->supports_radio_toggle()) {
                 // The radio belongs to the printer's network daemon: there is
@@ -1084,107 +1084,6 @@ void WiFiManager::apply_stored_country() {
             spdlog::info("[WiFiManager] Applied saved WiFi country {} (radio had '{}')", plan.apply,
                          system.empty() ? "world" : system);
         }
-    });
-}
-
-// ============================================================================
-// IPv4 Configuration
-// ============================================================================
-
-bool WiFiManager::supports_ipv4_config() {
-    return backend_ && backend_->supports_ipv4_config();
-}
-
-void WiFiManager::get_ipv4_config_async(
-    helix::LifetimeToken token,
-    helix::SharedCallback<void(bool ok, const helix::net::Ipv4Config& config)> on_done) {
-    if (!on_done) {
-        return;
-    }
-    if (!supports_ipv4_config()) {
-        on_done(false, helix::net::Ipv4Config{});
-        return;
-    }
-    submit_user_op(
-        "get_ipv4_config", user_op_timeouts_.other_ms,
-        [this, token, on_done]() -> helix::Callback<void()> {
-            helix::net::Ipv4Config config;
-            const helix::net::Ipv4Result result = backend_->get_ipv4_config(config);
-            return [token, on_done, result, config]() {
-                if (!result.ok()) {
-                    spdlog::debug("[WiFiManager] Could not read the IPv4 config: {}",
-                                  result.detail);
-                }
-                if (!token.expired()) {
-                    on_done(result.ok(), config);
-                }
-            };
-        },
-        [token, on_done]() {
-            if (!token.expired()) {
-                on_done(false, helix::net::Ipv4Config{});
-            }
-        });
-}
-
-void WiFiManager::apply_ipv4_config_async(const helix::net::Ipv4Config& config,
-                                          helix::LifetimeToken token,
-                                          helix::SharedCallback<void(bool ok)> on_done) {
-    auto answer = [token, on_done](bool ok) {
-        if (on_done && !token.expired()) {
-            on_done(ok);
-        }
-    };
-    if (!supports_ipv4_config()) {
-        answer(false);
-        return;
-    }
-    spdlog::info("[WiFiManager] Applying IPv4 config: {}", helix::net::ipv4_config_text(config));
-    // Up to three nmcli calls: connect's window, not the shorter one for a
-    // single control round trip.
-    submit_user_op(
-        "apply_ipv4_config", user_op_timeouts_.connect_ms,
-        [this, config, answer]() -> helix::Callback<void()> {
-            const helix::net::Ipv4Result result = backend_->apply_ipv4_config(config);
-            // The address in the status rows changes with it.
-            notify_state_observers();
-            return [result, answer]() {
-                if (!result.ok()) {
-                    spdlog::warn("[WiFiManager] Could not apply the IPv4 config: {}",
-                                 result.detail);
-                }
-                answer(result.ok());
-            };
-        },
-        [answer]() {
-            notify_unresponsive();
-            answer(false);
-        });
-}
-
-void WiFiManager::revert_pending_ipv4() {
-    const auto pending = helix::net::load_pending_ipv4_revert();
-    if (!helix::net::is_stale_pending_ipv4_revert(pending, helix::net::Ipv4Link::Wifi)) {
-        return;
-    }
-    if (!supports_ipv4_config()) {
-        spdlog::warn("[WiFiManager] A Wi-Fi IPv4 change was never kept, but this backend "
-                     "cannot restore it");
-        return;
-    }
-    spdlog::warn("[WiFiManager] A Wi-Fi IPv4 change was never kept: restoring {}",
-                 helix::net::ipv4_config_text(pending->previous));
-    const helix::net::Ipv4Config previous = pending->previous;
-    submit_control("revert_ipv4", ControlKind::User, [this, previous]() {
-        const helix::net::Ipv4Result result = backend_->apply_ipv4_config(previous);
-        if (!result.ok()) {
-            spdlog::error("[WiFiManager] Could not restore the previous IPv4 config: {}",
-                          result.detail);
-            return;
-        }
-        spdlog::info("[WiFiManager] Previous IPv4 config restored");
-        helix::net::clear_pending_ipv4_revert();
-        notify_state_observers();
     });
 }
 
