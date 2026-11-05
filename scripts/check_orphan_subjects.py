@@ -282,9 +282,10 @@ def collect_registrations(root: pathlib.Path, files=None, read=None):
     return found, members, owned
 
 
-def collect_xml_refs(root: pathlib.Path) -> set[str]:
+def collect_xml_refs(root: pathlib.Path, xml_files=None) -> set[str]:
+    """xml_files limits the XML read; default ui_xml/."""
     refs: set[str] = set()
-    for path in (root / XML_DIR).rglob("*.xml"):
+    for path in (root / XML_DIR).rglob("*.xml") if xml_files is None else xml_files:
         text = path.read_text(errors="ignore")
         # Any attribute value that is a bare identifier may be a subject name:
         # bind_text=, subject=, and caller-named component params alike.

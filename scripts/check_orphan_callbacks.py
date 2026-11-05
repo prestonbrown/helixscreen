@@ -91,13 +91,13 @@ def collect_registrations(root: Path, files=None, read=None) -> dict[str, set[st
     return regs
 
 
-def collect_xml_refs(root: Path) -> dict[str, set[str]]:
-    """name -> XML files referencing it."""
+def collect_xml_refs(root: Path, xml_files=None) -> dict[str, set[str]]:
+    """name -> XML files referencing it. xml_files limits the XML read; default ui_xml/."""
     refs: dict[str, set[str]] = defaultdict(set)
     ui_xml = root / "ui_xml"
     if not ui_xml.is_dir():
         return refs
-    for f in sorted(ui_xml.rglob("*.xml")):
+    for f in sorted(ui_xml.rglob("*.xml")) if xml_files is None else sorted(xml_files):
         rel = str(f.relative_to(root))
         for value in XML_REF_RE.findall(f.read_text(errors="replace")):
             if value and "$" not in value and re.fullmatch(r"\w+", value):

@@ -81,17 +81,18 @@ def findings(root: Path) -> dict[str, str]:
     """'kind:name' -> where the desktop registers it."""
     fw = firmware_files(root)
     read = compiled_text_reader(root)
+    shipped = list(firmware_xml_files(root).values())
     out = {}
 
     cb_all = callbacks.collect_registrations(root)
     cb_fw = callbacks.collect_registrations(root, fw, read)
-    for name in callbacks.collect_xml_refs(root):
+    for name in callbacks.collect_xml_refs(root, shipped):
         if name in cb_all and name not in cb_fw:
             out[f"callback:{name}"] = ", ".join(sorted(cb_all[name]))
 
     subj_all = subjects.collect_registrations(root)[0]
     subj_fw = subjects.collect_registrations(root, fw, read)[0]
-    for name in subjects.collect_xml_refs(root):
+    for name in subjects.collect_xml_refs(root, shipped):
         if name in subj_all and name not in subj_fw:
             out[f"subject:{name}"] = ", ".join(sorted(subj_all[name]))
     return out

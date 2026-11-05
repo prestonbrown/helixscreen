@@ -54,6 +54,17 @@ CPP
     lacks "row_available" "$output"
 }
 
+@test "a name only an overridden file binds is not the firmware's to register" {
+    cat > "$ROOT/src/excluded.cpp" <<'CPP'
+void reg() { lv_xml_register_event_cb(nullptr, "on_row", on_row); }
+CPP
+    mkdir -p "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides"
+    echo '<component><view/></component>' > "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides/demo.xml"
+    run_gate
+    [ "$status" -eq 0 ]
+    lacks "on_row" "$output"
+}
+
 @test "a registration in a branch the firmware compiles out is reported" {
     cat > "$ROOT/src/kept.cpp" <<'CPP'
 void reg() {
