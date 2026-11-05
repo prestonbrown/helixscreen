@@ -480,7 +480,7 @@ void NetworkSettingsOverlay::refresh_ipv4_rows() {
 void NetworkSettingsOverlay::handle_ipv4_row_clicked(helix::net::Ipv4Link link) {
     const bool wifi = link == helix::net::Ipv4Link::Wifi;
     const std::string current_ip = wifi ? ip_buffer_ : eth_ip_buffer_;
-    helix::settings::get_ipv4_settings_overlay().open(parent_screen_, link, current_ip);
+    helix::settings::open_ipv4_settings(parent_screen_, link, current_ip);
 }
 
 void NetworkSettingsOverlay::refresh_band_capability() {

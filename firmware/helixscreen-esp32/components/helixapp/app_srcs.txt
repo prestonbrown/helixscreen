@@ -619,9 +619,6 @@ src/ui/ui_observer_guard.cpp
 src/ui/notify/ui_panel_notification_history.cpp
 src/ui/settings/ui_overlay_console_settings.cpp
 src/ui/settings/ui_overlay_network_settings.cpp
-# Linked by Network Settings. Its rows stay hidden on ESP32, whose backend
-# cannot keep a static address.
-src/ui/settings/ui_overlay_ipv4_settings.cpp
 src/ui/debug/ui_overlay_performance.cpp
 src/ui/printers/ui_overlay_printer_image.cpp
 src/ui/printers/ui_overlay_printer_type.cpp
@@ -800,8 +797,6 @@ src/network/wifi_scan_scheduler.cpp
 src/network/wifi_control_breaker.cpp
 src/network/wifi_backend.cpp
 src/network/wifi_country.cpp
-# The IPv4 model WiFiManager's startup revert reads.
-src/network/ipv4_config.cpp
 src/api/moonraker_api.cpp
 src/api/moonraker_auth.cpp
 src/api/moonraker_api_config.cpp

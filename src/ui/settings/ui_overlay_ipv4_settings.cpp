@@ -118,6 +118,11 @@ Ipv4SettingsOverlay& get_ipv4_settings_overlay() {
     return helix::lazy_global<Ipv4SettingsOverlay>("Ipv4SettingsOverlay");
 }
 
+void open_ipv4_settings(lv_obj_t* parent_screen, helix::net::Ipv4Link link,
+                        const std::string& current_ip) {
+    get_ipv4_settings_overlay().open(parent_screen, link, current_ip);
+}
+
 Ipv4SettingsOverlay::~Ipv4SettingsOverlay() {
     stop_countdown();
     if (subjects_initialized_) {

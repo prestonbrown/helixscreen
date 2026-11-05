@@ -45,6 +45,8 @@ src/network/ethernet_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_backend_netd.cpp  # not in the v1 Core+AMS cut
 src/network/ethernet_manager.cpp  # not in the v1 Core+AMS cut
 src/network/ipv4_config_system.cpp  # NetworkManager and dhcpcd stores; Linux only
+src/network/ipv4_config.cpp  # static IPv4: the ESP backend never supports it, so its rows stay hidden; stubbed in helixapp_platform_stubs2.cpp
+src/network/ipv4_manager_ops.cpp  # static IPv4 manager methods; stubbed in helixapp_platform_stubs2.cpp
 src/platform/display/fbdev_signal_clear.cpp  # not in the v1 Core+AMS cut
 src/platform/display/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
 src/platform/display/gpu_libs.cpp  # not in the v1 Core+AMS cut
@@ -314,6 +316,7 @@ src/ui/debug/ui_panel_memory_stats.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_screws_tilt.cpp  # not in the v1 Core+AMS cut
 src/ui/filament/ui_panel_spoolman.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/ui/calibration/ui_screws_tilt_share_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/settings/ui_overlay_ipv4_settings.cpp  # static IPv4 screen; its rows stay hidden on ESP32, stubbed in helixapp_platform_stubs2.cpp
 src/ui/settings/ui_settings_barcode_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/settings/ui_settings_label_printer.cpp  # not in the v1 Core+AMS cut
 src/ui/settings/ui_settings_telemetry_data.cpp  # the firmware has no telemetry queue to show; the row is hidden there

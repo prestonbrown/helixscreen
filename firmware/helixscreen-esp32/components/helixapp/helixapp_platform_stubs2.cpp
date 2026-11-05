@@ -3,6 +3,7 @@
 // Link stubs, round 2 — platform-bound singletons/utilities demanded by the
 // slice link. One row each in the audit categorization table.
 
+#include "ui_overlay_ipv4_settings.h"
 #include "ui_panel_spoolman.h"
 #include "ui_spoolman_overlay.h"
 
@@ -740,13 +741,29 @@ int dup2(int, int) {
 EthernetManager::EthernetManager() {}
 EthernetManager::~EthernetManager() = default;
 void EthernetManager::get_info_async(std::function<void(const EthernetInfo&)>) {}
+
+// --- Static IPv4 (src/network/ipv4_manager_ops.cpp, ui_overlay_ipv4_settings.cpp).
+// No ESP32 backend can keep a static address, so Network Settings hides both
+// IPv4 rows; these answer "unsupported" for the code that asks.
 bool EthernetManager::supports_ipv4_config() {
     return false;
 }
 void EthernetManager::get_ipv4_config_async(
     helix::LifetimeToken, helix::SharedCallback<void(bool, const helix::net::Ipv4Config&)>) {}
-void EthernetManager::apply_ipv4_config_async(const helix::net::Ipv4Config&, helix::LifetimeToken,
-                                              helix::SharedCallback<void(bool)>) {}
+namespace helix {
+bool WiFiManager::supports_ipv4_config() {
+    return false;
+}
+void WiFiManager::get_ipv4_config_async(LifetimeToken,
+                                        SharedCallback<void(bool, const net::Ipv4Config&)>) {}
+void WiFiManager::revert_pending_ipv4() {}
+} // namespace helix
+namespace helix::settings {
+void open_ipv4_settings(lv_obj_t*, net::Ipv4Link, const std::string&) {}
+std::string ipv4_row_summary(const net::Ipv4Config&) {
+    return {};
+}
+} // namespace helix::settings
 
 // --- app_globals, fourth batch ------------------------------------------------
 // Process-global storage for both accessors (get returns what set stored),

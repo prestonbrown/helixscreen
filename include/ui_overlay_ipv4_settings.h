@@ -161,6 +161,10 @@ class Ipv4SettingsOverlay : public OverlayBase {
 /// keeps running whatever the navigation stack does.
 Ipv4SettingsOverlay& get_ipv4_settings_overlay();
 
+/// Opens the overlay for @p link: what Network Settings' rows call.
+void open_ipv4_settings(lv_obj_t* parent_screen, helix::net::Ipv4Link link,
+                        const std::string& current_ip);
+
 /// Network Settings' row text for @p config: "DHCP" or "Static <address>".
 std::string ipv4_row_summary(const helix::net::Ipv4Config& config);
 
