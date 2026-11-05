@@ -155,15 +155,16 @@ class SpoolmanSlotSaver {
     static bool is_filament_complete(const SlotInfo& slot);
 
     /**
-     * @brief The filament record a new Spoolman filament for @p slot carries.
+     * @brief The filament record a new Spoolman filament for @p edited carries.
      *
-     * The name is the slot's spool name when it says more than the material,
-     * else the catalog product (or the precise type) followed by the colour
-     * name (the slot's own, else describe_color()). Temperatures are the
-     * slot's nozzle range through spoolman::temperature_for_range() and its
-     * bed temperature.
+     * The name is the slot's spool name when it says more than the material
+     * and the save leaves brand, material and colour where @p original had
+     * them (a spool name describes the identity it came with). Otherwise the
+     * catalog product (or the precise type) followed by the colour name (the
+     * slot's own, else describe_color()). Temperatures are the slot's nozzle
+     * range through spoolman::temperature_for_range() and its bed temperature.
      */
-    static NewFilament new_filament_for(const SlotInfo& slot);
+    static NewFilament new_filament_for(const SlotInfo& original, const SlotInfo& edited);
 
     /// Offer a near-identical existing filament before creating one. Without a
     /// chooser the saver creates, which is what a caller that cannot ask wants.
