@@ -332,23 +332,41 @@ Per-file: `test_chamber_heater_backend.cpp` (match/parse), `test_chamber_heater_
 ## Chamber Air Modes
 
 Separate from heating: some enclosed printers route chamber air one of two ways with a set
-of fans the firmware drives together. HelixScreen names the mode and sends the firmware's
-macro; which fans run at which speed is the firmware's.
+of fans the firmware drives together, recirculating it (heat retention) or exhausting it
+(cooling), plus off. HelixScreen names the mode, sends it, and shows what the firmware
+reports back. Everything past "send a mode" is an optional provider field, so a firmware
+fills in only what it has.
 
 | Piece | Where |
 |-------|-------|
-| Capability | `include/chamber_air_modes.h` (`helix::chamber_air`): `enum class AirMode { Recirculate, Exhaust, Off }`, `bool supported(hw)`, `std::vector<AirMode> modes(hw)`, `bool offers(hw, AirMode)`, `std::string mode_gcode(hw, AirMode)`, `const char* mode_id(AirMode)`, `std::optional<AirMode> parse_mode_id(std::string_view)`, `std::string provider_name(hw)` |
-| Providers | `kProviders` in `src/printer/chamber_air_modes.cpp`: a detection predicate and one macro per mode. A mode is offered only while its macro is defined. Z-Mod on the Creator 5 is the first row (`AIR_CIRCULATION_INTERNAL` / `_EXTERNAL` / `_STOP`) |
-| Subjects | `printer_has_chamber_air_recirculate`, `printer_has_chamber_air_exhaust`, `printer_has_chamber_air_off` (`PrinterCapabilitiesState`) |
-| UI | the **Chamber air** row in `ui_xml/fan_control_overlay.xml`; one callback, `on_chamber_air_mode_clicked`, whose `user_data` is the `mode_id` (`src/ui/ui_fan_control_overlay.cpp`) |
-| Tests | `[chamber_air]` in `tests/unit/test_chamber_air_modes.cpp` |
+| Capability | `include/chamber_air_modes.h` (`helix::chamber_air`): `AirMode`, `ModeTargets`, `OwnedFan`, `Reading`; `supported`/`modes`/`offers`, `mode_gcode(hw, mode, targets)`, `presence_is_live`, `reports_mode`, `takes_targets`, `owned_fans`, `fan_speed_gcode`, `filter_reset_gcode`, `guard_floor_pct`, `required_status_objects`, `read_status`, `guard_fan_change`, `chamber_too_hot_to_resume`, `accessory_copy` |
+| Providers | the provider table in `src/printer/chamber_air_modes.cpp`. Z-Mod on the Creator 5 is macro-only (`AIR_CIRCULATION_INTERNAL` / `_EXTERNAL` / `_STOP`). The Snapmaker U1 Top Cover fills every field (below) |
+| Live state | `include/chamber_air_state.h` (`ChamberAirState`, `PrinterState::chamber_air()`): keeps the last answer for each reading and publishes `chamber_air_available`, `chamber_air_mode`, `chamber_air_exhaust_pct`, `chamber_air_recirculate_pct`, `chamber_air_has_targets`, `chamber_air_filter_minutes` and the three target subjects; a presence edge for the notices |
+| Targets | `include/chamber_air_settings.h`: stored per printer under `chamber_air`, clamped; edited by the CHAMBER AIR group in Fan settings (`ui_xml/chamber_air_target_row.xml`) |
+| UI | the **Chamber air** row in `ui_xml/fan_control_overlay.xml` (hidden while `chamber_air_available` is 0, the reported mode highlighted); owned fans as dials in the same overlay, through `guard_fan_change`; the Maintenance Filter meter (`apply_firmware_filter_hours`); first-fit and removal notices (`src/ui/ui_chamber_air_notices.cpp`); the resume check in `PrintControlButtons::request_resume` |
+| Tests | `[chamber_air]`, `[chamber_air_state]`, `[fan_overlay]`, `[notices]`, `[settings]`, `[maintenance]` |
 
-**No active mode.** A mode macro sets several fans once, and every fan stays individually
-adjustable afterwards, so the fan speeds cannot be read back as a mode. The buttons are
-actions, never a selection. A firmware that publishes its mode would add a reader to its
-row and a subject, not a speed heuristic.
+**Optional provider fields.** *Presence*: a detachable accessory the firmware reports fitted;
+while it is absent nothing is offered, because the firmware drops the writes. *Mode readback*:
+without it a mode is an action (a macro sets several fans once and they stay individually
+adjustable, so speeds cannot be read back as a mode) and no button is highlighted. *Targets*:
+a ceiling and fan speeds the mode command carries. *Owned fans*: fans kept inside the
+provider's own status object, with their own speed command; a firmware that republishes one
+as a Klipper fan names it as `equivalent_object` and that fan's own dial is used instead.
+*Filter counter*: the filter fan's run time and its reset command. *Guards*: a floor for the
+fan the active mode drives, a confirmation below the firmware's speed threshold, a refusal
+for the fan the mode keeps off.
 
-Adding a second firmware is one row in `chamber_air_modes.cpp`.
+**The U1 Top Cover** (`<klipper>/klippy/extras/purifier.py`, firmware 2.x). Presence is
+`purifier.power_detected` (shared with `enclosure_top`, the two field lists unioned in one
+subscription). Modes: `SET_PURIFIER_MODE MODE=0` off, `1` exhaust with `FAN_SPEED`,
+`DESIRE_TEMP` and `ALARM_TEMP` (target + 1), `3` recirculate; `mode` 2 (preheat, which
+slicer gcode sends before `WAIT_CHAMBER_TEMP`) reads back as recirculate, as the stock
+screen labels it. Fans: `SET_PURIFIER FAN=exhaust|inner SPEED=0..1`, floor 10 %. Filter:
+`inner_fan_work_time` seconds, reset `SET_PURIFIER FAN=inner WORK=0`. Older firmware reports
+fewer fields and degrades to what it reports.
+
+Adding a firmware is one row in `chamber_air_modes.cpp`.
 
 ## Verification Log
 

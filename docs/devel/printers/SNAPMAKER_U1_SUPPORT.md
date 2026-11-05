@@ -531,17 +531,39 @@ AI-based print defect detection system. The status object itself is not subscrib
 | `residue.enable` | `false` | Residue detection |
 | `nozzle.enable` | `false` | Nozzle clog detection |
 
-### `purifier` — Air purifier (NOT SUBSCRIBED)
+### `purifier` — the Top Cover's air purifier
 
-Built-in HEPA/carbon air purifier. Not subscribed because we don't have UI for it yet.
+The object exists on every U1; it means something only while the Top Cover accessory is
+fitted, which `power_detected` reports (an ADC on the cover connector, debounced, hot-pluggable).
+Read by `helix::enclosure_top` (the printer picture) and `helix::chamber_air` (mode row, fan
+dials, Filter meter, notices); see `docs/devel/CHAMBER_HEATER.md` § Chamber Air Modes.
 
-| Field | Example | Notes |
-|-------|---------|-------|
-| `fan_speed` | `0.0` | Purifier fan speed (0-1) |
-| `fan_rpm` | `0.0` | Actual RPM |
-| `work_time` | `0` | Total runtime (seconds) |
-| `power_detected` | `false` | External power connected |
-| `delay_time` | `180` | Post-print run time (seconds) |
+Firmware 2.x fields (`<klipper>/klippy/extras/purifier.py`):
+
+| Field | Notes |
+|-------|-------|
+| `power_detected` | Top Cover fitted |
+| `mode` | 0 idle, 1 cool chamber (exhaust), 2 preheat, 3 hot chamber (recirculate) |
+| `desired_chamber_temp`, `critical_chamber_temp` | the cool-mode ceiling and its alarm |
+| `exhaust_fan`, `inner_fan` | `{speed 0..1, delay s, speed_threshold}` |
+| `inner_fan_work_time` | seconds the inner (filter) fan has run in modes 2-3, kept in the firmware's purifier.json |
+| `inner_fan_rpm` | tachometer, changes every tick, never subscribed |
+
+Older layouts exist: 1.3 has no `mode` and keeps the work time under `inner_fan.work`; an earlier
+one had flat `fan_speed` / `work_time`. Each reading keys on its own field being present.
+Commands: `SET_PURIFIER_MODE MODE= [FAN_SPEED=] [DESIRE_TEMP=] [ALARM_TEMP=] [DELAY_OFF=]`,
+`SET_PURIFIER FAN=exhaust|inner [SPEED=] [DELAY_OFF=] [WORK=]`, `WAIT_CHAMBER_TEMP`. With the cover
+off every non-zero speed or mode is refused and only logged, and removal forces both fans off and
+the mode to idle. Extended Firmware overlay 41 republishes the fans as `fan_generic exhaust_fan`
+and `fan_generic circulation_fan`.
+
+What the stock screen (`/usr/bin/gui`, 2.0.0.205) does, and HelixScreen matches: a Top Cover card
+with the current mode and two fan sliders (a 10 % floor on the fan the mode drives, a confirmation
+below its threshold, a refusal for the fan the mode keeps off); the filter's run hours with a
+reset; once per install, a "new top cover detected" guide followed by an offer to recalibrate
+vibration compensation (`SHAPER_CALIBRATE`); a warning every time the cover comes off; and a
+confirmation before resuming in cool mode with the chamber above its alarm. It sends no chamber
+command at print start: `SET_PURIFIER_MODE` comes from the sliced gcode.
 
 ### `filament_entangle_detect` — Tangle detection (NOT SUBSCRIBED)
 
