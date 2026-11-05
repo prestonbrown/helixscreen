@@ -1238,6 +1238,30 @@ def test_a_pool_names_the_filter_a_hunk_survived(tmp_path):
     assert re.search(r"src/other.cpp:\d+  \[oth\]", r.stdout), r.stdout
 
 
+NARROW_GREEN_SUITE = """#!/usr/bin/env bash
+case "$1" in *feat*) exit 0 ;; esac
+grep -q NEW_BEHAVIOR src/feature.cpp || {
+    echo "tests/unit/test_wide.cpp:3: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+@linux_only
+def test_confirm_survivors_asks_the_whole_suite_before_a_narrow_filter_reads_survived(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "build" / "bin" / "helix-tests").write_text(NARROW_GREEN_SUITE)
+    flags = ("--base", base, "--tests-for", "src/feature.cpp=[feat]",
+             "--only", "feature", "--no-record")
+    plain = _pool(work, *flags)
+    assert re.search(r"SURVIVED\s+src/feature.cpp", plain.stdout), plain.stdout
+    r = _pool(work, *flags, "--confirm-survivors")
+    assert "only the whole suite detected it" in r.stdout, r.stdout
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+
+
 @linux_only
 def test_a_red_baseline_leaves_its_filter_unjudged_and_the_others_judged(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
@@ -1254,6 +1278,12 @@ def test_a_red_baseline_leaves_its_filter_unjudged_and_the_others_judged(tmp_pat
     assert any(k.startswith("src/feature.cpp") and v == "killed" for k, v in verdicts.items()), r.stdout
     assert any(k.startswith("src/other.cpp") and v == "INCONCLUSIVE" for k, v in verdicts.items()), r.stdout
     assert "whose suite exited without a verdict" in r.stdout
+
+
+def test_auto_tests_max_widens_what_a_stem_may_be_named_by():
+    sources = {f"test_{i}": "foo_stem" for i in range(20)}
+    assert md.auto_tests_filter("src/foo_stem.cpp", sources) == ""
+    assert md.auto_tests_filter("src/foo_stem.cpp", sources, max_files=20).count("[#test_") == 20
 
 
 @pytest.mark.parametrize("line,expected", [

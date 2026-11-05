@@ -479,19 +479,19 @@ def _test_sources(root):
     return out
 
 
-def auto_tests_filter(path, test_sources):
+def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES):
     """`[#test_a]~[.]~[slow],...` for the test files naming `path`'s stem, or ''.
 
     The stem is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
     `foo_modal` callers' includes but not `foobar`. A stem named by more than
-    AUTO_TESTS_MAX_FILES files says nothing about which tests are this file's.
+    `max_files` files says nothing about which tests are this file's.
     """
     stem = path.rsplit('/', 1)[-1].rsplit('.', 1)[0]
     if len(stem) < 4:
         return ''
     word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(stem) + r'(?![A-Za-z0-9_])')
     hits = [name for name, text in test_sources.items() if word.search(text)]
-    if not hits or len(hits) > AUTO_TESTS_MAX_FILES:
+    if not hits or len(hits) > max_files:
         return ''
     # A required term makes Catch2 consider hidden cases too, so each term carries
     # the exclusions --tests' default has: [.] and [slow] stay out.
@@ -552,13 +552,13 @@ def script_tests_for(path, auto, shell_sources, python_sources, shell_default, p
     return shell_default, python_default, 'the whole bats and pytest suites'
 
 
-def filter_for(path, tests_for, auto, test_sources, default):
+def filter_for(path, tests_for, auto, test_sources, default, max_files=AUTO_TESTS_MAX_FILES):
     """(filter, why) for one changed file."""
     for glob, filt in tests_for:
         if fnmatch(path, glob):
             return filt, f'--tests-for {glob}'
     if auto:
-        filt = auto_tests_filter(path, test_sources)
+        filt = auto_tests_filter(path, test_sources, max_files)
         if filt:
             return filt, 'test files naming it'
     return default, '--tests'
@@ -2004,6 +2004,8 @@ class Suites:
         # build before it: what adopt_baseline() measures.
         self.last_secs = None
         self.last_output = ''             # what the last bats/pytest run printed
+        # () -> Suites for the whole of --tests, in this tree; or None.
+        self.wider = None
 
     def _set_root(self, root):
         self.root = root
@@ -2276,6 +2278,8 @@ class FilterBaselines:
     def __init__(self, root, args, log, key_of, needed_of):
         self.root, self.args, self.log = root, args, log
         self.key_of, self.needed_of = key_of, needed_of
+        self.whole_key = (args.tests, '', '')
+        needed_of.setdefault(self.whole_key, {'catch2'})
         self.locks = {key: threading.Lock() for key in needed_of}
         self.results = {}
         self._log_lock = threading.Lock()
@@ -2299,7 +2303,9 @@ class FilterBaselines:
 
     def suites_for(self, h):
         """The established Suites judging this hunk; raises BaselineRefused."""
-        key = self.key_of[h['file']]
+        return self._established(self.key_of[h['file']])
+
+    def _established(self, key):
         with self.locks[key]:
             if key not in self.results:
                 self.results[key] = self._establish(key)
@@ -2307,6 +2313,15 @@ class FilterBaselines:
             raise self.results[key]
         return self.results[key]
 
+    def wider_for(self, h, plan, tree_root, log):
+        """() -> the whole suite's Suites in this tree, or None when `h` has it already.
+
+        A callable, so a run with no survivor never pays that baseline.
+        """
+        if ('catch2' not in plan['suites'] or not self.args.confirm_survivors
+                or self.key_of[h['file']] == self.whole_key):
+            return None
+        return lambda: self._established(self.whole_key).for_tree(tree_root, log)
 
 
 # ---------------------------------------------------------------------------
@@ -2845,7 +2860,8 @@ def inside_report(hunks):
 def build_and_judge(root, suites, rel, plan, args, log):
     """(verdict, note, built) for the mutant now in `root`.
 
-    `verdict` is '' when the deadline cut it off.
+    `verdict` is '' when the deadline cut it off. A mutant green under a narrow
+    filter is asked of `suites.wider`, when set, before it reads as a survivor.
     """
     verdict, note_, built_any = '', '', False
     # Only a mutant whose strategy builds, judged by the suite that
@@ -2864,6 +2880,10 @@ def build_and_judge(root, suites, rel, plan, args, log):
             rebuilt = binary_fingerprint(suites.catch2_bin) != was
     if not verdict and not RUN_STATE.out_of_time:
         state, unexplained = judge(suites, plan['suites'])
+        if state == GREEN and suites.wider and not RUN_STATE.out_of_time:
+            state, unexplained = judge(suites.wider(), ('catch2',))
+            if state == DETECTED:
+                note('[only the whole suite detected it] ')
         if state == DETECTED and not rebuilt:
             state, unexplained = INCONCLUSIVE, UNBUILT_MUTANT
         verdict = {DETECTED: 'killed', GREEN: 'survived',
@@ -3103,6 +3123,7 @@ def run_parallel(trees, mutable, verdict_of, args, log, pristine, stop_why, prog
                     try:
                         if baselines:
                             tree.suites = baselines.suites_for(h).for_tree(tree.root, buf)
+                            tree.suites.wider = baselines.wider_for(h, plan, tree.root, buf)
                         tree.suites.log = buf
                         verdict, note_, _built = mutate_hunk(
                             tree.root, tree.guard, tree.suites, h, plan, args, buf)
@@ -3191,6 +3212,12 @@ def main():
     ap.add_argument('--no-auto-tests', action='store_true',
                     help='do not give a file the test files that name its stem; '
                          'every file without --tests-for gets --tests')
+    ap.add_argument('--auto-tests-max', type=int, default=AUTO_TESTS_MAX_FILES, metavar='N',
+                    help='a file named by more than N test files gets --tests instead of them')
+    ap.add_argument('--confirm-survivors', action='store_true',
+                    help='with --pool: a mutant green under a narrow filter runs against '
+                         '--tests before it reads SURVIVED, so a narrow filter costs a '
+                         'verdict nothing')
     ap.add_argument('--inside', type=int, default=0, metavar='N',
                     help='for a .cpp hunk whose revert does not build, judge up to N small '
                          'mutants of its added lines (see INSIDE MUTANTS)')
@@ -3384,7 +3411,8 @@ def main():
         if path in key_of:
             continue
         if 'catch2' in STRATEGIES[verdict_of[path][1]]['suites']:
-            filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests)
+            filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests,
+                                            args.auto_tests_max)
             # No script suite in the key: a C++ file sharing a group with a
             # script nothing names would pay the whole bats suite's baseline.
             key_of[path] = (filt, '', '')
