@@ -257,17 +257,30 @@ nlohmann::json RemoteControlServer::dispatch(const std::string& method,
     }
 }
 
+namespace {
+// A UI-thread failure reaches the waiting transport thread as text. The exception
+// object stays on the thread that threw it, and the waiter throws its own.
+struct UiThreadOutcome {
+    nlohmann::json value;
+    std::string error;
+    bool failed = false;
+};
+} // namespace
+
 nlohmann::json RemoteControlServer::execute_on_ui_thread(std::function<nlohmann::json()> fn) {
-    auto promise = std::make_shared<std::promise<nlohmann::json>>();
+    auto promise = std::make_shared<std::promise<UiThreadOutcome>>();
     auto future = promise->get_future();
 
     helix::ui::queue_update("RemoteControlServer::execute_on_ui_thread",
                             [promise, fn = std::move(fn)]() {
+                                UiThreadOutcome outcome;
                                 try {
-                                    promise->set_value(fn());
+                                    outcome.value = fn();
                                 } catch (const std::exception& e) {
-                                    promise->set_exception(std::current_exception());
+                                    outcome.failed = true;
+                                    outcome.error = e.what();
                                 }
+                                promise->set_value(std::move(outcome));
                             });
 
     // Wait with timeout, polling running_ so a concurrent stop() unblocks this
@@ -278,7 +291,11 @@ nlohmann::json RemoteControlServer::execute_on_ui_thread(std::function<nlohmann:
     // it — the queued fn is dropped when the queue shuts down.
     for (int i = 0; i < 100; ++i) { // 100 * 100ms = 10s
         if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready) {
-            return future.get();
+            UiThreadOutcome outcome = future.get();
+            if (outcome.failed) {
+                throw std::runtime_error(outcome.error);
+            }
+            return std::move(outcome.value);
         }
         if (!running_.load()) {
             throw std::runtime_error("remote server shutting down");
