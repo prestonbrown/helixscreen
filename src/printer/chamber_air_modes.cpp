@@ -4,6 +4,7 @@
 
 #include "enclosure_top.h"
 #include "printer_discovery.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -47,6 +48,7 @@ struct Provider {
     std::string (*fan_command)(FanRole role, int pct) = nullptr;
     const char* filter_reset = nullptr;
     int floor_pct = 0;
+    std::optional<AccessoryCopy> copy{};
 };
 
 std::optional<double> number_at(const json& obj, const char* key) {
@@ -183,6 +185,13 @@ const std::vector<Provider>& providers() {
         u1.fan_command = top_cover_fan_command;
         u1.filter_reset = "SET_PURIFIER FAN=inner WORK=0";
         u1.floor_pct = 10;
+        // The stock screen's own wording for the cover coming off.
+        u1.copy = AccessoryCopy{
+            TR_NOOP("Top Cover"),
+            TR_NOOP("A top cover was detected. Its fans and air modes are on the Fans screen."),
+            TR_NOOP("The top cover has been disconnected. To ensure print quality, reconnect "
+                    "the top cover before continuing."),
+            true};
         v.push_back(std::move(u1));
         return v;
     }();
@@ -350,6 +359,11 @@ std::optional<AirMode> parse_mode_id(std::string_view id) {
         }
     }
     return std::nullopt;
+}
+
+std::optional<AccessoryCopy> accessory_copy(const PrinterDiscovery& hw) {
+    const Provider* p = match(hw);
+    return p && p->live_presence ? p->copy : std::nullopt;
 }
 
 std::string provider_name(const PrinterDiscovery& hw) {
