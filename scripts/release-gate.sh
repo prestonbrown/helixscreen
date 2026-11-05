@@ -92,9 +92,11 @@ check_binaries() {
 # A packaged build compiles the mock backends out (ENABLE_MOCKS=no).
 check_no_mocks() {
     local sym=build/$1/bin/helix-screen.sym hits
+    local pattern
+    pattern="$(dirname "${BASH_SOURCE[0]}")/mock_symbol_pattern.txt"
     [ -s "$sym" ] || { echo "$sym missing or empty"; return 1; }
-    hits=$(grep -cE 'Mock[A-Z_:]|[a-z]Mock\b|mock_internal' "$sym")
-    [ "$hits" -eq 0 ] || { grep -E 'Mock[A-Z_:]|[a-z]Mock\b|mock_internal' "$sym" | head -20; echo "$hits mock symbols"; return 1; }
+    hits=$(grep -cEf "$pattern" "$sym")
+    [ "$hits" -eq 0 ] || { grep -Ef "$pattern" "$sym" | head -20; echo "$hits mock symbols"; return 1; }
 }
 
 fast() {

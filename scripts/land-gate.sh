@@ -34,6 +34,10 @@
 #                     what esp32-build CI would refuse. A host that cannot run it
 #                     (no docker, no espressif/idf image) fails the row rather
 #                     than reading as a pass
+#   no-mocks          check_no_mocks.py over the same range, after app-build: the
+#                     branch's packaged units compiled with mocks off, their objects
+#                     scanned for mock symbols. The release gate's cross build sees the
+#                     linked result; this sees it before the branch lands
 #   quality           make quality: the full quality-checks.sh sweep pre-push runs,
 #                     after app-build, since its clang gate reads the build's
 #                     compile commands, and after a local ci-shards, since it
@@ -83,6 +87,7 @@ TEST_HOST_RUN=${TEST_HOST_RUN:-$(dirname "$SELF")/test-host-run.sh}
 export HELIX_TEST_MAX_LOAD=${HELIX_TEST_MAX_LOAD:-0}
 HELIX_CLAIM=${HELIX_CLAIM:-$(dirname "$SELF")/helix-claim}
 ESP32_CHECK=${ESP32_CHECK:-$(dirname "$SELF")/esp32_syntax_check.py}
+NO_MOCKS_CHECK=${NO_MOCKS_CHECK:-$(dirname "$SELF")/check_no_mocks.py}
 LAND_GATE_BASE_REF=${LAND_GATE_BASE_REF:-origin/main}
 CI_SHARDS=${CI_SHARDS:-8}
 CI_SHARD_TIMEOUT=${CI_SHARD_TIMEOUT:-600}
@@ -95,7 +100,7 @@ LAND_GATE_HISTORY=${LAND_GATE_HISTORY:-${XDG_STATE_HOME:-$HOME/.local/state}/hel
 ROWS_DIR="$LAND_GATE_LOGDIR/rows"
 RESULTS_DIR="$LAND_GATE_LOGDIR/results"
 
-STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 quality"
+STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 no-mocks quality"
 
 TIMEOUT_BIN=$(command -v timeout || command -v gtimeout || true)
 
@@ -124,15 +129,25 @@ step() {
 
 skip() { printf 'SKIP - %s\n' "$2" >"$ROWS_DIR/$1"; }
 
-# The firmware units the branch reaches, measured from where it left
-# LAND_GATE_BASE_REF, as pre-push measures a new branch.
+# Where the branch left LAND_GATE_BASE_REF, as pre-push measures a new branch.
+branch_base() {
+    git merge-base HEAD "$LAND_GATE_BASE_REF" 2>/dev/null && return 0
+    echo "✗ no merge-base between HEAD and $LAND_GATE_BASE_REF: fetch it, or set LAND_GATE_BASE_REF" >&2
+    return 1
+}
+
+# The firmware units the branch reaches.
 esp32_check() {
     local base
-    if ! base=$(git merge-base HEAD "$LAND_GATE_BASE_REF" 2>/dev/null); then
-        echo "✗ no merge-base between HEAD and $LAND_GATE_BASE_REF: fetch it, or set LAND_GATE_BASE_REF"
-        return 1
-    fi
+    base=$(branch_base) || return 1
     "$ESP32_CHECK" --require --base "$base" --head HEAD
+}
+
+# The packaged units the branch reaches.
+no_mocks_check() {
+    local base
+    base=$(branch_base) || return 1
+    "$NO_MOCKS_CHECK" --base "$base"
 }
 
 # run_step <name>: one step, by its table name. The gate's lanes and a rerun
@@ -162,6 +177,7 @@ run_step() {
         lint-xml) step lint-xml "${mk[@]}" lint-xml ;;
         lvgl-event-codes) step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes ;;
         esp32) step esp32 bash "$SELF" --esp32-check ;;
+        no-mocks) step no-mocks bash "$SELF" --no-mocks-check ;;
         quality) step quality env HELIX_LINK_BOUNDARY_REQUIRED=1 "${mk[@]}" quality ;;
         *) echo "✗ unknown step '$1'" >&2; return 2 ;;
     esac
@@ -186,10 +202,12 @@ lane() {
             if run_step app-build; then
                 run_step ui
                 run_step plugin
+                run_step no-mocks
                 [ "$SWEEP_WHERE" = local ] || run_step quality
             else
                 skip ui "app-build failed"
                 skip plugin "app-build failed"
+                skip no-mocks "app-build failed"
                 [ "$SWEEP_WHERE" = local ] || skip quality "app-build failed"
             fi ;;
         bats) run_step bats ;;
@@ -212,6 +230,10 @@ fi
 # A step runs under timeout, which can only start a program, not a function.
 if [ "${1:-}" = --esp32-check ]; then
     esp32_check
+    exit $?
+fi
+if [ "${1:-}" = --no-mocks-check ]; then
+    no_mocks_check
     exit $?
 fi
 
