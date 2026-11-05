@@ -63,10 +63,28 @@ using ErrorCallback = std::function<void(const std::string&)>;
 using ActiveFilesWithContentCallback =
     std::function<void(const std::set<std::string>&, const std::map<std::string, std::string>&)>;
 
-/// Async wrapper: lists config directory via Moonraker, downloads printer.cfg and
-/// all included files, then resolves the active file set.
-/// Unlike KlipperConfigEditor::download_with_includes, this handles glob includes
-/// by cross-referencing the full file listing.
+/// Lists the .cfg paths of one directory of the config root ("" is the root). @p whole_tree
+/// asks for every path instead. A missing directory is an empty listing.
+using ConfigListDirFn =
+    std::function<void(const std::string& dir, bool whole_tree,
+                       std::function<void(std::vector<std::string>)> ok,
+                       std::function<void(std::string)> fail)>;
+/// Downloads one config file.
+using ConfigFetchFn = std::function<void(const std::string& path,
+                                         std::function<void(std::string)> ok,
+                                         std::function<void(std::string)> fail)>;
+
+/// Fetches @p root_file and every file its [include] chain reaches, listing only the
+/// directories those includes name: server.files.list walks a whole root with
+/// Moonraker's event loop blocked. Only a wildcard in an include's directory part needs
+/// the whole tree. A failed listing fails the walk; a failed download skips that file.
+void walk_config_includes(const std::string& root_file, ConfigListDirFn list, ConfigFetchFn fetch,
+                          ActiveFilesWithContentCallback on_complete, ErrorCallback on_error,
+                          int max_depth = 5);
+
+/// Async wrapper: downloads printer.cfg and all included files via Moonraker, then
+/// resolves the active file set. Unlike KlipperConfigEditor::download_with_includes,
+/// this handles glob includes by listing the directories they name.
 void resolve_active_config_files(IMoonrakerAPI& api, ActiveFilesCallback on_complete,
                                  ErrorCallback on_error);
 

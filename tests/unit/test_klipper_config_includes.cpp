@@ -287,3 +287,95 @@ TEST_CASE("resolve_active_files - determines active config files", "[config][inc
         REQUIRE(active.count("test.cfg") == 0);
     }
 }
+
+// ============================================================================
+// walk_config_includes
+// ============================================================================
+
+namespace {
+
+struct WalkFakes {
+    std::map<std::string, std::string> server;
+    std::vector<std::string> dirs_listed;
+    int whole_trees = 0;
+    std::vector<std::string> fetched;
+    std::set<std::string> active;
+    int completions = 0;
+    std::string error;
+    bool fail_list = false;
+
+    void run() {
+        walk_config_includes(
+            "printer.cfg",
+            [this](const std::string& dir, bool whole, std::function<void(std::vector<std::string>)> ok,
+                   std::function<void(std::string)> fail) {
+                if (fail_list) {
+                    fail("reset");
+                    return;
+                }
+                whole ? (void)++whole_trees : dirs_listed.push_back(dir);
+                std::vector<std::string> out;
+                for (const auto& [path, _] : server) {
+                    if (whole || config_get_directory(path) == dir)
+                        out.push_back(path);
+                }
+                ok(std::move(out));
+            },
+            [this](const std::string& path, std::function<void(std::string)> ok,
+                   std::function<void(std::string)>) {
+                fetched.push_back(path);
+                ok(server.at(path));
+            },
+            [this](const std::set<std::string>& a, const std::map<std::string, std::string>&) {
+                ++completions;
+                active = a;
+            },
+            [this](const std::string& e) { error = e; });
+    }
+};
+
+} // namespace
+
+TEST_CASE("walk_config_includes lists only the directories includes name", "[config][includes]") {
+    WalkFakes w;
+    w.server = {{"printer.cfg", "[include macros.cfg]\n[include conf.d/*.cfg]\n"},
+                {"macros.cfg", "[m]\n"},
+                {"conf.d/a.cfg", "[a]\n"},
+                {"mod/huge/never.cfg", "[never]\n"}};
+    w.run();
+
+    CHECK(w.whole_trees == 0);
+    CHECK(std::set<std::string>(w.dirs_listed.begin(), w.dirs_listed.end()) ==
+          std::set<std::string>{"", "conf.d"});
+    CHECK(w.dirs_listed.size() == 2);
+    CHECK(w.fetched.size() == 3); // only the include chain is downloaded
+    REQUIRE(w.completions == 1);
+    CHECK(w.active == std::set<std::string>{"printer.cfg", "macros.cfg", "conf.d/a.cfg"});
+}
+
+TEST_CASE("walk_config_includes needs the whole tree only for a wildcard directory",
+          "[config][includes]") {
+    WalkFakes w;
+    w.server = {{"printer.cfg", "[include */x.cfg]\n[include gone/y.cfg]\n[include ../z.cfg]\n"},
+                {"a/x.cfg", "[x]\n"}};
+    w.run();
+
+    CHECK(w.whole_trees == 1);
+    REQUIRE(w.completions == 1);
+    CHECK(w.active == std::set<std::string>{"printer.cfg", "a/x.cfg"});
+}
+
+TEST_CASE("walk_config_includes reports a missing root and a failed listing", "[config][includes]") {
+    WalkFakes absent;
+    absent.server = {{"other.cfg", "[o]\n"}};
+    absent.run();
+    CHECK(absent.completions == 1);
+    CHECK(absent.active.empty());
+    CHECK(absent.fetched.empty());
+
+    WalkFakes failed;
+    failed.fail_list = true;
+    failed.run();
+    CHECK(failed.completions == 0);
+    CHECK(failed.error == "Failed to list config files: reset");
+}

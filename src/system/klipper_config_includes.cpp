@@ -172,73 +172,176 @@ std::set<std::string> resolve_active_files(const std::map<std::string, std::stri
 // Async Moonraker integration
 // ============================================================================
 
+namespace {
+
+/// One [include] waiting on the listing that resolves it.
+struct PendingInclude {
+    std::string file;
+    std::string pattern;
+    int depth = 0;
+};
+
+/// Callbacks may run on any thread or inside the list()/fetch() call; only one
+/// request is outstanding at a time, so the walk state needs no lock.
+struct IncludeWalk {
+    std::string root;
+    ConfigListDirFn list;
+    ConfigFetchFn fetch;
+    ActiveFilesWithContentCallback on_complete;
+    ErrorCallback on_error;
+    int max_depth = 5;
+    std::map<std::string, std::string> known;
+    std::set<std::string> listed;
+    bool whole_tree_listed = false;
+    std::vector<PendingInclude> pending;
+    std::vector<std::pair<std::string, int>> queue;
+    std::set<std::string> seen;
+    std::map<std::string, std::string> files;
+};
+
+void step_include_walk(const std::shared_ptr<IncludeWalk>& walk) {
+    while (!walk->pending.empty()) {
+        const PendingInclude inc = walk->pending.front();
+        const std::string resolved = config_resolve_path(inc.file, inc.pattern);
+        const std::string dir = config_get_directory(resolved);
+        const bool wild_dir = dir.find_first_of("*?") != std::string::npos ||
+                              resolved.find("**") != std::string::npos;
+        // Listed paths are root-relative, so an include spelled this way matches nothing.
+        const bool unreachable = dir.find("..") != std::string::npos ||
+                                 (!resolved.empty() && resolved.front() == '/');
+        const bool ready = unreachable || walk->whole_tree_listed ||
+                           (!wild_dir && walk->listed.count(dir) > 0);
+        if (!ready) {
+            walk->list(
+                dir, wild_dir,
+                [walk, dir, wild_dir](std::vector<std::string> paths) {
+                    for (auto& path : paths)
+                        walk->known.emplace(std::move(path), std::string());
+                    if (wild_dir)
+                        walk->whole_tree_listed = true;
+                    else
+                        walk->listed.insert(dir);
+                    step_include_walk(walk);
+                },
+                [walk](const std::string& message) {
+                    if (walk->on_error)
+                        walk->on_error("Failed to list config files: " + message);
+                });
+            return;
+        }
+        walk->pending.erase(walk->pending.begin());
+        if (unreachable)
+            continue;
+        const bool has_wildcard = inc.pattern.find_first_of("*?") != std::string::npos;
+        const std::vector<std::string> targets =
+            has_wildcard ? config_match_glob(walk->known, inc.file, inc.pattern)
+                         : std::vector<std::string>{resolved};
+        for (const auto& target : targets) {
+            if (walk->known.count(target) && walk->seen.insert(target).second)
+                walk->queue.emplace_back(target, inc.depth);
+        }
+    }
+
+    if (walk->queue.empty()) {
+        if (!walk->on_complete)
+            return;
+        if (walk->files.empty())
+            walk->on_complete({}, {});
+        else
+            walk->on_complete(resolve_active_files(walk->files, walk->root), walk->files);
+        return;
+    }
+
+    const auto [path, depth] = walk->queue.front();
+    walk->queue.erase(walk->queue.begin());
+    walk->fetch(
+        path,
+        [walk, path = path, depth = depth](std::string content) {
+            if (depth < walk->max_depth) {
+                for (auto& pattern : extract_includes(content))
+                    walk->pending.push_back({path, std::move(pattern), depth + 1});
+            }
+            walk->files[path] = std::move(content);
+            step_include_walk(walk);
+        },
+        [walk, path = path](const std::string& message) {
+            // An include that cannot be fetched leaves the rest of the config readable.
+            spdlog::warn("[ConfigIncludes] Failed to download {}: {}", path, message);
+            step_include_walk(walk);
+        });
+}
+
+} // namespace
+
+void walk_config_includes(const std::string& root_file, ConfigListDirFn list, ConfigFetchFn fetch,
+                          ActiveFilesWithContentCallback on_complete, ErrorCallback on_error,
+                          int max_depth) {
+    auto walk = std::make_shared<IncludeWalk>();
+    walk->root = root_file;
+    walk->list = std::move(list);
+    walk->fetch = std::move(fetch);
+    walk->on_complete = std::move(on_complete);
+    walk->on_error = std::move(on_error);
+    walk->max_depth = max_depth;
+    walk->pending.push_back({std::string(), root_file, 0});
+    step_include_walk(walk);
+}
+
 void resolve_active_config_files_with_content(IMoonrakerAPI& api,
                                               ActiveFilesWithContentCallback on_complete,
                                               ErrorCallback on_error) {
-    // api must outlive all async callbacks (guaranteed: IMoonrakerAPI is owned by PrinterState
+    // api must outlive all async callbacks (guaranteed: IMoonrakerAPI is owned by Printer
     // singleton)
-    api.files().list_files(
-        "config", "", true,
-        [&api, on_complete, on_error](const std::vector<FileInfo>& file_list) {
-            std::vector<std::string> cfg_paths;
-            for (const auto& f : file_list) {
-                if (!f.is_dir) {
-                    std::string path = f.path.empty() ? f.filename : f.path;
-                    if (path.size() > 4 && path.substr(path.size() - 4) == ".cfg") {
-                        cfg_paths.push_back(path);
+    auto is_cfg = [](const std::string& path) {
+        return path.size() > 4 && path.compare(path.size() - 4, 4, ".cfg") == 0;
+    };
+    ConfigListDirFn list = [&api, is_cfg](const std::string& dir, bool whole_tree,
+                                          std::function<void(std::vector<std::string>)> ok,
+                                          std::function<void(std::string)> fail) {
+        if (whole_tree) {
+            api.files().list_files(
+                "config", "", true,
+                [is_cfg, ok](const std::vector<FileInfo>& files) {
+                    std::vector<std::string> out;
+                    for (const auto& f : files) {
+                        std::string path = f.path.empty() ? f.filename : f.path;
+                        if (!f.is_dir && is_cfg(path))
+                            out.push_back(std::move(path));
                     }
+                    ok(std::move(out));
+                },
+                [fail](const MoonrakerError& err) { fail(err.message); });
+            return;
+        }
+        api.files().get_directory(
+            "config", dir,
+            [is_cfg, dir, ok](const std::vector<FileInfo>& files) {
+                std::vector<std::string> out;
+                for (const auto& f : files) {
+                    std::string path = dir.empty() ? f.filename : dir + "/" + f.filename;
+                    if (!f.is_dir && is_cfg(path))
+                        out.push_back(std::move(path));
                 }
-            }
-
-            if (cfg_paths.empty()) {
-                if (on_complete)
-                    on_complete({}, {});
-                return;
-            }
-
-            // Shared state for async downloads
-            struct DownloadState {
-                std::map<std::string, std::string> files_map;
-                std::atomic<int> pending{0};
-                std::mutex mutex;
-                ActiveFilesWithContentCallback on_complete;
-            };
-
-            auto state = std::make_shared<DownloadState>();
-            state->pending.store(static_cast<int>(cfg_paths.size()));
-            state->on_complete = on_complete;
-
-            for (const auto& path : cfg_paths) {
-                api.transfers().download_file(
-                    "config", path,
-                    [state, path](const std::string& content) {
-                        {
-                            std::lock_guard<std::mutex> lock(state->mutex);
-                            state->files_map[path] = content;
-                        }
-                        int remaining = state->pending.fetch_sub(1) - 1;
-                        if (remaining == 0) {
-                            auto active = resolve_active_files(state->files_map, "printer.cfg");
-                            if (state->on_complete)
-                                state->on_complete(active, state->files_map);
-                        }
-                    },
-                    [state, path](const MoonrakerError& err) {
-                        spdlog::warn("[ConfigIncludes] Failed to download {}: {}", path,
-                                     err.message);
-                        int remaining = state->pending.fetch_sub(1) - 1;
-                        if (remaining == 0) {
-                            auto active = resolve_active_files(state->files_map, "printer.cfg");
-                            if (state->on_complete)
-                                state->on_complete(active, state->files_map);
-                        }
-                    });
-            }
-        },
-        [on_error](const MoonrakerError& err) {
-            if (on_error)
-                on_error("Failed to list config files: " + err.message);
-        });
+                ok(std::move(out));
+            },
+            [ok, fail](const MoonrakerError& err) {
+                // Moonraker reports this as a plain 400 with this text. An [include] may
+                // name a directory that is not there.
+                if (err.type == MoonrakerErrorType::FILE_NOT_FOUND ||
+                    err.message.find("Directory does not exist") != std::string::npos)
+                    ok({});
+                else
+                    fail(err.message);
+            });
+    };
+    ConfigFetchFn fetch = [&api](const std::string& path, std::function<void(std::string)> ok,
+                                 std::function<void(std::string)> fail) {
+        api.transfers().download_file(
+            "config", path, [ok](const std::string& content) { ok(content); },
+            [fail](const MoonrakerError& err) { fail(err.message); });
+    };
+    walk_config_includes("printer.cfg", std::move(list), std::move(fetch), std::move(on_complete),
+                         std::move(on_error));
 }
 
 void resolve_active_config_files(IMoonrakerAPI& api, ActiveFilesCallback on_complete,
