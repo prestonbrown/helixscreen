@@ -260,11 +260,7 @@ TEST_CASE("INDX: non-int values are ignored", "[ams][indx][status]") {
     auto r = indx::read_status(
         json{{"save_variables", {{"variables", {{"active_tool", "two"}, {"seat_suspect", 1.5}}}}},
              {"gcode_macro TOOL_POSITIONS", {{"tool_count", "many"}}}});
-    if (r) {
-        CHECK_FALSE(r->active_tool.has_value());
-        CHECK_FALSE(r->seat_suspect.has_value());
-        CHECK_FALSE(r->tool_count.has_value());
-    }
+    CHECK_FALSE(r.has_value());
 }
 
 TEST_CASE("INDX: filament presets keep the printer's own keys", "[ams][indx][status]") {

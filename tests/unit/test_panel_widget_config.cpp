@@ -1956,6 +1956,7 @@ TEST_CASE("preset seeds: shipped seeds are overlays that place no excluded widge
     for (const auto& problem : audit.problems) {
         FAIL_CHECK(problem);
     }
+    CHECK(audit.problems.empty());
 }
 
 TEST_CASE_METHOD(PanelWidgetConfigFixture,
