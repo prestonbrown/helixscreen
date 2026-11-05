@@ -201,7 +201,7 @@ TEST_CASE("runout ownership traits match the table", "[ams][traits][runout_trait
         {"Happy Hare", AmsBackendHappyHare::kTraits, true, true, false},
         {"AFC", AmsBackendAfc::kTraits, true, true, false},
         {"AD5X IFS", AmsBackendAd5xIfs::kTraits, true, false, true},
-        {"CFS", helix::printer::AmsBackendCfs::kTraits, true, true, false},
+        {"CFS", helix::printer::AmsBackendCfs::kTraits, true, true, true},
         {"ACE", AmsBackendAce::kTraits, false, false, false},
         {"QIDI Box", AmsBackendQidi::kTraits, false, false, false},
         {"OpenAMS", AmsBackendOpenAms::kTraits, false, false, false},
