@@ -350,6 +350,18 @@ class Ad5xIfsTestAccess {
     static void read_unread_lane_records(AmsBackendAd5xIfs& b) {
         b.read_unread_lane_records();
     }
+    // A status frame through the path that also retries an unread store.
+    static void status_frame(AmsBackendAd5xIfs& b) {
+        b.handle_status_update(
+            nlohmann::json{{"params", nlohmann::json::array({nlohmann::json::object()})}});
+    }
+    // Makes the last read of an unread store old enough to retry.
+    static void age_unread_read(AmsBackendAd5xIfs& b) {
+        b.unread_read_started_ -= std::chrono::minutes(1);
+    }
+    static helix::ams::FilamentSlotOverrideStore* override_store(AmsBackendAd5xIfs& b) {
+        return b.override_store_.get();
+    }
     static bool lane_reread_pending(const AmsBackendAd5xIfs& b) {
         return b.lane_reread_pending_.load();
     }

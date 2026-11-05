@@ -587,10 +587,14 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// so a burst issues one read. Safe under mutex_.
     void schedule_lane_record_reread();
 
-    /// When the store's load got no answer, keep reading until one lands, then
-    /// take the printer's records as the start of this session would have.
-    /// Nothing is written over them until then. Main thread.
+    /// When the store's load got no answer, read until one lands, then take the
+    /// printer's records as the start of this session would have. Nothing is
+    /// written over them until then. A failed read is retried from the status
+    /// frames, no sooner than kUnreadLaneRecordsRetry. Main thread.
     void read_unread_lane_records();
+    /// A read is out, and when the last one started. Main thread.
+    bool unread_read_in_flight_ = false;
+    std::chrono::steady_clock::time_point unread_read_started_{};
 
     /// Remember each slot's lane_data document as the store loaded it, so the
     /// first re-read files only what another tool changed since. Caller holds

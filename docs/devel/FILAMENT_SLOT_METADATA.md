@@ -164,12 +164,16 @@ successful MR fetch always supersedes it.
 
 An errored or timed-out load leaves the store `namespace_unread()`, because the
 cache says nothing about the records on the printer and every save replaces a
-whole record (prestonbrown/helixscreen#2008). Until the namespace is read, a save
-is held and a clear is refused. `AmsSubscriptionBackend::read_unread_lane_records()`
-runs after `on_started()` and keeps reading; when an answer lands,
-`adopt_unread_lane_records()` replaces `overrides_`, files the records onto the
-lanes and repaints. Of the held saves, only one stating a declaration or spool
-link the cache did not already hold is sent. The rest are dropped.
+whole record (prestonbrown/helixscreen#2008). Until the namespace is read, saves
+and clears are held in memory, so a restart during the hold loses them.
+`AmsSubscriptionBackend::read_unread_lane_records()` runs after `on_started()` and
+again from status frames, at most every 10 seconds, until a read lands. Then
+`FilamentSlotOverrideStore::adopt_namespace_read()` applies the held clears and
+merges each held save onto the real record (`merge_held_save()`): only what the
+save changed from the failed load's cache moves, and a colour or material the record
+declares stays unless the save declares it too. `adopt_unread_lane_records()`
+replaces `overrides_`, files the result onto the lanes, sends what changed and
+repaints.
 
 ### Lifetime safety
 
