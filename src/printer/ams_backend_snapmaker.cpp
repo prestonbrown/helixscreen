@@ -3,6 +3,7 @@
 
 #include "ams_backend_snapmaker.h"
 
+#include "ui_error_reporting.h"
 #include "ui_insert_notice.h"
 #include "ui_notification.h"
 #include "ui_snapmaker_nozzle_offset_overlay.h"
@@ -1728,7 +1729,14 @@ void AmsBackendSnapmaker::apply_extruders_locked(const snapmaker::StatusDelta& d
             fx.changed = true;
         }
 
-        extruder_states_[i].apply(*extruder);
+        auto& state = extruder_states_[i];
+        const auto diameter = state.nozzle_diameter;
+        const auto volume_type = state.nozzle_volume_type;
+        state.apply(*extruder);
+        // The nozzle rows show these.
+        if (state.nozzle_diameter != diameter || state.nozzle_volume_type != volume_type) {
+            fx.changed = true;
+        }
     }
 }
 
@@ -2959,8 +2967,17 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
             }
             if (const nlohmann::json* state = helix::json_util::find_member(*ps, "state");
                 state && state->is_string()) {
+                const bool was_in_progress = print_in_progress_locked();
                 apply_print_state_locked(state->get<std::string>());
                 frame_names_state = true;
+                // The nozzle rows are unavailable while a print is in progress.
+                const bool nozzle_rows = std::any_of(
+                    extruder_states_.begin(), extruder_states_.end(), [](const auto& e) {
+                        return e.nozzle_diameter.has_value() || e.nozzle_volume_type.has_value();
+                    });
+                if (nozzle_rows && print_in_progress_locked() != was_in_progress) {
+                    fx.changed = true;
+                }
             }
         }
         if (const auto main_state = snapmaker::screws_tilt::main_state_from_status(status)) {
@@ -3798,9 +3815,25 @@ std::vector<bool> end_unload_list(const snapmaker::PrintPreferences& p,
     return list;
 }
 
-/// The end-unload action id's tool, or nullopt for an id that is not one.
-std::optional<size_t> end_unload_tool(const std::string& action_id) {
-    static constexpr std::string_view prefix = "snapmaker_end_unload_t";
+constexpr std::string_view kEndUnloadPrefix = "snapmaker_end_unload_t";
+constexpr std::string_view kNozzleDiameterPrefix = "snapmaker_nozzle_diameter_t";
+constexpr std::string_view kNozzleFlowPrefix = "snapmaker_nozzle_flow_t";
+constexpr const char* kToolheadSection = "toolhead";
+
+/// The failure a nozzle change that was answered reports. @p reason is the
+/// firmware's or the transport's words, empty when neither gave any.
+AmsError nozzle_refusal(const std::string& reason) {
+    AmsError error = AmsErrorHelper::command_failed(snapmaker::nozzle::kMethod, reason);
+    error.user_msg = reason.empty()
+                         ? std::string(lv_tr("Nozzle not changed: the printer did not confirm it"))
+                         : fmt::format(fmt::runtime(lv_tr("Nozzle not changed: {}")), reason);
+    error.suggestion.clear();
+    return error;
+}
+
+/// The tool a per-tool action id (@p prefix, then the tool number) names, or
+/// nullopt for an id that is not one.
+std::optional<size_t> tool_from_action_id(std::string_view prefix, const std::string& action_id) {
     if (action_id.rfind(prefix, 0) != 0) {
         return std::nullopt;
     }
@@ -3815,6 +3848,11 @@ std::optional<size_t> end_unload_tool(const std::string& action_id) {
         return std::nullopt;
     }
     return static_cast<size_t>(*parsed);
+}
+
+bool is_nozzle_action(const std::string& action_id) {
+    return tool_from_action_id(kNozzleDiameterPrefix, action_id) ||
+           tool_from_action_id(kNozzleFlowPrefix, action_id);
 }
 } // namespace
 
@@ -3838,6 +3876,22 @@ std::vector<helix::printer::DeviceSection> AmsBackendSnapmaker::get_device_secti
     // Nothing reported yet - an empty section is worse than none.
     if (!print_preferences().empty()) {
         out.push_back(helix::printer::device_section(kPrintPrefsSection, 50, ""));
+    }
+    const auto nozzles = reported_nozzles();
+    if (std::any_of(nozzles.begin(), nozzles.end(),
+                    [](const auto& n) { return n.diameter || n.volume_type; })) {
+        out.push_back(helix::printer::device_section(
+            kToolheadSection, 60, TR_NOOP("Nozzle size and flow type per head")));
+    }
+    return out;
+}
+
+std::array<snapmaker::nozzle::Nozzle, snapmaker::kToolCount>
+AmsBackendSnapmaker::reported_nozzles() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::array<snapmaker::nozzle::Nozzle, snapmaker::kToolCount> out;
+    for (size_t i = 0; i < out.size() && i < extruder_states_.size(); ++i) {
+        out[i] = {extruder_states_[i].nozzle_diameter, extruder_states_[i].nozzle_volume_type};
     }
     return out;
 }
@@ -3892,7 +3946,88 @@ std::vector<helix::printer::DeviceAction> AmsBackendSnapmaker::get_device_action
         }
         out.push_back(std::move(a));
     }
+
+    // Each head's nozzle, one row per field the head reports. A head reading a
+    // value no option names shows it as unknown rather than as an option.
+    namespace nozzle = snapmaker::nozzle;
+    const auto nozzles = reported_nozzles();
+    bool in_progress = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        in_progress = print_in_progress_locked();
+    }
+    auto per_head = [&](DeviceAction a, int head) {
+        a.slot_index = head;
+        a.tool_index = head;
+        // The firmware refuses the change while printing or paused.
+        if (in_progress) {
+            a.enabled = false;
+            a.disable_reason = TR_NOOP("Finish or cancel the print first");
+        }
+        out.push_back(std::move(a));
+    };
+    for (size_t h = 0; h < nozzles.size(); ++h) {
+        const int head = static_cast<int>(h);
+        if (const auto& d = nozzles[h].diameter) {
+            const std::string shown = nozzle::diameter_option(*d);
+            per_head(DeviceAction::dropdown(std::string(kNozzleDiameterPrefix) + std::to_string(h),
+                                            "Nozzle diameter", kToolheadSection,
+                                            nozzle::diameter_options(),
+                                            shown.empty() ? std::any{} : std::any(shown))
+                         .with_option_confirm(
+                             nozzle::diameter_option(0.2),
+                             TR_NOOP("A 0.2 mm nozzle can't print every filament, including "
+                                     "PA, PC, TPU and carbon- or glass-filled types. If this "
+                                     "head has one of them loaded, the printer clears its "
+                                     "filament info and you'll need to set it again."),
+                             TR_NOOP("Change")),
+                     head);
+        }
+        if (const auto& t = nozzles[h].volume_type) {
+            const std::string shown = nozzle::flow_option(*t);
+            DeviceAction flow = DeviceAction::dropdown(
+                std::string(kNozzleFlowPrefix) + std::to_string(h), "Nozzle flow", kToolheadSection,
+                nozzle::flow_options(), shown.empty() ? std::any{} : std::any(shown));
+            if (!nozzle::flow_selectable(nozzles[h])) {
+                flow.enabled = false;
+                flow.disable_reason = TR_NOOP("High Flow needs a 0.4 mm nozzle");
+            }
+            per_head(std::move(flow), head);
+        }
+    }
     return out;
+}
+
+AmsBackendSnapmaker::NozzleChange
+AmsBackendSnapmaker::build_nozzle_change(const std::string& action_id,
+                                         const std::any& value) const {
+    namespace nozzle = snapmaker::nozzle;
+    const auto diameter_head = tool_from_action_id(kNozzleDiameterPrefix, action_id);
+    const auto flow_head = tool_from_action_id(kNozzleFlowPrefix, action_id);
+    const auto head = diameter_head ? diameter_head : flow_head;
+    const auto nozzles = reported_nozzles();
+    if (!head || *head >= nozzles.size()) {
+        return {};
+    }
+    const auto [choice, err] = printer::device_action_value<std::string>(value, "setting");
+    if (!err) {
+        return {};
+    }
+    const nozzle::Nozzle& reported = nozzles[*head];
+    nozzle::Nozzle wanted;
+    if (diameter_head) {
+        wanted.diameter = nozzle::diameter_from_option(choice);
+        // A row exists only for a field the head reports.
+        if (!wanted.diameter || !reported.diameter) {
+            return {};
+        }
+    } else {
+        wanted.volume_type = nozzle::volume_type_from_option(choice);
+        if (!wanted.volume_type || !reported.volume_type) {
+            return {};
+        }
+    }
+    return {true, nozzle::change_params(static_cast<int>(*head), reported, wanted)};
 }
 
 std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& action_id,
@@ -3927,7 +4062,7 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
             return {};
         }
         changes.filament_entangle_sen = v;
-    } else if (const auto tool = end_unload_tool(action_id)) {
+    } else if (const auto tool = tool_from_action_id(kEndUnloadPrefix, action_id)) {
         // END_UNLOAD_FILAMENT takes the whole list, so the untouched tools
         // travel at their saved values or they are cleared. The firmware's
         // own list is not used: it lags a tap behind, and it is cleared when
@@ -3956,11 +4091,14 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
 
 AmsError AmsBackendSnapmaker::do_execute_device_action(const std::string& action_id,
                                                        const std::any& value) {
+    if (is_nozzle_action(action_id)) {
+        return do_run_device_action(action_id, value, nullptr);
+    }
     const std::string gcode = build_preference_gcode(action_id, value);
     if (gcode.empty()) {
         return AmsErrorHelper::not_supported(action_id);
     }
-    if (const auto tool = end_unload_tool(action_id)) {
+    if (const auto tool = tool_from_action_id(kEndUnloadPrefix, action_id)) {
         // The saved choice is what every print start sends, so it is written
         // whether or not the firmware can take it now.
         SettingsManager::instance().set_end_of_print_unload_tool(
@@ -3980,6 +4118,81 @@ AmsError AmsBackendSnapmaker::do_execute_device_action(const std::string& action
         }
     }
     return execute_gcode(gcode);
+}
+
+AmsError AmsBackendSnapmaker::do_run_device_action(const std::string& action_id,
+                                                   const std::any& value,
+                                                   DeviceActionDone on_done) {
+    if (!is_nozzle_action(action_id)) {
+        return AmsSubscriptionBackend::do_run_device_action(action_id, value, std::move(on_done));
+    }
+    NozzleChange change = build_nozzle_change(action_id, value);
+    if (!change.valid) {
+        return AmsErrorHelper::not_supported(action_id);
+    }
+    if (!change.params) {
+        spdlog::debug("{} {}: the head already reports that; nothing sent", backend_log_tag(),
+                      action_id);
+        if (on_done) {
+            on_done(AmsErrorHelper::success());
+        }
+        return AmsErrorHelper::success();
+    }
+    return send_nozzle_change(std::move(*change.params), std::move(on_done));
+}
+
+AmsError AmsBackendSnapmaker::send_nozzle_change(nlohmann::json params, DeviceActionDone on_done) {
+    if (!client_) {
+        return AmsErrorHelper::not_connected("No Moonraker client");
+    }
+    spdlog::info("{} Nozzle change: {}", backend_log_tag(), params.dump());
+    // The firmware refuses inside a successful reply, so the reply is read
+    // before anything counts as changed. A change it takes arrives as an
+    // extruder status update, which is what moves the row.
+    client_->send_jsonrpc(
+        snapmaker::nozzle::kMethod, params,
+        lifetime_.bg_cb("AmsBackendSnapmaker::nozzle_change.reply",
+                        [this, on_done](const nlohmann::json& response) {
+                            const auto reply = snapmaker::nozzle::read_reply(response);
+                            switch (reply.kind) {
+                            case snapmaker::nozzle::ReplyKind::Accepted:
+                                spdlog::info("{} Nozzle change accepted", backend_log_tag());
+                                if (on_done) {
+                                    on_done(AmsErrorHelper::success());
+                                }
+                                return;
+                            case snapmaker::nozzle::ReplyKind::Refused:
+                                nozzle_change_failed(nozzle_refusal(reply.message), on_done);
+                                return;
+                            case snapmaker::nozzle::ReplyKind::Unexpected:
+                                spdlog::warn("{} Nozzle change: unexpected reply {}",
+                                             backend_log_tag(), response.dump());
+                                nozzle_change_failed(nozzle_refusal({}), on_done);
+                                return;
+                            }
+                        }),
+        lifetime_.bg_cb("AmsBackendSnapmaker::nozzle_change.error",
+                        [this, on_done](const MoonrakerError& err) {
+                            // No answer does not say the change was refused.
+                            nozzle_change_failed(
+                                err.type == MoonrakerErrorType::TIMEOUT ||
+                                        err.type == MoonrakerErrorType::CONNECTION_LOST
+                                    ? AmsErrorHelper::timeout(snapmaker::nozzle::kMethod)
+                                    : nozzle_refusal(err.message),
+                                on_done);
+                        }),
+        snapmaker::nozzle::kTimeoutMs, /*silent=*/true);
+    return AmsErrorHelper::success();
+}
+
+void AmsBackendSnapmaker::nozzle_change_failed(const AmsError& error,
+                                               const DeviceActionDone& on_done) {
+    if (on_done) {
+        on_done(error);
+    } else {
+        helix::ui::notify_ams_error(error);
+    }
+    emit_event(EVENT_STATE_CHANGED);
 }
 
 helix::printer::EndlessSpoolCapabilities

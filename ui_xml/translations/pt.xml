@@ -147,6 +147,7 @@
   <translation tag="= Loosen" pt="= Afrouxar"/>
   <translation tag="= Tighten" pt="= Apertar"/>
   <translation tag="A" pt="A"/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." pt="Um bico de 0,2 mm não imprime todos os filamentos, entre eles PA, PC, TPU e os tipos com fibra de carbono ou de vidro. Se este cabeçote tiver um deles carregado, a impressora apaga as informações do filamento e você precisará defini-las novamente."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." pt="Um buzzer ou alto-falante para alertas e sons. Defina o que toca nas configurações de som."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." pt="Uma câmera transmitida pelo Moonraker. Adicione o widget de câmera à tela inicial para assisti-la, inclusive durante uma impressão."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." pt="Uma ventoinha que puxa o ar da câmara por um filtro. Controle-a na tela de temperatura da câmara."/>
@@ -1683,6 +1684,7 @@
   <translation tag="Hide Firmware Noise" pt="Ocultar Ruído do Firmware"/>
   <translation tag="Hide Temperature Reports" pt="Ocultar Relatórios de Temperatura"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" pt="Ocultar o teclado na tela enquanto um teclado USB estiver conectado"/>
+  <translation tag="High Flow needs a 0.4 mm nozzle" pt="High Flow requer um bico de 0,4 mm"/>
   <translation tag="High Fly" pt="Acima das nuvens"/>
   <translation tag="High Water Mark" pt="Marca de Pico"/>
   <translation tag="Hold anywhere to cancel" pt="Segure em qualquer lugar para cancelar"/>
@@ -2463,9 +2465,14 @@
   <translation tag="Nozzle Temps" pt="Temps do bico"/>
   <translation tag="Nozzle clean complete" pt="Limpeza do bico concluída"/>
   <translation tag="Nozzle clog detected" pt="Entupimento do bico detectado"/>
+  <translation tag="Nozzle diameter" pt="Diâmetro do bico"/>
   <translation tag="Nozzle did not reach {}°C — {} canceled" pt="O bico não atingiu {}°C — {} cancelado"/>
+  <translation tag="Nozzle flow" pt="Fluxo do bico"/>
   <translation tag="Nozzle interval" pt="Intervalo do bico"/>
   <translation tag="Nozzle min cannot exceed max" pt="O mínimo do bico não pode exceder o máximo"/>
+  <translation tag="Nozzle not changed: the printer did not confirm it" pt="Bico não alterado: a impressora não confirmou"/>
+  <translation tag="Nozzle not changed: {}" pt="Bico não alterado: {}"/>
+  <translation tag="Nozzle size and flow type per head" pt="Tamanho e tipo de fluxo do bico por cabeçote"/>
   <translation tag="Nozzle target set to {}°C" pt="Bico configurado para {}°C"/>
   <translation tag="Nozzle temp must be 100-%d°C" pt="A temperatura do bico deve ser 100-%d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" pt="Bico, mesa e câmara em um widget"/>

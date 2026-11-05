@@ -4004,6 +4004,21 @@ TEST_CASE("an unusable orca_filament_id leaves the catalog's filament_id in plac
     SECTION("a Bambu GF code") {
         extra = "\"GFL99\"";
     }
+    SECTION("a Spoolman record id typed as text") {
+        extra = "\"55\"";
+    }
+    SECTION("a decimal typed as text") {
+        extra = "\"1.5\"";
+    }
+    SECTION("a preset's display name, with a space") {
+        extra = "\"P bad\"";
+    }
+    SECTION("a line break") {
+        extra = "\"P\\n123\"";
+    }
+    SECTION("an unencoded value") {
+        extra = "P123abcd";
+    }
 
     const FilamentSlotOverride ovr =
         linked_record(spool_with_orca_extra(extra), "bambu-lab-bambu-abs");

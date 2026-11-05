@@ -201,3 +201,39 @@ TEST_CASE("Snapmaker rgb_from_rgba_hex reads the colour the lane grammar names",
     CHECK_FALSE(snapmaker::rgb_from_rgba_hex(""));
     CHECK_FALSE(snapmaker::rgb_from_rgba_hex("#"));
 }
+
+TEST_CASE("Snapmaker status parse reads the fitted nozzle a head reports",
+          "[snapmaker][status_parse][nozzle]") {
+    const auto d = snapmaker::parse_extruder_delta(
+        json{{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "high_flow"}});
+    REQUIRE(d.nozzle_diameter);
+    CHECK(*d.nozzle_diameter == 0.6);
+    REQUIRE(d.nozzle_volume_type);
+    CHECK(*d.nozzle_volume_type == "high_flow");
+
+    const auto absent = snapmaker::parse_extruder_delta(json{{"temperature", 200}});
+    CHECK_FALSE(absent.nozzle_diameter);
+    CHECK_FALSE(absent.nozzle_volume_type);
+}
+
+TEST_CASE("Snapmaker status parse ignores a nozzle reading that names no nozzle",
+          "[snapmaker][status_parse][nozzle]") {
+    for (const json& bad : {json(0.0), json(-0.4), json("0.4"), json(nullptr)}) {
+        CHECK_FALSE(
+            snapmaker::parse_extruder_delta(json{{"nozzle_diameter", bad}}).nozzle_diameter);
+    }
+    CHECK_FALSE(
+        snapmaker::parse_extruder_delta(json{{"nozzle_volume_type", 1}}).nozzle_volume_type);
+}
+
+TEST_CASE("Snapmaker tool state keeps a nozzle field a later frame omits",
+          "[snapmaker][status_parse][nozzle]") {
+    ExtruderToolState s;
+    s.apply(snapmaker::parse_extruder_delta(
+        json{{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}}));
+    s.apply(snapmaker::parse_extruder_delta(json{{"nozzle_diameter", 0.2}}));
+    REQUIRE(s.nozzle_diameter);
+    CHECK(*s.nozzle_diameter == 0.2);
+    REQUIRE(s.nozzle_volume_type);
+    CHECK(*s.nozzle_volume_type == "standard");
+}

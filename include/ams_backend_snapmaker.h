@@ -12,6 +12,7 @@
 #include "lane_echo.h"
 #include "lane_observation.h"
 #include "snapmaker_channel_state.h"
+#include "snapmaker_nozzle_properties.h"
 #include "snapmaker_print_preferences.h"
 #include "snapmaker_status_parse.h"
 
@@ -574,17 +575,47 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }
 
     /// The Print Behavior section shown on the AMS device-operations
-    /// overlay. Absent until the firmware has reported a preference, so the
-    /// overlay never offers a setting whose state it does not know.
+    /// overlay, and the Toolhead section with each head's nozzle. Each is
+    /// absent until the firmware has reported what it shows, so the overlay
+    /// never offers a setting whose state it does not know.
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
 
     /// One DeviceAction per reported preference: toggles, a sensitivity
-    /// dropdown, and one end-unload toggle per reported toolhead.
+    /// dropdown, and one end-unload toggle per reported toolhead. Then, per
+    /// head, a nozzle diameter and a nozzle flow dropdown for each field the
+    /// head reports, unavailable while a print is printing or paused (the
+    /// firmware refuses the change then).
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
 
     /// Sends the SET_PRINT_PREFERENCES line build_preference_gcode() maps the
-    /// action id to. Unknown ids are reported as not supported.
+    /// action id to, or the nozzle change build_nozzle_change() makes of it.
+    /// Unknown ids are reported as not supported.
     AmsError do_execute_device_action(const std::string& action_id, const std::any& value) override;
+
+    /// A nozzle change reports through @p on_done once the firmware has answered;
+    /// every other action as the base class does.
+    AmsError do_run_device_action(const std::string& action_id, const std::any& value,
+                                  DeviceActionDone on_done) override;
+
+    /// Each head's nozzle as the firmware last reported it.
+    [[nodiscard]] std::array<snapmaker::nozzle::Nozzle, snapmaker::kToolCount>
+    reported_nozzles() const;
+
+    /// What a pick on a nozzle row sends.
+    struct NozzleChange {
+        /// The id names a nozzle row of a head that reports the field, and the
+        /// value is one of its options.
+        bool valid = false;
+        /// The params of the firmware's nozzle_properties call, carrying only
+        /// the field that differs from the report; unset when the pick is what
+        /// the head already reports, so nothing is sent.
+        std::optional<nlohmann::json> params;
+    };
+
+    /// The change a nozzle row's pick makes. Separated from
+    /// execute_device_action so the mapping is testable without a client.
+    [[nodiscard]] NozzleChange build_nozzle_change(const std::string& action_id,
+                                                   const std::any& value) const;
 
     /// The saved unload-at-end list (SettingsManager's end-of-print unload
     /// tools) as one SET_PRINT_PREFERENCES line, sized to the toolheads the
@@ -1201,6 +1232,16 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
 
     /// print_stats.state names a print in progress (printing or paused).
     [[nodiscard]] bool print_in_progress_locked() const;
+
+    /// Sends a nozzle change (@p params from build_nozzle_change()) and reads
+    /// the firmware's reply, which @p on_done (may be empty) receives. A refusal,
+    /// an unexpected reply or a failed send goes to nozzle_change_failed().
+    AmsError send_nozzle_change(nlohmann::json params, DeviceActionDone on_done);
+
+    /// Main thread: hands @p error to @p on_done, or shows it when there is none,
+    /// then re-announces the backend's state, so a row showing the refused pick
+    /// goes back to the reported value.
+    void nozzle_change_failed(const AmsError& error, const DeviceActionDone& on_done);
 
     /// Apply this frame's print_stats.state; a print that ends forgets the
     /// unconfirmed loads and the task judgement. Caller holds mutex_.
