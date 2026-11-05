@@ -18,6 +18,7 @@ WidgetRef. A raw member that is genuinely right says why:
 (prestonbrown/helixscreen#1298)
 """
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -48,6 +49,17 @@ def scan(root: Path, files: list[Path]) -> list[str]:
     return hits
 
 
+def changed_on_branch(root: Path) -> set[str]:
+    """Paths this branch changed since origin/main, or nothing when git cannot say."""
+    r = subprocess.run(
+        ["git", "diff", "--name-only", "origin/main...HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    return set(r.stdout.split()) if r.returncode == 0 else set()
+
+
 def main(argv: list[str]) -> int:
     root = Path(__file__).resolve().parent.parent
     max_allowed = 0
@@ -73,7 +85,11 @@ def main(argv: list[str]) -> int:
         for h in hits:
             print(h)
     if len(hits) > max_allowed:
-        print(f"Raw lv_obj_t* members: {len(hits)} > baseline {max_allowed}")
+        print(f"❌ Raw lv_obj_t* members: {len(hits)} > baseline {max_allowed}")
+        changed = changed_on_branch(root)
+        for h in hits:
+            if h.split(":", 1)[0] in changed:
+                print(f"  {h}")
         print("  Hold a cached widget as helix::ui::WidgetRef (include/ui_widget_ref.h):")
         print("  it clears itself when the widget dies, whoever deletes it.")
         print(f"  A raw member that is right here? Say why: // {OPT_OUT} <reason>")
