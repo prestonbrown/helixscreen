@@ -1434,6 +1434,7 @@ host simply runs both suites locally, without a word.
 | `HELIX_TEST_CCACHE` | same | ccache dir inside the container (`/work/ccache`) |
 | `HELIX_TEST_CCACHE_SIZE` | `test-host-run.sh`, `test-host-setup.sh` | `max_size` floor for that cache, never lowered (`200G`) |
 | `HELIX_TEST_WORKDIR` | `test-host-run.sh --commit` | the shared git checkout inside the container (`/work/helixscreen`); mutate checkouts copy it |
+| `HELIX_TEST_MAX_LOAD` | `test-host-run.sh` | a run waits until the host's one-minute load is under this, and refuses after `HELIX_TEST_LOAD_WAIT_SECS` (3600); default the host's thread count, `0` never waits |
 | `HELIX_TEST_SEED` | `test-host-run.sh` | `0` starts a new mirror cold instead of copying the nearest warm one (`1`) |
 | `HELIX_TEST_PRUNE_DAYS` | `test-host-run.sh` | creating a mirror or mutate checkout removes those unused this many days; `0` never (`14`) |
 | `HELIX_TEST_LOCK_DIR` | `test-host-run.sh` | lock directory on the host (`/tmp`) |
