@@ -17,6 +17,7 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/seeded_override.h"
+#include "../test_helpers/toast_log.h"
 #include "../test_helpers/tool_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
@@ -571,6 +572,28 @@ void state_polymaker_pla(SpoolInfo& spool) {
 }
 
 } // namespace
+
+TEST_CASE_METHOD(SpoolmanLaneFixture,
+                 "SpoolmanManager: the failure that opens the breaker warns once, from the queue",
+                 "[spoolman][toast]") {
+    helix::test::RegisteredBackend<AmsBackendMock> backend(2);
+    link(*backend, 0, 1);
+    lv_xml_register_subject(
+        nullptr, "printer_has_spoolman",
+        get_printer_state().capabilities_state().subject(helix::Capability::HasSpoolman));
+    auto& mgr = SpoolmanManager::instance();
+    TA::set_consecutive_failures(mgr, 2); // one short of the breaker
+    helix::test::ToastLog toasts;
+
+    client.fail_next("server.spoolman.proxy");
+    fetch();
+    CHECK(toasts.shown.empty());
+    drain();
+
+    CHECK(TA::cb_open(mgr));
+    toasts.expect_one(ToastSeverity::WARNING,
+                      "Spoolman unavailable — filament weights may be stale", 6000);
+}
 
 TEST_CASE_METHOD(SpoolmanLaneFixture,
                  "SpoolmanManager: a fetch files the spool as the lane's Spoolman record",

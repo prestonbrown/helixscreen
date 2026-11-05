@@ -17,8 +17,6 @@
 
 #include "spoolman_manager.h"
 
-#include "ui_toast_manager.h"
-
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
@@ -29,6 +27,7 @@
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 
@@ -485,7 +484,7 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                          err.message);
 
             // Track failure for circuit breaker (post to UI thread for
-            // thread-safe access to SpoolmanManager and ToastManager)
+            // thread-safe access to SpoolmanManager)
             helix::ui::queue_update("SpoolmanManager::cb_failure", []() {
                 if (s_shutdown_flag.load(std::memory_order_acquire)) {
                     return;
@@ -511,11 +510,10 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                         auto* subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
                         if (subj && lv_subject_get_int(subj) == 1) {
                             // i18n: Spoolman is a product name, do not translate
-                            ToastManager::instance().show(
-                                ToastSeverity::WARNING,
-                                lv_tr("Spoolman unavailable — filament weights "
-                                      "may be stale"),
-                                6000);
+                            publish_notice({NoticeSeverity::WARNING,
+                                            lv_tr("Spoolman unavailable — filament weights "
+                                                  "may be stale"),
+                                            6000});
                         }
                     }
                 }
