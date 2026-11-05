@@ -35,17 +35,22 @@ class EthernetBackendMock : public EthernetBackend {
     bool has_interface() override;
     EthernetInfo get_info() override;
 
-    /// In memory, one config for the process: every EthernetManager builds its
-    /// own backend, and they all stand for the same port.
+    /// In memory, one config for the process (helix::net::mock_ipv4_store).
     /// HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
     bool supports_ipv4_config() const override {
         return true;
     }
     helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override {
-        return ipv4_store().get(out);
+        return helix::net::mock_ipv4_store(helix::net::Ipv4Link::Ethernet).get(out);
     }
-    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Config& config) override {
-        return ipv4_store().apply(config);
+    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config&,
+                                               helix::net::Ipv4Snapshot& out) override {
+        out = helix::net::mock_ipv4_snapshot(helix::net::Ipv4Link::Ethernet);
+        return helix::net::Ipv4Result::success();
+    }
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot&,
+                                             const helix::net::Ipv4Config& config) override {
+        return helix::net::mock_ipv4_store(helix::net::Ipv4Link::Ethernet).apply(config);
     }
 
     /// Test helper — drive connected state directly, mirroring
@@ -63,10 +68,6 @@ class EthernetBackendMock : public EthernetBackend {
     }
 
   private:
-    static helix::net::MockIpv4Config& ipv4_store() {
-        static helix::net::MockIpv4Config store;
-        return store;
-    }
     std::string real_mac_; ///< Real MAC from system for realistic demo display
     static inline bool default_connected_ = true;
     /// Set by tests on the main thread, read by get_info() on executor threads.

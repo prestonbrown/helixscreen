@@ -19,7 +19,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -115,12 +117,17 @@ struct Ipv4Verdict {
  * unicast address, a contiguous mask of /1 to /32, an address that is
  * neither the network nor the broadcast address (/31 and /32 have neither),
  * a gateway inside the subnet that is not the address itself, and one usable
- * DNS server, which may be anywhere (a loopback resolver included).
+ * DNS server, which may be anywhere (a loopback resolver included). A /32
+ * has no gateway inside it, so the form never passes one.
  */
 Ipv4Verdict validate_ipv4_form(const Ipv4Form& form);
 
 /// The form a config pre-fills: the mask as a dotted quad, the first DNS server.
 Ipv4Form ipv4_form_from_config(const Ipv4Config& config);
+
+/// @p next with what the form cannot show carried over from @p current: the
+/// form holds one DNS server, so an unedited first server keeps the rest.
+Ipv4Config ipv4_keep_unshown(const Ipv4Config& current, Ipv4Config next);
 
 // ============================================================================
 // Backend capability
@@ -146,12 +153,30 @@ struct Ipv4Result {
 };
 
 /**
+ * @brief What one change edits, and how to put it back exactly
+ *
+ * Captured before the change is applied and stored in the pending-revert
+ * record, so a revert edits the same profile or interface the change did,
+ * whatever is active by then, and writes back the original text rather than
+ * a re-rendering of what was parsed from it.
+ */
+struct Ipv4Snapshot {
+    std::string store;    ///< "networkmanager", "dhcpcd" or "mock"
+    std::string iface;    ///< The interface the change targets
+    std::string profile;  ///< NetworkManager connection UUID; empty for the others
+    std::string original; ///< What a restore writes back (store-specific text)
+    std::string written;  ///< dhcpcd: the file the change writes; restore refuses if it moved on
+};
+
+/**
  * @brief Reading and applying an interface's IPv4 configuration
  *
  * Every Wi-Fi and Ethernet backend implements this, each the way its platform
  * persists network settings. The defaults are the unsupported answer: a
  * backend that cannot make a static address survive a reboot leaves them, and
  * the UI hides the setting rather than offer one that is lost on restart.
+ * Restoring a snapshot needs no backend: restore_ipv4_snapshot()
+ * (ipv4_config_system.h) works from the snapshot alone.
  *
  * A virtual query rather than a cast to a concrete backend, because the
  * firmware builds -fno-rtti.
@@ -172,8 +197,16 @@ class Ipv4Configurable {
         return Ipv4Result::not_supported();
     }
 
-    /// BLOCKING. Persist @p config and bring the interface onto it.
-    virtual Ipv4Result apply_ipv4_config(const Ipv4Config& config) {
+    /// BLOCKING. Resolve what applying @p next would edit and snapshot it.
+    virtual Ipv4Result prepare_ipv4_change(const Ipv4Config& next, Ipv4Snapshot& out) {
+        (void)next;
+        out = {};
+        return Ipv4Result::not_supported();
+    }
+
+    /// BLOCKING. Persist @p config into @p target and bring the interface onto it.
+    virtual Ipv4Result apply_ipv4_config(const Ipv4Snapshot& target, const Ipv4Config& config) {
+        (void)target;
         (void)config;
         return Ipv4Result::not_supported();
     }
@@ -182,8 +215,8 @@ class Ipv4Configurable {
 /**
  * @brief An in-memory IPv4 configuration, for the mock backends
  *
- * Starts on DHCP. HELIX_MOCK_IPV4_APPLY_FAIL=1 makes every apply fail, so
- * the screen's failure path can be driven under --test.
+ * Starts on DHCP. HELIX_MOCK_IPV4_APPLY_FAIL=1 makes every apply and restore
+ * fail, so the screen's failure paths can be driven under --test.
  */
 class MockIpv4Config {
   public:
@@ -197,6 +230,16 @@ class MockIpv4Config {
     Ipv4Config config_;
 };
 
+/// The mock config for @p link, one per process: every manager builds its own
+/// backend, and they all stand for the same port, which a restore reaches too.
+MockIpv4Config& mock_ipv4_store(Ipv4Link link);
+
+/// Snapshot for the mock store of @p link (restore_ipv4_snapshot replays it).
+Ipv4Snapshot mock_ipv4_snapshot(Ipv4Link link);
+
+/// Restore a "mock" snapshot.
+Ipv4Result restore_mock_ipv4_snapshot(const Ipv4Snapshot& snapshot);
+
 // ============================================================================
 // NetworkManager (nmcli)
 // ============================================================================
@@ -204,6 +247,25 @@ class MockIpv4Config {
 /// The UUID of the connection active on @p iface, from
 /// `nmcli -t -f UUID,DEVICE connection show --active`. Empty when none is.
 std::string nm_active_uuid_for_device(const std::string& output, const std::string& iface);
+
+/// The profile a link uses while nothing is active on it: from
+/// `nmcli -t -f UUID,TYPE,TIMESTAMP,DEVICE connection show`, the most recently
+/// used inactive profile of @p link's type. Empty when there is none.
+std::string nm_inactive_profile_for_link(const std::string& output, Ipv4Link link);
+
+/// The four IPv4 values of a profile as nmcli prints them, lists intact.
+struct NmIpv4Values {
+    std::string method;
+    std::string addresses;
+    std::string gateway;
+    std::string dns;
+};
+NmIpv4Values nm_parse_ipv4_values(const std::string& output);
+std::string nm_encode_values(const NmIpv4Values& values);
+NmIpv4Values nm_decode_values(const std::string& text);
+
+/// Argument vector that writes @p values back into a profile exactly.
+std::vector<std::string> nm_ipv4_restore_argv(const std::string& uuid, const NmIpv4Values& values);
 
 /// Argument vector (program name excluded) that reads a profile's IPv4 settings.
 std::vector<std::string> nm_ipv4_show_argv(const std::string& uuid);
@@ -224,13 +286,16 @@ std::vector<std::string> nm_ipv4_modify_argv(const std::string& uuid, const Ipv4
 /// @p conf with @p iface's static IPv4 replaced by @p config: any static
 /// address, routers and DNS lines for the interface are removed, and a static
 /// config is appended as one block HelixScreen marks as its own. Every other
-/// line is kept as it was.
-std::string dhcpcd_conf_with_ipv4(const std::string& conf, const std::string& iface,
-                                  const Ipv4Config& config);
+/// line is kept as it was. nullopt when a HelixScreen block has no end marker:
+/// where it stops cannot be known, so nothing is edited.
+std::optional<std::string> dhcpcd_conf_with_ipv4(const std::string& conf, const std::string& iface,
+                                                 const Ipv4Config& config);
 
 /// @p iface's IPv4 config as @p conf states it: DHCP unless an
-/// `interface <iface>` block carries `static ip_address=`.
-Ipv4Config dhcpcd_conf_read_ipv4(const std::string& conf, const std::string& iface);
+/// `interface <iface>` block carries `static ip_address=`; a DNS override is
+/// kept either way. nullopt when the stanza says something the config cannot
+/// hold (an address without a prefix, or several addresses).
+std::optional<Ipv4Config> dhcpcd_conf_read_ipv4(const std::string& conf, const std::string& iface);
 
 // ============================================================================
 // Confirm-or-revert
@@ -275,7 +340,8 @@ class Ipv4RevertCountdown {
  */
 struct PendingIpv4Revert {
     Ipv4Link link = Ipv4Link::Wifi;
-    Ipv4Config previous;
+    Ipv4Config previous; ///< For the log and the screen; the restore uses `snapshot`
+    Ipv4Snapshot snapshot;
     /// ipv4_process_owner() of the process running the countdown. A record
     /// this process wrote belongs to its live countdown, never to the startup
     /// revert.
@@ -290,6 +356,9 @@ const std::string& ipv4_process_owner();
 bool is_stale_pending_ipv4_revert(const std::optional<PendingIpv4Revert>& pending, Ipv4Link link);
 
 std::string encode_pending_ipv4_revert(const PendingIpv4Revert& pending);
+/// nullopt for anything that is not a record. A previous config is accepted
+/// when every address in it parses: a system can hold configs the form never
+/// would (no gateway, a /32), and those must still come back.
 std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view text);
 
 /// <user config dir>/ipv4_pending_revert.json: beside settings.json but not in
@@ -299,5 +368,99 @@ bool save_pending_ipv4_revert(const PendingIpv4Revert& pending);
 std::optional<PendingIpv4Revert> load_pending_ipv4_revert();
 /// True when no record remains (removed now, or there was none).
 bool clear_pending_ipv4_revert();
+
+/**
+ * @brief When a startup revert tries again
+ *
+ * At start the network may not exist yet (NetworkManager still activating,
+ * dhcpcd not started), so a failed restore is retried every
+ * kIpv4RetryEveryMs until kIpv4RetryForMs have passed since the first try.
+ */
+constexpr uint32_t kIpv4RetryEveryMs = 5000;
+constexpr uint32_t kIpv4RetryForMs = 120000;
+
+class Ipv4RetrySchedule {
+  public:
+    void start(uint32_t now_ms) {
+        first_ms_ = now_ms;
+        last_ms_ = now_ms;
+    }
+    /// An attempt is starting now.
+    void tried(uint32_t now_ms) {
+        last_ms_ = now_ms;
+    }
+    bool due(uint32_t now_ms) const {
+        return now_ms - last_ms_ >= kIpv4RetryEveryMs && !exhausted(now_ms);
+    }
+    bool exhausted(uint32_t now_ms) const {
+        return now_ms - first_ms_ >= kIpv4RetryForMs;
+    }
+
+  private:
+    uint32_t first_ms_ = 0;
+    uint32_t last_ms_ = 0;
+};
+
+/// Held around every prepare, apply and restore, so a revert never runs
+/// between a change's snapshot and its apply.
+std::mutex& ipv4_change_mutex();
+
+// ============================================================================
+// The change, from Apply to Keep or revert
+// ============================================================================
+
+/**
+ * @brief The IPv4 screen's change lifecycle, with no clock or widget of its own
+ *
+ * Applying -> Confirming on a good answer, then Keep makes it final and
+ * anything else reverts: a failed apply, Revert now, a dismissal, the
+ * countdown running out, or the screen going away. Each event returns what
+ * the caller must do; the caller does it and reports back.
+ */
+class Ipv4ChangeFlow {
+  public:
+    enum class State { Idle, Applying, Confirming, Reverting };
+    enum class Action {
+        None,
+        Apply,          ///< Apply next(); answer with applied()
+        Close,          ///< Nothing changed: leave the screen
+        ShowKeepPrompt, ///< Ask Keep or revert; the countdown has started
+        Revert,         ///< Restore the snapshot; answer with reverted()
+        Kept,           ///< Final: drop the record and leave the screen
+        Restored,       ///< The previous config is back
+        RestoreFailed,  ///< Still unconfirmed; the record stays for the next start
+    };
+
+    State state() const {
+        return state_;
+    }
+    const Ipv4Config& next() const {
+        return next_;
+    }
+    /// Set when the screen went away while the apply was running: the apply
+    /// restores the snapshot itself once it lands.
+    std::shared_ptr<std::atomic<bool>> abandoned() const {
+        return abandoned_;
+    }
+    const Ipv4RevertCountdown& countdown() const {
+        return countdown_;
+    }
+
+    Action begin(const Ipv4Config& current, const Ipv4Config& next);
+    Action applied(bool ok, uint32_t now_ms);
+    Action tick(uint32_t now_ms);
+    Action keep();
+    /// Revert now, ESC, or the dialog closed without an answer.
+    Action reject();
+    Action reverted(bool ok);
+    /// The screen is going away for good.
+    Action teardown();
+
+  private:
+    State state_ = State::Idle;
+    Ipv4Config next_;
+    Ipv4RevertCountdown countdown_;
+    std::shared_ptr<std::atomic<bool>> abandoned_ = std::make_shared<std::atomic<bool>>(false);
+};
 
 } // namespace helix::net

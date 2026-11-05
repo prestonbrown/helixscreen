@@ -98,17 +98,15 @@ class Ipv4SettingsOverlay : public OverlayBase {
      */
     void open(lv_obj_t* parent_screen, helix::net::Ipv4Link link, const std::string& current_ip);
 
-    /// A change is applied and waiting for Keep or a revert.
+    /// A change is being applied, waits for Keep, or is being reverted.
     bool change_pending() const {
-        return change_pending_;
+        return flow_.state() != helix::net::Ipv4ChangeFlow::State::Idle;
     }
 
   private:
     // --- Link plumbing: one call per action, whichever manager owns the link.
     bool link_supported();
     void read_link_config(std::function<void(bool ok, const helix::net::Ipv4Config&)> on_done);
-    void apply_link_config(const helix::net::Ipv4Config& config,
-                           std::function<void(bool ok)> on_done);
 
     // --- Form
     void load_current();
@@ -116,14 +114,18 @@ class Ipv4SettingsOverlay : public OverlayBase {
     void set_error(const char* text);
     void set_busy(bool busy);
 
-    // --- Change flow
+    // --- Change flow: Ipv4ChangeFlow decides, perform() carries it out
     void handle_apply();
     void handle_use_dhcp();
     void start_change(const helix::net::Ipv4Config& next);
+    void perform(helix::net::Ipv4ChangeFlow::Action action);
+    void run_apply();
+    void run_revert();
+    /// The overlay is going away: an unconfirmed change is reverted, and one
+    /// still being applied reverts itself when it lands.
+    void abandon_change();
     void show_keep_prompt();
     void on_countdown_tick();
-    void keep_change();
-    void revert_change();
     void stop_countdown();
 
     SubjectManager subjects_;
@@ -153,10 +155,8 @@ class Ipv4SettingsOverlay : public OverlayBase {
     helix::net::Ipv4Config current_config_; ///< What the link runs now, as last read
     bool loaded_ = false;
 
-    bool change_pending_ = false;
     helix::net::Ipv4Config previous_config_; ///< What a revert goes back to
-    helix::net::Ipv4Config next_config_;     ///< What Keep makes final
-    helix::net::Ipv4RevertCountdown countdown_;
+    helix::net::Ipv4ChangeFlow flow_;
     helix::ui::LvglTimerGuard countdown_timer_;
     uint32_t shown_seconds_ = 0;
     Ipv4KeepModal keep_modal_;

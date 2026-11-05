@@ -58,14 +58,16 @@
       </lv_obj>
       <text_small name="ipv4_error_label"
                   width="100%" bind_text="ipv4_error" long_mode="wrap" style_text_color="#danger"/>
+      <!-- moves_machine: a print greys both, since a network change can drop the
+           connection a remote screen, client or camera is using mid-print -->
       <lv_obj name="ipv4_buttons"
               width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
               scrollable="false">
-        <ui_button name="ipv4_dhcp_btn" width="0" flex_grow="1" variant="secondary" text="Use DHCP">
+        <ui_button name="ipv4_dhcp_btn" width="0" flex_grow="1" variant="secondary" text="Use DHCP" moves_machine="true">
           <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
           <event_cb trigger="clicked" callback="on_ipv4_use_dhcp"/>
         </ui_button>
-        <ui_button name="ipv4_apply_btn" width="0" flex_grow="1" text="Apply">
+        <ui_button name="ipv4_apply_btn" width="0" flex_grow="1" text="Apply" moves_machine="true">
           <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
           <event_cb trigger="clicked" callback="on_ipv4_apply"/>
         </ui_button>

@@ -165,10 +165,8 @@ void WiFiManager::register_backend_callbacks(bool silent) {
         // network path (wired or otherwise) is actually up. When resolution of
         // the WiFi interface itself is inconclusive, fail safe: treat it the
         // same as "no known wired fallback" and do not disable the radio.
-        async_lifetime_.defer("WiFiManager::apply_stored_network", [this]() {
-            apply_stored_country();
-            revert_pending_ipv4();
-        });
+        async_lifetime_.defer("WiFiManager::apply_stored_country",
+                              [this]() { apply_stored_country(); });
         async_lifetime_.defer("WiFiManager::reassert_stored_radio_state", [this]() {
             if (backend_ && !backend_->supports_radio_toggle()) {
                 // The radio belongs to the printer's network daemon: there is

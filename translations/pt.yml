@@ -4147,6 +4147,7 @@ translations:
   The message your printer's macros show (M117): 'A mensagem que as macros da sua impressora mostram (M117)'
   ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
   : O bico montado aquece até 200°C e esfria de novo enquanto o modelo de segurança do aquecedor é ajustado. Mantenha a ventoinha da peça desligada e material inflamável longe do cabeçote. Isso leva vários minutos.
+  The new IPv4 settings could not be marked as kept, so the next start undoes them.: 'Não foi possível marcar as novas configurações IPv4 como mantidas, então a próxima inicialização as desfaz.'
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'O bico faz alguns movimentos curtos de teste num canto, longe da área de impressão, e repete até os valores convergirem.'
   "The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.": "O bico não se moveu desde a queda de energia. Confira se ele está logo acima do topo da impressão e depois retome."
   ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.

@@ -360,6 +360,13 @@ Ipv4Form ipv4_form_from_config(const Ipv4Config& config) {
     return f;
 }
 
+Ipv4Config ipv4_keep_unshown(const Ipv4Config& current, Ipv4Config next) {
+    if (next.dns.size() == 1 && !current.dns.empty() && current.dns.front() == next.dns.front()) {
+        next.dns = current.dns;
+    }
+    return next;
+}
+
 // ============================================================================
 // Mock store
 // ============================================================================
@@ -380,6 +387,34 @@ Ipv4Result MockIpv4Config::apply(const Ipv4Config& config) {
     config_ = config;
     spdlog::info("[MockIpv4] Applied {}", ipv4_config_text(config));
     return Ipv4Result::success();
+}
+
+MockIpv4Config& mock_ipv4_store(Ipv4Link link) {
+    static MockIpv4Config wifi;
+    static MockIpv4Config ethernet;
+    return link == Ipv4Link::Ethernet ? ethernet : wifi;
+}
+
+Ipv4Snapshot mock_ipv4_snapshot(Ipv4Link link) {
+    Ipv4Config current;
+    mock_ipv4_store(link).get(current);
+    PendingIpv4Revert carrier;
+    carrier.link = link;
+    carrier.previous = current;
+    Ipv4Snapshot snap;
+    snap.store = "mock";
+    snap.iface = ipv4_link_name(link);
+    snap.original = encode_pending_ipv4_revert(carrier);
+    return snap;
+}
+
+Ipv4Result restore_mock_ipv4_snapshot(const Ipv4Snapshot& snapshot) {
+    const auto link = ipv4_link_from_name(snapshot.iface);
+    const auto carrier = decode_pending_ipv4_revert(snapshot.original);
+    if (!link || !carrier) {
+        return Ipv4Result::failed("unreadable mock snapshot");
+    }
+    return mock_ipv4_store(*link).apply(carrier->previous);
 }
 
 std::string MockIpv4Config::static_address() const {
@@ -413,8 +448,26 @@ std::vector<std::string> nm_ipv4_show_argv(const std::string& uuid) {
             "uuid", uuid};
 }
 
-std::optional<Ipv4Config> nm_parse_ipv4(const std::string& output) {
-    std::string method, addresses, gateway, dns;
+std::string nm_inactive_profile_for_link(const std::string& output, Ipv4Link link) {
+    const std::string_view type = link == Ipv4Link::Ethernet ? "802-3-ethernet" : "802-11-wireless";
+    std::string best;
+    long long best_stamp = -1;
+    for (std::string_view line : lines_of(output)) {
+        const auto f = split_on(line, ':');
+        if (f.size() != 4 || f[1] != type || !trim(f[3]).empty()) {
+            continue;
+        }
+        const long long stamp = std::atoll(std::string(f[2]).c_str());
+        if (stamp > best_stamp) {
+            best_stamp = stamp;
+            best = std::string(trim(f[0]));
+        }
+    }
+    return best;
+}
+
+NmIpv4Values nm_parse_ipv4_values(const std::string& output) {
+    NmIpv4Values v;
     for (std::string_view line : lines_of(output)) {
         const size_t colon = line.find(':');
         if (colon == std::string_view::npos) {
@@ -426,15 +479,38 @@ std::optional<Ipv4Config> nm_parse_ipv4(const std::string& output) {
             value.clear();
         }
         if (key == "ipv4.method") {
-            method = value;
+            v.method = value;
         } else if (key == "ipv4.addresses") {
-            addresses = value;
+            v.addresses = value;
         } else if (key == "ipv4.gateway") {
-            gateway = value;
+            v.gateway = value;
         } else if (key == "ipv4.dns") {
-            dns = value;
+            v.dns = value;
         }
     }
+    return v;
+}
+
+std::string nm_encode_values(const NmIpv4Values& v) {
+    return "ipv4.method:" + v.method + "\nipv4.addresses:" + v.addresses +
+           "\nipv4.gateway:" + v.gateway + "\nipv4.dns:" + v.dns + "\n";
+}
+
+NmIpv4Values nm_decode_values(const std::string& text) {
+    return nm_parse_ipv4_values(text);
+}
+
+std::vector<std::string> nm_ipv4_restore_argv(const std::string& uuid, const NmIpv4Values& v) {
+    return {"connection",     "modify",    "uuid",         uuid,      "ipv4.method", v.method,
+            "ipv4.addresses", v.addresses, "ipv4.gateway", v.gateway, "ipv4.dns",    v.dns};
+}
+
+std::optional<Ipv4Config> nm_parse_ipv4(const std::string& output) {
+    const NmIpv4Values v = nm_parse_ipv4_values(output);
+    const std::string& method = v.method;
+    const std::string& addresses = v.addresses;
+    const std::string& gateway = v.gateway;
+    const std::string& dns = v.dns;
 
     Ipv4Config c;
     for (std::string_view server : split_on(dns, ',')) {
@@ -478,8 +554,8 @@ std::vector<std::string> nm_ipv4_modify_argv(const std::string& uuid, const Ipv4
 // dhcpcd
 // ============================================================================
 
-std::string dhcpcd_conf_with_ipv4(const std::string& conf, const std::string& iface,
-                                  const Ipv4Config& config) {
+std::optional<std::string> dhcpcd_conf_with_ipv4(const std::string& conf, const std::string& iface,
+                                                 const Ipv4Config& config) {
     const std::string begin = kDhcpcdMarkerBegin + iface;
     const std::string end = kDhcpcdMarkerEnd + iface;
 
@@ -507,6 +583,9 @@ std::string dhcpcd_conf_with_ipv4(const std::string& conf, const std::string& if
         out.append(line);
         out += '\n';
     }
+    if (in_marked) {
+        return std::nullopt;
+    }
 
     if (!config.dhcp) {
         out += begin + "\n";
@@ -519,9 +598,9 @@ std::string dhcpcd_conf_with_ipv4(const std::string& conf, const std::string& if
     return out;
 }
 
-Ipv4Config dhcpcd_conf_read_ipv4(const std::string& conf, const std::string& iface) {
-    Ipv4Config c;
-    std::string address, routers, dns;
+std::optional<Ipv4Config> dhcpcd_conf_read_ipv4(const std::string& conf, const std::string& iface) {
+    std::vector<std::string> addresses;
+    std::string routers, dns;
     bool in_iface_stanza = false;
     for (std::string_view line : lines_of(conf)) {
         std::string_view opened;
@@ -537,25 +616,29 @@ Ipv4Config dhcpcd_conf_read_ipv4(const std::string& conf, const std::string& ifa
         const std::string_view key = rest.substr(0, eq);
         const std::string value(trim(rest.substr(eq + 1)));
         if (key == "ip_address") {
-            address = value;
+            addresses.push_back(value);
         } else if (key == "routers") {
             routers = value;
         } else {
             dns = value;
         }
     }
-    if (address.empty() || !parse_cidr(address, c.address, c.prefix)) {
-        return Ipv4Config{};
-    }
-    c.dhcp = false;
-    if (const auto gw = parse_ipv4(split_on(routers, ' ').front())) {
-        c.gateway = format_ipv4(*gw);
-    }
+    Ipv4Config c;
     for (std::string_view server : split_on(dns, ' ')) {
         server = trim(server);
         if (!server.empty()) {
             c.dns.emplace_back(server);
         }
+    }
+    if (addresses.empty()) {
+        return c;
+    }
+    if (addresses.size() > 1 || !parse_cidr(addresses.front(), c.address, c.prefix)) {
+        return std::nullopt;
+    }
+    c.dhcp = false;
+    if (const auto gw = parse_ipv4(split_on(routers, ' ').front())) {
+        c.gateway = format_ipv4(*gw);
     }
     return c;
 }
@@ -594,8 +677,21 @@ std::string encode_pending_ipv4_revert(const PendingIpv4Revert& pending) {
     j["gateway"] = pending.previous.gateway;
     j["dns"] = pending.previous.dns;
     j["owner"] = pending.owner;
+    j["store"] = pending.snapshot.store;
+    j["iface"] = pending.snapshot.iface;
+    j["profile"] = pending.snapshot.profile;
+    j["original"] = pending.snapshot.original;
+    j["written"] = pending.snapshot.written;
     return helix::json_util::safe_dump(j, 2);
 }
+
+namespace {
+// A dotted quad in canonical form, or nullopt.
+std::optional<std::string> canonical_ipv4(const std::string& text) {
+    const auto a = parse_ipv4(text);
+    return a ? std::optional<std::string>(format_ipv4(*a)) : std::nullopt;
+}
+} // namespace
 
 std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view text) {
     const nlohmann::json j = nlohmann::json::parse(text.begin(), text.end(), nullptr, false);
@@ -610,30 +706,40 @@ std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view tex
     PendingIpv4Revert p;
     p.link = *link;
     p.owner = helix::json_util::safe_string(j, "owner");
+    p.snapshot.store = helix::json_util::safe_string(j, "store");
+    p.snapshot.iface = helix::json_util::safe_string(j, "iface");
+    p.snapshot.profile = helix::json_util::safe_string(j, "profile");
+    p.snapshot.original = helix::json_util::safe_string(j, "original");
+    p.snapshot.written = helix::json_util::safe_string(j, "written");
     p.previous.dhcp = helix::json_util::as_bool(*dhcp);
+    // Every address must parse, since some of them reach a config file; nothing
+    // else is required, because the system may have held what the form never would.
     if (const nlohmann::json* dns = helix::json_util::find_member(j, "dns");
         dns && dns->is_array()) {
         for (const auto& server : *dns) {
-            if (server.is_string()) {
-                p.previous.dns.push_back(helix::json_util::as_string(server));
+            const auto ok = canonical_ipv4(helix::json_util::as_string(server));
+            if (!ok) {
+                return std::nullopt;
             }
+            p.previous.dns.push_back(*ok);
         }
     }
     if (!p.previous.dhcp) {
-        // A static record is replayed only if it still validates; the first DNS
-        // server stands in when the record has none, since only DNS may be absent.
-        Ipv4Form f;
-        f.address = helix::json_util::safe_string(j, "address");
-        f.netmask = std::to_string(helix::json_util::safe_int(j, "prefix", -1));
-        f.gateway = helix::json_util::safe_string(j, "gateway");
-        f.dns = p.previous.dns.empty() ? std::string("1.1.1.1") : p.previous.dns.front();
-        const Ipv4Verdict v = validate_ipv4_form(f);
-        if (!v.ok()) {
+        const auto address = canonical_ipv4(helix::json_util::safe_string(j, "address"));
+        const int prefix = helix::json_util::safe_int(j, "prefix", -1);
+        if (!address || prefix < 1 || prefix > 32) {
             return std::nullopt;
         }
-        p.previous.address = v.config.address;
-        p.previous.prefix = v.config.prefix;
-        p.previous.gateway = v.config.gateway;
+        p.previous.address = *address;
+        p.previous.prefix = prefix;
+        const std::string gateway = helix::json_util::safe_string(j, "gateway");
+        if (!gateway.empty()) {
+            const auto gw = canonical_ipv4(gateway);
+            if (!gw) {
+                return std::nullopt;
+            }
+            p.previous.gateway = *gw;
+        }
     }
     return p;
 }
@@ -686,6 +792,93 @@ bool clear_pending_ipv4_revert() {
     }
     spdlog::error("[Ipv4] Could not remove {}: {}", path, std::strerror(errno));
     return false;
+}
+
+std::mutex& ipv4_change_mutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
+// ============================================================================
+// Change flow
+// ============================================================================
+
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::begin(const Ipv4Config& current, const Ipv4Config& next) {
+    if (state_ != State::Idle) {
+        return Action::None;
+    }
+    if (next == current) {
+        return Action::Close;
+    }
+    next_ = next;
+    abandoned_ = std::make_shared<std::atomic<bool>>(false);
+    state_ = State::Applying;
+    return Action::Apply;
+}
+
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::applied(bool ok, uint32_t now_ms) {
+    if (state_ != State::Applying) {
+        return Action::None;
+    }
+    if (!ok) {
+        // A failed apply may still have written part of the change.
+        state_ = State::Reverting;
+        return Action::Revert;
+    }
+    state_ = State::Confirming;
+    countdown_.start(now_ms);
+    return Action::ShowKeepPrompt;
+}
+
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::tick(uint32_t now_ms) {
+    if (state_ != State::Confirming || !countdown_.expired(now_ms)) {
+        return Action::None;
+    }
+    return reject();
+}
+
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::keep() {
+    if (state_ != State::Confirming) {
+        return Action::None;
+    }
+    countdown_.stop();
+    state_ = State::Idle;
+    return Action::Kept;
+}
+
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::reject() {
+    if (state_ != State::Confirming) {
+        return Action::None;
+    }
+    countdown_.stop();
+    state_ = State::Reverting;
+    return Action::Revert;
+}
+
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::reverted(bool ok) {
+    if (state_ != State::Reverting) {
+        return Action::None;
+    }
+    state_ = State::Idle;
+    return ok ? Action::Restored : Action::RestoreFailed;
+}
+
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::teardown() {
+    switch (state_) {
+    case State::Applying:
+        // The answer will find nobody: the apply restores the snapshot itself.
+        abandoned_->store(true);
+        state_ = State::Idle;
+        return Action::None;
+    case State::Confirming:
+        countdown_.stop();
+        state_ = State::Reverting;
+        return Action::Revert;
+    case State::Idle:
+    case State::Reverting:
+        return Action::None;
+    }
+    return Action::None;
 }
 
 } // namespace helix::net

@@ -5,11 +5,14 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
+#include "ui_error_reporting.h"
 #include "ui_keyboard_manager.h"
 #include "ui_toast_manager.h"
 
+#include "core/http_executor.h"
 #include "core/static_panel_registry.h"
 #include "ethernet_manager.h"
+#include "ipv4_config_system.h"
 #include "ui/ui_widget_helpers.h"
 #include "wifi_manager.h"
 
@@ -127,6 +130,7 @@ void open_ipv4_settings(lv_obj_t* parent_screen, helix::net::Ipv4Link link,
 }
 
 Ipv4SettingsOverlay::~Ipv4SettingsOverlay() {
+    abandon_change();
     stop_countdown();
     if (subjects_initialized_) {
         subjects_.deinit_all();
@@ -167,7 +171,7 @@ void Ipv4SettingsOverlay::register_callbacks() {
 
 void Ipv4SettingsOverlay::open(lv_obj_t* parent_screen, helix::net::Ipv4Link link,
                                const std::string& current_ip) {
-    if (change_pending_) {
+    if (change_pending()) {
         spdlog::info("[{}] A change is still waiting for Keep; not reopening", get_name());
         return;
     }
@@ -188,7 +192,7 @@ void Ipv4SettingsOverlay::before_show() {
 }
 
 void Ipv4SettingsOverlay::edit_field(Ipv4FormField field) {
-    if (!loaded_ || change_pending_ || lv_subject_get_int(&busy_)) {
+    if (!loaded_ || change_pending() || lv_subject_get_int(&busy_)) {
         return;
     }
     lv_subject_t* subject = &address_;
@@ -228,7 +232,7 @@ void Ipv4SettingsOverlay::on_activate() {
     // value, and only a publish retitles it.
     copy_to(title_,
             link_ == helix::net::Ipv4Link::Wifi ? lv_tr("WiFi IPv4") : lv_tr("Ethernet IPv4"));
-    if (!change_pending_) {
+    if (!change_pending()) {
         load_current();
     }
 }
@@ -269,20 +273,6 @@ void Ipv4SettingsOverlay::read_link_config(
     }
 }
 
-void Ipv4SettingsOverlay::apply_link_config(const helix::net::Ipv4Config& config,
-                                            std::function<void(bool ok)> on_done) {
-    if (!link_supported()) {
-        on_done(false);
-        return;
-    }
-    auto token = object_lifetime_.token();
-    if (link_ == helix::net::Ipv4Link::Wifi) {
-        get_wifi_manager()->apply_ipv4_config_async(config, token, std::move(on_done));
-    } else {
-        ethernet_manager_->apply_ipv4_config_async(config, token, std::move(on_done));
-    }
-}
-
 // ----------------------------------------------------------------------------
 // Form
 // ----------------------------------------------------------------------------
@@ -302,7 +292,7 @@ void Ipv4SettingsOverlay::load_current() {
     copy_to(current_, lv_tr("Reading the current settings..."));
     const helix::net::Ipv4Link link = link_;
     read_link_config([this, link](bool ok, const helix::net::Ipv4Config& config) {
-        if (link != link_ || change_pending_) {
+        if (link != link_ || change_pending()) {
             return;
         }
         if (!ok) {
@@ -334,7 +324,7 @@ void Ipv4SettingsOverlay::fill_form(const helix::net::Ipv4Config& config) {
 // ----------------------------------------------------------------------------
 
 void Ipv4SettingsOverlay::handle_apply() {
-    if (!loaded_ || change_pending_ || lv_subject_get_int(&busy_)) {
+    if (!loaded_ || change_pending() || lv_subject_get_int(&busy_)) {
         return;
     }
     helix::net::Ipv4Form form;
@@ -347,11 +337,11 @@ void Ipv4SettingsOverlay::handle_apply() {
         set_error(ipv4_problem_text(verdict.problem, verdict.field));
         return;
     }
-    start_change(verdict.config);
+    start_change(helix::net::ipv4_keep_unshown(current_config_, verdict.config));
 }
 
 void Ipv4SettingsOverlay::handle_use_dhcp() {
-    if (!loaded_ || change_pending_ || lv_subject_get_int(&busy_)) {
+    if (!loaded_ || change_pending() || lv_subject_get_int(&busy_)) {
         return;
     }
     // DHCP hands out DNS servers too; an override is left to a static config.
@@ -360,49 +350,130 @@ void Ipv4SettingsOverlay::handle_use_dhcp() {
 
 void Ipv4SettingsOverlay::start_change(const helix::net::Ipv4Config& next) {
     set_error("");
-    if (next == current_config_) {
+    previous_config_ = current_config_;
+    perform(flow_.begin(current_config_, next));
+}
+
+void Ipv4SettingsOverlay::perform(helix::net::Ipv4ChangeFlow::Action action) {
+    using Action = helix::net::Ipv4ChangeFlow::Action;
+    switch (action) {
+    case Action::None:
+        return;
+    case Action::Close:
         close();
         return;
-    }
-    helix::net::PendingIpv4Revert pending;
-    pending.link = link_;
-    pending.previous = current_config_;
-    pending.owner = helix::net::ipv4_process_owner();
-    // Without the record a restart mid-countdown would keep an address nobody
-    // confirmed, so nothing is applied unless it is on disk first.
-    if (!helix::net::save_pending_ipv4_revert(pending)) {
-        set_error(lv_tr("The change was not applied: the current settings could not be saved "
-                        "for a revert."));
+    case Action::Apply:
+        run_apply();
+        return;
+    case Action::ShowKeepPrompt:
+        show_keep_prompt();
+        return;
+    case Action::Revert:
+        stop_countdown();
+        // Reached from the dialog's own callbacks too: clearing them first means
+        // a dialog already closing cannot ask for a second revert.
+        keep_modal_.set_callbacks(nullptr, nullptr);
+        if (keep_modal_.is_visible()) {
+            keep_modal_.hide();
+        }
+        run_revert();
+        return;
+    case Action::Kept:
+        stop_countdown();
+        current_config_ = flow_.next();
+        set_busy(false);
+        spdlog::info("[{}] Kept {}", get_name(), helix::net::ipv4_config_text(current_config_));
+        if (!helix::net::clear_pending_ipv4_revert()) {
+            NOTIFY_ERROR("{}", lv_tr("The new IPv4 settings could not be marked as kept, so the "
+                                     "next start undoes them."));
+        } else {
+            ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("IPv4 settings saved"),
+                                          2500);
+        }
+        close();
+        return;
+    case Action::Restored:
+        current_config_ = previous_config_;
+        fill_form(previous_config_);
+        set_busy(false);
+        ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Previous IPv4 settings restored"),
+                                      3000);
+        return;
+    case Action::RestoreFailed:
+        // The record stays, so the next start tries again. What the link runs
+        // now is unknown, so nothing more is applied until the screen reads it.
+        spdlog::error("[{}] Could not restore {}", get_name(),
+                      helix::net::ipv4_config_text(previous_config_));
+        set_error(lv_tr("Could not restore the previous IPv4 settings. They are restored at the "
+                        "next start."));
+        ToastManager::instance().show(ToastSeverity::ERROR,
+                                      lv_tr("Could not restore the previous IPv4 settings"));
+        loaded_ = false;
         return;
     }
-    previous_config_ = current_config_;
-    next_config_ = next;
-    change_pending_ = true;
+}
+
+void Ipv4SettingsOverlay::run_apply() {
     set_busy(true);
+    const helix::net::Ipv4Config next = flow_.next();
     spdlog::info("[{}] Applying {} on {}", get_name(), helix::net::ipv4_config_text(next),
                  helix::net::ipv4_link_name(link_));
-    apply_link_config(next, [this](bool ok) {
+    // The object's token: after Back the answer still raises the Keep dialog.
+    auto token = object_lifetime_.token();
+    auto on_done = [this](bool ok) {
         if (!ok) {
-            // A failed apply may still have written part of the change, so the
-            // old config goes back on either way.
             set_error(lv_tr("Could not apply the new IPv4 settings."));
-            revert_change();
-            return;
         }
-        show_keep_prompt();
+        perform(flow_.applied(ok, lv_tick_get()));
+    };
+    if (!link_supported()) {
+        on_done(false);
+    } else if (link_ == helix::net::Ipv4Link::Wifi) {
+        get_wifi_manager()->apply_ipv4_change_async(previous_config_, next, flow_.abandoned(),
+                                                    token, on_done);
+    } else {
+        ethernet_manager_->apply_ipv4_change_async(previous_config_, next, flow_.abandoned(), token,
+                                                   on_done);
+    }
+}
+
+void Ipv4SettingsOverlay::run_revert() {
+    set_busy(true);
+    auto token = object_lifetime_.token();
+    const helix::net::Ipv4Link link = link_;
+    helix::http::HttpExecutor::fast().start();
+    helix::http::HttpExecutor::fast().submit([token, link]() {
+        const bool ok = helix::net::restore_pending_ipv4(link, /*stale_only=*/false).ok();
+        token.defer("Ipv4SettingsOverlay::reverted", [ok]() {
+            auto& self = get_ipv4_settings_overlay();
+            self.perform(self.flow_.reverted(ok));
+        });
     });
+}
+
+void Ipv4SettingsOverlay::abandon_change() {
+    if (flow_.teardown() != helix::net::Ipv4ChangeFlow::Action::Revert) {
+        return;
+    }
+    // Nobody is left to answer: restore without waiting for the result.
+    spdlog::info("[{}] Leaving with a change unconfirmed: reverting it", get_name());
+    stop_countdown();
+    const helix::net::Ipv4Link link = link_;
+    helix::http::HttpExecutor::fast().start();
+    helix::http::HttpExecutor::fast().submit(
+        [link]() { helix::net::restore_pending_ipv4(link, /*stale_only=*/false); });
 }
 
 void Ipv4SettingsOverlay::show_keep_prompt() {
     char title[sizeof(keep_title_buf_)];
-    const std::string what = next_config_.dhcp ? std::string(lv_tr("DHCP")) : next_config_.address;
+    const std::string what = flow_.next().dhcp ? std::string(lv_tr("DHCP")) : flow_.next().address;
     std::snprintf(title, sizeof(title), lv_tr("Keep %s?"), what.c_str());
     lv_subject_copy_string(&keep_title_, title);
 
-    countdown_.start(lv_tick_get());
     shown_seconds_ = 0;
     on_countdown_tick();
-    keep_modal_.set_callbacks([this]() { keep_change(); }, [this]() { revert_change(); });
+    keep_modal_.set_callbacks([this]() { perform(flow_.keep()); },
+                              [this]() { perform(flow_.reject()); });
     keep_modal_.show(lv_screen_active());
     countdown_timer_.reset(lv_timer_create(
         [](lv_timer_t* t) {
@@ -413,13 +484,14 @@ void Ipv4SettingsOverlay::show_keep_prompt() {
 
 void Ipv4SettingsOverlay::on_countdown_tick() {
     const uint32_t now = lv_tick_get();
-    if (countdown_.expired(now)) {
+    const auto action = flow_.tick(now);
+    if (action != helix::net::Ipv4ChangeFlow::Action::None) {
         spdlog::info("[{}] Nobody kept {}: reverting", get_name(),
-                     helix::net::ipv4_config_text(next_config_));
-        revert_change();
+                     helix::net::ipv4_config_text(flow_.next()));
+        perform(action);
         return;
     }
-    const uint32_t left = countdown_.seconds_left(now);
+    const uint32_t left = flow_.countdown().seconds_left(now);
     if (left == shown_seconds_) {
         return;
     }
@@ -432,58 +504,7 @@ void Ipv4SettingsOverlay::on_countdown_tick() {
 }
 
 void Ipv4SettingsOverlay::stop_countdown() {
-    countdown_.stop();
     countdown_timer_.reset();
-}
-
-void Ipv4SettingsOverlay::keep_change() {
-    if (!change_pending_ || !countdown_.running()) {
-        return;
-    }
-    stop_countdown();
-    helix::net::clear_pending_ipv4_revert();
-    current_config_ = next_config_;
-    change_pending_ = false;
-    set_busy(false);
-    spdlog::info("[{}] Kept {}", get_name(), helix::net::ipv4_config_text(next_config_));
-    ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("IPv4 settings saved"), 2500);
-    close();
-}
-
-void Ipv4SettingsOverlay::revert_change() {
-    if (!change_pending_) {
-        return;
-    }
-    stop_countdown();
-    // Reached from the dialog's own callbacks too; a dialog already closing
-    // ignores this, and the callbacks are cleared so it cannot revert twice.
-    keep_modal_.set_callbacks(nullptr, nullptr);
-    if (keep_modal_.is_visible()) {
-        keep_modal_.hide();
-    }
-    set_busy(true);
-    apply_link_config(previous_config_, [this](bool ok) {
-        change_pending_ = false;
-        if (!ok) {
-            // The record stays, so the next start tries again.
-            spdlog::error("[{}] Could not restore {}", get_name(),
-                          helix::net::ipv4_config_text(previous_config_));
-            set_error(lv_tr("Could not restore the previous IPv4 settings. They are restored at "
-                            "the next start."));
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          lv_tr("Could not restore the previous IPv4 settings"));
-            // What the link runs now is unknown: nothing more is applied until
-            // the overlay reads it again.
-            loaded_ = false;
-            return;
-        }
-        helix::net::clear_pending_ipv4_revert();
-        current_config_ = previous_config_;
-        fill_form(previous_config_);
-        set_busy(false);
-        ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Previous IPv4 settings restored"),
-                                      3000);
-    });
 }
 
 } // namespace helix::settings

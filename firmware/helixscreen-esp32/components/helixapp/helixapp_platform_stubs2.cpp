@@ -756,7 +756,6 @@ bool WiFiManager::supports_ipv4_config() {
 }
 void WiFiManager::get_ipv4_config_async(LifetimeToken,
                                         SharedCallback<void(bool, const net::Ipv4Config&)>) {}
-void WiFiManager::revert_pending_ipv4() {}
 } // namespace helix
 namespace helix::settings {
 void open_ipv4_settings(lv_obj_t*, net::Ipv4Link, const std::string&) {}

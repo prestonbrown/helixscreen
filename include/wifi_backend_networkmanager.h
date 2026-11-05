@@ -81,12 +81,17 @@ class WifiBackendNetworkManager : public WifiBackend {
     WiFiError get_country(std::string& code) override;
     WiFiError set_country(const std::string& code) override;
 
-    /// The active connection profile, through NetworkManager.
+    /// The connection profile in use on the interface, through NetworkManager.
+    /// Not when the daemon refused this user (polkit): the apply and its
+    /// revert would both be refused.
     bool supports_ipv4_config() const override {
-        return ipv4_store_ != nullptr;
+        return ipv4_store_ != nullptr && !daemon_refused_access_.load();
     }
     helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override;
-    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Config& config) override;
+    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config& next,
+                                               helix::net::Ipv4Snapshot& out) override;
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot& target,
+                                             const helix::net::Ipv4Config& config) override;
 
   private:
     // ========================================================================

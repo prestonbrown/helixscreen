@@ -497,7 +497,10 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
         return ipv4_store_ != nullptr;
     }
     helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override;
-    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Config& config) override;
+    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config& next,
+                                               helix::net::Ipv4Snapshot& out) override;
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot& target,
+                                             const helix::net::Ipv4Config& config) override;
 
     bool reports_frequency() const override {
         return true;

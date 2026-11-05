@@ -9,7 +9,8 @@
  * Linux and how each persists a static address. The Wi-Fi and Ethernet
  * backends hold one of these and answer Ipv4Configurable through it:
  *
- * - NetworkManager: the active connection profile (`nmcli connection
+ * - NetworkManager: the connection profile in use on the interface, or with
+ *   none active the link's most recently used one (`nmcli connection
  *   modify`), reapplied to the device. Needs the daemon running, which is
  *   how the backend factory already decides NetworkManager owns the box.
  * - dhcpcd: a block in /etc/dhcpcd.conf, then `dhcpcd -n <iface>`. Needs
@@ -20,7 +21,7 @@
  * systemd-networkd, the printer network daemon) has no store here and
  * reports unsupported.
  *
- * @threading read()/apply() BLOCK on subprocesses and file I/O: worker threads only.
+ * @threading Everything here BLOCKS on subprocesses and file I/O: worker threads only.
  */
 
 #pragma once
@@ -35,9 +36,43 @@ namespace helix::net {
 class Ipv4SystemStore {
   public:
     virtual ~Ipv4SystemStore() = default;
-    virtual Ipv4Result read(const std::string& iface, Ipv4Config& out) = 0;
-    virtual Ipv4Result apply(const std::string& iface, const Ipv4Config& config) = 0;
+    virtual Ipv4Result read(const std::string& iface, Ipv4Link link, Ipv4Config& out) = 0;
+    virtual Ipv4Result prepare(const std::string& iface, Ipv4Link link, const Ipv4Config& next,
+                               Ipv4Snapshot& out) = 0;
+    /// Edits exactly what @p target names, never what happens to be active now.
+    virtual Ipv4Result apply(const Ipv4Snapshot& target, const Ipv4Config& config) = 0;
 };
+
+/// What a backend's Ipv4Configurable overrides forward to: unsupported with
+/// no store, failed with no interface, else the store's answer.
+Ipv4Result store_read(Ipv4SystemStore* store, const std::string& iface, Ipv4Link link,
+                      Ipv4Config& out);
+Ipv4Result store_prepare(Ipv4SystemStore* store, const std::string& iface, Ipv4Link link,
+                         const Ipv4Config& next, Ipv4Snapshot& out);
+Ipv4Result store_apply(Ipv4SystemStore* store, const Ipv4Snapshot& target,
+                       const Ipv4Config& config);
+
+/// Put back what @p snapshot recorded: a NetworkManager profile's values by
+/// UUID, whether or not it is active, or the dhcpcd.conf text as it was,
+/// unless someone else has edited the file since. Needs no backend, so it
+/// works before the network is up. BLOCKING.
+Ipv4Result restore_ipv4_snapshot(const Ipv4Snapshot& snapshot);
+
+/**
+ * @brief One change, under ipv4_change_mutex(): snapshot, record, apply
+ *
+ * The record is on disk before anything is applied. When @p abandoned is set
+ * by the time the apply lands, nobody is left to ask Keep, so the snapshot is
+ * restored here. A failed apply leaves the record for the caller's revert.
+ * BLOCKING.
+ */
+Ipv4Result apply_ipv4_change(Ipv4Configurable& backend, Ipv4Link link, const Ipv4Config& previous,
+                             const Ipv4Config& next, const std::atomic<bool>* abandoned);
+
+/// Restore and remove the pending record for @p link, if there is one; with
+/// @p stale_only, only one no countdown in this process owns. Success when
+/// there is nothing to do. BLOCKING.
+Ipv4Result restore_pending_ipv4(Ipv4Link link, bool stale_only);
 
 /// Whether NetworkManager is the active network owner (nmcli + its runtime dir).
 bool network_manager_active();

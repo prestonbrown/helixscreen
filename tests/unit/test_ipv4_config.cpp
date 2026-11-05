@@ -26,6 +26,18 @@ Ipv4Config static_config(const char* address, int prefix, const char* gateway,
     return c;
 }
 
+// The dhcpcd transforms, for input they must accept.
+std::string with_ipv4(const std::string& conf, const std::string& iface, const Ipv4Config& c) {
+    const auto out = dhcpcd_conf_with_ipv4(conf, iface, c);
+    REQUIRE(out);
+    return *out;
+}
+Ipv4Config read_ipv4(const std::string& conf, const std::string& iface) {
+    const auto out = dhcpcd_conf_read_ipv4(conf, iface);
+    REQUIRE(out);
+    return *out;
+}
+
 } // namespace
 
 // ============================================================================
@@ -336,33 +348,32 @@ TEST_CASE("nm_ipv4_modify_argv writes manual and auto", "[ipv4]") {
 TEST_CASE("dhcpcd_conf_with_ipv4 appends one marked block", "[ipv4]") {
     const std::string base = "hostname\nclientid\n# a comment\n";
     const auto s = static_config("192.168.1.50", 24, "192.168.1.1", {"1.1.1.1", "8.8.8.8"});
-    const std::string out = dhcpcd_conf_with_ipv4(base, "wlan0", s);
+    const std::string out = with_ipv4(base, "wlan0", s);
 
     REQUIRE(out.rfind(base, 0) == 0);
     REQUIRE(out.find("interface wlan0\n") != std::string::npos);
     REQUIRE(out.find("static ip_address=192.168.1.50/24\n") != std::string::npos);
     REQUIRE(out.find("static routers=192.168.1.1\n") != std::string::npos);
     REQUIRE(out.find("static domain_name_servers=1.1.1.1 8.8.8.8\n") != std::string::npos);
-    REQUIRE(dhcpcd_conf_read_ipv4(out, "wlan0") == s);
+    REQUIRE(read_ipv4(out, "wlan0") == s);
 
     SECTION("applying again replaces the block rather than adding one") {
         const auto s2 = static_config("192.168.1.60", 24, "192.168.1.1", {"1.1.1.1"});
-        const std::string again = dhcpcd_conf_with_ipv4(out, "wlan0", s2);
+        const std::string again = with_ipv4(out, "wlan0", s2);
         REQUIRE(again.find("192.168.1.50") == std::string::npos);
-        REQUIRE(dhcpcd_conf_read_ipv4(again, "wlan0") == s2);
-        REQUIRE(again == dhcpcd_conf_with_ipv4(base, "wlan0", s2));
+        REQUIRE(read_ipv4(again, "wlan0") == s2);
+        REQUIRE(again == with_ipv4(base, "wlan0", s2));
     }
     SECTION("DHCP removes the block and restores the file") {
-        REQUIRE(dhcpcd_conf_with_ipv4(out, "wlan0", Ipv4Config{}) == base);
-        REQUIRE(dhcpcd_conf_read_ipv4(base, "wlan0").dhcp);
+        REQUIRE(with_ipv4(out, "wlan0", Ipv4Config{}) == base);
+        REQUIRE(read_ipv4(base, "wlan0").dhcp);
     }
     SECTION("another interface's block is untouched") {
         const auto e = static_config("10.0.0.2", 8, "10.0.0.1", {"10.0.0.1"});
-        const std::string both = dhcpcd_conf_with_ipv4(out, "eth0", e);
-        REQUIRE(dhcpcd_conf_read_ipv4(both, "wlan0") == s);
-        REQUIRE(dhcpcd_conf_read_ipv4(both, "eth0") == e);
-        REQUIRE(dhcpcd_conf_read_ipv4(dhcpcd_conf_with_ipv4(both, "eth0", Ipv4Config{}), "wlan0") ==
-                s);
+        const std::string both = with_ipv4(out, "eth0", e);
+        REQUIRE(read_ipv4(both, "wlan0") == s);
+        REQUIRE(read_ipv4(both, "eth0") == e);
+        REQUIRE(read_ipv4(with_ipv4(both, "eth0", Ipv4Config{}), "wlan0") == s);
     }
 }
 
@@ -374,24 +385,24 @@ TEST_CASE("dhcpcd_conf_with_ipv4 takes over a hand-written stanza", "[ipv4]") {
                              "metric 300\n"
                              "interface eth0\n"
                              "static ip_address=172.16.0.2/16\n";
-    const Ipv4Config read = dhcpcd_conf_read_ipv4(conf, "wlan0");
+    const Ipv4Config read = read_ipv4(conf, "wlan0");
     REQUIRE(read == static_config("10.0.0.5", 24, "10.0.0.1", {"10.0.0.1"}));
 
-    const std::string dhcp = dhcpcd_conf_with_ipv4(conf, "wlan0", Ipv4Config{});
+    const std::string dhcp = with_ipv4(conf, "wlan0", Ipv4Config{});
     REQUIRE(dhcp == "interface wlan0\n"
                     "metric 300\n"
                     "interface eth0\n"
                     "static ip_address=172.16.0.2/16\n");
-    REQUIRE(dhcpcd_conf_read_ipv4(dhcp, "wlan0").dhcp);
-    REQUIRE_FALSE(dhcpcd_conf_read_ipv4(dhcp, "eth0").dhcp);
+    REQUIRE(read_ipv4(dhcp, "wlan0").dhcp);
+    REQUIRE_FALSE(read_ipv4(dhcp, "eth0").dhcp);
 }
 
 TEST_CASE("dhcpcd_conf_with_ipv4 handles a file without a trailing newline", "[ipv4]") {
     const auto s = static_config("192.168.1.50", 24, "192.168.1.1", {"1.1.1.1"});
-    const std::string out = dhcpcd_conf_with_ipv4("hostname", "wlan0", s);
+    const std::string out = with_ipv4("hostname", "wlan0", s);
     REQUIRE(out.rfind("hostname\n", 0) == 0);
-    REQUIRE(dhcpcd_conf_read_ipv4(out, "wlan0") == s);
-    REQUIRE(dhcpcd_conf_with_ipv4("", "wlan0", Ipv4Config{}).empty());
+    REQUIRE(read_ipv4(out, "wlan0") == s);
+    REQUIRE(with_ipv4("", "wlan0", Ipv4Config{}).empty());
 }
 
 // ============================================================================
@@ -432,11 +443,30 @@ TEST_CASE("PendingIpv4Revert encodes and decodes", "[ipv4]") {
     p.link = Ipv4Link::Ethernet;
     p.previous = static_config("10.0.0.2", 8, "10.0.0.1", {"10.0.0.1", "1.1.1.1"});
     p.owner = "run-1";
+    p.snapshot = {"networkmanager", "eth0", "u-1", "ipv4.method:manual\n", "w"};
     const auto back = decode_pending_ipv4_revert(encode_pending_ipv4_revert(p));
     REQUIRE(back);
     REQUIRE(back->link == Ipv4Link::Ethernet);
     REQUIRE(back->previous == p.previous);
     REQUIRE(back->owner == "run-1");
+    REQUIRE(back->snapshot.profile == "u-1");
+    REQUIRE(back->snapshot.iface == "eth0");
+    REQUIRE(back->snapshot.original == p.snapshot.original);
+
+    SECTION("configs the form refuses but a system holds come back") {
+        for (const auto& held :
+             {static_config("10.0.0.5", 24, "", {}), static_config("10.0.0.5", 32, "", {"1.1.1.1"}),
+              static_config("10.0.0.5", 24, "192.168.9.1", {})}) {
+            p.previous = held;
+            const auto again = decode_pending_ipv4_revert(encode_pending_ipv4_revert(p));
+            REQUIRE(again);
+            CHECK(again->previous == held);
+        }
+    }
+    SECTION("a DNS server that is not an address is no record") {
+        p.previous.dns = {"1.1.1.1\nstatic ip_address=6.6.6.6/8"};
+        REQUIRE_FALSE(decode_pending_ipv4_revert(encode_pending_ipv4_revert(p)));
+    }
 
     PendingIpv4Revert d;
     d.previous.dns = {"9.9.9.9"};
@@ -468,4 +498,119 @@ TEST_CASE("only another run's record for the link is stale", "[ipv4]") {
     p.owner = ipv4_process_owner();
     REQUIRE_FALSE(ipv4_process_owner().empty());
     REQUIRE_FALSE(is_stale_pending_ipv4_revert(p, Ipv4Link::Wifi));
+}
+
+// ============================================================================
+// Restore targets (prestonbrown/helixscreen#1900 review)
+// ============================================================================
+
+TEST_CASE("nm_inactive_profile_for_link picks the newest idle profile of the link's type",
+          "[ipv4]") {
+    const std::string out = "e-old:802-3-ethernet:100:\n"
+                            "e-new:802-3-ethernet:300:\n"
+                            "e-up:802-3-ethernet:900:eth1\n"
+                            "w-1:802-11-wireless:500:\n";
+    CHECK(nm_inactive_profile_for_link(out, Ipv4Link::Ethernet) == "e-new");
+    CHECK(nm_inactive_profile_for_link(out, Ipv4Link::Wifi) == "w-1");
+    CHECK(nm_inactive_profile_for_link("", Ipv4Link::Wifi).empty());
+}
+
+TEST_CASE("NetworkManager values restore exactly, lists intact", "[ipv4]") {
+    const std::string shown = "ipv4.method:manual\n"
+                              "ipv4.addresses:10.0.0.2/8,10.0.0.3/8\n"
+                              "ipv4.gateway:--\n"
+                              "ipv4.dns:1.1.1.1,9.9.9.9\n";
+    const NmIpv4Values v = nm_decode_values(nm_encode_values(nm_parse_ipv4_values(shown)));
+    using V = std::vector<std::string>;
+    CHECK(nm_ipv4_restore_argv("u-1", v) == V{"connection", "modify", "uuid", "u-1", "ipv4.method",
+                                              "manual", "ipv4.addresses", "10.0.0.2/8,10.0.0.3/8",
+                                              "ipv4.gateway", "", "ipv4.dns", "1.1.1.1,9.9.9.9"});
+}
+
+TEST_CASE("dhcpcd edits refuse what they cannot represent", "[ipv4]") {
+    SECTION("a block with no end marker is never cut to the end of the file") {
+        const std::string conf = "# HelixScreen static IPv4 begin: wlan0\n"
+                                 "interface wlan0\n"
+                                 "static ip_address=10.0.0.5/24\n"
+                                 "hostname\n";
+        CHECK_FALSE(dhcpcd_conf_with_ipv4(conf, "wlan0", Ipv4Config{}));
+    }
+    SECTION("an address without a prefix, or several, is not a config") {
+        CHECK_FALSE(dhcpcd_conf_read_ipv4("interface eth0\nstatic ip_address=10.0.0.5\n", "eth0"));
+        CHECK_FALSE(dhcpcd_conf_read_ipv4("interface eth0\nstatic ip_address=10.0.0.5/24\n"
+                                          "static ip_address=10.0.0.6/24\n",
+                                          "eth0"));
+    }
+    SECTION("DHCP keeps its DNS override") {
+        const auto c =
+            dhcpcd_conf_read_ipv4("interface wlan0\nstatic domain_name_servers=9.9.9.9\n", "wlan0");
+        REQUIRE(c);
+        CHECK(c->dhcp);
+        CHECK(c->dns == std::vector<std::string>{"9.9.9.9"});
+    }
+}
+
+TEST_CASE("ipv4_keep_unshown keeps the DNS servers the form cannot show", "[ipv4]") {
+    const auto current = static_config("10.0.0.2", 24, "10.0.0.1", {"1.1.1.1", "9.9.9.9"});
+    CHECK(ipv4_keep_unshown(current, static_config("10.0.0.2", 24, "10.0.0.1", {"1.1.1.1"})) ==
+          current);
+    CHECK(ipv4_keep_unshown(current, static_config("10.0.0.2", 24, "10.0.0.1", {"8.8.8.8"})).dns ==
+          std::vector<std::string>{"8.8.8.8"});
+}
+
+TEST_CASE("Ipv4RetrySchedule retries every few seconds, then gives up", "[ipv4]") {
+    Ipv4RetrySchedule r;
+    r.start(1000);
+    CHECK_FALSE(r.due(1000 + kIpv4RetryEveryMs - 1));
+    CHECK(r.due(1000 + kIpv4RetryEveryMs));
+    r.tried(1000 + kIpv4RetryEveryMs);
+    CHECK_FALSE(r.due(1000 + kIpv4RetryEveryMs + 1));
+    CHECK(r.exhausted(1000 + kIpv4RetryForMs));
+    CHECK_FALSE(r.due(1000 + kIpv4RetryForMs + kIpv4RetryEveryMs));
+}
+
+TEST_CASE("Ipv4ChangeFlow: Keep makes a change final, everything else reverts", "[ipv4]") {
+    using A = Ipv4ChangeFlow::Action;
+    const auto was = static_config("10.0.0.2", 24, "10.0.0.1", {"1.1.1.1"});
+    const auto next = static_config("10.0.0.9", 24, "10.0.0.1", {"1.1.1.1"});
+    Ipv4ChangeFlow f;
+    CHECK(f.begin(was, was) == A::Close);
+    REQUIRE(f.begin(was, next) == A::Apply);
+    CHECK(f.begin(was, next) == A::None); // one change at a time
+
+    SECTION("keep") {
+        REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
+        CHECK(f.keep() == A::Kept);
+        CHECK(f.state() == Ipv4ChangeFlow::State::Idle);
+        CHECK(f.reject() == A::None);
+    }
+    SECTION("the countdown runs out") {
+        REQUIRE(f.applied(true, 1000) == A::ShowKeepPrompt);
+        CHECK(f.tick(1000 + kIpv4ConfirmSeconds * 1000 - 1) == A::None);
+        CHECK(f.tick(1000 + kIpv4ConfirmSeconds * 1000) == A::Revert);
+        CHECK(f.keep() == A::None); // too late
+        CHECK(f.reverted(true) == A::Restored);
+    }
+    SECTION("Revert now or a dismissal") {
+        REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
+        CHECK(f.reject() == A::Revert);
+        CHECK(f.reject() == A::None);
+        CHECK(f.reverted(false) == A::RestoreFailed);
+        CHECK(f.state() == Ipv4ChangeFlow::State::Idle);
+    }
+    SECTION("a failed apply reverts") {
+        CHECK(f.applied(false, 0) == A::Revert);
+    }
+    SECTION("an answer after Back still asks Keep") {
+        CHECK(f.applied(true, 0) == A::ShowKeepPrompt);
+    }
+    SECTION("leaving mid-apply hands the revert to the apply") {
+        CHECK(f.teardown() == A::None);
+        CHECK(f.abandoned()->load());
+        CHECK(f.applied(true, 0) == A::None);
+    }
+    SECTION("leaving while asked reverts") {
+        REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
+        CHECK(f.teardown() == A::Revert);
+    }
 }

@@ -1210,18 +1210,21 @@ void WifiBackendNetworkManager::request_status_refresh() {
 // ============================================================================
 
 helix::net::Ipv4Result WifiBackendNetworkManager::get_ipv4_config(helix::net::Ipv4Config& out) {
-    if (!ipv4_store_) {
-        return Ipv4Configurable::get_ipv4_config(out);
-    }
-    return ipv4_store_->read(wifi_interface_, out);
+    return helix::net::store_read(ipv4_store_.get(), wifi_interface_, helix::net::Ipv4Link::Wifi,
+                                  out);
 }
 
 helix::net::Ipv4Result
-WifiBackendNetworkManager::apply_ipv4_config(const helix::net::Ipv4Config& config) {
-    if (!ipv4_store_) {
-        return Ipv4Configurable::apply_ipv4_config(config);
-    }
-    auto result = ipv4_store_->apply(wifi_interface_, config);
+WifiBackendNetworkManager::prepare_ipv4_change(const helix::net::Ipv4Config& next,
+                                               helix::net::Ipv4Snapshot& out) {
+    return helix::net::store_prepare(ipv4_store_.get(), wifi_interface_, helix::net::Ipv4Link::Wifi,
+                                     next, out);
+}
+
+helix::net::Ipv4Result
+WifiBackendNetworkManager::apply_ipv4_config(const helix::net::Ipv4Snapshot& target,
+                                             const helix::net::Ipv4Config& config) {
+    auto result = helix::net::store_apply(ipv4_store_.get(), target, config);
     request_status_refresh();
     return result;
 }

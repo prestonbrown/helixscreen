@@ -127,22 +127,18 @@ class EthernetManager {
         helix::SharedCallback<void(bool ok, const helix::net::Ipv4Config& config)> on_done);
 
     /**
-     * @brief Persist and apply an IPv4 config on an HTTP fast-lane worker
+     * @brief On an HTTP fast-lane worker, apply @p next through helix::net::apply_ipv4_change()
      *
-     * @p on_done(ok) runs on the LVGL thread while @p token lives; the
-     * failure's detail is logged here.
+     * The revert record and its snapshot are written first. @p previous is
+     * what the record shows; @p abandoned, once set, makes the apply restore
+     * the snapshot itself. @p on_done(ok) runs on the LVGL thread while
+     * @p token lives; the failure's detail is logged here.
      */
-    void apply_ipv4_config_async(const helix::net::Ipv4Config& config, helix::LifetimeToken token,
+    void apply_ipv4_change_async(const helix::net::Ipv4Config& previous,
+                                 const helix::net::Ipv4Config& next,
+                                 std::shared_ptr<std::atomic<bool>> abandoned,
+                                 helix::LifetimeToken token,
                                  helix::SharedCallback<void(bool ok)> on_done);
-
-    /**
-     * @brief Restore the Ethernet IPv4 config a change awaiting confirmation replaced
-     *
-     * Called once at startup: a helix::net::PendingIpv4Revert for Ethernet
-     * means the app or device restarted before the user kept the change. Runs
-     * on a worker and returns at once.
-     */
-    static void revert_pending_ipv4_at_startup();
 
     friend class EthernetManagerTestAccess;
 

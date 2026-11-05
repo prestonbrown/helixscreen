@@ -47,6 +47,7 @@ src/network/ethernet_manager.cpp  # not in the v1 Core+AMS cut
 src/network/ipv4_config_system.cpp  # NetworkManager and dhcpcd stores; Linux only
 src/network/ipv4_config.cpp  # static IPv4: the ESP backend never supports it, so its rows stay hidden; stubbed in helixapp_platform_stubs2.cpp
 src/network/ipv4_manager_ops.cpp  # static IPv4 manager methods; stubbed in helixapp_platform_stubs2.cpp
+src/application/ipv4_startup_revert.cpp  # static IPv4 startup revert; no ESP32 backend keeps a static address
 src/platform/display/fbdev_signal_clear.cpp  # not in the v1 Core+AMS cut
 src/platform/display/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
 src/platform/display/gpu_libs.cpp  # not in the v1 Core+AMS cut
