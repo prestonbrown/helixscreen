@@ -92,16 +92,25 @@ UP=$(awk '{print $1}' /proc/uptime)
 TJ=$(awk '/^cpu0 /{s=0; for(i=2;i<=8;i++) s+=$i; print s}' /proc/stat)
 HZ=$(awk -v t="$TJ" -v u="$UP" 'BEGIN{r=t/u; if(r<160) print 100; else if(r<400) print 250; else print 1000}')
 
-# Never disturb a machine that is mid-print.
-# A state it cannot read is a refusal too: not every board has curl, and stopping the UI
-# on a printer that may be mid-print is the one thing this must never do.
+# Never disturb a machine that is mid-print, so only a state known to be idle passes: a
+# state it cannot read or does not know is a refusal too. Not every board has curl.
+# Asked again right before the stop and before each phase, since a print can start at any
+# time. A refusal after the stop ends the run, and the EXIT trap brings the UI back. A print
+# started inside a phase stays without its UI until that phase ends. Called at the top level
+# only: inside $(measure ...) its exit would end just the subshell.
 QUERY="http://127.0.0.1:7125/printer/objects/query?print_stats"
-STATE=$( { curl -s --max-time 5 "$QUERY" 2>/dev/null || wget -q -T 5 -O - "$QUERY" 2>/dev/null; } \
-        | sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p')
-case "$STATE" in
-    printing|paused) say "SKIPPED the printer is busy (print_stats.state=$STATE)"; exit 0 ;;
-    "") say "SKIPPED could not read print_stats.state from Moonraker"; exit 0 ;;
-esac
+refuse_unless_idle() {
+    STATE=$( { curl -s --max-time 5 "$QUERY" 2>/dev/null || wget -q -T 5 -O - "$QUERY" 2>/dev/null; } \
+            | sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p')
+    case "$STATE" in
+        standby|complete|cancelled|error) return 0 ;;
+        printing|paused) say "SKIPPED the printer is busy (print_stats.state=$STATE)" ;;
+        "") say "SKIPPED could not read print_stats.state from Moonraker" ;;
+        *) say "SKIPPED unknown print_stats.state=$STATE" ;;
+    esac
+    exit 0
+}
+refuse_unless_idle
 
 [ -n "$STOP" ] && [ -n "$START" ] && [ -n "$BIN" ] || { say "SKIPPED no service control configured"; exit 0; }
 
@@ -120,6 +129,7 @@ restore() {
     sleep 4
     if [ -n "$(find_pid)" ]; then echo "RESTORED ok"; else echo "RESTORED FAILED"; fi
 }
+refuse_unless_idle
 trap restore EXIT HUP INT TERM
 
 sh -c "$STOP" >/dev/null 2>&1
@@ -151,6 +161,7 @@ measure() {
     return 0
 }
 
+refuse_unless_idle
 IDLE=$(measure "" true 0) || { say "INCONCLUSIVE idle instance died within ${SETTLE}s"; exit 0; }
 
 if [ "$IDLE_ONLY" = "true" ] || [ "$HAS_MOCK" = "0" ]; then
@@ -169,7 +180,9 @@ fi
 LONG="$WORK/gc/Delta_filament_barrel_base_Hyper_PLA_49m_overflowing_name.gcode"
 cp "$GC" "$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
 
+refuse_unless_idle
 PRINT=$(measure "--sim-speed 3 --gcode-file $LONG" true 1)  || PRINT=""
+refuse_unless_idle
 PRINTOFF=$(measure "--sim-speed 3 --gcode-file $LONG" false 1) || PRINTOFF=""
 say "MEASURED hz=$HZ idle=$IDLE print=$PRINT printoff=$PRINTOFF"
 REMOTE_EOF

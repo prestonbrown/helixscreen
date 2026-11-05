@@ -280,6 +280,13 @@ resolve() { run bash -c '. "$1"; resolve_build_host "$2"; rc=$?; echo "value=[${
     contains "HELIX_HOST_PROBE_SECS=30" "$output"
 }
 
+@test "a raised probe limit reaches ssh's own connect timeout, in the probe and in a run" {
+    mock_command_script ssh 'printf "%s\n" "$*" >> "$BATS_TEST_TMPDIR/ssh-args"'
+    HELIX_HOST_PROBE_SECS=7 HELIX_TEST_HOST=a.invalid,b.invalid resolve HELIX_TEST_HOST
+    grep -q "ConnectTimeout=7" "$BATS_TEST_TMPDIR/ssh-args"
+    grep -q 'ConnectTimeout=${HELIX_HOST_PROBE_SECS:-3}' "$ROOT/scripts/test-host-run.sh"
+}
+
 @test "a resolved host is not probed again, in the same shell or a child" {
     mock_candidate_ssh
     run bash -c '. "$1"; REMOTE_HOST=dead.invalid,up.invalid

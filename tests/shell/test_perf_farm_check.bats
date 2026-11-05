@@ -89,3 +89,41 @@ echo "RESTORED ok"'
     lacks "OVER" "$output"
     contains "rig INCOMPLETE" "$output"
 }
+
+# Moonraker answers each query with the next word of $STATES, then repeats the last.
+moonraker_says_in_turn() {
+    export STATES="$1" TURN="$BATS_TEST_TMPDIR/turn"
+    : >"$TURN"
+    mock_command_script curl '
+echo x >> "$TURN"
+n=$(wc -l < "$TURN")
+set -- $STATES
+while [ "$n" -gt 1 ] && [ "$#" -gt 1 ]; do shift; n=$((n - 1)); done
+printf "{\"status\": {\"print_stats\": {\"state\": \"%s\"}}}" "$1"'
+}
+
+@test "a print started just before the stop keeps its UI" {
+    moonraker_says_in_turn "standby printing"
+    run "$CHECK"
+    contains "the printer is busy (print_stats.state=printing)" "$output"
+    [ ! -e "$STOP_MARK" ]
+}
+
+@test "a state it does not know is refused" {
+    moonraker_says_in_turn "startup"
+    run "$CHECK"
+    contains "unknown print_stats.state=startup" "$output"
+    [ ! -e "$STOP_MARK" ]
+}
+
+@test "a print started during the run ends it and brings the UI back" {
+    export START_MARK="$BATS_TEST_TMPDIR/started"
+    sed -i.bak "s|\"service_start\":\"true\"|\"service_start\":\"touch $START_MARK\"|" "$BUDGETS"
+    mock_command_script ps 'echo "123 root 0:00 /nonexistent/bin/helix-screen"'
+    moonraker_says_in_turn "standby standby printing"
+    run "$CHECK"
+    [ -e "$STOP_MARK" ]
+    [ -e "$START_MARK" ]
+    contains "the printer is busy (print_stats.state=printing)" "$output"
+    lacks "SERVICE DID NOT RESTART" "$output"
+}
