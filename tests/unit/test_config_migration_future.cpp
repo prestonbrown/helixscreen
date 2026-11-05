@@ -31,14 +31,13 @@
 #include "config.h"
 #include "config_testing.h"
 #include "platform_capabilities.h"
+#include "test_helpers/config_migration_fixture.h"
 
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <optional>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -48,52 +47,8 @@ using namespace helix;
 
 namespace {
 
-class MigrationFutureFixture {
+class MigrationFutureFixture : public helix::test::ConfigMigrationFixture {
   protected:
-    Config config;
-    std::string temp_dir;
-    std::string config_path;
-    std::string saved_config_dir_;
-    bool had_config_dir_ = false;
-
-    void SetUp() {
-        // Per-process directory. `make test-run` shards across ~3x cores of concurrent
-        // helix-tests processes, and a fixed path let two of them clobber each other's
-        // settings.json mid-migration — surfacing as a nlohmann operator[] abort on a
-        // key the other process had just removed. Which shard a test lands in shifts
-        // whenever test cases are added, so a shared path fails only intermittently.
-        temp_dir = (fs::temp_directory_path() /
-                    ("helix_migration_future_test_" + std::to_string(::getpid())))
-                       .string();
-        fs::remove_all(temp_dir);
-        fs::create_directories(temp_dir);
-
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            saved_config_dir_ = prev;
-            had_config_dir_ = true;
-        }
-        setenv("HELIX_CONFIG_DIR", temp_dir.c_str(), 1);
-
-        config_path = temp_dir + "/settings.json";
-    }
-
-    void TearDown() {
-        fs::remove_all(temp_dir);
-        if (had_config_dir_) {
-            setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);
-        } else {
-            unsetenv("HELIX_CONFIG_DIR");
-        }
-        config.clear_path();
-    }
-
-    void write_and_init(const json& contents) {
-        std::ofstream f(config_path);
-        f << contents.dump(2);
-        f.close();
-        config.init(config_path);
-    }
-
     /// One boot of a build against @p contents: write it, run the real load +
     /// migration path on a throwaway Config, flush, and hand back the document
     /// that ended up on disk.
@@ -128,14 +83,6 @@ class MigrationFutureFixture {
     json read_raw() const {
         std::ifstream f(config_path);
         return json::parse(f);
-    }
-
-  public:
-    MigrationFutureFixture() {
-        SetUp();
-    }
-    ~MigrationFutureFixture() {
-        TearDown();
     }
 };
 

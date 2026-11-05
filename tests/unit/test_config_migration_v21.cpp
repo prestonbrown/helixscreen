@@ -19,73 +19,23 @@
 // HELIX_CONFIG_DIR keeps backup-restore search paths inside the temp dir.
 
 #include "config.h"
-#include "test_helpers/unique_temp_dir.h"
+#include "test_helpers/config_migration_fixture.h"
 
 #include <algorithm>
-#include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
 
-namespace fs = std::filesystem;
 using namespace helix;
 
 namespace {
 
-class MigrationV21Fixture {
+class MigrationV21Fixture : public helix::test::ConfigMigrationFixture {
   protected:
-    Config config;
-    std::string temp_dir;
-    std::string config_path;
-    std::string saved_config_dir_;
-    bool had_config_dir_ = false;
-
-    void SetUp() {
-        temp_dir = helix::test::unique_temp_dir("helix_migration_v21_test");
-        fs::remove_all(temp_dir);
-        fs::create_directories(temp_dir);
-
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            saved_config_dir_ = prev;
-            had_config_dir_ = true;
-        }
-        setenv("HELIX_CONFIG_DIR", temp_dir.c_str(), 1);
-
-        config_path = temp_dir + "/settings.json";
-    }
-
-    void TearDown() {
-        fs::remove_all(temp_dir);
-        if (had_config_dir_) {
-            setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);
-        } else {
-            unsetenv("HELIX_CONFIG_DIR");
-        }
-        config.clear_path();
-    }
-
-    /// Write a settings.json, then init Config from it so the real versioned
-    /// migrations run.
-    void write_and_init(const json& contents) {
-        std::ofstream f(config_path);
-        f << contents.dump(2);
-        f.close();
-        config.init(config_path);
-    }
-
     static std::string p(const char* printer, const std::string& leaf) {
         return std::string("/printers/") + printer + "/" + leaf;
-    }
-
-  public:
-    MigrationV21Fixture() {
-        SetUp();
-    }
-    ~MigrationV21Fixture() {
-        TearDown();
     }
 };
 

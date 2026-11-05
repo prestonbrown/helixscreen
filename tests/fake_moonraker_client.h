@@ -18,8 +18,9 @@
  *   - unregistrations, so a test can prove a destructor cleaned up
  *   - JSON-RPC sends, with both continuations kept so a test can invoke them
  *
- * Every override is virtual, so a test that needs one method to do something
- * real subclasses this and overrides just that one.
+ * A test that needs a method to answer names it in the respond_to() table; one
+ * that needs another override to do something real subclasses this and overrides
+ * just that one.
  *
  * Nothing here touches a thread: a fired notification runs on the caller's
  * thread. Consumers that wrap their handler in AsyncLifetimeGuard::bg_cb will
@@ -69,6 +70,66 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
         /// The four-argument form's timeout; 0 for the others
         uint32_t timeout_ms = 0;
     };
+
+    /// How respond_to() answers one method. Runs inside send_jsonrpc, on the
+    /// caller's thread, after the call is recorded. Either continuation may be
+    /// empty, as the sending overload decides.
+    using Responder = std::function<void(
+        const nlohmann::json& params, const helix::SharedCallback<void(const nlohmann::json&)>& ok,
+        const helix::SharedCallback<void(const MoonrakerError&)>& fail)>;
+
+    /// Answer every later send of @p method with @p reply, verbatim: consumers
+    /// differ on whether they read a {"result": ...} envelope. A method with no
+    /// table entry is recorded and never answered. A later call replaces the entry.
+    void respond_to(const std::string& method, nlohmann::json reply) {
+        respond_to(method, Responder([reply = std::move(reply)](const nlohmann::json&,
+                                                                const auto& ok, const auto&) {
+                       if (ok) {
+                           ok(reply);
+                       }
+                   }));
+    }
+
+    /// Answer every later send of @p method by running @p responder.
+    void respond_to(const std::string& method, Responder responder) {
+        responders_[method] = std::move(responder);
+    }
+
+    /// Fail every later send of @p method with @p error.
+    void fail_on(const std::string& method, MoonrakerError error) {
+        respond_to(method, Responder([error = std::move(error)](const nlohmann::json&, const auto&,
+                                                                const auto& fail) {
+                       if (fail) {
+                           fail(error);
+                       }
+                   }));
+    }
+
+    /// Answer the most recent send of @p method now, the way a reply arrives
+    /// after the sender has returned.
+    /// @return false when it was never sent or sent no success continuation.
+    bool reply_to_last(const std::string& method, const nlohmann::json& reply) {
+        const RpcCall* call = last_rpc(method);
+        if (!call || !call->success_cb) {
+            return false;
+        }
+        // Copied: the reply may send again, which moves rpc_calls.
+        auto cb = call->success_cb;
+        cb(reply);
+        return true;
+    }
+
+    /// Fail the most recent send of @p method now.
+    /// @return false when it was never sent or sent no error continuation.
+    bool fail_last(const std::string& method, const MoonrakerError& error) {
+        const RpcCall* call = last_rpc(method);
+        if (!call || !call->error_cb) {
+            return false;
+        }
+        auto cb = call->error_cb;
+        cb(error);
+        return true;
+    }
 
     /// Live subscriptions keyed by notification method, mirroring the real
     /// client: several handlers may share a method and unregistering drops
@@ -187,6 +248,14 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
         return rpc_calls.empty() ? nullptr : &rpc_calls.back();
     }
 
+    /// The most recent recorded send of @p method, or nullptr if there is none.
+    const RpcCall* last_rpc(const std::string& method) const {
+        const auto it =
+            std::find_if(rpc_calls.rbegin(), rpc_calls.rend(),
+                         [&method](const RpcCall& call) { return call.method == method; });
+        return it == rpc_calls.rend() ? nullptr : &*it;
+    }
+
     /// Number of recorded sends of @p method.
     size_t rpc_count(const std::string& method) const {
         return static_cast<size_t>(
@@ -229,22 +298,25 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     }
 
     // ========================================================================
-    // JSON-RPC — recorded
+    // JSON-RPC — recorded, then answered from the respond_to() table
     // ========================================================================
 
     int send_jsonrpc(const std::string& method) override {
         rpc_calls.push_back({method, nlohmann::json::object(), {}, {}});
+        answer(method, nlohmann::json::object(), {}, {});
         return 0;
     }
 
     int send_jsonrpc(const std::string& method, const nlohmann::json& params) override {
         rpc_calls.push_back({method, params, {}, {}});
+        answer(method, params, {}, {});
         return 0;
     }
 
     helix::RequestId send_jsonrpc(const std::string& method, const nlohmann::json& params,
                                   helix::SharedCallback<void(const nlohmann::json&)> cb) override {
-        rpc_calls.push_back({method, params, std::move(cb), {}});
+        rpc_calls.push_back({method, params, cb, {}});
+        answer(method, params, cb, {});
         return ++next_request_id_;
     }
 
@@ -254,8 +326,8 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
                  helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms,
                  bool /*silent*/,
                  std::optional<helix::rpc_error_policy::CallerIntent> /*intent*/) override {
-        rpc_calls.push_back(
-            {method, params, std::move(success_cb), std::move(error_cb), timeout_ms});
+        rpc_calls.push_back({method, params, success_cb, error_cb, timeout_ms});
+        answer(method, params, success_cb, error_cb);
         return ++next_request_id_;
     }
 
@@ -347,6 +419,18 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     }
 
   protected:
+    void answer(const std::string& method, const nlohmann::json& params,
+                const helix::SharedCallback<void(const nlohmann::json&)>& ok,
+                const helix::SharedCallback<void(const MoonrakerError&)>& fail) {
+        const auto it = responders_.find(method);
+        if (it != responders_.end()) {
+            // Copied: a responder may replace its own table entry.
+            Responder responder = it->second;
+            responder(params, ok, fail);
+        }
+    }
+
+    std::map<std::string, Responder> responders_;
     std::string last_url_;
     helix::SharedCallback<void()> on_connected_;
     helix::SharedCallback<void()> on_disconnected_;

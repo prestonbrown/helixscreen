@@ -5,6 +5,7 @@
 #include "ui_nav_manager.h"
 #include "ui_utils.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
 #include "../ui_test_utils.h"
@@ -4094,49 +4095,23 @@ TEST_CASE_METHOD(LVGLUITestFixture, "An unrelated firmware prompt survives the H
 // Connect-time configfile query
 // ============================================================================
 
-namespace {
-
-/// Records every printer.objects.query and holds its success callback so the
-/// test decides when, and with what, the printer "answers".
-class QueryCapturingClient : public MoonrakerClientMock {
-  public:
-    QueryCapturingClient() : MoonrakerClientMock(MoonrakerClientMock::PrinterType::VORON_24) {}
-
-    using MoonrakerClientMock::send_jsonrpc;
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const nlohmann::json& params,
-        helix::SharedCallback<void(const nlohmann::json&)> success_cb,
-        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-        bool silent = false,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
-        if (method == "printer.objects.query") {
-            queries.push_back(params);
-            answer = std::move(success_cb);
-            return 0;
-        }
-        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
-                                                 std::move(error_cb), timeout_ms, silent, intent);
-    }
-
-    std::vector<nlohmann::json> queries;
-    helix::SharedCallback<void(const nlohmann::json&)> answer;
-};
-
-} // namespace
+// The fake holds each printer.objects.query unanswered, so a test decides when, and
+// with what, the printer answers.
+constexpr const char* kObjectsQuery = "printer.objects.query";
 
 TEST_CASE("Happy Hare connect asks configfile once and applies it to every reader",
           "[ams][happy_hare][config]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
 
     HappyHareTestAccess::on_started(helper);
 
-    REQUIRE(client.queries.size() == 1);
-    REQUIRE(client.answer);
+    REQUIRE(client.rpc_count(kObjectsQuery) == 1);
 
-    client.answer(
+    REQUIRE(client.reply_to_last(
+        kObjectsQuery,
         nlohmann::json{{"result",
                         {{"status",
                           {{"configfile",
@@ -4147,7 +4122,7 @@ TEST_CASE("Happy Hare connect asks configfile once and applies it to every reade
                                  {"heater_max_temp", 65.0}}},
                                {"mmu_machine",
                                 {{"selector_type", "VirtualSelector"},
-                                 {"filament_heater", "heater_generic box1_heater"}}}}}}}}}}}});
+                                 {"filament_heater", "heater_generic box1_heater"}}}}}}}}}}}}));
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(helper.get_system_info().tip_method == TipMethod::CUT);
@@ -4549,16 +4524,16 @@ namespace {
 
 /// Answer the connect-time query with a golden fixture's configfile and live
 /// mmu_machine, the way a v4 printer does.
-void connect_with_fixture(AmsBackendHappyHareTestHelper& helper, QueryCapturingClient& client,
-                          const nlohmann::json& fx) {
+void connect_with_fixture(AmsBackendHappyHareTestHelper& helper,
+                          helix::test::FakeMoonrakerClient& client, const nlohmann::json& fx) {
     HappyHareTestAccess::on_started(helper);
-    REQUIRE(client.answer);
-    client.answer(nlohmann::json{
-        {"result",
-         {{"status",
-           {{"configfile", {{"settings", fx["configfile_settings"]}}},
-            {"mmu_machine",
-             fx.contains("mmu_machine") ? fx["mmu_machine"] : nlohmann::json::object()}}}}}});
+    REQUIRE(client.reply_to_last(
+        kObjectsQuery, nlohmann::json{{"result",
+                                       {{"status",
+                                         {{"configfile", {{"settings", fx["configfile_settings"]}}},
+                                          {"mmu_machine", fx.contains("mmu_machine")
+                                                              ? fx["mmu_machine"]
+                                                              : nlohmann::json::object()}}}}}}));
     helix::ui::UpdateQueue::instance().drain();
 }
 
@@ -4574,7 +4549,7 @@ void feed_params(AmsBackendHappyHareTestHelper& helper, const nlohmann::json& pa
 
 TEST_CASE("Happy Hare v4 reads its tunables from the split config sections",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -4601,7 +4576,7 @@ TEST_CASE("Happy Hare v4 reads its tunables from the split config sections",
 
 TEST_CASE("Happy Hare v4 multi-unit reads unit parameters from the first unit's section",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(10);
@@ -4619,7 +4594,7 @@ TEST_CASE("Happy Hare v4 multi-unit reads unit parameters from the first unit's 
 
 TEST_CASE("Happy Hare v4 takes bypass support from the units, not printer.mmu",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
 
@@ -4648,7 +4623,7 @@ TEST_CASE("Happy Hare v4 takes bypass support from the units, not printer.mmu",
 
 TEST_CASE("Happy Hare v3 still takes bypass support from printer.mmu.has_bypass",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     // v3.4 mmu_machine: per-unit objects, a has_bypass of its own, no version.
@@ -4741,7 +4716,7 @@ TEST_CASE("Happy Hare v4 sensors dict with no gate selected names gates mmu_entr
 
 TEST_CASE("Happy Hare MMU_TEST_CONFIG names gear speeds the way each version does",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -4772,7 +4747,7 @@ TEST_CASE("Happy Hare MMU_TEST_CONFIG names gear speeds the way each version doe
 
 TEST_CASE("Happy Hare v4 reapplies persisted overrides under the v4 names",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -4826,7 +4801,7 @@ std::vector<std::string> unit_scoped_commands(AmsBackendHappyHareTestHelper& hel
 
 TEST_CASE("Happy Hare names the unit only where v4 multi-unit requires it",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
 
@@ -4969,7 +4944,7 @@ TEST_CASE("Happy Hare v4 shows the selected gate's eSpooler operation",
 
 TEST_CASE("Happy Hare takes each unit's split, name and topology from mmu_machine",
           "[ams][happy_hare][hh_multi_unit]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5011,7 +4986,7 @@ TEST_CASE("Happy Hare takes each unit's split, name and topology from mmu_machin
 
 TEST_CASE("Happy Hare single v4 unit is named by its display_name",
           "[ams][happy_hare][hh_multi_unit]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
@@ -5025,7 +5000,7 @@ TEST_CASE("Happy Hare single v4 unit is named by its display_name",
 
 TEST_CASE("Happy Hare reads every unit's enclosure heaters, not only unit 0's",
           "[ams][happy_hare][hh_multi_unit]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5085,7 +5060,7 @@ TEST_CASE("Happy Hare v4 reads clog detection mode from the encoder mode",
 
 TEST_CASE("Happy Hare v4 writes clog detection mode as the selected unit's encoder mode",
           "[ams][happy_hare][hh_v4][clog]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5112,7 +5087,7 @@ TEST_CASE("Happy Hare v4 writes clog detection mode as the selected unit's encod
 
 TEST_CASE("Happy Hare clog detection mode command on v3 and a single v4 unit",
           "[ams][happy_hare][hh_v4][clog]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -5168,7 +5143,7 @@ bool action_enabled(const AmsBackendHappyHareTestHelper& helper, const std::stri
 
 TEST_CASE("Happy Hare v4 disables the actions no unit's hardware takes",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
 
@@ -5206,7 +5181,7 @@ TEST_CASE("Happy Hare v4 disables the actions no unit's hardware takes",
 
 TEST_CASE("Happy Hare v4 whole-machine drying sends one MMU_HEATER per heated unit",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5232,7 +5207,7 @@ TEST_CASE("Happy Hare v4 whole-machine drying sends one MMU_HEATER per heated un
 
 TEST_CASE("Happy Hare re-split keeps sensors, the tool map and the hub state",
           "[ams][happy_hare][hh_multi_unit]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5259,7 +5234,7 @@ TEST_CASE("Happy Hare re-split keeps sensors, the tool map and the hub state",
 
 TEST_CASE("Happy Hare v3 connect keeps the hub state of a split it already has",
           "[ams][happy_hare][hh_multi_unit]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.test_parse_mmu_state({{"gate_status", {1, 1, 1, 1}}, {"gate", 1}, {"filament_pos", 5}});
@@ -5319,7 +5294,7 @@ TEST_CASE("Happy Hare keeps an override saved against the built-in default",
     config->set<float>("/hh_overrides/gear_unload_speed/value", 99.0f);
     config->set<float>("/hh_overrides/gear_unload_speed/config_default", 111.0f);
 
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -5352,7 +5327,7 @@ TEST_CASE("Happy Hare selector speed override survives a restart under either ke
         config->set<float>("/hh_overrides/selector_speed/value", 180.0f);
         config->set<float>("/hh_overrides/selector_speed/config_default", 200.0f);
     }
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -5381,7 +5356,7 @@ TEST_CASE("Happy Hare v3 eSpooler list covering only some gates is not read per 
 }
 
 TEST_CASE("Happy Hare v4 shows no bypass before its units are known", "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5414,7 +5389,7 @@ nlohmann::json v3_fixture(double version, const std::string& selector = "LinearS
 
 TEST_CASE("Happy Hare clog detection is named the way each version takes it",
           "[ams][happy_hare][hh_v4][clog]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -5454,7 +5429,7 @@ TEST_CASE("Happy Hare clog detection is named the way each version takes it",
 
 TEST_CASE("Happy Hare reapplies each override alone, under its version's name",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -5502,7 +5477,7 @@ TEST_CASE("Happy Hare v4 frame names v4 parameters before the config query answe
 
 TEST_CASE("Happy Hare v4 treats a disabled toolhead sensor as not fitted",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5519,7 +5494,7 @@ TEST_CASE("Happy Hare v4 treats a disabled toolhead sensor as not fitted",
 
 TEST_CASE("Happy Hare v4 unit encoder flag comes from the unit's configured encoder",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
@@ -5536,7 +5511,7 @@ TEST_CASE("Happy Hare v4 unit encoder flag comes from the unit's configured enco
 
 TEST_CASE("Happy Hare connect with an unchanged split does not rebuild the units",
           "[ams][happy_hare][hh_multi_unit]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.test_parse_mmu_state({{"gate_status", {1, 1, 1, 1}}, {"gate", 1}});
@@ -5547,7 +5522,7 @@ TEST_CASE("Happy Hare connect with an unchanged split does not rebuild the units
 
 TEST_CASE("Happy Hare whole-machine drying stops the units it started when one refuses",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5566,7 +5541,7 @@ TEST_CASE("Happy Hare whole-machine drying stops the units it started when one r
 
 TEST_CASE("Happy Hare v4 encoder flag holds when the split is unchanged",
           "[ams][happy_hare][hh_v4]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
@@ -5649,7 +5624,7 @@ TEST_CASE("Happy Hare writes VENDOR to the gate map on v4 only", "[ams][happy_ha
 
 TEST_CASE("Happy Hare v4 takes a drying humidity target, v3 does not",
           "[ams][happy_hare][hh_v4][dryer_humidity]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
 
@@ -5729,7 +5704,7 @@ TEST_CASE("Happy Hare v4 takes a drying humidity target, v3 does not",
 
 TEST_CASE("Happy Hare v4 drives a chosen set of gates on per-gate heaters",
           "[ams][happy_hare][hh_v4][dry_gates]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     // Unit 0 (ERCF) shares one heater across its gates; unit 1 (Box Turtle) has one per
@@ -5916,7 +5891,7 @@ TEST_CASE("Happy Hare v3 never offers a gate selection", "[ams][happy_hare][dry_
 
 TEST_CASE("Each slot carries its gate's drying state", "[ams][happy_hare][dry_gates]") {
     using helix::printer::ZoneDryingState;
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
@@ -5964,7 +5939,7 @@ TEST_CASE("A drying_state-only frame reaches the UI", "[ams][happy_hare][dry_gat
 }
 
 TEST_CASE("Per-gate zones each carry their own unit's dryer", "[ams][happy_hare][dry_gates]") {
-    QueryCapturingClient client;
+    helix::test::FakeMoonrakerClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");

@@ -4,13 +4,13 @@
 // job start, telling the screen's own starts from foreign ones, and the
 // rendered record coming from the same backend function as the screen's start.
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "ams_backend.h"
 #include "ams_backend_mock.h"
 #include "config.h"
 #include "helix_plugin_features.h"
 #include "moonraker_api.h"
-#include "moonraker_client_mock.h"
 #include "plr_plugin_rpc.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -193,59 +193,19 @@ TEST_CASE("a forced preference write carries FORCE=1 last", "[plugin_print_hooks
 
 namespace {
 
-/// The mock, plus every JSON-RPC method sent through it, in order.
-struct MethodRecordingClient : public MoonrakerClientMock {
-    using MoonrakerClientMock::MoonrakerClientMock;
-    using MoonrakerClientMock::send_jsonrpc;
-    std::vector<std::pair<std::string, json>> sent;
-
-    RequestId
-    send_jsonrpc(const std::string& method, const json& params,
-                 helix::SharedCallback<void(const json&)> success_cb,
-                 helix::SharedCallback<void(const MoonrakerError&)> error_cb,
-                 uint32_t timeout_ms = 0, bool silent = false,
-                 std::optional<rpc_error_policy::CallerIntent> intent = std::nullopt) override {
-        sent.emplace_back(method, params);
-        if (method == "printer.print.start" && fail_print_start) {
-            if (error_cb) {
-                error_cb(*fail_print_start);
-            }
-            return 0;
-        }
-        if (method == "server.helix.print_edited" && fail_print_edited) {
-            if (error_cb) {
-                error_cb(*fail_print_edited);
-            }
-            return 0;
-        }
-        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
-                                                 std::move(error_cb), timeout_ms, silent, intent);
-    }
-
-    /// When set, printer.print.start answers with this error.
-    std::optional<MoonrakerError> fail_print_start;
-    /// When set, server.helix.print_edited answers with this error.
-    std::optional<MoonrakerError> fail_print_edited;
-};
-
 struct JobStartFx : LVGLTestFixture {
-    MethodRecordingClient client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::test::FakeMoonrakerClient client;
     PrinterState ps;
 
     JobStartFx() {
         ps.init_subjects(false);
         ps.set_klippy_state_sync(KlippyState::READY);
-        client.connect("ws://mock/websocket", []() {}, []() {});
-    }
-    ~JobStartFx() override {
-        client.stop_temperature_simulation();
-        client.disconnect();
     }
 
     std::vector<std::string> methods() const {
         std::vector<std::string> out;
-        for (const auto& s : client.sent)
-            out.push_back(s.first);
+        for (const auto& call : client.rpc_calls)
+            out.push_back(call.method);
         return out;
     }
 };
@@ -271,7 +231,7 @@ TEST_CASE_METHOD(JobStartFx, "a start from this screen is noted before it is sen
         REQUIRE(announce != sent.end());
         REQUIRE(start != sent.end());
         CHECK(announce < start);
-        CHECK(client.sent[static_cast<size_t>(announce - sent.begin())].second ==
+        CHECK(client.rpc_calls[static_cast<size_t>(announce - sent.begin())].params ==
               json{{"filename", "benchy.gcode"}});
     }
 
@@ -311,7 +271,7 @@ TEST_CASE_METHOD(JobStartFx, "a start from this screen is noted before it is sen
         MoonrakerError refused = MoonrakerError::from_json_rpc(
             {{"code", 400}, {"message", "Original file changed since the screen read it"}},
             "server.helix.print_edited");
-        client.fail_print_edited = refused;
+        client.fail_on("server.helix.print_edited", refused);
         api.job().start_edited_print(
             "benchy.gcode", ".helix_temp/benchy.gcode", nlohmann::json::array(), {}, 0,
             [](const ModifiedPrintResult&) {}, [](const MoonrakerError&) {});
@@ -319,7 +279,7 @@ TEST_CASE_METHOD(JobStartFx, "a start from this screen is noted before it is sen
 
         MoonrakerError lost;
         lost.type = MoonrakerErrorType::TIMEOUT;
-        client.fail_print_edited = lost;
+        client.fail_on("server.helix.print_edited", lost);
         api.job().start_edited_print(
             "benchy.gcode", ".helix_temp/benchy.gcode", nlohmann::json::array(), {}, 0,
             [](const ModifiedPrintResult&) {}, [](const MoonrakerError&) {});
@@ -331,43 +291,32 @@ TEST_CASE_METHOD(JobStartFx, "a start from this screen is noted before it is sen
         MoonrakerError refused;
         refused.type = MoonrakerErrorType::JSON_RPC_ERROR;
         refused.message = "File not found";
-        client.fail_print_start = refused;
+        client.fail_on("printer.print.start", refused);
         bool failed = false;
         api.job().start_print(
             "benchy.gcode", [] {}, [&failed](const MoonrakerError&) { failed = true; });
         CHECK(failed);
         CHECK_FALSE(screen_start_ledger().claim("benchy.gcode"));
-        const json* last = nullptr;
-        for (const auto& [method, params] : client.sent) {
-            if (method == kScreenStartRpc) {
-                last = &params;
-            }
-        }
+        const auto* last = client.last_rpc(kScreenStartRpc);
         REQUIRE(last != nullptr);
-        CHECK(*last == json{{"filename", "benchy.gcode"}, {"withdraw", true}});
+        CHECK(last->params == json{{"filename", "benchy.gcode"}, {"withdraw", true}});
     }
 
     SECTION("a lost answer keeps them: the print may be running") {
         screen_start_ledger().set_announce(true);
         MoonrakerError lost;
         lost.type = MoonrakerErrorType::TIMEOUT;
-        client.fail_print_start = lost;
+        client.fail_on("printer.print.start", lost);
         api.job().start_print("benchy.gcode", [] {}, [](const MoonrakerError&) {});
         CHECK(screen_start_ledger().claim("benchy.gcode"));
-        int announcements = 0;
-        for (const auto& [method, params] : client.sent) {
-            if (method == kScreenStartRpc) {
-                ++announcements;
-                CHECK_FALSE(params.contains("withdraw"));
-            }
-        }
-        CHECK(announcements == 1);
+        REQUIRE(client.rpc_count(kScreenStartRpc) == 1);
+        CHECK_FALSE(client.last_rpc(kScreenStartRpc)->params.contains("withdraw"));
     }
 
     SECTION("a refused start without the plugin sends no withdraw") {
         MoonrakerError refused;
         refused.type = MoonrakerErrorType::JSON_RPC_ERROR;
-        client.fail_print_start = refused;
+        client.fail_on("printer.print.start", refused);
         api.job().start_print("benchy.gcode", [] {}, [](const MoonrakerError&) {});
         CHECK_FALSE(screen_start_ledger().claim("benchy.gcode"));
         const auto sent = methods();
