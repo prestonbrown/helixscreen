@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../lvgl_test_fixture.h"
 #include "print_health_log.h"
 
 #include "../catch_amalgamated.hpp"
@@ -79,4 +80,20 @@ TEST_CASE("PrintHealthLog logs once per interval, and only during a print", "[pr
         CHECK_FALSE(log.tick(near_wrap, true));
         CHECK(log.tick(near_wrap + interval, true));
     }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "print health frames count renders, not refresh ticks",
+                 "[print_health]") {
+    lv_display_t* display = lv_display_get_default();
+    REQUIRE(display != nullptr);
+    helix::attach_print_health_counters(display);
+    lv_refr_now(display); // settle anything already invalid
+    const uint64_t settled = helix::read_print_health_sample(display).frames;
+
+    lv_refr_now(display); // a refresh with nothing to draw
+    CHECK(helix::read_print_health_sample(display).frames == settled);
+
+    lv_obj_invalidate(lv_screen_active());
+    lv_refr_now(display);
+    CHECK(helix::read_print_health_sample(display).frames == settled + 1);
 }
