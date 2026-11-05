@@ -3467,7 +3467,7 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
     for (key, paths), code in zip(groups, codes):
         print(f'  exit {code}  {describe_key(key)}  ({len(paths)} file(s))')
     if incomplete:
-        print(report_incomplete(uncovered, deferred))
+        print(report_incomplete(uncovered, deferred, survived=1 in codes))
     worst = combine_exits(codes + ([3] if incomplete else []))
     if worst == 3 and args.allow_incomplete:
         return 0
@@ -3478,8 +3478,11 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
 
 
 def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=0,
-                      stop_reason=''):
-    """The line that stops a partial run from reading like a whole one."""
+                      stop_reason='', survived=False):
+    """The line that stops a partial run from reading like a whole one.
+
+    `survived`: a group of this run has survivors of its own, listed above.
+    """
     parts = []
     if uncovered:
         parts.append(f'{len(uncovered)} path(s) NOT COVERED')
@@ -3493,8 +3496,10 @@ def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=
         parts.append(f'{unexamined} hunk(s) UNEXAMINED: {stop_reason}')
     return ('\nVERDICT: INCOMPLETE - this run did not examine the whole change: '
             + '; '.join(parts) + '.\n'
-            'Nothing survived, but that is not evidence for the part above. '
-            'Mutate it by hand and say so in the commit body, or accept it with '
+            + ('Hunks SURVIVED in the groups above: each needs a test that pins it. '
+               if survived else
+               'Nothing survived, but that is not evidence for the part above. ')
+            + 'Mutate it by hand and say so in the commit body, or accept it with '
             '--allow-incomplete.')
 
 

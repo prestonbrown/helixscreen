@@ -1191,6 +1191,26 @@ def test_a_surviving_group_makes_the_whole_run_fail(tmp_path):
     assert "exit 0  [feat]" in r.stdout
 
 
+@pytest.mark.parametrize("other_detected, code, says", [
+    (False, 1, "Hunks SURVIVED in the groups above"),
+    (True, 3, "Nothing survived"),
+])
+def test_an_incomplete_group_run_tells_the_truth_about_survivors(
+        tmp_path, other_detected, code, says):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    if other_detected:
+        (work / ".mutant-expect-other").write_text("")
+    (work / "notes").mkdir()
+    (work / "notes" / "plan.txt").write_text("plan\n")
+    _git(work, "add", "-N", "notes/plan.txt")
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    assert r.returncode == code, r.stdout
+    assert "NOT COVERED notes/plan.txt" in r.stdout
+    verdict = r.stdout[r.stdout.index("VERDICT: INCOMPLETE - this run"):]
+    assert says in verdict
+
+
 # The mutant's build SIGKILLs the group child that started it (make's parent),
 # so the child never runs its own restore.
 KILL_CHILD_MAKEFILE = """test-build:
