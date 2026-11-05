@@ -890,7 +890,8 @@ TEST_CASE("walk_include_graph needs the whole tree only for a wildcard directory
 TEST_CASE("walk_include_graph skips an include whose directory holds nothing",
           "[config][includes][include_graph]") {
     DeferredDownloads dl;
-    dl.server = {{"printer.cfg", "[include gone/a.cfg]\n[include ../b.cfg]\n[include /c.cfg]\n"}};
+    dl.server = {{"printer.cfg", "[include gone/a.cfg]\n[include ../b.cfg]\n[include /c.cfg]\n"
+                                 "[include a..b/d.cfg]\n"}};
     RecordingLister lister{dl};
     GraphResult r;
     run_walk(dl, lister.fn(), r);

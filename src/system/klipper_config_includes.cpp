@@ -7,6 +7,7 @@
 
 #include "async_lifetime_guard.h"
 #include "i_moonraker_api.h"
+#include "moonraker_validation.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
@@ -225,12 +226,9 @@ IncludeListing include_listing(const std::string& current_file, const std::strin
     if (dir.find_first_of("*?") != std::string::npos || resolved.find("**") != std::string::npos) {
         return {IncludeListing::Kind::WholeTree, {}};
     }
-    // Listed paths are root-relative and never spell these, so neither can match.
-    if (!resolved.empty() && resolved.front() == '/') {
-        return {};
-    }
-    if (dir == ".." || dir.rfind("../", 0) == 0 || dir.find("/../") != std::string::npos ||
-        (dir.size() >= 3 && dir.compare(dir.size() - 3, 3, "/..") == 0)) {
+    // Listed paths are root-relative, and the file API refuses a path it calls
+    // unsafe, so an include spelled this way can match nothing.
+    if (!dir.empty() && !moonraker_internal::is_safe_path(dir)) {
         return {};
     }
     return {IncludeListing::Kind::Dir, dir};

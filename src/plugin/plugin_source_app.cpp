@@ -42,7 +42,7 @@ bool is_plugin_filelist_change(const json& msg) {
 
 namespace {
 
-/// A plugin holds a few folders. The cap only bounds a walk of a pathological tree.
+/// A plugin holds a few folders. The cap bounds a pathological tree or a symlink cycle.
 constexpr size_t kMaxPluginDirs = 256;
 
 struct PluginTreeWalk {
@@ -72,10 +72,15 @@ void queue_next_plugin_dir(const std::shared_ptr<PluginTreeWalk>& walk) {
 }
 
 void list_next_plugin_dir(const std::shared_ptr<PluginTreeWalk>& walk) {
-    if (walk->dirs.empty() || walk->visited >= kMaxPluginDirs) {
-        if (!walk->dirs.empty())
-            spdlog::warn("[PluginSource] stopped listing at {} folders", kMaxPluginDirs);
+    if (walk->dirs.empty()) {
         walk->done(true, std::move(walk->files));
+        return;
+    }
+    // A listing cut short must not read as complete: PluginSource removes every
+    // cached plugin a successful listing leaves out.
+    if (walk->visited >= kMaxPluginDirs) {
+        spdlog::warn("[PluginSource] over {} folders; listing abandoned", kMaxPluginDirs);
+        walk->done(false, {});
         return;
     }
     const std::string dir = walk->dirs.back();
@@ -86,7 +91,8 @@ void list_next_plugin_dir(const std::shared_ptr<PluginTreeWalk>& walk) {
         "config", dir,
         [walk, dir, prefix_len](const std::vector<FileInfo>& entries) {
             for (const FileInfo& f : entries) {
-                if (f.filename.empty())
+                // A plugin installed with git keeps its metadata beside its files.
+                if (f.filename.empty() || f.filename == ".git")
                     continue;
                 std::string path = dir + "/" + f.filename;
                 if (f.is_dir)
