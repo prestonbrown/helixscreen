@@ -12,6 +12,7 @@
  * Written TDD-style - tests WILL FAIL if TelemetryManager is removed.
  */
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
@@ -1135,30 +1136,14 @@ TEST_CASE("classify_moonraker_locality distinguishes local, remote and unknown",
 
 namespace {
 
-/// Mock client that reports a caller-supplied websocket URL.
-///
-/// MoonrakerClientMock::connect() does record the URL, so these cases could be
-/// driven through it. Overriding the accessor instead keeps them synchronous:
-/// the mock's connect() sleeps to simulate a realistic handshake and starts the
-/// temperature simulation, neither of which this test wants three times over.
-class StubUrlClient : public MoonrakerClientMock {
-  public:
-    explicit StubUrlClient(std::string url) : url_(std::move(url)) {}
-    const std::string& get_last_url() const override {
-        return url_;
-    }
-
-  private:
-    std::string url_;
-};
-
 /// Record a hardware_profile with `websocket_url` in place and return the event.
 ///
 /// Uses the shared PrinterState rather than a fresh one: a default-constructed
 /// PrinterState whose init_subjects() never ran corrupts memory on destruction
 /// (see the DEFERRED note in test_helix_macro_manager.cpp).
 json hardware_profile_with_url(const std::string& websocket_url) {
-    StubUrlClient client(websocket_url);
+    helix::test::FakeMoonrakerClient client;
+    client.connect(websocket_url.c_str(), {}, {});
     MoonrakerAPI api(client, get_printer_state());
     ScopedMoonrakerApi installed(&api);
 

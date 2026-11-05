@@ -16,12 +16,12 @@
 #include "ui_modal.h"
 #include "ui_panel_history_list.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
-#include "moonraker_client_mock.h"
 
 #include <memory>
 #include <optional>
@@ -34,36 +34,7 @@ using helix::ui::HistoryListPanelTestAccess;
 
 namespace {
 
-/// Records every JSON-RPC method sent, so "was the record deleted?" is read
-/// off the wire rather than off a spy on our own code.
-class RecordingClient : public MoonrakerClientMock {
-  public:
-    RecordingClient() : MoonrakerClientMock(MoonrakerClientMock::PrinterType::VORON_24) {}
-
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params,
-        helix::SharedCallback<void(const json&)> success_cb,
-        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-        bool silent = false,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
-        methods.push_back(method);
-        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
-                                                 std::move(error_cb), timeout_ms, silent, intent);
-    }
-
-    [[nodiscard]] int count(const std::string& method) const {
-        int n = 0;
-        for (const auto& m : methods) {
-            if (m == method) {
-                ++n;
-            }
-        }
-        return n;
-    }
-
-    std::vector<std::string> methods;
-};
-
+// "Was the record deleted?" is read off the wire rather than off a spy on our own code.
 constexpr const char* kDeleteJob = "server.history.delete_job";
 
 PrintHistoryJob job(const std::string& filename) {
@@ -78,7 +49,6 @@ class HistoryDeleteFixture : public LVGLUITestFixture {
   public:
     HistoryDeleteFixture() {
         helix::ui::modal_init_subjects();
-        client.connect("ws://mock/websocket", []() {}, []() {});
         api = std::make_unique<MoonrakerAPI>(client, get_printer_state());
         previous_api_ = get_moonraker_api();
         set_moonraker_api(api.get());
@@ -96,8 +66,6 @@ class HistoryDeleteFixture : public LVGLUITestFixture {
         settle();
         set_moonraker_api(previous_api_);
         api.reset();
-        client.stop_temperature_simulation();
-        client.disconnect();
     }
 
     static void settle() {
@@ -110,7 +78,7 @@ class HistoryDeleteFixture : public LVGLUITestFixture {
         lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
     }
 
-    RecordingClient client;
+    helix::test::FakeMoonrakerClient client;
     std::unique_ptr<MoonrakerAPI> api;
     HistoryListPanel panel;
 
@@ -128,7 +96,7 @@ TEST_CASE_METHOD(HistoryDeleteFixture, "History delete asks before touching the 
     lv_obj_t* dialog = HistoryListPanelTestAccess::delete_dialog(panel);
     REQUIRE(dialog != nullptr);
     CHECK(Modal::get_top() == dialog);
-    CHECK(client.count(kDeleteJob) == 0);
+    CHECK(client.rpc_count(kDeleteJob) == 0);
 
     // A second tap while the dialog is up must not stack another one.
     HistoryListPanelTestAccess::handle_delete(panel);
@@ -137,7 +105,7 @@ TEST_CASE_METHOD(HistoryDeleteFixture, "History delete asks before touching the 
     press(dialog, "btn_primary");
     settle();
 
-    CHECK(client.count(kDeleteJob) == 1);
+    CHECK(client.rpc_count(kDeleteJob) == 1);
     CHECK(HistoryListPanelTestAccess::delete_dialog(panel) == nullptr);
 }
 
@@ -160,7 +128,7 @@ TEST_CASE_METHOD(HistoryDeleteFixture,
     process_lvgl(50);
     settle();
 
-    CHECK(client.count(kDeleteJob) == 0);
+    CHECK(client.rpc_count(kDeleteJob) == 0);
     // The guard is released, so the button works again.
     CHECK(HistoryListPanelTestAccess::delete_dialog(panel) == nullptr);
     HistoryListPanelTestAccess::handle_delete(panel);
@@ -170,34 +138,14 @@ TEST_CASE_METHOD(HistoryDeleteFixture,
 
 namespace {
 
-/// Holds the reply to `server.history.list` instead of delivering it, so a test
-/// can choose the moment it lands. Moonraker replies arrive on the WebSocket
-/// thread, so a panel that has left the screen can still be handed one.
-class ParkingClient : public MoonrakerClientMock {
-  public:
-    ParkingClient() : MoonrakerClientMock(MoonrakerClientMock::PrinterType::VORON_24) {}
-
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params,
-        helix::SharedCallback<void(const json&)> success_cb,
-        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-        bool silent = false,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
-        if (method == "server.history.list") {
-            parked = std::move(success_cb);
-            return 0;
-        }
-        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
-                                                 std::move(error_cb), timeout_ms, silent, intent);
-    }
-
-    helix::SharedCallback<void(const json&)> parked;
-};
+// Moonraker replies arrive on the WebSocket thread, so a panel that has left the
+// screen can still be handed one: a test holds `server.history.list` unanswered and
+// chooses the moment it lands.
+constexpr const char* kHistoryList = "server.history.list";
 
 class HistoryFetchLifetimeFixture : public LVGLUITestFixture {
   public:
     HistoryFetchLifetimeFixture() {
-        client.connect("ws://mock/websocket", []() {}, []() {});
         api = std::make_unique<MoonrakerAPI>(client, get_printer_state());
         previous_api_ = get_moonraker_api();
         set_moonraker_api(api.get());
@@ -208,8 +156,6 @@ class HistoryFetchLifetimeFixture : public LVGLUITestFixture {
         settle();
         set_moonraker_api(previous_api_);
         api.reset();
-        client.stop_temperature_simulation();
-        client.disconnect();
     }
 
     static void settle() {
@@ -230,7 +176,7 @@ class HistoryFetchLifetimeFixture : public LVGLUITestFixture {
         return reply;
     }
 
-    ParkingClient client;
+    helix::test::FakeMoonrakerClient client;
     std::unique_ptr<MoonrakerAPI> api;
     HistoryListPanel panel;
 
@@ -244,12 +190,11 @@ TEST_CASE_METHOD(HistoryFetchLifetimeFixture,
                  "A history reply landing after the panel leaves the screen is dropped",
                  "[history][lifetime][1578]") {
     panel.refresh_from_api();
-    REQUIRE(client.parked != nullptr);
     REQUIRE(HistoryListPanelTestAccess::jobs(panel).empty());
 
     panel.on_deactivate(DeactivateReason::NavigateAway);
 
-    client.parked(one_job_reply());
+    REQUIRE(client.reply_to_last(kHistoryList, one_job_reply()));
     settle();
 
     CHECK(HistoryListPanelTestAccess::jobs(panel).empty());
@@ -258,9 +203,8 @@ TEST_CASE_METHOD(HistoryFetchLifetimeFixture,
 TEST_CASE_METHOD(HistoryFetchLifetimeFixture, "A history reply arriving on screen still populates",
                  "[history][lifetime][1578]") {
     panel.refresh_from_api();
-    REQUIRE(client.parked != nullptr);
 
-    client.parked(one_job_reply());
+    REQUIRE(client.reply_to_last(kHistoryList, one_job_reply()));
     settle();
 
     CHECK(HistoryListPanelTestAccess::jobs(panel).size() == 1);

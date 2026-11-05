@@ -6,6 +6,7 @@
 // decides when a print held by an unheated chamber is put to the user.
 #include "ui_modal.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/abort_manager_test_access.h"
@@ -191,67 +192,17 @@ namespace {
 
 /// Answers the appliance's set-target method the way the test asks: taken,
 /// refused, or absent (an older glue Moonraker has no endpoint for).
-class RouteMockClient : public MoonrakerClientMock {
-  public:
-    using MoonrakerClientMock::MoonrakerClientMock;
-
-    enum class Mode { Accept, Refuse, Missing };
-    Mode mode = Mode::Accept;
-    std::vector<double> route_targets;
-    /// When set, the route answers this "result" instead of the mode's.
-    nlohmann::json reply;
-
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const nlohmann::json& params,
-        helix::SharedCallback<void(const nlohmann::json&)> success_cb,
-        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-        bool silent = false,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
-        if (method == "printer.dragonbreath.set_target") {
-            route_targets.push_back(params.value("target", -1.0));
-            if (mode == Mode::Missing) {
-                MoonrakerError err;
-                err.type = MoonrakerErrorType::JSON_RPC_ERROR;
-                err.code = -32601;
-                err.message = "Method not found";
-                if (error_cb)
-                    error_cb(err);
-            } else if (success_cb && !reply.is_null()) {
-                success_cb({{"result", reply}});
-            } else if (success_cb) {
-                success_cb({{"result",
-                             {{"accepted", mode == Mode::Accept},
-                              {"reason", mode == Mode::Accept ? "" : "power_off"},
-                              {"seq", 1}}}});
-            }
-            return 0;
-        }
-        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
-                                                 std::move(error_cb), timeout_ms, silent, intent);
-    }
-
-    std::vector<std::string> heater_gcode() {
-        std::vector<std::string> out;
-        for (const auto& g : gcode_script_history()) {
-            if (g.find("SET_HEATER_TEMPERATURE") != std::string::npos ||
-                g.find("M104") != std::string::npos) {
-                out.push_back(g);
-            }
-        }
-        return out;
-    }
-};
-
 struct RouteFixture : public LVGLTestFixture {
-    RouteMockClient client;
+    static constexpr const char* kRoute = "printer.dragonbreath.set_target";
+
+    helix::test::FakeMoonrakerClient client;
     helix::PrinterState& state;
     MoonrakerAPI api;
     std::shared_ptr<helix::TemperatureController> controller;
     helix_test::ScopedSharedResource<helix::TemperatureController> scope;
 
     RouteFixture()
-        : client(MoonrakerClientMock::PrinterType::VORON_24), state(reset_global_state()),
-          api(client, state),
+        : state(reset_global_state()), api(client, state),
           controller(std::make_shared<helix::TemperatureController>(state, &api)),
           scope(controller) {
         state.set_klippy_state_sync(helix::KlippyState::READY);
@@ -261,11 +212,52 @@ struct RouteFixture : public LVGLTestFixture {
                                               "extruder", "heater_bed"});
         state.set_hardware(hardware);
         drain();
-        client.clear_gcode_script_history();
+        client.rpc_calls.clear();
+        client.respond_to("printer.gcode.script", nlohmann::json{{"result", "ok"}});
+        route_answers(route_verdict(true));
     }
 
     ~RouteFixture() override {
         drain();
+    }
+
+    void route_answers(const nlohmann::json& result) {
+        client.respond_to(kRoute, nlohmann::json{{"result", result}});
+    }
+
+    static nlohmann::json route_verdict(bool accepted) {
+        return {{"accepted", accepted}, {"reason", accepted ? "" : "power_off"}, {"seq", 1}};
+    }
+
+    void route_missing() {
+        MoonrakerError err;
+        err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+        err.code = -32601;
+        err.message = "Method not found";
+        client.fail_on(kRoute, err);
+    }
+
+    std::vector<double> route_targets() const {
+        std::vector<double> out;
+        for (const auto& call : client.rpc_calls) {
+            if (call.method == kRoute) {
+                out.push_back(call.params.value("target", -1.0));
+            }
+        }
+        return out;
+    }
+
+    std::vector<std::string> heater_gcode() const {
+        std::vector<std::string> out;
+        for (const auto& call : client.rpc_calls) {
+            const std::string script = call.params.value("script", std::string());
+            if (call.method == "printer.gcode.script" &&
+                (script.find("SET_HEATER_TEMPERATURE") != std::string::npos ||
+                 script.find("M104") != std::string::npos)) {
+                out.push_back(script);
+            }
+        }
+        return out;
     }
 
     static helix::PrinterState& reset_global_state() {
@@ -284,35 +276,35 @@ TEST_CASE_METHOD(RouteFixture, "chamber targets take the backend's route around 
     SECTION("a chamber target goes by the route, not gcode") {
         controller->set_target(helix::HeaterType::Chamber, 60.0);
         drain();
-        REQUIRE(client.route_targets == std::vector<double>{60.0});
-        CHECK(client.heater_gcode().empty());
+        REQUIRE(route_targets() == std::vector<double>{60.0});
+        CHECK(heater_gcode().empty());
         CHECK(controller->last_chamber_target_c() == Catch::Approx(60.0));
     }
 
     SECTION("other heaters never do") {
         controller->set_target(helix::HeaterType::Nozzle, 210.0);
         drain();
-        CHECK(client.route_targets.empty());
-        CHECK(client.heater_gcode().size() == 1);
+        CHECK(route_targets().empty());
+        CHECK(heater_gcode().size() == 1);
     }
 
     SECTION("a glue without the route falls back to gcode, once and for good") {
-        client.mode = RouteMockClient::Mode::Missing;
+        route_missing();
         controller->set_target(helix::HeaterType::Chamber, 60.0);
         drain();
-        CHECK(client.route_targets.size() == 1);
-        REQUIRE(client.heater_gcode().size() == 1);
-        CHECK(client.heater_gcode()[0].find("HEATER=dragonbreath TARGET=60") != std::string::npos);
+        CHECK(route_targets().size() == 1);
+        REQUIRE(heater_gcode().size() == 1);
+        CHECK(heater_gcode()[0].find("HEATER=dragonbreath TARGET=60") != std::string::npos);
         CHECK_FALSE(controller->chamber_has_direct_route());
 
         controller->set_target(helix::HeaterType::Chamber, 50.0);
         drain();
-        CHECK(client.route_targets.size() == 1);
-        CHECK(client.heater_gcode().size() == 2);
+        CHECK(route_targets().size() == 1);
+        CHECK(heater_gcode().size() == 2);
     }
 
     SECTION("a refusal reaches the caller as an error") {
-        client.mode = RouteMockClient::Mode::Refuse;
+        route_answers(route_verdict(false));
         std::string reason;
         helix::SendOptions opts;
         opts.toast = false;
@@ -324,7 +316,7 @@ TEST_CASE_METHOD(RouteFixture, "chamber targets take the backend's route around 
         // The vendor code never reaches the user.
         CHECK(reason == lv_tr("The heater didn't accept the command."));
         CHECK_FALSE(succeeded);
-        CHECK(client.heater_gcode().empty());
+        CHECK(heater_gcode().empty());
     }
 }
 
@@ -337,16 +329,16 @@ TEST_CASE_METHOD(RouteFixture,
     SECTION("with the route, the retry goes by it") {
         controller->retry_chamber_target(60.0, done);
         drain();
-        CHECK(client.route_targets == std::vector<double>{60.0});
+        CHECK(route_targets() == std::vector<double>{60.0});
         CHECK(outcomes == std::vector{helix::ChamberRouteOutcome::Accepted});
     }
 
     SECTION("a missing route fails the retry instead of sending gcode") {
-        client.mode = RouteMockClient::Mode::Missing;
+        route_missing();
         controller->retry_chamber_target(60.0, done);
         drain();
         CHECK(outcomes == std::vector{helix::ChamberRouteOutcome::Unavailable});
-        CHECK(client.heater_gcode().empty());
+        CHECK(heater_gcode().empty());
         CHECK_FALSE(controller->chamber_has_direct_route());
     }
 
@@ -355,16 +347,16 @@ TEST_CASE_METHOD(RouteFixture,
         controller->retry_chamber_target(60.0, done);
         drain();
         CHECK(outcomes == std::vector{helix::ChamberRouteOutcome::Unavailable});
-        CHECK(client.route_targets.empty());
-        CHECK(client.heater_gcode().empty());
+        CHECK(route_targets().empty());
+        CHECK(heater_gcode().empty());
     }
 
     SECTION("a reply still pending is not a failure") {
-        client.reply = {{"accepted", nullptr},
-                        {"pending", true},
-                        {"reason", nullptr},
-                        {"seq", nullptr},
-                        {"target", 60.0}};
+        route_answers({{"accepted", nullptr},
+                       {"pending", true},
+                       {"reason", nullptr},
+                       {"seq", nullptr},
+                       {"target", 60.0}});
         controller->retry_chamber_target(60.0, done);
         drain();
         CHECK(outcomes == std::vector{helix::ChamberRouteOutcome::Pending});
@@ -385,11 +377,11 @@ TEST_CASE_METHOD(RouteFixture, "what the route answers reaches a plain chamber s
     opts.on_success = [&succeeded]() { succeeded = true; };
 
     SECTION("superseded: the newer target governs, nothing failed") {
-        client.reply = {{"accepted", false},
-                        {"pending", false},
-                        {"reason", "superseded"},
-                        {"seq", 4},
-                        {"target", 50.0}};
+        route_answers({{"accepted", false},
+                       {"pending", false},
+                       {"reason", "superseded"},
+                       {"seq", 4},
+                       {"target", 50.0}});
         controller->set_target(helix::HeaterType::Chamber, 50.0, opts);
         drain();
         CHECK(succeeded);
@@ -397,11 +389,11 @@ TEST_CASE_METHOD(RouteFixture, "what the route answers reaches a plain chamber s
     }
 
     SECTION("a shut-down printer is said so") {
-        client.reply = {{"accepted", false},
-                        {"pending", false},
-                        {"reason", "klipper_shutdown"},
-                        {"seq", nullptr},
-                        {"target", 50.0}};
+        route_answers({{"accepted", false},
+                       {"pending", false},
+                       {"reason", "klipper_shutdown"},
+                       {"seq", nullptr},
+                       {"target", 50.0}});
         controller->set_target(helix::HeaterType::Chamber, 50.0, opts);
         drain();
         CHECK_FALSE(succeeded);
@@ -411,11 +403,11 @@ TEST_CASE_METHOD(RouteFixture, "what the route answers reaches a plain chamber s
     }
 
     SECTION("still pending after the route's wait counts as sent") {
-        client.reply = {{"accepted", nullptr},
-                        {"pending", true},
-                        {"reason", nullptr},
-                        {"seq", nullptr},
-                        {"target", 50.0}};
+        route_answers({{"accepted", nullptr},
+                       {"pending", true},
+                       {"reason", nullptr},
+                       {"seq", nullptr},
+                       {"target", 50.0}});
         controller->set_target(helix::HeaterType::Chamber, 50.0, opts);
         drain();
         CHECK(succeeded);
@@ -453,15 +445,15 @@ TEST_CASE_METHOD(RouteFixture, "Try again resends the target the heater turned d
     CHECK(helix::ui::ChamberStallPrompt::retry_target_c() == Catch::Approx(60.0));
     REQUIRE(helix::ui::ChamberStallPrompt::retry());
     drain();
-    CHECK(client.route_targets == std::vector<double>{60.0});
-    CHECK(client.heater_gcode().empty());
+    CHECK(route_targets() == std::vector<double>{60.0});
+    CHECK(heater_gcode().empty());
 
     SECTION("with no route it sends nothing") {
         controller->set_chamber_actions("", "", 0.0, "");
         CHECK_FALSE(helix::ui::ChamberStallPrompt::retry());
         drain();
-        CHECK(client.route_targets.size() == 1);
-        CHECK(client.heater_gcode().empty());
+        CHECK(route_targets().size() == 1);
+        CHECK(heater_gcode().empty());
     }
 }
 
@@ -476,14 +468,14 @@ TEST_CASE_METHOD(RouteFixture, "the banner's Retry never queues gcode behind a j
         REQUIRE(lv_subject_get_int(state.print_state().get_job_holds_machine_subject()) == 1);
         TemperatureService::on_chamber_retry_target_clicked(nullptr);
         drain();
-        CHECK(client.heater_gcode().empty());
+        CHECK(heater_gcode().empty());
     }
 
     SECTION("with no job, gcode is fine") {
         TemperatureService::on_chamber_retry_target_clicked(nullptr);
         drain();
-        REQUIRE(client.heater_gcode().size() == 1);
-        CHECK(client.heater_gcode()[0].find("TARGET=60") != std::string::npos);
+        REQUIRE(heater_gcode().size() == 1);
+        CHECK(heater_gcode()[0].find("TARGET=60") != std::string::npos);
     }
 }
 
@@ -606,14 +598,14 @@ TEST_CASE_METHOD(RouteFixture, "Cancel print ends the chamber wait the way it ca
     SECTION("M191: clear the target by the route, then cancel without probing") {
         helix::ui::ChamberStallPrompt::cancel_print(helix::WaitKind::M191);
         drain();
-        CHECK(client.route_targets == std::vector<double>{0.0});
+        CHECK(route_targets() == std::vector<double>{0.0});
         CHECK(AbortManager::instance().get_state() == AbortManager::State::SENT_CANCEL);
     }
 
     SECTION("TEMPERATURE_WAIT: nothing happens before the user confirms the emergency stop") {
         helix::ui::ChamberStallPrompt::cancel_print(helix::WaitKind::TemperatureWait);
         drain();
-        CHECK(client.route_targets.empty());
+        CHECK(route_targets().empty());
         CHECK(AbortManager::instance().get_state() == AbortManager::State::IDLE);
     }
 
@@ -625,7 +617,7 @@ TEST_CASE_METHOD(RouteFixture, "Cancel print ends the chamber wait the way it ca
     SECTION("an unknown wait clears the target and cancels without probing the queue") {
         helix::ui::ChamberStallPrompt::cancel_print(helix::WaitKind::Other);
         drain();
-        CHECK(client.route_targets == std::vector<double>{0.0});
+        CHECK(route_targets() == std::vector<double>{0.0});
         CHECK(AbortManager::instance().get_state() == AbortManager::State::SENT_CANCEL);
     }
 
