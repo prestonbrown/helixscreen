@@ -89,6 +89,11 @@
 # (<parent of HELIX_TEST_TREES>/mutate/<tree>), so two trees mutate at once.
 # Its first run copies the most recently used checkout, build/ included.
 #
+# Every run waits for the host's one-minute load to fall under its thread count
+# before it starts, and refuses after an hour over it. HELIX_TEST_MAX_LOAD names
+# another ceiling, or 0 for no wait. A host whose load cannot be read does not
+# hold a run back.
+#
 # The patched submodules are mirrored as they are on disk, patches applied,
 # not pristine: `make reapply-patches` resets them with git, which a mirror
 # has none of, and the build's marker check confirms each patch's effect by
@@ -140,6 +145,10 @@ SHARD_ARTIFACTS=build/shard-artifacts                    # failing shard logs, m
 # can go unanswered for well over ten seconds and still be alive, and dropping
 # it throws away the run's verdict. ConnectTimeout bounds one that never answers.
 SSH_OPTS=(-o ConnectTimeout=3 -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=12)
+MAX_LOAD="${HELIX_TEST_MAX_LOAD:-}"                      # empty: the host's thread count; 0: never wait
+LOAD_POLL_SECS="${HELIX_TEST_LOAD_POLL_SECS:-60}"        # between load checks on a busy host
+LOAD_WAIT_SECS="${HELIX_TEST_LOAD_WAIT_SECS:-3600}"      # how long a run waits before it refuses
+LOADAVG_FILE="${HELIX_TEST_LOADAVG_FILE:-/proc/loadavg}" # on the test host
 ORPHAN_POLL_SECS="${HELIX_TEST_ORPHAN_POLL_SECS:-30}"    # how often to re-check an orphaned build
 RECONNECT_SECS="${HELIX_TEST_RECONNECT_SECS:-900}"       # how long a dropped job follow keeps reconnecting
 RECONNECT_PAUSE_SECS="${HELIX_TEST_RECONNECT_PAUSE_SECS:-5}"  # between reconnect attempts
@@ -798,6 +807,45 @@ now_ns() {
     esac
 }
 
+# Prints "<one-minute load, whole part> <ceiling>" for the test host, or nothing
+# when either cannot be read.
+host_load() {
+    local out load ceiling
+    # shellcheck disable=SC2087 # LOADAVG_FILE is a local setting, expanded here.
+    out=$(ssh "${SSH_OPTS[@]}" "$HOST" bash -se 2>/dev/null <<REMOTE
+cut -d" " -f1 "$LOADAVG_FILE"
+nproc
+REMOTE
+    ) || return 0
+    load=$(printf "%s\\n" "$out" | sed -n 1p)
+    load=${load%%.*}
+    ceiling=${MAX_LOAD:-$(printf "%s\\n" "$out" | sed -n 2p)}
+    case "$load$ceiling" in "" | *[!0-9]*) return 0 ;; esac
+    if [ -n "$load" ] && [ -n "$ceiling" ]; then echo "$load $ceiling"; fi
+}
+
+# Holds a run back while the host is over its ceiling, printing the reading at
+# the start and every ten polls so a long wait still shows in the log.
+wait_for_load() {
+    [ "$MAX_LOAD" = 0 ] && return 0
+    local reading load ceiling waited=0 polls=0
+    while :; do
+        reading=$(host_load)
+        [ -n "$reading" ] || return 0
+        load=${reading% *}
+        ceiling=${reading#* }
+        [ "$load" -lt "$ceiling" ] && return 0
+        if [ "$waited" -ge "$LOAD_WAIT_SECS" ]; then
+            echo "✗ $HOST load $load is still over its ceiling of $ceiling after ${waited}s; not starting" >&2
+            exit 1
+        fi
+        [ $((polls % 10)) -eq 0 ] && echo "→ $HOST load $load, ceiling $ceiling; waiting" >&2
+        sleep "$LOAD_POLL_SECS"
+        waited=$((waited + LOAD_POLL_SECS))
+        polls=$((polls + 1))
+    done
+}
+
 probe() {
     if ! ssh "${SSH_OPTS[@]}" "$HOST" true 2>/dev/null; then
         echo "→ $HOST unreachable: sweep runs here"
@@ -1029,6 +1077,8 @@ fetch_shard_artifacts() {
     return 0
 }
 echo "→ $HOST:$CONTAINER $RUNDIR @ $PROVENANCE, log $LOG"
+
+wait_for_load
 
 # One job per tree at a time: a second run would sync or reset files under the
 # first one's build. The lock covers the sync too, so it is taken first.
