@@ -150,8 +150,8 @@ translations:
   = Loosen: = 緩める
   = Tighten: = 締める
   A: A
-  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
-  : "0.2 mmノズルでは一部のフィラメントを印刷できません: PA、PCおよびPCTG、TPU、PVA、PEBA、カーボンファイバー・グラスファイバー入り、Glow、Marble、Wood。このツールヘッドにそのいずれかが装填されている場合、プリンターはフィラメント情報を消去するため、再設定が必要です。"
+  ? A 0.2 mm nozzle can't print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again.
+  : "0.2 mmノズルでは、PA、PC、TPU、カーボンファイバー・グラスファイバー入りなど、印刷できないフィラメントがあります。このツールヘッドにそのいずれかが装填されている場合、プリンターはフィラメント情報を消去するため、再設定が必要です。"
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'アラートやサウンド用のブザーまたはスピーカー。再生内容はサウンド設定で選べます。'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Moonrakerが配信するカメラ。ホーム画面にカメラウィジェットを追加すると、印刷中も映像を確認できます。'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。'
@@ -1751,6 +1751,7 @@ translations:
   Hide Firmware Noise: ファームウェアノイズを非表示
   Hide Temperature Reports: 温度レポートを非表示
   Hide the on-screen keyboard while a USB keyboard is attached: USBキーボード接続中は画面キーボードを非表示にする
+  High Flow needs a 0.4 mm nozzle: "High Flowには0.4 mmノズルが必要です"
   High Fly: '雲の上'
   High Water Mark: 最大値
   Hold anywhere to cancel: どこかを長押ししてキャンセル

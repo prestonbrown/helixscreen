@@ -17,11 +17,15 @@
  * Each extruder object reports the nozzle fitted to its head (nozzle_diameter,
  * nozzle_volume_type), which the firmware keeps outside configfile.settings.
  * The firmware's control/nozzle_properties webhook, reached through Moonraker
- * as a JSON-RPC method, changes it. That call is a SETTER: a field it is not
- * given keeps its value, and a write is not free even when the value is the
- * same (a 0.2 mm write can clear the head's filament record). So a change
- * carries only the field that differs from what the head reports, and a pick
- * equal to the report sends nothing.
+ * as a JSON-RPC method, changes it. The firmware refuses a call without a
+ * diameter, so every change names one, the head's own when only the flow type
+ * changes. A flow type the call does not name keeps its value. A 0.2 mm write
+ * can clear the head's filament record, so a pick equal to the report sends
+ * nothing.
+ *
+ * The firmware has High Flow parameters only for a 0.4 mm nozzle. High Flow is
+ * offered only there, and a change to any other diameter takes the head back to
+ * standard flow.
  *
  * The webhook refuses inside a successful reply: {"state": "error", "message":
  * ...}. A caller must read the reply, not only the transport's outcome.
@@ -43,6 +47,9 @@ inline constexpr std::array<double, 4> kDiameters = {0.2, 0.4, 0.6, 0.8};
 /// The flow types the firmware accepts, in its own spelling.
 inline constexpr const char* kStandard = "standard";
 inline constexpr const char* kHighFlow = "high_flow";
+
+/// The one diameter the firmware has High Flow parameters for, in mm.
+inline constexpr double kHighFlowDiameter = 0.4;
 
 /// One head's nozzle. Unset means the head has not reported that field.
 struct Nozzle {
@@ -69,10 +76,16 @@ struct Nozzle {
 /// The firmware spelling @p option names, or nullopt for text no row lists.
 [[nodiscard]] std::optional<std::string> volume_type_from_option(const std::string& option);
 
-/// The params of a change to head @p head: {"extruder": head} plus each field
-/// @p wanted sets that differs from @p reported. A diameter the head has not
-/// reported counts as differing. nullopt when nothing differs, so nothing is
-/// sent.
+/// Whether a head's flow type can be changed: it reports a diameter the firmware
+/// accepts, and that diameter is 0.4 mm or the head is on High Flow, which it
+/// must be able to leave.
+[[nodiscard]] bool flow_selectable(const Nozzle& reported);
+
+/// The params of a change to head @p head: {"extruder": head, "diameter": mm},
+/// plus the flow type when it changes. The diameter is @p wanted's, else the
+/// reported one. A diameter the head has not reported counts as differing, and
+/// a diameter other than 0.4 mm also sets a head on High Flow to standard.
+/// nullopt when nothing differs or the change cannot be made, so nothing is sent.
 [[nodiscard]] std::optional<nlohmann::json> change_params(int head, const Nozzle& reported,
                                                           const Nozzle& wanted);
 

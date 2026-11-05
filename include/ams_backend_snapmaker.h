@@ -592,6 +592,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// Unknown ids are reported as not supported.
     AmsError do_execute_device_action(const std::string& action_id, const std::any& value) override;
 
+    /// A nozzle change reports through @p on_done once the firmware has answered;
+    /// every other action as the base class does.
+    AmsError do_run_device_action(const std::string& action_id, const std::any& value,
+                                  DeviceActionDone on_done) override;
+
     /// Each head's nozzle as the firmware last reported it.
     [[nodiscard]] std::array<snapmaker::nozzle::Nozzle, snapmaker::kToolCount>
     reported_nozzles() const;
@@ -1229,15 +1234,14 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     [[nodiscard]] bool print_in_progress_locked() const;
 
     /// Sends a nozzle change (@p params from build_nozzle_change()) and reads
-    /// the firmware's reply. A refusal, an unexpected reply or a failed send
-    /// goes to nozzle_change_failed().
-    AmsError send_nozzle_change(nlohmann::json params);
+    /// the firmware's reply, which @p on_done (may be empty) receives. A refusal,
+    /// an unexpected reply or a failed send goes to nozzle_change_failed().
+    AmsError send_nozzle_change(nlohmann::json params, DeviceActionDone on_done);
 
-    /// Main thread: tells the user the nozzle was not changed, and why when
-    /// @p reason says (the firmware's or the transport's words), then
-    /// re-announces the backend's state, so a row showing the refused pick
+    /// Main thread: hands @p error to @p on_done, or shows it when there is none,
+    /// then re-announces the backend's state, so a row showing the refused pick
     /// goes back to the reported value.
-    void nozzle_change_failed(const std::string& reason);
+    void nozzle_change_failed(const AmsError& error, const DeviceActionDone& on_done);
 
     /// Apply this frame's print_stats.state; a print that ends forgets the
     /// unconfirmed loads and the task judgement. Caller holds mutex_.

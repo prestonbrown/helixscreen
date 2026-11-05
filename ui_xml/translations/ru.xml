@@ -180,7 +180,7 @@
   <translation tag="= Loosen" ru="= Ослабить"/>
   <translation tag="= Tighten" ru="= Затянуть"/>
   <translation tag="A" ru="A"/>
-  <translation tag="A 0.2 mm nozzle can&apos;t print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." ru="Сопло 0,2 мм не может печатать некоторые филаменты: PA, PC и PCTG, TPU, PVA, PEBA, с углеволокном или стекловолокном, Glow, Marble и Wood. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." ru="Сопло 0,2 мм может печатать не все филаменты: в их числе PA, PC, TPU и материалы с углеволокном или стекловолокном. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." ru="Зуммер или динамик для оповещений и звуков. Что воспроизводится, настраивается в настройках звука."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." ru="Камера, которую транслирует Moonraker. Добавьте виджет камеры на главный экран, чтобы смотреть ее, в том числе во время печати."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ru="Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры."/>
@@ -1729,6 +1729,7 @@
   <translation tag="Hide Firmware Noise" ru="Скрыть служебные сообщения прошивки"/>
   <translation tag="Hide Temperature Reports" ru="Скрыть отчёты о температуре"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" ru="Скрывать экранную клавиатуру, пока подключена USB-клавиатура"/>
+  <translation tag="High Flow needs a 0.4 mm nozzle" ru="Для High Flow нужно сопло 0,4 мм"/>
   <translation tag="High Fly" ru="Над облаками"/>
   <translation tag="High Water Mark" ru="Пиковое значение"/>
   <translation tag="Hold anywhere to cancel" ru="Удерживайте в любом месте для отмены"/>

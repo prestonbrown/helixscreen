@@ -556,7 +556,7 @@ TEST_CASE("picking a 0.2 mm nozzle asks first, other diameters do not",
     REQUIRE(d != nullptr);
     const auto* confirm = d->option_confirm_for("0.2 mm");
     REQUIRE(confirm != nullptr);
-    CHECK(confirm->message.find("PCTG") != std::string::npos);
+    CHECK(confirm->message.find("TPU") != std::string::npos);
     CHECK(confirm->confirm_label == "Change");
     CHECK(d->option_confirm_for("0.4 mm") == nullptr);
     CHECK(d->option_confirm_for("0.6 mm") == nullptr);
@@ -620,23 +620,55 @@ TEST_CASE("a reported nozzle change announces a state change and a repeat does n
     CHECK(changes == 1);
 }
 
-TEST_CASE("a nozzle pick changes only the field that differs from the report",
+TEST_CASE("the flow row is available only where High Flow applies",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    SECTION("0.4 mm") {
+        SnapmakerTestAccess::handle_status(backend, head_frame(1, kStandard04));
+        const auto actions = backend.get_device_actions();
+        const DeviceAction* flow = find_action(actions, "snapmaker_nozzle_flow_t1");
+        REQUIRE(flow != nullptr);
+        CHECK(flow->enabled);
+    }
+    SECTION("0.6 mm on standard flow") {
+        SnapmakerTestAccess::handle_status(
+            backend, head_frame(1, {{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "standard"}}));
+        const auto actions = backend.get_device_actions();
+        const DeviceAction* flow = find_action(actions, "snapmaker_nozzle_flow_t1");
+        REQUIRE(flow != nullptr);
+        CHECK_FALSE(flow->enabled);
+        CHECK(flow->disable_reason == "High Flow needs a 0.4 mm nozzle");
+    }
+    SECTION("0.6 mm still on High Flow can leave it") {
+        SnapmakerTestAccess::handle_status(
+            backend,
+            head_frame(1, {{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "high_flow"}}));
+        const auto actions = backend.get_device_actions();
+        const DeviceAction* flow = find_action(actions, "snapmaker_nozzle_flow_t1");
+        REQUIRE(flow != nullptr);
+        CHECK(flow->enabled);
+    }
+}
+
+TEST_CASE("a nozzle pick names the diameter and only a flow type that changes",
           "[ams][snapmaker][actions][nozzle]") {
     HelixTestFixture fixture;
     AmsBackendSnapmaker backend(nullptr, nullptr);
     SnapmakerTestAccess::handle_status(backend, head_frame(2, kStandard04));
 
-    SECTION("a new diameter carries the diameter alone") {
+    SECTION("a new diameter leaves the flow type out") {
         const auto c = backend.build_nozzle_change("snapmaker_nozzle_diameter_t2", pick("0.6 mm"));
         REQUIRE(c.valid);
         REQUIRE(c.params);
         CHECK(*c.params == nlohmann::json{{"extruder", 2}, {"diameter", 0.6}});
     }
-    SECTION("a new flow type carries the flow type alone") {
+    SECTION("a new flow type also names the head's own diameter") {
         const auto c = backend.build_nozzle_change("snapmaker_nozzle_flow_t2", pick("High Flow"));
         REQUIRE(c.valid);
         REQUIRE(c.params);
-        CHECK(*c.params == nlohmann::json{{"extruder", 2}, {"volume_type", "high_flow"}});
+        CHECK(*c.params ==
+              nlohmann::json{{"extruder", 2}, {"diameter", 0.4}, {"volume_type", "high_flow"}});
     }
     SECTION("the reported value sends nothing") {
         const auto d = backend.build_nozzle_change("snapmaker_nozzle_diameter_t2", pick("0.4 mm"));

@@ -490,14 +490,16 @@ lv_obj_t* AmsDeviceSectionDetailOverlay::row_for(const std::string& action_id) c
 }
 
 AmsError AmsDeviceSectionDetailOverlay::execute(const helix::printer::DeviceAction& action,
-                                                std::any value) {
+                                                std::any value,
+                                                AmsBackend::DeviceActionDone on_done) {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend) {
         spdlog::warn("[{}] No backend available for '{}'", get_name(), action.id);
         return AmsErrorHelper::not_connected("No backend");
     }
     const std::string id = action.id;
-    AmsError result = backend->execute_device_action(id, value);
+    AmsError result = on_done ? backend->run_device_action(id, value, std::move(on_done))
+                              : backend->execute_device_action(id, value);
     if (!result.success()) {
         helix::ui::notify_ams_error(result);
     } else if (value.has_value()) {
@@ -747,9 +749,17 @@ void AmsDeviceSectionDetailOverlay::apply_dropdown_choice(
             }
         }
     }
-    if (execute(action, std::any(choice)).success()) {
-        NOTIFY_INFO(lv_tr("{} set to {}"), device_action_label(action), choice);
-    } else {
+    // A backend the printer answers later reports here once it has, even if the
+    // overlay has closed by then, and redraws an open section itself on a refusal.
+    const AmsError sent = execute(action, std::any(choice),
+                                  [label = device_action_label(action), choice](const AmsError& r) {
+                                      if (r.success()) {
+                                          NOTIFY_INFO(lv_tr("{} set to {}"), label, choice);
+                                      } else {
+                                          notify_ams_error(r);
+                                      }
+                                  });
+    if (!sent.success()) {
         // The backend kept its value; so does the row.
         refresh();
     }

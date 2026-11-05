@@ -147,7 +147,7 @@
   <translation tag="= Loosen" fr="= Desserrer"/>
   <translation tag="= Tighten" fr="= Serrer"/>
   <translation tag="A" fr="A"/>
-  <translation tag="A 0.2 mm nozzle can&apos;t print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." fr="Une buse de 0,2 mm ne peut pas imprimer certains filaments : PA, PC et PCTG, TPU, PVA, PEBA, chargés en fibre de carbone ou de verre, Glow, Marble et Wood. Si l&apos;un d&apos;eux est chargé dans cette tête d&apos;outil, l&apos;imprimante efface ses informations de filament et vous devrez les saisir à nouveau."/>
+  <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." fr="Une buse de 0,2 mm ne peut pas imprimer tous les filaments, notamment PA, PC, TPU et les types chargés en fibre de carbone ou de verre. Si l&apos;un d&apos;eux est chargé dans cette tête d&apos;outil, l&apos;imprimante efface ses informations de filament et vous devrez les saisir à nouveau."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." fr="Un buzzer ou haut-parleur pour les alertes et les sons. Choisissez ce qui est joué dans les paramètres du son."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." fr="Une caméra diffusée par Moonraker. Ajoutez le widget caméra à l&apos;écran d&apos;accueil pour la regarder, y compris pendant une impression."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." fr="Un ventilateur qui fait passer l&apos;air de l&apos;enceinte à travers un filtre. Commandez-le sur l&apos;écran de température de l&apos;enceinte."/>
@@ -1684,6 +1684,7 @@
   <translation tag="Hide Firmware Noise" fr="Masquer le bruit du firmware"/>
   <translation tag="Hide Temperature Reports" fr="Masquer les rapports de température"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" fr="Masquer le clavier à l&apos;écran lorsqu&apos;un clavier USB est branché"/>
+  <translation tag="High Flow needs a 0.4 mm nozzle" fr="High Flow nécessite une buse de 0,4 mm"/>
   <translation tag="High Fly" fr="Au-dessus des nuages"/>
   <translation tag="High Water Mark" fr="Pic d&apos;utilisation"/>
   <translation tag="Hold anywhere to cancel" fr="Maintenez n&apos;importe où pour annuler"/>

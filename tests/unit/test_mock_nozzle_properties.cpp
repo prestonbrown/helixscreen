@@ -149,6 +149,13 @@ TEST_CASE("mock: nozzle_properties keeps the firmware's checks", "[mock][snapmak
               "nozzle_diameter error: 0.5");
         CHECK(client.nozzle_properties(0).first == 0.4);
     }
+    SECTION("a call with no diameter is refused, even one that only changes the flow type") {
+        const json reply = send_to_mock(client, {{"extruder", 1}, {"volume_type", "high_flow"}});
+        CHECK(reply["state"] == "error");
+        CHECK(reply["message"] ==
+              "float() argument must be a string or a real number, not 'NoneType'");
+        CHECK(client.nozzle_properties(1).second == "standard");
+    }
     SECTION("a bad flow type is refused after a good diameter is already set") {
         CHECK(send_to_mock(
                   client, {{"extruder", 2}, {"diameter", 0.8}, {"volume_type", "fast"}})["state"] ==
@@ -167,7 +174,7 @@ TEST_CASE("mock: nozzle_properties keeps the firmware's checks", "[mock][snapmak
         CHECK(send_to_mock(client, {{"extruder", 0}, {"diameter", 0.6}})["state"] == "success");
     }
     SECTION("the objects query reports the stored nozzle") {
-        send_to_mock(client, {{"extruder", 3}, {"volume_type", "high_flow"}});
+        send_to_mock(client, {{"extruder", 3}, {"diameter", 0.4}, {"volume_type", "high_flow"}});
         json status;
         client.send_jsonrpc(
             "printer.objects.query", json{{"objects", {{"extruder3", nullptr}}}},
@@ -201,15 +208,69 @@ TEST_CASE("mock: other printers have no nozzle_properties endpoint", "[mock][noz
     CHECK(failed);
 }
 
-TEST_CASE_METHOD(NozzleFixture, "a nozzle pick sends only the changed field and the head follows",
+TEST_CASE_METHOD(NozzleFixture, "a flow pick names the head's diameter and the head follows",
                  "[mock][snapmaker][nozzle]") {
     REQUIRE(pick("snapmaker_nozzle_flow_t2", "High Flow").success());
     REQUIRE(client.sent.size() == 1);
-    CHECK(client.sent[0] == json{{"extruder", 2}, {"volume_type", "high_flow"}});
+    CHECK(client.sent[0] == json{{"extruder", 2}, {"diameter", 0.4}, {"volume_type", "high_flow"}});
     CHECK(client.nozzle_properties(2) == std::make_pair(0.4, std::string("high_flow")));
     CHECK(user_errors() == 0);
     // The backend reports a failure itself, so the client's own error toast is off.
     CHECK(client.last_send_silent());
+}
+
+TEST_CASE_METHOD(NozzleFixture, "a tracked pick ends when the firmware has answered",
+                 "[mock][snapmaker][nozzle]") {
+    int done = 0;
+    helix::AmsError result;
+    auto on_done = [&](const helix::AmsError& r) {
+        ++done;
+        result = r;
+    };
+    const auto run = [&](const char* id, const char* option) {
+        return backend->run_device_action(id, std::any(std::string(option)), on_done);
+    };
+
+    SECTION("accepted") {
+        REQUIRE(run("snapmaker_nozzle_diameter_t1", "0.6 mm").success());
+        CHECK(done == 0);
+        drain();
+        CHECK(done == 1);
+        CHECK(result.success());
+    }
+    SECTION("refused: the caller gets the firmware's words and shows them") {
+        MoonrakerClientMockTestAccess::set_print_state(client, 1);
+        const int before = state_changes;
+        REQUIRE(run("snapmaker_nozzle_diameter_t1", "0.6 mm").success());
+        CHECK(done == 0);
+        drain();
+        CHECK(done == 1);
+        CHECK_FALSE(result.success());
+        CHECK(result.user_msg.find("Cannot change nozzle properties during printing!") !=
+              std::string::npos);
+        CHECK(result.user_msg.find("Nozzle not changed") != std::string::npos);
+        CHECK(user_errors() == 0);
+        CHECK(state_changes > before);
+    }
+    SECTION("no answer is reported as a timeout, not as a refusal") {
+        client.fail_next(nozzle::kMethod,
+                         MoonrakerError::timeout(nozzle::kMethod, nozzle::kTimeoutMs));
+        REQUIRE(run("snapmaker_nozzle_diameter_t1", "0.6 mm").success());
+        drain();
+        CHECK(done == 1);
+        CHECK(result.result == helix::AmsResult::TIMEOUT);
+    }
+    SECTION("the reported value ends at once, with nothing sent") {
+        REQUIRE(run("snapmaker_nozzle_diameter_t1", "0.4 mm").success());
+        CHECK(done == 1);
+        CHECK(result.success());
+        CHECK(client.sent.empty());
+    }
+    SECTION("a refused send never reports") {
+        CHECK_FALSE(run("snapmaker_nozzle_diameter_t1", "0.5 mm").success());
+        drain();
+        CHECK(done == 0);
+    }
 }
 
 TEST_CASE_METHOD(NozzleFixture, "a pick of the value a head reports sends nothing",

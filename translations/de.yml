@@ -156,8 +156,8 @@ translations:
   = Loosen: = Lösen
   = Tighten: = Anziehen
   A: A
-  ? "A 0.2 mm nozzle can't print some filaments: PA, PC and PCTG, TPU, PVA, PEBA, carbon- or glass-filled, Glow, Marble and Wood. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again."
-  : "Eine 0,2-mm-Düse kann manche Filamente nicht drucken: PA, PC und PCTG, TPU, PVA, PEBA, kohle- oder glasfaserverstärkte, Glow, Marble und Wood. Ist eines davon in diesem Werkzeugkopf geladen, löscht der Drucker dessen Filamentangaben und Sie müssen sie neu einstellen."
+  ? A 0.2 mm nozzle can't print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again.
+  : "Eine 0,2-mm-Düse kann nicht jedes Filament drucken, darunter PA, PC, TPU und kohle- oder glasfaserverstärkte Typen. Ist eines davon in diesem Werkzeugkopf geladen, löscht der Drucker dessen Filamentangaben und Sie müssen sie neu einstellen."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Ein Summer oder Lautsprecher für Warnungen und Töne. Lege in den Soundeinstellungen fest, was abgespielt wird.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Eine Kamera, die Moonraker streamt. Füge das Kamera-Widget zum Startbildschirm hinzu, um sie anzusehen, auch während eines Drucks.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Ein Lüfter, der die Luft im Gehäuse durch einen Filter zieht. Steuere ihn im Kammertemperatur-Bildschirm.'
@@ -1853,6 +1853,7 @@ translations:
   Hide Firmware Noise: Firmware-Rauschen ausblenden
   Hide Temperature Reports: Temperaturberichte ausblenden
   Hide the on-screen keyboard while a USB keyboard is attached: Bildschirmtastatur ausblenden, solange eine USB-Tastatur angeschlossen ist
+  High Flow needs a 0.4 mm nozzle: "High Flow erfordert eine 0,4-mm-Düse"
   High Fly: 'Über den Wolken'
   High Water Mark: Höchststand
   Hold anywhere to cancel: Zum Abbrechen an beliebiger Stelle gedrückt halten

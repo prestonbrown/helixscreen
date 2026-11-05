@@ -6438,9 +6438,10 @@ std::pair<double, std::string> MoonrakerClientMock::nozzle_properties(int head) 
 
 json MoonrakerClientMock::set_nozzle_properties(const json& params) {
     // The firmware's own checks, in its order (extruder.py
-    // _handle_control_nozzle_properties): it compares each value exactly
-    // against its lists, and a diameter is applied before the flow type is
-    // checked, so a bad flow type still leaves a good diameter set.
+    // _handle_control_nozzle_properties): it cannot read a call with no diameter,
+    // it compares each value exactly against its lists, and a diameter is applied
+    // before the flow type is checked, so a bad flow type still leaves a good
+    // diameter set.
     static constexpr std::array<double, 4> kValidDiameters = {0.2, 0.4, 0.6, 0.8};
     static constexpr std::array<const char*, 2> kValidTypes = {"standard", "high_flow"};
     auto refuse = [](std::string message) {
@@ -6450,6 +6451,9 @@ json MoonrakerClientMock::set_nozzle_properties(const json& params) {
     const auto ext = params.find("extruder");
     if (ext == params.end() || !ext->is_number_integer()) {
         return refuse("extruder must be specified!");
+    }
+    if (const auto d = params.find("diameter"); d == params.end() || d->is_null()) {
+        return refuse("float() argument must be a string or a real number, not 'NoneType'");
     }
     const int head = ext->get<int>();
     if (head < 0 || head >= static_cast<int>(nozzle_props_.size())) {
@@ -6465,15 +6469,14 @@ json MoonrakerClientMock::set_nozzle_properties(const json& params) {
     {
         std::lock_guard<std::mutex> lock(nozzle_cal_mutex_);
         auto& nozzle = nozzle_props_[static_cast<size_t>(head)];
-        if (const auto d = params.find("diameter"); d != params.end() && !d->is_null()) {
-            const double mm = d->is_number() ? d->get<double>() : -1.0;
-            if (std::find(kValidDiameters.begin(), kValidDiameters.end(), mm) ==
-                kValidDiameters.end()) {
-                return refuse("nozzle_diameter error: " + d->dump());
-            }
-            nozzle.first = mm;
-            changed["nozzle_diameter"] = mm;
+        const auto d = params.find("diameter");
+        const double mm = d->is_number() ? d->get<double>() : -1.0;
+        if (std::find(kValidDiameters.begin(), kValidDiameters.end(), mm) ==
+            kValidDiameters.end()) {
+            return refuse("nozzle_diameter error: " + d->dump());
         }
+        nozzle.first = mm;
+        changed["nozzle_diameter"] = mm;
         if (const auto t = params.find("volume_type"); t != params.end() && !t->is_null()) {
             const std::string type = t->is_string() ? t->get<std::string>() : t->dump();
             if (std::find_if(kValidTypes.begin(), kValidTypes.end(),
