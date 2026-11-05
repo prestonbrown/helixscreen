@@ -4321,21 +4321,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().capabilities_state().set_spoolman_available(true);
     UpdateQueue::instance().drain();
 
+    SlotInfo loaded = untracked_slot();
+    loaded.brand = "eSUN";
+    loaded.material = "ABS+";
+    loaded.color_rgb = 0x4A4A4A;
+    loaded.color_name = "Deep Gray";
     auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), &api,
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, loaded, &api,
                                   [](const AmsEditOverlay::EditResult&) {}));
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    SlotInfo edited = access.working_info();
-    edited.brand = "eSUN";
-    edited.material = "ABS+";
-    edited.color_rgb = 0x4A4A4A;
-    edited.color_name = "Deep Gray";
-    access.set_working_info(edited);
-
-    access.call_do_spoolman_save(SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
+    lv_obj_t* add = lv_obj_find_by_name(test_screen(), "add_to_spoolman_link");
+    REQUIRE(add != nullptr);
+    lv_obj_send_event(add, LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
