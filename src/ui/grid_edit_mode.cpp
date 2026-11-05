@@ -91,6 +91,24 @@ static constexpr int kEdgeHitFallback = 18;
 static constexpr int kEdgeHitMin = 14;
 static constexpr int kEdgeHitMax = 32;
 static constexpr float kEdgeHitCellDivisor = 6.0f;
+// The touch_target_min token's value, for a theme that has not registered it.
+static constexpr int kMinDragTargetFallback = 48;
+
+/// Whether the press that produced @p e lifted over the object that handles it.
+/// LVGL press-locks a child, so its CLICKED fires wherever the finger lifts; a
+/// drag that happens to start on a chrome pill is not a tap on it. A click with
+/// no input device behind it (remote control, tests) counts.
+static bool released_over_target(lv_event_t* e) {
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev) {
+        return true;
+    }
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+    lv_area_t area;
+    lv_obj_get_coords(static_cast<lv_obj_t*>(lv_event_get_current_target(e)), &area);
+    return point.x >= area.x1 && point.x <= area.x2 && point.y >= area.y1 && point.y <= area.y2;
+}
 
 // disable_widget_clicks_recursive() is in ui_utils.h (helix::ui namespace)
 using helix::ui::disable_widget_clicks_recursive;
@@ -773,11 +791,35 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         return btn;
     };
 
-    remove_btn_ = make_chrome_pill(rel_x1 + widget_w - BTN_SIZE + kBtnOverhang,
-                                   rel_y1 - kBtnOverhang, ICON_TRASH);
+    // A widget too small to hold a pill and a finger-sized drag interior
+    // carries its pills just outside it, inside the grid container, so a drag
+    // aimed at the widget never lands on a pill.
+    int min_drag = static_cast<int>(theme_manager_get_spacing("touch_target_min"));
+    if (min_drag <= 0) {
+        min_drag = kMinDragTargetFallback;
+    }
+    const bool pills_outside =
+        pills_go_outside(widget_w, widget_h, BTN_SIZE - kBtnOverhang, min_drag);
+    const int pill_gap = static_cast<int>(theme_manager_get_spacing("space_xs"));
+    // Screen rect -> the FLOATING position make_chrome_pill() takes.
+    auto to_rel = [&](const lv_area_t& a) {
+        return lv_point_t{a.x1 - container_area.x1 - pad_left, a.y1 - container_area.y1 - pad_top};
+    };
+
+    lv_area_t trash_area{};
+    lv_point_t trash_pos{rel_x1 + widget_w - BTN_SIZE + kBtnOverhang, rel_y1 - kBtnOverhang};
+    if (pills_outside) {
+        trash_area = outside_pill_area(widget_area, BTN_SIZE, container_area, pill_gap,
+                                       PillCorner::TopRight);
+        trash_pos = to_rel(trash_area);
+    }
+    remove_btn_ = make_chrome_pill(trash_pos.x, trash_pos.y, ICON_TRASH);
     lv_obj_add_event_cb(
         remove_btn_,
         [](lv_event_t* ev) {
+            if (!released_over_target(ev)) {
+                return;
+            }
             auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
             self->remove_selected_widget();
         },
@@ -789,11 +831,19 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         auto* raw = lv_obj_get_user_data(widget);
         auto* pw = raw ? static_cast<PanelWidget*>(raw) : nullptr;
         if (pw && pw->has_edit_configure()) {
-            configure_btn_ =
-                make_chrome_pill(rel_x1 - kBtnOverhang, rel_y1 - kBtnOverhang, ICON_SETTINGS);
+            lv_point_t configure_pos{rel_x1 - kBtnOverhang, rel_y1 - kBtnOverhang};
+            if (pills_outside) {
+                configure_pos =
+                    to_rel(outside_pill_area(widget_area, BTN_SIZE, container_area, pill_gap,
+                                             PillCorner::TopLeft, &trash_area));
+            }
+            configure_btn_ = make_chrome_pill(configure_pos.x, configure_pos.y, ICON_SETTINGS);
             lv_obj_add_event_cb(
                 configure_btn_,
                 [](lv_event_t* ev) {
+                    if (!released_over_target(ev)) {
+                        return;
+                    }
                     auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
                     self->configure_selected_widget();
                 },
@@ -1192,6 +1242,63 @@ int GridEditMode::edge_hit_band_for_cell(float cell_px) {
     return std::clamp(static_cast<int>(cell_px / kEdgeHitCellDivisor), kEdgeHitMin, kEdgeHitMax);
 }
 
+int GridEditMode::inward_edge_reach(int band, int widget_px, int min_drag_px) {
+    return std::clamp((widget_px - min_drag_px) / 2, 0, band);
+}
+
+bool GridEditMode::pills_go_outside(int widget_w, int widget_h, int pill_inside_px,
+                                    int min_drag_px) {
+    const int needed = pill_inside_px + min_drag_px;
+    return widget_w < needed || widget_h < needed;
+}
+
+lv_area_t GridEditMode::outside_pill_area(const lv_area_t& tile, int pill_px,
+                                          const lv_area_t& bounds, int gap, PillCorner corner,
+                                          const lv_area_t* avoid) {
+    const int32_t right_x = tile.x2 + 1 + gap;
+    const int32_t left_x = tile.x1 - gap - pill_px;
+    const int32_t above_y = tile.y1 - gap - pill_px;
+    const int32_t below_y = tile.y2 + 1 + gap;
+    const bool prefer_right = corner == PillCorner::TopRight;
+    const int32_t near_x = prefer_right ? right_x : left_x;
+    const int32_t far_x = prefer_right ? left_x : right_x;
+    // The second ring sits one pill further out, for when the first ring is
+    // off the container or taken by @p avoid.
+    const int32_t step = pill_px + gap;
+    const int32_t near_x2 = prefer_right ? right_x + step : left_x - step;
+    const int32_t far_x2 = prefer_right ? left_x - step : right_x + step;
+    const lv_point_t candidates[] = {{near_x, above_y}, {near_x, below_y},  {far_x, above_y},
+                                     {far_x, below_y},  {near_x2, above_y}, {near_x2, below_y},
+                                     {far_x2, above_y}, {far_x2, below_y}};
+
+    auto rect_at = [pill_px](lv_point_t p) {
+        return lv_area_t{p.x, p.y, p.x + pill_px - 1, p.y + pill_px - 1};
+    };
+    auto inside_bounds = [&bounds](const lv_area_t& a) {
+        return a.x1 >= bounds.x1 && a.y1 >= bounds.y1 && a.x2 <= bounds.x2 && a.y2 <= bounds.y2;
+    };
+    auto clear_of_avoid = [avoid](const lv_area_t& a) {
+        return !avoid || a.x2 < avoid->x1 || a.x1 > avoid->x2 || a.y2 < avoid->y1 ||
+               a.y1 > avoid->y2;
+    };
+
+    for (const auto& p : candidates) {
+        const lv_area_t a = rect_at(p);
+        if (inside_bounds(a) && clear_of_avoid(a)) {
+            return a;
+        }
+    }
+    for (const auto& p : candidates) {
+        const lv_area_t a = rect_at(p);
+        if (inside_bounds(a)) {
+            return a;
+        }
+    }
+    const int32_t x = std::clamp(near_x, bounds.x1, std::max(bounds.x1, bounds.x2 - pill_px + 1));
+    const int32_t y = std::clamp(above_y, bounds.y1, std::max(bounds.y1, bounds.y2 - pill_px + 1));
+    return rect_at({x, y});
+}
+
 int GridEditMode::edge_hit_band() const {
     helix::CellMetrics m = current_metrics();
     return edge_hit_band_for_cell(std::min(m.cell_w, m.cell_h));
@@ -1207,17 +1314,18 @@ GridEditMode::ResizeEdge GridEditMode::detect_resize_edge(int px, int py,
                                                           const lv_area_t& widget_area) const {
     const int band = edge_hit_band();
 
-    // The outward reach is always the full band — it lands outside the widget,
-    // where there is nothing to run out of. The inward reach is a ceiling: on a
-    // widget narrower than three bands it shrinks with the widget, so an interior
-    // big enough to grab and drag always survives. A half-cell widget is ~30px
-    // across, where two flat bands would overlap and every pixel would report an
-    // edge.
-    // Explicit template argument: lv_area_get_*() yields int32_t, which is long on
-    // the xtensa toolchain, so deduction against the int band fails there while
-    // succeeding on desktop.
-    const int inward_x = std::min<int32_t>(band, lv_area_get_width(&widget_area) / 3);
-    const int inward_y = std::min<int32_t>(band, lv_area_get_height(&widget_area) / 3);
+    // The outward reach is always the full band: it lands outside the widget,
+    // where there is nothing to run out of. The inward reach yields to a
+    // finger-sized drag interior, so a half-cell widget drags from anywhere
+    // inside it and resizes from just outside its edges.
+    int min_drag = static_cast<int>(theme_manager_get_spacing("touch_target_min"));
+    if (min_drag <= 0) {
+        min_drag = kMinDragTargetFallback;
+    }
+    const int inward_x =
+        inward_edge_reach(band, static_cast<int>(lv_area_get_width(&widget_area)), min_drag);
+    const int inward_y =
+        inward_edge_reach(band, static_cast<int>(lv_area_get_height(&widget_area)), min_drag);
 
     bool near_right = (px >= widget_area.x2 - inward_x && px <= widget_area.x2 + band);
     bool near_left = (px >= widget_area.x1 - band && px <= widget_area.x1 + inward_x);
@@ -2825,7 +2933,8 @@ void GridEditMode::rebuild_lattice() {
             delete_page_btn_,
             [](lv_event_t* ev) {
                 auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
-                if (self && self->grid_input_acts() && self->delete_page_cb_) {
+                if (self && self->grid_input_acts() && self->delete_page_cb_ &&
+                    released_over_target(ev)) {
                     self->delete_page_cb_();
                 }
             },
